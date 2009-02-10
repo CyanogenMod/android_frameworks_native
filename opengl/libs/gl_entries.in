@@ -101,7 +101,7 @@ GL_ENTRY(void, glCompressedTexImage2D,    GLenum, GLint, GLenum, GLsizei, GLsize
 GL_ENTRY(void, glCompressedTexSubImage2D, GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLsizei, const GLvoid*)
 GL_ENTRY(void, glCopyTexImage2D, GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint)
 GL_ENTRY(void, glCopyTexSubImage2D, GLenum, GLint, GLint, GLint, GLint, GLint, GLsizei, GLsizei)
-GL_ENTRY(void, glTexImage2D, GLenum, GLint, GLenum, GLsizei, GLsizei, GLint, GLenum, GLenum, const GLvoid*)
+GL_ENTRY(void, glTexImage2D, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const GLvoid*)
 GL_ENTRY(void, glTexSubImage2D, GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const GLvoid*)
 GL_ENTRY(void, glReadPixels, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, GLvoid *)
 

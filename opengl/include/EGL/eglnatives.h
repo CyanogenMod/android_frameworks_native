@@ -22,23 +22,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /*****************************************************************************/
-
-struct egl_native_window_t;
-struct egl_native_pixmap_t;
-
-
-typedef struct egl_native_window_t*     NativeWindowType;
-typedef struct egl_native_pixmap_t*     NativePixmapType;
-typedef void*                           NativeDisplayType;
-
-/* 
- * This a convenience function to create a NativeWindowType surface
- * that maps to the whole screen
- * This function is actually implemented in libui.so
- */
-
-NativeWindowType android_createDisplaySurface();
 
 /* flags returned from swapBuffer */
 #define EGL_NATIVES_FLAG_SIZE_CHANGED       0x00000001
@@ -151,48 +136,46 @@ struct egl_native_window_t
     /*
      * Hook called by EGL to hold a reference on this structure
      */
-    void        (*incRef)(NativeWindowType window);
+    void        (*incRef)(struct egl_native_window_t* window);
 
     /*
      * Hook called by EGL to release a reference on this structure
      */
-    void        (*decRef)(NativeWindowType window);
+    void        (*decRef)(struct egl_native_window_t* window);
 
     /*
      * Hook called by EGL to perform a page flip. This function
      * may update the size attributes above, in which case it returns
      * the EGL_NATIVES_FLAG_SIZE_CHANGED bit set.
      */
-    uint32_t    (*swapBuffers)(NativeWindowType window);
+    uint32_t    (*swapBuffers)(struct egl_native_window_t* window);
     
-    /*
-     * Hook called by EGL to set the swap rectangle. this hook can be 
-     * null (operation not supported) 
-     */
-    void        (*setSwapRectangle)(NativeWindowType window, int l, int t, int w, int h);
-
     /*
      * Reserved for future use. MUST BE ZERO.
      */
     void        (*reserved_proc_0)(void);
-    
+
+    /*
+     * Reserved for future use. MUST BE ZERO.
+     */
+    void        (*reserved_proc_1)(void);
     
     /*
-     * Hook called by EGL to retrieve the next buffer to render into. 
-     * This call updates this structure.
+     * Reserved for future use. MUST BE ZERO.
      */
-    uint32_t    (*nextBuffer)(NativeWindowType window);
+    void        (*reserved_proc_2)(void);
 
+    
     /*
      * Hook called by EGL when the native surface is associated to EGL
      * (eglCreateWindowSurface). Can be NULL.
      */
-    void        (*connect)(NativeWindowType window);
+    void        (*connect)(struct egl_native_window_t* window);
 
     /*
      * Hook called by EGL when eglDestroySurface is called.  Can be NULL.
      */
-    void        (*disconnect)(NativeWindowType window);
+    void        (*disconnect)(struct egl_native_window_t* window);
     
     /*
      * Reserved for future use. MUST BE ZERO.
@@ -223,6 +206,17 @@ struct egl_native_pixmap_t
 };
 
 /*****************************************************************************/
+
+/* 
+ * This a convenience function to create a NativeWindowType surface
+ * that maps to the whole screen
+ * This function is actually implemented in libui.so
+ */
+
+struct egl_native_window_t* android_createDisplaySurface();
+
+/*****************************************************************************/
+
 
 /*
  * OEM's egl's library (libhgl.so) must imlement these hooks to allocate

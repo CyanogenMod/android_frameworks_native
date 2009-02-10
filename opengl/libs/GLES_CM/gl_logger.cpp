@@ -23,7 +23,10 @@
 
 #include <sys/ioctl.h>
 
-#include <GLES/egl.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES/gl.h>
+#include <GLES/glext.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
@@ -33,12 +36,12 @@
 
 #include "gl_logger.h"
 
+#undef NELEM
+#define NELEM(x) (sizeof(x)/sizeof(*(x)))
+
 // ----------------------------------------------------------------------------
 namespace android {
 // ----------------------------------------------------------------------------
-
-#undef NELEM
-#define NELEM(x) (sizeof(x)/sizeof(*(x)))
 
 template<typename T>
 static int binarySearch(T const sortedArray[], int first, int last, EGLint key)
@@ -225,12 +228,6 @@ private:
     String8 mString;
     int mNumParams;
 };
-
-// ----------------------------------------------------------------------------
-}; // namespace android
-// ----------------------------------------------------------------------------
-
-using namespace android;
 
 #define API_ENTRY(api)                      log_##api
 #define CALL_GL_API(_x, ...)
@@ -785,7 +782,7 @@ void API_ENTRY(glTexEnvxv)(GLenum target, GLenum pname, const GLfixed *params) {
     GLLog("glTexEnvxv") << GLLogEnum(target) << GLLogEnum(pname) << GLLogBuffer<GLfixed>(params);
 }
 
-void API_ENTRY(glTexImage2D)(  GLenum target, GLint level, GLenum internalformat,
+void API_ENTRY(glTexImage2D)(  GLenum target, GLint level, GLint internalformat,
                     GLsizei width, GLsizei height, GLint border, GLenum format,
                     GLenum type, const GLvoid *pixels) {
     CALL_GL_API(glTexImage2D, target, level, internalformat, width, height,
@@ -1057,3 +1054,7 @@ GLbitfield API_ENTRY(glQueryMatrixxOES)(GLfixed* mantissa, GLint* exponent) {
     GLLog("glQueryMatrixxOES") << GLLogBuffer<GLfixed>(mantissa, 16) << GLLogBuffer<GLfixed>(exponent, 16);
     CALL_GL_API_RETURN(glQueryMatrixxOES, mantissa, exponent);
 }
+
+// ----------------------------------------------------------------------------
+}; // namespace android
+// ----------------------------------------------------------------------------

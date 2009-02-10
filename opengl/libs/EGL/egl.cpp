@@ -27,31 +27,22 @@
 #include <linux/android_pmem.h>
 #endif
 
-#include <GLES/egl.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES/gl.h>
+#include <GLES/glext.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 #include <cutils/properties.h>
 #include <cutils/memory.h>
 
-#include <utils/IMemory.h>
-#include <utils/KeyedVector.h>
-#include <utils/threads.h>
-#include <utils/IServiceManager.h>
-#include <utils/IPCThreadState.h>
-#include <utils/Parcel.h>
+#include <utils/RefBase.h>
 
-#include <ui/EGLDisplaySurface.h>
-#include <ui/ISurfaceComposer.h>
+#include "hooks.h"
+#include "egl_impl.h"
 
-#include "gl_logger.h"
 
-#undef NELEM
-
-#define GL_LOGGER                   0
-#define USE_SLOW_BINDING            0
-#define NELEM(x)                    (sizeof(x)/sizeof(*(x)))
-#define MAX_NUMBER_OF_GL_EXTENSIONS 32
 #define MAKE_CONFIG(_impl, _index)  ((EGLConfig)(((_impl)<<24) | (_index)))
 #define setError(_e, _r) setErrorEtc(__FUNCTION__, __LINE__, _e, _r)
 
@@ -59,26 +50,12 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-//  EGLDisplay are global, not attached to a given thread
-static const unsigned int NUM_DISPLAYS = 1;
-static const unsigned int IMPL_HARDWARE                 = 0;
-static const unsigned int IMPL_SOFTWARE                 = 1;
-static const unsigned int IMPL_HARDWARE_CONTEXT_LOST    = 2;
-static const unsigned int IMPL_SOFTWARE_CONTEXT_LOST    = 3;
-static const unsigned int IMPL_NO_CONTEXT               = 4;
-
-// ----------------------------------------------------------------------------
-
-struct gl_hooks_t;
-
-struct egl_connection_t
-{
-    void volatile *     dso;
-    gl_hooks_t *        hooks;
-    EGLint              major;
-    EGLint              minor;
-    int                 unavailable;
-};
+#define VERSION_MINOR 1
+#define VERSION_MAJOR 4
+static char const * const gVendorString     = "Android";
+static char const * const gVersionString    = "1.31 Android META-EGL";
+static char const * const gClientApiString  = "OpenGL ES";
+static char const * const gExtensionString  = "";
 
 template <int MAGIC>
 struct egl_object_t
@@ -103,7 +80,6 @@ struct egl_display_t : public egl_object_t<'_dpy'>
         char const * version;
         char const * clientApi;
         char const * extensions;
-        char const * extensions_config;
     };
     strings_t   queryString[2];
 };
@@ -152,82 +128,45 @@ struct tls_t
     EGLContext  ctx;
 };
 
-
-// GL / EGL hooks
-
-typedef void(*proc_t)();
-
-struct gl_hooks_t {
-    struct gl_t {
-        #define GL_ENTRY(_r, _api, ...) _r (*_api)(__VA_ARGS__);
-        #include "gl_entries.cpp"
-        #undef GL_ENTRY
-    } gl;
-    struct egl_t {
-        #define EGL_ENTRY(_r, _api, ...) _r (*_api)(__VA_ARGS__);
-        #include "egl_entries.cpp"
-        #undef EGL_ENTRY
-    } egl;
-    struct gl_ext_t {
-        void (*extensions[MAX_NUMBER_OF_GL_EXTENSIONS])(void);
-    } ext;
-};
-
-static char const * const gl_names[] = {
-    #define GL_ENTRY(_r, _api, ...) #_api,
-    #include "gl_entries.cpp"
-    #undef GL_ENTRY
-    NULL
-};
-
-static char const * const egl_names[] = {
-    #define EGL_ENTRY(_r, _api, ...) #_api,
-    #include "egl_entries.cpp"
-    #undef EGL_ENTRY
-    NULL
-};
-
 static void gl_unimplemented() {
     LOGE("called unimplemented OpenGL ES API");
 }
 
 // ----------------------------------------------------------------------------
+// GL / EGL hooks
+// ----------------------------------------------------------------------------
 
-static egl_connection_t gEGLImpl[2];
+#undef GL_ENTRY
+#undef EGL_ENTRY
+#define GL_ENTRY(_r, _api, ...) #_api,
+#define EGL_ENTRY(_r, _api, ...) #_api,
+
+static char const * const gl_names[] = {
+    #include "gl_entries.in"
+    NULL
+};
+
+static char const * const egl_names[] = {
+    #include "egl_entries.in"
+    NULL
+};
+
+#undef GL_ENTRY
+#undef EGL_ENTRY
+
+// ----------------------------------------------------------------------------
+
+egl_connection_t gEGLImpl[2];
 static egl_display_t gDisplay[NUM_DISPLAYS];
-static gl_hooks_t gHooks[5];
 static pthread_mutex_t gThreadLocalStorageKeyMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_key_t gEGLThreadLocalStorageKey = -1;
 
 // ----------------------------------------------------------------------------
 
-#if defined(HAVE_ANDROID_OS) && !USE_SLOW_BINDING && !GL_LOGGER
+gl_hooks_t gHooks[IMPL_NUM_IMPLEMENTATIONS];
+pthread_key_t gGLWrapperKey = -1;
 
-/* special private C library header */
-#include <bionic_tls.h>
-// We have a dedicated TLS slot in bionic
-static inline void setGlThreadSpecific(gl_hooks_t const *value) {
-    ((uint32_t *)__get_tls())[TLS_SLOT_OPENGL_API] = (uint32_t)value;
-}
-static gl_hooks_t const* getGlThreadSpecific() {
-    gl_hooks_t const* hooks = (gl_hooks_t const *)(((unsigned const *)__get_tls())[TLS_SLOT_OPENGL_API]);
-    if (hooks) return hooks;
-    return &gHooks[IMPL_NO_CONTEXT];
-}
-
-#else
-
-static pthread_key_t gGLWrapperKey = -1;
-static inline void setGlThreadSpecific(gl_hooks_t const *value) {
-    pthread_setspecific(gGLWrapperKey, value);
-}
-static gl_hooks_t const* getGlThreadSpecific() {
-    gl_hooks_t const* hooks =  static_cast<gl_hooks_t*>(pthread_getspecific(gGLWrapperKey));
-    if (hooks) return hooks;
-    return &gHooks[IMPL_NO_CONTEXT];
-}
-
-#endif
+// ----------------------------------------------------------------------------
 
 static __attribute__((noinline))
 const char *egl_strerror(EGLint err)
@@ -322,169 +261,13 @@ EGLContext getContext() {
     return tls->ctx;
 }
 
-/*****************************************************************************/
-
-/*
- * we provide our own allocators for the GPU regions, these
- * allocators go through surfaceflinger 
- */
-
-static Mutex                            gRegionsLock;
-static request_gpu_t                    gRegions;
-static sp<ISurfaceComposer>             gSurfaceManager;
-ISurfaceComposer*                       GLES_localSurfaceManager = 0;
-
-const sp<ISurfaceComposer>& getSurfaceFlinger()
-{
-    Mutex::Autolock _l(gRegionsLock);
-
-    /*
-     * There is a little bit of voodoo magic here. We want to access
-     * surfaceflinger for allocating GPU regions, however, when we are
-     * running as part of surfaceflinger, we want to bypass the
-     * service manager because surfaceflinger might not be registered yet.
-     * SurfaceFlinger will populate "GLES_localSurfaceManager" with its
-     * own address, so we can just use that.
-     */
-    if (gSurfaceManager == 0) {
-        if (GLES_localSurfaceManager) {
-            // we're running in SurfaceFlinger's context
-            gSurfaceManager =  GLES_localSurfaceManager;
-        } else {
-            // we're a remote process or not part of surfaceflinger,
-            // go through the service manager
-            sp<IServiceManager> sm = defaultServiceManager();
-            if (sm != NULL) {
-                sp<IBinder> binder = sm->getService(String16("SurfaceFlinger"));
-                gSurfaceManager = interface_cast<ISurfaceComposer>(binder);
-            }
-        }
-    }
-    return gSurfaceManager;
-}
-
-class GPURevokeRequester : public BnGPUCallback
-{
-public:
-    virtual void gpuLost() {
-        LOGD("CONTEXT_LOST: Releasing GPU upon request from SurfaceFlinger.");
-        gEGLImpl[IMPL_HARDWARE].hooks = &gHooks[IMPL_HARDWARE_CONTEXT_LOST];
-    }
-};
-
-static sp<GPURevokeRequester> gRevokerCallback;
-
-
-static request_gpu_t* gpu_acquire(void* user)
-{
-    sp<ISurfaceComposer> server( getSurfaceFlinger() );
-
-    Mutex::Autolock _l(gRegionsLock);
-    if (server == NULL) {
-        return 0;
-    }
-    
-    ISurfaceComposer::gpu_info_t info;
-    
-    if (gRevokerCallback == 0)
-        gRevokerCallback = new GPURevokeRequester();
-
-    status_t err = server->requestGPU(gRevokerCallback, &info);
-    if (err != NO_ERROR) {
-        LOGD("requestGPU returned %d", err);
-        return 0;
-    }
-
-    bool failed = false;
-    request_gpu_t* gpu = &gRegions;
-    memset(gpu, 0, sizeof(*gpu));
-    
-    if (info.regs != 0) {
-        sp<IMemoryHeap> heap(info.regs->getMemory());
-        if (heap != 0) {
-            int fd = heap->heapID();
-            gpu->regs.fd = fd;
-            gpu->regs.base = info.regs->pointer(); 
-            gpu->regs.size = info.regs->size(); 
-            gpu->regs.user = info.regs.get();
-#if HAVE_ANDROID_OS
-            struct pmem_region region;
-            if (ioctl(fd, PMEM_GET_PHYS, &region) >= 0)
-                gpu->regs.phys = (void*)region.offset;
-#endif
-            info.regs->incStrong(gpu);
-        } else {
-            LOGE("GPU register handle %p is invalid!", info.regs.get());
-            failed = true;
-        }
-    }
-
-    for (size_t i=0 ; i<info.count && !failed ; i++) {
-        sp<IMemory>& region(info.regions[i].region);
-        if (region != 0) {
-            sp<IMemoryHeap> heap(region->getMemory());
-            if (heap != 0) {
-                const int fd = heap->heapID();
-                gpu->gpu[i].fd = fd;
-                gpu->gpu[i].base = region->pointer(); 
-                gpu->gpu[i].size = region->size(); 
-                gpu->gpu[i].user = region.get();
-                gpu->gpu[i].offset = info.regions[i].reserved;
-#if HAVE_ANDROID_OS
-                struct pmem_region reg;
-                if (ioctl(fd, PMEM_GET_PHYS, &reg) >= 0)
-                    gpu->gpu[i].phys = (void*)reg.offset;
-#endif
-                region->incStrong(gpu);
-            } else {
-                LOGE("GPU region handle [%d, %p] is invalid!", i, region.get());
-                failed = true;
-            }
-        }
-    }
-    
-    if (failed) {
-        // something went wrong, clean up everything!
-        if (gpu->regs.user) {
-            static_cast<IMemory*>(gpu->regs.user)->decStrong(gpu);
-            for (size_t i=0 ; i<info.count ; i++) {
-                if (gpu->gpu[i].user) {
-                    static_cast<IMemory*>(gpu->gpu[i].user)->decStrong(gpu);
-                }
-            }
-        }
-    }
-    
-    gpu->count = info.count;
-    return gpu;
-}
-
-static int gpu_release(void*, request_gpu_t* gpu)
-{
-    sp<IMemory> regs;
-
-    { // scope for lock
-        Mutex::Autolock _l(gRegionsLock);
-        regs = static_cast<IMemory*>(gpu->regs.user);   
-        gpu->regs.user = 0;
-        if (regs != 0) regs->decStrong(gpu);
-        
-        for (int i=0 ; i<gpu->count ; i++) {
-            sp<IMemory> r(static_cast<IMemory*>(gpu->gpu[i].user));
-            gpu->gpu[i].user = 0;
-            if (r != 0) r->decStrong(gpu);
-        }
-    }
-    
-    // there is a special transaction to relinquish the GPU
-    // (it will happen automatically anyway if we don't do this)
-    Parcel data, reply;
-    // NOTE: this transaction does not require an interface token
-    regs->asBinder()->transact(1000, data, &reply);
-    return 1;
-}
 
 /*****************************************************************************/
+
+class ISurfaceComposer;
+const sp<ISurfaceComposer>& getSurfaceFlinger();
+request_gpu_t* gpu_acquire(void* user);
+int gpu_release(void*, request_gpu_t* gpu);
 
 static __attribute__((noinline))
 void *load_driver(const char* driver, gl_hooks_t* hooks)
@@ -576,18 +359,12 @@ static int cmp_configs(const void* a, const void *b)
     return c0<c1 ? -1 : (c0>c1 ? 1 : 0);
 }
 
-static char const * const gVendorString     = "Android";
-static char const * const gVersionString    = "1.3 Android META-EGL";
-static char const * const gClientApiString  = "OpenGL ES";
-
 struct extention_map_t {
     const char* name;
-    void (*address)(void);
+    __eglMustCastToProperFunctionPointerType address;
 };
 
 static const extention_map_t gExtentionMap[] = {
-    { "eglSwapRectangleANDROID",         (void(*)())&eglSwapRectangleANDROID },
-    { "eglQueryStringConfigANDROID",     (void(*)())&eglQueryStringConfigANDROID },
 };
 
 static extention_map_t gGLExtentionMap[MAX_NUMBER_OF_GL_EXTENSIONS];
@@ -604,109 +381,18 @@ static void(*findProcAddress(const char* name,
 }
 
 // ----------------------------------------------------------------------------
-}; // namespace android
-// ----------------------------------------------------------------------------
-
-using namespace android;
-
-
-// ----------------------------------------------------------------------------
-// extensions for the framework
-// ----------------------------------------------------------------------------
-
-void glColorPointerBounds(GLint size, GLenum type, GLsizei stride,
-        const GLvoid *ptr, GLsizei count) {
-    glColorPointer(size, type, stride, ptr);
-}
-void glNormalPointerBounds(GLenum type, GLsizei stride,
-        const GLvoid *pointer, GLsizei count) {
-    glNormalPointer(type, stride, pointer);
-}
-void glTexCoordPointerBounds(GLint size, GLenum type,
-        GLsizei stride, const GLvoid *pointer, GLsizei count) {
-    glTexCoordPointer(size, type, stride, pointer);
-}
-void glVertexPointerBounds(GLint size, GLenum type,
-        GLsizei stride, const GLvoid *pointer, GLsizei count) {
-    glVertexPointer(size, type, stride, pointer);
-}
-
-
-// ----------------------------------------------------------------------------
-// Actual GL wrappers
-// ----------------------------------------------------------------------------
-
-#if __OPTIMIZE__ && defined(__arm__) && !defined(__thumb__) && !USE_SLOW_BINDING && !GL_LOGGER
-
-    #define API_ENTRY(_api) __attribute__((naked)) _api
-    #define CALL_GL_API(_api, ...)                              \
-         asm volatile(                                          \
-            "mov   r12, #0xFFFF0FFF   \n"                       \
-            "ldr   r12, [r12, #-15]   \n"                       \
-            "ldr   r12, [r12, %[tls]] \n"                       \
-            "cmp   r12, #0            \n"                       \
-            "ldrne pc,  [r12, %[api]] \n"                       \
-            "bx    lr                 \n"                       \
-            :                                                   \
-            : [tls] "J"(TLS_SLOT_OPENGL_API*4),                 \
-              [api] "J"(__builtin_offsetof(gl_hooks_t, gl._api))    \
-            :                                                   \
-            );
-    
-    #define CALL_GL_API_RETURN(_api, ...) \
-        CALL_GL_API(_api, __VA_ARGS__) \
-        return 0; // placate gcc's warnings. never reached.
-
-#else
-
-    #define API_ENTRY(_api) _api
-    #if GL_LOGGER
-
-        #define CALL_GL_API(_api, ...)          \
-            gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-            log_##_api(__VA_ARGS__); \
-            _c->_api(__VA_ARGS__);
-        
-        #define CALL_GL_API_RETURN(_api, ...)   \
-            gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-            log_##_api(__VA_ARGS__); \
-            return _c->_api(__VA_ARGS__)
-
-    #else
-
-        #define CALL_GL_API(_api, ...)          \
-            gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-            _c->_api(__VA_ARGS__);
-        
-        #define CALL_GL_API_RETURN(_api, ...)   \
-            gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-            return _c->_api(__VA_ARGS__)
-
-    #endif
-
-#endif
-
-#include "gl_api.cpp"
-
-#undef API_ENTRY
-#undef CALL_GL_API
-#undef CALL_GL_API_RETURN
-
-// ----------------------------------------------------------------------------
-namespace android {
-// ----------------------------------------------------------------------------
 
 static int gl_context_lost() {
-    setGlThreadSpecific(&gHooks[IMPL_HARDWARE_CONTEXT_LOST]);
+    setGlThreadSpecific(&gHooks[IMPL_CONTEXT_LOST]);
     return 0;
 }
 static int egl_context_lost() {
-    setGlThreadSpecific(&gHooks[IMPL_HARDWARE_CONTEXT_LOST]);
+    setGlThreadSpecific(&gHooks[IMPL_CONTEXT_LOST]);
     return EGL_FALSE;
 }
 static EGLBoolean egl_context_lost_swap_buffers(void*, void*) {
     usleep(100000); // don't use all the CPU
-    setGlThreadSpecific(&gHooks[IMPL_HARDWARE_CONTEXT_LOST]);
+    setGlThreadSpecific(&gHooks[IMPL_CONTEXT_LOST]);
     return EGL_FALSE;
 }
 static GLint egl_context_lost_get_error() {
@@ -721,11 +407,14 @@ static void gl_no_context() {
 }
 static void early_egl_init(void) 
 {
-#if !defined(HAVE_ANDROID_OS) || USE_SLOW_BINDING || GL_LOGGER
+#if !USE_FAST_TLS_KEY
     pthread_key_create(&gGLWrapperKey, NULL);
 #endif
     uint32_t addr = (uint32_t)((void*)gl_no_context);
-    android_memset32((uint32_t*)(void*)&gHooks[IMPL_NO_CONTEXT], addr, sizeof(gHooks[IMPL_NO_CONTEXT]));
+    android_memset32(
+            (uint32_t*)(void*)&gHooks[IMPL_NO_CONTEXT], 
+            addr, 
+            sizeof(gHooks[IMPL_NO_CONTEXT]));
     setGlThreadSpecific(&gHooks[IMPL_NO_CONTEXT]);
 }
 
@@ -802,24 +491,11 @@ static EGLBoolean validate_display_surface(EGLDisplay dpy, EGLSurface surface)
     return EGL_TRUE;
 }
 
-static void add_extension(egl_display_t* dp, char const*& p, const char* ext)
-{
-    if (!strstr(p, ext)) {
-        p = (char const*)realloc((void*)p, strlen(p) + 1 + strlen(ext) + 1);
-        strcat((char*)p, " ");
-        strcat((char*)p, ext);
-    }
-    if (!strstr(dp->extensionsString, ext)) {
-        char const*& es = dp->extensionsString;
-        es = (char const*)realloc((void*)es, strlen(es) + 1 + strlen(ext) + 1);
-        strcat((char*)es, " ");
-        strcat((char*)es, ext);
-    }    
-}
-
 // ----------------------------------------------------------------------------
 }; // namespace android
 // ----------------------------------------------------------------------------
+
+using namespace android;
 
 EGLDisplay eglGetDisplay(NativeDisplayType display)
 {
@@ -867,25 +543,25 @@ EGLDisplay eglGetDisplay(NativeDisplayType display)
     }
     if (cnx->dso && d->dpys[IMPL_HARDWARE]==EGL_NO_DISPLAY) {
         android_memset32(
-                (uint32_t*)(void*)&gHooks[IMPL_HARDWARE_CONTEXT_LOST].gl,
+                (uint32_t*)(void*)&gHooks[IMPL_CONTEXT_LOST].gl,
                 (uint32_t)((void*)gl_context_lost),
-                sizeof(gHooks[IMPL_HARDWARE_CONTEXT_LOST].gl));
+                sizeof(gHooks[IMPL_CONTEXT_LOST].gl));
         android_memset32(
-                (uint32_t*)(void*)&gHooks[IMPL_HARDWARE_CONTEXT_LOST].egl,
+                (uint32_t*)(void*)&gHooks[IMPL_CONTEXT_LOST].egl,
                 (uint32_t)((void*)egl_context_lost),
-                sizeof(gHooks[IMPL_HARDWARE_CONTEXT_LOST].egl));
+                sizeof(gHooks[IMPL_CONTEXT_LOST].egl));
         android_memset32(
-                (uint32_t*)(void*)&gHooks[IMPL_HARDWARE_CONTEXT_LOST].ext,
+                (uint32_t*)(void*)&gHooks[IMPL_CONTEXT_LOST].ext,
                 (uint32_t)((void*)ext_context_lost),
-                sizeof(gHooks[IMPL_HARDWARE_CONTEXT_LOST].ext));
+                sizeof(gHooks[IMPL_CONTEXT_LOST].ext));
 
-        gHooks[IMPL_HARDWARE_CONTEXT_LOST].egl.eglSwapBuffers =
+        gHooks[IMPL_CONTEXT_LOST].egl.eglSwapBuffers =
                 egl_context_lost_swap_buffers;
         
-        gHooks[IMPL_HARDWARE_CONTEXT_LOST].egl.eglGetError =
+        gHooks[IMPL_CONTEXT_LOST].egl.eglGetError =
                 egl_context_lost_get_error;
 
-        gHooks[IMPL_HARDWARE_CONTEXT_LOST].egl.eglTerminate =
+        gHooks[IMPL_CONTEXT_LOST].egl.eglTerminate =
                 gHooks[IMPL_HARDWARE].egl.eglTerminate;
         
         d->dpys[IMPL_HARDWARE] = cnx->hooks->egl.eglGetDisplay(display);
@@ -913,8 +589,8 @@ EGLBoolean eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
     if (!dp) return setError(EGL_BAD_DISPLAY, EGL_FALSE);
 
     if (android_atomic_inc(&dp->refs) > 0) {
-        if (major != NULL) *major = 1;
-        if (minor != NULL) *minor = 2;
+        if (major != NULL) *major = VERSION_MAJOR;
+        if (minor != NULL) *minor = VERSION_MINOR;
         return EGL_TRUE;
     }
     
@@ -923,7 +599,7 @@ EGLBoolean eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
     // initialize each EGL and
     // build our own extension string first, based on the extension we know
     // and the extension supported by our client implementation
-    dp->extensionsString = strdup("EGL_ANDROID_query_string_config");
+    dp->extensionsString = strdup(gExtensionString);
     for (int i=0 ; i<2 ; i++) {
         egl_connection_t* const cnx = &gEGLImpl[i];
         cnx->major = -1;
@@ -947,54 +623,16 @@ EGLBoolean eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
             dp->queryString[i].clientApi =
                 cnx->hooks->egl.eglQueryString(dp->dpys[i], EGL_CLIENT_APIS);
 
-            // Dynamically insert extensions we know about
-            if (cnx->hooks->egl.eglSwapRectangleANDROID)
-                add_extension(dp, dp->queryString[i].extensions,
-                        "EGL_ANDROID_swap_rectangle");
-
-            if (cnx->hooks->egl.eglQueryStringConfigANDROID)
-                add_extension(dp, dp->queryString[i].extensions,
-                        "EGL_ANDROID_query_string_config");
         } else {
             LOGD("%d: eglInitialize() failed (%s)", 
                     i, egl_strerror(cnx->hooks->egl.eglGetError()));
         }
     }
 
-    // Build the extension list that depends on the current config.
-    // It is the intersection of our extension list and the
-    // underlying EGL's extensions list
     EGLBoolean res = EGL_FALSE;
     for (int i=0 ; i<2 ; i++) {
         egl_connection_t* const cnx = &gEGLImpl[i];
         if (cnx->dso && cnx->major>=0 && cnx->minor>=0) {
-            char const* const their_extensions = dp->queryString[i].extensions;            
-            char* our_extensions = strdup(dp->extensionsString);
-            char* const our_extensions_org = our_extensions;
-            char* extensions_config = (char*)calloc(strlen(our_extensions)+2, 1);
-            char* p;
-            do {
-                p = strchr(our_extensions, ' ');
-                if (p)  *p++ = 0;
-                else    p = strchr(our_extensions, 0);
-                if (strstr(their_extensions, our_extensions)) {
-                    strcat(extensions_config, our_extensions);
-                    strcat(extensions_config, " ");
-                }
-                our_extensions = p;
-            } while (*p);
-            free((void*)our_extensions_org);
-
-            // remove the trailing white space
-            if (extensions_config[0] != 0) {
-                size_t l = strlen(extensions_config) - 1; // new size
-                extensions_config[l] = 0; // remove the trailing white space
-                extensions_config = (char*)realloc(extensions_config, l+1);
-            } else {
-                extensions_config = (char*)realloc(extensions_config, 1);
-            }
-            dp->queryString[i].extensions_config = extensions_config;
-
             EGLint n;
             if (cnx->hooks->egl.eglGetConfigs(dp->dpys[i], 0, 0, &n)) {
                 dp->configs[i] = (EGLConfig*)malloc(sizeof(EGLConfig)*n);
@@ -1042,7 +680,6 @@ EGLBoolean eglTerminate(EGLDisplay dpy)
              * threads around). */
             
             free(dp->configs[i]);
-            free((void*)dp->queryString[i].extensions_config);
             free((void*)dp->queryString[i].extensions);
             dp->numConfigs[i] = 0;
             dp->dpys[i] = EGL_NO_DISPLAY;
@@ -1486,7 +1123,7 @@ EGLint eglGetError(void)
 
 void (*eglGetProcAddress(const char *procname))()
 {
-    void (*addr)();
+    __eglMustCastToProperFunctionPointerType addr;
     addr = findProcAddress(procname, gExtentionMap, NELEM(gExtentionMap));
     if (addr) return addr;
 
@@ -1570,7 +1207,7 @@ const char* eglQueryString(EGLDisplay dpy, EGLint name)
         case EGL_VERSION:
             return gVersionString;
         case EGL_EXTENSIONS:
-            return dp->extensionsString;
+            return gExtensionString;
         case EGL_CLIENT_APIS:
             return gClientApiString;
     }
@@ -1729,35 +1366,4 @@ EGLSurface eglCreatePbufferFromClientBuffer(
                 dp->dpys[i], buftype, buffer, dp->configs[i][index], attrib_list);
     }
     return setError(EGL_BAD_CONFIG, EGL_NO_SURFACE);
-}
-
-// ----------------------------------------------------------------------------
-// Android extentions
-// ----------------------------------------------------------------------------
-
-EGLBoolean eglSwapRectangleANDROID(
-        EGLDisplay dpy, EGLSurface draw,
-        EGLint l, EGLint t, EGLint w, EGLint h)
-{    
-    if (!validate_display_surface(dpy, draw))
-        return EGL_FALSE;    
-    egl_display_t const * const dp = get_display(dpy);
-    egl_surface_t const * const s = get_surface(draw);
-    if (s->cnx->hooks->egl.eglSwapRectangleANDROID) {
-        return s->cnx->hooks->egl.eglSwapRectangleANDROID(
-                dp->dpys[s->impl], s->surface, l, t, w, h);
-    }
-    return setError(EGL_BAD_SURFACE, EGL_FALSE);
-}
-
-const char* eglQueryStringConfigANDROID(
-        EGLDisplay dpy, EGLConfig config, EGLint name)
-{
-    egl_display_t const* dp = 0;
-    int i=0, index=0;
-    egl_connection_t* cnx = validate_display_config(dpy, config, dp, i, index);
-    if (cnx) {
-        return dp->queryString[i].extensions_config;
-    }
-    return setError(EGL_BAD_PARAMETER, (const char *)0);
 }

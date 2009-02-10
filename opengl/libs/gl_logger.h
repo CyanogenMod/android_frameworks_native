@@ -17,10 +17,10 @@
 #ifndef ANDROID_GL_LOGGER_H
 #define ANDROID_GL_LOGGER_H
 
-extern "C" {
+namespace android {
 #define GL_ENTRY(r, api, ...) r log_##api(__VA_ARGS__);
-#include "gl_entries.cpp"
+#include "gl_entries.in"
 #undef GL_ENTRY
-};
+}; // namespace android
 
 #endif /* ANDROID_GL_LOGGER_H */

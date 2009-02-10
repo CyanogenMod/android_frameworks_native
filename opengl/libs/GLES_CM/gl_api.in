@@ -415,7 +415,7 @@ void API_ENTRY(glTexEnvxv)(GLenum target, GLenum pname, const GLfixed *params) {
     CALL_GL_API(glTexEnvxv, target, pname, params);
 }
 
-void API_ENTRY(glTexImage2D)(  GLenum target, GLint level, GLenum internalformat,
+void API_ENTRY(glTexImage2D)(  GLenum target, GLint level, GLint internalformat,
                     GLsizei width, GLsizei height, GLint border, GLenum format,
                     GLenum type, const GLvoid *pixels) {
     CALL_GL_API(glTexImage2D, target, level, internalformat, width, height,
