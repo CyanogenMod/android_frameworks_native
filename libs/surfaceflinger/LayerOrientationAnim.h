@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_LAYER_SCREENSHOT_H
-#define ANDROID_LAYER_SCREENSHOT_H
+#ifndef ANDROID_LAYER_ORIENTATION_ANIM_H
+#define ANDROID_LAYER_ORIENTATION_ANIM_H
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -23,12 +23,14 @@
 #include <utils/Parcel.h>
 
 #include "LayerBase.h"
+#include "LayerBitmap.h"
 
 namespace android {
 
 // ---------------------------------------------------------------------------
+class OrientationAnimation;
 
-class LayerScreenshot : public LayerBase
+class LayerOrientationAnim : public LayerBase
 {
 public:    
     static const uint32_t typeInfo;
@@ -36,22 +38,38 @@ public:
     virtual char const* getTypeID() const { return typeID; }
     virtual uint32_t getTypeInfo() const { return typeInfo; }
     
-                LayerScreenshot(SurfaceFlinger* flinger, DisplayID display);
-        virtual ~LayerScreenshot();
+                LayerOrientationAnim(SurfaceFlinger* flinger, DisplayID display,
+                        OrientationAnimation* anim, 
+                        const LayerBitmap& zoomOut,
+                        const LayerBitmap& zoomIn);
+        virtual ~LayerOrientationAnim();
+
+            void onOrientationCompleted();
 
     virtual void onDraw(const Region& clip) const;
-    virtual bool needsBlending() const  { return true; }
+    virtual Point getPhysicalSize() const;
+    virtual void validateVisibility(const Transform& globalTransform);
+    virtual bool needsBlending() const;
     virtual bool isSecure() const       { return false; }
-
-    void takeScreenshot(Mutex& lock, Parcel* reply);
-    
 private:
-    mutable Condition   mCV;
-    Parcel*             mReply;
+    void drawScaled(float scale, float alpha) const;
+
+    OrientationAnimation* mAnim;
+    LayerBitmap mBitmap;
+    LayerBitmap mBitmapIn;
+    nsecs_t mStartTime;
+    nsecs_t mFinishTime;
+    bool mOrientationCompleted;
+    mutable bool mFirstRedraw;
+    mutable float mLastNormalizedTime;
+    mutable float mLastScale;
+    mutable GLuint  mTextureName;
+    mutable GLuint  mTextureNameIn;
+    mutable bool mNeedsBlending;
 };
 
 // ---------------------------------------------------------------------------
 
 }; // namespace android
 
-#endif // ANDROID_LAYER_SCREENSHOT_H
+#endif // ANDROID_LAYER_ORIENTATION_ANIM_H
