@@ -21,11 +21,20 @@
 
 #include <assert.h>
 #include <GLES/gl.h>
+#include <GLES/glext.h>
 
-#include <private/opengles/gl_context.h>
-
-#define _NUM_COMPRESSED_TEXTURE_FORMATS \
-        (::android::OGLES_NUM_COMPRESSED_TEXTURE_FORMATS)
+/* special calls implemented in Android's GLES wrapper used to more
+ * efficiently bound-check passed arrays */
+extern "C" {
+GL_API void GL_APIENTRY glColorPointerBounds(GLint size, GLenum type, GLsizei stride,
+        const GLvoid *ptr, GLsizei count);
+GL_API void GL_APIENTRY glNormalPointerBounds(GLenum type, GLsizei stride,
+        const GLvoid *pointer, GLsizei count);
+GL_API void GL_APIENTRY glTexCoordPointerBounds(GLint size, GLenum type,
+        GLsizei stride, const GLvoid *pointer, GLsizei count);
+GL_API void GL_APIENTRY glVertexPointerBounds(GLint size, GLenum type,
+        GLsizei stride, const GLvoid *pointer, GLsizei count);
+}
 
 static int initialized = 0;
 
@@ -44,7 +53,7 @@ static jfieldID elementSizeShiftID;
 
 /* Cache method IDs each time the class is loaded. */
 
-void
+static void
 nativeClassInitBuffer(JNIEnv *_env)
 {
     jclass nioAccessClassLocal = _env->FindClass("java/nio/NIOAccess");
@@ -65,7 +74,6 @@ nativeClassInitBuffer(JNIEnv *_env)
     elementSizeShiftID =
         _env->GetFieldID(bufferClass, "_elementSizeShift", "I");
 }
-
 
 static void
 nativeClassInit(JNIEnv *_env, jclass glImplClass)
@@ -117,12 +125,18 @@ getPointer(JNIEnv *_env, jobject buffer, jarray *array, jint *remaining)
     return (void *) ((char *) data + offset);
 }
 
-
 static void
 releasePointer(JNIEnv *_env, jarray array, void *data, jboolean commit)
 {
     _env->ReleasePrimitiveArrayCritical(array, data,
 					   commit ? 0 : JNI_ABORT);
+}
+
+static int
+getNumCompressedTextureFormats() {
+    int numCompressedTextureFormats = 0;
+    glGetIntegerv(GL_NUM_COMPRESSED_TEXTURE_FORMATS, &numCompressedTextureFormats);
+    return numCompressedTextureFormats;
 }
 
 // --------------------------------------------------------------------------
