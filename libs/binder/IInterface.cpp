@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2005 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-// All static variables go here, to control initialization and
-// destruction order in the library.
-
-#include <utils/threads.h>
-#include <utils/KeyedVector.h>
+#include <binder/IInterface.h>
 
 namespace android {
-// For TextStream.cpp
-extern Vector<int32_t> gTextBuffers;
 
-// For String8.cpp
-extern void initialize_string8();
-extern void terminate_string8();
+// ---------------------------------------------------------------------------
 
-// For String16.cpp
-extern void initialize_string16();
-extern void terminate_string16();
+sp<IBinder> IInterface::asBinder()
+{
+    return this ? onAsBinder() : NULL;
+}
 
-}   // namespace android
+sp<const IBinder> IInterface::asBinder() const
+{
+    return this ? const_cast<IInterface*>(this)->onAsBinder() : NULL;
+}
+
+// ---------------------------------------------------------------------------
+
+}; // namespace android

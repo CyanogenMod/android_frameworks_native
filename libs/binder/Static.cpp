@@ -17,19 +17,37 @@
 // All static variables go here, to control initialization and
 // destruction order in the library.
 
-#include <utils/threads.h>
-#include <utils/KeyedVector.h>
+#include <private/binder/Static.h>
+
+#include <binder/IPCThreadState.h>
+#include <utils/Log.h>
 
 namespace android {
-// For TextStream.cpp
-extern Vector<int32_t> gTextBuffers;
 
-// For String8.cpp
-extern void initialize_string8();
-extern void terminate_string8();
+// ------------ ProcessState.cpp
 
-// For String16.cpp
-extern void initialize_string16();
-extern void terminate_string16();
+Mutex gProcessMutex;
+sp<ProcessState> gProcess;
+
+class LibUtilsIPCtStatics
+{
+public:
+    LibUtilsIPCtStatics()
+    {
+    }
+    
+    ~LibUtilsIPCtStatics()
+    {
+        IPCThreadState::shutdown();
+    }
+};
+
+static LibUtilsIPCtStatics gIPCStatics;
+
+// ------------ ServiceManager.cpp
+
+Mutex gDefaultServiceManagerLock;
+sp<IServiceManager> gDefaultServiceManager;
+sp<IPermissionController> gPermissionController;
 
 }   // namespace android

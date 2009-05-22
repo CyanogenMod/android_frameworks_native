@@ -14,33 +14,26 @@
  * limitations under the License.
  */
 
+// All static variables go here, to control initialization and
+// destruction order in the library.
 
-#include <stdlib.h>
-#include <stdint.h>
+#include <utils/threads.h>
 
-#include <utils/MemoryBase.h>
-
+#include <binder/IBinder.h>
+#include <binder/IMemory.h>
+#include <binder/ProcessState.h>
+#include <binder/IPermissionController.h>
+#include <binder/IServiceManager.h>
 
 namespace android {
 
-// ---------------------------------------------------------------------------
+// For ProcessState.cpp
+extern Mutex gProcessMutex;
+extern sp<ProcessState> gProcess;
 
-MemoryBase::MemoryBase(const sp<IMemoryHeap>& heap,
-        ssize_t offset, size_t size)
-    : mSize(size), mOffset(offset), mHeap(heap)
-{
-}
+// For ServiceManager.cpp
+extern Mutex gDefaultServiceManagerLock;
+extern sp<IServiceManager> gDefaultServiceManager;
+extern sp<IPermissionController> gPermissionController;
 
-sp<IMemoryHeap> MemoryBase::getMemory(ssize_t* offset, size_t* size) const
-{
-    if (offset) *offset = mOffset;
-    if (size)   *size = mSize;
-    return mHeap;
-}
-
-MemoryBase::~MemoryBase()
-{
-}
-
-// ---------------------------------------------------------------------------
-}; // namespace android
+}   // namespace android

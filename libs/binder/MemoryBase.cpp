@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 The Android Open Source Project
+ * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,33 @@
  * limitations under the License.
  */
 
-#include <utils/IInterface.h>
+
+#include <stdlib.h>
+#include <stdint.h>
+
+#include <binder/MemoryBase.h>
+
 
 namespace android {
 
 // ---------------------------------------------------------------------------
 
-sp<IBinder> IInterface::asBinder()
+MemoryBase::MemoryBase(const sp<IMemoryHeap>& heap,
+        ssize_t offset, size_t size)
+    : mSize(size), mOffset(offset), mHeap(heap)
 {
-    return this ? onAsBinder() : NULL;
 }
 
-sp<const IBinder> IInterface::asBinder() const
+sp<IMemoryHeap> MemoryBase::getMemory(ssize_t* offset, size_t* size) const
 {
-    return this ? const_cast<IInterface*>(this)->onAsBinder() : NULL;
+    if (offset) *offset = mOffset;
+    if (size)   *size = mSize;
+    return mHeap;
+}
+
+MemoryBase::~MemoryBase()
+{
 }
 
 // ---------------------------------------------------------------------------
-
 }; // namespace android
