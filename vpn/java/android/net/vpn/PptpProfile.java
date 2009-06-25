@@ -17,17 +17,14 @@
 package android.net.vpn;
 
 /**
- * Enumeration of all VPN states.
- *
- * A normal VPN connection lifetime starts in {@link IDLE}. When a new
- * connection is about to be set up, it goes to {@link CONNECTING} and then
- * {@link CONNECTED} if successful; back to {@link IDLE} if failed.
- * When the connection is about to be torn down, it goes to
- * {@link DISCONNECTING} and then {@link IDLE}.
- * {@link CANCELLED} is a state when a VPN connection attempt is aborted, and
- * is in transition to {@link IDLE}.
+ * The profile for PPTP type of VPN.
  * {@hide}
  */
-public enum VpnState {
-    CONNECTING, DISCONNECTING, CANCELLED, CONNECTED, IDLE
+public class PptpProfile extends VpnProfile {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public VpnType getType() {
+        return VpnType.PPTP;
+    }
 }
