@@ -1,19 +1,15 @@
 # Build the unit tests.
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 test_src_files := \
-    InputDispatcher_test.cpp
+	PollLoop_test.cpp
 
 LOCAL_SHARED_LIBRARIES := \
+	libz \
+	liblog \
 	libcutils \
 	libutils \
-	libEGL \
-	libbinder \
-	libpixelflinger \
-	libhardware \
-	libhardware_legacy \
-	libui \
 	libstlport
 
 LOCAL_STATIC_LIBRARIES := \
@@ -21,6 +17,8 @@ LOCAL_STATIC_LIBRARIES := \
 	libgtest_main
 
 LOCAL_C_INCLUDES := \
+    external/zlib \
+    external/icu4c/common \
     bionic \
     bionic/libstdc++/include \
     external/gtest/include \
@@ -33,6 +31,3 @@ $(foreach file,$(test_src_files), \
     $(eval LOCAL_MODULE := $(notdir $(file:%.cpp=%))) \
     $(eval include $(BUILD_EXECUTABLE)) \
 )
-
-# Build the manual test programs.
-include $(call all-subdir-makefiles)
