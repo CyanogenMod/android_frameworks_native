@@ -60,6 +60,8 @@
 
 #define CACHE_DIR_POSTFIX      "/cache"
 
+#define DATA_SUBDIR             "data/" // sub-directory under ANDROID_DATA
+
 #define APP_SUBDIR             "app/" // sub-directory under ANDROID_DATA
 
 #define APP_LIB_SUBDIR         "app-lib/" // sub-directory under ANDROID_DATA
@@ -72,6 +74,7 @@
 
 #define DALVIK_CACHE_PREFIX    "/data/dalvik-cache/"
 #define DALVIK_CACHE_POSTFIX   "/classes.dex"
+#define DALVIK_SYSTEM_CACHE_PREFIX "/cache/dalvik-cache/"
 
 #define UPDATE_COMMANDS_DIR_PREFIX  "/system/etc/updatecmds/"
 
@@ -97,6 +100,7 @@ extern dir_rec_t android_app_dir;
 extern dir_rec_t android_app_private_dir;
 extern dir_rec_t android_app_lib_dir;
 extern dir_rec_t android_data_dir;
+extern dir_rec_t android_datadata_dir;
 extern dir_rec_t android_asec_dir;
 extern dir_rec_t android_media_dir;
 extern dir_rec_array_t android_system_dirs;
@@ -197,7 +201,7 @@ int uninstall(const char *pkgname, uid_t persona);
 int renamepkg(const char *oldpkgname, const char *newpkgname);
 int fix_uid(const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *pkgname, uid_t persona);
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona);
+int make_user_data(const char *pkgname, uid_t uid, uid_t persona, const char* seinfo);
 int delete_persona(uid_t persona);
 int delete_cache(const char *pkgname, uid_t persona);
 int move_dex(const char *src, const char *dst);

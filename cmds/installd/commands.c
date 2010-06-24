@@ -21,6 +21,7 @@
 
 /* Directory records that are used in execution of commands. */
 dir_rec_t android_data_dir;
+dir_rec_t android_datadata_dir;
 dir_rec_t android_asec_dir;
 dir_rec_t android_app_dir;
 dir_rec_t android_app_private_dir;
@@ -184,7 +185,7 @@ int delete_user_data(const char *pkgname, uid_t persona)
     return delete_dir_contents(pkgdir, 0, "lib");
 }
 
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
+int make_user_data(const char *pkgname, uid_t uid, uid_t persona, const char* seinfo)
 {
     char pkgdir[PKG_PATH_MAX];
     char applibdir[PKG_PATH_MAX];
@@ -245,7 +246,7 @@ int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
         return -1;
     }
 
-    if (selinux_android_setfilecon(pkgdir, pkgname, uid) < 0) {
+    if (selinux_android_setfilecon2(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(libsymlink);
         unlink(pkgdir);
@@ -546,6 +547,7 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
     char *tmp;
     int srclen;
     int dstlen;
+    char dexopt_data_only[PROPERTY_VALUE_MAX];
 
     srclen = strlen(src);
 
@@ -558,7 +560,15 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
         return -1;
     }
 
-    dstlen = srclen + strlen(DALVIK_CACHE_PREFIX) + 
+    const char *cache_path = DALVIK_CACHE_PREFIX;
+    if (!strncmp(src, "/system", 7)) {
+        property_get("dalvik.vm.dexopt-data-only", dexopt_data_only, "");
+        if (strcmp(dexopt_data_only, "1") != 0) {
+            cache_path = DALVIK_SYSTEM_CACHE_PREFIX;
+        }
+    }
+
+    dstlen = srclen + strlen(cache_path) + 
         strlen(DALVIK_CACHE_POSTFIX) + 1;
     
     if (dstlen > PKG_PATH_MAX) {
@@ -566,11 +576,11 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
     }
 
     sprintf(path,"%s%s%s",
-            DALVIK_CACHE_PREFIX,
+            cache_path,
             src + 1, /* skip the leading / */
             DALVIK_CACHE_POSTFIX);
     
-    for(tmp = path + strlen(DALVIK_CACHE_PREFIX); *tmp; tmp++) {
+    for(tmp = path + strlen(cache_path); *tmp; tmp++) {
         if (*tmp == '/') {
             *tmp = '@';
         }
