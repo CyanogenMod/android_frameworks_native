@@ -43,16 +43,12 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= \
 	$(commonSources) \
 	EGLUtils.cpp \
-	EventHub.cpp \
 	EventRecurrence.cpp \
 	FramebufferNativeWindow.cpp \
 	GraphicBuffer.cpp \
 	GraphicBufferAllocator.cpp \
 	GraphicBufferMapper.cpp \
 	GraphicLog.cpp \
-	InputDispatcher.cpp \
-	InputManager.cpp \
-	InputReader.cpp \
 	InputTransport.cpp \
 	PixelFormat.cpp \
 	Rect.cpp \
