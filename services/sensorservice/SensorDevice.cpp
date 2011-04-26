@@ -31,10 +31,36 @@
 #include "SensorDevice.h"
 #include "SensorService.h"
 
+#ifdef SYSFS_LIGHT_SENSOR
+#include <fcntl.h>
+#endif
+
 namespace android {
 // ---------------------------------------------------------------------------
 
 ANDROID_SINGLETON_STATIC_INSTANCE(SensorDevice)
+
+#ifdef SYSFS_LIGHT_SENSOR
+#define DUMMY_ALS_HANDLE 0xdeadbeef
+static ssize_t addDummyLightSensor(sensor_t const **list, ssize_t count) {
+    struct sensor_t dummy_light =     {
+                  name            : "CyanogenMod dummy light sensor",
+                  vendor          : "CyanogenMod",
+                  version         : 1,
+                  handle          : DUMMY_ALS_HANDLE,
+                  type            : SENSOR_TYPE_LIGHT,
+                  maxRange        : 20,
+                  resolution      : 0.1,
+                  power           : 20,
+    };
+    void * new_list = malloc((count+1)*sizeof(sensor_t));
+    new_list = memcpy(new_list, *list, count*sizeof(sensor_t));
+    ((sensor_t *)new_list)[count] = dummy_light;
+    *list = (sensor_t const *)new_list;
+    count++;
+    return count;
+}
+#endif
 
 SensorDevice::SensorDevice()
     :  mSensorDevice(0),
@@ -55,6 +81,9 @@ SensorDevice::SensorDevice()
         if (mSensorDevice) {
             sensor_t const* list;
             ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
+#ifdef SYSFS_LIGHT_SENSOR
+            count = addDummyLightSensor(&list, count);
+#endif
             mActivationCount.setCapacity(count);
             Info model;
             for (size_t i=0 ; i<size_t(count) ; i++) {
@@ -95,7 +124,11 @@ void SensorDevice::dump(String8& result, char* buffer, size_t SIZE)
 ssize_t SensorDevice::getSensorList(sensor_t const** list) {
     if (!mSensorModule) return NO_INIT;
     ssize_t count = mSensorModule->get_sensors_list(mSensorModule, list);
+#ifdef SYSFS_LIGHT_SENSOR
+    return addDummyLightSensor(list, count);
+#else
     return count;
+#endif
 }
 
 status_t SensorDevice::initCheck() const {
@@ -116,6 +149,22 @@ status_t SensorDevice::activate(void* ident, int handle, int enabled)
     if (!mSensorDevice) return NO_INIT;
     status_t err(NO_ERROR);
     bool actuateHardware = false;
+
+#ifdef SYSFS_LIGHT_SENSOR
+    if (handle == DUMMY_ALS_HANDLE) {
+        int nwr, ret, fd;
+        char value[2];
+
+        fd = open(SYSFS_LIGHT_SENSOR, O_RDWR);
+        if(fd < 0)
+            return -ENODEV;
+
+        nwr = sprintf(value, "%s\n", enabled ? "1" : "0");
+        write(fd, value, nwr);
+        close(fd);
+        return 0;
+    }
+#endif
 
     Info& info( mActivationCount.editValueFor(handle) );
 
