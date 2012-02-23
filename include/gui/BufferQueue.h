@@ -203,6 +203,16 @@ public:
     // when a new frame becomes available.
     void setFrameAvailableListener(const sp<FrameAvailableListener>& listener);
 
+    // setDefaultBufferFormat allows the BufferQueue to create
+    // GraphicBuffers of a defaultFormat if no format is specified
+    // in dequeueBuffer
+    status_t setDefaultBufferFormat(uint32_t defaultFormat);
+
+    // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer
+    status_t setConsumerUsageBits(uint32_t usage);
+
+    // setTransformHint bakes in rotation to buffers so overlays can be used
+    status_t setTransformHint(uint32_t hint);
 
 private:
     // freeBufferLocked frees the resources (both GraphicBuffer and EGLImage)
@@ -417,7 +427,19 @@ private:
     // with the surface Texture.
     uint64_t mFrameCounter;
 
+    // mBufferHasBeenQueued is true once a buffer has been queued.  It is reset
+    // by changing the buffer count.
     bool mBufferHasBeenQueued;
+
+    // mDefaultBufferFormat can be set so it will override
+    // the buffer format when it isn't specified in dequeueBuffer
+    uint32_t mDefaultBufferFormat;
+
+    // mConsumerUsageBits contains flags the consumer wants for GraphicBuffers
+    uint32_t mConsumerUsageBits;
+
+    // mTransformHint is used to optimize for screen rotations
+    uint32_t mTransformHint;
 };
 
 // ----------------------------------------------------------------------------

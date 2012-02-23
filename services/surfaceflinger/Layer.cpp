@@ -97,9 +97,19 @@ void Layer::onFirstRef()
             }
         }
     };
-    mSurfaceTexture = new SurfaceTextureLayer(mTextureName, this);
+
+    // Creates a custom BufferQueue for SurfaceTexture to use
+    sp<BufferQueue> bq = new SurfaceTextureLayer();
+    mSurfaceTexture = new SurfaceTexture(mTextureName, true,
+            GL_TEXTURE_EXTERNAL_OES, false,bq);
+
+
+
+    mSurfaceTexture->setTransformHint(getTransformHint());
+    mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceTexture->setFrameAvailableListener(new FrameQueuedListener(this));
     mSurfaceTexture->setSynchronousMode(true);
+
 #ifdef USE_TRIPLE_BUFFERING
 #warning "using triple buffering"
     mSurfaceTexture->setBufferCountServer(3);
@@ -131,6 +141,14 @@ void Layer::setName(const String8& name) {
     mSurfaceTexture->setName(name);
 }
 
+void Layer::validateVisibility(const Transform& globalTransform) {
+    LayerBase::validateVisibility(globalTransform);
+
+    // This optimization allows the SurfaceTexture to bake in
+    // the rotation so hardware overlays can be used
+    mSurfaceTexture->setTransformHint(getTransformHint());
+}
+
 sp<ISurface> Layer::createSurface()
 {
     class BSurface : public BnSurface, public LayerCleaner {
@@ -139,7 +157,7 @@ sp<ISurface> Layer::createSurface()
             sp<ISurfaceTexture> res;
             sp<const Layer> that( mOwner.promote() );
             if (that != NULL) {
-                res = that->mSurfaceTexture;
+                res = that->mSurfaceTexture->getBufferQueue();
             }
             return res;
         }
@@ -154,7 +172,7 @@ sp<ISurface> Layer::createSurface()
 
 wp<IBinder> Layer::getSurfaceTextureBinder() const
 {
-    return mSurfaceTexture->asBinder();
+    return mSurfaceTexture->getBufferQueue()->asBinder();
 }
 
 status_t Layer::setBuffers( uint32_t w, uint32_t h,
@@ -193,6 +211,7 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
 
     mSurfaceTexture->setDefaultBufferSize(w, h);
     mSurfaceTexture->setDefaultBufferFormat(format);
+    mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
 
     // we use the red index
     int displayRedSize = displayInfo.getSize(PixelFormatInfo::INDEX_RED);

@@ -1399,6 +1399,7 @@ status_t SurfaceFlinger::removeSurface(const sp<Client>& client, SurfaceID sid)
     status_t err = NAME_NOT_FOUND;
     Mutex::Autolock _l(mStateLock);
     sp<LayerBaseClient> layer = client->getLayerUser(sid);
+
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);
         if (err == NO_ERROR) {

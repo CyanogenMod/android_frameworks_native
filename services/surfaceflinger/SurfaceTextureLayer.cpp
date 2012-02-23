@@ -27,72 +27,18 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 
-SurfaceTextureLayer::SurfaceTextureLayer(GLuint tex, const sp<Layer>& layer)
-    : SurfaceTexture(tex, true, GL_TEXTURE_EXTERNAL_OES, false), mLayer(layer) {
+SurfaceTextureLayer::SurfaceTextureLayer()
+    : BufferQueue(true) {
 }
 
 SurfaceTextureLayer::~SurfaceTextureLayer() {
 }
 
-
-status_t SurfaceTextureLayer::setDefaultBufferSize(uint32_t w, uint32_t h)
-{
-    //ALOGD("%s, w=%u, h=%u", __PRETTY_FUNCTION__, w, h);
-    return SurfaceTexture::setDefaultBufferSize(w, h);
-}
-
-status_t SurfaceTextureLayer::setDefaultBufferFormat(uint32_t format)
-{
-    mDefaultFormat = format;
-    return NO_ERROR;
-}
-
-status_t SurfaceTextureLayer::setBufferCount(int bufferCount) {
-    status_t res = SurfaceTexture::setBufferCount(bufferCount);
-    return res;
-}
-
-status_t SurfaceTextureLayer::queueBuffer(int buf, int64_t timestamp,
-        uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
-
-    status_t res = SurfaceTexture::queueBuffer(buf, timestamp,
-            outWidth, outHeight, outTransform);
-    sp<Layer> layer(mLayer.promote());
-    if (layer != NULL) {
-        *outTransform = layer->getTransformHint();
-    }
-    return res;
-}
-
-status_t SurfaceTextureLayer::dequeueBuffer(int *buf,
-        uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
-
-    status_t res(NO_INIT);
-    sp<Layer> layer(mLayer.promote());
-    if (layer != NULL) {
-        if (format == 0)
-            format = mDefaultFormat;
-        uint32_t effectiveUsage = layer->getEffectiveUsage(usage);
-        //ALOGD("%s, w=%u, h=%u, format=%u, usage=%08x, effectiveUsage=%08x",
-        //        __PRETTY_FUNCTION__, w, h, format, usage, effectiveUsage);
-        res = SurfaceTexture::dequeueBuffer(buf, w, h, format, effectiveUsage);
-    }
-    return res;
-}
-
 status_t SurfaceTextureLayer::connect(int api,
         uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
-    status_t err = SurfaceTexture::connect(api,
+    status_t err = BufferQueue::connect(api,
             outWidth, outHeight, outTransform);
     if (err == NO_ERROR) {
-        sp<Layer> layer(mLayer.promote());
-        if (layer != NULL) {
-            uint32_t orientation = layer->getOrientation();
-            if (orientation & Transform::ROT_INVALID) {
-                orientation = 0;
-            }
-            *outTransform = orientation;
-        }
         switch(api) {
             case NATIVE_WINDOW_API_CPU:
                 // SurfaceTextureClient supports only 2 buffers for CPU connections
@@ -110,7 +56,7 @@ status_t SurfaceTextureLayer::connect(int api,
 #endif
                 // fall through to set synchronous mode when not defaulting to
                 // async mode.
-            deafult:
+            default:
                 err = setSynchronousMode(true);
                 break;
         }

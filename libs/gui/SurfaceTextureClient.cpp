@@ -36,6 +36,14 @@ SurfaceTextureClient::SurfaceTextureClient(
     SurfaceTextureClient::setISurfaceTexture(surfaceTexture);
 }
 
+// see SurfaceTextureClient.h
+SurfaceTextureClient::SurfaceTextureClient(const
+         sp<SurfaceTexture>& surfaceTexture)
+{
+    SurfaceTextureClient::init();
+    SurfaceTextureClient::setISurfaceTexture(surfaceTexture->getBufferQueue());
+}
+
 SurfaceTextureClient::SurfaceTextureClient() {
     SurfaceTextureClient::init();
 }

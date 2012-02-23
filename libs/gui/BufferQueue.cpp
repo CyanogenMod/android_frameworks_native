@@ -83,7 +83,10 @@ BufferQueue::BufferQueue( bool allowSynchronousMode ) :
     mConnectedApi(NO_CONNECTED_API),
     mAbandoned(false),
     mFrameCounter(0),
-    mBufferHasBeenQueued(false)
+    mBufferHasBeenQueued(false),
+    mDefaultBufferFormat(0),
+    mConsumerUsageBits(0),
+    mTransformHint(0)
 {
     // Choose a name using the PID and a process-unique ID.
     mConsumerName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
@@ -128,6 +131,7 @@ status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
         // dequeueBuffer.
 
         mServerBufferCount = bufferCount;
+        mDequeueCondition.broadcast();
     }
     return OK;
 }
@@ -147,6 +151,24 @@ void BufferQueue::setFrameAvailableListener(
     ST_LOGV("setFrameAvailableListener");
     Mutex::Autolock lock(mMutex);
     mFrameAvailableListener = listener;
+}
+
+status_t BufferQueue::setDefaultBufferFormat(uint32_t defaultFormat) {
+    Mutex::Autolock lock(mMutex);
+    mDefaultBufferFormat = defaultFormat;
+    return OK;
+}
+
+status_t BufferQueue::setConsumerUsageBits(uint32_t usage) {
+    Mutex::Autolock lock(mMutex);
+    mConsumerUsageBits = usage;
+    return OK;
+}
+
+status_t BufferQueue::setTransformHint(uint32_t hint) {
+    Mutex::Autolock lock(mMutex);
+    mTransformHint = hint;
+    return OK;
 }
 
 status_t BufferQueue::setBufferCount(int bufferCount) {
@@ -262,6 +284,12 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
 
     { // Scope for the lock
         Mutex::Autolock lock(mMutex);
+
+        if (format == 0) {
+            format = mDefaultBufferFormat;
+        }
+        // turn on usage bits the consumer requested
+        usage |= mConsumerUsageBits;
 
         int found = -1;
         int foundSync = -1;
@@ -563,7 +591,7 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
 
         *outWidth = mDefaultWidth;
         *outHeight = mDefaultHeight;
-        *outTransform = 0;
+        *outTransform = mTransformHint;
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } // scope for the lock
@@ -846,7 +874,8 @@ status_t BufferQueue::acquire(BufferItem *buffer) {
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     }
     else {
-        return -EINVAL; //should be a better return code
+        // should be a better return code?
+        return -EINVAL;
     }
 
     return OK;
@@ -880,9 +909,10 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
 
 status_t BufferQueue::consumerDisconnect() {
     Mutex::Autolock lock(mMutex);
-    // Once the SurfaceTexture disconnects, the BufferQueue
-    // is considered abandoned
+
     mAbandoned = true;
+
+    mQueue.clear();
     freeAllBuffersLocked();
     mDequeueCondition.broadcast();
     return OK;

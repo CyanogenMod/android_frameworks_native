@@ -19,6 +19,7 @@
 
 #include <gui/ISurfaceTexture.h>
 #include <gui/SurfaceTexture.h>
+#include <gui/BufferQueue.h>
 
 #include <ui/ANativeObjectBase.h>
 #include <ui/Region.h>
@@ -34,7 +35,14 @@ class SurfaceTextureClient
     : public ANativeObjectBase<ANativeWindow, SurfaceTextureClient, RefBase>
 {
 public:
+
     SurfaceTextureClient(const sp<ISurfaceTexture>& surfaceTexture);
+
+    // SurfaceTextureClient is overloaded to assist in refactoring ST and BQ.
+    // SurfaceTexture is no longer an ISurfaceTexture, so client code
+    // calling the original constructor will fail. Thus this convenience method
+    // passes in the surfaceTexture's bufferQueue to the init method.
+    SurfaceTextureClient(const sp<SurfaceTexture>& surfaceTexture);
 
     sp<ISurfaceTexture> getISurfaceTexture() const;
 
@@ -94,8 +102,8 @@ protected:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
 
-    enum { MIN_UNDEQUEUED_BUFFERS = SurfaceTexture::MIN_UNDEQUEUED_BUFFERS };
-    enum { NUM_BUFFER_SLOTS = SurfaceTexture::NUM_BUFFER_SLOTS };
+    enum { MIN_UNDEQUEUED_BUFFERS = BufferQueue::MIN_UNDEQUEUED_BUFFERS };
+    enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
     enum { DEFAULT_FORMAT = PIXEL_FORMAT_RGBA_8888 };
 
 private:

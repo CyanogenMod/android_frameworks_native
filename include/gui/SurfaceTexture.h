@@ -39,8 +39,12 @@ namespace android {
 
 class String8;
 
-class SurfaceTexture : public BufferQueue {
+class SurfaceTexture : public virtual RefBase {
 public:
+    // This typedef allows external code to continue referencing
+    // SurfaceTexture::FrameAvailableListener during refactoring
+    typedef  BufferQueue::FrameAvailableListener FrameAvailableListener;
+
 
     // SurfaceTexture constructs a new SurfaceTexture object. tex indicates the
     // name of the OpenGL ES texture to which images are to be streamed. This
@@ -49,13 +53,14 @@ public:
     // enabled. texTarget specifies the OpenGL ES texture target to which the
     // texture will be bound in updateTexImage. useFenceSync specifies whether
     // fences should be used to synchronize access to buffers if that behavior
-    // is enabled at compile-time.
+    // is enabled at compile-time. A custom bufferQueue can be specified
+    // if behavior for queue/dequeue/connect etc needs to be customized.
+    // Otherwise a default BufferQueue will be created and used.
     SurfaceTexture(GLuint tex, bool allowSynchronousMode = true,
-            GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true);
+            GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
+            const sp<BufferQueue> &bufferQueue = 0);
 
     virtual ~SurfaceTexture();
-
-
 
     // updateTexImage sets the image contents of the target texture to that of
     // the most recently queued buffer.
@@ -152,6 +157,18 @@ public:
     // log messages.
     void setName(const String8& name);
 
+    // These functions call the corresponding BufferQueue implementation
+    // so the refactoring can proceed smoothly
+    status_t setDefaultBufferFormat(uint32_t defaultFormat);
+    status_t setConsumerUsageBits(uint32_t usage);
+    status_t setTransformHint(uint32_t hint);
+    virtual status_t setSynchronousMode(bool enabled);
+    virtual status_t setBufferCount(int bufferCount);
+    virtual status_t connect(int api,
+                uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
+
+    sp<BufferQueue> getBufferQueue() const;
+
     // dump our state in a String
     virtual void dump(String8& result) const;
     virtual void dump(String8& result, const char* prefix, char* buffer, size_t SIZE) const;
@@ -241,7 +258,7 @@ private:
         EGLSyncKHR mFence;
     };
 
-    EGLSlot mEGLSlots[NUM_BUFFER_SLOTS];
+    EGLSlot mEGLSlots[BufferQueue::NUM_BUFFER_SLOTS];
 
     // mAbandoned indicates that the BufferQueue will no longer be used to
     // consume images buffers pushed to it using the ISurfaceTexture interface.
@@ -266,6 +283,10 @@ private:
     // that no buffer is bound to the texture. A call to setBufferCount will
     // reset mCurrentTexture to INVALID_BUFFER_SLOT.
     int mCurrentTexture;
+
+    // The SurfaceTexture has-a BufferQueue and is responsible for creating this object
+    // if none is supplied
+    sp<BufferQueue> mBufferQueue;
 
 };
 

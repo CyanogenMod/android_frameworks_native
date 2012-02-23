@@ -77,6 +77,7 @@ public:
     virtual void onRemoved();
     virtual sp<Layer> getLayer() const { return const_cast<Layer*>(this); }
     virtual void setName(const String8& name);
+    virtual void validateVisibility(const Transform& globalTransform);
 
     // LayerBaseClient interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;
@@ -105,7 +106,7 @@ private:
     // -----------------------------------------------------------------------
 
     // constants
-    sp<SurfaceTextureLayer> mSurfaceTexture;
+    sp<SurfaceTexture> mSurfaceTexture;
     GLuint mTextureName;
 
     // thread-safe

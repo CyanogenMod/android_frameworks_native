@@ -105,8 +105,7 @@ static int32_t createProcessUniqueId() {
 }
 
 SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
-        GLenum texTarget, bool useFenceSync) :
-    BufferQueue(allowSynchronousMode),
+        GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
     mCurrentTransform(0),
     mCurrentTimestamp(0),
     mTexName(tex),
@@ -121,27 +120,37 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
 {
     // Choose a name using the PID and a process-unique ID.
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
-    BufferQueue::setConsumerName(mName);
-
     ST_LOGV("SurfaceTexture");
+    if (bufferQueue == 0) {
+
+        ST_LOGV("Creating a new BufferQueue");
+        mBufferQueue = new BufferQueue(allowSynchronousMode);
+    }
+    else {
+        mBufferQueue = bufferQueue;
+    }
+    mBufferQueue->setConsumerName(mName);
+
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
 }
 
 SurfaceTexture::~SurfaceTexture() {
     ST_LOGV("~SurfaceTexture");
+
     abandon();
 }
 
 status_t SurfaceTexture::setBufferCountServer(int bufferCount) {
     Mutex::Autolock lock(mMutex);
-    return BufferQueue::setBufferCountServer(bufferCount);
+    return mBufferQueue->setBufferCountServer(bufferCount);
 }
 
 
 status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 {
-    return BufferQueue::setDefaultBufferSize(w, h);
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setDefaultBufferSize(w, h);
 }
 
 status_t SurfaceTexture::updateTexImage() {
@@ -154,11 +163,11 @@ status_t SurfaceTexture::updateTexImage() {
         return NO_INIT;
     }
 
-    BufferItem item;
+    BufferQueue::BufferItem item;
 
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    if (acquire(&item) == NO_ERROR) {
+    if (mBufferQueue->acquire(&item) == NO_ERROR) {
         int buf = item.mBuf;
         // This buffer was newly allocated, so we need to clean up on our side
         if (item.mGraphicBuffer != NULL) {
@@ -205,19 +214,19 @@ status_t SurfaceTexture::updateTexImage() {
             failed = true;
         }
         if (failed) {
-            releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
+            mBufferQueue->releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
                     mEGLSlots[buf].mFence);
             return -EINVAL;
         }
 
-        if (mCurrentTexture != INVALID_BUFFER_SLOT) {
+        if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
             if (mUseFenceSync) {
                 EGLSyncKHR fence = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR,
                         NULL);
                 if (fence == EGL_NO_SYNC_KHR) {
                     ALOGE("updateTexImage: error creating fence: %#x",
                             eglGetError());
-                    releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
+                    mBufferQueue->releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
                             mEGLSlots[buf].mFence);
                     return -EINVAL;
                 }
@@ -232,7 +241,7 @@ status_t SurfaceTexture::updateTexImage() {
                 buf, item.mGraphicBuffer != NULL ? item.mGraphicBuffer->handle : 0);
 
         // release old buffer
-        releaseBuffer(mCurrentTexture,
+        mBufferQueue->releaseBuffer(mCurrentTexture,
                 mEGLSlots[mCurrentTexture].mEglDisplay,
                 mEGLSlots[mCurrentTexture].mFence);
 
@@ -385,7 +394,7 @@ void SurfaceTexture::setFrameAvailableListener(
         const sp<FrameAvailableListener>& listener) {
     ST_LOGV("setFrameAvailableListener");
     Mutex::Autolock lock(mMutex);
-    BufferQueue::setFrameAvailableListener(listener);
+    mBufferQueue->setFrameAvailableListener(listener);
 }
 
 EGLImageKHR SurfaceTexture::createImage(EGLDisplay dpy,
@@ -426,7 +435,7 @@ uint32_t SurfaceTexture::getCurrentScalingMode() const {
 
 bool SurfaceTexture::isSynchronousMode() const {
     Mutex::Autolock lock(mMutex);
-    return BufferQueue::isSynchronousMode();
+    return mBufferQueue->isSynchronousMode();
 }
 
 void SurfaceTexture::abandon() {
@@ -435,7 +444,7 @@ void SurfaceTexture::abandon() {
     mCurrentTextureBuf.clear();
 
     // destroy all egl buffers
-    for (int i =0; i < NUM_BUFFER_SLOTS; i++) {
+    for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         mEGLSlots[i].mGraphicBuffer = 0;
         if (mEGLSlots[i].mEglImage != EGL_NO_IMAGE_KHR) {
             eglDestroyImageKHR(mEGLSlots[i].mEglDisplay,
@@ -446,13 +455,54 @@ void SurfaceTexture::abandon() {
     }
 
     // disconnect from the BufferQueue
-    BufferQueue::consumerDisconnect();
+    mBufferQueue->consumerDisconnect();
 }
 
 void SurfaceTexture::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
-    BufferQueue::setConsumerName(name);
+    mBufferQueue->setConsumerName(name);
+}
+
+status_t SurfaceTexture::setDefaultBufferFormat(uint32_t defaultFormat) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+}
+
+status_t SurfaceTexture::setConsumerUsageBits(uint32_t usage) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setConsumerUsageBits(usage);
+}
+
+status_t SurfaceTexture::setTransformHint(uint32_t hint) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setTransformHint(hint);
+}
+
+// Used for refactoring BufferQueue from SurfaceTexture
+// Should not be in final interface once users of SurfaceTexture are clean up.
+status_t SurfaceTexture::setSynchronousMode(bool enabled) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setSynchronousMode(enabled);
+}
+
+// Used for refactoring, should not be in final interface
+sp<BufferQueue> SurfaceTexture::getBufferQueue() const {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue;
+}
+
+// Used for refactoring, should not be in final interface
+status_t SurfaceTexture::setBufferCount(int bufferCount) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->setBufferCount(bufferCount);
+}
+
+// Used for refactoring, should not be in final interface
+status_t SurfaceTexture::connect(int api,
+                uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
+    Mutex::Autolock lock(mMutex);
+    return mBufferQueue->connect(api, outWidth, outHeight, outTransform);
 }
 
 void SurfaceTexture::dump(String8& result) const
@@ -477,7 +527,7 @@ void SurfaceTexture::dump(String8& result, const char* prefix,
     result.append(buffer);
 
 
-    BufferQueue::dump(result, prefix, buffer, SIZE);
+    mBufferQueue->dump(result, prefix, buffer, SIZE);
 }
 
 static void mtxMul(float out[16], const float a[16], const float b[16]) {
