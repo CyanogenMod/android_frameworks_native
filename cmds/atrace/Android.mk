@@ -7,6 +7,6 @@ LOCAL_SRC_FILES:= atrace.c
 
 LOCAL_MODULE:= atrace
 
-LOCAL_MODULE_TAGS:= optional
+LOCAL_MODULE_TAGS:= debug
 
 include $(BUILD_EXECUTABLE)
