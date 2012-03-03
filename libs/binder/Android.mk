@@ -34,6 +34,10 @@ sources += \
     MemoryHeapPmem.cpp
 endif
 
+ifeq ($(TARGET_USES_ION),true)
+    sources += MemoryHeapIon.cpp
+endif
+
 LOCAL_PATH:= $(call my-dir)
 
 # Note about gingerbread compatibility : Require a global cflag,
