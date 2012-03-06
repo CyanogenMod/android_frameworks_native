@@ -27,8 +27,11 @@
 /* Command line options */
 static int g_traceDurationSeconds = 5;
 static bool g_traceSchedSwitch = false;
+static bool g_traceCpuFrequency = false;
+static bool g_traceGovernorLoad = false;
 static bool g_traceWorkqueue = false;
 static bool g_traceOverwrite = false;
+static int g_traceBufferSizeKB = 2048;
 
 /* Global state */
 static bool g_traceAborted = false;
@@ -37,11 +40,21 @@ static bool g_traceAborted = false;
 static const char* k_traceClockPath =
     "/sys/kernel/debug/tracing/trace_clock";
 
+static const char* k_traceBufferSizePath =
+    "/sys/kernel/debug/tracing/buffer_size_kb";
+
 static const char* k_tracingOverwriteEnablePath =
     "/sys/kernel/debug/tracing/options/overwrite";
 
 static const char* k_schedSwitchEnablePath =
     "/sys/kernel/debug/tracing/events/sched/sched_switch/enable";
+
+static const char* k_cpuFreqEnablePath =
+    "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable";
+
+static const char* k_governorLoadEnablePath =
+    "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable";
+
 
 static const char* k_workqueueEnablePath =
     "/sys/kernel/debug/tracing/events/workqueue/enable";
@@ -97,6 +110,19 @@ static bool setSchedSwitchTracingEnable(bool enable)
     return setKernelOptionEnable(k_schedSwitchEnablePath, enable);
 }
 
+// Enable or disable tracing of the CPU clock frequency.
+static bool setCpuFrequencyTracingEnable(bool enable)
+{
+    return setKernelOptionEnable(k_cpuFreqEnablePath, enable);
+}
+
+// Enable or disable tracing of the interactive CPU frequency governor's idea of
+// the CPU load.
+static bool setGovernorLoadTracingEnable(bool enable)
+{
+    return setKernelOptionEnable(k_governorLoadEnablePath, enable);
+}
+
 // Enable or disable tracing of the kernel workqueues.
 static bool setWorkqueueTracingEnabled(bool enable)
 {
@@ -124,6 +150,18 @@ static bool clearTrace()
     return true;
 }
 
+// Set the size of the kernel's trace buffer in kilobytes.
+static bool setTraceBufferSizeKB(int size)
+{
+    char str[32] = "1";
+    int len;
+    if (size < 1) {
+        size = 1;
+    }
+    snprintf(str, 32, "%d", size);
+    return writeStr(k_traceBufferSizePath, str);
+}
+
 // Enable or disable the kernel's use of the global clock.  Disabling the global
 // clock will result in the kernel using a per-CPU local clock.
 static bool setGlobalClockEnable(bool enable)
@@ -139,7 +177,10 @@ static bool startTrace()
     // Set up the tracing options.
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
+    ok &= setCpuFrequencyTracingEnable(g_traceCpuFrequency);
+    ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
     ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
+    ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
 
     // Enable tracing.
@@ -161,8 +202,13 @@ static void stopTrace()
     // Set the options back to their defaults.
     setTraceOverwriteEnable(true);
     setSchedSwitchTracingEnable(false);
+    setCpuFrequencyTracingEnable(false);
+    setGovernorLoadTracingEnable(false);
     setWorkqueueTracingEnabled(false);
     setGlobalClockEnable(false);
+
+    // Note that we can't reset the trace buffer size here because that would
+    // clear the trace before we've read it.
 }
 
 // Read the current kernel trace and write it to stdout.
@@ -190,7 +236,10 @@ static void showHelp(const char *cmd)
 {
     fprintf(stderr, "usage: %s [options]\n", cmd);
     fprintf(stderr, "options include:\n"
+                    "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
+                    "  -f              trace CPU frequency changes\n"
+                    "  -l              trace CPU frequency governor load\n"
                     "  -s              trace the kernel scheduler switches\n"
                     "  -t N            trace for N seconds [defualt 5]\n"
                     "  -w              trace the kernel workqueue\n");
@@ -220,20 +269,33 @@ int main(int argc, char **argv)
 
     if (getuid() != 0) {
         fprintf(stderr, "error: %s must be run as root.", argv[0]);
+        exit(1);
     }
 
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "cst:w");
+        ret = getopt(argc, argv, "b:cflst:w");
 
         if (ret < 0) {
             break;
         }
 
         switch(ret) {
+            case 'b':
+                g_traceBufferSizeKB = atoi(optarg);
+            break;
+
             case 'c':
                 g_traceOverwrite = true;
+            break;
+
+            case 'l':
+                g_traceGovernorLoad = true;
+            break;
+
+            case 'f':
+                g_traceCpuFrequency = true;
             break;
 
             case 's':
@@ -249,6 +311,7 @@ int main(int argc, char **argv)
             break;
 
             default:
+                fprintf(stderr, "\n");
                 showHelp(argv[0]);
                 exit(-1);
             break;
@@ -299,6 +362,9 @@ int main(int argc, char **argv)
     } else {
         fprintf(stderr, "unable to start tracing\n");
     }
+
+    // Reset the trace buffer size to 1.
+    setTraceBufferSizeKB(1);
 
     return g_traceAborted ? 1 : 0;
 }
