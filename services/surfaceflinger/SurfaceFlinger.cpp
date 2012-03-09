@@ -1523,24 +1523,25 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
         size_t index = 0;
         size_t numArgs = args.size();
         if (numArgs) {
-            dumpAll = false;
-
             if ((index < numArgs) &&
                     (args[index] == String16("--list"))) {
                 index++;
                 listLayersLocked(args, index, result, buffer, SIZE);
+                dumpAll = false;
             }
 
             if ((index < numArgs) &&
                     (args[index] == String16("--latency"))) {
                 index++;
                 dumpStatsLocked(args, index, result, buffer, SIZE);
+                dumpAll = false;
             }
 
             if ((index < numArgs) &&
                     (args[index] == String16("--latency-clear"))) {
                 index++;
                 clearStatsLocked(args, index, result, buffer, SIZE);
+                dumpAll = false;
             }
         }
 
