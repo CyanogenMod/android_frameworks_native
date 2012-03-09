@@ -58,6 +58,7 @@ static char const * const sExtensionString  =
 //      "EGL_ANDROID_blob_cache "               // strongly recommended
 
 extern void initEglTraceLevel();
+extern void initEglDebugLevel();
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 
 // ----------------------------------------------------------------------------
@@ -144,6 +145,7 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     // Called both at early_init time and at this time. (Early_init is pre-zygote, so
     // the information from that call may be stale.)
     initEglTraceLevel();
+    initEglDebugLevel();
 
 #endif
 
