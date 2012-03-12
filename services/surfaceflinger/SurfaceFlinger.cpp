@@ -2349,6 +2349,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
         uint32_t sw, uint32_t sh,
         uint32_t minLayerZ, uint32_t maxLayerZ)
 {
+    ATRACE_CALL();
+
     status_t result = PERMISSION_DENIED;
 
     // only one display supported for now
@@ -2381,6 +2383,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     glGenRenderbuffersOES(1, &tname);
     glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
     glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, sw, sh);
+
     glGenFramebuffersOES(1, &name);
     glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
     glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
@@ -2433,6 +2436,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
             void* const ptr = base->getBase();
             if (ptr) {
                 // capture the screen with glReadPixels()
+                ScopedTrace _t(ATRACE_TAG, "glReadPixels");
                 glReadPixels(0, 0, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 if (glGetError() == GL_NO_ERROR) {
                     *heap = base;
