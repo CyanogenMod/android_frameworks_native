@@ -61,10 +61,22 @@ EGLAPI pthread_key_t gGLTraceKey = -1;
 
 // ----------------------------------------------------------------------------
 
-int gEGLDebugLevel;
-
+/**
+ * There are two different tracing methods:
+ * 1. libs/EGL/trace.cpp: Traces all functions to logcat.
+ *    To enable:
+ *      - set system property "debug.egl.trace" to 1 to trace all apps.
+ *      - or call setGLTraceLevel(1) from an app to enable tracing for that app.
+ * 2. libs/GLES_trace: Traces all functions via protobuf to host.
+ *    To enable:
+ *        - set system property "debug.egl.debug_proc" to the application name.
+ *      - or call setGLDebugLevel(1) from the app.
+ */
 static int sEGLTraceLevel;
 static int sEGLApplicationTraceLevel;
+
+int gEGLDebugLevel;
+static int sEGLApplicationDebugLevel;
 
 extern gl_hooks_t gHooksTrace;
 
@@ -82,27 +94,31 @@ void initEglTraceLevel() {
     int propertyLevel = atoi(value);
     int applicationLevel = sEGLApplicationTraceLevel;
     sEGLTraceLevel = propertyLevel > applicationLevel ? propertyLevel : applicationLevel;
+}
 
+void initEglDebugLevel() {
+    int propertyLevel = 0;
+    char value[PROPERTY_VALUE_MAX];
     property_get("debug.egl.debug_proc", value, "");
-    if (strlen(value) == 0)
-        return;
-
-    long pid = getpid();
-    char procPath[128] = {};
-    sprintf(procPath, "/proc/%ld/cmdline", pid);
-    FILE * file = fopen(procPath, "r");
-    if (file) {
-        char cmdline[256] = {};
-        if (fgets(cmdline, sizeof(cmdline) - 1, file)) {
-            if (!strncmp(value, cmdline, strlen(value))) {
-                // set EGL debug if the "debug.egl.debug_proc" property
-                // matches the prefix of this application's command line
-                gEGLDebugLevel = 1;
+    if (strlen(value) > 0) {
+        long pid = getpid();
+        char procPath[128] = {};
+        sprintf(procPath, "/proc/%ld/cmdline", pid);
+        FILE * file = fopen(procPath, "r");
+        if (file) {
+            char cmdline[256] = {};
+            if (fgets(cmdline, sizeof(cmdline) - 1, file)) {
+                if (!strncmp(value, cmdline, strlen(value))) {
+                    // set EGL debug if the "debug.egl.debug_proc" property
+                    // matches the prefix of this application's command line
+                    propertyLevel = 1;
+                }
             }
+            fclose(file);
         }
-        fclose(file);
     }
 
+    gEGLDebugLevel = propertyLevel || sEGLApplicationDebugLevel;
     if (gEGLDebugLevel > 0) {
         GLTrace_start();
     }
@@ -127,6 +143,15 @@ void setGLHooksThreadSpecific(gl_hooks_t const *value) {
 extern "C"
 void setGLTraceLevel(int level) {
     sEGLApplicationTraceLevel = level;
+}
+
+/*
+ * Global entry point to allow applications to modify their own debug level.
+ * Debugging is enabled if either the application requested it, or if the system property
+ * matches the application's name.
+ */
+void EGLAPI setGLDebugLevel(int level) {
+    sEGLApplicationDebugLevel = level;
 }
 
 #else
@@ -162,6 +187,7 @@ static void early_egl_init(void)
 #if EGL_TRACE
     pthread_key_create(&gGLTraceKey, NULL);
     initEglTraceLevel();
+    initEglDebugLevel();
 #endif
     uint32_t addr = (uint32_t)((void*)gl_no_context);
     android_memset32(
