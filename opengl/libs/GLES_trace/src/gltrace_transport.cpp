@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 
 #include <cutils/log.h>
+#include <private/android_filesystem_config.h>
 
 #include "gltrace_transport.h"
 
@@ -64,6 +65,19 @@ int acceptClientConnection(char *sockname) {
     if (clientSocket < 0) {
         close(serverSocket);
         ALOGE("Failed to accept client connection");
+        return -1;
+    }
+
+    struct ucred cr;
+    socklen_t cr_len = sizeof(cr);
+    if (getsockopt(clientSocket, SOL_SOCKET, SO_PEERCRED, &cr, &cr_len) != 0) {
+        ALOGE("Error obtaining credentials of peer");
+        return -1;
+    }
+
+    // Only accept connects from the shell (adb forward comes to us as shell user)
+    if (cr.uid != AID_SHELL) {
+        ALOGE("Unknown peer type (%d), expected shell to be the peer", cr.uid);
         return -1;
     }
 
