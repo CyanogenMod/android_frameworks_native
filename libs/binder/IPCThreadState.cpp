@@ -20,6 +20,7 @@
 
 #include <binder/Binder.h>
 #include <binder/BpBinder.h>
+#include <cutils/sched_policy.h>
 #include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/TextOutput.h>
@@ -428,9 +429,9 @@ void IPCThreadState::joinThreadPool(bool isMain)
     mOut.writeInt32(isMain ? BC_ENTER_LOOPER : BC_REGISTER_LOOPER);
     
     // This thread may have been spawned by a thread that was in the background
-    // scheduling group, so first we will make sure it is in the default/foreground
+    // scheduling group, so first we will make sure it is in the foreground
     // one to avoid performing an initial transaction in the background.
-    androidSetThreadSchedulingGroup(mMyThreadId, ANDROID_TGROUP_DEFAULT);
+    set_sched_policy(mMyThreadId, SP_FOREGROUND);
         
     status_t result;
     do {
@@ -473,13 +474,13 @@ void IPCThreadState::joinThreadPool(bool isMain)
         }
         
         // After executing the command, ensure that the thread is returned to the
-        // default cgroup before rejoining the pool.  The driver takes care of
+        // foreground cgroup before rejoining the pool.  The driver takes care of
         // restoring the priority, but doesn't do anything with cgroups so we
         // need to take care of that here in userspace.  Note that we do make
         // sure to go in the foreground after executing a transaction, but
         // there are other callbacks into user code that could have changed
         // our group so we want to make absolutely sure it is put back.
-        androidSetThreadSchedulingGroup(mMyThreadId, ANDROID_TGROUP_DEFAULT);
+        set_sched_policy(mMyThreadId, SP_FOREGROUND);
 
         // Let this thread exit the thread pool if it is no longer
         // needed and it is not the main process thread.
@@ -1010,8 +1011,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
                     // since the driver won't modify scheduling classes for us.
                     // The scheduling group is reset to default by the caller
                     // once this method returns after the transaction is complete.
-                    androidSetThreadSchedulingGroup(mMyThreadId,
-                                                    ANDROID_TGROUP_BG_NONINTERACT);
+                    set_sched_policy(mMyThreadId, SP_BACKGROUND);
                 }
             }
 
