@@ -27,8 +27,6 @@
 
 namespace android {
 
-struct OMXComponentBase;
-
 struct OMXPluginBase {
     OMXPluginBase() {}
     virtual ~OMXPluginBase() {}
