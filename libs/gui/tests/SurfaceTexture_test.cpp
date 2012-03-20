@@ -560,6 +560,27 @@ void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride, uint8_t r,
     }
 }
 
+// Produce a single RGBA8 frame by filling a buffer with a checkerboard pattern
+// using the CPU.  This assumes that the ANativeWindow is already configured to
+// allow this to be done (e.g. the format is set to RGBA8).
+//
+// Calls to this function should be wrapped in an ASSERT_NO_FATAL_FAILURE().
+void produceOneRGBA8Frame(const sp<ANativeWindow>& anw) {
+    android_native_buffer_t* anb;
+    ASSERT_EQ(NO_ERROR, anw->dequeueBuffer(anw.get(), &anb));
+    ASSERT_TRUE(anb != NULL);
+
+    sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
+    ASSERT_EQ(NO_ERROR, anw->lockBuffer(anw.get(), buf->getNativeBuffer()));
+
+    uint8_t* img = NULL;
+    ASSERT_EQ(NO_ERROR, buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN,
+            (void**)(&img)));
+    fillRGBA8Buffer(img, buf->getWidth(), buf->getHeight(), buf->getStride());
+    ASSERT_EQ(NO_ERROR, buf->unlock());
+    ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer()));
+}
+
 TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferNpot) {
     const int texWidth = 64;
     const int texHeight = 66;
@@ -873,19 +894,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferNpot) {
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
-    android_native_buffer_t* anb;
-    ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
-    ASSERT_TRUE(anb != NULL);
-
-    sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(), buf->getNativeBuffer()));
-
-    // Fill the buffer with the a checkerboard pattern
-    uint8_t* img = NULL;
-    buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
-    fillRGBA8Buffer(img, texWidth, texHeight, buf->getStride());
-    buf->unlock();
-    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer()));
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     mST->updateTexImage();
 
@@ -927,19 +936,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferPow2) {
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
-    android_native_buffer_t* anb;
-    ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
-    ASSERT_TRUE(anb != NULL);
-
-    sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(), buf->getNativeBuffer()));
-
-    // Fill the buffer with the a checkerboard pattern
-    uint8_t* img = NULL;
-    buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
-    fillRGBA8Buffer(img, texWidth, texHeight, buf->getStride());
-    buf->unlock();
-    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer()));
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     mST->updateTexImage();
 
@@ -1095,18 +1092,12 @@ protected:
     virtual void SetUp() {
         SurfaceTextureGLTest::SetUp();
 
-        EGLConfig myConfig = {0};
-        EGLint numConfigs = 0;
-        EXPECT_TRUE(eglChooseConfig(mEglDisplay, getConfigAttribs(), &myConfig,
-                1, &numConfigs));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-
-        mProducerEglSurface = eglCreateWindowSurface(mEglDisplay, myConfig,
+        mProducerEglSurface = eglCreateWindowSurface(mEglDisplay, mGlConfig,
                 mANW.get(), NULL);
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
         ASSERT_NE(EGL_NO_SURFACE, mProducerEglSurface);
 
-        mProducerEglContext = eglCreateContext(mEglDisplay, myConfig,
+        mProducerEglContext = eglCreateContext(mEglDisplay, mGlConfig,
                 EGL_NO_CONTEXT, getContextAttribs());
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
         ASSERT_NE(EGL_NO_CONTEXT, mProducerEglContext);
@@ -1740,6 +1731,47 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
     glBindFramebuffer(GL_FRAMEBUFFER, mFbo);
 
     EXPECT_TRUE(checkPixel( 24, 39, 0, 255, 0, 255));
+}
+
+class SurfaceTextureMultiContextGLTest : public SurfaceTextureGLTest {
+protected:
+    SurfaceTextureMultiContextGLTest():
+            mSecondEglContext(EGL_NO_CONTEXT) {
+    }
+
+    virtual void SetUp() {
+        SurfaceTextureGLTest::SetUp();
+
+        mSecondEglContext = eglCreateContext(mEglDisplay, mGlConfig,
+                EGL_NO_CONTEXT, getContextAttribs());
+        ASSERT_EQ(EGL_SUCCESS, eglGetError());
+        ASSERT_NE(EGL_NO_CONTEXT, mSecondEglContext);
+    }
+
+    virtual void TearDown() {
+        if (mSecondEglContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(mEglDisplay, mSecondEglContext);
+        }
+        SurfaceTextureGLTest::TearDown();
+    }
+
+    EGLContext mSecondEglContext;
+};
+
+TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    mST->updateTexImage();
+
+    // Attempt to latch the texture on the secondary context.
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    ASSERT_EQ(-EINVAL, mST->updateTexImage());
 }
 
 } // namespace android

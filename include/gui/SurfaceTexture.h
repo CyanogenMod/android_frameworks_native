@@ -260,7 +260,6 @@ private:
     struct EGLSlot {
         EGLSlot()
         : mEglImage(EGL_NO_IMAGE_KHR),
-          mEglDisplay(EGL_NO_DISPLAY),
           mFence(EGL_NO_SYNC_KHR) {
         }
 
@@ -269,15 +268,23 @@ private:
         // mEglImage is the EGLImage created from mGraphicBuffer.
         EGLImageKHR mEglImage;
 
-        // mEglDisplay is the EGLDisplay used to create mEglImage.
-        EGLDisplay mEglDisplay;
-
         // mFence is the EGL sync object that must signal before the buffer
         // associated with this buffer slot may be dequeued. It is initialized
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
         EGLSyncKHR mFence;
     };
+
+    // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
+    // associated.  It is intialized to EGL_NO_DISPLAY and gets set to the
+    // current display when updateTexImage is called for the first time.
+    EGLDisplay mEglDisplay;
+
+    // mEglContext is the OpenGL ES context with which this SurfaceTexture is
+    // currently associated.  It is initialized to EGL_NO_CONTEXT and gets set
+    // to the current GL context when updateTexImage is called for the first
+    // time.
+    EGLContext mEglContext;
 
     // mEGLSlots stores the buffers that have been allocated by the BufferQueue
     // for each buffer slot.  It is initialized to null pointers, and gets

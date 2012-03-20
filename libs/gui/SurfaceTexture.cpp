@@ -115,6 +115,8 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mUseFenceSync(false),
 #endif
     mTexTarget(texTarget),
+    mEglDisplay(EGL_NO_DISPLAY),
+    mEglContext(EGL_NO_CONTEXT),
     mAbandoned(false),
     mCurrentTexture(BufferQueue::INVALID_BUFFER_SLOT)
 {
@@ -178,6 +180,22 @@ status_t SurfaceTexture::updateTexImage() {
         return NO_INIT;
     }
 
+    EGLDisplay dpy = eglGetCurrentDisplay();
+    EGLContext ctx = eglGetCurrentContext();
+
+    if (mEglDisplay != dpy && mEglDisplay != EGL_NO_DISPLAY) {
+        ST_LOGE("updateTexImage: invalid current EGLDisplay");
+        return -EINVAL;
+    }
+
+    if (mEglContext != ctx && mEglContext != EGL_NO_CONTEXT) {
+        ST_LOGE("updateTexImage: invalid current EGLContext");
+        return -EINVAL;
+    }
+
+    mEglDisplay = dpy;
+    mEglContext = ctx;
+
     BufferQueue::BufferItem item;
 
     // In asynchronous mode the list is guaranteed to be one buffer
@@ -188,17 +206,14 @@ status_t SurfaceTexture::updateTexImage() {
         if (item.mGraphicBuffer != NULL) {
             mEGLSlots[buf].mGraphicBuffer = 0;
             if (mEGLSlots[buf].mEglImage != EGL_NO_IMAGE_KHR) {
-                eglDestroyImageKHR(mEGLSlots[buf].mEglDisplay,
-                        mEGLSlots[buf].mEglImage);
+                eglDestroyImageKHR(dpy, mEGLSlots[buf].mEglImage);
                 mEGLSlots[buf].mEglImage = EGL_NO_IMAGE_KHR;
-                mEGLSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
             }
             mEGLSlots[buf].mGraphicBuffer = item.mGraphicBuffer;
         }
 
         // Update the GL texture object.
         EGLImageKHR image = mEGLSlots[buf].mEglImage;
-        EGLDisplay dpy = eglGetCurrentDisplay();
         if (image == EGL_NO_IMAGE_KHR) {
             if (item.mGraphicBuffer == 0) {
                 ST_LOGE("buffer at slot %d is null", buf);
@@ -206,7 +221,6 @@ status_t SurfaceTexture::updateTexImage() {
             }
             image = createImage(dpy, item.mGraphicBuffer);
             mEGLSlots[buf].mEglImage = image;
-            mEGLSlots[buf].mEglDisplay = dpy;
             if (image == EGL_NO_IMAGE_KHR) {
                 // NOTE: if dpy was invalid, createImage() is guaranteed to
                 // fail. so we'd end up here.
@@ -229,8 +243,7 @@ status_t SurfaceTexture::updateTexImage() {
             failed = true;
         }
         if (failed) {
-            mBufferQueue->releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
-                    mEGLSlots[buf].mFence);
+            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence);
             return -EINVAL;
         }
 
@@ -241,7 +254,7 @@ status_t SurfaceTexture::updateTexImage() {
                 if (fence == EGL_NO_SYNC_KHR) {
                     ALOGE("updateTexImage: error creating fence: %#x",
                             eglGetError());
-                    mBufferQueue->releaseBuffer(buf, mEGLSlots[buf].mEglDisplay,
+                    mBufferQueue->releaseBuffer(buf, dpy,
                             mEGLSlots[buf].mFence);
                     return -EINVAL;
                 }
@@ -256,8 +269,7 @@ status_t SurfaceTexture::updateTexImage() {
                 buf, item.mGraphicBuffer != NULL ? item.mGraphicBuffer->handle : 0);
 
         // release old buffer
-        mBufferQueue->releaseBuffer(mCurrentTexture,
-                mEGLSlots[mCurrentTexture].mEglDisplay,
+        mBufferQueue->releaseBuffer(mCurrentTexture, dpy,
                 mEGLSlots[mCurrentTexture].mFence);
 
         // Update the SurfaceTexture state.
@@ -459,10 +471,9 @@ void SurfaceTexture::freeBufferLocked(int slotIndex) {
     if (mEGLSlots[slotIndex].mEglImage != EGL_NO_IMAGE_KHR) {
         EGLImageKHR img = mEGLSlots[slotIndex].mEglImage;
         if (img != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(mEGLSlots[slotIndex].mEglDisplay, img);
+            eglDestroyImageKHR(mEglDisplay, img);
         }
         mEGLSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
-        mEGLSlots[slotIndex].mEglDisplay = EGL_NO_DISPLAY;
     }
 }
 
