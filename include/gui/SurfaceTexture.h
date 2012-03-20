@@ -39,12 +39,20 @@ namespace android {
 
 class String8;
 
-class SurfaceTexture : public virtual RefBase {
+class SurfaceTexture : public virtual RefBase,
+        protected BufferQueue::ConsumerListener {
 public:
-    // This typedef allows external code to continue referencing
-    // SurfaceTexture::FrameAvailableListener during refactoring
-    typedef  BufferQueue::FrameAvailableListener FrameAvailableListener;
-
+    struct FrameAvailableListener : public virtual RefBase {
+        // onFrameAvailable() is called each time an additional frame becomes
+        // available for consumption. This means that frames that are queued
+        // while in asynchronous mode only trigger the callback if no previous
+        // frames are pending. Frames queued while in synchronous mode always
+        // trigger the callback.
+        //
+        // This is called without any lock held and can be called concurrently
+        // by multiple threads.
+        virtual void onFrameAvailable() = 0;
+    };
 
     // SurfaceTexture constructs a new SurfaceTexture object. tex indicates the
     // name of the OpenGL ES texture to which images are to be streamed. This
@@ -175,6 +183,12 @@ public:
 
 protected:
 
+    // Implementation of the BufferQueue::ConsumerListener interface.  These
+    // calls are used to notify the SurfaceTexture of asynchronous events in the
+    // BufferQueue.
+    virtual void onFrameAvailable();
+    virtual void onBuffersReleased();
+
     static bool isExternalFormat(uint32_t format);
 
 private:
@@ -182,6 +196,13 @@ private:
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
             const sp<GraphicBuffer>& graphicBuffer);
+
+    // freeBufferLocked frees up the given buffer slot.  If the slot has been
+    // initialized this will release the reference to the GraphicBuffer in that
+    // slot and destroy the EGLImage in that slot.  Otherwise it has no effect.
+    //
+    // This method must be called with mMutex locked.
+    void freeBufferLocked(int slotIndex);
 
     // computeCurrentTransformMatrix computes the transform matrix for the
     // current texture.  It uses mCurrentTransform and the current GraphicBuffer
@@ -234,8 +255,8 @@ private:
     // browser's tile cache exceeds.
     const GLenum mTexTarget;
 
-    // SurfaceTexture maintains EGL information about GraphicBuffers that corresponds
-    // directly with BufferQueue's buffers
+    // EGLSlot contains the information and object references that
+    // SurfaceTexture maintains about a BufferQueue buffer slot.
     struct EGLSlot {
         EGLSlot()
         : mEglImage(EGL_NO_IMAGE_KHR),
@@ -258,6 +279,13 @@ private:
         EGLSyncKHR mFence;
     };
 
+    // mEGLSlots stores the buffers that have been allocated by the BufferQueue
+    // for each buffer slot.  It is initialized to null pointers, and gets
+    // filled in with the result of BufferQueue::acquire when the
+    // client dequeues a buffer from a
+    // slot that has not yet been used. The buffer allocated to a slot will also
+    // be replaced if the requested buffer usage or geometry differs from that
+    // of the buffer allocated to a slot.
     EGLSlot mEGLSlots[BufferQueue::NUM_BUFFER_SLOTS];
 
     // mAbandoned indicates that the BufferQueue will no longer be used to
@@ -271,10 +299,10 @@ private:
     // It can be set by the setName method.
     String8 mName;
 
-    // mMutex is the mutex used to prevent concurrent access to the member
-    // variables of SurfaceTexture objects. It must be locked whenever the
-    // member variables are accessed.
-    mutable Mutex mMutex;
+    // mFrameAvailableListener is the listener object that will be called when a
+    // new frame becomes available. If it is not NULL it will be called from
+    // queueBuffer.
+    sp<FrameAvailableListener> mFrameAvailableListener;
 
     // mCurrentTexture is the buffer slot index of the buffer that is currently
     // bound to the OpenGL texture. It is initialized to INVALID_BUFFER_SLOT,
@@ -288,6 +316,10 @@ private:
     // if none is supplied
     sp<BufferQueue> mBufferQueue;
 
+    // mMutex is the mutex used to prevent concurrent access to the member
+    // variables of SurfaceTexture objects. It must be locked whenever the
+    // member variables are accessed.
+    mutable Mutex mMutex;
 };
 
 // ----------------------------------------------------------------------------

@@ -122,17 +122,32 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
     ST_LOGV("SurfaceTexture");
     if (bufferQueue == 0) {
-
         ST_LOGV("Creating a new BufferQueue");
         mBufferQueue = new BufferQueue(allowSynchronousMode);
     }
     else {
         mBufferQueue = bufferQueue;
     }
-    mBufferQueue->setConsumerName(mName);
 
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
+
+    // Note that we can't create an sp<...>(this) in a ctor that will not keep a
+    // reference once the ctor ends, as that would cause the refcount of 'this'
+    // dropping to 0 at the end of the ctor.  Since all we need is a wp<...>
+    // that's what we create.
+    wp<BufferQueue::ConsumerListener> listener;
+    sp<BufferQueue::ConsumerListener> proxy;
+    listener = static_cast<BufferQueue::ConsumerListener*>(this);
+    proxy = new BufferQueue::ProxyConsumerListener(listener);
+
+    status_t err = mBufferQueue->consumerConnect(proxy);
+    if (err != NO_ERROR) {
+        ST_LOGE("SurfaceTexture: error connecting to BufferQueue: %s (%d)",
+                strerror(-err), err);
+    } else {
+        mBufferQueue->setConsumerName(mName);
+    }
 }
 
 SurfaceTexture::~SurfaceTexture() {
@@ -167,7 +182,7 @@ status_t SurfaceTexture::updateTexImage() {
 
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    if (mBufferQueue->acquire(&item) == NO_ERROR) {
+    if (mBufferQueue->acquireBuffer(&item) == NO_ERROR) {
         int buf = item.mBuf;
         // This buffer was newly allocated, so we need to clean up on our side
         if (item.mGraphicBuffer != NULL) {
@@ -394,7 +409,7 @@ void SurfaceTexture::setFrameAvailableListener(
         const sp<FrameAvailableListener>& listener) {
     ST_LOGV("setFrameAvailableListener");
     Mutex::Autolock lock(mMutex);
-    mBufferQueue->setFrameAvailableListener(listener);
+    mFrameAvailableListener = listener;
 }
 
 EGLImageKHR SurfaceTexture::createImage(EGLDisplay dpy,
@@ -438,24 +453,36 @@ bool SurfaceTexture::isSynchronousMode() const {
     return mBufferQueue->isSynchronousMode();
 }
 
-void SurfaceTexture::abandon() {
-    Mutex::Autolock lock(mMutex);
-    mAbandoned = true;
-    mCurrentTextureBuf.clear();
-
-    // destroy all egl buffers
-    for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        mEGLSlots[i].mGraphicBuffer = 0;
-        if (mEGLSlots[i].mEglImage != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(mEGLSlots[i].mEglDisplay,
-                    mEGLSlots[i].mEglImage);
-            mEGLSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
-            mEGLSlots[i].mEglDisplay = EGL_NO_DISPLAY;
+void SurfaceTexture::freeBufferLocked(int slotIndex) {
+    ST_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
+    mEGLSlots[slotIndex].mGraphicBuffer = 0;
+    if (mEGLSlots[slotIndex].mEglImage != EGL_NO_IMAGE_KHR) {
+        EGLImageKHR img = mEGLSlots[slotIndex].mEglImage;
+        if (img != EGL_NO_IMAGE_KHR) {
+            eglDestroyImageKHR(mEGLSlots[slotIndex].mEglDisplay, img);
         }
+        mEGLSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
+        mEGLSlots[slotIndex].mEglDisplay = EGL_NO_DISPLAY;
     }
+}
 
-    // disconnect from the BufferQueue
-    mBufferQueue->consumerDisconnect();
+void SurfaceTexture::abandon() {
+    ST_LOGV("abandon");
+    Mutex::Autolock lock(mMutex);
+
+    if (!mAbandoned) {
+        mAbandoned = true;
+        mCurrentTextureBuf.clear();
+
+        // destroy all egl buffers
+        for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+            freeBufferLocked(i);
+        }
+
+        // disconnect from the BufferQueue
+        mBufferQueue->consumerDisconnect();
+        mBufferQueue.clear();
+    }
 }
 
 void SurfaceTexture::setName(const String8& name) {
@@ -505,6 +532,40 @@ status_t SurfaceTexture::connect(int api,
     return mBufferQueue->connect(api, outWidth, outHeight, outTransform);
 }
 
+void SurfaceTexture::onFrameAvailable() {
+    ST_LOGV("onFrameAvailable");
+
+    sp<FrameAvailableListener> listener;
+    { // scope for the lock
+        Mutex::Autolock lock(mMutex);
+        listener = mFrameAvailableListener;
+    }
+
+    if (listener != NULL) {
+        ST_LOGV("actually calling onFrameAvailable");
+        listener->onFrameAvailable();
+    }
+}
+
+void SurfaceTexture::onBuffersReleased() {
+    ST_LOGV("onBuffersReleased");
+
+    Mutex::Autolock lock(mMutex);
+
+    if (mAbandoned) {
+        // Nothing to do if we're already abandoned.
+        return;
+    }
+
+    uint32_t mask = 0;
+    mBufferQueue->getReleasedBuffers(&mask);
+    for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+        if (mask & (1 << i)) {
+            freeBufferLocked(i);
+        }
+    }
+}
+
 void SurfaceTexture::dump(String8& result) const
 {
     char buffer[1024];
@@ -515,19 +576,21 @@ void SurfaceTexture::dump(String8& result, const char* prefix,
         char* buffer, size_t SIZE) const
 {
     Mutex::Autolock _l(mMutex);
-    snprintf(buffer, SIZE, "%smTexName=%d\n", prefix, mTexName);
+    snprintf(buffer, SIZE, "%smTexName=%d, mAbandoned=%d\n", prefix, mTexName,
+            int(mAbandoned));
     result.append(buffer);
 
     snprintf(buffer, SIZE,
-            "%snext   : {crop=[%d,%d,%d,%d], transform=0x%02x, current=%d}\n"
-            ,prefix, mCurrentCrop.left,
+            "%snext   : {crop=[%d,%d,%d,%d], transform=0x%02x, current=%d}\n",
+            prefix, mCurrentCrop.left,
             mCurrentCrop.top, mCurrentCrop.right, mCurrentCrop.bottom,
             mCurrentTransform, mCurrentTexture
     );
     result.append(buffer);
 
-
-    mBufferQueue->dump(result, prefix, buffer, SIZE);
+    if (!mAbandoned) {
+        mBufferQueue->dump(result, prefix, buffer, SIZE);
+    }
 }
 
 static void mtxMul(float out[16], const float a[16], const float b[16]) {

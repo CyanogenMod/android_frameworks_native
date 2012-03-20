@@ -42,17 +42,56 @@ public:
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
 
-    struct FrameAvailableListener : public virtual RefBase {
-        // onFrameAvailable() is called from queueBuffer() each time an
-        // additional frame becomes available for consumption. This means that
-        // frames that are queued while in asynchronous mode only trigger the
-        // callback if no previous frames are pending. Frames queued while in
-        // synchronous mode always trigger the callback.
+    // ConsumerListener is the interface through which the BufferQueue notifies
+    // the consumer of events that the consumer may wish to react to.  Because
+    // the consumer will generally have a mutex that is locked during calls from
+    // teh consumer to the BufferQueue, these calls from the BufferQueue to the
+    // consumer *MUST* be called only when the BufferQueue mutex is NOT locked.
+    struct ConsumerListener : public virtual RefBase {
+        // onFrameAvailable is called from queueBuffer each time an additional
+        // frame becomes available for consumption. This means that frames that
+        // are queued while in asynchronous mode only trigger the callback if no
+        // previous frames are pending. Frames queued while in synchronous mode
+        // always trigger the callback.
         //
         // This is called without any lock held and can be called concurrently
         // by multiple threads.
         virtual void onFrameAvailable() = 0;
+
+        // onBuffersReleased is called to notify the buffer consumer that the
+        // BufferQueue has released its references to one or more GraphicBuffers
+        // contained in its slots.  The buffer consumer should then call
+        // BufferQueue::getReleasedBuffers to retrieve the list of buffers
+        //
+        // This is called without any lock held and can be called concurrently
+        // by multiple threads.
+        virtual void onBuffersReleased() = 0;
     };
+
+    // ProxyConsumerListener is a ConsumerListener implementation that keeps a weak
+    // reference to the actual consumer object.  It forwards all calls to that
+    // consumer object so long as it exists.
+    //
+    // This class exists to avoid having a circular reference between the
+    // BufferQueue object and the consumer object.  The reason this can't be a weak
+    // reference in the BufferQueue class is because we're planning to expose the
+    // consumer side of a BufferQueue as a binder interface, which doesn't support
+    // weak references.
+    class ProxyConsumerListener : public BufferQueue::ConsumerListener {
+    public:
+
+        ProxyConsumerListener(const wp<BufferQueue::ConsumerListener>& consumerListener);
+        virtual ~ProxyConsumerListener();
+        virtual void onFrameAvailable();
+        virtual void onBuffersReleased();
+
+    private:
+
+        // mConsumerListener is a weak reference to the ConsumerListener.  This is
+        // the raison d'etre of ProxyConsumerListener.
+        wp<BufferQueue::ConsumerListener> mConsumerListener;
+    };
+
 
     // BufferQueue manages a pool of gralloc memory slots to be used
     // by producers and consumers.
@@ -168,20 +207,38 @@ public:
 
     // The following public functions is the consumer facing interface
 
-    // acquire consumes a buffer by transferring its ownership to a consumer.
-    // buffer contains the GraphicBuffer and its corresponding information.
-    // buffer.mGraphicsBuffer will be NULL when the buffer has been already
-    // acquired by the consumer.
-
-    status_t acquire(BufferItem *buffer);
+    // acquireBuffer attempts to acquire ownership of the next pending buffer in
+    // the BufferQueue.  If no buffer is pending then it returns -EINVAL.  If a
+    // buffer is successfully acquired, the information about the buffer is
+    // returned in BufferItem.  If the buffer returned had previously been
+    // acquired then the BufferItem::mGraphicBuffer field of buffer is set to
+    // NULL and it is assumed that the consumer still holds a reference to the
+    // buffer.
+    status_t acquireBuffer(BufferItem *buffer);
 
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue pending a fence sync.
+    //
+    // Note that the dependencies on EGL will be removed once we switch to using
+    // the Android HW Sync HAL.
     status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence);
 
+    // consumerConnect connects a consumer to the BufferQueue.  Only one
+    // consumer may be connected, and when that consumer disconnects the
+    // BufferQueue is placed into the "abandoned" state, causing most
+    // interactions with the BufferQueue by the producer to fail.
+    status_t consumerConnect(const sp<ConsumerListener>& consumer);
+
     // consumerDisconnect disconnects a consumer from the BufferQueue. All
-    // buffers will be freed.
+    // buffers will be freed and the BufferQueue is placed in the "abandoned"
+    // state, causing most interactions with the BufferQueue by the producer to
+    // fail.
     status_t consumerDisconnect();
+
+    // getReleasedBuffers sets the value pointed to by slotMask to a bit mask
+    // indicating which buffer slots the have been released by the BufferQueue
+    // but have not yet been released by the consumer.
+    status_t getReleasedBuffers(uint32_t* slotMask);
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // requestBuffers when a with and height of zero is requested.
@@ -198,10 +255,6 @@ public:
 
     // setConsumerName sets the name used in logging
     void setConsumerName(const String8& name);
-
-    // setFrameAvailableListener sets the listener object that will be notified
-    // when a new frame becomes available.
-    void setFrameAvailableListener(const sp<FrameAvailableListener>& listener);
 
     // setDefaultBufferFormat allows the BufferQueue to create
     // GraphicBuffers of a defaultFormat if no format is specified
@@ -384,10 +437,10 @@ private:
     // allocate new GraphicBuffer objects.
     sp<IGraphicBufferAlloc> mGraphicBufferAlloc;
 
-    // mFrameAvailableListener is the listener object that will be called when a
-    // new frame becomes available. If it is not NULL it will be called from
-    // queueBuffer.
-    sp<FrameAvailableListener> mFrameAvailableListener;
+    // mConsumerListener is used to notify the connected consumer of
+    // asynchronous events that it may wish to react to.  It is initially set
+    // to NULL and is written by consumerConnect and consumerDisconnect.
+    sp<ConsumerListener> mConsumerListener;
 
     // mSynchronousMode whether we're in synchronous mode or not
     bool mSynchronousMode;

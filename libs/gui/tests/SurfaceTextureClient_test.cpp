@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "SurfaceTextureClient_test"
+//#define LOG_NDEBUG 0
+
 #include <EGL/egl.h>
 #include <gtest/gtest.h>
 #include <gui/SurfaceTextureClient.h>
-#include <utils/threads.h>
+#include <utils/Log.h>
+#include <utils/Thread.h>
 
 namespace android {
 
@@ -30,6 +34,11 @@ protected:
     }
 
     virtual void SetUp() {
+        const ::testing::TestInfo* const testInfo =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+        ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
+                testInfo->name());
+
         mST = new SurfaceTexture(123);
         mSTC = new SurfaceTextureClient(mST);
         mANW = mSTC;
@@ -76,6 +85,11 @@ protected:
         eglDestroyContext(mEglDisplay, mEglContext);
         eglDestroySurface(mEglDisplay, mEglSurface);
         eglTerminate(mEglDisplay);
+
+        const ::testing::TestInfo* const testInfo =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+        ALOGV("End test:   %s.%s", testInfo->test_case_name(),
+                testInfo->name());
     }
 
     virtual EGLint const* getConfigAttribs() {
@@ -146,6 +160,10 @@ TEST_F(SurfaceTextureClientTest, EglCreateWindowSurfaceSucceeds) {
             NULL);
     EXPECT_NE(EGL_NO_SURFACE, eglSurface);
     EXPECT_EQ(EGL_SUCCESS, eglGetError());
+
+    if (eglSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(dpy, eglSurface);
+    }
 
     eglTerminate(dpy);
 }

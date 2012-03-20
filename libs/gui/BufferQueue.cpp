@@ -15,8 +15,8 @@
  */
 
 #define LOG_TAG "BufferQueue"
-//#define LOG_NDEBUG 0
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
+//#define LOG_NDEBUG 0
 
 #define GL_GLEXT_PROTOTYPES
 #define EGL_EGLEXT_PROTOTYPES
@@ -144,13 +144,6 @@ bool BufferQueue::isSynchronousMode() const {
 void BufferQueue::setConsumerName(const String8& name) {
     Mutex::Autolock lock(mMutex);
     mConsumerName = name;
-}
-
-void BufferQueue::setFrameAvailableListener(
-        const sp<FrameAvailableListener>& listener) {
-    ST_LOGV("setFrameAvailableListener");
-    Mutex::Autolock lock(mMutex);
-    mFrameAvailableListener = listener;
 }
 
 status_t BufferQueue::setDefaultBufferFormat(uint32_t defaultFormat) {
@@ -531,7 +524,7 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
 
     ST_LOGV("queueBuffer: slot=%d time=%lld", buf, timestamp);
 
-    sp<FrameAvailableListener> listener;
+    sp<ConsumerListener> listener;
 
     { // scope for the lock
         Mutex::Autolock lock(mMutex);
@@ -559,7 +552,7 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
 
             // Synchronous mode always signals that an additional frame should
             // be consumed.
-            listener = mFrameAvailableListener;
+            listener = mConsumerListener;
         } else {
             // In asynchronous mode we only keep the most recent buffer.
             if (mQueue.empty()) {
@@ -568,7 +561,7 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
                 // Asynchronous mode only signals that a frame should be
                 // consumed if no previous frame was pending. If a frame were
                 // pending then the consumer would have already been notified.
-                listener = mFrameAvailableListener;
+                listener = mConsumerListener;
             } else {
                 Fifo::iterator front(mQueue.begin());
                 // buffer currently queued is freed
@@ -682,6 +675,11 @@ status_t BufferQueue::connect(int api,
         return NO_INIT;
     }
 
+    if (mConsumerListener == NULL) {
+        ST_LOGE("connect: BufferQueue has no consumer!");
+        return NO_INIT;
+    }
+
     int err = NO_ERROR;
     switch (api) {
         case NATIVE_WINDOW_API_EGL:
@@ -712,38 +710,49 @@ status_t BufferQueue::connect(int api,
 status_t BufferQueue::disconnect(int api) {
     ATRACE_CALL();
     ST_LOGV("disconnect: api=%d", api);
-    Mutex::Autolock lock(mMutex);
-
-    if (mAbandoned) {
-        // it is not really an error to disconnect after the surface
-        // has been abandoned, it should just be a no-op.
-        return NO_ERROR;
-    }
 
     int err = NO_ERROR;
-    switch (api) {
-        case NATIVE_WINDOW_API_EGL:
-        case NATIVE_WINDOW_API_CPU:
-        case NATIVE_WINDOW_API_MEDIA:
-        case NATIVE_WINDOW_API_CAMERA:
-            if (mConnectedApi == api) {
-                drainQueueAndFreeBuffersLocked();
-                mConnectedApi = NO_CONNECTED_API;
-                mNextCrop.makeInvalid();
-                mNextScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
-                mNextTransform = 0;
-                mDequeueCondition.broadcast();
-            } else {
-                ST_LOGE("disconnect: connected to another api (cur=%d, req=%d)",
-                        mConnectedApi, api);
+    sp<ConsumerListener> listener;
+
+    { // Scope for the lock
+        Mutex::Autolock lock(mMutex);
+
+        if (mAbandoned) {
+            // it is not really an error to disconnect after the surface
+            // has been abandoned, it should just be a no-op.
+            return NO_ERROR;
+        }
+
+        switch (api) {
+            case NATIVE_WINDOW_API_EGL:
+            case NATIVE_WINDOW_API_CPU:
+            case NATIVE_WINDOW_API_MEDIA:
+            case NATIVE_WINDOW_API_CAMERA:
+                if (mConnectedApi == api) {
+                    drainQueueAndFreeBuffersLocked();
+                    mConnectedApi = NO_CONNECTED_API;
+                    mNextCrop.makeInvalid();
+                    mNextScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
+                    mNextTransform = 0;
+                    mDequeueCondition.broadcast();
+                    listener = mConsumerListener;
+                } else {
+                    ST_LOGE("disconnect: connected to another api (cur=%d, req=%d)",
+                            mConnectedApi, api);
+                    err = -EINVAL;
+                }
+                break;
+            default:
+                ST_LOGE("disconnect: unknown API %d", api);
                 err = -EINVAL;
-            }
-            break;
-        default:
-            ST_LOGE("disconnect: unknown API %d", api);
-            err = -EINVAL;
-            break;
+                break;
+        }
     }
+
+    if (listener != NULL) {
+        listener->onBuffersReleased();
+    }
+
     return err;
 }
 
@@ -841,7 +850,7 @@ void BufferQueue::freeAllBuffersLocked() {
     }
 }
 
-status_t BufferQueue::acquire(BufferItem *buffer) {
+status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
     ATRACE_CALL();
     Mutex::Autolock _l(mMutex);
     // check if queue is empty
@@ -855,8 +864,7 @@ status_t BufferQueue::acquire(BufferItem *buffer) {
 
         if (mSlots[buf].mAcquireCalled) {
             buffer->mGraphicBuffer = NULL;
-        }
-        else {
+        } else {
             buffer->mGraphicBuffer = mSlots[buf].mGraphicBuffer;
         }
         buffer->mCrop = mSlots[buf].mCrop;
@@ -872,8 +880,7 @@ status_t BufferQueue::acquire(BufferItem *buffer) {
         mDequeueCondition.broadcast();
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
-    }
-    else {
+    } else {
         // should be a better return code?
         return -EINVAL;
     }
@@ -907,15 +914,56 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
     return OK;
 }
 
-status_t BufferQueue::consumerDisconnect() {
+status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListener) {
+    ST_LOGV("consumerConnect");
     Mutex::Autolock lock(mMutex);
 
-    mAbandoned = true;
+    if (mAbandoned) {
+        ST_LOGE("consumerConnect: BufferQueue has been abandoned!");
+        return NO_INIT;
+    }
 
+    mConsumerListener = consumerListener;
+
+    return OK;
+}
+
+status_t BufferQueue::consumerDisconnect() {
+    ST_LOGV("consumerDisconnect");
+    Mutex::Autolock lock(mMutex);
+
+    if (mConsumerListener == NULL) {
+        ST_LOGE("consumerDisconnect: No consumer is connected!");
+        return -EINVAL;
+    }
+
+    mAbandoned = true;
+    mConsumerListener = NULL;
     mQueue.clear();
     freeAllBuffersLocked();
     mDequeueCondition.broadcast();
     return OK;
+}
+
+status_t BufferQueue::getReleasedBuffers(uint32_t* slotMask) {
+    ST_LOGV("getReleasedBuffers");
+    Mutex::Autolock lock(mMutex);
+
+    if (mAbandoned) {
+        ST_LOGE("getReleasedBuffers: BufferQueue has been abandoned!");
+        return NO_INIT;
+    }
+
+    uint32_t mask = 0;
+    for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
+        if (!mSlots[i].mAcquireCalled) {
+            mask |= 1 << i;
+        }
+    }
+    *slotMask = mask;
+
+    ST_LOGV("getReleasedBuffers: returning mask %#x", mask);
+    return NO_ERROR;
 }
 
 status_t BufferQueue::setDefaultBufferSize(uint32_t w, uint32_t h)
@@ -980,6 +1028,26 @@ status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
         }
     }
     return err;
+}
+
+BufferQueue::ProxyConsumerListener::ProxyConsumerListener(
+        const wp<BufferQueue::ConsumerListener>& consumerListener):
+        mConsumerListener(consumerListener) {}
+
+BufferQueue::ProxyConsumerListener::~ProxyConsumerListener() {}
+
+void BufferQueue::ProxyConsumerListener::onFrameAvailable() {
+    sp<BufferQueue::ConsumerListener> listener(mConsumerListener.promote());
+    if (listener != NULL) {
+        listener->onFrameAvailable();
+    }
+}
+
+void BufferQueue::ProxyConsumerListener::onBuffersReleased() {
+    sp<BufferQueue::ConsumerListener> listener(mConsumerListener.promote());
+    if (listener != NULL) {
+        listener->onBuffersReleased();
+    }
 }
 
 }; // namespace android
