@@ -245,27 +245,33 @@ void DisplayHardware::init(uint32_t dpy)
             mFlags |= BUFFER_PRESERVED;
         }
     }
-    
+
+    /* use the xdpi as our density baseline */
+    mDensity = mDpiX;
+
     /* Read density from build-specific ro.sf.lcd_density property
      * except if it is overridden by qemu.sf.lcd_density.
      */
     if (property_get("qemu.sf.lcd_density", property, NULL) <= 0) {
         if (property_get("ro.sf.lcd_density", property, NULL) <= 0) {
             if (mDpiX && mDpiY) {
-                ALOGI("Using density info from display: xdpi=%d ydpi=%d\n",
+                ALOGI("Using density info from display: xdpi=%.1f ydpi=%.1f\n",
                       mDpiX, mDpiY);
             } else {
                 ALOGW("No display dpi and ro.sf.lcd_density not defined, using 160 dpi by default.");
-                mDpiX = mDpiY = 160;
+                mDpiX = mDpiY = mDensity = 160;
             }
+        } else {
+            /* force density to what the build requested */
+            mDensity = atoi(property);
         }
     } else {
         /* for the emulator case, reset the dpi values too */
-        mDpiX = mDpiY = atoi(property);
+        mDpiX = mDpiY = mDensity = atoi(property);
     }
 
-    /* use the xdpi as our density baseline */
-    mDensity = mDpiX * (1.0f / 160.0f);
+    /* set the actual density scale */
+    mDensity *= (1.0f / 160.0f);
 
     /*
      * Create our OpenGL ES context
