@@ -162,10 +162,50 @@ void DisplayHardware::init(uint32_t dpy)
     mRefreshRate = fbDev->fps;
     mNextFakeVSync = 0;
 
+    if (mDpiX == 0 || mDpiY == 0) {
+        ALOGE("invalid screen resolution from fb HAL (xdpi=%f, ydpi=%f), "
+               "defaulting to 160 dpi", mDpiX, mDpiY);
+        mDpiX = mDpiY = 160;
+    }
 
-/* FIXME: this is a temporary HACK until we are able to report the refresh rate
- * properly from the HAL. The WindowManagerService now relies on this value.
- */
+    class Density {
+        static int getDensityFromProperty(char const* propName) {
+            char property[PROPERTY_VALUE_MAX];
+            int density = 0;
+            if (property_get(propName, property, NULL) > 0) {
+                density = atoi(property);
+            }
+            return density;
+        }
+    public:
+        static int getEmuDensity() {
+            return getDensityFromProperty("qemu.sf.lcd_density"); }
+        static int getBuildDensity()  {
+            return getDensityFromProperty("ro.sf.lcd_density"); }
+    };
+
+
+    // The density of the device is provided by a build property
+    mDensity = Density::getBuildDensity() / 160.0f;
+
+    if (mDensity == 0) {
+        // the build doesn't provide a density -- this is wrong!
+        // use xdpi instead
+        ALOGE("ro.sf.lcd_density must be defined as a build property");
+        mDensity = mDpiX / 160.0f;
+    }
+
+    if (Density::getEmuDensity()) {
+        // if "qemu.sf.lcd_density" is specified, it overrides everything
+        mDpiX = mDpiY = mDensity = Density::getEmuDensity();
+        mDensity /= 160.0f;
+    }
+
+
+
+    /* FIXME: this is a temporary HACK until we are able to report the refresh rate
+     * properly from the HAL. The WindowManagerService now relies on this value.
+     */
 #ifndef REFRESH_RATE
     mRefreshRate = fbDev->fps;
 #else
@@ -246,38 +286,10 @@ void DisplayHardware::init(uint32_t dpy)
         }
     }
 
-    /* use the xdpi as our density baseline */
-    mDensity = mDpiX;
-
-    /* Read density from build-specific ro.sf.lcd_density property
-     * except if it is overridden by qemu.sf.lcd_density.
-     */
-    if (property_get("qemu.sf.lcd_density", property, NULL) <= 0) {
-        if (property_get("ro.sf.lcd_density", property, NULL) <= 0) {
-            if (mDpiX && mDpiY) {
-                ALOGI("Using density info from display: xdpi=%.1f ydpi=%.1f\n",
-                      mDpiX, mDpiY);
-            } else {
-                ALOGW("No display dpi and ro.sf.lcd_density not defined, using 160 dpi by default.");
-                mDpiX = mDpiY = mDensity = 160;
-            }
-        } else {
-            /* force density to what the build requested */
-            mDensity = atoi(property);
-        }
-    } else {
-        /* for the emulator case, reset the dpi values too */
-        mDpiX = mDpiY = mDensity = atoi(property);
-    }
-
-    /* set the actual density scale */
-    mDensity *= (1.0f / 160.0f);
-
     /*
      * Create our OpenGL ES context
      */
     
-
     EGLint contextAttributes[] = {
 #ifdef EGL_IMG_context_priority
 #ifdef HAS_CONTEXT_PRIORITY
