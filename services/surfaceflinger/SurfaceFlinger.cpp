@@ -116,11 +116,13 @@ void SurfaceFlinger::init()
     property_get("debug.sf.showbackground", value, "0");
     mDebugBackground = atoi(value);
 
+#ifdef DDMS_DEBUGGING
     property_get("debug.sf.ddms", value, "0");
     mDebugDDMS = atoi(value);
     if (mDebugDDMS) {
         DdmConnection::start(getServiceName());
     }
+#endif
 
     ALOGI_IF(mDebugRegion,       "showupdates enabled");
     ALOGI_IF(mDebugBackground,   "showbackground enabled");
