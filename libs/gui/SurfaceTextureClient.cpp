@@ -18,11 +18,14 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+#include <android/native_window.h>
+
 #include <utils/Log.h>
 #include <utils/Trace.h>
 
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
+#include <gui/SurfaceTexture.h>
 #include <gui/SurfaceTextureClient.h>
 
 #include <private/gui/ComposerService.h>

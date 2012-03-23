@@ -27,6 +27,8 @@
 #include <utils/RefBase.h>
 #include <utils/threads.h>
 
+struct ANativeWindow_Buffer;
+
 namespace android {
 
 class Surface;

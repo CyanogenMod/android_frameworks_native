@@ -21,6 +21,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <android/native_window.h>
+
 #include <utils/CallStack.h>
 #include <utils/Errors.h>
 #include <utils/Log.h>
