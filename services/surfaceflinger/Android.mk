@@ -7,7 +7,6 @@ LOCAL_SRC_FILES:= \
     LayerBase.cpp                           \
     LayerDim.cpp                            \
     LayerScreenshot.cpp                     \
-    DdmConnection.cpp                       \
     DisplayHardware/DisplayHardware.cpp     \
     DisplayHardware/DisplayHardwareBase.cpp \
     DisplayHardware/HWComposer.cpp          \
@@ -49,7 +48,11 @@ LOCAL_SHARED_LIBRARIES := \
 	libgui
 
 # this is only needed for DDMS debugging
-LOCAL_SHARED_LIBRARIES += libdvm libandroid_runtime
+ifneq ($(TARGET_BUILD_PDK), true)
+	LOCAL_SHARED_LIBRARIES += libdvm libandroid_runtime
+	LOCAL_CLFAGS += -DDDMS_DEBUGGING
+	LOCAL_SRC_FILES += DdmConnection.cpp
+endif
 
 LOCAL_MODULE:= libsurfaceflinger
 
