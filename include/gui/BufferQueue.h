@@ -18,6 +18,7 @@
 #define ANDROID_GUI_BUFFERQUEUE_H
 
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceTexture.h>
