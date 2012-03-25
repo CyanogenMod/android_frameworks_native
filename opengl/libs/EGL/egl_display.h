@@ -107,6 +107,7 @@ private:
 
 public:
     DisplayImpl     disp;
+    bool    finishOnSwap;
 
 private:
             uint32_t                    refs;

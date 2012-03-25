@@ -22,6 +22,7 @@
 #include "egl_tls.h"
 #include "egl_impl.h"
 #include "Loader.h"
+#include <cutils/properties.h>
 
 // ----------------------------------------------------------------------------
 namespace android {
@@ -66,7 +67,7 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
-    magic('_dpy'), refs(0) {
+    magic('_dpy'), finishOnSwap(false), refs(0) {
 }
 
 egl_display_t::~egl_display_t() {
@@ -231,6 +232,12 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     } while (end);
 
     egl_cache_t::get()->initialize(this);
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.egl.finish", value, "0");
+    if (atoi(value)) {
+        finishOnSwap = true;
+    }
 
     refs++;
     if (major != NULL)

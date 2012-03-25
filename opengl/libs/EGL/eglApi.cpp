@@ -30,6 +30,7 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/compiler.h>
 #include <cutils/properties.h>
 #include <cutils/memory.h>
 
@@ -732,6 +733,17 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
 #endif
 
     egl_surface_t const * const s = get_surface(draw);
+
+    if (CC_UNLIKELY(dp->finishOnSwap)) {
+        uint32_t pixel;
+        egl_context_t * const c = get_context( egl_tls_t::getContext() );
+        if (c) {
+            // glReadPixels() ensures that the frame is complete
+            s->cnx->hooks[c->version]->gl.glReadPixels(0,0,1,1,
+                    GL_RGBA,GL_UNSIGNED_BYTE,&pixel);
+        }
+    }
+
     return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
 }
 
