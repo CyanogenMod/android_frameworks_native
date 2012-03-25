@@ -133,8 +133,7 @@ status_t MessageQueue::postMessage(
 }
 
 void MessageQueue::invalidate() {
-//    mHandler->signalInvalidate();
-    mEvents->requestNextVsync();
+    mHandler->signalInvalidate();
 }
 
 void MessageQueue::refresh() {
