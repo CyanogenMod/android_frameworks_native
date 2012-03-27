@@ -104,7 +104,6 @@ protected:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
 
-    enum { MIN_UNDEQUEUED_BUFFERS = BufferQueue::MIN_UNDEQUEUED_BUFFERS };
     enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
     enum { DEFAULT_FORMAT = PIXEL_FORMAT_RGBA_8888 };
 

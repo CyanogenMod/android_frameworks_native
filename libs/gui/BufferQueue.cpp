@@ -69,13 +69,16 @@ static int32_t createProcessUniqueId() {
     return android_atomic_inc(&globalCounter);
 }
 
-BufferQueue::BufferQueue( bool allowSynchronousMode ) :
+BufferQueue::BufferQueue(  bool allowSynchronousMode, int bufferCount ) :
     mDefaultWidth(1),
     mDefaultHeight(1),
     mPixelFormat(PIXEL_FORMAT_RGBA_8888),
-    mBufferCount(MIN_ASYNC_BUFFER_SLOTS),
+    mMinUndequeuedBuffers(bufferCount),
+    mMinAsyncBufferSlots(bufferCount + 1),
+    mMinSyncBufferSlots(bufferCount),
+    mBufferCount(mMinAsyncBufferSlots),
     mClientBufferCount(0),
-    mServerBufferCount(MIN_ASYNC_BUFFER_SLOTS),
+    mServerBufferCount(mMinAsyncBufferSlots),
     mSynchronousMode(false),
     mAllowSynchronousMode(allowSynchronousMode),
     mConnectedApi(NO_CONNECTED_API),
@@ -92,6 +95,9 @@ BufferQueue::BufferQueue( bool allowSynchronousMode ) :
     ST_LOGV("BufferQueue");
     sp<ISurfaceComposer> composer(ComposerService::getComposerService());
     mGraphicBufferAlloc = composer->createGraphicBufferAlloc();
+    if (mGraphicBufferAlloc == 0) {
+        ST_LOGE("createGraphicBufferAlloc() failed in BufferQueue()");
+    }
 }
 
 BufferQueue::~BufferQueue() {
@@ -186,7 +192,7 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         }
 
         const int minBufferSlots = mSynchronousMode ?
-                MIN_SYNC_BUFFER_SLOTS : MIN_ASYNC_BUFFER_SLOTS;
+            mMinSyncBufferSlots : mMinAsyncBufferSlots;
         if (bufferCount == 0) {
             mClientBufferCount = 0;
             bufferCount = (mServerBufferCount >= minBufferSlots) ?
@@ -241,7 +247,7 @@ int BufferQueue::query(int what, int* outValue)
         break;
     case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
         value = mSynchronousMode ?
-                (MIN_UNDEQUEUED_BUFFERS-1) : MIN_UNDEQUEUED_BUFFERS;
+                (mMinUndequeuedBuffers-1) : mMinUndequeuedBuffers;
         break;
     default:
         return BAD_VALUE;
@@ -317,7 +323,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             // wait on mDequeueCondition.
 
             const int minBufferCountNeeded = mSynchronousMode ?
-                    MIN_SYNC_BUFFER_SLOTS : MIN_ASYNC_BUFFER_SLOTS;
+                    mMinSyncBufferSlots : mMinAsyncBufferSlots;
 
             const bool numberOfBuffersNeedsToChange = !mClientBufferCount &&
                     ((mServerBufferCount != mBufferCount) ||
@@ -384,15 +390,15 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
 
             // See whether a buffer has been queued since the last
             // setBufferCount so we know whether to perform the
-            // MIN_UNDEQUEUED_BUFFERS check below.
+            // mMinUndequeuedBuffers check below.
             if (mBufferHasBeenQueued) {
                 // make sure the client is not trying to dequeue more buffers
                 // than allowed.
                 const int avail = mBufferCount - (dequeuedCount+1);
-                if (avail < (MIN_UNDEQUEUED_BUFFERS-int(mSynchronousMode))) {
-                    ST_LOGE("dequeueBuffer: MIN_UNDEQUEUED_BUFFERS=%d exceeded "
+                if (avail < (mMinUndequeuedBuffers-int(mSynchronousMode))) {
+                    ST_LOGE("dequeueBuffer: mMinUndequeuedBuffers=%d exceeded "
                             "(dequeued=%d)",
-                            MIN_UNDEQUEUED_BUFFERS-int(mSynchronousMode),
+                            mMinUndequeuedBuffers-int(mSynchronousMode),
                             dequeuedCount);
                     return -EBUSY;
                 }

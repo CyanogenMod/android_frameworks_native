@@ -35,10 +35,6 @@ namespace android {
 class BufferQueue : public BnSurfaceTexture {
 public:
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
-    enum {
-        MIN_ASYNC_BUFFER_SLOTS = MIN_UNDEQUEUED_BUFFERS + 1,
-        MIN_SYNC_BUFFER_SLOTS  = MIN_UNDEQUEUED_BUFFERS
-    };
     enum { NUM_BUFFER_SLOTS = 32 };
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
@@ -99,7 +95,8 @@ public:
     // by producers and consumers.
     // allowSynchronousMode specifies whether or not synchronous mode can be
     // enabled.
-    BufferQueue(bool allowSynchronousMode = true);
+    // bufferCount sets the minimum number of undequeued buffers for this queue
+    BufferQueue(  bool allowSynchronousMode = true, int bufferCount = MIN_UNDEQUEUED_BUFFERS);
     virtual ~BufferQueue();
 
     virtual int query(int what, int* value);
@@ -401,6 +398,18 @@ private:
     // mPixelFormat holds the pixel format of allocated buffers. It is used
     // in requestBuffers() if a format of zero is specified.
     uint32_t mPixelFormat;
+
+    // mMinUndequeuedBuffers is a constraint on the number of buffers
+    // not dequeued at any time
+    int mMinUndequeuedBuffers;
+
+    // mMinAsyncBufferSlots is a constraint on the minimum mBufferCount
+    // when this BufferQueue is in asynchronous mode
+    int mMinAsyncBufferSlots;
+
+    // mMinSyncBufferSlots is a constraint on the minimum mBufferCount
+    // when this BufferQueue is in synchronous mode
+    int mMinSyncBufferSlots;
 
     // mBufferCount is the number of buffer slots that the client and server
     // must maintain. It defaults to MIN_ASYNC_BUFFER_SLOTS and can be changed
