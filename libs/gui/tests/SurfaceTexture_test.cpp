@@ -132,7 +132,7 @@ protected:
     }
 
     virtual void TearDown() {
-        // Display the result 
+        // Display the result
         if (mDisplaySecs > 0 && mEglSurface != EGL_NO_SURFACE) {
             eglSwapBuffers(mEglDisplay, mEglSurface);
             sleep(mDisplaySecs);
@@ -484,6 +484,55 @@ protected:
         int mPendingFrames;
         Mutex mMutex;
         Condition mCondition;
+    };
+
+    // Note that SurfaceTexture will lose the notifications
+    // onBuffersReleased and onFrameAvailable as there is currently
+    // no way to forward the events.  This DisconnectWaiter will not let the
+    // disconnect finish until finishDisconnect() is called.  It will
+    // also block until a disconnect is called
+    class DisconnectWaiter : public BufferQueue::ConsumerListener {
+    public:
+        DisconnectWaiter () :
+            mWaitForDisconnect(false),
+            mPendingFrames(0) {
+        }
+
+        void waitForFrame() {
+            Mutex::Autolock lock(mMutex);
+            while (mPendingFrames == 0) {
+                mFrameCondition.wait(mMutex);
+            }
+            mPendingFrames--;
+        }
+
+        virtual void onFrameAvailable() {
+            Mutex::Autolock lock(mMutex);
+            mPendingFrames++;
+            mFrameCondition.signal();
+        }
+
+        virtual void onBuffersReleased() {
+            Mutex::Autolock lock(mMutex);
+            while (!mWaitForDisconnect) {
+                mDisconnectCondition.wait(mMutex);
+            }
+        }
+
+        void finishDisconnect() {
+            Mutex::Autolock lock(mMutex);
+            mWaitForDisconnect = true;
+            mDisconnectCondition.signal();
+        }
+
+    private:
+        Mutex mMutex;
+
+        bool mWaitForDisconnect;
+        Condition mDisconnectCondition;
+
+        int mPendingFrames;
+        Condition mFrameCondition;
     };
 
     sp<SurfaceTexture> mST;
@@ -982,6 +1031,102 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferPow2) {
     EXPECT_TRUE(checkPixel(46, 29, 231, 231,  35,  35));
     EXPECT_TRUE(checkPixel(15, 25,  35, 231,  35, 231));
     EXPECT_TRUE(checkPixel( 3, 52,  35, 231,  35,  35));
+}
+
+// Tests if SurfaceTexture and BufferQueue are robust enough
+// to handle a special case where updateTexImage is called
+// in the middle of disconnect.  This ordering is enforced
+// by blocking in the disconnect callback.
+TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
+
+    class ProducerThread : public Thread {
+    public:
+        ProducerThread(const sp<ANativeWindow>& anw):
+                mANW(anw) {
+        }
+
+        virtual ~ProducerThread() {
+        }
+
+        virtual bool threadLoop() {
+            ANativeWindowBuffer* anb;
+
+            native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_EGL);
+
+            for (int numFrames =0 ; numFrames < 2; numFrames ++) {
+
+                if (mANW->dequeueBuffer(mANW.get(), &anb) != NO_ERROR) {
+                    return false;
+                }
+                if (anb == NULL) {
+                    return false;
+                }
+                if (mANW->queueBuffer(mANW.get(), anb)
+                        != NO_ERROR) {
+                    return false;
+                }
+            }
+
+            native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_EGL);
+
+            return false;
+        }
+
+    private:
+        sp<ANativeWindow> mANW;
+    };
+
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    sp<DisconnectWaiter> dw(new DisconnectWaiter());
+    mST->getBufferQueue()->consumerConnect(dw);
+
+
+    sp<Thread> pt(new ProducerThread(mANW));
+    pt->run();
+
+    // eat a frame so SurfaceTexture will own an at least one slot
+    dw->waitForFrame();
+    EXPECT_EQ(OK,mST->updateTexImage());
+
+    dw->waitForFrame();
+    // Could fail here as SurfaceTexture thinks it still owns the slot
+    // but bufferQueue has released all slots
+    EXPECT_EQ(OK,mST->updateTexImage());
+
+    dw->finishDisconnect();
+}
+
+
+// This test ensures that the SurfaceTexture clears the mCurrentTexture
+// when it is disconnected and reconnected.  Otherwise it will
+// attempt to release a buffer that it does not owned
+TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_EGL);
+
+    ANativeWindowBuffer *anb;
+
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+
+    EXPECT_EQ(OK,mST->updateTexImage());
+    EXPECT_EQ(OK,mST->updateTexImage());
+
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_EGL);
+    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_EGL);
+
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+
+    // Will fail here if mCurrentTexture is not cleared properly
+    EXPECT_EQ(OK,mST->updateTexImage());
 }
 
 TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
