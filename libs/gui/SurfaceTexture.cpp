@@ -575,6 +575,8 @@ void SurfaceTexture::onBuffersReleased() {
             freeBufferLocked(i);
         }
     }
+
+    mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
 }
 
 void SurfaceTexture::dump(String8& result) const
