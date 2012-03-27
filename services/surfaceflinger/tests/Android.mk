@@ -12,7 +12,6 @@ LOCAL_SRC_FILES := \
 LOCAL_SHARED_LIBRARIES := \
 	libEGL \
 	libGLESv2 \
-	libandroid \
 	libbinder \
 	libcutils \
 	libgui \
