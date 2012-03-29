@@ -1013,18 +1013,29 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
         drawWormhole();
     }
 
-    // FIXME: workaroud for b/6020860
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(0,0,0,0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    // end-workaround
-
     /*
      * and then, render the layers targeted at the framebuffer
      */
+
     hwc_layer_t* const cur(hwc.getLayers());
     const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
     size_t count = layers.size();
+
+
+    // FIXME: workaround for b/6020860
+    if (hw.getFlags() & DisplayHardware::BUFFER_PRESERVED) {
+        for (size_t i=0 ; i<count ; i++) {
+            if (cur && (cur[i].compositionType == HWC_FRAMEBUFFER)) {
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(0,0,0,0);
+                glClear(GL_COLOR_BUFFER_BIT);
+                break;
+            }
+        }
+    }
+    // FIXME: bug6020860 for b/6020860
+
+
     for (size_t i=0 ; i<count ; i++) {
         if (cur && (cur[i].compositionType != HWC_FRAMEBUFFER)) {
             continue;
