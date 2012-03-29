@@ -55,8 +55,7 @@ public:
     };
 
     // SurfaceTexture constructs a new SurfaceTexture object. tex indicates the
-    // name of the OpenGL ES texture to which images are to be streamed. This
-    // texture name cannot be changed once the SurfaceTexture is created.
+    // name of the OpenGL ES texture to which images are to be streamed.
     // allowSynchronousMode specifies whether or not synchronous mode can be
     // enabled. texTarget specifies the OpenGL ES texture target to which the
     // texture will be bound in updateTexImage. useFenceSync specifies whether
@@ -64,6 +63,21 @@ public:
     // is enabled at compile-time. A custom bufferQueue can be specified
     // if behavior for queue/dequeue/connect etc needs to be customized.
     // Otherwise a default BufferQueue will be created and used.
+    //
+    // For legacy reasons, the SurfaceTexture is created in a state where it is
+    // considered attached to an OpenGL ES context for the purposes of the
+    // attachToContext and detachFromContext methods. However, despite being
+    // considered "attached" to a context, the specific OpenGL ES context
+    // doesn't get latched until the first call to updateTexImage. After that
+    // point, all calls to updateTexImage must be made with the same OpenGL ES
+    // context current.
+    //
+    // A SurfaceTexture may be detached from one OpenGL ES context and then
+    // attached to a different context using the detachFromContext and
+    // attachToContext methods, respectively. The intention of these methods is
+    // purely to allow a SurfaceTexture to be transferred from one consumer
+    // context to another. If such a transfer is not needed there is no
+    // requirement that either of these methods be called.
     SurfaceTexture(GLuint tex, bool allowSynchronousMode = true,
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0);
@@ -175,7 +189,36 @@ public:
     virtual status_t connect(int api,
                 uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
 
+    // getBufferQueue returns the BufferQueue object to which this
+    // SurfaceTexture is connected.
     sp<BufferQueue> getBufferQueue() const;
+
+    // detachFromContext detaches the SurfaceTexture from the calling thread's
+    // current OpenGL ES context.  This context must be the same as the context
+    // that was current for previous calls to updateTexImage.
+    //
+    // Detaching a SurfaceTexture from an OpenGL ES context will result in the
+    // deletion of the OpenGL ES texture object into which the images were being
+    // streamed.  After a SurfaceTexture has been detached from the OpenGL ES
+    // context calls to updateTexImage will fail returning INVALID_OPERATION
+    // until the SurfaceTexture is attached to a new OpenGL ES context using the
+    // attachToContext method.
+    status_t detachFromContext();
+
+    // attachToContext attaches a SurfaceTexture that is currently in the
+    // 'detached' state to the current OpenGL ES context.  A SurfaceTexture is
+    // in the 'detached' state iff detachFromContext has successfully been
+    // called and no calls to attachToContext have succeeded since the last
+    // detachFromContext call.  Calls to attachToContext made on a
+    // SurfaceTexture that is not in the 'detached' state will result in an
+    // INVALID_OPERATION error.
+    //
+    // The tex argument specifies the OpenGL ES texture object name in the
+    // new context into which the image contents will be streamed.  A successful
+    // call to attachToContext will result in this texture object being bound to
+    // the texture target and populated with the image contents that were
+    // current at the time of the last call to detachFromContext.
+    status_t attachToContext(GLuint tex);
 
     // dump our state in a String
     virtual void dump(String8& result) const;
@@ -209,6 +252,12 @@ private:
     // to compute this matrix and stores it in mCurrentTransformMatrix.
     void computeCurrentTransformMatrix();
 
+    // syncForReleaseLocked performs the synchronization needed to release the
+    // current slot from an OpenGL ES context.  If needed it will set the
+    // current slot's fence to guard against a producer accessing the buffer
+    // before the outstanding accesses have completed.
+    status_t syncForReleaseLocked(EGLDisplay dpy);
+
     // mCurrentTextureBuf is the graphic buffer of the current texture. It's
     // possible that this buffer is not associated with any buffer slot, so we
     // must track it separately in order to support the getCurrentBuffer method.
@@ -237,8 +286,8 @@ private:
 
     // mTexName is the name of the OpenGL texture to which streamed images will
     // be bound when updateTexImage is called. It is set at construction time
-    // changed with a call to setTexName.
-    const GLuint mTexName;
+    // and can be changed with a call to attachToContext.
+    GLuint mTexName;
 
     // mUseFenceSync indicates whether creation of the EGL_KHR_fence_sync
     // extension should be used to prevent buffers from being dequeued before
@@ -277,13 +326,14 @@ private:
 
     // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
     // associated.  It is intialized to EGL_NO_DISPLAY and gets set to the
-    // current display when updateTexImage is called for the first time.
+    // current display when updateTexImage is called for the first time and when
+    // attachToContext is called.
     EGLDisplay mEglDisplay;
 
     // mEglContext is the OpenGL ES context with which this SurfaceTexture is
     // currently associated.  It is initialized to EGL_NO_CONTEXT and gets set
     // to the current GL context when updateTexImage is called for the first
-    // time.
+    // time and when attachToContext is called.
     EGLContext mEglContext;
 
     // mEGLSlots stores the buffers that have been allocated by the BufferQueue
@@ -322,6 +372,14 @@ private:
     // The SurfaceTexture has-a BufferQueue and is responsible for creating this object
     // if none is supplied
     sp<BufferQueue> mBufferQueue;
+
+    // mAttached indicates whether the SurfaceTexture is currently attached to
+    // an OpenGL ES context.  For legacy reasons, this is initialized to true,
+    // indicating that the SurfaceTexture is considered to be attached to
+    // whatever context is current at the time of the first updateTexImage call.
+    // It is set to false by detachFromContext, and then set to true again by
+    // attachToContext.
+    bool mAttached;
 
     // mMutex is the mutex used to prevent concurrent access to the member
     // variables of SurfaceTexture objects. It must be locked whenever the
