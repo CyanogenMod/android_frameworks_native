@@ -24,17 +24,8 @@
 
 namespace android {
 
-DummyConsumer::DummyConsumer(sp<BufferQueue> bufferQueue) {
-    wp<BufferQueue::ConsumerListener> listener;
-    sp<BufferQueue::ConsumerListener> proxy;
-    listener = static_cast<BufferQueue::ConsumerListener*>(this);
-    proxy = new BufferQueue::ProxyConsumerListener(listener);
-
-    status_t err = bufferQueue->consumerConnect(proxy);
-    if (err != NO_ERROR) {
-        ALOGE("DummyConsumer: error connecting to BufferQueue: %s (%d)",
-                strerror(-err), err);
-    }
+DummyConsumer::DummyConsumer() {
+    ALOGV("DummyConsumer");
 }
 
 DummyConsumer::~DummyConsumer() {

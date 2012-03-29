@@ -25,14 +25,11 @@ namespace android {
 
 // The DummyConsumer does not keep a reference to BufferQueue
 // unlike SurfaceTexture.  This prevents a circular reference from
-// forming.  The BufferQueue indirectly keeps a DummyConsumer alive
-// through the proxy ConsumerListener.
-class DummyConsumer : public virtual RefBase,
-        protected BufferQueue::ConsumerListener {
+// forming without having to use a ProxyConsumerListener
+class DummyConsumer : public BufferQueue::ConsumerListener {
 public:
-    DummyConsumer(sp<BufferQueue> bufferQueue);
+    DummyConsumer();
     virtual ~DummyConsumer();
-
 protected:
 
     // Implementation of the BufferQueue::ConsumerListener interface.  These
