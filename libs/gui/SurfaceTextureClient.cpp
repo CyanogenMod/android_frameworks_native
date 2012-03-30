@@ -75,6 +75,9 @@ void SurfaceTextureClient::init() {
     mReqFormat = 0;
     mReqUsage = 0;
     mTimestamp = NATIVE_WINDOW_TIMESTAMP_AUTO;
+    mCrop.clear();
+    mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
+    mTransform = 0;
     mDefaultWidth = 0;
     mDefaultHeight = 0;
     mTransformHint = 0;
@@ -245,6 +248,7 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
         return i;
     }
     status_t err = mSurfaceTexture->queueBuffer(i, timestamp,
+            mCrop, mScalingMode, mTransform,
             &mDefaultWidth, &mDefaultHeight, &mTransformHint);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -444,6 +448,9 @@ int SurfaceTextureClient::disconnect(int api) {
         mReqWidth = 0;
         mReqHeight = 0;
         mReqUsage = 0;
+        mCrop.clear();
+        mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
+        mTransform = 0;
         if (api == NATIVE_WINDOW_API_CPU) {
             mConnectedToCpu = false;
         }
@@ -463,19 +470,17 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
 {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::setCrop");
-    Mutex::Autolock lock(mMutex);
 
     Rect realRect;
     if (rect == NULL || rect->isEmpty()) {
-        realRect = Rect(0, 0);
+        realRect.clear();
     } else {
         realRect = *rect;
     }
 
-    status_t err = mSurfaceTexture->setCrop(*rect);
-    ALOGE_IF(err, "ISurfaceTexture::setCrop(...) returned %s", strerror(-err));
-
-    return err;
+    Mutex::Autolock lock(mMutex);
+    mCrop = *rect;
+    return NO_ERROR;
 }
 
 int SurfaceTextureClient::setBufferCount(int bufferCount)
@@ -499,7 +504,6 @@ int SurfaceTextureClient::setBuffersDimensions(int w, int h)
 {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::setBuffersDimensions");
-    Mutex::Autolock lock(mMutex);
 
     if (w<0 || h<0)
         return BAD_VALUE;
@@ -507,25 +511,22 @@ int SurfaceTextureClient::setBuffersDimensions(int w, int h)
     if ((w && !h) || (!w && h))
         return BAD_VALUE;
 
+    Mutex::Autolock lock(mMutex);
     mReqWidth = w;
     mReqHeight = h;
-
-    status_t err = mSurfaceTexture->setCrop(Rect(0, 0));
-    ALOGE_IF(err, "ISurfaceTexture::setCrop(...) returned %s", strerror(-err));
-
-    return err;
+    mCrop.clear();
+    return NO_ERROR;
 }
 
 int SurfaceTextureClient::setBuffersFormat(int format)
 {
     ALOGV("SurfaceTextureClient::setBuffersFormat");
-    Mutex::Autolock lock(mMutex);
 
     if (format<0)
         return BAD_VALUE;
 
+    Mutex::Autolock lock(mMutex);
     mReqFormat = format;
-
     return NO_ERROR;
 }
 
@@ -533,13 +534,19 @@ int SurfaceTextureClient::setScalingMode(int mode)
 {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::setScalingMode(%d)", mode);
-    Mutex::Autolock lock(mMutex);
-    // mode is validated on the server
-    status_t err = mSurfaceTexture->setScalingMode(mode);
-    ALOGE_IF(err, "ISurfaceTexture::setScalingMode(%d) returned %s",
-            mode, strerror(-err));
 
-    return err;
+    switch (mode) {
+        case NATIVE_WINDOW_SCALING_MODE_FREEZE:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+            break;
+        default:
+            ALOGE("unknown scaling mode: %d", mode);
+            return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mMutex);
+    mScalingMode = mode;
+    return NO_ERROR;
 }
 
 int SurfaceTextureClient::setBuffersTransform(int transform)
@@ -547,8 +554,8 @@ int SurfaceTextureClient::setBuffersTransform(int transform)
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::setBuffersTransform");
     Mutex::Autolock lock(mMutex);
-    status_t err = mSurfaceTexture->setTransform(transform);
-    return err;
+    mTransform = transform;
+    return NO_ERROR;
 }
 
 int SurfaceTextureClient::setBuffersTimestamp(int64_t timestamp)

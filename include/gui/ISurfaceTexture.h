@@ -83,16 +83,13 @@ protected:
     // and height of the window and current transform applied to buffers,
     // respectively.
     virtual status_t queueBuffer(int slot, int64_t timestamp,
+            const Rect& crop, int scalingMode, uint32_t transform,
             uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) = 0;
 
     // cancelBuffer indicates that the client does not wish to fill in the
     // buffer associated with slot and transfers ownership of the slot back to
     // the server.
     virtual void cancelBuffer(int slot) = 0;
-
-    virtual status_t setCrop(const Rect& reg) = 0;
-    virtual status_t setTransform(uint32_t transform) = 0;
-    virtual status_t setScalingMode(int mode) = 0;
 
     // query retrieves some information for this surface
     // 'what' tokens allowed are that of android_natives.h

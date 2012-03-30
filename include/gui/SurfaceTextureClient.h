@@ -129,8 +129,8 @@ private:
     // operation. It is initialized to 1.
     uint32_t mReqWidth;
 
-    // mReqHeight is the buffer height that will be requested at the next deuque
-    // operation. It is initialized to 1.
+    // mReqHeight is the buffer height that will be requested at the next
+    // dequeue operation. It is initialized to 1.
     uint32_t mReqHeight;
 
     // mReqFormat is the buffer pixel format that will be requested at the next
@@ -145,6 +145,18 @@ private:
     // operation. It defaults to NATIVE_WINDOW_TIMESTAMP_AUTO, which means that
     // a timestamp is auto-generated when queueBuffer is called.
     int64_t mTimestamp;
+
+    // mCrop is the crop rectangle that will be used for the next buffer
+    // that gets queued. It is set by calling setCrop.
+    Rect mCrop;
+
+    // mScalingMode is the scaling mode that will be used for the next
+    // buffers that get queued. It is set by calling setScalingMode.
+    int mScalingMode;
+
+    // mTransform is the transform identifier that will be used for the next
+    // buffer that gets queued. It is set by calling setTransform.
+    uint32_t mTransform;
 
     // mDefaultWidth is default width of the window, regardless of the
     // native_window_set_buffers_dimensions call

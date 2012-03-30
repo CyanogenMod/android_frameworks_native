@@ -128,11 +128,9 @@ public:
     // (zero point, etc) are client-dependent and should be documented by the
     // client.
     virtual status_t queueBuffer(int buf, int64_t timestamp,
+            const Rect& crop, int scalingMode, uint32_t transform,
             uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
     virtual void cancelBuffer(int buf);
-    virtual status_t setCrop(const Rect& reg);
-    virtual status_t setTransform(uint32_t transform);
-    virtual status_t setScalingMode(int mode);
 
     // setSynchronousMode set whether dequeueBuffer is synchronous or
     // asynchronous. In synchronous mode, dequeueBuffer blocks until
@@ -180,18 +178,13 @@ public:
         // if no buffer has been allocated.
         sp<GraphicBuffer> mGraphicBuffer;
 
-        // mCrop is the current crop rectangle for this buffer slot. This gets
-        // set to mNextCrop each time queueBuffer gets called for this buffer.
+        // mCrop is the current crop rectangle for this buffer slot.
         Rect mCrop;
 
-        // mTransform is the current transform flags for this buffer slot. This
-        // gets set to mNextTransform each time queueBuffer gets called for this
-        // slot.
+        // mTransform is the current transform flags for this buffer slot.
         uint32_t mTransform;
 
-        // mScalingMode is the current scaling mode for this buffer slot. This
-        // gets set to mNextScalingMode each time queueBuffer gets called for
-        // this slot.
+        // mScalingMode is the current scaling mode for this buffer slot.
         uint32_t mScalingMode;
 
         // mTimestamp is the current timestamp for this buffer slot. This gets
@@ -359,18 +352,13 @@ private:
         // needed but useful for debugging and catching client bugs.
         bool mRequestBufferCalled;
 
-        // mCrop is the current crop rectangle for this buffer slot. This gets
-        // set to mNextCrop each time queueBuffer gets called for this buffer.
+        // mCrop is the current crop rectangle for this buffer slot.
         Rect mCrop;
 
-        // mTransform is the current transform flags for this buffer slot. This
-        // gets set to mNextTransform each time queueBuffer gets called for this
-        // slot.
+        // mTransform is the current transform flags for this buffer slot.
         uint32_t mTransform;
 
-        // mScalingMode is the current scaling mode for this buffer slot. This
-        // gets set to mNextScalingMode each time queueBuffer gets called for
-        // this slot.
+        // mScalingMode is the current scaling mode for this buffer slot.
         uint32_t mScalingMode;
 
         // mTimestamp is the current timestamp for this buffer slot. This gets
@@ -421,18 +409,6 @@ private:
 
     // mServerBufferCount buffer count requested by the server-side
     int mServerBufferCount;
-
-    // mNextCrop is the crop rectangle that will be used for the next buffer
-    // that gets queued. It is set by calling setCrop.
-    Rect mNextCrop;
-
-    // mNextTransform is the transform identifier that will be used for the next
-    // buffer that gets queued. It is set by calling setTransform.
-    uint32_t mNextTransform;
-
-    // mNextScalingMode is the scaling mode that will be used for the next
-    // buffers that get queued. It is set by calling setScalingMode.
-    int mNextScalingMode;
 
     // mGraphicBufferAlloc is the connection to SurfaceFlinger that is used to
     // allocate new GraphicBuffer objects.

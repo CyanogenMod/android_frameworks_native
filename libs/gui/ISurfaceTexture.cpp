@@ -36,13 +36,10 @@ enum {
     DEQUEUE_BUFFER,
     QUEUE_BUFFER,
     CANCEL_BUFFER,
-    SET_CROP,
-    SET_TRANSFORM,
     QUERY,
     SET_SYNCHRONOUS_MODE,
     CONNECT,
     DISCONNECT,
-    SET_SCALING_MODE,
 };
 
 
@@ -102,11 +99,15 @@ public:
     }
 
     virtual status_t queueBuffer(int buf, int64_t timestamp,
+            const Rect& crop, int scalingMode, uint32_t transform,
             uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(buf);
         data.writeInt64(timestamp);
+        memcpy(data.writeInplace(sizeof(Rect)), &crop, sizeof(Rect));
+        data.writeInt32(scalingMode);
+        data.writeInt32(transform);
         status_t result = remote()->transact(QUEUE_BUFFER, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -123,45 +124,6 @@ public:
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(buf);
         remote()->transact(CANCEL_BUFFER, data, &reply);
-    }
-
-    virtual status_t setCrop(const Rect& reg) {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
-        data.writeFloat(reg.left);
-        data.writeFloat(reg.top);
-        data.writeFloat(reg.right);
-        data.writeFloat(reg.bottom);
-        status_t result = remote()->transact(SET_CROP, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        result = reply.readInt32();
-        return result;
-    }
-
-    virtual status_t setTransform(uint32_t transform) {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
-        data.writeInt32(transform);
-        status_t result = remote()->transact(SET_TRANSFORM, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        result = reply.readInt32();
-        return result;
-    }
-
-    virtual status_t setScalingMode(int mode) {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
-        data.writeInt32(mode);
-        status_t result = remote()->transact(SET_SCALING_MODE, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        result = reply.readInt32();
-        return result;
     }
 
     virtual int query(int what, int* value) {
@@ -261,8 +223,12 @@ status_t BnSurfaceTexture::onTransact(
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int buf = data.readInt32();
             int64_t timestamp = data.readInt64();
+            Rect crop( *reinterpret_cast<Rect const *>(data.readInplace(sizeof(Rect))) );
+            int scalingMode = data.readInt32();
+            uint32_t transform = data.readInt32();
             uint32_t outWidth, outHeight, outTransform;
             status_t result = queueBuffer(buf, timestamp,
+                    crop, scalingMode, transform,
                     &outWidth, &outHeight, &outTransform);
             reply->writeInt32(outWidth);
             reply->writeInt32(outHeight);
@@ -274,31 +240,6 @@ status_t BnSurfaceTexture::onTransact(
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int buf = data.readInt32();
             cancelBuffer(buf);
-            return NO_ERROR;
-        } break;
-        case SET_CROP: {
-            Rect reg;
-            CHECK_INTERFACE(ISurfaceTexture, data, reply);
-            reg.left = data.readFloat();
-            reg.top = data.readFloat();
-            reg.right = data.readFloat();
-            reg.bottom = data.readFloat();
-            status_t result = setCrop(reg);
-            reply->writeInt32(result);
-            return NO_ERROR;
-        } break;
-        case SET_TRANSFORM: {
-            CHECK_INTERFACE(ISurfaceTexture, data, reply);
-            uint32_t transform = data.readInt32();
-            status_t result = setTransform(transform);
-            reply->writeInt32(result);
-            return NO_ERROR;
-        } break;
-        case SET_SCALING_MODE: {
-            CHECK_INTERFACE(ISurfaceTexture, data, reply);
-            int mode = data.readInt32();
-            status_t result = setScalingMode(mode);
-            reply->writeInt32(result);
             return NO_ERROR;
         } break;
         case QUERY: {

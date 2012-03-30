@@ -76,8 +76,6 @@ BufferQueue::BufferQueue( bool allowSynchronousMode ) :
     mBufferCount(MIN_ASYNC_BUFFER_SLOTS),
     mClientBufferCount(0),
     mServerBufferCount(MIN_ASYNC_BUFFER_SLOTS),
-    mNextTransform(0),
-    mNextScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mSynchronousMode(false),
     mAllowSynchronousMode(allowSynchronousMode),
     mConnectedApi(NO_CONNECTED_API),
@@ -94,7 +92,6 @@ BufferQueue::BufferQueue( bool allowSynchronousMode ) :
     ST_LOGV("BufferQueue");
     sp<ISurfaceComposer> composer(ComposerService::getComposerService());
     mGraphicBufferAlloc = composer->createGraphicBufferAlloc();
-    mNextCrop.makeInvalid();
 }
 
 BufferQueue::~BufferQueue() {
@@ -454,9 +451,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             mSlots[buf].mFence = EGL_NO_SYNC_KHR;
             mSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
 
-
-
-
             returnFlags |= ISurfaceTexture::BUFFER_NEEDS_REALLOCATION;
         }
 
@@ -476,7 +470,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             ALOGE("dequeueBuffer: timeout waiting for fence");
         }
         eglDestroySyncKHR(dpy, fence);
-
     }
 
     ST_LOGV("dequeueBuffer: returning slot=%d buf=%p flags=%#x", *outBuf,
@@ -518,6 +511,7 @@ status_t BufferQueue::setSynchronousMode(bool enabled) {
 }
 
 status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
+        const Rect& crop, int scalingMode, uint32_t transform,
         uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
@@ -571,10 +565,20 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
             }
         }
 
+        switch (scalingMode) {
+            case NATIVE_WINDOW_SCALING_MODE_FREEZE:
+            case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+                break;
+            default:
+                ST_LOGE("unknown scaling mode: %d (ignoring)", scalingMode);
+                scalingMode = mSlots[buf].mScalingMode;
+                break;
+        }
+
         mSlots[buf].mBufferState = BufferSlot::QUEUED;
-        mSlots[buf].mCrop = mNextCrop;
-        mSlots[buf].mTransform = mNextTransform;
-        mSlots[buf].mScalingMode = mNextScalingMode;
+        mSlots[buf].mCrop = crop;
+        mSlots[buf].mTransform = transform;
+        mSlots[buf].mScalingMode = scalingMode;
         mSlots[buf].mTimestamp = timestamp;
         mFrameCounter++;
         mSlots[buf].mFrameNumber = mFrameCounter;
@@ -618,50 +622,6 @@ void BufferQueue::cancelBuffer(int buf) {
     mSlots[buf].mBufferState = BufferSlot::FREE;
     mSlots[buf].mFrameNumber = 0;
     mDequeueCondition.broadcast();
-}
-
-status_t BufferQueue::setCrop(const Rect& crop) {
-    ATRACE_CALL();
-    ST_LOGV("setCrop: crop=[%d,%d,%d,%d]", crop.left, crop.top, crop.right,
-            crop.bottom);
-
-    Mutex::Autolock lock(mMutex);
-    if (mAbandoned) {
-        ST_LOGE("setCrop: BufferQueue has been abandoned!");
-        return NO_INIT;
-    }
-    mNextCrop = crop;
-    return OK;
-}
-
-status_t BufferQueue::setTransform(uint32_t transform) {
-    ATRACE_CALL();
-    ST_LOGV("setTransform: xform=%#x", transform);
-    Mutex::Autolock lock(mMutex);
-    if (mAbandoned) {
-        ST_LOGE("setTransform: BufferQueue has been abandoned!");
-        return NO_INIT;
-    }
-    mNextTransform = transform;
-    return OK;
-}
-
-status_t BufferQueue::setScalingMode(int mode) {
-    ATRACE_CALL();
-    ST_LOGV("setScalingMode: mode=%d", mode);
-
-    switch (mode) {
-        case NATIVE_WINDOW_SCALING_MODE_FREEZE:
-        case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
-            break;
-        default:
-            ST_LOGE("unknown scaling mode: %d", mode);
-            return BAD_VALUE;
-    }
-
-    Mutex::Autolock lock(mMutex);
-    mNextScalingMode = mode;
-    return OK;
 }
 
 status_t BufferQueue::connect(int api,
@@ -731,9 +691,6 @@ status_t BufferQueue::disconnect(int api) {
                 if (mConnectedApi == api) {
                     drainQueueAndFreeBuffersLocked();
                     mConnectedApi = NO_CONNECTED_API;
-                    mNextCrop.makeInvalid();
-                    mNextScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
-                    mNextTransform = 0;
                     mDequeueCondition.broadcast();
                     listener = mConsumerListener;
                 } else {
@@ -766,12 +723,6 @@ void BufferQueue::dump(String8& result, const char* prefix,
         char* buffer, size_t SIZE) const
 {
     Mutex::Autolock _l(mMutex);
-    snprintf(buffer, SIZE,
-            "%snext   : {crop=[%d,%d,%d,%d], transform=0x%02x}\n"
-            ,prefix, mNextCrop.left, mNextCrop.top, mNextCrop.right,
-            mNextCrop.bottom, mNextTransform
-    );
-    result.append(buffer);
 
     String8 fifo;
     int fifoSize = 0;
