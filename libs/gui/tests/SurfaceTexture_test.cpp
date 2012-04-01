@@ -191,100 +191,6 @@ protected:
         return 512;
     }
 
-    void loadShader(GLenum shaderType, const char* pSource, GLuint* outShader) {
-        GLuint shader = glCreateShader(shaderType);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        if (shader) {
-            glShaderSource(shader, 1, &pSource, NULL);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            glCompileShader(shader);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            GLint compiled = 0;
-            glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            if (!compiled) {
-                GLint infoLen = 0;
-                glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
-                ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-                if (infoLen) {
-                    char* buf = (char*) malloc(infoLen);
-                    if (buf) {
-                        glGetShaderInfoLog(shader, infoLen, NULL, buf);
-                        printf("Shader compile log:\n%s\n", buf);
-                        free(buf);
-                        FAIL();
-                    }
-                } else {
-                    char* buf = (char*) malloc(0x1000);
-                    if (buf) {
-                        glGetShaderInfoLog(shader, 0x1000, NULL, buf);
-                        printf("Shader compile log:\n%s\n", buf);
-                        free(buf);
-                        FAIL();
-                    }
-                }
-                glDeleteShader(shader);
-                shader = 0;
-            }
-        }
-        ASSERT_TRUE(shader != 0);
-        *outShader = shader;
-    }
-
-    void createProgram(const char* pVertexSource, const char* pFragmentSource,
-            GLuint* outPgm) {
-        GLuint vertexShader, fragmentShader;
-        {
-            SCOPED_TRACE("compiling vertex shader");
-            loadShader(GL_VERTEX_SHADER, pVertexSource, &vertexShader);
-            if (HasFatalFailure()) {
-                return;
-            }
-        }
-        {
-            SCOPED_TRACE("compiling fragment shader");
-            loadShader(GL_FRAGMENT_SHADER, pFragmentSource, &fragmentShader);
-            if (HasFatalFailure()) {
-                return;
-            }
-        }
-
-        GLuint program = glCreateProgram();
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        if (program) {
-            glAttachShader(program, vertexShader);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            glAttachShader(program, fragmentShader);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            glLinkProgram(program);
-            GLint linkStatus = GL_FALSE;
-            glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
-            if (linkStatus != GL_TRUE) {
-                GLint bufLength = 0;
-                glGetProgramiv(program, GL_INFO_LOG_LENGTH, &bufLength);
-                if (bufLength) {
-                    char* buf = (char*) malloc(bufLength);
-                    if (buf) {
-                        glGetProgramInfoLog(program, bufLength, NULL, buf);
-                        printf("Program link log:\n%s\n", buf);
-                        free(buf);
-                        FAIL();
-                    }
-                }
-                glDeleteProgram(program);
-                program = 0;
-            }
-        }
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-        ASSERT_TRUE(program != 0);
-        *outPgm = program;
-    }
-
-    static int abs(int value) {
-        return value > 0 ? value : -value;
-    }
-
     ::testing::AssertionResult checkPixel(int x, int y, int r,
             int g, int b, int a, int tolerance=2) {
         GLubyte pixel[4];
@@ -340,6 +246,98 @@ protected:
     EGLConfig  mGlConfig;
 };
 
+static void loadShader(GLenum shaderType, const char* pSource,
+        GLuint* outShader) {
+    GLuint shader = glCreateShader(shaderType);
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    if (shader) {
+        glShaderSource(shader, 1, &pSource, NULL);
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        glCompileShader(shader);
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        GLint compiled = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        if (!compiled) {
+            GLint infoLen = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            if (infoLen) {
+                char* buf = (char*) malloc(infoLen);
+                if (buf) {
+                    glGetShaderInfoLog(shader, infoLen, NULL, buf);
+                    printf("Shader compile log:\n%s\n", buf);
+                    free(buf);
+                    FAIL();
+                }
+            } else {
+                char* buf = (char*) malloc(0x1000);
+                if (buf) {
+                    glGetShaderInfoLog(shader, 0x1000, NULL, buf);
+                    printf("Shader compile log:\n%s\n", buf);
+                    free(buf);
+                    FAIL();
+                }
+            }
+            glDeleteShader(shader);
+            shader = 0;
+        }
+    }
+    ASSERT_TRUE(shader != 0);
+    *outShader = shader;
+}
+
+static void createProgram(const char* pVertexSource,
+        const char* pFragmentSource, GLuint* outPgm) {
+    GLuint vertexShader, fragmentShader;
+    {
+        SCOPED_TRACE("compiling vertex shader");
+        ASSERT_NO_FATAL_FAILURE(loadShader(GL_VERTEX_SHADER, pVertexSource,
+                &vertexShader));
+    }
+    {
+        SCOPED_TRACE("compiling fragment shader");
+        ASSERT_NO_FATAL_FAILURE(loadShader(GL_FRAGMENT_SHADER, pFragmentSource,
+                &fragmentShader));
+    }
+
+    GLuint program = glCreateProgram();
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    if (program) {
+        glAttachShader(program, vertexShader);
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        glAttachShader(program, fragmentShader);
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        glLinkProgram(program);
+        GLint linkStatus = GL_FALSE;
+        glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
+        if (linkStatus != GL_TRUE) {
+            GLint bufLength = 0;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &bufLength);
+            if (bufLength) {
+                char* buf = (char*) malloc(bufLength);
+                if (buf) {
+                    glGetProgramInfoLog(program, bufLength, NULL, buf);
+                    printf("Program link log:\n%s\n", buf);
+                    free(buf);
+                    FAIL();
+                }
+            }
+            glDeleteProgram(program);
+            program = 0;
+        }
+    }
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    ASSERT_TRUE(program != 0);
+    *outPgm = program;
+}
+
+static int abs(int value) {
+    return value > 0 ? value : -value;
+}
+
+
 // XXX: Code above this point should live elsewhere
 
 class SurfaceTextureGLTest : public GLTest {
@@ -351,43 +349,8 @@ protected:
         mST = new SurfaceTexture(TEX_ID);
         mSTC = new SurfaceTextureClient(mST);
         mANW = mSTC;
-
-        const char vsrc[] =
-            "attribute vec4 vPosition;\n"
-            "varying vec2 texCoords;\n"
-            "uniform mat4 texMatrix;\n"
-            "void main() {\n"
-            "  vec2 vTexCoords = 0.5 * (vPosition.xy + vec2(1.0, 1.0));\n"
-            "  texCoords = (texMatrix * vec4(vTexCoords, 0.0, 1.0)).xy;\n"
-            "  gl_Position = vPosition;\n"
-            "}\n";
-
-        const char fsrc[] =
-            "#extension GL_OES_EGL_image_external : require\n"
-            "precision mediump float;\n"
-            "uniform samplerExternalOES texSampler;\n"
-            "varying vec2 texCoords;\n"
-            "void main() {\n"
-            "  gl_FragColor = texture2D(texSampler, texCoords);\n"
-            "}\n";
-
-        {
-            SCOPED_TRACE("creating shader program");
-            createProgram(vsrc, fsrc, &mPgm);
-            if (HasFatalFailure()) {
-                return;
-            }
-        }
-
-        mPositionHandle = glGetAttribLocation(mPgm, "vPosition");
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        ASSERT_NE(-1, mPositionHandle);
-        mTexSamplerHandle = glGetUniformLocation(mPgm, "texSampler");
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        ASSERT_NE(-1, mTexSamplerHandle);
-        mTexMatrixHandle = glGetUniformLocation(mPgm, "texMatrix");
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        ASSERT_NE(-1, mTexMatrixHandle);
+        mTextureRenderer = new TextureRenderer(TEX_ID, mST);
+        ASSERT_NO_FATAL_FAILURE(mTextureRenderer->SetUp());
     }
 
     virtual void TearDown() {
@@ -397,50 +360,106 @@ protected:
         GLTest::TearDown();
     }
 
-    // drawTexture draws the SurfaceTexture over the entire GL viewport.
     void drawTexture() {
-        const GLfloat triangleVertices[] = {
-            -1.0f, 1.0f,
-            -1.0f, -1.0f,
-            1.0f, -1.0f,
-            1.0f, 1.0f,
-        };
-
-        glVertexAttribPointer(mPositionHandle, 2, GL_FLOAT, GL_FALSE, 0,
-                triangleVertices);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glEnableVertexAttribArray(mPositionHandle);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-
-        glUseProgram(mPgm);
-        glUniform1i(mTexSamplerHandle, 0);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, TEX_ID);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-
-        // XXX: These calls are not needed for GL_TEXTURE_EXTERNAL_OES as
-        // they're setting the defautls for that target, but when hacking things
-        // to use GL_TEXTURE_2D they are needed to achieve the same behavior.
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER,
-                GL_LINEAR);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
-                GL_LINEAR);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S,
-                GL_CLAMP_TO_EDGE);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
-                GL_CLAMP_TO_EDGE);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-
-        GLfloat texMatrix[16];
-        mST->getTransformMatrix(texMatrix);
-        glUniformMatrix4fv(mTexMatrixHandle, 1, GL_FALSE, texMatrix);
-
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        mTextureRenderer->drawTexture();
     }
+
+    class TextureRenderer: public RefBase {
+    public:
+        TextureRenderer(GLuint texName, const sp<SurfaceTexture>& st):
+                mTexName(texName),
+                mST(st) {
+        }
+
+        void SetUp() {
+            const char vsrc[] =
+                "attribute vec4 vPosition;\n"
+                "varying vec2 texCoords;\n"
+                "uniform mat4 texMatrix;\n"
+                "void main() {\n"
+                "  vec2 vTexCoords = 0.5 * (vPosition.xy + vec2(1.0, 1.0));\n"
+                "  texCoords = (texMatrix * vec4(vTexCoords, 0.0, 1.0)).xy;\n"
+                "  gl_Position = vPosition;\n"
+                "}\n";
+
+            const char fsrc[] =
+                "#extension GL_OES_EGL_image_external : require\n"
+                "precision mediump float;\n"
+                "uniform samplerExternalOES texSampler;\n"
+                "varying vec2 texCoords;\n"
+                "void main() {\n"
+                "  gl_FragColor = texture2D(texSampler, texCoords);\n"
+                "}\n";
+
+            {
+                SCOPED_TRACE("creating shader program");
+                ASSERT_NO_FATAL_FAILURE(createProgram(vsrc, fsrc, &mPgm));
+            }
+
+            mPositionHandle = glGetAttribLocation(mPgm, "vPosition");
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            ASSERT_NE(-1, mPositionHandle);
+            mTexSamplerHandle = glGetUniformLocation(mPgm, "texSampler");
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            ASSERT_NE(-1, mTexSamplerHandle);
+            mTexMatrixHandle = glGetUniformLocation(mPgm, "texMatrix");
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            ASSERT_NE(-1, mTexMatrixHandle);
+        }
+
+        // drawTexture draws the SurfaceTexture over the entire GL viewport.
+        void drawTexture() {
+            const GLfloat triangleVertices[] = {
+                -1.0f, 1.0f,
+                -1.0f, -1.0f,
+                1.0f, -1.0f,
+                1.0f, 1.0f,
+            };
+
+            glVertexAttribPointer(mPositionHandle, 2, GL_FLOAT, GL_FALSE, 0,
+                    triangleVertices);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            glEnableVertexAttribArray(mPositionHandle);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+
+            glUseProgram(mPgm);
+            glUniform1i(mTexSamplerHandle, 0);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTexName);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+
+            // XXX: These calls are not needed for GL_TEXTURE_EXTERNAL_OES as
+            // they're setting the defautls for that target, but when hacking
+            // things to use GL_TEXTURE_2D they are needed to achieve the same
+            // behavior.
+            glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER,
+                    GL_LINEAR);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
+                    GL_LINEAR);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S,
+                    GL_CLAMP_TO_EDGE);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+            glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
+                    GL_CLAMP_TO_EDGE);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+
+            GLfloat texMatrix[16];
+            mST->getTransformMatrix(texMatrix);
+            glUniformMatrix4fv(mTexMatrixHandle, 1, GL_FALSE, texMatrix);
+
+            glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+        }
+
+        GLuint mTexName;
+        sp<SurfaceTexture> mST;
+        GLuint mPgm;
+        GLint mPositionHandle;
+        GLint mTexSamplerHandle;
+        GLint mTexMatrixHandle;
+    };
 
     class FrameWaiter : public SurfaceTexture::FrameAvailableListener {
     public:
@@ -470,11 +489,7 @@ protected:
     sp<SurfaceTexture> mST;
     sp<SurfaceTextureClient> mSTC;
     sp<ANativeWindow> mANW;
-
-    GLuint mPgm;
-    GLint mPositionHandle;
-    GLint mTexSamplerHandle;
-    GLint mTexMatrixHandle;
+    sp<TextureRenderer> mTextureRenderer;
 };
 
 // Fill a YV12 buffer with a multi-colored checkerboard pattern
@@ -1735,6 +1750,9 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
 
 class SurfaceTextureMultiContextGLTest : public SurfaceTextureGLTest {
 protected:
+    enum { SECOND_TEX_ID = 123 };
+    enum { THIRD_TEX_ID = 456 };
+
     SurfaceTextureMultiContextGLTest():
             mSecondEglContext(EGL_NO_CONTEXT) {
     }
@@ -1742,13 +1760,39 @@ protected:
     virtual void SetUp() {
         SurfaceTextureGLTest::SetUp();
 
+        // Set up the secondary context and texture renderer.
         mSecondEglContext = eglCreateContext(mEglDisplay, mGlConfig,
                 EGL_NO_CONTEXT, getContextAttribs());
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
         ASSERT_NE(EGL_NO_CONTEXT, mSecondEglContext);
+
+        ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+                mSecondEglContext));
+        ASSERT_EQ(EGL_SUCCESS, eglGetError());
+        mSecondTextureRenderer = new TextureRenderer(SECOND_TEX_ID, mST);
+        ASSERT_NO_FATAL_FAILURE(mSecondTextureRenderer->SetUp());
+
+        // Set up the tertiary context and texture renderer.
+        mThirdEglContext = eglCreateContext(mEglDisplay, mGlConfig,
+                EGL_NO_CONTEXT, getContextAttribs());
+        ASSERT_EQ(EGL_SUCCESS, eglGetError());
+        ASSERT_NE(EGL_NO_CONTEXT, mThirdEglContext);
+
+        ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+                mThirdEglContext));
+        ASSERT_EQ(EGL_SUCCESS, eglGetError());
+        mThirdTextureRenderer = new TextureRenderer(THIRD_TEX_ID, mST);
+        ASSERT_NO_FATAL_FAILURE(mThirdTextureRenderer->SetUp());
+
+        // Switch back to the primary context to start the tests.
+        ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+                mEglContext));
     }
 
     virtual void TearDown() {
+        if (mThirdEglContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(mEglDisplay, mThirdEglContext);
+        }
         if (mSecondEglContext != EGL_NO_CONTEXT) {
             eglDestroyContext(mEglDisplay, mSecondEglContext);
         }
@@ -1756,6 +1800,10 @@ protected:
     }
 
     EGLContext mSecondEglContext;
+    sp<TextureRenderer> mSecondTextureRenderer;
+
+    EGLContext mThirdEglContext;
+    sp<TextureRenderer> mThirdTextureRenderer;
 };
 
 TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
@@ -1765,13 +1813,382 @@ TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    mST->updateTexImage();
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
 
     // Attempt to latch the texture on the secondary context.
-    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
             mSecondEglContext));
     ASSERT_EQ(EGL_SUCCESS, eglGetError());
-    ASSERT_EQ(-EINVAL, mST->updateTexImage());
+    ASSERT_EQ(INVALID_OPERATION, mST->updateTexImage());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextSucceeds) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Check that the GL texture was deleted.
+    EXPECT_EQ(GL_FALSE, glIsTexture(TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest,
+        DetachFromContextSucceedsAfterProducerDisconnect) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Check that the GL texture was deleted.
+    EXPECT_EQ(GL_FALSE, glIsTexture(TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenAbandoned) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Attempt to detach from the primary context.
+    mST->abandon();
+    ASSERT_EQ(NO_INIT, mST->detachFromContext());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenDetached) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attempt to detach from the primary context again.
+    ASSERT_EQ(INVALID_OPERATION, mST->detachFromContext());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoDisplay) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Make there be no current display.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE,
+            EGL_NO_CONTEXT));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Attempt to detach from the primary context.
+    ASSERT_EQ(INVALID_OPERATION, mST->detachFromContext());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoContext) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Make current context be incorrect.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Attempt to detach from the primary context.
+    ASSERT_EQ(INVALID_OPERATION, mST->detachFromContext());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, UpdateTexImageFailsWhenDetached) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attempt to latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(INVALID_OPERATION, mST->updateTexImage());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceeds) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the secondary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Verify that the texture object was created and bound.
+    GLint texBinding = -1;
+    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &texBinding);
+    EXPECT_EQ(SECOND_TEX_ID, texBinding);
+
+    // Try to use the texture from the secondary context.
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, 1, 1);
+    mSecondTextureRenderer->drawTexture();
+    ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest,
+        AttachToContextSucceedsAfterProducerDisconnect) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the secondary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Verify that the texture object was created and bound.
+    GLint texBinding = -1;
+    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &texBinding);
+    EXPECT_EQ(SECOND_TEX_ID, texBinding);
+
+    // Try to use the texture from the secondary context.
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, 1, 1);
+    mSecondTextureRenderer->drawTexture();
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest,
+        AttachToContextSucceedsBeforeUpdateTexImage) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Detach from the primary context.
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the secondary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Verify that the texture object was created and bound.
+    GLint texBinding = -1;
+    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &texBinding);
+    EXPECT_EQ(SECOND_TEX_ID, texBinding);
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Try to use the texture from the secondary context.
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, 1, 1);
+    mSecondTextureRenderer->drawTexture();
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAbandoned) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attempt to attach to the secondary context.
+    mST->abandon();
+
+    // Attempt to attach to the primary context.
+    ASSERT_EQ(NO_INIT, mST->attachToContext(SECOND_TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAttached) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Attempt to attach to the primary context.
+    ASSERT_EQ(INVALID_OPERATION, mST->attachToContext(SECOND_TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest,
+        AttachToContextFailsWhenAttachedBeforeUpdateTexImage) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Attempt to attach to the primary context.
+    ASSERT_EQ(INVALID_OPERATION, mST->attachToContext(SECOND_TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWithNoDisplay) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Make there be no current display.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE,
+            EGL_NO_CONTEXT));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Attempt to attach with no context current.
+    ASSERT_EQ(INVALID_OPERATION, mST->attachToContext(SECOND_TEX_ID));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceedsTwice) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Latch the texture contents on the primary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the secondary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Detach from the secondary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the tertiary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mThirdEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(THIRD_TEX_ID));
+
+    // Verify that the texture object was created and bound.
+    GLint texBinding = -1;
+    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &texBinding);
+    EXPECT_EQ(THIRD_TEX_ID, texBinding);
+
+    // Try to use the texture from the tertiary context.
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, 1, 1);
+    mThirdTextureRenderer->drawTexture();
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
+}
+
+TEST_F(SurfaceTextureMultiContextGLTest,
+        AttachToContextSucceedsTwiceBeforeUpdateTexImage) {
+    sp<FrameWaiter> fw(new FrameWaiter);
+    mST->setFrameAvailableListener(fw);
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the secondary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Detach from the secondary context.
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Attach to the tertiary context.
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mThirdEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(THIRD_TEX_ID));
+
+    // Verify that the texture object was created and bound.
+    GLint texBinding = -1;
+    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &texBinding);
+    EXPECT_EQ(THIRD_TEX_ID, texBinding);
+
+    // Latch the texture contents on the tertiary context.
+    fw->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // Try to use the texture from the tertiary context.
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, 1, 1);
+    mThirdTextureRenderer->drawTexture();
+    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
+    ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
 }
 
 } // namespace android
