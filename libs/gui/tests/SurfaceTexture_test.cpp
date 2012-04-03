@@ -236,6 +236,44 @@ protected:
         }
     }
 
+    ::testing::AssertionResult assertRectEq(const Rect &r1,
+        const Rect &r2, int tolerance=1) {
+
+        String8 msg;
+
+        if (abs(r1.left - r2.left) > tolerance) {
+            msg += String8::format("left(%d isn't %d)", r1.left, r2.left);
+        }
+        if (abs(r1.top - r2.top) > tolerance) {
+            if (!msg.isEmpty()) {
+                msg += " ";
+            }
+            msg += String8::format("top(%d isn't %d)", r1.top, r2.top);
+        }
+        if (abs(r1.right - r2.right) > tolerance) {
+            if (!msg.isEmpty()) {
+                msg += " ";
+            }
+            msg += String8::format("right(%d isn't %d)", r1.right, r2.right);
+        }
+        if (abs(r1.bottom - r2.bottom) > tolerance) {
+            if (!msg.isEmpty()) {
+                msg += " ";
+            }
+            msg += String8::format("bottom(%d isn't %d)", r1.bottom, r2.bottom);
+        }
+        if (!msg.isEmpty()) {
+            msg += String8::format(" R1: [%d %d %d %d] R2: [%d %d %d %d]",
+                r1.left, r1.top, r1.right, r1.bottom,
+                r2.left, r2.top, r2.right, r2.bottom);
+            fprintf(stderr, "assertRectEq: %s\n", msg.string());
+            return ::testing::AssertionFailure(
+                    ::testing::Message(msg.string()));
+        } else {
+            return ::testing::AssertionSuccess();
+        }
+    }
+
     int mDisplaySecs;
     sp<SurfaceComposerClient> mComposerClient;
     sp<SurfaceControl> mSurfaceControl;
@@ -1127,6 +1165,88 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
 
     // Will fail here if mCurrentTexture is not cleared properly
     EXPECT_EQ(OK,mST->updateTexImage());
+}
+
+TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    ASSERT_EQ(OK, native_window_set_scaling_mode(mANW.get(),
+        NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW));
+
+    // The producer image size
+    ASSERT_EQ(OK, native_window_set_buffers_dimensions(mANW.get(), 512, 512));
+
+    // The consumer image size (16 x 9) ratio
+    mST->setDefaultBufferSize(1280, 720);
+
+    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU);
+
+    ANativeWindowBuffer *anb;
+
+    android_native_rect_t odd = {23, 78, 123, 477};
+    ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &odd));
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(OK,mST->updateTexImage());
+    Rect r = mST->getCurrentCrop();
+    assertRectEq(Rect(23, 78, 123, 477), r);
+
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_EGL);
+}
+
+// This test ensures the scaling mode does the right thing
+// ie NATIVE_WINDOW_SCALING_MODE_CROP should crop
+// the image such that it has the same aspect ratio as the
+// default buffer size
+TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    ASSERT_EQ(OK, native_window_set_scaling_mode(mANW.get(),
+        NATIVE_WINDOW_SCALING_MODE_SCALE_CROP));
+
+    // The producer image size
+    ASSERT_EQ(OK, native_window_set_buffers_dimensions(mANW.get(), 512, 512));
+
+    // The consumer image size (16 x 9) ratio
+    mST->setDefaultBufferSize(1280, 720);
+
+    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU);
+
+    ANativeWindowBuffer *anb;
+
+    // The crop is in the shape of (320, 180) === 16 x 9
+    android_native_rect_t standard = {10, 20, 330, 200};
+    ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &standard));
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(OK,mST->updateTexImage());
+    Rect r = mST->getCurrentCrop();
+    // crop should be the same as crop (same aspect ratio)
+    assertRectEq(Rect(10, 20, 330, 200), r);
+
+    // make this wider then desired aspect 239 x 100 (2.39:1)
+    android_native_rect_t wide = {20, 30, 259, 130};
+    ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &wide));
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(OK,mST->updateTexImage());
+    r = mST->getCurrentCrop();
+    // crop should be the same height, but have cropped left and right borders
+    // offset is 30.6 px L+, R-
+    assertRectEq(Rect(51, 30, 228, 130), r);
+
+    // This image is taller then desired aspect 400 x 300 (4:3)
+    android_native_rect_t narrow = {0, 0, 400, 300};
+    ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &narrow));
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(OK,mST->updateTexImage());
+    r = mST->getCurrentCrop();
+    // crop should be the same width, but have cropped top and bottom borders
+    // offset is 37.5 px
+    assertRectEq(Rect(0, 37, 400, 262), r);
+
+    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
 }
 
 TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {

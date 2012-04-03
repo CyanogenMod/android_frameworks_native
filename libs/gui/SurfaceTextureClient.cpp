@@ -555,6 +555,7 @@ int SurfaceTextureClient::setScalingMode(int mode)
     switch (mode) {
         case NATIVE_WINDOW_SCALING_MODE_FREEZE:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
             break;
         default:
             ALOGE("unknown scaling mode: %d", mode);

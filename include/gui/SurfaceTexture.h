@@ -283,6 +283,8 @@ private:
     // gets set each time updateTexImage is called.
     int64_t mCurrentTimestamp;
 
+    uint32_t mDefaultWidth, mDefaultHeight;
+
     // mTexName is the name of the OpenGL texture to which streamed images will
     // be bound when updateTexImage is called. It is set at construction time
     // and can be changed with a call to attachToContext.

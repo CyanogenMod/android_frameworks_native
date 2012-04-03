@@ -168,6 +168,8 @@ status_t SurfaceTexture::setBufferCountServer(int bufferCount) {
 status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 {
     Mutex::Autolock lock(mMutex);
+    mDefaultWidth = w;
+    mDefaultHeight = h;
     return mBufferQueue->setDefaultBufferSize(w, h);
 }
 
@@ -621,7 +623,40 @@ sp<GraphicBuffer> SurfaceTexture::getCurrentBuffer() const {
 
 Rect SurfaceTexture::getCurrentCrop() const {
     Mutex::Autolock lock(mMutex);
-    return mCurrentCrop;
+
+    Rect outCrop = mCurrentCrop;
+    if (mCurrentScalingMode == NATIVE_WINDOW_SCALING_MODE_SCALE_CROP) {
+        int32_t newWidth = mCurrentCrop.width();
+        int32_t newHeight = mCurrentCrop.height();
+
+        if (newWidth * mDefaultHeight > newHeight * mDefaultWidth) {
+            newWidth = newHeight * mDefaultWidth / mDefaultHeight;
+            ST_LOGV("too wide: newWidth = %d", newWidth);
+        } else if (newWidth * mDefaultHeight < newHeight * mDefaultWidth) {
+            newHeight = newWidth * mDefaultHeight / mDefaultWidth;
+            ST_LOGV("too tall: newHeight = %d", newHeight);
+        }
+
+        // The crop is too wide
+        if (newWidth < mCurrentCrop.width()) {
+            int32_t dw = (newWidth - mCurrentCrop.width())/2;
+            outCrop.left -=dw;
+            outCrop.right += dw;
+        // The crop is too tall
+        } else if (newHeight < mCurrentCrop.height()) {
+            int32_t dh = (newHeight - mCurrentCrop.height())/2;
+            outCrop.top -= dh;
+            outCrop.bottom += dh;
+        }
+
+        ST_LOGV("getCurrentCrop final crop [%d,%d,%d,%d]",
+            outCrop.left, outCrop.top,
+            outCrop.right,outCrop.bottom);
+    }
+
+
+
+    return outCrop;
 }
 
 uint32_t SurfaceTexture::getCurrentTransform() const {

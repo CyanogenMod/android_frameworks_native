@@ -531,7 +531,8 @@ status_t BufferQueue::queueBuffer(int buf,
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
-    ST_LOGV("queueBuffer: slot=%d time=%lld", buf, timestamp);
+    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]", buf, timestamp,
+        crop.left, crop.top, crop.right, crop.bottom);
 
     sp<ConsumerListener> listener;
 
@@ -592,6 +593,7 @@ status_t BufferQueue::queueBuffer(int buf,
         switch (scalingMode) {
             case NATIVE_WINDOW_SCALING_MODE_FREEZE:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+            case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
                 break;
             default:
                 ST_LOGE("unknown scaling mode: %d (ignoring)", scalingMode);
