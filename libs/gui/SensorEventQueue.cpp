@@ -53,36 +53,15 @@ int SensorEventQueue::getFd() const
     return mSensorChannel->getFd();
 }
 
-ssize_t SensorEventQueue::write(ASensorEvent const* events, size_t numEvents)
-{
-    ssize_t size = mSensorChannel->write(events, numEvents * sizeof(events[0]));
-    if (size >= 0) {
-        if (size % sizeof(events[0])) {
-            // partial write!!! should never happen.
-            return -EINVAL;
-        }
-        // returns number of events written
-        size /= sizeof(events[0]);
-    }
-    return size;
+
+ssize_t SensorEventQueue::write(const sp<BitTube>& tube,
+        ASensorEvent const* events, size_t numEvents) {
+    return BitTube::sendObjects(tube, events, numEvents);
 }
 
 ssize_t SensorEventQueue::read(ASensorEvent* events, size_t numEvents)
 {
-    ssize_t size = mSensorChannel->read(events, numEvents*sizeof(events[0]));
-    ALOGE_IF(size<0 && size!=-EAGAIN,
-            "SensorChannel::read error (%s)", strerror(-size));
-    if (size >= 0) {
-        if (size % sizeof(events[0])) {
-            // partial read!!! should never happen.
-            ALOGE("SensorEventQueue partial read (event-size=%u, read=%d)",
-                    sizeof(events[0]), int(size));
-            return -EINVAL;
-        }
-        // returns number of events read
-        size /= sizeof(events[0]);
-    }
-    return size;
+    return BitTube::recvObjects(mSensorChannel, events, numEvents);
 }
 
 sp<Looper> SensorEventQueue::getLooper() const

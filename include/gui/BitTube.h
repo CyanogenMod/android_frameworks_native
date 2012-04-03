@@ -22,6 +22,7 @@
 
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
+#include <cutils/log.h>
 
 
 namespace android {
@@ -43,9 +44,27 @@ public:
 
     status_t writeToParcel(Parcel* reply) const;
 
+    template <typename T>
+    static ssize_t sendObjects(const sp<BitTube>& tube,
+            T const* events, size_t count) {
+        return sendObjects(tube, events, count, sizeof(T));
+    }
+
+    template <typename T>
+    static ssize_t recvObjects(const sp<BitTube>& tube,
+            T* events, size_t count) {
+        return recvObjects(tube, events, count, sizeof(T));
+    }
+
 private:
     int mSendFd;
     mutable int mReceiveFd;
+
+    static ssize_t sendObjects(const sp<BitTube>& tube,
+            void const* events, size_t count, size_t objSize);
+
+    static ssize_t recvObjects(const sp<BitTube>& tube,
+            void* events, size_t count, size_t objSize);
 };
 
 // ----------------------------------------------------------------------------
