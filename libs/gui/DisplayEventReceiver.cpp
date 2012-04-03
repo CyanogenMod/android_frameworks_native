@@ -85,22 +85,13 @@ ssize_t DisplayEventReceiver::getEvents(DisplayEventReceiver::Event* events,
 ssize_t DisplayEventReceiver::getEvents(const sp<BitTube>& dataChannel,
         Event* events, size_t count)
 {
-    ssize_t size = dataChannel->read(events, sizeof(events[0])*count);
-    ALOGE_IF(size<0,
-            "DisplayEventReceiver::getEvents error (%s)",
-            strerror(-size));
-    if (size >= 0) {
-        // Note: if (size % sizeof(events[0])) != 0, we've got a
-        // partial read. This can happen if the queue filed up (ie: if we
-        // didn't pull from it fast enough).
-        // We discard the partial event and rely on the sender to
-        // re-send the event if appropriate (some events, like VSYNC
-        // can be lost forever).
+    return BitTube::recvObjects(dataChannel, events, count);
+}
 
-        // returns number of events read
-        size /= sizeof(events[0]);
-    }
-    return size;
+ssize_t DisplayEventReceiver::sendEvents(const sp<BitTube>& dataChannel,
+        Event const* events, size_t count)
+{
+    return BitTube::sendObjects(dataChannel, events, count);
 }
 
 // ---------------------------------------------------------------------------

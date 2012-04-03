@@ -60,9 +60,9 @@ void DisplayEventConnection::requestNextVsync() {
     mEventThread->requestNextVsync(this);
 }
 
-status_t DisplayEventConnection::postEvent(const DisplayEventReceiver::Event& event)
-{
-    ssize_t size = mChannel->write(&event, sizeof(DisplayEventReceiver::Event));
+status_t DisplayEventConnection::postEvent(
+        const DisplayEventReceiver::Event& event) {
+    ssize_t size = DisplayEventReceiver::sendEvents(mChannel, &event, 1);
     return size < 0 ? status_t(size) : status_t(NO_ERROR);
 }
 

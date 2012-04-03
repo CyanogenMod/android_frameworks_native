@@ -89,7 +89,7 @@ public:
     int getFd() const;
 
     /*
-     * getEvents reads event from the queue and returns how many events were
+     * getEvents reads events from the queue and returns how many events were
      * read. Returns 0 if there are no more events or a negative error code.
      * If NOT_ENOUGH_DATA is returned, the object has become invalid forever, it
      * should be destroyed and getEvents() shouldn't be called again.
@@ -97,6 +97,13 @@ public:
     ssize_t getEvents(Event* events, size_t count);
     static ssize_t getEvents(const sp<BitTube>& dataChannel,
             Event* events, size_t count);
+
+    /*
+     * sendEvents write events to the queue and returns how many events were
+     * written.
+     */
+    static ssize_t sendEvents(const sp<BitTube>& dataChannel,
+            Event const* events, size_t count);
 
     /*
      * setVsyncRate() sets the Event::VSync delivery rate. A value of
