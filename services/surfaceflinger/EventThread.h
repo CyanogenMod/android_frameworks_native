@@ -27,6 +27,8 @@
 #include <utils/threads.h>
 #include <utils/SortedVector.h>
 
+#include "DisplayHardware/DisplayHardware.h"
+
 // ---------------------------------------------------------------------------
 
 namespace android {
@@ -34,11 +36,10 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 class SurfaceFlinger;
-class DisplayHardware;
 
 // ---------------------------------------------------------------------------
 
-class EventThread : public Thread {
+class EventThread : public Thread, public DisplayHardware::VSyncHandler {
     class Connection : public BnDisplayEventConnection {
     public:
         Connection(const sp<EventThread>& eventThread);
@@ -80,12 +81,13 @@ private:
     virtual bool        threadLoop();
     virtual status_t    readyToRun();
     virtual void        onFirstRef();
+    virtual void onVSyncReceived(int, nsecs_t timestamp);
 
     void removeDisplayEventConnection(const wp<Connection>& connection);
 
     // constants
     sp<SurfaceFlinger> mFlinger;
-    const DisplayHardware& mHw;
+    DisplayHardware& mHw;
 
     mutable Mutex mLock;
     mutable Condition mCondition;
@@ -93,6 +95,7 @@ private:
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
     nsecs_t mLastVSyncTimestamp;
+    nsecs_t mVSyncTimestamp;
 
     // main thread only
     size_t mDeliveredEvents;

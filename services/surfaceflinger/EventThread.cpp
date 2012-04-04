@@ -38,13 +38,15 @@ namespace android {
 
 EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
     : mFlinger(flinger),
-      mHw(flinger->graphicPlane(0).displayHardware()),
+      mHw(flinger->graphicPlane(0).editDisplayHardware()),
       mLastVSyncTimestamp(0),
+      mVSyncTimestamp(0),
       mDeliveredEvents(0)
 {
 }
 
 void EventThread::onFirstRef() {
+    mHw.setVSyncHandler(this);
     run("EventThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
 }
 
@@ -105,76 +107,89 @@ void EventThread::requestNextVsync(
     }
 }
 
+void EventThread::onVSyncReceived(int, nsecs_t timestamp) {
+    Mutex::Autolock _l(mLock);
+    mVSyncTimestamp = timestamp;
+    mCondition.signal();
+}
+
 bool EventThread::threadLoop() {
 
     nsecs_t timestamp;
     DisplayEventReceiver::Event vsync;
     Vector< wp<EventThread::Connection> > displayEventConnections;
 
-    { // scope for the lock
+    do {
+
         Mutex::Autolock _l(mLock);
         do {
-            // see if we need to wait for the VSYNC at all
-            do {
-                bool waitForNextVsync = false;
-                size_t count = mDisplayEventConnections.size();
-                for (size_t i=0 ; i<count ; i++) {
-                    sp<Connection> connection =
-                            mDisplayEventConnections.itemAt(i).promote();
-                    if (connection!=0 && connection->count >= 0) {
-                        // at least one continuous mode or active one-shot event
-                        waitForNextVsync = true;
-                        break;
-                    }
-                }
+            // check if we have received a VSYNC event
+            if (mVSyncTimestamp) {
+                // we have a VSYNC event pending
+                timestamp = mVSyncTimestamp;
+                mVSyncTimestamp = 0;
+                break;
+            }
 
-                if (waitForNextVsync)
-                    break;
-
-                mCondition.wait(mLock);
-            } while(true);
-
-            // at least one listener requested VSYNC
-            mLock.unlock();
-            timestamp = mHw.waitForRefresh();
-            ATRACE_INT("VSYNC", mDeliveredEvents&1);
-            mLock.lock();
-            mDeliveredEvents++;
-            mLastVSyncTimestamp = timestamp;
-
-            // now see if we still need to report this VSYNC event
-            const size_t count = mDisplayEventConnections.size();
+            // check if we should be waiting for VSYNC events
+            bool waitForNextVsync = false;
+            size_t count = mDisplayEventConnections.size();
             for (size_t i=0 ; i<count ; i++) {
-                bool reportVsync = false;
                 sp<Connection> connection =
                         mDisplayEventConnections.itemAt(i).promote();
-                if (connection == 0)
-                    continue;
-
-                const int32_t count = connection->count;
-                if (count >= 1) {
-                    if (count==1 || (mDeliveredEvents % count) == 0) {
-                        // continuous event, and time to report it
-                        reportVsync = true;
-                    }
-                } else if (count >= -1) {
-                    if (count == 0) {
-                        // fired this time around
-                        reportVsync = true;
-                    }
-                    connection->count--;
-                }
-                if (reportVsync) {
-                    displayEventConnections.add(connection);
+                if (connection!=0 && connection->count >= 0) {
+                    // at least one continuous mode or active one-shot event
+                    waitForNextVsync = true;
+                    break;
                 }
             }
-        } while (!displayEventConnections.size());
 
-        // dispatch vsync events to listeners...
-        vsync.header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
-        vsync.header.timestamp = timestamp;
-        vsync.vsync.count = mDeliveredEvents;
-    }
+            // enable or disable VSYNC events
+            mHw.getHwComposer().eventControl(
+                    HWComposer::EVENT_VSYNC, waitForNextVsync);
+
+            // wait for something to happen
+            mCondition.wait(mLock);
+        } while(true);
+
+        // process vsync event
+
+        ATRACE_INT("VSYNC", mDeliveredEvents&1);
+        mDeliveredEvents++;
+        mLastVSyncTimestamp = timestamp;
+
+        // now see if we still need to report this VSYNC event
+        const size_t count = mDisplayEventConnections.size();
+        for (size_t i=0 ; i<count ; i++) {
+            bool reportVsync = false;
+            sp<Connection> connection =
+                    mDisplayEventConnections.itemAt(i).promote();
+            if (connection == 0)
+                continue;
+
+            const int32_t count = connection->count;
+            if (count >= 1) {
+                if (count==1 || (mDeliveredEvents % count) == 0) {
+                    // continuous event, and time to report it
+                    reportVsync = true;
+                }
+            } else if (count >= -1) {
+                if (count == 0) {
+                    // fired this time around
+                    reportVsync = true;
+                }
+                connection->count--;
+            }
+            if (reportVsync) {
+                displayEventConnections.add(connection);
+            }
+        }
+    } while (!displayEventConnections.size());
+
+    // dispatch vsync events to listeners...
+    vsync.header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
+    vsync.header.timestamp = timestamp;
+    vsync.vsync.count = mDeliveredEvents;
 
     const size_t count = displayEventConnections.size();
     for (size_t i=0 ; i<count ; i++) {

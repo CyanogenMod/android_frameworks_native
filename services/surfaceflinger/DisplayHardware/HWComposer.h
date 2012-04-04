@@ -27,6 +27,10 @@
 #include <utils/StrongPointer.h>
 #include <utils/Vector.h>
 
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
+                           const struct timespec *request,
+                           struct timespec *remain);
+
 namespace android {
 // ---------------------------------------------------------------------------
 
@@ -37,8 +41,15 @@ class LayerBase;
 class HWComposer
 {
 public:
+    class EventHandler {
+        friend class HWComposer;
+        virtual void onVSyncReceived(int dpy, nsecs_t timestamp) = 0;
+    protected:
+        virtual ~EventHandler() {}
+    };
 
-    HWComposer(const sp<SurfaceFlinger>& flinger);
+    HWComposer(const sp<SurfaceFlinger>& flinger,
+            EventHandler& handler, nsecs_t refreshPeriod);
     ~HWComposer();
 
     status_t initCheck() const;
@@ -46,7 +57,7 @@ public:
     // tells the HAL what the framebuffer is
     void setFrameBuffer(EGLDisplay dpy, EGLSurface sur);
 
-    // create a work list for numLayers layer
+    // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(size_t numLayers);
 
     // Asks the HAL what it can do
@@ -61,13 +72,86 @@ public:
     // release hardware resources
     status_t release() const;
 
+    // get the layer array created by createWorkList()
     size_t getNumLayers() const;
     hwc_layer_t* getLayers() const;
 
-    // updated in preapre()
+    // get number of layers of the given type as updated in prepare().
+    // type is HWC_OVERLAY or HWC_FRAMEBUFFER
     size_t getLayerCount(int type) const;
 
-    // for debugging
+    // Events handling ---------------------------------------------------------
+
+    enum {
+        EVENT_VSYNC = HWC_EVENT_VSYNC
+    };
+
+    status_t eventControl(int event, int enabled);
+
+    // this class is only used to fake the VSync event on systems that don't
+    // have it.
+    class VSyncThread : public Thread {
+        HWComposer& mHwc;
+        mutable Mutex mLock;
+        Condition mCondition;
+        bool mEnabled;
+        mutable nsecs_t mNextFakeVSync;
+        nsecs_t mRefreshPeriod;
+
+        virtual void onFirstRef() {
+            run("VSyncThread",
+                PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
+        }
+
+        virtual bool threadLoop() {
+            { // scope for lock
+                Mutex::Autolock _l(mLock);
+                while (!mEnabled) {
+                    mCondition.wait(mLock);
+                }
+            }
+
+            const nsecs_t period = mRefreshPeriod;
+            const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+            nsecs_t next_vsync = mNextFakeVSync;
+            nsecs_t sleep = next_vsync - now;
+            if (sleep < 0) {
+                // we missed, find where the next vsync should be
+                sleep = (period - ((now - next_vsync) % period));
+                next_vsync = now + sleep;
+            }
+            mNextFakeVSync = next_vsync + period;
+
+            struct timespec spec;
+            spec.tv_sec  = next_vsync / 1000000000;
+            spec.tv_nsec = next_vsync % 1000000000;
+
+            // NOTE: EINTR can happen with clock_nanosleep(), in case of
+            // any error (including EINTR) we go through the condition's
+            // test -- this is always correct and easy.
+            if (::clock_nanosleep(CLOCK_MONOTONIC,
+                    TIMER_ABSTIME, &spec, NULL) == 0) {
+                mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
+            }
+            return true;
+        }
+
+    public:
+        VSyncThread(HWComposer& hwc) :
+            mHwc(hwc), mEnabled(false),
+            mNextFakeVSync(0),
+            mRefreshPeriod(hwc.mRefreshPeriod) {
+        }
+        void setEnabled(bool enabled) {
+            Mutex::Autolock _l(mLock);
+            mEnabled = enabled;
+            mCondition.signal();
+        }
+    };
+
+    friend class VSyncThread;
+
+    // for debugging ----------------------------------------------------------
     void dump(String8& out, char* scratch, size_t SIZE,
             const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
 
@@ -88,8 +172,8 @@ private:
     static void hook_invalidate(struct hwc_procs* procs);
     static void hook_vsync(struct hwc_procs* procs, int dpy, int64_t timestamp);
 
-    void invalidate();
-    void vsync(int dpy, int64_t timestamp);
+    inline void invalidate();
+    inline void vsync(int dpy, int64_t timestamp);
 
     sp<SurfaceFlinger>      mFlinger;
     hw_module_t const*      mModule;
@@ -101,6 +185,9 @@ private:
     hwc_display_t           mDpy;
     hwc_surface_t           mSur;
     cb_context              mCBContext;
+    EventHandler&           mEventHandler;
+    nsecs_t                 mRefreshPeriod;
+    sp<VSyncThread>         mVSyncThread;
 };
 
 

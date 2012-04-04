@@ -30,16 +30,25 @@
 #include "GLExtensions.h"
 
 #include "DisplayHardware/DisplayHardwareBase.h"
-#include "DisplayHardware/VSyncBarrier.h"
+#include "HWComposer.h"
 
 namespace android {
 
 class FramebufferNativeWindow;
-class HWComposer;
 
-class DisplayHardware : public DisplayHardwareBase
+class DisplayHardware :
+    public DisplayHardwareBase,
+    public HWComposer::EventHandler
 {
 public:
+
+    class VSyncHandler : virtual public RefBase {
+        friend class DisplayHardware;
+        virtual void onVSyncReceived(int dpy, nsecs_t timestamp) = 0;
+    protected:
+        virtual ~VSyncHandler() {}
+    };
+
     enum {
         COPY_BITS_EXTENSION         = 0x00000008,
         BUFFER_PRESERVED            = 0x00010000,
@@ -52,7 +61,7 @@ public:
             const sp<SurfaceFlinger>& flinger,
             uint32_t displayIndex);
 
-    ~DisplayHardware();
+    virtual ~DisplayHardware();
 
     void releaseScreen() const;
     void acquireScreen() const;
@@ -69,14 +78,15 @@ public:
     int         getHeight() const;
     PixelFormat getFormat() const;
     uint32_t    getFlags() const;
-    void        makeCurrent() const;
     uint32_t    getMaxTextureSize() const;
     uint32_t    getMaxViewportDims() const;
-
-    // waits for the next vsync and returns the timestamp of when it happened
-    nsecs_t     waitForRefresh() const;
     nsecs_t     getRefreshPeriod() const;
     nsecs_t     getRefreshTimestamp() const;
+    void        makeCurrent() const;
+
+
+    void setVSyncHandler(const sp<VSyncHandler>& handler);
+
 
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
@@ -94,9 +104,9 @@ public:
     inline Rect bounds() const { return getBounds(); }
 
 private:
+    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
     void init(uint32_t displayIndex) __attribute__((noinline));
     void fini() __attribute__((noinline));
-    int32_t getDelayToNextVSyncUs(nsecs_t* timestamp) const;
 
     sp<SurfaceFlinger> mFlinger;
     EGLDisplay      mDisplay;
@@ -114,14 +124,17 @@ private:
     mutable uint32_t mPageFlipCount;
     GLint           mMaxViewportDims[2];
     GLint           mMaxTextureSize;
-    VSyncBarrier    mVSync;
 
-    mutable Mutex   mFakeVSyncMutex;
-    mutable nsecs_t mNextFakeVSync;
     nsecs_t         mRefreshPeriod;
     mutable nsecs_t mLastHwVSync;
 
+    // constant once set
     HWComposer*     mHwc;
+
+    mutable Mutex   mLock;
+
+    // protected by mLock
+    wp<VSyncHandler>    mVSyncHandler;
 
     sp<FramebufferNativeWindow> mNativeWindow;
 };

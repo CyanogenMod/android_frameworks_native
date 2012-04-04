@@ -35,6 +35,7 @@
 
 #include <hardware/gralloc.h>
 
+#include "DisplayHardwareBase.h"
 #include "GLExtensions.h"
 #include "HWComposer.h"
 #include "SurfaceFlinger.h"
@@ -160,7 +161,6 @@ void DisplayHardware::init(uint32_t dpy)
     mDpiX = mNativeWindow->xdpi;
     mDpiY = mNativeWindow->ydpi;
     mRefreshRate = fbDev->fps;
-    mNextFakeVSync = 0;
 
     if (mDpiX == 0 || mDpiY == 0) {
         ALOGE("invalid screen resolution from fb HAL (xdpi=%f, ydpi=%f), "
@@ -353,9 +353,29 @@ void DisplayHardware::init(uint32_t dpy)
 
 
     // initialize the H/W composer
-    mHwc = new HWComposer(mFlinger);
+    mHwc = new HWComposer(mFlinger, *this, mRefreshPeriod);
     if (mHwc->initCheck() == NO_ERROR) {
         mHwc->setFrameBuffer(mDisplay, mSurface);
+    }
+}
+
+void DisplayHardware::setVSyncHandler(const sp<VSyncHandler>& handler) {
+    Mutex::Autolock _l(mLock);
+    mVSyncHandler = handler;
+}
+
+void DisplayHardware::onVSyncReceived(int dpy, nsecs_t timestamp) {
+    sp<VSyncHandler> handler;
+    { // scope for the lock
+        Mutex::Autolock _l(mLock);
+        mLastHwVSync = timestamp;
+        if (mVSyncHandler != NULL) {
+            handler = mVSyncHandler.promote();
+        }
+    }
+
+    if (handler != NULL) {
+        handler->onVSyncReceived(dpy, timestamp);
     }
 }
 
@@ -393,48 +413,17 @@ uint32_t DisplayHardware::getPageFlipCount() const {
     return mPageFlipCount;
 }
 
-// this needs to be thread safe
-nsecs_t DisplayHardware::waitForRefresh() const {
-    nsecs_t timestamp;
-    if (mVSync.wait(&timestamp) < 0) {
-        // vsync not supported!
-        usleep( getDelayToNextVSyncUs(&timestamp) );
-    }
-    mLastHwVSync = timestamp; // FIXME: Not thread safe
-    return timestamp;
-}
-
 nsecs_t DisplayHardware::getRefreshTimestamp() const {
     // this returns the last refresh timestamp.
     // if the last one is not available, we estimate it based on
     // the refresh period and whatever closest timestamp we have.
-    nsecs_t now = systemTime();
+    Mutex::Autolock _l(mLock);
+    nsecs_t now = systemTime(CLOCK_MONOTONIC);
     return now - ((now - mLastHwVSync) %  mRefreshPeriod);
 }
 
 nsecs_t DisplayHardware::getRefreshPeriod() const {
     return mRefreshPeriod;
-}
-
-int32_t DisplayHardware::getDelayToNextVSyncUs(nsecs_t* timestamp) const {
-    Mutex::Autolock _l(mFakeVSyncMutex);
-    const nsecs_t period = mRefreshPeriod;
-    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    nsecs_t next_vsync = mNextFakeVSync;
-    nsecs_t sleep = next_vsync - now;
-    if (sleep < 0) {
-        // we missed, find where the next vsync should be
-        sleep = (period - ((now - next_vsync) % period));
-        next_vsync = now + sleep;
-    }
-    mNextFakeVSync = next_vsync + period;
-    timestamp[0] = next_vsync;
-
-    // round to next microsecond
-    int32_t sleep_us = (sleep + 999LL) / 1000LL;
-
-    // guaranteed to be > 0
-    return sleep_us;
 }
 
 status_t DisplayHardware::compositionComplete() const {

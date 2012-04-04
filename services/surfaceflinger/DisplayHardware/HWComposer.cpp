@@ -22,9 +22,11 @@
 
 #include <utils/Errors.h>
 #include <utils/String8.h>
+#include <utils/Thread.h>
 #include <utils/Vector.h>
 
 #include <hardware/hardware.h>
+#include <hardware/hwcomposer.h>
 
 #include <cutils/log.h>
 
@@ -37,11 +39,16 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-HWComposer::HWComposer(const sp<SurfaceFlinger>& flinger)
+HWComposer::HWComposer(
+        const sp<SurfaceFlinger>& flinger,
+        EventHandler& handler,
+        nsecs_t refreshPeriod)
     : mFlinger(flinger),
       mModule(0), mHwc(0), mList(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
-      mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE)
+      mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE),
+      mEventHandler(handler),
+      mRefreshPeriod(refreshPeriod)
 {
     int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
     ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
@@ -57,12 +64,20 @@ HWComposer::HWComposer(const sp<SurfaceFlinger>& flinger)
                 mHwc->registerProcs(mHwc, &mCBContext.procs);
                 memset(mCBContext.procs.zero, 0, sizeof(mCBContext.procs.zero));
             }
+
+            if (mHwc->common.version < HWC_DEVICE_API_VERSION_0_3) {
+                // we don't have VSYNC support, we need to fake it
+                mVSyncThread = new VSyncThread(*this);
+            }
         }
     }
 }
 
 HWComposer::~HWComposer() {
     free(mList);
+    if (mVSyncThread != NULL) {
+        mVSyncThread->requestExitAndWait();
+    }
     if (mHwc) {
         hwc_close(mHwc);
     }
@@ -85,6 +100,21 @@ void HWComposer::invalidate() {
 }
 
 void HWComposer::vsync(int dpy, int64_t timestamp) {
+    mEventHandler.onVSyncReceived(dpy, timestamp);
+}
+
+status_t HWComposer::eventControl(int event, int enabled) {
+    status_t err = NO_ERROR;
+    if (mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
+        err = mHwc->methods->eventControl(mHwc, event, enabled);
+    } else {
+        if (mVSyncThread != NULL) {
+            mVSyncThread->setEnabled(enabled);
+        } else {
+            err = BAD_VALUE;
+        }
+    }
+    return err;
 }
 
 void HWComposer::setFrameBuffer(EGLDisplay dpy, EGLSurface sur) {
