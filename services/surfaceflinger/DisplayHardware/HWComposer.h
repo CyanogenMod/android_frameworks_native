@@ -72,12 +72,24 @@ public:
             const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
 
 private:
+
+    struct callbacks : public hwc_procs_t {
+        // these are here to facilitate the transition when adding
+        // new callbacks (an implementation can check for NULL before
+        // calling a new callback).
+        void (*zero[4])(void);
+    };
+
     struct cb_context {
-        hwc_procs_t procs;
+        callbacks procs;
         HWComposer* hwc;
     };
+
     static void hook_invalidate(struct hwc_procs* procs);
+    static void hook_vsync(struct hwc_procs* procs, int dpy, int64_t timestamp);
+
     void invalidate();
+    void vsync(int dpy, int64_t timestamp);
 
     sp<SurfaceFlinger>      mFlinger;
     hw_module_t const*      mModule;

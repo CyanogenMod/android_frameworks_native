@@ -53,7 +53,9 @@ HWComposer::HWComposer(const sp<SurfaceFlinger>& flinger)
             if (mHwc->registerProcs) {
                 mCBContext.hwc = this;
                 mCBContext.procs.invalidate = &hook_invalidate;
+                mCBContext.procs.vsync = &hook_vsync;
                 mHwc->registerProcs(mHwc, &mCBContext.procs);
+                memset(mCBContext.procs.zero, 0, sizeof(mCBContext.procs.zero));
             }
         }
     }
@@ -74,8 +76,15 @@ void HWComposer::hook_invalidate(struct hwc_procs* procs) {
     reinterpret_cast<cb_context *>(procs)->hwc->invalidate();
 }
 
+void HWComposer::hook_vsync(struct hwc_procs* procs, int dpy, int64_t timestamp) {
+    reinterpret_cast<cb_context *>(procs)->hwc->vsync(dpy, timestamp);
+}
+
 void HWComposer::invalidate() {
     mFlinger->repaintEverything();
+}
+
+void HWComposer::vsync(int dpy, int64_t timestamp) {
 }
 
 void HWComposer::setFrameBuffer(EGLDisplay dpy, EGLSurface sur) {
