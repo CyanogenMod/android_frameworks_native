@@ -65,10 +65,8 @@ bool egl_object_t::get(egl_display_t const* display, egl_object_t* object) {
 
 egl_context_t::egl_context_t(EGLDisplay dpy, EGLContext context, EGLConfig config,
         egl_connection_t const* cnx, int version) :
-    egl_object_t(get_display(dpy)), dpy(dpy), context(context),
-            config(config), read(0), draw(0), cnx(cnx),
-            version(version)
-{
+    egl_object_t(get_display_nowake(dpy)), dpy(dpy), context(context),
+            config(config), read(0), draw(0), cnx(cnx), version(version) {
 }
 
 void egl_context_t::onLooseCurrent() {

@@ -14,6 +14,8 @@
  ** limitations under the License.
  */
 
+#define __STDC_LIMIT_MACROS 1
+
 #include <string.h>
 
 #include "egl_cache.h"
@@ -67,7 +69,8 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
-    magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0) {
+    magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0),
+    mWakeCount(0) {
 }
 
 egl_display_t::~egl_display_t() {
@@ -366,6 +369,20 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
     }
 
     return result;
+}
+
+bool egl_display_t::enter() {
+    Mutex::Autolock _l(lock);
+    ALOGE_IF(mWakeCount < 0 || mWakeCount == INT32_MAX,
+             "Invalid WakeCount (%d) on enter\n", mWakeCount);
+    mWakeCount++;
+    return true;
+}
+
+void egl_display_t::leave() {
+    Mutex::Autolock _l(lock);
+    ALOGE_IF(mWakeCount <= 0, "Invalid WakeCount (%d) on leave\n", mWakeCount);
+    mWakeCount--;
 }
 
 // ----------------------------------------------------------------------------

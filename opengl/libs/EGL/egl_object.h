@@ -139,12 +139,11 @@ protected:
 public:
     typedef egl_object_t::LocalRef<egl_surface_t, EGLSurface> Ref;
 
-    egl_surface_t(EGLDisplay dpy, EGLConfig config, EGLNativeWindowType win,
-            EGLSurface surface, egl_connection_t const* cnx) :
-        egl_object_t(get_display(dpy)), dpy(dpy), surface(surface),
-                config(config), win(win), cnx(cnx) {
-    }
-    EGLDisplay dpy;
+    egl_surface_t(egl_display_t* dpy, EGLConfig config,
+            EGLNativeWindowType win, EGLSurface surface,
+            egl_connection_t const* cnx) :
+        egl_object_t(dpy), surface(surface), config(config), win(win), cnx(cnx)
+    {}
     EGLSurface surface;
     EGLConfig config;
     sp<ANativeWindow> win;
