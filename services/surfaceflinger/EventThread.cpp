@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <gui/BitTube.h>
 #include <gui/IDisplayEventConnection.h>
 #include <gui/DisplayEventReceiver.h>
 
@@ -26,7 +27,6 @@
 #include <utils/Trace.h>
 
 #include "DisplayHardware/DisplayHardware.h"
-#include "DisplayEventConnection.h"
 #include "EventThread.h"
 #include "SurfaceFlinger.h"
 
@@ -48,8 +48,8 @@ void EventThread::onFirstRef() {
     run("EventThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
 }
 
-sp<DisplayEventConnection> EventThread::createEventConnection() const {
-    return new DisplayEventConnection(const_cast<EventThread*>(this));
+sp<EventThread::Connection> EventThread::createEventConnection() const {
+    return new Connection(const_cast<EventThread*>(this));
 }
 
 nsecs_t EventThread::getLastVSyncTimestamp() const {
@@ -63,56 +63,44 @@ nsecs_t EventThread::getVSyncPeriod() const {
 }
 
 status_t EventThread::registerDisplayEventConnection(
-        const sp<DisplayEventConnection>& connection) {
+        const sp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
-    ConnectionInfo info;
-    mDisplayEventConnections.add(connection, info);
+    mDisplayEventConnections.add(connection);
     mCondition.signal();
     return NO_ERROR;
 }
 
 status_t EventThread::unregisterDisplayEventConnection(
-        const wp<DisplayEventConnection>& connection) {
+        const wp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
-    mDisplayEventConnections.removeItem(connection);
+    mDisplayEventConnections.remove(connection);
     mCondition.signal();
     return NO_ERROR;
 }
 
 void EventThread::removeDisplayEventConnection(
-        const wp<DisplayEventConnection>& connection) {
+        const wp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
-    mDisplayEventConnections.removeItem(connection);
-}
-
-EventThread::ConnectionInfo* EventThread::getConnectionInfoLocked(
-        const wp<DisplayEventConnection>& connection) {
-    ssize_t index = mDisplayEventConnections.indexOfKey(connection);
-    if (index < 0) return NULL;
-    return &mDisplayEventConnections.editValueAt(index);
+    mDisplayEventConnections.remove(connection);
 }
 
 void EventThread::setVsyncRate(uint32_t count,
-        const wp<DisplayEventConnection>& connection) {
+        const sp<EventThread::Connection>& connection) {
     if (int32_t(count) >= 0) { // server must protect against bad params
         Mutex::Autolock _l(mLock);
-        ConnectionInfo* info = getConnectionInfoLocked(connection);
-        if (info) {
-            const int32_t new_count = (count == 0) ? -1 : count;
-            if (info->count != new_count) {
-                info->count = new_count;
-                mCondition.signal();
-            }
+        const int32_t new_count = (count == 0) ? -1 : count;
+        if (connection->count != new_count) {
+            connection->count = new_count;
+            mCondition.signal();
         }
     }
 }
 
 void EventThread::requestNextVsync(
-        const wp<DisplayEventConnection>& connection) {
+        const sp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
-    ConnectionInfo* info = getConnectionInfoLocked(connection);
-    if (info && info->count < 0) {
-        info->count = 0;
+    if (connection->count < 0) {
+        connection->count = 0;
         mCondition.signal();
     }
 }
@@ -121,7 +109,7 @@ bool EventThread::threadLoop() {
 
     nsecs_t timestamp;
     DisplayEventReceiver::Event vsync;
-    Vector< wp<DisplayEventConnection> > displayEventConnections;
+    Vector< wp<EventThread::Connection> > displayEventConnections;
 
     { // scope for the lock
         Mutex::Autolock _l(mLock);
@@ -131,9 +119,9 @@ bool EventThread::threadLoop() {
                 bool waitForNextVsync = false;
                 size_t count = mDisplayEventConnections.size();
                 for (size_t i=0 ; i<count ; i++) {
-                    const ConnectionInfo& info(
-                            mDisplayEventConnections.valueAt(i));
-                    if (info.count >= 0) {
+                    sp<Connection> connection =
+                            mDisplayEventConnections.itemAt(i).promote();
+                    if (connection!=0 && connection->count >= 0) {
                         // at least one continuous mode or active one-shot event
                         waitForNextVsync = true;
                         break;
@@ -158,24 +146,26 @@ bool EventThread::threadLoop() {
             const size_t count = mDisplayEventConnections.size();
             for (size_t i=0 ; i<count ; i++) {
                 bool reportVsync = false;
-                const ConnectionInfo& info(
-                        mDisplayEventConnections.valueAt(i));
-                if (info.count >= 1) {
-                    if (info.count==1 || (mDeliveredEvents % info.count) == 0) {
+                sp<Connection> connection =
+                        mDisplayEventConnections.itemAt(i).promote();
+                if (connection == 0)
+                    continue;
+
+                const int32_t count = connection->count;
+                if (count >= 1) {
+                    if (count==1 || (mDeliveredEvents % count) == 0) {
                         // continuous event, and time to report it
                         reportVsync = true;
                     }
-                } else if (info.count >= -1) {
-                    ConnectionInfo& info(
-                            mDisplayEventConnections.editValueAt(i));
-                    if (info.count == 0) {
+                } else if (count >= -1) {
+                    if (count == 0) {
                         // fired this time around
                         reportVsync = true;
                     }
-                    info.count--;
+                    connection->count--;
                 }
                 if (reportVsync) {
-                    displayEventConnections.add(mDisplayEventConnections.keyAt(i));
+                    displayEventConnections.add(connection);
                 }
             }
         } while (!displayEventConnections.size());
@@ -188,7 +178,7 @@ bool EventThread::threadLoop() {
 
     const size_t count = displayEventConnections.size();
     for (size_t i=0 ; i<count ; i++) {
-        sp<DisplayEventConnection> conn(displayEventConnections[i].promote());
+        sp<Connection> conn(displayEventConnections[i].promote());
         // make sure the connection didn't die
         if (conn != NULL) {
             status_t err = conn->postEvent(vsync);
@@ -228,6 +218,41 @@ void EventThread::dump(String8& result, char* buffer, size_t SIZE) const {
     snprintf(buffer, SIZE, "  numListeners=%u, events-delivered: %u\n",
             mDisplayEventConnections.size(), mDeliveredEvents);
     result.append(buffer);
+}
+
+// ---------------------------------------------------------------------------
+
+EventThread::Connection::Connection(
+        const sp<EventThread>& eventThread)
+    : count(-1), mEventThread(eventThread), mChannel(new BitTube())
+{
+}
+
+EventThread::Connection::~Connection() {
+    mEventThread->unregisterDisplayEventConnection(this);
+}
+
+void EventThread::Connection::onFirstRef() {
+    // NOTE: mEventThread doesn't hold a strong reference on us
+    mEventThread->registerDisplayEventConnection(this);
+}
+
+sp<BitTube> EventThread::Connection::getDataChannel() const {
+    return mChannel;
+}
+
+void EventThread::Connection::setVsyncRate(uint32_t count) {
+    mEventThread->setVsyncRate(count, this);
+}
+
+void EventThread::Connection::requestNextVsync() {
+    mEventThread->requestNextVsync(this);
+}
+
+status_t EventThread::Connection::postEvent(
+        const DisplayEventReceiver::Event& event) {
+    ssize_t size = DisplayEventReceiver::sendEvents(mChannel, &event, 1);
+    return size < 0 ? status_t(size) : status_t(NO_ERROR);
 }
 
 // ---------------------------------------------------------------------------

@@ -50,7 +50,6 @@
 
 #include "clz.h"
 #include "DdmConnection.h"
-#include "DisplayEventConnection.h"
 #include "EventThread.h"
 #include "GLExtensions.h"
 #include "Layer.h"

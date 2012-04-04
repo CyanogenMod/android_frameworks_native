@@ -270,8 +270,9 @@ private:
     };
 
     struct State {
-        State() {
-            orientation = ISurfaceComposer::eOrientationDefault;
+        State()
+            : orientation(ISurfaceComposer::eOrientationDefault),
+              orientationFlags(0) {
         }
         LayerVector     layersSortedByZ;
         uint8_t         orientation;

@@ -20,13 +20,12 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <gui/DisplayEventReceiver.h>
 #include <gui/IDisplayEventConnection.h>
 
 #include <utils/Errors.h>
 #include <utils/threads.h>
-#include <utils/KeyedVector.h>
-
-#include "DisplayEventConnection.h"
+#include <utils/SortedVector.h>
 
 // ---------------------------------------------------------------------------
 
@@ -36,31 +35,43 @@ namespace android {
 
 class SurfaceFlinger;
 class DisplayHardware;
-class DisplayEventConnection;
 
 // ---------------------------------------------------------------------------
 
 class EventThread : public Thread {
-    friend class DisplayEventConnection;
+    class Connection : public BnDisplayEventConnection {
+    public:
+        Connection(const sp<EventThread>& eventThread);
+        status_t postEvent(const DisplayEventReceiver::Event& event);
+
+        // count >= 1 : continuous event. count is the vsync rate
+        // count == 0 : one-shot event that has not fired
+        // count ==-1 : one-shot event that fired this round / disabled
+        // count ==-2 : one-shot event that fired the round before
+        int32_t count;
+
+    private:
+        virtual ~Connection();
+        virtual void onFirstRef();
+        virtual sp<BitTube> getDataChannel() const;
+        virtual void setVsyncRate(uint32_t count);
+        virtual void requestNextVsync();    // asynchronous
+        sp<EventThread> const mEventThread;
+        sp<BitTube> const mChannel;
+    };
 
 public:
+
     EventThread(const sp<SurfaceFlinger>& flinger);
 
-    sp<DisplayEventConnection> createEventConnection() const;
+    sp<Connection> createEventConnection() const;
+    status_t registerDisplayEventConnection(const sp<Connection>& connection);
+    status_t unregisterDisplayEventConnection(const wp<Connection>& connection);
 
-    status_t registerDisplayEventConnection(
-            const sp<DisplayEventConnection>& connection);
-
-    status_t unregisterDisplayEventConnection(
-            const wp<DisplayEventConnection>& connection);
-
-    void setVsyncRate(uint32_t count,
-            const wp<DisplayEventConnection>& connection);
-
-    void requestNextVsync(const wp<DisplayEventConnection>& connection);
+    void setVsyncRate(uint32_t count, const sp<Connection>& connection);
+    void requestNextVsync(const sp<Connection>& connection);
 
     nsecs_t getLastVSyncTimestamp() const;
-
     nsecs_t getVSyncPeriod() const;
 
     void dump(String8& result, char* buffer, size_t SIZE) const;
@@ -70,21 +81,7 @@ private:
     virtual status_t    readyToRun();
     virtual void        onFirstRef();
 
-    struct ConnectionInfo {
-        ConnectionInfo() : count(-1) { }
-
-        // count >= 1 : continuous event. count is the vsync rate
-        // count == 0 : one-shot event that has not fired
-        // count ==-1 : one-shot event that fired this round / disabled
-        // count ==-2 : one-shot event that fired the round before
-        int32_t count;
-    };
-
-    void removeDisplayEventConnection(
-            const wp<DisplayEventConnection>& connection);
-
-    ConnectionInfo* getConnectionInfoLocked(
-            const wp<DisplayEventConnection>& connection);
+    void removeDisplayEventConnection(const wp<Connection>& connection);
 
     // constants
     sp<SurfaceFlinger> mFlinger;
@@ -94,7 +91,7 @@ private:
     mutable Condition mCondition;
 
     // protected by mLock
-    KeyedVector< wp<DisplayEventConnection>, ConnectionInfo > mDisplayEventConnections;
+    SortedVector< wp<Connection> > mDisplayEventConnections;
     nsecs_t mLastVSyncTimestamp;
 
     // main thread only
