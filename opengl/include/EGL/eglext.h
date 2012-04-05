@@ -248,7 +248,6 @@ typedef EGLuint64NV (EGLAPIENTRYP PFNEGLGETSYSTEMTIMEFREQUENCYNVPROC)(void);
 typedef EGLuint64NV (EGLAPIENTRYP PFNEGLGETSYSTEMTIMENVPROC)(void);
 #endif
 
-
 /* EGL_ANDROID_blob_cache
  */
 #ifndef EGL_ANDROID_blob_cache
@@ -261,6 +260,14 @@ EGLAPI void EGLAPIENTRY eglSetBlobCacheFuncsANDROID(EGLDisplay dpy, EGLSetBlobFu
 #endif /* EGL_EGLEXT_PROTOTYPES */
 typedef void (EGLAPIENTRYP PFNEGLSETBLOBCACHEFUNCSANDROIDPROC) (EGLDisplay dpy,
         EGLSetBlobFuncANDROID set, EGLGetBlobFuncANDROID get);
+#endif
+
+/* EGL_IMG_hibernate_process
+ */
+#ifndef EGL_IMG_hibernate_process
+#define EGL_IMG_hibernate_process 1
+typedef EGLBoolean (EGLAPIENTRYP PFEGLHIBERNATEPROCESSIMGPROC)(void);
+typedef EGLBoolean (EGLAPIENTRYP PFEGLAWAKENPROCESSIMGPROC)(void);
 #endif
 
 #ifdef __cplusplus

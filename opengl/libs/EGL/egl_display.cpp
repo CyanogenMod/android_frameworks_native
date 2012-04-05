@@ -59,6 +59,7 @@ static char const * const sExtensionString  =
 // extensions not exposed to applications but used by the ANDROID system
 //      "EGL_ANDROID_recordable "               // mandatory
 //      "EGL_ANDROID_blob_cache "               // strongly recommended
+//      "EGL_IMG_hibernate_process "            // optional
 
 extern void initEglTraceLevel();
 extern void initEglDebugLevel();
@@ -70,7 +71,7 @@ egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
     magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0),
-    mWakeCount(0) {
+    mWakeCount(0), mHibernating(false), mAttemptHibernation(false) {
 }
 
 egl_display_t::~egl_display_t() {
@@ -349,12 +350,18 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
                     disp.dpy, impl_draw, impl_read, impl_ctx);
             if (result == EGL_TRUE) {
                 c->onMakeCurrent(draw, read);
+                if (!cur_c) {
+                    mWakeCount++;
+                    mAttemptHibernation = false;
+                }
             }
         } else {
             result = cur_c->cnx->egl.eglMakeCurrent(
                     disp.dpy, impl_draw, impl_read, impl_ctx);
             if (result == EGL_TRUE) {
                 cur_c->onLooseCurrent();
+                mWakeCount--;
+                mAttemptHibernation = true;
             }
         }
     }
@@ -376,13 +383,45 @@ bool egl_display_t::enter() {
     ALOGE_IF(mWakeCount < 0 || mWakeCount == INT32_MAX,
              "Invalid WakeCount (%d) on enter\n", mWakeCount);
     mWakeCount++;
+    if (CC_UNLIKELY(mHibernating)) {
+        ALOGV("Awakening\n");
+        egl_connection_t* const cnx = &gEGLImpl;
+        if (!cnx->egl.eglAwakenProcessIMG()) {
+            ALOGE("Failed to awaken EGL implementation\n");
+            return false;
+        }
+        mHibernating = false;
+    }
     return true;
 }
 
 void egl_display_t::leave() {
     Mutex::Autolock _l(lock);
     ALOGE_IF(mWakeCount <= 0, "Invalid WakeCount (%d) on leave\n", mWakeCount);
+    if (--mWakeCount == 0 && CC_UNLIKELY(mAttemptHibernation)) {
+        egl_connection_t* const cnx = &gEGLImpl;
+        mAttemptHibernation = false;
+        if (cnx->egl.eglHibernateProcessIMG && cnx->egl.eglAwakenProcessIMG) {
+            ALOGV("Hibernating\n");
+            if (!cnx->egl.eglHibernateProcessIMG()) {
+                ALOGE("Failed to hibernate EGL implementation\n");
+                return;
+            }
+            mHibernating = true;
+        }
+    }
+}
+
+void egl_display_t::onWindowSurfaceCreated() {
+    Mutex::Autolock _l(lock);
+    mWakeCount++;
+    mAttemptHibernation = false;
+}
+
+void egl_display_t::onWindowSurfaceDestroyed() {
+    Mutex::Autolock _l(lock);
     mWakeCount--;
+    mAttemptHibernation = true;
 }
 
 // ----------------------------------------------------------------------------

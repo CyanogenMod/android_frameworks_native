@@ -67,3 +67,8 @@ EGL_ENTRY(EGLClientBuffer, eglGetRenderBufferANDROID, EGLDisplay, EGLSurface)
 
 EGL_ENTRY(EGLuint64NV, eglGetSystemTimeFrequencyNV, void)
 EGL_ENTRY(EGLuint64NV, eglGetSystemTimeNV, void)
+
+/* IMG extensions */
+
+EGL_ENTRY(EGLBoolean, eglHibernateProcessIMG, void)
+EGL_ENTRY(EGLBoolean, eglAwakenProcessIMG, void)

@@ -649,9 +649,11 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
         return  NULL;
     }
 
-    // The EGL_ANDROID_blob_cache extension should not be exposed to
-    // applications.  It is used internally by the Android EGL layer.
-    if (!strcmp(procname, "eglSetBlobCacheFuncsANDROID")) {
+    // These extensions should not be exposed to applications. They're used
+    // internally by the Android EGL layer.
+    if (!strcmp(procname, "eglSetBlobCacheFuncsANDROID") ||
+        !strcmp(procname, "eglHibernateProcessIMG") ||
+        !strcmp(procname, "eglAwakenProcessIMG")) {
         return NULL;
     }
 

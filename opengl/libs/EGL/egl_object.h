@@ -127,23 +127,14 @@ void egl_object_t::LocalRef<N,T>::terminate() {
 
 class egl_surface_t : public egl_object_t {
 protected:
-    ~egl_surface_t() {
-        ANativeWindow* const window = win.get();
-        if (window != NULL) {
-            native_window_set_buffers_format(window, 0);
-            if (native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL)) {
-                ALOGW("EGLNativeWindowType %p disconnect failed", window);
-            }
-        }
-    }
+    ~egl_surface_t();
 public:
     typedef egl_object_t::LocalRef<egl_surface_t, EGLSurface> Ref;
 
     egl_surface_t(egl_display_t* dpy, EGLConfig config,
             EGLNativeWindowType win, EGLSurface surface,
-            egl_connection_t const* cnx) :
-        egl_object_t(dpy), surface(surface), config(config), win(win), cnx(cnx)
-    {}
+            egl_connection_t const* cnx);
+
     EGLSurface surface;
     EGLConfig config;
     sp<ANativeWindow> win;

@@ -70,6 +70,16 @@ public:
     // add reference to this object. returns true if this is a valid object.
     bool getObject(egl_object_t* object) const;
 
+    // These notifications allow the display to keep track of how many window
+    // surfaces exist, which it uses to decide whether to hibernate the
+    // underlying EGL implementation. They can be called by any thread without
+    // holding a lock, but must be called via egl_display_ptr to ensure
+    // proper hibernate/wakeup sequencing. If a surface destruction triggers
+    // hibernation, hibernation will be delayed at least until the calling
+    // thread's egl_display_ptr is destroyed.
+    void onWindowSurfaceCreated();
+    void onWindowSurfaceDestroyed();
+
     static egl_display_t* get(EGLDisplay dpy);
     static EGLDisplay getFromNativeDisplay(EGLNativeDisplayType disp);
 
@@ -124,10 +134,16 @@ private:
             String8 mClientApiString;
             String8 mExtensionString;
             int32_t mWakeCount;
+            bool    mHibernating;
+            bool    mAttemptHibernation;
 };
 
 // ----------------------------------------------------------------------------
 
+// An egl_display_ptr is a kind of smart pointer for egl_display_t objects.
+// It doesn't refcount the egl_display_t, but does ensure that the underlying
+// EGL implementation is "awake" (not hibernating) and ready for use as long
+// as the egl_display_ptr exists.
 class egl_display_ptr {
 public:
     explicit egl_display_ptr(egl_display_t* dpy): mDpy(dpy) {
@@ -141,12 +157,13 @@ public:
     // We only really need a C++11 move constructor, not a copy constructor.
     // A move constructor would save an enter()/leave() pair on every EGL API
     // call. But enabling -std=c++0x causes lots of errors elsewhere, so I
-    // can't use a move constructor yet.
+    // can't use a move constructor until those are cleaned up.
     //
     // egl_display_ptr(egl_display_ptr&& other) {
     //     mDpy = other.mDpy;
     //     other.mDpy = NULL;
     // }
+    //
     egl_display_ptr(const egl_display_ptr& other): mDpy(other.mDpy) {
         if (mDpy) {
             mDpy->enter();
