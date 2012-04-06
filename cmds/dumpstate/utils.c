@@ -375,6 +375,7 @@ const char *dump_vm_traces() {
         *slash = '\0';
         if (!mkdir(anr_traces_dir, 0775)) {
             chown(anr_traces_dir, AID_SYSTEM, AID_SYSTEM);
+            chmod(anr_traces_dir, 0775);
         } else if (errno != EEXIST) {
             fprintf(stderr, "mkdir(%s): %s\n", anr_traces_dir, strerror(errno));
             return NULL;
@@ -385,6 +386,12 @@ const char *dump_vm_traces() {
     int fd = open(traces_path, O_CREAT | O_WRONLY | O_TRUNC, 0666);  /* -rw-rw-rw- */
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", traces_path, strerror(errno));
+        return NULL;
+    }
+    int chmod_ret = fchmod(fd, 0666);
+    if (chmod_ret < 0) {
+        fprintf(stderr, "fchmod on %s failed: %s\n", traces_path, strerror(errno));
+        close(fd);
         return NULL;
     }
     close(fd);
