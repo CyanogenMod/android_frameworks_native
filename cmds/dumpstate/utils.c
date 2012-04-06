@@ -383,7 +383,7 @@ const char *dump_vm_traces() {
     }
 
     /* create a new, empty traces.txt file to receive stack dumps */
-    int fd = open(traces_path, O_CREAT | O_WRONLY | O_TRUNC, 0666);  /* -rw-rw-rw- */
+    int fd = open(traces_path, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0666);  /* -rw-rw-rw- */
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", traces_path, strerror(errno));
         return NULL;
