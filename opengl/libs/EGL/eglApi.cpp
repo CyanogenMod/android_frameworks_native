@@ -715,6 +715,69 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
     return addr;
 }
 
+class FrameCompletionThread : public Thread {
+public:
+
+    static void queueSync(EGLSyncKHR sync) {
+        static sp<FrameCompletionThread> thread(new FrameCompletionThread);
+        static bool running = false;
+        if (!running) {
+            thread->run("GPUFrameCompletion");
+            running = true;
+        }
+        {
+            Mutex::Autolock lock(thread->mMutex);
+            ScopedTrace st(ATRACE_TAG, String8::format("kicked off frame %d",
+                    thread->mFramesQueued).string());
+            thread->mQueue.push_back(sync);
+            thread->mCondition.signal();
+            thread->mFramesQueued++;
+            ATRACE_INT("GPU Frames Outstanding", thread->mQueue.size());
+        }
+    }
+
+private:
+    FrameCompletionThread() : mFramesQueued(0), mFramesCompleted(0) {}
+
+    virtual bool threadLoop() {
+        EGLSyncKHR sync;
+        uint32_t frameNum;
+        {
+            Mutex::Autolock lock(mMutex);
+            while (mQueue.isEmpty()) {
+                mCondition.wait(mMutex);
+            }
+            sync = mQueue[0];
+            frameNum = mFramesCompleted;
+        }
+        EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        {
+            ScopedTrace st(ATRACE_TAG, String8::format("waiting for frame %d",
+                    frameNum).string());
+            EGLint result = eglClientWaitSyncKHR(dpy, sync, 0, EGL_FOREVER_KHR);
+            if (result == EGL_FALSE) {
+                ALOGE("FrameCompletion: error waiting for fence: %#x", eglGetError());
+            } else if (result == EGL_TIMEOUT_EXPIRED_KHR) {
+                ALOGE("FrameCompletion: timeout waiting for fence");
+            }
+            eglDestroySyncKHR(dpy, sync);
+        }
+        {
+            Mutex::Autolock lock(mMutex);
+            mQueue.removeAt(0);
+            mFramesCompleted++;
+            ATRACE_INT("GPU Frames Outstanding", mQueue.size());
+        }
+        return true;
+    }
+
+    uint32_t mFramesQueued;
+    uint32_t mFramesCompleted;
+    Vector<EGLSyncKHR> mQueue;
+    Condition mCondition;
+    Mutex mMutex;
+};
+
 EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
 {
     ATRACE_CALL();
@@ -744,7 +807,19 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
         }
     }
 
-    return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
+    EGLBoolean result = s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
+
+    if (CC_UNLIKELY(dp->traceGpuCompletion)) {
+        EGLSyncKHR sync = EGL_NO_SYNC_KHR;
+        {
+            sync = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR, NULL);
+        }
+        if (sync != EGL_NO_SYNC_KHR) {
+            FrameCompletionThread::queueSync(sync);
+        }
+    }
+
+    return result;
 }
 
 EGLBoolean eglCopyBuffers(  EGLDisplay dpy, EGLSurface surface,

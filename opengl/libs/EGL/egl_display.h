@@ -107,7 +107,8 @@ private:
 
 public:
     DisplayImpl     disp;
-    bool    finishOnSwap;
+    bool    finishOnSwap;       // property: debug.egl.finish
+    bool    traceGpuCompletion; // property: debug.egl.traceGpuCompletion
 
 private:
             uint32_t                    refs;
