@@ -67,7 +67,7 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
-    magic('_dpy'), finishOnSwap(false), refs(0) {
+    magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0) {
 }
 
 egl_display_t::~egl_display_t() {
@@ -237,6 +237,11 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     property_get("debug.egl.finish", value, "0");
     if (atoi(value)) {
         finishOnSwap = true;
+    }
+
+    property_get("debug.egl.traceGpuCompletion", value, "0");
+    if (atoi(value)) {
+        traceGpuCompletion = true;
     }
 
     refs++;
