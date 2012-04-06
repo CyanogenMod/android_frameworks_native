@@ -42,6 +42,7 @@ public:
     enum { NUM_BUFFER_SLOTS = 32 };
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
+    enum { STALE_BUFFER_SLOT = 1 };
 
     // ConsumerListener is the interface through which the BufferQueue notifies
     // the consumer of events that the consumer may wish to react to.  Because
@@ -297,7 +298,8 @@ private:
           mTimestamp(0),
           mFrameNumber(0),
           mFence(EGL_NO_SYNC_KHR),
-          mAcquireCalled(false) {
+          mAcquireCalled(false),
+          mNeedsCleanupOnRelease(false) {
             mCrop.makeInvalid();
         }
 
@@ -376,6 +378,9 @@ private:
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;
+
+        // Indicates whether this buffer needs to be cleaned up by consumer
+        bool mNeedsCleanupOnRelease;
     };
 
     // mSlots is the array of buffer slots that must be mirrored on the client

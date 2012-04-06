@@ -176,6 +176,8 @@ status_t SurfaceTexture::updateTexImage() {
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
 
+    status_t err = NO_ERROR;
+
     if (mAbandoned) {
         ST_LOGE("updateTexImage: SurfaceTexture is abandoned!");
         return NO_INIT;
@@ -269,11 +271,17 @@ status_t SurfaceTexture::updateTexImage() {
                 mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
                 buf, item.mGraphicBuffer != NULL ? item.mGraphicBuffer->handle : 0);
 
-        // Release the old buffer
+        // release old buffer
         if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-            mBufferQueue->releaseBuffer(mCurrentTexture, dpy,
-                    mEGLSlots[mCurrentTexture].mFence);
+            status_t status = mBufferQueue->releaseBuffer(mCurrentTexture, dpy, mEGLSlots[mCurrentTexture].mFence);
+
             mEGLSlots[mCurrentTexture].mFence = EGL_NO_SYNC_KHR;
+            if (status == BufferQueue::STALE_BUFFER_SLOT) {
+                freeBufferLocked(mCurrentTexture);
+            } else if (status != OK) {
+                ST_LOGE("updateTexImage: released invalid buffer");
+                err = status;
+            }
         }
 
         // Update the SurfaceTexture state.
@@ -289,7 +297,7 @@ status_t SurfaceTexture::updateTexImage() {
         glBindTexture(mTexTarget, mTexName);
     }
 
-    return OK;
+    return err;
 }
 
 status_t SurfaceTexture::detachFromContext() {
@@ -630,6 +638,9 @@ bool SurfaceTexture::isSynchronousMode() const {
 void SurfaceTexture::freeBufferLocked(int slotIndex) {
     ST_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     mEGLSlots[slotIndex].mGraphicBuffer = 0;
+    if (slotIndex == mCurrentTexture) {
+        mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
+    }
     if (mEGLSlots[slotIndex].mEglImage != EGL_NO_IMAGE_KHR) {
         EGLImageKHR img = mEGLSlots[slotIndex].mEglImage;
         if (img != EGL_NO_IMAGE_KHR) {
@@ -693,12 +704,6 @@ sp<BufferQueue> SurfaceTexture::getBufferQueue() const {
 }
 
 // Used for refactoring, should not be in final interface
-status_t SurfaceTexture::setBufferCount(int bufferCount) {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setBufferCount(bufferCount);
-}
-
-// Used for refactoring, should not be in final interface
 status_t SurfaceTexture::connect(int api,
                 uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
     Mutex::Autolock lock(mMutex);
@@ -737,8 +742,6 @@ void SurfaceTexture::onBuffersReleased() {
             freeBufferLocked(i);
         }
     }
-
-    mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
 }
 
 void SurfaceTexture::dump(String8& result) const

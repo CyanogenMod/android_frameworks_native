@@ -163,48 +163,58 @@ status_t BufferQueue::setTransformHint(uint32_t hint) {
 
 status_t BufferQueue::setBufferCount(int bufferCount) {
     ST_LOGV("setBufferCount: count=%d", bufferCount);
-    Mutex::Autolock lock(mMutex);
 
-    if (mAbandoned) {
-        ST_LOGE("setBufferCount: SurfaceTexture has been abandoned!");
-        return NO_INIT;
-    }
-    if (bufferCount > NUM_BUFFER_SLOTS) {
-        ST_LOGE("setBufferCount: bufferCount larger than slots available");
-        return BAD_VALUE;
-    }
+    sp<ConsumerListener> listener;
+    {
+        Mutex::Autolock lock(mMutex);
 
-    // Error out if the user has dequeued buffers
-    for (int i=0 ; i<mBufferCount ; i++) {
-        if (mSlots[i].mBufferState == BufferSlot::DEQUEUED) {
-            ST_LOGE("setBufferCount: client owns some buffers");
-            return -EINVAL;
+        if (mAbandoned) {
+            ST_LOGE("setBufferCount: SurfaceTexture has been abandoned!");
+            return NO_INIT;
         }
+        if (bufferCount > NUM_BUFFER_SLOTS) {
+            ST_LOGE("setBufferCount: bufferCount larger than slots available");
+            return BAD_VALUE;
+        }
+
+        // Error out if the user has dequeued buffers
+        for (int i=0 ; i<mBufferCount ; i++) {
+            if (mSlots[i].mBufferState == BufferSlot::DEQUEUED) {
+                ST_LOGE("setBufferCount: client owns some buffers");
+                return -EINVAL;
+            }
+        }
+
+        const int minBufferSlots = mSynchronousMode ?
+                MIN_SYNC_BUFFER_SLOTS : MIN_ASYNC_BUFFER_SLOTS;
+        if (bufferCount == 0) {
+            mClientBufferCount = 0;
+            bufferCount = (mServerBufferCount >= minBufferSlots) ?
+                    mServerBufferCount : minBufferSlots;
+            return setBufferCountServerLocked(bufferCount);
+        }
+
+        if (bufferCount < minBufferSlots) {
+            ST_LOGE("setBufferCount: requested buffer count (%d) is less than "
+                    "minimum (%d)", bufferCount, minBufferSlots);
+            return BAD_VALUE;
+        }
+
+        // here we're guaranteed that the client doesn't have dequeued buffers
+        // and will release all of its buffer references.
+        freeAllBuffersLocked();
+        mBufferCount = bufferCount;
+        mClientBufferCount = bufferCount;
+        mBufferHasBeenQueued = false;
+        mQueue.clear();
+        mDequeueCondition.broadcast();
+        listener = mConsumerListener;
+    } // scope for lock
+
+    if (listener != NULL) {
+        listener->onBuffersReleased();
     }
 
-    const int minBufferSlots = mSynchronousMode ?
-            MIN_SYNC_BUFFER_SLOTS : MIN_ASYNC_BUFFER_SLOTS;
-    if (bufferCount == 0) {
-        mClientBufferCount = 0;
-        bufferCount = (mServerBufferCount >= minBufferSlots) ?
-                mServerBufferCount : minBufferSlots;
-        return setBufferCountServerLocked(bufferCount);
-    }
-
-    if (bufferCount < minBufferSlots) {
-        ST_LOGE("setBufferCount: requested buffer count (%d) is less than "
-                "minimum (%d)", bufferCount, minBufferSlots);
-        return BAD_VALUE;
-    }
-
-    // here we're guaranteed that the client doesn't have dequeued buffers
-    // and will release all of its buffer references.
-    freeAllBuffersLocked();
-    mBufferCount = bufferCount;
-    mClientBufferCount = bufferCount;
-    mBufferHasBeenQueued = false;
-    mQueue.clear();
-    mDequeueCondition.broadcast();
     return OK;
 }
 
@@ -780,6 +790,9 @@ void BufferQueue::dump(String8& result, const char* prefix,
 
 void BufferQueue::freeBufferLocked(int i) {
     mSlots[i].mGraphicBuffer = 0;
+    if (mSlots[i].mBufferState == BufferSlot::ACQUIRED) {
+        mSlots[i].mNeedsCleanupOnRelease = true;
+    }
     mSlots[i].mBufferState = BufferSlot::FREE;
     mSlots[i].mFrameNumber = 0;
     mSlots[i].mAcquireCalled = false;
@@ -853,15 +866,19 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
     mSlots[buf].mEglDisplay = display;
     mSlots[buf].mFence = fence;
 
-    // The current buffer becomes FREE if it was still in the queued
-    // state. If it has already been given to the client
-    // (synchronous mode), then it stays in DEQUEUED state.
-    if (mSlots[buf].mBufferState == BufferSlot::QUEUED
-            || mSlots[buf].mBufferState == BufferSlot::ACQUIRED) {
+    // The buffer can now only be released if its in the acquired state
+    if (mSlots[buf].mBufferState == BufferSlot::ACQUIRED) {
         mSlots[buf].mBufferState = BufferSlot::FREE;
+    } else if (mSlots[buf].mNeedsCleanupOnRelease) {
+        ST_LOGV("releasing a stale buf %d its state was %d", buf, mSlots[buf].mBufferState);
+        mSlots[buf].mNeedsCleanupOnRelease = false;
+        return STALE_BUFFER_SLOT;
+    } else {
+        ST_LOGE("attempted to release buf %d but its state was %d", buf, mSlots[buf].mBufferState);
+        return -EINVAL;
     }
-    mDequeueCondition.broadcast();
 
+    mDequeueCondition.broadcast();
     return OK;
 }
 
