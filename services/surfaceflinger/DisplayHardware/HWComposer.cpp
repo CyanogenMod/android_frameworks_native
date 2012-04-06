@@ -105,7 +105,7 @@ void HWComposer::vsync(int dpy, int64_t timestamp) {
 
 status_t HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
-    if (mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
+    if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
         err = mHwc->methods->eventControl(mHwc, event, enabled);
     } else {
         if (mVSyncThread != NULL) {
