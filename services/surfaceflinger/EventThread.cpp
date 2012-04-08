@@ -123,13 +123,9 @@ bool EventThread::threadLoop() {
 
         Mutex::Autolock _l(mLock);
         do {
-            // check if we have received a VSYNC event
-            if (mVSyncTimestamp) {
-                // we have a VSYNC event pending
-                timestamp = mVSyncTimestamp;
-                mVSyncTimestamp = 0;
-                break;
-            }
+            // latch VSYNC event if any
+            timestamp = mVSyncTimestamp;
+            mVSyncTimestamp = 0;
 
             // check if we should be waiting for VSYNC events
             bool waitForNextVsync = false;
@@ -144,9 +140,27 @@ bool EventThread::threadLoop() {
                 }
             }
 
-            // enable or disable VSYNC events
-            mHw.getHwComposer().eventControl(
-                    HWComposer::EVENT_VSYNC, waitForNextVsync);
+            if (timestamp) {
+                if (!waitForNextVsync) {
+                    // we received a VSYNC but we have no clients
+                    // don't report it, and disable VSYNC events
+                    mHw.getHwComposer().eventControl(
+                            HWComposer::EVENT_VSYNC, false);
+                } else {
+                    // report VSYNC event
+                    break;
+                }
+            } else {
+                // never disable VSYNC events immediately, instead
+                // we'll wait to receive the event and we'll
+                // reevaluate whether we need to dispatch it and/or
+                // disable VSYNC events then.
+                if (waitForNextVsync) {
+                    // enable
+                    mHw.getHwComposer().eventControl(
+                            HWComposer::EVENT_VSYNC, true);
+                }
+            }
 
             // wait for something to happen
             mCondition.wait(mLock);
