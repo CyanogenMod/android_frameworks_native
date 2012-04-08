@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +25,7 @@
 #include <utils/Errors.h>
 #include <utils/String8.h>
 #include <utils/Thread.h>
+#include <utils/Trace.h>
 #include <utils/Vector.h>
 
 #include <hardware/hardware.h>
@@ -48,7 +51,7 @@ HWComposer::HWComposer(
       mNumOVLayers(0), mNumFBLayers(0),
       mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE),
       mEventHandler(handler),
-      mRefreshPeriod(refreshPeriod)
+      mRefreshPeriod(refreshPeriod), mVSyncCount(0)
 {
     int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
     ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
@@ -100,6 +103,7 @@ void HWComposer::invalidate() {
 }
 
 void HWComposer::vsync(int dpy, int64_t timestamp) {
+    ATRACE_INT("VSYNC", ++mVSyncCount&1);
     mEventHandler.onVSyncReceived(dpy, timestamp);
 }
 
@@ -242,6 +246,60 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         mHwc->dump(mHwc, buffer, SIZE);
         result.append(buffer);
     }
+}
+
+// ---------------------------------------------------------------------------
+
+HWComposer::VSyncThread::VSyncThread(HWComposer& hwc)
+    : mHwc(hwc), mEnabled(false),
+      mNextFakeVSync(0),
+      mRefreshPeriod(hwc.mRefreshPeriod)
+{
+}
+
+void HWComposer::VSyncThread::setEnabled(bool enabled) {
+    Mutex::Autolock _l(mLock);
+    mEnabled = enabled;
+    mCondition.signal();
+}
+
+void HWComposer::VSyncThread::onFirstRef() {
+    run("VSyncThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
+}
+
+bool HWComposer::VSyncThread::threadLoop() {
+    { // scope for lock
+        Mutex::Autolock _l(mLock);
+        while (!mEnabled) {
+            mCondition.wait(mLock);
+        }
+    }
+
+    const nsecs_t period = mRefreshPeriod;
+    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    nsecs_t next_vsync = mNextFakeVSync;
+    nsecs_t sleep = next_vsync - now;
+    if (sleep < 0) {
+        // we missed, find where the next vsync should be
+        sleep = (period - ((now - next_vsync) % period));
+        next_vsync = now + sleep;
+    }
+    mNextFakeVSync = next_vsync + period;
+
+    struct timespec spec;
+    spec.tv_sec  = next_vsync / 1000000000;
+    spec.tv_nsec = next_vsync % 1000000000;
+
+    int err;
+    do {
+        err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
+    } while (err<0 && errno == EINTR);
+
+    if (err == 0) {
+        mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
+    }
+
+    return true;
 }
 
 // ---------------------------------------------------------------------------

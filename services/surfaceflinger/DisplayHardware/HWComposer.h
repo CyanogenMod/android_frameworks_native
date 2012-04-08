@@ -97,56 +97,11 @@ public:
         bool mEnabled;
         mutable nsecs_t mNextFakeVSync;
         nsecs_t mRefreshPeriod;
-
-        virtual void onFirstRef() {
-            run("VSyncThread",
-                PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
-        }
-
-        virtual bool threadLoop() {
-            { // scope for lock
-                Mutex::Autolock _l(mLock);
-                while (!mEnabled) {
-                    mCondition.wait(mLock);
-                }
-            }
-
-            const nsecs_t period = mRefreshPeriod;
-            const nsecs_t now = systemTime(CLOCK_MONOTONIC);
-            nsecs_t next_vsync = mNextFakeVSync;
-            nsecs_t sleep = next_vsync - now;
-            if (sleep < 0) {
-                // we missed, find where the next vsync should be
-                sleep = (period - ((now - next_vsync) % period));
-                next_vsync = now + sleep;
-            }
-            mNextFakeVSync = next_vsync + period;
-
-            struct timespec spec;
-            spec.tv_sec  = next_vsync / 1000000000;
-            spec.tv_nsec = next_vsync % 1000000000;
-
-            // NOTE: EINTR can happen with clock_nanosleep(), in case of
-            // any error (including EINTR) we go through the condition's
-            // test -- this is always correct and easy.
-            if (::clock_nanosleep(CLOCK_MONOTONIC,
-                    TIMER_ABSTIME, &spec, NULL) == 0) {
-                mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
-            }
-            return true;
-        }
-
+        virtual void onFirstRef();
+        virtual bool threadLoop();
     public:
-        VSyncThread(HWComposer& hwc) :
-            mHwc(hwc), mEnabled(false),
-            mNextFakeVSync(0),
-            mRefreshPeriod(hwc.mRefreshPeriod) {
-        }
-        void setEnabled(bool enabled) {
-            Mutex::Autolock _l(mLock);
-            mEnabled = enabled;
-            mCondition.signal();
-        }
+        VSyncThread(HWComposer& hwc);
+        void setEnabled(bool enabled);
     };
 
     friend class VSyncThread;
@@ -187,6 +142,7 @@ private:
     cb_context              mCBContext;
     EventHandler&           mEventHandler;
     nsecs_t                 mRefreshPeriod;
+    size_t                  mVSyncCount;
     sp<VSyncThread>         mVSyncThread;
 };
 

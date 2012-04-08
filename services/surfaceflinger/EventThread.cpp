@@ -167,8 +167,6 @@ bool EventThread::threadLoop() {
         } while(true);
 
         // process vsync event
-
-        ATRACE_INT("VSYNC", mDeliveredEvents&1);
         mDeliveredEvents++;
         mLastVSyncTimestamp = timestamp;
 
