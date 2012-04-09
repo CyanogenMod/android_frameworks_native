@@ -125,9 +125,9 @@ public:
     // nanoseconds, and must be monotonically increasing. Its other semantics
     // (zero point, etc) are client-dependent and should be documented by the
     // client.
-    virtual status_t queueBuffer(int buf, int64_t timestamp,
-            const Rect& crop, int scalingMode, uint32_t transform,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
+    virtual status_t queueBuffer(int buf,
+            const QueueBufferInput& input, QueueBufferOutput* output);
+
     virtual void cancelBuffer(int buf);
 
     // setSynchronousMode set whether dequeueBuffer is synchronous or

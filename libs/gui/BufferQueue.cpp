@@ -526,9 +526,8 @@ status_t BufferQueue::setSynchronousMode(bool enabled) {
     return err;
 }
 
-status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
-        const Rect& crop, int scalingMode, uint32_t transform,
-        uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
+status_t BufferQueue::queueBuffer(int buf,
+        const QueueBufferInput& input, QueueBufferOutput* output) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
@@ -581,6 +580,15 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
             }
         }
 
+        int scalingMode;
+
+        input.deflate(
+                &mSlots[buf].mTimestamp,
+                &mSlots[buf].mCrop,
+                &scalingMode,
+                &mSlots[buf].mTransform);
+
+
         switch (scalingMode) {
             case NATIVE_WINDOW_SCALING_MODE_FREEZE:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
@@ -592,19 +600,14 @@ status_t BufferQueue::queueBuffer(int buf, int64_t timestamp,
         }
 
         mSlots[buf].mBufferState = BufferSlot::QUEUED;
-        mSlots[buf].mCrop = crop;
-        mSlots[buf].mTransform = transform;
         mSlots[buf].mScalingMode = scalingMode;
-        mSlots[buf].mTimestamp = timestamp;
         mFrameCounter++;
         mSlots[buf].mFrameNumber = mFrameCounter;
 
         mBufferHasBeenQueued = true;
         mDequeueCondition.broadcast();
 
-        *outWidth = mDefaultWidth;
-        *outHeight = mDefaultHeight;
-        *outTransform = mTransformHint;
+        output->inflate(mDefaultWidth, mDefaultHeight, mDefaultHeight);
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } // scope for the lock

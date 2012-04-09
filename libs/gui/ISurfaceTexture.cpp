@@ -98,23 +98,17 @@ public:
         return result;
     }
 
-    virtual status_t queueBuffer(int buf, int64_t timestamp,
-            const Rect& crop, int scalingMode, uint32_t transform,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
+    virtual status_t queueBuffer(int buf,
+            const QueueBufferInput& input, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(buf);
-        data.writeInt64(timestamp);
-        memcpy(data.writeInplace(sizeof(Rect)), &crop, sizeof(Rect));
-        data.writeInt32(scalingMode);
-        data.writeInt32(transform);
+        memcpy(data.writeInplace(sizeof(input)), &input, sizeof(input));
         status_t result = remote()->transact(QUEUE_BUFFER, data, &reply);
         if (result != NO_ERROR) {
             return result;
         }
-        *outWidth = reply.readInt32();
-        *outHeight = reply.readInt32();
-        *outTransform = reply.readInt32();
+        memcpy(output, reply.readInplace(sizeof(*output)), sizeof(*output));
         result = reply.readInt32();
         return result;
     }
@@ -222,17 +216,13 @@ status_t BnSurfaceTexture::onTransact(
         case QUEUE_BUFFER: {
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int buf = data.readInt32();
-            int64_t timestamp = data.readInt64();
-            Rect crop( *reinterpret_cast<Rect const *>(data.readInplace(sizeof(Rect))) );
-            int scalingMode = data.readInt32();
-            uint32_t transform = data.readInt32();
-            uint32_t outWidth, outHeight, outTransform;
-            status_t result = queueBuffer(buf, timestamp,
-                    crop, scalingMode, transform,
-                    &outWidth, &outHeight, &outTransform);
-            reply->writeInt32(outWidth);
-            reply->writeInt32(outHeight);
-            reply->writeInt32(outTransform);
+            QueueBufferInput const* const input =
+                    reinterpret_cast<QueueBufferInput const *>(
+                            data.readInplace(sizeof(QueueBufferInput)));
+            QueueBufferOutput* const output =
+                    reinterpret_cast<QueueBufferOutput *>(
+                            reply->writeInplace(sizeof(QueueBufferOutput)));
+            status_t result = queueBuffer(buf, *input, output);
             reply->writeInt32(result);
             return NO_ERROR;
         } break;

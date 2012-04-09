@@ -230,12 +230,15 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
     if (i < 0) {
         return i;
     }
-    status_t err = mSurfaceTexture->queueBuffer(i, timestamp,
-            mCrop, mScalingMode, mTransform,
-            &mDefaultWidth, &mDefaultHeight, &mTransformHint);
+
+    ISurfaceTexture::QueueBufferOutput output;
+    ISurfaceTexture::QueueBufferInput input(timestamp,
+            mCrop, mScalingMode, mTransform);
+    status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
+    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint);
     return err;
 }
 

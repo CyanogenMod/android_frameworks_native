@@ -82,9 +82,50 @@ protected:
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
     // respectively.
-    virtual status_t queueBuffer(int slot, int64_t timestamp,
-            const Rect& crop, int scalingMode, uint32_t transform,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) = 0;
+
+    // QueueBufferInput must be a POD structure
+    struct QueueBufferInput {
+        inline QueueBufferInput(int64_t timestamp,
+                const Rect& crop, int scalingMode, uint32_t transform)
+        : timestamp(timestamp), crop(crop), scalingMode(scalingMode),
+          transform(transform) { }
+        inline void deflate(int64_t* outTimestamp, Rect* outCrop,
+                int* outScalingMode, uint32_t* outTransform) const {
+            *outTimestamp = timestamp;
+            *outCrop = crop;
+            *outScalingMode = scalingMode;
+            *outTransform = transform;
+        }
+    private:
+        int64_t timestamp;
+        Rect crop;
+        int scalingMode;
+        uint32_t transform;
+    };
+
+    // QueueBufferOutput must be a POD structure
+    struct QueueBufferOutput {
+        inline QueueBufferOutput() { }
+        inline void deflate(uint32_t* outWidth,
+                uint32_t* outHeight, uint32_t* outTransformHint) const {
+            *outWidth = width;
+            *outHeight = height;
+            *outTransformHint = transformHint;
+        }
+        inline void inflate(uint32_t inWidth, uint32_t inHeight,
+                uint32_t inTransformHint) {
+            width = inWidth;
+            height = inHeight;
+            transformHint = inTransformHint;
+        }
+    private:
+        uint32_t width;
+        uint32_t height;
+        uint32_t transformHint;
+    };
+
+    virtual status_t queueBuffer(int slot,
+            const QueueBufferInput& input, QueueBufferOutput* output) = 0;
 
     // cancelBuffer indicates that the client does not wish to fill in the
     // buffer associated with slot and transfers ownership of the slot back to
