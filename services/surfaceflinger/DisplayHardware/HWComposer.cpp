@@ -53,6 +53,7 @@ HWComposer::HWComposer(
       mEventHandler(handler),
       mRefreshPeriod(refreshPeriod), mVSyncCount(0)
 {
+    bool needVSyncThread = false;
     int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
     ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
     if (err == 0) {
@@ -67,12 +68,17 @@ HWComposer::HWComposer(
                 mHwc->registerProcs(mHwc, &mCBContext.procs);
                 memset(mCBContext.procs.zero, 0, sizeof(mCBContext.procs.zero));
             }
-
             if (mHwc->common.version < HWC_DEVICE_API_VERSION_0_3) {
-                // we don't have VSYNC support, we need to fake it
-                mVSyncThread = new VSyncThread(*this);
+                needVSyncThread = true;
             }
         }
+    } else {
+        needVSyncThread = true;
+    }
+
+    if (needVSyncThread) {
+        // we don't have VSYNC support, we need to fake it
+        mVSyncThread = new VSyncThread(*this);
     }
 }
 
@@ -111,13 +117,12 @@ status_t HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
     if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
         err = mHwc->methods->eventControl(mHwc, event, enabled);
-    } else {
-        if (mVSyncThread != NULL) {
-            mVSyncThread->setEnabled(enabled);
-        } else {
-            err = BAD_VALUE;
-        }
     }
+
+    if (err == NO_ERROR && mVSyncThread != NULL) {
+        mVSyncThread->setEnabled(enabled);
+    }
+
     return err;
 }
 
