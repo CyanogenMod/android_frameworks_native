@@ -38,7 +38,7 @@ public:
     enum { NUM_BUFFER_SLOTS = 32 };
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
-    enum { STALE_BUFFER_SLOT = 1 };
+    enum { STALE_BUFFER_SLOT = 1, NO_BUFFER_AVAILABLE };
 
     // ConsumerListener is the interface through which the BufferQueue notifies
     // the consumer of events that the consumer may wish to react to.  Because

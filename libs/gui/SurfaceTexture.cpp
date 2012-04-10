@@ -211,7 +211,8 @@ status_t SurfaceTexture::updateTexImage() {
 
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    if (mBufferQueue->acquireBuffer(&item) == NO_ERROR) {
+    err = mBufferQueue->acquireBuffer(&item);
+    if (err == NO_ERROR) {
         int buf = item.mBuf;
         // This buffer was newly allocated, so we need to clean up on our side
         if (item.mGraphicBuffer != NULL) {
@@ -247,7 +248,6 @@ status_t SurfaceTexture::updateTexImage() {
         glBindTexture(mTexTarget, mTexName);
         glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
 
-        status_t err = OK;
         while ((error = glGetError()) != GL_NO_ERROR) {
             ST_LOGE("updateTexImage: error binding external texture image %p "
                     "(slot %d): %#04x", image, buf, error);
@@ -292,9 +292,13 @@ status_t SurfaceTexture::updateTexImage() {
         mCurrentScalingMode = item.mScalingMode;
         mCurrentTimestamp = item.mTimestamp;
         computeCurrentTransformMatrix();
-    } else {
+    } else  {
+        if (err < 0) {
+            ALOGE("updateTexImage failed on acquire %d", err);
+        }
         // We always bind the texture even if we don't update its contents.
         glBindTexture(mTexTarget, mTexName);
+        return OK;
     }
 
     return err;
