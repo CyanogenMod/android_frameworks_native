@@ -73,6 +73,7 @@ private:
     int dispatchSetBufferCount(va_list args);
     int dispatchSetBuffersGeometry(va_list args);
     int dispatchSetBuffersDimensions(va_list args);
+    int dispatchSetBuffersUserDimensions(va_list args);
     int dispatchSetBuffersFormat(va_list args);
     int dispatchSetScalingMode(va_list args);
     int dispatchSetBuffersTransform(va_list args);
@@ -95,6 +96,7 @@ protected:
     virtual int disconnect(int api);
     virtual int setBufferCount(int bufferCount);
     virtual int setBuffersDimensions(int w, int h);
+    virtual int setBuffersUserDimensions(int w, int h);
     virtual int setBuffersFormat(int format);
     virtual int setScalingMode(int mode);
     virtual int setBuffersTransform(int transform);
@@ -157,13 +159,23 @@ private:
     // buffer that gets queued. It is set by calling setTransform.
     uint32_t mTransform;
 
-    // mDefaultWidth is default width of the window, regardless of the
-    // native_window_set_buffers_dimensions call
-    uint32_t mDefaultWidth;
+     // mDefaultWidth is default width of the buffers, regardless of the
+     // native_window_set_buffers_dimensions call.
+     uint32_t mDefaultWidth;
 
-    // mDefaultHeight is default width of the window, regardless of the
-    // native_window_set_buffers_dimensions call
-    uint32_t mDefaultHeight;
+     // mDefaultHeight is default height of the buffers, regardless of the
+     // native_window_set_buffers_dimensions call.
+     uint32_t mDefaultHeight;
+
+     // mUserWidth, if non-zero, is an application-specified override
+     // of mDefaultWidth.  This is lower priority than the width set by
+     // native_window_set_buffers_dimensions.
+     uint32_t mUserWidth;
+
+     // mUserHeight, if non-zero, is an application-specified override
+     // of mDefaultHeight.  This is lower priority than the height set
+     // by native_window_set_buffers_dimensions.
+     uint32_t mUserHeight;
 
     // mTransformHint is the transform probably applied to buffers of this
     // window. this is only a hint, actual transform may differ.

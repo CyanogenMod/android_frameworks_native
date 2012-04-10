@@ -80,6 +80,8 @@ void SurfaceTextureClient::init() {
     mTransform = 0;
     mDefaultWidth = 0;
     mDefaultHeight = 0;
+    mUserWidth = 0;
+    mUserHeight = 0;
     mTransformHint = 0;
     mConnectedToCpu = false;
 }
@@ -159,7 +161,9 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer) {
     ALOGV("SurfaceTextureClient::dequeueBuffer");
     Mutex::Autolock lock(mMutex);
     int buf = -1;
-    status_t result = mSurfaceTexture->dequeueBuffer(&buf, mReqWidth, mReqHeight,
+    int reqW = mReqWidth ? mReqWidth : mUserWidth;
+    int reqH = mReqHeight ? mReqHeight : mUserHeight;
+    status_t result = mSurfaceTexture->dequeueBuffer(&buf, reqW, reqH,
             mReqFormat, mReqUsage);
     if (result < 0) {
         ALOGV("dequeueBuffer: ISurfaceTexture::dequeueBuffer(%d, %d, %d, %d)"
@@ -269,10 +273,10 @@ int SurfaceTextureClient::query(int what, int* value) const {
                 *value = NATIVE_WINDOW_SURFACE_TEXTURE_CLIENT;
                 return NO_ERROR;
             case NATIVE_WINDOW_DEFAULT_WIDTH:
-                *value = mDefaultWidth;
+                *value = mUserWidth ? mUserWidth : mDefaultWidth;
                 return NO_ERROR;
             case NATIVE_WINDOW_DEFAULT_HEIGHT:
-                *value = mDefaultHeight;
+                *value = mUserHeight ? mUserHeight : mDefaultHeight;
                 return NO_ERROR;
             case NATIVE_WINDOW_TRANSFORM_HINT:
                 *value = mTransformHint;
@@ -312,6 +316,9 @@ int SurfaceTextureClient::perform(int operation, va_list args)
         break;
     case NATIVE_WINDOW_SET_BUFFERS_DIMENSIONS:
         res = dispatchSetBuffersDimensions(args);
+        break;
+    case NATIVE_WINDOW_SET_BUFFERS_USER_DIMENSIONS:
+        res = dispatchSetBuffersUserDimensions(args);
         break;
     case NATIVE_WINDOW_SET_BUFFERS_FORMAT:
         res = dispatchSetBuffersFormat(args);
@@ -378,6 +385,12 @@ int SurfaceTextureClient::dispatchSetBuffersDimensions(va_list args) {
     int w = va_arg(args, int);
     int h = va_arg(args, int);
     return setBuffersDimensions(w, h);
+}
+
+int SurfaceTextureClient::dispatchSetBuffersUserDimensions(va_list args) {
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    return setBuffersUserDimensions(w, h);
 }
 
 int SurfaceTextureClient::dispatchSetBuffersFormat(va_list args) {
@@ -500,6 +513,24 @@ int SurfaceTextureClient::setBuffersDimensions(int w, int h)
     Mutex::Autolock lock(mMutex);
     mReqWidth = w;
     mReqHeight = h;
+    mCrop.clear();
+    return NO_ERROR;
+}
+
+int SurfaceTextureClient::setBuffersUserDimensions(int w, int h)
+{
+    ATRACE_CALL();
+    ALOGV("SurfaceTextureClient::setBuffersUserDimensions");
+
+    if (w<0 || h<0)
+        return BAD_VALUE;
+
+    if ((w && !h) || (!w && h))
+        return BAD_VALUE;
+
+    Mutex::Autolock lock(mMutex);
+    mUserWidth = w;
+    mUserHeight = h;
     mCrop.clear();
     return NO_ERROR;
 }
