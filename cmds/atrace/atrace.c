@@ -55,7 +55,6 @@ static const char* k_cpuFreqEnablePath =
 static const char* k_governorLoadEnablePath =
     "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable";
 
-
 static const char* k_workqueueEnablePath =
     "/sys/kernel/debug/tracing/events/workqueue/enable";
 
@@ -169,6 +168,11 @@ static bool setGlobalClockEnable(bool enable)
     return writeStr(k_traceClockPath, enable ? "global" : "local");
 }
 
+// Check whether a file exists.
+static bool fileExists(const char* filename) {
+    return access(filename, F_OK) != -1;
+}
+
 // Enable tracing in the kernel.
 static bool startTrace()
 {
@@ -178,7 +182,9 @@ static bool startTrace()
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
     ok &= setCpuFrequencyTracingEnable(g_traceCpuFrequency);
-    ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
+    if (fileExists(k_governorLoadEnablePath) || g_traceGovernorLoad) {
+        ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
+    }
     ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
@@ -203,7 +209,9 @@ static void stopTrace()
     setTraceOverwriteEnable(true);
     setSchedSwitchTracingEnable(false);
     setCpuFrequencyTracingEnable(false);
-    setGovernorLoadTracingEnable(false);
+    if (fileExists(k_governorLoadEnablePath)) {
+        setGovernorLoadTracingEnable(false);
+    }
     setWorkqueueTracingEnabled(false);
     setGlobalClockEnable(false);
 
