@@ -41,7 +41,8 @@ EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
       mHw(flinger->graphicPlane(0).editDisplayHardware()),
       mLastVSyncTimestamp(0),
       mVSyncTimestamp(0),
-      mDeliveredEvents(0)
+      mDeliveredEvents(0),
+      mDebugVsyncEnabled(false)
 {
 }
 
@@ -144,8 +145,7 @@ bool EventThread::threadLoop() {
                 if (!waitForNextVsync) {
                     // we received a VSYNC but we have no clients
                     // don't report it, and disable VSYNC events
-                    mHw.getHwComposer().eventControl(
-                            HWComposer::EVENT_VSYNC, false);
+                    disableVSync();
                 } else {
                     // report VSYNC event
                     break;
@@ -157,8 +157,7 @@ bool EventThread::threadLoop() {
                 // disable VSYNC events then.
                 if (waitForNextVsync) {
                     // enable
-                    mHw.getHwComposer().eventControl(
-                            HWComposer::EVENT_VSYNC, true);
+                    enableVSync();
                 }
             }
 
@@ -234,6 +233,16 @@ bool EventThread::threadLoop() {
     return true;
 }
 
+void EventThread::enableVSync() {
+    mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, true);
+    mDebugVsyncEnabled = true;
+}
+
+void EventThread::disableVSync() {
+    mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, false);
+    mDebugVsyncEnabled = false;
+}
+
 status_t EventThread::readyToRun() {
     ALOGI("EventThread ready to run.");
     return NO_ERROR;
@@ -241,10 +250,16 @@ status_t EventThread::readyToRun() {
 
 void EventThread::dump(String8& result, char* buffer, size_t SIZE) const {
     Mutex::Autolock _l(mLock);
-    result.append("VSYNC state:\n");
-    snprintf(buffer, SIZE, "  numListeners=%u, events-delivered: %u\n",
+    result.appendFormat("VSYNC state: %s\n",
+            mDebugVsyncEnabled?"enabled":"disabled");
+    result.appendFormat("  numListeners=%u,\n  events-delivered: %u\n",
             mDisplayEventConnections.size(), mDeliveredEvents);
-    result.append(buffer);
+    for (size_t i=0 ; i<mDisplayEventConnections.size() ; i++) {
+        sp<Connection> connection =
+                mDisplayEventConnections.itemAt(i).promote();
+        result.appendFormat("    %p: count=%d\n",
+                connection.get(), connection!=NULL ? connection->count : 0);
+    }
 }
 
 // ---------------------------------------------------------------------------

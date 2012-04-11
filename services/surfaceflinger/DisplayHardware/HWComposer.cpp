@@ -32,6 +32,7 @@
 #include <hardware/hwcomposer.h>
 
 #include <cutils/log.h>
+#include <cutils/properties.h>
 
 #include <EGL/egl.h>
 
@@ -51,8 +52,13 @@ HWComposer::HWComposer(
       mNumOVLayers(0), mNumFBLayers(0),
       mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE),
       mEventHandler(handler),
-      mRefreshPeriod(refreshPeriod), mVSyncCount(0)
+      mRefreshPeriod(refreshPeriod),
+      mVSyncCount(0), mDebugForceFakeVSync(false)
 {
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.sf.no_hw_vsync", value, "0");
+    mDebugForceFakeVSync = atoi(value);
+
     bool needVSyncThread = false;
     int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
     ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
@@ -68,7 +74,12 @@ HWComposer::HWComposer(
                 mHwc->registerProcs(mHwc, &mCBContext.procs);
                 memset(mCBContext.procs.zero, 0, sizeof(mCBContext.procs.zero));
             }
-            if (mHwc->common.version < HWC_DEVICE_API_VERSION_0_3) {
+            if (mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
+                if (mDebugForceFakeVSync) {
+                    // make sure to turn h/w vsync off in "fake vsync" mode
+                    mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
+                }
+            } else {
                 needVSyncThread = true;
             }
         }
@@ -83,6 +94,7 @@ HWComposer::HWComposer(
 }
 
 HWComposer::~HWComposer() {
+    eventControl(EVENT_VSYNC, 0);
     free(mList);
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
@@ -116,7 +128,9 @@ void HWComposer::vsync(int dpy, int64_t timestamp) {
 status_t HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
     if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
-        err = mHwc->methods->eventControl(mHwc, event, enabled);
+        if (!mDebugForceFakeVSync) {
+            err = mHwc->methods->eventControl(mHwc, event, enabled);
+        }
     }
 
     if (err == NO_ERROR && mVSyncThread != NULL) {
@@ -219,10 +233,10 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {
     if (mHwc && mList) {
         result.append("Hardware Composer state:\n");
-
-        snprintf(buffer, SIZE, "  numHwLayers=%u, flags=%08x\n",
+        result.appendFormat("  mDebugForceFakeVSync=%d\n",
+                mDebugForceFakeVSync);
+        result.appendFormat("  numHwLayers=%u, flags=%08x\n",
                 mList->numHwLayers, mList->flags);
-        result.append(buffer);
         result.append(
                 "   type   |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
                 "----------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
@@ -237,17 +251,16 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                     format = buffer->getPixelFormat();
                 }
             }
-            snprintf(buffer, SIZE,
+            result.appendFormat(
                     " %8s | %08x | %08x | %08x | %02x | %05x | %08x | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] %s\n",
                     l.compositionType ? "OVERLAY" : "FB",
                     intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
                     l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                     l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
                     layer->getName().string());
-            result.append(buffer);
         }
     }
-    if (mHwc && mHwc->common.version >= 1 && mHwc->dump) {
+    if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_1 && mHwc->dump) {
         mHwc->dump(mHwc, buffer, SIZE);
         result.append(buffer);
     }

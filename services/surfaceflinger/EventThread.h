@@ -81,9 +81,11 @@ private:
     virtual bool        threadLoop();
     virtual status_t    readyToRun();
     virtual void        onFirstRef();
-    virtual void onVSyncReceived(int, nsecs_t timestamp);
+    virtual void        onVSyncReceived(int, nsecs_t timestamp);
 
     void removeDisplayEventConnection(const wp<Connection>& connection);
+    void enableVSync();
+    void disableVSync();
 
     // constants
     sp<SurfaceFlinger> mFlinger;
@@ -99,6 +101,9 @@ private:
 
     // main thread only
     size_t mDeliveredEvents;
+
+    // for debugging
+    bool mDebugVsyncEnabled;
 };
 
 // ---------------------------------------------------------------------------

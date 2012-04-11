@@ -144,6 +144,7 @@ private:
     nsecs_t                 mRefreshPeriod;
     size_t                  mVSyncCount;
     sp<VSyncThread>         mVSyncThread;
+    bool                    mDebugForceFakeVSync;
 };
 
 
