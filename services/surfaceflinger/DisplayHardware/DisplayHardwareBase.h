@@ -19,8 +19,8 @@
 
 #include <stdint.h>
 #include <utils/RefBase.h>
+#include <utils/StrongPointer.h>
 #include <utils/threads.h>
-#include "Barrier.h"
 
 namespace android {
 
@@ -48,14 +48,12 @@ public:
 private:
     class DisplayEventThread : public Thread {
         wp<SurfaceFlinger> mFlinger;
-        mutable Barrier mBarrier;
         status_t waitForFbSleep();
         status_t waitForFbWake();
     public:
         DisplayEventThread(const sp<SurfaceFlinger>& flinger);
         virtual ~DisplayEventThread();
         virtual bool threadLoop();
-        status_t releaseScreen() const;
         status_t initCheck() const;
     };
 

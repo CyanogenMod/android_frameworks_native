@@ -54,15 +54,12 @@ bool DisplayHardwareBase::DisplayEventThread::threadLoop() {
         sp<SurfaceFlinger> flinger = mFlinger.promote();
         ALOGD("About to give-up screen, flinger = %p", flinger.get());
         if (flinger != 0) {
-            mBarrier.close();
-            flinger->screenReleased(0);
-            mBarrier.wait();
+            flinger->screenReleased();
         }
         if (waitForFbWake() == NO_ERROR) {
-            sp<SurfaceFlinger> flinger = mFlinger.promote();
             ALOGD("Screen about to return, flinger = %p", flinger.get());
             if (flinger != 0) {
-                flinger->screenAcquired(0);
+                flinger->screenAcquired();
             }
             return true;
         }
@@ -98,17 +95,12 @@ status_t DisplayHardwareBase::DisplayEventThread::waitForFbWake() {
     return err < 0 ? -errno : int(NO_ERROR);
 }
 
-status_t DisplayHardwareBase::DisplayEventThread::releaseScreen() const {
-    mBarrier.open();
-    return NO_ERROR;
-}
-
 // ----------------------------------------------------------------------------
 
 DisplayHardwareBase::DisplayHardwareBase(const sp<SurfaceFlinger>& flinger,
         uint32_t displayIndex) 
-    : mScreenAcquired(true)
 {
+    mScreenAcquired = true;
     mDisplayEventThread = new DisplayEventThread(flinger);
 }
 
@@ -130,10 +122,7 @@ bool DisplayHardwareBase::canDraw() const {
 }
 
 void DisplayHardwareBase::releaseScreen() const {
-    status_t err = mDisplayEventThread->releaseScreen();
-    if (err >= 0) {
-        mScreenAcquired = false;
-    }
+    mScreenAcquired = false;
 }
 
 void DisplayHardwareBase::acquireScreen() const {
