@@ -200,23 +200,6 @@ int SurfaceTextureClient::getSlotFromBufferLocked(
         android_native_buffer_t* buffer) const {
     bool dumpedState = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
-        // XXX: Dump the slots whenever we hit a NULL entry while searching for
-        // a buffer.
-        if (mSlots[i] == NULL) {
-            if (!dumpedState) {
-                ALOGD("getSlotFromBufferLocked: encountered NULL buffer in slot %d "
-                        "looking for buffer %p", i, buffer->handle);
-                for (int j = 0; j < NUM_BUFFER_SLOTS; j++) {
-                    if (mSlots[j] == NULL) {
-                        ALOGD("getSlotFromBufferLocked:   %02d: NULL", j);
-                    } else {
-                        ALOGD("getSlotFromBufferLocked:   %02d: %p", j, mSlots[j]->handle);
-                    }
-                }
-                dumpedState = true;
-            }
-        }
-
         if (mSlots[i] != NULL && mSlots[i]->handle == buffer->handle) {
             return i;
         }

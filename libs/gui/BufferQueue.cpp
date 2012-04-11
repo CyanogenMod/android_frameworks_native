@@ -851,8 +851,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } else {
-        // should be a better return code?
-        return -EINVAL;
+        return NO_BUFFER_AVAILABLE;
     }
 
     return OK;
