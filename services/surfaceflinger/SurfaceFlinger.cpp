@@ -96,7 +96,6 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
-        mConsoleSignals(0),
         mSecureFrameBuffer(0)
 {
     init();
@@ -410,11 +409,6 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
     switch (what) {
         case MessageQueue::REFRESH: {
 //        case MessageQueue::INVALIDATE: {
-            // check for transactions
-            if (CC_UNLIKELY(mConsoleSignals)) {
-                handleConsoleEvents();
-            }
-
             // if we're in a global transaction, don't do anything.
             const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
             uint32_t transactionFlags = peekTransactionFlags(mask);
@@ -480,28 +474,6 @@ void SurfaceFlinger::postFramebuffer()
     mLastSwapBufferTime = systemTime() - now;
     mDebugInSwapBuffers = 0;
     mSwapRegion.clear();
-}
-
-void SurfaceFlinger::handleConsoleEvents()
-{
-    // something to do with the console
-    const DisplayHardware& hw = graphicPlane(0).displayHardware();
-
-    int what = android_atomic_and(0, &mConsoleSignals);
-    if (what & eConsoleAcquired) {
-        hw.acquireScreen();
-        // this is a temporary work-around, eventually this should be called
-        // by the power-manager
-        SurfaceFlinger::turnElectronBeamOn(mElectronBeamAnimationMode);
-    }
-
-    if (what & eConsoleReleased) {
-        if (hw.isScreenAcquired()) {
-            hw.releaseScreen();
-        }
-    }
-
-    mDirtyRegion.set(hw.bounds());
 }
 
 void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
@@ -1490,19 +1462,56 @@ uint32_t SurfaceFlinger::setClientStateLocked(
     return flags;
 }
 
-void SurfaceFlinger::screenReleased(int dpy)
-{
-    // this may be called by a signal handler, we can't do too much in here
-    android_atomic_or(eConsoleReleased, &mConsoleSignals);
-    signalTransaction();
+// ---------------------------------------------------------------------------
+
+void SurfaceFlinger::onScreenAcquired() {
+    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    hw.acquireScreen();
+    // this is a temporary work-around, eventually this should be called
+    // by the power-manager
+    SurfaceFlinger::turnElectronBeamOn(mElectronBeamAnimationMode);
+    mDirtyRegion.set(hw.bounds());
+    // from this point on, SF will priocess updates again
 }
 
-void SurfaceFlinger::screenAcquired(int dpy)
-{
-    // this may be called by a signal handler, we can't do too much in here
-    android_atomic_or(eConsoleAcquired, &mConsoleSignals);
-    signalTransaction();
+void SurfaceFlinger::onScreenReleased() {
+    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    if (hw.isScreenAcquired()) {
+        mDirtyRegion.set(hw.bounds());
+        hw.releaseScreen();
+        // from this point on, SF will stop drawing
+    }
 }
+
+void SurfaceFlinger::screenAcquired() {
+    class MessageScreenAcquired : public MessageBase {
+        SurfaceFlinger* flinger;
+    public:
+        MessageScreenAcquired(SurfaceFlinger* flinger) : flinger(flinger) { }
+        virtual bool handler() {
+            flinger->onScreenAcquired();
+            return true;
+        }
+    };
+    sp<MessageBase> msg = new MessageScreenAcquired(this);
+    postMessageSync(msg);
+}
+
+void SurfaceFlinger::screenReleased() {
+    class MessageScreenReleased : public MessageBase {
+        SurfaceFlinger* flinger;
+    public:
+        MessageScreenReleased(SurfaceFlinger* flinger) : flinger(flinger) { }
+        virtual bool handler() {
+            flinger->onScreenReleased();
+            return true;
+        }
+    };
+    sp<MessageBase> msg = new MessageScreenReleased(this);
+    postMessageSync(msg);
+}
+
+// ---------------------------------------------------------------------------
 
 status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
 {

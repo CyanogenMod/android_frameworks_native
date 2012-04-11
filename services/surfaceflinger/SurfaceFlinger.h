@@ -182,8 +182,17 @@ public:
     virtual status_t                    turnElectronBeamOff(int32_t mode);
     virtual status_t                    turnElectronBeamOn(int32_t mode);
 
-            void                        screenReleased(DisplayID dpy);
-            void                        screenAcquired(DisplayID dpy);
+
+            // called when screen needs to turn off
+            void screenReleased();
+            // called when screen is turning back on
+            void screenAcquired();
+
+            // called on the main thread in response to screenReleased()
+            void onScreenReleased();
+            // called on the main thread in response to screenAcquired()
+            void onScreenAcquired();
+
 
             status_t renderScreenToTexture(DisplayID dpy,
                     GLuint* textureName, GLfloat* uOut, GLfloat* vOut);
@@ -294,7 +303,6 @@ public:     // hack to work around gcc 4.0.3 bug
 
 private:
             void        waitForEvent();
-            void        handleConsoleEvents();
             void        handleTransaction(uint32_t transactionFlags);
             void        handleTransactionLocked(uint32_t transactionFlags);
 
@@ -411,13 +419,6 @@ private:
                 // protected by mDestroyedLayerLock;
     mutable     Mutex                       mDestroyedLayerLock;
                 Vector<LayerBase const *>   mDestroyedLayers;
-
-                // atomic variables
-                enum {
-                    eConsoleReleased = 1,
-                    eConsoleAcquired = 2
-                };
-   volatile     int32_t                     mConsoleSignals;
 
    // only written in the main thread, only read in other threads
    volatile     int32_t                     mSecureFrameBuffer;
