@@ -205,6 +205,9 @@ status_t HWComposer::commit() const {
 
 status_t HWComposer::release() const {
     if (mHwc) {
+        if (mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
+            mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
+        }
         int err = mHwc->set(mHwc, NULL, NULL, NULL);
         return (status_t)err;
     }
