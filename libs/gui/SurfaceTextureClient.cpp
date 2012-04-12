@@ -171,7 +171,7 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer) {
              result);
         return result;
     }
-    sp<GraphicBuffer>& gbuf(mSlots[buf]);
+    sp<GraphicBuffer>& gbuf(mSlots[buf].buffer);
     if (result & ISurfaceTexture::RELEASE_ALL_BUFFERS) {
         freeAllBuffers();
     }
@@ -204,7 +204,8 @@ int SurfaceTextureClient::getSlotFromBufferLocked(
         android_native_buffer_t* buffer) const {
     bool dumpedState = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
-        if (mSlots[i] != NULL && mSlots[i]->handle == buffer->handle) {
+        if (mSlots[i].buffer != NULL &&
+                mSlots[i].buffer->handle == buffer->handle) {
             return i;
         }
     }
@@ -586,7 +587,7 @@ int SurfaceTextureClient::setBuffersTimestamp(int64_t timestamp)
 
 void SurfaceTextureClient::freeAllBuffers() {
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
-        mSlots[i] = 0;
+        mSlots[i].buffer = 0;
     }
 }
 
@@ -691,19 +692,32 @@ status_t SurfaceTextureClient::lock(
 
             if (canCopyBack) {
                 // copy the area that is invalid and not repainted this round
-                const Region copyback(mOldDirtyRegion.subtract(newDirtyRegion));
+                const Region copyback(mDirtyRegion.subtract(newDirtyRegion));
                 if (!copyback.isEmpty())
                     copyBlt(backBuffer, frontBuffer, copyback);
             } else {
                 // if we can't copy-back anything, modify the user's dirty
                 // region to make sure they redraw the whole buffer
                 newDirtyRegion.set(bounds);
+                mDirtyRegion.clear();
+                Mutex::Autolock lock(mMutex);
+                for (size_t i=0 ; i<NUM_BUFFER_SLOTS ; i++) {
+                    mSlots[i].dirtyRegion.clear();
+                }
             }
 
-            // keep track of the are of the buffer that is "clean"
-            // (ie: that will be redrawn)
-            mOldDirtyRegion = newDirtyRegion;
 
+            { // scope for the lock
+                Mutex::Autolock lock(mMutex);
+                int backBufferSlot(getSlotFromBufferLocked(backBuffer.get()));
+                if (backBufferSlot >= 0) {
+                    Region& dirtyRegion(mSlots[backBufferSlot].dirtyRegion);
+                    mDirtyRegion.subtract(dirtyRegion);
+                    dirtyRegion = newDirtyRegion;
+                }
+            }
+
+            mDirtyRegion.orSelf(newDirtyRegion);
             if (inOutDirtyBounds) {
                 *inOutDirtyBounds = newDirtyRegion.getBounds();
             }
