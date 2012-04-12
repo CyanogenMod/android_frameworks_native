@@ -409,7 +409,7 @@ protected:
 
         // drawTexture draws the SurfaceTexture over the entire GL viewport.
         void drawTexture() {
-            const GLfloat triangleVertices[] = {
+            static const GLfloat triangleVertices[] = {
                 -1.0f, 1.0f,
                 -1.0f, -1.0f,
                 1.0f, -1.0f,
