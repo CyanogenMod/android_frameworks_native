@@ -1467,16 +1467,18 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 void SurfaceFlinger::onScreenAcquired() {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     hw.acquireScreen();
+    mEventThread->onScreenAcquired();
     // this is a temporary work-around, eventually this should be called
     // by the power-manager
     SurfaceFlinger::turnElectronBeamOn(mElectronBeamAnimationMode);
     mDirtyRegion.set(hw.bounds());
-    // from this point on, SF will priocess updates again
+    // from this point on, SF will process updates again
 }
 
 void SurfaceFlinger::onScreenReleased() {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     if (hw.isScreenAcquired()) {
+        mEventThread->onScreenReleased();
         mDirtyRegion.set(hw.bounds());
         hw.releaseScreen();
         // from this point on, SF will stop drawing
@@ -1883,6 +1885,8 @@ status_t SurfaceFlinger::renderScreenToTexture(DisplayID dpy,
 status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
         GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
 {
+    ATRACE_CALL();
+
     if (!GLExtensions::getInstance().haveFramebufferObject())
         return INVALID_OPERATION;
 
@@ -2263,6 +2267,8 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
 
 status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
 {
+    ATRACE_CALL();
+
     DisplayHardware& hw(graphicPlane(0).editDisplayHardware());
     if (!hw.canDraw()) {
         // we're already off

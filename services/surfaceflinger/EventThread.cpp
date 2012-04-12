@@ -41,6 +41,7 @@ EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
       mHw(flinger->graphicPlane(0).editDisplayHardware()),
       mLastVSyncTimestamp(0),
       mVSyncTimestamp(0),
+      mUseSoftwareVSync(false),
       mDeliveredEvents(0),
       mDebugVsyncEnabled(false)
 {
@@ -53,16 +54,6 @@ void EventThread::onFirstRef() {
 
 sp<EventThread::Connection> EventThread::createEventConnection() const {
     return new Connection(const_cast<EventThread*>(this));
-}
-
-nsecs_t EventThread::getLastVSyncTimestamp() const {
-    Mutex::Autolock _l(mLock);
-    return mLastVSyncTimestamp;
-}
-
-nsecs_t EventThread::getVSyncPeriod() const {
-    return mHw.getRefreshPeriod();
-
 }
 
 status_t EventThread::registerDisplayEventConnection(
@@ -108,6 +99,24 @@ void EventThread::requestNextVsync(
     }
 }
 
+void EventThread::onScreenReleased() {
+    Mutex::Autolock _l(mLock);
+    // wait for an eventual pending vsync to be serviced
+    if (!mUseSoftwareVSync) {
+        while (mVSyncTimestamp) {
+            mCondition.wait(mLock);
+        }
+    }
+    // disable reliance on h/w vsync
+    mUseSoftwareVSync = true;
+}
+
+void EventThread::onScreenAcquired() {
+    Mutex::Autolock _l(mLock);
+    mUseSoftwareVSync = false;
+}
+
+
 void EventThread::onVSyncReceived(int, nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mVSyncTimestamp = timestamp;
@@ -121,7 +130,6 @@ bool EventThread::threadLoop() {
     Vector< wp<EventThread::Connection> > displayEventConnections;
 
     do {
-
         Mutex::Autolock _l(mLock);
         do {
             // latch VSYNC event if any
@@ -145,7 +153,7 @@ bool EventThread::threadLoop() {
                 if (!waitForNextVsync) {
                     // we received a VSYNC but we have no clients
                     // don't report it, and disable VSYNC events
-                    disableVSync();
+                    disableVSyncLocked();
                 } else {
                     // report VSYNC event
                     break;
@@ -157,12 +165,21 @@ bool EventThread::threadLoop() {
                 // disable VSYNC events then.
                 if (waitForNextVsync) {
                     // enable
-                    enableVSync();
+                    enableVSyncLocked();
                 }
             }
 
             // wait for something to happen
-            mCondition.wait(mLock);
+            if (mUseSoftwareVSync == true) {
+                // h/w vsync cannot be used (screen is off), so we use
+                // a  timeout instead. it doesn't matter how imprecise this
+                // is, we just need to make sure to serve the clients
+                if (mCondition.waitRelative(mLock, ms2ns(16)) == TIMED_OUT) {
+                    mVSyncTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+                }
+            } else {
+                mCondition.wait(mLock);
+            }
         } while(true);
 
         // process vsync event
@@ -233,12 +250,15 @@ bool EventThread::threadLoop() {
     return true;
 }
 
-void EventThread::enableVSync() {
-    mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, true);
+void EventThread::enableVSyncLocked() {
+    if (!mUseSoftwareVSync) {
+        // never enable h/w VSYNC when screen is off
+        mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, true);
+    }
     mDebugVsyncEnabled = true;
 }
 
-void EventThread::disableVSync() {
+void EventThread::disableVSyncLocked() {
     mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, false);
     mDebugVsyncEnabled = false;
 }
@@ -252,6 +272,8 @@ void EventThread::dump(String8& result, char* buffer, size_t SIZE) const {
     Mutex::Autolock _l(mLock);
     result.appendFormat("VSYNC state: %s\n",
             mDebugVsyncEnabled?"enabled":"disabled");
+    result.appendFormat("  soft-vsync: %s\n",
+            mUseSoftwareVSync?"enabled":"disabled");
     result.appendFormat("  numListeners=%u,\n  events-delivered: %u\n",
             mDisplayEventConnections.size(), mDeliveredEvents);
     for (size_t i=0 ; i<mDisplayEventConnections.size() ; i++) {

@@ -72,8 +72,11 @@ public:
     void setVsyncRate(uint32_t count, const sp<Connection>& connection);
     void requestNextVsync(const sp<Connection>& connection);
 
-    nsecs_t getLastVSyncTimestamp() const;
-    nsecs_t getVSyncPeriod() const;
+    // called before the screen is turned off from main thread
+    void onScreenReleased();
+
+    // called after the screen is turned on from main thread
+    void onScreenAcquired();
 
     void dump(String8& result, char* buffer, size_t SIZE) const;
 
@@ -84,8 +87,8 @@ private:
     virtual void        onVSyncReceived(int, nsecs_t timestamp);
 
     void removeDisplayEventConnection(const wp<Connection>& connection);
-    void enableVSync();
-    void disableVSync();
+    void enableVSyncLocked();
+    void disableVSyncLocked();
 
     // constants
     sp<SurfaceFlinger> mFlinger;
@@ -98,6 +101,7 @@ private:
     SortedVector< wp<Connection> > mDisplayEventConnections;
     nsecs_t mLastVSyncTimestamp;
     nsecs_t mVSyncTimestamp;
+    bool mUseSoftwareVSync;
 
     // main thread only
     size_t mDeliveredEvents;
