@@ -407,7 +407,8 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
 {
     ATRACE_CALL();
     switch (what) {
-        case MessageQueue::INVALIDATE: {
+        case MessageQueue::REFRESH: {
+//        case MessageQueue::INVALIDATE: {
             // if we're in a global transaction, don't do anything.
             const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
             uint32_t transactionFlags = peekTransactionFlags(mask);
@@ -418,15 +419,19 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
             // post surfaces (if needed)
             handlePageFlip();
 
-            signalRefresh();
-
-        } break;
-
-        case MessageQueue::REFRESH: {
+//            signalRefresh();
+//
+//        } break;
+//
+//        case MessageQueue::REFRESH: {
 
             handleRefresh();
 
             const DisplayHardware& hw(graphicPlane(0).displayHardware());
+
+//            if (mDirtyRegion.isEmpty()) {
+//                return;
+//            }
 
             if (CC_UNLIKELY(mHwWorkListDirty)) {
                 // build the h/w work list
