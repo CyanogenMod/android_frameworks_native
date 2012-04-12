@@ -1476,6 +1476,173 @@ TEST_F(SurfaceTextureGLToGLTest, EglSurfaceDefaultsToSynchronousMode) {
     ASSERT_TRUE(mST->isSynchronousMode());
 }
 
+TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
+    enum { texWidth = 64 };
+    enum { texHeight = 64 };
+
+    // Set the user buffer size.
+    native_window_set_buffers_user_dimensions(mANW.get(), texWidth, texHeight);
+
+    // Do the producer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // This is needed to ensure we pick up a buffer of the correct size.
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    glClearColor(0.6, 0.6, 0.6, 0.6);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(4, 4, 1, 1);
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    // Do the consumer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    glDisable(GL_SCISSOR_TEST);
+
+    mST->updateTexImage(); // Skip the first frame, which was empty
+    mST->updateTexImage();
+
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glViewport(0, 0, texWidth, texHeight);
+    drawTexture();
+
+    EXPECT_TRUE(checkPixel( 0,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63, 63, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel( 0, 63, 153, 153, 153, 153));
+
+    EXPECT_TRUE(checkPixel( 4,  4, 255,   0,   0, 255));
+    EXPECT_TRUE(checkPixel( 5,  5, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel( 3,  3, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(45, 52, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(12, 36, 153, 153, 153, 153));
+}
+
+TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedUserSizedGLFilledBuffer) {
+    enum { texWidth = 64 };
+    enum { texHeight = 16 };
+
+    // Set the transform hint.
+    mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
+
+    // Set the user buffer size.
+    native_window_set_buffers_user_dimensions(mANW.get(), texWidth, texHeight);
+
+    // Do the producer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // This is needed to ensure we pick up a buffer of the correct size and the
+    // new rotation hint.
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    glClearColor(0.6, 0.6, 0.6, 0.6);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(24, 4, 1, 1);
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    // Do the consumer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    glDisable(GL_SCISSOR_TEST);
+
+    mST->updateTexImage(); // Skip the first frame, which was empty
+    mST->updateTexImage();
+
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glViewport(0, 0, texWidth, texHeight);
+    drawTexture();
+
+    EXPECT_TRUE(checkPixel( 0,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63, 15, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel( 0, 15, 153, 153, 153, 153));
+
+    EXPECT_TRUE(checkPixel(24,  4, 255,   0,   0, 255));
+    EXPECT_TRUE(checkPixel(25,  5, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(23,  3, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(45, 13, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(12,  8, 153, 153, 153, 153));
+}
+
+TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedGLFilledBuffer) {
+    enum { texWidth = 64 };
+    enum { texHeight = 16 };
+
+    // Set the transform hint.
+    mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
+
+    // Set the default buffer size.
+    mST->setDefaultBufferSize(texWidth, texHeight);
+
+    // Do the producer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // This is needed to ensure we pick up a buffer of the correct size and the
+    // new rotation hint.
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    glClearColor(0.6, 0.6, 0.6, 0.6);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(24, 4, 1, 1);
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+
+    // Do the consumer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    glDisable(GL_SCISSOR_TEST);
+
+    mST->updateTexImage(); // Skip the first frame, which was empty
+    mST->updateTexImage();
+
+    glClearColor(0.2, 0.2, 0.2, 0.2);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glViewport(0, 0, texWidth, texHeight);
+    drawTexture();
+
+    EXPECT_TRUE(checkPixel( 0,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63,  0, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(63, 15, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel( 0, 15, 153, 153, 153, 153));
+
+    EXPECT_TRUE(checkPixel(24,  4, 255,   0,   0, 255));
+    EXPECT_TRUE(checkPixel(25,  5, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(23,  3, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(45, 13, 153, 153, 153, 153));
+    EXPECT_TRUE(checkPixel(12,  8, 153, 153, 153, 153));
+}
+
 /*
  * This test fixture is for testing GL -> GL texture streaming from one thread
  * to another.  It contains functionality to create a producer thread that will
