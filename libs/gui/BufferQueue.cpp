@@ -609,7 +609,7 @@ status_t BufferQueue::queueBuffer(int buf,
         mBufferHasBeenQueued = true;
         mDequeueCondition.broadcast();
 
-        output->inflate(mDefaultWidth, mDefaultHeight, mDefaultHeight);
+        output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint);
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } // scope for the lock
