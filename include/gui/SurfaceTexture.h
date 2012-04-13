@@ -257,6 +257,12 @@ private:
     // before the outstanding accesses have completed.
     status_t syncForReleaseLocked(EGLDisplay dpy);
 
+    // The default consumer usage flags that SurfaceTexture always sets on its
+    // BufferQueue instance; these will be OR:d with any additional flags passed
+    // from the SurfaceTexture user. In particular, SurfaceTexture will always
+    // consume buffers as hardware textures.
+    static const uint32_t DEFAULT_USAGE_FLAGS = GraphicBuffer::USAGE_HW_TEXTURE;
+
     // mCurrentTextureBuf is the graphic buffer of the current texture. It's
     // possible that this buffer is not associated with any buffer slot, so we
     // must track it separately in order to support the getCurrentBuffer method.

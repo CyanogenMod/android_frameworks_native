@@ -150,6 +150,7 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
                 strerror(-err), err);
     } else {
         mBufferQueue->setConsumerName(mName);
+        mBufferQueue->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
     }
 }
 
@@ -720,6 +721,7 @@ status_t SurfaceTexture::setDefaultBufferFormat(uint32_t defaultFormat) {
 
 status_t SurfaceTexture::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
+    usage |= DEFAULT_USAGE_FLAGS;
     return mBufferQueue->setConsumerUsageBits(usage);
 }
 
