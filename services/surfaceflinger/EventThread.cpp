@@ -170,7 +170,7 @@ bool EventThread::threadLoop() {
             }
 
             // wait for something to happen
-            if (mUseSoftwareVSync == true) {
+            if (mUseSoftwareVSync && waitForNextVsync) {
                 // h/w vsync cannot be used (screen is off), so we use
                 // a  timeout instead. it doesn't matter how imprecise this
                 // is, we just need to make sure to serve the clients
