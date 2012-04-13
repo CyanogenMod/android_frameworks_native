@@ -1471,15 +1471,14 @@ void SurfaceFlinger::onScreenAcquired() {
     // this is a temporary work-around, eventually this should be called
     // by the power-manager
     SurfaceFlinger::turnElectronBeamOn(mElectronBeamAnimationMode);
-    mDirtyRegion.set(hw.bounds());
     // from this point on, SF will process updates again
+    repaintEverything();
 }
 
 void SurfaceFlinger::onScreenReleased() {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     if (hw.isScreenAcquired()) {
         mEventThread->onScreenReleased();
-        mDirtyRegion.set(hw.bounds());
         hw.releaseScreen();
         // from this point on, SF will stop drawing
     }
