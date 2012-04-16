@@ -26,6 +26,7 @@
 
 #include <utils/RefBase.h>
 #include <utils/threads.h>
+#include <utils/KeyedVector.h>
 
 struct ANativeWindow_Buffer;
 
@@ -113,6 +114,11 @@ private:
     void freeAllBuffers();
     int getSlotFromBufferLocked(android_native_buffer_t* buffer) const;
 
+    struct BufferSlot {
+        sp<GraphicBuffer> buffer;
+        Region dirtyRegion;
+    };
+
     // mSurfaceTexture is the interface to the surface texture server. All
     // operations on the surface texture client ultimately translate into
     // interactions with the server using this interface.
@@ -124,7 +130,7 @@ private:
     // slot that has not yet been used. The buffer allocated to a slot will also
     // be replaced if the requested buffer usage or geometry differs from that
     // of the buffer allocated to a slot.
-    sp<GraphicBuffer> mSlots[NUM_BUFFER_SLOTS];
+    BufferSlot mSlots[NUM_BUFFER_SLOTS];
 
     // mReqWidth is the buffer width that will be requested at the next dequeue
     // operation. It is initialized to 1.
@@ -189,8 +195,10 @@ private:
     // must be used from the lock/unlock thread
     sp<GraphicBuffer>           mLockedBuffer;
     sp<GraphicBuffer>           mPostedBuffer;
-    mutable Region              mOldDirtyRegion;
     bool                        mConnectedToCpu;
+
+    // must be accessed from lock/unlock thread only
+    Region mDirtyRegion;
 };
 
 }; // namespace android
