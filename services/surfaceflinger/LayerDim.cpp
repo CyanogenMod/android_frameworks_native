@@ -43,9 +43,7 @@ LayerDim::~LayerDim()
 void LayerDim::onDraw(const Region& clip) const
 {
     const State& s(drawingState());
-    Region::const_iterator it = clip.begin();
-    Region::const_iterator const end = clip.end();
-    if (s.alpha>0 && (it != end)) {
+    if (s.alpha>0) {
         const DisplayHardware& hw(graphicPlane(0).displayHardware());
         const GLfloat alpha = s.alpha/255.0f;
         const uint32_t fbHeight = hw.getHeight();
@@ -62,13 +60,8 @@ void LayerDim::onDraw(const Region& clip) const
         glColor4f(0, 0, 0, alpha);
 
         glVertexPointer(2, GL_FLOAT, 0, mVertices);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-        while (it != end) {
-            const Rect& r = *it++;
-            const GLint sy = fbHeight - (r.top + r.height());
-            glScissor(r.left, sy, r.width(), r.height());
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 4); 
-        }
         glDisable(GL_BLEND);
         glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     }
