@@ -834,22 +834,11 @@ void SurfaceFlinger::handleRepaint()
     glLoadIdentity();
 
     uint32_t flags = hw.getFlags();
-    if ((flags & DisplayHardware::SWAP_RECTANGLE) ||
-        (flags & DisplayHardware::BUFFER_PRESERVED))
-    {
+    if (flags & DisplayHardware::SWAP_RECTANGLE) {
         // we can redraw only what's dirty, but since SWAP_RECTANGLE only
         // takes a rectangle, we must make sure to update that whole
         // rectangle in that case
-        if (flags & DisplayHardware::SWAP_RECTANGLE) {
-            // TODO: we really should be able to pass a region to
-            // SWAP_RECTANGLE so that we don't have to redraw all this.
-            mDirtyRegion.set(mSwapRegion.bounds());
-        } else {
-            // in the BUFFER_PRESERVED case, obviously, we can update only
-            // what's needed and nothing more.
-            // NOTE: this is NOT a common case, as preserving the backbuffer
-            // is costly and usually involves copying the whole update back.
-        }
+        mDirtyRegion.set(mSwapRegion.bounds());
     } else {
         if (flags & DisplayHardware::PARTIAL_UPDATES) {
             // We need to redraw the rectangle that will be updated
@@ -864,7 +853,7 @@ void SurfaceFlinger::handleRepaint()
         }
     }
 
-    setupHardwareComposer(mDirtyRegion);
+    setupHardwareComposer();
     composeSurfaces(mDirtyRegion);
 
     // update the swap region and clear the dirty region
@@ -872,7 +861,7 @@ void SurfaceFlinger::handleRepaint()
     mDirtyRegion.clear();
 }
 
-void SurfaceFlinger::setupHardwareComposer(Region& dirtyInOut)
+void SurfaceFlinger::setupHardwareComposer()
 {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
@@ -901,75 +890,8 @@ void SurfaceFlinger::setupHardwareComposer(Region& dirtyInOut)
         const sp<LayerBase>& layer(layers[i]);
         layer->setPerFrameData(&cur[i]);
     }
-    const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);
     status_t err = hwc.prepare();
     ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
-
-    if (err == NO_ERROR) {
-        // what's happening here is tricky.
-        // we want to clear all the layers with the CLEAR_FB flags
-        // that are opaque.
-        // however, since some GPU are efficient at preserving
-        // the backbuffer, we want to take advantage of that so we do the
-        // clear only in the dirty region (other areas will be preserved
-        // on those GPUs).
-        //   NOTE: on non backbuffer preserving GPU, the dirty region
-        //   has already been expanded as needed, so the code is correct
-        //   there too.
-        //
-        // However, the content of the framebuffer cannot be trusted when
-        // we switch to/from FB/OVERLAY, in which case we need to
-        // expand the dirty region to those areas too.
-        //
-        // Note also that there is a special case when switching from
-        // "no layers in FB" to "some layers in FB", where we need to redraw
-        // the entire FB, since some areas might contain uninitialized
-        // data.
-        //
-        // Also we want to make sure to not clear areas that belong to
-        // layers above that won't redraw (we would just be erasing them),
-        // that is, we can't erase anything outside the dirty region.
-
-        Region transparent;
-
-        if (!fbLayerCount && hwc.getLayerCount(HWC_FRAMEBUFFER)) {
-            transparent.set(hw.getBounds());
-            dirtyInOut = transparent;
-        } else {
-            for (size_t i=0 ; i<count ; i++) {
-                const sp<LayerBase>& layer(layers[i]);
-                if ((cur[i].hints & HWC_HINT_CLEAR_FB) && layer->isOpaque()) {
-                    transparent.orSelf(layer->visibleRegionScreen);
-                }
-                bool isOverlay = (cur[i].compositionType != HWC_FRAMEBUFFER);
-                if (isOverlay != layer->isOverlay()) {
-                    // we transitioned to/from overlay, so add this layer
-                    // to the dirty region so the framebuffer can be either
-                    // cleared or redrawn.
-                    dirtyInOut.orSelf(layer->visibleRegionScreen);
-                }
-                layer->setOverlay(isOverlay);
-            }
-            // don't erase stuff outside the dirty region
-            transparent.andSelf(dirtyInOut);
-        }
-
-        /*
-         *  clear the area of the FB that need to be transparent
-         */
-        if (!transparent.isEmpty()) {
-            glClearColor(0,0,0,0);
-            Region::const_iterator it = transparent.begin();
-            Region::const_iterator const end = transparent.end();
-            const int32_t height = hw.getHeight();
-            while (it != end) {
-                const Rect& r(*it++);
-                const GLint sy = height - (r.top + r.height());
-                glScissor(r.left, sy, r.width(), r.height());
-                glClear(GL_COLOR_BUFFER_BIT);
-            }
-        }
-    }
 }
 
 void SurfaceFlinger::composeSurfaces(const Region& dirty)
@@ -978,43 +900,36 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
     HWComposer& hwc(hw.getHwComposer());
 
     const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);
-    if (CC_UNLIKELY(fbLayerCount && !mWormholeRegion.isEmpty())) {
-        // should never happen unless the window manager has a bug
-        // draw something...
-        drawWormhole();
-    }
+    if (fbLayerCount) {
+        // Never touch the framebuffer if we don't have any framebuffer layers
 
-    /*
-     * and then, render the layers targeted at the framebuffer
-     */
+        if (!mWormholeRegion.isEmpty()) {
+            // can happen with SurfaceView
+            drawWormhole();
+        }
 
-    hwc_layer_t* const cur(hwc.getLayers());
-    const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
-    size_t count = layers.size();
+        /*
+         * and then, render the layers targeted at the framebuffer
+         */
 
+        hwc_layer_t* const cur(hwc.getLayers());
+        const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+        const size_t count = layers.size();
 
-    // FIXME: workaround for b/6020860
-    if (hw.getFlags() & DisplayHardware::BUFFER_PRESERVED) {
         for (size_t i=0 ; i<count ; i++) {
-            if (cur && (cur[i].compositionType == HWC_FRAMEBUFFER)) {
-                glEnable(GL_SCISSOR_TEST);
-                glScissor(0,0,0,0);
-                glClear(GL_COLOR_BUFFER_BIT);
-                break;
+            const sp<LayerBase>& layer(layers[i]);
+            const Region clip(dirty.intersect(layer->visibleRegionScreen));
+            if (!clip.isEmpty()) {
+                if (cur && (cur[i].compositionType != HWC_FRAMEBUFFER)) {
+                    if ((cur[i].hints & HWC_HINT_CLEAR_FB)
+                            && layer->isOpaque()) {
+                        layer->clearWithOpenGL(clip);
+                    }
+                    continue;
+                }
+                // render the layer
+                layer->draw(clip);
             }
-        }
-    }
-    // FIXME: bug6020860 for b/6020860
-
-
-    for (size_t i=0 ; i<count ; i++) {
-        if (cur && (cur[i].compositionType != HWC_FRAMEBUFFER)) {
-            continue;
-        }
-        const sp<LayerBase>& layer(layers[i]);
-        const Region clip(dirty.intersect(layer->visibleRegionScreen));
-        if (!clip.isEmpty()) {
-            layer->draw(clip);
         }
     }
 }
@@ -1028,8 +943,7 @@ void SurfaceFlinger::debugFlashRegions()
         return;
     }
 
-    if (!((flags & DisplayHardware::SWAP_RECTANGLE) ||
-            (flags & DisplayHardware::BUFFER_PRESERVED))) {
+    if (!(flags & DisplayHardware::SWAP_RECTANGLE)) {
         const Region repaint((flags & DisplayHardware::PARTIAL_UPDATES) ?
                 mDirtyRegion.bounds() : hw.bounds());
         composeSurfaces(repaint);
@@ -1903,6 +1817,8 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     GLuint name, tname;
     glGenTextures(1, &tname);
     glBindTexture(GL_TEXTURE_2D, tname);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
             hw_w, hw_h, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     if (glGetError() != GL_NO_ERROR) {

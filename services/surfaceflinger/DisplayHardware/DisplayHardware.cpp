@@ -280,12 +280,6 @@ void DisplayHardware::init(uint32_t dpy)
                 EGL_SWAP_BEHAVIOR, EGL_BUFFER_DESTROYED);
     }
 
-    if (eglQuerySurface(display, surface, EGL_SWAP_BEHAVIOR, &dummy) == EGL_TRUE) {
-        if (dummy == EGL_BUFFER_PRESERVED) {
-            mFlags |= BUFFER_PRESERVED;
-        }
-    }
-
     /*
      * Create our OpenGL ES context
      */
