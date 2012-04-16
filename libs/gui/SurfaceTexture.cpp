@@ -542,28 +542,16 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
         // decoder, camera, etc.) would simply not use a crop rectangle (or at
         // least not tell the framework about it) so that the GPU can do the
         // correct edge behavior.
-        int xshrink = 0, yshrink = 0;
-        if (mCurrentCrop.left > 0) {
-            tx = float(mCurrentCrop.left + 1) / float(buf->getWidth());
-            xshrink++;
-        } else {
-            tx = 0.0f;
-        }
-        if (mCurrentCrop.right < int32_t(buf->getWidth())) {
-            xshrink++;
-        }
-        if (mCurrentCrop.bottom < int32_t(buf->getHeight())) {
-            ty = (float(buf->getHeight() - mCurrentCrop.bottom) + 1.0f) /
-                    float(buf->getHeight());
-            yshrink++;
-        } else {
-            ty = 0.0f;
-        }
-        if (mCurrentCrop.top > 0) {
-            yshrink++;
-        }
-        sx = float(mCurrentCrop.width() - xshrink) / float(buf->getWidth());
-        sy = float(mCurrentCrop.height() - yshrink) / float(buf->getHeight());
+        const float shrinkAmount = 1.0f; // the amount that each edge is shrunk
+
+        tx = (float(mCurrentCrop.left) + shrinkAmount) /
+                float(buf->getWidth());
+        ty = (float(buf->getHeight() - mCurrentCrop.bottom) +
+                shrinkAmount) / float(buf->getHeight());
+        sx = (float(mCurrentCrop.width()) - (2.0f * shrinkAmount)) /
+                float(buf->getWidth());
+        sy = (float(mCurrentCrop.height()) - (2.0f * shrinkAmount)) /
+                float(buf->getHeight());
     } else {
         tx = 0.0f;
         ty = 0.0f;
