@@ -675,7 +675,7 @@ status_t BufferQueue::connect(int api,
                 mConnectedApi = api;
                 *outWidth = mDefaultWidth;
                 *outHeight = mDefaultHeight;
-                *outTransform = 0;
+                *outTransform = mTransformHint;
             }
             break;
         default:
