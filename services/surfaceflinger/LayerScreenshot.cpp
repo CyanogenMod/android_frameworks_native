@@ -109,9 +109,7 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
 void LayerScreenshot::onDraw(const Region& clip) const
 {
     const State& s(drawingState());
-    Region::const_iterator it = clip.begin();
-    Region::const_iterator const end = clip.end();
-    if (s.alpha>0 && (it != end)) {
+    if (s.alpha>0) {
         const DisplayHardware& hw(graphicPlane(0).displayHardware());
         const GLfloat alpha = s.alpha/255.0f;
         const uint32_t fbHeight = hw.getHeight();
@@ -137,13 +135,7 @@ void LayerScreenshot::onDraw(const Region& clip) const
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glTexCoordPointer(2, GL_FLOAT, 0, mTexCoords);
         glVertexPointer(2, GL_FLOAT, 0, mVertices);
-
-        while (it != end) {
-            const Rect& r = *it++;
-            const GLint sy = fbHeight - (r.top + r.height());
-            glScissor(r.left, sy, r.width(), r.height());
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        }
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
 
         glDisable(GL_BLEND);
         glDisable(GL_TEXTURE_2D);

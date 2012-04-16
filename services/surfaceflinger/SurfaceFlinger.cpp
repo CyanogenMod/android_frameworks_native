@@ -265,7 +265,6 @@ status_t SurfaceFlinger::readyToRun()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glEnableClientState(GL_VERTEX_ARRAY);
-    glEnable(GL_SCISSOR_TEST);
     glShadeModel(GL_FLAT);
     glDisable(GL_DITHER);
     glDisable(GL_CULL_FACE);
@@ -980,8 +979,6 @@ void SurfaceFlinger::debugFlashRegions()
 
     if (mDebugRegion > 1)
         usleep(mDebugRegion * 1000);
-
-    glEnable(GL_SCISSOR_TEST);
 }
 
 void SurfaceFlinger::drawWormhole() const
@@ -990,52 +987,48 @@ void SurfaceFlinger::drawWormhole() const
     if (region.isEmpty())
         return;
 
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
-    const int32_t width = hw.getWidth();
-    const int32_t height = hw.getHeight();
+    glDisable(GL_TEXTURE_EXTERNAL_OES);
+    glDisable(GL_BLEND);
 
     if (CC_LIKELY(!mDebugBackground)) {
-        glClearColor(0,0,0,0);
-        Region::const_iterator it = region.begin();
-        Region::const_iterator const end = region.end();
-        while (it != end) {
-            const Rect& r = *it++;
-            const GLint sy = height - (r.top + r.height());
-            glScissor(r.left, sy, r.width(), r.height());
-            glClear(GL_COLOR_BUFFER_BIT);
-        }
+        glDisable(GL_TEXTURE_2D);
+        glColor4f(0,0,0,0);
     } else {
-        const GLshort vertices[][2] = { { 0, 0 }, { width, 0 },
-                { width, height }, { 0, height }  };
-        const GLshort tcoords[][2] = { { 0, 0 }, { 1, 0 },  { 1, 1 }, { 0, 1 } };
-
-        glVertexPointer(2, GL_SHORT, 0, vertices);
-        glTexCoordPointer(2, GL_SHORT, 0, tcoords);
+        const DisplayHardware& hw(graphicPlane(0).displayHardware());
+        const int32_t width = hw.getWidth();
+        const int32_t height = hw.getHeight();
+        const GLfloat tcoords[][2] = { { 0, 0 }, { 1, 0 },  { 1, 1 }, { 0, 1 } };
+        glTexCoordPointer(2, GL_FLOAT, 0, tcoords);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
         glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, mWormholeTexName);
         glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
         glMatrixMode(GL_TEXTURE);
         glLoadIdentity();
-
-        glDisable(GL_BLEND);
-
         glScalef(width*(1.0f/32.0f), height*(1.0f/32.0f), 1);
-        Region::const_iterator it = region.begin();
-        Region::const_iterator const end = region.end();
-        while (it != end) {
-            const Rect& r = *it++;
-            const GLint sy = height - (r.top + r.height());
-            glScissor(r.left, sy, r.width(), r.height());
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        }
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-        glDisable(GL_TEXTURE_2D);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
     }
+
+    GLfloat vertices[4][2];
+    glVertexPointer(2, GL_FLOAT, 0, vertices);
+    Region::const_iterator it = region.begin();
+    Region::const_iterator const end = region.end();
+    while (it != end) {
+        const Rect& r = *it++;
+        vertices[0][0] = r.left;
+        vertices[0][1] = r.top;
+        vertices[1][0] = r.right;
+        vertices[1][1] = r.top;
+        vertices[2][0] = r.right;
+        vertices[2][1] = r.bottom;
+        vertices[3][0] = r.left;
+        vertices[3][1] = r.bottom;
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    }
+
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    glDisable(GL_TEXTURE_2D);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
 }
 
 status_t SurfaceFlinger::addLayer(const sp<LayerBase>& layer)
@@ -1841,7 +1834,6 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_SCISSOR_TEST);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
@@ -2026,11 +2018,11 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
     }
 
     glColorMask(1,1,1,1);
-    glEnable(GL_SCISSOR_TEST);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDeleteTextures(1, &tname);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
     return NO_ERROR;
 }
 
@@ -2169,11 +2161,11 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
     }
 
     glColorMask(1,1,1,1);
-    glEnable(GL_SCISSOR_TEST);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDeleteTextures(1, &tname);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
 
     return NO_ERROR;
 }
@@ -2203,7 +2195,6 @@ status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
     glClearColor(0,0,0,1);
     glDisable(GL_SCISSOR_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_SCISSOR_TEST);
     hw.flip( Region(hw.bounds()) );
 
     return NO_ERROR;
@@ -2341,7 +2332,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
         // invert everything, b/c glReadPixel() below will invert the FB
         glViewport(0, 0, sw, sh);
         glScissor(0, 0, sw, sh);
-        glEnable(GL_SCISSOR_TEST);
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
@@ -2394,7 +2384,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
                 result = NO_MEMORY;
             }
         }
-        glEnable(GL_SCISSOR_TEST);
+        glDisable(GL_SCISSOR_TEST);
         glViewport(0, 0, hw_w, hw_h);
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();

@@ -231,7 +231,9 @@ void LayerBase::validateVisibility(const Transform& planeTransform)
     const uint32_t hw_h = hw.getHeight();
 
     uint32_t w = s.w;
-    uint32_t h = s.h;    
+    uint32_t h = s.h;
+
+    mNumVertices = 4;
     tr.transform(mVertices[0], 0, 0);
     tr.transform(mVertices[1], 0, h);
     tr.transform(mVertices[2], w, h);
@@ -266,27 +268,6 @@ void LayerBase::lockPageFlip(bool& recomputeVisibleRegions) {
 
 void LayerBase::unlockPageFlip(
         const Transform& planeTransform, Region& outDirtyRegion) {
-}
-
-void LayerBase::drawRegion(const Region& reg) const
-{
-    Region::const_iterator it = reg.begin();
-    Region::const_iterator const end = reg.end();
-    if (it != end) {
-        Rect r;
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
-        const int32_t fbWidth  = hw.getWidth();
-        const int32_t fbHeight = hw.getHeight();
-        const GLshort vertices[][2] = { { 0, 0 }, { fbWidth, 0 }, 
-                { fbWidth, fbHeight }, { 0, fbHeight }  };
-        glVertexPointer(2, GL_SHORT, 0, vertices);
-        while (it != end) {
-            const Rect& r = *it++;
-            const GLint sy = fbHeight - (r.top + r.height());
-            glScissor(r.left, sy, r.width(), r.height());
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 4); 
-        }
-    }
 }
 
 void LayerBase::setGeometry(hwc_layer_t* hwcl)
@@ -345,9 +326,6 @@ bool LayerBase::getFiltering() const
 
 void LayerBase::draw(const Region& clip) const
 {
-    // reset GL state
-    glEnable(GL_SCISSOR_TEST);
-
     onDraw(clip);
 }
 
@@ -371,16 +349,8 @@ void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
 
-    Region::const_iterator it = clip.begin();
-    Region::const_iterator const end = clip.end();
-    glEnable(GL_SCISSOR_TEST);
     glVertexPointer(2, GL_FLOAT, 0, mVertices);
-    while (it != end) {
-        const Rect& r = *it++;
-        const GLint sy = fbHeight - (r.top + r.height());
-        glScissor(r.left, sy, r.width(), r.height());
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4); 
-    }
+    glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
 }
 
 void LayerBase::clearWithOpenGL(const Region& clip) const
@@ -434,15 +404,8 @@ void LayerBase::drawWithOpenGL(const Region& clip) const
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glVertexPointer(2, GL_FLOAT, 0, mVertices);
     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
 
-    Region::const_iterator it = clip.begin();
-    Region::const_iterator const end = clip.end();
-    while (it != end) {
-        const Rect& r = *it++;
-        const GLint sy = fbHeight - (r.top + r.height());
-        glScissor(r.left, sy, r.width(), r.height());
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    }
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisable(GL_BLEND);
 }

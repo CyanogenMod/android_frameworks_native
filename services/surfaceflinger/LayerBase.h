@@ -100,7 +100,6 @@ public:
             uint32_t setTransactionFlags(uint32_t flags);
             
             Rect visibleBounds() const;
-            void drawRegion(const Region& reg) const;
 
     virtual sp<LayerBaseClient> getLayerBaseClient() const { return 0; }
     virtual sp<Layer> getLayer() const { return 0; }
@@ -260,6 +259,7 @@ protected:
                 int32_t         mPlaneOrientation;
                 Transform       mTransform;
                 GLfloat         mVertices[4][2];
+                size_t          mNumVertices;
                 Rect            mTransformedBounds;
             
                 // these are protected by an external lock
