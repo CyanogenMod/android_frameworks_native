@@ -109,8 +109,6 @@ public:
 
     virtual void setGeometry(hwc_layer_t* hwcl);
     virtual void setPerFrameData(hwc_layer_t* hwcl);
-            void setOverlay(bool inOverlay);
-            bool isOverlay() const;
 
 
     /**
@@ -230,14 +228,15 @@ public:
 
     int32_t  getOrientation() const { return mOrientation; }
     int32_t  getPlaneOrientation() const { return mPlaneOrientation; }
-    
+
+    void clearWithOpenGL(const Region& clip) const;
+
 protected:
     const GraphicPlane& graphicPlane(int dpy) const;
           GraphicPlane& graphicPlane(int dpy);
 
           void clearWithOpenGL(const Region& clip, GLclampf r, GLclampf g,
                                GLclampf b, GLclampf alpha) const;
-          void clearWithOpenGL(const Region& clip) const;
           void drawWithOpenGL(const Region& clip) const;
 
           void setFiltering(bool filtering);
@@ -254,11 +253,6 @@ private:
                 // cached during validateVisibility()
                 // Whether filtering is needed b/c of the drawingstate
                 bool            mNeedsFiltering;
-
-                // this layer is currently handled by the hwc. this is
-                // updated at composition time, always frmo the composition
-                // thread.
-                bool            mInOverlay;
 
 protected:
                 // cached during validateVisibility()

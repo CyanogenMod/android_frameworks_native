@@ -43,7 +43,7 @@ LayerBase::LayerBase(SurfaceFlinger* flinger, DisplayID display)
     : dpy(display), contentDirty(false),
       sequence(uint32_t(android_atomic_inc(&sSequence))),
       mFlinger(flinger), mFiltering(false),
-      mNeedsFiltering(false), mInOverlay(false),
+      mNeedsFiltering(false),
       mOrientation(0),
       mPlaneOrientation(0),
       mTransactionFlags(0),
@@ -331,14 +331,6 @@ void LayerBase::setGeometry(hwc_layer_t* hwcl)
 void LayerBase::setPerFrameData(hwc_layer_t* hwcl) {
     hwcl->compositionType = HWC_FRAMEBUFFER;
     hwcl->handle = NULL;
-}
-
-void LayerBase::setOverlay(bool inOverlay) {
-    mInOverlay = inOverlay;
-}
-
-bool LayerBase::isOverlay() const {
-    return mInOverlay;
 }
 
 void LayerBase::setFiltering(bool filtering)
