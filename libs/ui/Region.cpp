@@ -619,7 +619,15 @@ Region::const_iterator Region::begin() const {
 }
 
 Region::const_iterator Region::end() const {
-    return isRect() ? ((&mBounds) + 1) : (mStorage.array() + mStorage.size());
+    if (isRect()) {
+        if (isEmpty()) {
+            return &mBounds;
+        } else {
+            return &mBounds + 1;
+        }
+    } else {
+        return mStorage.array() + mStorage.size();
+    }
 }
 
 Rect const* Region::getArray(size_t* count) const {

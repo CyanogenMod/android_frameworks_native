@@ -96,6 +96,11 @@ private:
     class SpannerBase
     {
     public:
+        SpannerBase()
+            : lhs_head(max_value), lhs_tail(max_value),
+              rhs_head(max_value), rhs_tail(max_value) {
+        }
+
         enum {
             lhs_before_rhs   = 0,
             lhs_after_rhs    = 1,
@@ -158,12 +163,16 @@ private:
 
     public:
         inline Spanner(const region& lhs, const region& rhs)
-            : lhs(lhs), rhs(rhs) 
+        : lhs(lhs), rhs(rhs)
         {
-            SpannerBase::lhs_head = lhs.rects->top      + lhs.dy;
-            SpannerBase::lhs_tail = lhs.rects->bottom   + lhs.dy;
-            SpannerBase::rhs_head = rhs.rects->top      + rhs.dy;
-            SpannerBase::rhs_tail = rhs.rects->bottom   + rhs.dy;
+            if (lhs.count) {
+                SpannerBase::lhs_head = lhs.rects->top      + lhs.dy;
+                SpannerBase::lhs_tail = lhs.rects->bottom   + lhs.dy;
+            }
+            if (rhs.count) {
+                SpannerBase::rhs_head = rhs.rects->top      + rhs.dy;
+                SpannerBase::rhs_tail = rhs.rects->bottom   + rhs.dy;
+            }
         }
 
         inline bool isDone() const {
@@ -221,20 +230,28 @@ private:
 
         inline void prepare(int inside) {
             if (inside == SpannerBase::lhs_before_rhs) {
-                SpannerBase::lhs_head = lhs.rects->left  + lhs.dx;
-                SpannerBase::lhs_tail = lhs.rects->right + lhs.dx;
+                if (lhs.count) {
+                    SpannerBase::lhs_head = lhs.rects->left  + lhs.dx;
+                    SpannerBase::lhs_tail = lhs.rects->right + lhs.dx;
+                }
                 SpannerBase::rhs_head = max_value;
                 SpannerBase::rhs_tail = max_value;
             } else if (inside == SpannerBase::lhs_after_rhs) {
                 SpannerBase::lhs_head = max_value;
                 SpannerBase::lhs_tail = max_value;
-                SpannerBase::rhs_head = rhs.rects->left  + rhs.dx;
-                SpannerBase::rhs_tail = rhs.rects->right + rhs.dx;
+                if (rhs.count) {
+                    SpannerBase::rhs_head = rhs.rects->left  + rhs.dx;
+                    SpannerBase::rhs_tail = rhs.rects->right + rhs.dx;
+                }
             } else {
-                SpannerBase::lhs_head = lhs.rects->left  + lhs.dx;
-                SpannerBase::lhs_tail = lhs.rects->right + lhs.dx;
-                SpannerBase::rhs_head = rhs.rects->left  + rhs.dx;
-                SpannerBase::rhs_tail = rhs.rects->right + rhs.dx;
+                if (lhs.count) {
+                    SpannerBase::lhs_head = lhs.rects->left  + lhs.dx;
+                    SpannerBase::lhs_tail = lhs.rects->right + lhs.dx;
+                }
+                if (rhs.count) {
+                    SpannerBase::rhs_head = rhs.rects->left  + rhs.dx;
+                    SpannerBase::rhs_tail = rhs.rects->right + rhs.dx;
+                }
             }
         }
 
