@@ -73,10 +73,11 @@ protected:
 
 sp<ProcessState> ProcessState::self()
 {
-    if (gProcess != NULL) return gProcess;
-    
-    AutoMutex _l(gProcessMutex);
-    if (gProcess == NULL) gProcess = new ProcessState;
+    Mutex::Autolock _l(gProcessMutex);
+    if (gProcess != NULL) {
+        return gProcess;
+    }
+    gProcess = new ProcessState;
     return gProcess;
 }
 
