@@ -57,9 +57,12 @@
 #define ST_LOGE(x, ...) ALOGE("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
 
 #define ATRACE_BUFFER_INDEX(index)                                            \
-    char ___traceBuf[1024];                                                   \
-    snprintf(___traceBuf, 1024, "%s: %d", mConsumerName.string(), (index));   \
-    android::ScopedTrace ___bufTracer(ATRACE_TAG, ___traceBuf);
+    if (ATRACE_ENABLED()) {                                                   \
+        char ___traceBuf[1024];                                               \
+        snprintf(___traceBuf, 1024, "%s: %d", mConsumerName.string(),         \
+                (index));                                                     \
+        android::ScopedTrace ___bufTracer(ATRACE_TAG, ___traceBuf);           \
+    }
 
 namespace android {
 
