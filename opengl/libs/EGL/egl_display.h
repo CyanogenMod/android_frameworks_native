@@ -77,8 +77,12 @@ public:
     // proper hibernate/wakeup sequencing. If a surface destruction triggers
     // hibernation, hibernation will be delayed at least until the calling
     // thread's egl_display_ptr is destroyed.
-    void onWindowSurfaceCreated();
-    void onWindowSurfaceDestroyed();
+    void onWindowSurfaceCreated() {
+        mHibernation.incWakeCount(HibernationMachine::STRONG);
+    }
+    void onWindowSurfaceDestroyed() {
+        mHibernation.decWakeCount(HibernationMachine::STRONG);
+    }
 
     static egl_display_t* get(EGLDisplay dpy);
     static EGLDisplay getFromNativeDisplay(EGLNativeDisplayType disp);
@@ -123,8 +127,8 @@ public:
 
 private:
     friend class egl_display_ptr;
-    bool enter();
-    void leave();
+    bool enter() { return mHibernation.incWakeCount(HibernationMachine::WEAK); }
+    void leave() { return mHibernation.decWakeCount(HibernationMachine::WEAK); }
 
             uint32_t                    refs;
     mutable Mutex                       lock;
@@ -133,9 +137,41 @@ private:
             String8 mVersionString;
             String8 mClientApiString;
             String8 mExtensionString;
-            int32_t mWakeCount;
-            bool    mHibernating;
-            bool    mAttemptHibernation;
+
+    // HibernationMachine uses its own internal mutex to protect its own data.
+    // The owning egl_display_t's lock may be but is not required to be held
+    // when calling HibernationMachine methods. As a result, nothing in this
+    // class may call back up to egl_display_t directly or indirectly.
+    class HibernationMachine {
+    public:
+        // STRONG refs cancel (inc) or initiate (dec) a hibernation attempt
+        // the next time the wakecount reaches zero. WEAK refs don't affect
+        // whether a hibernation attempt will be made. Use STRONG refs only
+        // for infrequent/heavy changes that are likely to indicate the
+        // EGLDisplay is entering or leaving a long-term idle state.
+        enum WakeRefStrength {
+            WEAK   = 0,
+            STRONG = 1,
+        };
+
+        HibernationMachine(): mWakeCount(0), mHibernating(false),
+                mAttemptHibernation(false), mDpyValid(false)
+        {}
+        ~HibernationMachine() {}
+
+        bool incWakeCount(WakeRefStrength strenth);
+        void decWakeCount(WakeRefStrength strenth);
+
+        void setDisplayValid(bool valid);
+
+    private:
+        Mutex   mLock;
+        int32_t mWakeCount;
+        bool    mHibernating;
+        bool    mAttemptHibernation;
+        bool    mDpyValid;
+    };
+    HibernationMachine mHibernation;
 };
 
 // ----------------------------------------------------------------------------
