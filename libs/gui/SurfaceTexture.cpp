@@ -344,6 +344,18 @@ status_t SurfaceTexture::detachFromContext() {
         glDeleteTextures(1, &mTexName);
     }
 
+    // Because we're giving up the EGLDisplay we need to free all the EGLImages
+    // that are associated with it.  They'll be recreated when the
+    // SurfaceTexture gets attached to a new OpenGL ES context (and thus gets a
+    // new EGLDisplay).
+    for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+        EGLImageKHR img = mEGLSlots[i].mEglImage;
+        if (img != EGL_NO_IMAGE_KHR) {
+            eglDestroyImageKHR(mEglDisplay, img);
+            mEGLSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
+        }
+    }
+
     mEglDisplay = EGL_NO_DISPLAY;
     mEglContext = EGL_NO_CONTEXT;
     mAttached = false;
@@ -668,13 +680,12 @@ void SurfaceTexture::freeBufferLocked(int slotIndex) {
     if (slotIndex == mCurrentTexture) {
         mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
     }
-    if (mEGLSlots[slotIndex].mEglImage != EGL_NO_IMAGE_KHR) {
-        EGLImageKHR img = mEGLSlots[slotIndex].mEglImage;
-        if (img != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(mEglDisplay, img);
-        }
-        mEGLSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
+    EGLImageKHR img = mEGLSlots[slotIndex].mEglImage;
+    if (img != EGL_NO_IMAGE_KHR) {
+        ST_LOGV("destroying EGLImage dpy=%p img=%p", mEglDisplay, img);
+        eglDestroyImageKHR(mEglDisplay, img);
     }
+    mEGLSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
 }
 
 void SurfaceTexture::abandon() {
