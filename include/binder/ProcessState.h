@@ -70,6 +70,8 @@ public:
 
             void                spawnPooledThread(bool isMain);
             
+            status_t            setThreadPoolMaxThreadCount(size_t maxThreads);
+
 private:
     friend class IPCThreadState;
     
