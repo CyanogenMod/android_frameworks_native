@@ -31,6 +31,35 @@ LOCAL_C_INCLUDES := \
 # to integrate with auto-test framework.
 include $(BUILD_NATIVE_TEST)
 
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := CpuConsumer_test
+
+LOCAL_MODULE_TAGS := tests
+
+LOCAL_SRC_FILES := \
+    CpuConsumer_test.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libEGL \
+	libGLESv2 \
+	libbinder \
+	libcutils \
+	libgui \
+	libstlport \
+	libui \
+	libutils \
+
+LOCAL_C_INCLUDES := \
+    bionic \
+    bionic/libstdc++/include \
+    external/gtest/include \
+    external/stlport/stlport \
+
+# Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
+# to integrate with auto-test framework.
+include $(BUILD_NATIVE_TEST)
+
 # Include subdirectory makefiles
 # ============================================================
 

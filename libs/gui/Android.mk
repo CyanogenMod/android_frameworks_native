@@ -21,7 +21,8 @@ LOCAL_SRC_FILES:= \
 	LayerState.cpp \
 	Surface.cpp \
 	SurfaceComposerClient.cpp \
-	DummyConsumer.cpp
+	DummyConsumer.cpp \
+	CpuConsumer.cpp
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \

@@ -209,6 +209,11 @@ public:
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue pending a fence sync.
     //
+    // If releaseBuffer returns STALE_BUFFER_SLOT, then the consumer must free
+    // any references to the just-released buffer that it might have, as if it
+    // had received a onBuffersReleased() call with a mask set for the released
+    // buffer.
+    //
     // Note that the dependencies on EGL will be removed once we switch to using
     // the Android HW Sync HAL.
     status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence);
