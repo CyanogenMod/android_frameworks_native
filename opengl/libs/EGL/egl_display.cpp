@@ -70,8 +70,7 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
-    magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0),
-    mWakeCount(0), mHibernating(false), mAttemptHibernation(false) {
+    magic('_dpy'), finishOnSwap(false), traceGpuCompletion(false), refs(0) {
 }
 
 egl_display_t::~egl_display_t() {
@@ -253,6 +252,9 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
         *major = VERSION_MAJOR;
     if (minor != NULL)
         *minor = VERSION_MINOR;
+
+    mHibernation.setDisplayValid(true);
+
     return EGL_TRUE;
 }
 
@@ -281,6 +283,8 @@ EGLBoolean egl_display_t::terminate() {
         disp.state = egl_display_t::TERMINATED;
         res = EGL_TRUE;
     }
+
+    mHibernation.setDisplayValid(false);
 
     // Mark all objects remaining in the list as terminated, unless
     // there are no reference to them, it which case, we're free to
@@ -351,8 +355,7 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
             if (result == EGL_TRUE) {
                 c->onMakeCurrent(draw, read);
                 if (!cur_c) {
-                    mWakeCount++;
-                    mAttemptHibernation = false;
+                    mHibernation.incWakeCount(HibernationMachine::STRONG);
                 }
             }
         } else {
@@ -360,8 +363,7 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
                     disp.dpy, impl_draw, impl_read, impl_ctx);
             if (result == EGL_TRUE) {
                 cur_c->onLooseCurrent();
-                mWakeCount--;
-                mAttemptHibernation = true;
+                mHibernation.decWakeCount(HibernationMachine::STRONG);
             }
         }
     }
@@ -378,14 +380,26 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
     return result;
 }
 
-bool egl_display_t::enter() {
-    Mutex::Autolock _l(lock);
+// ----------------------------------------------------------------------------
+
+bool egl_display_t::HibernationMachine::incWakeCount(WakeRefStrength strength) {
+    Mutex::Autolock _l(mLock);
     ALOGE_IF(mWakeCount < 0 || mWakeCount == INT32_MAX,
              "Invalid WakeCount (%d) on enter\n", mWakeCount);
+
     mWakeCount++;
+    if (strength == STRONG)
+        mAttemptHibernation = false;
+
     if (CC_UNLIKELY(mHibernating)) {
         ALOGV("Awakening\n");
         egl_connection_t* const cnx = &gEGLImpl;
+
+        // These conditions should be guaranteed before entering hibernation;
+        // we don't want to get into a state where we can't wake up.
+        ALOGD_IF(!mDpyValid || !cnx->egl.eglAwakenProcessIMG,
+                 "Invalid hibernation state, unable to awaken\n");
+
         if (!cnx->egl.eglAwakenProcessIMG()) {
             ALOGE("Failed to awaken EGL implementation\n");
             return false;
@@ -395,13 +409,20 @@ bool egl_display_t::enter() {
     return true;
 }
 
-void egl_display_t::leave() {
-    Mutex::Autolock _l(lock);
+void egl_display_t::HibernationMachine::decWakeCount(WakeRefStrength strength) {
+    Mutex::Autolock _l(mLock);
     ALOGE_IF(mWakeCount <= 0, "Invalid WakeCount (%d) on leave\n", mWakeCount);
-    if (--mWakeCount == 0 && CC_UNLIKELY(mAttemptHibernation)) {
+
+    mWakeCount--;
+    if (strength == STRONG)
+        mAttemptHibernation = true;
+
+    if (mWakeCount == 0 && CC_UNLIKELY(mAttemptHibernation)) {
         egl_connection_t* const cnx = &gEGLImpl;
         mAttemptHibernation = false;
-        if (cnx->egl.eglHibernateProcessIMG && cnx->egl.eglAwakenProcessIMG) {
+        if (mDpyValid &&
+                cnx->egl.eglHibernateProcessIMG &&
+                cnx->egl.eglAwakenProcessIMG) {
             ALOGV("Hibernating\n");
             if (!cnx->egl.eglHibernateProcessIMG()) {
                 ALOGE("Failed to hibernate EGL implementation\n");
@@ -412,16 +433,9 @@ void egl_display_t::leave() {
     }
 }
 
-void egl_display_t::onWindowSurfaceCreated() {
-    Mutex::Autolock _l(lock);
-    mWakeCount++;
-    mAttemptHibernation = false;
-}
-
-void egl_display_t::onWindowSurfaceDestroyed() {
-    Mutex::Autolock _l(lock);
-    mWakeCount--;
-    mAttemptHibernation = true;
+void egl_display_t::HibernationMachine::setDisplayValid(bool valid) {
+    Mutex::Autolock _l(mLock);
+    mDpyValid = valid;
 }
 
 // ----------------------------------------------------------------------------
