@@ -151,13 +151,16 @@ public:
     // texture as returned by updateTexImage().
     GLenum getCurrentTextureTarget() const;
 
-    // getCurrentCrop returns the cropping rectangle of the current buffer
+    // getCurrentCrop returns the cropping rectangle of the current buffer.
     Rect getCurrentCrop() const;
 
-    // getCurrentTransform returns the transform of the current buffer
+    // getCurrentActiveRect returns the active rectangle of the current buffer.
+    Rect getCurrentActiveRect() const;
+
+    // getCurrentTransform returns the transform of the current buffer.
     uint32_t getCurrentTransform() const;
 
-    // getCurrentScalingMode returns the scaling mode of the current buffer
+    // getCurrentScalingMode returns the scaling mode of the current buffer.
     uint32_t getCurrentScalingMode() const;
 
     // isSynchronousMode returns whether the SurfaceTexture is currently in
@@ -269,6 +272,12 @@ private:
     // mCurrentCrop is the crop rectangle that applies to the current texture.
     // It gets set each time updateTexImage is called.
     Rect mCurrentCrop;
+
+    // mCurrentActiveRect is the active rectangle that applies to the current
+    // texture.  It gets set each time updateTexImage is called.  All pixels
+    // outside the active rectangle are be considered completely transparent for
+    // the purpose of window composition.
+    Rect mCurrentActiveRect;
 
     // mCurrentTransform is the transform identifier for the current texture. It
     // gets set each time updateTexImage is called.

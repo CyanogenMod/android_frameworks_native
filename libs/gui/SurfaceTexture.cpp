@@ -294,6 +294,7 @@ status_t SurfaceTexture::updateTexImage() {
         mCurrentTransform = item.mTransform;
         mCurrentScalingMode = item.mScalingMode;
         mCurrentTimestamp = item.mTimestamp;
+        mCurrentActiveRect = item.mActiveRect;
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
@@ -655,9 +656,12 @@ Rect SurfaceTexture::getCurrentCrop() const {
             outCrop.right,outCrop.bottom);
     }
 
-
-
     return outCrop;
+}
+
+Rect SurfaceTexture::getCurrentActiveRect() const {
+    Mutex::Autolock lock(mMutex);
+    return mCurrentActiveRect;
 }
 
 uint32_t SurfaceTexture::getCurrentTransform() const {

@@ -170,6 +170,7 @@ public:
            mFrameNumber(0),
            mBuf(INVALID_BUFFER_SLOT) {
              mCrop.makeInvalid();
+             mActiveRect.makeInvalid();
          }
         // mGraphicBuffer points to the buffer allocated for this slot or is NULL
         // if no buffer has been allocated.
@@ -191,9 +192,13 @@ public:
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
 
-        // buf is the slot index of this buffer
+        // mBuf is the slot index of this buffer
         int mBuf;
 
+        // mActiveRect is the active rectangle for the buffer.  Pixels outside
+        // this rectangle are considered completely transparent for the purposes
+        // of window composition.
+        Rect mActiveRect;
     };
 
     // The following public functions is the consumer facing interface
@@ -297,6 +302,7 @@ private:
           mAcquireCalled(false),
           mNeedsCleanupOnRelease(false) {
             mCrop.makeInvalid();
+            mActiveRect.makeInvalid();
         }
 
         // mGraphicBuffer points to the buffer allocated for this slot or is NULL
@@ -352,6 +358,12 @@ private:
 
         // mCrop is the current crop rectangle for this buffer slot.
         Rect mCrop;
+
+        // mActiveRect is the current active rectangle for this buffer slot.
+        // Pixels outside of this rectangle are to be treated as completely
+        // transparent during window composition.  The rectangle is in buffer
+        // pixel coordinates.
+        Rect mActiveRect;
 
         // mTransform is the current transform flags for this buffer slot.
         uint32_t mTransform;

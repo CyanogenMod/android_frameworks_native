@@ -389,6 +389,8 @@ protected:
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);
         ASSERT_NO_FATAL_FAILURE(mTextureRenderer->SetUp());
+        mFW = new FrameWaiter;
+        mST->setFrameAvailableListener(mFW);
     }
 
     virtual void TearDown() {
@@ -577,6 +579,7 @@ protected:
     sp<SurfaceTextureClient> mSTC;
     sp<ANativeWindow> mANW;
     sp<TextureRenderer> mTextureRenderer;
+    sp<FrameWaiter> mFW;
 };
 
 // Fill a YV12 buffer with a multi-colored checkerboard pattern
@@ -941,9 +944,6 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
         const TestPixel* mTestPixels;
     };
 
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     sp<Thread> pt(new ProducerThread(mANW, testPixels));
     pt->run();
 
@@ -954,8 +954,8 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
 
     // We wait for the first two frames up front so that the producer will be
     // likely to dequeue the buffer that's currently being textured from.
-    fw->waitForFrame();
-    fw->waitForFrame();
+    mFW->waitForFrame();
+    mFW->waitForFrame();
 
     for (int i = 0; i < numFrames; i++) {
         SCOPED_TRACE(String8::format("frame %d", i).string());
@@ -965,7 +965,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
         // then the producer and consumer will get out of sync, which will cause
         // a deadlock.
         if (i > 1) {
-            fw->waitForFrame();
+            mFW->waitForFrame();
         }
         mST->updateTexImage();
         drawTexture();
@@ -1142,7 +1142,8 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
 TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
 
-    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_EGL);
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
+            NATIVE_WINDOW_API_EGL));
 
     ANativeWindowBuffer *anb;
 
@@ -1155,16 +1156,22 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
     EXPECT_EQ(OK,mST->updateTexImage());
     EXPECT_EQ(OK,mST->updateTexImage());
 
-    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_EGL);
-    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_EGL);
+    ASSERT_EQ(OK, native_window_api_disconnect(mANW.get(),
+            NATIVE_WINDOW_API_EGL));
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
+            NATIVE_WINDOW_API_EGL));
 
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
 
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->dequeueBuffer(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
 
     // Will fail here if mCurrentTexture is not cleared properly
+    mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
+
+    ASSERT_EQ(OK, native_window_api_disconnect(mANW.get(),
+            NATIVE_WINDOW_API_EGL));
 }
 
 TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
@@ -1179,7 +1186,8 @@ TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
     // The consumer image size (16 x 9) ratio
     mST->setDefaultBufferSize(1280, 720);
 
-    native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU);
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
+            NATIVE_WINDOW_API_CPU));
 
     ANativeWindowBuffer *anb;
 
@@ -1187,11 +1195,13 @@ TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &odd));
     EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
     assertRectEq(Rect(23, 78, 123, 477), r);
 
-    native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_EGL);
+    ASSERT_EQ(OK, native_window_api_disconnect(mANW.get(),
+            NATIVE_WINDOW_API_CPU));
 }
 
 // This test ensures the scaling mode does the right thing
@@ -1219,6 +1229,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &standard));
     EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
     // crop should be the same as crop (same aspect ratio)
@@ -1229,6 +1240,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &wide));
     EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     r = mST->getCurrentCrop();
     // crop should be the same height, but have cropped left and right borders
@@ -1240,6 +1252,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &narrow));
     EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     r = mST->getCurrentCrop();
     // crop should be the same width, but have cropped top and bottom borders
@@ -1248,6 +1261,28 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
 
     native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
 }
+
+TEST_F(SurfaceTextureGLTest, GetCurrentActiveRectWorks) {
+    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
+            NATIVE_WINDOW_API_CPU));
+
+    ANativeWindowBuffer *anb;
+
+    android_native_rect_t odd = {23, 78, 123, 477};
+    ASSERT_EQ(OK, native_window_set_active_rect(mANW.get(), &odd));
+    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    mFW->waitForFrame();
+    EXPECT_EQ(OK,mST->updateTexImage());
+    Rect r = mST->getCurrentCrop();
+    assertRectEq(Rect(23, 78, 123, 477), r);
+
+    ASSERT_EQ(OK, native_window_api_disconnect(mANW.get(),
+            NATIVE_WINDOW_API_CPU));
+}
+
 
 TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
     class ProducerThread : public Thread {
@@ -1304,16 +1339,14 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
         Mutex mMutex;
     };
 
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, mST->setBufferCountServer(2));
 
     sp<Thread> pt(new ProducerThread(mANW));
     pt->run();
 
-    fw->waitForFrame();
-    fw->waitForFrame();
+    mFW->waitForFrame();
+    mFW->waitForFrame();
 
     // Sleep for 100ms to allow the producer thread's dequeueBuffer call to
     // block waiting for a buffer to become available.
@@ -1471,9 +1504,6 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
 TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
     sp<GraphicBuffer> buffers[2];
 
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     // This test requires async mode to run on a single thread.
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
             mProducerEglSurface, mProducerEglContext));
@@ -1493,7 +1523,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
         EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
                 mEglContext));
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        fw->waitForFrame();
+        mFW->waitForFrame();
         mST->updateTexImage();
         buffers[i] = mST->getCurrentBuffer();
     }
@@ -1519,9 +1549,6 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
 TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
     sp<GraphicBuffer> buffers[3];
 
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     // This test requires async mode to run on a single thread.
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
             mProducerEglSurface, mProducerEglContext));
@@ -1542,7 +1569,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
         EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
                 mEglContext));
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        fw->waitForFrame();
+        mFW->waitForFrame();
         ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         buffers[i] = mST->getCurrentBuffer();
     }
@@ -2239,13 +2266,10 @@ protected:
 };
 
 TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Attempt to latch the texture on the secondary context.
@@ -2256,13 +2280,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextSucceeds) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2274,13 +2295,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextSucceeds) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         DetachFromContextSucceedsAfterProducerDisconnect) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2292,13 +2310,10 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenAbandoned) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Attempt to detach from the primary context.
@@ -2307,13 +2322,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenAbandoned) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenDetached) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2324,13 +2336,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenDetached) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoDisplay) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Make there be no current display.
@@ -2343,13 +2352,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoDisplay) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoContext) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Make current context be incorrect.
@@ -2362,27 +2368,21 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoContext) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, UpdateTexImageFailsWhenDetached) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
     ASSERT_EQ(OK, mST->detachFromContext());
 
     // Attempt to latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(INVALID_OPERATION, mST->updateTexImage());
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceeds) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2409,13 +2409,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceeds) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsAfterProducerDisconnect) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2443,9 +2440,6 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsBeforeUpdateTexImage) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
@@ -2463,7 +2457,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
     EXPECT_EQ(SECOND_TEX_ID, texBinding);
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Try to use the texture from the secondary context.
@@ -2476,13 +2470,10 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAbandoned) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2496,13 +2487,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAbandoned) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAttached) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Attempt to attach to the primary context.
@@ -2511,9 +2499,6 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAttached) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextFailsWhenAttachedBeforeUpdateTexImage) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Attempt to attach to the primary context.
@@ -2521,13 +2506,10 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWithNoDisplay) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2543,13 +2525,10 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWithNoDisplay) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceedsTwice) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Detach from the primary context.
@@ -2584,9 +2563,6 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceedsTwice) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsTwiceBeforeUpdateTexImage) {
-    sp<FrameWaiter> fw(new FrameWaiter);
-    mST->setFrameAvailableListener(fw);
-
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
@@ -2611,7 +2587,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
     EXPECT_EQ(THIRD_TEX_ID, texBinding);
 
     // Latch the texture contents on the tertiary context.
-    fw->waitForFrame();
+    mFW->waitForFrame();
     ASSERT_EQ(OK, mST->updateTexImage());
 
     // Try to use the texture from the tertiary context.

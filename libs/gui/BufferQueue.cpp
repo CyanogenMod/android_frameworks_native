@@ -536,12 +536,19 @@ status_t BufferQueue::queueBuffer(int buf,
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
-    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]", buf,
-            mSlots[buf].mTimestamp,
-            mSlots[buf].mCrop.left,
-            mSlots[buf].mCrop.top,
-            mSlots[buf].mCrop.right,
-            mSlots[buf].mCrop.bottom);
+    Rect crop;
+    uint32_t transform;
+    int scalingMode;
+    int64_t timestamp;
+    Rect activeRect;
+
+    input.deflate(&timestamp, &crop, &scalingMode, &transform,
+            &activeRect);
+
+    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d] "
+            "active=[%d,%d,%d,%d]", buf, timestamp, crop.left, crop.top,
+            crop.right, crop.bottom, activeRect.left, activeRect.top,
+            activeRect.right, activeRect.bottom);
 
     sp<ConsumerListener> listener;
 
@@ -590,14 +597,10 @@ status_t BufferQueue::queueBuffer(int buf,
             }
         }
 
-        int scalingMode;
-
-        input.deflate(
-                &mSlots[buf].mTimestamp,
-                &mSlots[buf].mCrop,
-                &scalingMode,
-                &mSlots[buf].mTransform);
-
+        mSlots[buf].mTimestamp = timestamp;
+        mSlots[buf].mCrop = crop;
+        mSlots[buf].mTransform = transform;
+        mSlots[buf].mActiveRect = activeRect;
 
         switch (scalingMode) {
             case NATIVE_WINDOW_SCALING_MODE_FREEZE:
@@ -856,6 +859,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         buffer->mFrameNumber = mSlots[buf].mFrameNumber;
         buffer->mTimestamp = mSlots[buf].mTimestamp;
         buffer->mBuf = buf;
+        buffer->mActiveRect = mSlots[buf].mActiveRect;
         mSlots[buf].mAcquireCalled = true;
 
         mSlots[buf].mBufferState = BufferSlot::ACQUIRED;

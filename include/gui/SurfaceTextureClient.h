@@ -83,6 +83,7 @@ private:
     int dispatchSetUsage(va_list args);
     int dispatchLock(va_list args);
     int dispatchUnlockAndPost(va_list args);
+    int dispatchSetActiveRect(va_list args);
 
 protected:
     virtual int cancelBuffer(ANativeWindowBuffer* buffer);
@@ -106,6 +107,7 @@ protected:
     virtual int setUsage(uint32_t reqUsage);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
+    virtual int setActiveRect(Rect const* rect);
 
     enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
     enum { DEFAULT_FORMAT = PIXEL_FORMAT_RGBA_8888 };
@@ -164,6 +166,10 @@ private:
     // mTransform is the transform identifier that will be used for the next
     // buffer that gets queued. It is set by calling setTransform.
     uint32_t mTransform;
+
+    // mActiveRect is the active rectangle that will be used for the next buffer
+    // that gets queued.  It is set by calling setActiveRect.
+    Rect mActiveRect;
 
      // mDefaultWidth is default width of the buffers, regardless of the
      // native_window_set_buffers_dimensions call.

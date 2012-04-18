@@ -78,6 +78,7 @@ void SurfaceTextureClient::init() {
     mCrop.clear();
     mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
     mTransform = 0;
+    mActiveRect.clear();
     mDefaultWidth = 0;
     mDefaultHeight = 0;
     mUserWidth = 0;
@@ -239,7 +240,7 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
 
     ISurfaceTexture::QueueBufferOutput output;
     ISurfaceTexture::QueueBufferInput input(timestamp,
-            mCrop, mScalingMode, mTransform);
+            mCrop, mScalingMode, mTransform, mActiveRect);
     status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -356,6 +357,9 @@ int SurfaceTextureClient::perform(int operation, va_list args)
     case NATIVE_WINDOW_API_DISCONNECT:
         res = dispatchDisconnect(args);
         break;
+    case NATIVE_WINDOW_SET_ACTIVE_RECT:
+        res = dispatchSetActiveRect(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -424,6 +428,11 @@ int SurfaceTextureClient::dispatchSetScalingMode(va_list args) {
 int SurfaceTextureClient::dispatchSetBuffersTransform(va_list args) {
     int transform = va_arg(args, int);
     return setBuffersTransform(transform);
+}
+
+int SurfaceTextureClient::dispatchSetActiveRect(va_list args) {
+    android_native_rect_t const* rect = va_arg(args, android_native_rect_t*);
+    return setActiveRect(reinterpret_cast<Rect const*>(rect));
 }
 
 int SurfaceTextureClient::dispatchSetBuffersTimestamp(va_list args) {
@@ -502,7 +511,7 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
     }
 
     Mutex::Autolock lock(mMutex);
-    mCrop = *rect;
+    mCrop = realRect;
     return NO_ERROR;
 }
 
@@ -597,6 +606,23 @@ int SurfaceTextureClient::setBuffersTransform(int transform)
     ALOGV("SurfaceTextureClient::setBuffersTransform");
     Mutex::Autolock lock(mMutex);
     mTransform = transform;
+    return NO_ERROR;
+}
+
+int SurfaceTextureClient::setActiveRect(Rect const* rect)
+{
+    ATRACE_CALL();
+    ALOGV("SurfaceTextureClient::setActiveRect");
+
+    Rect realRect;
+    if (rect == NULL || rect->isEmpty()) {
+        realRect.clear();
+    } else {
+        realRect = *rect;
+    }
+
+    Mutex::Autolock lock(mMutex);
+    mActiveRect = realRect;
     return NO_ERROR;
 }
 
