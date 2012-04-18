@@ -533,8 +533,12 @@ status_t BufferQueue::queueBuffer(int buf,
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
-    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]", buf, timestamp,
-        crop.left, crop.top, crop.right, crop.bottom);
+    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]", buf,
+            mSlots[buf].mTimestamp,
+            mSlots[buf].mCrop.left,
+            mSlots[buf].mCrop.top,
+            mSlots[buf].mCrop.right,
+            mSlots[buf].mCrop.bottom);
 
     sp<ConsumerListener> listener;
 
