@@ -87,7 +87,6 @@ SurfaceFlinger::SurfaceFlinger()
         mHwWorkListDirty(false),
         mElectronBeamAnimationMode(0),
         mDebugRegion(0),
-        mDebugBackground(0),
         mDebugDDMS(0),
         mDebugDisableHWC(0),
         mDebugDisableTransformHint(0),
@@ -111,9 +110,6 @@ void SurfaceFlinger::init()
     property_get("debug.sf.showupdates", value, "0");
     mDebugRegion = atoi(value);
 
-    property_get("debug.sf.showbackground", value, "0");
-    mDebugBackground = atoi(value);
-
 #ifdef DDMS_DEBUGGING
     property_get("debug.sf.ddms", value, "0");
     mDebugDDMS = atoi(value);
@@ -123,7 +119,6 @@ void SurfaceFlinger::init()
 #endif
 
     ALOGI_IF(mDebugRegion,       "showupdates enabled");
-    ALOGI_IF(mDebugBackground,   "showbackground enabled");
     ALOGI_IF(mDebugDDMS,         "DDMS debugging enabled");
 }
 
@@ -902,9 +897,20 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
     if (fbLayerCount) {
         // Never touch the framebuffer if we don't have any framebuffer layers
 
-        if (!mWormholeRegion.isEmpty()) {
-            // can happen with SurfaceView
-            drawWormhole();
+        if (hwc.getLayerCount(HWC_OVERLAY)) {
+            // when using overlays, we assume a fully transparent framebuffer
+            // NOTE: we could reduce how much we need to clear, for instance
+            // remove where there are opaque FB layers. however, on some
+            // GPUs doing a "clean slate" glClear might be more efficient.
+            // We'll revisit later if needed.
+            glClearColor(0, 0, 0, 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+        } else {
+            // screen is already cleared here
+            if (!mWormholeRegion.isEmpty()) {
+                // can happen with SurfaceView
+                drawWormhole();
+            }
         }
 
         /*
@@ -919,9 +925,11 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(layer->visibleRegionScreen));
             if (!clip.isEmpty()) {
-                if (cur && (cur[i].compositionType != HWC_FRAMEBUFFER)) {
-                    if ((cur[i].hints & HWC_HINT_CLEAR_FB)
+                if (cur && (cur[i].compositionType == HWC_OVERLAY)) {
+                    if (i && (cur[i].hints & HWC_HINT_CLEAR_FB)
                             && layer->isOpaque()) {
+                        // never clear the very first layer since we're
+                        // guaranteed the FB is already cleared
                         layer->clearWithOpenGL(clip);
                     }
                     continue;
@@ -988,25 +996,9 @@ void SurfaceFlinger::drawWormhole() const
         return;
 
     glDisable(GL_TEXTURE_EXTERNAL_OES);
+    glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-
-    if (CC_LIKELY(!mDebugBackground)) {
-        glDisable(GL_TEXTURE_2D);
-        glColor4f(0,0,0,0);
-    } else {
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
-        const int32_t width = hw.getWidth();
-        const int32_t height = hw.getHeight();
-        const GLfloat tcoords[][2] = { { 0, 0 }, { 1, 0 },  { 1, 1 }, { 0, 1 } };
-        glTexCoordPointer(2, GL_FLOAT, 0, tcoords);
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, mWormholeTexName);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glScalef(width*(1.0f/32.0f), height*(1.0f/32.0f), 1);
-    }
+    glColor4f(0,0,0,0);
 
     GLfloat vertices[4][2];
     glVertexPointer(2, GL_FLOAT, 0, vertices);
@@ -1024,11 +1016,6 @@ void SurfaceFlinger::drawWormhole() const
         vertices[3][1] = r.bottom;
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
-
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisable(GL_TEXTURE_2D);
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
 }
 
 status_t SurfaceFlinger::addLayer(const sp<LayerBase>& layer)
@@ -1714,10 +1701,6 @@ status_t SurfaceFlinger::onTransact(
                 invalidateHwcGeometry();
                 repaintEverything();
                 return NO_ERROR;
-            case 1003:  // SHOW_BACKGROUND
-                n = data.readInt32();
-                mDebugBackground = n ? 1 : 0;
-                return NO_ERROR;
             case 1004:{ // repaint everything
                 repaintEverything();
                 return NO_ERROR;
@@ -1746,7 +1729,7 @@ status_t SurfaceFlinger::onTransact(
                 reply->writeInt32(0);
                 reply->writeInt32(0);
                 reply->writeInt32(mDebugRegion);
-                reply->writeInt32(mDebugBackground);
+                reply->writeInt32(0);
                 reply->writeInt32(mDebugDisableHWC);
                 return NO_ERROR;
             case 1013: {
