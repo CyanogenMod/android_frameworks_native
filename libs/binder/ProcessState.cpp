@@ -295,6 +295,15 @@ void ProcessState::spawnPooledThread(bool isMain)
     }
 }
 
+status_t ProcessState::setThreadPoolMaxThreadCount(size_t maxThreads) {
+    status_t result = NO_ERROR;
+    if (ioctl(mDriverFD, BINDER_SET_MAX_THREADS, &maxThreads) == -1) {
+        result = -errno;
+        ALOGE("Binder ioctl to set max threads failed: %s", strerror(-result));
+    }
+    return result;
+}
+
 static int open_driver()
 {
     int fd = open("/dev/binder", O_RDWR);
