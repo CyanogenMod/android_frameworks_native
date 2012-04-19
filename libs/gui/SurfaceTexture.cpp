@@ -351,7 +351,7 @@ status_t SurfaceTexture::detachFromContext() {
     // new EGLDisplay).
     for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         EGLImageKHR img = mEGLSlots[i].mEglImage;
-        if (img != EGL_NO_IMAGE_KHR) {
+        if (img != EGL_NO_IMAGE_KHR && i != mCurrentTexture) {
             eglDestroyImageKHR(mEglDisplay, img);
             mEGLSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
         }
