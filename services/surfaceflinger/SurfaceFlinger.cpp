@@ -892,9 +892,10 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
 {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
+    hwc_layer_t* const cur(hwc.getLayers());
 
     const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);
-    if (fbLayerCount) {
+    if (!cur || fbLayerCount) {
         // Never touch the framebuffer if we don't have any framebuffer layers
 
         if (hwc.getLayerCount(HWC_OVERLAY)) {
@@ -917,7 +918,6 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
          * and then, render the layers targeted at the framebuffer
          */
 
-        hwc_layer_t* const cur(hwc.getLayers());
         const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
         const size_t count = layers.size();
 
