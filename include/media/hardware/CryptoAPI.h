@@ -22,6 +22,7 @@
 
 namespace android {
 
+struct AString;
 struct CryptoPlugin;
 
 struct CryptoFactory {
@@ -63,6 +64,12 @@ struct CryptoPlugin {
     // media data of the given mime type.
     virtual bool requiresSecureDecoderComponent(const char *mime) const = 0;
 
+    // If the error returned falls into the range
+    // ERROR_DRM_VENDOR_MIN..ERROR_DRM_VENDOR_MAX, errorDetailMsg should be
+    // filled in with an appropriate string.
+    // At the java level these special errors will then trigger a
+    // MediaCodec.CryptoException that gives clients access to both
+    // the error code and the errorDetailMsg.
     virtual status_t decrypt(
             bool secure,
             const uint8_t key[16],
@@ -70,7 +77,8 @@ struct CryptoPlugin {
             Mode mode,
             const void *srcPtr,
             const SubSample *subSamples, size_t numSubSamples,
-            void *dstPtr) = 0;
+            void *dstPtr,
+            AString *errorDetailMsg) = 0;
 
 private:
     CryptoPlugin(const CryptoPlugin &);
