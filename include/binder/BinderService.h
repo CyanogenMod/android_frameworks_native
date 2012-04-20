@@ -40,7 +40,6 @@ public:
     }
 
     static void publishAndJoinThreadPool(bool allowIsolated = false) {
-        sp<ProcessState> proc(ProcessState::self());
         sp<IServiceManager> sm(defaultServiceManager());
         sm->addService(String16(SERVICE::getServiceName()), new SERVICE(), allowIsolated);
         ProcessState::self()->startThreadPool();
