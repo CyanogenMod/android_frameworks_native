@@ -15,6 +15,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libstlport \
 	libutils \
+	libgui \
 
 LOCAL_STATIC_LIBRARIES := \
 	libgtest \

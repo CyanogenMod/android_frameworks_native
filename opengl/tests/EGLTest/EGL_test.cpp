@@ -19,6 +19,9 @@
 #include <utils/String8.h>
 
 #include <EGL/egl.h>
+#include <gui/SurfaceTextureClient.h>
+#include <gui/DummyConsumer.h>
+
 
 namespace android {
 
@@ -82,6 +85,35 @@ TEST_F(EGLTest, DISABLED_EGLConfigEightBitFirst) {
     EXPECT_GE(components[0], 8);
     EXPECT_GE(components[1], 8);
     EXPECT_GE(components[2], 8);
+}
+
+TEST_F(EGLTest, EGLTerminateSucceedsWithRemainingObjects) {
+    EGLint numConfigs;
+    EGLConfig config;
+    EGLint attrs[] = {
+        EGL_SURFACE_TYPE,       EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_ALPHA_SIZE,         8,
+        EGL_NONE
+    };
+    EXPECT_TRUE(eglChooseConfig(mEglDisplay, attrs, &config, 1, &numConfigs));
+
+    // Create a EGLSurface
+    sp<BufferQueue> bq = new BufferQueue();
+    bq->consumerConnect(new DummyConsumer());
+    sp<SurfaceTextureClient> mSTC = new SurfaceTextureClient(static_cast<sp<ISurfaceTexture> >( bq));
+    sp<ANativeWindow> mANW = mSTC;
+
+    EGLSurface eglSurface = eglCreateWindowSurface(mEglDisplay, config,
+                                mANW.get(), NULL);
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    ASSERT_NE(EGL_NO_SURFACE, eglSurface) ;
+
+    // do not destroy eglSurface
+    // eglTerminate is called in the tear down and should destroy it for us
 }
 
 TEST_F(EGLTest, EGLConfigRGBA8888First) {
