@@ -187,6 +187,10 @@ private:
     // window. this is only a hint, actual transform may differ.
     uint32_t mTransformHint;
 
+    // mConsumerRunningBehind whether the consumer is running more than
+    // one buffer behind the producer.
+    mutable bool mConsumerRunningBehind;
+
     // mMutex is the mutex used to prevent concurrent access to the member
     // variables of SurfaceTexture objects. It must be locked whenever the
     // member variables are accessed.

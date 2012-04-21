@@ -252,6 +252,9 @@ int BufferQueue::query(int what, int* outValue)
         value = mSynchronousMode ?
                 (mMinUndequeuedBuffers-1) : mMinUndequeuedBuffers;
         break;
+    case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND:
+        value = (mQueue.size() >= 2);
+        break;
     default:
         return BAD_VALUE;
     }
@@ -615,7 +618,8 @@ status_t BufferQueue::queueBuffer(int buf,
         mBufferHasBeenQueued = true;
         mDequeueCondition.broadcast();
 
-        output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint);
+        output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint,
+                mQueue.size());
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } // scope for the lock
@@ -678,7 +682,8 @@ status_t BufferQueue::connect(int api, QueueBufferOutput* output) {
                 err = -EINVAL;
             } else {
                 mConnectedApi = api;
-                output->inflate(mDefaultWidth, mDefaultHeight, mDefaultHeight);
+                output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint,
+                        mQueue.size());
             }
             break;
         default:

@@ -83,6 +83,7 @@ void SurfaceTextureClient::init() {
     mUserWidth = 0;
     mUserHeight = 0;
     mTransformHint = 0;
+    mConsumerRunningBehind = false;
     mConnectedToCpu = false;
 }
 
@@ -243,7 +244,12 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
-    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint);
+    uint32_t numPendingBuffers = 0;
+    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
+            &numPendingBuffers);
+
+    mConsumerRunningBehind = (numPendingBuffers >= 2);
+
     return err;
 }
 
@@ -259,17 +265,16 @@ int SurfaceTextureClient::query(int what, int* value) const {
                     return NO_ERROR;
                 }
                 break;
-            case NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER:
-                {
-                    sp<ISurfaceComposer> composer(
-                            ComposerService::getComposerService());
-                    if (composer->authenticateSurfaceTexture(mSurfaceTexture)) {
-                        *value = 1;
-                    } else {
-                        *value = 0;
-                    }
+            case NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER: {
+                sp<ISurfaceComposer> composer(
+                        ComposerService::getComposerService());
+                if (composer->authenticateSurfaceTexture(mSurfaceTexture)) {
+                    *value = 1;
+                } else {
+                    *value = 0;
                 }
                 return NO_ERROR;
+            }
             case NATIVE_WINDOW_CONCRETE_TYPE:
                 *value = NATIVE_WINDOW_SURFACE_TEXTURE_CLIENT;
                 return NO_ERROR;
@@ -282,6 +287,18 @@ int SurfaceTextureClient::query(int what, int* value) const {
             case NATIVE_WINDOW_TRANSFORM_HINT:
                 *value = mTransformHint;
                 return NO_ERROR;
+            case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND: {
+                status_t err = NO_ERROR;
+                if (!mConsumerRunningBehind) {
+                    *value = 0;
+                } else {
+                    err = mSurfaceTexture->query(what, value);
+                    if (err == NO_ERROR) {
+                        mConsumerRunningBehind = *value;
+                    }
+                }
+                return err;
+            }
         }
     }
     return mSurfaceTexture->query(what, value);
@@ -431,7 +448,12 @@ int SurfaceTextureClient::connect(int api) {
     Mutex::Autolock lock(mMutex);
     ISurfaceTexture::QueueBufferOutput output;
     int err = mSurfaceTexture->connect(api, &output);
-    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint);
+    if (err == NO_ERROR) {
+        uint32_t numPendingBuffers = 0;
+        output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
+                &numPendingBuffers);
+        mConsumerRunningBehind = (numPendingBuffers >= 2);
+    }
     if (!err && api == NATIVE_WINDOW_API_CPU) {
         mConnectedToCpu = true;
     }

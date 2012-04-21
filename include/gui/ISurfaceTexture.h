@@ -107,21 +107,26 @@ protected:
     struct QueueBufferOutput {
         inline QueueBufferOutput() { }
         inline void deflate(uint32_t* outWidth,
-                uint32_t* outHeight, uint32_t* outTransformHint) const {
+                uint32_t* outHeight,
+                uint32_t* outTransformHint,
+                uint32_t* outNumPendingBuffers) const {
             *outWidth = width;
             *outHeight = height;
             *outTransformHint = transformHint;
+            *outNumPendingBuffers = numPendingBuffers;
         }
         inline void inflate(uint32_t inWidth, uint32_t inHeight,
-                uint32_t inTransformHint) {
+                uint32_t inTransformHint, uint32_t inNumPendingBuffers) {
             width = inWidth;
             height = inHeight;
             transformHint = inTransformHint;
+            numPendingBuffers = inNumPendingBuffers;
         }
     private:
         uint32_t width;
         uint32_t height;
         uint32_t transformHint;
+        uint32_t numPendingBuffers;
     };
 
     virtual status_t queueBuffer(int slot,
