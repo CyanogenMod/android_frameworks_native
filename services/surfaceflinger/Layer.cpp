@@ -101,11 +101,8 @@ void Layer::onFirstRef()
     // Creates a custom BufferQueue for SurfaceTexture to use
     sp<BufferQueue> bq = new SurfaceTextureLayer();
     mSurfaceTexture = new SurfaceTexture(mTextureName, true,
-            GL_TEXTURE_EXTERNAL_OES, false,bq);
+            GL_TEXTURE_EXTERNAL_OES, false, bq);
 
-
-
-    mSurfaceTexture->setTransformHint(getTransformHint());
     mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceTexture->setFrameAvailableListener(new FrameQueuedListener(this));
     mSurfaceTexture->setSynchronousMode(true);

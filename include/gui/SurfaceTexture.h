@@ -185,8 +185,6 @@ public:
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
     virtual status_t setSynchronousMode(bool enabled);
-    virtual status_t connect(int api,
-                uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
 
     // getBufferQueue returns the BufferQueue object to which this
     // SurfaceTexture is connected.

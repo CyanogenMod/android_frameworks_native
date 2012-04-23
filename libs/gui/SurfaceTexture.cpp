@@ -743,13 +743,6 @@ sp<BufferQueue> SurfaceTexture::getBufferQueue() const {
     return mBufferQueue;
 }
 
-// Used for refactoring, should not be in final interface
-status_t SurfaceTexture::connect(int api,
-                uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->connect(api, outWidth, outHeight, outTransform);
-}
-
 void SurfaceTexture::onFrameAvailable() {
     ST_LOGV("onFrameAvailable");
 
