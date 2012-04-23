@@ -145,8 +145,7 @@ public:
         return result;
     }
 
-    virtual status_t connect(int api,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
+    virtual status_t connect(int api, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(api);
@@ -154,9 +153,7 @@ public:
         if (result != NO_ERROR) {
             return result;
         }
-        *outWidth = reply.readInt32();
-        *outHeight = reply.readInt32();
-        *outTransform = reply.readInt32();
+        memcpy(output, reply.readInplace(sizeof(*output)), sizeof(*output));
         result = reply.readInt32();
         return result;
     }
@@ -251,12 +248,10 @@ status_t BnSurfaceTexture::onTransact(
         case CONNECT: {
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int api = data.readInt32();
-            uint32_t outWidth, outHeight, outTransform;
-            status_t res = connect(api,
-                    &outWidth, &outHeight, &outTransform);
-            reply->writeInt32(outWidth);
-            reply->writeInt32(outHeight);
-            reply->writeInt32(outTransform);
+            QueueBufferOutput* const output =
+                    reinterpret_cast<QueueBufferOutput *>(
+                            reply->writeInplace(sizeof(QueueBufferOutput)));
+            status_t res = connect(api, output);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;

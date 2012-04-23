@@ -37,8 +37,7 @@ public:
     SurfaceTextureLayer();
     ~SurfaceTextureLayer();
 
-    virtual status_t connect(int api,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
+    virtual status_t connect(int api, QueueBufferOutput* output);
 };
 
 // ---------------------------------------------------------------------------

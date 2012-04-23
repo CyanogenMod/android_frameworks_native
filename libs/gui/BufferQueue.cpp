@@ -651,8 +651,7 @@ void BufferQueue::cancelBuffer(int buf) {
     mDequeueCondition.broadcast();
 }
 
-status_t BufferQueue::connect(int api,
-        uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
+status_t BufferQueue::connect(int api, QueueBufferOutput* output) {
     ATRACE_CALL();
     ST_LOGV("connect: api=%d", api);
     Mutex::Autolock lock(mMutex);
@@ -679,9 +678,7 @@ status_t BufferQueue::connect(int api,
                 err = -EINVAL;
             } else {
                 mConnectedApi = api;
-                *outWidth = mDefaultWidth;
-                *outHeight = mDefaultHeight;
-                *outTransform = mTransformHint;
+                output->inflate(mDefaultWidth, mDefaultHeight, mDefaultHeight);
             }
             break;
         default:

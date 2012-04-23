@@ -153,8 +153,7 @@ protected:
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
     // respectively.
-    virtual status_t connect(int api,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) = 0;
+    virtual status_t connect(int api, QueueBufferOutput* output) = 0;
 
     // disconnect attempts to disconnect a client API from the SurfaceTexture.
     // Calling this method will cause any subsequent calls to other

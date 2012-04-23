@@ -143,8 +143,7 @@ public:
     //
     // This method will fail if the connect was previously called on the
     // BufferQueue and no corresponding disconnect call was made.
-    virtual status_t connect(int api,
-            uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform);
+    virtual status_t connect(int api, QueueBufferOutput* output);
 
     // disconnect attempts to disconnect a producer client API from the
     // BufferQueue. Calling this method will cause any subsequent calls to other

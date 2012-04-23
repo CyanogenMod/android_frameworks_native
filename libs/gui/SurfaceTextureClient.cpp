@@ -429,8 +429,9 @@ int SurfaceTextureClient::connect(int api) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::connect");
     Mutex::Autolock lock(mMutex);
-    int err = mSurfaceTexture->connect(api,
-            &mDefaultWidth, &mDefaultHeight, &mTransformHint);
+    ISurfaceTexture::QueueBufferOutput output;
+    int err = mSurfaceTexture->connect(api, &output);
+    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint);
     if (!err && api == NATIVE_WINDOW_API_CPU) {
         mConnectedToCpu = true;
     }

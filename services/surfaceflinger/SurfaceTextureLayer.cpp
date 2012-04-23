@@ -34,10 +34,8 @@ SurfaceTextureLayer::SurfaceTextureLayer()
 SurfaceTextureLayer::~SurfaceTextureLayer() {
 }
 
-status_t SurfaceTextureLayer::connect(int api,
-        uint32_t* outWidth, uint32_t* outHeight, uint32_t* outTransform) {
-    status_t err = BufferQueue::connect(api,
-            outWidth, outHeight, outTransform);
+status_t SurfaceTextureLayer::connect(int api, QueueBufferOutput* output) {
+    status_t err = BufferQueue::connect(api, output);
     if (err == NO_ERROR) {
         switch(api) {
             case NATIVE_WINDOW_API_MEDIA:
