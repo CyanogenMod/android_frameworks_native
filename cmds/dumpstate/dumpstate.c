@@ -313,6 +313,14 @@ int main(int argc, char *argv[]) {
     int use_socket = 0;
     int do_fb = 0;
 
+    if (getuid() != 0) {
+        // Old versions of the adb client would call the
+        // dumpstate command directly. Newer clients
+        // call /system/bin/bugreport instead. If we detect
+        // we're being called incorrectly, then exec the
+        // correct program.
+        return execl("/system/bin/bugreport", "/system/bin/bugreport", NULL);
+    }
     ALOGI("begin\n");
 
     signal(SIGPIPE, SIG_IGN);
@@ -357,44 +365,42 @@ int main(int argc, char *argv[]) {
         fclose(cmdline);
     }
 
-    if (getuid() == 0) {
-        if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
-            ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
-            return -1;
-        }
+    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
+        ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
+        return -1;
+    }
 
-        /* switch to non-root user and group */
-        gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
-                AID_MOUNT, AID_INET, AID_NET_BW_STATS };
-        if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
-            ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
-            return -1;
-        }
-        if (setgid(AID_SHELL) != 0) {
-            ALOGE("Unable to setgid, aborting: %s\n", strerror(errno));
-            return -1;
-        }
-        if (setuid(AID_SHELL) != 0) {
-            ALOGE("Unable to setuid, aborting: %s\n", strerror(errno));
-            return -1;
-        }
+    /* switch to non-root user and group */
+    gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
+            AID_MOUNT, AID_INET, AID_NET_BW_STATS };
+    if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
+        ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
+        return -1;
+    }
+    if (setgid(AID_SHELL) != 0) {
+        ALOGE("Unable to setgid, aborting: %s\n", strerror(errno));
+        return -1;
+    }
+    if (setuid(AID_SHELL) != 0) {
+        ALOGE("Unable to setuid, aborting: %s\n", strerror(errno));
+        return -1;
+    }
 
-        struct __user_cap_header_struct capheader;
-        struct __user_cap_data_struct capdata[2];
-        memset(&capheader, 0, sizeof(capheader));
-        memset(&capdata, 0, sizeof(capdata));
-        capheader.version = _LINUX_CAPABILITY_VERSION_3;
-        capheader.pid = 0;
+    struct __user_cap_header_struct capheader;
+    struct __user_cap_data_struct capdata[2];
+    memset(&capheader, 0, sizeof(capheader));
+    memset(&capdata, 0, sizeof(capdata));
+    capheader.version = _LINUX_CAPABILITY_VERSION_3;
+    capheader.pid = 0;
 
-        capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
-        capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
-        capdata[0].inheritable = 0;
-        capdata[1].inheritable = 0;
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[0].inheritable = 0;
+    capdata[1].inheritable = 0;
 
-        if (capset(&capheader, &capdata[0]) < 0) {
-            ALOGE("capset failed: %s\n", strerror(errno));
-            return -1;
-        }
+    if (capset(&capheader, &capdata[0]) < 0) {
+        ALOGE("capset failed: %s\n", strerror(errno));
+        return -1;
     }
 
     char path[PATH_MAX], tmp_path[PATH_MAX];
