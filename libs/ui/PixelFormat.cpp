@@ -91,7 +91,7 @@ ssize_t bitsPerPixel(PixelFormat format)
 
 status_t getPixelFormatInfo(PixelFormat format, PixelFormatInfo* info)
 {
-    if (format < 0)
+    if (format <= 0)
         return BAD_VALUE;
 
     if (info->version != sizeof(PixelFormatInfo))
