@@ -75,8 +75,9 @@ int acceptClientConnection(char *sockname) {
         return -1;
     }
 
-    // Only accept connects from the shell (adb forward comes to us as shell user)
-    if (cr.uid != AID_SHELL) {
+    // Only accept connects from the shell (adb forward comes to us as shell user),
+    // or the root user.
+    if (cr.uid != AID_SHELL && cr.uid != AID_ROOT) {
         ALOGE("Unknown peer type (%d), expected shell to be the peer", cr.uid);
         return -1;
     }
