@@ -125,19 +125,21 @@ void HWComposer::vsync(int dpy, int64_t timestamp) {
     mEventHandler.onVSyncReceived(dpy, timestamp);
 }
 
-status_t HWComposer::eventControl(int event, int enabled) {
+void HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
     if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
         if (!mDebugForceFakeVSync) {
             err = mHwc->methods->eventControl(mHwc, event, enabled);
+            // error here should not happen -- not sure what we should
+            // do if it does.
+            ALOGE_IF(err, "eventControl(%d, %d) failed %s",
+                    event, enabled, strerror(-err));
         }
     }
 
     if (err == NO_ERROR && mVSyncThread != NULL) {
         mVSyncThread->setEnabled(enabled);
     }
-
-    return err;
 }
 
 void HWComposer::setFrameBuffer(EGLDisplay dpy, EGLSurface sur) {

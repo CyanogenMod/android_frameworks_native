@@ -31,6 +31,7 @@
 
 #include "DisplayHardware/DisplayHardwareBase.h"
 #include "HWComposer.h"
+#include "PowerHAL.h"
 
 namespace android {
 
@@ -86,6 +87,12 @@ public:
 
     void setVSyncHandler(const sp<VSyncHandler>& handler);
 
+    enum {
+        EVENT_VSYNC = HWC_EVENT_VSYNC
+    };
+
+    void eventControl(int event, int enabled);
+
 
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
@@ -129,6 +136,8 @@ private:
 
     // constant once set
     HWComposer*     mHwc;
+    PowerHAL        mPowerHAL;
+
 
     mutable Mutex   mLock;
 

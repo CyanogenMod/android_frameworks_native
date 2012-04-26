@@ -358,6 +358,13 @@ void DisplayHardware::setVSyncHandler(const sp<VSyncHandler>& handler) {
     mVSyncHandler = handler;
 }
 
+void DisplayHardware::eventControl(int event, int enabled) {
+    if (event == EVENT_VSYNC) {
+        mPowerHAL.vsyncHint(enabled);
+    }
+    mHwc->eventControl(event, enabled);
+}
+
 void DisplayHardware::onVSyncReceived(int dpy, nsecs_t timestamp) {
     sp<VSyncHandler> handler;
     { // scope for the lock

@@ -253,13 +253,13 @@ bool EventThread::threadLoop() {
 void EventThread::enableVSyncLocked() {
     if (!mUseSoftwareVSync) {
         // never enable h/w VSYNC when screen is off
-        mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, true);
+        mHw.eventControl(DisplayHardware::EVENT_VSYNC, true);
     }
     mDebugVsyncEnabled = true;
 }
 
 void EventThread::disableVSyncLocked() {
-    mHw.getHwComposer().eventControl(HWComposer::EVENT_VSYNC, false);
+    mHw.eventControl(DisplayHardware::EVENT_VSYNC, false);
     mDebugVsyncEnabled = false;
 }
 

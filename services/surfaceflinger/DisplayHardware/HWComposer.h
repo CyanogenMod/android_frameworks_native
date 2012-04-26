@@ -86,7 +86,7 @@ public:
         EVENT_VSYNC = HWC_EVENT_VSYNC
     };
 
-    status_t eventControl(int event, int enabled);
+    void eventControl(int event, int enabled);
 
     // this class is only used to fake the VSync event on systems that don't
     // have it.

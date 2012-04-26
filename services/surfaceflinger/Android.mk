@@ -10,6 +10,7 @@ LOCAL_SRC_FILES:= \
     DisplayHardware/DisplayHardware.cpp     \
     DisplayHardware/DisplayHardwareBase.cpp \
     DisplayHardware/HWComposer.cpp          \
+    DisplayHardware/PowerHAL.cpp            \
     GLExtensions.cpp                        \
     MessageQueue.cpp                        \
     SurfaceFlinger.cpp                      \
