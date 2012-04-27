@@ -36,6 +36,7 @@ public:
 
 private:
     power_module_t*   mPowerModule;
+    bool mVSyncHintEnabled;
 };
 
 // ---------------------------------------------------------------------------

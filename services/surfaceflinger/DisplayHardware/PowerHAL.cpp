@@ -25,7 +25,7 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-PowerHAL::PowerHAL() : mPowerModule(0) {
+PowerHAL::PowerHAL() : mPowerModule(0), mVSyncHintEnabled(false) {
     int err = hw_get_module(POWER_HARDWARE_MODULE_ID,
             (const hw_module_t **)&mPowerModule);
     ALOGW_IF(err, "%s module not found", POWER_HARDWARE_MODULE_ID);
@@ -44,7 +44,11 @@ status_t PowerHAL::vsyncHint(bool enabled) {
     }
     if (mPowerModule->common.module_api_version >= POWER_MODULE_API_VERSION_0_2) {
         if (mPowerModule->powerHint) {
-            mPowerModule->powerHint(mPowerModule, POWER_HINT_VSYNC, (void*)enabled);
+            if (mVSyncHintEnabled != bool(enabled)) {
+                mPowerModule->powerHint(mPowerModule,
+                        POWER_HINT_VSYNC, (void*)enabled);
+                mVSyncHintEnabled = bool(enabled);
+            }
         }
     }
     return NO_ERROR;
