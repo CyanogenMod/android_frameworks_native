@@ -352,7 +352,7 @@ status_t SurfaceTexture::detachFromContext() {
     // new EGLDisplay).
     for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         EGLImageKHR img = mEGLSlots[i].mEglImage;
-        if (img != EGL_NO_IMAGE_KHR && i != mCurrentTexture) {
+        if (img != EGL_NO_IMAGE_KHR) {
             eglDestroyImageKHR(mEglDisplay, img);
             mEGLSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
         }
@@ -399,21 +399,12 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
     glBindTexture(mTexTarget, tex);
 
     if (mCurrentTextureBuf != NULL) {
-        // If the current buffer is no longer associated with a slot, then it
-        // doesn't have an EGLImage.  In that case we create one now, but we also
-        // destroy it once we've used it to attach the buffer to the OpenGL ES
-        // texture.
-        bool imageNeedsDestroy = false;
-        EGLImageKHR image = EGL_NO_IMAGE_KHR;
-        if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-            image = mEGLSlots[mCurrentTexture].mEglImage;
-            imageNeedsDestroy = false;
-        } else {
-            image = createImage(dpy, mCurrentTextureBuf);
-            if (image == EGL_NO_IMAGE_KHR) {
-                return UNKNOWN_ERROR;
-            }
-            imageNeedsDestroy = true;
+        // The EGLImageKHR that was associated with the slot was destroyed when
+        // the SurfaceTexture was detached from the old context, so we need to
+        // recreate it here.
+        EGLImageKHR image = createImage(dpy, mCurrentTextureBuf);
+        if (image == EGL_NO_IMAGE_KHR) {
+            return UNKNOWN_ERROR;
         }
 
         // Attach the current buffer to the GL texture.
@@ -427,9 +418,12 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
             err = UNKNOWN_ERROR;
         }
 
-        if (imageNeedsDestroy) {
-            eglDestroyImageKHR(dpy, image);
-        }
+        // We destroy the EGLImageKHR here because the current buffer may no
+        // longer be associated with one of the buffer slots, so we have
+        // nowhere to to store it.  If the buffer is still associated with a
+        // slot then another EGLImageKHR will be created next time that buffer
+        // gets acquired in updateTexImage.
+        eglDestroyImageKHR(dpy, image);
 
         if (err != OK) {
             return err;
