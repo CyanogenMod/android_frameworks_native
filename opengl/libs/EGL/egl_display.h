@@ -155,7 +155,12 @@ private:
         };
 
         HibernationMachine(): mWakeCount(0), mHibernating(false),
-                mAttemptHibernation(false), mDpyValid(false)
+                mAttemptHibernation(false), mDpyValid(false),
+#if BOARD_ALLOW_EGL_HIBERNATION
+                mAllowHibernation(true)
+#else
+                mAllowHibernation(false)
+#endif
         {}
         ~HibernationMachine() {}
 
@@ -165,11 +170,12 @@ private:
         void setDisplayValid(bool valid);
 
     private:
-        Mutex   mLock;
-        int32_t mWakeCount;
-        bool    mHibernating;
-        bool    mAttemptHibernation;
-        bool    mDpyValid;
+        Mutex      mLock;
+        int32_t    mWakeCount;
+        bool       mHibernating;
+        bool       mAttemptHibernation;
+        bool       mDpyValid;
+        const bool mAllowHibernation;
     };
     HibernationMachine mHibernation;
 };
