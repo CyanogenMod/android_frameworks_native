@@ -420,7 +420,7 @@ void egl_display_t::HibernationMachine::decWakeCount(WakeRefStrength strength) {
     if (mWakeCount == 0 && CC_UNLIKELY(mAttemptHibernation)) {
         egl_connection_t* const cnx = &gEGLImpl;
         mAttemptHibernation = false;
-        if (mDpyValid &&
+        if (mAllowHibernation && mDpyValid &&
                 cnx->egl.eglHibernateProcessIMG &&
                 cnx->egl.eglAwakenProcessIMG) {
             ALOGV("Hibernating\n");
