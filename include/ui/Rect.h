@@ -136,10 +136,18 @@ public:
     void translate(int32_t dx, int32_t dy) { // legacy, don't use.
         offsetBy(dx, dy);
     }
- 
+
     Rect&   offsetTo(int32_t x, int32_t y);
     Rect&   offsetBy(int32_t x, int32_t y);
     bool    intersect(const Rect& with, Rect* result) const;
+
+    // Create a new Rect by transforming this one using a graphics HAL
+    // transform.  This rectangle is defined in a coordinate space starting at
+    // the origin and extending to (width, height).  If the transform includes
+    // a ROT90 then the output rectangle is defined in a space extending to
+    // (height, width).  Otherwise the output rectangle is in the same space as
+    // the input.
+    Rect transform(uint32_t xform, int32_t width, int32_t height);
 };
 
 ANDROID_BASIC_TYPES_TRAITS(Rect)
