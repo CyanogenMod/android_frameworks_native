@@ -140,8 +140,7 @@ ssize_t BitTube::sendObjects(const sp<BitTube>& tube,
         ssize_t size = tube->write(vaddr, objSize);
         if (size < 0) {
             // error occurred
-            numObjects = -size;
-            break;
+            return size;
         } else if (size == 0) {
             // no more space
             break;
@@ -160,8 +159,7 @@ ssize_t BitTube::recvObjects(const sp<BitTube>& tube,
         ssize_t size = tube->read(vaddr, objSize);
         if (size < 0) {
             // error occurred
-            numObjects = -size;
-            break;
+            return size;
         } else if (size == 0) {
             // no more messages
             break;

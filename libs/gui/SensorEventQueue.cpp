@@ -79,11 +79,18 @@ status_t SensorEventQueue::waitForEvent() const
     const int fd = getFd();
     sp<Looper> looper(getLooper());
 
+    int events;
     int32_t result;
     do {
-        result = looper->pollOnce(-1);
-        if (result == ALOOPER_EVENT_ERROR) {
+        result = looper->pollOnce(-1, NULL, &events, NULL);
+        if (result == ALOOPER_POLL_ERROR) {
             ALOGE("SensorEventQueue::waitForEvent error (errno=%d)", errno);
+            result = -EPIPE; // unknown error, so we make up one
+            break;
+        }
+        if (events & ALOOPER_EVENT_HANGUP) {
+            // the other-side has died
+            ALOGE("SensorEventQueue::waitForEvent error HANGUP");
             result = -EPIPE; // unknown error, so we make up one
             break;
         }
