@@ -294,7 +294,6 @@ status_t SurfaceTexture::updateTexImage() {
         mCurrentTransform = item.mTransform;
         mCurrentScalingMode = item.mScalingMode;
         mCurrentTimestamp = item.mTimestamp;
-        mCurrentActiveRect = item.mActiveRect;
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
@@ -534,8 +533,9 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
     }
 
     sp<GraphicBuffer>& buf(mCurrentTextureBuf);
+    Rect cropRect = mCurrentCrop;
     float tx, ty, sx, sy;
-    if (!mCurrentCrop.isEmpty()) {
+    if (!cropRect.isEmpty()) {
         // In order to prevent bilinear sampling at the of the crop rectangle we
         // may need to shrink it by 2 texels in each direction.  Normally this
         // would just need to take 1/2 a texel off each end, but because the
@@ -552,14 +552,16 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
         // correct edge behavior.
         const float shrinkAmount = 1.0f; // the amount that each edge is shrunk
 
-        tx = (float(mCurrentCrop.left) + shrinkAmount) /
-                float(buf->getWidth());
-        ty = (float(buf->getHeight() - mCurrentCrop.bottom) +
-                shrinkAmount) / float(buf->getHeight());
-        sx = (float(mCurrentCrop.width()) - (2.0f * shrinkAmount)) /
-                float(buf->getWidth());
-        sy = (float(mCurrentCrop.height()) - (2.0f * shrinkAmount)) /
-                float(buf->getHeight());
+        float bufferWidth = buf->getWidth();
+        float bufferHeight = buf->getHeight();
+
+        tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
+        ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
+                bufferHeight;
+        sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
+                bufferWidth;
+        sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
+                bufferHeight;
     } else {
         tx = 0.0f;
         ty = 0.0f;
@@ -651,11 +653,6 @@ Rect SurfaceTexture::getCurrentCrop() const {
     }
 
     return outCrop;
-}
-
-Rect SurfaceTexture::getCurrentActiveRect() const {
-    Mutex::Autolock lock(mMutex);
-    return mCurrentActiveRect;
 }
 
 uint32_t SurfaceTexture::getCurrentTransform() const {
