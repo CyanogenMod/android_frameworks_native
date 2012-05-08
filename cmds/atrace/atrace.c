@@ -29,6 +29,7 @@
 static int g_traceDurationSeconds = 5;
 static bool g_traceSchedSwitch = false;
 static bool g_traceCpuFrequency = false;
+static bool g_traceCpuIdle = false;
 static bool g_traceGovernorLoad = false;
 static bool g_traceWorkqueue = false;
 static bool g_traceOverwrite = false;
@@ -53,6 +54,9 @@ static const char* k_schedSwitchEnablePath =
 
 static const char* k_cpuFreqEnablePath =
     "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable";
+
+static const char* k_cpuIdleEnablePath =
+    "/sys/kernel/debug/tracing/events/power/cpu_idle/enable";
 
 static const char* k_governorLoadEnablePath =
     "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable";
@@ -115,6 +119,12 @@ static bool setSchedSwitchTracingEnable(bool enable)
 static bool setCpuFrequencyTracingEnable(bool enable)
 {
     return setKernelOptionEnable(k_cpuFreqEnablePath, enable);
+}
+
+// Enable or disable tracing of CPU idle events.
+static bool setCpuIdleTracingEnable(bool enable)
+{
+    return setKernelOptionEnable(k_cpuIdleEnablePath, enable);
 }
 
 // Enable or disable tracing of the interactive CPU frequency governor's idea of
@@ -184,6 +194,7 @@ static bool startTrace()
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
     ok &= setCpuFrequencyTracingEnable(g_traceCpuFrequency);
+    ok &= setCpuIdleTracingEnable(g_traceCpuIdle);
     if (fileExists(k_governorLoadEnablePath) || g_traceGovernorLoad) {
         ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
     }
@@ -363,7 +374,7 @@ int main(int argc, char **argv)
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "b:cflst:wz");
+        ret = getopt(argc, argv, "b:ciflst:wz");
 
         if (ret < 0) {
             break;
@@ -376,6 +387,10 @@ int main(int argc, char **argv)
 
             case 'c':
                 g_traceOverwrite = true;
+            break;
+
+            case 'i':
+                g_traceCpuIdle = true;
             break;
 
             case 'l':
