@@ -141,6 +141,47 @@ void Layer::setName(const String8& name) {
 void Layer::validateVisibility(const Transform& globalTransform) {
     LayerBase::validateVisibility(globalTransform);
 
+    if (mCurrentScalingMode == NATIVE_WINDOW_SCALING_MODE_FREEZE &&
+            !mCurrentCrop.isEmpty()) {
+        // We need to shrink the window size to match the buffer crop
+        // rectangle.
+        const Layer::State& s(drawingState());
+        const Transform tr(globalTransform * s.transform);
+        float windowWidth = s.w;
+        float windowHeight = s.h;
+        float bufferWidth = mActiveBuffer->getWidth();
+        float bufferHeight = mActiveBuffer->getHeight();
+        if (mCurrentTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            float tmp = bufferWidth;
+            bufferWidth = bufferHeight;
+            bufferHeight = tmp;
+        }
+        float xScale = float(windowWidth) / float(bufferWidth);
+        float yScale = float(windowHeight) / float(bufferHeight);
+
+        // Compute the crop in post-transform coordinates.
+        Rect crop(mCurrentCrop.transform(mCurrentTransform,
+                    mActiveBuffer->getWidth(), mActiveBuffer->getHeight()));
+
+        float left = ceil(xScale * float(crop.left));
+        float right = floor(xScale * float(crop.right));
+        float top = ceil(yScale * float(crop.top));
+        float bottom = floor(yScale * float(crop.bottom));
+
+        tr.transform(mVertices[0], left, top);
+        tr.transform(mVertices[1], left, bottom);
+        tr.transform(mVertices[2], right, bottom);
+        tr.transform(mVertices[3], right, top);
+
+        const DisplayHardware& hw(graphicPlane(0).displayHardware());
+        const uint32_t hw_h = hw.getHeight();
+        for (size_t i=0 ; i<4 ; i++)
+            mVertices[i][1] = hw_h - mVertices[i][1];
+
+        mTransformedBounds = tr.transform(
+                Rect(int(left), int(top), int(right), int(bottom)));
+    }
+
     // This optimization allows the SurfaceTexture to bake in
     // the rotation so hardware overlays can be used
     mSurfaceTexture->setTransformHint(getTransformHint());
@@ -489,7 +530,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mFlinger->invalidateHwcGeometry();
         }
 
-        const Rect crop(mSurfaceTexture->getCurrentCrop());
+        Rect crop(mSurfaceTexture->getCurrentCrop());
         const uint32_t transform(mSurfaceTexture->getCurrentTransform());
         const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
         if ((crop != mCurrentCrop) ||

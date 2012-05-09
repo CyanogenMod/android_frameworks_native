@@ -77,6 +77,7 @@ public:
             Rect    makeBounds(int w, int h) const;
             void    transform(float* point, int x, int y) const;
             Region  transform(const Region& reg) const;
+            Rect    transform(const Rect& bounds) const;
             Transform operator * (const Transform& rhs) const;
 
             // for debugging
@@ -112,7 +113,6 @@ private:
     // assumes the last row is < 0 , 0 , 1 >
     vec2 transform(const vec2& v) const;
     vec3 transform(const vec3& v) const;
-    Rect transform(const Rect& bounds) const;
     uint32_t type() const;
     static bool absIsOne(float f);
     static bool isZero(float f);
