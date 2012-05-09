@@ -317,16 +317,24 @@ void Layer::onDraw(const Region& clip) const
     }
 
     if (!isProtected()) {
+        // TODO: we could be more subtle with isFixedSize()
+        const bool useFiltering = getFiltering() || needsFiltering() || isFixedSize();
+
+        // Query the texture matrix given our current filtering mode.
+        float textureMatrix[16];
+        mSurfaceTexture->setFilteringEnabled(useFiltering);
+        mSurfaceTexture->getTransformMatrix(textureMatrix);
+
+        // Set things up for texturing.
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
         GLenum filter = GL_NEAREST;
-        if (getFiltering() || needsFiltering() || isFixedSize() || isCropped()) {
-            // TODO: we could be more subtle with isFixedSize()
+        if (useFiltering) {
             filter = GL_LINEAR;
         }
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
         glMatrixMode(GL_TEXTURE);
-        glLoadMatrixf(mTextureMatrix);
+        glLoadMatrixf(textureMatrix);
         glMatrixMode(GL_MODELVIEW);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_TEXTURE_EXTERNAL_OES);
@@ -491,13 +499,6 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mCurrentCrop = crop;
             mCurrentTransform = transform;
             mCurrentScalingMode = scalingMode;
-            mFlinger->invalidateHwcGeometry();
-        }
-
-        GLfloat textureMatrix[16];
-        mSurfaceTexture->getTransformMatrix(textureMatrix);
-        if (memcmp(textureMatrix, mTextureMatrix, sizeof(textureMatrix))) {
-            memcpy(mTextureMatrix, textureMatrix, sizeof(textureMatrix));
             mFlinger->invalidateHwcGeometry();
         }
 
