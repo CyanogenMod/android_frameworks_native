@@ -108,6 +108,7 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
         GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
     mCurrentTransform(0),
     mCurrentTimestamp(0),
+    mFilteringEnabled(true),
     mTexName(tex),
 #ifdef USE_FENCE_SYNC
     mUseFenceSync(useFenceSync),
@@ -503,6 +504,15 @@ void SurfaceTexture::getTransformMatrix(float mtx[16]) {
     memcpy(mtx, mCurrentTransformMatrix, sizeof(mCurrentTransformMatrix));
 }
 
+void SurfaceTexture::setFilteringEnabled(bool enabled) {
+    Mutex::Autolock lock(mMutex);
+    bool needsRecompute = mFilteringEnabled != enabled;
+    mFilteringEnabled = enabled;
+    if (needsRecompute) {
+        computeCurrentTransformMatrix();
+    }
+}
+
 void SurfaceTexture::computeCurrentTransformMatrix() {
     ST_LOGV("computeCurrentTransformMatrix");
 
@@ -534,39 +544,49 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
 
     sp<GraphicBuffer>& buf(mCurrentTextureBuf);
     Rect cropRect = mCurrentCrop;
-    float tx, ty, sx, sy;
+    float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
+    float bufferWidth = buf->getWidth();
+    float bufferHeight = buf->getHeight();
     if (!cropRect.isEmpty()) {
-        // In order to prevent bilinear sampling at the of the crop rectangle we
-        // may need to shrink it by 2 texels in each direction.  Normally this
-        // would just need to take 1/2 a texel off each end, but because the
-        // chroma channels will likely be subsampled we need to chop off a whole
-        // texel.  This will cause artifacts if someone does nearest sampling
-        // with 1:1 pixel:texel ratio, but it's impossible to simultaneously
-        // accomodate the bilinear and nearest sampling uses.
-        //
-        // If nearest sampling turns out to be a desirable usage of these
-        // textures then we could add the ability to switch a SurfaceTexture to
-        // nearest-mode.  Preferably, however, the image producers (video
-        // decoder, camera, etc.) would simply not use a crop rectangle (or at
-        // least not tell the framework about it) so that the GPU can do the
-        // correct edge behavior.
-        const float shrinkAmount = 1.0f; // the amount that each edge is shrunk
+        float shrinkAmount = 0.0f;
+        if (mFilteringEnabled) {
+            // In order to prevent bilinear sampling beyond the edge of the
+            // crop rectangle we may need to shrink it by 2 texels in each
+            // dimension.  Normally this would just need to take 1/2 a texel
+            // off each end, but because the chroma channels of YUV420 images
+            // are subsampled we may need to shrink the crop region by a whole
+            // texel on each side.
+            switch (buf->getPixelFormat()) {
+                case PIXEL_FORMAT_RGBA_8888:
+                case PIXEL_FORMAT_RGBX_8888:
+                case PIXEL_FORMAT_RGB_888:
+                case PIXEL_FORMAT_RGB_565:
+                case PIXEL_FORMAT_BGRA_8888:
+                case PIXEL_FORMAT_RGBA_5551:
+                case PIXEL_FORMAT_RGBA_4444:
+                    // We know there's no subsampling of any channels, so we
+                    // only need to shrink by a half a pixel.
+                    shrinkAmount = 0.5;
 
-        float bufferWidth = buf->getWidth();
-        float bufferHeight = buf->getHeight();
+                default:
+                    // If we don't recognize the format, we must assume the
+                    // worst case (that we care about), which is YUV420.
+                    shrinkAmount = 1.0;
+            }
+        }
 
-        tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
-        ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
-                bufferHeight;
-        sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
-                bufferWidth;
-        sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
-                bufferHeight;
-    } else {
-        tx = 0.0f;
-        ty = 0.0f;
-        sx = 1.0f;
-        sy = 1.0f;
+        // Only shrink the dimensions that are not the size of the buffer.
+        if (cropRect.width() < bufferWidth) {
+            tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
+            sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
+                    bufferWidth;
+        }
+        if (cropRect.height() < bufferHeight) {
+            ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
+                    bufferHeight;
+            sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
+                    bufferHeight;
+        }
     }
     float crop[16] = {
         sx, 0, 0, 0,
