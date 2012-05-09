@@ -540,15 +540,11 @@ status_t BufferQueue::queueBuffer(int buf,
     uint32_t transform;
     int scalingMode;
     int64_t timestamp;
-    Rect activeRect;
 
-    input.deflate(&timestamp, &crop, &scalingMode, &transform,
-            &activeRect);
+    input.deflate(&timestamp, &crop, &scalingMode, &transform);
 
-    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d] "
-            "active=[%d,%d,%d,%d]", buf, timestamp, crop.left, crop.top,
-            crop.right, crop.bottom, activeRect.left, activeRect.top,
-            activeRect.right, activeRect.bottom);
+    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]",
+            buf, timestamp, crop.left, crop.top, crop.right, crop.bottom);
 
     sp<ConsumerListener> listener;
 
@@ -569,6 +565,16 @@ status_t BufferQueue::queueBuffer(int buf,
         } else if (!mSlots[buf].mRequestBufferCalled) {
             ST_LOGE("queueBuffer: slot %d was enqueued without requesting a "
                     "buffer", buf);
+            return -EINVAL;
+        }
+
+        const sp<GraphicBuffer>& graphicBuffer(mSlots[buf].mGraphicBuffer);
+        Rect bufferRect(graphicBuffer->getWidth(), graphicBuffer->getHeight());
+        Rect croppedCrop;
+        crop.intersect(bufferRect, &croppedCrop);
+        if (croppedCrop != crop) {
+            ST_LOGE("queueBuffer: crop rect is not contained within the "
+                    "buffer in slot %d", buf);
             return -EINVAL;
         }
 
@@ -600,12 +606,12 @@ status_t BufferQueue::queueBuffer(int buf,
         mSlots[buf].mTimestamp = timestamp;
         mSlots[buf].mCrop = crop;
         mSlots[buf].mTransform = transform;
-        mSlots[buf].mActiveRect = activeRect;
 
         switch (scalingMode) {
             case NATIVE_WINDOW_SCALING_MODE_FREEZE:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
+            case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
                 break;
             default:
                 ST_LOGE("unknown scaling mode: %d (ignoring)", scalingMode);
@@ -859,7 +865,6 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         buffer->mFrameNumber = mSlots[buf].mFrameNumber;
         buffer->mTimestamp = mSlots[buf].mTimestamp;
         buffer->mBuf = buf;
-        buffer->mActiveRect = mSlots[buf].mActiveRect;
         mSlots[buf].mAcquireCalled = true;
 
         mSlots[buf].mBufferState = BufferSlot::ACQUIRED;

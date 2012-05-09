@@ -80,10 +80,10 @@ private:
     int dispatchSetBuffersTransform(va_list args);
     int dispatchSetBuffersTimestamp(va_list args);
     int dispatchSetCrop(va_list args);
+    int dispatchSetPostTransformCrop(va_list args);
     int dispatchSetUsage(va_list args);
     int dispatchLock(va_list args);
     int dispatchUnlockAndPost(va_list args);
-    int dispatchSetActiveRect(va_list args);
 
 protected:
     virtual int cancelBuffer(ANativeWindowBuffer* buffer);
@@ -104,10 +104,10 @@ protected:
     virtual int setBuffersTransform(int transform);
     virtual int setBuffersTimestamp(int64_t timestamp);
     virtual int setCrop(Rect const* rect);
+    virtual int setPostTransformCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
-    virtual int setActiveRect(Rect const* rect);
 
     enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
     enum { DEFAULT_FORMAT = PIXEL_FORMAT_RGBA_8888 };
@@ -159,6 +159,13 @@ private:
     // that gets queued. It is set by calling setCrop.
     Rect mCrop;
 
+    // mCropNeedsTransform indicates whether mCrop is in post-transform
+    // coordinates and must be transformed using the inverse of mTransform
+    // before being queued with a buffer.  Otherwise the crop is passed
+    // untransformed.  It is initialized to false, is set to true by
+    // setPostTransformCrop, and set to false by setCrop.
+    bool mCropNeedsTransform;
+
     // mScalingMode is the scaling mode that will be used for the next
     // buffers that get queued. It is set by calling setScalingMode.
     int mScalingMode;
@@ -166,10 +173,6 @@ private:
     // mTransform is the transform identifier that will be used for the next
     // buffer that gets queued. It is set by calling setTransform.
     uint32_t mTransform;
-
-    // mActiveRect is the active rectangle that will be used for the next buffer
-    // that gets queued.  It is set by calling setActiveRect.
-    Rect mActiveRect;
 
      // mDefaultWidth is default width of the buffers, regardless of the
      // native_window_set_buffers_dimensions call.

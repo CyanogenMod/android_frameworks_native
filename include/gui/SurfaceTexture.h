@@ -154,9 +154,6 @@ public:
     // getCurrentCrop returns the cropping rectangle of the current buffer.
     Rect getCurrentCrop() const;
 
-    // getCurrentActiveRect returns the active rectangle of the current buffer.
-    Rect getCurrentActiveRect() const;
-
     // getCurrentTransform returns the transform of the current buffer.
     uint32_t getCurrentTransform() const;
 
@@ -272,12 +269,6 @@ private:
     // mCurrentCrop is the crop rectangle that applies to the current texture.
     // It gets set each time updateTexImage is called.
     Rect mCurrentCrop;
-
-    // mCurrentActiveRect is the active rectangle that applies to the current
-    // texture.  It gets set each time updateTexImage is called.  All pixels
-    // outside the active rectangle are be considered completely transparent for
-    // the purpose of window composition.
-    Rect mCurrentActiveRect;
 
     // mCurrentTransform is the transform identifier for the current texture. It
     // gets set each time updateTexImage is called.

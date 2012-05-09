@@ -86,25 +86,21 @@ protected:
     // QueueBufferInput must be a POD structure
     struct QueueBufferInput {
         inline QueueBufferInput(int64_t timestamp,
-                const Rect& crop, int scalingMode, uint32_t transform,
-                const Rect& activeRect)
+                const Rect& crop, int scalingMode, uint32_t transform)
         : timestamp(timestamp), crop(crop), scalingMode(scalingMode),
-          transform(transform), activeRect(activeRect) { }
+          transform(transform) { }
         inline void deflate(int64_t* outTimestamp, Rect* outCrop,
-                int* outScalingMode, uint32_t* outTransform,
-                Rect* outActiveRect) const {
+                int* outScalingMode, uint32_t* outTransform) const {
             *outTimestamp = timestamp;
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
-            *outActiveRect = activeRect;
         }
     private:
         int64_t timestamp;
         Rect crop;
         int scalingMode;
         uint32_t transform;
-        Rect activeRect;
     };
 
     // QueueBufferOutput must be a POD structure

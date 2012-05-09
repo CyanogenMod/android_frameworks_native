@@ -76,9 +76,9 @@ void SurfaceTextureClient::init() {
     mReqUsage = 0;
     mTimestamp = NATIVE_WINDOW_TIMESTAMP_AUTO;
     mCrop.clear();
+    mCropNeedsTransform = false;
     mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
     mTransform = 0;
-    mActiveRect.clear();
     mDefaultWidth = 0;
     mDefaultHeight = 0;
     mUserWidth = 0;
@@ -238,9 +238,29 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
         return i;
     }
 
+    Rect crop(mCrop);
+    if (mCropNeedsTransform) {
+        // The crop rect was specified in the post-transform coordinate space,
+        // so we need to transform that rect by the inverse of mTransform to
+        // put it into the buffer pixel space before queuing it.
+        uint32_t invTransform = mTransform;
+        int32_t width = buffer->width;
+        int32_t height = buffer->height;
+        if (mTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            width = buffer->height;
+            height = buffer->width;
+        }
+        crop = mCrop.transform(invTransform, width, height);
+    }
+
+    // Make sure the crop rectangle is entirely inside the buffer.
+    crop.intersect(Rect(buffer->width, buffer->height), &crop);
+
     ISurfaceTexture::QueueBufferOutput output;
-    ISurfaceTexture::QueueBufferInput input(timestamp,
-            mCrop, mScalingMode, mTransform, mActiveRect);
+    ISurfaceTexture::QueueBufferInput input(timestamp, crop, mScalingMode,
+            mTransform);
     status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -321,6 +341,9 @@ int SurfaceTextureClient::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_CROP:
         res = dispatchSetCrop(args);
         break;
+    case NATIVE_WINDOW_SET_POST_TRANSFORM_CROP:
+        res = dispatchSetPostTransformCrop(args);
+        break;
     case NATIVE_WINDOW_SET_BUFFER_COUNT:
         res = dispatchSetBufferCount(args);
         break;
@@ -357,9 +380,6 @@ int SurfaceTextureClient::perform(int operation, va_list args)
     case NATIVE_WINDOW_API_DISCONNECT:
         res = dispatchDisconnect(args);
         break;
-    case NATIVE_WINDOW_SET_ACTIVE_RECT:
-        res = dispatchSetActiveRect(args);
-        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -385,6 +405,11 @@ int SurfaceTextureClient::dispatchSetUsage(va_list args) {
 int SurfaceTextureClient::dispatchSetCrop(va_list args) {
     android_native_rect_t const* rect = va_arg(args, android_native_rect_t*);
     return setCrop(reinterpret_cast<Rect const*>(rect));
+}
+
+int SurfaceTextureClient::dispatchSetPostTransformCrop(va_list args) {
+    android_native_rect_t const* rect = va_arg(args, android_native_rect_t*);
+    return setPostTransformCrop(reinterpret_cast<Rect const*>(rect));
 }
 
 int SurfaceTextureClient::dispatchSetBufferCount(va_list args) {
@@ -428,11 +453,6 @@ int SurfaceTextureClient::dispatchSetScalingMode(va_list args) {
 int SurfaceTextureClient::dispatchSetBuffersTransform(va_list args) {
     int transform = va_arg(args, int);
     return setBuffersTransform(transform);
-}
-
-int SurfaceTextureClient::dispatchSetActiveRect(va_list args) {
-    android_native_rect_t const* rect = va_arg(args, android_native_rect_t*);
-    return setActiveRect(reinterpret_cast<Rect const*>(rect));
 }
 
 int SurfaceTextureClient::dispatchSetBuffersTimestamp(va_list args) {
@@ -481,6 +501,7 @@ int SurfaceTextureClient::disconnect(int api) {
         mReqHeight = 0;
         mReqUsage = 0;
         mCrop.clear();
+        mCropNeedsTransform = false;
         mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
         mTransform = 0;
         if (api == NATIVE_WINDOW_API_CPU) {
@@ -512,6 +533,25 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
 
     Mutex::Autolock lock(mMutex);
     mCrop = realRect;
+    mCropNeedsTransform = false;
+    return NO_ERROR;
+}
+
+int SurfaceTextureClient::setPostTransformCrop(Rect const* rect)
+{
+    ATRACE_CALL();
+    ALOGV("SurfaceTextureClient::setPostTransformCrop");
+
+    Rect realRect;
+    if (rect == NULL || rect->isEmpty()) {
+        realRect.clear();
+    } else {
+        realRect = *rect;
+    }
+
+    Mutex::Autolock lock(mMutex);
+    mCrop = realRect;
+    mCropNeedsTransform = true;
     return NO_ERROR;
 }
 
@@ -546,7 +586,6 @@ int SurfaceTextureClient::setBuffersDimensions(int w, int h)
     Mutex::Autolock lock(mMutex);
     mReqWidth = w;
     mReqHeight = h;
-    mCrop.clear();
     return NO_ERROR;
 }
 
@@ -564,7 +603,6 @@ int SurfaceTextureClient::setBuffersUserDimensions(int w, int h)
     Mutex::Autolock lock(mMutex);
     mUserWidth = w;
     mUserHeight = h;
-    mCrop.clear();
     return NO_ERROR;
 }
 
@@ -589,6 +627,7 @@ int SurfaceTextureClient::setScalingMode(int mode)
         case NATIVE_WINDOW_SCALING_MODE_FREEZE:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
+        case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
             break;
         default:
             ALOGE("unknown scaling mode: %d", mode);
@@ -606,23 +645,6 @@ int SurfaceTextureClient::setBuffersTransform(int transform)
     ALOGV("SurfaceTextureClient::setBuffersTransform");
     Mutex::Autolock lock(mMutex);
     mTransform = transform;
-    return NO_ERROR;
-}
-
-int SurfaceTextureClient::setActiveRect(Rect const* rect)
-{
-    ATRACE_CALL();
-    ALOGV("SurfaceTextureClient::setActiveRect");
-
-    Rect realRect;
-    if (rect == NULL || rect->isEmpty()) {
-        realRect.clear();
-    } else {
-        realRect = *rect;
-    }
-
-    Mutex::Autolock lock(mMutex);
-    mActiveRect = realRect;
     return NO_ERROR;
 }
 
