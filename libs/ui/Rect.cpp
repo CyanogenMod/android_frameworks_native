@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <system/graphics.h>
 #include <ui/Rect.h>
 
 namespace android {
@@ -90,6 +91,26 @@ bool Rect::intersect(const Rect& with, Rect* result) const
     result->right   = min(right, with.right);
     result->bottom  = min(bottom, with.bottom);
     return !(result->isEmpty());
+}
+
+Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) {
+    Rect result(*this);
+    if (xform & HAL_TRANSFORM_FLIP_H) {
+        result = Rect(width - result.right, result.top,
+                width - result.left, result.bottom);
+    }
+    if (xform & HAL_TRANSFORM_FLIP_V) {
+        result = Rect(result.left, height - result.bottom,
+                result.right, height - result.top);
+    }
+    if (xform & HAL_TRANSFORM_ROT_90) {
+        int left = height - result.bottom;
+        int top = result.left;
+        int right = height - result.top;
+        int bottom = result.right;
+        result = Rect(left, top, right, bottom);
+    }
+    return result;
 }
 
 }; // namespace android
