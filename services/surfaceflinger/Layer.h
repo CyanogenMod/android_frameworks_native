@@ -114,7 +114,6 @@ private:
 
     // main thread
     sp<GraphicBuffer> mActiveBuffer;
-    GLfloat mTextureMatrix[16];
     Rect mCurrentCrop;
     uint32_t mCurrentTransform;
     uint32_t mCurrentScalingMode;
