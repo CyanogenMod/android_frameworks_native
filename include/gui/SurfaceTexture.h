@@ -144,6 +144,10 @@ public:
     // updateTexImage() is called.
     status_t setDefaultBufferSize(uint32_t width, uint32_t height);
 
+    // setFilteringEnabled sets whether the transform matrix should be computed
+    // for use with bilinear filtering.
+    void setFilteringEnabled(bool enabled);
+
     // getCurrentBuffer returns the buffer associated with the current image.
     sp<GraphicBuffer> getCurrentBuffer() const;
 
@@ -288,6 +292,11 @@ private:
     int64_t mCurrentTimestamp;
 
     uint32_t mDefaultWidth, mDefaultHeight;
+
+    // mFilteringEnabled indicates whether the transform matrix is computed for
+    // use with bilinear filtering. It defaults to true and is changed by
+    // setFilteringEnabled().
+    bool mFilteringEnabled;
 
     // mTexName is the name of the OpenGL texture to which streamed images will
     // be bound when updateTexImage is called. It is set at construction time
