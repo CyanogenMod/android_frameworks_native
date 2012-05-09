@@ -1262,28 +1262,6 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
 }
 
-TEST_F(SurfaceTextureGLTest, GetCurrentActiveRectWorks) {
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
-    ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
-            NATIVE_WINDOW_API_CPU));
-
-    ANativeWindowBuffer *anb;
-
-    android_native_rect_t odd = {23, 78, 123, 477};
-    ASSERT_EQ(OK, native_window_set_active_rect(mANW.get(), &odd));
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
-    mFW->waitForFrame();
-    EXPECT_EQ(OK,mST->updateTexImage());
-    Rect r = mST->getCurrentCrop();
-    assertRectEq(Rect(23, 78, 123, 477), r);
-
-    ASSERT_EQ(OK, native_window_api_disconnect(mANW.get(),
-            NATIVE_WINDOW_API_CPU));
-}
-
-
 TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
     class ProducerThread : public Thread {
     public:
