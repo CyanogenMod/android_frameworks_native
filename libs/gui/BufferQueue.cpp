@@ -72,6 +72,15 @@ static int32_t createProcessUniqueId() {
     return android_atomic_inc(&globalCounter);
 }
 
+static const char* scalingModeName(int scalingMode) {
+    switch (scalingMode) {
+        case NATIVE_WINDOW_SCALING_MODE_FREEZE: return "FREEZE";
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW: return "SCALE_TO_WINDOW";
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP: return "SCALE_CROP";
+        default: return "Unknown";
+    }
+}
+
 BufferQueue::BufferQueue(  bool allowSynchronousMode, int bufferCount ) :
     mDefaultWidth(1),
     mDefaultHeight(1),
@@ -543,8 +552,10 @@ status_t BufferQueue::queueBuffer(int buf,
 
     input.deflate(&timestamp, &crop, &scalingMode, &transform);
 
-    ST_LOGV("queueBuffer: slot=%d time=%lld crop=[%d,%d,%d,%d]",
-            buf, timestamp, crop.left, crop.top, crop.right, crop.bottom);
+    ST_LOGV("queueBuffer: slot=%d time=%#llx crop=[%d,%d,%d,%d] tr=%#x "
+            "scale=%s",
+            buf, timestamp, crop.left, crop.top, crop.right, crop.bottom,
+            transform, scalingModeName(scalingMode));
 
     sp<ConsumerListener> listener;
 
@@ -611,7 +622,6 @@ status_t BufferQueue::queueBuffer(int buf,
             case NATIVE_WINDOW_SCALING_MODE_FREEZE:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
             case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
-            case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
                 break;
             default:
                 ST_LOGE("unknown scaling mode: %d (ignoring)", scalingMode);
@@ -796,11 +806,12 @@ void BufferQueue::dump(String8& result, const char* prefix,
         snprintf(buffer, SIZE,
                 "%s%s[%02d] "
                 "state=%-8s, crop=[%d,%d,%d,%d], "
-                "transform=0x%02x, timestamp=%lld",
+                "xform=0x%02x, time=%#llx, scale=%s",
                 prefix, (slot.mBufferState == BufferSlot::ACQUIRED)?">":" ", i,
                 stateName(slot.mBufferState),
                 slot.mCrop.left, slot.mCrop.top, slot.mCrop.right,
-                slot.mCrop.bottom, slot.mTransform, slot.mTimestamp
+                slot.mCrop.bottom, slot.mTransform, slot.mTimestamp,
+                scalingModeName(slot.mScalingMode)
         );
         result.append(buffer);
 
