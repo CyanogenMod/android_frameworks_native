@@ -522,7 +522,6 @@ int SurfaceTextureClient::setUsage(uint32_t reqUsage)
 int SurfaceTextureClient::setCrop(Rect const* rect)
 {
     ATRACE_CALL();
-    ALOGV("SurfaceTextureClient::setCrop");
 
     Rect realRect;
     if (rect == NULL || rect->isEmpty()) {
@@ -530,6 +529,9 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
     } else {
         realRect = *rect;
     }
+
+    ALOGV("SurfaceTextureClient::setCrop rect=[%d %d %d %d]",
+            realRect.left, realRect.top, realRect.right, realRect.bottom);
 
     Mutex::Autolock lock(mMutex);
     mCrop = realRect;
@@ -540,7 +542,6 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
 int SurfaceTextureClient::setPostTransformCrop(Rect const* rect)
 {
     ATRACE_CALL();
-    ALOGV("SurfaceTextureClient::setPostTransformCrop");
 
     Rect realRect;
     if (rect == NULL || rect->isEmpty()) {
@@ -548,6 +549,9 @@ int SurfaceTextureClient::setPostTransformCrop(Rect const* rect)
     } else {
         realRect = *rect;
     }
+
+    ALOGV("SurfaceTextureClient::setPostTransformCrop rect=[%d %d %d %d]",
+            realRect.left, realRect.top, realRect.right, realRect.bottom);
 
     Mutex::Autolock lock(mMutex);
     mCrop = realRect;
@@ -627,7 +631,6 @@ int SurfaceTextureClient::setScalingMode(int mode)
         case NATIVE_WINDOW_SCALING_MODE_FREEZE:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
         case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
-        case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
             break;
         default:
             ALOGE("unknown scaling mode: %d", mode);
