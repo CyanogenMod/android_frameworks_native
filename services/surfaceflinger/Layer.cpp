@@ -541,6 +541,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mCurrentTransform = transform;
             mCurrentScalingMode = scalingMode;
             mFlinger->invalidateHwcGeometry();
+            recomputeVisibleRegions = true;
         }
 
         uint32_t bufWidth  = mActiveBuffer->getWidth();
@@ -549,6 +550,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
                 mFlinger->invalidateHwcGeometry();
+                recomputeVisibleRegions = true;
             }
         }
 
