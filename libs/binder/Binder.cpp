@@ -17,6 +17,7 @@
 #include <binder/Binder.h>
 
 #include <utils/Atomic.h>
+#include <utils/misc.h>
 #include <binder/BpBinder.h>
 #include <binder/IInterface.h>
 #include <binder/Parcel.h>
@@ -199,6 +200,12 @@ status_t BBinder::onTransact(
             }
             return dump(fd, args);
         }
+
+        case SYSPROPS_TRANSACTION: {
+            report_sysprop_change();
+            return NO_ERROR;
+        }
+
         default:
             return UNKNOWN_TRANSACTION;
     }
