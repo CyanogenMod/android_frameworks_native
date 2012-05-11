@@ -93,7 +93,7 @@ bool Rect::intersect(const Rect& with, Rect* result) const
     return !(result->isEmpty());
 }
 
-Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) {
+Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) const {
     Rect result(*this);
     if (xform & HAL_TRANSFORM_FLIP_H) {
         result = Rect(width - result.right, result.top,

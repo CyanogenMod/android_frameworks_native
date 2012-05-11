@@ -1352,6 +1352,10 @@ uint32_t SurfaceFlinger::setClientStateLocked(
             if (layer->setFlags(s.flags, s.mask))
                 flags |= eTraversalNeeded;
         }
+        if (what & eCropChanged) {
+            if (layer->setCrop(s.crop))
+                flags |= eTraversalNeeded;
+        }
     }
     return flags;
 }

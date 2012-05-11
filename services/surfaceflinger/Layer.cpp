@@ -141,47 +141,6 @@ void Layer::setName(const String8& name) {
 void Layer::validateVisibility(const Transform& globalTransform) {
     LayerBase::validateVisibility(globalTransform);
 
-    if (mCurrentScalingMode == NATIVE_WINDOW_SCALING_MODE_FREEZE &&
-            !mCurrentCrop.isEmpty()) {
-        // We need to shrink the window size to match the buffer crop
-        // rectangle.
-        const Layer::State& s(drawingState());
-        const Transform tr(globalTransform * s.transform);
-        float windowWidth = s.w;
-        float windowHeight = s.h;
-        float bufferWidth = mActiveBuffer->getWidth();
-        float bufferHeight = mActiveBuffer->getHeight();
-        if (mCurrentTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-            float tmp = bufferWidth;
-            bufferWidth = bufferHeight;
-            bufferHeight = tmp;
-        }
-        float xScale = float(windowWidth) / float(bufferWidth);
-        float yScale = float(windowHeight) / float(bufferHeight);
-
-        // Compute the crop in post-transform coordinates.
-        Rect crop(mCurrentCrop.transform(mCurrentTransform,
-                    mActiveBuffer->getWidth(), mActiveBuffer->getHeight()));
-
-        float left = ceil(xScale * float(crop.left));
-        float right = floor(xScale * float(crop.right));
-        float top = ceil(yScale * float(crop.top));
-        float bottom = floor(yScale * float(crop.bottom));
-
-        tr.transform(mVertices[0], left, top);
-        tr.transform(mVertices[1], left, bottom);
-        tr.transform(mVertices[2], right, bottom);
-        tr.transform(mVertices[3], right, top);
-
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
-        const uint32_t hw_h = hw.getHeight();
-        for (size_t i=0 ; i<4 ; i++)
-            mVertices[i][1] = hw_h - mVertices[i][1];
-
-        mTransformedBounds = tr.transform(
-                Rect(int(left), int(top), int(right), int(bottom)));
-    }
-
     // This optimization allows the SurfaceTexture to bake in
     // the rotation so hardware overlays can be used
     mSurfaceTexture->setTransformHint(getTransformHint());
@@ -259,6 +218,46 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     return NO_ERROR;
 }
 
+Rect Layer::computeBufferCrop() const {
+    // Start with the SurfaceTexture's buffer crop...
+    Rect crop;
+    if (!mCurrentCrop.isEmpty()) {
+        crop = mCurrentCrop;
+    } else  if (mActiveBuffer != NULL){
+        crop = Rect(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
+    } else {
+        crop = Rect(mTransformedBounds.width(), mTransformedBounds.height());
+    }
+
+    // ... then reduce that in the same proportions as the window crop reduces
+    // the window size.
+    const State& s(drawingState());
+    if (!s.crop.isEmpty()) {
+        // Transform the window crop to match the buffer coordinate system,
+        // which means using the inverse of the current transform set on the
+        // SurfaceTexture.
+        uint32_t invTransform = mCurrentTransform;
+        int winWidth = s.w;
+        int winHeight = s.h;
+        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            winWidth = s.h;
+            winHeight = s.w;
+        }
+        Rect winCrop = s.crop.transform(invTransform, s.w, s.h);
+
+        float xScale = float(crop.width()) / float(winWidth);
+        float yScale = float(crop.height()) / float(winHeight);
+        crop.left += int(ceil(float(winCrop.left) * xScale));
+        crop.top += int(ceil(float(winCrop.top) * yScale));
+        crop.right -= int(ceil(float(winWidth - winCrop.right) * xScale));
+        crop.bottom -= int(ceil(float(winHeight - winCrop.bottom) * yScale));
+    }
+
+    return crop;
+}
+
 void Layer::setGeometry(hwc_layer_t* hwcl)
 {
     LayerBaseClient::setGeometry(hwcl);
@@ -293,23 +292,11 @@ void Layer::setGeometry(hwc_layer_t* hwcl)
         hwcl->transform = finalTransform;
     }
 
-    if (isCropped()) {
-        hwcl->sourceCrop.left   = mCurrentCrop.left;
-        hwcl->sourceCrop.top    = mCurrentCrop.top;
-        hwcl->sourceCrop.right  = mCurrentCrop.right;
-        hwcl->sourceCrop.bottom = mCurrentCrop.bottom;
-    } else {
-        const sp<GraphicBuffer>& buffer(mActiveBuffer);
-        hwcl->sourceCrop.left   = 0;
-        hwcl->sourceCrop.top    = 0;
-        if (buffer != NULL) {
-            hwcl->sourceCrop.right  = buffer->width;
-            hwcl->sourceCrop.bottom = buffer->height;
-        } else {
-            hwcl->sourceCrop.right  = mTransformedBounds.width();
-            hwcl->sourceCrop.bottom = mTransformedBounds.height();
-        }
-    }
+    Rect crop = computeBufferCrop();
+    hwcl->sourceCrop.left   = crop.left;
+    hwcl->sourceCrop.top    = crop.top;
+    hwcl->sourceCrop.right  = crop.right;
+    hwcl->sourceCrop.bottom = crop.bottom;
 }
 
 void Layer::setPerFrameData(hwc_layer_t* hwcl) {

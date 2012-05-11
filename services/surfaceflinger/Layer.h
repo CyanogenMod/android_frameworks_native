@@ -101,6 +101,7 @@ private:
     uint32_t getEffectiveUsage(uint32_t usage) const;
     uint32_t getTransformHint() const;
     bool isCropped() const;
+    Rect computeBufferCrop() const;
     static bool getOpacityForFormat(uint32_t format);
 
     // -----------------------------------------------------------------------

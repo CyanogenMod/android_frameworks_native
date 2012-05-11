@@ -93,6 +93,7 @@ void LayerBase::initStates(uint32_t w, uint32_t h, uint32_t flags)
     mCurrentState.flags         = layerFlags;
     mCurrentState.sequence      = 0;
     mCurrentState.transform.set(0, 0);
+    mCurrentState.crop.makeInvalid();
 
     // drawing state & current state are identical
     mDrawingState = mCurrentState;
@@ -172,6 +173,14 @@ bool LayerBase::setFlags(uint8_t flags, uint8_t mask) {
     requestTransaction();
     return true;
 }
+bool LayerBase::setCrop(const Rect& crop) {
+    if (mCurrentState.crop == crop)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.crop = crop;
+    requestTransaction();
+    return true;
+}
 
 Rect LayerBase::visibleBounds() const
 {
@@ -229,15 +238,18 @@ void LayerBase::validateVisibility(const Transform& planeTransform)
     const bool transformed = tr.transformed();
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t hw_h = hw.getHeight();
+    const Rect& crop(s.crop);
 
-    uint32_t w = s.w;
-    uint32_t h = s.h;
+    Rect win(s.w, s.h);
+    if (!crop.isEmpty()) {
+        win.intersect(crop, &win);
+    }
 
     mNumVertices = 4;
-    tr.transform(mVertices[0], 0, 0);
-    tr.transform(mVertices[1], 0, h);
-    tr.transform(mVertices[2], w, h);
-    tr.transform(mVertices[3], w, 0);
+    tr.transform(mVertices[0], win.left,  win.top);
+    tr.transform(mVertices[1], win.left,  win.bottom);
+    tr.transform(mVertices[2], win.right, win.bottom);
+    tr.transform(mVertices[3], win.right, win.top);
     for (size_t i=0 ; i<4 ; i++)
         mVertices[i][1] = hw_h - mVertices[i][1];
 
@@ -260,7 +272,7 @@ void LayerBase::validateVisibility(const Transform& planeTransform)
     mOrientation = tr.getOrientation();
     mPlaneOrientation = planeTransform.getOrientation();
     mTransform = tr;
-    mTransformedBounds = tr.makeBounds(w, h);
+    mTransformedBounds = tr.transform(win);
 }
 
 void LayerBase::lockPageFlip(bool& recomputeVisibleRegions) {
@@ -391,15 +403,27 @@ void LayerBase::drawWithOpenGL(const Region& clip) const
         GLfloat v;
     };
 
+    Rect crop(s.w, s.h);
+    if (!s.crop.isEmpty()) {
+        crop = s.crop;
+    }
+    GLfloat left = GLfloat(crop.left) / GLfloat(s.w);
+    GLfloat top = GLfloat(crop.top) / GLfloat(s.h);
+    GLfloat right = GLfloat(crop.right) / GLfloat(s.w);
+    GLfloat bottom = GLfloat(crop.bottom) / GLfloat(s.h);
+
     TexCoords texCoords[4];
-    texCoords[0].u = 0;
-    texCoords[0].v = 1;
-    texCoords[1].u = 0;
-    texCoords[1].v = 0;
-    texCoords[2].u = 1;
-    texCoords[2].v = 0;
-    texCoords[3].u = 1;
-    texCoords[3].v = 1;
+    texCoords[0].u = left;
+    texCoords[0].v = top;
+    texCoords[1].u = left;
+    texCoords[1].v = bottom;
+    texCoords[2].u = right;
+    texCoords[2].v = bottom;
+    texCoords[3].u = right;
+    texCoords[3].v = top;
+    for (int i = 0; i < 4; i++) {
+        texCoords[i].v = 1.0f - texCoords[i].v;
+    }
 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glVertexPointer(2, GL_FLOAT, 0, mVertices);

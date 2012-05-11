@@ -23,6 +23,7 @@
 #include <utils/Errors.h>
 
 #include <ui/Region.h>
+#include <ui/Rect.h>
 #include <gui/ISurface.h>
 
 namespace android {
@@ -40,6 +41,7 @@ struct layer_state_t {
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
         matrix.dsdy = matrix.dtdx = 0.0f;
+        crop.makeInvalid();
     }
 
     status_t    write(Parcel& output) const;
@@ -64,6 +66,7 @@ struct layer_state_t {
             uint8_t         mask;
             uint8_t         reserved;
             matrix22_t      matrix;
+            Rect            crop;
             // non POD must be last. see write/read
             Region          transparentRegion;
 };
