@@ -65,14 +65,21 @@ public:
     }
 
     // rectangle's width
-    inline int32_t width() const {
+    inline int32_t getWidth() const {
         return right-left;
     }
     
     // rectangle's height
-    inline int32_t height() const {
+    inline int32_t getHeight() const {
         return bottom-top;
     }
+
+    inline Rect getBounds() const {
+        return Rect(right-left, bottom-top);
+    }
+
+    inline int32_t width() const { return getWidth(); }
+    inline int32_t height() const { return getHeight(); }
 
     void setLeftTop(const Point& lt) {
         left = lt.x;
