@@ -127,6 +127,7 @@ public:
     status_t    setMatrix(SurfaceID id, float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setPosition(SurfaceID id, float x, float y);
     status_t    setSize(SurfaceID id, uint32_t w, uint32_t h);
+    status_t    setCrop(SurfaceID id, const Rect& crop);
     status_t    destroySurface(SurfaceID sid);
 
 private:

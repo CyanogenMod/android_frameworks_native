@@ -147,7 +147,7 @@ public:
     // a ROT90 then the output rectangle is defined in a space extending to
     // (height, width).  Otherwise the output rectangle is in the same space as
     // the input.
-    Rect transform(uint32_t xform, int32_t width, int32_t height);
+    Rect transform(uint32_t xform, int32_t width, int32_t height) const;
 };
 
 ANDROID_BASIC_TYPES_TRAITS(Rect)

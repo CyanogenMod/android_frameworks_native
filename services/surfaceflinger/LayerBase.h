@@ -78,6 +78,7 @@ public:
                 uint32_t        tint;
                 Transform       transform;
                 Region          transparentRegion;
+                Rect            crop;
             };
 
     virtual void setName(const String8& name);
@@ -91,6 +92,7 @@ public:
             bool setMatrix(const layer_state_t::matrix22_t& matrix);
             bool setTransparentRegionHint(const Region& opaque);
             bool setFlags(uint8_t flags, uint8_t mask);
+            bool setCrop(const Rect& crop);
             
             void commitTransaction();
             bool requestTransaction();

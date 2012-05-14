@@ -125,6 +125,8 @@ public:
             const sp<SurfaceComposerClient>& client, SurfaceID id,
             uint32_t tint);
     status_t setOrientation(int orientation);
+    status_t setCrop(const sp<SurfaceComposerClient>& client, SurfaceID id,
+            const Rect& crop);
 
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
@@ -290,6 +292,17 @@ status_t Composer::setOrientation(int orientation) {
     return NO_ERROR;
 }
 
+status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
+        SurfaceID id, const Rect& crop) {
+    Mutex::Autolock _l(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s)
+        return BAD_INDEX;
+    s->what |= ISurfaceComposer::eCropChanged;
+    s->crop = crop;
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 
 SurfaceComposerClient::SurfaceComposerClient()
@@ -397,6 +410,10 @@ void SurfaceComposerClient::closeGlobalTransaction(bool synchronous) {
 }
 
 // ----------------------------------------------------------------------------
+
+status_t SurfaceComposerClient::setCrop(SurfaceID id, const Rect& crop) {
+    return getComposer().setCrop(this, id, crop);
+}
 
 status_t SurfaceComposerClient::setFreezeTint(SurfaceID id, uint32_t tint) {
     return getComposer().setFreezeTint(this, id, tint);

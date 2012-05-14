@@ -164,6 +164,12 @@ status_t SurfaceControl::setFreezeTint(uint32_t tint) {
     const sp<SurfaceComposerClient>& client(mClient);
     return client->setFreezeTint(mToken, tint);
 }
+status_t SurfaceControl::setCrop(const Rect& crop) {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->setCrop(mToken, crop);
+}
 
 status_t SurfaceControl::validate() const
 {

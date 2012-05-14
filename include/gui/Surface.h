@@ -72,6 +72,7 @@ public:
     status_t    setAlpha(float alpha=1.0f);
     status_t    setMatrix(float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setFreezeTint(uint32_t tint);
+    status_t    setCrop(const Rect& crop);
 
     static status_t writeSurfaceToParcel(
             const sp<SurfaceControl>& control, Parcel* parcel);
