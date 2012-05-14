@@ -259,16 +259,17 @@ Rect Layer::computeBufferCrop() const {
     return crop;
 }
 
-void Layer::setGeometry(hwc_layer_t* hwcl)
+void Layer::setGeometry(HWComposer::HWCLayerInterface& layer)
 {
-    LayerBaseClient::setGeometry(hwcl);
+    LayerBaseClient::setGeometry(layer);
 
-    hwcl->flags &= ~HWC_SKIP_LAYER;
+    // enable this layer
+    layer.setSkip(false);
 
     // we can't do alpha-fade with the hwc HAL
     const State& s(drawingState());
     if (s.alpha < 0xFF) {
-        hwcl->flags = HWC_SKIP_LAYER;
+        layer.setSkip(true);
     }
 
     /*
@@ -288,29 +289,18 @@ void Layer::setGeometry(hwc_layer_t* hwcl)
 
     // we can only handle simple transformation
     if (finalTransform & Transform::ROT_INVALID) {
-        hwcl->flags = HWC_SKIP_LAYER;
+        layer.setSkip(true);
     } else {
-        hwcl->transform = finalTransform;
+        layer.setTransform(finalTransform);
     }
-
-    Rect crop = computeBufferCrop();
-    hwcl->sourceCrop.left   = crop.left;
-    hwcl->sourceCrop.top    = crop.top;
-    hwcl->sourceCrop.right  = crop.right;
-    hwcl->sourceCrop.bottom = crop.bottom;
+    layer.setCrop(computeBufferCrop());
 }
 
-void Layer::setPerFrameData(hwc_layer_t* hwcl) {
+void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
     const sp<GraphicBuffer>& buffer(mActiveBuffer);
-    if (buffer == NULL) {
-        // this can happen if the client never drew into this layer yet,
-        // or if we ran out of memory. In that case, don't let
-        // HWC handle it.
-        hwcl->flags |= HWC_SKIP_LAYER;
-        hwcl->handle = NULL;
-    } else {
-        hwcl->handle = buffer->handle;
-    }
+    // NOTE: buffer can be NULL if the client never drew into this
+    // layer yet, or if we ran out of memory
+    layer.setBuffer(buffer);
 }
 
 void Layer::onDraw(const Region& clip) const

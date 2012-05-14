@@ -800,12 +800,13 @@ void SurfaceFlinger::handleWorkList()
         const Vector< sp<LayerBase> >& currentLayers(mVisibleLayersSortedByZ);
         const size_t count = currentLayers.size();
         hwc.createWorkList(count);
-        hwc_layer_t* const cur(hwc.getLayers());
-        for (size_t i=0 ; cur && i<count ; i++) {
-            currentLayers[i]->setGeometry(&cur[i]);
+
+        HWComposer::LayerListIterator cur = hwc.begin();
+        const HWComposer::LayerListIterator end = hwc.end();
+        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+            currentLayers[i]->setGeometry(*cur);
             if (mDebugDisableHWC || mDebugRegion) {
-                cur[i].compositionType = HWC_FRAMEBUFFER;
-                cur[i].flags |= HWC_SKIP_LAYER;
+                cur->setSkip(true);
             }
         }
     }
@@ -859,8 +860,10 @@ void SurfaceFlinger::setupHardwareComposer()
 {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
-    hwc_layer_t* const cur(hwc.getLayers());
-    if (!cur) {
+
+    HWComposer::LayerListIterator cur = hwc.begin();
+    const HWComposer::LayerListIterator end = hwc.end();
+    if (cur == end) {
         return;
     }
 
@@ -880,9 +883,9 @@ void SurfaceFlinger::setupHardwareComposer()
      *  update the per-frame h/w composer data for each layer
      *  and build the transparent region of the FB
      */
-    for (size_t i=0 ; i<count ; i++) {
+    for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
         const sp<LayerBase>& layer(layers[i]);
-        layer->setPerFrameData(&cur[i]);
+        layer->setPerFrameData(*cur);
     }
     status_t err = hwc.prepare();
     ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
@@ -892,10 +895,11 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
 {
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
-    hwc_layer_t* const cur(hwc.getLayers());
+    HWComposer::LayerListIterator cur = hwc.begin();
+    const HWComposer::LayerListIterator end = hwc.end();
 
     const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);
-    if (!cur || fbLayerCount) {
+    if (cur==end || fbLayerCount) {
         // Never touch the framebuffer if we don't have any framebuffer layers
 
         if (hwc.getLayerCount(HWC_OVERLAY)) {
@@ -920,13 +924,12 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
 
         const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
         const size_t count = layers.size();
-
-        for (size_t i=0 ; i<count ; i++) {
+        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(layer->visibleRegionScreen));
             if (!clip.isEmpty()) {
-                if (cur && (cur[i].compositionType == HWC_OVERLAY)) {
-                    if (i && (cur[i].hints & HWC_HINT_CLEAR_FB)
+                if (cur->getCompositionType() == HWC_OVERLAY) {
+                    if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)
                             && layer->isOpaque()) {
                         // never clear the very first layer since we're
                         // guaranteed the FB is already cleared

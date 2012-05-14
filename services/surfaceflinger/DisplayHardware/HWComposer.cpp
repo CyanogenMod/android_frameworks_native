@@ -43,6 +43,19 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
+struct HWComposer::cb_context {
+    struct callbacks : public hwc_procs_t {
+        // these are here to facilitate the transition when adding
+        // new callbacks (an implementation can check for NULL before
+        // calling a new callback).
+        void (*zero[4])(void);
+    };
+    callbacks procs;
+    HWComposer* hwc;
+};
+
+// ---------------------------------------------------------------------------
+
 HWComposer::HWComposer(
         const sp<SurfaceFlinger>& flinger,
         EventHandler& handler,
@@ -51,6 +64,7 @@ HWComposer::HWComposer(
       mModule(0), mHwc(0), mList(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
       mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE),
+      mCBContext(new cb_context),
       mEventHandler(handler),
       mRefreshPeriod(refreshPeriod),
       mVSyncCount(0), mDebugForceFakeVSync(false)
@@ -68,11 +82,11 @@ HWComposer::HWComposer(
                 HWC_HARDWARE_COMPOSER, strerror(-err));
         if (err == 0) {
             if (mHwc->registerProcs) {
-                mCBContext.hwc = this;
-                mCBContext.procs.invalidate = &hook_invalidate;
-                mCBContext.procs.vsync = &hook_vsync;
-                mHwc->registerProcs(mHwc, &mCBContext.procs);
-                memset(mCBContext.procs.zero, 0, sizeof(mCBContext.procs.zero));
+                mCBContext->hwc = this;
+                mCBContext->procs.invalidate = &hook_invalidate;
+                mCBContext->procs.vsync = &hook_vsync;
+                mHwc->registerProcs(mHwc, &mCBContext->procs);
+                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
             if (mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
                 if (mDebugForceFakeVSync) {
@@ -102,6 +116,7 @@ HWComposer::~HWComposer() {
     if (mHwc) {
         hwc_close(mHwc);
     }
+    delete mCBContext;
 }
 
 status_t HWComposer::initCheck() const {
@@ -230,9 +245,116 @@ size_t HWComposer::getNumLayers() const {
     return mList ? mList->numHwLayers : 0;
 }
 
-hwc_layer_t* HWComposer::getLayers() const {
-    return mList ? mList->hwLayers : 0;
+/*
+ * Helper template to implement a concrete HWCLayer
+ * This holds the pointer to the concrete hwc layer type
+ * and implements the "iterable" side of HWCLayer.
+ */
+template<typename CONCRETE, typename HWCTYPE>
+class Iterable : public HWComposer::HWCLayer {
+protected:
+    HWCTYPE* const mLayerList;
+    HWCTYPE* mCurrentLayer;
+    Iterable(HWCTYPE* layer) : mLayerList(layer), mCurrentLayer(layer) { }
+    inline HWCTYPE const * getLayer() const { return mCurrentLayer; }
+    inline HWCTYPE* getLayer() { return mCurrentLayer; }
+    virtual ~Iterable() { }
+private:
+    // returns a copy of ourselves
+    virtual HWComposer::HWCLayer* dup() {
+        return new CONCRETE( static_cast<const CONCRETE&>(*this) );
+    }
+    virtual status_t setLayer(size_t index) {
+        mCurrentLayer = &mLayerList[index];
+        return NO_ERROR;
+    }
+};
+
+/*
+ * Concrete implementation of HWCLayer for HWC_DEVICE_API_VERSION_0_3
+ * This implements the HWCLayer side of HWCIterableLayer.
+ */
+class HWCLayerVersion03 : public Iterable<HWCLayerVersion03, hwc_layer_t> {
+public:
+    HWCLayerVersion03(hwc_layer_t* layer)
+        : Iterable<HWCLayerVersion03, hwc_layer_t>(layer) { }
+
+    virtual int32_t getCompositionType() const {
+        return getLayer()->compositionType;
+    }
+    virtual uint32_t getHints() const {
+        return getLayer()->hints;
+    }
+
+    virtual void setDefaultState() {
+        getLayer()->compositionType = HWC_FRAMEBUFFER;
+        getLayer()->hints = 0;
+        getLayer()->flags = HWC_SKIP_LAYER;
+        getLayer()->transform = 0;
+        getLayer()->blending = HWC_BLENDING_NONE;
+        getLayer()->visibleRegionScreen.numRects = 0;
+        getLayer()->visibleRegionScreen.rects = NULL;
+    }
+    virtual void setSkip(bool skip) {
+        if (skip) {
+            getLayer()->flags |= HWC_SKIP_LAYER;
+        } else {
+            getLayer()->flags &= ~HWC_SKIP_LAYER;
+        }
+    }
+    virtual void setBlending(uint32_t blending) {
+        getLayer()->blending = blending;
+    }
+    virtual void setTransform(uint32_t transform) {
+        getLayer()->transform = transform;
+    }
+    virtual void setFrame(const Rect& frame) {
+        reinterpret_cast<Rect&>(getLayer()->displayFrame) = frame;
+    }
+    virtual void setCrop(const Rect& crop) {
+        reinterpret_cast<Rect&>(getLayer()->sourceCrop) = crop;
+    }
+    virtual void setVisibleRegionScreen(const Region& reg) {
+        getLayer()->visibleRegionScreen.rects =
+                reinterpret_cast<hwc_rect_t const *>(
+                        reg.getArray(&getLayer()->visibleRegionScreen.numRects));
+    }
+    virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
+        if (buffer == 0 || buffer->handle == 0) {
+            getLayer()->compositionType = HWC_FRAMEBUFFER;
+            getLayer()->flags |= HWC_SKIP_LAYER;
+            getLayer()->handle = 0;
+        } else {
+            getLayer()->handle = buffer->handle;
+        }
+    }
+};
+
+/*
+ * returns an iterator initialized at a given index in the layer list
+ */
+HWComposer::LayerListIterator HWComposer::getLayerIterator(size_t index) {
+    if (!mList || index > mList->numHwLayers) {
+        return LayerListIterator();
+    }
+    return LayerListIterator(new HWCLayerVersion03(mList->hwLayers), index);
 }
+
+/*
+ * returns an iterator on the beginning of the layer list
+ */
+HWComposer::LayerListIterator HWComposer::begin() {
+    return getLayerIterator(0);
+}
+
+/*
+ * returns an iterator on the end of the layer list
+ */
+HWComposer::LayerListIterator HWComposer::end() {
+    return getLayerIterator(getNumLayers());
+}
+
+
 
 void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {

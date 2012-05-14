@@ -32,8 +32,6 @@
 
 #include <private/gui/LayerState.h>
 
-#include <hardware/hwcomposer.h>
-
 #include "DisplayHardware/DisplayHardware.h"
 #include "Transform.h"
 
@@ -116,8 +114,8 @@ public:
 
     virtual const char* getTypeId() const { return "LayerBase"; }
 
-    virtual void setGeometry(hwc_layer_t* hwcl);
-    virtual void setPerFrameData(hwc_layer_t* hwcl);
+    virtual void setGeometry(HWComposer::HWCLayerInterface& layer);
+    virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
 
 
     /**
