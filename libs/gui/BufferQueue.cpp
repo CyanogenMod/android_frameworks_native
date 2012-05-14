@@ -495,9 +495,9 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
         // synchronizing access to it.  It's too late at this point to abort the
         // dequeue operation.
         if (result == EGL_FALSE) {
-            ALOGE("dequeueBuffer: error waiting for fence: %#x", eglGetError());
+            ST_LOGE("dequeueBuffer: error waiting for fence: %#x", eglGetError());
         } else if (result == EGL_TIMEOUT_EXPIRED_KHR) {
-            ALOGE("dequeueBuffer: timeout waiting for fence");
+            ST_LOGE("dequeueBuffer: timeout waiting for fence");
         }
         eglDestroySyncKHR(dpy, fence);
     }
