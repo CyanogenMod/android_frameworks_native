@@ -104,7 +104,6 @@ protected:
     virtual int setBuffersTransform(int transform);
     virtual int setBuffersTimestamp(int64_t timestamp);
     virtual int setCrop(Rect const* rect);
-    virtual int setPostTransformCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
@@ -158,13 +157,6 @@ private:
     // mCrop is the crop rectangle that will be used for the next buffer
     // that gets queued. It is set by calling setCrop.
     Rect mCrop;
-
-    // mCropNeedsTransform indicates whether mCrop is in post-transform
-    // coordinates and must be transformed using the inverse of mTransform
-    // before being queued with a buffer.  Otherwise the crop is passed
-    // untransformed.  It is initialized to false, is set to true by
-    // setPostTransformCrop, and set to false by setCrop.
-    bool mCropNeedsTransform;
 
     // mScalingMode is the scaling mode that will be used for the next
     // buffers that get queued. It is set by calling setScalingMode.
