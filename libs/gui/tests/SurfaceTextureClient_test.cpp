@@ -442,50 +442,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeMinUndequeued) {
     ASSERT_EQ(OK, mANW->cancelBuffer(mANW.get(), buf[2]));
 }
 
-TEST_F(SurfaceTextureClientTest, SetPostTransformCropUntransforms) {
-    android_native_rect_t rect = {1, 5, 4, 14};
-    native_window_set_post_transform_crop(mANW.get(), &rect);
-
-    uint32_t xforms[] = {
-        HAL_TRANSFORM_FLIP_H,
-        HAL_TRANSFORM_FLIP_V,
-        HAL_TRANSFORM_ROT_90,
-        HAL_TRANSFORM_ROT_180,
-        HAL_TRANSFORM_ROT_270,
-    };
-
-    Rect expectedRects[] = {
-        Rect(4, 5, 7, 14), // HAL_TRANSFORM_FLIP_H
-        Rect(1, 2, 4, 11), // HAL_TRANSFORM_FLIP_V
-        Rect(5, 4, 14, 7), // HAL_TRANSFORM_ROT_90
-        Rect(4, 2, 7, 11), // HAL_TRANSFORM_ROT_180
-        Rect(2, 1, 11, 4), // HAL_TRANSFORM_ROT_270
-    };
-
-    for (size_t i = 0; i < sizeof(xforms)/sizeof(xforms[0]); i++) {
-        SCOPED_TRACE(String8::format("xform=%#x", xforms[i]).string());
-
-        int w = 8, h = 16;
-        if (xforms[i] & HAL_TRANSFORM_ROT_90) {
-            w = 16;
-            h = 8;
-        }
-        ASSERT_EQ(OK, native_window_set_buffers_transform(mANW.get(), xforms[i]));
-        ASSERT_EQ(OK, native_window_set_buffers_dimensions(mANW.get(), w, h));
-
-        android_native_buffer_t* buf;
-        ASSERT_EQ(OK, mANW->dequeueBuffer(mANW.get(), &buf));
-        ASSERT_EQ(OK, mANW->queueBuffer(mANW.get(), buf));
-        ASSERT_EQ(OK, mST->updateTexImage());
-
-        Rect crop = mST->getCurrentCrop();
-        EXPECT_EQ(expectedRects[i].left, crop.left);
-        EXPECT_EQ(expectedRects[i].top, crop.top);
-        EXPECT_EQ(expectedRects[i].right, crop.right);
-        EXPECT_EQ(expectedRects[i].bottom, crop.bottom);
-    }
-}
-
 TEST_F(SurfaceTextureClientTest, SetCropCropsCrop) {
     android_native_rect_t rect = {-2, -13, 40, 18};
     native_window_set_crop(mANW.get(), &rect);
