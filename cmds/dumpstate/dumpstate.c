@@ -311,6 +311,8 @@ int main(int argc, char *argv[]) {
 
     ALOGI("begin\n");
 
+    signal(SIGPIPE, SIG_IGN);
+
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
     FILE *oom_adj = fopen("/proc/self/oom_adj", "w");

@@ -28,6 +28,7 @@ static int sort_func(const String16* lhs, const String16* rhs)
 
 int main(int argc, char* const argv[])
 {
+    signal(SIGPIPE, SIG_IGN);
     sp<IServiceManager> sm = defaultServiceManager();
     fflush(stdout);
     if (sm == NULL) {
