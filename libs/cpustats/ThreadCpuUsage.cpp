@@ -165,6 +165,7 @@ void ThreadCpuUsage::resetElapsed()
 int ThreadCpuUsage::sScalingFds[ThreadCpuUsage::MAX_CPU];
 pthread_once_t ThreadCpuUsage::sOnceControl = PTHREAD_ONCE_INIT;
 int ThreadCpuUsage::sKernelMax;
+pthread_mutex_t ThreadCpuUsage::sMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*static*/
 void ThreadCpuUsage::init()
@@ -195,26 +196,9 @@ void ThreadCpuUsage::init()
     } else {
         ALOGW("Can't open number of CPUs");
     }
-
-    // open fd to each frequency per CPU
-#define FREQ_SIZE 64
-    char freq_path[FREQ_SIZE];
-#define FREQ_DIGIT 27
-    COMPILE_TIME_ASSERT_FUNCTION_SCOPE(MAX_CPU <= 10);
-    strlcpy(freq_path, "/sys/devices/system/cpu/cpu?/cpufreq/scaling_cur_freq", sizeof(freq_path));
     int i;
     for (i = 0; i < MAX_CPU; ++i) {
         sScalingFds[i] = -1;
-    }
-    for (i = 0; i < sKernelMax; ++i) {
-        freq_path[FREQ_DIGIT] = i + '0';
-        fd = open(freq_path, O_RDONLY);
-        if (fd >= 0) {
-            // keep this fd until process exit
-            sScalingFds[i] = fd;
-        } else {
-            ALOGW("Can't open CPU %d", i);
-        }
     }
 }
 
@@ -224,10 +208,29 @@ uint32_t ThreadCpuUsage::getCpukHz(int cpuNum)
         ALOGW("getCpukHz called with invalid CPU %d", cpuNum);
         return 0;
     }
+    // double-checked locking idiom is not broken for atomic values such as fd
     int fd = sScalingFds[cpuNum];
     if (fd < 0) {
-        ALOGW("getCpukHz called for unopened CPU %d", cpuNum);
-        return 0;
+        // some kernels can't open a scaling file until hot plug complete
+        pthread_mutex_lock(&sMutex);
+        fd = sScalingFds[cpuNum];
+        if (fd < 0) {
+#define FREQ_SIZE 64
+            char freq_path[FREQ_SIZE];
+#define FREQ_DIGIT 27
+            COMPILE_TIME_ASSERT_FUNCTION_SCOPE(MAX_CPU <= 10);
+#define FREQ_PATH "/sys/devices/system/cpu/cpu?/cpufreq/scaling_cur_freq"
+            strlcpy(freq_path, FREQ_PATH, sizeof(freq_path));
+            freq_path[FREQ_DIGIT] = cpuNum + '0';
+            fd = open(freq_path, O_RDONLY | O_CLOEXEC);
+            // keep this fd until process exit or exec
+            sScalingFds[cpuNum] = fd;
+        }
+        pthread_mutex_unlock(&sMutex);
+        if (fd < 0) {
+            ALOGW("getCpukHz can't open CPU %d", cpuNum);
+            return 0;
+        }
     }
 #define KHZ_SIZE 12
     char kHz[KHZ_SIZE];   // kHz base 10

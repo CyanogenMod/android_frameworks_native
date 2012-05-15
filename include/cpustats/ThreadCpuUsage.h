@@ -131,7 +131,8 @@ private:
     uint32_t mCurrentkHz[MAX_CPU];  // current CPU frequency in kHz, not static to avoid a race
     static pthread_once_t sOnceControl;
     static int sKernelMax;          // like MAX_CPU, but determined at runtime == cpu/kernel_max + 1
-    static void init();
+    static void init();             // called once at first ThreadCpuUsage construction
+    static pthread_mutex_t sMutex;  // protects sScalingFds[] after initialization
 };
 
 }   // namespace android
