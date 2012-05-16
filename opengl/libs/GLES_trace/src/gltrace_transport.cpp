@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -123,7 +124,18 @@ int TCPStream::receive(void *data, size_t len) {
         return -1;
     }
 
-    return read(mSocket, data, len);
+    size_t totalRead = 0;
+    while (totalRead < len) {
+        int n = read(mSocket, (uint8_t*)data + totalRead, len - totalRead);
+        if (n < 0) {
+            ALOGE("Error receiving data from stream: %d", errno);
+            return -1;
+        }
+
+        totalRead += n;
+    }
+
+    return 0;
 }
 
 BufferedOutputStream::BufferedOutputStream(TCPStream *stream, size_t bufferSize) {
