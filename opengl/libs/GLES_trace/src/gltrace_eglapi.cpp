@@ -44,9 +44,14 @@ static void *commandReceiveTask(void *arg) {
     GLTraceState *state = (GLTraceState *)arg;
     TCPStream *stream = state->getStream();
 
-    // Currently, there are very few user configurable settings.
-    // As a result, they can be encoded in a single integer.
-    int cmd;
+    // The control stream always receives an integer size of the
+    // command buffer, followed by the actual command buffer.
+    uint32_t cmdSize;
+
+    // Command Buffer
+    void *cmdBuf = NULL;
+    uint32_t cmdBufSize = 0;
+
     enum TraceSettingsMasks {
         READ_FB_ON_EGLSWAP_MASK = 1 << 0,
         READ_FB_ON_GLDRAW_MASK = 1 << 1,
@@ -54,12 +59,33 @@ static void *commandReceiveTask(void *arg) {
     };
 
     while (true) {
-        int n = stream->receive(&cmd, 4);
-        if (n != 4) {
+        // read command size
+        if (stream->receive(&cmdSize, sizeof(uint32_t)) < 0) {
+            break;
+        }
+        cmdSize = ntohl(cmdSize);
+
+        // ensure command buffer is of required size
+        if (cmdBufSize < cmdSize) {
+            free(cmdBuf);
+            cmdBufSize = cmdSize;
+            cmdBuf = malloc(cmdSize);
+            if (cmdBuf == NULL)
+                break;
+        }
+
+        // receive the command
+        if (stream->receive(cmdBuf, cmdSize) < 0) {
             break;
         }
 
-        cmd = ntohl(cmd);
+        if (cmdSize != sizeof(uint32_t)) {
+            // Currently, we only support commands that are a single integer,
+            // so we skip all other commands
+            continue;
+        }
+
+        uint32_t cmd = ntohl(*(uint32_t*)cmdBuf);
 
         bool collectFbOnEglSwap = (cmd & READ_FB_ON_EGLSWAP_MASK) != 0;
         bool collectFbOnGlDraw = (cmd & READ_FB_ON_GLDRAW_MASK) != 0;
@@ -73,6 +99,9 @@ static void *commandReceiveTask(void *arg) {
             collectFbOnEglSwap, collectFbOnGlDraw, collectTextureData);
     }
 
+    ALOGE("Stopping OpenGL Trace Command Receiver\n");
+
+    free(cmdBuf);
     return NULL;
 }
 
