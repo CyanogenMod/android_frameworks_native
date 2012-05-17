@@ -65,20 +65,28 @@ public:
             Region      coveredRegionScreen;
             int32_t     sequence;
             
+            struct Geometry {
+                uint32_t w;
+                uint32_t h;
+                Rect crop;
+                inline bool operator == (const Geometry& rhs) const {
+                    return (w==rhs.w && h==rhs.h && crop==rhs.crop);
+                }
+                inline bool operator != (const Geometry& rhs) const {
+                    return !operator == (rhs);
+                }
+            };
+
             struct State {
-                uint32_t        w;
-                uint32_t        h;
-                uint32_t        requested_w;
-                uint32_t        requested_h;
+                Geometry        active;
+                Geometry        requested;
                 uint32_t        z;
                 uint8_t         alpha;
                 uint8_t         flags;
                 uint8_t         reserved[2];
                 int32_t         sequence;   // changes when visible regions can change
-                uint32_t        tint;
                 Transform       transform;
                 Region          transparentRegion;
-                Rect            crop;
             };
 
     virtual void setName(const String8& name);
