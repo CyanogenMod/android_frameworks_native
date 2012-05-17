@@ -42,8 +42,11 @@ public:
     /** Send @data of size @len to host. . Returns -1 on error, 0 on success. */
     int send(void *data, size_t len);
 
-    /** Receive data into @buf from the remote end. This is a blocking call. */
-    int receive(void *buf, size_t size);
+    /**
+     * Receive @len bytes of data into @buf from the remote end. This is a blocking call.
+     * Returns -1 on failure, 0 on success.
+     */
+    int receive(void *buf, size_t len);
 };
 
 /**
