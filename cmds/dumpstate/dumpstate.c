@@ -144,6 +144,7 @@ static void dumpstate() {
 
     dump_file("NETWORK DEV INFO", "/proc/net/dev");
     dump_file("QTAGUID NETWORK INTERFACES INFO", "/proc/net/xt_qtaguid/iface_stat_all");
+    dump_file("QTAGUID NETWORK INTERFACES INFO (xt)", "/proc/net/xt_qtaguid/iface_stat_fmt");
     dump_file("QTAGUID CTRL INFO", "/proc/net/xt_qtaguid/ctrl");
     dump_file("QTAGUID STATS INFO", "/proc/net/xt_qtaguid/stats");
 
@@ -176,8 +177,10 @@ static void dumpstate() {
     dump_file("ARP CACHE", "/proc/net/arp");
     run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
     run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
-    run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-n", NULL);
-    run_command("IPT6ABLE NAT", 10, SU_PATH, "root", "ip6tables", "-t", "nat", "-L", "-n", NULL);
+    run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-nvx", NULL);
+    /* no ip6 nat */
+    run_command("IPTABLE RAW", 10, SU_PATH, "root", "iptables", "-t", "raw", "-L", "-nvx", NULL);
+    run_command("IP6TABLE RAW", 10, SU_PATH, "root", "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
 
     run_command("WIFI NETWORKS", 20,
             SU_PATH, "root", "wpa_cli", "list_networks", NULL);
