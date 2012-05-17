@@ -84,16 +84,15 @@ void LayerBase::initStates(uint32_t w, uint32_t h, uint32_t flags)
     if (flags & ISurfaceComposer::eNonPremultiplied)
         mPremultipliedAlpha = false;
 
-    mCurrentState.z             = 0;
-    mCurrentState.w             = w;
-    mCurrentState.h             = h;
-    mCurrentState.requested_w   = w;
-    mCurrentState.requested_h   = h;
-    mCurrentState.alpha         = 0xFF;
-    mCurrentState.flags         = layerFlags;
-    mCurrentState.sequence      = 0;
+    mCurrentState.active.w = w;
+    mCurrentState.active.h = h;
+    mCurrentState.active.crop.makeInvalid();
+    mCurrentState.z = 0;
+    mCurrentState.alpha = 0xFF;
+    mCurrentState.flags = layerFlags;
+    mCurrentState.sequence = 0;
     mCurrentState.transform.set(0, 0);
-    mCurrentState.crop.makeInvalid();
+    mCurrentState.requested = mCurrentState.active;
 
     // drawing state & current state are identical
     mDrawingState = mCurrentState;
@@ -136,10 +135,10 @@ bool LayerBase::setLayer(uint32_t z) {
     return true;
 }
 bool LayerBase::setSize(uint32_t w, uint32_t h) {
-    if (mCurrentState.requested_w == w && mCurrentState.requested_h == h)
+    if (mCurrentState.requested.w == w && mCurrentState.requested.h == h)
         return false;
-    mCurrentState.requested_w = w;
-    mCurrentState.requested_h = h;
+    mCurrentState.requested.w = w;
+    mCurrentState.requested.h = h;
     requestTransaction();
     return true;
 }
@@ -174,10 +173,10 @@ bool LayerBase::setFlags(uint8_t flags, uint8_t mask) {
     return true;
 }
 bool LayerBase::setCrop(const Rect& crop) {
-    if (mCurrentState.crop == crop)
+    if (mCurrentState.active.crop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.crop = crop;
+    mCurrentState.active.crop = crop;
     requestTransaction();
     return true;
 }
@@ -202,15 +201,15 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    if ((front.requested_w != temp.requested_w) ||
-        (front.requested_h != temp.requested_h))  {
+    if ((front.requested.w != temp.requested.w) ||
+        (front.requested.h != temp.requested.h))  {
         // resize the layer, set the physical size to the requested size
         Layer::State& editTemp(currentState());
-        editTemp.w = temp.requested_w;
-        editTemp.h = temp.requested_h;
+        editTemp.active.w = temp.requested.w;
+        editTemp.active.h = temp.requested.h;
     }
 
-    if ((front.w != temp.w) || (front.h != temp.h)) {
+    if ((front.active.w != temp.active.w) || (front.active.h != temp.active.h)) {
         // invalidate and recompute the visible regions if needed
         flags |= Layer::eVisibleRegion;
     }
@@ -238,9 +237,9 @@ void LayerBase::validateVisibility(const Transform& planeTransform)
     const bool transformed = tr.transformed();
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t hw_h = hw.getHeight();
-    const Rect& crop(s.crop);
+    const Rect& crop(s.active.crop);
 
-    Rect win(s.w, s.h);
+    Rect win(s.active.w, s.active.h);
     if (!crop.isEmpty()) {
         win.intersect(crop, &win);
     }
@@ -403,14 +402,14 @@ void LayerBase::drawWithOpenGL(const Region& clip) const
         GLfloat v;
     };
 
-    Rect crop(s.w, s.h);
-    if (!s.crop.isEmpty()) {
-        crop = s.crop;
+    Rect crop(s.active.w, s.active.h);
+    if (!s.active.crop.isEmpty()) {
+        crop = s.active.crop;
     }
-    GLfloat left = GLfloat(crop.left) / GLfloat(s.w);
-    GLfloat top = GLfloat(crop.top) / GLfloat(s.h);
-    GLfloat right = GLfloat(crop.right) / GLfloat(s.w);
-    GLfloat bottom = GLfloat(crop.bottom) / GLfloat(s.h);
+    GLfloat left = GLfloat(crop.left) / GLfloat(s.active.w);
+    GLfloat top = GLfloat(crop.top) / GLfloat(s.active.h);
+    GLfloat right = GLfloat(crop.right) / GLfloat(s.active.w);
+    GLfloat bottom = GLfloat(crop.bottom) / GLfloat(s.active.h);
 
     TexCoords texCoords[4];
     texCoords[0].u = left;
@@ -449,10 +448,12 @@ void LayerBase::dump(String8& result, char* buffer, size_t SIZE) const
 
     snprintf(buffer, SIZE,
             "      "
-            "z=%9d, pos=(%g,%g), size=(%4d,%4d), "
+            "z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, needsDithering=%1d, invalidate=%1d, "
             "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n",
-            s.z, s.transform.tx(), s.transform.ty(), s.w, s.h,
+            s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
+            s.active.crop.left, s.active.crop.top,
+            s.active.crop.right, s.active.crop.bottom,
             isOpaque(), needsDithering(), contentDirty,
             s.alpha, s.flags,
             s.transform[0][0], s.transform[0][1],

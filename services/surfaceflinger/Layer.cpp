@@ -232,27 +232,28 @@ Rect Layer::computeBufferCrop() const {
     // ... then reduce that in the same proportions as the window crop reduces
     // the window size.
     const State& s(drawingState());
-    if (!s.crop.isEmpty()) {
+    if (!s.active.crop.isEmpty()) {
         // Transform the window crop to match the buffer coordinate system,
         // which means using the inverse of the current transform set on the
         // SurfaceTexture.
         uint32_t invTransform = mCurrentTransform;
-        int winWidth = s.w;
-        int winHeight = s.h;
+        int winWidth = s.active.w;
+        int winHeight = s.active.h;
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
             invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
                     NATIVE_WINDOW_TRANSFORM_FLIP_H;
-            winWidth = s.h;
-            winHeight = s.w;
+            winWidth = s.active.h;
+            winHeight = s.active.w;
         }
-        Rect winCrop = s.crop.transform(invTransform, s.w, s.h);
+        Rect winCrop = s.active.crop.transform(invTransform,
+                s.active.w, s.active.h);
 
         float xScale = float(crop.width()) / float(winWidth);
         float yScale = float(crop.height()) / float(winHeight);
-        crop.left += int(ceil(float(winCrop.left) * xScale));
-        crop.top += int(ceil(float(winCrop.top) * yScale));
-        crop.right -= int(ceil(float(winWidth - winCrop.right) * xScale));
-        crop.bottom -= int(ceil(float(winHeight - winCrop.bottom) * yScale));
+        crop.left += int(ceilf(float(winCrop.left) * xScale));
+        crop.top += int(ceilf(float(winCrop.top) * yScale));
+        crop.right -= int(ceilf(float(winWidth - winCrop.right) * xScale));
+        crop.bottom -= int(ceilf(float(winHeight - winCrop.bottom) * yScale));
     }
 
     return crop;
@@ -427,8 +428,8 @@ uint32_t Layer::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    const bool sizeChanged = (front.requested_w != temp.requested_w) ||
-            (front.requested_h != temp.requested_h);
+    const bool sizeChanged = (front.requested.w != temp.requested.w) ||
+            (front.requested.h != temp.requested.h);
 
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
@@ -437,22 +438,22 @@ uint32_t Layer::doTransaction(uint32_t flags)
                 "resize (layer=%p), requested (%dx%d), drawing (%d,%d), "
                 "scalingMode=%d",
                 this,
-                int(temp.requested_w), int(temp.requested_h),
-                int(front.requested_w), int(front.requested_h),
+                int(temp.requested.w), int(temp.requested.h),
+                int(front.requested.w), int(front.requested.h),
                 mCurrentScalingMode);
 
         if (!isFixedSize()) {
             // this will make sure LayerBase::doTransaction doesn't update
             // the drawing state's size
             Layer::State& editDraw(mDrawingState);
-            editDraw.requested_w = temp.requested_w;
-            editDraw.requested_h = temp.requested_h;
+            editDraw.requested.w = temp.requested.w;
+            editDraw.requested.h = temp.requested.h;
         }
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
-        mSurfaceTexture->setDefaultBufferSize(temp.requested_w,
-                temp.requested_h);
+        mSurfaceTexture->setDefaultBufferSize(temp.requested.w,
+                temp.requested.h);
     }
 
     return LayerBase::doTransaction(flags);
@@ -551,10 +552,10 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
         const Layer::State& front(drawingState());
 
         // FIXME: mPostedDirtyRegion = dirty & bounds
-        mPostedDirtyRegion.set(front.w, front.h);
+        mPostedDirtyRegion.set(front.active.w, front.active.h);
 
-        if ((front.w != front.requested_w) ||
-            (front.h != front.requested_h))
+        if ((front.active.w != front.requested.w) ||
+            (front.active.h != front.requested.h))
         {
             // check that we received a buffer of the right size
             // (Take the buffer's orientation into account)
@@ -563,15 +564,15 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             }
 
             if (isFixedSize() ||
-                    (bufWidth == front.requested_w &&
-                    bufHeight == front.requested_h))
+                    (bufWidth == front.requested.w &&
+                    bufHeight == front.requested.h))
             {
                 // Here we pretend the transaction happened by updating the
                 // current and drawing states. Drawing state is only accessed
                 // in this thread, no need to have it locked
                 Layer::State& editDraw(mDrawingState);
-                editDraw.w = editDraw.requested_w;
-                editDraw.h = editDraw.requested_h;
+                editDraw.active.w = editDraw.requested.w;
+                editDraw.active.h = editDraw.requested.h;
 
                 // We also need to update the current state so that we don't
                 // end-up doing too much work during the next transaction.
@@ -579,8 +580,8 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                 // because State::w and State::h are only accessed from
                 // this thread
                 Layer::State& editTemp(currentState());
-                editTemp.w = editDraw.w;
-                editTemp.h = editDraw.h;
+                editTemp.active.w = editDraw.active.w;
+                editTemp.active.h = editDraw.active.h;
 
                 // recompute visible region
                 recomputeVisibleRegions = true;
@@ -592,7 +593,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                     "requested (%dx%d)",
                     this,
                     bufWidth, bufHeight, mCurrentTransform,
-                    front.requested_w, front.requested_h);
+                    front.requested.w, front.requested.h);
         }
     }
 }
