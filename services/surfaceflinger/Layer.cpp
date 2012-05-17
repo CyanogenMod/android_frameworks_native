@@ -435,25 +435,37 @@ uint32_t Layer::doTransaction(uint32_t flags)
         // the size changed, we need to ask our client to request a new buffer
         ALOGD_IF(DEBUG_RESIZE,
                 "doTransaction: "
-                "resize (layer=%p), requested (%dx%d), drawing (%d,%d), "
+                "geometry (layer=%p), size: current (%dx%d), drawing (%dx%d), "
+                "crop: current (%d,%d,%d,%d [%dx%d]), drawing (%d,%d,%d,%d [%dx%d]), "
                 "scalingMode=%d",
                 this,
                 int(temp.requested.w), int(temp.requested.h),
                 int(front.requested.w), int(front.requested.h),
+                temp.requested.crop.left,
+                temp.requested.crop.top,
+                temp.requested.crop.right,
+                temp.requested.crop.bottom,
+                temp.requested.crop.getWidth(),
+                temp.requested.crop.getHeight(),
+                front.requested.crop.left,
+                front.requested.crop.top,
+                front.requested.crop.right,
+                front.requested.crop.bottom,
+                front.requested.crop.getWidth(),
+                front.requested.crop.getHeight(),
                 mCurrentScalingMode);
 
         if (!isFixedSize()) {
             // this will make sure LayerBase::doTransaction doesn't update
-            // the drawing state's size
+            // the drawing state's geometry
             Layer::State& editDraw(mDrawingState);
-            editDraw.requested.w = temp.requested.w;
-            editDraw.requested.h = temp.requested.h;
+            editDraw.requested = temp.requested;
         }
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
-        mSurfaceTexture->setDefaultBufferSize(temp.requested.w,
-                temp.requested.h);
+        mSurfaceTexture->setDefaultBufferSize(
+                temp.requested.w, temp.requested.h);
     }
 
     return LayerBase::doTransaction(flags);
@@ -554,9 +566,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
         // FIXME: mPostedDirtyRegion = dirty & bounds
         mPostedDirtyRegion.set(front.active.w, front.active.h);
 
-        if ((front.active.w != front.requested.w) ||
-            (front.active.h != front.requested.h))
-        {
+        if (front.active != front.requested) {
             // check that we received a buffer of the right size
             // (Take the buffer's orientation into account)
             if (mCurrentTransform & Transform::ROT_90) {
@@ -571,8 +581,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                 // current and drawing states. Drawing state is only accessed
                 // in this thread, no need to have it locked
                 Layer::State& editDraw(mDrawingState);
-                editDraw.active.w = editDraw.requested.w;
-                editDraw.active.h = editDraw.requested.h;
+                editDraw.active = editDraw.requested;
 
                 // We also need to update the current state so that we don't
                 // end-up doing too much work during the next transaction.
@@ -580,8 +589,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                 // because State::w and State::h are only accessed from
                 // this thread
                 Layer::State& editTemp(currentState());
-                editTemp.active.w = editDraw.active.w;
-                editTemp.active.h = editDraw.active.h;
+                editTemp.active = editDraw.active;
 
                 // recompute visible region
                 recomputeVisibleRegions = true;

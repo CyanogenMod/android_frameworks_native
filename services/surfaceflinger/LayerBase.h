@@ -66,9 +66,15 @@ public:
             int32_t     sequence;
             
             struct Geometry {
-                uint32_t        w;
-                uint32_t        h;
-                Rect            crop;
+                uint32_t w;
+                uint32_t h;
+                Rect crop;
+                inline bool operator == (const Geometry& rhs) const {
+                    return (w==rhs.w && h==rhs.h && crop==rhs.crop);
+                }
+                inline bool operator != (const Geometry& rhs) const {
+                    return !operator == (rhs);
+                }
             };
 
             struct State {

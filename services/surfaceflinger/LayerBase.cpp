@@ -173,10 +173,10 @@ bool LayerBase::setFlags(uint8_t flags, uint8_t mask) {
     return true;
 }
 bool LayerBase::setCrop(const Rect& crop) {
-    if (mCurrentState.active.crop == crop)
+    if (mCurrentState.requested.crop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.active.crop = crop;
+    mCurrentState.requested.crop = crop;
     requestTransaction();
     return true;
 }
@@ -201,15 +201,13 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    if ((front.requested.w != temp.requested.w) ||
-        (front.requested.h != temp.requested.h))  {
-        // resize the layer, set the physical size to the requested size
+    if (front.requested != temp.requested)  {
+        // geometry of the layer has changed, set the active geometry
+        // to the requested geometry.
         Layer::State& editTemp(currentState());
-        editTemp.active.w = temp.requested.w;
-        editTemp.active.h = temp.requested.h;
+        editTemp.active = temp.requested;
     }
-
-    if ((front.active.w != temp.active.w) || (front.active.h != temp.active.h)) {
+    if (front.active != temp.active) {
         // invalidate and recompute the visible regions if needed
         flags |= Layer::eVisibleRegion;
     }
