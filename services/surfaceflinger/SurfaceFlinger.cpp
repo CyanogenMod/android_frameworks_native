@@ -62,6 +62,7 @@
 
 #include <private/android_filesystem_config.h>
 #include <private/gui/SharedBufferStack.h>
+#include <gui/BitTube.h>
 
 #define EGL_VERSION_HW_ANDROID  0x3143
 
@@ -1845,6 +1846,35 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
 
 // ---------------------------------------------------------------------------
 
+class VSyncWaiter {
+    DisplayEventReceiver::Event buffer[4];
+    sp<Looper> looper;
+    sp<IDisplayEventConnection> events;
+    sp<BitTube> eventTube;
+public:
+    VSyncWaiter(const sp<EventThread>& eventThread) {
+        looper = new Looper(true);
+        events = eventThread->createEventConnection();
+        eventTube = events->getDataChannel();
+        looper->addFd(eventTube->getFd(), 0, ALOOPER_EVENT_INPUT, 0, 0);
+        events->requestNextVsync();
+    }
+
+    void wait() {
+        ssize_t n;
+
+        looper->pollOnce(-1);
+        // we don't handle any errors here, it doesn't matter
+        // and we don't want to take the risk to get stuck.
+
+        // drain the events...
+        while ((n = DisplayEventReceiver::getEvents(
+                eventTube, buffer, 4)) > 0) ;
+
+        events->requestNextVsync();
+    }
+};
+
 status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
 {
     // get screen geometry
@@ -1937,6 +1967,8 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
         }
     };
 
+    VSyncWaiter vsync(mEventThread);
+
     // the full animation is 24 frames
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sf.electron_frames", value, "24");
@@ -1962,6 +1994,9 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
         const float vr = itr(i);
         const float vg = itg(i);
         const float vb = itb(i);
+
+        // wait for vsync
+        vsync.wait();
 
         // clear screen
         glColorMask(1,1,1,1);
@@ -1998,6 +2033,10 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
     for (int i=0 ; i<nbFrames ; i++) {
         const float v = itg(i);
         hverts(vtx, v);
+
+        // wait for vsync
+        vsync.wait();
+
         glClear(GL_COLOR_BUFFER_BIT);
         glColor4f(1-v, 1-v, 1-v, 1);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -2095,6 +2134,8 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
         }
     };
 
+    VSyncWaiter vsync(mEventThread);
+
     // the full animation is 12 frames
     int nbFrames = 8;
     s_curve_interpolator itr(nbFrames, 7.5f);
@@ -2108,6 +2149,10 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
     for (int i=nbFrames-1 ; i>=0 ; i--) {
         const float v = itg(i);
         hverts(vtx, v);
+
+        // wait for vsync
+        vsync.wait();
+
         glClear(GL_COLOR_BUFFER_BIT);
         glColor4f(1-v, 1-v, 1-v, 1);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -2123,6 +2168,9 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
         const float vr = itr(i);
         const float vg = itg(i);
         const float vb = itb(i);
+
+        // wait for vsync
+        vsync.wait();
 
         // clear screen
         glColorMask(1,1,1,1);
