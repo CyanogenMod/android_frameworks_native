@@ -208,7 +208,7 @@ static void dumpstate() {
 
     run_command("FILESYSTEMS & FREE SPACE", 10, SU_PATH, "root", "df", NULL);
 
-    dump_file("PACKAGE SETTINGS", "/data/system/packages.xml");
+    run_command("PACKAGE SETTINGS", 20, SU_PATH, "root", "cat", "/data/system/packages.xml", NULL);
     dump_file("PACKAGE UID ERRORS", "/data/system/uiderrors.txt");
 
     run_command("LAST RADIO LOG", 10, "parse_radio_log", "/proc/last_radio_log", NULL);
