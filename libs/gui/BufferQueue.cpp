@@ -994,8 +994,6 @@ status_t BufferQueue::setBufferCountServer(int bufferCount) {
 }
 
 void BufferQueue::freeAllBuffersExceptHeadLocked() {
-    ALOGW_IF(!mQueue.isEmpty(),
-            "freeAllBuffersExceptCurrentLocked called but mQueue is not empty");
     int head = -1;
     if (!mQueue.empty()) {
         Fifo::iterator front(mQueue.begin());
