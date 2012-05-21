@@ -2577,4 +2577,32 @@ TEST_F(SurfaceTextureMultiContextGLTest,
     ASSERT_TRUE(checkPixel( 0,  0,  35,  35,  35,  35));
 }
 
+TEST_F(SurfaceTextureMultiContextGLTest,
+        UpdateTexImageSucceedsForBufferConsumedBeforeDetach) {
+    ASSERT_EQ(NO_ERROR, mST->setSynchronousMode(true));
+    ASSERT_EQ(NO_ERROR, mST->setBufferCountServer(2));
+
+    // produce two frames and consume them both on the primary context
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // produce one more frame
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Detach from the primary context and attach to the secondary context
+    ASSERT_EQ(OK, mST->detachFromContext());
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+
+    // Consume final frame on secondary context
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+}
+
 } // namespace android

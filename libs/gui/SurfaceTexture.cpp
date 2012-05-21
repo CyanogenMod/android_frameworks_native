@@ -228,14 +228,16 @@ status_t SurfaceTexture::updateTexImage() {
             mEGLSlots[buf].mGraphicBuffer = item.mGraphicBuffer;
         }
 
-        // Update the GL texture object.
+        // Update the GL texture object. We may have to do this even when
+        // item.mGraphicBuffer == NULL, if we destroyed the EGLImage when
+        // detaching from a context but the buffer has not been re-allocated.
         EGLImageKHR image = mEGLSlots[buf].mEglImage;
         if (image == EGL_NO_IMAGE_KHR) {
-            if (item.mGraphicBuffer == 0) {
+            if (mEGLSlots[buf].mGraphicBuffer == NULL) {
                 ST_LOGE("updateTexImage: buffer at slot %d is null", buf);
                 return BAD_VALUE;
             }
-            image = createImage(dpy, item.mGraphicBuffer);
+            image = createImage(dpy, mEGLSlots[buf].mGraphicBuffer);
             mEGLSlots[buf].mEglImage = image;
             if (image == EGL_NO_IMAGE_KHR) {
                 // NOTE: if dpy was invalid, createImage() is guaranteed to
