@@ -235,36 +235,39 @@ status_t SurfaceTexture::updateTexImage() {
         if (image == EGL_NO_IMAGE_KHR) {
             if (mEGLSlots[buf].mGraphicBuffer == NULL) {
                 ST_LOGE("updateTexImage: buffer at slot %d is null", buf);
-                return BAD_VALUE;
+                err = BAD_VALUE;
+            } else {
+                image = createImage(dpy, mEGLSlots[buf].mGraphicBuffer);
+                mEGLSlots[buf].mEglImage = image;
+                if (image == EGL_NO_IMAGE_KHR) {
+                    // NOTE: if dpy was invalid, createImage() is guaranteed to
+                    // fail. so we'd end up here.
+                    err = UNKNOWN_ERROR;
+                }
             }
-            image = createImage(dpy, mEGLSlots[buf].mGraphicBuffer);
-            mEGLSlots[buf].mEglImage = image;
-            if (image == EGL_NO_IMAGE_KHR) {
-                // NOTE: if dpy was invalid, createImage() is guaranteed to
-                // fail. so we'd end up here.
-                return UNKNOWN_ERROR;
+        }
+
+        if (err == NO_ERROR) {
+            GLint error;
+            while ((error = glGetError()) != GL_NO_ERROR) {
+                ST_LOGW("updateTexImage: clearing GL error: %#04x", error);
+            }
+
+            glBindTexture(mTexTarget, mTexName);
+            glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+
+            while ((error = glGetError()) != GL_NO_ERROR) {
+                ST_LOGE("updateTexImage: error binding external texture image %p "
+                        "(slot %d): %#04x", image, buf, error);
+                err = UNKNOWN_ERROR;
+            }
+
+            if (err == NO_ERROR) {
+                err = syncForReleaseLocked(dpy);
             }
         }
 
-        GLint error;
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGW("updateTexImage: clearing GL error: %#04x", error);
-        }
-
-        glBindTexture(mTexTarget, mTexName);
-        glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
-
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGE("updateTexImage: error binding external texture image %p "
-                    "(slot %d): %#04x", image, buf, error);
-            err = UNKNOWN_ERROR;
-        }
-
-        if (err == OK) {
-            err = syncForReleaseLocked(dpy);
-        }
-
-        if (err != OK) {
+        if (err != NO_ERROR) {
             // Release the buffer we just acquired.  It's not safe to
             // release the old buffer, so instead we just drop the new frame.
             mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence);
@@ -279,12 +282,13 @@ status_t SurfaceTexture::updateTexImage() {
 
         // release old buffer
         if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-            status_t status = mBufferQueue->releaseBuffer(mCurrentTexture, dpy, mEGLSlots[mCurrentTexture].mFence);
+            status_t status = mBufferQueue->releaseBuffer(mCurrentTexture, dpy,
+                    mEGLSlots[mCurrentTexture].mFence);
 
             mEGLSlots[mCurrentTexture].mFence = EGL_NO_SYNC_KHR;
             if (status == BufferQueue::STALE_BUFFER_SLOT) {
                 freeBufferLocked(mCurrentTexture);
-            } else if (status != OK) {
+            } else if (status != NO_ERROR) {
                 ST_LOGE("updateTexImage: released invalid buffer");
                 err = status;
             }
