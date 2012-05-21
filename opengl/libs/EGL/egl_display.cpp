@@ -32,7 +32,7 @@ namespace android {
 
 static char const * const sVendorString     = "Android";
 static char const * const sVersionString    = "1.4 Android META-EGL";
-static char const * const sClientApiString  = "OpenGL ES";
+static char const * const sClientApiString  = "OpenGL_ES";
 
 // this is the list of EGL extensions that are exposed to applications
 // some of them are mandatory because used by the ANDROID system.
