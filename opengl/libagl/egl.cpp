@@ -794,7 +794,7 @@ struct config_management_t {
 #define VERSION_MINOR 2
 static char const * const gVendorString     = "Google Inc.";
 static char const * const gVersionString    = "1.2 Android Driver 1.2.0";
-static char const * const gClientApiString  = "OpenGL ES";
+static char const * const gClientApiString  = "OpenGL_ES";
 static char const * const gExtensionsString =
         "EGL_KHR_image_base "
         // "KHR_image_pixmap "
