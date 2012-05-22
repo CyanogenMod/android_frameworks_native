@@ -796,6 +796,7 @@ static char const * const gVendorString     = "Google Inc.";
 static char const * const gVersionString    = "1.2 Android Driver 1.2.0";
 static char const * const gClientApiString  = "OpenGL_ES";
 static char const * const gExtensionsString =
+        "EGL_KHR_fence_sync "
         "EGL_KHR_image_base "
         // "KHR_image_pixmap "
         "EGL_ANDROID_image_native_buffer "
@@ -850,6 +851,14 @@ static const extention_map_t gExtentionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglCreateImageKHR }, 
     { "eglDestroyImageKHR", 
             (__eglMustCastToProperFunctionPointerType)&eglDestroyImageKHR }, 
+    { "eglCreateSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglCreateSyncKHR },
+    { "eglDestroySyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglDestroySyncKHR },
+    { "eglClientWaitSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglClientWaitSyncKHR },
+    { "eglGetSyncAttribKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglGetSyncAttribKHR },
     { "eglSetSwapRectangleANDROID", 
             (__eglMustCastToProperFunctionPointerType)&eglSetSwapRectangleANDROID }, 
 };
@@ -2054,6 +2063,74 @@ EGLBoolean eglDestroyImageKHR(EGLDisplay dpy, EGLImageKHR img)
     native_buffer->common.decRef(&native_buffer->common);
 
     return EGL_TRUE;
+}
+
+// ----------------------------------------------------------------------------
+// EGL_KHR_fence_sync
+// ----------------------------------------------------------------------------
+
+#define FENCE_SYNC_HANDLE ((EGLSyncKHR)0xFE4CE)
+
+EGLSyncKHR eglCreateSyncKHR(EGLDisplay dpy, EGLenum type,
+        const EGLint *attrib_list)
+{
+    if (egl_display_t::is_valid(dpy) == EGL_FALSE) {
+        return setError(EGL_BAD_DISPLAY, EGL_NO_SYNC_KHR);
+    }
+
+    if (type != EGL_SYNC_FENCE_KHR ||
+            (attrib_list != NULL && attrib_list[0] != EGL_NONE)) {
+        return setError(EGL_BAD_ATTRIBUTE, EGL_NO_SYNC_KHR);
+    }
+
+    if (eglGetCurrentContext() == EGL_NO_CONTEXT) {
+        return setError(EGL_BAD_MATCH, EGL_NO_SYNC_KHR);
+    }
+
+    // AGL is synchronous; nothing to do here.
+
+    return FENCE_SYNC_HANDLE;
+}
+
+EGLBoolean eglDestroySyncKHR(EGLDisplay dpy, EGLSyncKHR sync)
+{
+    if (sync != FENCE_SYNC_HANDLE) {
+        return setError(EGL_BAD_PARAMETER, EGL_FALSE);
+    }
+
+    return EGL_TRUE;
+}
+
+EGLint eglClientWaitSyncKHR(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags,
+        EGLTimeKHR timeout)
+{
+    if (sync != FENCE_SYNC_HANDLE) {
+        return setError(EGL_BAD_PARAMETER, EGL_FALSE);
+    }
+
+    return EGL_CONDITION_SATISFIED_KHR;
+}
+
+EGLBoolean eglGetSyncAttribKHR(EGLDisplay dpy, EGLSyncKHR sync,
+        EGLint attribute, EGLint *value)
+{
+    if (sync != FENCE_SYNC_HANDLE) {
+        return setError(EGL_BAD_PARAMETER, EGL_FALSE);
+    }
+
+    switch (attribute) {
+    case EGL_SYNC_TYPE_KHR:
+        *value = EGL_SYNC_FENCE_KHR;
+        return EGL_TRUE;
+    case EGL_SYNC_STATUS_KHR:
+        *value = EGL_SIGNALED_KHR;
+        return EGL_TRUE;
+    case EGL_SYNC_CONDITION_KHR:
+        *value = EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR;
+        return EGL_TRUE;
+    default:
+        return setError(EGL_BAD_ATTRIBUTE, EGL_FALSE);
+    }
 }
 
 // ----------------------------------------------------------------------------
