@@ -47,6 +47,7 @@ static char const * const gExtensionsString =
     //        "GL_OES_point_size_array "              // TODO
     //        "GL_OES_point_sprite "                  // TODO
     "GL_OES_EGL_image "                     // OK
+    "GL_OES_EGL_sync "                      // OK
 #ifdef GL_OES_compressed_ETC1_RGB8_texture
     "GL_OES_compressed_ETC1_RGB8_texture "  // OK
 #endif
