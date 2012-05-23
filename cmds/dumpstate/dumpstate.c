@@ -88,6 +88,7 @@ static void dumpstate() {
 
 
     dump_file("KERNEL WAKELOCKS", "/proc/wakelocks");
+    dump_file("KERNEL WAKE SOURCES", "/d/wakeup_sources");
     dump_file("KERNEL CPUFREQ", "/sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state");
 
     run_command("PROCESSES", 10, "ps", "-P", NULL);
