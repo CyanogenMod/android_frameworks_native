@@ -201,12 +201,14 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    if (front.requested != temp.requested)  {
-        // geometry of the layer has changed, set the active geometry
-        // to the requested geometry.
+    // always set active to requested, unless we're asked not to
+    // this is used by Layer, which special cases resizes.
+    if (flags & eDontUpdateGeometryState)  {
+    } else {
         Layer::State& editTemp(currentState());
         editTemp.active = temp.requested;
     }
+
     if (front.active != temp.active) {
         // invalidate and recompute the visible regions if needed
         flags |= Layer::eVisibleRegion;
