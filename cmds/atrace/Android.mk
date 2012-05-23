@@ -6,6 +6,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= atrace.c
 
 LOCAL_C_INCLUDES += external/zlib
+LOCAL_CFLAGS += -std=c99
 
 LOCAL_MODULE:= atrace
 

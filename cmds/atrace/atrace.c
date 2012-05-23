@@ -25,11 +25,14 @@
 #include <time.h>
 #include <zlib.h>
 
+#define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
+
 /* Command line options */
 static int g_traceDurationSeconds = 5;
 static bool g_traceSchedSwitch = false;
 static bool g_traceCpuFrequency = false;
 static bool g_traceCpuIdle = false;
+static bool g_traceDisk = false;
 static bool g_traceGovernorLoad = false;
 static bool g_traceWorkqueue = false;
 static bool g_traceOverwrite = false;
@@ -63,6 +66,13 @@ static const char* k_governorLoadEnablePath =
 
 static const char* k_workqueueEnablePath =
     "/sys/kernel/debug/tracing/events/workqueue/enable";
+
+static const char* k_diskEnablePaths[] = {
+        "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_enter/enable",
+        "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_exit/enable",
+        "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable",
+        "/sys/kernel/debug/tracing/events/block/block_rq_complete/enable",
+};
 
 static const char* k_tracingOnPath =
     "/sys/kernel/debug/tracing/tracing_on";
@@ -102,6 +112,16 @@ static bool setKernelOptionEnable(const char* filename, bool enable)
     return writeStr(filename, enable ? "1" : "0");
 }
 
+// Enable or disable a collection of kernel options by writing a "1" or a "0" into each /sys file.
+static bool setMultipleKernelOptionsEnable(const char** filenames, size_t count, bool enable)
+{
+    bool result = true;
+    for (size_t i = 0; i < count; i++) {
+        result &= setKernelOptionEnable(filenames[i], enable);
+    }
+    return result;
+}
+
 // Enable or disable overwriting of the kernel trace buffers.  Disabling this
 // will cause tracing to stop once the trace buffers have filled up.
 static bool setTraceOverwriteEnable(bool enable)
@@ -138,6 +158,12 @@ static bool setGovernorLoadTracingEnable(bool enable)
 static bool setWorkqueueTracingEnabled(bool enable)
 {
     return setKernelOptionEnable(k_workqueueEnablePath, enable);
+}
+
+// Enable or disable tracing of disk I/O.
+static bool setDiskTracingEnabled(bool enable)
+{
+    return setMultipleKernelOptionsEnable(k_diskEnablePaths, NELEM(k_diskEnablePaths), enable);
 }
 
 // Enable or disable kernel tracing.
@@ -199,6 +225,7 @@ static bool startTrace()
         ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
     }
     ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
+    ok &= setDiskTracingEnabled(g_traceDisk);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
 
@@ -336,6 +363,7 @@ static void showHelp(const char *cmd)
     fprintf(stderr, "options include:\n"
                     "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
+                    "  -d              trace disk I/O\n"
                     "  -f              trace CPU frequency changes\n"
                     "  -l              trace CPU frequency governor load\n"
                     "  -s              trace the kernel scheduler switches\n"
@@ -374,7 +402,7 @@ int main(int argc, char **argv)
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "b:ciflst:wz");
+        ret = getopt(argc, argv, "b:cidflst:wz");
 
         if (ret < 0) {
             break;
@@ -395,6 +423,10 @@ int main(int argc, char **argv)
 
             case 'l':
                 g_traceGovernorLoad = true;
+            break;
+
+            case 'd':
+                g_traceDisk = true;
             break;
 
             case 'f':
