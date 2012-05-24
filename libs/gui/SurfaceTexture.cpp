@@ -176,6 +176,10 @@ status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 }
 
 status_t SurfaceTexture::updateTexImage() {
+    return SurfaceTexture::updateTexImage(NULL);
+}
+
+status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
     ATRACE_CALL();
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
@@ -226,6 +230,16 @@ status_t SurfaceTexture::updateTexImage() {
                 mEGLSlots[buf].mEglImage = EGL_NO_IMAGE_KHR;
             }
             mEGLSlots[buf].mGraphicBuffer = item.mGraphicBuffer;
+        }
+
+        // we call the rejecter here, in case the caller has a reason to
+        // not accept this buffer. this is used by SurfaceFlinger to
+        // reject buffers which have the wrong size
+        if (rejecter && rejecter->reject(mEGLSlots[buf].mGraphicBuffer, item)) {
+            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence);
+            mEGLSlots[buf].mFence = EGL_NO_SYNC_KHR;
+            glBindTexture(mTexTarget, mTexName);
+            return NO_ERROR;
         }
 
         // Update the GL texture object. We may have to do this even when
