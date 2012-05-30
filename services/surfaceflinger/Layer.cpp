@@ -527,86 +527,113 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mFlinger->signalLayerUpdate();
         }
 
-        if (mSurfaceTexture->updateTexImage() < NO_ERROR) {
+        struct Reject : public SurfaceTexture::BufferRejecter {
+            Layer::State& front;
+            Layer::State& current;
+            bool& recomputeVisibleRegions;
+            Reject(Layer::State& front, Layer::State& current,
+                    bool& recomputeVisibleRegions)
+                : front(front), current(current),
+                  recomputeVisibleRegions(recomputeVisibleRegions) {
+            }
+
+            virtual bool reject(const sp<GraphicBuffer>& buf,
+                    const BufferQueue::BufferItem& item) {
+                if (buf == NULL) {
+                    return false;
+                }
+
+                uint32_t bufWidth  = buf->getWidth();
+                uint32_t bufHeight = buf->getHeight();
+
+                // check that we received a buffer of the right size
+                // (Take the buffer's orientation into account)
+                if (item.mTransform & Transform::ROT_90) {
+                    swap(bufWidth, bufHeight);
+                }
+
+
+                bool isFixedSize = item.mScalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
+                if (front.active != front.requested) {
+
+                    if (isFixedSize ||
+                            (bufWidth == front.requested.w &&
+                             bufHeight == front.requested.h))
+                    {
+                        // Here we pretend the transaction happened by updating the
+                        // current and drawing states. Drawing state is only accessed
+                        // in this thread, no need to have it locked
+                        front.active = front.requested;
+
+                        // We also need to update the current state so that
+                        // we don't end-up overwriting the drawing state with
+                        // this stale current state during the next transaction
+                        //
+                        // NOTE: We don't need to hold the transaction lock here
+                        // because State::active is only accessed from this thread.
+                        current.active = front.active;
+
+                        // recompute visible region
+                        recomputeVisibleRegions = true;
+                    }
+
+                    ALOGD_IF(DEBUG_RESIZE,
+                            "lockPageFlip: (layer=%p), buffer (%ux%u, tr=%02x), scalingMode=%d\n"
+                            "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
+                            "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
+                            this, bufWidth, bufHeight, item.mTransform, item.mScalingMode,
+                            front.active.w, front.active.h,
+                            front.active.crop.left,
+                            front.active.crop.top,
+                            front.active.crop.right,
+                            front.active.crop.bottom,
+                            front.active.crop.getWidth(),
+                            front.active.crop.getHeight(),
+                            front.requested.w, front.requested.h,
+                            front.requested.crop.left,
+                            front.requested.crop.top,
+                            front.requested.crop.right,
+                            front.requested.crop.bottom,
+                            front.requested.crop.getWidth(),
+                            front.requested.crop.getHeight());
+                }
+
+                if (!isFixedSize) {
+                    if (front.active.w != bufWidth ||
+                        front.active.h != bufHeight) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+
+
+        Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
+
+        if (mSurfaceTexture->updateTexImage(&r) < NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
             return;
         }
 
+
         // update the active buffer
         mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
 
+        mFrameLatencyNeeded = true;
+        if (oldActiveBuffer == NULL && mActiveBuffer != NULL) {
+             // the first time we receive a buffer, we need to trigger a
+             // geometry invalidation.
+             mFlinger->invalidateHwcGeometry();
+         }
+
         uint32_t bufWidth  = mActiveBuffer->getWidth();
         uint32_t bufHeight = mActiveBuffer->getHeight();
-        const uint32_t transform(mSurfaceTexture->getCurrentTransform());
-        const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
-
-        // check that we received a buffer of the right size
-        // (Take the buffer's orientation into account)
-        if (mCurrentTransform & Transform::ROT_90) {
-            swap(bufWidth, bufHeight);
-        }
-
-        // update the layer size if needed
-        const Layer::State& front(drawingState());
-
-        if (front.active != front.requested) {
-            bool isFixedSize = scalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
-
-            if (isFixedSize ||
-                    (bufWidth == front.requested.w &&
-                    bufHeight == front.requested.h))
-            {
-                // Here we pretend the transaction happened by updating the
-                // current and drawing states. Drawing state is only accessed
-                // in this thread, no need to have it locked
-                Layer::State& editFront(mDrawingState);
-                editFront.active = front.requested;
-
-                // We also need to update the current state so that
-                // we don't end-up overwriting the drawing state with
-                // this stale current state during the next transaction
-                //
-                // NOTE: We don't need to hold the transaction lock here
-                // because State::active is only accessed from this thread.
-                Layer::State& editCurrent(currentState());
-                editCurrent.active = front.active;
-
-                // recompute visible region
-                recomputeVisibleRegions = true;
-            }
-
-            ALOGD_IF(DEBUG_RESIZE,
-                    "lockPageFlip: (layer=%p), buffer (%ux%u, tr=%02x), scalingMode=%d\n"
-                    "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
-                    "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                    this, bufWidth, bufHeight, transform, scalingMode,
-                    front.active.w, front.active.h,
-                    front.active.crop.left,
-                    front.active.crop.top,
-                    front.active.crop.right,
-                    front.active.crop.bottom,
-                    front.active.crop.getWidth(),
-                    front.active.crop.getHeight(),
-                    front.requested.w, front.requested.h,
-                    front.requested.crop.left,
-                    front.requested.crop.top,
-                    front.requested.crop.right,
-                    front.requested.crop.bottom,
-                    front.requested.crop.getWidth(),
-                    front.requested.crop.getHeight());
-        }
-
-        mFrameLatencyNeeded = true;
-
-        if (oldActiveBuffer == NULL && mActiveBuffer != NULL) {
-            // the first time we receive a buffer, we need to trigger a
-            // geometry invalidation.
-            mFlinger->invalidateHwcGeometry();
-        }
-
 
         Rect crop(mSurfaceTexture->getCurrentCrop());
+        const uint32_t transform(mSurfaceTexture->getCurrentTransform());
+        const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
         if ((crop != mCurrentCrop) ||
             (transform != mCurrentTransform) ||
             (scalingMode != mCurrentScalingMode))
@@ -630,6 +657,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
         }
 
         // FIXME: mPostedDirtyRegion = dirty & bounds
+        const Layer::State& front(drawingState());
         mPostedDirtyRegion.set(front.active.w, front.active.h);
 
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

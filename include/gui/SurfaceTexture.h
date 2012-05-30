@@ -236,6 +236,19 @@ protected:
     static bool isExternalFormat(uint32_t format);
 
 private:
+    // this version of updateTexImage() takes a functor used to reject or not
+    // the newly acquired buffer.
+    // this API is TEMPORARY and intended to be used by SurfaceFlinger only,
+    // which is why class Layer is made a friend of SurfaceTexture below.
+    class BufferRejecter {
+        friend class SurfaceTexture;
+        virtual bool reject(const sp<GraphicBuffer>& buf,
+                const BufferQueue::BufferItem& item) = 0;
+    protected:
+        virtual ~BufferRejecter() { }
+    };
+    friend class Layer;
+    status_t updateTexImage(BufferRejecter* rejecter);
 
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
