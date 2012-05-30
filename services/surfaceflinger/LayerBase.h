@@ -227,7 +227,8 @@ public:
 
 
     enum { // flags for doTransaction()
-        eVisibleRegion      = 0x00000002,
+        eDontUpdateGeometryState = 0x00000001,
+        eVisibleRegion           = 0x00000002,
     };
 
 

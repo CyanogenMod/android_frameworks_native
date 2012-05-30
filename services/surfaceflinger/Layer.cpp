@@ -428,8 +428,8 @@ uint32_t Layer::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    const bool sizeChanged = (front.requested.w != temp.requested.w) ||
-            (front.requested.h != temp.requested.h);
+    const bool sizeChanged = (temp.requested.w != front.active.w) ||
+                             (temp.requested.h != front.active.h);
 
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
@@ -472,8 +472,7 @@ uint32_t Layer::doTransaction(uint32_t flags)
         if (!isFixedSize()) {
             // this will make sure LayerBase::doTransaction doesn't update
             // the drawing state's geometry
-            Layer::State& editDraw(mDrawingState);
-            editDraw.requested = temp.requested;
+            flags |= eDontUpdateGeometryState;
         }
 
         // record the new size, form this point on, when the client request
