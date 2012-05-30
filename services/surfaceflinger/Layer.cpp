@@ -535,58 +535,25 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
 
         // update the active buffer
         mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
-        mFrameLatencyNeeded = true;
-
-        if (oldActiveBuffer == NULL && mActiveBuffer != NULL) {
-            // the first time we receive a buffer, we need to trigger a
-            // geometry invalidation.
-            mFlinger->invalidateHwcGeometry();
-        }
-
-        Rect crop(mSurfaceTexture->getCurrentCrop());
-        const uint32_t transform(mSurfaceTexture->getCurrentTransform());
-        const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
-        if ((crop != mCurrentCrop) ||
-            (transform != mCurrentTransform) ||
-            (scalingMode != mCurrentScalingMode))
-        {
-            mCurrentCrop = crop;
-            mCurrentTransform = transform;
-            mCurrentScalingMode = scalingMode;
-            mFlinger->invalidateHwcGeometry();
-        }
 
         uint32_t bufWidth  = mActiveBuffer->getWidth();
         uint32_t bufHeight = mActiveBuffer->getHeight();
-        if (oldActiveBuffer != NULL) {
-            if (bufWidth != uint32_t(oldActiveBuffer->width) ||
-                bufHeight != uint32_t(oldActiveBuffer->height)) {
-                mFlinger->invalidateHwcGeometry();
-            }
-        }
+        const uint32_t transform(mSurfaceTexture->getCurrentTransform());
+        const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
 
-        mCurrentOpacity = getOpacityForFormat(mActiveBuffer->format);
-        if (oldOpacity != isOpaque()) {
-            recomputeVisibleRegions = true;
+        // check that we received a buffer of the right size
+        // (Take the buffer's orientation into account)
+        if (mCurrentTransform & Transform::ROT_90) {
+            swap(bufWidth, bufHeight);
         }
-
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         // update the layer size if needed
         const Layer::State& front(drawingState());
 
-        // FIXME: mPostedDirtyRegion = dirty & bounds
-        mPostedDirtyRegion.set(front.active.w, front.active.h);
-
         if (front.active != front.requested) {
-            // check that we received a buffer of the right size
-            // (Take the buffer's orientation into account)
-            if (mCurrentTransform & Transform::ROT_90) {
-                swap(bufWidth, bufHeight);
-            }
+            bool isFixedSize = scalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
 
-            if (isFixedSize() ||
+            if (isFixedSize ||
                     (bufWidth == front.requested.w &&
                     bufHeight == front.requested.h))
             {
@@ -613,7 +580,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                     "lockPageFlip: (layer=%p), buffer (%ux%u, tr=%02x), scalingMode=%d\n"
                     "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                     "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                    this, bufWidth, bufHeight, mCurrentTransform, mCurrentScalingMode,
+                    this, bufWidth, bufHeight, transform, scalingMode,
                     front.active.w, front.active.h,
                     front.active.crop.left,
                     front.active.crop.top,
@@ -629,6 +596,44 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                     front.requested.crop.getWidth(),
                     front.requested.crop.getHeight());
         }
+
+        mFrameLatencyNeeded = true;
+
+        if (oldActiveBuffer == NULL && mActiveBuffer != NULL) {
+            // the first time we receive a buffer, we need to trigger a
+            // geometry invalidation.
+            mFlinger->invalidateHwcGeometry();
+        }
+
+
+        Rect crop(mSurfaceTexture->getCurrentCrop());
+        if ((crop != mCurrentCrop) ||
+            (transform != mCurrentTransform) ||
+            (scalingMode != mCurrentScalingMode))
+        {
+            mCurrentCrop = crop;
+            mCurrentTransform = transform;
+            mCurrentScalingMode = scalingMode;
+            mFlinger->invalidateHwcGeometry();
+        }
+
+        if (oldActiveBuffer != NULL) {
+            if (bufWidth != uint32_t(oldActiveBuffer->width) ||
+                bufHeight != uint32_t(oldActiveBuffer->height)) {
+                mFlinger->invalidateHwcGeometry();
+            }
+        }
+
+        mCurrentOpacity = getOpacityForFormat(mActiveBuffer->format);
+        if (oldOpacity != isOpaque()) {
+            recomputeVisibleRegions = true;
+        }
+
+        // FIXME: mPostedDirtyRegion = dirty & bounds
+        mPostedDirtyRegion.set(front.active.w, front.active.h);
+
+        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
 }
 
