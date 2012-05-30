@@ -617,19 +617,19 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             return;
         }
 
-
         // update the active buffer
         mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
+        if (mActiveBuffer == NULL) {
+            // this can only happen if the very first buffer was rejected.
+            return;
+        }
 
         mFrameLatencyNeeded = true;
-        if (oldActiveBuffer == NULL && mActiveBuffer != NULL) {
+        if (oldActiveBuffer == NULL) {
              // the first time we receive a buffer, we need to trigger a
              // geometry invalidation.
              mFlinger->invalidateHwcGeometry();
          }
-
-        uint32_t bufWidth  = mActiveBuffer->getWidth();
-        uint32_t bufHeight = mActiveBuffer->getHeight();
 
         Rect crop(mSurfaceTexture->getCurrentCrop());
         const uint32_t transform(mSurfaceTexture->getCurrentTransform());
@@ -645,6 +645,8 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
         }
 
         if (oldActiveBuffer != NULL) {
+            uint32_t bufWidth  = mActiveBuffer->getWidth();
+            uint32_t bufHeight = mActiveBuffer->getHeight();
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
                 mFlinger->invalidateHwcGeometry();
