@@ -434,26 +434,40 @@ uint32_t Layer::doTransaction(uint32_t flags)
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
         ALOGD_IF(DEBUG_RESIZE,
-                "doTransaction: "
-                "geometry (layer=%p), size: current (%dx%d), drawing (%dx%d), "
-                "crop: current (%d,%d,%d,%d [%dx%d]), drawing (%d,%d,%d,%d [%dx%d]), "
-                "scalingMode=%d",
-                this,
-                int(temp.requested.w), int(temp.requested.h),
-                int(front.requested.w), int(front.requested.h),
+                "doTransaction: geometry (layer=%p), scalingMode=%d\n"
+                "  current={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
+                "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n"
+                "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
+                "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
+                this, mCurrentScalingMode,
+                temp.active.w, temp.active.h,
+                temp.active.crop.left,
+                temp.active.crop.top,
+                temp.active.crop.right,
+                temp.active.crop.bottom,
+                temp.active.crop.getWidth(),
+                temp.active.crop.getHeight(),
+                temp.requested.w, temp.requested.h,
                 temp.requested.crop.left,
                 temp.requested.crop.top,
                 temp.requested.crop.right,
                 temp.requested.crop.bottom,
                 temp.requested.crop.getWidth(),
                 temp.requested.crop.getHeight(),
+                front.active.w, front.active.h,
+                front.active.crop.left,
+                front.active.crop.top,
+                front.active.crop.right,
+                front.active.crop.bottom,
+                front.active.crop.getWidth(),
+                front.active.crop.getHeight(),
+                front.requested.w, front.requested.h,
                 front.requested.crop.left,
                 front.requested.crop.top,
                 front.requested.crop.right,
                 front.requested.crop.bottom,
                 front.requested.crop.getWidth(),
-                front.requested.crop.getHeight(),
-                mCurrentScalingMode);
+                front.requested.crop.getHeight());
 
         if (!isFixedSize()) {
             // this will make sure LayerBase::doTransaction doesn't update
@@ -580,28 +594,41 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                 // Here we pretend the transaction happened by updating the
                 // current and drawing states. Drawing state is only accessed
                 // in this thread, no need to have it locked
-                Layer::State& editDraw(mDrawingState);
-                editDraw.active = editDraw.requested;
+                Layer::State& editFront(mDrawingState);
+                editFront.active = front.requested;
 
-                // We also need to update the current state so that we don't
-                // end-up doing too much work during the next transaction.
-                // NOTE: We actually don't need hold the transaction lock here
-                // because State::w and State::h are only accessed from
-                // this thread
-                Layer::State& editTemp(currentState());
-                editTemp.active = editDraw.active;
+                // We also need to update the current state so that
+                // we don't end-up overwriting the drawing state with
+                // this stale current state during the next transaction
+                //
+                // NOTE: We don't need to hold the transaction lock here
+                // because State::active is only accessed from this thread.
+                Layer::State& editCurrent(currentState());
+                editCurrent.active = front.active;
 
                 // recompute visible region
                 recomputeVisibleRegions = true;
             }
 
             ALOGD_IF(DEBUG_RESIZE,
-                    "lockPageFlip : "
-                    "       (layer=%p), buffer (%ux%u, tr=%02x), "
-                    "requested (%dx%d)",
-                    this,
-                    bufWidth, bufHeight, mCurrentTransform,
-                    front.requested.w, front.requested.h);
+                    "lockPageFlip: (layer=%p), buffer (%ux%u, tr=%02x), scalingMode=%d\n"
+                    "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
+                    "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
+                    this, bufWidth, bufHeight, mCurrentTransform, mCurrentScalingMode,
+                    front.active.w, front.active.h,
+                    front.active.crop.left,
+                    front.active.crop.top,
+                    front.active.crop.right,
+                    front.active.crop.bottom,
+                    front.active.crop.getWidth(),
+                    front.active.crop.getHeight(),
+                    front.requested.w, front.requested.h,
+                    front.requested.crop.left,
+                    front.requested.crop.top,
+                    front.requested.crop.right,
+                    front.requested.crop.bottom,
+                    front.requested.crop.getWidth(),
+                    front.requested.crop.getHeight());
         }
     }
 }
