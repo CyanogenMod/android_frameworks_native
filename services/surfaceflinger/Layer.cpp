@@ -428,8 +428,8 @@ uint32_t Layer::doTransaction(uint32_t flags)
     const Layer::State& front(drawingState());
     const Layer::State& temp(currentState());
 
-    const bool sizeChanged = (temp.requested.w != front.active.w) ||
-                             (temp.requested.h != front.active.h);
+    const bool sizeChanged = (temp.requested.w != front.requested.w) ||
+                             (temp.requested.h != front.requested.h);
 
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
@@ -516,7 +516,6 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mPostedDirtyRegion.clear();
             return;
         }
-        mRefreshPending = true;
 
         // Capture the old state of the layer for comparisons later
         const bool oldOpacity = isOpaque();
@@ -601,6 +600,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
                 if (!isFixedSize) {
                     if (front.active.w != bufWidth ||
                         front.active.h != bufHeight) {
+                        // reject this buffer
                         return true;
                     }
                 }
@@ -624,6 +624,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             return;
         }
 
+        mRefreshPending = true;
         mFrameLatencyNeeded = true;
         if (oldActiveBuffer == NULL) {
              // the first time we receive a buffer, we need to trigger a
