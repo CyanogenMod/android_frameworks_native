@@ -39,6 +39,8 @@ static bool g_traceWorkqueue = false;
 static bool g_traceOverwrite = false;
 static int g_traceBufferSizeKB = 2048;
 static bool g_compress = false;
+static bool g_nohup = false;
+static int g_initialSleepSecs = 0;
 
 /* Global state */
 static bool g_traceAborted = false;
@@ -417,7 +419,9 @@ static void showHelp(const char *cmd)
 }
 
 static void handleSignal(int signo) {
-    g_traceAborted = true;
+    if (!g_nohup) {
+        g_traceAborted = true;
+    }
 }
 
 static void registerSigHandler() {
@@ -443,7 +447,7 @@ int main(int argc, char **argv)
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "b:cidflst:uwz");
+        ret = getopt(argc, argv, "b:cidflst:uwznS:");
 
         if (ret < 0) {
             break;
@@ -478,8 +482,16 @@ int main(int argc, char **argv)
                 g_traceFrequency = true;
             break;
 
+            case 'n':
+                g_nohup = true;
+                break;
+
             case 's':
                 g_traceSchedSwitch = true;
+            break;
+
+            case 'S':
+                g_initialSleepSecs = atoi(optarg);
             break;
 
             case 't':
@@ -515,6 +527,10 @@ int main(int argc, char **argv)
     }
 
     registerSigHandler();
+
+    if (g_initialSleepSecs > 0) {
+        sleep(g_initialSleepSecs);
+    }
 
     bool ok = startTrace(isRoot);
 
