@@ -960,7 +960,6 @@ void SurfaceFlinger::debugFlashRegions()
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-    glDisable(GL_SCISSOR_TEST);
 
     static int toggle = 0;
     toggle = 1 - toggle;
@@ -1819,7 +1818,6 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     // redraw the screen entirely...
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
-    glDisable(GL_SCISSOR_TEST);
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
@@ -1835,7 +1833,6 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
 
     // back to main framebuffer
     glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-    glDisable(GL_SCISSOR_TEST);
     glDeleteFramebuffersOES(1, &name);
 
     *textureName = tname;
@@ -2048,7 +2045,6 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
     glDeleteTextures(1, &tname);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-    glDisable(GL_SCISSOR_TEST);
     return NO_ERROR;
 }
 
@@ -2200,7 +2196,6 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
     glDeleteTextures(1, &tname);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-    glDisable(GL_SCISSOR_TEST);
 
     return NO_ERROR;
 }
@@ -2228,7 +2223,6 @@ status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
 
     // always clear the whole screen at the end of the animation
     glClearColor(0,0,0,1);
-    glDisable(GL_SCISSOR_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
     hw.flip( Region(hw.bounds()) );
 
@@ -2366,7 +2360,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
         // invert everything, b/c glReadPixel() below will invert the FB
         glViewport(0, 0, sw, sh);
-        glScissor(0, 0, sw, sh);
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
@@ -2389,10 +2382,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
                 }
             }
         }
-
-        // XXX: this is needed on tegra
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(0, 0, sw, sh);
 
         // check for errors and return screen capture
         if (glGetError() != GL_NO_ERROR) {
@@ -2419,7 +2408,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
                 result = NO_MEMORY;
             }
         }
-        glDisable(GL_SCISSOR_TEST);
         glViewport(0, 0, hw_w, hw_h);
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
