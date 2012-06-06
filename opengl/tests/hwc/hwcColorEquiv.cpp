@@ -124,7 +124,7 @@ const float defaultEndDelay = 2.0; // Default delay after rendering graphics
 // Globals
 static const int texUsage = GraphicBuffer::USAGE_HW_TEXTURE |
         GraphicBuffer::USAGE_SW_WRITE_RARELY;
-static hwc_composer_device_t *hwcDevice;
+static hwc_composer_device_1_t *hwcDevice;
 static EGLDisplay dpy;
 static EGLSurface surface;
 static EGLint width, height;
@@ -344,16 +344,16 @@ main(int argc, char *argv[])
     hwcTestFillColorHBlend(equivFrame.get(), refFormat->format,
                            startRefColor, endRefColor);
 
-    hwc_layer_list_t *list;
-    size_t size = sizeof(hwc_layer_list) + numFrames * sizeof(hwc_layer_t);
-    if ((list = (hwc_layer_list_t *) calloc(1, size)) == NULL) {
+    hwc_layer_list_1_t *list;
+    size_t size = sizeof(hwc_layer_list_1_t) + numFrames * sizeof(hwc_layer_1_t);
+    if ((list = (hwc_layer_list_1_t *) calloc(1, size)) == NULL) {
         testPrintE("Allocate list failed");
         exit(11);
     }
     list->flags = HWC_GEOMETRY_CHANGED;
     list->numHwLayers = numFrames;
 
-    hwc_layer_t *layer = &list->hwLayers[0];
+    hwc_layer_1_t *layer = &list->hwLayers[0];
     layer->handle = refFrame->handle;
     layer->blending = HWC_BLENDING_NONE;
     layer->sourceCrop.left = 0;

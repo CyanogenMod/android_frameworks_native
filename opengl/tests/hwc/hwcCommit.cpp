@@ -230,7 +230,7 @@ private:
 // Globals
 static const int texUsage = GraphicBuffer::USAGE_HW_TEXTURE |
         GraphicBuffer::USAGE_SW_WRITE_RARELY;
-static hwc_composer_device_t *hwcDevice;
+static hwc_composer_device_1_t *hwcDevice;
 static EGLDisplay dpy;
 static EGLSurface surface;
 static EGLint width, height;
@@ -1397,7 +1397,7 @@ void Rational::double2Rational(double f, Range nRange, Range dRange,
 // Given a list of rectangles, determine how many HWC will commit to render
 uint32_t numOverlays(list<Rectangle>& rectList)
 {
-    hwc_layer_list_t *hwcList;
+    hwc_layer_list_1_t *hwcList;
     list<sp<GraphicBuffer> > buffers;
 
     hwcList = hwcTestCreateLayerList(rectList.size());
@@ -1406,7 +1406,7 @@ uint32_t numOverlays(list<Rectangle>& rectList)
         exit(30);
     }
 
-    hwc_layer_t *layer = &hwcList->hwLayers[0];
+    hwc_layer_1_t *layer = &hwcList->hwLayers[0];
     for (std::list<Rectangle>::iterator it = rectList.begin();
          it != rectList.end(); ++it, ++layer) {
         // Allocate the texture for the source frame
