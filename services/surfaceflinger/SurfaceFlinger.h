@@ -182,11 +182,10 @@ public:
     virtual status_t                    turnElectronBeamOff(int32_t mode);
     virtual status_t                    turnElectronBeamOn(int32_t mode);
 
-
             // called when screen needs to turn off
-            void screenReleased();
+    virtual void                        blank();
             // called when screen is turning back on
-            void screenAcquired();
+    virtual void                        unblank();
 
             // called on the main thread in response to screenReleased()
             void onScreenReleased();

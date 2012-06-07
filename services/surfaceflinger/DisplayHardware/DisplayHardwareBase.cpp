@@ -30,91 +30,13 @@
 // ----------------------------------------------------------------------------
 namespace android {
 
-static char const * const kSleepFileName = "/sys/power/wait_for_fb_sleep";
-static char const * const kWakeFileName  = "/sys/power/wait_for_fb_wake";
-
-// ----------------------------------------------------------------------------
-
-DisplayHardwareBase::DisplayEventThread::DisplayEventThread(
-        const sp<SurfaceFlinger>& flinger)
-    : Thread(false), mFlinger(flinger) {
-}
-
-DisplayHardwareBase::DisplayEventThread::~DisplayEventThread() {
-}
-
-status_t DisplayHardwareBase::DisplayEventThread::initCheck() const {
-    return ((access(kSleepFileName, R_OK) == 0 &&
-            access(kWakeFileName, R_OK) == 0)) ? NO_ERROR : NO_INIT;
-}
-
-bool DisplayHardwareBase::DisplayEventThread::threadLoop() {
-
-    if (waitForFbSleep() == NO_ERROR) {
-        sp<SurfaceFlinger> flinger = mFlinger.promote();
-        ALOGD("About to give-up screen, flinger = %p", flinger.get());
-        if (flinger != 0) {
-            flinger->screenReleased();
-        }
-        if (waitForFbWake() == NO_ERROR) {
-            ALOGD("Screen about to return, flinger = %p", flinger.get());
-            if (flinger != 0) {
-                flinger->screenAcquired();
-            }
-            return true;
-        }
-    }
-
-    // error, exit the thread
-    return false;
-}
-
-status_t DisplayHardwareBase::DisplayEventThread::waitForFbSleep() {
-    int err = 0;
-    char buf;
-    int fd = open(kSleepFileName, O_RDONLY, 0);
-    // if the file doesn't exist, the error will be caught in read() below
-    do {
-        err = read(fd, &buf, 1);
-    } while (err < 0 && errno == EINTR);
-    close(fd);
-    ALOGE_IF(err<0, "*** ANDROID_WAIT_FOR_FB_SLEEP failed (%s)", strerror(errno));
-    return err < 0 ? -errno : int(NO_ERROR);
-}
-
-status_t DisplayHardwareBase::DisplayEventThread::waitForFbWake() {
-    int err = 0;
-    char buf;
-    int fd = open(kWakeFileName, O_RDONLY, 0);
-    // if the file doesn't exist, the error will be caught in read() below
-    do {
-        err = read(fd, &buf, 1);
-    } while (err < 0 && errno == EINTR);
-    close(fd);
-    ALOGE_IF(err<0, "*** ANDROID_WAIT_FOR_FB_WAKE failed (%s)", strerror(errno));
-    return err < 0 ? -errno : int(NO_ERROR);
-}
-
-// ----------------------------------------------------------------------------
-
 DisplayHardwareBase::DisplayHardwareBase(const sp<SurfaceFlinger>& flinger,
         uint32_t displayIndex) 
 {
     mScreenAcquired = true;
-    mDisplayEventThread = new DisplayEventThread(flinger);
-}
-
-void DisplayHardwareBase::startSleepManagement() const {
-    if (mDisplayEventThread->initCheck() == NO_ERROR) {
-        mDisplayEventThread->run("DisplayEventThread", PRIORITY_URGENT_DISPLAY);
-    } else {
-        ALOGW("/sys/power/wait_for_fb_{wake|sleep} don't exist");
-    }
 }
 
 DisplayHardwareBase::~DisplayHardwareBase() {
-    // request exit
-    mDisplayEventThread->requestExitAndWait();
 }
 
 bool DisplayHardwareBase::canDraw() const {

@@ -297,7 +297,6 @@ status_t SurfaceFlinger::readyToRun()
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
-    hw.startSleepManagement();
 
     /*
      *  We're now ready to accept clients...
@@ -1363,6 +1362,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 // ---------------------------------------------------------------------------
 
 void SurfaceFlinger::onScreenAcquired() {
+    ALOGD("Screen about to return, flinger = %p", this);
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     hw.acquireScreen();
     mEventThread->onScreenAcquired();
@@ -1374,6 +1374,7 @@ void SurfaceFlinger::onScreenAcquired() {
 }
 
 void SurfaceFlinger::onScreenReleased() {
+    ALOGD("About to give-up screen, flinger = %p", this);
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     if (hw.isScreenAcquired()) {
         mEventThread->onScreenReleased();
@@ -1382,7 +1383,7 @@ void SurfaceFlinger::onScreenReleased() {
     }
 }
 
-void SurfaceFlinger::screenAcquired() {
+void SurfaceFlinger::unblank() {
     class MessageScreenAcquired : public MessageBase {
         SurfaceFlinger* flinger;
     public:
@@ -1396,7 +1397,7 @@ void SurfaceFlinger::screenAcquired() {
     postMessageSync(msg);
 }
 
-void SurfaceFlinger::screenReleased() {
+void SurfaceFlinger::blank() {
     class MessageScreenReleased : public MessageBase {
         SurfaceFlinger* flinger;
     public:
@@ -1654,6 +1655,8 @@ status_t SurfaceFlinger::onTransact(
         case BOOT_FINISHED:
         case TURN_ELECTRON_BEAM_OFF:
         case TURN_ELECTRON_BEAM_ON:
+        case BLANK:
+        case UNBLANK:
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();
