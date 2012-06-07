@@ -469,16 +469,29 @@ uint32_t Layer::doTransaction(uint32_t flags)
                 front.requested.crop.getWidth(),
                 front.requested.crop.getHeight());
 
-        if (!isFixedSize()) {
-            // this will make sure LayerBase::doTransaction doesn't update
-            // the drawing state's geometry
-            flags |= eDontUpdateGeometryState;
-        }
-
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
         mSurfaceTexture->setDefaultBufferSize(
                 temp.requested.w, temp.requested.h);
+    }
+
+    if (!isFixedSize()) {
+
+        const bool resizePending = (temp.requested.w != temp.active.w) ||
+                                   (temp.requested.h != temp.active.h);
+
+        if (resizePending) {
+            // don't let LayerBase::doTransaction update the drawing state
+            // if we have a pending resize, unless we are in fixed-size mode.
+            // the drawing state will be updated only once we receive a buffer
+            // with the correct size.
+            //
+            // in particular, we want to make sure the clip (which is part
+            // of the geometry state) is latched together with the size but is
+            // latched immediately when no resizing is involved.
+
+            flags |= eDontUpdateGeometryState;
+        }
     }
 
     return LayerBase::doTransaction(flags);
