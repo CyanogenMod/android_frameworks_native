@@ -55,6 +55,9 @@ static const char* k_tracingOverwriteEnablePath =
 static const char* k_schedSwitchEnablePath =
     "/sys/kernel/debug/tracing/events/sched/sched_switch/enable";
 
+static const char* k_schedWakeupEnablePath =
+    "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable";
+
 static const char* k_cpuFreqEnablePath =
     "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable";
 
@@ -132,7 +135,10 @@ static bool setTraceOverwriteEnable(bool enable)
 // Enable or disable tracing of the kernel scheduler switching.
 static bool setSchedSwitchTracingEnable(bool enable)
 {
-    return setKernelOptionEnable(k_schedSwitchEnablePath, enable);
+    bool ok = true;
+    ok &= setKernelOptionEnable(k_schedSwitchEnablePath, enable);
+    ok &= setKernelOptionEnable(k_schedWakeupEnablePath, enable);
+    return ok;
 }
 
 // Enable or disable tracing of the CPU clock frequency.
@@ -212,11 +218,11 @@ static bool fileExists(const char* filename) {
 }
 
 // Enable tracing in the kernel.
-static bool startTrace()
+static bool startTrace(bool isRoot)
 {
     bool ok = true;
 
-    // Set up the tracing options.
+    // Set up the tracing options that don't require root.
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
     ok &= setCpuFrequencyTracingEnable(g_traceCpuFrequency);
@@ -224,10 +230,16 @@ static bool startTrace()
     if (fileExists(k_governorLoadEnablePath) || g_traceGovernorLoad) {
         ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
     }
-    ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
-    ok &= setDiskTracingEnabled(g_traceDisk);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
+
+    // Set up the tracing options that do require root.  The options that
+    // require root should have errored out earlier if we're not running as
+    // root.
+    if (isRoot) {
+        ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
+        ok &= setDiskTracingEnabled(g_traceDisk);
+    }
 
     // Enable tracing.
     ok &= setTracingEnabled(true);
@@ -240,7 +252,7 @@ static bool startTrace()
 }
 
 // Disable tracing in the kernel.
-static void stopTrace()
+static void stopTrace(bool isRoot)
 {
     // Disable tracing.
     setTracingEnabled(false);
@@ -252,8 +264,12 @@ static void stopTrace()
     if (fileExists(k_governorLoadEnablePath)) {
         setGovernorLoadTracingEnable(false);
     }
-    setWorkqueueTracingEnabled(false);
     setGlobalClockEnable(false);
+
+    if (isRoot) {
+        setWorkqueueTracingEnabled(false);
+        setDiskTracingEnabled(false);
+    }
 
     // Note that we can't reset the trace buffer size here because that would
     // clear the trace before we've read it.
@@ -389,14 +405,11 @@ static void registerSigHandler() {
 
 int main(int argc, char **argv)
 {
+    bool isRoot = (getuid() == 0);
+
     if (argc == 2 && 0 == strcmp(argv[1], "--help")) {
         showHelp(argv[0]);
         exit(0);
-    }
-
-    if (getuid() != 0) {
-        fprintf(stderr, "error: %s must be run as root.", argv[0]);
-        exit(1);
     }
 
     for (;;) {
@@ -426,6 +439,10 @@ int main(int argc, char **argv)
             break;
 
             case 'd':
+                if (!isRoot) {
+                    fprintf(stderr, "error: tracing disk activity requires root privileges\n");
+                    exit(1);
+                }
                 g_traceDisk = true;
             break;
 
@@ -442,6 +459,10 @@ int main(int argc, char **argv)
             break;
 
             case 'w':
+                if (!isRoot) {
+                    fprintf(stderr, "error: tracing kernel work queues requires root privileges\n");
+                    exit(1);
+                }
                 g_traceWorkqueue = true;
             break;
 
@@ -459,7 +480,7 @@ int main(int argc, char **argv)
 
     registerSigHandler();
 
-    bool ok = startTrace();
+    bool ok = startTrace(isRoot);
 
     if (ok) {
         printf("capturing trace...");
@@ -486,7 +507,7 @@ int main(int argc, char **argv)
     }
 
     // Stop the trace and restore the default settings.
-    stopTrace();
+    stopTrace(isRoot);
 
     if (ok) {
         if (!g_traceAborted) {
