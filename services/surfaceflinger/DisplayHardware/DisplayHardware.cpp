@@ -25,13 +25,13 @@
 #include <utils/Log.h>
 
 #include <ui/PixelFormat.h>
-#include <ui/FramebufferNativeWindow.h>
 
 #include <GLES/gl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
 #include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware/FramebufferSurface.h"
 
 #include <hardware/gralloc.h>
 
@@ -148,7 +148,7 @@ static status_t selectConfigForPixelFormat(
 
 void DisplayHardware::init(uint32_t dpy)
 {
-    mNativeWindow = new FramebufferNativeWindow();
+    mNativeWindow = new FramebufferSurface();
     framebuffer_device_t const * fbDev = mNativeWindow->getDevice();
     if (!fbDev) {
         ALOGE("Display subsystem failed to initialize. check logs. exiting...");
