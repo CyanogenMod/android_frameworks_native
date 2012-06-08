@@ -139,6 +139,12 @@ public:
 
     /* return an IDisplayEventConnection */
     virtual sp<IDisplayEventConnection> createDisplayEventConnection() = 0;
+
+    /* triggers screen off and waits for it to complete */
+    virtual void blank() = 0;
+
+    /* triggers screen on and waits for it to complete */
+    virtual void unblank() = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -160,6 +166,8 @@ public:
         TURN_ELECTRON_BEAM_ON,
         AUTHENTICATE_SURFACE,
         CREATE_DISPLAY_EVENT_CONNECTION,
+        BLANK,
+        UNBLANK,
     };
 
     virtual status_t    onTransact( uint32_t code,

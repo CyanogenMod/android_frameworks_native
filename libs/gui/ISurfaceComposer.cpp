@@ -193,6 +193,20 @@ public:
         result = interface_cast<IDisplayEventConnection>(reply.readStrongBinder());
         return result;
     }
+
+    virtual void blank()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        remote()->transact(BnSurfaceComposer::BLANK, data, &reply);
+    }
+
+    virtual void unblank()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
+    }
 };
 
 IMPLEMENT_META_INTERFACE(SurfaceComposer, "android.ui.ISurfaceComposer");
@@ -278,6 +292,14 @@ status_t BnSurfaceComposer::onTransact(
             sp<IDisplayEventConnection> connection(createDisplayEventConnection());
             reply->writeStrongBinder(connection->asBinder());
             return NO_ERROR;
+        } break;
+        case BLANK: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            blank();
+        } break;
+        case UNBLANK: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            unblank();
         } break;
         default:
             return BBinder::onTransact(code, data, reply, flags);
