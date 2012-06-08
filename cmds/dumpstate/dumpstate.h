@@ -38,8 +38,8 @@ void redirect_to_socket(FILE *redirect, const char *service);
 /* redirect output to a file, optionally gzipping; returns gzip pid */
 pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level);
 
-/* dump Dalvik stack traces, return the trace file location (NULL if none) */
-const char *dump_vm_traces();
+/* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
+const char *dump_traces();
 
 /* for each process in the system, run the specified function */
 void for_each_pid(void (*func)(int, const char *), const char *header);
