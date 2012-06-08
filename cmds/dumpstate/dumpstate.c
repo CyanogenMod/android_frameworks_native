@@ -333,8 +333,8 @@ int main(int argc, char *argv[]) {
         fclose(oom_adj);
     }
 
-    /* very first thing, collect VM traces from Dalvik (needs root) */
-    dump_traces_path = dump_vm_traces();
+    /* very first thing, collect stack traces from Dalvik and native processes (needs root) */
+    dump_traces_path = dump_traces();
 
     int c;
     while ((c = getopt(argc, argv, "b:de:ho:svzp")) != -1) {
