@@ -32,11 +32,20 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <cutils/debugger.h>
 #include <cutils/properties.h>
 #include <cutils/sockets.h>
 #include <private/android_filesystem_config.h>
 
 #include "dumpstate.h"
+
+/* list of native processes to include in the native dumps */
+static const char* native_processes_to_dump[] = {
+        "/system/bin/mediaserver",
+        "/system/bin/sdcard",
+        "/system/bin/surfaceflinger",
+        NULL,
+};
 
 void for_each_pid(void (*func)(int, const char *), const char *header) {
     DIR *d;
@@ -352,8 +361,19 @@ pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level) {
     return gzip_pid;
 }
 
-/* dump Dalvik stack traces, return the trace file location (NULL if none) */
-const char *dump_vm_traces() {
+static bool should_dump_native_traces(const char* path) {
+    for (const char** p = native_processes_to_dump; *p; p++) {
+        if (!strcmp(*p, path)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
+const char *dump_traces() {
+    const char* result = NULL;
+
     char traces_path[PROPERTY_VALUE_MAX] = "";
     property_get("dalvik.vm.stack-trace-file", traces_path, "");
     if (!traces_path[0]) return NULL;
@@ -394,26 +414,25 @@ const char *dump_vm_traces() {
         close(fd);
         return NULL;
     }
-    close(fd);
 
     /* walk /proc and kill -QUIT all Dalvik processes */
     DIR *proc = opendir("/proc");
     if (proc == NULL) {
         fprintf(stderr, "/proc: %s\n", strerror(errno));
-        return NULL;
+        goto error_close_fd;
     }
 
     /* use inotify to find when processes are done dumping */
     int ifd = inotify_init();
     if (ifd < 0) {
         fprintf(stderr, "inotify_init: %s\n", strerror(errno));
-        return NULL;
+        goto error_close_fd;
     }
 
     int wfd = inotify_add_watch(ifd, traces_path, IN_CLOSE_WRITE);
     if (wfd < 0) {
         fprintf(stderr, "inotify_add_watch(%s): %s\n", traces_path, strerror(errno));
-        return NULL;
+        goto error_close_ifd;
     }
 
     struct dirent *d;
@@ -422,39 +441,56 @@ const char *dump_vm_traces() {
         int pid = atoi(d->d_name);
         if (pid <= 0) continue;
 
-        /* identify Dalvik: /proc/(pid)/exe = /system/bin/app_process */
-        char path[PATH_MAX], data[PATH_MAX];
+        char path[PATH_MAX];
+        char data[PATH_MAX];
         snprintf(path, sizeof(path), "/proc/%d/exe", pid);
-        size_t len = readlink(path, data, sizeof(data) - 1);
-        if (len <= 0 || memcmp(data, "/system/bin/app_process", 23)) continue;
-
-        /* skip zygote -- it won't dump its stack anyway */
-        snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-        int fd = open(path, O_RDONLY);
-        len = read(fd, data, sizeof(data) - 1);
-        close(fd);
-        if (len <= 0 || !memcmp(data, "zygote", 6)) continue;
-
-        ++dalvik_found;
-        if (kill(pid, SIGQUIT)) {
-            fprintf(stderr, "kill(%d, SIGQUIT): %s\n", pid, strerror(errno));
+        ssize_t len = readlink(path, data, sizeof(data) - 1);
+        if (len <= 0) {
             continue;
         }
+        data[len] = '\0';
 
-        /* wait for the writable-close notification from inotify */
-        struct pollfd pfd = { ifd, POLLIN, 0 };
-        int ret = poll(&pfd, 1, 200);  /* 200 msec timeout */
-        if (ret < 0) {
-            fprintf(stderr, "poll: %s\n", strerror(errno));
-        } else if (ret == 0) {
-            fprintf(stderr, "warning: timed out dumping pid %d\n", pid);
-        } else {
-            struct inotify_event ie;
-            read(ifd, &ie, sizeof(ie));
+        if (!strcmp(data, "/system/bin/app_process")) {
+            /* skip zygote -- it won't dump its stack anyway */
+            snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
+            int fd = open(path, O_RDONLY);
+            len = read(fd, data, sizeof(data) - 1);
+            close(fd);
+            if (len <= 0) {
+                continue;
+            }
+            data[len] = '\0';
+            if (!strcmp(data, "zygote")) {
+                continue;
+            }
+
+            ++dalvik_found;
+            if (kill(pid, SIGQUIT)) {
+                fprintf(stderr, "kill(%d, SIGQUIT): %s\n", pid, strerror(errno));
+                continue;
+            }
+
+            /* wait for the writable-close notification from inotify */
+            struct pollfd pfd = { ifd, POLLIN, 0 };
+            int ret = poll(&pfd, 1, 200);  /* 200 msec timeout */
+            if (ret < 0) {
+                fprintf(stderr, "poll: %s\n", strerror(errno));
+            } else if (ret == 0) {
+                fprintf(stderr, "warning: timed out dumping pid %d\n", pid);
+            } else {
+                struct inotify_event ie;
+                read(ifd, &ie, sizeof(ie));
+            }
+        } else if (should_dump_native_traces(data)) {
+            /* dump native process if appropriate */
+            if (lseek(fd, 0, SEEK_END) < 0) {
+                fprintf(stderr, "lseek: %s\n", strerror(errno));
+            } else {
+                dump_backtrace_to_file(pid, fd);
+            }
         }
     }
 
-    close(ifd);
     if (dalvik_found == 0) {
         fprintf(stderr, "Warning: no Dalvik processes found to dump stacks\n");
     }
@@ -464,12 +500,18 @@ const char *dump_vm_traces() {
     strlcat(dump_traces_path, ".bugreport", sizeof(dump_traces_path));
     if (rename(traces_path, dump_traces_path)) {
         fprintf(stderr, "rename(%s, %s): %s\n", traces_path, dump_traces_path, strerror(errno));
-        return NULL;
+        goto error_close_ifd;
     }
+    result = dump_traces_path;
 
     /* replace the saved [ANR] traces.txt file */
     rename(anr_traces_path, traces_path);
-    return dump_traces_path;
+
+error_close_ifd:
+    close(ifd);
+error_close_fd:
+    close(fd);
+    return result;
 }
 
 void play_sound(const char* path) {
