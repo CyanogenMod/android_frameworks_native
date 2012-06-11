@@ -119,7 +119,7 @@ GLTraceContext *GLTraceState::createTraceContext(int version, EGLContext eglCont
 
     const size_t DEFAULT_BUFFER_SIZE = 8192;
     BufferedOutputStream *stream = new BufferedOutputStream(mStream, DEFAULT_BUFFER_SIZE);
-    GLTraceContext *traceContext = new GLTraceContext(id, this, stream);
+    GLTraceContext *traceContext = new GLTraceContext(id, version, this, stream);
     mPerContextState[eglContext] = traceContext;
 
     return traceContext;
@@ -129,8 +129,10 @@ GLTraceContext *GLTraceState::getTraceContext(EGLContext c) {
     return mPerContextState[c];
 }
 
-GLTraceContext::GLTraceContext(int id, GLTraceState *state, BufferedOutputStream *stream) :
+GLTraceContext::GLTraceContext(int id, int version, GLTraceState *state,
+        BufferedOutputStream *stream) :
     mId(id),
+    mVersion(version),
     mState(state),
     mBufferedOutputStream(stream),
     mElementArrayBuffers(DefaultKeyedVector<GLuint, ElementArrayBuffer*>(NULL))
@@ -141,6 +143,10 @@ GLTraceContext::GLTraceContext(int id, GLTraceState *state, BufferedOutputStream
 
 int GLTraceContext::getId() {
     return mId;
+}
+
+int GLTraceContext::getVersion() {
+    return mVersion;
 }
 
 GLTraceState *GLTraceContext::getGlobalTraceState() {

@@ -50,6 +50,7 @@ public:
 /** GL Trace Context info associated with each EGLContext */
 class GLTraceContext {
     int mId;                    /* unique context id */
+    int mVersion;               /* GL version, e.g: egl_connection_t::GLESv2_INDEX */
     GLTraceState *mState;       /* parent GL Trace state (for per process GL Trace State Info) */
 
     void *fbcontents;           /* memory area to read framebuffer contents */
@@ -65,8 +66,9 @@ class GLTraceContext {
 public:
     gl_hooks_t *hooks;
 
-    GLTraceContext(int id, GLTraceState *state, BufferedOutputStream *stream);
+    GLTraceContext(int id, int version, GLTraceState *state, BufferedOutputStream *stream);
     int getId();
+    int getVersion();
     GLTraceState *getGlobalTraceState();
     void getCompressedFB(void **fb, unsigned *fbsize,
                             unsigned *fbwidth, unsigned *fbheight,
