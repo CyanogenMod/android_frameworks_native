@@ -15,6 +15,7 @@
  */
 
 #include <cutils/log.h>
+#include <EGL/egldefs.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 #include <GLES2/gl2.h>
@@ -592,6 +593,11 @@ void trace_VertexAttribPointerData(GLTraceContext *context,
 }
 
 void trace_VertexAttribPointerDataForGlDrawArrays(GLTraceContext *context, GLMessage *glmsg) {
+    if (context->getVersion() == egl_connection_t::GLESv1_INDEX) {
+        // only supported for GLES2 and above
+        return;
+    }
+
     /* void glDrawArrays(GLenum mode, GLint first, GLsizei count) */
     GLsizei count = glmsg->args(2).intvalue(0);
 
@@ -604,6 +610,11 @@ void trace_VertexAttribPointerDataForGlDrawArrays(GLTraceContext *context, GLMes
 
 void trace_VertexAttribPointerDataForGlDrawElements(GLTraceContext *context, GLMessage *glmsg,
                             GLvoid *indices) {
+    if (context->getVersion() == egl_connection_t::GLESv1_INDEX) {
+        // only supported for GLES2 and above
+        return;
+    }
+
     /* void glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices) */
     GLsizei count = glmsg->args(1).intvalue(0);
     GLenum type = glmsg->args(2).intvalue(0);
