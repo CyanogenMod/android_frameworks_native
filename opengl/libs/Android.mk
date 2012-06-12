@@ -41,7 +41,12 @@ ifeq ($(BOARD_ALLOW_EGL_HIBERNATION),true)
 endif
 
 ifeq ($(TARGET_BOARD_PLATFORM),msm7k)
-LOCAL_CFLAGS += -DADRENO130=1
+  LOCAL_CFLAGS += -DADRENO130=1
+endif
+
+ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
+  # see Loader.cpp for details
+  LOCAL_CFLAGS += -DSYSTEMUI_PBSIZE_HACK=1
 endif
 
 ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
