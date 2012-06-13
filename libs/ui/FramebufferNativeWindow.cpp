@@ -28,6 +28,7 @@
 #include <utils/RefBase.h>
 
 #include <ui/ANativeObjectBase.h>
+#include <ui/Fence.h>
 #include <ui/FramebufferNativeWindow.h>
 #include <ui/Rect.h>
 
@@ -145,10 +146,13 @@ FramebufferNativeWindow::FramebufferNativeWindow()
 
     ANativeWindow::setSwapInterval = setSwapInterval;
     ANativeWindow::dequeueBuffer = dequeueBuffer;
-    ANativeWindow::lockBuffer = lockBuffer;
     ANativeWindow::queueBuffer = queueBuffer;
     ANativeWindow::query = query;
     ANativeWindow::perform = perform;
+
+    ANativeWindow::dequeueBuffer_DEPRECATED = dequeueBuffer_DEPRECATED;
+    ANativeWindow::lockBuffer_DEPRECATED = lockBuffer_DEPRECATED;
+    ANativeWindow::queueBuffer_DEPRECATED = queueBuffer_DEPRECATED;
 }
 
 FramebufferNativeWindow::~FramebufferNativeWindow() 
@@ -207,8 +211,23 @@ int FramebufferNativeWindow::getCurrentBufferIndex() const
     return index;
 }
 
-int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window, 
+int FramebufferNativeWindow::dequeueBuffer_DEPRECATED(ANativeWindow* window, 
         ANativeWindowBuffer** buffer)
+{
+    int fenceFd = -1;
+    int result = dequeueBuffer(window, buffer, &fenceFd);
+    sp<Fence> fence(new Fence(fenceFd));
+    int waitResult = fence->wait(Fence::TIMEOUT_NEVER);
+    if (waitResult != OK) {
+        ALOGE("dequeueBuffer_DEPRECATED: Fence::wait returned an "
+                "error: %d", waitResult);
+        return waitResult;
+    }
+    return result;
+}
+
+int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window, 
+        ANativeWindowBuffer** buffer, int* fenceFd)
 {
     FramebufferNativeWindow* self = getSelf(window);
     Mutex::Autolock _l(self->mutex);
@@ -227,13 +246,15 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
     self->mCurrentBufferIndex = index;
 
     *buffer = self->buffers[index].get();
+    *fenceFd = -1;
 
     return 0;
 }
 
-int FramebufferNativeWindow::lockBuffer(ANativeWindow* window, 
+int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* window, 
         ANativeWindowBuffer* buffer)
 {
+    // XXX: Can this code all get ripped out?  Should it move to dequeueBuffer?
     FramebufferNativeWindow* self = getSelf(window);
     Mutex::Autolock _l(self->mutex);
 
@@ -247,13 +268,22 @@ int FramebufferNativeWindow::lockBuffer(ANativeWindow* window,
     return NO_ERROR;
 }
 
-int FramebufferNativeWindow::queueBuffer(ANativeWindow* window, 
+int FramebufferNativeWindow::queueBuffer_DEPRECATED(ANativeWindow* window, 
         ANativeWindowBuffer* buffer)
+{
+    return queueBuffer(window, buffer, -1);
+}
+
+int FramebufferNativeWindow::queueBuffer(ANativeWindow* window, 
+        ANativeWindowBuffer* buffer, int fenceFd)
 {
     FramebufferNativeWindow* self = getSelf(window);
     Mutex::Autolock _l(self->mutex);
     framebuffer_device_t* fb = self->fbDev;
     buffer_handle_t handle = static_cast<NativeBuffer*>(buffer)->handle;
+
+    sp<Fence> fence(new Fence(fenceFd));
+    fence->wait(Fence::TIMEOUT_NEVER);
 
     const int index = self->mCurrentBufferIndex;
     int res = fb->post(fb, handle);

@@ -31,6 +31,7 @@
 
 #include <utils/threads.h>
 #include <ui/ANativeObjectBase.h>
+#include <ui/Fence.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -372,7 +373,16 @@ EGLBoolean egl_window_surface_v2_t::connect()
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
 
     // dequeue a buffer
-    if (nativeWindow->dequeueBuffer(nativeWindow, &buffer) != NO_ERROR) {
+    int fenceFd = -1;
+    if (nativeWindow->dequeueBuffer(nativeWindow, &buffer,
+            &fenceFd) != NO_ERROR) {
+        return setError(EGL_BAD_ALLOC, EGL_FALSE);
+    }
+
+    // wait for the buffer
+    sp<Fence> fence(new Fence(fenceFd));
+    if (fence->wait(Fence::TIMEOUT_NEVER) != NO_ERROR) {
+        nativeWindow->cancelBuffer(nativeWindow, buffer, fenceFd);
         return setError(EGL_BAD_ALLOC, EGL_FALSE);
     }
 
@@ -392,8 +402,6 @@ EGLBoolean egl_window_surface_v2_t::connect()
     // keep a reference on the buffer
     buffer->common.incRef(&buffer->common);
 
-    // Lock the buffer
-    nativeWindow->lockBuffer(nativeWindow, buffer);
     // pin the buffer down
     if (lock(buffer, GRALLOC_USAGE_SW_READ_OFTEN | 
             GRALLOC_USAGE_SW_WRITE_OFTEN, &bits) != NO_ERROR) {
@@ -412,7 +420,7 @@ void egl_window_surface_v2_t::disconnect()
         unlock(buffer);
     }
     // enqueue the last frame
-    nativeWindow->queueBuffer(nativeWindow, buffer);
+    nativeWindow->queueBuffer(nativeWindow, buffer, -1);
     if (buffer) {
         buffer->common.decRef(&buffer->common);
         buffer = 0;
@@ -517,15 +525,17 @@ EGLBoolean egl_window_surface_v2_t::swapBuffers()
     
     unlock(buffer);
     previousBuffer = buffer;
-    nativeWindow->queueBuffer(nativeWindow, buffer);
+    nativeWindow->queueBuffer(nativeWindow, buffer, -1);
     buffer = 0;
 
     // dequeue a new buffer
-    if (nativeWindow->dequeueBuffer(nativeWindow, &buffer) == NO_ERROR) {
-
-        // TODO: lockBuffer should rather be executed when the very first
-        // direct rendering occurs.
-        nativeWindow->lockBuffer(nativeWindow, buffer);
+    int fenceFd = -1;
+    if (nativeWindow->dequeueBuffer(nativeWindow, &buffer, &fenceFd) == NO_ERROR) {
+        sp<Fence> fence(new Fence(fenceFd));
+        if (fence->wait(Fence::TIMEOUT_NEVER)) {
+            nativeWindow->cancelBuffer(nativeWindow, buffer, fenceFd);
+            return setError(EGL_BAD_ALLOC, EGL_FALSE);
+        }
 
         // reallocate the depth-buffer if needed
         if ((width != buffer->width) || (height != buffer->height)) {

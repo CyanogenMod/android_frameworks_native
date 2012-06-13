@@ -61,13 +61,24 @@ private:
     void init();
 
     // ANativeWindow hooks
-    static int hook_cancelBuffer(ANativeWindow* window, ANativeWindowBuffer* buffer);
-    static int hook_dequeueBuffer(ANativeWindow* window, ANativeWindowBuffer** buffer);
-    static int hook_lockBuffer(ANativeWindow* window, ANativeWindowBuffer* buffer);
+    static int hook_cancelBuffer(ANativeWindow* window,
+            ANativeWindowBuffer* buffer, int fenceFd);
+    static int hook_dequeueBuffer(ANativeWindow* window,
+            ANativeWindowBuffer** buffer, int* fenceFd);
     static int hook_perform(ANativeWindow* window, int operation, ...);
     static int hook_query(const ANativeWindow* window, int what, int* value);
-    static int hook_queueBuffer(ANativeWindow* window, ANativeWindowBuffer* buffer);
+    static int hook_queueBuffer(ANativeWindow* window,
+            ANativeWindowBuffer* buffer, int fenceFd);
     static int hook_setSwapInterval(ANativeWindow* window, int interval);
+
+    static int hook_cancelBuffer_DEPRECATED(ANativeWindow* window,
+            ANativeWindowBuffer* buffer);
+    static int hook_dequeueBuffer_DEPRECATED(ANativeWindow* window,
+            ANativeWindowBuffer** buffer);
+    static int hook_lockBuffer_DEPRECATED(ANativeWindow* window,
+            ANativeWindowBuffer* buffer);
+    static int hook_queueBuffer_DEPRECATED(ANativeWindow* window,
+            ANativeWindowBuffer* buffer);
 
     int dispatchConnect(va_list args);
     int dispatchDisconnect(va_list args);
@@ -86,13 +97,14 @@ private:
     int dispatchUnlockAndPost(va_list args);
 
 protected:
-    virtual int cancelBuffer(ANativeWindowBuffer* buffer);
-    virtual int dequeueBuffer(ANativeWindowBuffer** buffer);
-    virtual int lockBuffer(ANativeWindowBuffer* buffer);
+    virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
+    virtual int cancelBuffer(ANativeWindowBuffer* buffer, int fenceFd);
+    virtual int queueBuffer(ANativeWindowBuffer* buffer, int fenceFd);
     virtual int perform(int operation, va_list args);
     virtual int query(int what, int* value) const;
-    virtual int queueBuffer(ANativeWindowBuffer* buffer);
     virtual int setSwapInterval(int interval);
+
+    virtual int lockBuffer_DEPRECATED(ANativeWindowBuffer* buffer);
 
     virtual int connect(int api);
     virtual int disconnect(int api);

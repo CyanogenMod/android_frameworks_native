@@ -187,34 +187,7 @@ void checkPixel(const CpuConsumer::LockedBuffer &buf,
 }
 
 // Fill a YV12 buffer with a multi-colored checkerboard pattern
-void fillYV12Buffer(uint8_t* buf, int w, int h, int stride) {
-    const int blockWidth = w > 16 ? w / 16 : 1;
-    const int blockHeight = h > 16 ? h / 16 : 1;
-    const int yuvTexOffsetY = 0;
-    int yuvTexStrideY = stride;
-    int yuvTexOffsetV = yuvTexStrideY * h;
-    int yuvTexStrideV = (yuvTexStrideY/2 + 0xf) & ~0xf;
-    int yuvTexOffsetU = yuvTexOffsetV + yuvTexStrideV * h/2;
-    int yuvTexStrideU = yuvTexStrideV;
-    for (int x = 0; x < w; x++) {
-        for (int y = 0; y < h; y++) {
-            int parityX = (x / blockWidth) & 1;
-            int parityY = (y / blockHeight) & 1;
-            unsigned char intensity = (parityX ^ parityY) ? 63 : 191;
-            buf[yuvTexOffsetY + (y * yuvTexStrideY) + x] = intensity;
-            if (x < w / 2 && y < h / 2) {
-                buf[yuvTexOffsetU + (y * yuvTexStrideU) + x] = intensity;
-                if (x * 2 < w / 2 && y * 2 < h / 2) {
-                    buf[yuvTexOffsetV + (y*2 * yuvTexStrideV) + x*2 + 0] =
-                    buf[yuvTexOffsetV + (y*2 * yuvTexStrideV) + x*2 + 1] =
-                    buf[yuvTexOffsetV + ((y*2+1) * yuvTexStrideV) + x*2 + 0] =
-                    buf[yuvTexOffsetV + ((y*2+1) * yuvTexStrideV) + x*2 + 1] =
-                        intensity;
-                }
-            }
-        }
-    }
-}
+void fillYV12Buffer(uint8_t* buf, int w, int h, int stride);
 
 // Fill a RAW sensor buffer with a multi-colored checkerboard pattern.
 // Assumes GRBG mosaic ordering. Result should be a grid in a 2x2 pattern
@@ -285,58 +258,13 @@ void checkBayerRawBuffer(const CpuConsumer::LockedBuffer &buf) {
     checkPixel(buf, w-1, h-1, maxR, maxG, maxB);
 }
 
-// Fill a YV12 buffer with red outside a given rectangle and green inside it.
 void fillYV12BufferRect(uint8_t* buf, int w, int h, int stride,
-        const android_native_rect_t& rect) {
-    const int yuvTexOffsetY = 0;
-    int yuvTexStrideY = stride;
-    int yuvTexOffsetV = yuvTexStrideY * h;
-    int yuvTexStrideV = (yuvTexStrideY/2 + 0xf) & ~0xf;
-    int yuvTexOffsetU = yuvTexOffsetV + yuvTexStrideV * h/2;
-    int yuvTexStrideU = yuvTexStrideV;
-    for (int x = 0; x < w; x++) {
-        for (int y = 0; y < h; y++) {
-            bool inside = rect.left <= x && x < rect.right &&
-                    rect.top <= y && y < rect.bottom;
-            buf[yuvTexOffsetY + (y * yuvTexStrideY) + x] = inside ? 240 : 64;
-            if (x < w / 2 && y < h / 2) {
-                bool inside = rect.left <= 2*x && 2*x < rect.right &&
-                        rect.top <= 2*y && 2*y < rect.bottom;
-                buf[yuvTexOffsetU + (y * yuvTexStrideU) + x] = 16;
-                buf[yuvTexOffsetV + (y * yuvTexStrideV) + x] =
-                        inside ? 16 : 255;
-            }
-        }
-    }
-}
+        const android_native_rect_t& rect);
 
-void fillRGBA8Buffer(uint8_t* buf, int w, int h, int stride) {
-    const size_t PIXEL_SIZE = 4;
-    for (int x = 0; x < w; x++) {
-        for (int y = 0; y < h; y++) {
-            off_t offset = (y * stride + x) * PIXEL_SIZE;
-            for (int c = 0; c < 4; c++) {
-                int parityX = (x / (1 << (c+2))) & 1;
-                int parityY = (y / (1 << (c+2))) & 1;
-                buf[offset + c] = (parityX ^ parityY) ? 231 : 35;
-            }
-        }
-    }
-}
+void fillRGBA8Buffer(uint8_t* buf, int w, int h, int stride);
 
 void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride, uint8_t r,
-        uint8_t g, uint8_t b, uint8_t a) {
-    const size_t PIXEL_SIZE = 4;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < h; x++) {
-            off_t offset = (y * stride + x) * PIXEL_SIZE;
-            buf[offset + 0] = r;
-            buf[offset + 1] = g;
-            buf[offset + 2] = b;
-            buf[offset + 3] = a;
-        }
-    }
-}
+        uint8_t g, uint8_t b, uint8_t a);
 
 // Configures the ANativeWindow producer-side interface based on test parameters
 void configureANW(const sp<ANativeWindow>& anw,
@@ -373,16 +301,12 @@ void produceOneFrame(const sp<ANativeWindow>& anw,
     status_t err;
     ANativeWindowBuffer* anb;
     ALOGVV("Dequeue buffer from %p", anw.get());
-    err = anw->dequeueBuffer(anw.get(), &anb);
+    err = native_window_dequeue_buffer_and_wait(anw.get(), &anb);
     ASSERT_NO_ERROR(err, "dequeueBuffer error: ");
 
     ASSERT_TRUE(anb != NULL);
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-
-    ALOGVV("Lock buffer from %p", anw.get());
-    err = anw->lockBuffer(anw.get(), buf->getNativeBuffer());
-    ASSERT_NO_ERROR(err, "lockBuffer error: ");
 
     *stride = buf->getStride();
     uint8_t* img = NULL;
@@ -411,7 +335,7 @@ void produceOneFrame(const sp<ANativeWindow>& anw,
     ASSERT_NO_ERROR(err, "set_buffers_timestamp error: ");
 
     ALOGVV("Queue buffer to %p", anw.get());
-    err = anw->queueBuffer(anw.get(), buf->getNativeBuffer());
+    err = anw->queueBuffer(anw.get(), buf->getNativeBuffer(), -1);
     ASSERT_NO_ERROR(err, "queueBuffer error:");
 };
 

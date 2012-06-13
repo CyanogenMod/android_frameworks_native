@@ -2,14 +2,15 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := SurfaceTexture_test
+LOCAL_MODULE := libgui_test
 
 LOCAL_MODULE_TAGS := tests
 
 LOCAL_SRC_FILES := \
-    Surface_test.cpp \
+    CpuConsumer_test.cpp \
     SurfaceTextureClient_test.cpp \
     SurfaceTexture_test.cpp \
+    Surface_test.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libEGL \
@@ -18,35 +19,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libgui \
 	libstlport \
-	libui \
-	libutils \
-
-LOCAL_C_INCLUDES := \
-    bionic \
-    bionic/libstdc++/include \
-    external/gtest/include \
-    external/stlport/stlport \
-
-# Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
-# to integrate with auto-test framework.
-include $(BUILD_NATIVE_TEST)
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := CpuConsumer_test
-
-LOCAL_MODULE_TAGS := tests
-
-LOCAL_SRC_FILES := \
-    CpuConsumer_test.cpp
-
-LOCAL_SHARED_LIBRARIES := \
-	libEGL \
-	libGLESv2 \
-	libbinder \
-	libcutils \
-	libgui \
-	libstlport \
+	libsync \
 	libui \
 	libutils \
 

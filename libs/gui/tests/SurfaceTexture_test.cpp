@@ -672,18 +672,19 @@ void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride, uint8_t r,
 // Calls to this function should be wrapped in an ASSERT_NO_FATAL_FAILURE().
 void produceOneRGBA8Frame(const sp<ANativeWindow>& anw) {
     android_native_buffer_t* anb;
-    ASSERT_EQ(NO_ERROR, anw->dequeueBuffer(anw.get(), &anb));
+    ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(anw.get(),
+            &anb));
     ASSERT_TRUE(anb != NULL);
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, anw->lockBuffer(anw.get(), buf->getNativeBuffer()));
 
     uint8_t* img = NULL;
     ASSERT_EQ(NO_ERROR, buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN,
             (void**)(&img)));
     fillRGBA8Buffer(img, buf->getWidth(), buf->getHeight(), buf->getStride());
     ASSERT_EQ(NO_ERROR, buf->unlock());
-    ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer()));
+    ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer(),
+            -1));
 }
 
 TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferNpot) {
@@ -696,18 +697,19 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferNpot) {
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     ANativeWindowBuffer* anb;
-    ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     ASSERT_TRUE(anb != NULL);
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(), buf->getNativeBuffer()));
 
     // Fill the buffer with the a checkerboard pattern
     uint8_t* img = NULL;
     buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
     fillYV12Buffer(img, texWidth, texHeight, buf->getStride());
     buf->unlock();
-    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer()));
+    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(),
+            -1));
 
     mST->updateTexImage();
 
@@ -741,18 +743,19 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferPow2) {
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     ANativeWindowBuffer* anb;
-    ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     ASSERT_TRUE(anb != NULL);
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(), buf->getNativeBuffer()));
 
     // Fill the buffer with the a checkerboard pattern
     uint8_t* img = NULL;
     buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
     fillYV12Buffer(img, texWidth, texHeight, buf->getStride());
     buf->unlock();
-    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer()));
+    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(),
+            -1));
 
     mST->updateTexImage();
 
@@ -801,19 +804,18 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferWithCrop) {
         ASSERT_EQ(NO_ERROR, native_window_set_crop(mANW.get(), &crop));
 
         ANativeWindowBuffer* anb;
-        ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+        ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+                &anb));
         ASSERT_TRUE(anb != NULL);
 
         sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-        ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(),
-                buf->getNativeBuffer()));
 
         uint8_t* img = NULL;
         buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
         fillYV12BufferRect(img, texWidth, texHeight, buf->getStride(), crop);
         buf->unlock();
         ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(),
-                buf->getNativeBuffer()));
+                buf->getNativeBuffer(), -1));
 
         mST->updateTexImage();
 
@@ -877,7 +879,8 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
         virtual bool threadLoop() {
             for (int i = 0; i < numFrames; i++) {
                 ANativeWindowBuffer* anb;
-                if (mANW->dequeueBuffer(mANW.get(), &anb) != NO_ERROR) {
+                if (native_window_dequeue_buffer_and_wait(mANW.get(),
+                        &anb) != NO_ERROR) {
                     return false;
                 }
                 if (anb == NULL) {
@@ -885,10 +888,6 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
                 }
 
                 sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-                if (mANW->lockBuffer(mANW.get(), buf->getNativeBuffer())
-                        != NO_ERROR) {
-                    return false;
-                }
 
                 const int yuvTexOffsetY = 0;
                 int stride = buf->getStride();
@@ -932,7 +931,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
                 }
 
                 buf->unlock();
-                if (mANW->queueBuffer(mANW.get(), buf->getNativeBuffer())
+                if (mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1)
                         != NO_ERROR) {
                     return false;
                 }
@@ -1093,13 +1092,14 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
 
             for (int numFrames =0 ; numFrames < 2; numFrames ++) {
 
-                if (mANW->dequeueBuffer(mANW.get(), &anb) != NO_ERROR) {
+                if (native_window_dequeue_buffer_and_wait(mANW.get(),
+                        &anb) != NO_ERROR) {
                     return false;
                 }
                 if (anb == NULL) {
                     return false;
                 }
-                if (mANW->queueBuffer(mANW.get(), anb)
+                if (mANW->queueBuffer(mANW.get(), anb, -1)
                         != NO_ERROR) {
                     return false;
                 }
@@ -1147,11 +1147,11 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
 
     ANativeWindowBuffer *anb;
 
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
 
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
 
     EXPECT_EQ(OK,mST->updateTexImage());
     EXPECT_EQ(OK,mST->updateTexImage());
@@ -1163,8 +1163,8 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
 
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
 
-    EXPECT_EQ(OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
 
     // Will fail here if mCurrentTexture is not cleared properly
     mFW->waitForFrame();
@@ -1193,8 +1193,8 @@ TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
 
     android_native_rect_t odd = {23, 78, 123, 477};
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &odd));
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
@@ -1227,8 +1227,8 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     // The crop is in the shape of (320, 180) === 16 x 9
     android_native_rect_t standard = {10, 20, 330, 200};
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &standard));
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
@@ -1238,8 +1238,8 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     // make this wider then desired aspect 239 x 100 (2.39:1)
     android_native_rect_t wide = {20, 30, 259, 130};
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &wide));
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     r = mST->getCurrentCrop();
@@ -1250,8 +1250,8 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     // This image is taller then desired aspect 400 x 300 (4:3)
     android_native_rect_t narrow = {0, 0, 400, 300};
     ASSERT_EQ(OK, native_window_set_crop(mANW.get(), &narrow));
-    EXPECT_EQ (OK, mANW->dequeueBuffer(mANW.get(), &anb));
-    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
+    EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
     r = mST->getCurrentCrop();
@@ -1278,31 +1278,34 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
             ANativeWindowBuffer* anb;
 
             // Frame 1
-            if (mANW->dequeueBuffer(mANW.get(), &anb) != NO_ERROR) {
+            if (native_window_dequeue_buffer_and_wait(mANW.get(),
+                    &anb) != NO_ERROR) {
                 return false;
             }
             if (anb == NULL) {
                 return false;
             }
-            if (mANW->queueBuffer(mANW.get(), anb)
+            if (mANW->queueBuffer(mANW.get(), anb, -1)
                     != NO_ERROR) {
                 return false;
             }
 
             // Frame 2
-            if (mANW->dequeueBuffer(mANW.get(), &anb) != NO_ERROR) {
+            if (native_window_dequeue_buffer_and_wait(mANW.get(),
+                    &anb) != NO_ERROR) {
                 return false;
             }
             if (anb == NULL) {
                 return false;
             }
-            if (mANW->queueBuffer(mANW.get(), anb)
+            if (mANW->queueBuffer(mANW.get(), anb, -1)
                     != NO_ERROR) {
                 return false;
             }
 
             // Frame 3 - error expected
-            mDequeueError = mANW->dequeueBuffer(mANW.get(), &anb);
+            mDequeueError = native_window_dequeue_buffer_and_wait(mANW.get(),
+                &anb);
             return false;
         }
 
@@ -1346,26 +1349,29 @@ TEST_F(SurfaceTextureGLTest, InvalidWidthOrHeightFails) {
 
     // make sure it works with small textures
     mST->setDefaultBufferSize(16, texHeight);
-    EXPECT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     EXPECT_EQ(16, anb->width);
     EXPECT_EQ(texHeight, anb->height);
-    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb, -1));
     EXPECT_EQ(NO_ERROR, mST->updateTexImage());
 
     // make sure it works with GL_MAX_TEXTURE_SIZE
     mST->setDefaultBufferSize(maxTextureSize, texHeight);
-    EXPECT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     EXPECT_EQ(maxTextureSize, anb->width);
     EXPECT_EQ(texHeight, anb->height);
-    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb, -1));
     EXPECT_EQ(NO_ERROR, mST->updateTexImage());
 
     // make sure it fails with GL_MAX_TEXTURE_SIZE+1
     mST->setDefaultBufferSize(maxTextureSize+1, texHeight);
-    EXPECT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    EXPECT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     EXPECT_EQ(maxTextureSize+1, anb->width);
     EXPECT_EQ(texHeight, anb->height);
-    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb));
+    EXPECT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), anb, -1));
     ASSERT_NE(NO_ERROR, mST->updateTexImage());
 }
 
@@ -2134,11 +2140,11 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     android_native_buffer_t* anb;
-    ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+    ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+            &anb));
     ASSERT_TRUE(anb != NULL);
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
-    ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(), buf->getNativeBuffer()));
 
     // Fill the buffer with green
     uint8_t* img = NULL;
@@ -2146,7 +2152,8 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
     fillRGBA8BufferSolid(img, texWidth, texHeight, buf->getStride(), 0, 255,
             0, 255);
     buf->unlock();
-    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer()));
+    ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(),
+            -1));
 
     ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
@@ -2157,12 +2164,11 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
     for (int i = 0; i < 4; i++) {
         SCOPED_TRACE(String8::format("frame %d", i).string());
 
-        ASSERT_EQ(NO_ERROR, mANW->dequeueBuffer(mANW.get(), &anb));
+        ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(mANW.get(),
+                &anb));
         ASSERT_TRUE(anb != NULL);
 
         buf = new GraphicBuffer(anb, false);
-        ASSERT_EQ(NO_ERROR, mANW->lockBuffer(mANW.get(),
-                buf->getNativeBuffer()));
 
         // Fill the buffer with red
         ASSERT_EQ(NO_ERROR, buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN,
@@ -2171,7 +2177,7 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
                 0, 255);
         ASSERT_EQ(NO_ERROR, buf->unlock());
         ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(),
-                buf->getNativeBuffer()));
+                buf->getNativeBuffer(), -1));
 
         ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 

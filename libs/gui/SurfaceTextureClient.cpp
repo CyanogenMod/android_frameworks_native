@@ -23,6 +23,8 @@
 #include <utils/Log.h>
 #include <utils/Trace.h>
 
+#include <ui/Fence.h>
+
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
 #include <gui/SurfaceTexture.h>
@@ -62,10 +64,14 @@ void SurfaceTextureClient::init() {
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
     ANativeWindow::dequeueBuffer    = hook_dequeueBuffer;
     ANativeWindow::cancelBuffer     = hook_cancelBuffer;
-    ANativeWindow::lockBuffer       = hook_lockBuffer;
     ANativeWindow::queueBuffer      = hook_queueBuffer;
     ANativeWindow::query            = hook_query;
     ANativeWindow::perform          = hook_perform;
+
+    ANativeWindow::dequeueBuffer_DEPRECATED = hook_dequeueBuffer_DEPRECATED;
+    ANativeWindow::cancelBuffer_DEPRECATED  = hook_cancelBuffer_DEPRECATED;
+    ANativeWindow::lockBuffer_DEPRECATED    = hook_lockBuffer_DEPRECATED;
+    ANativeWindow::queueBuffer_DEPRECATED   = hook_queueBuffer_DEPRECATED;
 
     const_cast<int&>(ANativeWindow::minSwapInterval) = 0;
     const_cast<int&>(ANativeWindow::maxSwapInterval) = 1;
@@ -103,27 +109,54 @@ int SurfaceTextureClient::hook_setSwapInterval(ANativeWindow* window, int interv
 }
 
 int SurfaceTextureClient::hook_dequeueBuffer(ANativeWindow* window,
-        ANativeWindowBuffer** buffer) {
+        ANativeWindowBuffer** buffer, int* fenceFd) {
     SurfaceTextureClient* c = getSelf(window);
-    return c->dequeueBuffer(buffer);
+    return c->dequeueBuffer(buffer, fenceFd);
 }
 
 int SurfaceTextureClient::hook_cancelBuffer(ANativeWindow* window,
-        ANativeWindowBuffer* buffer) {
+        ANativeWindowBuffer* buffer, int fenceFd) {
     SurfaceTextureClient* c = getSelf(window);
-    return c->cancelBuffer(buffer);
-}
-
-int SurfaceTextureClient::hook_lockBuffer(ANativeWindow* window,
-        ANativeWindowBuffer* buffer) {
-    SurfaceTextureClient* c = getSelf(window);
-    return c->lockBuffer(buffer);
+    return c->cancelBuffer(buffer, fenceFd);
 }
 
 int SurfaceTextureClient::hook_queueBuffer(ANativeWindow* window,
+        ANativeWindowBuffer* buffer, int fenceFd) {
+    SurfaceTextureClient* c = getSelf(window);
+    return c->queueBuffer(buffer, fenceFd);
+}
+
+int SurfaceTextureClient::hook_dequeueBuffer_DEPRECATED(ANativeWindow* window,
+        ANativeWindowBuffer** buffer) {
+    SurfaceTextureClient* c = getSelf(window);
+    int fenceFd = -1;
+    int result = c->dequeueBuffer(buffer, &fenceFd);
+    sp<Fence> fence(new Fence(fenceFd));
+    int waitResult = fence->wait(Fence::TIMEOUT_NEVER);
+    if (waitResult != OK) {
+        ALOGE("hook_dequeueBuffer_DEPRECATED: Fence::wait returned an "
+                "error: %d", waitResult);
+        return waitResult;
+    }
+    return result;
+}
+
+int SurfaceTextureClient::hook_cancelBuffer_DEPRECATED(ANativeWindow* window,
         ANativeWindowBuffer* buffer) {
     SurfaceTextureClient* c = getSelf(window);
-    return c->queueBuffer(buffer);
+    return c->cancelBuffer(buffer, -1);
+}
+
+int SurfaceTextureClient::hook_lockBuffer_DEPRECATED(ANativeWindow* window,
+        ANativeWindowBuffer* buffer) {
+    SurfaceTextureClient* c = getSelf(window);
+    return c->lockBuffer_DEPRECATED(buffer);
+}
+
+int SurfaceTextureClient::hook_queueBuffer_DEPRECATED(ANativeWindow* window,
+        ANativeWindowBuffer* buffer) {
+    SurfaceTextureClient* c = getSelf(window);
+    return c->queueBuffer(buffer, -1);
 }
 
 int SurfaceTextureClient::hook_query(const ANativeWindow* window,
@@ -157,7 +190,8 @@ int SurfaceTextureClient::setSwapInterval(int interval) {
     return res;
 }
 
-int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer) {
+int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
+        int* fenceFd) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::dequeueBuffer");
     Mutex::Autolock lock(mMutex);
@@ -186,16 +220,23 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer) {
         }
     }
     *buffer = gbuf.get();
+    *fenceFd = -1;
     return OK;
 }
 
-int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer) {
+int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer, int fenceFd) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::cancelBuffer");
     Mutex::Autolock lock(mMutex);
     int i = getSlotFromBufferLocked(buffer);
     if (i < 0) {
         return i;
+    }
+    sp<Fence> fence(new Fence(fenceFd));
+    status_t err = fence->wait(Fence::TIMEOUT_NEVER);
+    if (err != OK) {
+        ALOGE("queueBuffer: Fence::wait returned an error: %d", err);
+        return err;
     }
     mSurfaceTexture->cancelBuffer(i);
     return OK;
@@ -214,13 +255,13 @@ int SurfaceTextureClient::getSlotFromBufferLocked(
     return BAD_VALUE;
 }
 
-int SurfaceTextureClient::lockBuffer(android_native_buffer_t* buffer) {
+int SurfaceTextureClient::lockBuffer_DEPRECATED(android_native_buffer_t* buffer) {
     ALOGV("SurfaceTextureClient::lockBuffer");
     Mutex::Autolock lock(mMutex);
     return OK;
 }
 
-int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
+int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::queueBuffer");
     Mutex::Autolock lock(mMutex);
@@ -237,6 +278,13 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
         return i;
     }
 
+    sp<Fence> fence(new Fence(fenceFd));
+    status_t err = fence->wait(Fence::TIMEOUT_NEVER);
+    if (err != OK) {
+        ALOGE("queueBuffer: Fence::wait returned an error: %d", err);
+        return err;
+    }
+
     // Make sure the crop rectangle is entirely inside the buffer.
     Rect crop;
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
@@ -244,7 +292,7 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer) {
     ISurfaceTexture::QueueBufferOutput output;
     ISurfaceTexture::QueueBufferInput input(timestamp, crop, mScalingMode,
             mTransform);
-    status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
+    err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
@@ -692,78 +740,83 @@ status_t SurfaceTextureClient::lock(
     }
 
     ANativeWindowBuffer* out;
-    status_t err = dequeueBuffer(&out);
+    int fenceFd = -1;
+    status_t err = dequeueBuffer(&out, &fenceFd);
     ALOGE_IF(err, "dequeueBuffer failed (%s)", strerror(-err));
     if (err == NO_ERROR) {
         sp<GraphicBuffer> backBuffer(GraphicBuffer::getSelf(out));
-        err = lockBuffer(backBuffer.get());
-        ALOGE_IF(err, "lockBuffer (handle=%p) failed (%s)",
-                backBuffer->handle, strerror(-err));
-        if (err == NO_ERROR) {
-            const Rect bounds(backBuffer->width, backBuffer->height);
+        sp<Fence> fence(new Fence(fenceFd));
 
-            Region newDirtyRegion;
-            if (inOutDirtyBounds) {
-                newDirtyRegion.set(static_cast<Rect const&>(*inOutDirtyBounds));
-                newDirtyRegion.andSelf(bounds);
-            } else {
-                newDirtyRegion.set(bounds);
-            }
-
-            // figure out if we can copy the frontbuffer back
-            const sp<GraphicBuffer>& frontBuffer(mPostedBuffer);
-            const bool canCopyBack = (frontBuffer != 0 &&
-                    backBuffer->width  == frontBuffer->width &&
-                    backBuffer->height == frontBuffer->height &&
-                    backBuffer->format == frontBuffer->format);
-
-            if (canCopyBack) {
-                // copy the area that is invalid and not repainted this round
-                const Region copyback(mDirtyRegion.subtract(newDirtyRegion));
-                if (!copyback.isEmpty())
-                    copyBlt(backBuffer, frontBuffer, copyback);
-            } else {
-                // if we can't copy-back anything, modify the user's dirty
-                // region to make sure they redraw the whole buffer
-                newDirtyRegion.set(bounds);
-                mDirtyRegion.clear();
-                Mutex::Autolock lock(mMutex);
-                for (size_t i=0 ; i<NUM_BUFFER_SLOTS ; i++) {
-                    mSlots[i].dirtyRegion.clear();
-                }
-            }
-
-
-            { // scope for the lock
-                Mutex::Autolock lock(mMutex);
-                int backBufferSlot(getSlotFromBufferLocked(backBuffer.get()));
-                if (backBufferSlot >= 0) {
-                    Region& dirtyRegion(mSlots[backBufferSlot].dirtyRegion);
-                    mDirtyRegion.subtract(dirtyRegion);
-                    dirtyRegion = newDirtyRegion;
-                }
-            }
-
-            mDirtyRegion.orSelf(newDirtyRegion);
-            if (inOutDirtyBounds) {
-                *inOutDirtyBounds = newDirtyRegion.getBounds();
-            }
-
-            void* vaddr;
-            status_t res = backBuffer->lock(
-                    GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN,
-                    newDirtyRegion.bounds(), &vaddr);
-
-            ALOGW_IF(res, "failed locking buffer (handle = %p)",
-                    backBuffer->handle);
-
-            mLockedBuffer = backBuffer;
-            outBuffer->width  = backBuffer->width;
-            outBuffer->height = backBuffer->height;
-            outBuffer->stride = backBuffer->stride;
-            outBuffer->format = backBuffer->format;
-            outBuffer->bits   = vaddr;
+        err = fence->wait(Fence::TIMEOUT_NEVER);
+        if (err != OK) {
+            ALOGE("Fence::wait failed (%s)", strerror(-err));
+            cancelBuffer(out, fenceFd);
+            return err;
         }
+
+        const Rect bounds(backBuffer->width, backBuffer->height);
+
+        Region newDirtyRegion;
+        if (inOutDirtyBounds) {
+            newDirtyRegion.set(static_cast<Rect const&>(*inOutDirtyBounds));
+            newDirtyRegion.andSelf(bounds);
+        } else {
+            newDirtyRegion.set(bounds);
+        }
+
+        // figure out if we can copy the frontbuffer back
+        const sp<GraphicBuffer>& frontBuffer(mPostedBuffer);
+        const bool canCopyBack = (frontBuffer != 0 &&
+                backBuffer->width  == frontBuffer->width &&
+                backBuffer->height == frontBuffer->height &&
+                backBuffer->format == frontBuffer->format);
+
+        if (canCopyBack) {
+            // copy the area that is invalid and not repainted this round
+            const Region copyback(mDirtyRegion.subtract(newDirtyRegion));
+            if (!copyback.isEmpty())
+                copyBlt(backBuffer, frontBuffer, copyback);
+        } else {
+            // if we can't copy-back anything, modify the user's dirty
+            // region to make sure they redraw the whole buffer
+            newDirtyRegion.set(bounds);
+            mDirtyRegion.clear();
+            Mutex::Autolock lock(mMutex);
+            for (size_t i=0 ; i<NUM_BUFFER_SLOTS ; i++) {
+                mSlots[i].dirtyRegion.clear();
+            }
+        }
+
+
+        { // scope for the lock
+            Mutex::Autolock lock(mMutex);
+            int backBufferSlot(getSlotFromBufferLocked(backBuffer.get()));
+            if (backBufferSlot >= 0) {
+                Region& dirtyRegion(mSlots[backBufferSlot].dirtyRegion);
+                mDirtyRegion.subtract(dirtyRegion);
+                dirtyRegion = newDirtyRegion;
+            }
+        }
+
+        mDirtyRegion.orSelf(newDirtyRegion);
+        if (inOutDirtyBounds) {
+            *inOutDirtyBounds = newDirtyRegion.getBounds();
+        }
+
+        void* vaddr;
+        status_t res = backBuffer->lock(
+                GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN,
+                newDirtyRegion.bounds(), &vaddr);
+
+        ALOGW_IF(res, "failed locking buffer (handle = %p)",
+                backBuffer->handle);
+
+        mLockedBuffer = backBuffer;
+        outBuffer->width  = backBuffer->width;
+        outBuffer->height = backBuffer->height;
+        outBuffer->stride = backBuffer->stride;
+        outBuffer->format = backBuffer->format;
+        outBuffer->bits   = vaddr;
     }
     return err;
 }
@@ -778,7 +831,7 @@ status_t SurfaceTextureClient::unlockAndPost()
     status_t err = mLockedBuffer->unlock();
     ALOGE_IF(err, "failed unlocking buffer (%p)", mLockedBuffer->handle);
 
-    err = queueBuffer(mLockedBuffer.get());
+    err = queueBuffer(mLockedBuffer.get(), -1);
     ALOGE_IF(err, "queueBuffer (handle=%p) failed (%s)",
             mLockedBuffer->handle, strerror(-err));
 
