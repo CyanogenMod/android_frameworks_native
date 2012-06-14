@@ -25,6 +25,7 @@
 
 #include <binder/IInterface.h>
 
+#include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/Rect.h>
 
@@ -67,8 +68,13 @@ protected:
     // in the contents of its associated buffer contents and call queueBuffer.
     // If dequeueBuffer return BUFFER_NEEDS_REALLOCATION, the client is
     // expected to call requestBuffer immediately.
-    virtual status_t dequeueBuffer(int *slot, uint32_t w, uint32_t h,
-            uint32_t format, uint32_t usage) = 0;
+    //
+    // The fence parameter will be updated to hold the fence associated with
+    // the buffer. The contents of the buffer must not be overwritten until the
+    // fence signals. If the fence is NULL, the buffer may be written
+    // immediately.
+    virtual status_t dequeueBuffer(int *slot, sp<Fence>& fence,
+            uint32_t w, uint32_t h, uint32_t format, uint32_t usage) = 0;
 
     // queueBuffer indicates that the client has finished filling in the
     // contents of the buffer associated with slot and transfers ownership of

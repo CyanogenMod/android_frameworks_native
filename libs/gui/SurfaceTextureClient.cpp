@@ -198,7 +198,8 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
     int buf = -1;
     int reqW = mReqWidth ? mReqWidth : mUserWidth;
     int reqH = mReqHeight ? mReqHeight : mUserHeight;
-    status_t result = mSurfaceTexture->dequeueBuffer(&buf, reqW, reqH,
+    sp<Fence> fence;
+    status_t result = mSurfaceTexture->dequeueBuffer(&buf, fence, reqW, reqH,
             mReqFormat, mReqUsage);
     if (result < 0) {
         ALOGV("dequeueBuffer: ISurfaceTexture::dequeueBuffer(%d, %d, %d, %d)"
@@ -219,6 +220,15 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
             return result;
         }
     }
+
+    if (fence.get()) {
+        status_t err = fence->wait(Fence::TIMEOUT_NEVER);
+        if (err != OK) {
+            ALOGE("dequeueBuffer: error waiting for fence: %d", err);
+        }
+        fence.clear();
+    }
+
     *buffer = gbuf.get();
     *fenceFd = -1;
     return OK;

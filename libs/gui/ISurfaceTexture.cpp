@@ -81,8 +81,8 @@ public:
         return result;
     }
 
-    virtual status_t dequeueBuffer(int *buf, uint32_t w, uint32_t h,
-            uint32_t format, uint32_t usage) {
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>& fence,
+            uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(w);
@@ -94,6 +94,12 @@ public:
             return result;
         }
         *buf = reply.readInt32();
+        fence.clear();
+        bool hasFence = reply.readInt32();
+        if (hasFence) {
+            fence = new Fence();
+            reply.read(*fence.get());
+        }
         result = reply.readInt32();
         return result;
     }
@@ -205,8 +211,13 @@ status_t BnSurfaceTexture::onTransact(
             uint32_t format = data.readInt32();
             uint32_t usage  = data.readInt32();
             int buf;
-            int result = dequeueBuffer(&buf, w, h, format, usage);
+            sp<Fence> fence;
+            int result = dequeueBuffer(&buf, fence, w, h, format, usage);
             reply->writeInt32(buf);
+            reply->writeInt32(fence.get() != NULL);
+            if (fence.get() != NULL) {
+                reply->write(*fence.get());
+            }
             reply->writeInt32(result);
             return NO_ERROR;
         } break;

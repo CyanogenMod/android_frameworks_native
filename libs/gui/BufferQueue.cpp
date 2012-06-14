@@ -294,8 +294,8 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
-        uint32_t format, uint32_t usage) {
+status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
+        uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
     ATRACE_CALL();
     ST_LOGV("dequeueBuffer: w=%d h=%d fmt=%#x usage=%#x", w, h, format, usage);
 
@@ -307,7 +307,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
     status_t returnFlags(OK);
     EGLDisplay dpy = EGL_NO_DISPLAY;
     EGLSyncKHR fence = EGL_NO_SYNC_KHR;
-    sp<Fence> releaseFence;
 
     { // Scope for the lock
         Mutex::Autolock lock(mMutex);
@@ -490,7 +489,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
 
         dpy = mSlots[buf].mEglDisplay;
         fence = mSlots[buf].mFence;
-        releaseFence = mSlots[buf].mReleaseFence;
+        outFence = mSlots[buf].mReleaseFence;
         mSlots[buf].mFence = EGL_NO_SYNC_KHR;
         mSlots[buf].mReleaseFence.clear();
     }  // end lock scope
@@ -506,16 +505,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             ST_LOGE("dequeueBuffer: timeout waiting for fence");
         }
         eglDestroySyncKHR(dpy, fence);
-    }
-
-    if (releaseFence.get()) {
-        int err = releaseFence->wait(1000);
-        if (err == -ETIME) {
-            ALOGE("dequeueBuffer: timeout waiting for release fence");
-        } else if (err != NO_ERROR) {
-            ALOGE("dequeueBuffer: error waiting for sync fence: %d", err);
-        }
-        releaseFence.clear();
     }
 
     ST_LOGV("dequeueBuffer: returning slot=%d buf=%p flags=%#x", *outBuf,

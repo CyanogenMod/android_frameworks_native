@@ -116,12 +116,18 @@ public:
     // pointed to by the buf argument and a status of OK is returned.  If no
     // slot is available then a status of -EBUSY is returned and buf is
     // unmodified.
+    //
+    // The fence parameter will be updated to hold the fence associated with
+    // the buffer. The contents of the buffer must not be overwritten until the
+    // fence signals. If the fence is NULL, the buffer may be written
+    // immediately.
+    //
     // The width and height parameters must be no greater than the minimum of
     // GL_MAX_VIEWPORT_DIMS and GL_MAX_TEXTURE_SIZE (see: glGetIntegerv).
     // An error due to invalid dimensions might not be reported until
     // updateTexImage() is called.
-    virtual status_t dequeueBuffer(int *buf, uint32_t width, uint32_t height,
-            uint32_t format, uint32_t usage);
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>& fence,
+            uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
 
     // queueBuffer returns a filled buffer to the BufferQueue. In addition, a
     // timestamp must be provided for the buffer. The timestamp is in
@@ -220,7 +226,7 @@ public:
     // Note that the dependencies on EGL will be removed once we switch to using
     // the Android HW Sync HAL.
     status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence,
-            const sp<Fence>& releaseFence = Fence::NO_FENCE);
+            const sp<Fence>& releaseFence);
 
     // consumerConnect connects a consumer to the BufferQueue.  Only one
     // consumer may be connected, and when that consumer disconnects the
