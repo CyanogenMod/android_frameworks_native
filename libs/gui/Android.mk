@@ -25,14 +25,15 @@ LOCAL_SRC_FILES:= \
 	CpuConsumer.cpp
 
 LOCAL_SHARED_LIBRARIES := \
-	libcutils \
-	libutils \
 	libbinder \
-	libhardware \
-	libhardware_legacy \
-	libui \
+	libcutils \
 	libEGL \
 	libGLESv2 \
+	libhardware \
+	libhardware_legacy \
+	libsync \
+	libui \
+	libutils \
 
 
 LOCAL_MODULE:= libgui

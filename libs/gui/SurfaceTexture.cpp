@@ -236,8 +236,10 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // not accept this buffer. this is used by SurfaceFlinger to
         // reject buffers which have the wrong size
         if (rejecter && rejecter->reject(mEGLSlots[buf].mGraphicBuffer, item)) {
-            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence);
+            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence,
+                    mEGLSlots[buf].mReleaseFence);
             mEGLSlots[buf].mFence = EGL_NO_SYNC_KHR;
+            mEGLSlots[buf].mReleaseFence.clear();
             glBindTexture(mTexTarget, mTexName);
             return NO_ERROR;
         }
@@ -284,8 +286,10 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         if (err != NO_ERROR) {
             // Release the buffer we just acquired.  It's not safe to
             // release the old buffer, so instead we just drop the new frame.
-            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence);
+            mBufferQueue->releaseBuffer(buf, dpy, mEGLSlots[buf].mFence,
+                    mEGLSlots[buf].mReleaseFence);
             mEGLSlots[buf].mFence = EGL_NO_SYNC_KHR;
+            mEGLSlots[buf].mReleaseFence.clear();
             return err;
         }
 
@@ -297,9 +301,10 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // release old buffer
         if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
             status_t status = mBufferQueue->releaseBuffer(mCurrentTexture, dpy,
-                    mEGLSlots[mCurrentTexture].mFence);
-
+                    mEGLSlots[mCurrentTexture].mFence,
+                    mEGLSlots[mCurrentTexture].mReleaseFence);
             mEGLSlots[mCurrentTexture].mFence = EGL_NO_SYNC_KHR;
+            mEGLSlots[mCurrentTexture].mReleaseFence.clear();
             if (status == BufferQueue::STALE_BUFFER_SLOT) {
                 freeBufferLocked(mCurrentTexture);
             } else if (status != NO_ERROR) {
@@ -326,6 +331,27 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
     }
 
     return err;
+}
+
+void SurfaceTexture::setReleaseFence(int fenceFd) {
+    if (fenceFd == -1)
+        return;
+    sp<Fence> fence(new Fence(fenceFd));
+    if (!mEGLSlots[mCurrentTexture].mReleaseFence.get()) {
+        mEGLSlots[mCurrentTexture].mReleaseFence = fence;
+    } else {
+        sp<Fence> mergedFence = Fence::merge(
+                String8("SurfaceTexture merged release"),
+                mEGLSlots[mCurrentTexture].mReleaseFence, fence);
+        if (mergedFence.get()) {
+            ALOGE("failed to merge release fences");
+            // synchronization is broken, the best we can do is hope fences
+            // signal in order so the new fence will act like a union
+            mEGLSlots[mCurrentTexture].mReleaseFence = fence;
+        } else {
+            mEGLSlots[mCurrentTexture].mReleaseFence = mergedFence;
+        }
+    }
 }
 
 status_t SurfaceTexture::detachFromContext() {

@@ -472,8 +472,17 @@ void SurfaceFlinger::postFramebuffer()
     hw.flip(mSwapRegion);
 
     size_t numLayers = mVisibleLayersSortedByZ.size();
-    for (size_t i = 0; i < numLayers; i++) {
-        mVisibleLayersSortedByZ[i]->onLayerDisplayed();
+    HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
+    if (hwc.initCheck() == NO_ERROR) {
+        HWComposer::LayerListIterator cur = hwc.begin();
+        const HWComposer::LayerListIterator end = hwc.end();
+        for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
+            mVisibleLayersSortedByZ[i]->onLayerDisplayed(&*cur);
+        }
+    } else {
+        for (size_t i = 0; i < numLayers; i++) {
+            mVisibleLayersSortedByZ[i]->onLayerDisplayed(NULL);
+        }
     }
 
     mLastSwapBufferTime = systemTime() - now;

@@ -39,6 +39,7 @@ class Fence
     : public LightRefBase<Fence>, public Flattenable
 {
 public:
+    static const sp<Fence> NO_FENCE;
 
     // Construct a new Fence object with an invalid file descriptor.  This
     // should be done when the Fence object will be set up by unflattening

@@ -71,7 +71,11 @@ Layer::Layer(SurfaceFlinger* flinger,
     glGenTextures(1, &mTextureName);
 }
 
-void Layer::onLayerDisplayed() {
+void Layer::onLayerDisplayed(HWComposer::HWCLayerInterface* layer) {
+    if (layer) {
+        mSurfaceTexture->setReleaseFence(layer->getAndResetReleaseFenceFd());
+    }
+
     if (mFrameLatencyNeeded) {
         const DisplayHardware& hw(graphicPlane(0).displayHardware());
         mFrameStats[mFrameLatencyOffset].timestamp = mSurfaceTexture->getTimestamp();

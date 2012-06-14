@@ -82,7 +82,7 @@ public:
     // LayerBaseClient interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;
 
-    virtual void onLayerDisplayed();
+    virtual void onLayerDisplayed(HWComposer::HWCLayerInterface* layer);
     virtual bool onPreComposition();
 
     // only for debugging

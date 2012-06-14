@@ -107,7 +107,8 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     if (b.mGraphicBuffer != NULL) {
         if (mBufferPointers[buf] != NULL) {
             CC_LOGE("Reallocation of buffer %d while in consumer use!", buf);
-            mBufferQueue->releaseBuffer(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+            mBufferQueue->releaseBuffer(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR,
+                    Fence::NO_FENCE);
             return BAD_VALUE;
         }
         mBufferSlot[buf] = b.mGraphicBuffer;
@@ -161,7 +162,8 @@ status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
         CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__, buf);
         return err;
     }
-    err = mBufferQueue->releaseBuffer(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+    err = mBufferQueue->releaseBuffer(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR,
+            Fence::NO_FENCE);
     if (err == BufferQueue::STALE_BUFFER_SLOT) {
         freeBufferLocked(buf);
     } else if (err != OK) {

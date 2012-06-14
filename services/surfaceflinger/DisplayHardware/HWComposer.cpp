@@ -346,6 +346,10 @@ public:
     virtual uint32_t getHints() const {
         return getLayer()->hints;
     }
+    virtual int getAndResetReleaseFenceFd() {
+        // not supported on VERSION_03
+        return -1;
+    }
 
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
@@ -406,6 +410,11 @@ public:
     }
     virtual uint32_t getHints() const {
         return getLayer()->hints;
+    }
+    virtual int getAndResetReleaseFenceFd() {
+        int fd = getLayer()->releaseFenceFd;
+        getLayer()->releaseFenceFd = -1;
+        return fd;
     }
 
     virtual void setDefaultState() {
