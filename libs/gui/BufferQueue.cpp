@@ -81,7 +81,8 @@ static const char* scalingModeName(int scalingMode) {
     }
 }
 
-BufferQueue::BufferQueue(  bool allowSynchronousMode, int bufferCount ) :
+BufferQueue::BufferQueue(bool allowSynchronousMode, int bufferCount,
+        const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultWidth(1),
     mDefaultHeight(1),
     mPixelFormat(PIXEL_FORMAT_RGBA_8888),
@@ -105,10 +106,14 @@ BufferQueue::BufferQueue(  bool allowSynchronousMode, int bufferCount ) :
     mConsumerName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
 
     ST_LOGV("BufferQueue");
-    sp<ISurfaceComposer> composer(ComposerService::getComposerService());
-    mGraphicBufferAlloc = composer->createGraphicBufferAlloc();
-    if (mGraphicBufferAlloc == 0) {
-        ST_LOGE("createGraphicBufferAlloc() failed in BufferQueue()");
+    if (allocator == NULL) {
+        sp<ISurfaceComposer> composer(ComposerService::getComposerService());
+        mGraphicBufferAlloc = composer->createGraphicBufferAlloc();
+        if (mGraphicBufferAlloc == 0) {
+            ST_LOGE("createGraphicBufferAlloc() failed in BufferQueue()");
+        }
+    } else {
+        mGraphicBufferAlloc = allocator;
     }
 }
 

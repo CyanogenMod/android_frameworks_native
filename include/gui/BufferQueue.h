@@ -96,7 +96,9 @@ public:
     // allowSynchronousMode specifies whether or not synchronous mode can be
     // enabled.
     // bufferCount sets the minimum number of undequeued buffers for this queue
-    BufferQueue(  bool allowSynchronousMode = true, int bufferCount = MIN_UNDEQUEUED_BUFFERS);
+    BufferQueue(bool allowSynchronousMode = true,
+            int bufferCount = MIN_UNDEQUEUED_BUFFERS,
+            const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueue();
 
     virtual int query(int what, int* value);

@@ -9,6 +9,7 @@ LOCAL_SRC_FILES:= \
     LayerScreenshot.cpp                     \
     DisplayHardware/DisplayHardware.cpp     \
     DisplayHardware/DisplayHardwareBase.cpp \
+    DisplayHardware/FramebufferSurface.cpp  \
     DisplayHardware/HWComposer.cpp          \
     DisplayHardware/PowerHAL.cpp            \
     GLExtensions.cpp                        \

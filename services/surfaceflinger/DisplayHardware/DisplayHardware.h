@@ -35,7 +35,7 @@
 
 namespace android {
 
-class FramebufferNativeWindow;
+class FramebufferSurface;
 
 class DisplayHardware :
     public DisplayHardwareBase,
@@ -144,7 +144,7 @@ private:
     // protected by mLock
     wp<VSyncHandler>    mVSyncHandler;
 
-    sp<FramebufferNativeWindow> mNativeWindow;
+    sp<FramebufferSurface> mNativeWindow;
 };
 
 }; // namespace android
