@@ -60,7 +60,7 @@ status_t EventThread::registerDisplayEventConnection(
         const sp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
     mDisplayEventConnections.add(connection);
-    mCondition.signal();
+    mCondition.broadcast();
     return NO_ERROR;
 }
 
@@ -68,7 +68,7 @@ status_t EventThread::unregisterDisplayEventConnection(
         const wp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
     mDisplayEventConnections.remove(connection);
-    mCondition.signal();
+    mCondition.broadcast();
     return NO_ERROR;
 }
 
@@ -85,7 +85,7 @@ void EventThread::setVsyncRate(uint32_t count,
         const int32_t new_count = (count == 0) ? -1 : count;
         if (connection->count != new_count) {
             connection->count = new_count;
-            mCondition.signal();
+            mCondition.broadcast();
         }
     }
 }
@@ -95,32 +95,33 @@ void EventThread::requestNextVsync(
     Mutex::Autolock _l(mLock);
     if (connection->count < 0) {
         connection->count = 0;
-        mCondition.signal();
+        mCondition.broadcast();
     }
 }
 
 void EventThread::onScreenReleased() {
     Mutex::Autolock _l(mLock);
-    // wait for an eventual pending vsync to be serviced
     if (!mUseSoftwareVSync) {
-        while (mVSyncTimestamp) {
-            mCondition.wait(mLock);
-        }
+        // disable reliance on h/w vsync
+        mUseSoftwareVSync = true;
+        mCondition.broadcast();
     }
-    // disable reliance on h/w vsync
-    mUseSoftwareVSync = true;
 }
 
 void EventThread::onScreenAcquired() {
     Mutex::Autolock _l(mLock);
-    mUseSoftwareVSync = false;
+    if (mUseSoftwareVSync) {
+        // resume use of h/w vsync
+        mUseSoftwareVSync = false;
+        mCondition.broadcast();
+    }
 }
 
 
 void EventThread::onVSyncReceived(int, nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mVSyncTimestamp = timestamp;
-    mCondition.signal();
+    mCondition.broadcast();
 }
 
 bool EventThread::threadLoop() {
