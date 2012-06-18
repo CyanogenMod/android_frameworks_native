@@ -57,40 +57,6 @@ struct surface_flinger_cblk_t;
 
 // ---------------------------------------------------------------------------
 
-class Client : public BnSurfaceComposerClient
-{
-public:
-        Client(const sp<SurfaceFlinger>& flinger);
-        ~Client();
-
-    status_t initCheck() const;
-
-    // protected by SurfaceFlinger::mStateLock
-    size_t attachLayer(const sp<LayerBaseClient>& layer);
-    void detachLayer(const LayerBaseClient* layer);
-    sp<LayerBaseClient> getLayerUser(int32_t i) const;
-
-private:
-    // ISurfaceComposerClient interface
-    virtual sp<ISurface> createSurface(
-            surface_data_t* params, const String8& name,
-            DisplayID display, uint32_t w, uint32_t h,PixelFormat format,
-            uint32_t flags);
-    virtual status_t destroySurface(SurfaceID surfaceId);
-    virtual status_t onTransact(
-        uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags);
-
-    // constant
-    sp<SurfaceFlinger> mFlinger;
-
-    // protected by mLock
-    DefaultKeyedVector< size_t, wp<LayerBaseClient> > mLayers;
-    size_t mNameGenerator;
-
-    // thread-safe
-    mutable Mutex mLock;
-};
-
 class GraphicBufferAlloc : public BnGraphicBufferAlloc
 {
 public:

@@ -29,6 +29,7 @@
 #include <hardware/hardware.h>
 
 #include "clz.h"
+#include "Client.h"
 #include "LayerBase.h"
 #include "SurfaceFlinger.h"
 #include "DisplayHardware/DisplayHardware.h"
