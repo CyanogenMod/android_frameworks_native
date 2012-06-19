@@ -96,6 +96,7 @@ public:
 
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
+    EGLConfig getEGLConfig() const { return mConfig; }
 
     void dump(String8& res) const;
 

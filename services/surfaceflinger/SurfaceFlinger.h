@@ -153,6 +153,8 @@ public:
             // called when screen is turning back on
     virtual void                        unblank();
 
+    virtual void connectDisplay(const sp<ISurfaceTexture> display);
+
             // called on the main thread in response to screenReleased()
             void onScreenReleased();
             // called on the main thread in response to screenAcquired()
@@ -388,6 +390,11 @@ private:
 
    // only written in the main thread, only read in other threads
    volatile     int32_t                     mSecureFrameBuffer;
+
+
+   EGLSurface getExternalDisplaySurface() const;
+   sp<SurfaceTextureClient> mExternalDisplayNativeWindow;
+   EGLSurface mExternalDisplaySurface;
 };
 
 // ---------------------------------------------------------------------------

@@ -207,6 +207,13 @@ public:
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
     }
+
+    virtual void connectDisplay(const sp<ISurfaceTexture> display) {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display->asBinder());
+        remote()->transact(BnSurfaceComposer::CONNECT_DISPLAY, data, &reply);
+    }
 };
 
 IMPLEMENT_META_INTERFACE(SurfaceComposer, "android.ui.ISurfaceComposer");
@@ -300,6 +307,12 @@ status_t BnSurfaceComposer::onTransact(
         case UNBLANK: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             unblank();
+        } break;
+        case CONNECT_DISPLAY: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<ISurfaceTexture> surfaceTexture =
+                    interface_cast<ISurfaceTexture>(data.readStrongBinder());
+            connectDisplay(surfaceTexture);
         } break;
         default:
             return BBinder::onTransact(code, data, reply, flags);

@@ -64,6 +64,7 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SharedBufferStack.h>
 #include <gui/BitTube.h>
+#include <gui/SurfaceTextureClient.h>
 
 #define EGL_VERSION_HW_ANDROID  0x3143
 
@@ -97,7 +98,8 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
-        mSecureFrameBuffer(0)
+        mSecureFrameBuffer(0),
+        mExternalDisplaySurface(EGL_NO_SURFACE)
 {
     init();
 }
@@ -370,6 +372,41 @@ sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
     return mEventThread->createEventConnection();
 }
 
+void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
+    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    EGLSurface result = EGL_NO_SURFACE;
+    EGLSurface old_surface = EGL_NO_SURFACE;
+    sp<SurfaceTextureClient> stc;
+
+    if (display != NULL) {
+        stc = new SurfaceTextureClient(display);
+        result = eglCreateWindowSurface(hw.getEGLDisplay(),
+                hw.getEGLConfig(), (EGLNativeWindowType)stc.get(), NULL);
+        ALOGE_IF(result == EGL_NO_SURFACE,
+                "eglCreateWindowSurface failed (ISurfaceTexture=%p)",
+                display.get());
+    }
+
+    { // scope for the lock
+        Mutex::Autolock _l(mStateLock);
+        old_surface = mExternalDisplaySurface;
+        mExternalDisplayNativeWindow = stc;
+        mExternalDisplaySurface = result;
+        ALOGD("mExternalDisplaySurface = %p", result);
+    }
+
+    if (old_surface != EGL_NO_SURFACE) {
+        // Note: EGL allows to destroy an object while its current
+        // it will fail to become current next time though.
+        eglDestroySurface(hw.getEGLDisplay(), old_surface);
+    }
+}
+
+EGLSurface SurfaceFlinger::getExternalDisplaySurface() const {
+    Mutex::Autolock _l(mStateLock);
+    return mExternalDisplaySurface;
+}
+
 // ----------------------------------------------------------------------------
 
 void SurfaceFlinger::waitForEvent() {
@@ -452,6 +489,43 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
             } else {
                 // pretend we did the post
                 hw.compositionComplete();
+            }
+
+            // render to the external display if we have one
+            EGLSurface externalDisplaySurface = getExternalDisplaySurface();
+            if (externalDisplaySurface != EGL_NO_SURFACE) {
+                EGLSurface cur = eglGetCurrentSurface(EGL_DRAW);
+                EGLBoolean success = eglMakeCurrent(eglGetCurrentDisplay(),
+                        externalDisplaySurface, externalDisplaySurface,
+                        eglGetCurrentContext());
+
+                ALOGE_IF(!success, "eglMakeCurrent -> external failed");
+
+                if (success) {
+                    // redraw the screen entirely...
+                    glDisable(GL_TEXTURE_EXTERNAL_OES);
+                    glDisable(GL_TEXTURE_2D);
+                    glClearColor(0,0,0,1);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    glMatrixMode(GL_MODELVIEW);
+                    glLoadIdentity();
+                    const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+                    const size_t count = layers.size();
+                    for (size_t i=0 ; i<count ; ++i) {
+                        const sp<LayerBase>& layer(layers[i]);
+                        layer->drawForSreenShot();
+                    }
+
+                    success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
+                    ALOGE_IF(!success, "external display eglSwapBuffers failed");
+
+                    hw.compositionComplete();
+                }
+
+                success = eglMakeCurrent(eglGetCurrentDisplay(),
+                        cur, cur, eglGetCurrentContext());
+
+                ALOGE_IF(!success, "eglMakeCurrent -> internal failed");
             }
 
         } break;

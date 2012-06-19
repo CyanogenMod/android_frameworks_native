@@ -224,20 +224,10 @@ void DisplayHardware::init(uint32_t dpy)
 
     // initialize EGL
     EGLint attribs[] = {
-            EGL_SURFACE_TYPE,       EGL_WINDOW_BIT,
-            EGL_NONE,               0,
+            EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
+            EGL_RECORDABLE_ANDROID,     EGL_TRUE,
             EGL_NONE
     };
-
-    // debug: disable h/w rendering
-    char property[PROPERTY_VALUE_MAX];
-    if (property_get("debug.sf.hw", property, NULL) > 0) {
-        if (atoi(property) == 0) {
-            ALOGW("H/W composition disabled");
-            attribs[2] = EGL_CONFIG_CAVEAT;
-            attribs[3] = EGL_SLOW_CONFIG;
-        }
-    }
 
     // TODO: all the extensions below should be queried through
     // eglGetProcAddress().
@@ -248,6 +238,13 @@ void DisplayHardware::init(uint32_t dpy)
 
     EGLConfig config = NULL;
     err = selectConfigForPixelFormat(display, attribs, format, &config);
+    if (err) {
+        // maybe we failed because of EGL_RECORDABLE_ANDROID
+        ALOGW("couldn't find an EGLConfig with EGL_RECORDABLE_ANDROID");
+        attribs[2] = EGL_NONE;
+        err = selectConfigForPixelFormat(display, attribs, format, &config);
+    }
+
     ALOGE_IF(err, "couldn't find an EGLConfig matching the screen format");
     
     EGLint r,g,b,a;

@@ -145,6 +145,9 @@ public:
 
     /* triggers screen on and waits for it to complete */
     virtual void unblank() = 0;
+
+    /* connects to an external display */
+    virtual void connectDisplay(const sp<ISurfaceTexture> display) = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -168,6 +171,7 @@ public:
         CREATE_DISPLAY_EVENT_CONNECTION,
         BLANK,
         UNBLANK,
+        CONNECT_DISPLAY,
     };
 
     virtual status_t    onTransact( uint32_t code,
