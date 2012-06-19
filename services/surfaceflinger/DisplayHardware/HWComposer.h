@@ -31,8 +31,8 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            const struct timespec *request,
                            struct timespec *remain);
 
-struct hwc_composer_device;
-struct hwc_layer_list;
+struct hwc_composer_device_1;
+struct hwc_layer_list_1;
 struct hwc_procs;
 
 namespace android {
@@ -218,21 +218,21 @@ private:
     inline void invalidate();
     inline void vsync(int dpy, int64_t timestamp);
 
-    sp<SurfaceFlinger>      mFlinger;
-    hw_module_t const*      mModule;
-    struct hwc_composer_device*  mHwc;
-    struct hwc_layer_list*  mList;
-    size_t                  mCapacity;
-    mutable size_t          mNumOVLayers;
-    mutable size_t          mNumFBLayers;
-    EGLDisplay              mDpy;
-    EGLSurface              mSur;
-    cb_context*             mCBContext;
-    EventHandler&           mEventHandler;
-    nsecs_t                 mRefreshPeriod;
-    size_t                  mVSyncCount;
-    sp<VSyncThread>         mVSyncThread;
-    bool                    mDebugForceFakeVSync;
+    sp<SurfaceFlinger>              mFlinger;
+    hw_module_t const*              mModule;
+    struct hwc_composer_device_1*   mHwc;
+    struct hwc_layer_list_1*        mList;
+    size_t                          mCapacity;
+    mutable size_t                  mNumOVLayers;
+    mutable size_t                  mNumFBLayers;
+    EGLDisplay                      mDpy;
+    EGLSurface                      mSur;
+    cb_context*                     mCBContext;
+    EventHandler&                   mEventHandler;
+    nsecs_t                         mRefreshPeriod;
+    size_t                          mVSyncCount;
+    sp<VSyncThread>                 mVSyncThread;
+    bool                            mDebugForceFakeVSync;
 };
 
 // ---------------------------------------------------------------------------

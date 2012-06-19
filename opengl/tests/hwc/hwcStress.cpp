@@ -192,7 +192,7 @@ const vector<unsigned int> vecTransformFlags(transformFlags,
 // File scope globals
 static const int texUsage = GraphicBuffer::USAGE_HW_TEXTURE |
         GraphicBuffer::USAGE_SW_WRITE_RARELY;
-static hwc_composer_device_t *hwcDevice;
+static hwc_composer_device_1_t *hwcDevice;
 static EGLDisplay dpy;
 static EGLSurface surface;
 static EGLint width, height;
@@ -409,7 +409,7 @@ main(int argc, char *argv[])
         // generated for this pass.
         srand48(pass);
 
-        hwc_layer_list_t *list;
+        hwc_layer_list_1_t *list;
         list = hwcTestCreateLayerList(testRandMod(frames.size()) + 1);
         if (list == NULL) {
             testPrintE("hwcTestCreateLayerList failed");
@@ -428,7 +428,7 @@ main(int argc, char *argv[])
         for (unsigned int n1 = 0; n1 < list->numHwLayers; n1++) {
             unsigned int idx = testRandMod(selectedFrames[n1].size());
             sp<GraphicBuffer> gBuf = selectedFrames[n1][idx];
-            hwc_layer_t *layer = &list->hwLayers[n1];
+            hwc_layer_1_t *layer = &list->hwLayers[n1];
             layer->handle = gBuf->handle;
 
             layer->blending = blendingOps[testRandMod(NUMA(blendingOps))];
@@ -497,7 +497,7 @@ main(int argc, char *argv[])
             for (unsigned int n1 = 0; n1 < list->numHwLayers; n1++) {
                 unsigned int idx = testRandMod(selectedFrames[n1].size());
                 sp<GraphicBuffer> gBuf = selectedFrames[n1][idx];
-                hwc_layer_t *layer = &list->hwLayers[n1];
+                hwc_layer_1_t *layer = &list->hwLayers[n1];
                 layer->handle = (native_handle_t *) gBuf->handle;
             }
 
