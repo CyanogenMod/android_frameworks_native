@@ -118,6 +118,8 @@ void SurfaceFlinger::init()
     if (mDebugDDMS) {
         DdmConnection::start(getServiceName());
     }
+#else
+#warning "DDMS_DEBUGGING disabled"
 #endif
 
     ALOGI_IF(mDebugRegion,       "showupdates enabled");
