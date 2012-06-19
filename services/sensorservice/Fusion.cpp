@@ -201,15 +201,15 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     // q11 = su^2.dt
     //
 
-    // variance of integrated output at 1/dT Hz
-    // (random drift)
-    const float q00 = gyroVAR * dT;
+    const float dT2 = dT*dT;
+    const float dT3 = dT2*dT;
+
+    // variance of integrated output at 1/dT Hz (random drift)
+    const float q00 = gyroVAR * dT + 0.33333f * biasVAR * dT3;
 
     // variance of drift rate ramp
     const float q11 = biasVAR * dT;
-
-    const float u   = q11 / dT;
-    const float q10 = 0.5f*u*dT*dT;
+    const float q10 = 0.5f * biasVAR * dT2;
     const float q01 = q10;
 
     GQGt[0][0] =  q00;      // rad^2
@@ -220,6 +220,22 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     // initial covariance: Var{ x(t0) }
     // TODO: initialize P correctly
     P = 0;
+
+    // it is unclear how to set the initial covariance. It does affect
+    // how quickly the fusion converges. Experimentally it would take
+    // about 10 seconds at 200 Hz to estimate the gyro-drift with an
+    // initial covariance of 0, and about a second with an initial covariance
+    // of about 1 deg/s.
+    const float covv = 0;
+    const float covu = 0.5f * (float(M_PI) / 180);
+    mat33_t& Pv = P[0][0];
+    Pv[0][0] = covv;
+    Pv[1][1] = covv;
+    Pv[2][2] = covv;
+    mat33_t& Pu = P[1][1];
+    Pu[0][0] = covu;
+    Pu[1][1] = covu;
+    Pu[2][2] = covu;
 }
 
 bool Fusion::hasEstimate() const {
@@ -357,6 +373,11 @@ mat33_t Fusion::getRotationMatrix() const {
 
 mat34_t Fusion::getF(const vec4_t& q) {
     mat34_t F;
+
+    // This is used to compute the derivative of q
+    // F = | [q.xyz]x |
+    //     |  -q.xyz  |
+
     F[0].x = q.w;   F[1].x =-q.z;   F[2].x = q.y;
     F[0].y = q.z;   F[1].y = q.w;   F[2].y =-q.x;
     F[0].z =-q.y;   F[1].z = q.x;   F[2].z = q.w;
@@ -413,7 +434,12 @@ void Fusion::update(const vec3_t& z, const vec3_t& Bi, float sigma) {
     K[1] = transpose(P[1][0])*LtSi;
 
     // update...
-    // P -= K*H*P;
+    // P = (I-K*H) * P
+    // P -= K*H*P
+    // | K0 | * | L 0 | * P = | K0*L  0 | * | P00  P10 | = | K0*L*P00  K0*L*P10 |
+    // | K1 |                 | K1*L  0 |   | P01  P11 |   | K1*L*P00  K1*L*P10 |
+    // Note: the Joseph form is numerically more stable and given by:
+    //     P = (I-KH) * P * (I-KH)' + K*R*R'
     const mat33_t K0L(K[0] * L);
     const mat33_t K1L(K[1] * L);
     P[0][0] -= K0L*P[0][0];
