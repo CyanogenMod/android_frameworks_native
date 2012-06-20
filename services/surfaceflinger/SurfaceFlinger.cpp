@@ -151,7 +151,7 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
     setTransactionState(state, eOrientationDefault, 0);
 
     // restart the boot-animation
-    property_set("ctl.start", "bootanim");
+    startBootAnim();
 }
 
 sp<IMemoryHeap> SurfaceFlinger::getCblk() const
@@ -204,7 +204,9 @@ void SurfaceFlinger::bootFinished()
     }
 
     // stop boot animation
-    property_set("ctl.stop", "bootanim");
+    // formerly we would just kill the process, but we now ask it to exit so it
+    // can choose where to stop the animation.
+    property_set("service.bootanim.exit", "1");
 }
 
 static inline uint16_t pack565(int r, int g, int b) {
@@ -308,9 +310,15 @@ status_t SurfaceFlinger::readyToRun()
     mReadyToRunBarrier.open();
 
     // start boot animation
-    property_set("ctl.start", "bootanim");
+    startBootAnim();
 
     return NO_ERROR;
+}
+
+void SurfaceFlinger::startBootAnim() {
+    // start boot animation
+    property_set("service.bootanim.exit", "0");
+    property_set("ctl.start", "bootanim");
 }
 
 // ----------------------------------------------------------------------------
