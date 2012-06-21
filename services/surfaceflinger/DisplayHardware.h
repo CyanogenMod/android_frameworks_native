@@ -28,10 +28,11 @@
 #include <EGL/eglext.h>
 
 #include "GLExtensions.h"
+#include "Transform.h"
 
 #include "DisplayHardware/DisplayHardwareBase.h"
-#include "HWComposer.h"
-#include "PowerHAL.h"
+#include "DisplayHardware/HWComposer.h"
+#include "DisplayHardware/PowerHAL.h"
 
 namespace android {
 
@@ -84,6 +85,11 @@ public:
     nsecs_t     getRefreshTimestamp() const;
     void        makeCurrent() const;
 
+    status_t                setOrientation(int orientation);
+    int                     getOrientation() const { return mOrientation; }
+    const Transform&        getTransform() const { return mGlobalTransform; }
+    int                     getUserWidth() const { return mUserDisplayWidth; }
+    int                     getUserHeight() const { return mUserDisplayHeight; }
 
     void setVSyncHandler(const sp<VSyncHandler>& handler);
 
@@ -106,14 +112,14 @@ public:
     status_t compositionComplete() const;
     
     Rect getBounds() const {
-        return Rect(mWidth, mHeight);
+        return Rect(mDisplayWidth, mDisplayHeight);
     }
     inline Rect bounds() const { return getBounds(); }
 
 private:
     virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
-    void init(uint32_t displayIndex) __attribute__((noinline));
-    void fini() __attribute__((noinline));
+    void init(uint32_t displayIndex);
+    void fini();
 
     sp<SurfaceFlinger> mFlinger;
     EGLDisplay      mDisplay;
@@ -124,8 +130,8 @@ private:
     float           mDpiY;
     float           mRefreshRate;
     float           mDensity;
-    int             mWidth;
-    int             mHeight;
+    int             mDisplayWidth;
+    int             mDisplayHeight;
     PixelFormat     mFormat;
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
@@ -138,6 +144,18 @@ private:
     // constant once set
     HWComposer*     mHwc;
     PowerHAL        mPowerHAL;
+
+
+    // this used to be in GraphicPlane
+    static status_t orientationToTransfrom(int orientation, int w, int h,
+            Transform* tr);
+    Transform               mGlobalTransform;
+    Transform               mDisplayTransform;
+    int                     mOrientation;
+    int                     mLogicalDisplayWidth;
+    int                     mLogicalDisplayHeight;
+    int                     mUserDisplayWidth;
+    int                     mUserDisplayHeight;
 
 
     mutable Mutex   mLock;

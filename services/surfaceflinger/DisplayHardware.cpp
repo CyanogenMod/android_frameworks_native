@@ -30,14 +30,14 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "DisplayHardware/DisplayHardware.h"
-#include "DisplayHardware/FramebufferSurface.h"
-
 #include <hardware/gralloc.h>
 
-#include "DisplayHardwareBase.h"
+#include "DisplayHardware/FramebufferSurface.h"
+#include "DisplayHardware/DisplayHardwareBase.h"
+#include "DisplayHardware/HWComposer.h"
+
+#include "DisplayHardware.h"
 #include "GLExtensions.h"
-#include "HWComposer.h"
 #include "SurfaceFlinger.h"
 
 using namespace android;
@@ -111,8 +111,8 @@ float DisplayHardware::getDpiX() const          { return mDpiX; }
 float DisplayHardware::getDpiY() const          { return mDpiY; }
 float DisplayHardware::getDensity() const       { return mDensity; }
 float DisplayHardware::getRefreshRate() const   { return mRefreshRate; }
-int DisplayHardware::getWidth() const           { return mWidth; }
-int DisplayHardware::getHeight() const          { return mHeight; }
+int DisplayHardware::getWidth() const           { return mDisplayWidth; }
+int DisplayHardware::getHeight() const          { return mDisplayHeight; }
 PixelFormat DisplayHardware::getFormat() const  { return mFormat; }
 uint32_t DisplayHardware::getMaxTextureSize() const { return mMaxTextureSize; }
 
@@ -267,8 +267,8 @@ void DisplayHardware::init(uint32_t dpy)
      */
 
     surface = eglCreateWindowSurface(display, config, mNativeWindow.get(), NULL);
-    eglQuerySurface(display, surface, EGL_WIDTH,  &mWidth);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &mHeight);
+    eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
 
     if (mFlags & PARTIAL_UPDATES) {
         // if we have partial updates, we definitely don't need to
@@ -348,6 +348,36 @@ void DisplayHardware::init(uint32_t dpy)
     if (mHwc->initCheck() == NO_ERROR) {
         mHwc->setFrameBuffer(mDisplay, mSurface);
     }
+
+
+    // initialize the display orientation transform.
+    // it's a constant that should come from the display driver.
+    int displayOrientation = ISurfaceComposer::eOrientationDefault;
+    char property[PROPERTY_VALUE_MAX];
+    if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
+        //displayOrientation
+        switch (atoi(property)) {
+        case 90:
+            displayOrientation = ISurfaceComposer::eOrientation90;
+            break;
+        case 270:
+            displayOrientation = ISurfaceComposer::eOrientation270;
+            break;
+        }
+    }
+
+    w = mDisplayWidth;
+    h = mDisplayHeight;
+    DisplayHardware::orientationToTransfrom(displayOrientation, w, h,
+            &mDisplayTransform);
+    if (displayOrientation & ISurfaceComposer::eOrientationSwapMask) {
+        mLogicalDisplayWidth = h;
+        mLogicalDisplayHeight = w;
+    } else {
+        mLogicalDisplayWidth = w;
+        mLogicalDisplayHeight = h;
+    }
+    DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
 }
 
 void DisplayHardware::setVSyncHandler(const sp<VSyncHandler>& handler) {
@@ -475,4 +505,53 @@ void DisplayHardware::makeCurrent() const
 void DisplayHardware::dump(String8& res) const
 {
     mNativeWindow->dump(res);
+}
+
+// ----------------------------------------------------------------------------
+
+status_t DisplayHardware::orientationToTransfrom(
+        int orientation, int w, int h, Transform* tr)
+{
+    uint32_t flags = 0;
+    switch (orientation) {
+    case ISurfaceComposer::eOrientationDefault:
+        flags = Transform::ROT_0;
+        break;
+    case ISurfaceComposer::eOrientation90:
+        flags = Transform::ROT_90;
+        break;
+    case ISurfaceComposer::eOrientation180:
+        flags = Transform::ROT_180;
+        break;
+    case ISurfaceComposer::eOrientation270:
+        flags = Transform::ROT_270;
+        break;
+    default:
+        return BAD_VALUE;
+    }
+    tr->set(flags, w, h);
+    return NO_ERROR;
+}
+
+status_t DisplayHardware::setOrientation(int orientation)
+{
+    // If the rotation can be handled in hardware, this is where
+    // the magic should happen.
+
+    const int w = mLogicalDisplayWidth;
+    const int h = mLogicalDisplayHeight;
+    mUserDisplayWidth = w;
+    mUserDisplayHeight = h;
+
+    Transform orientationTransform;
+    DisplayHardware::orientationToTransfrom(orientation, w, h,
+            &orientationTransform);
+    if (orientation & ISurfaceComposer::eOrientationSwapMask) {
+        mUserDisplayWidth = h;
+        mUserDisplayHeight = w;
+    }
+
+    mOrientation = orientation;
+    mGlobalTransform = mDisplayTransform * orientationTransform;
+    return NO_ERROR;
 }

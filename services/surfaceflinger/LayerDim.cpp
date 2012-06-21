@@ -25,7 +25,7 @@
 
 #include "LayerDim.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -40,11 +40,10 @@ LayerDim::~LayerDim()
 {
 }
 
-void LayerDim::onDraw(const Region& clip) const
+void LayerDim::onDraw(const DisplayHardware& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
         const GLfloat alpha = s.alpha/255.0f;
         const uint32_t fbHeight = hw.getHeight();
         glDisable(GL_TEXTURE_EXTERNAL_OES);

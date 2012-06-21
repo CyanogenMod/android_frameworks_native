@@ -26,7 +26,7 @@
 #include <utils/Errors.h>
 #include <utils/Trace.h>
 
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 #include "EventThread.h"
 #include "SurfaceFlinger.h"
 
@@ -38,7 +38,7 @@ namespace android {
 
 EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
     : mFlinger(flinger),
-      mHw(flinger->graphicPlane(0).editDisplayHardware()),
+      mHw(const_cast<DisplayHardware&>(flinger->getDefaultDisplayHardware())), // XXX: eventthread will need rework
       mLastVSyncTimestamp(0),
       mVSyncTimestamp(0),
       mUseSoftwareVSync(false),

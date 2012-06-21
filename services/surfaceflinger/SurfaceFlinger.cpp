@@ -50,6 +50,7 @@
 
 #include "clz.h"
 #include "DdmConnection.h"
+#include "DisplayHardware.h"
 #include "Client.h"
 #include "EventThread.h"
 #include "GLExtensions.h"
@@ -58,7 +59,6 @@
 #include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
 
-#include "DisplayHardware/DisplayHardware.h"
 #include "DisplayHardware/HWComposer.h"
 
 #include <private/android_filesystem_config.h>
@@ -178,19 +178,6 @@ sp<IGraphicBufferAlloc> SurfaceFlinger::createGraphicBufferAlloc()
     return gba;
 }
 
-const GraphicPlane& SurfaceFlinger::graphicPlane(int dpy) const
-{
-    ALOGE_IF(uint32_t(dpy) >= DISPLAY_COUNT, "Invalid DisplayID %d", dpy);
-    const GraphicPlane& plane(mGraphicPlanes[dpy]);
-    return plane;
-}
-
-GraphicPlane& SurfaceFlinger::graphicPlane(int dpy)
-{
-    return const_cast<GraphicPlane&>(
-        const_cast<SurfaceFlinger const *>(this)->graphicPlane(dpy));
-}
-
 void SurfaceFlinger::bootFinished()
 {
     const nsecs_t now = systemTime();
@@ -217,7 +204,7 @@ static inline uint16_t pack565(int r, int g, int b) {
 
 status_t SurfaceFlinger::readyToRun()
 {
-    ALOGI(   "SurfaceFlinger's main thread ready to run. "
+    ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
     // we only support one display currently
@@ -225,9 +212,9 @@ status_t SurfaceFlinger::readyToRun()
 
     {
         // initialize the main display
-        GraphicPlane& plane(graphicPlane(dpy));
+        // TODO: initialize all displays
         DisplayHardware* const hw = new DisplayHardware(this, dpy);
-        plane.setDisplayHardware(hw);
+        mDisplayHardwares[0] = hw;
     }
 
     // create the shared control-block
@@ -244,8 +231,7 @@ status_t SurfaceFlinger::readyToRun()
     // (other display should be initialized in the same manner, but
     // asynchronously, as they could come and go. None of this is supported
     // yet).
-    const GraphicPlane& plane(graphicPlane(dpy));
-    const DisplayHardware& hw = plane.displayHardware();
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     const uint32_t w = hw.getWidth();
     const uint32_t h = hw.getHeight();
     const uint32_t f = hw.getFormat();
@@ -255,8 +241,8 @@ status_t SurfaceFlinger::readyToRun()
     mServerCblk->connected |= 1<<dpy;
     display_cblk_t* dcblk = mServerCblk->displays + dpy;
     memset(dcblk, 0, sizeof(display_cblk_t));
-    dcblk->w            = plane.getWidth();
-    dcblk->h            = plane.getHeight();
+    dcblk->w            = w; // XXX: plane.getWidth();
+    dcblk->h            = h; // XXX: plane.getHeight();
     dcblk->format       = f;
     dcblk->orientation  = ISurfaceComposer::eOrientationDefault;
     dcblk->xdpi         = hw.getDpiX();
@@ -373,7 +359,7 @@ sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
 }
 
 void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     EGLSurface result = EGL_NO_SURFACE;
     EGLSurface old_surface = EGL_NO_SURFACE;
     sp<SurfaceTextureClient> stc;
@@ -469,7 +455,8 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
 
             handleRefresh();
 
-            const DisplayHardware& hw(graphicPlane(0).displayHardware());
+            // TODO: iterate through all displays
+            const DisplayHardware& hw(getDisplayHardware(0));
 
 //            if (mDirtyRegion.isEmpty()) {
 //                return;
@@ -477,12 +464,12 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
 
             if (CC_UNLIKELY(mHwWorkListDirty)) {
                 // build the h/w work list
-                handleWorkList();
+                handleWorkList(hw);
             }
 
             if (CC_LIKELY(hw.canDraw())) {
                 // repaint the framebuffer (if needed)
-                handleRepaint();
+                handleRepaint(hw);
                 // inform the h/w that we're done compositing
                 hw.compositionComplete();
                 postFramebuffer();
@@ -513,7 +500,7 @@ void SurfaceFlinger::onMessageReceived(int32_t what)
                     const size_t count = layers.size();
                     for (size_t i=0 ; i<count ; ++i) {
                         const sp<LayerBase>& layer(layers[i]);
-                        layer->drawForSreenShot();
+                        layer->drawForSreenShot(hw);
                     }
 
                     success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
@@ -540,13 +527,13 @@ void SurfaceFlinger::postFramebuffer()
     // in that case, we need to flip anyways to not risk a deadlock with
     // h/w composer.
 
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     const nsecs_t now = systemTime();
     mDebugInSwapBuffers = now;
     hw.flip(mSwapRegion);
 
     size_t numLayers = mVisibleLayersSortedByZ.size();
-    HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
+    HWComposer& hwc(hw.getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         HWComposer::LayerListIterator cur = hwc.begin();
         const HWComposer::LayerListIterator end = hwc.end();
@@ -620,19 +607,18 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // the orientation has changed, recompute all visible regions
             // and invalidate everything.
 
-            const int dpy = 0;
+            const int dpy = 0; // TODO: should be a parameter
+            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
             const int orientation = mCurrentState.orientation;
-            // Currently unused: const uint32_t flags = mCurrentState.orientationFlags;
-            GraphicPlane& plane(graphicPlane(dpy));
-            plane.setOrientation(orientation);
+            hw.setOrientation(orientation);
 
             // update the shared control block
-            const DisplayHardware& hw(plane.displayHardware());
             volatile display_cblk_t* dcblk = mServerCblk->displays + dpy;
             dcblk->orientation = orientation;
-            dcblk->w = plane.getWidth();
-            dcblk->h = plane.getHeight();
+            dcblk->w = hw.getUserWidth();
+            dcblk->h = hw.getUserHeight();
 
+            // FIXME: mVisibleRegionsDirty & mDirtyRegion should this be per DisplayHardware?
             mVisibleRegionsDirty = true;
             mDirtyRegion.set(hw.bounds());
         }
@@ -667,9 +653,8 @@ void SurfaceFlinger::computeVisibleRegions(
 {
     ATRACE_CALL();
 
-    const GraphicPlane& plane(graphicPlane(0));
-    const Transform& planeTransform(plane.transform());
-    const DisplayHardware& hw(plane.displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: we shouldn't rely on DisplayHardware here
+    const Transform& planeTransform(hw.getTransform());
     const Region screenRegion(hw.bounds());
 
     Region aboveOpaqueLayers;
@@ -681,7 +666,7 @@ void SurfaceFlinger::computeVisibleRegions(
     size_t i = currentLayers.size();
     while (i--) {
         const sp<LayerBase>& layer = currentLayers[i];
-        layer->validateVisibility(planeTransform);
+        layer->validateVisibility(planeTransform, hw);
 
         // start with the whole surface at its current location
         const Layer::State& s(layer->drawingState());
@@ -808,7 +793,7 @@ void SurfaceFlinger::commitTransaction()
 void SurfaceFlinger::handlePageFlip()
 {
     ATRACE_CALL();
-    const DisplayHardware& hw = graphicPlane(0).displayHardware();
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: it's a problem we need DisplayHardware here
     const Region screenRegion(hw.bounds());
 
     const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
@@ -859,8 +844,8 @@ bool SurfaceFlinger::lockPageFlip(const LayerVector& currentLayers)
 
 void SurfaceFlinger::unlockPageFlip(const LayerVector& currentLayers)
 {
-    const GraphicPlane& plane(graphicPlane(0));
-    const Transform& planeTransform(plane.transform());
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: it's a problem we need DisplayHardware here
+    const Transform& planeTransform(hw.getTransform());
     const size_t count = currentLayers.size();
     sp<LayerBase> const* layers = currentLayers.array();
     for (size_t i=0 ; i<count ; i++) {
@@ -886,10 +871,10 @@ void SurfaceFlinger::handleRefresh()
 }
 
 
-void SurfaceFlinger::handleWorkList()
+void SurfaceFlinger::handleWorkList(const DisplayHardware& hw)
 {
     mHwWorkListDirty = false;
-    HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
+    HWComposer& hwc(hw.getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         const Vector< sp<LayerBase> >& currentLayers(mVisibleLayersSortedByZ);
         const size_t count = currentLayers.size();
@@ -906,7 +891,7 @@ void SurfaceFlinger::handleWorkList()
     }
 }
 
-void SurfaceFlinger::handleRepaint()
+void SurfaceFlinger::handleRepaint(const DisplayHardware& hw)
 {
     ATRACE_CALL();
 
@@ -914,11 +899,10 @@ void SurfaceFlinger::handleRepaint()
     mSwapRegion.orSelf(mDirtyRegion);
 
     if (CC_UNLIKELY(mDebugRegion)) {
-        debugFlashRegions();
+        debugFlashRegions(hw);
     }
 
     // set the frame buffer
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
@@ -942,19 +926,17 @@ void SurfaceFlinger::handleRepaint()
         }
     }
 
-    setupHardwareComposer();
-    composeSurfaces(mDirtyRegion);
+    setupHardwareComposer(hw);
+    composeSurfaces(hw, mDirtyRegion);
 
     // update the swap region and clear the dirty region
     mSwapRegion.orSelf(mDirtyRegion);
     mDirtyRegion.clear();
 }
 
-void SurfaceFlinger::setupHardwareComposer()
+void SurfaceFlinger::setupHardwareComposer(const DisplayHardware& hw)
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
-
     HWComposer::LayerListIterator cur = hwc.begin();
     const HWComposer::LayerListIterator end = hwc.end();
     if (cur == end) {
@@ -985,9 +967,8 @@ void SurfaceFlinger::setupHardwareComposer()
     ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
 }
 
-void SurfaceFlinger::composeSurfaces(const Region& dirty)
+void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& dirty)
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     HWComposer& hwc(hw.getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin();
     const HWComposer::LayerListIterator end = hwc.end();
@@ -1027,20 +1008,19 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
                             && layer->isOpaque()) {
                         // never clear the very first layer since we're
                         // guaranteed the FB is already cleared
-                        layer->clearWithOpenGL(clip);
+                        layer->clearWithOpenGL(hw, clip);
                     }
                     continue;
                 }
                 // render the layer
-                layer->draw(clip);
+                layer->draw(hw, clip);
             }
         }
     }
 }
 
-void SurfaceFlinger::debugFlashRegions()
+void SurfaceFlinger::debugFlashRegions(const DisplayHardware& hw)
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t flags = hw.getFlags();
     const int32_t height = hw.getHeight();
     if (mSwapRegion.isEmpty()) {
@@ -1050,7 +1030,7 @@ void SurfaceFlinger::debugFlashRegions()
     if (!(flags & DisplayHardware::SWAP_RECTANGLE)) {
         const Region repaint((flags & DisplayHardware::PARTIAL_UPDATES) ?
                 mDirtyRegion.bounds() : hw.bounds());
-        composeSurfaces(repaint);
+        composeSurfaces(hw, repaint);
     }
 
     glDisable(GL_TEXTURE_EXTERNAL_OES);
@@ -1460,7 +1440,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 
 void SurfaceFlinger::onScreenAcquired() {
     ALOGD("Screen about to return, flinger = %p", this);
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: this should be per DisplayHardware
     hw.acquireScreen();
     mEventThread->onScreenAcquired();
     // this is a temporary work-around, eventually this should be called
@@ -1472,7 +1452,7 @@ void SurfaceFlinger::onScreenAcquired() {
 
 void SurfaceFlinger::onScreenReleased() {
     ALOGD("About to give-up screen, flinger = %p", this);
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: this should be per DisplayHardware
     if (hw.isScreenAcquired()) {
         mEventThread->onScreenReleased();
         hw.releaseScreen();
@@ -1671,6 +1651,7 @@ void SurfaceFlinger::dumpAllLocked(
     snprintf(buffer, SIZE, "SurfaceFlinger global state:\n");
     result.append(buffer);
 
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     const GLExtensions& extensions(GLExtensions::getInstance());
     snprintf(buffer, SIZE, "GLES: %s, %s, %s\n",
             extensions.getVendor(),
@@ -1679,7 +1660,7 @@ void SurfaceFlinger::dumpAllLocked(
     result.append(buffer);
 
     snprintf(buffer, SIZE, "EGL : %s\n",
-            eglQueryString(graphicPlane(0).getEGLDisplay(),
+            eglQueryString(hw.getEGLDisplay(),
                     EGL_VERSION_HW_ANDROID));
     result.append(buffer);
 
@@ -1687,7 +1668,6 @@ void SurfaceFlinger::dumpAllLocked(
     result.append(buffer);
 
     mWormholeRegion.dump(result, "WormholeRegion");
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     snprintf(buffer, SIZE,
             "  orientation=%d, canDraw=%d\n",
             mCurrentState.orientation, hw.canDraw());
@@ -1838,7 +1818,7 @@ status_t SurfaceFlinger::onTransact(
                 return NO_ERROR;
             case 1013: {
                 Mutex::Autolock _l(mStateLock);
-                const DisplayHardware& hw(graphicPlane(0).displayHardware());
+                const DisplayHardware& hw(getDefaultDisplayHardware());
                 reply->writeInt32(hw.getPageFlipCount());
             }
             return NO_ERROR;
@@ -1848,7 +1828,7 @@ status_t SurfaceFlinger::onTransact(
 }
 
 void SurfaceFlinger::repaintEverything() {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: this cannot be bound the default display
     const Rect bounds(hw.getBounds());
     setInvalidateRegion(Region(bounds));
     signalTransaction();
@@ -1884,7 +1864,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
         return INVALID_OPERATION;
 
     // get screen geometry
-    const DisplayHardware& hw(graphicPlane(dpy).displayHardware());
+    const DisplayHardware& hw(getDisplayHardware(dpy));
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     GLfloat u = 1;
@@ -1926,7 +1906,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<LayerBase>& layer(layers[i]);
-        layer->drawForSreenShot();
+        layer->drawForSreenShot(hw);
     }
 
     hw.compositionComplete();
@@ -1975,7 +1955,7 @@ public:
 status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
 {
     // get screen geometry
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     const Region screenBounds(hw.getBounds());
@@ -2157,7 +2137,7 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
 
 
     // get screen geometry
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(getDefaultDisplayHardware());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     const Region screenBounds(hw.bounds());
@@ -2306,7 +2286,7 @@ status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
 {
     ATRACE_CALL();
 
-    DisplayHardware& hw(graphicPlane(0).editDisplayHardware());
+    DisplayHardware& hw(const_cast<DisplayHardware&>(getDefaultDisplayHardware()));
     if (!hw.canDraw()) {
         // we're already off
         return NO_ERROR;
@@ -2366,7 +2346,7 @@ status_t SurfaceFlinger::turnElectronBeamOff(int32_t mode)
 
 status_t SurfaceFlinger::turnElectronBeamOnImplLocked(int32_t mode)
 {
-    DisplayHardware& hw(graphicPlane(0).editDisplayHardware());
+    DisplayHardware& hw(const_cast<DisplayHardware&>(getDefaultDisplayHardware()));
     if (hw.canDraw()) {
         // we're already on
         return NO_ERROR;
@@ -2426,7 +2406,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
         return INVALID_OPERATION;
 
     // get screen geometry
-    const DisplayHardware& hw(graphicPlane(dpy).displayHardware());
+    const DisplayHardware& hw(getDisplayHardware(dpy));
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
 
@@ -2478,7 +2458,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
             if (!(flags & ISurfaceComposer::eLayerHidden)) {
                 const uint32_t z = layer->drawingState().z;
                 if (z >= minLayerZ && z <= maxLayerZ) {
-                    layer->drawForSreenShot();
+                    layer->drawForSreenShot(hw);
                 }
             }
         }
@@ -2622,128 +2602,6 @@ sp<GraphicBuffer> GraphicBufferAlloc::createGraphicBuffer(uint32_t w, uint32_t h
         return 0;
     }
     return graphicBuffer;
-}
-
-// ---------------------------------------------------------------------------
-
-GraphicPlane::GraphicPlane()
-    : mHw(0)
-{
-}
-
-GraphicPlane::~GraphicPlane() {
-    delete mHw;
-}
-
-bool GraphicPlane::initialized() const {
-    return mHw ? true : false;
-}
-
-int GraphicPlane::getWidth() const {
-    return mWidth;
-}
-
-int GraphicPlane::getHeight() const {
-    return mHeight;
-}
-
-void GraphicPlane::setDisplayHardware(DisplayHardware *hw)
-{
-    mHw = hw;
-
-    // initialize the display orientation transform.
-    // it's a constant that should come from the display driver.
-    int displayOrientation = ISurfaceComposer::eOrientationDefault;
-    char property[PROPERTY_VALUE_MAX];
-    if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
-        //displayOrientation
-        switch (atoi(property)) {
-        case 90:
-            displayOrientation = ISurfaceComposer::eOrientation90;
-            break;
-        case 270:
-            displayOrientation = ISurfaceComposer::eOrientation270;
-            break;
-        }
-    }
-
-    const float w = hw->getWidth();
-    const float h = hw->getHeight();
-    GraphicPlane::orientationToTransfrom(displayOrientation, w, h,
-            &mDisplayTransform);
-    if (displayOrientation & ISurfaceComposer::eOrientationSwapMask) {
-        mDisplayWidth = h;
-        mDisplayHeight = w;
-    } else {
-        mDisplayWidth = w;
-        mDisplayHeight = h;
-    }
-
-    setOrientation(ISurfaceComposer::eOrientationDefault);
-}
-
-status_t GraphicPlane::orientationToTransfrom(
-        int orientation, int w, int h, Transform* tr)
-{
-    uint32_t flags = 0;
-    switch (orientation) {
-    case ISurfaceComposer::eOrientationDefault:
-        flags = Transform::ROT_0;
-        break;
-    case ISurfaceComposer::eOrientation90:
-        flags = Transform::ROT_90;
-        break;
-    case ISurfaceComposer::eOrientation180:
-        flags = Transform::ROT_180;
-        break;
-    case ISurfaceComposer::eOrientation270:
-        flags = Transform::ROT_270;
-        break;
-    default:
-        return BAD_VALUE;
-    }
-    tr->set(flags, w, h);
-    return NO_ERROR;
-}
-
-status_t GraphicPlane::setOrientation(int orientation)
-{
-    // If the rotation can be handled in hardware, this is where
-    // the magic should happen.
-
-    const DisplayHardware& hw(displayHardware());
-    const float w = mDisplayWidth;
-    const float h = mDisplayHeight;
-    mWidth = int(w);
-    mHeight = int(h);
-
-    Transform orientationTransform;
-    GraphicPlane::orientationToTransfrom(orientation, w, h,
-            &orientationTransform);
-    if (orientation & ISurfaceComposer::eOrientationSwapMask) {
-        mWidth = int(h);
-        mHeight = int(w);
-    }
-
-    mOrientation = orientation;
-    mGlobalTransform = mDisplayTransform * orientationTransform;
-    return NO_ERROR;
-}
-
-const DisplayHardware& GraphicPlane::displayHardware() const {
-    return *mHw;
-}
-
-DisplayHardware& GraphicPlane::editDisplayHardware() {
-    return *mHw;
-}
-
-const Transform& GraphicPlane::transform() const {
-    return mGlobalTransform;
-}
-
-EGLDisplay GraphicPlane::getEGLDisplay() const {
-    return mHw->getEGLDisplay();
 }
 
 // ---------------------------------------------------------------------------

@@ -27,7 +27,7 @@
 #include <utils/threads.h>
 #include <utils/SortedVector.h>
 
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 
 // ---------------------------------------------------------------------------
 

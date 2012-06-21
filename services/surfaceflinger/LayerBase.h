@@ -32,7 +32,7 @@
 
 #include <private/gui/LayerState.h>
 
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 #include "Transform.h"
 
 namespace android {
@@ -42,7 +42,6 @@ namespace android {
 class Client;
 class DisplayHardware;
 class GraphicBuffer;
-class GraphicPlane;
 class Layer;
 class LayerBaseClient;
 class SurfaceFlinger;
@@ -124,13 +123,13 @@ public:
      * Typically this method is not overridden, instead implement onDraw()
      * to perform the actual drawing.  
      */
-    virtual void draw(const Region& clip) const;
-    virtual void drawForSreenShot();
+    virtual void draw(const DisplayHardware& hw, const Region& clip) const;
+    virtual void drawForSreenShot(const DisplayHardware& hw);
     
     /**
      * onDraw - draws the surface.
      */
-    virtual void onDraw(const Region& clip) const = 0;
+    virtual void onDraw(const DisplayHardware& hw, const Region& clip) const = 0;
     
     /**
      * initStates - called just after construction
@@ -159,7 +158,7 @@ public:
     /**
      * validateVisibility - cache a bunch of things
      */
-    virtual void validateVisibility(const Transform& globalTransform);
+    virtual void validateVisibility(const Transform& globalTransform, const DisplayHardware& hw);
 
     /**
      * lockPageFlip - called each time the screen is redrawn and returns whether
@@ -237,21 +236,17 @@ public:
     int32_t  getOrientation() const { return mOrientation; }
     int32_t  getPlaneOrientation() const { return mPlaneOrientation; }
 
-    void clearWithOpenGL(const Region& clip) const;
+    void clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const;
 
 protected:
-    const GraphicPlane& graphicPlane(int dpy) const;
-          GraphicPlane& graphicPlane(int dpy);
-
-          void clearWithOpenGL(const Region& clip, GLclampf r, GLclampf g,
-                               GLclampf b, GLclampf alpha) const;
-          void drawWithOpenGL(const Region& clip) const;
+          void clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
+                  GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
+          void drawWithOpenGL(const DisplayHardware& hw, const Region& clip) const;
 
           void setFiltering(bool filtering);
           bool getFiltering() const;
 
                 sp<SurfaceFlinger> mFlinger;
-                uint32_t        mFlags;
 
 private:
                 // accessed only in the main thread

@@ -36,12 +36,13 @@
 #include <gui/Surface.h>
 
 #include "clz.h"
-#include "DisplayHardware/DisplayHardware.h"
-#include "DisplayHardware/HWComposer.h"
+#include "DisplayHardware.h"
 #include "GLExtensions.h"
 #include "Layer.h"
 #include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
+
+#include "DisplayHardware/HWComposer.h"
 
 #define DEBUG_RESIZE    0
 
@@ -63,7 +64,6 @@ Layer::Layer(SurfaceFlinger* flinger,
         mFormat(PIXEL_FORMAT_NONE),
         mGLExtensions(GLExtensions::getInstance()),
         mOpaqueLayer(true),
-        mNeedsDithering(false),
         mSecure(false),
         mProtectedByApp(false)
 {
@@ -77,7 +77,9 @@ void Layer::onLayerDisplayed(HWComposer::HWCLayerInterface* layer) {
     }
 
     if (mFrameLatencyNeeded) {
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
+        // we need a DisplayHardware for debugging only right now
+        // XXX: should this be called per DisplayHardware?
+        const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
         mFrameStats[mFrameLatencyOffset].timestamp = mSurfaceTexture->getTimestamp();
         mFrameStats[mFrameLatencyOffset].set = systemTime();
         mFrameStats[mFrameLatencyOffset].vsync = hw.getRefreshTimestamp();
@@ -142,8 +144,8 @@ void Layer::setName(const String8& name) {
     mSurfaceTexture->setName(name);
 }
 
-void Layer::validateVisibility(const Transform& globalTransform) {
-    LayerBase::validateVisibility(globalTransform);
+void Layer::validateVisibility(const Transform& globalTransform, const DisplayHardware& hw) {
+    LayerBase::validateVisibility(globalTransform, hw);
 
     // This optimization allows the SurfaceTexture to bake in
     // the rotation so hardware overlays can be used
@@ -188,7 +190,8 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     }
 
     // the display's pixel format
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    // XXX: we shouldn't rely on the DisplayHardware to do this
+    const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
     uint32_t const maxSurfaceDims = min(
             hw.getMaxTextureSize(), hw.getMaxViewportDims());
 
@@ -199,10 +202,6 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
         return BAD_VALUE;
     }
 
-    PixelFormatInfo displayInfo;
-    getPixelFormatInfo(hw.getFormat(), &displayInfo);
-    const uint32_t hwFlags = hw.getFlags();
-    
     mFormat = format;
 
     mSecure = (flags & ISurfaceComposer::eSecure) ? true : false;
@@ -213,11 +212,6 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     mSurfaceTexture->setDefaultBufferSize(w, h);
     mSurfaceTexture->setDefaultBufferFormat(format);
     mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
-
-    // we use the red index
-    int displayRedSize = displayInfo.getSize(PixelFormatInfo::INDEX_RED);
-    int layerRedsize = info.getSize(PixelFormatInfo::INDEX_RED);
-    mNeedsDithering = layerRedsize > displayRedSize;
 
     return NO_ERROR;
 }
@@ -307,7 +301,7 @@ void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
     layer.setBuffer(buffer);
 }
 
-void Layer::onDraw(const Region& clip) const
+void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const
 {
     ATRACE_CALL();
 
@@ -334,7 +328,7 @@ void Layer::onDraw(const Region& clip) const
         // if not everything below us is covered, we plug the holes!
         Region holes(clip.subtract(under));
         if (!holes.isEmpty()) {
-            clearWithOpenGL(holes, 0, 0, 0, 1);
+            clearWithOpenGL(hw, holes, 0, 0, 0, 1);
         }
         return;
     }
@@ -370,7 +364,7 @@ void Layer::onDraw(const Region& clip) const
         glEnable(GL_TEXTURE_2D);
     }
 
-    drawWithOpenGL(clip);
+    drawWithOpenGL(hw, clip);
 
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
@@ -730,7 +724,7 @@ void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
     const size_t o = mFrameLatencyOffset;
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
     const nsecs_t period = hw.getRefreshPeriod();
     result.appendFormat("%lld\n", period);
     for (size_t i=0 ; i<128 ; i++) {

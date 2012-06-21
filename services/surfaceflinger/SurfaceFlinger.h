@@ -68,44 +68,6 @@ public:
 
 // ---------------------------------------------------------------------------
 
-class GraphicPlane
-{
-public:
-    static status_t orientationToTransfrom(int orientation, int w, int h,
-            Transform* tr);
-
-                                GraphicPlane();
-                                ~GraphicPlane();
-
-        bool                    initialized() const;
-
-        void                    setDisplayHardware(DisplayHardware *);
-        status_t                setOrientation(int orientation);
-        int                     getOrientation() const { return mOrientation; }
-        int                     getWidth() const;
-        int                     getHeight() const;
-
-        const DisplayHardware&  displayHardware() const;
-        DisplayHardware&        editDisplayHardware();
-        const Transform&        transform() const;
-        EGLDisplay              getEGLDisplay() const;
-        
-private:
-                                GraphicPlane(const GraphicPlane&);
-        GraphicPlane            operator = (const GraphicPlane&);
-
-        DisplayHardware*        mHw;
-        Transform               mGlobalTransform;
-        Transform               mDisplayTransform;
-        int                     mOrientation;
-        float                   mDisplayWidth;
-        float                   mDisplayHeight;
-        int                     mWidth;
-        int                     mHeight;
-};
-
-// ---------------------------------------------------------------------------
-
 enum {
     eTransactionNeeded      = 0x01,
     eTraversalNeeded        = 0x02
@@ -260,8 +222,13 @@ private:
     virtual void        onFirstRef();
 
 public:     // hack to work around gcc 4.0.3 bug
-    const GraphicPlane&     graphicPlane(int dpy) const;
-          GraphicPlane&     graphicPlane(int dpy);
+
+          const DisplayHardware& getDisplayHardware(DisplayID dpy) const {
+              return *mDisplayHardwares[dpy];
+          }
+          const DisplayHardware& getDefaultDisplayHardware() const {
+              return getDisplayHardware(0);
+          }
 
           void              signalTransaction();
           void              signalLayerUpdate();
@@ -282,11 +249,11 @@ private:
             bool        lockPageFlip(const LayerVector& currentLayers);
             void        unlockPageFlip(const LayerVector& currentLayers);
             void        handleRefresh();
-            void        handleWorkList();
-            void        handleRepaint();
+            void        handleWorkList(const DisplayHardware& hw);
+            void        handleRepaint(const DisplayHardware& hw);
             void        postFramebuffer();
-            void        setupHardwareComposer();
-            void        composeSurfaces(const Region& dirty);
+            void        setupHardwareComposer(const DisplayHardware& hw);
+            void        composeSurfaces(const DisplayHardware& hw, const Region& dirty);
 
 
             void        setInvalidateRegion(const Region& reg);
@@ -315,7 +282,7 @@ private:
             status_t electronBeamOffAnimationImplLocked();
             status_t electronBeamOnAnimationImplLocked();
 
-            void        debugFlashRegions();
+            void        debugFlashRegions(const DisplayHardware& hw);
             void        drawWormhole() const;
 
             void        startBootAnim();
@@ -340,7 +307,7 @@ private:
                 Vector< sp<LayerBase> > mLayersPendingRemoval;
 
                 // protected by mStateLock (but we could use another lock)
-                GraphicPlane                mGraphicPlanes[1];
+                DisplayHardware*            mDisplayHardwares[1];
                 bool                        mLayersRemoved;
                 DefaultKeyedVector< wp<IBinder>, wp<Layer> > mLayerMap;
 

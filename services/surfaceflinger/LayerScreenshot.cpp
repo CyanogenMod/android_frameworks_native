@@ -25,7 +25,7 @@
 
 #include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 
 
 namespace android {
@@ -106,11 +106,10 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
     return LayerBaseClient::doTransaction(flags);
 }
 
-void LayerScreenshot::onDraw(const Region& clip) const
+void LayerScreenshot::onDraw(const DisplayHardware& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {
-        const DisplayHardware& hw(graphicPlane(0).displayHardware());
         const GLfloat alpha = s.alpha/255.0f;
         const uint32_t fbHeight = hw.getHeight();
 

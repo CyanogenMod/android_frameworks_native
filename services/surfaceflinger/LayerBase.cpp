@@ -32,7 +32,7 @@
 #include "Client.h"
 #include "LayerBase.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware/DisplayHardware.h"
+#include "DisplayHardware.h"
 
 namespace android {
 
@@ -50,8 +50,6 @@ LayerBase::LayerBase(SurfaceFlinger* flinger, DisplayID display)
       mTransactionFlags(0),
       mPremultipliedAlpha(true), mName("unnamed"), mDebug(false)
 {
-    const DisplayHardware& hw(flinger->graphicPlane(0).displayHardware());
-    mFlags = hw.getFlags();
 }
 
 LayerBase::~LayerBase()
@@ -64,16 +62,6 @@ void LayerBase::setName(const String8& name) {
 
 String8 LayerBase::getName() const {
     return mName;
-}
-
-const GraphicPlane& LayerBase::graphicPlane(int dpy) const
-{ 
-    return mFlinger->graphicPlane(dpy);
-}
-
-GraphicPlane& LayerBase::graphicPlane(int dpy)
-{
-    return mFlinger->graphicPlane(dpy); 
 }
 
 void LayerBase::initStates(uint32_t w, uint32_t h, uint32_t flags)
@@ -231,12 +219,11 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     return flags;
 }
 
-void LayerBase::validateVisibility(const Transform& planeTransform)
+void LayerBase::validateVisibility(const Transform& planeTransform, const DisplayHardware& hw)
 {
     const Layer::State& s(drawingState());
     const Transform tr(planeTransform * s.transform);
     const bool transformed = tr.transformed();
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t hw_h = hw.getHeight();
     const Rect& crop(s.active.crop);
 
@@ -322,24 +309,21 @@ bool LayerBase::getFiltering() const
     return mFiltering;
 }
 
-void LayerBase::draw(const Region& clip) const
+void LayerBase::draw(const DisplayHardware& hw, const Region& clip) const
 {
-    onDraw(clip);
+    onDraw(hw, clip);
 }
 
-void LayerBase::drawForSreenShot()
+void LayerBase::drawForSreenShot(const DisplayHardware& hw)
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     setFiltering(true);
-    onDraw( Region(hw.bounds()) );
+    onDraw( hw, Region(hw.bounds()) );
     setFiltering(false);
 }
 
-void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
-                                GLclampf green, GLclampf blue,
-                                GLclampf alpha) const
+void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
+        GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t fbHeight = hw.getHeight();
     glColor4f(red,green,blue,alpha);
 
@@ -351,14 +335,13 @@ void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
     glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
 }
 
-void LayerBase::clearWithOpenGL(const Region& clip) const
+void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const
 {
-    clearWithOpenGL(clip,0,0,0,0);
+    clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
-void LayerBase::drawWithOpenGL(const Region& clip) const
+void LayerBase::drawWithOpenGL(const DisplayHardware& hw, const Region& clip) const
 {
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t fbHeight = hw.getHeight();
     const State& s(drawingState());
 
