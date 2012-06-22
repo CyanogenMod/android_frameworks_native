@@ -237,10 +237,12 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
     if (self->mBufferHead >= self->mNumBuffers)
         self->mBufferHead = 0;
 
-    // wait for a free buffer
-    while (!self->mNumFreeBuffers) {
+    // wait for a free non-front buffer
+    while (self->mNumFreeBuffers < 2) {
         self->mCondition.wait(self->mutex);
     }
+    ALOG_ASSERT(self->buffers[index] != self->front);
+
     // get this buffer
     self->mNumFreeBuffers--;
     self->mCurrentBufferIndex = index;
@@ -254,17 +256,6 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
 int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* window, 
         ANativeWindowBuffer* buffer)
 {
-    // XXX: Can this code all get ripped out?  Should it move to dequeueBuffer?
-    FramebufferNativeWindow* self = getSelf(window);
-    Mutex::Autolock _l(self->mutex);
-
-    const int index = self->mCurrentBufferIndex;
-
-    // wait that the buffer we're locking is not front anymore
-    while (self->front == buffer) {
-        self->mCondition.wait(self->mutex);
-    }
-
     return NO_ERROR;
 }
 
