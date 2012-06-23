@@ -109,7 +109,7 @@ void FramebufferSurface::onFirstRef() {
                     self->fbDev->post(self->fbDev, self->mBuffers[item.mBuf]->handle);
                     if (self->mCurrentBufferIndex >= 0) {
                         self->mBufferQueue->releaseBuffer(self->mCurrentBufferIndex,
-                                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+                                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE);
                     }
                     self->mCurrentBufferIndex = item.mBuf;
                 }

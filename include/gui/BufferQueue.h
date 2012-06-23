@@ -23,6 +23,7 @@
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceTexture.h>
 
+#include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
 
 #include <utils/String8.h>
@@ -218,7 +219,8 @@ public:
     //
     // Note that the dependencies on EGL will be removed once we switch to using
     // the Android HW Sync HAL.
-    status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence);
+    status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence,
+            const sp<Fence>& releaseFence = Fence::NO_FENCE);
 
     // consumerConnect connects a consumer to the BufferQueue.  Only one
     // consumer may be connected, and when that consumer disconnects the
@@ -377,6 +379,10 @@ private:
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
         EGLSyncKHR mFence;
+
+        // mReleaseFence is a fence which must signal before the contents of
+        // the buffer associated with this buffer slot may be overwritten.
+        sp<Fence> mReleaseFence;
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;

@@ -210,7 +210,7 @@ public:
 
     /** called after page-flip
      */
-    virtual void onLayerDisplayed() { }
+    virtual void onLayerDisplayed(HWComposer::HWCLayerInterface* layer) { }
 
     /** called before composition.
      * returns true if the layer has pending updates.

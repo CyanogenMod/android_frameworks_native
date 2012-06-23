@@ -91,6 +91,14 @@ public:
     // target texture belongs is bound to the calling thread.
     status_t updateTexImage();
 
+    // setReleaseFence stores a fence file descriptor that will signal when the
+    // current buffer is no longer being read. This fence will be returned to
+    // the producer when the current buffer is released by updateTexImage().
+    // Multiple fences can be set for a given buffer; they will be merged into
+    // a single union fence. The SurfaceTexture will close the file descriptor
+    // when finished with it.
+    void setReleaseFence(int fenceFd);
+
     // setBufferCountServer set the buffer count. If the client has requested
     // a buffer count using setBufferCount, the server-buffer count will
     // take effect once the client sets the count back to zero.
@@ -349,6 +357,13 @@ private:
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
         EGLSyncKHR mFence;
+
+        // mReleaseFence is a fence which will signal when the buffer
+        // associated with this buffer slot is no longer being used by the
+        // consumer and can be overwritten. The buffer can be dequeued before
+        // the fence signals; the producer is responsible for delaying writes
+        // until it signals.
+        sp<Fence> mReleaseFence;
     };
 
     // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently

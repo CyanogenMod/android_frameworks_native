@@ -26,6 +26,8 @@
 
 namespace android {
 
+const sp<Fence> Fence::NO_FENCE = sp<Fence>();
+
 Fence::Fence() :
     mFenceFd(-1) {
 }
@@ -55,7 +57,7 @@ sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
     if (result == -1) {
         ALOGE("merge: sync_merge returned an error: %s (%d)", strerror(-errno),
                 errno);
-        return sp<Fence>();
+        return NO_FENCE;
     }
     return sp<Fence>(new Fence(result));
 }

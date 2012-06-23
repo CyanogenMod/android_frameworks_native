@@ -307,6 +307,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
     status_t returnFlags(OK);
     EGLDisplay dpy = EGL_NO_DISPLAY;
     EGLSyncKHR fence = EGL_NO_SYNC_KHR;
+    sp<Fence> releaseFence;
 
     { // Scope for the lock
         Mutex::Autolock lock(mMutex);
@@ -318,7 +319,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
         usage |= mConsumerUsageBits;
 
         int found = -1;
-        int foundSync = -1;
         int dequeuedCount = 0;
         bool tryAgain = true;
         while (tryAgain) {
@@ -369,7 +369,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
 
             // look for a free buffer to give to the client
             found = INVALID_BUFFER_SLOT;
-            foundSync = INVALID_BUFFER_SLOT;
             dequeuedCount = 0;
             for (int i = 0; i < mBufferCount; i++) {
                 const int state = mSlots[i].mBufferState;
@@ -393,7 +392,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
                         bool isOlder = mSlots[i].mFrameNumber <
                                 mSlots[found].mFrameNumber;
                         if (found < 0 || isOlder) {
-                            foundSync = i;
                             found = i;
                         }
                     }
@@ -484,6 +482,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             mSlots[buf].mGraphicBuffer = graphicBuffer;
             mSlots[buf].mRequestBufferCalled = false;
             mSlots[buf].mFence = EGL_NO_SYNC_KHR;
+            mSlots[buf].mReleaseFence.clear();
             mSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
 
             returnFlags |= ISurfaceTexture::BUFFER_NEEDS_REALLOCATION;
@@ -491,7 +490,9 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
 
         dpy = mSlots[buf].mEglDisplay;
         fence = mSlots[buf].mFence;
+        releaseFence = mSlots[buf].mReleaseFence;
         mSlots[buf].mFence = EGL_NO_SYNC_KHR;
+        mSlots[buf].mReleaseFence.clear();
     }  // end lock scope
 
     if (fence != EGL_NO_SYNC_KHR) {
@@ -505,6 +506,16 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, uint32_t w, uint32_t h,
             ST_LOGE("dequeueBuffer: timeout waiting for fence");
         }
         eglDestroySyncKHR(dpy, fence);
+    }
+
+    if (releaseFence.get()) {
+        int err = releaseFence->wait(1000);
+        if (err == -ETIME) {
+            ALOGE("dequeueBuffer: timeout waiting for release fence");
+        } else if (err != NO_ERROR) {
+            ALOGE("dequeueBuffer: error waiting for sync fence: %d", err);
+        }
+        releaseFence.clear();
     }
 
     ST_LOGV("dequeueBuffer: returning slot=%d buf=%p flags=%#x", *outBuf,
@@ -846,6 +857,7 @@ void BufferQueue::freeBufferLocked(int i) {
         eglDestroySyncKHR(mSlots[i].mEglDisplay, mSlots[i].mFence);
         mSlots[i].mFence = EGL_NO_SYNC_KHR;
     }
+    mSlots[i].mReleaseFence.clear();
 }
 
 void BufferQueue::freeAllBuffersLocked() {
@@ -896,7 +908,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
 }
 
 status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
-        EGLSyncKHR fence) {
+        EGLSyncKHR fence, const sp<Fence>& releaseFence) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
@@ -908,6 +920,7 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
 
     mSlots[buf].mEglDisplay = display;
     mSlots[buf].mFence = fence;
+    mSlots[buf].mReleaseFence = releaseFence;
 
     // The buffer can now only be released if its in the acquired state
     if (mSlots[buf].mBufferState == BufferSlot::ACQUIRED) {
