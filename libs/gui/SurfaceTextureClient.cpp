@@ -222,15 +222,18 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
     }
 
     if (fence.get()) {
-        status_t err = fence->wait(Fence::TIMEOUT_NEVER);
-        if (err != OK) {
-            ALOGE("dequeueBuffer: error waiting for fence: %d", err);
+        *fenceFd = fence->dup();
+        if (*fenceFd == -1) {
+            ALOGE("dequeueBuffer: error duping fence: %d", errno);
+            // dup() should never fail; something is badly wrong. Soldier on
+            // and hope for the best; the worst that should happen is some
+            // visible corruption that lasts until the next frame.
         }
-        fence.clear();
+    } else {
+        *fenceFd = -1;
     }
 
     *buffer = gbuf.get();
-    *fenceFd = -1;
     return OK;
 }
 

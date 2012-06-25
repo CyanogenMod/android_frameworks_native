@@ -69,6 +69,11 @@ public:
     static sp<Fence> merge(const String8& name, const sp<Fence>& f1,
             const sp<Fence>& f2);
 
+    // Return a duplicate of the fence file descriptor. The caller is
+    // responsible for closing the returned file descriptor. On error, -1 will
+    // be returned and errno will indicate the problem.
+    int dup() const;
+
     // Flattenable interface
     size_t getFlattenedSize() const;
     size_t getFdCount() const;
