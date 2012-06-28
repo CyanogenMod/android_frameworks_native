@@ -114,6 +114,15 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
         mBufferSlot[buf] = b.mGraphicBuffer;
     }
 
+    if (b.mFence.get()) {
+        err = b.mFence->wait(Fence::TIMEOUT_NEVER);
+        if (err != OK) {
+            CC_LOGE("Failed to wait for fence of acquired buffer: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
+    }
+
     err = mBufferSlot[buf]->lock(
         GraphicBuffer::USAGE_SW_READ_OFTEN,
         b.mCrop,

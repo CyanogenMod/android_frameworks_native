@@ -236,8 +236,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // not accept this buffer. this is used by SurfaceFlinger to
         // reject buffers which have the wrong size
         if (rejecter && rejecter->reject(mEGLSlots[buf].mGraphicBuffer, item)) {
-            mBufferQueue->releaseBuffer(buf, dpy, EGL_NO_SYNC_KHR,
-                    Fence::NO_FENCE);
+            mBufferQueue->releaseBuffer(buf, dpy, EGL_NO_SYNC_KHR, item.mFence);
             glBindTexture(mTexTarget, mTexName);
             return NO_ERROR;
         }
@@ -258,6 +257,14 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
                     // fail. so we'd end up here.
                     err = UNKNOWN_ERROR;
                 }
+            }
+        }
+
+        // Temporary; fence will be provided to clients soon
+        if (item.mFence.get()) {
+            err = item.mFence->wait(Fence::TIMEOUT_NEVER);
+            if (err != OK) {
+                ST_LOGE("updateTexImage: failure waiting for fence: %d", err);
             }
         }
 
@@ -284,8 +291,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         if (err != NO_ERROR) {
             // Release the buffer we just acquired.  It's not safe to
             // release the old buffer, so instead we just drop the new frame.
-            mBufferQueue->releaseBuffer(buf, dpy, EGL_NO_SYNC_KHR,
-                    Fence::NO_FENCE);
+            mBufferQueue->releaseBuffer(buf, dpy, EGL_NO_SYNC_KHR, item.mFence);
             return err;
         }
 

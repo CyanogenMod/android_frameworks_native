@@ -106,6 +106,16 @@ void FramebufferSurface::onFirstRef() {
                     if (item.mGraphicBuffer != 0) {
                         self->mBuffers[item.mBuf] = item.mGraphicBuffer;
                     }
+                    if (item.mFence.get()) {
+                        err = item.mFence->wait(Fence::TIMEOUT_NEVER);
+                        if (err) {
+                            ALOGE("failed waiting for buffer's fence: %d", err);
+                            self->mBufferQueue->releaseBuffer(item.mBuf,
+                                    EGL_NO_DISPLAY, EGL_NO_SYNC_KHR,
+                                    item.mFence);
+                            return;
+                        }
+                    }
                     self->fbDev->post(self->fbDev, self->mBuffers[item.mBuf]->handle);
                     if (self->mCurrentBufferIndex >= 0) {
                         self->mBufferQueue->releaseBuffer(self->mCurrentBufferIndex,

@@ -202,6 +202,9 @@ public:
 
         // mBuf is the slot index of this buffer
         int mBuf;
+
+        // mFence is a fence that will signal when the buffer is idle.
+        sp<Fence> mFence;
     };
 
     // The following public functions is the consumer facing interface

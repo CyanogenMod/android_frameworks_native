@@ -885,11 +885,13 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         buffer->mFrameNumber = mSlots[buf].mFrameNumber;
         buffer->mTimestamp = mSlots[buf].mTimestamp;
         buffer->mBuf = buf;
+        buffer->mFence = mSlots[buf].mFence;
         mSlots[buf].mAcquireCalled = true;
 
         mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
         mQueue.erase(front);
         mDequeueCondition.broadcast();
+        mSlots[buf].mFence.clear();
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } else {
