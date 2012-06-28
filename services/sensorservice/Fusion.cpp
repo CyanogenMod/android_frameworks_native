@@ -392,10 +392,22 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const vec4_t dq = getF(q)*((0.5f*dT)*we);
     x0 = normalize_quat(q + dq);
 
-    // P(k+1) = F*P(k)*Ft + G*Q*Gt
-
+    // P(k+1) = Phi(k)*P(k)*Phi(k)' + G*Q(k)*G'
+    //
+    // G = | -I33    0 |
+    //     |    0  I33 |
+    //
     //  Phi = | Phi00 Phi10 |
     //        |   0     1   |
+    //
+    //  Phi00 =   I33
+    //          - [w]x   * sin(||w||*dt)/||w||
+    //          + [w]x^2 * (1-cos(||w||*dT))/||w||^2
+    //
+    //  Phi10 =   [w]x   * (1        - cos(||w||*dt))/||w||^2
+    //          - [w]x^2 * (||w||*dT - sin(||w||*dt))/||w||^3
+    //          - I33*dT
+
     const mat33_t I33(1);
     const mat33_t I33dT(dT);
     const mat33_t wx(crossMatrix(we, 0));
