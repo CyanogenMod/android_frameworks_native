@@ -63,6 +63,9 @@ sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
 }
 
 int Fence::dup() const {
+    if (mFenceFd == -1) {
+        return -1;
+    }
     return ::dup(mFenceFd);
 }
 

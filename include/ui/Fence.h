@@ -51,6 +51,11 @@ public:
     // closed.
     Fence(int fenceFd);
 
+    // Check whether the Fence has an open fence file descriptor. Most Fence
+    // methods treat an invalid file descriptor just like a valid fence that
+    // is already signalled, so using this is usually not necessary.
+    bool isValid() const { return mFenceFd != -1; }
+
     // wait waits for up to timeout milliseconds for the fence to signal.  If
     // the fence signals then NO_ERROR is returned. If the timeout expires
     // before the fence signals then -ETIME is returned.  A timeout of

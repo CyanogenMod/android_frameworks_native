@@ -109,7 +109,7 @@ public:
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(buf);
-        memcpy(data.writeInplace(sizeof(input)), &input, sizeof(input));
+        data.write(input);
         status_t result = remote()->transact(QUEUE_BUFFER, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -119,10 +119,15 @@ public:
         return result;
     }
 
-    virtual void cancelBuffer(int buf) {
+    virtual void cancelBuffer(int buf, sp<Fence> fence) {
         Parcel data, reply;
+        bool hasFence = fence.get() && fence->isValid();
         data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
         data.writeInt32(buf);
+        data.writeInt32(hasFence);
+        if (hasFence) {
+            data.write(*fence.get());
+        }
         remote()->transact(CANCEL_BUFFER, data, &reply);
     }
 
@@ -213,9 +218,10 @@ status_t BnSurfaceTexture::onTransact(
             int buf;
             sp<Fence> fence;
             int result = dequeueBuffer(&buf, fence, w, h, format, usage);
+            bool hasFence = fence.get() && fence->isValid();
             reply->writeInt32(buf);
-            reply->writeInt32(fence.get() != NULL);
-            if (fence.get() != NULL) {
+            reply->writeInt32(hasFence);
+            if (hasFence) {
                 reply->write(*fence.get());
             }
             reply->writeInt32(result);
@@ -224,20 +230,24 @@ status_t BnSurfaceTexture::onTransact(
         case QUEUE_BUFFER: {
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int buf = data.readInt32();
-            QueueBufferInput const* const input =
-                    reinterpret_cast<QueueBufferInput const *>(
-                            data.readInplace(sizeof(QueueBufferInput)));
+            QueueBufferInput input(data);
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
-            status_t result = queueBuffer(buf, *input, output);
+            status_t result = queueBuffer(buf, input, output);
             reply->writeInt32(result);
             return NO_ERROR;
         } break;
         case CANCEL_BUFFER: {
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int buf = data.readInt32();
-            cancelBuffer(buf);
+            sp<Fence> fence;
+            bool hasFence = data.readInt32();
+            if (hasFence) {
+                fence = new Fence();
+                data.read(*fence.get());
+            }
+            cancelBuffer(buf, fence);
             return NO_ERROR;
         } break;
         case QUERY: {
@@ -278,5 +288,63 @@ status_t BnSurfaceTexture::onTransact(
 }
 
 // ----------------------------------------------------------------------------
+
+static bool isValid(const sp<Fence>& fence) {
+    return fence.get() && fence->isValid();
+}
+
+ISurfaceTexture::QueueBufferInput::QueueBufferInput(const Parcel& parcel) {
+    parcel.read(*this);
+}
+
+size_t ISurfaceTexture::QueueBufferInput::getFlattenedSize() const
+{
+    return sizeof(timestamp)
+         + sizeof(crop)
+         + sizeof(scalingMode)
+         + sizeof(transform)
+         + sizeof(bool)
+         + (isValid(fence) ? fence->getFlattenedSize() : 0);
+}
+
+size_t ISurfaceTexture::QueueBufferInput::getFdCount() const
+{
+    return isValid(fence) ? fence->getFdCount() : 0;
+}
+
+status_t ISurfaceTexture::QueueBufferInput::flatten(void* buffer, size_t size,
+        int fds[], size_t count) const
+{
+    status_t err = NO_ERROR;
+    bool haveFence = isValid(fence);
+    char* p = (char*)buffer;
+    memcpy(p, &timestamp,   sizeof(timestamp));   p += sizeof(timestamp);
+    memcpy(p, &crop,        sizeof(crop));        p += sizeof(crop);
+    memcpy(p, &scalingMode, sizeof(scalingMode)); p += sizeof(scalingMode);
+    memcpy(p, &transform,   sizeof(transform));   p += sizeof(transform);
+    memcpy(p, &haveFence,   sizeof(haveFence));   p += sizeof(haveFence);
+    if (haveFence) {
+        err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
+    }
+    return err;
+}
+
+status_t ISurfaceTexture::QueueBufferInput::unflatten(void const* buffer,
+        size_t size, int fds[], size_t count)
+{
+    status_t err = NO_ERROR;
+    bool haveFence;
+    const char* p = (const char*)buffer;
+    memcpy(&timestamp,   p, sizeof(timestamp));   p += sizeof(timestamp);
+    memcpy(&crop,        p, sizeof(crop));        p += sizeof(crop);
+    memcpy(&scalingMode, p, sizeof(scalingMode)); p += sizeof(scalingMode);
+    memcpy(&transform,   p, sizeof(transform));   p += sizeof(transform);
+    memcpy(&haveFence,   p, sizeof(haveFence));   p += sizeof(haveFence);
+    if (haveFence) {
+        fence = new Fence();
+        err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
+    }
+    return err;
+}
 
 }; // namespace android

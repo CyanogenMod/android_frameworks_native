@@ -89,24 +89,37 @@ protected:
     // and height of the window and current transform applied to buffers,
     // respectively.
 
-    // QueueBufferInput must be a POD structure
-    struct QueueBufferInput {
+    struct QueueBufferInput : public Flattenable {
+        inline QueueBufferInput(const Parcel& parcel);
         inline QueueBufferInput(int64_t timestamp,
-                const Rect& crop, int scalingMode, uint32_t transform)
+                const Rect& crop, int scalingMode, uint32_t transform,
+                sp<Fence> fence)
         : timestamp(timestamp), crop(crop), scalingMode(scalingMode),
-          transform(transform) { }
+          transform(transform), fence(fence) { }
         inline void deflate(int64_t* outTimestamp, Rect* outCrop,
-                int* outScalingMode, uint32_t* outTransform) const {
+                int* outScalingMode, uint32_t* outTransform,
+                sp<Fence>* outFence) const {
             *outTimestamp = timestamp;
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
+            *outFence = fence;
         }
+
+        // Flattenable interface
+        virtual size_t getFlattenedSize() const;
+        virtual size_t getFdCount() const;
+        virtual status_t flatten(void* buffer, size_t size,
+                int fds[], size_t count) const;
+        virtual status_t unflatten(void const* buffer, size_t size,
+                int fds[], size_t count);
+
     private:
         int64_t timestamp;
         Rect crop;
         int scalingMode;
         uint32_t transform;
+        sp<Fence> fence;
     };
 
     // QueueBufferOutput must be a POD structure
@@ -141,7 +154,7 @@ protected:
     // cancelBuffer indicates that the client does not wish to fill in the
     // buffer associated with slot and transfers ownership of the slot back to
     // the server.
-    virtual void cancelBuffer(int slot) = 0;
+    virtual void cancelBuffer(int slot, sp<Fence> fence) = 0;
 
     // query retrieves some information for this surface
     // 'what' tokens allowed are that of android_natives.h

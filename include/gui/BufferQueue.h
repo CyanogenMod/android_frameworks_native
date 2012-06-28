@@ -137,7 +137,7 @@ public:
     virtual status_t queueBuffer(int buf,
             const QueueBufferInput& input, QueueBufferOutput* output);
 
-    virtual void cancelBuffer(int buf);
+    virtual void cancelBuffer(int buf, sp<Fence> fence);
 
     // setSynchronousMode set whether dequeueBuffer is synchronous or
     // asynchronous. In synchronous mode, dequeueBuffer blocks until
@@ -307,7 +307,7 @@ private:
           mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
           mTimestamp(0),
           mFrameNumber(0),
-          mFence(EGL_NO_SYNC_KHR),
+          mEglFence(EGL_NO_SYNC_KHR),
           mAcquireCalled(false),
           mNeedsCleanupOnRelease(false) {
             mCrop.makeInvalid();
@@ -380,15 +380,22 @@ private:
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
 
-        // mFence is the EGL sync object that must signal before the buffer
+        // mEglFence is the EGL sync object that must signal before the buffer
         // associated with this buffer slot may be dequeued. It is initialized
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
-        EGLSyncKHR mFence;
+        EGLSyncKHR mEglFence;
 
-        // mReleaseFence is a fence which must signal before the contents of
-        // the buffer associated with this buffer slot may be overwritten.
-        sp<Fence> mReleaseFence;
+        // mFence is a fence which will signal when work initiated by the
+        // previous owner of the buffer is finished. When the buffer is FREE,
+        // the fence indicates when the consumer has finished reading
+        // from the buffer, or when the producer has finished writing if it
+        // called cancelBuffer after queueing some writes. When the buffer is
+        // QUEUED, it indicates when the producer has finished filling the
+        // buffer. When the buffer is DEQUEUED or ACQUIRED, the fence has been
+        // passed to the consumer or producer along with ownership of the
+        // buffer, and mFence is empty.
+        sp<Fence> mFence;
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;

@@ -237,7 +237,8 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
     return OK;
 }
 
-int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer, int fenceFd) {
+int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer,
+        int fenceFd) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::cancelBuffer");
     Mutex::Autolock lock(mMutex);
@@ -245,13 +246,8 @@ int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer, int fenc
     if (i < 0) {
         return i;
     }
-    sp<Fence> fence(new Fence(fenceFd));
-    status_t err = fence->wait(Fence::TIMEOUT_NEVER);
-    if (err != OK) {
-        ALOGE("queueBuffer: Fence::wait returned an error: %d", err);
-        return err;
-    }
-    mSurfaceTexture->cancelBuffer(i);
+    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : NULL);
+    mSurfaceTexture->cancelBuffer(i, fence);
     return OK;
 }
 
@@ -291,21 +287,16 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer, int fence
         return i;
     }
 
-    sp<Fence> fence(new Fence(fenceFd));
-    status_t err = fence->wait(Fence::TIMEOUT_NEVER);
-    if (err != OK) {
-        ALOGE("queueBuffer: Fence::wait returned an error: %d", err);
-        return err;
-    }
 
     // Make sure the crop rectangle is entirely inside the buffer.
     Rect crop;
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
+    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : NULL);
     ISurfaceTexture::QueueBufferOutput output;
     ISurfaceTexture::QueueBufferInput input(timestamp, crop, mScalingMode,
-            mTransform);
-    err = mSurfaceTexture->queueBuffer(i, input, &output);
+            mTransform, fence);
+    status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
