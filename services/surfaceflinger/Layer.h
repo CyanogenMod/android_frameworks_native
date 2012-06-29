@@ -120,6 +120,7 @@ private:
     bool mCurrentOpacity;
     bool mRefreshPending;
     bool mFrameLatencyNeeded;
+    bool mNeedHwcFence;
     int mFrameLatencyOffset;
 
     struct Statistics {

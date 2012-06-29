@@ -350,6 +350,12 @@ public:
         // not supported on VERSION_03
         return -1;
     }
+    virtual void setAcquireFenceFd(int fenceFd) {
+        if (fenceFd != -1) {
+            ALOGE("HWC 0.x can't handle acquire fences");
+            close(fenceFd);
+        }
+    }
 
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
@@ -415,6 +421,9 @@ public:
         int fd = getLayer()->releaseFenceFd;
         getLayer()->releaseFenceFd = -1;
         return fd;
+    }
+    virtual void setAcquireFenceFd(int fenceFd) {
+        getLayer()->acquireFenceFd = fenceFd;
     }
 
     virtual void setDefaultState() {

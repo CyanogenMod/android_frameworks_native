@@ -260,14 +260,6 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
             }
         }
 
-        // Temporary; fence will be provided to clients soon
-        if (item.mFence.get()) {
-            err = item.mFence->wait(Fence::TIMEOUT_NEVER);
-            if (err != OK) {
-                ST_LOGE("updateTexImage: failure waiting for fence: %d", err);
-            }
-        }
-
         if (err == NO_ERROR) {
             GLint error;
             while ((error = glGetError()) != GL_NO_ERROR) {
@@ -322,6 +314,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         mCurrentTransform = item.mTransform;
         mCurrentScalingMode = item.mScalingMode;
         mCurrentTimestamp = item.mTimestamp;
+        mCurrentFence = item.mFence;
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
@@ -731,6 +724,11 @@ uint32_t SurfaceTexture::getCurrentTransform() const {
 uint32_t SurfaceTexture::getCurrentScalingMode() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentScalingMode;
+}
+
+sp<Fence> SurfaceTexture::getCurrentFence() const {
+    Mutex::Autolock lock(mMutex);
+    return mCurrentFence;
 }
 
 bool SurfaceTexture::isSynchronousMode() const {

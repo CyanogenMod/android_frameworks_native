@@ -60,6 +60,7 @@ Layer::Layer(SurfaceFlinger* flinger,
         mCurrentOpacity(true),
         mRefreshPending(false),
         mFrameLatencyNeeded(false),
+        mNeedHwcFence(false),
         mFrameLatencyOffset(0),
         mFormat(PIXEL_FORMAT_NONE),
         mGLExtensions(GLExtensions::getInstance()),
@@ -299,6 +300,20 @@ void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
     // NOTE: buffer can be NULL if the client never drew into this
     // layer yet, or if we ran out of memory
     layer.setBuffer(buffer);
+
+    if (mNeedHwcFence) {
+        sp<Fence> fence = mSurfaceTexture->getCurrentFence();
+        if (fence.get()) {
+            int fenceFd = fence->dup();
+            if (fenceFd == -1) {
+                ALOGW("failed to dup layer fence, skipping sync: %d", errno);
+            }
+            layer.setAcquireFenceFd(fenceFd);
+        }
+        mNeedHwcFence = false;
+    } else {
+        layer.setAcquireFenceFd(-1);
+    }
 }
 
 void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const
@@ -331,6 +346,15 @@ void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const
             clearWithOpenGL(hw, holes, 0, 0, 0, 1);
         }
         return;
+    }
+
+    // TODO: replace this with a server-side wait
+    sp<Fence> fence = mSurfaceTexture->getCurrentFence();
+    if (fence.get()) {
+        status_t err = fence->wait(Fence::TIMEOUT_NEVER);
+        ALOGW_IF(err != OK, "Layer::onDraw: failed waiting for fence: %d", err);
+        // Go ahead and draw the buffer anyway; no matter what we do the screen
+        // is probably going to have something visibly wrong.
     }
 
     if (!isProtected()) {
@@ -627,6 +651,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
 
         mRefreshPending = true;
         mFrameLatencyNeeded = true;
+        mNeedHwcFence = true;
         if (oldActiveBuffer == NULL) {
              // the first time we receive a buffer, we need to trigger a
              // geometry invalidation.

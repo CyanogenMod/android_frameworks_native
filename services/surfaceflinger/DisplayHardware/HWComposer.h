@@ -109,6 +109,7 @@ public:
         virtual void setCrop(const Rect& crop) = 0;
         virtual void setVisibleRegionScreen(const Region& reg) = 0;
         virtual void setBuffer(const sp<GraphicBuffer>& buffer) = 0;
+        virtual void setAcquireFenceFd(int fenceFd) = 0;
     };
 
     /*

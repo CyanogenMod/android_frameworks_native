@@ -172,6 +172,10 @@ public:
     // getCurrentScalingMode returns the scaling mode of the current buffer.
     uint32_t getCurrentScalingMode() const;
 
+    // getCurrentFence returns the fence indicating when the current buffer is
+    // ready to be read from.
+    sp<Fence> getCurrentFence() const;
+
     // isSynchronousMode returns whether the SurfaceTexture is currently in
     // synchronous mode.
     bool isSynchronousMode() const;
@@ -302,6 +306,9 @@ private:
     // mCurrentScalingMode is the scaling mode for the current texture. It gets
     // set to each time updateTexImage is called.
     uint32_t mCurrentScalingMode;
+
+    // mCurrentFence is the fence received from BufferQueue in updateTexImage.
+    sp<Fence> mCurrentFence;
 
     // mCurrentTransformMatrix is the transform matrix for the current texture.
     // It gets computed by computeTransformMatrix each time updateTexImage is
