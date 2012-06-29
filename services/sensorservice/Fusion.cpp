@@ -389,10 +389,18 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const vec4_t q  = x0;
     const vec3_t b  = x1;
     const vec3_t we = w - b;
-    const vec4_t dq = getF(q)*((0.5f*dT)*we);
-    x0 = normalize_quat(q + dq);
 
+    // q(k+1) = O(we)*q(k)
+    // --------------------
+    //
+    // O(w) = | cos(0.5*||w||*dT)*I33 - [psi]x                   psi |
+    //        | -psi'                              cos(0.5*||w||*dT) |
+    //
+    // psi = sin(0.5*||w||*dT)*w / ||w||
+    //
+    //
     // P(k+1) = Phi(k)*P(k)*Phi(k)' + G*Q(k)*G'
+    // ----------------------------------------
     //
     // G = | -I33    0 |
     //     |    0  I33 |
@@ -413,12 +421,25 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const mat33_t wx(crossMatrix(we, 0));
     const mat33_t wx2(wx*wx);
     const float lwedT = length(we)*dT;
+    const float hlwedT = 0.5f*lwedT;
     const float ilwe = 1/length(we);
     const float k0 = (1-cosf(lwedT))*(ilwe*ilwe);
     const float k1 = sinf(lwedT);
+    const float k2 = cosf(hlwedT);
+    const vec3_t psi(sinf(hlwedT)*ilwe*we);
+    const mat33_t O33(crossMatrix(-psi, k2));
+    mat44_t O;
+    O[0].xyz = O33[0];  O[0].w = -psi.x;
+    O[1].xyz = O33[1];  O[1].w = -psi.y;
+    O[2].xyz = O33[2];  O[2].w = -psi.z;
+    O[3].xyz = psi;     O[3].w = k2;
 
     Phi[0][0] = I33 - wx*(k1*ilwe) + wx2*k0;
     Phi[1][0] = wx*k0 - I33dT - wx2*(ilwe*ilwe*ilwe)*(lwedT-k1);
+
+    x0 = O*q;
+    if (x0.w < 0)
+        x0 = -x0;
 
     P = Phi*P*transpose(Phi) + GQGt;
 
