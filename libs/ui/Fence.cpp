@@ -62,6 +62,10 @@ sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
     return sp<Fence>(new Fence(result));
 }
 
+int Fence::dup() const {
+    return ::dup(mFenceFd);
+}
+
 size_t Fence::getFlattenedSize() const {
     return 0;
 }
