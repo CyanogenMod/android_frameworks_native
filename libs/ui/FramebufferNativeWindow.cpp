@@ -97,8 +97,13 @@ FramebufferNativeWindow::FramebufferNativeWindow()
         mUpdateOnDemand = (fbDev->setUpdateRect != 0);
         
         // initialize the buffer FIFO
-        mNumBuffers = NUM_FRAME_BUFFERS;
-        mNumFreeBuffers = NUM_FRAME_BUFFERS;
+        if(fbDev->numFramebuffers >= MIN_NUM_FRAME_BUFFERS &&
+           fbDev->numFramebuffers <= MAX_NUM_FRAME_BUFFERS){
+            mNumBuffers = fbDev->numFramebuffers;
+        } else {
+            mNumBuffers = MIN_NUM_FRAME_BUFFERS;
+        }
+        mNumFreeBuffers = mNumBuffers;
         mBufferHead = mNumBuffers-1;
 
         /*
@@ -159,10 +164,11 @@ FramebufferNativeWindow::FramebufferNativeWindow()
 FramebufferNativeWindow::~FramebufferNativeWindow() 
 {
     if (grDev) {
-        if (buffers[0] != NULL)
-            grDev->free(grDev, buffers[0]->handle);
-        if (buffers[1] != NULL)
-            grDev->free(grDev, buffers[1]->handle);
+        for(int i = 0; i < mNumBuffers; i++) {
+            if (buffers[i] != NULL) {
+                grDev->free(grDev, buffers[i]->handle);
+            }
+        }
         gralloc_close(grDev);
     }
 
