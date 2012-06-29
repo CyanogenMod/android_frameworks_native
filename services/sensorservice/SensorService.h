@@ -113,6 +113,7 @@ class SensorService :
 
     // constants
     Vector<Sensor> mSensorList;
+    Vector<Sensor> mUserSensorListDebug;
     Vector<Sensor> mUserSensorList;
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;

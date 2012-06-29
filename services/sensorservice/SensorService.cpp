@@ -117,17 +117,16 @@ void SensorService::onFirstRef()
                 // these are optional
                 registerVirtualSensor( new OrientationSensor() );
                 registerVirtualSensor( new CorrectedGyroSensor(list, count) );
-
-                // virtual debugging sensors...
-                char value[PROPERTY_VALUE_MAX];
-                property_get("debug.sensors", value, "0");
-                if (atoi(value)) {
-                    registerVirtualSensor( new GyroDriftSensor() );
-                }
             }
 
             // build the sensor list returned to users
             mUserSensorList = mSensorList;
+
+            if (hasGyro) {
+                // virtual debugging sensors are not added to mUserSensorList
+                registerVirtualSensor( new GyroDriftSensor() );
+            }
+
             if (hasGyro &&
                     (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR))) {
                 // if we have the fancy sensor fusion, and it's not provided by the
@@ -135,6 +134,22 @@ void SensorService::onFirstRef()
                 // HAL supplied one form the user list.
                 if (orientationIndex >= 0) {
                     mUserSensorList.removeItemsAt(orientationIndex);
+                }
+            }
+
+            // debugging sensor list
+            for (size_t i=0 ; i<mSensorList.size() ; i++) {
+                switch (mSensorList[i].getType()) {
+                    case SENSOR_TYPE_GRAVITY:
+                    case SENSOR_TYPE_LINEAR_ACCELERATION:
+                    case SENSOR_TYPE_ROTATION_VECTOR:
+                        if (strstr(mSensorList[i].getVendor().string(), "Google")) {
+                            mUserSensorListDebug.add(mSensorList[i]);
+                        }
+                        break;
+                    default:
+                        mUserSensorListDebug.add(mSensorList[i]);
+                        break;
                 }
             }
 
@@ -358,6 +373,11 @@ String8 SensorService::getSensorName(int handle) const {
 
 Vector<Sensor> SensorService::getSensorList()
 {
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.sensors", value, "0");
+    if (atoi(value)) {
+        return mUserSensorListDebug;
+    }
     return mUserSensorList;
 }
 
