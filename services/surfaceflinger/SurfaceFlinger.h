@@ -129,6 +129,9 @@ public:
                     GLuint* textureName, GLfloat* uOut, GLfloat* vOut);
 
             void onMessageReceived(int32_t what);
+            void handleMessageTransaction();
+            void handleMessageInvalidate();
+            void handleMessageRefresh();
 
             status_t postMessageAsync(const sp<MessageBase>& msg,
                     nsecs_t reltime=0, uint32_t flags = 0);
@@ -237,17 +240,23 @@ public:     // hack to work around gcc 4.0.3 bug
 
 private:
             void        waitForEvent();
-            void        handleTransaction(uint32_t transactionFlags);
-            void        handleTransactionLocked(uint32_t transactionFlags);
+            Region      handleTransaction(uint32_t transactionFlags);
+            Region      handleTransactionLocked(uint32_t transactionFlags);
 
             void        computeVisibleRegions(
                             const LayerVector& currentLayers,
                             Region& dirtyRegion,
                             Region& wormholeRegion);
 
-            void        handlePageFlip();
-            bool        lockPageFlip(const LayerVector& currentLayers);
-            void        unlockPageFlip(const LayerVector& currentLayers);
+            /* handlePageFilp: this is were we latch a new buffer
+             * if available and compute the dirty region.
+             * The return value is the dirty region expressed in the
+             * window manager's coordinate space (or the layer's state
+             * space, which is the same thing), in particular the dirty
+             * region is independent from a specific display's orientation.
+             */
+            Region      handlePageFlip();
+
             void        handleRefresh();
             void        handleWorkList(const DisplayHardware& hw);
             void        handleRepaint(const DisplayHardware& hw);

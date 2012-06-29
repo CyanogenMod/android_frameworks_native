@@ -120,6 +120,9 @@ void LayerScreenshot::onDraw(const DisplayHardware& hw, const Region& clip) cons
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
+        LayerMesh mesh;
+        computeGeometry(hw, &mesh);
+
         glColor4f(0, 0, 0, alpha);
 
         glDisable(GL_TEXTURE_EXTERNAL_OES);
@@ -133,8 +136,8 @@ void LayerScreenshot::onDraw(const DisplayHardware& hw, const Region& clip) cons
 
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glTexCoordPointer(2, GL_FLOAT, 0, mTexCoords);
-        glVertexPointer(2, GL_FLOAT, 0, mVertices);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
+        glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 
         glDisable(GL_BLEND);
         glDisable(GL_TEXTURE_2D);

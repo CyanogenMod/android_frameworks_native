@@ -145,14 +145,6 @@ void Layer::setName(const String8& name) {
     mSurfaceTexture->setName(name);
 }
 
-void Layer::validateVisibility(const Transform& globalTransform, const DisplayHardware& hw) {
-    LayerBase::validateVisibility(globalTransform, hw);
-
-    // This optimization allows the SurfaceTexture to bake in
-    // the rotation so hardware overlays can be used
-    mSurfaceTexture->setTransformHint(getTransformHint());
-}
-
 sp<ISurface> Layer::createSurface()
 {
     class BSurface : public BnSurface, public LayerCleaner {
@@ -225,7 +217,8 @@ Rect Layer::computeBufferCrop() const {
     } else  if (mActiveBuffer != NULL){
         crop = Rect(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
     } else {
-        crop = Rect(mTransformedBounds.width(), mTransformedBounds.height());
+        crop.makeInvalid();
+        return crop;
     }
 
     // ... then reduce that in the same proportions as the window crop reduces
@@ -258,9 +251,11 @@ Rect Layer::computeBufferCrop() const {
     return crop;
 }
 
-void Layer::setGeometry(HWComposer::HWCLayerInterface& layer)
+void Layer::setGeometry(
+        const DisplayHardware& hw,
+        HWComposer::HWCLayerInterface& layer)
 {
-    LayerBaseClient::setGeometry(layer);
+    LayerBaseClient::setGeometry(hw, layer);
 
     // enable this layer
     layer.setSkip(false);
@@ -276,12 +271,11 @@ void Layer::setGeometry(HWComposer::HWCLayerInterface& layer)
      * 1) buffer orientation/flip/mirror
      * 2) state transformation (window manager)
      * 3) layer orientation (screen orientation)
-     * mTransform is already the composition of (2) and (3)
      * (NOTE: the matrices are multiplied in reverse order)
      */
 
     const Transform bufferOrientation(mCurrentTransform);
-    const Transform tr(mTransform * bufferOrientation);
+    const Transform tr(hw.getTransform() * s.transform * bufferOrientation);
 
     // this gives us only the "orientation" component of the transform
     const uint32_t finalTransform = tr.getOrientation();
@@ -339,7 +333,7 @@ void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const
             const sp<LayerBase>& layer(drawingLayers[i]);
             if (layer.get() == static_cast<LayerBase const*>(this))
                 break;
-            under.orSelf(layer->visibleRegionScreen);
+            under.orSelf( hw.getTransform().transform(layer->visibleRegion) );
         }
         // if not everything below us is covered, we plug the holes!
         Region holes(clip.subtract(under));
@@ -527,10 +521,11 @@ bool Layer::onPreComposition() {
     return mQueuedFrames > 0;
 }
 
-void Layer::lockPageFlip(bool& recomputeVisibleRegions)
+Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 {
     ATRACE_CALL();
 
+    Region outDirtyRegion;
     if (mQueuedFrames > 0) {
 
         // if we've already called updateTexImage() without going through
@@ -539,8 +534,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
         // compositionComplete() call.
         // we'll trigger an update in onPreComposition().
         if (mRefreshPending) {
-            mPostedDirtyRegion.clear();
-            return;
+            return outDirtyRegion;
         }
 
         // Capture the old state of the layer for comparisons later
@@ -637,17 +631,21 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
 
         Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
 
+        // XXX: not sure if setTransformHint belongs here
+        // it should only be needed when the main screen orientation changes
+        mSurfaceTexture->setTransformHint(getTransformHint());
+
         if (mSurfaceTexture->updateTexImage(&r) < NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
-            return;
+            return outDirtyRegion;
         }
 
         // update the active buffer
         mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
         if (mActiveBuffer == NULL) {
             // this can only happen if the very first buffer was rejected.
-            return;
+            return outDirtyRegion;
         }
 
         mRefreshPending = true;
@@ -686,38 +684,17 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             recomputeVisibleRegions = true;
         }
 
-        // FIXME: mPostedDirtyRegion = dirty & bounds
-        const Layer::State& front(drawingState());
-        mPostedDirtyRegion.set(front.active.w, front.active.h);
-
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // FIXME: postedRegion should be dirty & bounds
+        const Layer::State& front(drawingState());
+        Region dirtyRegion(Rect(front.active.w, front.active.h));
+
+        // transform the dirty region to window-manager space
+        outDirtyRegion = (front.transform.transform(dirtyRegion));
     }
-}
-
-void Layer::unlockPageFlip(
-        const Transform& planeTransform, Region& outDirtyRegion)
-{
-    ATRACE_CALL();
-
-    Region postedRegion(mPostedDirtyRegion);
-    if (!postedRegion.isEmpty()) {
-        mPostedDirtyRegion.clear();
-        if (!visibleRegionScreen.isEmpty()) {
-            // The dirty region is given in the layer's coordinate space
-            // transform the dirty region by the surface's transformation
-            // and the global transformation.
-            const Layer::State& s(drawingState());
-            const Transform tr(planeTransform * s.transform);
-            postedRegion = tr.transform(postedRegion);
-
-            // At this point, the dirty region is in screen space.
-            // Make sure it's constrained by the visible region (which
-            // is in screen space as well).
-            postedRegion.andSelf(visibleRegionScreen);
-            outDirtyRegion.orSelf(postedRegion);
-        }
-    }
+    return outDirtyRegion;
 }
 
 void Layer::dump(String8& result, char* buffer, size_t SIZE) const
@@ -786,7 +763,14 @@ uint32_t Layer::getEffectiveUsage(uint32_t usage) const
 uint32_t Layer::getTransformHint() const {
     uint32_t orientation = 0;
     if (!mFlinger->mDebugDisableTransformHint) {
-        orientation = getPlaneOrientation();
+        // The transform hint is used to improve performance on the main
+        // display -- we can only have a single transform hint, it cannot
+        // apply to all displays.
+        // This is why we use the default display here. This is not an
+        // oversight.
+        const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
+        const Transform& planeTransform(hw.getTransform());
+        orientation = planeTransform.getOrientation();
         if (orientation & Transform::ROT_INVALID) {
             orientation = 0;
         }

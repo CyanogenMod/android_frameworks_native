@@ -64,20 +64,20 @@ public:
     bool isFixedSize() const;
 
     // LayerBase interface
-    virtual void setGeometry(HWComposer::HWCLayerInterface& layer);
+    virtual void setGeometry(const DisplayHardware& hw,
+            HWComposer::HWCLayerInterface& layer);
     virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
     virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
+
     virtual void onDraw(const DisplayHardware& hw, const Region& clip) const;
     virtual uint32_t doTransaction(uint32_t transactionFlags);
-    virtual void lockPageFlip(bool& recomputeVisibleRegions);
-    virtual void unlockPageFlip(const Transform& planeTransform, Region& outDirtyRegion);
+    virtual Region latchBuffer(bool& recomputeVisibleRegions);
     virtual bool isOpaque() const;
     virtual bool isSecure() const           { return mSecure; }
     virtual bool isProtected() const;
     virtual void onRemoved();
     virtual sp<Layer> getLayer() const { return const_cast<Layer*>(this); }
     virtual void setName(const String8& name);
-    virtual void validateVisibility(const Transform& globalTransform, const DisplayHardware& hw);
 
     // LayerBaseClient interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;
@@ -142,7 +142,6 @@ private:
     // page-flip thread (currently main thread)
     bool mSecure;         // no screenshots
     bool mProtectedByApp; // application requires protected path to external sink
-    Region mPostedDirtyRegion;
 };
 
 // ---------------------------------------------------------------------------

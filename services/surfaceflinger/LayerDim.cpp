@@ -58,8 +58,11 @@ void LayerDim::onDraw(const DisplayHardware& hw, const Region& clip) const
 
         glColor4f(0, 0, 0, alpha);
 
-        glVertexPointer(2, GL_FLOAT, 0, mVertices);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        LayerMesh mesh;
+        computeGeometry(hw, &mesh);
+
+        glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 
         glDisable(GL_BLEND);
         glDisableClientState(GL_TEXTURE_COORD_ARRAY);
