@@ -115,7 +115,7 @@ public:
 
     virtual void setGeometry(HWComposer::HWCLayerInterface& layer);
     virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
-
+    virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
 
     /**
      * draw - performs some global clipping optimizations

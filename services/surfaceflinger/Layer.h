@@ -66,6 +66,7 @@ public:
     // LayerBase interface
     virtual void setGeometry(HWComposer::HWCLayerInterface& layer);
     virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
+    virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
     virtual void onDraw(const DisplayHardware& hw, const Region& clip) const;
     virtual uint32_t doTransaction(uint32_t transactionFlags);
     virtual void lockPageFlip(bool& recomputeVisibleRegions);

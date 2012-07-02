@@ -299,6 +299,10 @@ void LayerBase::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
     layer.setBuffer(0);
 }
 
+void LayerBase::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
+    layer.setAcquireFenceFd(-1);
+}
+
 void LayerBase::setFiltering(bool filtering)
 {
     mFiltering = filtering;

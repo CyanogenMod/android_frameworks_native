@@ -300,20 +300,21 @@ void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
     // NOTE: buffer can be NULL if the client never drew into this
     // layer yet, or if we ran out of memory
     layer.setBuffer(buffer);
+}
 
+void Layer::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
+    int fenceFd = -1;
     if (mNeedHwcFence) {
         sp<Fence> fence = mSurfaceTexture->getCurrentFence();
         if (fence.get()) {
-            int fenceFd = fence->dup();
+            fenceFd = fence->dup();
             if (fenceFd == -1) {
                 ALOGW("failed to dup layer fence, skipping sync: %d", errno);
             }
-            layer.setAcquireFenceFd(fenceFd);
         }
         mNeedHwcFence = false;
-    } else {
-        layer.setAcquireFenceFd(-1);
     }
+    layer.setAcquireFenceFd(fenceFd);
 }
 
 void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const

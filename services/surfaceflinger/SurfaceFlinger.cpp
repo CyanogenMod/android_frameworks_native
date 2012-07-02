@@ -528,12 +528,25 @@ void SurfaceFlinger::postFramebuffer()
     // h/w composer.
 
     const DisplayHardware& hw(getDefaultDisplayHardware());
+    HWComposer& hwc(hw.getHwComposer());
+    size_t numLayers = mVisibleLayersSortedByZ.size();
     const nsecs_t now = systemTime();
     mDebugInSwapBuffers = now;
+
+    if (hwc.initCheck() == NO_ERROR) {
+        HWComposer::LayerListIterator cur = hwc.begin();
+        const HWComposer::LayerListIterator end = hwc.end();
+        for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
+            if (cur->getCompositionType() == HWC_OVERLAY) {
+                mVisibleLayersSortedByZ[i]->setAcquireFence(*cur);
+            } else {
+                cur->setAcquireFenceFd(-1);
+            }
+        }
+    }
+
     hw.flip(mSwapRegion);
 
-    size_t numLayers = mVisibleLayersSortedByZ.size();
-    HWComposer& hwc(hw.getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         HWComposer::LayerListIterator cur = hwc.begin();
         const HWComposer::LayerListIterator end = hwc.end();
