@@ -338,14 +338,14 @@ void SurfaceTexture::setReleaseFence(int fenceFd) {
         sp<Fence> mergedFence = Fence::merge(
                 String8("SurfaceTexture merged release"),
                 mEGLSlots[mCurrentTexture].mReleaseFence, fence);
-        if (mergedFence.get()) {
+        if (!mergedFence.get()) {
             ALOGE("failed to merge release fences");
             // synchronization is broken, the best we can do is hope fences
             // signal in order so the new fence will act like a union
             mEGLSlots[mCurrentTexture].mReleaseFence = fence;
-        } else {
-            mEGLSlots[mCurrentTexture].mReleaseFence = mergedFence;
+            return;
         }
+        mEGLSlots[mCurrentTexture].mReleaseFence = mergedFence;
     }
 }
 
