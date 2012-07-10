@@ -856,12 +856,16 @@ status_t SurfaceTextureClient::lock(
             ALOGW_IF(res, "failed locking buffer (handle = %p)",
                     backBuffer->handle);
 
-            mLockedBuffer = backBuffer;
-            outBuffer->width  = backBuffer->width;
-            outBuffer->height = backBuffer->height;
-            outBuffer->stride = backBuffer->stride;
-            outBuffer->format = backBuffer->format;
-            outBuffer->bits   = vaddr;
+            if (res != 0) {
+                err = INVALID_OPERATION;
+            } else {
+                mLockedBuffer = backBuffer;
+                outBuffer->width  = backBuffer->width;
+                outBuffer->height = backBuffer->height;
+                outBuffer->stride = backBuffer->stride;
+                outBuffer->format = backBuffer->format;
+                outBuffer->bits   = vaddr;
+            }
         }
     }
     return err;
