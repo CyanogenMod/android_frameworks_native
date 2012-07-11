@@ -85,6 +85,11 @@ public:
     nsecs_t     getRefreshTimestamp() const;
     void        makeCurrent() const;
 
+
+    void                    setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers);
+    Vector< sp<LayerBase> > getVisibleLayersSortedByZ() const;
+    bool                    getSecureLayerVisible() const;
+
     status_t                setOrientation(int orientation);
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
@@ -144,6 +149,13 @@ private:
     // constant once set
     HWComposer*     mHwc;
     PowerHAL        mPowerHAL;
+
+    // Can only accessed from the main thread, these members
+    // don't need synchronization
+    // list of visible layers on that display
+    Vector< sp<LayerBase> > mVisibleLayersSortedByZ;
+    // Whether we have a visible secure layer on this display
+    bool mSecureLayerVisible;
 
 
     // this used to be in GraphicPlane

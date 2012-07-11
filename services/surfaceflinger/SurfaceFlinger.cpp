@@ -98,7 +98,6 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
-        mSecureFrameBuffer(0),
         mExternalDisplaySurface(EGL_NO_SURFACE)
 {
     init();
@@ -465,6 +464,40 @@ void SurfaceFlinger::handleMessageInvalidate() {
 void SurfaceFlinger::handleMessageRefresh() {
     handleRefresh();
 
+    if (mVisibleRegionsDirty) {
+        Region opaqueRegion;
+        Region dirtyRegion;
+        const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+        computeVisibleRegions(currentLayers, dirtyRegion, opaqueRegion);
+        mDirtyRegion.orSelf(dirtyRegion);
+
+        /*
+         *  rebuild the visible layer list per screen
+         */
+
+        // TODO: iterate through all displays
+        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(0)));
+
+        Vector< sp<LayerBase> > layersSortedByZ;
+        const size_t count = currentLayers.size();
+        for (size_t i=0 ; i<count ; i++) {
+            if (!currentLayers[i]->visibleRegion.isEmpty()) {
+                // TODO: also check that this layer is associated to this display
+                layersSortedByZ.add(currentLayers[i]);
+            }
+        }
+        hw.setVisibleLayersSortedByZ(layersSortedByZ);
+
+
+        // FIXME: mWormholeRegion needs to be calculated per screen
+        //const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: we can't keep that here
+        mWormholeRegion = Region(hw.getBounds()).subtract(
+                hw.getTransform().transform(opaqueRegion) );
+        mVisibleRegionsDirty = false;
+        invalidateHwcGeometry();
+    }
+
+
     // XXX: dirtyRegion should be per screen, we should check all of them
     if (mDirtyRegion.isEmpty()) {
         return;
@@ -515,7 +548,8 @@ void SurfaceFlinger::handleMessageRefresh() {
             glClear(GL_COLOR_BUFFER_BIT);
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
-            const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+
+            const Vector< sp<LayerBase> >& layers( hw.getVisibleLayersSortedByZ() );
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
                 const sp<LayerBase>& layer(layers[i]);
@@ -546,7 +580,8 @@ void SurfaceFlinger::postFramebuffer()
 
     const DisplayHardware& hw(getDefaultDisplayHardware());
     HWComposer& hwc(hw.getHwComposer());
-    size_t numLayers = mVisibleLayersSortedByZ.size();
+    const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
+    size_t numLayers = layers.size();
     const nsecs_t now = systemTime();
     mDebugInSwapBuffers = now;
 
@@ -555,7 +590,7 @@ void SurfaceFlinger::postFramebuffer()
         const HWComposer::LayerListIterator end = hwc.end();
         for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
             if (cur->getCompositionType() == HWC_OVERLAY) {
-                mVisibleLayersSortedByZ[i]->setAcquireFence(*cur);
+                layers[i]->setAcquireFence(*cur);
             } else {
                 cur->setAcquireFenceFd(-1);
             }
@@ -568,11 +603,11 @@ void SurfaceFlinger::postFramebuffer()
         HWComposer::LayerListIterator cur = hwc.begin();
         const HWComposer::LayerListIterator end = hwc.end();
         for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
-            mVisibleLayersSortedByZ[i]->onLayerDisplayed(&*cur);
+            layers[i]->onLayerDisplayed(&*cur);
         }
     } else {
         for (size_t i = 0; i < numLayers; i++) {
-            mVisibleLayersSortedByZ[i]->onLayerDisplayed(NULL);
+            layers[i]->onLayerDisplayed(NULL);
         }
     }
 
@@ -713,7 +748,7 @@ void SurfaceFlinger::computeVisibleRegions(
     Region aboveCoveredLayers;
     Region dirty;
 
-    bool secureFrameBuffer = false;
+    dirtyRegion.clear();
 
     size_t i = currentLayers.size();
     while (i--) {
@@ -823,14 +858,8 @@ void SurfaceFlinger::computeVisibleRegions(
         // Store the visible region is screen space
         layer->setVisibleRegion(visibleRegion);
         layer->setCoveredRegion(coveredRegion);
-
-        // If a secure layer is partially visible, lock-down the screen!
-        if (layer->isSecure() && !visibleRegion.isEmpty()) {
-            secureFrameBuffer = true;
-        }
     }
 
-    mSecureFrameBuffer = secureFrameBuffer;
     opaqueRegion = aboveOpaqueLayers;
 }
 
@@ -849,30 +878,7 @@ Region SurfaceFlinger::handlePageFlip()
         dirtyRegion.orSelf( layer->latchBuffer(visibleRegions) );
     }
 
-    if (visibleRegions || mVisibleRegionsDirty) {
-        Region opaqueRegion;
-        computeVisibleRegions(currentLayers, dirtyRegion, opaqueRegion);
-
-        /*
-         *  rebuild the visible layer list
-         */
-
-        // XXX: mVisibleLayersSortedByZ should be per-screen
-        const size_t count = currentLayers.size();
-        mVisibleLayersSortedByZ.clear();
-        mVisibleLayersSortedByZ.setCapacity(count);
-        for (size_t i=0 ; i<count ; i++) {
-            if (!currentLayers[i]->visibleRegion.isEmpty())
-                mVisibleLayersSortedByZ.add(currentLayers[i]);
-        }
-
-        // FIXME: mWormholeRegion needs to be calculated per screen
-        const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: we can't keep that here
-        mWormholeRegion = Region(hw.getBounds()).subtract(
-                hw.getTransform().transform(opaqueRegion) );
-        mVisibleRegionsDirty = false;
-        invalidateHwcGeometry();
-    }
+    mVisibleRegionsDirty |= visibleRegions;
 
     return dirtyRegion;
 }
@@ -904,7 +910,7 @@ void SurfaceFlinger::handleWorkList(const DisplayHardware& hw)
     mHwWorkListDirty = false;
     HWComposer& hwc(hw.getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
-        const Vector< sp<LayerBase> >& currentLayers(mVisibleLayersSortedByZ);
+        const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
         hwc.createWorkList(count);
 
@@ -971,7 +977,7 @@ void SurfaceFlinger::setupHardwareComposer(const DisplayHardware& hw)
         return;
     }
 
-    const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+    const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
     size_t count = layers.size();
 
     ALOGE_IF(hwc.getNumLayers() != count,
@@ -1025,7 +1031,7 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
          * and then, render the layers targeted at the framebuffer
          */
 
-        const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+        const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
         const size_t count = layers.size();
         const Transform& tr = hw.getTransform();
         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
@@ -1741,7 +1747,7 @@ void SurfaceFlinger::dumpAllLocked(
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
                     (mDebugDisableHWC || mDebugRegion) ? "disabled" : "enabled");
     result.append(buffer);
-    hwc.dump(result, buffer, SIZE, mVisibleLayersSortedByZ);
+    hwc.dump(result, buffer, SIZE, hw.getVisibleLayersSortedByZ());
 
     /*
      * Dump gralloc state
@@ -1931,7 +1937,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+    const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<LayerBase>& layer(layers[i]);
@@ -2428,19 +2434,27 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     status_t result = PERMISSION_DENIED;
 
     // only one display supported for now
-    if (CC_UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT))
+    if (CC_UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT)) {
         return BAD_VALUE;
+    }
 
-    if (!GLExtensions::getInstance().haveFramebufferObject())
+    if (!GLExtensions::getInstance().haveFramebufferObject()) {
         return INVALID_OPERATION;
+    }
 
     // get screen geometry
     const DisplayHardware& hw(getDisplayHardware(dpy));
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
 
-    if ((sw > hw_w) || (sh > hw_h))
+    // if we have secure windows on this display, never allow the screen capture
+    if (hw.getSecureLayerVisible()) {
+        return PERMISSION_DENIED;
+    }
+
+    if ((sw > hw_w) || (sh > hw_h)) {
         return BAD_VALUE;
+    }
 
     sw = (!sw) ? hw_w : sw;
     sh = (!sh) ? hw_h : sh;
@@ -2579,14 +2593,8 @@ status_t SurfaceFlinger::captureScreen(DisplayID dpy,
         }
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
-
-            // if we have secure windows, never allow the screen capture
-            if (flinger->mSecureFrameBuffer)
-                return true;
-
             result = flinger->captureScreenImplLocked(dpy,
                     heap, w, h, f, sw, sh, minLayerZ, maxLayerZ);
-
             return true;
         }
     };

@@ -342,7 +342,6 @@ private:
                 bool                        mVisibleRegionsDirty;
                 bool                        mHwWorkListDirty;
                 int32_t                     mElectronBeamAnimationMode;
-                Vector< sp<LayerBase> >     mVisibleLayersSortedByZ;
 
 
                 // don't use a lock for these, we don't care
@@ -363,9 +362,6 @@ private:
                 // protected by mDestroyedLayerLock;
     mutable     Mutex                       mDestroyedLayerLock;
                 Vector<LayerBase const *>   mDestroyedLayers;
-
-   // only written in the main thread, only read in other threads
-   volatile     int32_t                     mSecureFrameBuffer;
 
 
    EGLSurface getExternalDisplaySurface() const;

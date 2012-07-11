@@ -97,7 +97,7 @@ DisplayHardware::DisplayHardware(
         const sp<SurfaceFlinger>& flinger,
         uint32_t dpy)
     : DisplayHardwareBase(flinger, dpy),
-      mFlinger(flinger), mFlags(0), mHwc(0)
+      mFlinger(flinger), mFlags(0), mHwc(0), mSecureLayerVisible(false)
 {
     init(dpy);
 }
@@ -508,6 +508,26 @@ void DisplayHardware::makeCurrent() const
 void DisplayHardware::dump(String8& res) const
 {
     mNativeWindow->dump(res);
+}
+
+// ----------------------------------------------------------------------------
+
+void DisplayHardware::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
+    mVisibleLayersSortedByZ = layers;
+    size_t count = layers.size();
+    for (size_t i=0 ; i<count ; i++) {
+        if (layers[i]->isSecure()) {
+            mSecureLayerVisible = true;
+        }
+    }
+}
+
+Vector< sp<LayerBase> > DisplayHardware::getVisibleLayersSortedByZ() const {
+    return mVisibleLayersSortedByZ;
+}
+
+bool DisplayHardware::getSecureLayerVisible() const {
+    return mSecureLayerVisible;
 }
 
 // ----------------------------------------------------------------------------
