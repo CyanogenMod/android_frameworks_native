@@ -53,6 +53,16 @@ public class CType {
     return isPointer;
     }
 
+    public boolean isEGLHandle() {
+        if(baseType.equals("EGLContext")
+           || baseType.equals("EGLConfig")
+           || baseType.equals("EGLSurface")
+           || baseType.equals("EGLDisplay")) {
+               return true;
+        }
+        return false;
+    }
+
     boolean isVoid() {
     String baseType = getBaseType();
     return baseType.equals("GLvoid") ||
