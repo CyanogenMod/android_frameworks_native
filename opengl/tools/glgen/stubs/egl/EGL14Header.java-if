@@ -23,10 +23,10 @@ import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder;
 
-
 /**
-* @hide
-*/
+ * EGL 1.4
+ *
+ */
 public class EGL14 {
 
 public static final int EGL_DEFAULT_DISPLAY            = 0;
