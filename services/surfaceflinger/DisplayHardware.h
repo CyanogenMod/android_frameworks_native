@@ -27,7 +27,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "GLExtensions.h"
 #include "Transform.h"
 
 #include "DisplayHardware/DisplayHardwareBase.h"
@@ -37,6 +36,7 @@
 namespace android {
 
 class FramebufferSurface;
+class SurfaceTextureClient;
 
 class DisplayHardware :
     public DisplayHardwareBase,
@@ -52,15 +52,15 @@ public:
     };
 
     enum {
-        COPY_BITS_EXTENSION         = 0x00000008,
         PARTIAL_UPDATES             = 0x00020000,   // video driver feature
-        SLOW_CONFIG                 = 0x00040000,   // software
         SWAP_RECTANGLE              = 0x00080000,
     };
 
     DisplayHardware(
             const sp<SurfaceFlinger>& flinger,
-            uint32_t displayIndex);
+            int dpy,
+            const sp<SurfaceTextureClient>& surface,
+            EGLConfig config);
 
     virtual ~DisplayHardware();
 
@@ -79,12 +79,10 @@ public:
     int         getHeight() const;
     PixelFormat getFormat() const;
     uint32_t    getFlags() const;
-    uint32_t    getMaxTextureSize() const;
-    uint32_t    getMaxViewportDims() const;
     nsecs_t     getRefreshPeriod() const;
     nsecs_t     getRefreshTimestamp() const;
-    void        makeCurrent() const;
 
+    EGLSurface  getEGLSurface() const;
 
     void                    setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers);
     Vector< sp<LayerBase> > getVisibleLayersSortedByZ() const;
@@ -107,7 +105,6 @@ public:
 
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
-    EGLConfig getEGLConfig() const { return mConfig; }
 
     void dump(String8& res) const;
 
@@ -122,15 +119,26 @@ public:
     inline Rect bounds() const { return getBounds(); }
 
 private:
-    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
-    void init(uint32_t displayIndex);
-    void fini();
+    void init(EGLConfig config);
 
+    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
+
+    /*
+     *  Constants, set during initialization
+     */
     sp<SurfaceFlinger> mFlinger;
+    int mDisplayId;
+    HWComposer* mHwc;
+    PowerHAL mPowerHAL;
+    // ANativeWindow this display is rendering into
+    sp<SurfaceTextureClient> mNativeWindow;
+    // set if mNativeWindow is a FramebufferSurface
+    sp<FramebufferSurface> mFramebufferSurface;
+
+
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;
     EGLContext      mContext;
-    EGLConfig       mConfig;
     float           mDpiX;
     float           mDpiY;
     float           mRefreshRate;
@@ -140,18 +148,15 @@ private:
     PixelFormat     mFormat;
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
-    GLint           mMaxViewportDims[2];
-    GLint           mMaxTextureSize;
 
     nsecs_t         mRefreshPeriod;
     mutable nsecs_t mLastHwVSync;
 
-    // constant once set
-    HWComposer*     mHwc;
-    PowerHAL        mPowerHAL;
 
-    // Can only accessed from the main thread, these members
-    // don't need synchronization
+    /*
+     * Can only accessed from the main thread, these members
+     * don't need synchronization.
+     */
     // list of visible layers on that display
     Vector< sp<LayerBase> > mVisibleLayersSortedByZ;
     // Whether we have a visible secure layer on this display
@@ -169,13 +174,12 @@ private:
     int                     mUserDisplayWidth;
     int                     mUserDisplayHeight;
 
-
     mutable Mutex   mLock;
 
-    // protected by mLock
+    /*
+     *  protected by mLock
+     */
     wp<VSyncHandler>    mVSyncHandler;
-
-    sp<FramebufferSurface> mNativeWindow;
 };
 
 }; // namespace android

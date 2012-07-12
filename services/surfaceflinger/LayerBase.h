@@ -25,6 +25,7 @@
 #include <GLES/gl.h>
 
 #include <utils/RefBase.h>
+#include <utils/String8.h>
 
 #include <ui/Region.h>
 

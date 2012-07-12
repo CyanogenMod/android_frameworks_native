@@ -37,11 +37,11 @@ class String8;
 
 class FramebufferSurface : public SurfaceTextureClient {
 public:
-    FramebufferSurface();
 
-    virtual void onFirstRef();
+    static sp<FramebufferSurface> create();
 
-    framebuffer_device_t const * getDevice() const { return fbDev; }
+    // TODO: this should be coming from HWC
+    float getRefreshRate() const;
 
     bool isUpdateOnDemand() const { return mUpdateOnDemand; }
     status_t setUpdateRectangle(const Rect& updateRect);
@@ -49,7 +49,11 @@ public:
 
     void dump(String8& result);
 
+protected:
+    virtual void onFirstRef();
+
 private:
+    FramebufferSurface();
     virtual ~FramebufferSurface(); // this class cannot be overloaded
     virtual int query(int what, int* value) const;
 

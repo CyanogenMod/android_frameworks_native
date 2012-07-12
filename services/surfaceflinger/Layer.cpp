@@ -182,11 +182,8 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
         return err;
     }
 
-    // the display's pixel format
-    // XXX: we shouldn't rely on the DisplayHardware to do this
-    const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
     uint32_t const maxSurfaceDims = min(
-            hw.getMaxTextureSize(), hw.getMaxViewportDims());
+            mFlinger->getMaxTextureSize(), mFlinger->getMaxViewportDims());
 
     // never allow a surface larger than what our underlying GL implementation
     // can handle.

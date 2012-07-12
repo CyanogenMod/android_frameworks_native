@@ -59,6 +59,7 @@
 #include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
 
+#include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/HWComposer.h"
 
 #include <private/android_filesystem_config.h>
@@ -141,6 +142,9 @@ void SurfaceFlinger::onFirstRef()
 SurfaceFlinger::~SurfaceFlinger()
 {
     glDeleteTextures(1, &mWormholeTexName);
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    eglTerminate(display);
 }
 
 void SurfaceFlinger::binderDied(const wp<IBinder>& who)
@@ -197,65 +201,107 @@ void SurfaceFlinger::bootFinished()
     property_set("service.bootanim.exit", "1");
 }
 
-static inline uint16_t pack565(int r, int g, int b) {
-    return (r<<11)|(g<<5)|b;
+status_t SurfaceFlinger::selectConfigForPixelFormat(
+        EGLDisplay dpy,
+        EGLint const* attrs,
+        PixelFormat format,
+        EGLConfig* outConfig)
+{
+    EGLConfig config = NULL;
+    EGLint numConfigs = -1, n=0;
+    eglGetConfigs(dpy, NULL, 0, &numConfigs);
+    EGLConfig* const configs = new EGLConfig[numConfigs];
+    eglChooseConfig(dpy, attrs, configs, numConfigs, &n);
+    for (int i=0 ; i<n ; i++) {
+        EGLint nativeVisualId = 0;
+        eglGetConfigAttrib(dpy, configs[i], EGL_NATIVE_VISUAL_ID, &nativeVisualId);
+        if (nativeVisualId>0 && format == nativeVisualId) {
+            *outConfig = configs[i];
+            delete [] configs;
+            return NO_ERROR;
+        }
+    }
+    delete [] configs;
+    return NAME_NOT_FOUND;
 }
 
-status_t SurfaceFlinger::readyToRun()
-{
-    ALOGI(  "SurfaceFlinger's main thread ready to run. "
-            "Initializing graphics H/W...");
+EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId) {
+    // select our EGLConfig. It must support EGL_RECORDABLE_ANDROID if
+    // it is to be used with WIFI displays
+    EGLConfig config;
+    EGLint dummy;
+    status_t err;
+    EGLint attribs[] = {
+            EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
+            EGL_RECORDABLE_ANDROID,     EGL_TRUE,
+            EGL_NONE
+    };
+    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    if (err) {
+        // maybe we failed because of EGL_RECORDABLE_ANDROID
+        ALOGW("couldn't find an EGLConfig with EGL_RECORDABLE_ANDROID");
+        attribs[2] = EGL_NONE;
+        err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    }
+    ALOGE_IF(err, "couldn't find an EGLConfig matching the screen format");
+    if (eglGetConfigAttrib(display, config, EGL_CONFIG_CAVEAT, &dummy) == EGL_TRUE) {
+        ALOGW_IF(dummy == EGL_SLOW_CONFIG, "EGL_SLOW_CONFIG selected!");
+    }
+    return config;
+}
 
-    // we only support one display currently
-    int dpy = 0;
+EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config) {
+    // Also create our EGLContext
+    EGLint contextAttributes[] = {
+#ifdef EGL_IMG_context_priority
+#ifdef HAS_CONTEXT_PRIORITY
+#warning "using EGL_IMG_context_priority"
+            EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
+#endif
+#endif
+            EGL_NONE, EGL_NONE
+    };
+    EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
+    ALOGE_IF(ctxt==EGL_NO_CONTEXT, "EGLContext creation failed");
+    return ctxt;
+}
 
-    {
-        // initialize the main display
-        // TODO: initialize all displays
-        DisplayHardware* const hw = new DisplayHardware(this, dpy);
-        mDisplayHardwares[0] = hw;
+void SurfaceFlinger::initializeGL(EGLDisplay display, EGLSurface surface) {
+    EGLBoolean result = eglMakeCurrent(display, surface, surface, mEGLContext);
+    if (!result) {
+        ALOGE("Couldn't create a working GLES context. check logs. exiting...");
+        exit(0);
     }
 
-    // create the shared control-block
-    mServerHeap = new MemoryHeapBase(4096,
-            MemoryHeapBase::READ_ONLY, "SurfaceFlinger read-only heap");
-    ALOGE_IF(mServerHeap==0, "can't create shared memory dealer");
+    GLExtensions& extensions(GLExtensions::getInstance());
+    extensions.initWithGLStrings(
+            glGetString(GL_VENDOR),
+            glGetString(GL_RENDERER),
+            glGetString(GL_VERSION),
+            glGetString(GL_EXTENSIONS),
+            eglQueryString(display, EGL_VENDOR),
+            eglQueryString(display, EGL_VERSION),
+            eglQueryString(display, EGL_EXTENSIONS));
 
-    mServerCblk = static_cast<surface_flinger_cblk_t*>(mServerHeap->getBase());
-    ALOGE_IF(mServerCblk==0, "can't get to shared control block's address");
+    EGLint w, h;
+    eglQuerySurface(display, surface, EGL_WIDTH,  &w);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &h);
 
-    new(mServerCblk) surface_flinger_cblk_t;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
+    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
 
-    // initialize primary screen
-    // (other display should be initialized in the same manner, but
-    // asynchronously, as they could come and go. None of this is supported
-    // yet).
-    const DisplayHardware& hw(getDefaultDisplayHardware());
-    const uint32_t w = hw.getWidth();
-    const uint32_t h = hw.getHeight();
-    const uint32_t f = hw.getFormat();
-    hw.makeCurrent();
-
-    // initialize the shared control block
-    mServerCblk->connected |= 1<<dpy;
-    display_cblk_t* dcblk = mServerCblk->displays + dpy;
-    memset(dcblk, 0, sizeof(display_cblk_t));
-    dcblk->w            = w; // XXX: plane.getWidth();
-    dcblk->h            = h; // XXX: plane.getHeight();
-    dcblk->format       = f;
-    dcblk->orientation  = ISurfaceComposer::eOrientationDefault;
-    dcblk->xdpi         = hw.getDpiX();
-    dcblk->ydpi         = hw.getDpiY();
-    dcblk->fps          = hw.getRefreshRate();
-    dcblk->density      = hw.getDensity();
-
-    // Initialize OpenGL|ES
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glEnableClientState(GL_VERTEX_ARRAY);
     glShadeModel(GL_FLAT);
     glDisable(GL_DITHER);
     glDisable(GL_CULL_FACE);
+
+    struct pack565 {
+        inline uint16_t operator() (int r, int g, int b) const {
+            return (r<<11)|(g<<5)|b;
+        }
+    } pack565;
 
     const uint16_t g0 = pack565(0x0F,0x1F,0x0F);
     const uint16_t g1 = pack565(0x17,0x2f,0x17);
@@ -285,15 +331,77 @@ status_t SurfaceFlinger::readyToRun()
     // put the origin in the left-bottom corner
     glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
 
+    // print some debugging info
+    EGLint r,g,b,a;
+    eglGetConfigAttrib(display, mEGLConfig, EGL_RED_SIZE,   &r);
+    eglGetConfigAttrib(display, mEGLConfig, EGL_GREEN_SIZE, &g);
+    eglGetConfigAttrib(display, mEGLConfig, EGL_BLUE_SIZE,  &b);
+    eglGetConfigAttrib(display, mEGLConfig, EGL_ALPHA_SIZE, &a);
+    ALOGI("EGL informations:");
+    ALOGI("vendor    : %s", extensions.getEglVendor());
+    ALOGI("version   : %s", extensions.getEglVersion());
+    ALOGI("extensions: %s", extensions.getEglExtension());
+    ALOGI("Client API: %s", eglQueryString(display, EGL_CLIENT_APIS)?:"Not Supported");
+    ALOGI("EGLSurface: %d-%d-%d-%d, config=%p", r, g, b, a, mEGLConfig);
+    ALOGI("OpenGL ES informations:");
+    ALOGI("vendor    : %s", extensions.getVendor());
+    ALOGI("renderer  : %s", extensions.getRenderer());
+    ALOGI("version   : %s", extensions.getVersion());
+    ALOGI("extensions: %s", extensions.getExtension());
+    ALOGI("GL_MAX_TEXTURE_SIZE = %d", mMaxTextureSize);
+    ALOGI("GL_MAX_VIEWPORT_DIMS = %d x %d", mMaxViewportDims[0], mMaxViewportDims[1]);
+}
+
+surface_flinger_cblk_t* SurfaceFlinger::getControlBlock() const {
+    return mServerCblk;
+}
+
+status_t SurfaceFlinger::readyToRun()
+{
+    ALOGI(  "SurfaceFlinger's main thread ready to run. "
+            "Initializing graphics H/W...");
+
+    // create the shared control-block
+    mServerHeap = new MemoryHeapBase(4096,
+            MemoryHeapBase::READ_ONLY, "SurfaceFlinger read-only heap");
+    ALOGE_IF(mServerHeap==0, "can't create shared memory dealer");
+    mServerCblk = static_cast<surface_flinger_cblk_t*>(mServerHeap->getBase());
+    ALOGE_IF(mServerCblk==0, "can't get to shared control block's address");
+    new(mServerCblk) surface_flinger_cblk_t;
+
+
+    // initialize EGL
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    eglInitialize(display, NULL, NULL);
+
+    // Initialize the main display
+    // create native window to main display
+    sp<FramebufferSurface> anw = FramebufferSurface::create();
+    ANativeWindow* const window = anw.get();
+    if (!window) {
+        ALOGE("Display subsystem failed to initialize. check logs. exiting...");
+        exit(0);
+    }
+
+    // initialize the config and context
+    int format;
+    window->query(window, NATIVE_WINDOW_FORMAT, &format);
+    mEGLConfig  = selectEGLConfig(display, format);
+    mEGLContext = createGLContext(display, mEGLConfig);
+
+    // initialize our main display hardware
+    DisplayHardware* const hw = new DisplayHardware(this, 0, anw, mEGLConfig);
+    mDisplayHardwares[0] = hw;
+
+    //  initialize OpenGL ES
+    EGLSurface surface = hw->getEGLSurface();
+    initializeGL(display, surface);
 
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
 
-    /*
-     *  We're now ready to accept clients...
-     */
-
+    // We're now ready to accept clients...
     mReadyToRunBarrier.open();
 
     // start boot animation
@@ -306,6 +414,15 @@ void SurfaceFlinger::startBootAnim() {
     // start boot animation
     property_set("service.bootanim.exit", "0");
     property_set("ctl.start", "bootanim");
+}
+
+uint32_t SurfaceFlinger::getMaxTextureSize() const {
+    return mMaxTextureSize;
+}
+
+uint32_t SurfaceFlinger::getMaxViewportDims() const {
+    return mMaxViewportDims[0] < mMaxViewportDims[1] ?
+            mMaxViewportDims[0] : mMaxViewportDims[1];
 }
 
 // ----------------------------------------------------------------------------
@@ -366,7 +483,7 @@ void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
     if (display != NULL) {
         stc = new SurfaceTextureClient(display);
         result = eglCreateWindowSurface(hw.getEGLDisplay(),
-                hw.getEGLConfig(), (EGLNativeWindowType)stc.get(), NULL);
+                mEGLConfig, (EGLNativeWindowType)stc.get(), NULL);
         ALOGE_IF(result == EGL_NO_SURFACE,
                 "eglCreateWindowSurface failed (ISurfaceTexture=%p)",
                 display.get());

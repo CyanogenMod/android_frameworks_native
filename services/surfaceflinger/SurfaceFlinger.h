@@ -148,6 +148,8 @@ public:
 
     GLuint getProtectedTexName() const { return mProtectedTexName; }
 
+    surface_flinger_cblk_t* getControlBlock() const;
+
 
     class MessageDestroyGLTexture : public MessageBase {
         GLuint texture;
@@ -294,6 +296,18 @@ private:
             void        debugFlashRegions(const DisplayHardware& hw);
             void        drawWormhole() const;
 
+            uint32_t    getMaxTextureSize() const;
+            uint32_t    getMaxViewportDims() const;
+
+            static status_t selectConfigForPixelFormat(
+                    EGLDisplay dpy,
+                    EGLint const* attrs,
+                    PixelFormat format,
+                    EGLConfig* outConfig);
+            static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
+            static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
+            void initializeGL(EGLDisplay display, EGLSurface surface);
+
             void        startBootAnim();
 
             void listLayersLocked(const Vector<String16>& args, size_t& index,
@@ -331,6 +345,11 @@ private:
                 GLuint                      mProtectedTexName;
                 nsecs_t                     mBootTime;
                 sp<EventThread>             mEventThread;
+                GLint                       mMaxViewportDims[2];
+                GLint                       mMaxTextureSize;
+                EGLContext                  mEGLContext;
+                EGLConfig                   mEGLConfig;
+
 
                 // Can only accessed from the main thread, these members
                 // don't need synchronization

@@ -38,6 +38,15 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+sp<FramebufferSurface> FramebufferSurface::create() {
+    sp<FramebufferSurface> result = new FramebufferSurface();
+    if (result->fbDev == NULL) {
+        result = NULL;
+    }
+    return result;
+}
+
+// ----------------------------------------------------------------------------
 
 /*
  * This implements the (main) framebuffer management. This class is used
@@ -64,10 +73,19 @@ FramebufferSurface::FramebufferSurface()
         mUpdateOnDemand = (fbDev->setUpdateRect != 0);
 
         const_cast<uint32_t&>(ANativeWindow::flags) = fbDev->flags;
-        const_cast<float&>(ANativeWindow::xdpi) = fbDev->xdpi;
-        const_cast<float&>(ANativeWindow::ydpi) = fbDev->ydpi;
         const_cast<int&>(ANativeWindow::minSwapInterval) =  fbDev->minSwapInterval;
         const_cast<int&>(ANativeWindow::maxSwapInterval) =  fbDev->maxSwapInterval;
+
+        if (fbDev->xdpi == 0 || fbDev->ydpi == 0) {
+            ALOGE("invalid screen resolution from fb HAL (xdpi=%f, ydpi=%f), "
+                   "defaulting to 160 dpi", fbDev->xdpi, fbDev->ydpi);
+            const_cast<float&>(ANativeWindow::xdpi) = 160;
+            const_cast<float&>(ANativeWindow::ydpi) = 160;
+        } else {
+            const_cast<float&>(ANativeWindow::xdpi) = fbDev->xdpi;
+            const_cast<float&>(ANativeWindow::ydpi) = fbDev->ydpi;
+        }
+
     } else {
         ALOGE("Couldn't get gralloc module");
     }
@@ -137,6 +155,19 @@ FramebufferSurface::~FramebufferSurface() {
     if (fbDev) {
         framebuffer_close(fbDev);
     }
+}
+
+float FramebufferSurface::getRefreshRate() const {
+    /* FIXME: REFRESH_RATE is a temporary HACK until we are able to report the
+     * refresh rate properly from the HAL. The WindowManagerService now relies
+     * on this value.
+     */
+#ifndef REFRESH_RATE
+    return fbDev->fps;
+#else
+    return REFRESH_RATE;
+#warning "refresh rate set via makefile to REFRESH_RATE"
+#endif
 }
 
 status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
