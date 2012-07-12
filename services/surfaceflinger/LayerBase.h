@@ -57,9 +57,9 @@ public:
 
     DisplayID           dpy;
     mutable bool        contentDirty;
-            Region      visibleRegionScreen;
-            Region      transparentRegionScreen;
-            Region      coveredRegionScreen;
+            // regions below are in window-manager space
+            Region      visibleRegion;
+            Region      coveredRegion;
             int32_t     sequence;
             
             struct Geometry {
@@ -86,6 +86,20 @@ public:
                 Region          transparentRegion;
             };
 
+            class LayerMesh {
+                friend class LayerBase;
+                GLfloat mVertices[4][2];
+                size_t mNumVertices;
+            public:
+                LayerMesh() : mNumVertices(4) { }
+                GLfloat const* getVertices() const {
+                    return &mVertices[0][0];
+                }
+                size_t getVertexCount() const {
+                    return mNumVertices;
+                }
+            };
+
     virtual void setName(const String8& name);
             String8 getName() const;
 
@@ -105,15 +119,18 @@ public:
             
             uint32_t getTransactionFlags(uint32_t flags);
             uint32_t setTransactionFlags(uint32_t flags);
-            
-            Rect visibleBounds() const;
+
+            void computeGeometry(const DisplayHardware& hw, LayerMesh* mesh) const;
+            Rect computeBounds() const;
+
 
     virtual sp<LayerBaseClient> getLayerBaseClient() const { return 0; }
     virtual sp<Layer> getLayer() const { return 0; }
 
     virtual const char* getTypeId() const { return "LayerBase"; }
 
-    virtual void setGeometry(HWComposer::HWCLayerInterface& layer);
+    virtual void setGeometry(const DisplayHardware& hw,
+            HWComposer::HWCLayerInterface& layer);
     virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
     virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
 
@@ -156,26 +173,13 @@ public:
     virtual void setCoveredRegion(const Region& coveredRegion);
 
     /**
-     * validateVisibility - cache a bunch of things
-     */
-    virtual void validateVisibility(const Transform& globalTransform, const DisplayHardware& hw);
-
-    /**
-     * lockPageFlip - called each time the screen is redrawn and returns whether
+     * latchBuffer - called each time the screen is redrawn and returns whether
      * the visible regions need to be recomputed (this is a fairly heavy
      * operation, so this should be set only if needed). Typically this is used
      * to figure out if the content or size of a surface has changed.
      */
-    virtual void lockPageFlip(bool& recomputeVisibleRegions);
-    
-    /**
-     * unlockPageFlip - called each time the screen is redrawn. updates the
-     * final dirty region wrt the planeTransform.
-     * At this point, all visible regions, surface position and size, etc... are
-     * correct.
-     */
-    virtual void unlockPageFlip(const Transform& planeTransform, Region& outDirtyRegion);
-    
+    virtual Region latchBuffer(bool& recomputeVisibleRegions);
+
     /**
      * isOpaque - true if this surface is opaque
      */
@@ -233,9 +237,6 @@ public:
     inline  const State&    currentState() const    { return mCurrentState; }
     inline  State&          currentState()          { return mCurrentState; }
 
-    int32_t  getOrientation() const { return mOrientation; }
-    int32_t  getPlaneOrientation() const { return mPlaneOrientation; }
-
     void clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const;
 
 protected:
@@ -253,19 +254,10 @@ private:
                 // Whether filtering is forced on or not
                 bool            mFiltering;
 
-                // cached during validateVisibility()
                 // Whether filtering is needed b/c of the drawingstate
                 bool            mNeedsFiltering;
 
 protected:
-                // cached during validateVisibility()
-                int32_t         mOrientation;
-                int32_t         mPlaneOrientation;
-                Transform       mTransform;
-                GLfloat         mVertices[4][2];
-                size_t          mNumVertices;
-                Rect            mTransformedBounds;
-            
                 // these are protected by an external lock
                 State           mCurrentState;
                 State           mDrawingState;

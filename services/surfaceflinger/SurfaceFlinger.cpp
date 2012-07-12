@@ -425,98 +425,115 @@ status_t SurfaceFlinger::postMessageSync(const sp<MessageBase>& msg,
     return res;
 }
 
-bool SurfaceFlinger::threadLoop()
-{
+bool SurfaceFlinger::threadLoop() {
     waitForEvent();
     return true;
 }
 
-void SurfaceFlinger::onMessageReceived(int32_t what)
-{
+void SurfaceFlinger::onMessageReceived(int32_t what) {
     ATRACE_CALL();
     switch (what) {
-        case MessageQueue::REFRESH: {
-//        case MessageQueue::INVALIDATE: {
-            // if we're in a global transaction, don't do anything.
-            const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
-            uint32_t transactionFlags = peekTransactionFlags(mask);
-            if (CC_UNLIKELY(transactionFlags)) {
-                handleTransaction(transactionFlags);
-            }
-
-            // post surfaces (if needed)
-            handlePageFlip();
-
-//            signalRefresh();
-//
-//        } break;
-//
-//        case MessageQueue::REFRESH: {
-
-            handleRefresh();
-
-            // TODO: iterate through all displays
-            const DisplayHardware& hw(getDisplayHardware(0));
-
-//            if (mDirtyRegion.isEmpty()) {
-//                return;
-//            }
-
-            if (CC_UNLIKELY(mHwWorkListDirty)) {
-                // build the h/w work list
-                handleWorkList(hw);
-            }
-
-            if (CC_LIKELY(hw.canDraw())) {
-                // repaint the framebuffer (if needed)
-                handleRepaint(hw);
-                // inform the h/w that we're done compositing
-                hw.compositionComplete();
-                postFramebuffer();
-            } else {
-                // pretend we did the post
-                hw.compositionComplete();
-            }
-
-            // render to the external display if we have one
-            EGLSurface externalDisplaySurface = getExternalDisplaySurface();
-            if (externalDisplaySurface != EGL_NO_SURFACE) {
-                EGLSurface cur = eglGetCurrentSurface(EGL_DRAW);
-                EGLBoolean success = eglMakeCurrent(eglGetCurrentDisplay(),
-                        externalDisplaySurface, externalDisplaySurface,
-                        eglGetCurrentContext());
-
-                ALOGE_IF(!success, "eglMakeCurrent -> external failed");
-
-                if (success) {
-                    // redraw the screen entirely...
-                    glDisable(GL_TEXTURE_EXTERNAL_OES);
-                    glDisable(GL_TEXTURE_2D);
-                    glClearColor(0,0,0,1);
-                    glClear(GL_COLOR_BUFFER_BIT);
-                    glMatrixMode(GL_MODELVIEW);
-                    glLoadIdentity();
-                    const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
-                    const size_t count = layers.size();
-                    for (size_t i=0 ; i<count ; ++i) {
-                        const sp<LayerBase>& layer(layers[i]);
-                        layer->drawForSreenShot(hw);
-                    }
-
-                    success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
-                    ALOGE_IF(!success, "external display eglSwapBuffers failed");
-
-                    hw.compositionComplete();
-                }
-
-                success = eglMakeCurrent(eglGetCurrentDisplay(),
-                        cur, cur, eglGetCurrentContext());
-
-                ALOGE_IF(!success, "eglMakeCurrent -> internal failed");
-            }
-
-        } break;
+    case MessageQueue::INVALIDATE:
+        handleMessageTransaction();
+        handleMessageInvalidate();
+        signalRefresh();
+        break;
+    case MessageQueue::REFRESH:
+        handleMessageRefresh();
+        break;
     }
+}
+
+void SurfaceFlinger::handleMessageTransaction() {
+    const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
+    uint32_t transactionFlags = peekTransactionFlags(mask);
+    if (transactionFlags) {
+        Region dirtyRegion;
+        dirtyRegion = handleTransaction(transactionFlags);
+        // XXX: dirtyRegion should be per screen
+        mDirtyRegion |= dirtyRegion;
+    }
+}
+
+void SurfaceFlinger::handleMessageInvalidate() {
+    Region dirtyRegion;
+    dirtyRegion = handlePageFlip();
+    // XXX: dirtyRegion should be per screen
+    mDirtyRegion |= dirtyRegion;
+}
+
+void SurfaceFlinger::handleMessageRefresh() {
+    handleRefresh();
+
+    // XXX: dirtyRegion should be per screen, we should check all of them
+    if (mDirtyRegion.isEmpty()) {
+        return;
+    }
+
+    // TODO: iterate through all displays
+    const DisplayHardware& hw(getDisplayHardware(0));
+
+    // XXX: dirtyRegion should be per screen
+    // transform the dirty region into this screen's coordinate space
+    const Transform& planeTransform(hw.getTransform());
+    mDirtyRegion = planeTransform.transform(mDirtyRegion);
+    mDirtyRegion.orSelf(getAndClearInvalidateRegion());
+    mDirtyRegion.andSelf(hw.bounds());
+
+
+    if (CC_UNLIKELY(mHwWorkListDirty)) {
+        // build the h/w work list
+        handleWorkList(hw);
+    }
+
+    if (CC_LIKELY(hw.canDraw())) {
+        // repaint the framebuffer (if needed)
+        handleRepaint(hw);
+        // inform the h/w that we're done compositing
+        hw.compositionComplete();
+        postFramebuffer();
+    } else {
+        // pretend we did the post
+        hw.compositionComplete();
+    }
+
+    // render to the external display if we have one
+    EGLSurface externalDisplaySurface = getExternalDisplaySurface();
+    if (externalDisplaySurface != EGL_NO_SURFACE) {
+        EGLSurface cur = eglGetCurrentSurface(EGL_DRAW);
+        EGLBoolean success = eglMakeCurrent(eglGetCurrentDisplay(),
+                externalDisplaySurface, externalDisplaySurface,
+                eglGetCurrentContext());
+
+        ALOGE_IF(!success, "eglMakeCurrent -> external failed");
+
+        if (success) {
+            // redraw the screen entirely...
+            glDisable(GL_TEXTURE_EXTERNAL_OES);
+            glDisable(GL_TEXTURE_2D);
+            glClearColor(0,0,0,1);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
+            const size_t count = layers.size();
+            for (size_t i=0 ; i<count ; ++i) {
+                const sp<LayerBase>& layer(layers[i]);
+                layer->drawForSreenShot(hw);
+            }
+
+            success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
+            ALOGE_IF(!success, "external display eglSwapBuffers failed");
+
+            hw.compositionComplete();
+        }
+
+        success = eglMakeCurrent(eglGetCurrentDisplay(),
+                cur, cur, eglGetCurrentContext());
+
+        ALOGE_IF(!success, "eglMakeCurrent -> internal failed");
+    }
+
 }
 
 void SurfaceFlinger::postFramebuffer()
@@ -564,9 +581,11 @@ void SurfaceFlinger::postFramebuffer()
     mSwapRegion.clear();
 }
 
-void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
+Region SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
 {
     ATRACE_CALL();
+
+    Region dirtyRegion;
 
     Mutex::Autolock _l(mStateLock);
     const nsecs_t now = systemTime();
@@ -580,16 +599,19 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
 
     const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
     transactionFlags = getTransactionFlags(mask);
-    handleTransactionLocked(transactionFlags);
+    dirtyRegion = handleTransactionLocked(transactionFlags);
 
     mLastTransactionTime = systemTime() - now;
     mDebugInTransaction = 0;
     invalidateHwcGeometry();
     // here the transaction has been committed
+
+    return dirtyRegion;
 }
 
-void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
+Region SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 {
+    Region dirtyRegion;
     const LayerVector& currentLayers(mCurrentState.layersSortedByZ);
     const size_t count = currentLayers.size();
 
@@ -652,23 +674,40 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 const sp<LayerBase>& layer(previousLayers[i]);
                 if (currentLayers.indexOf( layer ) < 0) {
                     // this layer is not visible anymore
-                    mDirtyRegionRemovedLayer.orSelf(layer->visibleRegionScreen);
+                    // TODO: we could traverse the tree from front to back and compute the actual visible region
+                    // TODO: we could cache the transformed region
+                    Layer::State front(layer->drawingState());
+                    Region visibleReg = front.transform.transform(
+                            Region(Rect(front.active.w, front.active.h)));
+                    dirtyRegion.orSelf(visibleReg);
                 }
             }
         }
     }
 
     commitTransaction();
+    return dirtyRegion;
+}
+
+void SurfaceFlinger::commitTransaction()
+{
+    if (!mLayersPendingRemoval.isEmpty()) {
+        // Notify removed layers now that they can't be drawn from
+        for (size_t i = 0; i < mLayersPendingRemoval.size(); i++) {
+            mLayersPendingRemoval[i]->onRemoved();
+        }
+        mLayersPendingRemoval.clear();
+    }
+
+    mDrawingState = mCurrentState;
+    mTransationPending = false;
+    mTransactionCV.broadcast();
 }
 
 void SurfaceFlinger::computeVisibleRegions(
     const LayerVector& currentLayers, Region& dirtyRegion, Region& opaqueRegion)
 {
     ATRACE_CALL();
-
-    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: we shouldn't rely on DisplayHardware here
-    const Transform& planeTransform(hw.getTransform());
-    const Region screenRegion(hw.bounds());
 
     Region aboveOpaqueLayers;
     Region aboveCoveredLayers;
@@ -679,7 +718,6 @@ void SurfaceFlinger::computeVisibleRegions(
     size_t i = currentLayers.size();
     while (i--) {
         const sp<LayerBase>& layer = currentLayers[i];
-        layer->validateVisibility(planeTransform, hw);
 
         // start with the whole surface at its current location
         const Layer::State& s(layer->drawingState());
@@ -707,17 +745,30 @@ void SurfaceFlinger::computeVisibleRegions(
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(!(s.flags & ISurfaceComposer::eLayerHidden) && s.alpha)) {
             const bool translucent = !layer->isOpaque();
-            const Rect bounds(layer->visibleBounds());
+            Rect bounds(layer->computeBounds());
             visibleRegion.set(bounds);
-            visibleRegion.andSelf(screenRegion);
             if (!visibleRegion.isEmpty()) {
                 // Remove the transparent area from the visible region
                 if (translucent) {
-                    visibleRegion.subtractSelf(layer->transparentRegionScreen);
+                    Region transparentRegionScreen;
+                    const Transform tr(s.transform);
+                    if (tr.transformed()) {
+                        if (tr.preserveRects()) {
+                            // transform the transparent region
+                            transparentRegionScreen = tr.transform(s.transparentRegion);
+                        } else {
+                            // transformation too complex, can't do the
+                            // transparent region optimization.
+                            transparentRegionScreen.clear();
+                        }
+                    } else {
+                        transparentRegionScreen = s.transparentRegion;
+                    }
+                    visibleRegion.subtractSelf(transparentRegionScreen);
                 }
 
                 // compute the opaque region
-                const int32_t layerOrientation = layer->getOrientation();
+                const int32_t layerOrientation = s.transform.getOrientation();
                 if (s.alpha==255 && !translucent &&
                         ((layerOrientation & Transform::ROT_INVALID) == false)) {
                     // the opaque region is the layer's footprint
@@ -740,7 +791,7 @@ void SurfaceFlinger::computeVisibleRegions(
             // we need to invalidate the whole region
             dirty = visibleRegion;
             // as well, as the old visible region
-            dirty.orSelf(layer->visibleRegionScreen);
+            dirty.orSelf(layer->visibleRegion);
             layer->contentDirty = false;
         } else {
             /* compute the exposed region:
@@ -756,8 +807,8 @@ void SurfaceFlinger::computeVisibleRegions(
              * exposed because of a resize.
              */
             const Region newExposed = visibleRegion - coveredRegion;
-            const Region oldVisibleRegion = layer->visibleRegionScreen;
-            const Region oldCoveredRegion = layer->coveredRegionScreen;
+            const Region oldVisibleRegion = layer->visibleRegion;
+            const Region oldCoveredRegion = layer->coveredRegion;
             const Region oldExposed = oldVisibleRegion - oldCoveredRegion;
             dirty = (visibleRegion&oldCoveredRegion) | (newExposed-oldExposed);
         }
@@ -779,92 +830,56 @@ void SurfaceFlinger::computeVisibleRegions(
         }
     }
 
-    // invalidate the areas where a layer was removed
-    dirtyRegion.orSelf(mDirtyRegionRemovedLayer);
-    mDirtyRegionRemovedLayer.clear();
-
     mSecureFrameBuffer = secureFrameBuffer;
     opaqueRegion = aboveOpaqueLayers;
 }
 
-
-void SurfaceFlinger::commitTransaction()
-{
-    if (!mLayersPendingRemoval.isEmpty()) {
-        // Notify removed layers now that they can't be drawn from
-        for (size_t i = 0; i < mLayersPendingRemoval.size(); i++) {
-            mLayersPendingRemoval[i]->onRemoved();
-        }
-        mLayersPendingRemoval.clear();
-    }
-
-    mDrawingState = mCurrentState;
-    mTransationPending = false;
-    mTransactionCV.broadcast();
-}
-
-void SurfaceFlinger::handlePageFlip()
+Region SurfaceFlinger::handlePageFlip()
 {
     ATRACE_CALL();
-    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: it's a problem we need DisplayHardware here
-    const Region screenRegion(hw.bounds());
+    Region dirtyRegion;
 
     const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const bool visibleRegions = lockPageFlip(currentLayers);
 
-        if (visibleRegions || mVisibleRegionsDirty) {
-            Region opaqueRegion;
-            computeVisibleRegions(currentLayers, mDirtyRegion, opaqueRegion);
+    bool visibleRegions = false;
+    const size_t count = currentLayers.size();
+    sp<LayerBase> const* layers = currentLayers.array();
+    for (size_t i=0 ; i<count ; i++) {
+        const sp<LayerBase>& layer(layers[i]);
+        dirtyRegion.orSelf( layer->latchBuffer(visibleRegions) );
+    }
 
-            /*
-             *  rebuild the visible layer list
-             */
-            const size_t count = currentLayers.size();
-            mVisibleLayersSortedByZ.clear();
-            mVisibleLayersSortedByZ.setCapacity(count);
-            for (size_t i=0 ; i<count ; i++) {
-                if (!currentLayers[i]->visibleRegionScreen.isEmpty())
-                    mVisibleLayersSortedByZ.add(currentLayers[i]);
-            }
+    if (visibleRegions || mVisibleRegionsDirty) {
+        Region opaqueRegion;
+        computeVisibleRegions(currentLayers, dirtyRegion, opaqueRegion);
 
-            mWormholeRegion = screenRegion.subtract(opaqueRegion);
-            mVisibleRegionsDirty = false;
-            invalidateHwcGeometry();
+        /*
+         *  rebuild the visible layer list
+         */
+
+        // XXX: mVisibleLayersSortedByZ should be per-screen
+        const size_t count = currentLayers.size();
+        mVisibleLayersSortedByZ.clear();
+        mVisibleLayersSortedByZ.setCapacity(count);
+        for (size_t i=0 ; i<count ; i++) {
+            if (!currentLayers[i]->visibleRegion.isEmpty())
+                mVisibleLayersSortedByZ.add(currentLayers[i]);
         }
 
-    unlockPageFlip(currentLayers);
+        // FIXME: mWormholeRegion needs to be calculated per screen
+        const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: we can't keep that here
+        mWormholeRegion = Region(hw.getBounds()).subtract(
+                hw.getTransform().transform(opaqueRegion) );
+        mVisibleRegionsDirty = false;
+        invalidateHwcGeometry();
+    }
 
-    mDirtyRegion.orSelf(getAndClearInvalidateRegion());
-    mDirtyRegion.andSelf(screenRegion);
+    return dirtyRegion;
 }
 
 void SurfaceFlinger::invalidateHwcGeometry()
 {
     mHwWorkListDirty = true;
-}
-
-bool SurfaceFlinger::lockPageFlip(const LayerVector& currentLayers)
-{
-    bool recomputeVisibleRegions = false;
-    size_t count = currentLayers.size();
-    sp<LayerBase> const* layers = currentLayers.array();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(layers[i]);
-        layer->lockPageFlip(recomputeVisibleRegions);
-    }
-    return recomputeVisibleRegions;
-}
-
-void SurfaceFlinger::unlockPageFlip(const LayerVector& currentLayers)
-{
-    const DisplayHardware& hw(getDefaultDisplayHardware()); // FIXME: it's a problem we need DisplayHardware here
-    const Transform& planeTransform(hw.getTransform());
-    const size_t count = currentLayers.size();
-    sp<LayerBase> const* layers = currentLayers.array();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(layers[i]);
-        layer->unlockPageFlip(planeTransform, mDirtyRegion);
-    }
 }
 
 void SurfaceFlinger::handleRefresh()
@@ -896,7 +911,7 @@ void SurfaceFlinger::handleWorkList(const DisplayHardware& hw)
         HWComposer::LayerListIterator cur = hwc.begin();
         const HWComposer::LayerListIterator end = hwc.end();
         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-            currentLayers[i]->setGeometry(*cur);
+            currentLayers[i]->setGeometry(hw, *cur);
             if (mDebugDisableHWC || mDebugRegion) {
                 cur->setSkip(true);
             }
@@ -1012,9 +1027,10 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
 
         const Vector< sp<LayerBase> >& layers(mVisibleLayersSortedByZ);
         const size_t count = layers.size();
+        const Transform& tr = hw.getTransform();
         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
             const sp<LayerBase>& layer(layers[i]);
-            const Region clip(dirty.intersect(layer->visibleRegionScreen));
+            const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
                 if (cur->getCompositionType() == HWC_OVERLAY) {
                     if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)

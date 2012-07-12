@@ -70,8 +70,8 @@ class MessageQueue {
     public:
         Handler(MessageQueue& queue) : mQueue(queue), mEventMask(0) { }
         virtual void handleMessage(const Message& message);
-        void signalRefresh();
-        void signalInvalidate();
+        void dispatchRefresh();
+        void dispatchInvalidate();
     };
 
     friend class Handler;

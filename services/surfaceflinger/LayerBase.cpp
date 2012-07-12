@@ -45,8 +45,6 @@ LayerBase::LayerBase(SurfaceFlinger* flinger, DisplayID display)
       sequence(uint32_t(android_atomic_inc(&sSequence))),
       mFlinger(flinger), mFiltering(false),
       mNeedsFiltering(false),
-      mOrientation(0),
-      mPlaneOrientation(0),
       mTransactionFlags(0),
       mPremultipliedAlpha(true), mName("unnamed"), mDebug(false)
 {
@@ -170,19 +168,14 @@ bool LayerBase::setCrop(const Rect& crop) {
     return true;
 }
 
-Rect LayerBase::visibleBounds() const
-{
-    return mTransformedBounds;
-}      
-
 void LayerBase::setVisibleRegion(const Region& visibleRegion) {
     // always called from main thread
-    visibleRegionScreen = visibleRegion;
+    this->visibleRegion = visibleRegion;
 }
 
 void LayerBase::setCoveredRegion(const Region& coveredRegion) {
     // always called from main thread
-    coveredRegionScreen = coveredRegion;
+    this->coveredRegion = coveredRegion;
 }
 
 uint32_t LayerBase::doTransaction(uint32_t flags)
@@ -219,57 +212,45 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     return flags;
 }
 
-void LayerBase::validateVisibility(const Transform& planeTransform, const DisplayHardware& hw)
+void LayerBase::computeGeometry(const DisplayHardware& hw, LayerMesh* mesh) const
 {
     const Layer::State& s(drawingState());
-    const Transform tr(planeTransform * s.transform);
-    const bool transformed = tr.transformed();
+    const Transform tr(hw.getTransform() * s.transform);
     const uint32_t hw_h = hw.getHeight();
     const Rect& crop(s.active.crop);
-
     Rect win(s.active.w, s.active.h);
     if (!crop.isEmpty()) {
         win.intersect(crop, &win);
     }
-
-    mNumVertices = 4;
-    tr.transform(mVertices[0], win.left,  win.top);
-    tr.transform(mVertices[1], win.left,  win.bottom);
-    tr.transform(mVertices[2], win.right, win.bottom);
-    tr.transform(mVertices[3], win.right, win.top);
-    for (size_t i=0 ; i<4 ; i++)
-        mVertices[i][1] = hw_h - mVertices[i][1];
-
-    if (CC_UNLIKELY(transformed)) {
-        // NOTE: here we could also punt if we have too many rectangles
-        // in the transparent region
-        if (tr.preserveRects()) {
-            // transform the transparent region
-            transparentRegionScreen = tr.transform(s.transparentRegion);
-        } else {
-            // transformation too complex, can't do the transparent region
-            // optimization.
-            transparentRegionScreen.clear();
+    if (mesh) {
+        tr.transform(mesh->mVertices[0], win.left,  win.top);
+        tr.transform(mesh->mVertices[1], win.left,  win.bottom);
+        tr.transform(mesh->mVertices[2], win.right, win.bottom);
+        tr.transform(mesh->mVertices[3], win.right, win.top);
+        for (size_t i=0 ; i<4 ; i++) {
+            mesh->mVertices[i][1] = hw_h - mesh->mVertices[i][1];
         }
-    } else {
-        transparentRegionScreen = s.transparentRegion;
     }
-
-    // cache a few things...
-    mOrientation = tr.getOrientation();
-    mPlaneOrientation = planeTransform.getOrientation();
-    mTransform = tr;
-    mTransformedBounds = tr.transform(win);
 }
 
-void LayerBase::lockPageFlip(bool& recomputeVisibleRegions) {
+Rect LayerBase::computeBounds() const {
+    const Layer::State& s(drawingState());
+    const Rect& crop(s.active.crop);
+    Rect win(s.active.w, s.active.h);
+    if (!crop.isEmpty()) {
+        win.intersect(crop, &win);
+    }
+    return s.transform.transform(win);
 }
 
-void LayerBase::unlockPageFlip(
-        const Transform& planeTransform, Region& outDirtyRegion) {
+Region LayerBase::latchBuffer(bool& recomputeVisibleRegions) {
+    Region result;
+    return result;
 }
 
-void LayerBase::setGeometry(HWComposer::HWCLayerInterface& layer)
+void LayerBase::setGeometry(
+        const DisplayHardware& hw,
+        HWComposer::HWCLayerInterface& layer)
 {
     layer.setDefaultState();
 
@@ -289,10 +270,14 @@ void LayerBase::setGeometry(HWComposer::HWCLayerInterface& layer)
                 HWC_BLENDING_COVERAGE);
     }
 
-    // scaling is already applied in mTransformedBounds
-    layer.setFrame(mTransformedBounds);
-    layer.setVisibleRegionScreen(visibleRegionScreen);
-    layer.setCrop(mTransformedBounds.getBounds());
+    const Transform& tr = hw.getTransform();
+    Rect transformedBounds(computeBounds());
+    transformedBounds = tr.transform(transformedBounds);
+
+    // scaling is already applied in transformedBounds
+    layer.setFrame(transformedBounds);
+    layer.setCrop(transformedBounds.getBounds());
+    layer.setVisibleRegionScreen(tr.transform(visibleRegion));
 }
 
 void LayerBase::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
@@ -335,8 +320,11 @@ void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
 
-    glVertexPointer(2, GL_FLOAT, 0, mVertices);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
+    LayerMesh mesh;
+    computeGeometry(hw, &mesh);
+
+    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 }
 
 void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const
@@ -371,6 +359,12 @@ void LayerBase::drawWithOpenGL(const DisplayHardware& hw, const Region& clip) co
         }
     }
 
+    LayerMesh mesh;
+    computeGeometry(hw, &mesh);
+
+    // TODO: we probably want to generate the texture coords with the mesh
+    // here we assume that we only have 4 vertices
+
     struct TexCoords {
         GLfloat u;
         GLfloat v;
@@ -380,9 +374,9 @@ void LayerBase::drawWithOpenGL(const DisplayHardware& hw, const Region& clip) co
     if (!s.active.crop.isEmpty()) {
         crop = s.active.crop;
     }
-    GLfloat left = GLfloat(crop.left) / GLfloat(s.active.w);
-    GLfloat top = GLfloat(crop.top) / GLfloat(s.active.h);
-    GLfloat right = GLfloat(crop.right) / GLfloat(s.active.w);
+    GLfloat left   = GLfloat(crop.left)   / GLfloat(s.active.w);
+    GLfloat top    = GLfloat(crop.top)    / GLfloat(s.active.h);
+    GLfloat right  = GLfloat(crop.right)  / GLfloat(s.active.w);
     GLfloat bottom = GLfloat(crop.bottom) / GLfloat(s.active.h);
 
     TexCoords texCoords[4];
@@ -399,9 +393,9 @@ void LayerBase::drawWithOpenGL(const DisplayHardware& hw, const Region& clip) co
     }
 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glVertexPointer(2, GL_FLOAT, 0, mVertices);
     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
+    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisable(GL_BLEND);
@@ -417,8 +411,7 @@ void LayerBase::dump(String8& result, char* buffer, size_t SIZE) const
     result.append(buffer);
 
     s.transparentRegion.dump(result, "transparentRegion");
-    transparentRegionScreen.dump(result, "transparentRegionScreen");
-    visibleRegionScreen.dump(result, "visibleRegionScreen");
+    visibleRegion.dump(result, "visibleRegion");
 
     snprintf(buffer, SIZE,
             "      "
