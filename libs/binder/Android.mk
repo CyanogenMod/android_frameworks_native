@@ -29,6 +29,11 @@ sources := \
     ProcessState.cpp \
     Static.cpp
 
+ifeq ($(BOARD_NEEDS_MEMORYHEAPPMEM),true)
+sources += \
+    MemoryHeapPmem.cpp
+endif
+
 LOCAL_PATH:= $(call my-dir)
 
 # Note about gingerbread compatibility : Require a global cflag,
