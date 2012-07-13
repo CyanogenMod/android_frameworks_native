@@ -35,6 +35,11 @@ sources := \
     Static.cpp \
     TextOutput.cpp \
 
+ifeq ($(BOARD_NEEDS_MEMORYHEAPPMEM),true)
+sources += \
+    MemoryHeapPmem.cpp
+endif
+
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
