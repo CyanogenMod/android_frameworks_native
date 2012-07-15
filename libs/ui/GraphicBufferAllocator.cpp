@@ -101,7 +101,12 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
 
     // we have a h/w allocator and h/w buffer is requested
     status_t err; 
-    
+
+#ifdef EXYNOS4_ENHANCEMENTS
+    if (format == 0x105)
+        usage = 0x21002900; // just don't ask
+#endif
+
     err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride);
 
     ALOGW_IF(err, "alloc(%u, %u, %d, %08x, ...) failed %d (%s)",

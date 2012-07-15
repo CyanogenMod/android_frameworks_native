@@ -64,6 +64,10 @@
 #include <private/gui/SharedBufferStack.h>
 #include <gui/BitTube.h>
 
+#ifdef BOARD_USES_SAMSUNG_HDMI
+#include "SecTVOutService.h"
+#endif
+
 #define EGL_VERSION_HW_ANDROID  0x3143
 
 #define DISPLAY_COUNT       1
@@ -100,6 +104,24 @@ SurfaceFlinger::SurfaceFlinger()
         mUseDithering(0)
 {
     init();
+#ifdef BOARD_USES_SAMSUNG_HDMI
+    LOGD(">>> Run service");
+    android::SecTVOutService::instantiate();
+#ifdef SAMSUNG_EXYNOS5250
+    mHdmiClient = SecHdmiClient::getInstance();
+    mHdmiClient->setHdmiEnable(1);
+
+    const int orientation = ISurfaceComposer::eOrientationDefault;
+    if (uint32_t(orientation) == eOrientation90)
+        mHdmiClient->setHdmiRotate(270, 0);
+    else if(uint32_t(orientation) == eOrientation180)
+        mHdmiClient->setHdmiRotate(180, 0);
+    else if(uint32_t(orientation) == eOrientation270)
+        mHdmiClient->setHdmiRotate(90, 0);
+    else
+        mHdmiClient->setHdmiRotate(0, 0);
+#endif
+#endif
 }
 
 void SurfaceFlinger::init()
@@ -560,6 +582,19 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
             mVisibleRegionsDirty = true;
             mDirtyRegion.set(hw.bounds());
+
+#if defined(BOARD_USES_SAMSUNG_HDMI) && defined(SAMSUNG_EXYNOS5250)
+            HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
+            int overlayLayerCount = hwc.getLayerCount(HWC_OVERLAY);
+            if (uint32_t(orientation) == eOrientation90)
+                mHdmiClient->setHdmiRotate(270, overlayLayerCount);
+            else if(uint32_t(orientation) == eOrientation180)
+                mHdmiClient->setHdmiRotate(180, overlayLayerCount);
+            else if(uint32_t(orientation) == eOrientation270)
+                mHdmiClient->setHdmiRotate(90, overlayLayerCount);
+            else
+                mHdmiClient->setHdmiRotate(0, overlayLayerCount);
+#endif
         }
 
         if (currentLayers.size() > mDrawingState.layersSortedByZ.size()) {
@@ -941,9 +976,15 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
         const size_t count = layers.size();
 
         for (size_t i=0 ; i<count ; i++) {
+#ifdef HWC_LAYER_DIRTY_INFO
+            cur[i].flags &= (~0x80000000);
+#endif
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(layer->visibleRegionScreen));
             if (!clip.isEmpty()) {
+#ifdef HWC_LAYER_DIRTY_INFO
+                cur[i].flags |= (0x80000000);  // flag for dirty region
+#endif
                 if (cur && (cur[i].compositionType == HWC_OVERLAY)) {
                     if (i && (cur[i].hints & HWC_HINT_CLEAR_FB)
                             && layer->isOpaque()) {
@@ -1389,6 +1430,9 @@ void SurfaceFlinger::onScreenAcquired() {
     SurfaceFlinger::turnElectronBeamOn(mElectronBeamAnimationMode);
     // from this point on, SF will process updates again
     repaintEverything();
+#if defined(BOARD_USES_HDMI) && defined(SAMSUNG_EXYNOS5250)
+    mHdmiClient->setHdmiEnable(1);
+#endif
 }
 
 void SurfaceFlinger::onScreenReleased() {
@@ -1426,6 +1470,9 @@ void SurfaceFlinger::screenReleased() {
     };
     sp<MessageBase> msg = new MessageScreenReleased(this);
     postMessageSync(msg);
+#if defined(BOARD_USES_SAMSUNG_HDMI) && defined(SAMSUNG_EXYNOS5250)
+    mHdmiClient->setHdmiEnable(0);
+#endif
 }
 
 // ---------------------------------------------------------------------------

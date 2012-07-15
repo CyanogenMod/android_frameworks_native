@@ -53,6 +53,21 @@ ifneq ($(TARGET_BUILD_PDK), true)
 	LOCAL_SRC_FILES += DdmConnection.cpp
 endif
 
+ifeq ($(TARGET_SOC),exynos5250)
+LOCAL_CFLAGS += -DSAMSUNG_EXYNOS5250
+endif
+
+ifeq ($(filter-out s5pc110 s5pv210,$(TARGET_SOC)),)
+LOCAL_CFLAGS += -DHAS_CONTEXT_PRIORITY -DNEVER_DEFAULT_TO_ASYNC_MODE -DHWC_LAYER_DIRTY_INFO
+endif
+
+ifeq ($(BOARD_USES_SAMSUNG_HDMI),true)
+LOCAL_CFLAGS += -DBOARD_USES_SAMSUNG_HDMI
+LOCAL_SHARED_LIBRARIES += libTVOut libhdmiclient
+LOCAL_C_INCLUDES += $(TARGET_HAL_PATH)/libhdmi/libhdmiservice
+LOCAL_C_INCLUDES += $(TARGET_HAL_PATH)/include
+endif
+
 LOCAL_MODULE:= libsurfaceflinger
 
 include $(BUILD_SHARED_LIBRARY)

@@ -32,6 +32,10 @@
 #include <binder/Parcel.h>
 #include <utils/CallStack.h>
 
+#ifdef USE_SAMSUNG_V4L2_ION
+#include "ion.h"
+#endif
+
 #define VERBOSE   0
 
 namespace android {
@@ -325,6 +329,15 @@ void BpMemoryHeap::assertReallyMapped() const
         ALOGE_IF(err, "binder=%p transaction failed fd=%d, size=%ld, err=%d (%s)",
                 asBinder().get(), parcel_fd, size, err, strerror(-err));
 
+#ifdef USE_SAMSUNG_V4L2_ION
+        int ion_client = -1;
+        if (flags & USE_ION_FD) {
+            ion_client = ion_client_create();
+            ALOGE_IF(ion_client < 0, "BpMemoryHeap : ion client creation error");
+        }
+#endif
+
+
         int fd = dup( parcel_fd );
         ALOGE_IF(fd==-1, "cannot dup fd=%d, size=%ld, err=%d (%s)",
                 parcel_fd, size, err, strerror(errno));
@@ -337,6 +350,15 @@ void BpMemoryHeap::assertReallyMapped() const
         Mutex::Autolock _l(mLock);
         if (mHeapId == -1) {
             mRealHeap = true;
+#ifdef USE_SAMSUNG_V4L2_ION
+            if (flags & USE_ION_FD) {
+                if (ion_client < 0) {
+                    mBase = MAP_FAILED;
+                } else {
+                    mBase = ion_map(fd, size, offset);
+                }
+            } else // fallback mmap
+#endif
             mBase = mmap(0, size, access, MAP_SHARED, fd, offset);
             if (mBase == MAP_FAILED) {
                 ALOGE("cannot map BpMemoryHeap (binder=%p), size=%ld, fd=%d (%s)",

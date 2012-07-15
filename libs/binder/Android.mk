@@ -48,6 +48,14 @@ include $(CLEAR_VARS)
 LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
 LOCAL_SHARED_LIBRARIES := liblog libcutils libutils
+
+ifeq ($(EXYNOS4_ENHANCEMENTS), true)
+LOCAL_SHARED_LIBRARIES += libsamsungion
+LOCAL_CFLAGS += -DUSE_SAMSUNG_V4L2_ION -DEXYNOS4_ENHANCEMENTS
+sources += MemoryHeapBaseIon.cpp
+LOCAL_C_INCLUDES := $(TARGET_HAL_PATH)/include
+endif
+
 LOCAL_SRC_FILES := $(sources)
 include $(BUILD_SHARED_LIBRARY)
 

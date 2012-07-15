@@ -42,6 +42,10 @@
 
 #include "MessageQueue.h"
 
+#ifdef BOARD_USES_SAMSUNG_HDMI
+#include "SecHdmiClient.h"
+#endif
+
 namespace android {
 
 // ---------------------------------------------------------------------------
@@ -426,8 +430,10 @@ private:
 
    // only written in the main thread, only read in other threads
    volatile     int32_t                     mSecureFrameBuffer;
-
                 int                         mUseDithering;
+#if defined(BOARD_USES_SAMSUNG_HDMI) && defined(SAMSUNG_EXYNOS5250)
+    SecHdmiClient *                         mHdmiClient;
+#endif
 };
 
 // ---------------------------------------------------------------------------
