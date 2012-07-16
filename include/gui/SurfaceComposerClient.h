@@ -111,13 +111,10 @@ public:
 
     status_t    hide(SurfaceID id);
     status_t    show(SurfaceID id, int32_t layer = -1);
-    status_t    freeze(SurfaceID id);
-    status_t    unfreeze(SurfaceID id);
     status_t    setFlags(SurfaceID id, uint32_t flags, uint32_t mask);
     status_t    setTransparentRegionHint(SurfaceID id, const Region& transparent);
     status_t    setLayer(SurfaceID id, int32_t layer);
     status_t    setAlpha(SurfaceID id, float alpha=1.0f);
-    status_t    setFreezeTint(SurfaceID id, uint32_t tint);
     status_t    setMatrix(SurfaceID id, float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setPosition(SurfaceID id, float x, float y);
     status_t    setSize(SurfaceID id, uint32_t w, uint32_t h);

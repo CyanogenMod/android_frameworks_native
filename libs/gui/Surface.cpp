@@ -122,18 +122,6 @@ status_t SurfaceControl::show(int32_t layer) {
     const sp<SurfaceComposerClient>& client(mClient);
     return client->show(mToken, layer);
 }
-status_t SurfaceControl::freeze() {
-    status_t err = validate();
-    if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->freeze(mToken);
-}
-status_t SurfaceControl::unfreeze() {
-    status_t err = validate();
-    if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->unfreeze(mToken);
-}
 status_t SurfaceControl::setFlags(uint32_t flags, uint32_t mask) {
     status_t err = validate();
     if (err < 0) return err;
@@ -157,12 +145,6 @@ status_t SurfaceControl::setMatrix(float dsdx, float dtdx, float dsdy, float dtd
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
     return client->setMatrix(mToken, dsdx, dtdx, dsdy, dtdy);
-}
-status_t SurfaceControl::setFreezeTint(uint32_t tint) {
-    status_t err = validate();
-    if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setFreezeTint(mToken, tint);
 }
 status_t SurfaceControl::setCrop(const Rect& crop) {
     status_t err = validate();

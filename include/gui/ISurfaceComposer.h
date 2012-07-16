@@ -66,13 +66,11 @@ public:
         eMatrixChanged              = 0x00000010,
         eTransparentRegionChanged   = 0x00000020,
         eVisibilityChanged          = 0x00000040,
-        eFreezeTintChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
     };
 
     enum {
         eLayerHidden        = 0x01,
-        eLayerFrozen        = 0x02,
         eLayerDither        = 0x04,
         eLayerFilter        = 0x08,
         eLayerBlurFreeze    = 0x10
