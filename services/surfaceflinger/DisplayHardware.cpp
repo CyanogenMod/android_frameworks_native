@@ -434,6 +434,9 @@ void DisplayHardware::releaseScreen() const
 
 void DisplayHardware::acquireScreen() const
 {
+    if (mHwc->initCheck() == NO_ERROR) {
+        mHwc->acquire();
+    }
     DisplayHardwareBase::acquireScreen();
 }
 

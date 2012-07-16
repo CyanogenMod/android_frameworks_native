@@ -286,8 +286,30 @@ status_t HWComposer::release() const {
             mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
         }
         int err = mHwc->set(mHwc, NULL, NULL, NULL);
+        if (err < 0) {
+            return (status_t)err;
+        }
+
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            if (mHwc->methods && mHwc->methods->blank) {
+                err = mHwc->methods->blank(mHwc, 1);
+            }
+        }
         return (status_t)err;
     }
+    return NO_ERROR;
+}
+
+status_t HWComposer::acquire() const {
+    if (mHwc) {
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            if (mHwc->methods && mHwc->methods->blank) {
+                int err = mHwc->methods->blank(mHwc, 0);
+                return (status_t)err;
+            }
+        }
+    }
+
     return NO_ERROR;
 }
 

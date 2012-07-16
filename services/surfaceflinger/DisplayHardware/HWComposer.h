@@ -71,8 +71,11 @@ public:
     // commits the list
     status_t commit() const;
 
-    // release hardware resources
+    // release hardware resources and blank screen
     status_t release() const;
+
+    // acquire hardware resources and unblank screen
+    status_t acquire() const;
 
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(size_t numLayers);
