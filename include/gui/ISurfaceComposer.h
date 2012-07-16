@@ -71,9 +71,6 @@ public:
 
     enum {
         eLayerHidden        = 0x01,
-        eLayerDither        = 0x04,
-        eLayerFilter        = 0x08,
-        eLayerBlurFreeze    = 0x10
     };
 
     enum {
