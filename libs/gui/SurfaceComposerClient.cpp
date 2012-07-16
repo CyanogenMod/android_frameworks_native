@@ -121,9 +121,6 @@ public:
             float alpha);
     status_t setMatrix(const sp<SurfaceComposerClient>& client, SurfaceID id,
             float dsdx, float dtdx, float dsdy, float dtdy);
-    status_t setFreezeTint(
-            const sp<SurfaceComposerClient>& client, SurfaceID id,
-            uint32_t tint);
     status_t setOrientation(int orientation);
     status_t setCrop(const sp<SurfaceComposerClient>& client, SurfaceID id,
             const Rect& crop);
@@ -271,17 +268,6 @@ status_t Composer::setMatrix(const sp<SurfaceComposerClient>& client,
     return NO_ERROR;
 }
 
-status_t Composer::setFreezeTint(const sp<SurfaceComposerClient>& client,
-        SurfaceID id, uint32_t tint) {
-    Mutex::Autolock _l(mLock);
-    layer_state_t* s = getLayerStateLocked(client, id);
-    if (!s)
-        return BAD_INDEX;
-    s->what |= ISurfaceComposer::eFreezeTintChanged;
-    s->tint = tint;
-    return NO_ERROR;
-}
-
 status_t Composer::setOrientation(int orientation) {
     Mutex::Autolock _l(mLock);
     mOrientation = orientation;
@@ -415,10 +401,6 @@ status_t SurfaceComposerClient::setCrop(SurfaceID id, const Rect& crop) {
     return getComposer().setCrop(this, id, crop);
 }
 
-status_t SurfaceComposerClient::setFreezeTint(SurfaceID id, uint32_t tint) {
-    return getComposer().setFreezeTint(this, id, tint);
-}
-
 status_t SurfaceComposerClient::setPosition(SurfaceID id, float x, float y) {
     return getComposer().setPosition(this, id, x, y);
 }
@@ -441,18 +423,6 @@ status_t SurfaceComposerClient::show(SurfaceID id, int32_t) {
     return getComposer().setFlags(this, id,
             0,
             ISurfaceComposer::eLayerHidden);
-}
-
-status_t SurfaceComposerClient::freeze(SurfaceID id) {
-    return getComposer().setFlags(this, id,
-            ISurfaceComposer::eLayerFrozen,
-            ISurfaceComposer::eLayerFrozen);
-}
-
-status_t SurfaceComposerClient::unfreeze(SurfaceID id) {
-    return getComposer().setFlags(this, id,
-            0,
-            ISurfaceComposer::eLayerFrozen);
 }
 
 status_t SurfaceComposerClient::setFlags(SurfaceID id, uint32_t flags,

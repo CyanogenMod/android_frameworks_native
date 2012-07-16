@@ -36,7 +36,7 @@ struct layer_state_t {
     layer_state_t()
         :   surface(0), what(0),
             x(0), y(0), z(0), w(0), h(0),
-            alpha(0), tint(0), flags(0), mask(0),
+            alpha(0), flags(0), mask(0),
             reserved(0)
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
@@ -61,7 +61,6 @@ struct layer_state_t {
             uint32_t        w;
             uint32_t        h;
             float           alpha;
-            uint32_t        tint;
             uint8_t         flags;
             uint8_t         mask;
             uint8_t         reserved;
