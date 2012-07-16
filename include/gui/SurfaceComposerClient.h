@@ -93,12 +93,6 @@ public:
         
     //! Close a composer transaction on all active SurfaceComposerClients.
     static void closeGlobalTransaction(bool synchronous = false);
-    
-    //! Freeze the specified display but not transactions.
-    static status_t freezeDisplay(DisplayID dpy, uint32_t flags = 0);
-        
-    //! Resume updates on the specified display.
-    static status_t unfreezeDisplay(DisplayID dpy, uint32_t flags = 0);
 
     //! Set the orientation of the given display
     static int setOrientation(DisplayID dpy, int orientation, uint32_t flags);

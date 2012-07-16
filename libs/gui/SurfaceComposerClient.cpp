@@ -542,20 +542,6 @@ ssize_t SurfaceComposerClient::getNumberOfDisplays()
 
 // ----------------------------------------------------------------------------
 
-status_t SurfaceComposerClient::freezeDisplay(DisplayID dpy, uint32_t flags)
-{
-    // This has been made a no-op because it can cause Gralloc buffer deadlocks.
-    return NO_ERROR;
-}
-
-status_t SurfaceComposerClient::unfreezeDisplay(DisplayID dpy, uint32_t flags)
-{
-    // This has been made a no-op because it can cause Gralloc buffer deadlocks.
-    return NO_ERROR;
-}
-
-// ----------------------------------------------------------------------------
-
 ScreenshotClient::ScreenshotClient()
     : mWidth(0), mHeight(0), mFormat(PIXEL_FORMAT_NONE) {
 }
