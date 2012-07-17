@@ -70,7 +70,7 @@ struct CryptoPlugin {
     // At the java level these special errors will then trigger a
     // MediaCodec.CryptoException that gives clients access to both
     // the error code and the errorDetailMsg.
-    virtual status_t decrypt(
+    virtual ssize_t decrypt(
             bool secure,
             const uint8_t key[16],
             const uint8_t iv[16],
