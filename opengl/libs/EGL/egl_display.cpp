@@ -173,9 +173,9 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
          * cannot be called again. Therefore, we need to make sure to call
          * eglGetDisplay() before calling eglInitialize();
          */
-        if (i == IMPL_HARDWARE) {
-            disp[i].dpy = cnx->egl.eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        }
+
+            disp.dpy = cnx->egl.eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
 #endif
 
         EGLDisplay idpy = disp.dpy;
