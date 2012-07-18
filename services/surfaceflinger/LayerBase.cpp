@@ -359,6 +359,7 @@ void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
+    glDisable(GL_DITHER);
 
     glVertexPointer(2, GL_FLOAT, 0, mVertices);
     glDrawArrays(GL_TRIANGLE_FAN, 0, mNumVertices);
@@ -422,6 +423,12 @@ void LayerBase::drawWithOpenGL(const Region& clip) const
     texCoords[3].v = top;
     for (int i = 0; i < 4; i++) {
         texCoords[i].v = 1.0f - texCoords[i].v;
+    }
+
+    if (needsDithering()) {
+        glEnable(GL_DITHER);
+    } else {
+        glDisable(GL_DITHER);
     }
 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);

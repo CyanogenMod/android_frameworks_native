@@ -96,7 +96,8 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
-        mSecureFrameBuffer(0)
+        mSecureFrameBuffer(0),
+        mUseDithering(0)
 {
     init();
 }
@@ -119,8 +120,12 @@ void SurfaceFlinger::init()
     }
 #endif
 
+    property_get("persist.sys.use_dithering", value, "1");
+    mUseDithering = atoi(value);
+
     ALOGI_IF(mDebugRegion,       "showupdates enabled");
     ALOGI_IF(mDebugDDMS,         "DDMS debugging enabled");
+    ALOGI_IF(mUseDithering,      "use dithering");
 }
 
 void SurfaceFlinger::onFirstRef()
@@ -264,7 +269,12 @@ status_t SurfaceFlinger::readyToRun()
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glEnableClientState(GL_VERTEX_ARRAY);
     glShadeModel(GL_FLAT);
-    glDisable(GL_DITHER);
+    if (mUseDithering == 0 || mUseDithering == 1) {
+        glDisable(GL_DITHER);
+    }
+    else if (mUseDithering == 2) {
+        glEnable(GL_DITHER);
+    }
     glDisable(GL_CULL_FACE);
 
     const uint16_t g0 = pack565(0x0F,0x1F,0x0F);
