@@ -62,14 +62,12 @@ nativeClassInit(JNIEnv *_env, jclass glImplClass)
 
 
 static void *
-getPointer(JNIEnv *_env, jobject buffer, jarray *array, jint *remaining)
+getPointer(JNIEnv *_env, jobject buffer, jarray *array, jint *remaining, jint *offset)
 {
     jint position;
     jint limit;
     jint elementSizeShift;
     jlong pointer;
-    jint offset;
-    void *data;
 
     position = _env->GetIntField(buffer, positionID);
     limit = _env->GetIntField(buffer, limitID);
@@ -84,11 +82,10 @@ getPointer(JNIEnv *_env, jobject buffer, jarray *array, jint *remaining)
 
     *array = (jarray) _env->CallStaticObjectMethod(nioAccessClass,
             getBaseArrayID, buffer);
-    offset = _env->CallStaticIntMethod(nioAccessClass,
+    *offset = _env->CallStaticIntMethod(nioAccessClass,
             getBaseArrayOffsetID, buffer);
-    data = _env->GetPrimitiveArrayCritical(*array, (jboolean *) 0);
 
-    return (void *) ((char *) data + offset);
+    return NULL;
 }
 
 

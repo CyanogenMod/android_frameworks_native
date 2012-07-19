@@ -939,10 +939,13 @@ public class JniCodeEmitter {
         // Emit a single _array or multiple _XXXArray variables
         if (numBufferArgs == 1) {
                 out.println(indent + "jarray _array = (jarray) 0;");
+                out.println(indent + "jint _bufferOffset = (jint) 0;");
         } else {
             for (int i = 0; i < numBufferArgs; i++) {
                 out.println(indent + "jarray _" + bufferArgNames.get(i) +
                             "Array = (jarray) 0;");
+                out.println(indent + "jint _" + bufferArgNames.get(i) +
+                            "BufferOffset = (jint) 0;");
             }
         }
         if (!isVoid) {
@@ -1075,7 +1078,6 @@ public class JniCodeEmitter {
 
         // Emit 'GetPrimitiveArrayCritical' for non-object arrays
         // Emit 'GetPointer' calls for Buffer pointers
-        int bufArgIdx = 0;
         if (nonPrimitiveArgs.size() > 0) {
             for (int i = 0; i < nonPrimitiveArgs.size(); i++) {
                 int idx = nonPrimitiveArgs.get(i).intValue();
@@ -1168,7 +1170,9 @@ public class JniCodeEmitter {
                     out.println();
                 } else if (jfunc.getArgType(idx).isBuffer()) {
                     String array = numBufferArgs <= 1 ? "_array" :
-                        "_" + bufferArgNames.get(bufArgIdx++) + "Array";
+                        "_" + cfunc.getArgName(cIndex) + "Array";
+                    String bufferOffset = numBufferArgs <= 1 ? "_bufferOffset" :
+                        "_" + cfunc.getArgName(cIndex) + "BufferOffset";
 
                     boolean nullAllowed = isNullAllowed(cfunc) || isPointerFunc;
                     if (nullAllowed) {
@@ -1194,7 +1198,7 @@ public class JniCodeEmitter {
                                     cfunc.getArgType(cIndex).getDeclaration() +
                                     ")getPointer(_env, " +
                                     cname +
-                                    "_buf, &" + array + ", &" + remaining +
+                                    "_buf, &" + array + ", &" + remaining + ", &" + bufferOffset +
                                     ");");
                     }
 
@@ -1208,6 +1212,28 @@ public class JniCodeEmitter {
                 }
             }
         }
+
+        // Emit 'GetPrimitiveArrayCritical' for pointers if needed
+        if (nonPrimitiveArgs.size() > 0) {
+            for (int i = 0; i < nonPrimitiveArgs.size(); i++) {
+                int idx = nonPrimitiveArgs.get(i).intValue();
+                int cIndex = jfunc.getArgCIndex(idx);
+
+                if(!jfunc.getArgType(idx).isBuffer() || isPointerFunc) continue;
+
+                String cname = cfunc.getArgName(cIndex);
+                String bufferOffset = numBufferArgs <= 1 ? "_bufferOffset" :
+                            "_" + cname + "BufferOffset";
+                String array = numBufferArgs <= 1 ? "_array" :
+                            "_" + cfunc.getArgName(cIndex) + "Array";
+
+                out.println(indent + "if (" + cname +" == NULL) {");
+                out.println(indent + indent + "char * _" + cname + "Base = (char *)_env->GetPrimitiveArrayCritical(" + array + ", (jboolean *) 0);");
+                out.println(indent + indent + cname + " = (" +cfunc.getArgType(cIndex).getDeclaration() +") (_" + cname + "Base + " + bufferOffset + ");");
+                out.println(indent + "}");
+             }
+        }
+
 
         if (!isVoid) {
             out.print(indent + "_returnValue = ");
@@ -1252,7 +1278,7 @@ public class JniCodeEmitter {
                     out.print("_native");
                 }
 
-		if (cfunc.getArgType(i).isEGLHandle() &&
+                if (cfunc.getArgType(i).isEGLHandle() &&
                     !cfunc.getArgType(i).isPointer()){
                     out.print(cfunc.getArgName(i)+"_native");
                 } else {
@@ -1279,7 +1305,7 @@ public class JniCodeEmitter {
             needsExit = false;
         }
 
-        bufArgIdx = 0;
+
         if (nonPrimitiveArgs.size() > 0) {
             for (int i = nonPrimitiveArgs.size() - 1; i >= 0; i--) {
                 int idx = nonPrimitiveArgs.get(i).intValue();
@@ -1307,7 +1333,7 @@ public class JniCodeEmitter {
                 } else if (jfunc.getArgType(idx).isBuffer()) {
                     if (! isPointerFunc) {
                         String array = numBufferArgs <= 1 ? "_array" :
-                            "_" + bufferArgNames.get(bufArgIdx++) + "Array";
+                            "_" + cfunc.getArgName(cIndex) + "Array";
                         out.println(indent + "if (" + array + ") {");
                         out.println(indent + indent +
                                     "releasePointer(_env, " + array + ", " +
