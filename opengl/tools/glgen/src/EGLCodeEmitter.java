@@ -44,7 +44,7 @@ public class EGLCodeEmitter extends JniCodeEmitter {
         mUseContextPointer = false;
         mUseStaticMethods = true;
         mUseSimpleMethodNames = true;
-        mUseHideCommentForAPI = true;
+        mUseHideCommentForAPI = false;
     }
 
     public void emitCode(CFunc cfunc, String original) {
