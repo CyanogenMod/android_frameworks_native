@@ -20,7 +20,7 @@ Status
 
 Version
 
-    Version 1, May 29, 2012
+    Version 2, July 23, 2012
 
 Number
 
@@ -48,7 +48,9 @@ New Types
 
 New Procedures and Functions
 
-    None.
+    EGLint eglDupAndroidFenceFDANDROID(
+                        EGLDisplay dpy,
+                        EGLSyncKHR);
 
 New Tokens
 
@@ -58,9 +60,14 @@ New Tokens
 
     EGL_SYNC_ANDROID_FENCE_ANDROID          0x3144
 
-    Accepted by the <attribute> parameter of eglGetSyncAttribKHR:
+    Accepted by the <attrib_list> parameter of eglCreateSyncKHR:
 
-    EGL_SYNC_FENCE_FD_ANDROID               0x3145
+    EGL_SYNC_ANDROID_FENCE_FD_ANDROID       0x3145
+
+    Accepted by the <attrib_list> parameter of eglCreateSyncKHR, and returned
+    by eglDupAndroidFenceFDANDROID in the event of an error:
+
+    EGL_NO_ANDROID_FENCE_ANDROID            -1
 
     Returned in <value> when eglGetSyncAttribKHR is called with <attribute>
     EGL_SYNC_CONDITION_KHR:
@@ -73,43 +80,45 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     Objects), added by KHR_fence_sync
 
     "If <type> is EGL_SYNC_ANDROID_FENCE_ANDROID, an EGL Android fence sync
-    object is created. In this case the EGL_SYNC_FENCE_FD_ANDROID attribute may
-    optionally be specified. If this attribute is specified, it must be set to
-    a file descriptor that refers to a native Android fence object.
+    object is created. In this case the EGL_SYNC_ANDROID_FENCE_FD_ANDROID
+    attribute may optionally be specified. If this attribute is specified, it
+    must be set to either a file descriptor that refers to a native Android
+    fence object or to the value EGL_NO_ANDROID_FENCE_ANDROID.
 
     The default values for the EGL Android fence sync object attributes are as
     follows:
 
-      Attribute Name            Initial Attribute Value(s)
-      ---------------           --------------------------
-      EGL_SYNC_TYPE_KHR         EGL_SYNC_ANDROID_FENCE_ANDROID
-      EGL_SYNC_STATUS_KHR       EGL_UNSIGNALED_KHR
-      EGL_SYNC_CONDITION_KHR    EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR
+      Attribute Name                     Initial Attribute Value(s)
+      ---------------                    --------------------------
+      EGL_SYNC_TYPE_KHR                  EGL_SYNC_ANDROID_FENCE_ANDROID
+      EGL_SYNC_STATUS_KHR                EGL_UNSIGNALED_KHR
+      EGL_SYNC_CONDITION_KHR             EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR
+      EGL_SYNC_ANDROID_FENCE_FD_ANDROID  EGL_NO_ANDROID_FENCE_ANDROID
 
-    Upon creation of an EGL Android fence sync object, the
-    EGL_SYNC_FENCE_FD_ANDROID attribute is set to a newly generated file
-    descriptor that refers to a native Android fence object. If the
-    EGL_SYNC_FENCE_FD_ANDROID attribute is specified in the eglCreateSyncKHR
-    call then the generated file descriptor refers to the same native Android
-    fence object as the file descriptor passed to eglCreateSyncKHR.  Note,
-    however, that the value of the sync object attribute is *not* the same file
-    descriptor as the one passed to eglCreateSyncKHR - it simply refers to the
-    same underlying native Android fence object. Additionally, if the
-    EGL_SYNC_FENCE_FD_ANDROID attribute is specified then the
-    EGL_SYNC_CONDITION_KHR attribute is set to
-    EGL_SYNC_ANDROID_FENCE_SIGNALED_ANDROID and the EGL_SYNC_STATUS_KHR
+    If the EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute is not
+    EGL_NO_ANDROID_FENCE_ANDROID then the EGL_SYNC_CONDITION_KHR attribute is
+    set to EGL_SYNC_ANDROID_FENCE_SIGNALED_ANDROID and the EGL_SYNC_STATUS_KHR
     attribute is set to reflect the signal status of the native Android fence
-    object."
+    object. Additionally, the EGL implementation assumes ownership of the file
+    descriptor, so the caller must not use it after calling eglCreateSyncKHR."
 
     Modify Section 3.8.1 (Sync Objects), added by KHR_fence_sync, starting at
     the seventh paragraph
 
     "When a fence sync object is created or when an EGL Android fence sync
-    object is created without specifying the EGL_SYNC_FENCE_FD_ANDROID
-    attribute, eglCreateSyncKHR also inserts a fence command into the command
-    stream of the bound client API's current context (i.e., the context
-    returned by eglGetCurrentContext), and associates it with the newly created
-    sync object.
+    object is created with the EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute set
+    to EGL_NO_ANDROID_FENCE_ANDROID, eglCreateSyncKHR also inserts a fence
+    command into the command stream of the bound client API's current context
+    (i.e., the context returned by eglGetCurrentContext), and associates it
+    with the newly created sync object.
+
+    After associating the fence command with an EGL Android fence sync object,
+    the next Flush() operation performed by the current client API causes a
+    new native Android fence object to be created, and the
+    EGL_SYNC_ANDROID_FENCE_ANDROID attribute of the EGL Android fence object
+    is set to a file descriptor that refers to the new native Android fence
+    object. This new native Android fence object is signaled when the EGL
+    Android fence sync object is signaled.
 
     When the condition of the sync object is satisfied by the fence command,
     the sync is signaled by the associated client API context, causing any
@@ -124,7 +133,8 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     state is affected by execution of the fence command.
 
     The EGL_SYNC_ANDROID_FENCE_SIGNALED_ANDROID condition is satisfied by the
-    signaling of the native Android fence object. When this happens any
+    signaling of the native Android fence object referred to by the
+    EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute. When this happens any
     eglClientWaitSyncKHR commands blocking on <sync> unblock."
 
     Modify the list of eglCreateSyncKHR errors in Section 3.8.1 (Sync Objects),
@@ -140,7 +150,7 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
         empty (containing only EGL_NONE), EGL_NO_SYNC_KHR is returned and an
         EGL_BAD_ATTRIBUTE error is generated.
       * If <type> is EGL_SYNC_ANDROID_FENCE_ANDROID and <attrib_list> contains
-        an attribute other than EGL_SYNC_FENCE_FD_ANDROID, EGL_NO_SYNC_KHR is
+        an attribute other than EGL_SYNC_ANDROID_FENCE_FD_ANDROID, EGL_NO_SYNC_KHR is
         returned and an EGL_BAD_ATTRIBUTE error is generated.
       * If <type> is not a supported type of sync object,
         EGL_NO_SYNC_KHR is returned and an EGL_BAD_ATTRIBUTE error is
@@ -162,14 +172,12 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     Modify table 3.cc in Section 3.8.1 (Sync Objects), added by KHR_fence_sync
 
     "
-    Attribute                 Description                Supported Sync Objects
-    -----------------         -----------------------    ----------------------
-    EGL_SYNC_TYPE_KHR         Type of the sync object    All
-    EGL_SYNC_STATUS_KHR       Status of the sync object  All
-    EGL_SYNC_CONDITION_KHR    Signaling condition        EGL_SYNC_FENCE_KHR and
-                                                         EGL_SYNC_ANDROID_FENCE_ANDROID only
-    EGL_SYNC_FENCE_FD_ANDROID Native Android fence       EGL_SYNC_ANDROID_FENCE_ANDROID only
-                              object file descriptor
+    Attribute                          Description                Supported Sync Objects
+    -----------------                  -----------------------    ----------------------
+    EGL_SYNC_TYPE_KHR                  Type of the sync object    All
+    EGL_SYNC_STATUS_KHR                Status of the sync object  All
+    EGL_SYNC_CONDITION_KHR             Signaling condition        EGL_SYNC_FENCE_KHR and
+                                                                  EGL_SYNC_ANDROID_FENCE_ANDROID only
     "
 
     Modify the second paragraph description of eglDestroySyncKHR in Section
@@ -177,9 +185,34 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
 
     "If no errors are generated, EGL_TRUE is returned, and <sync> will no
     longer be the handle of a valid sync object.  Additionally, if <sync> is an
-    EGL Android fence sync object then the file descriptor stored in the
-    EGL_SYNC_FENCE_FD_ANDROID attribute is closed and is no longer a valid file
-    descriptor."
+    EGL Android fence sync object and the EGL_SYNC_ANDROID_FENCE_FD_ANDROID
+    attribute is not EGL_NO_ANDROID_FENCE_ANDROID then that file descriptor is
+    closed."
+
+    Add the following after the last paragraph of Section 3.8.1 (Sync
+    Objects), added by KHR_fence_sync
+
+    The command
+
+        EGLint eglDupAndroidFenceFDANDROID(
+                            EGLdisplay dpy,
+                            EGLSyncKHR sync);
+
+    duplicates the file descriptor stored in the
+    EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute of an EGL Android fence sync
+    object and returns the new file descriptor.
+
+    Errors
+    ------
+
+      * If <sync> is not a valid sync object for <dpy>,
+        EGL_NO_ANDROID_FENCE_ANDROID is returned and an EGL_BAD_PARAMETER
+        error is generated.
+      * If the EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute of <sync> is
+        EGL_NO_ANDROID_FENCE_ANDROID, EGL_NO_ANDROID_FENCE_ANDROID is returned
+        and an EGL_BAD_PARAMETER error is generated.
+      * If <dpy> does not match the display passed to eglCreateSyncKHR
+        when <sync> was created, the behaviour is undefined."
 
 Issues
 
@@ -198,16 +231,38 @@ Issues
 
     2. Who is responsible for dup'ing the Android fence file descriptors?
 
-    RESOLVED: The recipient of a file descriptor is responsible for dup'ing it
-    if it wishes to maintain a reference to the Android fence object.
+    RESOLVED: Whenever a file descriptor is passed into or returned from an
+    EGL call in this extension, ownership of that file descriptor is
+    transfered. The recipient of the file descriptor must close it when it is
+    no longer needed, and the provider of the file descriptor must dup it
+    before providing it if they require continued use of the native Android
+    fence.
 
-    This means that when eglCreateSyncKHR is called with an existing file
-    descriptor, the EGL implementation must dup it. On the other hand, when
-    eglGetSyncAttribKHR is called to query the file descriptor, it is the
-    responsibility of the caller to dup the file descriptor if it wishes to
-    maintain a reference that will outlast the EGLSyncKHR object.
+    3. Can the EGL_SYNC_ANDROID_FENCE_FD_ANDROID attribute be queried?
+
+    RESOLVED: No.
+
+    Returning the file descriptor owned by the EGL implementation would
+    violate the file descriptor ownership rule described in issue #2. Having
+    eglGetSyncAttribKHR return a different (dup'd) file descriptor each time
+    it's called seems wrong, so a new function was added to explicitly dup the
+    file descriptor.
+
+    That said, the attribute is useful both as a way to pass an existing file
+    descriptor to eglCreateSyncKHR and as a way to describe the subsequent
+    behavior of EGL Android fence sync objects, so it is left as an attribute
+    for which the value cannot be queried.
 
 Revision History
+
+#2 (Jamie Gennis, July 23, 2012)
+    - Changed the file descriptor ownership transferring behavior.
+    - Added the eglDupAndroidFenceFDANDROID function.
+    - Removed EGL_SYNC_ANDROID_FENCE_FD_ANDROID from the table of gettable
+    attributes.
+    - Added language specifying that a native Android fence is created at the
+    flush following the creation of an EGL Android fence sync object that is
+    not passed an existing native fence.
 
 #1 (Jamie Gennis, May 29, 2012)
     - Initial draft.
