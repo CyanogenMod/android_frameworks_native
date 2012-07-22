@@ -1151,11 +1151,11 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
         const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
         const size_t count = layers.size();
         const Transform& tr = hw.getTransform();
-        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+        for (size_t i=0 ; i<count ; ++i) {
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
-                if (cur->getCompositionType() == HWC_OVERLAY) {
+                if (cur != end && cur->getCompositionType() == HWC_OVERLAY) {
                     if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)
                             && layer->isOpaque()) {
                         // never clear the very first layer since we're
@@ -1166,6 +1166,9 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
                 }
                 // render the layer
                 layer->draw(hw, clip);
+            }
+            if (cur != end) {
+                ++cur;
             }
         }
     }
