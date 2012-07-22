@@ -16,7 +16,6 @@ LOCAL_SRC_FILES:= \
     SurfaceFlinger.cpp                      \
     SurfaceTextureLayer.cpp                 \
     Transform.cpp                           \
-    
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
@@ -30,6 +29,11 @@ endif
 ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
 	LOCAL_CFLAGS += -DHAS_CONTEXT_PRIORITY
 	LOCAL_CFLAGS += -DNEVER_DEFAULT_TO_ASYNC_MODE
+endif
+
+ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
+    LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
+	LOCAL_CFLAGS += -DQCOMHW
 endif
 
 ifeq ($(TARGET_DISABLE_TRIPLE_BUFFERING), true)
