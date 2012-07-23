@@ -1162,6 +1162,7 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
                         // guaranteed the FB is already cleared
                         layer->clearWithOpenGL(hw, clip);
                     }
+                    ++cur;
                     continue;
                 }
                 // render the layer
