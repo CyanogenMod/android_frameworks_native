@@ -1227,7 +1227,12 @@ public class JniCodeEmitter {
                 String array = numBufferArgs <= 1 ? "_array" :
                             "_" + cfunc.getArgName(cIndex) + "Array";
 
-                out.println(indent + "if (" + cname +" == NULL) {");
+                boolean nullAllowed = isNullAllowed(cfunc) || isPointerFunc;
+                if (nullAllowed) {
+                    out.println(indent + "if (" + cname + "_buf && " + cname +" == NULL) {");
+                } else {
+                    out.println(indent + "if (" + cname +" == NULL) {");
+                }
                 out.println(indent + indent + "char * _" + cname + "Base = (char *)_env->GetPrimitiveArrayCritical(" + array + ", (jboolean *) 0);");
                 out.println(indent + indent + cname + " = (" +cfunc.getArgType(cIndex).getDeclaration() +") (_" + cname + "Base + " + bufferOffset + ");");
                 out.println(indent + "}");
