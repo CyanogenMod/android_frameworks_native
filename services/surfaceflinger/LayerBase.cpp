@@ -31,6 +31,7 @@
 #include "clz.h"
 #include "Client.h"
 #include "LayerBase.h"
+#include "Layer.h"
 #include "SurfaceFlinger.h"
 #include "DisplayHardware.h"
 
@@ -438,6 +439,14 @@ void LayerBase::dumpStats(String8& result, char* scratch, size_t SIZE) const {
 void LayerBase::clearStats() {
 }
 
+sp<LayerBaseClient> LayerBase::getLayerBaseClient() const {
+    return 0;
+}
+
+sp<Layer> LayerBase::getLayer() const {
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 
 int32_t LayerBaseClient::sIdentity = 1;
@@ -521,7 +530,7 @@ LayerBaseClient::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,
 
 LayerBaseClient::LayerCleaner::~LayerCleaner() {
     // destroy client resources
-    mFlinger->destroySurface(mLayer);
+    mFlinger->onLayerDestroyed(mLayer);
 }
 
 // ---------------------------------------------------------------------------

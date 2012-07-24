@@ -124,8 +124,7 @@ void Layer::onFirstRef()
 
 Layer::~Layer()
 {
-    mFlinger->postMessageAsync(
-            new SurfaceFlinger::MessageDestroyGLTexture(mTextureName) );
+    mFlinger->deleteTextureAsync(mTextureName);
 }
 
 void Layer::onFrameQueued() {

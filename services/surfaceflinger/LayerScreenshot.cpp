@@ -41,8 +41,7 @@ LayerScreenshot::LayerScreenshot(SurfaceFlinger* flinger, DisplayID display,
 LayerScreenshot::~LayerScreenshot()
 {
     if (mTextureName) {
-        mFlinger->postMessageAsync(
-                new SurfaceFlinger::MessageDestroyGLTexture(mTextureName) );
+        mFlinger->deleteTextureAsync(mTextureName);
     }
 }
 
@@ -85,8 +84,8 @@ void LayerScreenshot::initStates(uint32_t w, uint32_t h, uint32_t flags) {
 
 uint32_t LayerScreenshot::doTransaction(uint32_t flags)
 {
-    const Layer::State& draw(drawingState());
-    const Layer::State& curr(currentState());
+    const LayerBase::State& draw(drawingState());
+    const LayerBase::State& curr(currentState());
 
     if (draw.flags & ISurfaceComposer::eLayerHidden) {
         if (!(curr.flags & ISurfaceComposer::eLayerHidden)) {

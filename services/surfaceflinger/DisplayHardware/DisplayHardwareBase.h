@@ -18,24 +18,13 @@
 #define ANDROID_DISPLAY_HARDWARE_BASE_H
 
 #include <stdint.h>
-#include <utils/RefBase.h>
-#include <utils/StrongPointer.h>
-#include <utils/threads.h>
 
 namespace android {
 
-class SurfaceFlinger; 
-
-class DisplayHardwareBase
-{
+class DisplayHardwareBase {
 public:
-    DisplayHardwareBase(
-            const sp<SurfaceFlinger>& flinger,
-            uint32_t displayIndex);
-
+    DisplayHardwareBase(uint32_t displayIndex);
     ~DisplayHardwareBase();
-
-    void startSleepManagement() const;
 
     // console management
     void releaseScreen() const;
@@ -44,21 +33,8 @@ public:
 
     bool canDraw() const;
 
-
 private:
-    class DisplayEventThread : public Thread {
-        wp<SurfaceFlinger> mFlinger;
-        status_t waitForFbSleep();
-        status_t waitForFbWake();
-    public:
-        DisplayEventThread(const sp<SurfaceFlinger>& flinger);
-        virtual ~DisplayEventThread();
-        virtual bool threadLoop();
-        status_t initCheck() const;
-    };
-
-    sp<DisplayEventThread>  mDisplayEventThread;
-    mutable int             mScreenAcquired;
+    mutable int mScreenAcquired;
 };
 
 }; // namespace android

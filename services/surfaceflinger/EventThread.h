@@ -30,12 +30,11 @@
 #include "DisplayHardware.h"
 
 // ---------------------------------------------------------------------------
-
 namespace android {
-
 // ---------------------------------------------------------------------------
 
 class SurfaceFlinger;
+class String8;
 
 // ---------------------------------------------------------------------------
 
@@ -91,7 +90,6 @@ private:
     void disableVSyncLocked();
 
     // constants
-    sp<SurfaceFlinger> mFlinger;
     DisplayHardware& mHw;
 
     mutable Mutex mLock;

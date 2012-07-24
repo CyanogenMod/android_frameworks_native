@@ -24,7 +24,11 @@
 
 #include <hardware/hwcomposer_defs.h>
 
+#include <utils/Condition.h>
+#include <utils/Mutex.h>
 #include <utils/StrongPointer.h>
+#include <utils/Thread.h>
+#include <utils/Timers.h>
 #include <utils/Vector.h>
 
 extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
@@ -38,10 +42,10 @@ struct hwc_procs;
 namespace android {
 // ---------------------------------------------------------------------------
 
+class GraphicBuffer;
+class LayerBase;
 class String8;
 class SurfaceFlinger;
-class LayerBase;
-class GraphicBuffer;
 
 class HWComposer
 {

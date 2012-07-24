@@ -24,6 +24,7 @@
 #include <gui/DisplayEventReceiver.h>
 
 #include <utils/Errors.h>
+#include <utils/String8.h>
 #include <utils/Trace.h>
 
 #include "DisplayHardware.h"
@@ -31,20 +32,16 @@
 #include "SurfaceFlinger.h"
 
 // ---------------------------------------------------------------------------
-
 namespace android {
-
 // ---------------------------------------------------------------------------
 
 EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
-    : mFlinger(flinger),
-      mHw(const_cast<DisplayHardware&>(flinger->getDefaultDisplayHardware())), // XXX: eventthread will need rework
+    : mHw(const_cast<DisplayHardware&>(flinger->getDefaultDisplayHardware())), // XXX: eventthread will need rework
       mLastVSyncTimestamp(0),
       mVSyncTimestamp(0),
       mUseSoftwareVSync(false),
       mDeliveredEvents(0),
-      mDebugVsyncEnabled(false)
-{
+      mDebugVsyncEnabled(false) {
 }
 
 void EventThread::onFirstRef() {

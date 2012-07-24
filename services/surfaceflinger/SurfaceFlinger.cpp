@@ -16,17 +16,13 @@
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <errno.h>
 #include <math.h>
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
+
+#include <EGL/egl.h>
+#include <GLES/gl.h>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -37,16 +33,19 @@
 #include <binder/PermissionCache.h>
 
 #include <gui/IDisplayEventConnection.h>
+#include <gui/BitTube.h>
+#include <gui/SurfaceTextureClient.h>
+
+#include <ui/GraphicBufferAllocator.h>
+#include <ui/PixelFormat.h>
 
 #include <utils/String8.h>
 #include <utils/String16.h>
 #include <utils/StopWatch.h>
 #include <utils/Trace.h>
 
-#include <ui/GraphicBufferAllocator.h>
-#include <ui/PixelFormat.h>
-
-#include <GLES/gl.h>
+#include <private/android_filesystem_config.h>
+#include <private/gui/SharedBufferStack.h>
 
 #include "clz.h"
 #include "DdmConnection.h"
@@ -62,10 +61,6 @@
 #include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/HWComposer.h"
 
-#include <private/android_filesystem_config.h>
-#include <private/gui/SharedBufferStack.h>
-#include <gui/BitTube.h>
-#include <gui/SurfaceTextureClient.h>
 
 #define EGL_VERSION_HW_ANDROID  0x3143
 
@@ -100,11 +95,6 @@ SurfaceFlinger::SurfaceFlinger()
         mLastTransactionTime(0),
         mBootFinished(false),
         mExternalDisplaySurface(EGL_NO_SURFACE)
-{
-    init();
-}
-
-void SurfaceFlinger::init()
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -192,13 +182,28 @@ void SurfaceFlinger::bootFinished()
     const String16 name("window");
     sp<IBinder> window(defaultServiceManager()->getService(name));
     if (window != 0) {
-        window->linkToDeath(this);
+        window->linkToDeath(static_cast<IBinder::DeathRecipient*>(this));
     }
 
     // stop boot animation
     // formerly we would just kill the process, but we now ask it to exit so it
     // can choose where to stop the animation.
     property_set("service.bootanim.exit", "1");
+}
+
+void SurfaceFlinger::deleteTextureAsync(GLuint texture) {
+    class MessageDestroyGLTexture : public MessageBase {
+        GLuint texture;
+    public:
+        MessageDestroyGLTexture(GLuint texture)
+            : texture(texture) {
+        }
+        virtual bool handler() {
+            glDeleteTextures(1, &texture);
+            return true;
+        }
+    };
+    postMessageAsync(new MessageDestroyGLTexture(texture));
 }
 
 status_t SurfaceFlinger::selectConfigForPixelFormat(
@@ -1250,30 +1255,15 @@ void SurfaceFlinger::drawWormhole() const
     }
 }
 
-status_t SurfaceFlinger::addLayer(const sp<LayerBase>& layer)
-{
-    Mutex::Autolock _l(mStateLock);
-    addLayer_l(layer);
-    setTransactionFlags(eTransactionNeeded|eTraversalNeeded);
-    return NO_ERROR;
-}
-
-status_t SurfaceFlinger::addLayer_l(const sp<LayerBase>& layer)
-{
-    ssize_t i = mCurrentState.layersSortedByZ.add(layer);
-    return (i < 0) ? status_t(i) : status_t(NO_ERROR);
-}
-
 ssize_t SurfaceFlinger::addClientLayer(const sp<Client>& client,
         const sp<LayerBaseClient>& lbc)
 {
     // attach this layer to the client
     size_t name = client->attachLayer(lbc);
 
-    Mutex::Autolock _l(mStateLock);
-
     // add this layer to the current state list
-    addLayer_l(lbc);
+    Mutex::Autolock _l(mStateLock);
+    mCurrentState.layersSortedByZ.add(lbc);
 
     return ssize_t(name);
 }
@@ -1289,10 +1279,6 @@ status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
 
 status_t SurfaceFlinger::removeLayer_l(const sp<LayerBase>& layerBase)
 {
-    sp<LayerBaseClient> lbc(layerBase->getLayerBaseClient());
-    if (lbc != 0) {
-        mLayerMap.removeItem( lbc->getSurfaceBinder() );
-    }
     ssize_t index = mCurrentState.layersSortedByZ.remove(layerBase);
     if (index >= 0) {
         mLayersRemoved = true;
@@ -1317,13 +1303,6 @@ status_t SurfaceFlinger::purgatorizeLayer_l(const sp<LayerBase>& layerBase)
     // from the user because there is a race between Client::destroySurface(),
     // ~Client() and ~ISurface().
     return (err == NAME_NOT_FOUND) ? status_t(NO_ERROR) : err;
-}
-
-status_t SurfaceFlinger::invalidateLayerVisibility(const sp<LayerBase>& layer)
-{
-    layer->forceVisibilityTransaction();
-    setTransactionFlags(eTraversalNeeded);
-    return NO_ERROR;
 }
 
 uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t flags)
@@ -1390,7 +1369,7 @@ void SurfaceFlinger::setTransactionState(const Vector<ComposerState>& state,
     }
 }
 
-sp<ISurface> SurfaceFlinger::createSurface(
+sp<ISurface> SurfaceFlinger::createLayer(
         ISurfaceComposerClient::surface_data_t* params,
         const String8& name,
         const sp<Client>& client,
@@ -1401,26 +1380,24 @@ sp<ISurface> SurfaceFlinger::createSurface(
     sp<ISurface> surfaceHandle;
 
     if (int32_t(w|h) < 0) {
-        ALOGE("createSurface() failed, w or h is negative (w=%d, h=%d)",
+        ALOGE("createLayer() failed, w or h is negative (w=%d, h=%d)",
                 int(w), int(h));
         return surfaceHandle;
     }
 
-    //ALOGD("createSurface for (%d x %d), name=%s", w, h, name.string());
-    sp<Layer> normalLayer;
+    //ALOGD("createLayer for (%d x %d), name=%s", w, h, name.string());
     switch (flags & eFXSurfaceMask) {
         case eFXSurfaceNormal:
-            normalLayer = createNormalSurface(client, d, w, h, flags, format);
-            layer = normalLayer;
+            layer = createNormalLayer(client, d, w, h, flags, format);
             break;
         case eFXSurfaceBlur:
             // for now we treat Blur as Dim, until we can implement it
             // efficiently.
         case eFXSurfaceDim:
-            layer = createDimSurface(client, d, w, h, flags);
+            layer = createDimLayer(client, d, w, h, flags);
             break;
         case eFXSurfaceScreenshot:
-            layer = createScreenshotSurface(client, d, w, h, flags);
+            layer = createScreenshotLayer(client, d, w, h, flags);
             break;
     }
 
@@ -1428,24 +1405,18 @@ sp<ISurface> SurfaceFlinger::createSurface(
         layer->initStates(w, h, flags);
         layer->setName(name);
         ssize_t token = addClientLayer(client, layer);
-
         surfaceHandle = layer->getSurface();
         if (surfaceHandle != 0) {
             params->token = token;
             params->identity = layer->getIdentity();
-            if (normalLayer != 0) {
-                Mutex::Autolock _l(mStateLock);
-                mLayerMap.add(layer->getSurfaceBinder(), normalLayer);
-            }
         }
-
         setTransactionFlags(eTransactionNeeded);
     }
 
     return surfaceHandle;
 }
 
-sp<Layer> SurfaceFlinger::createNormalSurface(
+sp<Layer> SurfaceFlinger::createNormalLayer(
         const sp<Client>& client, DisplayID display,
         uint32_t w, uint32_t h, uint32_t flags,
         PixelFormat& format)
@@ -1473,13 +1444,13 @@ sp<Layer> SurfaceFlinger::createNormalSurface(
     sp<Layer> layer = new Layer(this, display, client);
     status_t err = layer->setBuffers(w, h, format, flags);
     if (CC_LIKELY(err != NO_ERROR)) {
-        ALOGE("createNormalSurfaceLocked() failed (%s)", strerror(-err));
+        ALOGE("createNormalLayer() failed (%s)", strerror(-err));
         layer.clear();
     }
     return layer;
 }
 
-sp<LayerDim> SurfaceFlinger::createDimSurface(
+sp<LayerDim> SurfaceFlinger::createDimLayer(
         const sp<Client>& client, DisplayID display,
         uint32_t w, uint32_t h, uint32_t flags)
 {
@@ -1487,7 +1458,7 @@ sp<LayerDim> SurfaceFlinger::createDimSurface(
     return layer;
 }
 
-sp<LayerScreenshot> SurfaceFlinger::createScreenshotSurface(
+sp<LayerScreenshot> SurfaceFlinger::createScreenshotLayer(
         const sp<Client>& client, DisplayID display,
         uint32_t w, uint32_t h, uint32_t flags)
 {
@@ -1495,7 +1466,7 @@ sp<LayerScreenshot> SurfaceFlinger::createScreenshotSurface(
     return layer;
 }
 
-status_t SurfaceFlinger::removeSurface(const sp<Client>& client, SurfaceID sid)
+status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, SurfaceID sid)
 {
     /*
      * called by the window manager, when a surface should be marked for
@@ -1519,7 +1490,7 @@ status_t SurfaceFlinger::removeSurface(const sp<Client>& client, SurfaceID sid)
     return err;
 }
 
-status_t SurfaceFlinger::destroySurface(const wp<LayerBaseClient>& layer)
+status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBaseClient>& layer)
 {
     // called by ~ISurface() when all references are gone
     status_t err = NO_ERROR;
@@ -2731,12 +2702,30 @@ status_t SurfaceFlinger::captureScreen(DisplayID dpy,
 
 // ---------------------------------------------------------------------------
 
-sp<Layer> SurfaceFlinger::getLayer(const sp<ISurface>& sur) const
+SurfaceFlinger::LayerVector::LayerVector() {
+}
+
+SurfaceFlinger::LayerVector::LayerVector(const LayerVector& rhs)
+    : SortedVector<sp<LayerBase> >(rhs) {
+}
+
+int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
+    const void* rhs) const
 {
-    sp<Layer> result;
-    Mutex::Autolock _l(mStateLock);
-    result = mLayerMap.valueFor( sur->asBinder() ).promote();
-    return result;
+    const sp<LayerBase>& l(*reinterpret_cast<const sp<LayerBase>*>(lhs));
+    const sp<LayerBase>& r(*reinterpret_cast<const sp<LayerBase>*>(rhs));
+    // sort layers by Z order
+    uint32_t lz = l->currentState().z;
+    uint32_t rz = r->currentState().z;
+    // then by sequence, so we get a stable ordering
+    return (lz != rz) ? (lz - rz) : (l->sequence - r->sequence);
+}
+
+// ---------------------------------------------------------------------------
+
+SurfaceFlinger::State::State()
+    : orientation(ISurfaceComposer::eOrientationDefault),
+      orientationFlags(0) {
 }
 
 // ---------------------------------------------------------------------------

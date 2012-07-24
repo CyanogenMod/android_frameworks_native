@@ -125,8 +125,8 @@ public:
             Rect computeBounds() const;
 
 
-    virtual sp<LayerBaseClient> getLayerBaseClient() const { return 0; }
-    virtual sp<Layer> getLayer() const { return 0; }
+    virtual sp<LayerBaseClient> getLayerBaseClient() const;
+    virtual sp<Layer> getLayer() const;
 
     virtual const char* getTypeId() const { return "LayerBase"; }
 

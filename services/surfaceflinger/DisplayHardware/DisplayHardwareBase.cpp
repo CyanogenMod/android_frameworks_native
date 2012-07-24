@@ -14,25 +14,15 @@
  * limitations under the License.
  */
 
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <unistd.h>
-#include <fcntl.h>
-
-#include <utils/Log.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 #include "DisplayHardware/DisplayHardwareBase.h"
-#include "SurfaceFlinger.h"
 
 // ----------------------------------------------------------------------------
 namespace android {
 
-DisplayHardwareBase::DisplayHardwareBase(const sp<SurfaceFlinger>& flinger,
-        uint32_t displayIndex) 
-{
+DisplayHardwareBase::DisplayHardwareBase(uint32_t displayIndex) {
     mScreenAcquired = true;
 }
 

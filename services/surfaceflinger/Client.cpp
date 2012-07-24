@@ -22,6 +22,7 @@
 #include <private/android_filesystem_config.h>
 
 #include "Client.h"
+#include "Layer.h"
 #include "LayerBase.h"
 #include "SurfaceFlinger.h"
 
@@ -118,7 +119,7 @@ sp<ISurface> Client::createSurface(
      * have access to the GL context.
      */
 
-    class MessageCreateSurface : public MessageBase {
+    class MessageCreateLayer : public MessageBase {
         sp<ISurface> result;
         SurfaceFlinger* flinger;
         ISurfaceComposerClient::surface_data_t* params;
@@ -129,7 +130,7 @@ sp<ISurface> Client::createSurface(
         PixelFormat format;
         uint32_t flags;
     public:
-        MessageCreateSurface(SurfaceFlinger* flinger,
+        MessageCreateLayer(SurfaceFlinger* flinger,
                 ISurfaceComposerClient::surface_data_t* params,
                 const String8& name, Client* client,
                 DisplayID display, uint32_t w, uint32_t h, PixelFormat format,
@@ -140,19 +141,19 @@ sp<ISurface> Client::createSurface(
         }
         sp<ISurface> getResult() const { return result; }
         virtual bool handler() {
-            result = flinger->createSurface(params, name, client,
+            result = flinger->createLayer(params, name, client,
                     display, w, h, format, flags);
             return true;
         }
     };
 
-    sp<MessageBase> msg = new MessageCreateSurface(mFlinger.get(),
+    sp<MessageBase> msg = new MessageCreateLayer(mFlinger.get(),
             params, name, this, display, w, h, format, flags);
     mFlinger->postMessageSync(msg);
-    return static_cast<MessageCreateSurface*>( msg.get() )->getResult();
+    return static_cast<MessageCreateLayer*>( msg.get() )->getResult();
 }
 status_t Client::destroySurface(SurfaceID sid) {
-    return mFlinger->removeSurface(this, sid);
+    return mFlinger->onLayerRemoved(this, sid);
 }
 
 // ---------------------------------------------------------------------------

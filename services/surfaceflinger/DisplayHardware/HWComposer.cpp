@@ -31,6 +31,8 @@
 #include <utils/Trace.h>
 #include <utils/Vector.h>
 
+#include <ui/GraphicBuffer.h>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
@@ -39,6 +41,7 @@
 
 #include <EGL/egl.h>
 
+#include "Layer.h"           // needed only for debugging
 #include "LayerBase.h"
 #include "HWComposer.h"
 #include "SurfaceFlinger.h"

@@ -40,6 +40,7 @@
 #include "DisplayHardware.h"
 #include "GLExtensions.h"
 #include "SurfaceFlinger.h"
+#include "LayerBase.h"
 
 // ----------------------------------------------------------------------------
 using namespace android;
@@ -102,7 +103,7 @@ DisplayHardware::DisplayHardware(
         int display,
         const sp<SurfaceTextureClient>& surface,
         EGLConfig config)
-    : DisplayHardwareBase(flinger, display),
+    : DisplayHardwareBase(display),
       mFlinger(flinger),
       mDisplayId(display),
       mHwc(0),
