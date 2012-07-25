@@ -805,14 +805,7 @@ Region SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
             const int dpy = 0; // TODO: should be a parameter
             DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
-            const int orientation = mCurrentState.orientation;
-            hw.setOrientation(orientation);
-
-            // update the shared control block
-            volatile display_cblk_t* dcblk = mServerCblk->displays + dpy;
-            dcblk->orientation = orientation;
-            dcblk->w = hw.getUserWidth();
-            dcblk->h = hw.getUserHeight();
+            hw.setOrientation(mCurrentState.orientation);
 
             // FIXME: mVisibleRegionsDirty & mDirtyRegion should this be per DisplayHardware?
             mVisibleRegionsDirty = true;

@@ -233,48 +233,19 @@ void DisplayHardware::init(EGLConfig config)
         mHwc->setFrameBuffer(mDisplay, mSurface);
     }
 
-    // initialize the display orientation transform.
-    // it's a constant that should come from the display driver.
-    int displayOrientation = ISurfaceComposer::eOrientationDefault;
-    char property[PROPERTY_VALUE_MAX];
-    if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
-        //displayOrientation
-        switch (atoi(property)) {
-        case 90:
-            displayOrientation = ISurfaceComposer::eOrientation90;
-            break;
-        case 270:
-            displayOrientation = ISurfaceComposer::eOrientation270;
-            break;
-        }
-    }
-
-    w = mDisplayWidth;
-    h = mDisplayHeight;
-    DisplayHardware::orientationToTransfrom(displayOrientation, w, h,
-            &mDisplayTransform);
-    if (displayOrientation & ISurfaceComposer::eOrientationSwapMask) {
-        mLogicalDisplayWidth = h;
-        mLogicalDisplayHeight = w;
-    } else {
-        mLogicalDisplayWidth = w;
-        mLogicalDisplayHeight = h;
-    }
-    DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
-
     // initialize the shared control block
     surface_flinger_cblk_t* const scblk = mFlinger->getControlBlock();
     scblk->connected |= 1 << mDisplayId;
     display_cblk_t* dcblk = &scblk->displays[mDisplayId];
     memset(dcblk, 0, sizeof(display_cblk_t));
-    dcblk->w = w; // XXX: plane.getWidth();
-    dcblk->h = h; // XXX: plane.getHeight();
     dcblk->format = format;
-    dcblk->orientation = ISurfaceComposer::eOrientationDefault;
     dcblk->xdpi = mDpiX;
     dcblk->ydpi = mDpiY;
     dcblk->fps = mRefreshRate;
     dcblk->density = mDensity;
+
+    // initialize the display orientation transform.
+    DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
 }
 
 void DisplayHardware::setVSyncHandler(const sp<VSyncHandler>& handler) {
@@ -438,25 +409,25 @@ status_t DisplayHardware::orientationToTransfrom(
     return NO_ERROR;
 }
 
-status_t DisplayHardware::setOrientation(int orientation)
-{
-    // If the rotation can be handled in hardware, this is where
-    // the magic should happen.
+status_t DisplayHardware::setOrientation(int orientation) {
+    int w = mDisplayWidth;
+    int h = mDisplayHeight;
 
-    const int w = mLogicalDisplayWidth;
-    const int h = mLogicalDisplayHeight;
-    mUserDisplayWidth = w;
-    mUserDisplayHeight = h;
-
-    Transform orientationTransform;
-    DisplayHardware::orientationToTransfrom(orientation, w, h,
-            &orientationTransform);
+    DisplayHardware::orientationToTransfrom(
+            orientation, w, h, &mGlobalTransform);
     if (orientation & ISurfaceComposer::eOrientationSwapMask) {
-        mUserDisplayWidth = h;
-        mUserDisplayHeight = w;
+        int tmp = w;
+        w = h;
+        h = tmp;
     }
-
     mOrientation = orientation;
-    mGlobalTransform = mDisplayTransform * orientationTransform;
+
+    // update the shared control block
+    surface_flinger_cblk_t* const scblk = mFlinger->getControlBlock();
+    volatile display_cblk_t* dcblk = &scblk->displays[mDisplayId];
+    dcblk->orientation = orientation;
+    dcblk->w = w;
+    dcblk->h = h;
+
     return NO_ERROR;
 }

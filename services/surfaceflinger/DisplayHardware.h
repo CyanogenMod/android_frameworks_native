@@ -91,8 +91,6 @@ public:
     status_t                setOrientation(int orientation);
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
-    int                     getUserWidth() const { return mUserDisplayWidth; }
-    int                     getUserHeight() const { return mUserDisplayHeight; }
 
     void setVSyncHandler(const sp<VSyncHandler>& handler);
 
@@ -166,19 +164,13 @@ private:
     // this used to be in GraphicPlane
     static status_t orientationToTransfrom(int orientation, int w, int h,
             Transform* tr);
-    Transform               mGlobalTransform;
-    Transform               mDisplayTransform;
-    int                     mOrientation;
-    int                     mLogicalDisplayWidth;
-    int                     mLogicalDisplayHeight;
-    int                     mUserDisplayWidth;
-    int                     mUserDisplayHeight;
-
-    mutable Mutex   mLock;
+    Transform mGlobalTransform;
+    int mOrientation;
 
     /*
      *  protected by mLock
      */
+    mutable Mutex mLock;
     wp<VSyncHandler>    mVSyncHandler;
 };
 
