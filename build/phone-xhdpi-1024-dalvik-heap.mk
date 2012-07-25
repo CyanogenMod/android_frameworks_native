@@ -19,4 +19,7 @@
 PRODUCT_PROPERTY_OVERRIDES += \
     dalvik.vm.heapstartsize=8m \
     dalvik.vm.heapgrowthlimit=64m \
-    dalvik.vm.heapsize=256m
+    dalvik.vm.heapsize=256m \
+    dalvik.vm.heaputilization=0.25 \
+    dalvik.vm.heapidealfree=8388608 \
+    dalvik.vm.heapconcurrentstart=2097152
