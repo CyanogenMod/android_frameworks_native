@@ -36,7 +36,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
-    : mHw(const_cast<DisplayHardware&>(flinger->getDefaultDisplayHardware())), // XXX: eventthread will need rework
+    : mFlinger(flinger),
       mLastVSyncTimestamp(0),
       mVSyncTimestamp(0),
       mUseSoftwareVSync(false),
@@ -45,7 +45,6 @@ EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
 }
 
 void EventThread::onFirstRef() {
-    mHw.setVSyncHandler(this);
     run("EventThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
 }
 
@@ -251,13 +250,15 @@ bool EventThread::threadLoop() {
 void EventThread::enableVSyncLocked() {
     if (!mUseSoftwareVSync) {
         // never enable h/w VSYNC when screen is off
-        mHw.eventControl(DisplayHardware::EVENT_VSYNC, true);
+        mFlinger->eventControl(SurfaceFlinger::EVENT_VSYNC, true);
+        mPowerHAL.vsyncHint(true);
     }
     mDebugVsyncEnabled = true;
 }
 
 void EventThread::disableVSyncLocked() {
-    mHw.eventControl(DisplayHardware::EVENT_VSYNC, false);
+    mFlinger->eventControl(SurfaceFlinger::EVENT_VSYNC, false);
+    mPowerHAL.vsyncHint(false);
     mDebugVsyncEnabled = false;
 }
 

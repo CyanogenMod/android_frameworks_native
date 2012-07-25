@@ -27,29 +27,23 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <utils/Mutex.h>
+#include <utils/Timers.h>
+
 #include "Transform.h"
 
 #include "DisplayHardware/DisplayHardwareBase.h"
-#include "DisplayHardware/HWComposer.h"
-#include "DisplayHardware/PowerHAL.h"
 
 namespace android {
 
 class FramebufferSurface;
+class LayerBase;
+class SurfaceFlinger;
 class SurfaceTextureClient;
 
-class DisplayHardware :
-    public DisplayHardwareBase,
-    public HWComposer::EventHandler
+class DisplayHardware : public DisplayHardwareBase
 {
 public:
-
-    class VSyncHandler : virtual public RefBase {
-        friend class DisplayHardware;
-        virtual void onVSyncReceived(int dpy, nsecs_t timestamp) = 0;
-    protected:
-        virtual ~VSyncHandler() {}
-    };
 
     enum {
         PARTIAL_UPDATES             = 0x00020000,   // video driver feature
@@ -64,12 +58,11 @@ public:
 
     virtual ~DisplayHardware();
 
-    void releaseScreen() const;
-    void acquireScreen() const;
-
     // Flip the front and back buffers if the back buffer is "dirty".  Might
     // be instantaneous, might involve copying the frame buffer around.
     void flip(const Region& dirty) const;
+
+    void onVSyncReceived(nsecs_t timestamp);
 
     float       getDpiX() const;
     float       getDpiY() const;
@@ -92,23 +85,11 @@ public:
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
 
-    void setVSyncHandler(const sp<VSyncHandler>& handler);
-
-    enum {
-        EVENT_VSYNC = HWC_EVENT_VSYNC
-    };
-
-    void eventControl(int event, int enabled);
-
-
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
 
     void dump(String8& res) const;
 
-    // Hardware Composer
-    HWComposer& getHwComposer() const;
-    
     status_t compositionComplete() const;
     
     Rect getBounds() const {
@@ -119,15 +100,11 @@ public:
 private:
     void init(EGLConfig config);
 
-    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
-
     /*
      *  Constants, set during initialization
      */
     sp<SurfaceFlinger> mFlinger;
     int mDisplayId;
-    HWComposer* mHwc;
-    PowerHAL mPowerHAL;
     // ANativeWindow this display is rendering into
     sp<SurfaceTextureClient> mNativeWindow;
     // set if mNativeWindow is a FramebufferSurface
@@ -148,8 +125,6 @@ private:
     mutable uint32_t mPageFlipCount;
 
     nsecs_t         mRefreshPeriod;
-    mutable nsecs_t mLastHwVSync;
-
 
     /*
      * Can only accessed from the main thread, these members
@@ -171,7 +146,7 @@ private:
      *  protected by mLock
      */
     mutable Mutex mLock;
-    wp<VSyncHandler>    mVSyncHandler;
+    mutable nsecs_t mLastHwVSync;
 };
 
 }; // namespace android

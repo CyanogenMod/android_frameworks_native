@@ -406,6 +406,14 @@ status_t SurfaceFlinger::readyToRun()
     EGLSurface surface = hw->getEGLSurface();
     initializeGL(display, surface);
 
+    // initialize the H/W composer
+    mHwc = new HWComposer(this,
+            *static_cast<HWComposer::EventHandler *>(this),
+            hw->getRefreshPeriod());
+    if (mHwc->initCheck() == NO_ERROR) {
+        mHwc->setFrameBuffer(display, surface);
+    }
+
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
@@ -553,6 +561,16 @@ status_t SurfaceFlinger::postMessageSync(const sp<MessageBase>& msg,
 bool SurfaceFlinger::threadLoop() {
     waitForEvent();
     return true;
+}
+
+void SurfaceFlinger::onVSyncReceived(int dpy, nsecs_t timestamp) {
+    DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+    hw.onVSyncReceived(timestamp);
+    mEventThread->onVSyncReceived(dpy, timestamp);
+}
+
+void SurfaceFlinger::eventControl(int event, int enabled) {
+    getHwComposer().eventControl(event, enabled);
 }
 
 void SurfaceFlinger::onMessageReceived(int32_t what) {
@@ -705,7 +723,7 @@ void SurfaceFlinger::postFramebuffer()
     // h/w composer.
 
     const DisplayHardware& hw(getDefaultDisplayHardware());
-    HWComposer& hwc(hw.getHwComposer());
+    HWComposer& hwc(getHwComposer());
     const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
     size_t numLayers = layers.size();
     const nsecs_t now = systemTime();
@@ -724,6 +742,7 @@ void SurfaceFlinger::postFramebuffer()
     }
 
     hw.flip(mSwapRegion);
+    hwc.commit();
 
     if (hwc.initCheck() == NO_ERROR) {
         HWComposer::LayerListIterator cur = hwc.begin();
@@ -1027,7 +1046,7 @@ void SurfaceFlinger::handleRefresh()
 void SurfaceFlinger::handleWorkList(const DisplayHardware& hw)
 {
     mHwWorkListDirty = false;
-    HWComposer& hwc(hw.getHwComposer());
+    HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
@@ -1089,7 +1108,7 @@ void SurfaceFlinger::handleRepaint(const DisplayHardware& hw)
 
 void SurfaceFlinger::setupHardwareComposer(const DisplayHardware& hw)
 {
-    HWComposer& hwc(hw.getHwComposer());
+    HWComposer& hwc(getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin();
     const HWComposer::LayerListIterator end = hwc.end();
     if (cur == end) {
@@ -1122,7 +1141,7 @@ void SurfaceFlinger::setupHardwareComposer(const DisplayHardware& hw)
 
 void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& dirty)
 {
-    HWComposer& hwc(hw.getHwComposer());
+    HWComposer& hwc(getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin();
     const HWComposer::LayerListIterator end = hwc.end();
 
@@ -1578,6 +1597,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 void SurfaceFlinger::onScreenAcquired() {
     ALOGD("Screen about to return, flinger = %p", this);
     const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: this should be per DisplayHardware
+    getHwComposer().acquire();
     hw.acquireScreen();
     mEventThread->onScreenAcquired();
     // this is a temporary work-around, eventually this should be called
@@ -1593,6 +1613,7 @@ void SurfaceFlinger::onScreenReleased() {
     if (hw.isScreenAcquired()) {
         mEventThread->onScreenReleased();
         hw.releaseScreen();
+        getHwComposer().release();
         // from this point on, SF will stop drawing
     }
 }
@@ -1842,7 +1863,7 @@ void SurfaceFlinger::dumpAllLocked(
     /*
      * Dump HWComposer state
      */
-    HWComposer& hwc(hw.getHwComposer());
+    HWComposer& hwc(getHwComposer());
     snprintf(buffer, SIZE, "h/w composer state:\n");
     result.append(buffer);
     snprintf(buffer, SIZE, "  h/w composer %s and %s\n",
@@ -2430,7 +2451,7 @@ status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
     }
 
     // turn off hwc while we're doing the animation
-    hw.getHwComposer().disable();
+    getHwComposer().disable();
     // and make sure to turn it back on (if needed) next time we compose
     invalidateHwcGeometry();
 

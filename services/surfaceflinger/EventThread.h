@@ -28,6 +28,7 @@
 #include <utils/SortedVector.h>
 
 #include "DisplayHardware.h"
+#include "DisplayHardware/PowerHAL.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -38,7 +39,7 @@ class String8;
 
 // ---------------------------------------------------------------------------
 
-class EventThread : public Thread, public DisplayHardware::VSyncHandler {
+class EventThread : public Thread {
     class Connection : public BnDisplayEventConnection {
     public:
         Connection(const sp<EventThread>& eventThread);
@@ -77,20 +78,23 @@ public:
     // called after the screen is turned on from main thread
     void onScreenAcquired();
 
+    // called when receiving a vsync event
+    void onVSyncReceived(int display, nsecs_t timestamp);
+
     void dump(String8& result, char* buffer, size_t SIZE) const;
 
 private:
     virtual bool        threadLoop();
     virtual status_t    readyToRun();
     virtual void        onFirstRef();
-    virtual void        onVSyncReceived(int, nsecs_t timestamp);
 
     void removeDisplayEventConnection(const wp<Connection>& connection);
     void enableVSyncLocked();
     void disableVSyncLocked();
 
     // constants
-    DisplayHardware& mHw;
+    sp<SurfaceFlinger> mFlinger;
+    PowerHAL mPowerHAL;
 
     mutable Mutex mLock;
     mutable Condition mCondition;

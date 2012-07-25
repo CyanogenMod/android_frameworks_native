@@ -276,9 +276,14 @@ size_t HWComposer::getLayerCount(int type) const {
 }
 
 status_t HWComposer::commit() const {
-    int err = mHwc->set(mHwc, mDpy, mSur, mList);
-    if (mList) {
-        mList->flags &= ~HWC_GEOMETRY_CHANGED;
+    int err = NO_ERROR;
+    if (mHwc) {
+        err = mHwc->set(mHwc, mDpy, mSur, mList);
+        if (mList) {
+            mList->flags &= ~HWC_GEOMETRY_CHANGED;
+        }
+    } else {
+        eglSwapBuffers(mDpy, mSur);
     }
     return (status_t)err;
 }

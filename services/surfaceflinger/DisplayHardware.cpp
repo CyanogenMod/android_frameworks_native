@@ -106,7 +106,6 @@ DisplayHardware::DisplayHardware(
     : DisplayHardwareBase(display),
       mFlinger(flinger),
       mDisplayId(display),
-      mHwc(0),
       mNativeWindow(surface),
       mFlags(0),
       mSecureLayerVisible(false)
@@ -227,12 +226,6 @@ void DisplayHardware::init(EGLConfig config)
     mFormat  = format;
     mPageFlipCount = 0;
 
-    // initialize the H/W composer
-    mHwc = new HWComposer(mFlinger, *this, mRefreshPeriod);
-    if (mHwc->initCheck() == NO_ERROR) {
-        mHwc->setFrameBuffer(mDisplay, mSurface);
-    }
-
     // initialize the shared control block
     surface_flinger_cblk_t* const scblk = mFlinger->getControlBlock();
     scblk->connected |= 1 << mDisplayId;
@@ -246,53 +239,6 @@ void DisplayHardware::init(EGLConfig config)
 
     // initialize the display orientation transform.
     DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
-}
-
-void DisplayHardware::setVSyncHandler(const sp<VSyncHandler>& handler) {
-    Mutex::Autolock _l(mLock);
-    mVSyncHandler = handler;
-}
-
-void DisplayHardware::eventControl(int event, int enabled) {
-    if (event == EVENT_VSYNC) {
-        mPowerHAL.vsyncHint(enabled);
-    }
-    mHwc->eventControl(event, enabled);
-}
-
-void DisplayHardware::onVSyncReceived(int dpy, nsecs_t timestamp) {
-    sp<VSyncHandler> handler;
-    { // scope for the lock
-        Mutex::Autolock _l(mLock);
-        mLastHwVSync = timestamp;
-        if (mVSyncHandler != NULL) {
-            handler = mVSyncHandler.promote();
-        }
-    }
-
-    if (handler != NULL) {
-        handler->onVSyncReceived(dpy, timestamp);
-    }
-}
-
-HWComposer& DisplayHardware::getHwComposer() const {
-    return *mHwc;
-}
-
-void DisplayHardware::releaseScreen() const
-{
-    DisplayHardwareBase::releaseScreen();
-    if (mHwc->initCheck() == NO_ERROR) {
-        mHwc->release();
-    }
-}
-
-void DisplayHardware::acquireScreen() const
-{
-    if (mHwc->initCheck() == NO_ERROR) {
-        mHwc->acquire();
-    }
-    DisplayHardwareBase::acquireScreen();
 }
 
 uint32_t DisplayHardware::getPageFlipCount() const {
@@ -319,6 +265,11 @@ status_t DisplayHardware::compositionComplete() const {
     return mFramebufferSurface->compositionComplete();
 }
 
+void DisplayHardware::onVSyncReceived(nsecs_t timestamp) {
+    Mutex::Autolock _l(mLock);
+    mLastHwVSync = timestamp;
+}
+
 void DisplayHardware::flip(const Region& dirty) const
 {
     checkGLErrors();
@@ -342,13 +293,6 @@ void DisplayHardware::flip(const Region& dirty) const
     }
     
     mPageFlipCount++;
-
-    if (mHwc->initCheck() == NO_ERROR) {
-        mHwc->commit();
-    } else {
-        eglSwapBuffers(dpy, surface);
-    }
-    checkEGLErrors("eglSwapBuffers");
 }
 
 uint32_t DisplayHardware::getFlags() const

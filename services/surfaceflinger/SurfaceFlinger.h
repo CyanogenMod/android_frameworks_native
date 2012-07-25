@@ -41,10 +41,14 @@
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
 
+#include <hardware/hwcomposer_defs.h>
+
 #include <private/gui/LayerState.h>
 
 #include "Barrier.h"
 #include "MessageQueue.h"
+
+#include "DisplayHardware/HWComposer.h"
 
 namespace android {
 
@@ -81,7 +85,8 @@ enum {
 class SurfaceFlinger : public BinderService<SurfaceFlinger>,
                        public BnSurfaceComposer,
                        private IBinder::DeathRecipient,
-                       private Thread
+                       private Thread,
+                       private HWComposer::EventHandler
 {
 public:
     static char const* getServiceName() {
@@ -89,6 +94,10 @@ public:
     }
 
     SurfaceFlinger();
+
+    enum {
+        EVENT_VSYNC = HWC_EVENT_VSYNC
+    };
 
     // post an asynchronous message to the main thread
     status_t postMessageAsync(const sp<MessageBase>& msg, nsecs_t reltime = 0,
@@ -114,13 +123,18 @@ public:
         return getDisplayHardware(0);
     }
 
+    // utility function to delete a texture on the main thread
+    void deleteTextureAsync(GLuint texture);
+
+
+    // enable/disable h/w composer event
+    // TODO: this should be made accessible only to EventThread
+    void eventControl(int event, int enabled);
+
     // called on the main thread by MessageQueue when an internal message
     // is received
     // TODO: this should be made accessible only to MessageQueue
     void onMessageReceived(int32_t what);
-
-    // utility function to delete a texture on the main thread
-    void deleteTextureAsync(GLuint texture);
 
 private:
     friend class Client;
@@ -192,6 +206,11 @@ private:
     virtual bool threadLoop();
     virtual status_t readyToRun();
     virtual void onFirstRef();
+
+    /* ------------------------------------------------------------------------
+     * HWComposer::EventHandler interface
+     */
+    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
 
     /* ------------------------------------------------------------------------
      * Message handling
@@ -308,6 +327,12 @@ private:
     }
 
     /* ------------------------------------------------------------------------
+     * H/W composer
+     */
+
+    HWComposer& getHwComposer() const { return *mHwc; }
+
+        /* ------------------------------------------------------------------------
      * Compositing
      */
     void invalidateHwcGeometry();
@@ -359,6 +384,7 @@ private:
     // constant members (no synchronization needed for access)
     sp<IMemoryHeap> mServerHeap;
     surface_flinger_cblk_t* mServerCblk;
+    HWComposer* mHwc;
     GLuint mWormholeTexName;
     GLuint mProtectedTexName;
     nsecs_t mBootTime;
