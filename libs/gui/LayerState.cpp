@@ -17,6 +17,7 @@
 #include <utils/Errors.h>
 #include <binder/Parcel.h>
 #include <gui/ISurfaceComposerClient.h>
+#include <gui/ISurfaceTexture.h>
 #include <private/gui/LayerState.h>
 
 namespace android {
@@ -68,5 +69,27 @@ status_t ComposerState::read(const Parcel& input) {
     client = interface_cast<ISurfaceComposerClient>(input.readStrongBinder());
     return state.read(input);
 }
+
+
+status_t DisplayState::write(Parcel& output) const {
+    output.writeStrongBinder(surface->asBinder());
+    output.writeInt32(displayId);
+    output.writeInt32(layerStack);
+    output.writeInt32(orientation);
+    memcpy(output.writeInplace(sizeof(Rect)), &viewport, sizeof(Rect));
+    memcpy(output.writeInplace(sizeof(Rect)), &frame, sizeof(Rect));
+    return NO_ERROR;
+}
+
+status_t DisplayState::read(const Parcel& input) {
+    surface = interface_cast<ISurfaceTexture>(input.readStrongBinder());
+    displayId = input.readInt32();
+    layerStack = input.readInt32();
+    orientation = input.readInt32();
+    memcpy(&viewport, input.readInplace(sizeof(Rect)), sizeof(Rect));
+    memcpy(&frame,    input.readInplace(sizeof(Rect)), sizeof(Rect));
+    return NO_ERROR;
+}
+
 
 }; // namespace android

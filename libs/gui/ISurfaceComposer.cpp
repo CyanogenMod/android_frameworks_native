@@ -76,18 +76,29 @@ public:
         return interface_cast<IMemoryHeap>(reply.readStrongBinder());
     }
 
-    virtual void setTransactionState(const Vector<ComposerState>& state,
-            int orientation, uint32_t flags)
+    virtual void setTransactionState(
+            const Vector<ComposerState>& state,
+            const Vector<DisplayState>& displays,
+            uint32_t flags)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        Vector<ComposerState>::const_iterator b(state.begin());
-        Vector<ComposerState>::const_iterator e(state.end());
-        data.writeInt32(state.size());
-        for ( ; b != e ; ++b ) {
-            b->write(data);
+        {
+            Vector<ComposerState>::const_iterator b(state.begin());
+            Vector<ComposerState>::const_iterator e(state.end());
+            data.writeInt32(state.size());
+            for ( ; b != e ; ++b ) {
+                b->write(data);
+            }
         }
-        data.writeInt32(orientation);
+        {
+            Vector<DisplayState>::const_iterator b(displays.begin());
+            Vector<DisplayState>::const_iterator e(displays.end());
+            data.writeInt32(displays.size());
+            for ( ; b != e ; ++b ) {
+                b->write(data);
+            }
+        }
         data.writeInt32(flags);
         remote()->transact(BnSurfaceComposer::SET_TRANSACTION_STATE, data, &reply);
     }
@@ -244,9 +255,16 @@ status_t BnSurfaceComposer::onTransact(
                 s.read(data);
                 state.add(s);
             }
-            int orientation = data.readInt32();
+            count = data.readInt32();
+            DisplayState d;
+            Vector<DisplayState> displays;
+            displays.setCapacity(count);
+            for (size_t i=0 ; i<count ; i++) {
+                d.read(data);
+                displays.add(d);
+            }
             uint32_t flags = data.readInt32();
-            setTransactionState(state, orientation, flags);
+            setTransactionState(state, displays, flags);
         } break;
         case BOOT_FINISHED: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);

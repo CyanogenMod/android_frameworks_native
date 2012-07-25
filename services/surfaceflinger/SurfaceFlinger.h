@@ -165,7 +165,7 @@ private:
     virtual sp<IMemoryHeap> getCblk() const;
     virtual void bootFinished();
     virtual void setTransactionState(const Vector<ComposerState>& state,
-        int orientation, uint32_t flags);
+            const Vector<DisplayState>& displays, uint32_t flags);
     virtual bool authenticateSurfaceTexture(
         const sp<ISurfaceTexture>& surface) const;
     virtual sp<IDisplayEventConnection> createDisplayEventConnection();

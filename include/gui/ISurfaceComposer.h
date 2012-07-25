@@ -34,6 +34,7 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 class ComposerState;
+class DisplayState;
 class IDisplayEventConnection;
 class IMemoryHeap;
 
@@ -104,8 +105,10 @@ public:
     virtual sp<IMemoryHeap> getCblk() const = 0;
 
     /* open/close transactions. requires ACCESS_SURFACE_FLINGER permission */
-    virtual void setTransactionState(const Vector<ComposerState>& state,
-            int orientation, uint32_t flags) = 0;
+    virtual void setTransactionState(
+            const Vector<ComposerState>& state,
+            const Vector<DisplayState>& displays,
+            uint32_t flags) = 0;
 
     /* signal that we're done booting.
      * Requires ACCESS_SURFACE_FLINGER permission

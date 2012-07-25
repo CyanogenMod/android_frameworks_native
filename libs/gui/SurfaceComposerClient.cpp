@@ -138,7 +138,7 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
     sp<ISurfaceComposer> sm(getComposerService());
 
     Vector<ComposerState> transaction;
-    int orientation;
+    Vector<DisplayState> displayTransaction;
     uint32_t flags = 0;
 
     { // scope for the lock
@@ -146,7 +146,11 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
         transaction = mStates;
         mStates.clear();
 
-        orientation = mOrientation;
+        // FIXME: this should be the displays transaction state here
+        DisplayState item;
+        item.orientation = mOrientation;
+        displayTransaction.add(item);
+
         mOrientation = ISurfaceComposer::eOrientationUnchanged;
 
         if (synchronous || mForceSynchronous) {
@@ -155,7 +159,7 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
         mForceSynchronous = false;
     }
 
-   sm->setTransactionState(transaction, orientation, flags);
+   sm->setTransactionState(transaction, displayTransaction, flags);
 }
 
 layer_state_t* Composer::getLayerStateLocked(

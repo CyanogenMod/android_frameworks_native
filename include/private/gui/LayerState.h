@@ -77,6 +77,17 @@ struct ComposerState {
     status_t    read(const Parcel& input);
 };
 
+struct DisplayState {
+    int32_t             displayId;
+    sp<ISurfaceTexture> surface;
+    uint32_t            layerStack;
+    uint32_t            orientation;
+    Rect                viewport;
+    Rect                frame;
+    status_t    write(Parcel& output) const;
+    status_t    read(const Parcel& input);
+};
+
 }; // namespace android
 
 #endif // ANDROID_SF_LAYER_STATE_H

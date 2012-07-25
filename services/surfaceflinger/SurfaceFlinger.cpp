@@ -143,7 +143,11 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
 
     // reset screen orientation
     Vector<ComposerState> state;
-    setTransactionState(state, eOrientationDefault, 0);
+    Vector<DisplayState> displays;
+    DisplayState d;
+    d.orientation = eOrientationDefault;
+    displays.add(d);
+    setTransactionState(state, displays, 0);
 
     // restart the boot-animation
     startBootAnim();
@@ -1325,9 +1329,18 @@ uint32_t SurfaceFlinger::setTransactionFlags(uint32_t flags)
 }
 
 
-void SurfaceFlinger::setTransactionState(const Vector<ComposerState>& state,
-        int orientation, uint32_t flags) {
+void SurfaceFlinger::setTransactionState(
+        const Vector<ComposerState>& state,
+        const Vector<DisplayState>& displays,
+        uint32_t flags)
+{
     Mutex::Autolock _l(mStateLock);
+
+    int orientation = eOrientationUnchanged;
+    if (displays.size()) {
+        // TODO: handle all displays
+        orientation = displays[0].orientation;
+    }
 
     uint32_t transactionFlags = 0;
     if (mCurrentState.orientation != orientation) {
