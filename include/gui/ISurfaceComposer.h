@@ -67,6 +67,7 @@ public:
         eMatrixChanged              = 0x00000010,
         eTransparentRegionChanged   = 0x00000020,
         eVisibilityChanged          = 0x00000040,
+        eLayerStackChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
     };
 

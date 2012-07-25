@@ -119,6 +119,7 @@ public:
     status_t    setPosition(SurfaceID id, float x, float y);
     status_t    setSize(SurfaceID id, uint32_t w, uint32_t h);
     status_t    setCrop(SurfaceID id, const Rect& crop);
+    status_t    setLayerStack(SurfaceID id, uint32_t layerStack);
     status_t    destroySurface(SurfaceID sid);
 
 private:

@@ -35,7 +35,7 @@ struct layer_state_t {
 
     layer_state_t()
         :   surface(0), what(0),
-            x(0), y(0), z(0), w(0), h(0),
+            x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
             reserved(0)
     {
@@ -60,6 +60,7 @@ struct layer_state_t {
             uint32_t        z;
             uint32_t        w;
             uint32_t        h;
+            uint32_t        layerStack;
             float           alpha;
             uint8_t         flags;
             uint8_t         mask;

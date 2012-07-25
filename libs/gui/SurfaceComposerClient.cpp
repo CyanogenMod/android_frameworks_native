@@ -124,6 +124,8 @@ public:
     status_t setOrientation(int orientation);
     status_t setCrop(const sp<SurfaceComposerClient>& client, SurfaceID id,
             const Rect& crop);
+    status_t setLayerStack(const sp<SurfaceComposerClient>& client,
+            SurfaceID id, uint32_t layerStack);
 
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
@@ -252,6 +254,17 @@ status_t Composer::setAlpha(const sp<SurfaceComposerClient>& client,
         return BAD_INDEX;
     s->what |= ISurfaceComposer::eAlphaChanged;
     s->alpha = alpha;
+    return NO_ERROR;
+}
+
+status_t Composer::setLayerStack(const sp<SurfaceComposerClient>& client,
+        SurfaceID id, uint32_t layerStack) {
+    Mutex::Autolock _l(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s)
+        return BAD_INDEX;
+    s->what |= ISurfaceComposer::eLayerStackChanged;
+    s->layerStack = layerStack;
     return NO_ERROR;
 }
 
@@ -441,6 +454,10 @@ status_t SurfaceComposerClient::setTransparentRegionHint(SurfaceID id,
 
 status_t SurfaceComposerClient::setAlpha(SurfaceID id, float alpha) {
     return getComposer().setAlpha(this, id, alpha);
+}
+
+status_t SurfaceComposerClient::setLayerStack(SurfaceID id, uint32_t layerStack) {
+    return getComposer().setLayerStack(this, id, layerStack);
 }
 
 status_t SurfaceComposerClient::setMatrix(SurfaceID id, float dsdx, float dtdx,

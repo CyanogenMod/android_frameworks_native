@@ -77,6 +77,7 @@ void LayerBase::initStates(uint32_t w, uint32_t h, uint32_t flags)
     mCurrentState.active.crop.makeInvalid();
     mCurrentState.z = 0;
     mCurrentState.alpha = 0xFF;
+    mCurrentState.layerStack = 0;
     mCurrentState.flags = layerFlags;
     mCurrentState.sequence = 0;
     mCurrentState.transform.set(0, 0);
@@ -165,6 +166,15 @@ bool LayerBase::setCrop(const Rect& crop) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.requested.crop = crop;
+    requestTransaction();
+    return true;
+}
+
+bool LayerBase::setLayerStack(uint32_t layerStack) {
+    if (mCurrentState.layerStack == layerStack)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.layerStack = layerStack;
     requestTransaction();
     return true;
 }

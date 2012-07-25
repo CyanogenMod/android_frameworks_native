@@ -79,6 +79,7 @@ public:
                 Geometry        active;
                 Geometry        requested;
                 uint32_t        z;
+                uint32_t        layerStack;
                 uint8_t         alpha;
                 uint8_t         flags;
                 uint8_t         reserved[2];
@@ -113,7 +114,8 @@ public:
             bool setTransparentRegionHint(const Region& opaque);
             bool setFlags(uint8_t flags, uint8_t mask);
             bool setCrop(const Rect& crop);
-            
+            bool setLayerStack(uint32_t layerStack);
+
             void commitTransaction();
             bool requestTransaction();
             void forceVisibilityTransaction();
