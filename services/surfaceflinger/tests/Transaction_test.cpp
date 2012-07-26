@@ -24,6 +24,7 @@
 #include <private/gui/ComposerService.h>
 
 #include <utils/String8.h>
+#include <ui/DisplayInfo.h>
 
 namespace android {
 
@@ -92,8 +93,11 @@ protected:
         mComposerClient = new SurfaceComposerClient;
         ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
 
-        ssize_t displayWidth = mComposerClient->getDisplayWidth(0);
-        ssize_t displayHeight = mComposerClient->getDisplayHeight(0);
+        DisplayInfo info;
+        SurfaceComposerClient::getDisplayInfo(0, &info);
+
+        ssize_t displayWidth = info.w;
+        ssize_t displayHeight = info.h;
 
         // Background surface
         mBGSurfaceControl = mComposerClient->createSurface(

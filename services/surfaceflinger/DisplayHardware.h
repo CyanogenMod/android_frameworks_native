@@ -36,6 +36,7 @@
 
 namespace android {
 
+class DisplayInfo;
 class FramebufferSurface;
 class LayerBase;
 class SurfaceFlinger;
@@ -74,6 +75,7 @@ public:
     uint32_t    getFlags() const;
     nsecs_t     getRefreshPeriod() const;
     nsecs_t     getRefreshTimestamp() const;
+    status_t    getInfo(DisplayInfo* info) const;
 
     EGLSurface  getEGLSurface() const;
 

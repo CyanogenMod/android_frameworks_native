@@ -64,7 +64,6 @@ class LayerBaseClient;
 class LayerDim;
 class LayerScreenshot;
 class SurfaceTextureClient;
-struct surface_flinger_cblk_t;
 
 // ---------------------------------------------------------------------------
 
@@ -176,7 +175,6 @@ private:
      */
     virtual sp<ISurfaceComposerClient> createConnection();
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc();
-    virtual sp<IMemoryHeap> getCblk() const;
     virtual void bootFinished();
     virtual void setTransactionState(const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays, uint32_t flags);
@@ -193,6 +191,7 @@ private:
     virtual void blank();
     // called when screen is turning back on
     virtual void unblank();
+    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
     virtual void connectDisplay(const sp<ISurfaceTexture> display);
 
     /* ------------------------------------------------------------------------
@@ -382,8 +381,6 @@ private:
     Region mInvalidateRegion;
 
     // constant members (no synchronization needed for access)
-    sp<IMemoryHeap> mServerHeap;
-    surface_flinger_cblk_t* mServerCblk;
     HWComposer* mHwc;
     GLuint mWormholeTexName;
     GLuint mProtectedTexName;
@@ -431,8 +428,6 @@ private:
     EGLSurface getExternalDisplaySurface() const;
     sp<SurfaceTextureClient> mExternalDisplayNativeWindow;
     EGLSurface mExternalDisplaySurface;
-public:
-    surface_flinger_cblk_t* getControlBlock() const;
 };
 
 // ---------------------------------------------------------------------------

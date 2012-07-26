@@ -68,14 +68,6 @@ public:
         return interface_cast<IGraphicBufferAlloc>(reply.readStrongBinder());
     }
 
-    virtual sp<IMemoryHeap> getCblk() const
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        remote()->transact(BnSurfaceComposer::GET_CBLK, data, &reply);
-        return interface_cast<IMemoryHeap>(reply.readStrongBinder());
-    }
-
     virtual void setTransactionState(
             const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays,
@@ -219,6 +211,17 @@ public:
         remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
     }
 
+    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeInt32(dpy);
+        remote()->transact(BnSurfaceComposer::GET_DISPLAY_INFO, data, &reply);
+        memcpy(info, reply.readInplace(sizeof(DisplayInfo)), sizeof(DisplayInfo));
+        return reply.readInt32();
+    }
+
+
     virtual void connectDisplay(const sp<ISurfaceTexture> display) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
@@ -270,11 +273,6 @@ status_t BnSurfaceComposer::onTransact(
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             bootFinished();
         } break;
-        case GET_CBLK: {
-            CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> b = getCblk()->asBinder();
-            reply->writeStrongBinder(b);
-        } break;
         case CAPTURE_SCREEN: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             DisplayID dpy = data.readInt32();
@@ -325,6 +323,14 @@ status_t BnSurfaceComposer::onTransact(
         case UNBLANK: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             unblank();
+        } break;
+        case GET_DISPLAY_INFO: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            DisplayInfo info;
+            DisplayID dpy = data.readInt32();
+            status_t result = getDisplayInfo(dpy, &info);
+            memcpy(reply->writeInplace(sizeof(DisplayInfo)), &info, sizeof(DisplayInfo));
+            reply->writeInt32(result);
         } break;
         case CONNECT_DISPLAY: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);

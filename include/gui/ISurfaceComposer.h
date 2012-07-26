@@ -35,6 +35,7 @@ namespace android {
 
 class ComposerState;
 class DisplayState;
+class DisplayInfo;
 class IDisplayEventConnection;
 class IMemoryHeap;
 
@@ -102,9 +103,6 @@ public:
      */
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc() = 0;
 
-    /* retrieve the control block */
-    virtual sp<IMemoryHeap> getCblk() const = 0;
-
     /* open/close transactions. requires ACCESS_SURFACE_FLINGER permission */
     virtual void setTransactionState(
             const Vector<ComposerState>& state,
@@ -145,6 +143,10 @@ public:
     /* triggers screen on and waits for it to complete */
     virtual void unblank() = 0;
 
+    /* returns information about a physical screen. This is intended to be
+     * used by low-level native tests */
+    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info) = 0;
+
     /* connects to an external display */
     virtual void connectDisplay(const sp<ISurfaceTexture> display) = 0;
 };
@@ -160,7 +162,7 @@ public:
         BOOT_FINISHED = IBinder::FIRST_CALL_TRANSACTION,
         CREATE_CONNECTION,
         CREATE_GRAPHIC_BUFFER_ALLOC,
-        GET_CBLK,
+        GET_DISPLAY_INFO,
         SET_TRANSACTION_STATE,
         SET_ORIENTATION,
         CAPTURE_SCREEN,

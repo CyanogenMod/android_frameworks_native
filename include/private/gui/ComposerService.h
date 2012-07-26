@@ -30,7 +30,6 @@ namespace android {
 
 class IMemoryHeap;
 class ISurfaceComposer;
-class surface_flinger_cblk_t;
 
 // ---------------------------------------------------------------------------
 
@@ -38,13 +37,10 @@ class ComposerService : public Singleton<ComposerService>
 {
     // these are constants
     sp<ISurfaceComposer> mComposerService;
-    sp<IMemoryHeap> mServerCblkMemory;
-    surface_flinger_cblk_t volatile* mServerCblk;
     ComposerService();
     friend class Singleton<ComposerService>;
 public:
     static sp<ISurfaceComposer> getComposerService();
-    static surface_flinger_cblk_t const volatile * getControlBlock();
 };
 
 // ---------------------------------------------------------------------------

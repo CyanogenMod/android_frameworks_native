@@ -97,14 +97,8 @@ public:
     //! Set the orientation of the given display
     static int setOrientation(DisplayID dpy, int orientation, uint32_t flags);
 
-    // Query the number of displays
-    static ssize_t getNumberOfDisplays();
-
     // Get information about a display
     static status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
-    static ssize_t getDisplayWidth(DisplayID dpy);
-    static ssize_t getDisplayHeight(DisplayID dpy);
-    static ssize_t getDisplayOrientation(DisplayID dpy);
 
     status_t linkToComposerDeath(const sp<IBinder::DeathRecipient>& recipient,
             void* cookie = NULL, uint32_t flags = 0);

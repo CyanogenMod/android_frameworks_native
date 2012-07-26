@@ -24,6 +24,7 @@
 #include <utils/RefBase.h>
 #include <utils/Log.h>
 
+#include <ui/DisplayInfo.h>
 #include <ui/PixelFormat.h>
 
 #include <GLES/gl.h>
@@ -31,7 +32,6 @@
 #include <EGL/eglext.h>
 
 #include <hardware/gralloc.h>
-#include <private/gui/SharedBufferStack.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/DisplayHardwareBase.h"
@@ -148,6 +148,19 @@ EGLSurface DisplayHardware::getEGLSurface() const {
     return mSurface;
 }
 
+status_t DisplayHardware::getInfo(DisplayInfo* info) const {
+    info->w = getWidth();
+    info->h = getHeight();
+    info->xdpi = getDpiX();
+    info->ydpi = getDpiY();
+    info->fps = getRefreshRate();
+    info->density = getDensity();
+    info->orientation = getOrientation();
+    // TODO: this needs to go away (currently needed only by webkit)
+    getPixelFormatInfo(getFormat(), &info->pixelFormatInfo);
+    return NO_ERROR;
+}
+
 void DisplayHardware::init(EGLConfig config)
 {
     ANativeWindow* const window = mNativeWindow.get();
@@ -225,17 +238,6 @@ void DisplayHardware::init(EGLConfig config)
     mSurface = surface;
     mFormat  = format;
     mPageFlipCount = 0;
-
-    // initialize the shared control block
-    surface_flinger_cblk_t* const scblk = mFlinger->getControlBlock();
-    scblk->connected |= 1 << mDisplayId;
-    display_cblk_t* dcblk = &scblk->displays[mDisplayId];
-    memset(dcblk, 0, sizeof(display_cblk_t));
-    dcblk->format = format;
-    dcblk->xdpi = mDpiX;
-    dcblk->ydpi = mDpiY;
-    dcblk->fps = mRefreshRate;
-    dcblk->density = mDensity;
 
     // initialize the display orientation transform.
     DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
@@ -365,13 +367,5 @@ status_t DisplayHardware::setOrientation(int orientation) {
         h = tmp;
     }
     mOrientation = orientation;
-
-    // update the shared control block
-    surface_flinger_cblk_t* const scblk = mFlinger->getControlBlock();
-    volatile display_cblk_t* dcblk = &scblk->displays[mDisplayId];
-    dcblk->orientation = orientation;
-    dcblk->w = w;
-    dcblk->h = h;
-
     return NO_ERROR;
 }

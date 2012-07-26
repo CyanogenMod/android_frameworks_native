@@ -32,6 +32,8 @@
 #include <binder/MemoryHeapBase.h>
 #include <binder/PermissionCache.h>
 
+#include <ui/DisplayInfo.h>
+
 #include <gui/IDisplayEventConnection.h>
 #include <gui/BitTube.h>
 #include <gui/SurfaceTextureClient.h>
@@ -45,7 +47,6 @@
 #include <utils/Trace.h>
 
 #include <private/android_filesystem_config.h>
-#include <private/gui/SharedBufferStack.h>
 
 #include "clz.h"
 #include "DdmConnection.h"
@@ -151,11 +152,6 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
 
     // restart the boot-animation
     startBootAnim();
-}
-
-sp<IMemoryHeap> SurfaceFlinger::getCblk() const
-{
-    return mServerHeap;
 }
 
 sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
@@ -361,23 +357,10 @@ void SurfaceFlinger::initializeGL(EGLDisplay display, EGLSurface surface) {
     ALOGI("GL_MAX_VIEWPORT_DIMS = %d x %d", mMaxViewportDims[0], mMaxViewportDims[1]);
 }
 
-surface_flinger_cblk_t* SurfaceFlinger::getControlBlock() const {
-    return mServerCblk;
-}
-
 status_t SurfaceFlinger::readyToRun()
 {
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
-
-    // create the shared control-block
-    mServerHeap = new MemoryHeapBase(4096,
-            MemoryHeapBase::READ_ONLY, "SurfaceFlinger read-only heap");
-    ALOGE_IF(mServerHeap==0, "can't create shared memory dealer");
-    mServerCblk = static_cast<surface_flinger_cblk_t*>(mServerHeap->getBase());
-    ALOGE_IF(mServerCblk==0, "can't get to shared control block's address");
-    new(mServerCblk) surface_flinger_cblk_t;
-
 
     // initialize EGL
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -483,6 +466,14 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     }
 
     return false;
+}
+
+status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
+    if (uint32_t(dpy) >= 2) {
+        return BAD_INDEX;
+    }
+    const DisplayHardware& hw(getDefaultDisplayHardware());
+    return hw.getInfo(info);
 }
 
 // ----------------------------------------------------------------------------
