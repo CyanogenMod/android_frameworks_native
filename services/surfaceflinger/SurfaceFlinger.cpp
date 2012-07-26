@@ -406,6 +406,10 @@ status_t SurfaceFlinger::readyToRun()
     EGLSurface surface = hw->getEGLSurface();
     initializeGL(display, surface);
 
+    // start the EventThread
+    mEventThread = new EventThread(this);
+    mEventQueue.setEventThread(mEventThread);
+
     // initialize the H/W composer
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this),
@@ -413,10 +417,6 @@ status_t SurfaceFlinger::readyToRun()
     if (mHwc->initCheck() == NO_ERROR) {
         mHwc->setFrameBuffer(display, surface);
     }
-
-    // start the EventThread
-    mEventThread = new EventThread(this);
-    mEventQueue.setEventThread(mEventThread);
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();

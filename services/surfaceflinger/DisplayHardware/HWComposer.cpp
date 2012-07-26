@@ -118,7 +118,7 @@ HWComposer::HWComposer(
     property_get("debug.sf.no_hw_vsync", value, "0");
     mDebugForceFakeVSync = atoi(value);
 
-    bool needVSyncThread = false;
+    bool needVSyncThread = true;
     int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
     ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
     if (err == 0) {
@@ -136,6 +136,11 @@ HWComposer::HWComposer(
         }
 
         if (mHwc) {
+            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
+                // always turn vsync off when we start
+                mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
+                needVSyncThread = false;
+            }
             if (mHwc->registerProcs) {
                 mCBContext->hwc = this;
                 mCBContext->procs.invalidate = &hook_invalidate;
@@ -143,17 +148,7 @@ HWComposer::HWComposer(
                 mHwc->registerProcs(mHwc, &mCBContext->procs);
                 memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
-            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
-                if (mDebugForceFakeVSync) {
-                    // make sure to turn h/w vsync off in "fake vsync" mode
-                    mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
-                }
-            } else {
-                needVSyncThread = true;
-            }
         }
-    } else {
-        needVSyncThread = true;
     }
 
     if (needVSyncThread) {
