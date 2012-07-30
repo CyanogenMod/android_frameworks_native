@@ -55,8 +55,10 @@ sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
     ATRACE_CALL();
     int result = sync_merge(name.string(), f1->mFenceFd, f2->mFenceFd);
     if (result == -1) {
-        ALOGE("merge: sync_merge returned an error: %s (%d)", strerror(-errno),
-                errno);
+        status_t err = -errno;
+        ALOGE("merge: sync_merge(\"%s\", %d, %d) returned an error: %s (%d)",
+                name.string(), f1->mFenceFd, f2->mFenceFd,
+                strerror(-err), err);
         return NO_FENCE;
     }
     return sp<Fence>(new Fence(result));
