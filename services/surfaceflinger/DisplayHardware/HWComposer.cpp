@@ -39,8 +39,6 @@
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
-#include <EGL/egl.h>
-
 #include "Layer.h"           // needed only for debugging
 #include "LayerBase.h"
 #include "HWComposer.h"
@@ -108,7 +106,6 @@ HWComposer::HWComposer(
     : mFlinger(flinger),
       mModule(0), mHwc(0), mList(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
-      mDpy(EGL_NO_DISPLAY), mSur(EGL_NO_SURFACE),
       mCBContext(new cb_context),
       mEventHandler(handler),
       mRefreshPeriod(refreshPeriod),
@@ -207,11 +204,6 @@ void HWComposer::eventControl(int event, int enabled) {
     }
 }
 
-void HWComposer::setFrameBuffer(EGLDisplay dpy, EGLSurface sur) {
-    mDpy = (hwc_display_t)dpy;
-    mSur = (hwc_surface_t)sur;
-}
-
 status_t HWComposer::createWorkList(size_t numLayers) {
     if (mHwc) {
         if (!mList || mCapacity < numLayers) {
@@ -270,15 +262,13 @@ size_t HWComposer::getLayerCount(int type) const {
     return 0;
 }
 
-status_t HWComposer::commit() const {
+status_t HWComposer::commit(void* fbDisplay, void* fbSurface) const {
     int err = NO_ERROR;
     if (mHwc) {
-        err = mHwc->set(mHwc, mDpy, mSur, mList);
+        err = mHwc->set(mHwc, fbDisplay, fbSurface, mList);
         if (mList) {
             mList->flags &= ~HWC_GEOMETRY_CHANGED;
         }
-    } else {
-        eglSwapBuffers(mDpy, mSur);
     }
     return (status_t)err;
 }

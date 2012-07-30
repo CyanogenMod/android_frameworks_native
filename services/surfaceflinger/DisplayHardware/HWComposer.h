@@ -20,8 +20,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <EGL/egl.h>
-
 #include <hardware/hwcomposer_defs.h>
 
 #include <utils/Condition.h>
@@ -63,9 +61,6 @@ public:
 
     status_t initCheck() const;
 
-    // tells the HAL what the framebuffer is
-    void setFrameBuffer(EGLDisplay dpy, EGLSurface sur);
-
     // Asks the HAL what it can do
     status_t prepare() const;
 
@@ -73,7 +68,7 @@ public:
     status_t disable();
 
     // commits the list
-    status_t commit() const;
+    status_t commit(void* fbDisplay, void* fbSurface) const;
 
     // release hardware resources and blank screen
     status_t release() const;
@@ -234,8 +229,6 @@ private:
     size_t                          mCapacity;
     mutable size_t                  mNumOVLayers;
     mutable size_t                  mNumFBLayers;
-    EGLDisplay                      mDpy;
-    EGLSurface                      mSur;
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
     nsecs_t                         mRefreshPeriod;
