@@ -307,7 +307,7 @@ main(int argc, char *argv[])
     }
 
     // Create list of frames
-    hwc_display_contents_1_t *list;
+    hwc_layer_list_1_t *list;
     list = hwcTestCreateLayerList(rectangle.size());
     if (list == NULL) {
         testPrintE("hwcTestCreateLayerList failed");
@@ -329,7 +329,7 @@ main(int argc, char *argv[])
 
     // Perform prepare operation
     if (verbose) { testPrintI("Prepare:"); hwcTestDisplayList(list); }
-    hwcDevice->prepare(hwcDevice, 1, &list);
+    hwcDevice->prepare(hwcDevice, list);
     if (verbose) {
         testPrintI("Post Prepare:");
         hwcTestDisplayListPrepareModifiable(list);
@@ -341,9 +341,7 @@ main(int argc, char *argv[])
     // Perform the set operation(s)
     if (verbose) {testPrintI("Set:"); }
     if (verbose) { hwcTestDisplayListHandles(list); }
-    list->dpy = dpy;
-    list->sur = surface;
-    hwcDevice->set(hwcDevice, 1, &list);
+    hwcDevice->set(hwcDevice, dpy, surface, list);
 
     testDelay(endDelay);
 

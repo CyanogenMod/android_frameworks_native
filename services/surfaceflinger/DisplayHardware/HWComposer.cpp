@@ -57,12 +57,12 @@ namespace android {
 // can just use the v1.0 pointer without branches or casts.
 
 #if HWC_REMOVE_DEPRECATED_VERSIONS
-// We need complete types to satisfy semantic checks, even though the code
-// paths that use these won't get executed at runtime (and will likely be dead-
-// code-eliminated). When we remove the code to support v0.3 we can remove
+// We need complete types with to satisfy semantic checks, even though the
+// code paths that use these won't get executed at runtime (and will likely be
+// dead-code-eliminated). When we remove the code to support v0.3 we can remove
 // these as well.
 typedef hwc_layer_1_t hwc_layer_t;
-typedef hwc_display_contents_1_t hwc_layer_list_t;
+typedef hwc_layer_list_1_t hwc_layer_list_t;
 typedef hwc_composer_device_1_t hwc_composer_device_t;
 #endif
 
@@ -80,7 +80,7 @@ static bool hwcHasVersion(const hwc_composer_device_1_t* hwc, uint32_t version) 
 static size_t sizeofHwcLayerList(const hwc_composer_device_1_t* hwc,
         size_t numLayers) {
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return sizeof(hwc_display_contents_1_t) + numLayers*sizeof(hwc_layer_1_t);
+        return sizeof(hwc_layer_list_1_t) + numLayers*sizeof(hwc_layer_1_t);
     } else {
         return sizeof(hwc_layer_list_t) + numLayers*sizeof(hwc_layer_t);
     }
@@ -136,17 +136,11 @@ HWComposer::HWComposer(
         }
 
         if (mHwc) {
-            // always turn vsync off when we start
-            needVSyncThread = false;
-            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                mHwc->methods->eventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
-            } else if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
-                hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)mHwc;
-                err = hwc0->methods->eventControl(hwc0, HWC_EVENT_VSYNC, 0);
-            } else {
-                needVSyncThread = true;
+            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
+                // always turn vsync off when we start
+                mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
+                needVSyncThread = false;
             }
-
             if (mHwc->registerProcs) {
                 mCBContext->hwc = this;
                 mCBContext->procs.invalidate = &hook_invalidate;
@@ -200,12 +194,7 @@ void HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
     if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
         if (!mDebugForceFakeVSync) {
-            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                err = mHwc->methods->eventControl(mHwc, 0, event, enabled);
-            } else {
-                hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)mHwc;
-                err = hwc0->methods->eventControl(hwc0, event, enabled);
-            }
+            err = mHwc->methods->eventControl(mHwc, event, enabled);
             // error here should not happen -- not sure what we should
             // do if it does.
             ALOGE_IF(err, "eventControl(%d, %d) failed %s",
@@ -228,9 +217,8 @@ status_t HWComposer::createWorkList(size_t numLayers) {
         if (!mList || mCapacity < numLayers) {
             free(mList);
             size_t size = sizeofHwcLayerList(mHwc, numLayers);
-            mList = (hwc_display_contents_1_t*)malloc(size);
+            mList = (hwc_layer_list_1_t*)malloc(size);
             mCapacity = numLayers;
-            mList->flipFenceFd = -1;
         }
         mList->flags = HWC_GEOMETRY_CHANGED;
         mList->numHwLayers = numLayers;
@@ -239,8 +227,7 @@ status_t HWComposer::createWorkList(size_t numLayers) {
 }
 
 status_t HWComposer::prepare() const {
-    int err = mHwc->prepare(mHwc, 1,
-            const_cast<hwc_display_contents_1_t**>(&mList));
+    int err = mHwc->prepare(mHwc, mList);
     if (err == NO_ERROR) {
         size_t numOVLayers = 0;
         size_t numFBLayers = 0;
@@ -286,17 +273,9 @@ size_t HWComposer::getLayerCount(int type) const {
 status_t HWComposer::commit() const {
     int err = NO_ERROR;
     if (mHwc) {
-        if (mList) {
-            mList->dpy = mDpy;
-            mList->sur = mSur;
-        }
-        err = mHwc->set(mHwc, 1, const_cast<hwc_display_contents_1_t**>(&mList));
+        err = mHwc->set(mHwc, mDpy, mSur, mList);
         if (mList) {
             mList->flags &= ~HWC_GEOMETRY_CHANGED;
-            if (mList->flipFenceFd != -1) {
-                close(mList->flipFenceFd);
-                mList->flipFenceFd = -1;
-            }
         }
     } else {
         eglSwapBuffers(mDpy, mSur);
@@ -306,20 +285,17 @@ status_t HWComposer::commit() const {
 
 status_t HWComposer::release() const {
     if (mHwc) {
-        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-            mHwc->methods->eventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
-        } else if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
-            hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)mHwc;
-            hwc0->methods->eventControl(hwc0, HWC_EVENT_VSYNC, 0);
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
+            mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
         }
-        int err = mHwc->set(mHwc, 0, NULL);
+        int err = mHwc->set(mHwc, NULL, NULL, NULL);
         if (err < 0) {
             return (status_t)err;
         }
 
         if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
             if (mHwc->methods && mHwc->methods->blank) {
-                err = mHwc->methods->blank(mHwc, 0, 1);
+                err = mHwc->methods->blank(mHwc, 1);
             }
         }
         return (status_t)err;
@@ -331,7 +307,7 @@ status_t HWComposer::acquire() const {
     if (mHwc) {
         if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
             if (mHwc->methods && mHwc->methods->blank) {
-                int err = mHwc->methods->blank(mHwc, 0, 0);
+                int err = mHwc->methods->blank(mHwc, 0);
                 return (status_t)err;
             }
         }
@@ -344,7 +320,7 @@ status_t HWComposer::disable() {
     if (mHwc) {
         free(mList);
         mList = NULL;
-        int err = mHwc->prepare(mHwc, 0, NULL);
+        int err = mHwc->prepare(mHwc, NULL);
         return (status_t)err;
     }
     return NO_ERROR;
