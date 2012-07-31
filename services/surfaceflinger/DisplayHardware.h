@@ -45,10 +45,16 @@ class SurfaceTextureClient;
 class DisplayHardware : public DisplayHardwareBase
 {
 public:
+    // region in layer-stack space
+    mutable Region dirtyRegion;
+    // region in screen space
+    mutable Region swapRegion;
+    // region in screen space
+    Region undefinedRegion;
 
     enum {
-        PARTIAL_UPDATES             = 0x00020000,   // video driver feature
-        SWAP_RECTANGLE              = 0x00080000,
+        PARTIAL_UPDATES = 0x00020000, // video driver feature
+        SWAP_RECTANGLE  = 0x00080000,
     };
 
     DisplayHardware(
@@ -86,6 +92,8 @@ public:
     status_t                setOrientation(int orientation);
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
+    uint32_t                getLayerStack() const { return mLayerStack; }
+
 
     uint32_t getPageFlipCount() const;
     EGLDisplay getEGLDisplay() const { return mDisplay; }
@@ -143,6 +151,9 @@ private:
             Transform* tr);
     Transform mGlobalTransform;
     int mOrientation;
+
+    uint32_t mLayerStack;
+
 
     /*
      *  protected by mLock
