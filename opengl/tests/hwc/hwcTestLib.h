@@ -113,11 +113,11 @@ const struct hwcTestGraphicFormat *hwcTestGraphicFormatLookup(uint32_t id);
 const char *hwcTestGraphicFormat2str(uint32_t format);
 std::string hwcTestRect2str(const struct hwc_rect& rect);
 
-hwc_display_contents_1_t *hwcTestCreateLayerList(size_t numLayers);
-void hwcTestFreeLayerList(hwc_display_contents_1_t *list);
-void hwcTestDisplayList(hwc_display_contents_1_t *list);
-void hwcTestDisplayListPrepareModifiable(hwc_display_contents_1_t *list);
-void hwcTestDisplayListHandles(hwc_display_contents_1_t *list);
+hwc_layer_list_1_t *hwcTestCreateLayerList(size_t numLayers);
+void hwcTestFreeLayerList(hwc_layer_list_1_t *list);
+void hwcTestDisplayList(hwc_layer_list_1_t *list);
+void hwcTestDisplayListPrepareModifiable(hwc_layer_list_1_t *list);
+void hwcTestDisplayListHandles(hwc_layer_list_1_t *list);
 
 uint32_t hwcTestColor2Pixel(uint32_t format, ColorFract color, float alpha);
 void hwcTestColorConvert(uint32_t fromFormat, uint32_t toFormat,
