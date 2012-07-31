@@ -36,7 +36,7 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            struct timespec *remain);
 
 struct hwc_composer_device_1;
-struct hwc_display_contents_1;
+struct hwc_layer_list_1;
 struct hwc_procs;
 
 namespace android {
@@ -230,7 +230,7 @@ private:
     sp<SurfaceFlinger>              mFlinger;
     hw_module_t const*              mModule;
     struct hwc_composer_device_1*   mHwc;
-    struct hwc_display_contents_1*  mList;
+    struct hwc_layer_list_1*        mList;
     size_t                          mCapacity;
     mutable size_t                  mNumOVLayers;
     mutable size_t                  mNumFBLayers;

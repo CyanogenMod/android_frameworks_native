@@ -409,7 +409,7 @@ main(int argc, char *argv[])
         // generated for this pass.
         srand48(pass);
 
-        hwc_display_contents_1_t *list;
+        hwc_layer_list_1_t *list;
         list = hwcTestCreateLayerList(testRandMod(frames.size()) + 1);
         if (list == NULL) {
             testPrintE("hwcTestCreateLayerList failed");
@@ -478,7 +478,7 @@ main(int argc, char *argv[])
 
         // Perform prepare operation
         if (verbose) { testPrintI("Prepare:"); hwcTestDisplayList(list); }
-        hwcDevice->prepare(hwcDevice, 1, &list);
+        hwcDevice->prepare(hwcDevice, list);
         if (verbose) {
             testPrintI("Post Prepare:");
             hwcTestDisplayListPrepareModifiable(list);
@@ -491,9 +491,7 @@ main(int argc, char *argv[])
         if (verbose) {testPrintI("Set:"); }
         for (unsigned int n1 = 0; n1 < numSet; n1++) {
             if (verbose) { hwcTestDisplayListHandles(list); }
-            list->dpy = dpy;
-            list->sur = surface;
-            hwcDevice->set(hwcDevice, 1, &list);
+            hwcDevice->set(hwcDevice, dpy, surface, list);
 
             // Prandomly select a new set of handles
             for (unsigned int n1 = 0; n1 < list->numHwLayers; n1++) {
