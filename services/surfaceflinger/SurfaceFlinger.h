@@ -390,6 +390,7 @@ private:
     GLint mMaxTextureSize;
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
+    EGLDisplay mEGLDisplay;
 
     // Can only accessed from the main thread, these members
     // don't need synchronization
