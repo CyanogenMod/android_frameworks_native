@@ -1397,7 +1397,7 @@ void Rational::double2Rational(double f, Range nRange, Range dRange,
 // Given a list of rectangles, determine how many HWC will commit to render
 uint32_t numOverlays(list<Rectangle>& rectList)
 {
-    hwc_display_contents_1_t *hwcList;
+    hwc_layer_list_1_t *hwcList;
     list<sp<GraphicBuffer> > buffers;
 
     hwcList = hwcTestCreateLayerList(rectList.size());
@@ -1430,7 +1430,7 @@ uint32_t numOverlays(list<Rectangle>& rectList)
 
     // Perform prepare operation
     if (verbose) { testPrintI("Prepare:"); hwcTestDisplayList(hwcList); }
-    hwcDevice->prepare(hwcDevice, 1, &hwcList);
+    hwcDevice->prepare(hwcDevice, hwcList);
     if (verbose) {
         testPrintI("Post Prepare:");
         hwcTestDisplayListPrepareModifiable(hwcList);
