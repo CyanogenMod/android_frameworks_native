@@ -363,8 +363,8 @@ status_t SurfaceFlinger::readyToRun()
             "Initializing graphics H/W...");
 
     // initialize EGL
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    eglInitialize(display, NULL, NULL);
+    mEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    eglInitialize(mEGLDisplay, NULL, NULL);
 
     // Initialize the main display
     // create native window to main display
@@ -378,8 +378,8 @@ status_t SurfaceFlinger::readyToRun()
     // initialize the config and context
     int format;
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
-    mEGLConfig  = selectEGLConfig(display, format);
-    mEGLContext = createGLContext(display, mEGLConfig);
+    mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
+    mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
     // initialize our main display hardware
     DisplayHardware* const hw = new DisplayHardware(this, 0, anw, mEGLConfig);
@@ -387,7 +387,7 @@ status_t SurfaceFlinger::readyToRun()
 
     //  initialize OpenGL ES
     EGLSurface surface = hw->getEGLSurface();
-    initializeGL(display, surface);
+    initializeGL(mEGLDisplay, surface);
 
     // start the EventThread
     mEventThread = new EventThread(this);
@@ -397,9 +397,6 @@ status_t SurfaceFlinger::readyToRun()
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this),
             hw->getRefreshPeriod());
-    if (mHwc->initCheck() == NO_ERROR) {
-        mHwc->setFrameBuffer(display, surface);
-    }
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();
@@ -733,15 +730,16 @@ void SurfaceFlinger::postFramebuffer()
     }
 
     hw.flip(mSwapRegion);
-    hwc.commit();
 
     if (hwc.initCheck() == NO_ERROR) {
+        hwc.commit(mEGLDisplay, hw.getEGLSurface());
         HWComposer::LayerListIterator cur = hwc.begin();
         const HWComposer::LayerListIterator end = hwc.end();
         for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
             layers[i]->onLayerDisplayed(&*cur);
         }
     } else {
+        eglSwapBuffers(mEGLDisplay, hw.getEGLSurface());
         for (size_t i = 0; i < numLayers; i++) {
             layers[i]->onLayerDisplayed(NULL);
         }
