@@ -294,7 +294,7 @@ void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
 
 void Layer::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
     int fenceFd = -1;
-    if (mNeedHwcFence) {
+    if (mNeedHwcFence && (layer.getCompositionType() == HWC_OVERLAY)) {
         sp<Fence> fence = mSurfaceTexture->getCurrentFence();
         if (fence.get()) {
             fenceFd = fence->dup();
