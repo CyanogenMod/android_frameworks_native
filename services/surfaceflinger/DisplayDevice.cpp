@@ -34,10 +34,10 @@
 #include <hardware/gralloc.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
-#include "DisplayHardware/DisplayHardwareBase.h"
+#include "DisplayHardware/DisplayDeviceBase.h"
 #include "DisplayHardware/HWComposer.h"
 
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 #include "GLExtensions.h"
 #include "SurfaceFlinger.h"
 #include "LayerBase.h"
@@ -98,12 +98,12 @@ void checkEGLErrors(const char* token)
  *
  */
 
-DisplayHardware::DisplayHardware(
+DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         int display,
         const sp<SurfaceTextureClient>& surface,
         EGLConfig config)
-    : DisplayHardwareBase(display),
+    : DisplayDeviceBase(display),
       mFlinger(flinger),
       mDisplayId(display),
       mNativeWindow(surface),
@@ -114,42 +114,42 @@ DisplayHardware::DisplayHardware(
     init(config);
 }
 
-DisplayHardware::~DisplayHardware() {
+DisplayDevice::~DisplayDevice() {
 }
 
-float DisplayHardware::getDpiX() const {
+float DisplayDevice::getDpiX() const {
     return mDpiX;
 }
 
-float DisplayHardware::getDpiY() const {
+float DisplayDevice::getDpiY() const {
     return mDpiY;
 }
 
-float DisplayHardware::getDensity() const {
+float DisplayDevice::getDensity() const {
     return mDensity;
 }
 
-float DisplayHardware::getRefreshRate() const {
+float DisplayDevice::getRefreshRate() const {
     return mRefreshRate;
 }
 
-int DisplayHardware::getWidth() const {
+int DisplayDevice::getWidth() const {
     return mDisplayWidth;
 }
 
-int DisplayHardware::getHeight() const {
+int DisplayDevice::getHeight() const {
     return mDisplayHeight;
 }
 
-PixelFormat DisplayHardware::getFormat() const {
+PixelFormat DisplayDevice::getFormat() const {
     return mFormat;
 }
 
-EGLSurface DisplayHardware::getEGLSurface() const {
+EGLSurface DisplayDevice::getEGLSurface() const {
     return mSurface;
 }
 
-status_t DisplayHardware::getInfo(DisplayInfo* info) const {
+status_t DisplayDevice::getInfo(DisplayInfo* info) const {
     info->w = getWidth();
     info->h = getHeight();
     info->xdpi = getDpiX();
@@ -162,7 +162,7 @@ status_t DisplayHardware::getInfo(DisplayInfo* info) const {
     return NO_ERROR;
 }
 
-void DisplayHardware::init(EGLConfig config)
+void DisplayDevice::init(EGLConfig config)
 {
     ANativeWindow* const window = mNativeWindow.get();
 
@@ -241,14 +241,14 @@ void DisplayHardware::init(EGLConfig config)
     mPageFlipCount = 0;
 
     // initialize the display orientation transform.
-    DisplayHardware::setOrientation(ISurfaceComposer::eOrientationDefault);
+    DisplayDevice::setOrientation(ISurfaceComposer::eOrientationDefault);
 }
 
-uint32_t DisplayHardware::getPageFlipCount() const {
+uint32_t DisplayDevice::getPageFlipCount() const {
     return mPageFlipCount;
 }
 
-nsecs_t DisplayHardware::getRefreshTimestamp() const {
+nsecs_t DisplayDevice::getRefreshTimestamp() const {
     // this returns the last refresh timestamp.
     // if the last one is not available, we estimate it based on
     // the refresh period and whatever closest timestamp we have.
@@ -257,23 +257,23 @@ nsecs_t DisplayHardware::getRefreshTimestamp() const {
     return now - ((now - mLastHwVSync) %  mRefreshPeriod);
 }
 
-nsecs_t DisplayHardware::getRefreshPeriod() const {
+nsecs_t DisplayDevice::getRefreshPeriod() const {
     return mRefreshPeriod;
 }
 
-status_t DisplayHardware::compositionComplete() const {
+status_t DisplayDevice::compositionComplete() const {
     if (mFramebufferSurface == NULL) {
         return NO_ERROR;
     }
     return mFramebufferSurface->compositionComplete();
 }
 
-void DisplayHardware::onVSyncReceived(nsecs_t timestamp) {
+void DisplayDevice::onVSyncReceived(nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mLastHwVSync = timestamp;
 }
 
-void DisplayHardware::flip(const Region& dirty) const
+void DisplayDevice::flip(const Region& dirty) const
 {
     checkGLErrors();
 
@@ -298,19 +298,19 @@ void DisplayHardware::flip(const Region& dirty) const
     mPageFlipCount++;
 }
 
-uint32_t DisplayHardware::getFlags() const
+uint32_t DisplayDevice::getFlags() const
 {
     return mFlags;
 }
 
-void DisplayHardware::dump(String8& res) const
+void DisplayDevice::dump(String8& res) const
 {
     if (mFramebufferSurface != NULL) {
         mFramebufferSurface->dump(res);
     }
 }
 
-void DisplayHardware::makeCurrent(const DisplayHardware& hw, EGLContext ctx) {
+void DisplayDevice::makeCurrent(const DisplayDevice& hw, EGLContext ctx) {
     EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
     if (sur != hw.mSurface) {
         EGLDisplay dpy = eglGetCurrentDisplay();
@@ -320,7 +320,7 @@ void DisplayHardware::makeCurrent(const DisplayHardware& hw, EGLContext ctx) {
 
 // ----------------------------------------------------------------------------
 
-void DisplayHardware::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
+void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
     mVisibleLayersSortedByZ = layers;
     size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
@@ -330,17 +330,17 @@ void DisplayHardware::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& l
     }
 }
 
-Vector< sp<LayerBase> > DisplayHardware::getVisibleLayersSortedByZ() const {
+Vector< sp<LayerBase> > DisplayDevice::getVisibleLayersSortedByZ() const {
     return mVisibleLayersSortedByZ;
 }
 
-bool DisplayHardware::getSecureLayerVisible() const {
+bool DisplayDevice::getSecureLayerVisible() const {
     return mSecureLayerVisible;
 }
 
 // ----------------------------------------------------------------------------
 
-status_t DisplayHardware::orientationToTransfrom(
+status_t DisplayDevice::orientationToTransfrom(
         int orientation, int w, int h, Transform* tr)
 {
     uint32_t flags = 0;
@@ -364,11 +364,11 @@ status_t DisplayHardware::orientationToTransfrom(
     return NO_ERROR;
 }
 
-status_t DisplayHardware::setOrientation(int orientation) {
+status_t DisplayDevice::setOrientation(int orientation) {
     int w = mDisplayWidth;
     int h = mDisplayHeight;
 
-    DisplayHardware::orientationToTransfrom(
+    DisplayDevice::orientationToTransfrom(
             orientation, w, h, &mGlobalTransform);
     if (orientation & ISurfaceComposer::eOrientationSwapMask) {
         int tmp = w;

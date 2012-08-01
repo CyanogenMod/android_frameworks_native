@@ -50,7 +50,7 @@
 
 #include "clz.h"
 #include "DdmConnection.h"
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 #include "Client.h"
 #include "EventThread.h"
 #include "GLExtensions.h"
@@ -370,8 +370,8 @@ status_t SurfaceFlinger::readyToRun()
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
     // initialize our main display hardware
-    DisplayHardware* const hw = new DisplayHardware(this, 0, anw, mEGLConfig);
-    mDisplayHardwares[0] = hw;
+    DisplayDevice* const hw = new DisplayDevice(this, 0, anw, mEGLConfig);
+    mDisplayDevices[0] = hw;
 
     //  initialize OpenGL ES
     EGLSurface surface = hw->getEGLSurface();
@@ -457,7 +457,7 @@ status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
     if (uint32_t(dpy) >= 2) {
         return BAD_INDEX;
     }
-    const DisplayHardware& hw(getDefaultDisplayHardware());
+    const DisplayDevice& hw(getDefaultDisplayDevice());
     return hw.getInfo(info);
 }
 
@@ -468,7 +468,7 @@ sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
 }
 
 void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
-    const DisplayHardware& hw(getDefaultDisplayHardware());
+    const DisplayDevice& hw(getDefaultDisplayDevice());
     EGLSurface result = EGL_NO_SURFACE;
     EGLSurface old_surface = EGL_NO_SURFACE;
     sp<SurfaceTextureClient> stc;
@@ -540,7 +540,7 @@ bool SurfaceFlinger::threadLoop() {
 }
 
 void SurfaceFlinger::onVSyncReceived(int dpy, nsecs_t timestamp) {
-    DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+    DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
     hw.onVSyncReceived(timestamp);
     mEventThread->onVSyncReceived(dpy, timestamp);
 }
@@ -588,7 +588,7 @@ void SurfaceFlinger::handleMessageRefresh() {
 
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
         for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
 
             Region opaqueRegion;
             Region dirtyRegion;
@@ -618,7 +618,7 @@ void SurfaceFlinger::handleMessageRefresh() {
         const bool workListsDirty = mHwWorkListDirty;
         mHwWorkListDirty = false;
         for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
             const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
 
@@ -649,7 +649,7 @@ void SurfaceFlinger::handleMessageRefresh() {
 
     const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
     for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
 
         // transform the dirty region into this screen's coordinate space
         const Transform& planeTransform(hw.getTransform());
@@ -695,7 +695,7 @@ void SurfaceFlinger::handleMessageRefresh() {
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
 
-            DisplayHardware& hw(const_cast<DisplayDevice&>(getDisplayHardware(0)));
+            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(0)));
             const Vector< sp<LayerBase> >& layers( hw.getVisibleLayersSortedByZ() );
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
@@ -728,7 +728,7 @@ void SurfaceFlinger::postFramebuffer()
     HWComposer& hwc(getHwComposer());
 
     for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
         if (hwc.initCheck() == NO_ERROR) {
             const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
@@ -745,11 +745,11 @@ void SurfaceFlinger::postFramebuffer()
 
     if (hwc.initCheck() == NO_ERROR) {
         // FIXME: eventually commit() won't take arguments
-        hwc.commit(mEGLDisplay, getDefaultDisplayHardware().getEGLSurface());
+        hwc.commit(mEGLDisplay, getDefaultDisplayDevice().getEGLSurface());
     }
 
     for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
         const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
         if (hwc.initCheck() == NO_ERROR) {
@@ -829,7 +829,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // and invalidate everything.
 
             const int dpy = 0; // FIXME: should be a parameter
-            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
             hw.setOrientation(mCurrentState.orientation);
             hw.dirtyRegion.set(hw.bounds());
 
@@ -1015,7 +1015,7 @@ void SurfaceFlinger::invalidateLayerStack(uint32_t layerStack,
         const Region& dirty) {
     // FIXME: update the dirty region of all displays
     // presenting this layer's layer stack.
-    DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(0)));
+    DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(0)));
     hw.dirtyRegion.orSelf(dirty);
 }
 
@@ -1060,7 +1060,7 @@ void SurfaceFlinger::handleRefresh()
     }
 }
 
-void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
+void SurfaceFlinger::handleRepaint(const DisplayDevice& hw,
         const Region& inDirtyRegion)
 {
     ATRACE_CALL();
@@ -1075,17 +1075,17 @@ void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
     }
 
     uint32_t flags = hw.getFlags();
-    if (flags & DisplayHardware::SWAP_RECTANGLE) {
+    if (flags & DisplayDevice::SWAP_RECTANGLE) {
         // we can redraw only what's dirty, but since SWAP_RECTANGLE only
         // takes a rectangle, we must make sure to update that whole
         // rectangle in that case
         dirtyRegion.set(hw.swapRegion.bounds());
     } else {
-        if (flags & DisplayHardware::PARTIAL_UPDATES) {
+        if (flags & DisplayDevice::PARTIAL_UPDATES) {
             // We need to redraw the rectangle that will be updated
             // (pushed to the framebuffer).
             // This is needed because PARTIAL_UPDATES only takes one
-            // rectangle instead of a region (see DisplayHardware::flip())
+            // rectangle instead of a region (see DisplayDevice::flip())
             dirtyRegion.set(hw.swapRegion.bounds());
         } else {
             // we need to redraw everything (the whole screen)
@@ -1100,7 +1100,7 @@ void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
     hw.swapRegion.orSelf(dirtyRegion);
 }
 
-void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& dirty)
+void SurfaceFlinger::composeSurfaces(const DisplayDevice& hw, const Region& dirty)
 {
     HWComposer& hwc(getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin();
@@ -1109,7 +1109,7 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
     const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);  // FIXME: this should be per display
     if (cur==end || fbLayerCount) {
 
-        DisplayHardware::makeCurrent(hw, mEGLContext);
+        DisplayDevice::makeCurrent(hw, mEGLContext);
 
         // set the frame buffer
         glMatrixMode(GL_MODELVIEW);
@@ -1164,7 +1164,7 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
     }
 }
 
-void SurfaceFlinger::debugFlashRegions(const DisplayHardware& hw,
+void SurfaceFlinger::debugFlashRegions(const DisplayDevice& hw,
         const Region& dirtyRegion)
 {
     const uint32_t flags = hw.getFlags();
@@ -1173,8 +1173,8 @@ void SurfaceFlinger::debugFlashRegions(const DisplayHardware& hw,
         return;
     }
 
-    if (!(flags & DisplayHardware::SWAP_RECTANGLE)) {
-        const Region repaint((flags & DisplayHardware::PARTIAL_UPDATES) ?
+    if (!(flags & DisplayDevice::SWAP_RECTANGLE)) {
+        const Region repaint((flags & DisplayDevice::PARTIAL_UPDATES) ?
                 dirtyRegion.bounds() : hw.bounds());
         composeSurfaces(hw, repaint);
     }
@@ -1569,7 +1569,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 
 void SurfaceFlinger::onScreenAcquired() {
     ALOGD("Screen about to return, flinger = %p", this);
-    const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: this should be per DisplayHardware
+    const DisplayDevice& hw(getDefaultDisplayDevice()); // XXX: this should be per DisplayDevice
     getHwComposer().acquire();
     hw.acquireScreen();
     mEventThread->onScreenAcquired();
@@ -1582,7 +1582,7 @@ void SurfaceFlinger::onScreenAcquired() {
 
 void SurfaceFlinger::onScreenReleased() {
     ALOGD("About to give-up screen, flinger = %p", this);
-    const DisplayHardware& hw(getDefaultDisplayHardware()); // XXX: this should be per DisplayHardware
+    const DisplayDevice& hw(getDefaultDisplayDevice()); // XXX: this should be per DisplayDevice
     if (hw.isScreenAcquired()) {
         mEventThread->onScreenReleased();
         hw.releaseScreen();
@@ -1782,7 +1782,7 @@ void SurfaceFlinger::dumpAllLocked(
     snprintf(buffer, SIZE, "SurfaceFlinger global state:\n");
     result.append(buffer);
 
-    const DisplayHardware& hw(getDefaultDisplayHardware());
+    const DisplayDevice& hw(getDefaultDisplayDevice());
     const GLExtensions& extensions(GLExtensions::getInstance());
     snprintf(buffer, SIZE, "GLES: %s, %s, %s\n",
             extensions.getVendor(),
@@ -1949,7 +1949,7 @@ status_t SurfaceFlinger::onTransact(
                 return NO_ERROR;
             case 1013: {
                 Mutex::Autolock _l(mStateLock);
-                const DisplayHardware& hw(getDefaultDisplayHardware());
+                const DisplayDevice& hw(getDefaultDisplayDevice());
                 reply->writeInt32(hw.getPageFlipCount());
             }
             return NO_ERROR;
@@ -1981,7 +1981,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
         return INVALID_OPERATION;
 
     // get screen geometry
-    const DisplayHardware& hw(getDisplayHardware(dpy));
+    const DisplayDevice& hw(getDisplayDevice(dpy));
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     GLfloat u = 1;
@@ -2072,7 +2072,7 @@ public:
 status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
 {
     // get screen geometry
-    const DisplayHardware& hw(getDefaultDisplayHardware());
+    const DisplayDevice& hw(getDefaultDisplayDevice());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     const Region screenBounds(hw.getBounds());
@@ -2254,7 +2254,7 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
 
 
     // get screen geometry
-    const DisplayHardware& hw(getDefaultDisplayHardware());
+    const DisplayDevice& hw(getDefaultDisplayDevice());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     const Region screenBounds(hw.bounds());
@@ -2403,7 +2403,7 @@ status_t SurfaceFlinger::turnElectronBeamOffImplLocked(int32_t mode)
 {
     ATRACE_CALL();
 
-    DisplayHardware& hw(const_cast<DisplayHardware&>(getDefaultDisplayHardware()));
+    DisplayDevice& hw(const_cast<DisplayDevice&>(getDefaultDisplayDevice()));
     if (!hw.canDraw()) {
         // we're already off
         return NO_ERROR;
@@ -2463,7 +2463,7 @@ status_t SurfaceFlinger::turnElectronBeamOff(int32_t mode)
 
 status_t SurfaceFlinger::turnElectronBeamOnImplLocked(int32_t mode)
 {
-    DisplayHardware& hw(const_cast<DisplayHardware&>(getDefaultDisplayHardware()));
+    DisplayDevice& hw(const_cast<DisplayDevice&>(getDefaultDisplayDevice()));
     if (hw.canDraw()) {
         // we're already on
         return NO_ERROR;
@@ -2525,7 +2525,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     }
 
     // get screen geometry
-    const DisplayHardware& hw(getDisplayHardware(dpy));
+    const DisplayDevice& hw(getDisplayDevice(dpy));
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
 

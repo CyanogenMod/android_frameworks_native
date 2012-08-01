@@ -27,7 +27,6 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
-#include "DisplayHardware.h"
 #include "EventThread.h"
 #include "SurfaceFlinger.h"
 

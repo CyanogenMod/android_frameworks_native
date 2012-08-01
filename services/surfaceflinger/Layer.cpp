@@ -36,7 +36,7 @@
 #include <gui/Surface.h>
 
 #include "clz.h"
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 #include "GLExtensions.h"
 #include "Layer.h"
 #include "SurfaceFlinger.h"
@@ -78,9 +78,9 @@ void Layer::onLayerDisplayed(HWComposer::HWCLayerInterface* layer) {
     }
 
     if (mFrameLatencyNeeded) {
-        // we need a DisplayHardware for debugging only right now
-        // XXX: should this be called per DisplayHardware?
-        const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
+        // we need a DisplayDevice for debugging only right now
+        // XXX: should this be called per DisplayDevice?
+        const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
         mFrameStats[mFrameLatencyOffset].timestamp = mSurfaceTexture->getTimestamp();
         mFrameStats[mFrameLatencyOffset].set = systemTime();
         mFrameStats[mFrameLatencyOffset].vsync = hw.getRefreshTimestamp();
@@ -248,7 +248,7 @@ Rect Layer::computeBufferCrop() const {
 }
 
 void Layer::setGeometry(
-        const DisplayHardware& hw,
+        const DisplayDevice& hw,
         HWComposer::HWCLayerInterface& layer)
 {
     LayerBaseClient::setGeometry(hw, layer);
@@ -307,7 +307,7 @@ void Layer::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
     layer.setAcquireFenceFd(fenceFd);
 }
 
-void Layer::onDraw(const DisplayHardware& hw, const Region& clip) const
+void Layer::onDraw(const DisplayDevice& hw, const Region& clip) const
 {
     ATRACE_CALL();
 
@@ -723,7 +723,7 @@ void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
     const size_t o = mFrameLatencyOffset;
-    const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
+    const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
     const nsecs_t period = hw.getRefreshPeriod();
     result.appendFormat("%lld\n", period);
     for (size_t i=0 ; i<128 ; i++) {
@@ -764,7 +764,7 @@ uint32_t Layer::getTransformHint() const {
         // apply to all displays.
         // This is why we use the default display here. This is not an
         // oversight.
-        const DisplayHardware& hw(mFlinger->getDefaultDisplayHardware());
+        const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
         const Transform& planeTransform(hw.getTransform());
         orientation = planeTransform.getOrientation();
         if (orientation & Transform::ROT_INVALID) {

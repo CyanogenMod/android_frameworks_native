@@ -56,7 +56,7 @@ namespace android {
 
 class Client;
 class DisplayEventConnection;
-class DisplayHardware;
+class DisplayDevice;
 class EventThread;
 class Layer;
 class LayerBase;
@@ -118,8 +118,8 @@ public:
         GLfloat* uOut, GLfloat* vOut);
 
     // returns the default Display
-    const DisplayHardware& getDefaultDisplayHardware() const {
-        return getDisplayHardware(0);
+    const DisplayDevice& getDefaultDisplayDevice() const {
+        return getDisplayDevice(0);
     }
 
     // utility function to delete a texture on the main thread
@@ -237,7 +237,7 @@ private:
     void handlePageFlip();
 
     void handleRefresh();
-    void handleRepaint(const DisplayHardware& hw, const Region& dirtyRegion);
+    void handleRepaint(const DisplayDevice& hw, const Region& dirtyRegion);
 
     /* ------------------------------------------------------------------------
      * Transactions
@@ -316,8 +316,8 @@ private:
     /* ------------------------------------------------------------------------
      * Display and layer stack management
      */
-    const DisplayHardware& getDisplayHardware(DisplayID dpy) const {
-        return *mDisplayHardwares[dpy];
+    const DisplayDevice& getDisplayDevice(DisplayID dpy) const {
+        return *mDisplayDevices[dpy];
     }
 
     // mark a region of a layer stack dirty. this updates the dirty
@@ -338,7 +338,7 @@ private:
             uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
     void postFramebuffer();
-    void composeSurfaces(const DisplayHardware& hw, const Region& dirty);
+    void composeSurfaces(const DisplayDevice& hw, const Region& dirty);
     void drawWormhole(const Region& region) const;
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
@@ -347,7 +347,7 @@ private:
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
-    void debugFlashRegions(const DisplayHardware& hw, const Region& dirtyReg);
+    void debugFlashRegions(const DisplayDevice& hw, const Region& dirtyReg);
     void listLayersLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
@@ -370,7 +370,7 @@ private:
     Vector<sp<LayerBase> > mLayersPendingRemoval;
 
     // protected by mStateLock (but we could use another lock)
-    DisplayHardware* mDisplayHardwares[1];
+    DisplayDevice* mDisplayDevices[1];
     bool mLayersRemoved;
 
     // access must be protected by mInvalidateLock

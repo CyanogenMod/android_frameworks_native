@@ -3,13 +3,13 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
     Client.cpp                              \
-    DisplayHardware.cpp     				\
+    DisplayDevice.cpp                       \
     EventThread.cpp                         \
     Layer.cpp                               \
     LayerBase.cpp                           \
     LayerDim.cpp                            \
     LayerScreenshot.cpp                     \
-    DisplayHardware/DisplayHardwareBase.cpp \
+    DisplayHardware/DisplayDeviceBase.cpp   \
     DisplayHardware/FramebufferSurface.cpp  \
     DisplayHardware/HWComposer.cpp          \
     DisplayHardware/PowerHAL.cpp            \
