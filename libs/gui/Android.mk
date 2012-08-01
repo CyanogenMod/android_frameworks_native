@@ -44,6 +44,9 @@ endif
 ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
 	LOCAL_CFLAGS += -DUSE_FENCE_SYNC
 endif
+ifeq ($(TARGET_BOARD_PLATFORM), exynos5)
+	LOCAL_CFLAGS += -DUSE_FENCE_SYNC
+endif
 ifneq ($(filter generic%,$(TARGET_DEVICE)),)
     # Emulator build
     LOCAL_CFLAGS += -DUSE_FENCE_SYNC
