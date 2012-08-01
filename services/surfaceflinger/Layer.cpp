@@ -43,6 +43,10 @@
 #include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
 
+#ifdef QCOMHW
+#include <gpuformats.h>
+#endif
+
 #define DEBUG_RESIZE    0
 
 namespace android {
@@ -354,7 +358,12 @@ void Layer::onDraw(const Region& clip) const
         }
         return;
     }
-
+#ifdef QCOMHW
+    if (!qdutils::isGPUSupportedFormat(mActiveBuffer->format)) {
+        clearWithOpenGL(clip, 0, 0, 0, 1);
+        return;
+    }
+#endif
     if (!isProtected()) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering() || isFixedSize();

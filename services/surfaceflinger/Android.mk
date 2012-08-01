@@ -33,7 +33,8 @@ endif
 
 ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
-	LOCAL_CFLAGS += -DQCOMHW
+    LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
+    LOCAL_CFLAGS += -DQCOMHW
 endif
 
 ifeq ($(TARGET_DISABLE_TRIPLE_BUFFERING), true)

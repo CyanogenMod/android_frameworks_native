@@ -39,6 +39,10 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
+#ifdef QCOMHW
+#include <gpuformats.h>
+#endif
+
 // This compile option makes SurfaceTexture use the EGL_KHR_fence_sync extension
 // to synchronize access to the buffers.  It will cause dequeueBuffer to stall,
 // waiting for the GL reads for the buffer being dequeued to complete before
@@ -245,18 +249,25 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // Update the GL texture object. We may have to do this even when
         // item.mGraphicBuffer == NULL, if we destroyed the EGLImage when
         // detaching from a context but the buffer has not been re-allocated.
+        bool gpuSupportedFormat = true;
         EGLImageKHR image = mEGLSlots[buf].mEglImage;
         if (image == EGL_NO_IMAGE_KHR) {
             if (mEGLSlots[buf].mGraphicBuffer == NULL) {
                 ST_LOGE("updateTexImage: buffer at slot %d is null", buf);
                 err = BAD_VALUE;
             } else {
-                image = createImage(dpy, mEGLSlots[buf].mGraphicBuffer);
-                mEGLSlots[buf].mEglImage = image;
-                if (image == EGL_NO_IMAGE_KHR) {
-                    // NOTE: if dpy was invalid, createImage() is guaranteed to
-                    // fail. so we'd end up here.
-                    err = UNKNOWN_ERROR;
+#ifdef QCOMHW
+                gpuSupportedFormat = qdutils::isGPUSupportedFormat(
+                    mEGLSlots[buf].mGraphicBuffer->format);
+#endif
+                if(gpuSupportedFormat) {
+                    image = createImage(dpy, mEGLSlots[buf].mGraphicBuffer);
+                    mEGLSlots[buf].mEglImage = image;
+                    if (image == EGL_NO_IMAGE_KHR) {
+                        // NOTE: if dpy was invalid, createImage() is guaranteed to
+                        // fail. so we'd end up here.
+                        err = UNKNOWN_ERROR;
+                    }
                 }
             }
         }
@@ -267,9 +278,10 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
                 ST_LOGW("updateTexImage: clearing GL error: %#04x", error);
             }
 
-            glBindTexture(mTexTarget, mTexName);
-            glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
-
+            if(gpuSupportedFormat) {
+                glBindTexture(mTexTarget, mTexName);
+                glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+            }
             while ((error = glGetError()) != GL_NO_ERROR) {
                 ST_LOGE("updateTexImage: error binding external texture image %p "
                         "(slot %d): %#04x", image, buf, error);
