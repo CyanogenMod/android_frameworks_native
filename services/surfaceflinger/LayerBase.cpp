@@ -291,11 +291,13 @@ void LayerBase::setGeometry(
     layer.setVisibleRegionScreen(tr.transform(visibleRegion));
 }
 
-void LayerBase::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
+void LayerBase::setPerFrameData(const DisplayDevice& hw,
+        HWComposer::HWCLayerInterface& layer) {
     layer.setBuffer(0);
 }
 
-void LayerBase::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
+void LayerBase::setAcquireFence(const DisplayDevice& hw,
+        HWComposer::HWCLayerInterface& layer) {
     layer.setAcquireFenceFd(-1);
 }
 
@@ -314,7 +316,7 @@ void LayerBase::draw(const DisplayDevice& hw, const Region& clip) const
     onDraw(hw, clip);
 }
 
-void LayerBase::drawForSreenShot(const DisplayDevice& hw)
+void LayerBase::drawForScreenShot(const DisplayDevice& hw)
 {
     setFiltering(true);
     onDraw( hw, Region(hw.bounds()) );

@@ -18,6 +18,9 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <GLES/gl.h>
+#include <GLES/glext.h>
+
 #include <utils/Errors.h>
 #include <utils/Log.h>
 

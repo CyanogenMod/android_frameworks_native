@@ -66,8 +66,14 @@ public:
     // LayerBase interface
     virtual void setGeometry(const DisplayDevice& hw,
             HWComposer::HWCLayerInterface& layer);
-    virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
-    virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
+    virtual void setPerFrameData(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface& layer);
+    virtual void setAcquireFence(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface& layer);
+    virtual void onLayerDisplayed(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface* layer);
+    virtual bool onPreComposition();
+    virtual void onPostComposition();
 
     virtual void onDraw(const DisplayDevice& hw, const Region& clip) const;
     virtual uint32_t doTransaction(uint32_t transactionFlags);
@@ -81,9 +87,6 @@ public:
 
     // LayerBaseClient interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;
-
-    virtual void onLayerDisplayed(HWComposer::HWCLayerInterface* layer);
-    virtual bool onPreComposition();
 
     // only for debugging
     inline const sp<GraphicBuffer>& getActiveBuffer() const { return mActiveBuffer; }
@@ -121,7 +124,6 @@ private:
     bool mCurrentOpacity;
     bool mRefreshPending;
     bool mFrameLatencyNeeded;
-    bool mNeedHwcFence;
     int mFrameLatencyOffset;
 
     struct Statistics {

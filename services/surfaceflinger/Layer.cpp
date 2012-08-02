@@ -60,7 +60,6 @@ Layer::Layer(SurfaceFlinger* flinger,
         mCurrentOpacity(true),
         mRefreshPending(false),
         mFrameLatencyNeeded(false),
-        mNeedHwcFence(false),
         mFrameLatencyOffset(0),
         mFormat(PIXEL_FORMAT_NONE),
         mGLExtensions(GLExtensions::getInstance()),
@@ -72,20 +71,10 @@ Layer::Layer(SurfaceFlinger* flinger,
     glGenTextures(1, &mTextureName);
 }
 
-void Layer::onLayerDisplayed(HWComposer::HWCLayerInterface* layer) {
+void Layer::onLayerDisplayed(const DisplayDevice& hw,
+        HWComposer::HWCLayerInterface* layer) {
     if (layer) {
         mSurfaceTexture->setReleaseFence(layer->getAndResetReleaseFenceFd());
-    }
-
-    if (mFrameLatencyNeeded) {
-        // we need a DisplayDevice for debugging only right now
-        // XXX: should this be called per DisplayDevice?
-        const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
-        mFrameStats[mFrameLatencyOffset].timestamp = mSurfaceTexture->getTimestamp();
-        mFrameStats[mFrameLatencyOffset].set = systemTime();
-        mFrameStats[mFrameLatencyOffset].vsync = hw.getRefreshTimestamp();
-        mFrameLatencyOffset = (mFrameLatencyOffset + 1) % 128;
-        mFrameLatencyNeeded = false;
     }
 }
 
@@ -285,16 +274,22 @@ void Layer::setGeometry(
     layer.setCrop(computeBufferCrop());
 }
 
-void Layer::setPerFrameData(HWComposer::HWCLayerInterface& layer) {
+void Layer::setPerFrameData(const DisplayDevice& hw,
+        HWComposer::HWCLayerInterface& layer) {
     const sp<GraphicBuffer>& buffer(mActiveBuffer);
     // NOTE: buffer can be NULL if the client never drew into this
     // layer yet, or if we ran out of memory
     layer.setBuffer(buffer);
 }
 
-void Layer::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
+void Layer::setAcquireFence(const DisplayDevice& hw,
+        HWComposer::HWCLayerInterface& layer) {
     int fenceFd = -1;
-    if (mNeedHwcFence && (layer.getCompositionType() == HWC_OVERLAY)) {
+
+    // TODO: there is a possible optimization here: we only need to set the
+    // acquire fence the first time a new buffer is acquired on EACH display.
+
+    if (layer.getCompositionType() == HWC_OVERLAY) {
         sp<Fence> fence = mSurfaceTexture->getCurrentFence();
         if (fence.get()) {
             fenceFd = fence->dup();
@@ -302,7 +297,6 @@ void Layer::setAcquireFence(HWComposer::HWCLayerInterface& layer) {
                 ALOGW("failed to dup layer fence, skipping sync: %d", errno);
             }
         }
-        mNeedHwcFence = false;
     }
     layer.setAcquireFenceFd(fenceFd);
 }
@@ -517,6 +511,18 @@ bool Layer::onPreComposition() {
     return mQueuedFrames > 0;
 }
 
+void Layer::onPostComposition() {
+    if (mFrameLatencyNeeded) {
+        const HWComposer& hwc = mFlinger->getHwComposer();
+        const size_t offset = mFrameLatencyOffset;
+        mFrameStats[offset].timestamp = mSurfaceTexture->getTimestamp();
+        mFrameStats[offset].set = systemTime();
+        mFrameStats[offset].vsync = hwc.getRefreshTimestamp();
+        mFrameLatencyOffset = (mFrameLatencyOffset + 1) % 128;
+        mFrameLatencyNeeded = false;
+    }
+}
+
 Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 {
     ATRACE_CALL();
@@ -646,7 +652,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         mRefreshPending = true;
         mFrameLatencyNeeded = true;
-        mNeedHwcFence = true;
         if (oldActiveBuffer == NULL) {
              // the first time we receive a buffer, we need to trigger a
              // geometry invalidation.
