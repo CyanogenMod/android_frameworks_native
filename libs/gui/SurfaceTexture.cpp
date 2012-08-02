@@ -608,7 +608,7 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
                     // We know there's no subsampling of any channels, so we
                     // only need to shrink by a half a pixel.
                     shrinkAmount = 0.5;
-
+                    break;
                 default:
                     // If we don't recognize the format, we must assume the
                     // worst case (that we care about), which is YUV420.
