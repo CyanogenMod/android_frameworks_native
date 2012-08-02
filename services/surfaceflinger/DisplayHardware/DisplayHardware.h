@@ -88,7 +88,8 @@ public:
     void setVSyncHandler(const sp<VSyncHandler>& handler);
 
     enum {
-        EVENT_VSYNC = HWC_EVENT_VSYNC
+        EVENT_VSYNC = HWC_EVENT_VSYNC,
+        EVENT_ORIENTATION = 1      // used for sending orientation info to HWC
     };
 
     void eventControl(int event, int enabled);
@@ -101,9 +102,9 @@ public:
 
     // Hardware Composer
     HWComposer& getHwComposer() const;
-    
+
     status_t compositionComplete() const;
-    
+
     Rect getBounds() const {
         return Rect(mWidth, mHeight);
     }
