@@ -146,7 +146,7 @@ public:
      * to perform the actual drawing.  
      */
     virtual void draw(const DisplayDevice& hw, const Region& clip) const;
-    virtual void drawForScreenShot(const DisplayDevice& hw);
+    virtual void draw(const DisplayDevice& hw);
     
     /**
      * onDraw - draws the surface.
@@ -249,13 +249,13 @@ public:
 
     void clearWithOpenGL(const DisplayDevice& hw, const Region& clip) const;
 
+    void setFiltering(bool filtering);
+    bool getFiltering() const;
+
 protected:
           void clearWithOpenGL(const DisplayDevice& hw, const Region& clip,
                   GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
           void drawWithOpenGL(const DisplayDevice& hw, const Region& clip) const;
-
-          void setFiltering(bool filtering);
-          bool getFiltering() const;
 
                 sp<SurfaceFlinger> mFlinger;
 

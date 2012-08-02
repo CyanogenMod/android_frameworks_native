@@ -316,11 +316,9 @@ void LayerBase::draw(const DisplayDevice& hw, const Region& clip) const
     onDraw(hw, clip);
 }
 
-void LayerBase::drawForScreenShot(const DisplayDevice& hw)
+void LayerBase::draw(const DisplayDevice& hw)
 {
-    setFiltering(true);
     onDraw( hw, Region(hw.bounds()) );
-    setFiltering(false);
 }
 
 void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip,

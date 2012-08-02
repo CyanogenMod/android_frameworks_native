@@ -698,7 +698,7 @@ void SurfaceFlinger::handleMessageRefresh() {
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
                 const sp<LayerBase>& layer(layers[i]);
-                layer->drawForScreenShot(hw);
+                layer->draw(hw);
             }
 
             success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
@@ -2026,7 +2026,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<LayerBase>& layer(layers[i]);
-        layer->drawForScreenShot(hw);
+        layer->draw(hw);
     }
 
     hw.compositionComplete();
@@ -2544,6 +2544,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     sw = (!sw) ? hw_w : sw;
     sh = (!sh) ? hw_h : sh;
     const size_t size = sw * sh * 4;
+    const bool filtering = sw != hw_w || sh != hw_h;
 
     //ALOGD("screenshot: sw=%d, sh=%d, minZ=%d, maxZ=%d",
     //        sw, sh, minLayerZ, maxLayerZ);
@@ -2586,7 +2587,9 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
             if (!(flags & ISurfaceComposer::eLayerHidden)) {
                 const uint32_t z = layer->drawingState().z;
                 if (z >= minLayerZ && z <= maxLayerZ) {
-                    layer->drawForScreenShot(hw);
+                    if (filtering) layer->setFiltering(true);
+                    layer->draw(hw);
+                    if (filtering) layer->setFiltering(false);
                 }
             }
         }
