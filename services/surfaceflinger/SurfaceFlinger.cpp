@@ -370,11 +370,12 @@ status_t SurfaceFlinger::readyToRun()
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
     // initialize our main display hardware
-    DisplayDevice* const hw = new DisplayDevice(this, 0, anw, mEGLConfig);
-    mDisplayDevices[0] = hw;
+    mCurrentState.displays.add(DisplayDevice::DISPLAY_ID_MAIN, DisplayDeviceState());
+    DisplayDevice hw(this, DisplayDevice::DISPLAY_ID_MAIN, anw, mEGLConfig);
+    mDisplays.add(DisplayDevice::DISPLAY_ID_MAIN, hw);
 
     //  initialize OpenGL ES
-    EGLSurface surface = hw->getEGLSurface();
+    EGLSurface surface = hw.getEGLSurface();
     initializeGL(mEGLDisplay, surface);
 
     // start the EventThread
@@ -384,7 +385,10 @@ status_t SurfaceFlinger::readyToRun()
     // initialize the H/W composer
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this),
-            hw->getRefreshPeriod());
+            hw.getRefreshPeriod());
+
+    // initialize our drawing state
+    mDrawingState = mCurrentState;
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();
@@ -585,9 +589,8 @@ void SurfaceFlinger::handleMessageRefresh() {
          */
 
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-        for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
-
+        for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            DisplayDevice& hw(mDisplays.editValueAt(dpy));
             Region opaqueRegion;
             Region dirtyRegion;
             computeVisibleRegions(currentLayers,
@@ -615,8 +618,8 @@ void SurfaceFlinger::handleMessageRefresh() {
         // build the h/w work list
         const bool workListsDirty = mHwWorkListDirty;
         mHwWorkListDirty = false;
-        for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
+        for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            const DisplayDevice& hw(mDisplays[dpy]);
             const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
 
@@ -646,8 +649,8 @@ void SurfaceFlinger::handleMessageRefresh() {
     }
 
     const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
-    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        DisplayDevice& hw(mDisplays.editValueAt(dpy));
 
         // transform the dirty region into this screen's coordinate space
         const Transform& planeTransform(hw.getTransform());
@@ -693,7 +696,7 @@ void SurfaceFlinger::handleMessageRefresh() {
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
 
-            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(0)));
+            DisplayDevice& hw(const_cast<DisplayDevice&>(getDefaultDisplayDevice()));
             const Vector< sp<LayerBase> >& layers( hw.getVisibleLayersSortedByZ() );
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
@@ -725,8 +728,8 @@ void SurfaceFlinger::postFramebuffer()
 
     HWComposer& hwc(getHwComposer());
 
-    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        DisplayDevice& hw(mDisplays.editValueAt(dpy));
         if (hwc.initCheck() == NO_ERROR) {
             const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
@@ -746,8 +749,8 @@ void SurfaceFlinger::postFramebuffer()
         hwc.commit(mEGLDisplay, getDefaultDisplayDevice().getEGLSurface());
     }
 
-    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
-        DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        const DisplayDevice& hw(mDisplays[dpy]);
         const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
         if (hwc.initCheck() == NO_ERROR) {
@@ -822,16 +825,52 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
      */
 
     if (transactionFlags & eTransactionNeeded) {
-        if (mCurrentState.orientation != mDrawingState.orientation) {
-            // the orientation has changed, recompute all visible regions
-            // and invalidate everything.
-
-            const int dpy = 0; // FIXME: should be a parameter
-            DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
-            hw.setOrientation(mCurrentState.orientation);
-            hw.dirtyRegion.set(hw.bounds());
-
+        // here we take advantage of Vector's copy-on-write semantics to
+        // improve performance by skipping the transaction entirely when
+        // know that the lists are identical
+        const KeyedVector<int32_t, DisplayDeviceState>& curr(mCurrentState.displays);
+        const KeyedVector<int32_t, DisplayDeviceState>& draw(mDrawingState.displays);
+        if (!curr.isIdenticalTo(draw)) {
             mVisibleRegionsDirty = true;
+            const size_t cc = curr.size();
+            const size_t dc = draw.size();
+
+            // find the displays that were removed
+            // (ie: in drawing state but not in current state)
+            // also handle displays that changed
+            // (ie: displays that are in both lists)
+            for (size_t i=0 ; i<dc ; i++) {
+                if (curr.indexOfKey(draw[i].id) < 0) {
+                    // in drawing state but not in current state
+                    if (draw[i].id != DisplayDevice::DISPLAY_ID_MAIN) {
+                        mDisplays.editValueFor(draw[i].id).terminate();
+                        mDisplays.removeItem(draw[i].id);
+                    } else {
+                        ALOGW("trying to remove the main display");
+                    }
+                } else {
+                    // this display is in both lists. see if something changed.
+                    const DisplayDeviceState& state(curr[i]);
+                    if (state.layerStack != draw[i].layerStack) {
+                        DisplayDevice& disp(mDisplays.editValueFor(state.id));
+                        //disp.setLayerStack(state.layerStack);
+                    }
+                    if (curr[i].orientation != draw[i].orientation) {
+                        DisplayDevice& disp(mDisplays.editValueFor(state.id));
+                        disp.setOrientation(state.orientation);
+                    }
+                }
+            }
+
+            // find displays that were added
+            // (ie: in current state but not in drawing state)
+            for (size_t i=0 ; i<cc ; i++) {
+                if (mDrawingState.displays.indexOfKey(curr[i].id) < 0) {
+                    // FIXME: we need to pass the surface here
+                    DisplayDevice disp(this, curr[i].id, 0, mEGLConfig);
+                    mDisplays.add(curr[i].id, disp);
+                }
+            }
         }
 
         if (currentLayers.size() > mDrawingState.layersSortedByZ.size()) {
@@ -1011,10 +1050,12 @@ void SurfaceFlinger::computeVisibleRegions(
 
 void SurfaceFlinger::invalidateLayerStack(uint32_t layerStack,
         const Region& dirty) {
-    // FIXME: update the dirty region of all displays
-    // presenting this layer's layer stack.
-    DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(0)));
-    hw.dirtyRegion.orSelf(dirty);
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        DisplayDevice& hw(mDisplays.editValueAt(dpy));
+        if (hw.getLayerStack() == layerStack) {
+            hw.dirtyRegion.orSelf(dirty);
+        }
+    }
 }
 
 void SurfaceFlinger::handlePageFlip()
@@ -1324,9 +1365,10 @@ void SurfaceFlinger::setTransactionState(
     }
 
     uint32_t transactionFlags = 0;
-    if (mCurrentState.orientation != orientation) {
+    // FIXME: don't hardcode display id here
+    if (mCurrentState.displays.valueFor(0).orientation != orientation) {
         if (uint32_t(orientation)<=eOrientation270 || orientation==42) {
-            mCurrentState.orientation = orientation;
+            mCurrentState.displays.editValueFor(0).orientation = orientation;
             transactionFlags |= eTransactionNeeded;
         } else if (orientation != eOrientationUnchanged) {
             ALOGW("setTransactionState: ignoring unrecognized orientation: %d",
@@ -1416,7 +1458,7 @@ sp<Layer> SurfaceFlinger::createNormalLayer(
         PixelFormat& format)
 {
     // initialize the surfaces
-    switch (format) { // TODO: take h/w into account
+    switch (format) {
     case PIXEL_FORMAT_TRANSPARENT:
     case PIXEL_FORMAT_TRANSLUCENT:
         format = PIXEL_FORMAT_RGBA_8888;
@@ -1804,7 +1846,7 @@ void SurfaceFlinger::dumpAllLocked(
     hw.undefinedRegion.dump(result, "undefinedRegion");
     snprintf(buffer, SIZE,
             "  orientation=%d, canDraw=%d\n",
-            mCurrentState.orientation, hw.canDraw());
+            hw.getOrientation(), hw.canDraw());
     result.append(buffer);
     snprintf(buffer, SIZE,
             "  last eglSwapBuffers() time: %f us\n"
@@ -2727,9 +2769,8 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 
 // ---------------------------------------------------------------------------
 
-SurfaceFlinger::State::State()
-    : orientation(ISurfaceComposer::eOrientationDefault),
-      orientationFlags(0) {
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
+    : id(DisplayDevice::DISPLAY_ID_MAIN), layerStack(0), orientation(0) {
 }
 
 // ---------------------------------------------------------------------------
