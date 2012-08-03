@@ -20,9 +20,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <EGL/egl.h>
-
-#include <gui/SurfaceTextureClient.h>
+#include <gui/ConsumerBase.h>
 
 #define NUM_FRAME_BUFFERS  2
 
@@ -35,7 +33,7 @@ class String8;
 
 // ---------------------------------------------------------------------------
 
-class FramebufferSurface : public SurfaceTextureClient {
+class FramebufferSurface : public ConsumerBase {
 public:
 
     static sp<FramebufferSurface> create();
@@ -43,28 +41,34 @@ public:
     // TODO: this should be coming from HWC
     float getRefreshRate() const;
 
-    bool isUpdateOnDemand() const { return mUpdateOnDemand; }
+    bool isUpdateOnDemand() const { return false; }
     status_t setUpdateRectangle(const Rect& updateRect);
     status_t compositionComplete();
 
-    void dump(String8& result);
+    virtual void dump(String8& result);
 
-protected:
-    virtual void onFirstRef();
+    // nextBuffer waits for and then latches the next buffer from the
+    // BufferQueue and releases the previously latched buffer to the
+    // BufferQueue.  The new buffer is returned in the 'buffer' argument.
+    status_t nextBuffer(sp<GraphicBuffer>* buffer);
 
 private:
     FramebufferSurface();
     virtual ~FramebufferSurface(); // this class cannot be overloaded
-    virtual int query(int what, int* value) const;
+
+    virtual void onFrameAvailable();
+    virtual void freeBufferLocked(int slotIndex);
 
     framebuffer_device_t* fbDev;
 
-    sp<BufferQueue> mBufferQueue;
-    int mCurrentBufferIndex;
-    sp<GraphicBuffer> mBuffers[NUM_FRAME_BUFFERS];
+    // mCurrentBufferIndex is the slot index of the current buffer or
+    // INVALID_BUFFER_SLOT to indicate that either there is no current buffer
+    // or the buffer is not associated with a slot.
+    int mCurrentBufferSlot;
 
-    mutable Mutex mLock;
-    bool mUpdateOnDemand;
+    // mCurrentBuffer is the current buffer or NULL to indicate that there is
+    // no current buffer.
+    sp<GraphicBuffer> mCurrentBuffer;
 };
 
 // ---------------------------------------------------------------------------

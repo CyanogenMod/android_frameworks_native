@@ -1,6 +1,6 @@
 /*
  **
- ** Copyright 2007 The Android Open Source Project
+ ** Copyright 2012 The Android Open Source Project
  **
  ** Licensed under the Apache License Version 2.0(the "License");
  ** you may not use this file except in compliance with the License.
@@ -48,17 +48,33 @@ sp<FramebufferSurface> FramebufferSurface::create() {
 
 // ----------------------------------------------------------------------------
 
+class GraphicBufferAlloc : public BnGraphicBufferAlloc {
+public:
+    GraphicBufferAlloc() { };
+    virtual ~GraphicBufferAlloc() { };
+    virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
+            PixelFormat format, uint32_t usage, status_t* error) {
+        sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format, usage));
+        return graphicBuffer;
+    }
+};
+
+
 /*
  * This implements the (main) framebuffer management. This class is used
  * mostly by SurfaceFlinger, but also by command line GL application.
  *
  */
 
-FramebufferSurface::FramebufferSurface()
-    : SurfaceTextureClient(),
-      fbDev(0), mCurrentBufferIndex(-1), mUpdateOnDemand(false)
+FramebufferSurface::FramebufferSurface():
+    ConsumerBase(new BufferQueue(true, NUM_FRAME_BUFFERS,
+            new GraphicBufferAlloc())),
+    fbDev(0),
+    mCurrentBufferSlot(-1),
+    mCurrentBuffer(0)
 {
     hw_module_t const* module;
+
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
         int stride;
         int err;
@@ -70,90 +86,92 @@ FramebufferSurface::FramebufferSurface()
         if (!fbDev)
             return;
 
-        mUpdateOnDemand = (fbDev->setUpdateRect != 0);
-
-        const_cast<uint32_t&>(ANativeWindow::flags) = fbDev->flags;
-        const_cast<int&>(ANativeWindow::minSwapInterval) =  fbDev->minSwapInterval;
-        const_cast<int&>(ANativeWindow::maxSwapInterval) =  fbDev->maxSwapInterval;
-
-        if (fbDev->xdpi == 0 || fbDev->ydpi == 0) {
-            ALOGE("invalid screen resolution from fb HAL (xdpi=%f, ydpi=%f), "
-                   "defaulting to 160 dpi", fbDev->xdpi, fbDev->ydpi);
-            const_cast<float&>(ANativeWindow::xdpi) = 160;
-            const_cast<float&>(ANativeWindow::ydpi) = 160;
-        } else {
-            const_cast<float&>(ANativeWindow::xdpi) = fbDev->xdpi;
-            const_cast<float&>(ANativeWindow::ydpi) = fbDev->ydpi;
-        }
-
+        mName = "FramebufferSurface";
+        mBufferQueue->setConsumerName(mName);
+        mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
+                GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER);
+        mBufferQueue->setDefaultBufferFormat(fbDev->format);
+        mBufferQueue->setDefaultBufferSize(fbDev->width, fbDev->height);
+        mBufferQueue->setSynchronousMode(true);
+        mBufferQueue->setBufferCountServer(NUM_FRAME_BUFFERS);
     } else {
         ALOGE("Couldn't get gralloc module");
     }
-
-    class GraphicBufferAlloc : public BnGraphicBufferAlloc {
-    public:
-        GraphicBufferAlloc() { };
-        virtual ~GraphicBufferAlloc() { };
-        virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
-                PixelFormat format, uint32_t usage, status_t* error) {
-            sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format, usage));
-            return graphicBuffer;
-        }
-    };
-
-    mBufferQueue = new BufferQueue(true, NUM_FRAME_BUFFERS, new GraphicBufferAlloc());
-    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB|GRALLOC_USAGE_HW_RENDER|GRALLOC_USAGE_HW_COMPOSER);
-    mBufferQueue->setDefaultBufferFormat(fbDev->format);
-    mBufferQueue->setDefaultBufferSize(fbDev->width, fbDev->height);
-    mBufferQueue->setSynchronousMode(true);
-    mBufferQueue->setBufferCountServer(NUM_FRAME_BUFFERS);
-    setISurfaceTexture(mBufferQueue);
 }
 
-void FramebufferSurface::onFirstRef() {
-    class Listener : public BufferQueue::ConsumerListener {
-        const wp<FramebufferSurface> that;
-        virtual ~Listener() { }
-        virtual void onBuffersReleased() { }
-        void onFrameAvailable() {
-            sp<FramebufferSurface> self = that.promote();
-            if (self != NULL) {
-                BufferQueue::BufferItem item;
-                status_t err = self->mBufferQueue->acquireBuffer(&item);
-                if (err == 0) {
-                    if (item.mGraphicBuffer != 0) {
-                        self->mBuffers[item.mBuf] = item.mGraphicBuffer;
-                    }
-                    if (item.mFence.get()) {
-                        err = item.mFence->wait(Fence::TIMEOUT_NEVER);
-                        if (err) {
-                            ALOGE("failed waiting for buffer's fence: %d", err);
-                            self->mBufferQueue->releaseBuffer(item.mBuf,
-                                    EGL_NO_DISPLAY, EGL_NO_SYNC_KHR,
-                                    item.mFence);
-                            return;
-                        }
-                    }
-                    self->fbDev->post(self->fbDev, self->mBuffers[item.mBuf]->handle);
-                    if (self->mCurrentBufferIndex >= 0) {
-                        self->mBufferQueue->releaseBuffer(self->mCurrentBufferIndex,
-                                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE);
-                    }
-                    self->mCurrentBufferIndex = item.mBuf;
-                }
-            }
-        }
-    public:
-        Listener(const sp<FramebufferSurface>& that) : that(that) { }
-    };
+status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
+    Mutex::Autolock lock(mMutex);
 
-    mBufferQueue->setConsumerName(String8("FramebufferSurface"));
-    mBufferQueue->consumerConnect(new Listener(this));
+    BufferQueue::BufferItem item;
+    status_t err = acquireBufferLocked(&item);
+    if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
+        if (buffer != NULL) {
+            *buffer = mCurrentBuffer;
+        }
+        return NO_ERROR;
+    } else if (err != NO_ERROR) {
+        ALOGE("error acquiring buffer: %s (%d)", strerror(-err), err);
+        return err;
+    }
+
+    // If the BufferQueue has freed and reallocated a buffer in mCurrentSlot
+    // then we may have acquired the slot we already own.  If we had released
+    // our current buffer before we call acquireBuffer then that release call
+    // would have returned STALE_BUFFER_SLOT, and we would have called
+    // freeBufferLocked on that slot.  Because the buffer slot has already
+    // been overwritten with the new buffer all we have to do is skip the
+    // releaseBuffer call and we should be in the same state we'd be in if we
+    // had released the old buffer first.
+    if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT &&
+        item.mBuf != mCurrentBufferSlot) {
+        // Release the previous buffer.
+        err = releaseBufferLocked(mCurrentBufferSlot, EGL_NO_DISPLAY,
+                EGL_NO_SYNC_KHR, Fence::NO_FENCE);
+        if (err != NO_ERROR && err != BufferQueue::STALE_BUFFER_SLOT) {
+            ALOGE("error releasing buffer: %s (%d)", strerror(-err), err);
+            return err;
+        }
+    }
+
+    mCurrentBufferSlot = item.mBuf;
+    mCurrentBuffer = mSlots[mCurrentBufferSlot].mGraphicBuffer;
+    if (item.mFence != NULL) {
+        item.mFence->wait(Fence::TIMEOUT_NEVER);
+    }
+
+    if (buffer != NULL) {
+        *buffer = mCurrentBuffer;
+    }
+
+    return NO_ERROR;
 }
 
 FramebufferSurface::~FramebufferSurface() {
     if (fbDev) {
         framebuffer_close(fbDev);
+    }
+}
+
+void FramebufferSurface::onFrameAvailable() {
+    // XXX: The following code is here temporarily as part of the transition
+    // away from the framebuffer HAL.
+    sp<GraphicBuffer> buf;
+    status_t err = nextBuffer(&buf);
+    if (err != NO_ERROR) {
+        ALOGE("error latching next FramebufferSurface buffer: %s (%d)",
+                strerror(-err), err);
+        return;
+    }
+    err = fbDev->post(fbDev, buf->handle);
+    if (err != NO_ERROR) {
+        ALOGE("error posting framebuffer: %d", err);
+    }
+}
+
+void FramebufferSurface::freeBufferLocked(int slotIndex) {
+    ConsumerBase::freeBufferLocked(slotIndex);
+    if (slotIndex == mCurrentBufferSlot) {
+        mCurrentBufferSlot = BufferQueue::INVALID_BUFFER_SLOT;
     }
 }
 
@@ -172,10 +190,7 @@ float FramebufferSurface::getRefreshRate() const {
 
 status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
 {
-    if (!mUpdateOnDemand) {
-        return INVALID_OPERATION;
-    }
-    return fbDev->setUpdateRect(fbDev, r.left, r.top, r.width(), r.height());
+    return INVALID_OPERATION;
 }
 
 status_t FramebufferSurface::compositionComplete()
@@ -190,38 +205,10 @@ void FramebufferSurface::dump(String8& result) {
     if (fbDev->common.version >= 1 && fbDev->dump) {
         const size_t SIZE = 4096;
         char buffer[SIZE];
-
         fbDev->dump(fbDev, buffer, SIZE);
         result.append(buffer);
     }
-}
-
-int FramebufferSurface::query(int what, int* value) const {
-    Mutex::Autolock _l(mLock);
-    framebuffer_device_t* fb = fbDev;
-    switch (what) {
-        case NATIVE_WINDOW_DEFAULT_WIDTH:
-        case NATIVE_WINDOW_WIDTH:
-            *value = fb->width;
-            return NO_ERROR;
-        case NATIVE_WINDOW_DEFAULT_HEIGHT:
-        case NATIVE_WINDOW_HEIGHT:
-            *value = fb->height;
-            return NO_ERROR;
-        case NATIVE_WINDOW_FORMAT:
-            *value = fb->format;
-            return NO_ERROR;
-        case NATIVE_WINDOW_CONCRETE_TYPE:
-            *value = NATIVE_WINDOW_FRAMEBUFFER;
-            return NO_ERROR;
-        case NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER:
-            *value = 0;
-            return NO_ERROR;
-        case NATIVE_WINDOW_TRANSFORM_HINT:
-            *value = 0;
-            return NO_ERROR;
-    }
-    return SurfaceTextureClient::query(what, value);
+    ConsumerBase::dump(result);
 }
 
 // ----------------------------------------------------------------------------

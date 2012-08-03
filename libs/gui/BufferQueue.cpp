@@ -85,7 +85,6 @@ BufferQueue::BufferQueue(bool allowSynchronousMode, int bufferCount,
         const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultWidth(1),
     mDefaultHeight(1),
-    mPixelFormat(PIXEL_FORMAT_RGBA_8888),
     mMinUndequeuedBuffers(bufferCount),
     mMinAsyncBufferSlots(bufferCount + 1),
     mMinSyncBufferSlots(bufferCount),
@@ -98,7 +97,7 @@ BufferQueue::BufferQueue(bool allowSynchronousMode, int bufferCount,
     mAbandoned(false),
     mFrameCounter(0),
     mBufferHasBeenQueued(false),
-    mDefaultBufferFormat(0),
+    mDefaultBufferFormat(PIXEL_FORMAT_RGBA_8888),
     mConsumerUsageBits(0),
     mTransformHint(0)
 {
@@ -125,7 +124,8 @@ status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
     if (bufferCount > NUM_BUFFER_SLOTS)
         return BAD_VALUE;
 
-    // special-case, nothing to do
+    mServerBufferCount = bufferCount;
+
     if (bufferCount == mBufferCount)
         return OK;
 
@@ -133,7 +133,6 @@ status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
         bufferCount >= mBufferCount) {
         // easy, we just have more buffers
         mBufferCount = bufferCount;
-        mServerBufferCount = bufferCount;
         mDequeueCondition.broadcast();
     } else {
         // we're here because we're either
@@ -150,7 +149,6 @@ status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
         // own one. the actual resizing will happen during the next
         // dequeueBuffer.
 
-        mServerBufferCount = bufferCount;
         mDequeueCondition.broadcast();
     }
     return OK;
@@ -260,7 +258,7 @@ int BufferQueue::query(int what, int* outValue)
         value = mDefaultHeight;
         break;
     case NATIVE_WINDOW_FORMAT:
-        value = mPixelFormat;
+        value = mDefaultBufferFormat;
         break;
     case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
         value = mSynchronousMode ?
@@ -447,12 +445,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             h = mDefaultHeight;
         }
 
-        const bool updateFormat = (format != 0);
-        if (!updateFormat) {
-            // keep the current (or default) format
-            format = mPixelFormat;
-        }
-
         // buffer is now in DEQUEUED (but can also be current at the same time,
         // if we're in synchronous mode)
         mSlots[buf].mBufferState = BufferSlot::DEQUEUED;
@@ -472,9 +464,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
                 ST_LOGE("dequeueBuffer: SurfaceComposer::createGraphicBuffer "
                         "failed");
                 return error;
-            }
-            if (updateFormat) {
-                mPixelFormat = format;
             }
 
             mSlots[buf].mAcquireCalled = false;
@@ -791,9 +780,9 @@ void BufferQueue::dump(String8& result, const char* prefix,
 
     snprintf(buffer, SIZE,
             "%s-BufferQueue mBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
-            "mPixelFormat=%d, FIFO(%d)={%s}\n",
+            "default-format=%d, FIFO(%d)={%s}\n",
             prefix, mBufferCount, mSynchronousMode, mDefaultWidth,
-            mDefaultHeight, mPixelFormat, fifoSize, fifo.string());
+            mDefaultHeight, mDefaultBufferFormat, fifoSize, fifo.string());
     result.append(buffer);
 
 
@@ -835,21 +824,22 @@ void BufferQueue::dump(String8& result, const char* prefix,
     }
 }
 
-void BufferQueue::freeBufferLocked(int i) {
-    mSlots[i].mGraphicBuffer = 0;
-    if (mSlots[i].mBufferState == BufferSlot::ACQUIRED) {
-        mSlots[i].mNeedsCleanupOnRelease = true;
+void BufferQueue::freeBufferLocked(int slot) {
+    ST_LOGV("freeBufferLocked: slot=%d", slot);
+    mSlots[slot].mGraphicBuffer = 0;
+    if (mSlots[slot].mBufferState == BufferSlot::ACQUIRED) {
+        mSlots[slot].mNeedsCleanupOnRelease = true;
     }
-    mSlots[i].mBufferState = BufferSlot::FREE;
-    mSlots[i].mFrameNumber = 0;
-    mSlots[i].mAcquireCalled = false;
+    mSlots[slot].mBufferState = BufferSlot::FREE;
+    mSlots[slot].mFrameNumber = 0;
+    mSlots[slot].mAcquireCalled = false;
 
     // destroy fence as BufferQueue now takes ownership
-    if (mSlots[i].mEglFence != EGL_NO_SYNC_KHR) {
-        eglDestroySyncKHR(mSlots[i].mEglDisplay, mSlots[i].mEglFence);
-        mSlots[i].mEglFence = EGL_NO_SYNC_KHR;
+    if (mSlots[slot].mEglFence != EGL_NO_SYNC_KHR) {
+        eglDestroySyncKHR(mSlots[slot].mEglDisplay, mSlots[slot].mEglFence);
+        mSlots[slot].mEglFence = EGL_NO_SYNC_KHR;
     }
-    mSlots[i].mFence.clear();
+    mSlots[slot].mFence.clear();
 }
 
 void BufferQueue::freeAllBuffersLocked() {
@@ -886,12 +876,14 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         buffer->mTimestamp = mSlots[buf].mTimestamp;
         buffer->mBuf = buf;
         buffer->mFence = mSlots[buf].mFence;
-        mSlots[buf].mAcquireCalled = true;
 
+        mSlots[buf].mAcquireCalled = true;
+        mSlots[buf].mNeedsCleanupOnRelease = false;
         mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
+        mSlots[buf].mFence.clear();
+
         mQueue.erase(front);
         mDequeueCondition.broadcast();
-        mSlots[buf].mFence.clear();
 
         ATRACE_INT(mConsumerName.string(), mQueue.size());
     } else {

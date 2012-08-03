@@ -62,7 +62,8 @@ public:
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             int dpy,
-            const sp<ANativeWindow>& surface,
+            const sp<ANativeWindow>& nativeWindow,
+            const sp<FramebufferSurface>& framebufferSurface,
             EGLConfig config);
 
     ~DisplayDevice();
