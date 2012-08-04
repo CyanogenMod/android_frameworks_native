@@ -34,7 +34,6 @@
 #include <hardware/gralloc.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
-#include "DisplayHardware/DisplayDeviceBase.h"
 #include "DisplayHardware/HWComposer.h"
 
 #include "DisplayDevice.h"
@@ -103,13 +102,23 @@ DisplayDevice::DisplayDevice(
         int display,
         const sp<SurfaceTextureClient>& surface,
         EGLConfig config)
-    : DisplayDeviceBase(display),
-      mFlinger(flinger),
-      mDisplayId(display),
-      mNativeWindow(surface),
-      mFlags(0),
-      mSecureLayerVisible(false),
-      mLayerStack(0)
+    :   mFlinger(flinger),
+        mDisplayId(display),
+        mNativeWindow(surface),
+        mDisplay(EGL_NO_DISPLAY),
+        mSurface(EGL_NO_SURFACE),
+        mContext(EGL_NO_CONTEXT),
+        mDpiX(), mDpiY(),
+        mRefreshRate(),
+        mDensity(),
+        mDisplayWidth(), mDisplayHeight(), mFormat(),
+        mFlags(),
+        mPageFlipCount(),
+        mRefreshPeriod(),
+        mSecureLayerVisible(false),
+        mScreenAcquired(false),
+        mOrientation(),
+        mLayerStack(0)
 {
     init(config);
 }
@@ -248,15 +257,6 @@ uint32_t DisplayDevice::getPageFlipCount() const {
     return mPageFlipCount;
 }
 
-nsecs_t DisplayDevice::getRefreshTimestamp() const {
-    // this returns the last refresh timestamp.
-    // if the last one is not available, we estimate it based on
-    // the refresh period and whatever closest timestamp we have.
-    Mutex::Autolock _l(mLock);
-    nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    return now - ((now - mLastHwVSync) %  mRefreshPeriod);
-}
-
 nsecs_t DisplayDevice::getRefreshPeriod() const {
     return mRefreshPeriod;
 }
@@ -266,11 +266,6 @@ status_t DisplayDevice::compositionComplete() const {
         return NO_ERROR;
     }
     return mFramebufferSurface->compositionComplete();
-}
-
-void DisplayDevice::onVSyncReceived(nsecs_t timestamp) {
-    Mutex::Autolock _l(mLock);
-    mLastHwVSync = timestamp;
 }
 
 void DisplayDevice::flip(const Region& dirty) const
@@ -336,6 +331,24 @@ Vector< sp<LayerBase> > DisplayDevice::getVisibleLayersSortedByZ() const {
 
 bool DisplayDevice::getSecureLayerVisible() const {
     return mSecureLayerVisible;
+}
+
+// ----------------------------------------------------------------------------
+
+bool DisplayDevice::canDraw() const {
+    return mScreenAcquired;
+}
+
+void DisplayDevice::releaseScreen() const {
+    mScreenAcquired = false;
+}
+
+void DisplayDevice::acquireScreen() const {
+    mScreenAcquired = true;
+}
+
+bool DisplayDevice::isScreenAcquired() const {
+    return mScreenAcquired;
 }
 
 // ----------------------------------------------------------------------------
