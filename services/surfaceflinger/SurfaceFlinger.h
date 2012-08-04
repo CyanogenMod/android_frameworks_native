@@ -47,6 +47,7 @@
 
 #include "Barrier.h"
 #include "MessageQueue.h"
+#include "DisplayDevice.h"
 
 #include "DisplayHardware/HWComposer.h"
 
@@ -56,7 +57,6 @@ namespace android {
 
 class Client;
 class DisplayEventConnection;
-class DisplayDevice;
 class EventThread;
 class Layer;
 class LayerBase;
@@ -119,7 +119,7 @@ public:
 
     // returns the default Display
     const DisplayDevice& getDefaultDisplayDevice() const {
-        return getDisplayDevice(0);
+        return getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN);
     }
 
     // utility function to delete a texture on the main thread
@@ -156,11 +156,21 @@ private:
         virtual int do_compare(const void* lhs, const void* rhs) const;
     };
 
-    struct State {
-        State();
-        LayerVector layersSortedByZ;
+    struct DisplayDeviceState {
+        DisplayDeviceState();
+        int32_t id;
+        uint32_t layerStack;
+        Rect viewport;
+        Rect frame;
         uint8_t orientation;
-        uint8_t orientationFlags;
+        inline bool operator < (const DisplayDeviceState& rhs) const {
+            return id < rhs.id;
+        }
+    };
+
+    struct State {
+        LayerVector layersSortedByZ;
+        KeyedVector<int32_t, DisplayDeviceState> displays;
     };
 
     /* ------------------------------------------------------------------------
@@ -175,9 +185,9 @@ private:
      */
     virtual sp<ISurfaceComposerClient> createConnection();
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc();
-    virtual void bootFinished();
     virtual void setTransactionState(const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays, uint32_t flags);
+    virtual void bootFinished();
     virtual bool authenticateSurfaceTexture(
         const sp<ISurfaceTexture>& surface) const;
     virtual sp<IDisplayEventConnection> createDisplayEventConnection();
@@ -317,7 +327,10 @@ private:
      * Display and layer stack management
      */
     const DisplayDevice& getDisplayDevice(DisplayID dpy) const {
-        return *mDisplayDevices[dpy];
+        return mDisplays.valueFor(dpy);
+    }
+    DisplayDevice& getDisplayDevice(DisplayID dpy) {
+        return mDisplays.editValueFor(dpy);
     }
 
     // mark a region of a layer stack dirty. this updates the dirty
@@ -370,7 +383,6 @@ private:
     Vector<sp<LayerBase> > mLayersPendingRemoval;
 
     // protected by mStateLock (but we could use another lock)
-    DisplayDevice* mDisplayDevices[1];
     bool mLayersRemoved;
 
     // access must be protected by mInvalidateLock
@@ -393,6 +405,7 @@ private:
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
     int32_t mElectronBeamAnimationMode;
+    DefaultKeyedVector<int32_t, DisplayDevice> mDisplays;
 
     // don't use a lock for these, we don't care
     int mDebugRegion;

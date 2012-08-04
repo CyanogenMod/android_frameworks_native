@@ -97,33 +97,55 @@ void checkEGLErrors(const char* token)
  *
  */
 
+DisplayDevice::DisplayDevice()
+    : mId(0),
+      mDisplay(EGL_NO_DISPLAY),
+      mSurface(EGL_NO_SURFACE),
+      mContext(EGL_NO_CONTEXT)
+{
+}
+
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         int display,
         const sp<SurfaceTextureClient>& surface,
         EGLConfig config)
-    :   mFlinger(flinger),
-        mDisplayId(display),
-        mNativeWindow(surface),
-        mDisplay(EGL_NO_DISPLAY),
-        mSurface(EGL_NO_SURFACE),
-        mContext(EGL_NO_CONTEXT),
-        mDpiX(), mDpiY(),
-        mRefreshRate(),
-        mDensity(),
-        mDisplayWidth(), mDisplayHeight(), mFormat(),
-        mFlags(),
-        mPageFlipCount(),
-        mRefreshPeriod(),
-        mSecureLayerVisible(false),
-        mScreenAcquired(false),
-        mOrientation(),
-        mLayerStack(0)
+    : mFlinger(flinger),
+      mId(display),
+      mNativeWindow(surface),
+      mDisplay(EGL_NO_DISPLAY),
+      mSurface(EGL_NO_SURFACE),
+      mContext(EGL_NO_CONTEXT),
+      mDpiX(), mDpiY(),
+      mRefreshRate(),
+      mDensity(),
+      mDisplayWidth(), mDisplayHeight(), mFormat(),
+      mFlags(),
+      mPageFlipCount(),
+      mRefreshPeriod(),
+      mSecureLayerVisible(false),
+      mScreenAcquired(false),
+      mOrientation(),
+      mLayerStack(0)
 {
     init(config);
 }
 
 DisplayDevice::~DisplayDevice() {
+    // DO NOT call terminate() from here, because we create
+    // temporaries of this class (on the stack typically), and we don't
+    // want to destroy the EGLSurface in that case
+}
+
+void DisplayDevice::terminate() {
+    if (mSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(mDisplay, mSurface);
+        mSurface = EGL_NO_SURFACE;
+    }
+}
+
+bool DisplayDevice::isValid() const {
+    return mFlinger != NULL;
 }
 
 float DisplayDevice::getDpiX() const {
@@ -389,5 +411,6 @@ status_t DisplayDevice::setOrientation(int orientation) {
         h = tmp;
     }
     mOrientation = orientation;
+    dirtyRegion.set(bounds());
     return NO_ERROR;
 }

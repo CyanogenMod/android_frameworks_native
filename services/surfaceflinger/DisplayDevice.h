@@ -49,9 +49,16 @@ public:
     Region undefinedRegion;
 
     enum {
+        DISPLAY_ID_MAIN = 0,
+        DISPLAY_ID_HDMI = 1
+    };
+
+    enum {
         PARTIAL_UPDATES = 0x00020000, // video driver feature
         SWAP_RECTANGLE  = 0x00080000,
     };
+
+    DisplayDevice();
 
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
@@ -60,6 +67,14 @@ public:
             EGLConfig config);
 
     ~DisplayDevice();
+
+    // must be called when this object is no longer needed. this will
+    // render the associated EGLSurface invalid.
+    void terminate();
+
+    // whether this is a valid object. An invalid DisplayDevice is returned
+    // when an non existing id is requested
+    bool isValid() const;
 
     // Flip the front and back buffers if the back buffer is "dirty".  Might
     // be instantaneous, might involve copying the frame buffer around.
@@ -110,6 +125,9 @@ public:
     uint32_t getPageFlipCount() const;
     void dump(String8& res) const;
 
+    inline bool operator < (const DisplayDevice& rhs) const {
+        return mId < rhs.mId;
+    }
 
 private:
     void init(EGLConfig config);
@@ -118,7 +136,7 @@ private:
      *  Constants, set during initialization
      */
     sp<SurfaceFlinger> mFlinger;
-    int mDisplayId;
+    int32_t mId;
 
     // ANativeWindow this display is rendering into
     sp<SurfaceTextureClient> mNativeWindow;
