@@ -108,7 +108,8 @@ DisplayHardware::DisplayHardware(
       mDisplayId(display),
       mNativeWindow(surface),
       mFlags(0),
-      mSecureLayerVisible(false)
+      mSecureLayerVisible(false),
+      mLayerStack(0)
 {
     init(config);
 }

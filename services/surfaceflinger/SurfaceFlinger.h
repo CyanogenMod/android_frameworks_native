@@ -228,21 +228,17 @@ private:
     void handleMessageInvalidate();
     void handleMessageRefresh();
 
-    Region handleTransaction(uint32_t transactionFlags);
-    Region handleTransactionLocked(uint32_t transactionFlags);
+    void handleTransaction(uint32_t transactionFlags);
+    void handleTransactionLocked(uint32_t transactionFlags);
 
     /* handlePageFilp: this is were we latch a new buffer
      * if available and compute the dirty region.
-     * The return value is the dirty region expressed in the
-     * window manager's coordinate space (or the layer's state
-     * space, which is the same thing), in particular the dirty
-     * region is independent from a specific display's orientation.
      */
-    Region handlePageFlip();
+    void handlePageFlip();
 
     void handleRefresh();
     void handleWorkList(const DisplayHardware& hw);
-    void handleRepaint(const DisplayHardware& hw);
+    void handleRepaint(const DisplayHardware& hw, const Region& dirtyRegion);
 
     /* ------------------------------------------------------------------------
      * Transactions
@@ -319,11 +315,15 @@ private:
     uint32_t getMaxViewportDims() const;
 
     /* ------------------------------------------------------------------------
-     * Display management
+     * Display and layer stack management
      */
     const DisplayHardware& getDisplayHardware(DisplayID dpy) const {
         return *mDisplayHardwares[dpy];
     }
+
+    // mark a region of a layer stack dirty. this updates the dirty
+    // region of all screens presenting this layer stack.
+    void invalidateLayerStack(uint32_t layerStack, const Region& dirty);
 
     /* ------------------------------------------------------------------------
      * H/W composer
@@ -336,13 +336,12 @@ private:
      */
     void invalidateHwcGeometry();
     void computeVisibleRegions(const LayerVector& currentLayers,
-        Region& dirtyRegion, Region& wormholeRegion);
+            uint32_t layerStack,
+            Region& dirtyRegion, Region& opaqueRegion);
     void postFramebuffer();
     void setupHardwareComposer(const DisplayHardware& hw);
     void composeSurfaces(const DisplayHardware& hw, const Region& dirty);
-    void setInvalidateRegion(const Region& reg);
-    Region getAndClearInvalidateRegion();
-    void drawWormhole() const;
+    void drawWormhole(const Region& region) const;
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
     }
@@ -350,7 +349,7 @@ private:
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
-    void debugFlashRegions(const DisplayHardware& hw);
+    void debugFlashRegions(const DisplayHardware& hw, const Region& dirtyReg);
     void listLayersLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
@@ -377,12 +376,10 @@ private:
     bool mLayersRemoved;
 
     // access must be protected by mInvalidateLock
-    mutable Mutex mInvalidateLock;
-    Region mInvalidateRegion;
+    volatile int32_t mRepaintEverything;
 
     // constant members (no synchronization needed for access)
     HWComposer* mHwc;
-    GLuint mWormholeTexName;
     GLuint mProtectedTexName;
     nsecs_t mBootTime;
     sp<EventThread> mEventThread;
@@ -395,10 +392,6 @@ private:
     // Can only accessed from the main thread, these members
     // don't need synchronization
     State mDrawingState;
-    Region mDirtyRegion;
-    Region mDirtyRegionRemovedLayer;
-    Region mSwapRegion;
-    Region mWormholeRegion;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
     int32_t mElectronBeamAnimationMode;
