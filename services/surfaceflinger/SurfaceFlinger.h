@@ -237,7 +237,6 @@ private:
     void handlePageFlip();
 
     void handleRefresh();
-    void handleWorkList(const DisplayHardware& hw);
     void handleRepaint(const DisplayHardware& hw, const Region& dirtyRegion);
 
     /* ------------------------------------------------------------------------
@@ -339,7 +338,6 @@ private:
             uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
     void postFramebuffer();
-    void setupHardwareComposer(const DisplayHardware& hw);
     void composeSurfaces(const DisplayHardware& hw, const Region& dirty);
     void drawWormhole(const Region& region) const;
     GLuint getProtectedTexName() const {

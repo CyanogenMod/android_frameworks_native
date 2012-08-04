@@ -310,6 +310,14 @@ void DisplayHardware::dump(String8& res) const
     }
 }
 
+void DisplayHardware::makeCurrent(const DisplayHardware& hw, EGLContext ctx) {
+    EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
+    if (sur != hw.mSurface) {
+        EGLDisplay dpy = eglGetCurrentDisplay();
+        eglMakeCurrent(dpy, hw.mSurface, hw.mSurface, ctx);
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 void DisplayHardware::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
