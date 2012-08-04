@@ -32,7 +32,7 @@
 
 #include "Transform.h"
 
-#include "DisplayHardware/DisplayHardwareBase.h"
+#include "DisplayHardware/DisplayDeviceBase.h"
 
 namespace android {
 
@@ -42,7 +42,7 @@ class LayerBase;
 class SurfaceFlinger;
 class SurfaceTextureClient;
 
-class DisplayHardware : public DisplayHardwareBase
+class DisplayDevice : public DisplayDeviceBase
 {
 public:
     // region in layer-stack space
@@ -57,13 +57,13 @@ public:
         SWAP_RECTANGLE  = 0x00080000,
     };
 
-    DisplayHardware(
+    DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             int dpy,
             const sp<SurfaceTextureClient>& surface,
             EGLConfig config);
 
-    virtual ~DisplayHardware();
+    virtual ~DisplayDevice();
 
     // Flip the front and back buffers if the back buffer is "dirty".  Might
     // be instantaneous, might involve copying the frame buffer around.
@@ -107,7 +107,7 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
-    static void makeCurrent(const DisplayHardware& hw, EGLContext ctx);
+    static void makeCurrent(const DisplayDevice& hw, EGLContext ctx);
 
 private:
     void init(EGLConfig config);

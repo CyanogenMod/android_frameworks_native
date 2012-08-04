@@ -33,7 +33,6 @@
 
 #include <private/gui/LayerState.h>
 
-#include "DisplayHardware.h"
 #include "Transform.h"
 #include "DisplayHardware/HWComposer.h"
 
@@ -42,7 +41,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 class Client;
-class DisplayHardware;
+class DisplayDevice;
 class GraphicBuffer;
 class Layer;
 class LayerBaseClient;
@@ -124,7 +123,7 @@ public:
             uint32_t getTransactionFlags(uint32_t flags);
             uint32_t setTransactionFlags(uint32_t flags);
 
-            void computeGeometry(const DisplayHardware& hw, LayerMesh* mesh) const;
+            void computeGeometry(const DisplayDevice& hw, LayerMesh* mesh) const;
             Rect computeBounds() const;
 
 
@@ -133,7 +132,7 @@ public:
 
     virtual const char* getTypeId() const { return "LayerBase"; }
 
-    virtual void setGeometry(const DisplayHardware& hw,
+    virtual void setGeometry(const DisplayDevice& hw,
             HWComposer::HWCLayerInterface& layer);
     virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
     virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
@@ -144,13 +143,13 @@ public:
      * Typically this method is not overridden, instead implement onDraw()
      * to perform the actual drawing.  
      */
-    virtual void draw(const DisplayHardware& hw, const Region& clip) const;
-    virtual void drawForSreenShot(const DisplayHardware& hw);
+    virtual void draw(const DisplayDevice& hw, const Region& clip) const;
+    virtual void drawForSreenShot(const DisplayDevice& hw);
     
     /**
      * onDraw - draws the surface.
      */
-    virtual void onDraw(const DisplayHardware& hw, const Region& clip) const = 0;
+    virtual void onDraw(const DisplayDevice& hw, const Region& clip) const = 0;
     
     /**
      * initStates - called just after construction
@@ -241,12 +240,12 @@ public:
     inline  const State&    currentState() const    { return mCurrentState; }
     inline  State&          currentState()          { return mCurrentState; }
 
-    void clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const;
+    void clearWithOpenGL(const DisplayDevice& hw, const Region& clip) const;
 
 protected:
-          void clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
+          void clearWithOpenGL(const DisplayDevice& hw, const Region& clip,
                   GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
-          void drawWithOpenGL(const DisplayHardware& hw, const Region& clip) const;
+          void drawWithOpenGL(const DisplayDevice& hw, const Region& clip) const;
 
           void setFiltering(bool filtering);
           bool getFiltering() const;

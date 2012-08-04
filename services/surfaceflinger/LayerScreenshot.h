@@ -43,7 +43,7 @@ public:
 
     virtual void initStates(uint32_t w, uint32_t h, uint32_t flags);
     virtual uint32_t doTransaction(uint32_t flags);
-    virtual void onDraw(const DisplayHardware& hw, const Region& clip) const;
+    virtual void onDraw(const DisplayDevice& hw, const Region& clip) const;
     virtual bool isOpaque() const         { return false; }
     virtual bool isSecure() const         { return false; }
     virtual bool isProtectedByApp() const { return false; }

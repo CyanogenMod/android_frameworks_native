@@ -25,7 +25,7 @@
 
 #include "LayerDim.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ LayerDim::~LayerDim()
 {
 }
 
-void LayerDim::onDraw(const DisplayHardware& hw, const Region& clip) const
+void LayerDim::onDraw(const DisplayDevice& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {
