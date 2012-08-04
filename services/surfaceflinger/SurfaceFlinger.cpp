@@ -82,6 +82,7 @@ SurfaceFlinger::SurfaceFlinger()
         mTransactionFlags(0),
         mTransationPending(false),
         mLayersRemoved(false),
+        mRepaintEverything(0),
         mBootTime(systemTime()),
         mVisibleRegionsDirty(false),
         mHwWorkListDirty(false),
@@ -577,7 +578,7 @@ void SurfaceFlinger::handleMessageInvalidate() {
 void SurfaceFlinger::handleMessageRefresh() {
     handleRefresh();
 
-    if (mVisibleRegionsDirty) {
+    if (CC_UNLIKELY(mVisibleRegionsDirty)) {
         mVisibleRegionsDirty = false;
         invalidateHwcGeometry();
 
@@ -586,9 +587,8 @@ void SurfaceFlinger::handleMessageRefresh() {
          */
 
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-        // TODO: iterate through all displays
-        {
-            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(0)));
+        for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
+            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
 
             Region opaqueRegion;
             Region dirtyRegion;
@@ -612,45 +612,70 @@ void SurfaceFlinger::handleMessageRefresh() {
         }
     }
 
-    const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
+    HWComposer& hwc(getHwComposer());
+    if (hwc.initCheck() == NO_ERROR) {
+        // build the h/w work list
+        const bool workListsDirty = mHwWorkListDirty;
+        mHwWorkListDirty = false;
+        for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
+            DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+            const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
+            const size_t count = currentLayers.size();
 
-    // TODO: iterate through all displays
-    for (int dpy=0 ; dpy<1 ; dpy++) {
-        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(0)));
-        if (hw.dirtyRegion.isEmpty()) {
-            continue;
+            hwc.createWorkList(count); // FIXME: the worklist should include enough space for all layer of all displays
+
+            HWComposer::LayerListIterator cur = hwc.begin();
+            const HWComposer::LayerListIterator end = hwc.end();
+            for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                const sp<LayerBase>& layer(currentLayers[i]);
+
+                if (CC_UNLIKELY(workListsDirty)) {
+                    layer->setGeometry(hw, *cur);
+                    if (mDebugDisableHWC || mDebugRegion) {
+                        cur->setSkip(true);
+                    }
+                }
+
+                /*
+                 * update the per-frame h/w composer data for each layer
+                 * and build the transparent region of the FB
+                 */
+                layer->setPerFrameData(*cur);
+            }
         }
+        status_t err = hwc.prepare();
+        ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
+    }
+
+    const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
+    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
+        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
 
         // transform the dirty region into this screen's coordinate space
         const Transform& planeTransform(hw.getTransform());
         Region dirtyRegion;
         if (repaintEverything) {
+            dirtyRegion.set(hw.bounds());
+        } else {
             dirtyRegion = planeTransform.transform(hw.dirtyRegion);
             dirtyRegion.andSelf(hw.bounds());
-        } else {
-            dirtyRegion.set(hw.bounds());
         }
         hw.dirtyRegion.clear();
 
-        // build the h/w work list
-        if (CC_UNLIKELY(mHwWorkListDirty)) {
-            handleWorkList(hw);
+        if (!dirtyRegion.isEmpty()) {
+            if (hw.canDraw()) {
+                // repaint the framebuffer (if needed)
+                handleRepaint(hw, dirtyRegion);
+            }
         }
-
-        if (CC_LIKELY(hw.canDraw())) {
-            // repaint the framebuffer (if needed)
-            handleRepaint(hw, dirtyRegion);
-            // inform the h/w that we're done compositing
-            hw.compositionComplete();
-            postFramebuffer();
-        } else {
-            // pretend we did the post
-            hw.compositionComplete();
-        }
+        // inform the h/w that we're done compositing
+        hw.compositionComplete();
     }
 
+    postFramebuffer();
 
-#if 0
+
+#if 1
     // render to the external display if we have one
     EGLSurface externalDisplaySurface = getExternalDisplaySurface();
     if (externalDisplaySurface != EGL_NO_SURFACE) {
@@ -670,6 +695,7 @@ void SurfaceFlinger::handleMessageRefresh() {
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
 
+            DisplayHardware& hw(const_cast<DisplayDevice&>(getDisplayHardware(0)));
             const Vector< sp<LayerBase> >& layers( hw.getVisibleLayersSortedByZ() );
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
@@ -695,45 +721,51 @@ void SurfaceFlinger::handleMessageRefresh() {
 void SurfaceFlinger::postFramebuffer()
 {
     ATRACE_CALL();
-    // mSwapRegion can be empty here is some cases, for instance if a hidden
-    // or fully transparent window is updating.
-    // in that case, we need to flip anyways to not risk a deadlock with
-    // h/w composer.
 
-    const DisplayHardware& hw(getDefaultDisplayHardware());
-    HWComposer& hwc(getHwComposer());
-    const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
-    size_t numLayers = layers.size();
     const nsecs_t now = systemTime();
     mDebugInSwapBuffers = now;
 
-    if (hwc.initCheck() == NO_ERROR) {
-        HWComposer::LayerListIterator cur = hwc.begin();
-        const HWComposer::LayerListIterator end = hwc.end();
-        for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
-            if (cur->getCompositionType() == HWC_OVERLAY) {
-                layers[i]->setAcquireFence(*cur);
-            } else {
-                cur->setAcquireFenceFd(-1);
+    HWComposer& hwc(getHwComposer());
+
+    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
+        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+        if (hwc.initCheck() == NO_ERROR) {
+            const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
+            const size_t count = currentLayers.size();
+            HWComposer::LayerListIterator cur = hwc.begin();
+            const HWComposer::LayerListIterator end = hwc.end();
+            for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                const sp<LayerBase>& layer(currentLayers[i]);
+                layer->setAcquireFence(*cur);
             }
         }
+        hw.flip(hw.swapRegion);
+        hw.swapRegion.clear();
     }
 
-    hw.flip(hw.swapRegion);
-    hw.swapRegion.clear();
-
     if (hwc.initCheck() == NO_ERROR) {
-        hwc.commit(mEGLDisplay, hw.getEGLSurface());
-        HWComposer::LayerListIterator cur = hwc.begin();
-        const HWComposer::LayerListIterator end = hwc.end();
-        for (size_t i = 0; cur != end && i < numLayers; ++i, ++cur) {
-            layers[i]->onLayerDisplayed(&*cur);
+        // FIXME: eventually commit() won't take arguments
+        hwc.commit(mEGLDisplay, getDefaultDisplayHardware().getEGLSurface());
+    }
+
+    for (int dpy=0 ; dpy<1 ; dpy++) {  // TODO: iterate through all displays
+        DisplayHardware& hw(const_cast<DisplayHardware&>(getDisplayHardware(dpy)));
+        const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
+        const size_t count = currentLayers.size();
+        if (hwc.initCheck() == NO_ERROR) {
+            HWComposer::LayerListIterator cur = hwc.begin();
+            const HWComposer::LayerListIterator end = hwc.end();
+            for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
+                currentLayers[i]->onLayerDisplayed(&*cur);
+            }
+        } else {
+            eglSwapBuffers(mEGLDisplay, hw.getEGLSurface());
+            for (size_t i = 0; i < count; i++) {
+                currentLayers[i]->onLayerDisplayed(NULL);
+            }
         }
-    } else {
-        eglSwapBuffers(mEGLDisplay, hw.getEGLSurface());
-        for (size_t i = 0; i < numLayers; i++) {
-            layers[i]->onLayerDisplayed(NULL);
-        }
+
+        // FIXME: we need to call eglSwapBuffers() on displays that have GL composition
     }
 
     mLastSwapBufferTime = systemTime() - now;
@@ -1028,27 +1060,6 @@ void SurfaceFlinger::handleRefresh()
     }
 }
 
-
-void SurfaceFlinger::handleWorkList(const DisplayHardware& hw)
-{
-    mHwWorkListDirty = false;
-    HWComposer& hwc(getHwComposer());
-    if (hwc.initCheck() == NO_ERROR) {
-        const Vector< sp<LayerBase> >& currentLayers(hw.getVisibleLayersSortedByZ());
-        const size_t count = currentLayers.size();
-        hwc.createWorkList(count);
-
-        HWComposer::LayerListIterator cur = hwc.begin();
-        const HWComposer::LayerListIterator end = hwc.end();
-        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-            currentLayers[i]->setGeometry(hw, *cur);
-            if (mDebugDisableHWC || mDebugRegion) {
-                cur->setSkip(true);
-            }
-        }
-    }
-}
-
 void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
         const Region& inDirtyRegion)
 {
@@ -1062,10 +1073,6 @@ void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
     if (CC_UNLIKELY(mDebugRegion)) {
         debugFlashRegions(hw, dirtyRegion);
     }
-
-    // set the frame buffer
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
 
     uint32_t flags = hw.getFlags();
     if (flags & DisplayHardware::SWAP_RECTANGLE) {
@@ -1087,44 +1094,10 @@ void SurfaceFlinger::handleRepaint(const DisplayHardware& hw,
         }
     }
 
-    setupHardwareComposer(hw);
     composeSurfaces(hw, dirtyRegion);
 
     // update the swap region and clear the dirty region
     hw.swapRegion.orSelf(dirtyRegion);
-}
-
-void SurfaceFlinger::setupHardwareComposer(const DisplayHardware& hw)
-{
-    HWComposer& hwc(getHwComposer());
-    HWComposer::LayerListIterator cur = hwc.begin();
-    const HWComposer::LayerListIterator end = hwc.end();
-    if (cur == end) {
-        return;
-    }
-
-    const Vector< sp<LayerBase> >& layers(hw.getVisibleLayersSortedByZ());
-    size_t count = layers.size();
-
-    ALOGE_IF(hwc.getNumLayers() != count,
-            "HAL number of layers (%d) doesn't match surfaceflinger (%d)",
-            hwc.getNumLayers(), count);
-
-    // just to be extra-safe, use the smallest count
-    if (hwc.initCheck() == NO_ERROR) {
-        count = count < hwc.getNumLayers() ? count : hwc.getNumLayers();
-    }
-
-    /*
-     *  update the per-frame h/w composer data for each layer
-     *  and build the transparent region of the FB
-     */
-    for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-        const sp<LayerBase>& layer(layers[i]);
-        layer->setPerFrameData(*cur);
-    }
-    status_t err = hwc.prepare();
-    ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
 }
 
 void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& dirty)
@@ -1133,11 +1106,17 @@ void SurfaceFlinger::composeSurfaces(const DisplayHardware& hw, const Region& di
     HWComposer::LayerListIterator cur = hwc.begin();
     const HWComposer::LayerListIterator end = hwc.end();
 
-    const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);
+    const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);  // FIXME: this should be per display
     if (cur==end || fbLayerCount) {
-        // Never touch the framebuffer if we don't have any framebuffer layers
 
-        if (hwc.getLayerCount(HWC_OVERLAY)) {
+        DisplayHardware::makeCurrent(hw, mEGLContext);
+
+        // set the frame buffer
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        // Never touch the framebuffer if we don't have any framebuffer layers
+        if (hwc.getLayerCount(HWC_OVERLAY)) { // FIXME: this should be per display
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some

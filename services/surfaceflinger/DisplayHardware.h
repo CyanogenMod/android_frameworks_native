@@ -107,6 +107,8 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
+    static void makeCurrent(const DisplayHardware& hw, EGLContext ctx);
+
 private:
     void init(EGLConfig config);
 
