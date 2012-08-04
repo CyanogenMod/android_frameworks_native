@@ -14,29 +14,35 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DISPLAY_HARDWARE_BASE_H
-#define ANDROID_DISPLAY_HARDWARE_BASE_H
-
 #include <stdint.h>
+#include <sys/types.h>
 
+#include "DisplayHardware/DisplayDeviceBase.h"
+
+// ----------------------------------------------------------------------------
 namespace android {
 
-class DisplayHardwareBase {
-public:
-    DisplayHardwareBase(uint32_t displayIndex);
-    ~DisplayHardwareBase();
+DisplayDeviceBase::DisplayDeviceBase(uint32_t displayIndex) {
+    mScreenAcquired = true;
+}
 
-    // console management
-    void releaseScreen() const;
-    void acquireScreen() const;
-    bool isScreenAcquired() const;
+DisplayDeviceBase::~DisplayDeviceBase() {
+}
 
-    bool canDraw() const;
+bool DisplayDeviceBase::canDraw() const {
+    return mScreenAcquired;
+}
 
-private:
-    mutable int mScreenAcquired;
-};
+void DisplayDeviceBase::releaseScreen() const {
+    mScreenAcquired = false;
+}
+
+void DisplayDeviceBase::acquireScreen() const {
+    mScreenAcquired = true;
+}
+
+bool DisplayDeviceBase::isScreenAcquired() const {
+    return mScreenAcquired;
+}
 
 }; // namespace android
-
-#endif // ANDROID_DISPLAY_HARDWARE_BASE_H

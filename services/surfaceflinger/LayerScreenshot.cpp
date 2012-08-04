@@ -25,7 +25,7 @@
 
 #include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 
 
 namespace android {
@@ -105,7 +105,7 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
     return LayerBaseClient::doTransaction(flags);
 }
 
-void LayerScreenshot::onDraw(const DisplayHardware& hw, const Region& clip) const
+void LayerScreenshot::onDraw(const DisplayDevice& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {

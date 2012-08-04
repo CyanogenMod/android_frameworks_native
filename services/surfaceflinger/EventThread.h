@@ -27,7 +27,6 @@
 #include <utils/threads.h>
 #include <utils/SortedVector.h>
 
-#include "DisplayHardware.h"
 #include "DisplayHardware/PowerHAL.h"
 
 // ---------------------------------------------------------------------------

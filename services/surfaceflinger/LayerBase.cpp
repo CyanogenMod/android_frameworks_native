@@ -33,7 +33,7 @@
 #include "LayerBase.h"
 #include "Layer.h"
 #include "SurfaceFlinger.h"
-#include "DisplayHardware.h"
+#include "DisplayDevice.h"
 
 namespace android {
 
@@ -223,7 +223,7 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     return flags;
 }
 
-void LayerBase::computeGeometry(const DisplayHardware& hw, LayerMesh* mesh) const
+void LayerBase::computeGeometry(const DisplayDevice& hw, LayerMesh* mesh) const
 {
     const Layer::State& s(drawingState());
     const Transform tr(hw.getTransform() * s.transform);
@@ -260,7 +260,7 @@ Region LayerBase::latchBuffer(bool& recomputeVisibleRegions) {
 }
 
 void LayerBase::setGeometry(
-        const DisplayHardware& hw,
+        const DisplayDevice& hw,
         HWComposer::HWCLayerInterface& layer)
 {
     layer.setDefaultState();
@@ -309,19 +309,19 @@ bool LayerBase::getFiltering() const
     return mFiltering;
 }
 
-void LayerBase::draw(const DisplayHardware& hw, const Region& clip) const
+void LayerBase::draw(const DisplayDevice& hw, const Region& clip) const
 {
     onDraw(hw, clip);
 }
 
-void LayerBase::drawForSreenShot(const DisplayHardware& hw)
+void LayerBase::drawForSreenShot(const DisplayDevice& hw)
 {
     setFiltering(true);
     onDraw( hw, Region(hw.bounds()) );
     setFiltering(false);
 }
 
-void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
+void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip,
         GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
 {
     const uint32_t fbHeight = hw.getHeight();
@@ -338,12 +338,12 @@ void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip,
     glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 }
 
-void LayerBase::clearWithOpenGL(const DisplayHardware& hw, const Region& clip) const
+void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip) const
 {
     clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
-void LayerBase::drawWithOpenGL(const DisplayHardware& hw, const Region& clip) const
+void LayerBase::drawWithOpenGL(const DisplayDevice& hw, const Region& clip) const
 {
     const uint32_t fbHeight = hw.getHeight();
     const State& s(drawingState());
