@@ -475,7 +475,7 @@ void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
 
     if (display != NULL) {
         stc = new SurfaceTextureClient(display);
-        result = eglCreateWindowSurface(hw.getEGLDisplay(),
+        result = eglCreateWindowSurface(mEGLDisplay,
                 mEGLConfig, (EGLNativeWindowType)stc.get(), NULL);
         ALOGE_IF(result == EGL_NO_SURFACE,
                 "eglCreateWindowSurface failed (ISurfaceTexture=%p)",
@@ -493,7 +493,7 @@ void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
     if (old_surface != EGL_NO_SURFACE) {
         // Note: EGL allows to destroy an object while its current
         // it will fail to become current next time though.
-        eglDestroySurface(hw.getEGLDisplay(), old_surface);
+        eglDestroySurface(mEGLDisplay, old_surface);
     }
 }
 
@@ -540,8 +540,6 @@ bool SurfaceFlinger::threadLoop() {
 }
 
 void SurfaceFlinger::onVSyncReceived(int dpy, nsecs_t timestamp) {
-    DisplayDevice& hw(const_cast<DisplayDevice&>(getDisplayDevice(dpy)));
-    hw.onVSyncReceived(timestamp);
     mEventThread->onVSyncReceived(dpy, timestamp);
 }
 
@@ -640,7 +638,7 @@ void SurfaceFlinger::handleMessageRefresh() {
                  * update the per-frame h/w composer data for each layer
                  * and build the transparent region of the FB
                  */
-                layer->setPerFrameData(*cur);
+                layer->setPerFrameData(hw, *cur);
             }
         }
         status_t err = hwc.prepare();
@@ -700,7 +698,7 @@ void SurfaceFlinger::handleMessageRefresh() {
             const size_t count = layers.size();
             for (size_t i=0 ; i<count ; ++i) {
                 const sp<LayerBase>& layer(layers[i]);
-                layer->drawForSreenShot(hw);
+                layer->drawForScreenShot(hw);
             }
 
             success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
@@ -736,7 +734,7 @@ void SurfaceFlinger::postFramebuffer()
             const HWComposer::LayerListIterator end = hwc.end();
             for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
                 const sp<LayerBase>& layer(currentLayers[i]);
-                layer->setAcquireFence(*cur);
+                layer->setAcquireFence(hw, *cur);
             }
         }
         hw.flip(hw.swapRegion);
@@ -756,12 +754,12 @@ void SurfaceFlinger::postFramebuffer()
             HWComposer::LayerListIterator cur = hwc.begin();
             const HWComposer::LayerListIterator end = hwc.end();
             for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
-                currentLayers[i]->onLayerDisplayed(&*cur);
+                currentLayers[i]->onLayerDisplayed(hw, &*cur);
             }
         } else {
             eglSwapBuffers(mEGLDisplay, hw.getEGLSurface());
             for (size_t i = 0; i < count; i++) {
-                currentLayers[i]->onLayerDisplayed(NULL);
+                currentLayers[i]->onLayerDisplayed(hw, NULL);
             }
         }
 
@@ -1095,6 +1093,12 @@ void SurfaceFlinger::handleRepaint(const DisplayDevice& hw,
     }
 
     composeSurfaces(hw, dirtyRegion);
+
+    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+    const size_t count = currentLayers.size();
+    for (size_t i=0 ; i<count ; i++) {
+        currentLayers[i]->onPostComposition();
+    }
 
     // update the swap region and clear the dirty region
     hw.swapRegion.orSelf(dirtyRegion);
@@ -1791,8 +1795,7 @@ void SurfaceFlinger::dumpAllLocked(
     result.append(buffer);
 
     snprintf(buffer, SIZE, "EGL : %s\n",
-            eglQueryString(hw.getEGLDisplay(),
-                    EGL_VERSION_HW_ANDROID));
+            eglQueryString(mEGLDisplay, EGL_VERSION_HW_ANDROID));
     result.append(buffer);
 
     snprintf(buffer, SIZE, "EXTS: %s\n", extensions.getExtension());
@@ -2023,7 +2026,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<LayerBase>& layer(layers[i]);
-        layer->drawForSreenShot(hw);
+        layer->drawForScreenShot(hw);
     }
 
     hw.compositionComplete();
@@ -2583,7 +2586,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
             if (!(flags & ISurfaceComposer::eLayerHidden)) {
                 const uint32_t z = layer->drawingState().z;
                 if (z >= minLayerZ && z <= maxLayerZ) {
-                    layer->drawForSreenShot(hw);
+                    layer->drawForScreenShot(hw);
                 }
             }
         }

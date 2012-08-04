@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DISPLAY_HARDWARE_H
-#define ANDROID_DISPLAY_HARDWARE_H
+#ifndef ANDROID_DISPLAY_DEVICE_H
+#define ANDROID_DISPLAY_DEVICE_H
 
 #include <stdlib.h>
 
 #include <ui/PixelFormat.h>
 #include <ui/Region.h>
 
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
@@ -31,8 +29,6 @@
 #include <utils/Timers.h>
 
 #include "Transform.h"
-
-#include "DisplayHardware/DisplayDeviceBase.h"
 
 namespace android {
 
@@ -42,7 +38,7 @@ class LayerBase;
 class SurfaceFlinger;
 class SurfaceTextureClient;
 
-class DisplayDevice : public DisplayDeviceBase
+class DisplayDevice
 {
 public:
     // region in layer-stack space
@@ -63,13 +59,11 @@ public:
             const sp<SurfaceTextureClient>& surface,
             EGLConfig config);
 
-    virtual ~DisplayDevice();
+    ~DisplayDevice();
 
     // Flip the front and back buffers if the back buffer is "dirty".  Might
     // be instantaneous, might involve copying the frame buffer around.
     void flip(const Region& dirty) const;
-
-    void onVSyncReceived(nsecs_t timestamp);
 
     float       getDpiX() const;
     float       getDpiY() const;
@@ -80,7 +74,6 @@ public:
     PixelFormat getFormat() const;
     uint32_t    getFlags() const;
     nsecs_t     getRefreshPeriod() const;
-    nsecs_t     getRefreshTimestamp() const;
     status_t    getInfo(DisplayInfo* info) const;
 
     EGLSurface  getEGLSurface() const;
@@ -94,12 +87,6 @@ public:
     const Transform&        getTransform() const { return mGlobalTransform; }
     uint32_t                getLayerStack() const { return mLayerStack; }
 
-
-    uint32_t getPageFlipCount() const;
-    EGLDisplay getEGLDisplay() const { return mDisplay; }
-
-    void dump(String8& res) const;
-
     status_t compositionComplete() const;
     
     Rect getBounds() const {
@@ -109,6 +96,21 @@ public:
 
     static void makeCurrent(const DisplayDevice& hw, EGLContext ctx);
 
+    /* ------------------------------------------------------------------------
+     * blank / unplank management
+     */
+    void releaseScreen() const;
+    void acquireScreen() const;
+    bool isScreenAcquired() const;
+    bool canDraw() const;
+
+    /* ------------------------------------------------------------------------
+     * Debugging
+     */
+    uint32_t getPageFlipCount() const;
+    void dump(String8& res) const;
+
+
 private:
     void init(EGLConfig config);
 
@@ -117,11 +119,12 @@ private:
      */
     sp<SurfaceFlinger> mFlinger;
     int mDisplayId;
+
     // ANativeWindow this display is rendering into
     sp<SurfaceTextureClient> mNativeWindow;
+
     // set if mNativeWindow is a FramebufferSurface
     sp<FramebufferSurface> mFramebufferSurface;
-
 
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;
@@ -135,35 +138,33 @@ private:
     PixelFormat     mFormat;
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
-
     nsecs_t         mRefreshPeriod;
 
     /*
      * Can only accessed from the main thread, these members
      * don't need synchronization.
      */
+
     // list of visible layers on that display
     Vector< sp<LayerBase> > mVisibleLayersSortedByZ;
+
     // Whether we have a visible secure layer on this display
     bool mSecureLayerVisible;
 
+    // Whether the screen is blanked;
+    mutable int mScreenAcquired;
 
-    // this used to be in GraphicPlane
+
+    /*
+     * Transaction state
+     */
     static status_t orientationToTransfrom(int orientation, int w, int h,
             Transform* tr);
     Transform mGlobalTransform;
     int mOrientation;
-
     uint32_t mLayerStack;
-
-
-    /*
-     *  protected by mLock
-     */
-    mutable Mutex mLock;
-    mutable nsecs_t mLastHwVSync;
 };
 
 }; // namespace android
 
-#endif // ANDROID_DISPLAY_HARDWARE_H
+#endif // ANDROID_DISPLAY_DEVICE_H

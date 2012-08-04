@@ -185,6 +185,17 @@ void HWComposer::invalidate() {
 void HWComposer::vsync(int dpy, int64_t timestamp) {
     ATRACE_INT("VSYNC", ++mVSyncCount&1);
     mEventHandler.onVSyncReceived(dpy, timestamp);
+    Mutex::Autolock _l(mLock);
+    mLastHwVSync = timestamp;
+}
+
+nsecs_t HWComposer::getRefreshTimestamp() const {
+    // this returns the last refresh timestamp.
+    // if the last one is not available, we estimate it based on
+    // the refresh period and whatever closest timestamp we have.
+    Mutex::Autolock _l(mLock);
+    nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    return now - ((now - mLastHwVSync) %  mRefreshPeriod);
 }
 
 void HWComposer::eventControl(int event, int enabled) {

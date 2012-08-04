@@ -189,6 +189,8 @@ public:
 
     void eventControl(int event, int enabled);
 
+    nsecs_t getRefreshTimestamp() const;
+
     // this class is only used to fake the VSync event on systems that don't
     // have it.
     class VSyncThread : public Thread {
@@ -235,6 +237,10 @@ private:
     size_t                          mVSyncCount;
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
+
+    // protected by mLock
+    mutable Mutex mLock;
+    mutable nsecs_t mLastHwVSync;
 };
 
 // ---------------------------------------------------------------------------

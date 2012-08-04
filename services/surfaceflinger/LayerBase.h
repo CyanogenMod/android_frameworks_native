@@ -134,8 +134,10 @@ public:
 
     virtual void setGeometry(const DisplayDevice& hw,
             HWComposer::HWCLayerInterface& layer);
-    virtual void setPerFrameData(HWComposer::HWCLayerInterface& layer);
-    virtual void setAcquireFence(HWComposer::HWCLayerInterface& layer);
+    virtual void setPerFrameData(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface& layer);
+    virtual void setAcquireFence(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface& layer);
 
     /**
      * draw - performs some global clipping optimizations
@@ -144,7 +146,7 @@ public:
      * to perform the actual drawing.  
      */
     virtual void draw(const DisplayDevice& hw, const Region& clip) const;
-    virtual void drawForSreenShot(const DisplayDevice& hw);
+    virtual void drawForScreenShot(const DisplayDevice& hw);
     
     /**
      * onDraw - draws the surface.
@@ -216,12 +218,17 @@ public:
 
     /** called after page-flip
      */
-    virtual void onLayerDisplayed(HWComposer::HWCLayerInterface* layer) { }
+    virtual void onLayerDisplayed(const DisplayDevice& hw,
+            HWComposer::HWCLayerInterface* layer) { }
 
     /** called before composition.
      * returns true if the layer has pending updates.
      */
     virtual bool onPreComposition() { return false; }
+
+    /** called before composition.
+     */
+    virtual void onPostComposition() { }
 
     /** always call base class first */
     virtual void dump(String8& result, char* scratch, size_t size) const;
