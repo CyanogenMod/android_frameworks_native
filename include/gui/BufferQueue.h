@@ -137,6 +137,14 @@ public:
     // The default mode is asynchronous.
     virtual status_t setSynchronousMode(bool enabled);
 
+#ifdef QCOM_HARDWARE
+    // setBufferSize enables to specify the user defined size of the buffer
+    // that needs to be allocated by surfaceflinger for its client. This is used
+    // for interlaced use cases where the user can pass extra information about
+    // the type of the frame whether it is interlaced or progressive frame.
+    virtual status_t setBuffersSize(int size);
+#endif
+
     // connect attempts to connect a producer client API to the BufferQueue.
     // This must be called before any other ISurfaceTexture methods are called
     // except for getAllocator.
