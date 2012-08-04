@@ -89,11 +89,6 @@ public:
         eSynchronous            = 0x01,
     };
 
-    enum {
-        eElectronBeamAnimationOn  = 0x01,
-        eElectronBeamAnimationOff = 0x10
-    };
-
     /* create connection with surface flinger, requires
      * ACCESS_SURFACE_FLINGER permission
      */
@@ -122,12 +117,6 @@ public:
             uint32_t* width, uint32_t* height, PixelFormat* format,
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
-
-    /* triggers screen off animation */
-    virtual status_t turnElectronBeamOff(int32_t mode) = 0;
-
-    /* triggers screen on animation */
-    virtual status_t turnElectronBeamOn(int32_t mode) = 0;
 
     /* verify that an ISurfaceTexture was created by SurfaceFlinger.
      */
@@ -166,8 +155,6 @@ public:
         SET_TRANSACTION_STATE,
         SET_ORIENTATION,
         CAPTURE_SCREEN,
-        TURN_ELECTRON_BEAM_OFF,
-        TURN_ELECTRON_BEAM_ON,
         AUTHENTICATE_SURFACE,
         CREATE_DISPLAY_EVENT_CONNECTION,
         BLANK,

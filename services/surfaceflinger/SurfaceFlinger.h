@@ -195,8 +195,6 @@ private:
         uint32_t* width, uint32_t* height, PixelFormat* format,
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);
-    virtual status_t turnElectronBeamOff(int32_t mode);
-    virtual status_t turnElectronBeamOn(int32_t mode);
     // called when screen needs to turn off
     virtual void blank();
     // called when screen is turning back on
@@ -307,11 +305,6 @@ private:
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);
 
-    status_t turnElectronBeamOffImplLocked(int32_t mode);
-    status_t turnElectronBeamOnImplLocked(int32_t mode);
-    status_t electronBeamOffAnimationImplLocked();
-    status_t electronBeamOnAnimationImplLocked();
-
     /* ------------------------------------------------------------------------
      * EGL
      */
@@ -404,7 +397,6 @@ private:
     State mDrawingState;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
-    int32_t mElectronBeamAnimationMode;
     DefaultKeyedVector<int32_t, DisplayDevice> mDisplays;
 
     // don't use a lock for these, we don't care
