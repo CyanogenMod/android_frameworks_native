@@ -1515,6 +1515,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
                 flags |= eTraversalNeeded;
         }
         if (what & eLayerChanged) {
+            // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
             if (layer->setLayer(s.z)) {
                 mCurrentState.layersSortedByZ.removeAt(idx);
@@ -1550,8 +1551,15 @@ uint32_t SurfaceFlinger::setClientStateLocked(
                 flags |= eTraversalNeeded;
         }
         if (what & eLayerStackChanged) {
-            if (layer->setLayerStack(s.layerStack))
-                flags |= eTraversalNeeded;
+            // NOTE: index needs to be calculated before we update the state
+            ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
+            if (layer->setLayerStack(s.layerStack)) {
+                mCurrentState.layersSortedByZ.removeAt(idx);
+                mCurrentState.layersSortedByZ.add(layer);
+                // we need traversal (state changed)
+                // AND transaction (list changed)
+                flags |= eTransactionNeeded|eTraversalNeeded;
+            }
         }
     }
     return flags;
@@ -2694,13 +2702,21 @@ SurfaceFlinger::LayerVector::LayerVector(const LayerVector& rhs)
 int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
     const void* rhs) const
 {
+    // sort layers per layer-stack, then by z-order and finally by sequence
     const sp<LayerBase>& l(*reinterpret_cast<const sp<LayerBase>*>(lhs));
     const sp<LayerBase>& r(*reinterpret_cast<const sp<LayerBase>*>(rhs));
-    // sort layers by Z order
+
+    uint32_t ls = l->currentState().layerStack;
+    uint32_t rs = r->currentState().layerStack;
+    if (ls != rs)
+        return ls - rs;
+
     uint32_t lz = l->currentState().z;
     uint32_t rz = r->currentState().z;
-    // then by sequence, so we get a stable ordering
-    return (lz != rz) ? (lz - rz) : (l->sequence - r->sequence);
+    if (lz != rz)
+        return lz - rz;
+
+    return l->sequence - r->sequence;
 }
 
 // ---------------------------------------------------------------------------
