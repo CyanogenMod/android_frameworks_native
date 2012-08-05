@@ -39,7 +39,7 @@ class FramebufferSurface;
 class LayerBase;
 class SurfaceFlinger;
 
-class DisplayDevice : public virtual RefBase
+class DisplayDevice : public LightRefBase<DisplayDevice>
 {
 public:
     // region in layer-stack space
@@ -65,7 +65,7 @@ public:
             const sp<ANativeWindow>& surface,
             EGLConfig config);
 
-    virtual ~DisplayDevice();
+    ~DisplayDevice();
 
     // whether this is a valid object. An invalid DisplayDevice is returned
     // when an non existing id is requested
