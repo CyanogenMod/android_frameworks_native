@@ -729,7 +729,7 @@ void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
     LayerBaseClient::dumpStats(result, buffer, SIZE);
     const size_t o = mFrameLatencyOffset;
     const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
-    const nsecs_t period = hw.getRefreshPeriod();
+    const nsecs_t period = mFlinger->getHwComposer().getRefreshPeriod();
     result.appendFormat("%lld\n", period);
     for (size_t i=0 ; i<128 ; i++) {
         const size_t index = (o+i) % 128;
