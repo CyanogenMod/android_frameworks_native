@@ -108,12 +108,12 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
     return LayerBaseClient::doTransaction(flags);
 }
 
-void LayerScreenshot::onDraw(const DisplayDevice& hw, const Region& clip) const
+void LayerScreenshot::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {
         const GLfloat alpha = s.alpha/255.0f;
-        const uint32_t fbHeight = hw.getHeight();
+        const uint32_t fbHeight = hw->getHeight();
 
         if (s.alpha == 0xFF) {
             glDisable(GL_BLEND);

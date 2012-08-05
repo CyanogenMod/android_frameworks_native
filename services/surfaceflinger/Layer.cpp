@@ -71,7 +71,7 @@ Layer::Layer(SurfaceFlinger* flinger,
     glGenTextures(1, &mTextureName);
 }
 
-void Layer::onLayerDisplayed(const DisplayDevice& hw,
+void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface* layer) {
     if (layer) {
         mSurfaceTexture->setReleaseFence(layer->getAndResetReleaseFenceFd());
@@ -237,7 +237,7 @@ Rect Layer::computeBufferCrop() const {
 }
 
 void Layer::setGeometry(
-        const DisplayDevice& hw,
+    const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer)
 {
     LayerBaseClient::setGeometry(hw, layer);
@@ -260,7 +260,7 @@ void Layer::setGeometry(
      */
 
     const Transform bufferOrientation(mCurrentTransform);
-    const Transform tr(hw.getTransform() * s.transform * bufferOrientation);
+    const Transform tr(hw->getTransform() * s.transform * bufferOrientation);
 
     // this gives us only the "orientation" component of the transform
     const uint32_t finalTransform = tr.getOrientation();
@@ -274,7 +274,7 @@ void Layer::setGeometry(
     layer.setCrop(computeBufferCrop());
 }
 
-void Layer::setPerFrameData(const DisplayDevice& hw,
+void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     const sp<GraphicBuffer>& buffer(mActiveBuffer);
     // NOTE: buffer can be NULL if the client never drew into this
@@ -282,7 +282,7 @@ void Layer::setPerFrameData(const DisplayDevice& hw,
     layer.setBuffer(buffer);
 }
 
-void Layer::setAcquireFence(const DisplayDevice& hw,
+void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     int fenceFd = -1;
 
@@ -301,7 +301,7 @@ void Layer::setAcquireFence(const DisplayDevice& hw,
     layer.setAcquireFenceFd(fenceFd);
 }
 
-void Layer::onDraw(const DisplayDevice& hw, const Region& clip) const
+void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     ATRACE_CALL();
 
@@ -323,7 +323,7 @@ void Layer::onDraw(const DisplayDevice& hw, const Region& clip) const
             const sp<LayerBase>& layer(drawingLayers[i]);
             if (layer.get() == static_cast<LayerBase const*>(this))
                 break;
-            under.orSelf( hw.getTransform().transform(layer->visibleRegion) );
+            under.orSelf( hw->getTransform().transform(layer->visibleRegion) );
         }
         // if not everything below us is covered, we plug the holes!
         Region holes(clip.subtract(under));
@@ -728,7 +728,6 @@ void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
     const size_t o = mFrameLatencyOffset;
-    const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
     const nsecs_t period = mFlinger->getHwComposer().getRefreshPeriod();
     result.appendFormat("%lld\n", period);
     for (size_t i=0 ; i<128 ; i++) {
@@ -769,8 +768,8 @@ uint32_t Layer::getTransformHint() const {
         // apply to all displays.
         // This is why we use the default display here. This is not an
         // oversight.
-        const DisplayDevice& hw(mFlinger->getDefaultDisplayDevice());
-        const Transform& planeTransform(hw.getTransform());
+        sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
+        const Transform& planeTransform(hw->getTransform());
         orientation = planeTransform.getOrientation();
         if (orientation & Transform::ROT_INVALID) {
             orientation = 0;
