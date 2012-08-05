@@ -29,8 +29,6 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libEGL \
 	libGLESv2 \
-	libhardware \
-	libhardware_legacy \
 	libsync \
 	libui \
 	libutils \
