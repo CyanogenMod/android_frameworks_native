@@ -43,12 +43,12 @@ LayerDim::~LayerDim()
 {
 }
 
-void LayerDim::onDraw(const DisplayDevice& hw, const Region& clip) const
+void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     const State& s(drawingState());
     if (s.alpha>0) {
         const GLfloat alpha = s.alpha/255.0f;
-        const uint32_t fbHeight = hw.getHeight();
+        const uint32_t fbHeight = hw->getHeight();
         glDisable(GL_TEXTURE_EXTERNAL_OES);
         glDisable(GL_TEXTURE_2D);
 
