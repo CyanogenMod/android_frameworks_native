@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+#include <dlfcn.h>
+
 #include <android_runtime/AndroidRuntime.h>
 
 #include "jni.h"
 #include "DdmConnection.h"
 
-extern "C" jint Java_com_android_internal_util_WithFramework_registerNatives(
-        JNIEnv* env, jclass clazz);
-
 namespace android {
+
 
 void DdmConnection::start(const char* name) {
     JavaVM* vm;
@@ -40,12 +40,36 @@ void DdmConnection::start(const char* name) {
     args.nOptions = 1;
     args.ignoreUnrecognized = JNI_FALSE;
 
+
+    void* libdvm_dso = dlopen("libdvm.so", RTLD_NOW);
+    ALOGE_IF(!libdvm_dso, "DdmConnection: %s", dlerror());
+
+    void* libandroid_runtime_dso = dlopen("libandroid_runtime.so", RTLD_NOW);
+    ALOGE_IF(!libandroid_runtime_dso, "DdmConnection: %s", dlerror());
+
+    if (!libdvm_dso || !libandroid_runtime_dso) {
+        goto error;
+    }
+
+    jint (*JNI_CreateJavaVM)(JavaVM** p_vm, JNIEnv** p_env, void* vm_args);
+    JNI_CreateJavaVM = (typeof JNI_CreateJavaVM)dlsym(libdvm_dso, "JNI_CreateJavaVM");
+    ALOGE_IF(!JNI_CreateJavaVM, "DdmConnection: %s", dlerror());
+
+    jint (*registerNatives)(JNIEnv* env, jclass clazz);
+    registerNatives = (typeof registerNatives)dlsym(libandroid_runtime_dso,
+        "Java_com_android_internal_util_WithFramework_registerNatives");
+    ALOGE_IF(!registerNatives, "DdmConnection: %s", dlerror());
+
+    if (!JNI_CreateJavaVM || !registerNatives) {
+        goto error;
+    }
+
     if (JNI_CreateJavaVM(&vm, &env, &args) == 0) {
         jclass startClass;
         jmethodID startMeth;
 
         // register native code
-        if (Java_com_android_internal_util_WithFramework_registerNatives(env, 0) == 0) {
+        if (registerNatives(env, 0) == 0) {
             // set our name by calling DdmHandleAppName.setAppName()
             startClass = env->FindClass("android/ddm/DdmHandleAppName");
             if (startClass) {
@@ -69,6 +93,15 @@ void DdmConnection::start(const char* name) {
                 }
             }
         }
+    }
+    return;
+
+error:
+    if (libandroid_runtime_dso) {
+        dlclose(libandroid_runtime_dso);
+    }
+    if (libdvm_dso) {
+        dlclose(libdvm_dso);
     }
 }
 

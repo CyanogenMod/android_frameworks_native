@@ -105,18 +105,14 @@ SurfaceFlinger::SurfaceFlinger()
     property_get("debug.sf.showupdates", value, "0");
     mDebugRegion = atoi(value);
 
-#ifdef DDMS_DEBUGGING
     property_get("debug.sf.ddms", value, "0");
     mDebugDDMS = atoi(value);
     if (mDebugDDMS) {
         DdmConnection::start(getServiceName());
     }
-#else
-#warning "DDMS_DEBUGGING disabled"
-#endif
 
-    ALOGI_IF(mDebugRegion,       "showupdates enabled");
-    ALOGI_IF(mDebugDDMS,         "DDMS debugging enabled");
+    ALOGI_IF(mDebugRegion, "showupdates enabled");
+    ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
 }
 
 void SurfaceFlinger::onFirstRef()
