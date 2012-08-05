@@ -3,6 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
     Client.cpp                              \
+    DdmConnection.cpp                       \
     DisplayDevice.cpp                       \
     EventThread.cpp                         \
     Layer.cpp                               \
@@ -39,6 +40,7 @@ endif
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
+	libdl \
 	libhardware \
 	libutils \
 	libEGL \
@@ -46,13 +48,6 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libui \
 	libgui
-
-# this is only needed for DDMS debugging
-ifneq ($(TARGET_BUILD_PDK),true)
-	LOCAL_SHARED_LIBRARIES += libdvm libandroid_runtime
-	LOCAL_CFLAGS += -DDDMS_DEBUGGING
-	LOCAL_SRC_FILES += DdmConnection.cpp
-endif
 
 LOCAL_MODULE:= libsurfaceflinger
 
