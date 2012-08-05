@@ -30,13 +30,14 @@
 
 #include "Transform.h"
 
+struct ANativeWindow;
+
 namespace android {
 
 class DisplayInfo;
 class FramebufferSurface;
 class LayerBase;
 class SurfaceFlinger;
-class SurfaceTextureClient;
 
 class DisplayDevice
 {
@@ -63,7 +64,7 @@ public:
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             int dpy,
-            const sp<SurfaceTextureClient>& surface,
+            const sp<ANativeWindow>& surface,
             EGLConfig config);
 
     ~DisplayDevice();
@@ -136,7 +137,7 @@ private:
     int32_t mId;
 
     // ANativeWindow this display is rendering into
-    sp<SurfaceTextureClient> mNativeWindow;
+    sp<ANativeWindow> mNativeWindow;
 
     // set if mNativeWindow is a FramebufferSurface
     sp<FramebufferSurface> mFramebufferSurface;
