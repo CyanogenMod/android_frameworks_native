@@ -108,7 +108,7 @@ DisplayDevice::DisplayDevice()
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         int display,
-        const sp<SurfaceTextureClient>& surface,
+        const sp<ANativeWindow>& surface,
         EGLConfig config)
     : mFlinger(flinger),
       mId(display),
