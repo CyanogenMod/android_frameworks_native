@@ -118,7 +118,7 @@ public:
         GLfloat* uOut, GLfloat* vOut);
 
     // returns the default Display
-    const DisplayDevice& getDefaultDisplayDevice() const {
+    sp<const DisplayDevice> getDefaultDisplayDevice() const {
         return getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN);
     }
 
@@ -245,7 +245,7 @@ private:
     void handlePageFlip();
 
     void handleRefresh();
-    void handleRepaint(const DisplayDevice& hw, const Region& dirtyRegion);
+    void handleRepaint(const sp<const DisplayDevice>& hw, const Region& dirtyRegion);
 
     /* ------------------------------------------------------------------------
      * Transactions
@@ -319,11 +319,11 @@ private:
     /* ------------------------------------------------------------------------
      * Display and layer stack management
      */
-    const DisplayDevice& getDisplayDevice(DisplayID dpy) const {
+    sp<const DisplayDevice> getDisplayDevice(DisplayID dpy) const {
         return mDisplays.valueFor(dpy);
     }
-    DisplayDevice& getDisplayDevice(DisplayID dpy) {
-        return mDisplays.editValueFor(dpy);
+    const sp<DisplayDevice>& getDisplayDevice(DisplayID dpy) {
+        return mDisplays.valueFor(dpy);
     }
 
     // mark a region of a layer stack dirty. this updates the dirty
@@ -344,7 +344,7 @@ private:
             uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
     void postFramebuffer();
-    void composeSurfaces(const DisplayDevice& hw, const Region& dirty);
+    void composeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty);
     void drawWormhole(const Region& region) const;
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
@@ -353,7 +353,7 @@ private:
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
-    void debugFlashRegions(const DisplayDevice& hw, const Region& dirtyReg);
+    void debugFlashRegions(const sp<const DisplayDevice>& hw, const Region& dirtyReg);
     void listLayersLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
@@ -397,7 +397,7 @@ private:
     State mDrawingState;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
-    DefaultKeyedVector<int32_t, DisplayDevice> mDisplays;
+    DefaultKeyedVector<int32_t, sp<DisplayDevice> > mDisplays;
 
     // don't use a lock for these, we don't care
     int mDebugRegion;

@@ -64,18 +64,18 @@ public:
     bool isFixedSize() const;
 
     // LayerBase interface
-    virtual void setGeometry(const DisplayDevice& hw,
+    virtual void setGeometry(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
-    virtual void setPerFrameData(const DisplayDevice& hw,
+    virtual void setPerFrameData(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
-    virtual void setAcquireFence(const DisplayDevice& hw,
+    virtual void setAcquireFence(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
-    virtual void onLayerDisplayed(const DisplayDevice& hw,
+    virtual void onLayerDisplayed(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface* layer);
     virtual bool onPreComposition();
     virtual void onPostComposition();
 
-    virtual void onDraw(const DisplayDevice& hw, const Region& clip) const;
+    virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
     virtual uint32_t doTransaction(uint32_t transactionFlags);
     virtual Region latchBuffer(bool& recomputeVisibleRegions);
     virtual bool isOpaque() const;

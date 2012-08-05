@@ -97,14 +97,6 @@ void checkEGLErrors(const char* token)
  *
  */
 
-DisplayDevice::DisplayDevice()
-    : mId(0),
-      mDisplay(EGL_NO_DISPLAY),
-      mSurface(EGL_NO_SURFACE),
-      mContext(EGL_NO_CONTEXT)
-{
-}
-
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         int display,
@@ -130,12 +122,6 @@ DisplayDevice::DisplayDevice(
 }
 
 DisplayDevice::~DisplayDevice() {
-    // DO NOT call terminate() from here, because we create
-    // temporaries of this class (on the stack typically), and we don't
-    // want to destroy the EGLSurface in that case
-}
-
-void DisplayDevice::terminate() {
     if (mSurface != EGL_NO_SURFACE) {
         eglDestroySurface(mDisplay, mSurface);
         mSurface = EGL_NO_SURFACE;
@@ -297,11 +283,11 @@ void DisplayDevice::dump(String8& res) const
     }
 }
 
-void DisplayDevice::makeCurrent(const DisplayDevice& hw, EGLContext ctx) {
+void DisplayDevice::makeCurrent(const sp<const DisplayDevice>& hw, EGLContext ctx) {
     EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
-    if (sur != hw.mSurface) {
+    if (sur != hw->mSurface) {
         EGLDisplay dpy = eglGetCurrentDisplay();
-        eglMakeCurrent(dpy, hw.mSurface, hw.mSurface, ctx);
+        eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
     }
 }
 

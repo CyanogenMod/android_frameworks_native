@@ -223,11 +223,11 @@ uint32_t LayerBase::doTransaction(uint32_t flags)
     return flags;
 }
 
-void LayerBase::computeGeometry(const DisplayDevice& hw, LayerMesh* mesh) const
+void LayerBase::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const
 {
     const Layer::State& s(drawingState());
-    const Transform tr(hw.getTransform() * s.transform);
-    const uint32_t hw_h = hw.getHeight();
+    const Transform tr(hw->getTransform() * s.transform);
+    const uint32_t hw_h = hw->getHeight();
     const Rect& crop(s.active.crop);
     Rect win(s.active.w, s.active.h);
     if (!crop.isEmpty()) {
@@ -260,7 +260,7 @@ Region LayerBase::latchBuffer(bool& recomputeVisibleRegions) {
 }
 
 void LayerBase::setGeometry(
-        const DisplayDevice& hw,
+    const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer)
 {
     layer.setDefaultState();
@@ -281,7 +281,7 @@ void LayerBase::setGeometry(
                 HWC_BLENDING_COVERAGE);
     }
 
-    const Transform& tr = hw.getTransform();
+    const Transform& tr = hw->getTransform();
     Rect transformedBounds(computeBounds());
     transformedBounds = tr.transform(transformedBounds);
 
@@ -291,12 +291,12 @@ void LayerBase::setGeometry(
     layer.setVisibleRegionScreen(tr.transform(visibleRegion));
 }
 
-void LayerBase::setPerFrameData(const DisplayDevice& hw,
+void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     layer.setBuffer(0);
 }
 
-void LayerBase::setAcquireFence(const DisplayDevice& hw,
+void LayerBase::setAcquireFence(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     layer.setAcquireFenceFd(-1);
 }
@@ -311,20 +311,20 @@ bool LayerBase::getFiltering() const
     return mFiltering;
 }
 
-void LayerBase::draw(const DisplayDevice& hw, const Region& clip) const
+void LayerBase::draw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     onDraw(hw, clip);
 }
 
-void LayerBase::draw(const DisplayDevice& hw)
+void LayerBase::draw(const sp<const DisplayDevice>& hw)
 {
-    onDraw( hw, Region(hw.bounds()) );
+    onDraw( hw, Region(hw->bounds()) );
 }
 
-void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip,
+void LayerBase::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
         GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
 {
-    const uint32_t fbHeight = hw.getHeight();
+    const uint32_t fbHeight = hw->getHeight();
     glColor4f(red,green,blue,alpha);
 
     glDisable(GL_TEXTURE_EXTERNAL_OES);
@@ -338,14 +338,14 @@ void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip,
     glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 }
 
-void LayerBase::clearWithOpenGL(const DisplayDevice& hw, const Region& clip) const
+void LayerBase::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
-void LayerBase::drawWithOpenGL(const DisplayDevice& hw, const Region& clip) const
+void LayerBase::drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
-    const uint32_t fbHeight = hw.getHeight();
+    const uint32_t fbHeight = hw->getHeight();
     const State& s(drawingState());
 
     GLenum src = mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA;

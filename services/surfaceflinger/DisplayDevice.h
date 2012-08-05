@@ -39,7 +39,7 @@ class FramebufferSurface;
 class LayerBase;
 class SurfaceFlinger;
 
-class DisplayDevice
+class DisplayDevice : public virtual RefBase
 {
 public:
     // region in layer-stack space
@@ -59,19 +59,13 @@ public:
         SWAP_RECTANGLE  = 0x00080000,
     };
 
-    DisplayDevice();
-
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             int dpy,
             const sp<ANativeWindow>& surface,
             EGLConfig config);
 
-    ~DisplayDevice();
-
-    // must be called when this object is no longer needed. this will
-    // render the associated EGLSurface invalid.
-    void terminate();
+    virtual ~DisplayDevice();
 
     // whether this is a valid object. An invalid DisplayDevice is returned
     // when an non existing id is requested
@@ -107,7 +101,7 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
-    static void makeCurrent(const DisplayDevice& hw, EGLContext ctx);
+    static void makeCurrent(const sp<const DisplayDevice>& hw, EGLContext ctx);
 
     /* ------------------------------------------------------------------------
      * blank / unplank management
