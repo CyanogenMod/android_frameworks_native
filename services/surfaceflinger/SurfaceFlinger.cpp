@@ -378,9 +378,7 @@ status_t SurfaceFlinger::readyToRun()
     mEventQueue.setEventThread(mEventThread);
 
     // initialize the H/W composer
-    mHwc = new HWComposer(this,
-            *static_cast<HWComposer::EventHandler *>(this),
-            hw.getRefreshPeriod());
+    mHwc = new HWComposer(this, *static_cast<HWComposer::EventHandler *>(this));
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
@@ -453,11 +451,21 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
 }
 
 status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
+    // TODO: this is here only for compatibility -- show go away eventually.
     if (uint32_t(dpy) >= 2) {
         return BAD_INDEX;
     }
     const DisplayDevice& hw(getDefaultDisplayDevice());
-    return hw.getInfo(info);
+    info->w = hw.getWidth();
+    info->h = hw.getHeight();
+    info->xdpi = hw.getDpiX();
+    info->ydpi = hw.getDpiY();
+    info->fps = float(1e9 / getHwComposer().getRefreshPeriod());
+    info->density = hw.getDensity();
+    info->orientation = hw.getOrientation();
+    // TODO: this needs to go away (currently needed only by webkit)
+    getPixelFormatInfo(hw.getFormat(), &info->pixelFormatInfo);
+    return NO_ERROR;
 }
 
 // ----------------------------------------------------------------------------
@@ -1818,6 +1826,7 @@ void SurfaceFlinger::dumpAllLocked(
     snprintf(buffer, SIZE, "SurfaceFlinger global state:\n");
     result.append(buffer);
 
+    HWComposer& hwc(getHwComposer());
     const DisplayDevice& hw(getDefaultDisplayDevice());
     const GLExtensions& extensions(GLExtensions::getInstance());
     snprintf(buffer, SIZE, "GLES: %s, %s, %s\n",
@@ -1849,7 +1858,7 @@ void SurfaceFlinger::dumpAllLocked(
             mLastSwapBufferTime/1000.0,
             mLastTransactionTime/1000.0,
             mTransactionFlags,
-            hw.getRefreshRate(),
+            1e9 / hwc.getRefreshPeriod(),
             hw.getDpiX(),
             hw.getDpiY(),
             hw.getDensity());
@@ -1871,7 +1880,6 @@ void SurfaceFlinger::dumpAllLocked(
     /*
      * Dump HWComposer state
      */
-    HWComposer& hwc(getHwComposer());
     snprintf(buffer, SIZE, "h/w composer state:\n");
     result.append(buffer);
     snprintf(buffer, SIZE, "  h/w composer %s and %s\n",

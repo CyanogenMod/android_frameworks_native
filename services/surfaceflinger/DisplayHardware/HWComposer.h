@@ -55,8 +55,7 @@ public:
         virtual ~EventHandler() {}
     };
 
-    HWComposer(const sp<SurfaceFlinger>& flinger,
-            EventHandler& handler, nsecs_t refreshPeriod);
+    HWComposer(const sp<SurfaceFlinger>& flinger, EventHandler& handler);
     ~HWComposer();
 
     status_t initCheck() const;
@@ -189,6 +188,7 @@ public:
 
     void eventControl(int event, int enabled);
 
+    nsecs_t getRefreshPeriod() const;
     nsecs_t getRefreshTimestamp() const;
 
     // this class is only used to fake the VSync event on systems that don't

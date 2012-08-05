@@ -117,12 +117,10 @@ DisplayDevice::DisplayDevice(
       mSurface(EGL_NO_SURFACE),
       mContext(EGL_NO_CONTEXT),
       mDpiX(), mDpiY(),
-      mRefreshRate(),
       mDensity(),
       mDisplayWidth(), mDisplayHeight(), mFormat(),
       mFlags(),
       mPageFlipCount(),
-      mRefreshPeriod(),
       mSecureLayerVisible(false),
       mScreenAcquired(false),
       mOrientation(),
@@ -160,10 +158,6 @@ float DisplayDevice::getDensity() const {
     return mDensity;
 }
 
-float DisplayDevice::getRefreshRate() const {
-    return mRefreshRate;
-}
-
 int DisplayDevice::getWidth() const {
     return mDisplayWidth;
 }
@@ -180,19 +174,6 @@ EGLSurface DisplayDevice::getEGLSurface() const {
     return mSurface;
 }
 
-status_t DisplayDevice::getInfo(DisplayInfo* info) const {
-    info->w = getWidth();
-    info->h = getHeight();
-    info->xdpi = getDpiX();
-    info->ydpi = getDpiY();
-    info->fps = getRefreshRate();
-    info->density = getDensity();
-    info->orientation = getOrientation();
-    // TODO: this needs to go away (currently needed only by webkit)
-    getPixelFormatInfo(getFormat(), &info->pixelFormatInfo);
-    return NO_ERROR;
-}
-
 void DisplayDevice::init(EGLConfig config)
 {
     ANativeWindow* const window = mNativeWindow.get();
@@ -207,13 +188,6 @@ void DisplayDevice::init(EGLConfig config)
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
     mDpiX = window->xdpi;
     mDpiY = window->ydpi;
-    if (mFramebufferSurface != NULL) {
-        mRefreshRate = mFramebufferSurface->getRefreshRate();
-    } else {
-        mRefreshRate = 60;
-    }
-    mRefreshPeriod = nsecs_t(1e9 / mRefreshRate);
-
 
     // TODO: Not sure if display density should handled by SF any longer
     class Density {
@@ -277,10 +251,6 @@ void DisplayDevice::init(EGLConfig config)
 
 uint32_t DisplayDevice::getPageFlipCount() const {
     return mPageFlipCount;
-}
-
-nsecs_t DisplayDevice::getRefreshPeriod() const {
-    return mRefreshPeriod;
 }
 
 status_t DisplayDevice::compositionComplete() const {

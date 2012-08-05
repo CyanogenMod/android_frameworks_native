@@ -101,14 +101,12 @@ struct HWComposer::cb_context {
 
 HWComposer::HWComposer(
         const sp<SurfaceFlinger>& flinger,
-        EventHandler& handler,
-        nsecs_t refreshPeriod)
+        EventHandler& handler)
     : mFlinger(flinger),
       mModule(0), mHwc(0), mList(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
       mCBContext(new cb_context),
-      mEventHandler(handler),
-      mRefreshPeriod(refreshPeriod),
+      mEventHandler(handler), mRefreshPeriod(0),
       mVSyncCount(0), mDebugForceFakeVSync(false)
 {
     char value[PROPERTY_VALUE_MAX];
@@ -137,6 +135,11 @@ HWComposer::HWComposer(
                 // always turn vsync off when we start
                 mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
                 needVSyncThread = false;
+
+                int period;
+                if (mHwc->query(mHwc, HWC_VSYNC_PERIOD, &period) == NO_ERROR) {
+                    mRefreshPeriod = nsecs_t(period);
+                }
             }
             if (mHwc->registerProcs) {
                 mCBContext->hwc = this;
@@ -146,6 +149,26 @@ HWComposer::HWComposer(
                 memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
         }
+    }
+
+    if (mRefreshPeriod == 0) {
+        // for compatibility, we attempt to get the refresh rate from
+        // the FB HAL if we couldn't get it from the HWC HAL.
+        hw_module_t const* module;
+        if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
+            framebuffer_device_t* fbDev;
+            int err = framebuffer_open(module, &fbDev);
+            if (!err && fbDev) {
+                mRefreshPeriod = nsecs_t(1e9 / fbDev->fps);
+                framebuffer_close(fbDev);
+            }
+        }
+        ALOGW("getting VSYNC period from fb HAL: %lld", mRefreshPeriod);
+    }
+
+    if (mRefreshPeriod == 0) {
+        mRefreshPeriod = nsecs_t(1e9 / 60.0);
+        ALOGW("getting VSYNC period thin air: %lld", mRefreshPeriod);
     }
 
     if (needVSyncThread) {
@@ -187,6 +210,10 @@ void HWComposer::vsync(int dpy, int64_t timestamp) {
     mEventHandler.onVSyncReceived(dpy, timestamp);
     Mutex::Autolock _l(mLock);
     mLastHwVSync = timestamp;
+}
+
+nsecs_t HWComposer::getRefreshPeriod() const {
+    return mRefreshPeriod;
 }
 
 nsecs_t HWComposer::getRefreshTimestamp() const {

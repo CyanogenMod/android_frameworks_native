@@ -82,14 +82,11 @@ public:
 
     float       getDpiX() const;
     float       getDpiY() const;
-    float       getRefreshRate() const;
     float       getDensity() const;
     int         getWidth() const;
     int         getHeight() const;
     PixelFormat getFormat() const;
     uint32_t    getFlags() const;
-    nsecs_t     getRefreshPeriod() const;
-    status_t    getInfo(DisplayInfo* info) const;
 
     EGLSurface  getEGLSurface() const;
 
@@ -149,14 +146,12 @@ private:
     EGLContext      mContext;
     float           mDpiX;
     float           mDpiY;
-    float           mRefreshRate;
     float           mDensity;
     int             mDisplayWidth;
     int             mDisplayHeight;
     PixelFormat     mFormat;
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
-    nsecs_t         mRefreshPeriod;
 
     /*
      * Can only accessed from the main thread, these members

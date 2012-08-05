@@ -336,7 +336,7 @@ private:
 
     HWComposer& getHwComposer() const { return *mHwc; }
 
-        /* ------------------------------------------------------------------------
+    /* ------------------------------------------------------------------------
      * Compositing
      */
     void invalidateHwcGeometry();
