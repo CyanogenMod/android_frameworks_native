@@ -16,7 +16,7 @@
 
 #include <dlfcn.h>
 
-#include <android_runtime/AndroidRuntime.h>
+#include <cutils/log.h>
 
 #include "jni.h"
 #include "DdmConnection.h"
