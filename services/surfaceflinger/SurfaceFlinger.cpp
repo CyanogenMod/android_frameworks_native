@@ -34,8 +34,9 @@
 
 #include <ui/DisplayInfo.h>
 
-#include <gui/IDisplayEventConnection.h>
 #include <gui/BitTube.h>
+#include <gui/BufferQueue.h>
+#include <gui/IDisplayEventConnection.h>
 #include <gui/SurfaceTextureClient.h>
 
 #include <ui/GraphicBufferAllocator.h>
@@ -351,22 +352,24 @@ status_t SurfaceFlinger::readyToRun()
 
     // Initialize the main display
     // create native window to main display
-    sp<FramebufferSurface> anw = FramebufferSurface::create();
-    ANativeWindow* const window = anw.get();
-    if (!window) {
+    sp<FramebufferSurface> fbs = FramebufferSurface::create();
+    if (fbs == NULL) {
         ALOGE("Display subsystem failed to initialize. check logs. exiting...");
         exit(0);
     }
 
+    sp<SurfaceTextureClient> stc(new SurfaceTextureClient(static_cast<sp<ISurfaceTexture> >(fbs->getBufferQueue())));
+
     // initialize the config and context
     int format;
-    window->query(window, NATIVE_WINDOW_FORMAT, &format);
+    ANativeWindow* const anw = stc.get();
+    anw->query(anw, NATIVE_WINDOW_FORMAT, &format);
     mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
     // initialize our main display hardware
     mCurrentState.displays.add(DisplayDevice::DISPLAY_ID_MAIN, DisplayDeviceState());
-    sp<DisplayDevice> hw = new DisplayDevice(this, DisplayDevice::DISPLAY_ID_MAIN, anw, mEGLConfig);
+    sp<DisplayDevice> hw = new DisplayDevice(this, DisplayDevice::DISPLAY_ID_MAIN, anw, fbs, mEGLConfig);
     mDisplays.add(DisplayDevice::DISPLAY_ID_MAIN, hw);
 
     //  initialize OpenGL ES
@@ -868,7 +871,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (mDrawingState.displays.indexOfKey(curr[i].id) < 0) {
                     // FIXME: we need to pass the surface here
-                    sp<DisplayDevice> disp = new DisplayDevice(this, curr[i].id, 0, mEGLConfig);
+                    sp<DisplayDevice> disp = new DisplayDevice(this, curr[i].id, 0, 0, mEGLConfig);
                     mDisplays.add(curr[i].id, disp);
                 }
             }
