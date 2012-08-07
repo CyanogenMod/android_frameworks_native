@@ -264,12 +264,17 @@ int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
         ANativeWindowBuffer* buffer)
 {
     FramebufferNativeWindow* self = getSelf(window);
+#ifndef QCOMHW
     Mutex::Autolock _l(self->mutex);
+#endif
     framebuffer_device_t* fb = self->fbDev;
     buffer_handle_t handle = static_cast<NativeBuffer*>(buffer)->handle;
 
     const int index = self->mCurrentBufferIndex;
     int res = fb->post(fb, handle);
+#ifdef QCOMHW
+    Mutex::Autolock _l(self->mutex);
+#endif
     self->front = static_cast<NativeBuffer*>(buffer);
     self->mNumFreeBuffers++;
     self->mCondition.broadcast();
@@ -301,7 +306,9 @@ int FramebufferNativeWindow::query(const ANativeWindow* window,
         int what, int* value) 
 {
     const FramebufferNativeWindow* self = getSelf(window);
+#ifndef QCOMHW
     Mutex::Autolock _l(self->mutex);
+#endif
     framebuffer_device_t* fb = self->fbDev;
     switch (what) {
         case NATIVE_WINDOW_WIDTH:
