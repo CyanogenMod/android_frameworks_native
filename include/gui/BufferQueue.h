@@ -422,10 +422,6 @@ private:
     // in requestBuffers() if a width and height of zero is specified.
     uint32_t mDefaultHeight;
 
-    // mPixelFormat holds the pixel format of allocated buffers. It is used
-    // in requestBuffers() if a format of zero is specified.
-    uint32_t mPixelFormat;
-
     // mMinUndequeuedBuffers is a constraint on the number of buffers
     // not dequeued at any time
     int mMinUndequeuedBuffers;

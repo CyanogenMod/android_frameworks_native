@@ -27,6 +27,8 @@
 #include <ui/DisplayInfo.h>
 #include <ui/PixelFormat.h>
 
+#include <gui/SurfaceTextureClient.h>
+
 #include <GLES/gl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -100,11 +102,13 @@ void checkEGLErrors(const char* token)
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         int display,
-        const sp<ANativeWindow>& surface,
+        const sp<ANativeWindow>& nativeWindow,
+        const sp<FramebufferSurface>& framebufferSurface,
         EGLConfig config)
     : mFlinger(flinger),
       mId(display),
-      mNativeWindow(surface),
+      mNativeWindow(nativeWindow),
+      mFramebufferSurface(framebufferSurface),
       mDisplay(EGL_NO_DISPLAY),
       mSurface(EGL_NO_SURFACE),
       mContext(EGL_NO_CONTEXT),
@@ -164,12 +168,6 @@ void DisplayDevice::init(EGLConfig config)
 {
     ANativeWindow* const window = mNativeWindow.get();
 
-    int concreteType;
-    window->query(window, NATIVE_WINDOW_CONCRETE_TYPE, &concreteType);
-    if (concreteType == NATIVE_WINDOW_FRAMEBUFFER) {
-        mFramebufferSurface = static_cast<FramebufferSurface *>(mNativeWindow.get());
-    }
-
     int format;
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
     mDpiX = window->xdpi;
@@ -216,16 +214,6 @@ void DisplayDevice::init(EGLConfig config)
     eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
     eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
 
-    if (mFramebufferSurface != NULL) {
-        if (mFramebufferSurface->isUpdateOnDemand()) {
-            mFlags |= PARTIAL_UPDATES;
-            // if we have partial updates, we definitely don't need to
-            // preserve the backbuffer, which may be costly.
-            eglSurfaceAttrib(display, surface,
-                    EGL_SWAP_BEHAVIOR, EGL_BUFFER_DESTROYED);
-        }
-    }
-
     mDisplay = display;
     mSurface = surface;
     mFormat  = format;
@@ -261,12 +249,6 @@ void DisplayDevice::flip(const Region& dirty) const
                 b.left, b.top, b.width(), b.height());
     } 
 #endif
-    
-    if (mFlags & PARTIAL_UPDATES) {
-        if (mFramebufferSurface != NULL) {
-            mFramebufferSurface->setUpdateRectangle(dirty.getBounds());
-        }
-    }
     
     mPageFlipCount++;
 }

@@ -316,7 +316,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
-            ALOGE("updateTexImage failed on acquire %d", err);
+            ST_LOGE("updateTexImage failed on acquire %d", err);
         }
         // We always bind the texture even if we don't update its contents.
         glBindTexture(mTexTarget, mTexName);
@@ -327,7 +327,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
 }
 
 void SurfaceTexture::setReleaseFence(int fenceFd) {
-    if (fenceFd == -1)
+    if (fenceFd == -1 || mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT)
         return;
     sp<Fence> fence(new Fence(fenceFd));
     if (!mEGLSlots[mCurrentTexture].mReleaseFence.get()) {
@@ -337,7 +337,7 @@ void SurfaceTexture::setReleaseFence(int fenceFd) {
                 String8("SurfaceTexture merged release"),
                 mEGLSlots[mCurrentTexture].mReleaseFence, fence);
         if (!mergedFence.get()) {
-            ALOGE("failed to merge release fences");
+            ST_LOGE("failed to merge release fences");
             // synchronization is broken, the best we can do is hope fences
             // signal in order so the new fence will act like a union
             mEGLSlots[mCurrentTexture].mReleaseFence = fence;
