@@ -344,9 +344,9 @@ main(int argc, char *argv[])
     hwcTestFillColorHBlend(equivFrame.get(), refFormat->format,
                            startRefColor, endRefColor);
 
-    hwc_layer_list_1_t *list;
-    size_t size = sizeof(hwc_layer_list_1_t) + numFrames * sizeof(hwc_layer_1_t);
-    if ((list = (hwc_layer_list_1_t *) calloc(1, size)) == NULL) {
+    hwc_display_contents_1_t *list;
+    size_t size = sizeof(hwc_display_contents_1_t) + numFrames * sizeof(hwc_layer_1_t);
+    if ((list = (hwc_display_contents_1_t *) calloc(1, size)) == NULL) {
         testPrintE("Allocate list failed");
         exit(11);
     }
@@ -383,7 +383,7 @@ main(int argc, char *argv[])
 
     // Perform prepare operation
     if (verbose) { testPrintI("Prepare:"); hwcTestDisplayList(list); }
-    hwcDevice->prepare(hwcDevice, list);
+    hwcDevice->prepare(hwcDevice, 1, &list);
     if (verbose) {
         testPrintI("Post Prepare:");
         hwcTestDisplayListPrepareModifiable(list);
@@ -393,7 +393,9 @@ main(int argc, char *argv[])
     list->flags &= ~HWC_GEOMETRY_CHANGED;
 
     if (verbose) {hwcTestDisplayListHandles(list); }
-    hwcDevice->set(hwcDevice, dpy, surface, list);
+    list->dpy = dpy;
+    list->sur = surface;
+    hwcDevice->set(hwcDevice, 1, &list);
 
     testDelay(endDelay);
 

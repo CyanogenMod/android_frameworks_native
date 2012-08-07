@@ -50,17 +50,15 @@ namespace android {
 // Support for HWC_DEVICE_API_VERSION_0_3 and older:
 // Since v0.3 is deprecated and support will be dropped soon, as much as
 // possible the code is written to target v1.0. When using a v0.3 HWC, we
-// allocate v0.3 structures, but assign them to v1.0 pointers. Fields that
-// exist in both versions are located at the same offset, so in most cases we
-// can just use the v1.0 pointer without branches or casts.
+// allocate v0.3 structures, but assign them to v1.0 pointers.
 
 #if HWC_REMOVE_DEPRECATED_VERSIONS
-// We need complete types with to satisfy semantic checks, even though the
-// code paths that use these won't get executed at runtime (and will likely be
-// dead-code-eliminated). When we remove the code to support v0.3 we can remove
+// We need complete types to satisfy semantic checks, even though the code
+// paths that use these won't get executed at runtime (and will likely be dead-
+// code-eliminated). When we remove the code to support v0.3 we can remove
 // these as well.
 typedef hwc_layer_1_t hwc_layer_t;
-typedef hwc_layer_list_1_t hwc_layer_list_t;
+typedef hwc_display_contents_1_t hwc_layer_list_t;
 typedef hwc_composer_device_1_t hwc_composer_device_t;
 #endif
 
@@ -75,12 +73,94 @@ static bool hwcHasVersion(const hwc_composer_device_1_t* hwc, uint32_t version) 
     }
 }
 
+static bool hwcHasVsyncEvent(const hwc_composer_device_1_t* hwc) {
+    return hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_0_3);
+}
+
 static size_t sizeofHwcLayerList(const hwc_composer_device_1_t* hwc,
         size_t numLayers) {
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return sizeof(hwc_layer_list_1_t) + numLayers*sizeof(hwc_layer_1_t);
+        return sizeof(hwc_display_contents_1_t) + numLayers*sizeof(hwc_layer_1_t);
     } else {
         return sizeof(hwc_layer_list_t) + numLayers*sizeof(hwc_layer_t);
+    }
+}
+
+static int hwcEventControl(hwc_composer_device_1_t* hwc, int dpy,
+        int event, int enabled) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->methods->eventControl(hwc, dpy, event, enabled);
+    } else {
+        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        return hwc0->methods->eventControl(hwc0, event, enabled);
+    }
+}
+
+static int hwcBlank(hwc_composer_device_1_t* hwc, int dpy, int blank) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->methods->blank(hwc, dpy, blank);
+    } else {
+        if (blank) {
+            hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+            return hwc0->set(hwc0, NULL, NULL, NULL);
+        } else {
+            // HWC 0.x turns the screen on at the next set()
+            return NO_ERROR;
+        }
+    }
+}
+
+static int hwcPrepare(hwc_composer_device_1_t* hwc,
+        size_t numDisplays, hwc_display_contents_1_t** displays) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->prepare(hwc, numDisplays, displays);
+    } else {
+        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)displays[0];
+        // In the past, SurfaceFlinger would pass a NULL list when doing full
+        // OpenGL ES composition. I don't know what, if any, dependencies there
+        // are on this behavior, so I'm playing it safe and preserving it.
+        if (list0->numHwLayers == 0)
+            return hwc0->prepare(hwc0, NULL);
+        else
+            return hwc0->prepare(hwc0, list0);
+    }
+}
+
+static int hwcSet(hwc_composer_device_1_t* hwc, EGLDisplay dpy, EGLSurface sur,
+        size_t numDisplays, hwc_display_contents_1_t** displays) {
+    int err;
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        displays[0]->dpy = dpy;
+        displays[0]->sur = sur;
+        err = hwc->set(hwc, numDisplays, displays);
+    } else {
+        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)displays[0];
+        err = hwc0->set(hwc0, dpy, sur, list0);
+    }
+    return err;
+}
+
+static uint32_t& hwcFlags(hwc_composer_device_1_t* hwc,
+        hwc_display_contents_1_t* display) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return display->flags;
+    } else {
+        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)display;
+        return list0->flags;
+    }
+}
+
+static size_t& hwcNumHwLayers(hwc_composer_device_1_t* hwc,
+        hwc_display_contents_1_t* display) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return display->numHwLayers;
+    } else {
+        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)display;
+        return list0->numHwLayers;
     }
 }
 
@@ -103,12 +183,15 @@ HWComposer::HWComposer(
         const sp<SurfaceFlinger>& flinger,
         EventHandler& handler)
     : mFlinger(flinger),
-      mModule(0), mHwc(0), mList(0), mCapacity(0),
+      mModule(0), mHwc(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
       mCBContext(new cb_context),
       mEventHandler(handler), mRefreshPeriod(0),
       mVSyncCount(0), mDebugForceFakeVSync(false)
 {
+    for (size_t i = 0; i < MAX_DISPLAYS; i++)
+        mLists[i] = NULL;
+
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sf.no_hw_vsync", value, "0");
     mDebugForceFakeVSync = atoi(value);
@@ -131,16 +214,19 @@ HWComposer::HWComposer(
         }
 
         if (mHwc) {
-            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
-                // always turn vsync off when we start
-                mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
-                needVSyncThread = false;
+            // always turn vsync off when we start
+            needVSyncThread = false;
+            if (hwcHasVsyncEvent(mHwc)) {
+                hwcEventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
 
                 int period;
                 if (mHwc->query(mHwc, HWC_VSYNC_PERIOD, &period) == NO_ERROR) {
                     mRefreshPeriod = nsecs_t(period);
                 }
+            } else {
+                needVSyncThread = true;
             }
+
             if (mHwc->registerProcs) {
                 mCBContext->hwc = this;
                 mCBContext->procs.invalidate = &hook_invalidate;
@@ -148,6 +234,9 @@ HWComposer::HWComposer(
                 mHwc->registerProcs(mHwc, &mCBContext->procs);
                 memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
+
+            // create initial empty display contents for display 0
+            createWorkList(0);
         }
     }
 
@@ -178,8 +267,9 @@ HWComposer::HWComposer(
 }
 
 HWComposer::~HWComposer() {
-    eventControl(EVENT_VSYNC, 0);
-    free(mList);
+    hwcEventControl(mHwc, 0, EVENT_VSYNC, 0);
+    for (size_t i = 0; i < MAX_DISPLAYS; i++)
+        free(mLists[i]);
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
     }
@@ -229,7 +319,7 @@ void HWComposer::eventControl(int event, int enabled) {
     status_t err = NO_ERROR;
     if (mHwc && mHwc->common.version >= HWC_DEVICE_API_VERSION_0_3) {
         if (!mDebugForceFakeVSync) {
-            err = mHwc->methods->eventControl(mHwc, event, enabled);
+            err = hwcEventControl(mHwc, 0, event, enabled);
             // error here should not happen -- not sure what we should
             // do if it does.
             ALOGE_IF(err, "eventControl(%d, %d) failed %s",
@@ -244,32 +334,37 @@ void HWComposer::eventControl(int event, int enabled) {
 
 status_t HWComposer::createWorkList(size_t numLayers) {
     if (mHwc) {
-        if (!mList || mCapacity < numLayers) {
-            free(mList);
+        // mLists[0] is NULL only when this is called from the constructor
+        if (!mLists[0] || mCapacity < numLayers) {
+            free(mLists[0]);
             size_t size = sizeofHwcLayerList(mHwc, numLayers);
-            mList = (hwc_layer_list_1_t*)malloc(size);
+            mLists[0] = (hwc_display_contents_1_t*)malloc(size);
             mCapacity = numLayers;
         }
-        mList->flags = HWC_GEOMETRY_CHANGED;
-        mList->numHwLayers = numLayers;
+        hwcFlags(mHwc, mLists[0]) = HWC_GEOMETRY_CHANGED;
+        hwcNumHwLayers(mHwc, mLists[0]) = numLayers;
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            mLists[0]->flipFenceFd = -1;
+        }
     }
     return NO_ERROR;
 }
 
 status_t HWComposer::prepare() const {
-    int err = mHwc->prepare(mHwc, mList);
+    int err = hwcPrepare(mHwc, 1,
+            const_cast<hwc_display_contents_1_t**>(mLists));
     if (err == NO_ERROR) {
         size_t numOVLayers = 0;
         size_t numFBLayers = 0;
-        size_t count = mList->numHwLayers;
+        size_t count = getNumLayers();
         for (size_t i=0 ; i<count ; i++) {
             hwc_layer_1_t* l = NULL;
             if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                l = &mList->hwLayers[i];
+                l = &mLists[0]->hwLayers[i];
             } else {
                 // mList really has hwc_layer_list_t memory layout
-                hwc_layer_list_t* list = (hwc_layer_list_t*)mList;
-                hwc_layer_t* layer = &list->hwLayers[i];
+                hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
+                hwc_layer_t* layer = &list0->hwLayers[i];
                 l = (hwc_layer_1_t*)layer;
             }
             if (l->flags & HWC_SKIP_LAYER) {
@@ -303,59 +398,47 @@ size_t HWComposer::getLayerCount(int type) const {
 status_t HWComposer::commit(void* fbDisplay, void* fbSurface) const {
     int err = NO_ERROR;
     if (mHwc) {
-        err = mHwc->set(mHwc, fbDisplay, fbSurface, mList);
-        if (mList) {
-            mList->flags &= ~HWC_GEOMETRY_CHANGED;
+        err = hwcSet(mHwc, fbDisplay, fbSurface, 1,
+                const_cast<hwc_display_contents_1_t**>(mLists));
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            if (mLists[0]->flipFenceFd != -1) {
+                close(mLists[0]->flipFenceFd);
+                mLists[0]->flipFenceFd = -1;
+            }
         }
+        hwcFlags(mHwc, mLists[0]) &= ~HWC_GEOMETRY_CHANGED;
     }
     return (status_t)err;
 }
 
 status_t HWComposer::release() const {
     if (mHwc) {
-        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_3)) {
-            mHwc->methods->eventControl(mHwc, HWC_EVENT_VSYNC, 0);
+        if (hwcHasVsyncEvent(mHwc)) {
+            hwcEventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
         }
-        int err = mHwc->set(mHwc, NULL, NULL, NULL);
-        if (err < 0) {
-            return (status_t)err;
-        }
-
-        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-            if (mHwc->methods && mHwc->methods->blank) {
-                err = mHwc->methods->blank(mHwc, 1);
-            }
-        }
-        return (status_t)err;
+        return (status_t)hwcBlank(mHwc, 0, 1);
     }
     return NO_ERROR;
 }
 
 status_t HWComposer::acquire() const {
     if (mHwc) {
-        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-            if (mHwc->methods && mHwc->methods->blank) {
-                int err = mHwc->methods->blank(mHwc, 0);
-                return (status_t)err;
-            }
-        }
+        return (status_t)hwcBlank(mHwc, 0, 0);
     }
-
     return NO_ERROR;
 }
 
 status_t HWComposer::disable() {
     if (mHwc) {
-        free(mList);
-        mList = NULL;
-        int err = mHwc->prepare(mHwc, NULL);
+        hwcNumHwLayers(mHwc, mLists[0]) = 0;
+        int err = hwcPrepare(mHwc, 1, mLists);
         return (status_t)err;
     }
     return NO_ERROR;
 }
 
 size_t HWComposer::getNumLayers() const {
-    return mList ? mList->numHwLayers : 0;
+    return mHwc ? hwcNumHwLayers(mHwc, mLists[0]) : 0;
 }
 
 /*
@@ -529,13 +612,13 @@ public:
  * returns an iterator initialized at a given index in the layer list
  */
 HWComposer::LayerListIterator HWComposer::getLayerIterator(size_t index) {
-    if (!mList || index > mList->numHwLayers) {
+    if (index > hwcNumHwLayers(mHwc, mLists[0]))
         return LayerListIterator();
-    }
     if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return LayerListIterator(new HWCLayerVersion1(mList->hwLayers), index);
+        return LayerListIterator(new HWCLayerVersion1(mLists[0]->hwLayers),
+                index);
     } else {
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)mList;
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
         return LayerListIterator(new HWCLayerVersion0(list0->hwLayers), index);
     }
 }
@@ -554,26 +637,26 @@ HWComposer::LayerListIterator HWComposer::end() {
     return getLayerIterator(getNumLayers());
 }
 
-
-
 void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {
-    if (mHwc && mList) {
+    if (mHwc) {
+        hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
+
         result.append("Hardware Composer state:\n");
         result.appendFormat("  mDebugForceFakeVSync=%d\n",
                 mDebugForceFakeVSync);
         result.appendFormat("  numHwLayers=%u, flags=%08x\n",
-                mList->numHwLayers, mList->flags);
+                hwcNumHwLayers(mHwc, mLists[0]), hwcFlags(mHwc, mLists[0]));
         result.append(
                 "   type   |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
                 "----------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
         //      " ________ | ________ | ________ | ________ | __ | _____ | ________ | [_____,_____,_____,_____] | [_____,_____,_____,_____]
-        for (size_t i=0 ; i<mList->numHwLayers ; i++) {
+        for (size_t i=0 ; i<hwcNumHwLayers(mHwc, mLists[0]) ; i++) {
             hwc_layer_1_t l;
             if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                l = mList->hwLayers[i];
+                l = mLists[0]->hwLayers[i];
             } else {
-                hwc_layer_list_t* list0 = (hwc_layer_list_t*)mList;
+                hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
                 *(hwc_layer_t*)&l = list0->hwLayers[i];
                 l.acquireFenceFd = l.releaseFenceFd = -1;
             }

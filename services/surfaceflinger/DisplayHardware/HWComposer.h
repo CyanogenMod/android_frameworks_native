@@ -34,7 +34,7 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            struct timespec *remain);
 
 struct hwc_composer_device_1;
-struct hwc_layer_list_1;
+struct hwc_display_contents_1;
 struct hwc_procs;
 
 namespace android {
@@ -215,6 +215,8 @@ public:
             const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
 
 private:
+    enum { MAX_DISPLAYS = 1 };
+
     LayerListIterator getLayerIterator(size_t index);
 
     struct cb_context;
@@ -228,7 +230,10 @@ private:
     sp<SurfaceFlinger>              mFlinger;
     hw_module_t const*              mModule;
     struct hwc_composer_device_1*   mHwc;
-    struct hwc_layer_list_1*        mList;
+    // invariant: mLists[0] != NULL iff mHwc != NULL
+    // TODO: decide whether mLists[i>0] should be non-NULL when display i is
+    //       not attached/enabled.
+    struct hwc_display_contents_1*  mLists[MAX_DISPLAYS];
     size_t                          mCapacity;
     mutable size_t                  mNumOVLayers;
     mutable size_t                  mNumFBLayers;
