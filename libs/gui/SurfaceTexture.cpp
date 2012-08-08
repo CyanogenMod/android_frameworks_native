@@ -327,9 +327,9 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
 }
 
 void SurfaceTexture::setReleaseFence(int fenceFd) {
+    sp<Fence> fence(new Fence(fenceFd));
     if (fenceFd == -1 || mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT)
         return;
-    sp<Fence> fence(new Fence(fenceFd));
     if (!mEGLSlots[mCurrentTexture].mReleaseFence.get()) {
         mEGLSlots[mCurrentTexture].mReleaseFence = fence;
     } else {
