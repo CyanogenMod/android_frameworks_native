@@ -20,7 +20,7 @@ dirs := \
 	textures \
 	tritex \
 
-ifneq ($(TARGET_BUILD_PDK), true)
+ifneq (,$(TARGET_BUILD_JAVA_SUPPORT_LEVEL))
 dirs += \
 	gl2_cameraeye \
 	gl2_java \
@@ -29,11 +29,16 @@ dirs += \
 	gl_jni \
 	gl_perfapp \
 	lighting1709 \
-	testFramerate \
 	testLatency \
 	testPauseResume \
 	testViewport \
 
-endif
+endif # JAVA_SUPPORT
+
+ifeq (platform,$(TARGET_BUILD_JAVA_SUPPORT_LEVEL))
+dirs += \
+	testFramerate
+
+endif # JAVA_SUPPORT platform
 
 include $(call all-named-subdir-makefiles, $(dirs))
