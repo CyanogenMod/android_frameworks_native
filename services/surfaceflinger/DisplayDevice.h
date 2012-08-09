@@ -91,6 +91,8 @@ public:
     bool                    getSecureLayerVisible() const;
 
     status_t                setOrientation(int orientation);
+    void                    setLayerStack(uint32_t stack);
+
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
     uint32_t                getLayerStack() const { return mLayerStack; }

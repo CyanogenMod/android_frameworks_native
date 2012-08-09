@@ -313,6 +313,13 @@ bool DisplayDevice::isScreenAcquired() const {
 
 // ----------------------------------------------------------------------------
 
+void DisplayDevice::setLayerStack(uint32_t stack) {
+    mLayerStack = stack;
+    dirtyRegion.set(bounds());
+}
+
+// ----------------------------------------------------------------------------
+
 status_t DisplayDevice::orientationToTransfrom(
         int orientation, int w, int h, Transform* tr)
 {
