@@ -161,6 +161,39 @@ sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
     return bclient;
 }
 
+sp<IBinder> SurfaceFlinger::createDisplay()
+{
+    class DisplayToken : public BBinder {
+        sp<SurfaceFlinger> flinger;
+        virtual ~DisplayToken() {
+             // no more references, this display must be terminated
+             Mutex::Autolock _l(flinger->mStateLock);
+             flinger->mCurrentState.displays.removeItem(this);
+             flinger->setTransactionFlags(eDisplayTransactionNeeded);
+         }
+     public:
+        DisplayToken(const sp<SurfaceFlinger>& flinger)
+            : flinger(flinger) {
+        }
+    };
+
+    sp<BBinder> token = new DisplayToken(this);
+
+    Mutex::Autolock _l(mStateLock);
+    DisplayDeviceState info(intptr_t(token.get())); // FIXME: we shouldn't use the address for the id
+    mCurrentState.displays.add(token, info);
+
+    return token;
+}
+
+sp<IBinder> SurfaceFlinger::getBuiltInDisplay(int32_t id) {
+    if (uint32_t(id) >= DisplayDevice::DISPLAY_ID_COUNT) {
+        ALOGE("getDefaultDisplay: id=%d is not a valid default display id", id);
+        return NULL;
+    }
+    return mDefaultDisplays[id];
+}
+
 sp<IGraphicBufferAlloc> SurfaceFlinger::createGraphicBufferAlloc()
 {
     sp<GraphicBufferAlloc> gba(new GraphicBufferAlloc());
@@ -358,7 +391,8 @@ status_t SurfaceFlinger::readyToRun()
         exit(0);
     }
 
-    sp<SurfaceTextureClient> stc(new SurfaceTextureClient(static_cast<sp<ISurfaceTexture> >(fbs->getBufferQueue())));
+    sp<SurfaceTextureClient> stc(new SurfaceTextureClient(
+            static_cast<sp<ISurfaceTexture> >(fbs->getBufferQueue())));
 
     // initialize the config and context
     int format;
@@ -368,9 +402,14 @@ status_t SurfaceFlinger::readyToRun()
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
     // initialize our main display hardware
-    mCurrentState.displays.add(DisplayDevice::DISPLAY_ID_MAIN, DisplayDeviceState());
-    sp<DisplayDevice> hw = new DisplayDevice(this, DisplayDevice::DISPLAY_ID_MAIN, anw, fbs, mEGLConfig);
-    mDisplays.add(DisplayDevice::DISPLAY_ID_MAIN, hw);
+
+    for (size_t i=0 ; i<DisplayDevice::DISPLAY_ID_COUNT ; i++) {
+        mDefaultDisplays[i] = new BBinder();
+        mCurrentState.displays.add(mDefaultDisplays[i], DisplayDeviceState(i));
+    }
+    sp<DisplayDevice> hw = new DisplayDevice(this,
+            DisplayDevice::DISPLAY_ID_MAIN, anw, fbs, mEGLConfig);
+    mDisplays.add(hw->getDisplayId(), hw);
 
     //  initialize OpenGL ES
     EGLSurface surface = hw->getEGLSurface();
@@ -571,8 +610,7 @@ void SurfaceFlinger::onMessageReceived(int32_t what) {
 }
 
 void SurfaceFlinger::handleMessageTransaction() {
-    const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
-    uint32_t transactionFlags = peekTransactionFlags(mask);
+    uint32_t transactionFlags = peekTransactionFlags(eTransactionMask);
     if (transactionFlags) {
         handleTransaction(transactionFlags);
     }
@@ -795,8 +833,7 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
     // with mStateLock held to guarantee that mCurrentState won't change
     // until the transaction is committed.
 
-    const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
-    transactionFlags = getTransactionFlags(mask);
+    transactionFlags = getTransactionFlags(eTransactionMask);
     handleTransactionLocked(transactionFlags);
 
     mLastTransactionTime = systemTime() - now;
@@ -832,12 +869,12 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
      * Perform our own transaction if needed
      */
 
-    if (transactionFlags & eTransactionNeeded) {
+    if (transactionFlags & eDisplayTransactionNeeded) {
         // here we take advantage of Vector's copy-on-write semantics to
         // improve performance by skipping the transaction entirely when
         // know that the lists are identical
-        const KeyedVector<int32_t, DisplayDeviceState>& curr(mCurrentState.displays);
-        const KeyedVector<int32_t, DisplayDeviceState>& draw(mDrawingState.displays);
+        const KeyedVector<  wp<IBinder>, DisplayDeviceState>& curr(mCurrentState.displays);
+        const KeyedVector<  wp<IBinder>, DisplayDeviceState>& draw(mDrawingState.displays);
         if (!curr.isIdenticalTo(draw)) {
             mVisibleRegionsDirty = true;
             const size_t cc = curr.size();
@@ -848,7 +885,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // also handle displays that changed
             // (ie: displays that are in both lists)
             for (size_t i=0 ; i<dc ; i++) {
-                if (curr.indexOfKey(draw[i].id) < 0) {
+                const ssize_t j = curr.indexOfKey(draw.keyAt(i));
+                if (j < 0) {
                     // in drawing state but not in current state
                     if (draw[i].id != DisplayDevice::DISPLAY_ID_MAIN) {
                         mDisplays.removeItem(draw[i].id);
@@ -857,14 +895,32 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     }
                 } else {
                     // this display is in both lists. see if something changed.
-                    const DisplayDeviceState& state(curr[i]);
+                    const DisplayDeviceState& state(curr[j]);
+                    if (state.surface != draw[i].surface) {
+                        // changing the surface is like destroying and
+                        // recreating the DisplayDevice
+
+                        sp<SurfaceTextureClient> stc(
+                                new SurfaceTextureClient(state.surface));
+
+                        sp<DisplayDevice> disp = new DisplayDevice(this,
+                                state.id, stc, 0, mEGLConfig);
+
+                        disp->setLayerStack(state.layerStack);
+                        disp->setOrientation(state.orientation);
+                        // TODO: take viewport and frame into account
+                        mDisplays.replaceValueFor(state.id, disp);
+                    }
                     if (state.layerStack != draw[i].layerStack) {
                         const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
                         disp->setLayerStack(state.layerStack);
                     }
-                    if (curr[i].orientation != draw[i].orientation) {
+                    if (state.orientation != draw[i].orientation ||
+                        state.viewport != draw[i].viewport ||
+                        state.frame != draw[i].frame) {
                         const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
                         disp->setOrientation(state.orientation);
+                        // TODO: take viewport and frame into account
                     }
                 }
             }
@@ -872,10 +928,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // find displays that were added
             // (ie: in current state but not in drawing state)
             for (size_t i=0 ; i<cc ; i++) {
-                if (mDrawingState.displays.indexOfKey(curr[i].id) < 0) {
+                if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     // FIXME: we need to pass the surface here
-                    sp<DisplayDevice> disp = new DisplayDevice(this, curr[i].id, 0, 0, mEGLConfig);
-                    mDisplays.add(curr[i].id, disp);
+                    const DisplayDeviceState& state(curr[i]);
+                    sp<SurfaceTextureClient> stc(
+                            new SurfaceTextureClient(state.surface));
+                    sp<DisplayDevice> disp = new DisplayDevice(this, state.id,
+                            stc, 0, mEGLConfig);
+                    mDisplays.add(state.id, disp);
                 }
             }
         }
@@ -1358,33 +1418,21 @@ uint32_t SurfaceFlinger::setTransactionFlags(uint32_t flags)
     return old;
 }
 
-
 void SurfaceFlinger::setTransactionState(
         const Vector<ComposerState>& state,
         const Vector<DisplayState>& displays,
         uint32_t flags)
 {
     Mutex::Autolock _l(mStateLock);
-
-    int orientation = DisplayState::eOrientationUnchanged;
-    if (displays.size()) {
-        // TODO: handle all displays
-        orientation = displays[0].orientation;
-    }
-
     uint32_t transactionFlags = 0;
-    // FIXME: don't hardcode display id here
-    if (mCurrentState.displays.valueFor(0).orientation != orientation) {
-        if (uint32_t(orientation) <= DisplayState::eOrientation270) {
-            mCurrentState.displays.editValueFor(0).orientation = orientation;
-            transactionFlags |= eTransactionNeeded;
-        } else if (orientation != DisplayState::eOrientationUnchanged) {
-            ALOGW("setTransactionState: ignoring unrecognized orientation: %d",
-                    orientation);
-        }
+
+    size_t count = displays.size();
+    for (size_t i=0 ; i<count ; i++) {
+        const DisplayState& s(displays[i]);
+        transactionFlags |= setDisplayStateLocked(s);
     }
 
-    const size_t count = state.size();
+    count = state.size();
     for (size_t i=0 ; i<count ; i++) {
         const ComposerState& s(state[i]);
         sp<Client> client( static_cast<Client *>(s.client.get()) );
@@ -1411,6 +1459,105 @@ void SurfaceFlinger::setTransactionState(
             }
         }
     }
+}
+
+uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
+{
+    uint32_t flags = 0;
+    DisplayDeviceState& disp(mCurrentState.displays.editValueFor(s.token));
+    if (disp.id >= 0) {
+        const uint32_t what = s.what;
+        if (what & DisplayState::eSurfaceChanged) {
+            if (disp.surface->asBinder() != s.surface->asBinder()) {
+                disp.surface = s.surface;
+                flags |= eDisplayTransactionNeeded;
+            }
+        }
+        if (what & DisplayState::eLayerStackChanged) {
+            if (disp.layerStack != s.layerStack) {
+                disp.layerStack = s.layerStack;
+                flags |= eDisplayTransactionNeeded;
+            }
+        }
+        if (what & DisplayState::eTransformChanged) {
+            if (disp.orientation != s.orientation) {
+                disp.orientation = s.orientation;
+                flags |= eDisplayTransactionNeeded;
+            }
+            if (disp.frame != s.frame) {
+                disp.frame = s.frame;
+                flags |= eDisplayTransactionNeeded;
+            }
+            if (disp.viewport != s.viewport) {
+                disp.viewport = s.viewport;
+                flags |= eDisplayTransactionNeeded;
+            }
+        }
+    }
+    return flags;
+}
+
+uint32_t SurfaceFlinger::setClientStateLocked(
+        const sp<Client>& client,
+        const layer_state_t& s)
+{
+    uint32_t flags = 0;
+    sp<LayerBaseClient> layer(client->getLayerUser(s.surface));
+    if (layer != 0) {
+        const uint32_t what = s.what;
+        if (what & layer_state_t::ePositionChanged) {
+            if (layer->setPosition(s.x, s.y))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eLayerChanged) {
+            // NOTE: index needs to be calculated before we update the state
+            ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
+            if (layer->setLayer(s.z)) {
+                mCurrentState.layersSortedByZ.removeAt(idx);
+                mCurrentState.layersSortedByZ.add(layer);
+                // we need traversal (state changed)
+                // AND transaction (list changed)
+                flags |= eTransactionNeeded|eTraversalNeeded;
+            }
+        }
+        if (what & layer_state_t::eSizeChanged) {
+            if (layer->setSize(s.w, s.h)) {
+                flags |= eTraversalNeeded;
+            }
+        }
+        if (what & layer_state_t::eAlphaChanged) {
+            if (layer->setAlpha(uint8_t(255.0f*s.alpha+0.5f)))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eMatrixChanged) {
+            if (layer->setMatrix(s.matrix))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eTransparentRegionChanged) {
+            if (layer->setTransparentRegionHint(s.transparentRegion))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eVisibilityChanged) {
+            if (layer->setFlags(s.flags, s.mask))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eCropChanged) {
+            if (layer->setCrop(s.crop))
+                flags |= eTraversalNeeded;
+        }
+        if (what & layer_state_t::eLayerStackChanged) {
+            // NOTE: index needs to be calculated before we update the state
+            ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
+            if (layer->setLayerStack(s.layerStack)) {
+                mCurrentState.layersSortedByZ.removeAt(idx);
+                mCurrentState.layersSortedByZ.add(layer);
+                // we need traversal (state changed)
+                // AND transaction (list changed)
+                flags |= eTransactionNeeded|eTraversalNeeded;
+            }
+        }
+    }
+    return flags;
 }
 
 sp<ISurface> SurfaceFlinger::createLayer(
@@ -1552,69 +1699,6 @@ status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBaseClient>& layer)
                 "error removing layer=%p (%s)", l.get(), strerror(-err));
     }
     return err;
-}
-
-uint32_t SurfaceFlinger::setClientStateLocked(
-        const sp<Client>& client,
-        const layer_state_t& s)
-{
-    uint32_t flags = 0;
-    sp<LayerBaseClient> layer(client->getLayerUser(s.surface));
-    if (layer != 0) {
-        const uint32_t what = s.what;
-        if (what & layer_state_t::ePositionChanged) {
-            if (layer->setPosition(s.x, s.y))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eLayerChanged) {
-            // NOTE: index needs to be calculated before we update the state
-            ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
-            if (layer->setLayer(s.z)) {
-                mCurrentState.layersSortedByZ.removeAt(idx);
-                mCurrentState.layersSortedByZ.add(layer);
-                // we need traversal (state changed)
-                // AND transaction (list changed)
-                flags |= eTransactionNeeded|eTraversalNeeded;
-            }
-        }
-        if (what & layer_state_t::eSizeChanged) {
-            if (layer->setSize(s.w, s.h)) {
-                flags |= eTraversalNeeded;
-            }
-        }
-        if (what & layer_state_t::eAlphaChanged) {
-            if (layer->setAlpha(uint8_t(255.0f*s.alpha+0.5f)))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eMatrixChanged) {
-            if (layer->setMatrix(s.matrix))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eTransparentRegionChanged) {
-            if (layer->setTransparentRegionHint(s.transparentRegion))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eVisibilityChanged) {
-            if (layer->setFlags(s.flags, s.mask))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eCropChanged) {
-            if (layer->setCrop(s.crop))
-                flags |= eTraversalNeeded;
-        }
-        if (what & layer_state_t::eLayerStackChanged) {
-            // NOTE: index needs to be calculated before we update the state
-            ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
-            if (layer->setLayerStack(s.layerStack)) {
-                mCurrentState.layersSortedByZ.removeAt(idx);
-                mCurrentState.layersSortedByZ.add(layer);
-                // we need traversal (state changed)
-                // AND transaction (list changed)
-                flags |= eTransactionNeeded|eTraversalNeeded;
-            }
-        }
-    }
-    return flags;
 }
 
 // ---------------------------------------------------------------------------
@@ -1964,7 +2048,10 @@ status_t SurfaceFlinger::onTransact(
                 return NO_ERROR;
             }
             case 1005:{ // force transaction
-                setTransactionFlags(eTransactionNeeded|eTraversalNeeded);
+                setTransactionFlags(
+                        eTransactionNeeded|
+                        eDisplayTransactionNeeded|
+                        eTraversalNeeded);
                 return NO_ERROR;
             }
             case 1006:{ // send empty update
@@ -2305,8 +2392,11 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 
 // ---------------------------------------------------------------------------
 
-SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
-    : id(DisplayDevice::DISPLAY_ID_MAIN), layerStack(0), orientation(0) {
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState() : id(-1) {
+}
+
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(int32_t id)
+    : id(id), layerStack(0), orientation(0) {
 }
 
 // ---------------------------------------------------------------------------

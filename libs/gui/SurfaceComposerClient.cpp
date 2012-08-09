@@ -56,16 +56,10 @@ sp<ISurfaceComposer> ComposerService::getComposerService() {
     return ComposerService::getInstance().mComposerService;
 }
 
-static inline sp<ISurfaceComposer> getComposerService() {
-    return ComposerService::getComposerService();
-}
-
 // ---------------------------------------------------------------------------
 
-// NOTE: this is NOT a member function (it's a friend defined with its
-// declaration).
 static inline
-int compare_type( const ComposerState& lhs, const ComposerState& rhs) {
+int compare_type(const ComposerState& lhs, const ComposerState& rhs) {
     if (lhs.client < rhs.client)  return -1;
     if (lhs.client > rhs.client)  return 1;
     if (lhs.state.surface < rhs.state.surface)  return -1;
@@ -73,17 +67,21 @@ int compare_type( const ComposerState& lhs, const ComposerState& rhs) {
     return 0;
 }
 
+static inline
+int compare_type(const DisplayState& lhs, const DisplayState& rhs) {
+    return compare_type(lhs.token, rhs.token);
+}
+
 class Composer : public Singleton<Composer>
 {
     friend class Singleton<Composer>;
 
     mutable Mutex               mLock;
-    SortedVector<ComposerState> mStates;
-    int                         mOrientation;
+    SortedVector<ComposerState> mComposerStates;
+    SortedVector<DisplayState > mDisplayStates;
     uint32_t                    mForceSynchronous;
 
     Composer() : Singleton<Composer>(),
-        mOrientation(DisplayState::eOrientationUnchanged),
         mForceSynchronous(0)
     { }
 
@@ -92,7 +90,10 @@ class Composer : public Singleton<Composer>
     layer_state_t* getLayerStateLocked(
             const sp<SurfaceComposerClient>& client, SurfaceID id);
 
+    DisplayState& getDisplayStateLocked(const sp<IBinder>& token);
+
 public:
+    sp<IBinder> createDisplay();
 
     status_t setPosition(const sp<SurfaceComposerClient>& client, SurfaceID id,
             float x, float y);
@@ -115,6 +116,12 @@ public:
     status_t setLayerStack(const sp<SurfaceComposerClient>& client,
             SurfaceID id, uint32_t layerStack);
 
+    void setDisplaySurface(const sp<IBinder>& token, const sp<ISurfaceTexture>& surface);
+    void setDisplayLayerStack(const sp<IBinder>& token, uint32_t layerStack);
+    void setDisplayOrientation(const sp<IBinder>& token, uint32_t orientation);
+    void setDisplayViewport(const sp<IBinder>& token, const Rect& viewport);
+    void setDisplayFrame(const sp<IBinder>& token, const Rect& frame);
+
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
     }
@@ -124,8 +131,12 @@ ANDROID_SINGLETON_STATIC_INSTANCE(Composer);
 
 // ---------------------------------------------------------------------------
 
+sp<IBinder> Composer::createDisplay() {
+    return ComposerService::getComposerService()->createDisplay();
+}
+
 void Composer::closeGlobalTransactionImpl(bool synchronous) {
-    sp<ISurfaceComposer> sm(getComposerService());
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
 
     Vector<ComposerState> transaction;
     Vector<DisplayState> displayTransaction;
@@ -133,15 +144,11 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
 
     { // scope for the lock
         Mutex::Autolock _l(mLock);
-        transaction = mStates;
-        mStates.clear();
+        transaction = mComposerStates;
+        mComposerStates.clear();
 
-        // FIXME: this should be the displays transaction state here
-        DisplayState item;
-        item.orientation = mOrientation;
-        displayTransaction.add(item);
-
-        mOrientation = DisplayState::eOrientationUnchanged;
+        displayTransaction = mDisplayStates;
+        mDisplayStates.clear();
 
         if (synchronous || mForceSynchronous) {
             flags |= ISurfaceComposer::eSynchronous;
@@ -159,13 +166,13 @@ layer_state_t* Composer::getLayerStateLocked(
     s.client = client->mClient;
     s.state.surface = id;
 
-    ssize_t index = mStates.indexOf(s);
+    ssize_t index = mComposerStates.indexOf(s);
     if (index < 0) {
         // we don't have it, add an initialized layer_state to our list
-        index = mStates.add(s);
+        index = mComposerStates.add(s);
     }
 
-    ComposerState* const out = mStates.editArray();
+    ComposerState* const out = mComposerStates.editArray();
     return &(out[index].state);
 }
 
@@ -273,16 +280,6 @@ status_t Composer::setMatrix(const sp<SurfaceComposerClient>& client,
     return NO_ERROR;
 }
 
-status_t Composer::setOrientation(int orientation) {
-    Mutex::Autolock _l(mLock);
-    mOrientation = orientation;
-
-    // Changing the orientation makes the transaction synchronous.
-    mForceSynchronous = true;
-
-    return NO_ERROR;
-}
-
 status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
         SurfaceID id, const Rect& crop) {
     Mutex::Autolock _l(mLock);
@@ -296,13 +293,76 @@ status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
 
 // ---------------------------------------------------------------------------
 
+DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
+    DisplayState s;
+    s.token = token;
+    ssize_t index = mDisplayStates.indexOf(s);
+    if (index < 0) {
+        // we don't have it, add an initialized layer_state to our list
+        s.what = 0;
+        index = mDisplayStates.add(s);
+    }
+    return mDisplayStates.editItemAt(index);
+}
+
+void Composer::setDisplaySurface(const sp<IBinder>& token,
+        const sp<ISurfaceTexture>& surface) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.surface = surface;
+    s.what |= DisplayState::eSurfaceChanged;
+}
+
+void Composer::setDisplayLayerStack(const sp<IBinder>& token,
+        uint32_t layerStack) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.layerStack = layerStack;
+    s.what |= DisplayState::eLayerStackChanged;
+}
+
+void Composer::setDisplayOrientation(const sp<IBinder>& token,
+        uint32_t orientation) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.orientation = orientation;
+    s.what |= DisplayState::eTransformChanged;
+    mForceSynchronous = true; // TODO: do we actually still need this?
+}
+
+// FIXME: get rid of this eventually
+status_t Composer::setOrientation(int orientation) {
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
+    sp<IBinder> token(sm->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
+    Composer::setDisplayOrientation(token, orientation);
+    return NO_ERROR;
+}
+
+void Composer::setDisplayViewport(const sp<IBinder>& token,
+        const Rect& viewport) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.viewport = viewport;
+    s.what |= DisplayState::eTransformChanged;
+}
+
+void Composer::setDisplayFrame(const sp<IBinder>& token,
+        const Rect& frame) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.frame = frame;
+    s.what |= DisplayState::eTransformChanged;
+}
+
+// ---------------------------------------------------------------------------
+
 SurfaceComposerClient::SurfaceComposerClient()
     : mStatus(NO_INIT), mComposer(Composer::getInstance())
 {
 }
 
 void SurfaceComposerClient::onFirstRef() {
-    sp<ISurfaceComposer> sm(getComposerService());
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
     if (sm != 0) {
         sp<ISurfaceComposerClient> conn = sm->createConnection();
         if (conn != 0) {
@@ -327,7 +387,7 @@ sp<IBinder> SurfaceComposerClient::connection() const {
 status_t SurfaceComposerClient::linkToComposerDeath(
         const sp<IBinder::DeathRecipient>& recipient,
         void* cookie, uint32_t flags) {
-    sp<ISurfaceComposer> sm(getComposerService());
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
     return sm->asBinder()->linkToDeath(recipient, cookie, flags);
 }
 
@@ -377,6 +437,10 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
         }
     }
     return result;
+}
+
+sp<IBinder> SurfaceComposerClient::createDisplay() {
+    return Composer::getInstance().createDisplay();
 }
 
 status_t SurfaceComposerClient::destroySurface(SurfaceID sid) {
@@ -461,10 +525,37 @@ status_t SurfaceComposerClient::setOrientation(DisplayID dpy,
 
 // ----------------------------------------------------------------------------
 
+void SurfaceComposerClient::setDisplaySurface(const sp<IBinder>& token,
+        const sp<ISurfaceTexture>& surface) {
+    Composer::getInstance().setDisplaySurface(token, surface);
+}
+
+void SurfaceComposerClient::setDisplayLayerStack(const sp<IBinder>& token,
+        uint32_t layerStack) {
+    Composer::getInstance().setDisplayLayerStack(token, layerStack);
+}
+
+void SurfaceComposerClient::setDisplayOrientation(const sp<IBinder>& token,
+        uint32_t orientation) {
+    Composer::getInstance().setDisplayOrientation(token, orientation);
+}
+
+void SurfaceComposerClient::setDisplayViewport(const sp<IBinder>& token,
+        const Rect& viewport) {
+    Composer::getInstance().setDisplayViewport(token, viewport);
+}
+
+void SurfaceComposerClient::setDisplayFrame(const sp<IBinder>& token,
+        const Rect& frame) {
+    Composer::getInstance().setDisplayFrame(token, frame);
+}
+
+// ----------------------------------------------------------------------------
+
 status_t SurfaceComposerClient::getDisplayInfo(
         DisplayID dpy, DisplayInfo* info)
 {
-    return getComposerService()->getDisplayInfo(dpy, info);
+    return ComposerService::getComposerService()->getDisplayInfo(dpy, info);
 }
 
 // ----------------------------------------------------------------------------

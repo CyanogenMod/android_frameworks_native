@@ -179,6 +179,23 @@ public:
         return result;
     }
 
+    virtual sp<IBinder> createDisplay()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        remote()->transact(BnSurfaceComposer::CREATE_DISPLAY, data, &reply);
+        return reply.readStrongBinder();
+    }
+
+    virtual sp<IBinder> getBuiltInDisplay(int32_t id)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeInt32(id);
+        remote()->transact(BnSurfaceComposer::GET_BUILT_IN_DISPLAY, data, &reply);
+        return reply.readStrongBinder();
+    }
+
     virtual void blank()
     {
         Parcel data, reply;
@@ -284,6 +301,19 @@ status_t BnSurfaceComposer::onTransact(
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             sp<IDisplayEventConnection> connection(createDisplayEventConnection());
             reply->writeStrongBinder(connection->asBinder());
+            return NO_ERROR;
+        } break;
+        case CREATE_DISPLAY: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display(createDisplay());
+            reply->writeStrongBinder(display);
+            return NO_ERROR;
+        } break;
+        case GET_BUILT_IN_DISPLAY: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            int32_t id = data.readInt32();
+            sp<IBinder> display(getBuiltInDisplay(id));
+            reply->writeStrongBinder(display);
             return NO_ERROR;
         } break;
         case BLANK: {
