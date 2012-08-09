@@ -80,7 +80,7 @@ void LayerScreenshot::initTexture(GLfloat u, GLfloat v) {
 
 void LayerScreenshot::initStates(uint32_t w, uint32_t h, uint32_t flags) {
     LayerBaseClient::initStates(w, h, flags);
-    if (!(flags & ISurfaceComposer::eHidden)) {
+    if (!(flags & ISurfaceComposerClient::eHidden)) {
         capture();
     }
 }
@@ -90,15 +90,15 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
     const LayerBase::State& draw(drawingState());
     const LayerBase::State& curr(currentState());
 
-    if (draw.flags & ISurfaceComposer::eLayerHidden) {
-        if (!(curr.flags & ISurfaceComposer::eLayerHidden)) {
+    if (draw.flags & layer_state_t::eLayerHidden) {
+        if (!(curr.flags & layer_state_t::eLayerHidden)) {
             // we're going from hidden to visible
             status_t err = captureLocked();
             if (err != NO_ERROR) {
                 ALOGW("createScreenshotSurface failed (%s)", strerror(-err));
             }
         }
-    } else if (curr.flags & ISurfaceComposer::eLayerHidden) {
+    } else if (curr.flags & layer_state_t::eLayerHidden) {
         // we're going from visible to hidden
         if (mTextureName) {
             glDeleteTextures(1, &mTextureName);

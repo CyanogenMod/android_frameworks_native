@@ -33,6 +33,23 @@ class ISurfaceComposerClient;
 
 struct layer_state_t {
 
+
+    enum {
+        eLayerHidden        = 0x01,
+    };
+
+    enum {
+        ePositionChanged            = 0x00000001,
+        eLayerChanged               = 0x00000002,
+        eSizeChanged                = 0x00000004,
+        eAlphaChanged               = 0x00000008,
+        eMatrixChanged              = 0x00000010,
+        eTransparentRegionChanged   = 0x00000020,
+        eVisibilityChanged          = 0x00000040,
+        eLayerStackChanged          = 0x00000080,
+        eCropChanged                = 0x00000100,
+    };
+
     layer_state_t()
         :   surface(0), what(0),
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
@@ -79,6 +96,16 @@ struct ComposerState {
 };
 
 struct DisplayState {
+
+    enum {
+        eOrientationDefault     = 0,
+        eOrientation90          = 1,
+        eOrientation180         = 2,
+        eOrientation270         = 3,
+        eOrientationUnchanged   = 4,
+        eOrientationSwapMask    = 0x01
+    };
+
     int32_t             displayId;
     sp<ISurfaceTexture> surface;
     uint32_t            layerStack;
