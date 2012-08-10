@@ -56,6 +56,12 @@ public:
         virtual ~EventHandler() {}
     };
 
+    enum {
+        MAIN = 0,
+        HDMI = 1,
+        MAX_DISPLAYS
+    };
+
     HWComposer(const sp<SurfaceFlinger>& flinger, EventHandler& handler);
     ~HWComposer();
 
@@ -77,14 +83,11 @@ public:
     status_t acquire() const;
 
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
-    status_t createWorkList(size_t numLayers);
-
-    // get the layer array created by createWorkList()
-    size_t getNumLayers() const;
+    status_t createWorkList(int32_t id, size_t numLayers);
 
     // get number of layers of the given type as updated in prepare().
     // type is HWC_OVERLAY or HWC_FRAMEBUFFER
-    size_t getLayerCount(int type) const;
+    size_t getLayerCount(int32_t id, int type) const;
 
     // needed forward declarations
     class LayerListIterator;
@@ -175,10 +178,10 @@ public:
     };
 
     // Returns an iterator to the beginning of the layer list
-    LayerListIterator begin();
+    LayerListIterator begin(int32_t id);
 
     // Returns an iterator to the end of the layer list
-    LayerListIterator end();
+    LayerListIterator end(int32_t id);
 
 
     // Events handling ---------------------------------------------------------
@@ -215,9 +218,9 @@ public:
             const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
 
 private:
-    enum { MAX_DISPLAYS = 1 };
 
-    LayerListIterator getLayerIterator(size_t index);
+    LayerListIterator getLayerIterator(int32_t id, size_t index);
+    size_t getNumLayers(int32_t id) const;
 
     struct cb_context;
 
@@ -227,6 +230,7 @@ private:
     inline void invalidate();
     inline void vsync(int dpy, int64_t timestamp);
 
+
     sp<SurfaceFlinger>              mFlinger;
     hw_module_t const*              mModule;
     struct hwc_composer_device_1*   mHwc;
@@ -234,6 +238,7 @@ private:
     // TODO: decide whether mLists[i>0] should be non-NULL when display i is
     //       not attached/enabled.
     struct hwc_display_contents_1*  mLists[MAX_DISPLAYS];
+
     size_t                          mCapacity;
     mutable size_t                  mNumOVLayers;
     mutable size_t                  mNumFBLayers;
