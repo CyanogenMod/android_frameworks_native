@@ -620,7 +620,7 @@ public:
  * returns an iterator initialized at a given index in the layer list
  */
 HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t index) { // FIXME: handle multiple displays
-    if (index > hwcNumHwLayers(mHwc, mLists[0]))
+    if (!mHwc || index > hwcNumHwLayers(mHwc, mLists[0]))
         return LayerListIterator();
     if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
         return LayerListIterator(new HWCLayerVersion1(mLists[0]->hwLayers),
