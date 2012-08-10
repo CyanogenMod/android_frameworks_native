@@ -2095,6 +2095,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
     // only one display supported for now
     if (CC_UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT)) {
+        ALOGE("invalid display %d", dpy);
         return BAD_VALUE;
     }
 
@@ -2109,10 +2110,12 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
     // if we have secure windows on this display, never allow the screen capture
     if (hw->getSecureLayerVisible()) {
+        ALOGW("FB is protected: PERMISSION_DENIED");
         return PERMISSION_DENIED;
     }
 
     if ((sw > hw_w) || (sh > hw_h)) {
+        ALOGE("size mismatch (%d, %d) > (%d, %d)", sw, sh, hw_w, hw_h);
         return BAD_VALUE;
     }
 
@@ -2121,8 +2124,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     const size_t size = sw * sh * 4;
     const bool filtering = sw != hw_w || sh != hw_h;
 
-    //ALOGD("screenshot: sw=%d, sh=%d, minZ=%d, maxZ=%d",
-    //        sw, sh, minLayerZ, maxLayerZ);
+//    ALOGD("screenshot: sw=%d, sh=%d, minZ=%d, maxZ=%d",
+//            sw, sh, minLayerZ, maxLayerZ);
 
     // make sure to clear all GL error flags
     while ( glGetError() != GL_NO_ERROR ) ;
@@ -2209,7 +2212,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
     hw->compositionComplete();
 
-    // ALOGD("screenshot: result = %s", result<0 ? strerror(result) : "OK");
+//    ALOGD("screenshot: result = %s", result<0 ? strerror(result) : "OK");
 
     return result;
 }
