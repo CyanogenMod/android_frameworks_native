@@ -857,7 +857,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const DisplayDeviceState& state(curr[i]);
                     if (state.layerStack != draw[i].layerStack) {
                         const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
-                        //disp->setLayerStack(state.layerStack); // FIXME: set layer stack
+                        disp->setLayerStack(state.layerStack);
                     }
                     if (curr[i].orientation != draw[i].orientation) {
                         const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
