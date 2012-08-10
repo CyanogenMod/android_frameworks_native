@@ -244,6 +244,7 @@ void DisplayDevice::makeCurrent(const sp<const DisplayDevice>& hw, EGLContext ct
 
 void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
     mVisibleLayersSortedByZ = layers;
+    mSecureLayerVisible = false;
     size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
         if (layers[i]->isSecure()) {
