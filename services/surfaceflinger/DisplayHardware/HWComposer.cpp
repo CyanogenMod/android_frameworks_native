@@ -91,7 +91,7 @@ static int hwcEventControl(hwc_composer_device_1_t* hwc, int dpy,
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
         return hwc->methods->eventControl(hwc, dpy, event, enabled);
     } else {
-        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
         return hwc0->methods->eventControl(hwc0, event, enabled);
     }
 }
@@ -101,7 +101,7 @@ static int hwcBlank(hwc_composer_device_1_t* hwc, int dpy, int blank) {
         return hwc->methods->blank(hwc, dpy, blank);
     } else {
         if (blank) {
-            hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
+            hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
             return hwc0->set(hwc0, NULL, NULL, NULL);
         } else {
             // HWC 0.x turns the screen on at the next set()
@@ -115,8 +115,8 @@ static int hwcPrepare(hwc_composer_device_1_t* hwc,
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
         return hwc->prepare(hwc, numDisplays, displays);
     } else {
-        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)displays[0];
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(displays[0]);
         // In the past, SurfaceFlinger would pass a NULL list when doing full
         // OpenGL ES composition. I don't know what, if any, dependencies there
         // are on this behavior, so I'm playing it safe and preserving it.
@@ -135,8 +135,8 @@ static int hwcSet(hwc_composer_device_1_t* hwc, EGLDisplay dpy, EGLSurface sur,
         displays[0]->sur = sur;
         err = hwc->set(hwc, numDisplays, displays);
     } else {
-        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)displays[0];
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(displays[0]);
         err = hwc0->set(hwc0, dpy, sur, list0);
     }
     return err;
@@ -147,8 +147,7 @@ static uint32_t& hwcFlags(hwc_composer_device_1_t* hwc,
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
         return display->flags;
     } else {
-        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)display;
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(display);
         return list0->flags;
     }
 }
@@ -158,8 +157,7 @@ static size_t& hwcNumHwLayers(hwc_composer_device_1_t* hwc,
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
         return display->numHwLayers;
     } else {
-        hwc_composer_device_t* hwc0 = (hwc_composer_device_t*)hwc;
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)display;
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(display);
         return list0->numHwLayers;
     }
 }
@@ -236,7 +234,7 @@ HWComposer::HWComposer(
             }
 
             // create initial empty display contents for display 0
-            createWorkList(0);
+            createWorkList(MAIN, 0);
         }
     }
 
@@ -332,8 +330,12 @@ void HWComposer::eventControl(int event, int enabled) {
     }
 }
 
-status_t HWComposer::createWorkList(size_t numLayers) {
+status_t HWComposer::createWorkList(int32_t id, size_t numLayers) { // FIXME: handle multiple displays
+    if (uint32_t(id) >= MAX_DISPLAYS)
+        return BAD_INDEX;
+
     if (mHwc) {
+        // TODO: must handle multiple displays here
         // mLists[0] is NULL only when this is called from the constructor
         if (!mLists[0] || mCapacity < numLayers) {
             free(mLists[0]);
@@ -356,21 +358,27 @@ status_t HWComposer::prepare() const {
     if (err == NO_ERROR) {
         size_t numOVLayers = 0;
         size_t numFBLayers = 0;
-        size_t count = getNumLayers();
+        size_t count = getNumLayers(0);
+
         for (size_t i=0 ; i<count ; i++) {
-            hwc_layer_1_t* l = NULL;
+            int compositionType;
             if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                l = &mLists[0]->hwLayers[i];
+                hwc_layer_1_t* l = &mLists[0]->hwLayers[i];
+                if (l->flags & HWC_SKIP_LAYER) {
+                    l->compositionType = HWC_FRAMEBUFFER;
+                }
+                compositionType = l->compositionType;
             } else {
                 // mList really has hwc_layer_list_t memory layout
-                hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
-                hwc_layer_t* layer = &list0->hwLayers[i];
-                l = (hwc_layer_1_t*)layer;
+                hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(mLists[0]);
+                hwc_layer_t* l = &list0->hwLayers[i];
+                if (l->flags & HWC_SKIP_LAYER) {
+                    l->compositionType = HWC_FRAMEBUFFER;
+                }
+                compositionType = l->compositionType;
             }
-            if (l->flags & HWC_SKIP_LAYER) {
-                l->compositionType = HWC_FRAMEBUFFER;
-            }
-            switch (l->compositionType) {
+
+            switch (compositionType) {
                 case HWC_OVERLAY:
                     numOVLayers++;
                     break;
@@ -385,7 +393,7 @@ status_t HWComposer::prepare() const {
     return (status_t)err;
 }
 
-size_t HWComposer::getLayerCount(int type) const {
+size_t HWComposer::getLayerCount(int32_t id, int type) const { // FIXME: handle multiple displays
     switch (type) {
         case HWC_OVERLAY:
             return mNumOVLayers;
@@ -437,7 +445,7 @@ status_t HWComposer::disable() {
     return NO_ERROR;
 }
 
-size_t HWComposer::getNumLayers() const {
+size_t HWComposer::getNumLayers(int32_t id) const { // FIXME: handle multiple displays
     return mHwc ? hwcNumHwLayers(mHwc, mLists[0]) : 0;
 }
 
@@ -611,14 +619,14 @@ public:
 /*
  * returns an iterator initialized at a given index in the layer list
  */
-HWComposer::LayerListIterator HWComposer::getLayerIterator(size_t index) {
+HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t index) { // FIXME: handle multiple displays
     if (index > hwcNumHwLayers(mHwc, mLists[0]))
         return LayerListIterator();
     if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
         return LayerListIterator(new HWCLayerVersion1(mLists[0]->hwLayers),
                 index);
     } else {
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(mLists[0]);
         return LayerListIterator(new HWCLayerVersion0(list0->hwLayers), index);
     }
 }
@@ -626,21 +634,21 @@ HWComposer::LayerListIterator HWComposer::getLayerIterator(size_t index) {
 /*
  * returns an iterator on the beginning of the layer list
  */
-HWComposer::LayerListIterator HWComposer::begin() {
-    return getLayerIterator(0);
+HWComposer::LayerListIterator HWComposer::begin(int32_t id) { // FIXME: handle multiple displays
+    return getLayerIterator(id, 0);
 }
 
 /*
  * returns an iterator on the end of the layer list
  */
-HWComposer::LayerListIterator HWComposer::end() {
-    return getLayerIterator(getNumLayers());
+HWComposer::LayerListIterator HWComposer::end(int32_t id) { // FIXME: handle multiple displays
+    return getLayerIterator(id, getNumLayers(id));
 }
 
 void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {
     if (mHwc) {
-        hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(mLists[0]);
 
         result.append("Hardware Composer state:\n");
         result.appendFormat("  mDebugForceFakeVSync=%d\n",
@@ -652,13 +660,12 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                 "----------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
         //      " ________ | ________ | ________ | ________ | __ | _____ | ________ | [_____,_____,_____,_____] | [_____,_____,_____,_____]
         for (size_t i=0 ; i<hwcNumHwLayers(mHwc, mLists[0]) ; i++) {
-            hwc_layer_1_t l;
+            hwc_layer_1_t const* lp;
             if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                l = mLists[0]->hwLayers[i];
+                lp = &mLists[0]->hwLayers[i];
             } else {
-                hwc_layer_list_t* list0 = (hwc_layer_list_t*)mLists[0];
-                *(hwc_layer_t*)&l = list0->hwLayers[i];
-                l.acquireFenceFd = l.releaseFenceFd = -1;
+                // FIXME: here we rely on hwc_layer_1_t and hwc_layer_t having the same layout
+                lp = reinterpret_cast<hwc_layer_1_t const*>(&list0->hwLayers[i]);
             }
             const sp<LayerBase> layer(visibleLayersSortedByZ[i]);
             int32_t format = -1;
@@ -668,6 +675,7 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                     format = buffer->getPixelFormat();
                 }
             }
+            const hwc_layer_1_t& l(*lp);
             result.appendFormat(
                     " %8s | %08x | %08x | %08x | %02x | %05x | %08x | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] %s\n",
                     l.compositionType ? "OVERLAY" : "FB",

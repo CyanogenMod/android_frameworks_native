@@ -96,6 +96,7 @@ public:
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
     uint32_t                getLayerStack() const { return mLayerStack; }
+    int32_t                 getDisplayId() const { return mId; }
 
     status_t compositionComplete() const;
     

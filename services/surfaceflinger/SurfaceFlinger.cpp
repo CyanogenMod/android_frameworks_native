@@ -454,8 +454,8 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
 }
 
 status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
-    // TODO: this is here only for compatibility -- show go away eventually.
-    if (uint32_t(dpy) >= 2) {
+    // TODO: this is here only for compatibility -- should go away eventually.
+    if (uint32_t(dpy) >= 1) {
         return BAD_INDEX;
     }
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
@@ -628,25 +628,26 @@ void SurfaceFlinger::handleMessageRefresh() {
             const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
 
-            hwc.createWorkList(count); // FIXME: the worklist should include enough space for all layer of all displays
+            const int32_t id = hw->getDisplayId();
+            if (hwc.createWorkList(id, count) >= 0) {
+                HWComposer::LayerListIterator cur = hwc.begin(id);
+                const HWComposer::LayerListIterator end = hwc.end(id);
+                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                    const sp<LayerBase>& layer(currentLayers[i]);
 
-            HWComposer::LayerListIterator cur = hwc.begin();
-            const HWComposer::LayerListIterator end = hwc.end();
-            for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-                const sp<LayerBase>& layer(currentLayers[i]);
-
-                if (CC_UNLIKELY(workListsDirty)) {
-                    layer->setGeometry(hw, *cur);
-                    if (mDebugDisableHWC || mDebugRegion) {
-                        cur->setSkip(true);
+                    if (CC_UNLIKELY(workListsDirty)) {
+                        layer->setGeometry(hw, *cur);
+                        if (mDebugDisableHWC || mDebugRegion) {
+                            cur->setSkip(true);
+                        }
                     }
-                }
 
-                /*
-                 * update the per-frame h/w composer data for each layer
-                 * and build the transparent region of the FB
-                 */
-                layer->setPerFrameData(hw, *cur);
+                    /*
+                     * update the per-frame h/w composer data for each layer
+                     * and build the transparent region of the FB
+                     */
+                    layer->setPerFrameData(hw, *cur);
+                }
             }
         }
         status_t err = hwc.prepare();
@@ -738,8 +739,9 @@ void SurfaceFlinger::postFramebuffer()
         if (hwc.initCheck() == NO_ERROR) {
             const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
-            HWComposer::LayerListIterator cur = hwc.begin();
-            const HWComposer::LayerListIterator end = hwc.end();
+            const int32_t id = hw->getDisplayId();
+            HWComposer::LayerListIterator cur = hwc.begin(id);
+            const HWComposer::LayerListIterator end = hwc.end(id);
             for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
                 const sp<LayerBase>& layer(currentLayers[i]);
                 layer->setAcquireFence(hw, *cur);
@@ -759,8 +761,9 @@ void SurfaceFlinger::postFramebuffer()
         const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
         if (hwc.initCheck() == NO_ERROR) {
-            HWComposer::LayerListIterator cur = hwc.begin();
-            const HWComposer::LayerListIterator end = hwc.end();
+            int32_t id = hw->getDisplayId();
+            HWComposer::LayerListIterator cur = hwc.begin(id);
+            const HWComposer::LayerListIterator end = hwc.end(id);
             for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
                 currentLayers[i]->onLayerDisplayed(hw, &*cur);
             }
@@ -1152,10 +1155,11 @@ void SurfaceFlinger::handleRepaint(const sp<const DisplayDevice>& hw,
 void SurfaceFlinger::composeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
     HWComposer& hwc(getHwComposer());
-    HWComposer::LayerListIterator cur = hwc.begin();
-    const HWComposer::LayerListIterator end = hwc.end();
+    int32_t id = hw->getDisplayId();
+    HWComposer::LayerListIterator cur = hwc.begin(id);
+    const HWComposer::LayerListIterator end = hwc.end(id);
 
-    const size_t fbLayerCount = hwc.getLayerCount(HWC_FRAMEBUFFER);  // FIXME: this should be per display
+    const size_t fbLayerCount = hwc.getLayerCount(id, HWC_FRAMEBUFFER);
     if (cur==end || fbLayerCount) {
 
         DisplayDevice::makeCurrent(hw, mEGLContext);
@@ -1165,7 +1169,7 @@ void SurfaceFlinger::composeSurfaces(const sp<const DisplayDevice>& hw, const Re
         glLoadIdentity();
 
         // Never touch the framebuffer if we don't have any framebuffer layers
-        if (hwc.getLayerCount(HWC_OVERLAY)) { // FIXME: this should be per display
+        if (hwc.getLayerCount(id, HWC_OVERLAY)) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some
