@@ -142,7 +142,7 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
     Vector<ComposerState> state;
     Vector<DisplayState> displays;
     DisplayState d;
-    d.orientation = eOrientationDefault;
+    d.orientation = DisplayState::eOrientationDefault;
     displays.add(d);
     setTransactionState(state, displays, 0);
 
@@ -970,7 +970,7 @@ void SurfaceFlinger::computeVisibleRegions(
 
 
         // handle hidden surfaces by setting the visible region to empty
-        if (CC_LIKELY(!(s.flags & ISurfaceComposer::eLayerHidden) && s.alpha)) {
+        if (CC_LIKELY(!(s.flags & layer_state_t::eLayerHidden) && s.alpha)) {
             const bool translucent = !layer->isOpaque();
             Rect bounds(layer->computeBounds());
             visibleRegion.set(bounds);
@@ -1366,7 +1366,7 @@ void SurfaceFlinger::setTransactionState(
 {
     Mutex::Autolock _l(mStateLock);
 
-    int orientation = eOrientationUnchanged;
+    int orientation = DisplayState::eOrientationUnchanged;
     if (displays.size()) {
         // TODO: handle all displays
         orientation = displays[0].orientation;
@@ -1375,10 +1375,10 @@ void SurfaceFlinger::setTransactionState(
     uint32_t transactionFlags = 0;
     // FIXME: don't hardcode display id here
     if (mCurrentState.displays.valueFor(0).orientation != orientation) {
-        if (uint32_t(orientation)<=eOrientation270 || orientation==42) {
+        if (uint32_t(orientation) <= DisplayState::eOrientation270) {
             mCurrentState.displays.editValueFor(0).orientation = orientation;
             transactionFlags |= eTransactionNeeded;
-        } else if (orientation != eOrientationUnchanged) {
+        } else if (orientation != DisplayState::eOrientationUnchanged) {
             ALOGW("setTransactionState: ignoring unrecognized orientation: %d",
                     orientation);
         }
@@ -1430,17 +1430,15 @@ sp<ISurface> SurfaceFlinger::createLayer(
     }
 
     //ALOGD("createLayer for (%d x %d), name=%s", w, h, name.string());
-    switch (flags & eFXSurfaceMask) {
-        case eFXSurfaceNormal:
+    switch (flags & ISurfaceComposerClient::eFXSurfaceMask) {
+        case ISurfaceComposerClient::eFXSurfaceNormal:
             layer = createNormalLayer(client, d, w, h, flags, format);
             break;
-        case eFXSurfaceBlur:
-            // for now we treat Blur as Dim, until we can implement it
-            // efficiently.
-        case eFXSurfaceDim:
+        case ISurfaceComposerClient::eFXSurfaceBlur:
+        case ISurfaceComposerClient::eFXSurfaceDim:
             layer = createDimLayer(client, d, w, h, flags);
             break;
-        case eFXSurfaceScreenshot:
+        case ISurfaceComposerClient::eFXSurfaceScreenshot:
             layer = createScreenshotLayer(client, d, w, h, flags);
             break;
     }
@@ -1564,11 +1562,11 @@ uint32_t SurfaceFlinger::setClientStateLocked(
     sp<LayerBaseClient> layer(client->getLayerUser(s.surface));
     if (layer != 0) {
         const uint32_t what = s.what;
-        if (what & ePositionChanged) {
+        if (what & layer_state_t::ePositionChanged) {
             if (layer->setPosition(s.x, s.y))
                 flags |= eTraversalNeeded;
         }
-        if (what & eLayerChanged) {
+        if (what & layer_state_t::eLayerChanged) {
             // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
             if (layer->setLayer(s.z)) {
@@ -1579,32 +1577,32 @@ uint32_t SurfaceFlinger::setClientStateLocked(
                 flags |= eTransactionNeeded|eTraversalNeeded;
             }
         }
-        if (what & eSizeChanged) {
+        if (what & layer_state_t::eSizeChanged) {
             if (layer->setSize(s.w, s.h)) {
                 flags |= eTraversalNeeded;
             }
         }
-        if (what & eAlphaChanged) {
+        if (what & layer_state_t::eAlphaChanged) {
             if (layer->setAlpha(uint8_t(255.0f*s.alpha+0.5f)))
                 flags |= eTraversalNeeded;
         }
-        if (what & eMatrixChanged) {
+        if (what & layer_state_t::eMatrixChanged) {
             if (layer->setMatrix(s.matrix))
                 flags |= eTraversalNeeded;
         }
-        if (what & eTransparentRegionChanged) {
+        if (what & layer_state_t::eTransparentRegionChanged) {
             if (layer->setTransparentRegionHint(s.transparentRegion))
                 flags |= eTraversalNeeded;
         }
-        if (what & eVisibilityChanged) {
+        if (what & layer_state_t::eVisibilityChanged) {
             if (layer->setFlags(s.flags, s.mask))
                 flags |= eTraversalNeeded;
         }
-        if (what & eCropChanged) {
+        if (what & layer_state_t::eCropChanged) {
             if (layer->setCrop(s.crop))
                 flags |= eTraversalNeeded;
         }
-        if (what & eLayerStackChanged) {
+        if (what & layer_state_t::eLayerStackChanged) {
             // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
             if (layer->setLayerStack(s.layerStack)) {
@@ -1907,7 +1905,6 @@ status_t SurfaceFlinger::onTransact(
     switch (code) {
         case CREATE_CONNECTION:
         case SET_TRANSACTION_STATE:
-        case SET_ORIENTATION:
         case BOOT_FINISHED:
         case BLANK:
         case UNBLANK:
@@ -2162,7 +2159,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
         for (size_t i=0 ; i<count ; ++i) {
             const sp<LayerBase>& layer(layers[i]);
             const uint32_t flags = layer->drawingState().flags;
-            if (!(flags & ISurfaceComposer::eLayerHidden)) {
+            if (!(flags & layer_state_t::eLayerHidden)) {
                 const uint32_t z = layer->drawingState().z;
                 if (z >= minLayerZ && z <= maxLayerZ) {
                     if (filtering) layer->setFiltering(true);

@@ -59,39 +59,6 @@ void checkGLErrors()
     } while(true);
 }
 
-static __attribute__((noinline))
-void checkEGLErrors(const char* token)
-{
-    struct EGLUtils {
-        static const char *strerror(EGLint err) {
-            switch (err){
-                case EGL_SUCCESS:           return "EGL_SUCCESS";
-                case EGL_NOT_INITIALIZED:   return "EGL_NOT_INITIALIZED";
-                case EGL_BAD_ACCESS:        return "EGL_BAD_ACCESS";
-                case EGL_BAD_ALLOC:         return "EGL_BAD_ALLOC";
-                case EGL_BAD_ATTRIBUTE:     return "EGL_BAD_ATTRIBUTE";
-                case EGL_BAD_CONFIG:        return "EGL_BAD_CONFIG";
-                case EGL_BAD_CONTEXT:       return "EGL_BAD_CONTEXT";
-                case EGL_BAD_CURRENT_SURFACE: return "EGL_BAD_CURRENT_SURFACE";
-                case EGL_BAD_DISPLAY:       return "EGL_BAD_DISPLAY";
-                case EGL_BAD_MATCH:         return "EGL_BAD_MATCH";
-                case EGL_BAD_NATIVE_PIXMAP: return "EGL_BAD_NATIVE_PIXMAP";
-                case EGL_BAD_NATIVE_WINDOW: return "EGL_BAD_NATIVE_WINDOW";
-                case EGL_BAD_PARAMETER:     return "EGL_BAD_PARAMETER";
-                case EGL_BAD_SURFACE:       return "EGL_BAD_SURFACE";
-                case EGL_CONTEXT_LOST:      return "EGL_CONTEXT_LOST";
-                default: return "UNKNOWN";
-            }
-        }
-    };
-
-    EGLint error = eglGetError();
-    if (error && error != EGL_SUCCESS) {
-        ALOGE("%s: EGL error 0x%04x (%s)",
-                token, int(error), EGLUtils::strerror(error));
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 /*
@@ -220,7 +187,7 @@ void DisplayDevice::init(EGLConfig config)
     mPageFlipCount = 0;
 
     // initialize the display orientation transform.
-    DisplayDevice::setOrientation(ISurfaceComposer::eOrientationDefault);
+    DisplayDevice::setOrientation(DisplayState::eOrientationDefault);
 }
 
 uint32_t DisplayDevice::getPageFlipCount() const {
@@ -325,16 +292,16 @@ status_t DisplayDevice::orientationToTransfrom(
 {
     uint32_t flags = 0;
     switch (orientation) {
-    case ISurfaceComposer::eOrientationDefault:
+    case DisplayState::eOrientationDefault:
         flags = Transform::ROT_0;
         break;
-    case ISurfaceComposer::eOrientation90:
+    case DisplayState::eOrientation90:
         flags = Transform::ROT_90;
         break;
-    case ISurfaceComposer::eOrientation180:
+    case DisplayState::eOrientation180:
         flags = Transform::ROT_180;
         break;
-    case ISurfaceComposer::eOrientation270:
+    case DisplayState::eOrientation270:
         flags = Transform::ROT_270;
         break;
     default:
@@ -350,7 +317,7 @@ status_t DisplayDevice::setOrientation(int orientation) {
 
     DisplayDevice::orientationToTransfrom(
             orientation, w, h, &mGlobalTransform);
-    if (orientation & ISurfaceComposer::eOrientationSwapMask) {
+    if (orientation & DisplayState::eOrientationSwapMask) {
         int tmp = w;
         w = h;
         h = tmp;

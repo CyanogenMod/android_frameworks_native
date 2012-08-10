@@ -83,7 +83,7 @@ class Composer : public Singleton<Composer>
     uint32_t                    mForceSynchronous;
 
     Composer() : Singleton<Composer>(),
-        mOrientation(ISurfaceComposer::eOrientationUnchanged),
+        mOrientation(DisplayState::eOrientationUnchanged),
         mForceSynchronous(0)
     { }
 
@@ -141,7 +141,7 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
         item.orientation = mOrientation;
         displayTransaction.add(item);
 
-        mOrientation = ISurfaceComposer::eOrientationUnchanged;
+        mOrientation = DisplayState::eOrientationUnchanged;
 
         if (synchronous || mForceSynchronous) {
             flags |= ISurfaceComposer::eSynchronous;
@@ -175,7 +175,7 @@ status_t Composer::setPosition(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::ePositionChanged;
+    s->what |= layer_state_t::ePositionChanged;
     s->x = x;
     s->y = y;
     return NO_ERROR;
@@ -187,7 +187,7 @@ status_t Composer::setSize(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eSizeChanged;
+    s->what |= layer_state_t::eSizeChanged;
     s->w = w;
     s->h = h;
 
@@ -203,7 +203,7 @@ status_t Composer::setLayer(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eLayerChanged;
+    s->what |= layer_state_t::eLayerChanged;
     s->z = z;
     return NO_ERROR;
 }
@@ -215,7 +215,7 @@ status_t Composer::setFlags(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eVisibilityChanged;
+    s->what |= layer_state_t::eVisibilityChanged;
     s->flags &= ~mask;
     s->flags |= (flags & mask);
     s->mask |= mask;
@@ -229,7 +229,7 @@ status_t Composer::setTransparentRegionHint(
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eTransparentRegionChanged;
+    s->what |= layer_state_t::eTransparentRegionChanged;
     s->transparentRegion = transparentRegion;
     return NO_ERROR;
 }
@@ -240,7 +240,7 @@ status_t Composer::setAlpha(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eAlphaChanged;
+    s->what |= layer_state_t::eAlphaChanged;
     s->alpha = alpha;
     return NO_ERROR;
 }
@@ -251,7 +251,7 @@ status_t Composer::setLayerStack(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eLayerStackChanged;
+    s->what |= layer_state_t::eLayerStackChanged;
     s->layerStack = layerStack;
     return NO_ERROR;
 }
@@ -263,7 +263,7 @@ status_t Composer::setMatrix(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eMatrixChanged;
+    s->what |= layer_state_t::eMatrixChanged;
     layer_state_t::matrix22_t matrix;
     matrix.dsdx = dsdx;
     matrix.dtdx = dtdx;
@@ -289,7 +289,7 @@ status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    s->what |= ISurfaceComposer::eCropChanged;
+    s->what |= layer_state_t::eCropChanged;
     s->crop = crop;
     return NO_ERROR;
 }
@@ -420,14 +420,14 @@ status_t SurfaceComposerClient::setLayer(SurfaceID id, int32_t z) {
 
 status_t SurfaceComposerClient::hide(SurfaceID id) {
     return getComposer().setFlags(this, id,
-            ISurfaceComposer::eLayerHidden,
-            ISurfaceComposer::eLayerHidden);
+            layer_state_t::eLayerHidden,
+            layer_state_t::eLayerHidden);
 }
 
 status_t SurfaceComposerClient::show(SurfaceID id, int32_t) {
     return getComposer().setFlags(this, id,
             0,
-            ISurfaceComposer::eLayerHidden);
+            layer_state_t::eLayerHidden);
 }
 
 status_t SurfaceComposerClient::setFlags(SurfaceID id, uint32_t flags,

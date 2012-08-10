@@ -182,9 +182,9 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
 
     mFormat = format;
 
-    mSecure = (flags & ISurfaceComposer::eSecure) ? true : false;
-    mProtectedByApp = (flags & ISurfaceComposer::eProtectedByApp) ? true : false;
-    mOpaqueLayer = (flags & ISurfaceComposer::eOpaque);
+    mSecure = (flags & ISurfaceComposerClient::eSecure) ? true : false;
+    mProtectedByApp = (flags & ISurfaceComposerClient::eProtectedByApp) ? true : false;
+    mOpaqueLayer = (flags & ISurfaceComposerClient::eOpaque);
     mCurrentOpacity = getOpacityForFormat(format);
 
     mSurfaceTexture->setDefaultBufferSize(w, h);
