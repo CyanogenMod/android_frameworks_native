@@ -106,14 +106,21 @@ struct DisplayState {
         eOrientationSwapMask    = 0x01
     };
 
-    int32_t             displayId;
+    enum {
+        eSurfaceChanged     = 0x1,
+        eLayerStackChanged  = 0x2,
+        eTransformChanged   = 0x4
+    };
+
+    uint32_t what;
+    sp<IBinder> token;
     sp<ISurfaceTexture> surface;
-    uint32_t            layerStack;
-    uint32_t            orientation;
-    Rect                viewport;
-    Rect                frame;
-    status_t    write(Parcel& output) const;
-    status_t    read(const Parcel& input);
+    uint32_t layerStack;
+    uint32_t orientation;
+    Rect viewport;
+    Rect frame;
+    status_t write(Parcel& output) const;
+    status_t read(const Parcel& input);
 };
 
 }; // namespace android

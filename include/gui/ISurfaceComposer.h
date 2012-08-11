@@ -48,6 +48,11 @@ public:
         eSynchronous = 0x01,
     };
 
+    enum {
+        eDisplayIdMain = 0,
+        eDisplayIdHdmi = 1
+    };
+
     /* create connection with surface flinger, requires
      * ACCESS_SURFACE_FLINGER permission
      */
@@ -56,6 +61,19 @@ public:
     /* create a graphic buffer allocator
      */
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc() = 0;
+
+    /* return an IDisplayEventConnection */
+    virtual sp<IDisplayEventConnection> createDisplayEventConnection() = 0;
+
+    /* create a display with given id.
+     * requires ACCESS_SURFACE_FLINGER permission.
+     */
+    virtual sp<IBinder> createDisplay() = 0;
+
+    /* get the token for the existing default displays. possible values
+     * for id are eDisplayIdMain and eDisplayIdHdmi.
+     */
+    virtual sp<IBinder> getBuiltInDisplay(int32_t id) = 0;
 
     /* open/close transactions. requires ACCESS_SURFACE_FLINGER permission */
     virtual void setTransactionState(const Vector<ComposerState>& state,
@@ -66,6 +84,11 @@ public:
      */
     virtual void bootFinished() = 0;
 
+    /* verify that an ISurfaceTexture was created by SurfaceFlinger.
+     */
+    virtual bool authenticateSurfaceTexture(
+            const sp<ISurfaceTexture>& surface) const = 0;
+
     /* Capture the specified screen. requires READ_FRAME_BUFFER permission
      * This function will fail if there is a secure window on screen.
      */
@@ -74,13 +97,6 @@ public:
             uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
             uint32_t maxLayerZ) = 0;
 
-    /* verify that an ISurfaceTexture was created by SurfaceFlinger.
-     */
-    virtual bool authenticateSurfaceTexture(
-            const sp<ISurfaceTexture>& surface) const = 0;
-
-    /* return an IDisplayEventConnection */
-    virtual sp<IDisplayEventConnection> createDisplayEventConnection() = 0;
 
     /* triggers screen off and waits for it to complete */
     virtual void blank() = 0;
@@ -106,13 +122,15 @@ public:
         BOOT_FINISHED = IBinder::FIRST_CALL_TRANSACTION,
         CREATE_CONNECTION,
         CREATE_GRAPHIC_BUFFER_ALLOC,
-        GET_DISPLAY_INFO,
-        SET_TRANSACTION_STATE,
-        CAPTURE_SCREEN,
-        AUTHENTICATE_SURFACE,
         CREATE_DISPLAY_EVENT_CONNECTION,
+        CREATE_DISPLAY,
+        GET_BUILT_IN_DISPLAY,
+        SET_TRANSACTION_STATE,
+        AUTHENTICATE_SURFACE,
+        CAPTURE_SCREEN,
         BLANK,
         UNBLANK,
+        GET_DISPLAY_INFO,
         CONNECT_DISPLAY,
     };
 

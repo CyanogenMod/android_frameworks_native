@@ -51,7 +51,8 @@ public:
 
     enum {
         DISPLAY_ID_MAIN = 0,
-        DISPLAY_ID_HDMI = 1
+        DISPLAY_ID_HDMI = 1,
+        DISPLAY_ID_COUNT
     };
 
     enum {

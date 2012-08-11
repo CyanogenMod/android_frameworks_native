@@ -59,6 +59,13 @@ public:
     // Forcibly remove connection before all references have gone away.
     void        dispose();
 
+    // callback when the composer is dies
+    status_t linkToComposerDeath(const sp<IBinder::DeathRecipient>& recipient,
+            void* cookie = NULL, uint32_t flags = 0);
+
+    // Get information about a display
+    static status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
+
     // ------------------------------------------------------------------------
     // surface creation / destruction
 
@@ -80,13 +87,14 @@ public:
             uint32_t flags = 0  // usage flags
     );
 
+    static sp<IBinder> createDisplay();
 
     // ------------------------------------------------------------------------
     // Composer parameters
     // All composer parameters must be changed within a transaction
     // several surfaces can be updated in one transaction, all changes are
     // committed at once when the transaction is closed.
-    // closeGlobalTransaction() usually requires an IPC with the server.
+    // closeGlobalTransaction() requires an IPC with the server.
 
     //! Open a composer transaction on all active SurfaceComposerClients.
     static void openGlobalTransaction();
@@ -96,12 +104,6 @@ public:
 
     //! Set the orientation of the given display
     static int setOrientation(DisplayID dpy, int orientation, uint32_t flags);
-
-    // Get information about a display
-    static status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
-
-    status_t linkToComposerDeath(const sp<IBinder::DeathRecipient>& recipient,
-            void* cookie = NULL, uint32_t flags = 0);
 
     status_t    hide(SurfaceID id);
     status_t    show(SurfaceID id, int32_t layer = -1);
@@ -115,6 +117,16 @@ public:
     status_t    setCrop(SurfaceID id, const Rect& crop);
     status_t    setLayerStack(SurfaceID id, uint32_t layerStack);
     status_t    destroySurface(SurfaceID sid);
+
+    static void setDisplaySurface(const sp<IBinder>& token,
+            const sp<ISurfaceTexture>& surface);
+    static void setDisplayLayerStack(const sp<IBinder>& token,
+            uint32_t layerStack);
+    static void setDisplayOrientation(const sp<IBinder>& token,
+            uint32_t orientation);
+    static void setDisplayViewport(const sp<IBinder>& token,
+            const Rect& viewport);
+    static void setDisplayFrame(const sp<IBinder>& token, const Rect& frame);
 
 private:
     virtual void onFirstRef();
