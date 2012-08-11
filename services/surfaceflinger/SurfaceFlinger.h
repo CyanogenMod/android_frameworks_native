@@ -78,7 +78,10 @@ public:
 // ---------------------------------------------------------------------------
 
 enum {
-    eTransactionNeeded = 0x01, eTraversalNeeded = 0x02
+    eTransactionNeeded        = 0x01,
+    eTraversalNeeded          = 0x02,
+    eDisplayTransactionNeeded = 0x04,
+    eTransactionMask          = 0x07
 };
 
 class SurfaceFlinger : public BinderService<SurfaceFlinger>,
@@ -158,19 +161,18 @@ private:
 
     struct DisplayDeviceState {
         DisplayDeviceState();
+        DisplayDeviceState(int32_t id);
         int32_t id;
+        sp<ISurfaceTexture> surface;
         uint32_t layerStack;
         Rect viewport;
         Rect frame;
         uint8_t orientation;
-        inline bool operator < (const DisplayDeviceState& rhs) const {
-            return id < rhs.id;
-        }
     };
 
     struct State {
         LayerVector layersSortedByZ;
-        KeyedVector<int32_t, DisplayDeviceState> displays;
+        DefaultKeyedVector< wp<IBinder>, DisplayDeviceState> displays;
     };
 
     /* ------------------------------------------------------------------------
@@ -185,6 +187,8 @@ private:
      */
     virtual sp<ISurfaceComposerClient> createConnection();
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc();
+    virtual sp<IBinder> createDisplay();
+    virtual sp<IBinder> getBuiltInDisplay(int32_t id);
     virtual void setTransactionState(const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays, uint32_t flags);
     virtual void bootFinished();
@@ -256,6 +260,7 @@ private:
     void commitTransaction();
     uint32_t setClientStateLocked(const sp<Client>& client,
         const layer_state_t& s);
+    uint32_t setDisplayStateLocked(const DisplayState& s);
 
     /* ------------------------------------------------------------------------
      * Layer management
@@ -391,6 +396,7 @@ private:
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
+    sp<IBinder> mDefaultDisplays[DisplayDevice::DISPLAY_ID_COUNT];
 
     // Can only accessed from the main thread, these members
     // don't need synchronization
