@@ -41,7 +41,7 @@ class Parcel;
 
 // ----------------------------------------------------------------------------
 
-class Sensor : public ASensor, public Flattenable
+class Sensor : public ASensor, public LightFlattenable<Sensor>
 {
 public:
     enum {
@@ -54,7 +54,7 @@ public:
 
             Sensor();
             Sensor(struct sensor_t const* hwSensor);
-    virtual ~Sensor();
+            ~Sensor();
 
     const String8& getName() const;
     const String8& getVendor() const;
@@ -68,13 +68,11 @@ public:
     nsecs_t getMinDelayNs() const;
     int32_t getVersion() const;
 
-    // Flattenable interface
-    virtual size_t getFlattenedSize() const;
-    virtual size_t getFdCount() const;
-    virtual status_t flatten(void* buffer, size_t size,
-            int fds[], size_t count) const;
-    virtual status_t unflatten(void const* buffer, size_t size,
-            int fds[], size_t count);
+    // LightFlattenable protocol
+    inline bool isFixedSize() const { return false; }
+    size_t getSize() const;
+    status_t flatten(void* buffer) const;
+    status_t unflatten(void const* buffer, size_t size);
 
 private:
     String8 mName;

@@ -98,18 +98,13 @@ int32_t Sensor::getVersion() const {
     return mVersion;
 }
 
-size_t Sensor::getFlattenedSize() const
+size_t Sensor::getSize() const
 {
     return  sizeof(int32_t) + ((mName.length() + 3) & ~3) +
             sizeof(int32_t) + ((mVendor.length() + 3) & ~3) +
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
             sizeof(int32_t);
-}
-
-size_t Sensor::getFdCount() const
-{
-    return 0;
 }
 
 static inline
@@ -130,12 +125,8 @@ size_t write(void* buffer, size_t offset, int32_t value) {
     return sizeof(int32_t);
 }
 
-status_t Sensor::flatten(void* buffer, size_t size,
-        int fds[], size_t count) const
+status_t Sensor::flatten(void* buffer) const
 {
-    if (size < Sensor::getFlattenedSize())
-        return -ENOMEM;
-
     size_t offset = 0;
     offset += write(buffer, offset, int32_t(mName.length()));
     offset += write(buffer, offset, mName);
@@ -149,7 +140,6 @@ status_t Sensor::flatten(void* buffer, size_t size,
     offset += write(buffer, offset, mResolution);
     offset += write(buffer, offset, mPower);
     offset += write(buffer, offset, mMinDelay);
-
     return NO_ERROR;
 }
 
@@ -171,8 +161,7 @@ size_t read(void const* buffer, size_t offset, int32_t* value) {
     return sizeof(int32_t);
 }
 
-status_t Sensor::unflatten(void const* buffer, size_t size,
-        int fds[], size_t count)
+status_t Sensor::unflatten(void const* buffer, size_t size)
 {
     int32_t len;
     size_t offset = 0;
@@ -188,7 +177,6 @@ status_t Sensor::unflatten(void const* buffer, size_t size,
     offset += read(buffer, offset, &mResolution);
     offset += read(buffer, offset, &mPower);
     offset += read(buffer, offset, &mMinDelay);
-
     return NO_ERROR;
 }
 

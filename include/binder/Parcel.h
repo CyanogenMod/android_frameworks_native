@@ -22,10 +22,12 @@
 #include <utils/RefBase.h>
 #include <utils/String16.h>
 #include <utils/Vector.h>
+#include <utils/Flattenable.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
 
+template <typename T> class LightFlattenable;
 class Flattenable;
 class IBinder;
 class IPCThreadState;
@@ -102,6 +104,10 @@ public:
     status_t            writeWeakBinder(const wp<IBinder>& val);
     status_t            write(const Flattenable& val);
 
+    template<typename T>
+    status_t            write(const LightFlattenable<T>& val);
+
+
     // Place a native_handle into the parcel (the native_handle's file-
     // descriptors are dup'ed, so it is safe to delete the native_handle
     // when this function returns). 
@@ -152,6 +158,9 @@ public:
     sp<IBinder>         readStrongBinder() const;
     wp<IBinder>         readWeakBinder() const;
     status_t            read(Flattenable& val) const;
+
+    template<typename T>
+    status_t            read(LightFlattenable<T>& val) const;
 
     // Like Parcel.java's readExceptionCode().  Reads the first int32
     // off of a Parcel's header, returning 0 or the negative error
@@ -264,6 +273,40 @@ public:
         inline void* data() { return mData; }
     };
 };
+
+// ---------------------------------------------------------------------------
+
+template<typename T>
+status_t Parcel::write(const LightFlattenable<T>& val) {
+    size_t size(val.getSize());
+    if (!val.isFixedSize()) {
+        status_t err = writeInt32(size);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+    void* buffer = writeInplace(size);
+    return buffer == NULL ? NO_MEMORY :
+        val.flatten(buffer);
+}
+
+template<typename T>
+status_t Parcel::read(LightFlattenable<T>& val) const {
+    size_t size;
+    if (val.isFixedSize()) {
+        size = val.getSize();
+    } else {
+        int32_t s;
+        status_t err = readInt32(&s);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        size = s;
+    }
+    void const* buffer = readInplace(size);
+    return buffer == NULL ? NO_MEMORY :
+        val.unflatten(buffer, size);
+}
 
 // ---------------------------------------------------------------------------
 

@@ -17,6 +17,7 @@
 #ifndef ANDROID_UI_RECT
 #define ANDROID_UI_RECT
 
+#include <utils/Flattenable.h>
 #include <utils/TypeHelpers.h>
 #include <ui/Point.h>
 
@@ -24,7 +25,7 @@
 
 namespace android {
 
-class Rect : public ARect
+class Rect : public ARect, public LightFlattenablePod<Rect>
 {
 public:
     typedef ARect::value_type value_type;
