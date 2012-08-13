@@ -26,14 +26,7 @@ status_t layer_state_t::write(Parcel& output) const
 {
     status_t err;
 
-    size_t len = transparentRegion.write(NULL, 0);
-    err = output.writeInt32(len);
-    if (err < NO_ERROR) return err;
-
-    void* buf = output.writeInplace(len);
-    if (buf == NULL) return NO_MEMORY;
-
-    err = transparentRegion.write(buf, len);
+    err = output.write(transparentRegion);
     if (err < NO_ERROR) return err;
 
     // NOTE: regions are at the end of the structure
@@ -46,11 +39,8 @@ status_t layer_state_t::write(Parcel& output) const
 status_t layer_state_t::read(const Parcel& input)
 {
     status_t err;
-    size_t len = input.readInt32();
-    void const* buf = input.readInplace(len);
-    if (buf == NULL) return NO_MEMORY;
 
-    err = transparentRegion.read(buf);
+    err = input.read(transparentRegion);
     if (err < NO_ERROR) return err;
 
     // NOTE: regions are at the end of the structure
@@ -77,8 +67,8 @@ status_t DisplayState::write(Parcel& output) const {
     output.writeInt32(what);
     output.writeInt32(layerStack);
     output.writeInt32(orientation);
-    memcpy(output.writeInplace(sizeof(Rect)), &viewport, sizeof(Rect));
-    memcpy(output.writeInplace(sizeof(Rect)), &frame, sizeof(Rect));
+    output.write(viewport);
+    output.write(frame);
     return NO_ERROR;
 }
 
@@ -88,8 +78,8 @@ status_t DisplayState::read(const Parcel& input) {
     what = input.readInt32();
     layerStack = input.readInt32();
     orientation = input.readInt32();
-    memcpy(&viewport, input.readInplace(sizeof(Rect)), sizeof(Rect));
-    memcpy(&frame,    input.readInplace(sizeof(Rect)), sizeof(Rect));
+    input.read(viewport);
+    input.read(frame);
     return NO_ERROR;
 }
 

@@ -17,11 +17,12 @@
 #ifndef ANDROID_UI_POINT
 #define ANDROID_UI_POINT
 
+#include <utils/Flattenable.h>
 #include <utils/TypeHelpers.h>
 
 namespace android {
 
-class Point
+class Point : public LightFlattenablePod<Point>
 {
 public:
     int x;

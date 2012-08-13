@@ -23,6 +23,7 @@
 #include <utils/Vector.h>
 
 #include <ui/Rect.h>
+#include <utils/Flattenable.h>
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -30,13 +31,12 @@ namespace android {
 class String8;
 
 // ---------------------------------------------------------------------------
-class Region
+class Region : public LightFlattenable<Region>
 {
 public:
                         Region();
                         Region(const Region& rhs);
     explicit            Region(const Rect& rhs);
-    explicit            Region(const void* buffer);
                         ~Region();
                         
         Region& operator = (const Region& rhs);
@@ -122,12 +122,10 @@ public:
             // be sorted in Y and X and must not make the region invalid.
             void        addRectUnchecked(int l, int t, int r, int b);
 
-            // flatten/unflatten a region to/from a raw buffer
-            ssize_t     write(void* buffer, size_t size) const;
-    static  ssize_t     writeEmpty(void* buffer, size_t size);
-
-            ssize_t     read(const void* buffer);
-    static  bool        isEmpty(void* buffer);
+    inline  bool        isFixedSize() const { return false; }
+            size_t      getSize() const;
+            status_t    flatten(void* buffer) const;
+            status_t    unflatten(void const* buffer, size_t size);
 
     void        dump(String8& out, const char* what, uint32_t flags=0) const;
     void        dump(const char* what, uint32_t flags=0) const;

@@ -55,7 +55,7 @@ public:
         int32_t n = reply.readInt32();
         v.setCapacity(n);
         while (n--) {
-            reply.read(static_cast<Flattenable&>(s));
+            reply.read(s);
             v.add(s);
         }
         return v;
@@ -84,7 +84,7 @@ status_t BnSensorServer::onTransact(
             size_t n = v.size();
             reply->writeInt32(n);
             for (size_t i=0 ; i<n ; i++) {
-                reply->write(static_cast<const Flattenable&>(v[i]));
+                reply->write(v[i]);
             }
             return NO_ERROR;
         } break;

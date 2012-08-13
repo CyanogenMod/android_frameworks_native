@@ -66,12 +66,6 @@ Region::Region(const Rect& rhs)
 {
 }
 
-Region::Region(const void* buffer)
-{
-    status_t err = read(buffer);
-    ALOGE_IF(err<0, "error %s reading Region from buffer", strerror(err));
-}
-
 Region::~Region()
 {
 }
@@ -561,55 +555,33 @@ void Region::translate(Region& dst, const Region& reg, int dx, int dy)
 
 // ----------------------------------------------------------------------------
 
-ssize_t Region::write(void* buffer, size_t size) const
-{
-#if VALIDATE_REGIONS
-    validate(*this, "write(buffer)");
-#endif
-    const size_t count = mStorage.size();
-    const size_t sizeNeeded = sizeof(int32_t) + (1+count)*sizeof(Rect);
-    if (buffer != NULL) {
-        if (sizeNeeded > size) return NO_MEMORY;
-        int32_t* const p = static_cast<int32_t*>(buffer);
-        *p = count;
-        memcpy(p+1, &mBounds, sizeof(Rect));
-        if (count) {
-            memcpy(p+5, mStorage.array(), count*sizeof(Rect));
+size_t Region::getSize() const {
+    return (mStorage.size() + 1) * sizeof(Rect);
+}
+
+status_t Region::flatten(void* buffer) const {
+    Rect* rects = reinterpret_cast<Rect*>(buffer);
+    *rects++ = mBounds;
+    memcpy(rects, mStorage.array(), mStorage.size() * sizeof(Rect));
+    return NO_ERROR;
+}
+
+status_t Region::unflatten(void const* buffer, size_t size) {
+    mStorage.clear();
+    if (size >= sizeof(Rect)) {
+        Rect const* rects = reinterpret_cast<Rect const*>(buffer);
+        mBounds = *rects++;
+        size -= sizeof(Rect);
+        size_t count = size / sizeof(Rect);
+        if (count > 0) {
+            ssize_t err = mStorage.insertAt(0, count);
+            if (err < 0) {
+                return status_t(err);
+            }
+            memcpy(mStorage.editArray(), rects, count*sizeof(Rect));
         }
     }
-    return ssize_t(sizeNeeded);
-}
-
-ssize_t Region::read(const void* buffer)
-{
-    int32_t const* const p = static_cast<int32_t const*>(buffer); 
-    const size_t count = *p;
-    memcpy(&mBounds, p+1, sizeof(Rect));
-    mStorage.clear();
-    if (count) {
-        mStorage.insertAt(0, count);
-        memcpy(mStorage.editArray(), p+5, count*sizeof(Rect));
-    }
-#if VALIDATE_REGIONS
-    validate(*this, "read(buffer)");
-#endif
-    return ssize_t(sizeof(int32_t) + (1+count)*sizeof(Rect));
-}
-
-ssize_t Region::writeEmpty(void* buffer, size_t size)
-{
-    const size_t sizeNeeded = sizeof(int32_t) + sizeof(Rect);
-    if (sizeNeeded > size) return NO_MEMORY;
-    int32_t* const p = static_cast<int32_t*>(buffer); 
-    memset(p, 0, sizeNeeded);
-    return ssize_t(sizeNeeded);
-}
-
-bool Region::isEmpty(void* buffer)
-{
-    int32_t const* const p = static_cast<int32_t const*>(buffer); 
-    Rect const* const b = reinterpret_cast<Rect const *>(p+1);
-    return b->isEmpty();
+    return NO_ERROR;
 }
 
 // ----------------------------------------------------------------------------
