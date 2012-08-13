@@ -122,7 +122,7 @@ LOCAL_SRC_FILES:= 		\
 	GLES2/gl2.cpp.arm 	\
 #
 
-LOCAL_SHARED_LIBRARIES += libcutils libEGL
+LOCAL_SHARED_LIBRARIES += libcutils libutils libEGL
 LOCAL_LDLIBS := -lpthread -ldl
 LOCAL_MODULE:= libGLESv2
 
