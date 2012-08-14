@@ -142,6 +142,8 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
     Vector<ComposerState> state;
     Vector<DisplayState> displays;
     DisplayState d;
+    d.what = DisplayState::eTransformChanged;
+    d.token = mDefaultDisplays[DisplayDevice::DISPLAY_ID_MAIN];
     d.orientation = DisplayState::eOrientationDefault;
     displays.add(d);
     setTransactionState(state, displays, 0);
