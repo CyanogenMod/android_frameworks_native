@@ -1746,6 +1746,8 @@ void SurfaceFlinger::onScreenAcquired() {
     getHwComposer().acquire();
     hw->acquireScreen();
     mEventThread->onScreenAcquired();
+    mVisibleRegionsDirty = true;
+    repaintEverything();
 }
 
 void SurfaceFlinger::onScreenReleased() {
