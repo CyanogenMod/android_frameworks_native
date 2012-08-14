@@ -420,7 +420,9 @@ status_t SurfaceFlinger::readyToRun()
     mEventQueue.setEventThread(mEventThread);
 
     // initialize the H/W composer
-    mHwc = new HWComposer(this, *static_cast<HWComposer::EventHandler *>(this));
+    mHwc = new HWComposer(this,
+            *static_cast<HWComposer::EventHandler *>(this),
+            fbs->getFbHal());
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
@@ -497,13 +499,48 @@ status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
     if (uint32_t(dpy) >= 1) {
         return BAD_INDEX;
     }
+
+    const HWComposer& hwc(getHwComposer());
+    float xdpi = hwc.getDpiX();
+    float ydpi = hwc.getDpiY();
+
+    // TODO: Not sure if display density should handled by SF any longer
+    class Density {
+        static int getDensityFromProperty(char const* propName) {
+            char property[PROPERTY_VALUE_MAX];
+            int density = 0;
+            if (property_get(propName, property, NULL) > 0) {
+                density = atoi(property);
+            }
+            return density;
+        }
+    public:
+        static int getEmuDensity() {
+            return getDensityFromProperty("qemu.sf.lcd_density"); }
+        static int getBuildDensity()  {
+            return getDensityFromProperty("ro.sf.lcd_density"); }
+    };
+    // The density of the device is provided by a build property
+    float density = Density::getBuildDensity() / 160.0f;
+    if (density == 0) {
+        // the build doesn't provide a density -- this is wrong!
+        // use xdpi instead
+        ALOGE("ro.sf.lcd_density must be defined as a build property");
+        density = xdpi / 160.0f;
+    }
+    if (Density::getEmuDensity()) {
+        // if "qemu.sf.lcd_density" is specified, it overrides everything
+        xdpi = ydpi = density = Density::getEmuDensity();
+        density /= 160.0f;
+    }
+
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     info->w = hw->getWidth();
     info->h = hw->getHeight();
-    info->xdpi = hw->getDpiX();
-    info->ydpi = hw->getDpiY();
-    info->fps = float(1e9 / getHwComposer().getRefreshPeriod());
-    info->density = hw->getDensity();
+    info->xdpi = xdpi;
+    info->ydpi = ydpi;
+    info->fps = float(1e9 / hwc.getRefreshPeriod());
+    info->density = density;
     info->orientation = hw->getOrientation();
     // TODO: this needs to go away (currently needed only by webkit)
     getPixelFormatInfo(hw->getFormat(), &info->pixelFormatInfo);
@@ -1940,15 +1977,13 @@ void SurfaceFlinger::dumpAllLocked(
             "  transaction-flags         : %08x\n"
             "  refresh-rate              : %f fps\n"
             "  x-dpi                     : %f\n"
-            "  y-dpi                     : %f\n"
-            "  density                   : %f\n",
+            "  y-dpi                     : %f\n",
             mLastSwapBufferTime/1000.0,
             mLastTransactionTime/1000.0,
             mTransactionFlags,
             1e9 / hwc.getRefreshPeriod(),
-            hw->getDpiX(),
-            hw->getDpiY(),
-            hw->getDensity());
+            hwc.getDpiX(),
+            hwc.getDpiY());
     result.append(buffer);
 
     snprintf(buffer, SIZE, "  eglSwapBuffers time: %f us\n",

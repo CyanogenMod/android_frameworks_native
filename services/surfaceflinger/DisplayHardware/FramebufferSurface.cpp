@@ -175,19 +175,6 @@ void FramebufferSurface::freeBufferLocked(int slotIndex) {
     }
 }
 
-float FramebufferSurface::getRefreshRate() const {
-    /* FIXME: REFRESH_RATE is a temporary HACK until we are able to report the
-     * refresh rate properly from the HAL. The WindowManagerService now relies
-     * on this value.
-     */
-#ifndef REFRESH_RATE
-    return fbDev->fps;
-#else
-    return REFRESH_RATE;
-#warning "refresh rate set via makefile to REFRESH_RATE"
-#endif
-}
-
 status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
 {
     return INVALID_OPERATION;

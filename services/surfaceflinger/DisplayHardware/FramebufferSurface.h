@@ -38,9 +38,6 @@ public:
 
     static sp<FramebufferSurface> create();
 
-    // TODO: this should be coming from HWC
-    float getRefreshRate() const;
-
     bool isUpdateOnDemand() const { return false; }
     status_t setUpdateRectangle(const Rect& updateRect);
     status_t compositionComplete();
@@ -51,6 +48,13 @@ public:
     // BufferQueue and releases the previously latched buffer to the
     // BufferQueue.  The new buffer is returned in the 'buffer' argument.
     status_t nextBuffer(sp<GraphicBuffer>* buffer);
+
+    // FIXME: currently there are information we can only get from the
+    // FB HAL, and FB HAL can only be instantiated once on some devices.
+    // Eventually this functionality will have to move in HWC or somewhere else.
+    const framebuffer_device_t* getFbHal() const {
+        return fbDev;
+    }
 
 private:
     FramebufferSurface();

@@ -36,6 +36,7 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
 struct hwc_composer_device_1;
 struct hwc_display_contents_1;
 struct hwc_procs;
+struct framebuffer_device_t;
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -62,7 +63,11 @@ public:
         MAX_DISPLAYS
     };
 
-    HWComposer(const sp<SurfaceFlinger>& flinger, EventHandler& handler);
+    HWComposer(
+            const sp<SurfaceFlinger>& flinger,
+            EventHandler& handler,
+            framebuffer_device_t const* fbDev);
+
     ~HWComposer();
 
     status_t initCheck() const;
@@ -194,6 +199,8 @@ public:
 
     nsecs_t getRefreshPeriod() const;
     nsecs_t getRefreshTimestamp() const;
+    float getDpiX() const;
+    float getDpiY() const;
 
     // this class is only used to fake the VSync event on systems that don't
     // have it.
@@ -245,6 +252,8 @@ private:
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
     nsecs_t                         mRefreshPeriod;
+    float                           mDpiX;
+    float                           mDpiY;
     size_t                          mVSyncCount;
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
