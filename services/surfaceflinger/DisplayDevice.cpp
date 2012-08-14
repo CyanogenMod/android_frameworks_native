@@ -79,8 +79,6 @@ DisplayDevice::DisplayDevice(
       mDisplay(EGL_NO_DISPLAY),
       mSurface(EGL_NO_SURFACE),
       mContext(EGL_NO_CONTEXT),
-      mDpiX(), mDpiY(),
-      mDensity(),
       mDisplayWidth(), mDisplayHeight(), mFormat(),
       mFlags(),
       mPageFlipCount(),
@@ -101,18 +99,6 @@ DisplayDevice::~DisplayDevice() {
 
 bool DisplayDevice::isValid() const {
     return mFlinger != NULL;
-}
-
-float DisplayDevice::getDpiX() const {
-    return mDpiX;
-}
-
-float DisplayDevice::getDpiY() const {
-    return mDpiY;
-}
-
-float DisplayDevice::getDensity() const {
-    return mDensity;
 }
 
 int DisplayDevice::getWidth() const {
@@ -137,38 +123,6 @@ void DisplayDevice::init(EGLConfig config)
 
     int format;
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
-    mDpiX = window->xdpi;
-    mDpiY = window->ydpi;
-
-    // TODO: Not sure if display density should handled by SF any longer
-    class Density {
-        static int getDensityFromProperty(char const* propName) {
-            char property[PROPERTY_VALUE_MAX];
-            int density = 0;
-            if (property_get(propName, property, NULL) > 0) {
-                density = atoi(property);
-            }
-            return density;
-        }
-    public:
-        static int getEmuDensity() {
-            return getDensityFromProperty("qemu.sf.lcd_density"); }
-        static int getBuildDensity()  {
-            return getDensityFromProperty("ro.sf.lcd_density"); }
-    };
-    // The density of the device is provided by a build property
-    mDensity = Density::getBuildDensity() / 160.0f;
-    if (mDensity == 0) {
-        // the build doesn't provide a density -- this is wrong!
-        // use xdpi instead
-        ALOGE("ro.sf.lcd_density must be defined as a build property");
-        mDensity = mDpiX / 160.0f;
-    }
-    if (Density::getEmuDensity()) {
-        // if "qemu.sf.lcd_density" is specified, it overrides everything
-        mDpiX = mDpiY = mDensity = Density::getEmuDensity();
-        mDensity /= 160.0f;
-    }
 
     /*
      * Create our display's surface

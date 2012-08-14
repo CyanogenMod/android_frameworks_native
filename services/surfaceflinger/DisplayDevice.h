@@ -77,9 +77,6 @@ public:
     // be instantaneous, might involve copying the frame buffer around.
     void flip(const Region& dirty) const;
 
-    float       getDpiX() const;
-    float       getDpiY() const;
-    float       getDensity() const;
     int         getWidth() const;
     int         getHeight() const;
     PixelFormat getFormat() const;
@@ -144,9 +141,6 @@ private:
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;
     EGLContext      mContext;
-    float           mDpiX;
-    float           mDpiY;
-    float           mDensity;
     int             mDisplayWidth;
     int             mDisplayHeight;
     PixelFormat     mFormat;

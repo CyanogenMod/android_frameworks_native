@@ -179,7 +179,8 @@ struct HWComposer::cb_context {
 
 HWComposer::HWComposer(
         const sp<SurfaceFlinger>& flinger,
-        EventHandler& handler)
+        EventHandler& handler,
+        framebuffer_device_t const* fbDev)
     : mFlinger(flinger),
       mModule(0), mHwc(0), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
@@ -238,19 +239,14 @@ HWComposer::HWComposer(
         }
     }
 
-    if (mRefreshPeriod == 0) {
-        // for compatibility, we attempt to get the refresh rate from
-        // the FB HAL if we couldn't get it from the HWC HAL.
-        hw_module_t const* module;
-        if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
-            framebuffer_device_t* fbDev;
-            int err = framebuffer_open(module, &fbDev);
-            if (!err && fbDev) {
-                mRefreshPeriod = nsecs_t(1e9 / fbDev->fps);
-                framebuffer_close(fbDev);
-            }
+
+    if (fbDev) {
+        if (mRefreshPeriod == 0) {
+            mRefreshPeriod = nsecs_t(1e9 / fbDev->fps);
+            ALOGW("getting VSYNC period from fb HAL: %lld", mRefreshPeriod);
         }
-        ALOGW("getting VSYNC period from fb HAL: %lld", mRefreshPeriod);
+        mDpiX = fbDev->xdpi;
+        mDpiY = fbDev->ydpi;
     }
 
     if (mRefreshPeriod == 0) {
@@ -311,6 +307,14 @@ nsecs_t HWComposer::getRefreshTimestamp() const {
     Mutex::Autolock _l(mLock);
     nsecs_t now = systemTime(CLOCK_MONOTONIC);
     return now - ((now - mLastHwVSync) %  mRefreshPeriod);
+}
+
+float HWComposer::getDpiX() const {
+    return mDpiX;
+}
+
+float HWComposer::getDpiY() const {
+    return mDpiY;
 }
 
 void HWComposer::eventControl(int event, int enabled) {
