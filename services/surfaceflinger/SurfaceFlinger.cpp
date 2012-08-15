@@ -1715,7 +1715,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, SurfaceID sid)
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);
         if (err == NO_ERROR) {
-            setTransactionFlags(eDisplayTransactionNeeded);
+            setTransactionFlags(eTransactionNeeded);
         }
     }
     return err;
