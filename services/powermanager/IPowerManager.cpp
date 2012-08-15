@@ -30,7 +30,7 @@ namespace android {
 // must be kept in sync with IPowerManager.aidl
 enum {
     ACQUIRE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION,
-    RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 4,
+    RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 1,
 };
 
 class BpPowerManager : public BpInterface<IPowerManager>
@@ -46,11 +46,10 @@ public:
         Parcel data, reply;
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
 
-        data.writeInt32(flags);
         data.writeStrongBinder(lock);
+        data.writeInt32(flags);
         data.writeString16(tag);
-        // no WorkSource passed
-        data.writeInt32(0);
+        data.writeInt32(0); // no WorkSource
         return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply);
     }
 
