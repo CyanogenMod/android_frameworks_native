@@ -891,8 +891,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
      * (perform the transaction for each of them if needed)
      */
 
-    const bool layersNeedTransaction = transactionFlags & eTraversalNeeded;
-    if (layersNeedTransaction) {
+    if (transactionFlags & eTraversalNeeded) {
         for (size_t i=0 ; i<count ; i++) {
             const sp<LayerBase>& layer = currentLayers[i];
             uint32_t trFlags = layer->getTransactionFlags(eTransactionNeeded);
@@ -905,7 +904,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
     }
 
     /*
-     * Perform our own transaction if needed
+     * Perform display own transactions if needed
      */
 
     if (transactionFlags & eDisplayTransactionNeeded) {
@@ -978,31 +977,35 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 }
             }
         }
+    }
 
-        if (currentLayers.size() > mDrawingState.layersSortedByZ.size()) {
-            // layers have been added
-            mVisibleRegionsDirty = true;
-        }
+    /*
+     * Perform our own transaction if needed
+     */
 
-        // some layers might have been removed, so
-        // we need to update the regions they're exposing.
-        if (mLayersRemoved) {
-            mLayersRemoved = false;
-            mVisibleRegionsDirty = true;
-            const LayerVector& previousLayers(mDrawingState.layersSortedByZ);
-            const size_t count = previousLayers.size();
-            for (size_t i=0 ; i<count ; i++) {
-                const sp<LayerBase>& layer(previousLayers[i]);
-                if (currentLayers.indexOf(layer) < 0) {
-                    // this layer is not visible anymore
-                    // TODO: we could traverse the tree from front to back and
-                    //       compute the actual visible region
-                    // TODO: we could cache the transformed region
-                    Layer::State front(layer->drawingState());
-                    Region visibleReg = front.transform.transform(
-                            Region(Rect(front.active.w, front.active.h)));
-                    invalidateLayerStack(front.layerStack, visibleReg);
-                }
+    if (currentLayers.size() > mDrawingState.layersSortedByZ.size()) {
+        // layers have been added
+        mVisibleRegionsDirty = true;
+    }
+
+    // some layers might have been removed, so
+    // we need to update the regions they're exposing.
+    if (mLayersRemoved) {
+        mLayersRemoved = false;
+        mVisibleRegionsDirty = true;
+        const LayerVector& previousLayers(mDrawingState.layersSortedByZ);
+        const size_t count = previousLayers.size();
+        for (size_t i=0 ; i<count ; i++) {
+            const sp<LayerBase>& layer(previousLayers[i]);
+            if (currentLayers.indexOf(layer) < 0) {
+                // this layer is not visible anymore
+                // TODO: we could traverse the tree from front to back and
+                //       compute the actual visible region
+                // TODO: we could cache the transformed region
+                Layer::State front(layer->drawingState());
+                Region visibleReg = front.transform.transform(
+                        Region(Rect(front.active.w, front.active.h)));
+                invalidateLayerStack(front.layerStack, visibleReg);
             }
         }
     }
