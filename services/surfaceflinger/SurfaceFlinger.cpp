@@ -1406,7 +1406,7 @@ status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
     Mutex::Autolock _l(mStateLock);
     status_t err = purgatorizeLayer_l(layer);
     if (err == NO_ERROR)
-        setTransactionFlags(eTransactionNeeded);
+        setTransactionFlags(eDisplayTransactionNeeded);
     return err;
 }
 
@@ -1712,7 +1712,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, SurfaceID sid)
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);
         if (err == NO_ERROR) {
-            setTransactionFlags(eTransactionNeeded);
+            setTransactionFlags(eDisplayTransactionNeeded);
         }
     }
     return err;
