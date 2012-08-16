@@ -87,6 +87,7 @@ public:
     void                    setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers);
     Vector< sp<LayerBase> > getVisibleLayersSortedByZ() const;
     bool                    getSecureLayerVisible() const;
+    Region                  getDirtyRegion(bool repaintEverything) const;
 
     status_t                setOrientation(int orientation);
     void                    setLayerStack(uint32_t stack);

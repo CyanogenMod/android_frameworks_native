@@ -649,20 +649,101 @@ void SurfaceFlinger::handleMessageTransaction() {
 }
 
 void SurfaceFlinger::handleMessageInvalidate() {
+    ATRACE_CALL();
     handlePageFlip();
 }
 
 void SurfaceFlinger::handleMessageRefresh() {
-    handleRefresh();
+    ATRACE_CALL();
+    preComposition();
+    rebuildLayerStacks();
+    setUpHWComposer();
+    doDebugFlashRegions();
+    doComposition();
+    postComposition();
+}
 
+void SurfaceFlinger::doDebugFlashRegions()
+{
+    // is debugging enabled
+    if (CC_LIKELY(!mDebugRegion))
+        return;
+
+    const bool repaintEverything = mRepaintEverything;
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        const sp<DisplayDevice>& hw(mDisplays[dpy]);
+        if (hw->canDraw()) {
+            // transform the dirty region into this screen's coordinate space
+            const Region dirtyRegion(hw->getDirtyRegion(repaintEverything));
+            if (!dirtyRegion.isEmpty()) {
+                // redraw the whole screen
+                doComposeSurfaces(hw, Region(hw->bounds()));
+
+                // and draw the dirty region
+                glDisable(GL_TEXTURE_EXTERNAL_OES);
+                glDisable(GL_TEXTURE_2D);
+                glDisable(GL_BLEND);
+                glColor4f(1, 0, 1, 1);
+                const int32_t height = hw->getHeight();
+                Region::const_iterator it = dirtyRegion.begin();
+                Region::const_iterator const end = dirtyRegion.end();
+                while (it != end) {
+                    const Rect& r = *it++;
+                    GLfloat vertices[][2] = {
+                            { r.left,  height - r.top },
+                            { r.left,  height - r.bottom },
+                            { r.right, height - r.bottom },
+                            { r.right, height - r.top }
+                    };
+                    glVertexPointer(2, GL_FLOAT, 0, vertices);
+                    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+                }
+                hw->compositionComplete();
+                // FIXME
+                if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
+                    eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
+                }
+            }
+        }
+    }
+
+    postFramebuffer();
+
+    if (mDebugRegion > 1) {
+        usleep(mDebugRegion * 1000);
+    }
+}
+
+void SurfaceFlinger::preComposition()
+{
+    bool needExtraInvalidate = false;
+    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+    const size_t count = currentLayers.size();
+    for (size_t i=0 ; i<count ; i++) {
+        if (currentLayers[i]->onPreComposition()) {
+            needExtraInvalidate = true;
+        }
+    }
+    if (needExtraInvalidate) {
+        signalLayerUpdate();
+    }
+}
+
+void SurfaceFlinger::postComposition()
+{
+    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+    const size_t count = currentLayers.size();
+    for (size_t i=0 ; i<count ; i++) {
+        currentLayers[i]->onPostComposition();
+    }
+}
+
+void SurfaceFlinger::rebuildLayerStacks() {
+    // rebuild the visible layer list per screen
     if (CC_UNLIKELY(mVisibleRegionsDirty)) {
+        ATRACE_CALL();
         mVisibleRegionsDirty = false;
         invalidateHwcGeometry();
-
-        /*
-         *  rebuild the visible layer list per screen
-         */
-
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
@@ -684,10 +765,13 @@ void SurfaceFlinger::handleMessageRefresh() {
             }
             hw->setVisibleLayersSortedByZ(layersSortedByZ);
             hw->undefinedRegion.set(hw->getBounds());
-            hw->undefinedRegion.subtractSelf(hw->getTransform().transform(opaqueRegion));
+            hw->undefinedRegion.subtractSelf(
+                    hw->getTransform().transform(opaqueRegion));
         }
     }
+}
 
+void SurfaceFlinger::setUpHWComposer() {
     HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         // build the h/w work list
@@ -695,7 +779,8 @@ void SurfaceFlinger::handleMessageRefresh() {
         mHwWorkListDirty = false;
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
-            const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
+            const Vector< sp<LayerBase> >& currentLayers(
+                    hw->getVisibleLayersSortedByZ());
             const size_t count = currentLayers.size();
 
             const int32_t id = hw->getDisplayId();
@@ -723,32 +808,27 @@ void SurfaceFlinger::handleMessageRefresh() {
         status_t err = hwc.prepare();
         ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
     }
+}
 
+void SurfaceFlinger::doComposition() {
+    ATRACE_CALL();
     const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<DisplayDevice>& hw(mDisplays[dpy]);
-
-        // transform the dirty region into this screen's coordinate space
-        const Transform& planeTransform(hw->getTransform());
-        Region dirtyRegion;
-        if (repaintEverything) {
-            dirtyRegion.set(hw->bounds());
-        } else {
-            dirtyRegion = planeTransform.transform(hw->dirtyRegion);
-            dirtyRegion.andSelf(hw->bounds());
-        }
-        hw->dirtyRegion.clear();
-
-        if (!dirtyRegion.isEmpty()) {
-            if (hw->canDraw()) {
+        if (hw->canDraw()) {
+            // transform the dirty region into this screen's coordinate space
+            const Region dirtyRegion(hw->getDirtyRegion(repaintEverything));
+            if (!dirtyRegion.isEmpty()) {
                 // repaint the framebuffer (if needed)
-                handleRepaint(hw, dirtyRegion);
+                doDisplayComposition(hw, dirtyRegion);
             }
+            hw->dirtyRegion.clear();
+            hw->flip(hw->swapRegion);
+            hw->swapRegion.clear();
         }
         // inform the h/w that we're done compositing
         hw->compositionComplete();
     }
-
     postFramebuffer();
 }
 
@@ -760,30 +840,13 @@ void SurfaceFlinger::postFramebuffer()
     mDebugInSwapBuffers = now;
 
     HWComposer& hwc(getHwComposer());
-
-    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
-        const sp<DisplayDevice>& hw(mDisplays[dpy]);
-        if (hwc.initCheck() == NO_ERROR) {
-            const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
-            const size_t count = currentLayers.size();
-            const int32_t id = hw->getDisplayId();
-            HWComposer::LayerListIterator cur = hwc.begin(id);
-            const HWComposer::LayerListIterator end = hwc.end(id);
-            for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-                const sp<LayerBase>& layer(currentLayers[i]);
-                layer->setAcquireFence(hw, *cur);
-            }
-        }
-        hw->flip(hw->swapRegion);
-        hw->swapRegion.clear();
-    }
-
     if (hwc.initCheck() == NO_ERROR) {
         // FIXME: eventually commit() won't take arguments
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
-        DisplayDevice::makeCurrent(getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN), mEGLContext);
+        DisplayDevice::makeCurrent(
+                getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN), mEGLContext);
         hwc.commit(mEGLDisplay, getDefaultDisplayDevice()->getEGLSurface());
     }
 
@@ -798,18 +861,7 @@ void SurfaceFlinger::postFramebuffer()
             for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
                 currentLayers[i]->onLayerDisplayed(hw, &*cur);
             }
-        }
-
-        // FIXME: we need to call eglSwapBuffers() on displays that have
-        // GL composition and only on those.
-        // however, currently hwc.commit() already does that for the main
-        // display and never for the other ones
-        if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
-            // FIXME: EGL spec says:
-            //   "surface must be bound to the calling thread's current context,
-            //    for the current rendering API."
-            DisplayDevice::makeCurrent(hw, mEGLContext);
-            eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
+        } else {
             for (size_t i = 0; i < count; i++) {
                 currentLayers[i]->onLayerDisplayed(hw, NULL);
             }
@@ -944,7 +996,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
      * Perform our own transaction if needed
      */
 
-    if (currentLayers.size() > mDrawingState.layersSortedByZ.size()) {
+    const LayerVector& previousLayers(mDrawingState.layersSortedByZ);
+    if (currentLayers.size() > previousLayers.size()) {
         // layers have been added
         mVisibleRegionsDirty = true;
     }
@@ -954,7 +1007,6 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
     if (mLayersRemoved) {
         mLayersRemoved = false;
         mVisibleRegionsDirty = true;
-        const LayerVector& previousLayers(mDrawingState.layersSortedByZ);
         const size_t count = previousLayers.size();
         for (size_t i=0 ; i<count ; i++) {
             const sp<LayerBase>& layer(previousLayers[i]);
@@ -1130,16 +1182,13 @@ void SurfaceFlinger::invalidateLayerStack(uint32_t layerStack,
 
 void SurfaceFlinger::handlePageFlip()
 {
-    ATRACE_CALL();
     Region dirtyRegion;
 
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-
     bool visibleRegions = false;
+    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
     const size_t count = currentLayers.size();
-    sp<LayerBase> const* layers = currentLayers.array();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(layers[i]);
+        const sp<LayerBase>& layer(currentLayers[i]);
         const Region dirty(layer->latchBuffer(visibleRegions));
         Layer::State s(layer->drawingState());
         invalidateLayerStack(s.layerStack, dirty);
@@ -1153,35 +1202,14 @@ void SurfaceFlinger::invalidateHwcGeometry()
     mHwWorkListDirty = true;
 }
 
-void SurfaceFlinger::handleRefresh()
-{
-    bool needInvalidate = false;
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const size_t count = currentLayers.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
-        if (layer->onPreComposition()) {
-            needInvalidate = true;
-        }
-    }
-    if (needInvalidate) {
-        signalLayerUpdate();
-    }
-}
 
-void SurfaceFlinger::handleRepaint(const sp<const DisplayDevice>& hw,
+void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         const Region& inDirtyRegion)
 {
-    ATRACE_CALL();
-
     Region dirtyRegion(inDirtyRegion);
 
     // compute the invalid region
     hw->swapRegion.orSelf(dirtyRegion);
-
-    if (CC_UNLIKELY(mDebugRegion)) {
-        debugFlashRegions(hw, dirtyRegion);
-    }
 
     uint32_t flags = hw->getFlags();
     if (flags & DisplayDevice::SWAP_RECTANGLE) {
@@ -1203,19 +1231,24 @@ void SurfaceFlinger::handleRepaint(const sp<const DisplayDevice>& hw,
         }
     }
 
-    composeSurfaces(hw, dirtyRegion);
+    doComposeSurfaces(hw, dirtyRegion);
 
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const size_t count = currentLayers.size();
-    for (size_t i=0 ; i<count ; i++) {
-        currentLayers[i]->onPostComposition();
+    // FIXME: we need to call eglSwapBuffers() on displays that have
+    // GL composition and only on those.
+    // however, currently hwc.commit() already does that for the main
+    // display and never for the other ones
+    if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
+        // FIXME: EGL spec says:
+        //   "surface must be bound to the calling thread's current context,
+        //    for the current rendering API."
+        eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
     }
 
     // update the swap region and clear the dirty region
     hw->swapRegion.orSelf(dirtyRegion);
 }
 
-void SurfaceFlinger::composeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
+void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
     HWComposer& hwc(getHwComposer());
     int32_t id = hw->getDisplayId();
@@ -1259,72 +1292,30 @@ void SurfaceFlinger::composeSurfaces(const sp<const DisplayDevice>& hw, const Re
         for (size_t i=0 ; i<count ; ++i) {
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
-            if (!clip.isEmpty()) {
-                if (cur != end && cur->getCompositionType() == HWC_OVERLAY) {
-                    if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)
-                            && layer->isOpaque()) {
-                        // never clear the very first layer since we're
-                        // guaranteed the FB is already cleared
-                        layer->clearWithOpenGL(hw, clip);
-                    }
-                    ++cur;
-                    continue;
-                }
-                // render the layer
-                layer->draw(hw, clip);
-            }
             if (cur != end) {
+                // we're using h/w composer
+                if (!clip.isEmpty()) {
+                    if (cur->getCompositionType() == HWC_OVERLAY) {
+                        if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)
+                                && layer->isOpaque()) {
+                            // never clear the very first layer since we're
+                            // guaranteed the FB is already cleared
+                            layer->clearWithOpenGL(hw, clip);
+                        }
+                    } else {
+                        layer->draw(hw, clip);
+                    }
+                    layer->setAcquireFence(hw, *cur);
+                }
                 ++cur;
+            } else {
+                // we're not using h/w composer
+                if (!clip.isEmpty()) {
+                    layer->draw(hw, clip);
+                }
             }
         }
     }
-}
-
-void SurfaceFlinger::debugFlashRegions(const sp<const DisplayDevice>& hw,
-        const Region& dirtyRegion)
-{
-    const uint32_t flags = hw->getFlags();
-    const int32_t height = hw->getHeight();
-    if (hw->swapRegion.isEmpty()) {
-        return;
-    }
-
-    if (!(flags & DisplayDevice::SWAP_RECTANGLE)) {
-        const Region repaint((flags & DisplayDevice::PARTIAL_UPDATES) ?
-                dirtyRegion.bounds() : hw->bounds());
-        composeSurfaces(hw, repaint);
-    }
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-
-    static int toggle = 0;
-    toggle = 1 - toggle;
-    if (toggle) {
-        glColor4f(1, 0, 1, 1);
-    } else {
-        glColor4f(1, 1, 0, 1);
-    }
-
-    Region::const_iterator it = dirtyRegion.begin();
-    Region::const_iterator const end = dirtyRegion.end();
-    while (it != end) {
-        const Rect& r = *it++;
-        GLfloat vertices[][2] = {
-                { r.left,  height - r.top },
-                { r.left,  height - r.bottom },
-                { r.right, height - r.bottom },
-                { r.right, height - r.top }
-        };
-        glVertexPointer(2, GL_FLOAT, 0, vertices);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    }
-
-    hw->flip(hw->swapRegion);
-
-    if (mDebugRegion > 1)
-        usleep(mDebugRegion * 1000);
 }
 
 void SurfaceFlinger::drawWormhole(const Region& region) const

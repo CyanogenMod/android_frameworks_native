@@ -248,9 +248,6 @@ private:
      */
     void handlePageFlip();
 
-    void handleRefresh();
-    void handleRepaint(const sp<const DisplayDevice>& hw, const Region& dirtyRegion);
-
     /* ------------------------------------------------------------------------
      * Transactions
      */
@@ -348,8 +345,19 @@ private:
     void computeVisibleRegions(const LayerVector& currentLayers,
             uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
+
+    void preComposition();
+    void postComposition();
+    void rebuildLayerStacks();
+    void setUpHWComposer();
+    void doComposition();
+    void doDebugFlashRegions();
+    void doDisplayComposition(const sp<const DisplayDevice>& hw,
+            const Region& dirtyRegion);
+    void doComposeSurfaces(const sp<const DisplayDevice>& hw,
+            const Region& dirty);
+
     void postFramebuffer();
-    void composeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty);
     void drawWormhole(const Region& region) const;
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
@@ -358,7 +366,6 @@ private:
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
-    void debugFlashRegions(const sp<const DisplayDevice>& hw, const Region& dirtyReg);
     void listLayersLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
