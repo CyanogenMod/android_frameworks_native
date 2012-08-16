@@ -209,6 +209,8 @@ void GLTraceContext::traceGLMessage(GLMessage *msg) {
 
     GLMessage_Function func = msg->function();
     if (func == GLMessage::eglSwapBuffers
+        || func == GLMessage::eglCreateContext
+        || func == GLMessage::eglMakeCurrent
         || func == GLMessage::glDrawArrays
         || func == GLMessage::glDrawElements) {
         mBufferedOutputStream->flush();
