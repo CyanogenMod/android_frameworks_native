@@ -218,6 +218,18 @@ bool DisplayDevice::getSecureLayerVisible() const {
     return mSecureLayerVisible;
 }
 
+Region DisplayDevice::getDirtyRegion(bool repaintEverything) const {
+    Region dirty;
+    const Transform& planeTransform(mGlobalTransform);
+    if (repaintEverything) {
+        dirty.set(getBounds());
+    } else {
+        dirty = planeTransform.transform(this->dirtyRegion);
+        dirty.andSelf(getBounds());
+    }
+    return dirty;
+}
+
 // ----------------------------------------------------------------------------
 
 bool DisplayDevice::canDraw() const {
