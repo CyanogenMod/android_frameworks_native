@@ -160,6 +160,7 @@ FramebufferNativeWindow::FramebufferNativeWindow()
     ANativeWindow::queueBuffer = queueBuffer;
     ANativeWindow::query = query;
     ANativeWindow::perform = perform;
+    ANativeWindow::cancelBuffer = NULL;
 }
 
 FramebufferNativeWindow::~FramebufferNativeWindow() 
