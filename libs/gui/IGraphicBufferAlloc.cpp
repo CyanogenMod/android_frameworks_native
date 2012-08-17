@@ -75,8 +75,8 @@ public:
         data.writeInt32(size);
         remote()->transact(SET_GRAPHIC_BUFFER_SIZE, data, &reply);
     }
-};
 #endif
+};
 
 IMPLEMENT_META_INTERFACE(GraphicBufferAlloc, "android.ui.IGraphicBufferAlloc");
 
