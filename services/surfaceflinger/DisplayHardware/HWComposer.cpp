@@ -334,7 +334,8 @@ void HWComposer::eventControl(int event, int enabled) {
     }
 }
 
-status_t HWComposer::createWorkList(int32_t id, size_t numLayers) { // FIXME: handle multiple displays
+status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
+    // FIXME: handle multiple displays
     if (uint32_t(id) >= MAX_DISPLAYS)
         return BAD_INDEX;
 
@@ -360,6 +361,15 @@ status_t HWComposer::prepare() const {
     int err = hwcPrepare(mHwc, 1,
             const_cast<hwc_display_contents_1_t**>(mLists));
     if (err == NO_ERROR) {
+
+        // here we're just making sure that "skip" layers are set
+        // to HWC_FRAMEBUFFER and we're also counting how many layers
+        // we have of each type.
+        // It would be nice if we could get rid of this entirely, which I
+        // think is almost possible.
+
+        // TODO: must handle multiple displays here
+
         size_t numOVLayers = 0;
         size_t numFBLayers = 0;
         size_t count = getNumLayers(0);
@@ -397,7 +407,15 @@ status_t HWComposer::prepare() const {
     return (status_t)err;
 }
 
-size_t HWComposer::getLayerCount(int32_t id, int type) const { // FIXME: handle multiple displays
+size_t HWComposer::getLayerCount(int32_t id, int type) const {
+    // FIXME: handle multiple displays
+    if (uint32_t(id) >= MAX_DISPLAYS) {
+        // FIXME: in practice this is only use to know
+        // if we have at least one layer of type.
+        return (type == HWC_FRAMEBUFFER) ? 1 : 0;
+    }
+
+
     switch (type) {
         case HWC_OVERLAY:
             return mNumOVLayers;
@@ -623,7 +641,11 @@ public:
 /*
  * returns an iterator initialized at a given index in the layer list
  */
-HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t index) { // FIXME: handle multiple displays
+HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t index) {
+    // FIXME: handle multiple displays
+    if (uint32_t(id) >= MAX_DISPLAYS)
+        return LayerListIterator();
+
     if (!mHwc || index > hwcNumHwLayers(mHwc, mLists[0]))
         return LayerListIterator();
     if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
@@ -638,14 +660,14 @@ HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t in
 /*
  * returns an iterator on the beginning of the layer list
  */
-HWComposer::LayerListIterator HWComposer::begin(int32_t id) { // FIXME: handle multiple displays
+HWComposer::LayerListIterator HWComposer::begin(int32_t id) {
     return getLayerIterator(id, 0);
 }
 
 /*
  * returns an iterator on the end of the layer list
  */
-HWComposer::LayerListIterator HWComposer::end(int32_t id) { // FIXME: handle multiple displays
+HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, getNumLayers(id));
 }
 

@@ -428,9 +428,7 @@ private:
      * Feature prototyping
      */
 
-    EGLSurface getExternalDisplaySurface() const;
-    sp<SurfaceTextureClient> mExternalDisplayNativeWindow;
-    EGLSurface mExternalDisplaySurface;
+    sp<IBinder> mExtDisplayToken;
 };
 
 // ---------------------------------------------------------------------------
