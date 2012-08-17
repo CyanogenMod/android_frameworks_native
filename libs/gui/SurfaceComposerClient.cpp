@@ -326,7 +326,7 @@ void Composer::setDisplayOrientation(const sp<IBinder>& token,
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
     s.orientation = orientation;
-    s.what |= DisplayState::eTransformChanged;
+    s.what |= DisplayState::eOrientationChanged;
     mForceSynchronous = true; // TODO: do we actually still need this?
 }
 
@@ -343,7 +343,7 @@ void Composer::setDisplayViewport(const sp<IBinder>& token,
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
     s.viewport = viewport;
-    s.what |= DisplayState::eTransformChanged;
+    s.what |= DisplayState::eViewportChanged;
 }
 
 void Composer::setDisplayFrame(const sp<IBinder>& token,
@@ -351,7 +351,7 @@ void Composer::setDisplayFrame(const sp<IBinder>& token,
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
     s.frame = frame;
-    s.what |= DisplayState::eTransformChanged;
+    s.what |= DisplayState::eFrameChanged;
 }
 
 // ---------------------------------------------------------------------------
