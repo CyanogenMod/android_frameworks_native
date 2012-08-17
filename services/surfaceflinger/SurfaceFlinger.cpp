@@ -142,7 +142,7 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
     Vector<ComposerState> state;
     Vector<DisplayState> displays;
     DisplayState d;
-    d.what = DisplayState::eTransformChanged;
+    d.what = DisplayState::eOrientationChanged;
     d.token = mDefaultDisplays[DisplayDevice::DISPLAY_ID_MAIN];
     d.orientation = DisplayState::eOrientationDefault;
     displays.add(d);
@@ -1521,15 +1521,19 @@ uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
                 flags |= eDisplayTransactionNeeded;
             }
         }
-        if (what & DisplayState::eTransformChanged) {
+        if (what & DisplayState::eOrientationChanged) {
             if (disp.orientation != s.orientation) {
                 disp.orientation = s.orientation;
                 flags |= eDisplayTransactionNeeded;
             }
+        }
+        if (what & DisplayState::eFrameChanged) {
             if (disp.frame != s.frame) {
                 disp.frame = s.frame;
                 flags |= eDisplayTransactionNeeded;
             }
+        }
+        if (what & DisplayState::eViewportChanged) {
             if (disp.viewport != s.viewport) {
                 disp.viewport = s.viewport;
                 flags |= eDisplayTransactionNeeded;
