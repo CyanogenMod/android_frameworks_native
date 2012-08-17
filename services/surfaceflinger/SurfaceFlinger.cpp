@@ -95,8 +95,7 @@ SurfaceFlinger::SurfaceFlinger()
         mLastSwapBufferTime(0),
         mDebugInTransaction(0),
         mLastTransactionTime(0),
-        mBootFinished(false),
-        mExternalDisplaySurface(EGL_NO_SURFACE)
+        mBootFinished(false)
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -555,38 +554,32 @@ sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
     return mEventThread->createEventConnection();
 }
 
-void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> display) {
-    EGLSurface result = EGL_NO_SURFACE;
-    EGLSurface old_surface = EGL_NO_SURFACE;
-    sp<SurfaceTextureClient> stc;
+void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> surface) {
 
-    if (display != NULL) {
-        stc = new SurfaceTextureClient(display);
-        result = eglCreateWindowSurface(mEGLDisplay,
-                mEGLConfig, (EGLNativeWindowType)stc.get(), NULL);
-        ALOGE_IF(result == EGL_NO_SURFACE,
-                "eglCreateWindowSurface failed (ISurfaceTexture=%p)",
-                display.get());
+    sp<IBinder> token;
+    { // scope for the lock
+        Mutex::Autolock _l(mStateLock);
+        token = mExtDisplayToken;
+    }
+
+    if (token == 0) {
+        token = createDisplay();
     }
 
     { // scope for the lock
         Mutex::Autolock _l(mStateLock);
-        old_surface = mExternalDisplaySurface;
-        mExternalDisplayNativeWindow = stc;
-        mExternalDisplaySurface = result;
-        ALOGD("mExternalDisplaySurface = %p", result);
-    }
+        if (surface == 0) {
+            // release our current display. we're guarantee to have
+            // a reference to it (token), while we hold the lock
+            mExtDisplayToken = 0;
+        } else {
+            mExtDisplayToken = token;
+        }
 
-    if (old_surface != EGL_NO_SURFACE) {
-        // Note: EGL allows to destroy an object while its current
-        // it will fail to become current next time though.
-        eglDestroySurface(mEGLDisplay, old_surface);
+        DisplayDeviceState& info(mCurrentState.displays.editValueFor(token));
+        info.surface = surface;
+        setTransactionFlags(eDisplayTransactionNeeded);
     }
-}
-
-EGLSurface SurfaceFlinger::getExternalDisplaySurface() const {
-    Mutex::Autolock _l(mStateLock);
-    return mExternalDisplaySurface;
 }
 
 // ----------------------------------------------------------------------------
@@ -757,49 +750,6 @@ void SurfaceFlinger::handleMessageRefresh() {
     }
 
     postFramebuffer();
-
-
-#if 1
-    // render to the external display if we have one
-    EGLSurface externalDisplaySurface = getExternalDisplaySurface();
-    if (externalDisplaySurface != EGL_NO_SURFACE) {
-        EGLSurface cur = eglGetCurrentSurface(EGL_DRAW);
-        EGLBoolean success = eglMakeCurrent(eglGetCurrentDisplay(),
-                externalDisplaySurface, externalDisplaySurface,
-                eglGetCurrentContext());
-
-        ALOGE_IF(!success, "eglMakeCurrent -> external failed");
-
-        if (success) {
-            // redraw the screen entirely...
-            glDisable(GL_TEXTURE_EXTERNAL_OES);
-            glDisable(GL_TEXTURE_2D);
-            glClearColor(0,0,0,1);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-
-            const sp<DisplayDevice>& hw(getDisplayDevice(0));
-            const Vector< sp<LayerBase> >& layers( hw->getVisibleLayersSortedByZ() );
-            const size_t count = layers.size();
-            for (size_t i=0 ; i<count ; ++i) {
-                const sp<LayerBase>& layer(layers[i]);
-                layer->draw(hw);
-            }
-
-            success = eglSwapBuffers(eglGetCurrentDisplay(), externalDisplaySurface);
-            ALOGE_IF(!success, "external display eglSwapBuffers failed");
-
-            hw->compositionComplete();
-        }
-
-        success = eglMakeCurrent(eglGetCurrentDisplay(),
-                cur, cur, eglGetCurrentContext());
-
-        ALOGE_IF(!success, "eglMakeCurrent -> internal failed");
-    }
-#endif
-
 }
 
 void SurfaceFlinger::postFramebuffer()
@@ -830,6 +780,10 @@ void SurfaceFlinger::postFramebuffer()
 
     if (hwc.initCheck() == NO_ERROR) {
         // FIXME: eventually commit() won't take arguments
+        // FIXME: EGL spec says:
+        //   "surface must be bound to the calling thread's current context,
+        //    for the current rendering API."
+        DisplayDevice::makeCurrent(getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN), mEGLContext);
         hwc.commit(mEGLDisplay, getDefaultDisplayDevice()->getEGLSurface());
     }
 
@@ -844,14 +798,22 @@ void SurfaceFlinger::postFramebuffer()
             for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
                 currentLayers[i]->onLayerDisplayed(hw, &*cur);
             }
-        } else {
+        }
+
+        // FIXME: we need to call eglSwapBuffers() on displays that have
+        // GL composition and only on those.
+        // however, currently hwc.commit() already does that for the main
+        // display and never for the other ones
+        if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
+            // FIXME: EGL spec says:
+            //   "surface must be bound to the calling thread's current context,
+            //    for the current rendering API."
+            DisplayDevice::makeCurrent(hw, mEGLContext);
             eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
             for (size_t i = 0; i < count; i++) {
                 currentLayers[i]->onLayerDisplayed(hw, NULL);
             }
         }
-
-        // FIXME: we need to call eglSwapBuffers() on displays that have GL composition
     }
 
     mLastSwapBufferTime = systemTime() - now;
@@ -967,7 +929,6 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // (ie: in current state but not in drawing state)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
-                    // FIXME: we need to pass the surface here
                     const DisplayDeviceState& state(curr[i]);
                     sp<SurfaceTextureClient> stc(
                             new SurfaceTextureClient(state.surface));
@@ -1952,6 +1913,26 @@ void SurfaceFlinger::dumpAllLocked(
     for (size_t i=0 ; i<purgatorySize ; i++) {
         const sp<LayerBase>& layer(mLayerPurgatory.itemAt(i));
         layer->shortDump(result, buffer, SIZE);
+    }
+
+    /*
+     * Dump Display state
+     */
+
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        const sp<const DisplayDevice>& hw(mDisplays[dpy]);
+        snprintf(buffer, SIZE,
+                "+ DisplayDevice[%u]\n"
+                "   id=%x, layerStack=%u, (%4dx%4d), orient=%2d, tr=%08x, "
+                "flips=%u, secure=%d, numLayers=%u\n",
+                dpy,
+                hw->getDisplayId(), hw->getLayerStack(),
+                hw->getWidth(), hw->getHeight(),
+                hw->getOrientation(), hw->getTransform().getType(),
+                hw->getPageFlipCount(),
+                hw->getSecureLayerVisible(),
+                hw->getVisibleLayersSortedByZ().size());
+        result.append(buffer);
     }
 
     /*

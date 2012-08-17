@@ -140,6 +140,9 @@ void DisplayDevice::init(EGLConfig config)
     mFormat  = format;
     mPageFlipCount = 0;
 
+    // external displays are always considered enabled
+    mScreenAcquired = mId >= DisplayDevice::DISPLAY_ID_COUNT;
+
     // initialize the display orientation transform.
     DisplayDevice::setOrientation(DisplayState::eOrientationDefault);
 }
