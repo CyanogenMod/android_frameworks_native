@@ -934,7 +934,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 } else {
                     // this display is in both lists. see if something changed.
                     const DisplayDeviceState& state(curr[j]);
-                    if (state.surface != draw[i].surface) {
+                    if (state.surface->asBinder() != draw[i].surface->asBinder()) {
                         // changing the surface is like destroying and
                         // recreating the DisplayDevice
 
