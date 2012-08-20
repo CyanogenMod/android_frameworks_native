@@ -17,7 +17,7 @@
 #ifndef ANDROID_GUI_CPUCONSUMER_H
 #define ANDROID_GUI_CPUCONSUMER_H
 
-#include <gui/BufferQueue.h>
+#include <gui/ConsumerBase.h>
 
 #include <ui/GraphicBuffer.h>
 
@@ -37,19 +37,10 @@ namespace android {
  * This queue is synchronous by default.
  */
 
-class CpuConsumer: public virtual RefBase,
-                     protected BufferQueue::ConsumerListener
+class CpuConsumer: public ConsumerBase
 {
   public:
-    struct FrameAvailableListener : public virtual RefBase {
-        // onFrameAvailable() is called each time an additional frame becomes
-        // available for consumption. A new frame queued will always trigger the
-        // callback, whether the queue is empty or not.
-        //
-        // This is called without any lock held and can be called concurrently
-        // by multiple threads.
-        virtual void onFrameAvailable() = 0;
-    };
+    typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
 
     struct LockedBuffer {
         uint8_t    *data;
@@ -67,8 +58,6 @@ class CpuConsumer: public virtual RefBase,
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies
     // how many buffers can be locked for user access at the same time.
     CpuConsumer(uint32_t maxLockedBuffers);
-
-    virtual ~CpuConsumer();
 
     // set the name of the CpuConsumer that will be used to identify it in
     // log messages.
@@ -91,50 +80,20 @@ class CpuConsumer: public virtual RefBase,
     // lockNextBuffer.
     status_t unlockBuffer(const LockedBuffer &nativeBuffer);
 
-    // setFrameAvailableListener sets the listener object that will be notified
-    // when a new frame becomes available.
-    void setFrameAvailableListener(const sp<FrameAvailableListener>& listener);
-
-    sp<ISurfaceTexture> getProducerInterface() const { return mBufferQueue; }
-  protected:
-
-    // Implementation of the BufferQueue::ConsumerListener interface.  These
-    // calls are used to notify the CpuConsumer of asynchronous events in the
-    // BufferQueue.
-    virtual void onFrameAvailable();
-    virtual void onBuffersReleased();
+    sp<ISurfaceTexture> getProducerInterface() const { return getBufferQueue(); }
 
   private:
-    // Free local buffer state
-    status_t freeBufferLocked(int buf);
-
     // Maximum number of buffers that can be locked at a time
     uint32_t mMaxLockedBuffers;
 
-    // mName is a string used to identify the SurfaceTexture in log messages.
-    // It can be set by the setName method.
-    String8 mName;
+    void freeBufferLocked(int slotIndex);
 
-    // mFrameAvailableListener is the listener object that will be called when a
-    // new frame becomes available. If it is not NULL it will be called from
-    // queueBuffer.
-    sp<FrameAvailableListener> mFrameAvailableListener;
-
-    // Underlying buffer queue
-    sp<BufferQueue> mBufferQueue;
-
-    // Array for caching buffers from the buffer queue
-    sp<GraphicBuffer> mBufferSlot[BufferQueue::NUM_BUFFER_SLOTS];
     // Array for tracking pointers passed to the consumer, matching the
-    // mBufferSlot indexing
+    // mSlots indexing
     void *mBufferPointers[BufferQueue::NUM_BUFFER_SLOTS];
     // Count of currently locked buffers
     uint32_t mCurrentLockedBuffers;
 
-    // mMutex is the mutex used to prevent concurrent access to the member
-    // variables of CpuConsumer objects. It must be locked whenever the
-    // member variables are accessed.
-    mutable Mutex mMutex;
 };
 
 } // namespace android
