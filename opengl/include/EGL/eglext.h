@@ -237,6 +237,7 @@ struct ANativeWindowBuffer;
 
 /* EGL_NV_system_time
  */
+#ifndef STE_HARDWARE
 #ifndef EGL_NV_system_time
 #define EGL_NV_system_time 1
 typedef khronos_int64_t EGLint64NV;
@@ -247,6 +248,7 @@ EGLAPI EGLuint64NV EGLAPIENTRY eglGetSystemTimeNV(void);
 #endif
 typedef EGLuint64NV (EGLAPIENTRYP PFNEGLGETSYSTEMTIMEFREQUENCYNVPROC)(void);
 typedef EGLuint64NV (EGLAPIENTRYP PFNEGLGETSYSTEMTIMENVPROC)(void);
+#endif
 #endif
 
 /* EGL_ANDROID_blob_cache

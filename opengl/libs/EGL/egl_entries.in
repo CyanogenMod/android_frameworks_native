@@ -64,10 +64,10 @@ EGL_ENTRY(EGLBoolean, eglSetSwapRectangleANDROID, EGLDisplay, EGLSurface, EGLint
 EGL_ENTRY(EGLClientBuffer, eglGetRenderBufferANDROID, EGLDisplay, EGLSurface)
 
 /* NVIDIA extensions */
-
+#ifndef STE_HARDWARE
 EGL_ENTRY(EGLuint64NV, eglGetSystemTimeFrequencyNV, void)
 EGL_ENTRY(EGLuint64NV, eglGetSystemTimeNV, void)
-
+#endif
 /* IMG extensions */
 
 EGL_ENTRY(EGLBoolean, eglHibernateProcessIMG, void)

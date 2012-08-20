@@ -72,10 +72,12 @@ static const extention_map_t sExtentionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglDestroyImageKHR },
     { "eglGetRenderBufferANDROID",
         (__eglMustCastToProperFunctionPointerType)&eglGetRenderBufferANDROID },
+#ifdef STE_HARDWARE
     { "eglGetSystemTimeFrequencyNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeFrequencyNV },
     { "eglGetSystemTimeNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeNV },
+#endif
 };
 
 // accesses protected by sExtensionMapMutex
@@ -1212,6 +1214,7 @@ EGLClientBuffer eglGetRenderBufferANDROID(EGLDisplay dpy, EGLSurface draw)
 // ----------------------------------------------------------------------------
 // NVIDIA extensions
 // ----------------------------------------------------------------------------
+#ifndef STE_HARDWARE
 EGLuint64NV eglGetSystemTimeFrequencyNV()
 {
     clearError();
@@ -1247,3 +1250,4 @@ EGLuint64NV eglGetSystemTimeNV()
 
     return setErrorQuiet(EGL_BAD_DISPLAY, 0);
 }
+#endif
