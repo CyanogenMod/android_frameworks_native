@@ -248,7 +248,7 @@ private:
     // slot and destroy the EGLImage in that slot.  Otherwise it has no effect.
     //
     // This method must be called with mMutex locked.
-    void freeBufferLocked(int slotIndex);
+    virtual void freeBufferLocked(int slotIndex);
 
     // computeCurrentTransformMatrix computes the transform matrix for the
     // current texture.  It uses mCurrentTransform and the current GraphicBuffer
