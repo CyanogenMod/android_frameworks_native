@@ -100,12 +100,9 @@ private:
 
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
-    nsecs_t mLastVSyncTimestamp;
     nsecs_t mVSyncTimestamp;
     bool mUseSoftwareVSync;
-
-    // main thread only
-    size_t mDeliveredEvents;
+    size_t mVSyncCount;
 
     // for debugging
     bool mDebugVsyncEnabled;
