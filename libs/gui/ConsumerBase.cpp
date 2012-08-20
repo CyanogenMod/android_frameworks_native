@@ -53,8 +53,7 @@ static int32_t createProcessUniqueId() {
 }
 
 ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue) :
-        mAbandoned(false),
-        mBufferQueue(bufferQueue) {
+	mBufferQueue(bufferQueue) {
     // Choose a name using the PID and a process-unique ID.
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
 
