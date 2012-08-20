@@ -24,7 +24,6 @@
 
 #include <gui/ISurfaceTexture.h>
 #include <gui/BufferQueue.h>
-#include <gui/ConsumerBase.h>
 
 #include <ui/GraphicBuffer.h>
 
@@ -40,9 +39,20 @@ namespace android {
 
 class String8;
 
-class SurfaceTexture : public ConsumerBase {
+class SurfaceTexture : public virtual RefBase,
+        protected BufferQueue::ConsumerListener {
 public:
-    typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
+    struct FrameAvailableListener : public virtual RefBase {
+        // onFrameAvailable() is called each time an additional frame becomes
+        // available for consumption. This means that frames that are queued
+        // while in asynchronous mode only trigger the callback if no previous
+        // frames are pending. Frames queued while in synchronous mode always
+        // trigger the callback.
+        //
+        // This is called without any lock held and can be called concurrently
+        // by multiple threads.
+        virtual void onFrameAvailable() = 0;
+    };
 
     // SurfaceTexture constructs a new SurfaceTexture object. tex indicates the
     // name of the OpenGL ES texture to which images are to be streamed.
@@ -71,6 +81,8 @@ public:
     SurfaceTexture(GLuint tex, bool allowSynchronousMode = true,
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0);
+
+    virtual ~SurfaceTexture();
 
     // updateTexImage sets the image contents of the target texture to that of
     // the most recently queued buffer.
@@ -120,6 +132,16 @@ public:
     // documented by the source.
     int64_t getTimestamp();
 
+    // setFrameAvailableListener sets the listener object that will be notified
+    // when a new frame becomes available.
+    void setFrameAvailableListener(const sp<FrameAvailableListener>& listener);
+
+    // getAllocator retrieves the binder object that must be referenced as long
+    // as the GraphicBuffers dequeued from this SurfaceTexture are referenced.
+    // Holding this binder reference prevents SurfaceFlinger from freeing the
+    // buffers before the client is done with them.
+    sp<IBinder> getAllocator();
+
     // setDefaultBufferSize is used to set the size of buffers returned by
     // requestBuffers when a with and height of zero is requested.
     // A call to setDefaultBufferSize() may trigger requestBuffers() to
@@ -158,6 +180,17 @@ public:
     // synchronous mode.
     bool isSynchronousMode() const;
 
+    // abandon frees all the buffers and puts the SurfaceTexture into the
+    // 'abandoned' state.  Once put in this state the SurfaceTexture can never
+    // leave it.  When in the 'abandoned' state, all methods of the
+    // ISurfaceTexture interface will fail with the NO_INIT error.
+    //
+    // Note that while calling this method causes all the buffers to be freed
+    // from the perspective of the the SurfaceTexture, if there are additional
+    // references on the buffers (e.g. if a buffer is referenced by a client or
+    // by OpenGL ES as a texture) then those buffer will remain allocated.
+    void abandon();
+
     // set the name of the SurfaceTexture that will be used to identify it in
     // log messages.
     void setName(const String8& name);
@@ -171,9 +204,7 @@ public:
 
     // getBufferQueue returns the BufferQueue object to which this
     // SurfaceTexture is connected.
-    sp<BufferQueue> getBufferQueue() const {
-        return mBufferQueue;
-    }
+    sp<BufferQueue> getBufferQueue() const;
 
     // detachFromContext detaches the SurfaceTexture from the calling thread's
     // current OpenGL ES context.  This context must be the same as the context
@@ -202,25 +233,17 @@ public:
     // current at the time of the last call to detachFromContext.
     status_t attachToContext(GLuint tex);
 
+    // dump our state in a String
+    virtual void dump(String8& result) const;
+    virtual void dump(String8& result, const char* prefix, char* buffer, size_t SIZE) const;
+
 protected:
 
-    // abandonLocked overrides the ConsumerBase method to clear
-    // mCurrentTextureBuf in addition to the ConsumerBase behavior.
-    virtual void abandonLocked();
-
-    // dumpLocked overrides the ConsumerBase method to dump SurfaceTexture-
-    // specific info in addition to the ConsumerBase behavior.
-    virtual void dumpLocked(String8& result, const char* prefix, char* buffer,
-           size_t size) const;
-
-    // acquireBufferLocked overrides the ConsumerBase method to update the
-    // mEglSlots array in addition to the ConsumerBase behavior.
-    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item);
-
-    // releaseBufferLocked overrides the ConsumerBase method to update the
-    // mEglSlots array in addition to the ConsumerBase.
-    virtual status_t releaseBufferLocked(int buf, EGLDisplay display,
-           EGLSyncKHR eglFence, const sp<Fence>& fence);
+    // Implementation of the BufferQueue::ConsumerListener interface.  These
+    // calls are used to notify the SurfaceTexture of asynchronous events in the
+    // BufferQueue.
+    virtual void onFrameAvailable();
+    virtual void onBuffersReleased();
 
     static bool isExternalFormat(uint32_t format);
 
@@ -328,8 +351,10 @@ private:
     struct EGLSlot {
         EGLSlot()
         : mEglImage(EGL_NO_IMAGE_KHR),
-          mEglFence(EGL_NO_SYNC_KHR) {
+          mFence(EGL_NO_SYNC_KHR) {
         }
+
+        sp<GraphicBuffer> mGraphicBuffer;
 
         // mEglImage is the EGLImage created from mGraphicBuffer.
         EGLImageKHR mEglImage;
@@ -338,7 +363,14 @@ private:
         // associated with this buffer slot may be dequeued. It is initialized
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
-        EGLSyncKHR mEglFence;
+        EGLSyncKHR mFence;
+
+        // mReleaseFence is a fence which will signal when the buffer
+        // associated with this buffer slot is no longer being used by the
+        // consumer and can be overwritten. The buffer can be dequeued before
+        // the fence signals; the producer is responsible for delaying writes
+        // until it signals.
+        sp<Fence> mReleaseFence;
     };
 
     // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
@@ -360,7 +392,23 @@ private:
     // slot that has not yet been used. The buffer allocated to a slot will also
     // be replaced if the requested buffer usage or geometry differs from that
     // of the buffer allocated to a slot.
-    EGLSlot mEglSlots[BufferQueue::NUM_BUFFER_SLOTS];
+    EGLSlot mEGLSlots[BufferQueue::NUM_BUFFER_SLOTS];
+
+    // mAbandoned indicates that the BufferQueue will no longer be used to
+    // consume images buffers pushed to it using the ISurfaceTexture interface.
+    // It is initialized to false, and set to true in the abandon method.  A
+    // BufferQueue that has been abandoned will return the NO_INIT error from
+    // all ISurfaceTexture methods capable of returning an error.
+    bool mAbandoned;
+
+    // mName is a string used to identify the SurfaceTexture in log messages.
+    // It can be set by the setName method.
+    String8 mName;
+
+    // mFrameAvailableListener is the listener object that will be called when a
+    // new frame becomes available. If it is not NULL it will be called from
+    // queueBuffer.
+    sp<FrameAvailableListener> mFrameAvailableListener;
 
     // mCurrentTexture is the buffer slot index of the buffer that is currently
     // bound to the OpenGL texture. It is initialized to INVALID_BUFFER_SLOT,
@@ -370,13 +418,22 @@ private:
     // reset mCurrentTexture to INVALID_BUFFER_SLOT.
     int mCurrentTexture;
 
-    // mAttached indicates whether the ConsumerBase is currently attached to
+    // The SurfaceTexture has-a BufferQueue and is responsible for creating this object
+    // if none is supplied
+    sp<BufferQueue> mBufferQueue;
+
+    // mAttached indicates whether the SurfaceTexture is currently attached to
     // an OpenGL ES context.  For legacy reasons, this is initialized to true,
-    // indicating that the ConsumerBase is considered to be attached to
+    // indicating that the SurfaceTexture is considered to be attached to
     // whatever context is current at the time of the first updateTexImage call.
     // It is set to false by detachFromContext, and then set to true again by
     // attachToContext.
     bool mAttached;
+
+    // mMutex is the mutex used to prevent concurrent access to the member
+    // variables of SurfaceTexture objects. It must be locked whenever the
+    // member variables are accessed.
+    mutable Mutex mMutex;
 };
 
 // ----------------------------------------------------------------------------

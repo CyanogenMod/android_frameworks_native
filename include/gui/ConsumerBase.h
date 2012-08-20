@@ -189,6 +189,14 @@ protected:
     // if none is supplied
     sp<BufferQueue> mBufferQueue;
 
+    // mAttached indicates whether the ConsumerBase is currently attached to
+    // an OpenGL ES context.  For legacy reasons, this is initialized to true,
+    // indicating that the ConsumerBase is considered to be attached to
+    // whatever context is current at the time of the first updateTexImage call.
+    // It is set to false by detachFromContext, and then set to true again by
+    // attachToContext.
+    bool mAttached;
+
     // mMutex is the mutex used to prevent concurrent access to the member
     // variables of ConsumerBase objects. It must be locked whenever the
     // member variables are accessed.
