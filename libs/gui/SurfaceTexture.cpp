@@ -710,7 +710,6 @@ void SurfaceTexture::freeBufferLocked(int slotIndex) {
         eglDestroyImageKHR(mEglDisplay, img);
     }
     mEglSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
-    ConsumerBase::freeBufferLocked(slotIndex);
 }
 
 void SurfaceTexture::abandonLocked() {
