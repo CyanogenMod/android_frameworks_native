@@ -43,6 +43,9 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers) :
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
 }
 
+CpuConsumer::~CpuConsumer() {
+}
+
 void CpuConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;

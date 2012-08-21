@@ -23,7 +23,8 @@ LOCAL_SRC_FILES:= \
 	Surface.cpp \
 	SurfaceComposerClient.cpp \
 	DummyConsumer.cpp \
-	CpuConsumer.cpp
+	CpuConsumer.cpp \
+	BufferItemConsumer.cpp
 
 LOCAL_SHARED_LIBRARIES := \
 	libbinder \
