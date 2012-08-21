@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <cutils/compiler.h>
+
 #include <gui/BitTube.h>
 #include <gui/IDisplayEventConnection.h>
 #include <gui/DisplayEventReceiver.h>
@@ -123,35 +125,53 @@ bool EventThread::threadLoop() {
 
     nsecs_t timestamp;
     size_t vsyncCount;
-    size_t activeEvents;
     DisplayEventReceiver::Event vsync;
     Vector< sp<EventThread::Connection> > activeConnections;
+    Vector< sp<EventThread::Connection> > signalConnections;
 
     do {
+        // release our references
+        signalConnections.clear();
+        activeConnections.clear();
+
         Mutex::Autolock _l(mLock);
+
         // latch VSYNC event if any
+        bool waitForVSync = false;
+        vsyncCount = mVSyncCount;
         timestamp = mVSyncTimestamp;
         mVSyncTimestamp = 0;
 
-        // check if we should be waiting for VSYNC events
-        activeEvents = 0;
-        bool waitForNextVsync = false;
+        // find out connections waiting for VSYNC events
         size_t count = mDisplayEventConnections.size();
         for (size_t i=0 ; i<count ; i++) {
             sp<Connection> connection(mDisplayEventConnections[i].promote());
             if (connection != NULL) {
                 activeConnections.add(connection);
                 if (connection->count >= 0) {
-                    // at least one continuous mode or active one-shot event
-                    waitForNextVsync = true;
-                    activeEvents++;
-                    break;
+                    // we need vsync events because at least
+                    // one connection is waiting for it
+                    waitForVSync = true;
+                    if (connection->count == 0) {
+                        // fired this time around
+                        if (timestamp) {
+                            // only "consume" this event if we're going to
+                            // report it
+                            connection->count = -1;
+                        }
+                        signalConnections.add(connection);
+                    } else if (connection->count == 1 ||
+                            (vsyncCount % connection->count) == 0) {
+                        // continuous event, and time to report it
+                        signalConnections.add(connection);
+                    }
                 }
             }
         }
 
         if (timestamp) {
-            if (!waitForNextVsync) {
+            // we have a vsync event we can dispatch
+            if (!waitForVSync) {
                 // we received a VSYNC but we have no clients
                 // don't report it, and disable VSYNC events
                 disableVSyncLocked();
@@ -164,14 +184,14 @@ bool EventThread::threadLoop() {
             // we'll wait to receive the event and we'll
             // reevaluate whether we need to dispatch it and/or
             // disable VSYNC events then.
-            if (waitForNextVsync) {
+            if (waitForVSync) {
                 // enable
                 enableVSyncLocked();
             }
         }
 
         // wait for something to happen
-        if (mUseSoftwareVSync && waitForNextVsync) {
+        if (CC_UNLIKELY(mUseSoftwareVSync && waitForVSync)) {
             // h/w vsync cannot be used (screen is off), so we use
             // a  timeout instead. it doesn't matter how imprecise this
             // is, we just need to make sure to serve the clients
@@ -180,54 +200,35 @@ bool EventThread::threadLoop() {
                 mVSyncCount++;
             }
         } else {
-            mCondition.wait(mLock);
+            if (!timestamp || signalConnections.isEmpty()) {
+                // This is where we spend most of our time, waiting
+                // for a vsync events and registered clients
+                mCondition.wait(mLock);
+            }
         }
-        vsyncCount = mVSyncCount;
-    } while (!activeConnections.size());
-
-    if (!activeEvents) {
-        // no events to return. start over.
-        // (here we make sure to exit the scope of this function
-        //  so that we release our Connection references)
-        return true;
-    }
+    } while (!timestamp || signalConnections.isEmpty());
 
     // dispatch vsync events to listeners...
     vsync.header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
     vsync.header.timestamp = timestamp;
     vsync.vsync.count = vsyncCount;
 
-    const size_t count = activeConnections.size();
+    const size_t count = signalConnections.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<Connection>& conn(activeConnections[i]);
+        const sp<Connection>& conn(signalConnections[i]);
         // now see if we still need to report this VSYNC event
-        const int32_t vcount = conn->count;
-        if (vcount >= 0) {
-            bool reportVsync = false;
-            if (vcount == 0) {
-                // fired this time around
-                conn->count = -1;
-                reportVsync = true;
-            } else if (vcount == 1 || (vsyncCount % vcount) == 0) {
-                // continuous event, and time to report it
-                reportVsync = true;
-            }
-
-            if (reportVsync) {
-                status_t err = conn->postEvent(vsync);
-                if (err == -EAGAIN || err == -EWOULDBLOCK) {
-                    // The destination doesn't accept events anymore, it's probably
-                    // full. For now, we just drop the events on the floor.
-                    // Note that some events cannot be dropped and would have to be
-                    // re-sent later. Right-now we don't have the ability to do
-                    // this, but it doesn't matter for VSYNC.
-                } else if (err < 0) {
-                    // handle any other error on the pipe as fatal. the only
-                    // reasonable thing to do is to clean-up this connection.
-                    // The most common error we'll get here is -EPIPE.
-                    removeDisplayEventConnection(activeConnections[i]);
-                }
-            }
+        status_t err = conn->postEvent(vsync);
+        if (err == -EAGAIN || err == -EWOULDBLOCK) {
+            // The destination doesn't accept events anymore, it's probably
+            // full. For now, we just drop the events on the floor.
+            // Note that some events cannot be dropped and would have to be
+            // re-sent later. Right-now we don't have the ability to do
+            // this, but it doesn't matter for VSYNC.
+        } else if (err < 0) {
+            // handle any other error on the pipe as fatal. the only
+            // reasonable thing to do is to clean-up this connection.
+            // The most common error we'll get here is -EPIPE.
+            removeDisplayEventConnection(signalConnections[i]);
         }
     }
 
