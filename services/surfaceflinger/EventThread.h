@@ -47,7 +47,6 @@ class EventThread : public Thread {
         // count >= 1 : continuous event. count is the vsync rate
         // count == 0 : one-shot event that has not fired
         // count ==-1 : one-shot event that fired this round / disabled
-        // count ==-2 : one-shot event that fired the round before
         int32_t count;
 
     private:
