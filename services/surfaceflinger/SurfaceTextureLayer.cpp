@@ -28,7 +28,12 @@ namespace android {
 
 
 SurfaceTextureLayer::SurfaceTextureLayer()
-    : BufferQueue(true) {
+#ifdef QCOM_HARDWARE
+    : BufferQueue(true, 3)
+#else
+    : BufferQueue(true)
+#endif
+{
 }
 
 SurfaceTextureLayer::~SurfaceTextureLayer() {
