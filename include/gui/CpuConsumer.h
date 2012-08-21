@@ -59,6 +59,8 @@ class CpuConsumer: public ConsumerBase
     // how many buffers can be locked for user access at the same time.
     CpuConsumer(uint32_t maxLockedBuffers);
 
+    virtual ~CpuConsumer();
+
     // set the name of the CpuConsumer that will be used to identify it in
     // log messages.
     void setName(const String8& name);
@@ -86,7 +88,7 @@ class CpuConsumer: public ConsumerBase
     // Maximum number of buffers that can be locked at a time
     uint32_t mMaxLockedBuffers;
 
-    void freeBufferLocked(int slotIndex);
+    virtual void freeBufferLocked(int slotIndex);
 
     // Array for tracking pointers passed to the consumer, matching the
     // mSlots indexing
