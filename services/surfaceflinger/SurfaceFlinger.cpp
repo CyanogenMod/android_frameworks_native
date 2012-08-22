@@ -409,7 +409,8 @@ status_t SurfaceFlinger::readyToRun()
         mCurrentState.displays.add(mDefaultDisplays[i], DisplayDeviceState(i));
     }
     sp<DisplayDevice> hw = new DisplayDevice(this,
-            DisplayDevice::DISPLAY_ID_MAIN, anw, fbs, mEGLConfig);
+            DisplayDevice::DISPLAY_ID_MAIN, HWC_DISPLAY_PRIMARY,
+            anw, fbs, mEGLConfig);
     mDisplays.add(hw->getDisplayId(), hw);
 
     //  initialize OpenGL ES
@@ -779,29 +780,30 @@ void SurfaceFlinger::setUpHWComposer() {
         mHwWorkListDirty = false;
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
-            const Vector< sp<LayerBase> >& currentLayers(
+            const int32_t id = hw->getHwcDisplayId();
+            if (id >= 0) {
+                const Vector< sp<LayerBase> >& currentLayers(
                     hw->getVisibleLayersSortedByZ());
-            const size_t count = currentLayers.size();
+                const size_t count = currentLayers.size();
+                if (hwc.createWorkList(id, count) >= 0) {
+                    HWComposer::LayerListIterator cur = hwc.begin(id);
+                    const HWComposer::LayerListIterator end = hwc.end(id);
+                    for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                        const sp<LayerBase>& layer(currentLayers[i]);
 
-            const int32_t id = hw->getDisplayId();
-            if (hwc.createWorkList(id, count) >= 0) {
-                HWComposer::LayerListIterator cur = hwc.begin(id);
-                const HWComposer::LayerListIterator end = hwc.end(id);
-                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-                    const sp<LayerBase>& layer(currentLayers[i]);
-
-                    if (CC_UNLIKELY(workListsDirty)) {
-                        layer->setGeometry(hw, *cur);
-                        if (mDebugDisableHWC || mDebugRegion) {
-                            cur->setSkip(true);
+                        if (CC_UNLIKELY(workListsDirty)) {
+                            layer->setGeometry(hw, *cur);
+                            if (mDebugDisableHWC || mDebugRegion) {
+                                cur->setSkip(true);
+                            }
                         }
-                    }
 
-                    /*
-                     * update the per-frame h/w composer data for each layer
-                     * and build the transparent region of the FB
-                     */
-                    layer->setPerFrameData(hw, *cur);
+                        /*
+                         * update the per-frame h/w composer data for each layer
+                         * and build the transparent region of the FB
+                         */
+                        layer->setPerFrameData(hw, *cur);
+                    }
                 }
             }
         }
@@ -841,21 +843,20 @@ void SurfaceFlinger::postFramebuffer()
 
     HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
-        // FIXME: eventually commit() won't take arguments
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
         DisplayDevice::makeCurrent(
                 getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN), mEGLContext);
-        hwc.commit(mEGLDisplay, getDefaultDisplayDevice()->getEGLSurface());
+        hwc.commit();
     }
 
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         sp<const DisplayDevice> hw(mDisplays[dpy]);
         const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
         const size_t count = currentLayers.size();
-        if (hwc.initCheck() == NO_ERROR) {
-            int32_t id = hw->getDisplayId();
+        int32_t id = hw->getHwcDisplayId();
+        if (id >=0 && hwc.initCheck() == NO_ERROR) {
             HWComposer::LayerListIterator cur = hwc.begin(id);
             const HWComposer::LayerListIterator end = hwc.end(id);
             for (size_t i = 0; cur != end && i < count; ++i, ++cur) {
@@ -951,12 +952,15 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     if (state.surface->asBinder() != draw[i].surface->asBinder()) {
                         // changing the surface is like destroying and
                         // recreating the DisplayDevice
+                        const int32_t hwcDisplayId =
+                            (uint32_t(state.id) < DisplayDevice::DISPLAY_ID_COUNT) ?
+                                state.id : getHwComposer().allocateDisplayId();
 
                         sp<SurfaceTextureClient> stc(
                                 new SurfaceTextureClient(state.surface));
 
                         sp<DisplayDevice> disp = new DisplayDevice(this,
-                                state.id, stc, 0, mEGLConfig);
+                            state.id, hwcDisplayId, stc, 0, mEGLConfig);
 
                         disp->setLayerStack(state.layerStack);
                         disp->setOrientation(state.orientation);
@@ -982,10 +986,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
+                    const int32_t hwcDisplayId =
+                        (uint32_t(state.id) < DisplayDevice::DISPLAY_ID_COUNT) ?
+                            state.id : getHwComposer().allocateDisplayId();
+
                     sp<SurfaceTextureClient> stc(
                             new SurfaceTextureClient(state.surface));
-                    sp<DisplayDevice> disp = new DisplayDevice(this, state.id,
-                            stc, 0, mEGLConfig);
+                    sp<DisplayDevice> disp = new DisplayDevice(this,
+                        state.id, hwcDisplayId, stc, 0, mEGLConfig);
                     mDisplays.add(state.id, disp);
                 }
             }
@@ -1251,12 +1259,13 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
 void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
     HWComposer& hwc(getHwComposer());
-    int32_t id = hw->getDisplayId();
+    int32_t id = hw->getHwcDisplayId();
     HWComposer::LayerListIterator cur = hwc.begin(id);
     const HWComposer::LayerListIterator end = hwc.end(id);
 
-    const size_t fbLayerCount = hwc.getLayerCount(id, HWC_FRAMEBUFFER);
-    if (cur==end || fbLayerCount) {
+    const bool hasGlesComposition = hwc.hasGlesComposition(id);
+    const bool hasHwcComposition = hwc.hasHwcComposition(id);
+    if (cur==end || hasGlesComposition) {
 
         DisplayDevice::makeCurrent(hw, mEGLContext);
 
@@ -1265,7 +1274,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         glLoadIdentity();
 
         // Never touch the framebuffer if we don't have any framebuffer layers
-        if (hwc.getLayerCount(id, HWC_OVERLAY)) {
+        if (hasHwcComposition) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some

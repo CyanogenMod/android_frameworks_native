@@ -68,12 +68,12 @@ void checkGLErrors()
 
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
-        int display,
+        int32_t display, int32_t hwcDisplayId,
         const sp<ANativeWindow>& nativeWindow,
         const sp<FramebufferSurface>& framebufferSurface,
         EGLConfig config)
     : mFlinger(flinger),
-      mId(display),
+      mId(display), mHwcDisplayId(hwcDisplayId),
       mNativeWindow(nativeWindow),
       mFramebufferSurface(framebufferSurface),
       mDisplay(EGL_NO_DISPLAY),

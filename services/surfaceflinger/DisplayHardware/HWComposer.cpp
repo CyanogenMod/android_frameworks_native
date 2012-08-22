@@ -194,13 +194,13 @@ HWComposer::HWComposer(
         framebuffer_device_t const* fbDev)
     : mFlinger(flinger),
       mModule(0), mHwc(0), mNumDisplays(1), mCapacity(0),
-      mNumOVLayers(0), mNumFBLayers(0),
       mCBContext(new cb_context),
-      mEventHandler(handler), mRefreshPeriod(0),
+      mEventHandler(handler),
       mVSyncCount(0), mDebugForceFakeVSync(false)
 {
-    for (size_t i = 0; i < MAX_DISPLAYS; i++)
-        mLists[i] = NULL;
+    for (size_t i =0 ; i<MAX_DISPLAYS ; i++) {
+        mLists[i] = 0;
+    }
 
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sf.no_hw_vsync", value, "0");
@@ -232,6 +232,10 @@ HWComposer::HWComposer(
                 mHwc->registerProcs(mHwc, &mCBContext->procs);
             }
 
+            // these IDs are always reserved
+            mTokens.markBit(HWC_DISPLAY_PRIMARY);
+            mTokens.markBit(HWC_DISPLAY_EXTERNAL);
+
             // always turn vsync off when we start
             needVSyncThread = false;
             if (hwcHasVsyncEvent(mHwc)) {
@@ -239,7 +243,7 @@ HWComposer::HWComposer(
 
                 int period;
                 if (mHwc->query(mHwc, HWC_VSYNC_PERIOD, &period) == NO_ERROR) {
-                    mRefreshPeriod = nsecs_t(period);
+                    mDisplayData[0].refresh = nsecs_t(period);
                 }
             } else {
                 needVSyncThread = true;
@@ -255,17 +259,17 @@ HWComposer::HWComposer(
 
 
     if (fbDev) {
-        if (mRefreshPeriod == 0) {
-            mRefreshPeriod = nsecs_t(1e9 / fbDev->fps);
-            ALOGW("getting VSYNC period from fb HAL: %lld", mRefreshPeriod);
+        if (mDisplayData[HWC_DISPLAY_PRIMARY].refresh == 0) {
+            mDisplayData[HWC_DISPLAY_PRIMARY].refresh = nsecs_t(1e9 / fbDev->fps);
+            ALOGW("getting VSYNC period from fb HAL: %lld", mDisplayData[0].refresh);
         }
-        mDpiX = fbDev->xdpi;
-        mDpiY = fbDev->ydpi;
+        mDisplayData[HWC_DISPLAY_PRIMARY].xdpi = fbDev->xdpi;
+        mDisplayData[HWC_DISPLAY_PRIMARY].ydpi = fbDev->ydpi;
     }
 
-    if (mRefreshPeriod == 0) {
-        mRefreshPeriod = nsecs_t(1e9 / 60.0);
-        ALOGW("getting VSYNC period thin air: %lld", mRefreshPeriod);
+    if (mDisplayData[HWC_DISPLAY_PRIMARY].refresh == 0) {
+        mDisplayData[HWC_DISPLAY_PRIMARY].refresh = nsecs_t(1e9 / 60.0);
+        ALOGW("getting VSYNC period thin air: %lld", mDisplayData[0].refresh);
     }
 
     if (needVSyncThread) {
@@ -276,8 +280,9 @@ HWComposer::HWComposer(
 
 HWComposer::~HWComposer() {
     hwcEventControl(mHwc, 0, EVENT_VSYNC, 0);
-    for (size_t i = 0; i < MAX_DISPLAYS; i++)
+    for (size_t i = 0; i < MAX_DISPLAYS; i++) {
         free(mLists[i]);
+    }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
     }
@@ -315,8 +320,32 @@ void HWComposer::vsync(int dpy, int64_t timestamp) {
     mLastHwVSync = timestamp;
 }
 
+int32_t HWComposer::allocateDisplayId() {
+    if (mTokens.isFull()) {
+        return NO_MEMORY;
+    }
+
+    // FIXME: for now we don't support h/w composition wifi displays
+    return -1;
+
+    int32_t id = mTokens.firstUnmarkedBit();
+    mTokens.markBit(id);
+    return id;
+}
+
+status_t HWComposer::freeDisplayId(int32_t id) {
+    if (id < MAX_DISPLAYS) {
+        return BAD_VALUE;
+    }
+    if (!mTokens.hasBit(id)) {
+        return BAD_INDEX;
+    }
+    mTokens.clearBit(id);
+    return NO_ERROR;
+}
+
 nsecs_t HWComposer::getRefreshPeriod() const {
-    return mRefreshPeriod;
+    return mDisplayData[0].refresh;
 }
 
 nsecs_t HWComposer::getRefreshTimestamp() const {
@@ -325,15 +354,15 @@ nsecs_t HWComposer::getRefreshTimestamp() const {
     // the refresh period and whatever closest timestamp we have.
     Mutex::Autolock _l(mLock);
     nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    return now - ((now - mLastHwVSync) %  mRefreshPeriod);
+    return now - ((now - mLastHwVSync) %  mDisplayData[0].refresh);
 }
 
 float HWComposer::getDpiX() const {
-    return mDpiX;
+    return mDisplayData[HWC_DISPLAY_PRIMARY].xdpi;
 }
 
 float HWComposer::getDpiY() const {
-    return mDpiY;
+    return mDisplayData[HWC_DISPLAY_PRIMARY].ydpi;
 }
 
 void HWComposer::eventControl(int event, int enabled) {
@@ -354,10 +383,11 @@ void HWComposer::eventControl(int event, int enabled) {
 }
 
 status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
-    // FIXME: handle multiple displays
-    if (uint32_t(id) >= MAX_DISPLAYS)
+    if (!mTokens.hasBit(id)) {
         return BAD_INDEX;
+    }
 
+    // FIXME: handle multiple displays
     if (mHwc) {
         // TODO: must handle multiple displays here
         // mLists[0] is NULL only when this is called from the constructor
@@ -376,9 +406,10 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
     return NO_ERROR;
 }
 
-status_t HWComposer::prepare() const {
+status_t HWComposer::prepare() {
     int err = hwcPrepare(mHwc, mNumDisplays,
             const_cast<hwc_display_contents_1_t**>(mLists));
+
     if (err == NO_ERROR) {
 
         // here we're just making sure that "skip" layers are set
@@ -388,65 +419,58 @@ status_t HWComposer::prepare() const {
         // think is almost possible.
 
         // TODO: must handle multiple displays here
-
-        size_t numOVLayers = 0;
-        size_t numFBLayers = 0;
-        size_t count = getNumLayers(0);
-
-        for (size_t i=0 ; i<count ; i++) {
-            int compositionType;
-            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-                hwc_layer_1_t* l = &mLists[0]->hwLayers[i];
+        if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            size_t count = getNumLayers(0);
+            struct hwc_display_contents_1* disp = mLists[0];
+            mDisplayData[0].hasFbComp = false;
+            mDisplayData[0].hasOvComp = false;
+            for (size_t i=0 ; i<count ; i++) {
+                hwc_layer_1_t* l = &disp->hwLayers[i];
                 if (l->flags & HWC_SKIP_LAYER) {
                     l->compositionType = HWC_FRAMEBUFFER;
                 }
-                compositionType = l->compositionType;
-            } else {
-                // mList really has hwc_layer_list_t memory layout
-                hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(mLists[0]);
-                hwc_layer_t* l = &list0->hwLayers[i];
-                if (l->flags & HWC_SKIP_LAYER) {
-                    l->compositionType = HWC_FRAMEBUFFER;
-                }
-                compositionType = l->compositionType;
+                if (l->compositionType == HWC_FRAMEBUFFER)
+                    mDisplayData[HWC_DISPLAY_PRIMARY].hasFbComp = true;
+                if (l->compositionType == HWC_OVERLAY)
+                    mDisplayData[HWC_DISPLAY_PRIMARY].hasOvComp = true;
             }
-
-            switch (compositionType) {
-                case HWC_OVERLAY:
-                    numOVLayers++;
-                    break;
-                case HWC_FRAMEBUFFER:
-                    numFBLayers++;
-                    break;
+        } else {
+            size_t count = getNumLayers(0);
+            hwc_layer_list_t* disp = reinterpret_cast<hwc_layer_list_t*>(mLists[0]);
+            mDisplayData[0].hasFbComp = false;
+            mDisplayData[0].hasOvComp = false;
+            for (size_t i=0 ; i<count ; i++) {
+                hwc_layer_t* l = &disp->hwLayers[i];
+                if (l->flags & HWC_SKIP_LAYER) {
+                    l->compositionType = HWC_FRAMEBUFFER;
+                }
+                if (l->compositionType == HWC_FRAMEBUFFER)
+                    mDisplayData[HWC_DISPLAY_PRIMARY].hasFbComp = true;
+                if (l->compositionType == HWC_OVERLAY)
+                    mDisplayData[HWC_DISPLAY_PRIMARY].hasOvComp = true;
             }
         }
-        mNumOVLayers = numOVLayers;
-        mNumFBLayers = numFBLayers;
     }
     return (status_t)err;
 }
 
-size_t HWComposer::getLayerCount(int32_t id, int type) const {
-    // FIXME: handle multiple displays
-    if (uint32_t(id) >= MAX_DISPLAYS) {
-        // FIXME: in practice this is only use to know
-        // if we have at least one layer of type.
-        return (type == HWC_FRAMEBUFFER) ? 1 : 0;
-    }
-
-
-    switch (type) {
-        case HWC_OVERLAY:
-            return mNumOVLayers;
-        case HWC_FRAMEBUFFER:
-            return mNumFBLayers;
-    }
-    return 0;
+bool HWComposer::hasHwcComposition(int32_t id) const {
+    if (!mTokens.hasBit(id))
+        return false;
+    return mDisplayData[id].hasOvComp;
 }
 
-status_t HWComposer::commit(void* fbDisplay, void* fbSurface) const {
+bool HWComposer::hasGlesComposition(int32_t id) const {
+    if (!mTokens.hasBit(id))
+        return false;
+    return mDisplayData[id].hasFbComp;
+}
+
+status_t HWComposer::commit() const {
     int err = NO_ERROR;
     if (mHwc) {
+        void* fbDisplay = eglGetCurrentDisplay();
+        void* fbSurface = eglGetCurrentSurface(EGL_DRAW);
         err = hwcSet(mHwc, fbDisplay, fbSurface, mNumDisplays,
                 const_cast<hwc_display_contents_1_t**>(mLists));
         if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
@@ -661,10 +685,10 @@ public:
  * returns an iterator initialized at a given index in the layer list
  */
 HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t index) {
-    // FIXME: handle multiple displays
-    if (uint32_t(id) >= MAX_DISPLAYS)
+    if (!mTokens.hasBit(id))
         return LayerListIterator();
 
+    // FIXME: handle multiple displays
     if (!mHwc || index > hwcNumHwLayers(mHwc, mLists[0]))
         return LayerListIterator();
     if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
@@ -741,7 +765,7 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
 HWComposer::VSyncThread::VSyncThread(HWComposer& hwc)
     : mHwc(hwc), mEnabled(false),
       mNextFakeVSync(0),
-      mRefreshPeriod(hwc.mRefreshPeriod)
+      mRefreshPeriod(hwc.getRefreshPeriod())
 {
 }
 

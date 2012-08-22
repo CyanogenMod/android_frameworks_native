@@ -62,7 +62,7 @@ public:
 
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
-            int dpy,
+            int32_t dpy, int32_t hwcDisplayId,
             const sp<ANativeWindow>& nativeWindow,
             const sp<FramebufferSurface>& framebufferSurface,
             EGLConfig config);
@@ -96,6 +96,7 @@ public:
     const Transform&        getTransform() const { return mGlobalTransform; }
     uint32_t                getLayerStack() const { return mLayerStack; }
     int32_t                 getDisplayId() const { return mId; }
+    int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
 
     status_t compositionComplete() const;
     
@@ -132,6 +133,7 @@ private:
      */
     sp<SurfaceFlinger> mFlinger;
     int32_t mId;
+    int32_t mHwcDisplayId;
 
     // ANativeWindow this display is rendering into
     sp<ANativeWindow> mNativeWindow;
