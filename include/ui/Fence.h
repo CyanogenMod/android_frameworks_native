@@ -18,7 +18,6 @@
 #define ANDROID_FENCE_H
 
 #include <stdint.h>
-#include <limits.h>
 #include <sys/types.h>
 
 #include <ui/ANativeObjectBase.h>
@@ -65,7 +64,7 @@ public:
 
     // TIMEOUT_NEVER may be passed to the wait method to indicate that it
     // should wait indefinitely for the fence to signal.
-    enum { TIMEOUT_NEVER = UINT_MAX };
+    enum { TIMEOUT_NEVER = -1 };
 
     // merge combines two Fence objects, creating a new Fence object that
     // becomes signaled when both f1 and f2 are signaled (even if f1 or f2 is
