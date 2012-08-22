@@ -58,9 +58,7 @@ public:
     };
 
     enum {
-        MAIN = 0,
-        HDMI = 1,
-        MAX_DISPLAYS
+        MAX_DISPLAYS = HWC_NUM_DISPLAY_TYPES + 1
     };
 
     HWComposer(
@@ -245,6 +243,7 @@ private:
     // TODO: decide whether mLists[i>0] should be non-NULL when display i is
     //       not attached/enabled.
     struct hwc_display_contents_1*  mLists[MAX_DISPLAYS];
+    size_t                          mNumDisplays;
 
     size_t                          mCapacity;
     mutable size_t                  mNumOVLayers;
