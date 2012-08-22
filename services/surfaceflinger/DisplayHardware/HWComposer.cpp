@@ -182,7 +182,7 @@ HWComposer::HWComposer(
         EventHandler& handler,
         framebuffer_device_t const* fbDev)
     : mFlinger(flinger),
-      mModule(0), mHwc(0), mCapacity(0),
+      mModule(0), mHwc(0), mNumDisplays(1), mCapacity(0),
       mNumOVLayers(0), mNumFBLayers(0),
       mCBContext(new cb_context),
       mEventHandler(handler), mRefreshPeriod(0),
@@ -234,8 +234,11 @@ HWComposer::HWComposer(
                 memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
 
+            if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+                mNumDisplays = HWC_NUM_DISPLAY_TYPES;
+
             // create initial empty display contents for display 0
-            createWorkList(MAIN, 0);
+            createWorkList(HWC_DISPLAY_PRIMARY, 0);
         }
     }
 
@@ -358,7 +361,7 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
 }
 
 status_t HWComposer::prepare() const {
-    int err = hwcPrepare(mHwc, 1,
+    int err = hwcPrepare(mHwc, mNumDisplays,
             const_cast<hwc_display_contents_1_t**>(mLists));
     if (err == NO_ERROR) {
 
@@ -428,7 +431,7 @@ size_t HWComposer::getLayerCount(int32_t id, int type) const {
 status_t HWComposer::commit(void* fbDisplay, void* fbSurface) const {
     int err = NO_ERROR;
     if (mHwc) {
-        err = hwcSet(mHwc, fbDisplay, fbSurface, 1,
+        err = hwcSet(mHwc, fbDisplay, fbSurface, mNumDisplays,
                 const_cast<hwc_display_contents_1_t**>(mLists));
         if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
             if (mLists[0]->flipFenceFd != -1) {
@@ -461,7 +464,7 @@ status_t HWComposer::acquire() const {
 status_t HWComposer::disable() {
     if (mHwc) {
         hwcNumHwLayers(mHwc, mLists[0]) = 0;
-        int err = hwcPrepare(mHwc, 1, mLists);
+        int err = hwcPrepare(mHwc, mNumDisplays, mLists);
         return (status_t)err;
     }
     return NO_ERROR;
