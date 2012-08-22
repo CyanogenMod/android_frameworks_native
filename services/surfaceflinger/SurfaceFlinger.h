@@ -231,11 +231,9 @@ private:
     void signalLayerUpdate();
     void signalRefresh();
 
-    // called on the main thread in response to initializeDisplays()
-    void onInitializeDisplays();
-    // called on the main thread in response to blank()
+    // called on the main thread in response to screenReleased()
     void onScreenReleased();
-    // called on the main thread in response to unblank()
+    // called on the main thread in response to screenAcquired()
     void onScreenAcquired();
 
     void handleMessageTransaction();
@@ -323,9 +321,6 @@ private:
     /* ------------------------------------------------------------------------
      * Display and layer stack management
      */
-    // called when starting, or restarting after system_server death
-    void initializeDisplays();
-
     sp<const DisplayDevice> getDisplayDevice(DisplayID dpy) const {
         return mDisplays.valueFor(dpy);
     }
