@@ -137,8 +137,15 @@ void SurfaceFlinger::binderDied(const wp<IBinder>& who)
 {
     // the window manager died on us. prepare its eulogy.
 
-    // restore initial conditions (default device unblank, etc)
-    initializeDisplays();
+    // reset screen orientation
+    Vector<ComposerState> state;
+    Vector<DisplayState> displays;
+    DisplayState d;
+    d.what = DisplayState::eOrientationChanged;
+    d.token = mDefaultDisplays[DisplayDevice::DISPLAY_ID_MAIN];
+    d.orientation = DisplayState::eOrientationDefault;
+    displays.add(d);
+    setTransactionState(state, displays, 0);
 
     // restart the boot-animation
     startBootAnim();
@@ -423,9 +430,6 @@ status_t SurfaceFlinger::readyToRun()
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();
-
-    // set initial conditions (e.g. unblank default device)
-    initializeDisplays();
 
     // start boot animation
     startBootAnim();
@@ -1696,36 +1700,6 @@ status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBaseClient>& layer)
 }
 
 // ---------------------------------------------------------------------------
-
-void SurfaceFlinger::onInitializeDisplays() {
-    // reset screen orientation
-    Vector<ComposerState> state;
-    Vector<DisplayState> displays;
-    DisplayState d;
-    d.what = DisplayState::eOrientationChanged;
-    d.token = mDefaultDisplays[DisplayDevice::DISPLAY_ID_MAIN];
-    d.orientation = DisplayState::eOrientationDefault;
-    displays.add(d);
-    setTransactionState(state, displays, 0);
-
-    // XXX: this should init default device to "unblank" and all other devices to "blank"
-    onScreenAcquired();
-}
-
-void SurfaceFlinger::initializeDisplays() {
-    class MessageScreenInitialized : public MessageBase {
-        SurfaceFlinger* flinger;
-    public:
-        MessageScreenInitialized(SurfaceFlinger* flinger) : flinger(flinger) { }
-        virtual bool handler() {
-            flinger->onInitializeDisplays();
-            return true;
-        }
-    };
-    sp<MessageBase> msg = new MessageScreenInitialized(this);
-    postMessageAsync(msg);  // we may be called from main thread, use async message
-}
-
 
 void SurfaceFlinger::onScreenAcquired() {
     ALOGD("Screen about to return, flinger = %p", this);
