@@ -28,6 +28,8 @@
 #include <utils/Mutex.h>
 #include <utils/Timers.h>
 
+#include <hardware/hwcomposer_defs.h>
+
 #include "Transform.h"
 
 struct ANativeWindow;
@@ -50,9 +52,9 @@ public:
     Region undefinedRegion;
 
     enum {
-        DISPLAY_ID_MAIN = 0,
-        DISPLAY_ID_HDMI = 1,
-        DISPLAY_ID_COUNT
+        DISPLAY_ID_MAIN = HWC_DISPLAY_PRIMARY,
+        DISPLAY_ID_HDMI = HWC_DISPLAY_EXTERNAL,
+        DISPLAY_ID_COUNT = HWC_NUM_DISPLAY_TYPES
     };
 
     enum {

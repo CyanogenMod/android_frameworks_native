@@ -86,9 +86,6 @@ public:
     // Asks the HAL what it can do
     status_t prepare();
 
-    // disable hwc until next createWorkList
-    status_t disable();
-
     // commits the list
     status_t commit();
 
@@ -254,12 +251,18 @@ private:
 
     struct DisplayData {
         DisplayData() : xdpi(0), ydpi(0), refresh(0),
-            hasFbComp(false), hasOvComp(false) { }
+            hasFbComp(false), hasOvComp(false),
+            capacity(0), list(NULL) { }
+        ~DisplayData() {
+            free(list);
+        }
         float xdpi;
         float ydpi;
         nsecs_t refresh;
         bool hasFbComp;
         bool hasOvComp;
+        size_t capacity;
+        hwc_display_contents_1* list;
     };
 
     sp<SurfaceFlinger>              mFlinger;
@@ -271,13 +274,12 @@ private:
     DisplayData                     mDisplayData[MAX_DISPLAYS];
     size_t                          mNumDisplays;
 
-    size_t                          mCapacity;
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
     size_t                          mVSyncCount;
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
-    BitSet32                        mTokens;
+    BitSet32                        mAllocatedDisplayIDs;
 
     // protected by mLock
     mutable Mutex mLock;
