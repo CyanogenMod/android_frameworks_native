@@ -60,14 +60,6 @@ status_t EventThread::registerDisplayEventConnection(
     return NO_ERROR;
 }
 
-status_t EventThread::unregisterDisplayEventConnection(
-        const wp<EventThread::Connection>& connection) {
-    Mutex::Autolock _l(mLock);
-    mDisplayEventConnections.remove(connection);
-    mCondition.broadcast();
-    return NO_ERROR;
-}
-
 void EventThread::removeDisplayEventConnection(
         const wp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
@@ -122,97 +114,11 @@ void EventThread::onVSyncReceived(int, nsecs_t timestamp) {
 }
 
 bool EventThread::threadLoop() {
-
-    nsecs_t timestamp;
-    size_t vsyncCount;
     DisplayEventReceiver::Event vsync;
-    Vector< sp<EventThread::Connection> > activeConnections;
     Vector< sp<EventThread::Connection> > signalConnections;
-
-    do {
-        // release our references
-        signalConnections.clear();
-        activeConnections.clear();
-
-        Mutex::Autolock _l(mLock);
-
-        // latch VSYNC event if any
-        bool waitForVSync = false;
-        vsyncCount = mVSyncCount;
-        timestamp = mVSyncTimestamp;
-        mVSyncTimestamp = 0;
-
-        // find out connections waiting for VSYNC events
-        size_t count = mDisplayEventConnections.size();
-        for (size_t i=0 ; i<count ; i++) {
-            sp<Connection> connection(mDisplayEventConnections[i].promote());
-            if (connection != NULL) {
-                activeConnections.add(connection);
-                if (connection->count >= 0) {
-                    // we need vsync events because at least
-                    // one connection is waiting for it
-                    waitForVSync = true;
-                    if (connection->count == 0) {
-                        // fired this time around
-                        if (timestamp) {
-                            // only "consume" this event if we're going to
-                            // report it
-                            connection->count = -1;
-                        }
-                        signalConnections.add(connection);
-                    } else if (connection->count == 1 ||
-                            (vsyncCount % connection->count) == 0) {
-                        // continuous event, and time to report it
-                        signalConnections.add(connection);
-                    }
-                }
-            }
-        }
-
-        if (timestamp) {
-            // we have a vsync event we can dispatch
-            if (!waitForVSync) {
-                // we received a VSYNC but we have no clients
-                // don't report it, and disable VSYNC events
-                disableVSyncLocked();
-            } else {
-                // report VSYNC event
-                break;
-            }
-        } else {
-            // never disable VSYNC events immediately, instead
-            // we'll wait to receive the event and we'll
-            // reevaluate whether we need to dispatch it and/or
-            // disable VSYNC events then.
-            if (waitForVSync) {
-                // enable
-                enableVSyncLocked();
-            }
-        }
-
-        // wait for something to happen
-        if (CC_UNLIKELY(mUseSoftwareVSync && waitForVSync)) {
-            // h/w vsync cannot be used (screen is off), so we use
-            // a  timeout instead. it doesn't matter how imprecise this
-            // is, we just need to make sure to serve the clients
-            if (mCondition.waitRelative(mLock, ms2ns(16)) == TIMED_OUT) {
-                mVSyncTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
-                mVSyncCount++;
-            }
-        } else {
-            if (!timestamp || signalConnections.isEmpty()) {
-                // This is where we spend most of our time, waiting
-                // for a vsync events and registered clients
-                mCondition.wait(mLock);
-            }
-        }
-    } while (!timestamp || signalConnections.isEmpty());
+    signalConnections = waitForEvent(&vsync);
 
     // dispatch vsync events to listeners...
-    vsync.header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
-    vsync.header.timestamp = timestamp;
-    vsync.vsync.count = vsyncCount;
-
     const size_t count = signalConnections.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<Connection>& conn(signalConnections[i]);
@@ -231,8 +137,92 @@ bool EventThread::threadLoop() {
             removeDisplayEventConnection(signalConnections[i]);
         }
     }
-
     return true;
+}
+
+Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
+        DisplayEventReceiver::Event* event)
+{
+    Mutex::Autolock _l(mLock);
+
+    size_t vsyncCount;
+    nsecs_t timestamp;
+    Vector< sp<EventThread::Connection> > signalConnections;
+
+    do {
+        // latch VSYNC event if any
+        bool waitForVSync = false;
+        vsyncCount = mVSyncCount;
+        timestamp = mVSyncTimestamp;
+        mVSyncTimestamp = 0;
+
+        // find out connections waiting for events
+        size_t count = mDisplayEventConnections.size();
+        for (size_t i=0 ; i<count ; i++) {
+            sp<Connection> connection(mDisplayEventConnections[i].promote());
+            if (connection != NULL) {
+                if (connection->count >= 0) {
+                    // we need vsync events because at least
+                    // one connection is waiting for it
+                    waitForVSync = true;
+                    if (timestamp) {
+                        // we consume the event only if it's time
+                        // (ie: we received a vsync event)
+                        if (connection->count == 0) {
+                            // fired this time around
+                            connection->count = -1;
+                            signalConnections.add(connection);
+                        } else if (connection->count == 1 ||
+                                (vsyncCount % connection->count) == 0) {
+                            // continuous event, and time to report it
+                            signalConnections.add(connection);
+                        }
+                    }
+                }
+            } else {
+                // we couldn't promote this reference, the connection has
+                // died, so clean-up!
+                mDisplayEventConnections.removeAt(i);
+                --i; --count;
+            }
+        }
+
+        // Here we figure out if we need to enable or disable vsyncs
+        if (timestamp && !waitForVSync) {
+            // we received a VSYNC but we have no clients
+            // don't report it, and disable VSYNC events
+            disableVSyncLocked();
+        } else if (!timestamp && waitForVSync) {
+            enableVSyncLocked();
+        }
+
+        // note: !timestamp implies signalConnections.isEmpty()
+        if (!timestamp) {
+            // wait for something to happen
+            if (CC_UNLIKELY(mUseSoftwareVSync && waitForVSync)) {
+                // h/w vsync cannot be used (screen is off), so we use
+                // a  timeout instead. it doesn't matter how imprecise this
+                // is, we just need to make sure to serve the clients
+                if (mCondition.waitRelative(mLock, ms2ns(16)) == TIMED_OUT) {
+                    mVSyncTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+                    mVSyncCount++;
+                }
+            } else {
+                // This is where we spend most of our time, waiting
+                // for a vsync events and registered clients
+                mCondition.wait(mLock);
+            }
+        }
+    } while (signalConnections.isEmpty());
+
+    // here we're guaranteed to have a timestamp and some connections to signal
+
+    // dispatch vsync events to listeners...
+    event->header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
+    event->header.timestamp = timestamp;
+    event->vsync.count = vsyncCount;
+
+    return signalConnections;
 }
 
 void EventThread::enableVSyncLocked() {
@@ -280,7 +270,8 @@ EventThread::Connection::Connection(
 }
 
 EventThread::Connection::~Connection() {
-    mEventThread->unregisterDisplayEventConnection(this);
+    // do nothing here -- clean-up will happen automatically
+    // when the main thread wakes up
 }
 
 void EventThread::Connection::onFirstRef() {

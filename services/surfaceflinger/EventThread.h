@@ -65,7 +65,6 @@ public:
 
     sp<Connection> createEventConnection() const;
     status_t registerDisplayEventConnection(const sp<Connection>& connection);
-    status_t unregisterDisplayEventConnection(const wp<Connection>& connection);
 
     void setVsyncRate(uint32_t count, const sp<Connection>& connection);
     void requestNextVsync(const sp<Connection>& connection);
@@ -78,6 +77,9 @@ public:
 
     // called when receiving a vsync event
     void onVSyncReceived(int display, nsecs_t timestamp);
+
+    Vector< sp<EventThread::Connection> > waitForEvent(
+            DisplayEventReceiver::Event* event);
 
     void dump(String8& result, char* buffer, size_t SIZE) const;
 
