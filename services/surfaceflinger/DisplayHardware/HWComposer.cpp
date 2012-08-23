@@ -89,7 +89,7 @@ static size_t sizeofHwcLayerList(const hwc_composer_device_1_t* hwc,
 static int hwcEventControl(hwc_composer_device_1_t* hwc, int dpy,
         int event, int enabled) {
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return hwc->methods->eventControl(hwc, dpy, event, enabled);
+        return hwc->eventControl(hwc, dpy, event, enabled);
     } else {
         hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
         return hwc0->methods->eventControl(hwc0, event, enabled);
@@ -98,7 +98,7 @@ static int hwcEventControl(hwc_composer_device_1_t* hwc, int dpy,
 
 static int hwcBlank(hwc_composer_device_1_t* hwc, int dpy, int blank) {
     if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return hwc->methods->blank(hwc, dpy, blank);
+        return hwc->blank(hwc, dpy, blank);
     } else {
         if (blank) {
             hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
@@ -162,6 +162,17 @@ static size_t& hwcNumHwLayers(hwc_composer_device_1_t* hwc,
     }
 }
 
+static void hwcDump(hwc_composer_device_1_t* hwc, char* buff, int buff_len) {
+    if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        if (hwc->dump)
+            hwc->dump(hwc, buff, buff_len);
+    } else if (hwcHasVersion(hwc, HWC_DEVICE_API_VERSION_0_1)) {
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        if (hwc0->dump)
+            hwc0->dump(hwc0, buff, buff_len);
+    }
+}
+
 // ---------------------------------------------------------------------------
 
 struct HWComposer::cb_context {
@@ -213,6 +224,14 @@ HWComposer::HWComposer(
         }
 
         if (mHwc) {
+            if (mHwc->registerProcs) {
+                mCBContext->hwc = this;
+                mCBContext->procs.invalidate = &hook_invalidate;
+                mCBContext->procs.vsync = &hook_vsync;
+                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
+                mHwc->registerProcs(mHwc, &mCBContext->procs);
+            }
+
             // always turn vsync off when we start
             needVSyncThread = false;
             if (hwcHasVsyncEvent(mHwc)) {
@@ -224,14 +243,6 @@ HWComposer::HWComposer(
                 }
             } else {
                 needVSyncThread = true;
-            }
-
-            if (mHwc->registerProcs) {
-                mCBContext->hwc = this;
-                mCBContext->procs.invalidate = &hook_invalidate;
-                mCBContext->procs.vsync = &hook_vsync;
-                mHwc->registerProcs(mHwc, &mCBContext->procs);
-                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
             }
 
             if (hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
@@ -280,12 +291,17 @@ status_t HWComposer::initCheck() const {
     return mHwc ? NO_ERROR : NO_INIT;
 }
 
-void HWComposer::hook_invalidate(struct hwc_procs* procs) {
-    reinterpret_cast<cb_context *>(procs)->hwc->invalidate();
+void HWComposer::hook_invalidate(const struct hwc_procs* procs) {
+    cb_context* ctx = reinterpret_cast<cb_context*>(
+            const_cast<hwc_procs_t*>(procs));
+    ctx->hwc->invalidate();
 }
 
-void HWComposer::hook_vsync(struct hwc_procs* procs, int dpy, int64_t timestamp) {
-    reinterpret_cast<cb_context *>(procs)->hwc->vsync(dpy, timestamp);
+void HWComposer::hook_vsync(const struct hwc_procs* procs, int dpy,
+        int64_t timestamp) {
+    cb_context* ctx = reinterpret_cast<cb_context*>(
+            const_cast<hwc_procs_t*>(procs));
+    ctx->hwc->vsync(dpy, timestamp);
 }
 
 void HWComposer::invalidate() {
@@ -714,8 +730,8 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                     layer->getName().string());
         }
     }
-    if (mHwc && hwcHasVersion(mHwc, HWC_DEVICE_API_VERSION_0_1) && mHwc->dump) {
-        mHwc->dump(mHwc, buffer, SIZE);
+    if (mHwc) {
+        hwcDump(mHwc, buffer, SIZE);
         result.append(buffer);
     }
 }
