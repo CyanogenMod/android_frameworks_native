@@ -229,8 +229,9 @@ private:
 
     struct cb_context;
 
-    static void hook_invalidate(struct hwc_procs* procs);
-    static void hook_vsync(struct hwc_procs* procs, int dpy, int64_t timestamp);
+    static void hook_invalidate(const struct hwc_procs* procs);
+    static void hook_vsync(const struct hwc_procs* procs, int dpy,
+            int64_t timestamp);
 
     inline void invalidate();
     inline void vsync(int dpy, int64_t timestamp);
