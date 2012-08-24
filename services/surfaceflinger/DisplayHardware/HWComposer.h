@@ -28,6 +28,7 @@
 #include <utils/Thread.h>
 #include <utils/Timers.h>
 #include <utils/Vector.h>
+#include <utils/BitSet.h>
 
 extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            const struct timespec *request,
@@ -70,14 +71,26 @@ public:
 
     status_t initCheck() const;
 
+    // returns a display ID starting at MAX_DISPLAYS, this ID
+    // is to be used with createWorkList (and all other
+    // methods requiring an ID below).
+    // IDs below MAX_DISPLAY are pre-defined and therefore are always valid.
+    // returns a negative error code if an ID cannot be allocated
+    int32_t allocateDisplayId();
+
+    // recycles the given ID and frees the associated worklist.
+    // IDs below MAX_DISPLAYS are not recycled
+    status_t freeDisplayId(int32_t id);
+
+
     // Asks the HAL what it can do
-    status_t prepare() const;
+    status_t prepare();
 
     // disable hwc until next createWorkList
     status_t disable();
 
     // commits the list
-    status_t commit(void* fbDisplay, void* fbSurface) const;
+    status_t commit() const;
 
     // release hardware resources and blank screen
     status_t release() const;
@@ -88,9 +101,11 @@ public:
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(int32_t id, size_t numLayers);
 
-    // get number of layers of the given type as updated in prepare().
-    // type is HWC_OVERLAY or HWC_FRAMEBUFFER
-    size_t getLayerCount(int32_t id, int type) const;
+    // does this display have layers handled by HWC
+    bool hasHwcComposition(int32_t id) const;
+
+    // does this display have layers handled by GLES
+    bool hasGlesComposition(int32_t id) const;
 
     // needed forward declarations
     class LayerListIterator;
@@ -237,26 +252,32 @@ private:
     inline void vsync(int dpy, int64_t timestamp);
 
 
+    struct DisplayData {
+        DisplayData() : xdpi(0), ydpi(0), refresh(0),
+            hasFbComp(false), hasOvComp(false) { }
+        float xdpi;
+        float ydpi;
+        nsecs_t refresh;
+        bool hasFbComp;
+        bool hasOvComp;
+    };
+
     sp<SurfaceFlinger>              mFlinger;
     hw_module_t const*              mModule;
     struct hwc_composer_device_1*   mHwc;
     // invariant: mLists[0] != NULL iff mHwc != NULL
-    // TODO: decide whether mLists[i>0] should be non-NULL when display i is
-    //       not attached/enabled.
+    // mLists[i>0] can be NULL. that display is to be ignored
     struct hwc_display_contents_1*  mLists[MAX_DISPLAYS];
+    DisplayData                     mDisplayData[MAX_DISPLAYS];
     size_t                          mNumDisplays;
 
     size_t                          mCapacity;
-    mutable size_t                  mNumOVLayers;
-    mutable size_t                  mNumFBLayers;
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
-    nsecs_t                         mRefreshPeriod;
-    float                           mDpiX;
-    float                           mDpiY;
     size_t                          mVSyncCount;
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
+    BitSet32                        mTokens;
 
     // protected by mLock
     mutable Mutex mLock;
