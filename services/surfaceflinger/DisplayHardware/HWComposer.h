@@ -90,7 +90,7 @@ public:
     status_t disable();
 
     // commits the list
-    status_t commit() const;
+    status_t commit();
 
     // release hardware resources and blank screen
     status_t release() const;
