@@ -261,7 +261,7 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
 
     if (mHwc) {
         DisplayData& disp(mDisplayData[id]);
-        if (disp.capacity < numLayers) {
+        if (disp.capacity < numLayers || disp.list == NULL) {
             const size_t size = sizeof(hwc_display_contents_1_t)
                     + numLayers * sizeof(hwc_layer_1_t);
             free(disp.list);
