@@ -364,6 +364,11 @@ private:
     }
 
     /* ------------------------------------------------------------------------
+     * Display management
+     */
+    int32_t chooseNewDisplayIdLocked() const;
+
+    /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
     void listLayersLocked(const Vector<String16>& args, size_t& index,
