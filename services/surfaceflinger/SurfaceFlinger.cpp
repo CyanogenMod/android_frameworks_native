@@ -162,6 +162,24 @@ sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
     return bclient;
 }
 
+int32_t SurfaceFlinger::chooseNewDisplayIdLocked() const
+{
+    int32_t id = DisplayDevice::DISPLAY_ID_COUNT - 1;
+    bool available;
+    do {
+        id++;
+        available = true;
+        for (size_t i = 0; i < mCurrentState.displays.size(); i++) {
+            const DisplayDeviceState& dds(mCurrentState.displays.valueAt(i));
+            if (dds.id == id) {
+                available = false;
+                break;
+            }
+        }
+    } while (!available);
+    return id;
+}
+
 sp<IBinder> SurfaceFlinger::createDisplay()
 {
     class DisplayToken : public BBinder {
@@ -181,7 +199,8 @@ sp<IBinder> SurfaceFlinger::createDisplay()
     sp<BBinder> token = new DisplayToken(this);
 
     Mutex::Autolock _l(mStateLock);
-    DisplayDeviceState info(intptr_t(token.get())); // FIXME: we shouldn't use the address for the id
+    int32_t id = chooseNewDisplayIdLocked();
+    DisplayDeviceState info(id);
     mCurrentState.displays.add(token, info);
 
     return token;
