@@ -86,42 +86,25 @@ private:
 
 protected:
 
-    // TODO: Fix this comment
-    // ConsumerBase constructs a new ConsumerBase object. tex indicates the
-    // name of the OpenGL ES texture to which images are to be streamed.
-    // allowSynchronousMode specifies whether or not synchronous mode can be
-    // enabled. texTarget specifies the OpenGL ES texture target to which the
-    // texture will be bound in updateTexImage. useFenceSync specifies whether
-    // fences should be used to synchronize access to buffers if that behavior
-    // is enabled at compile-time. A custom bufferQueue can be specified
-    // if behavior for queue/dequeue/connect etc needs to be customized.
-    // Otherwise a default BufferQueue will be created and used.
-    //
-    // For legacy reasons, the ConsumerBase is created in a state where it is
-    // considered attached to an OpenGL ES context for the purposes of the
-    // attachToContext and detachFromContext methods. However, despite being
-    // considered "attached" to a context, the specific OpenGL ES context
-    // doesn't get latched until the first call to updateTexImage. After that
-    // point, all calls to updateTexImage must be made with the same OpenGL ES
-    // context current.
-    //
-    // A ConsumerBase may be detached from one OpenGL ES context and then
-    // attached to a different context using the detachFromContext and
-    // attachToContext methods, respectively. The intention of these methods is
-    // purely to allow a ConsumerBase to be transferred from one consumer
-    // context to another. If such a transfer is not needed there is no
-    // requirement that either of these methods be called.
+    // ConsumerBase constructs a new ConsumerBase object to consume image
+    // buffers from the given BufferQueue.
     ConsumerBase(const sp<BufferQueue> &bufferQueue);
 
     // Implementation of the BufferQueue::ConsumerListener interface.  These
     // calls are used to notify the ConsumerBase of asynchronous events in the
-    // BufferQueue.
+    // BufferQueue.  These methods should not need to be overridden by derived
+    // classes, but if they are overridden the ConsumerBase implementation
+    // must be called from the derived class.
     virtual void onFrameAvailable();
     virtual void onBuffersReleased();
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
-    // slot and destroy the EGLImage in that slot.  Otherwise it has no effect.
+    // slot.  Otherwise it has no effect.
+    //
+    // Derived classes should override this method to clean up any state they
+    // keep per slot.  If it is overridden, the derived class's implementation
+    // must call ConsumerBase::freeBufferLocked.
     //
     // This method must be called with mMutex locked.
     virtual void freeBufferLocked(int slotIndex);
@@ -131,18 +114,43 @@ protected:
     // abandon method should be overridden by child classes to add abandon-
     // time behavior.
     //
+    // Derived classes should override this method to clean up any object
+    // state they keep (as opposed to per-slot state).  If it is overridden,
+    // the derived class's implementation must call ConsumerBase::abandonLocked.
+    //
     // This method must be called with mMutex locked.
     virtual void abandonLocked();
 
+    // dumpLocked dumps the current state of the ConsumerBase object to the
+    // result string.  Each line is prefixed with the string pointed to by the
+    // prefix argument.  The buffer argument points to a buffer that may be
+    // used for intermediate formatting data, and the size of that buffer is
+    // indicated by the size argument.
+    //
+    // Derived classes should override this method to dump their internal
+    // state.  If this method is overridden the derived class's implementation
+    // should call ConsumerBase::dumpLocked.
+    //
+    // This method must be called with mMutex locked.
     virtual void dumpLocked(String8& result, const char* prefix, char* buffer,
-            size_t SIZE) const;
+            size_t size) const;
 
     // acquireBufferLocked fetches the next buffer from the BufferQueue and
     // updates the buffer slot for the buffer returned.
+    //
+    // Derived classes should override this method to perform any
+    // initialization that must take place the first time a buffer is assigned
+    // to a slot.  If it is overridden the derived class's implementation must
+    // call ConsumerBase::acquireBufferLocked.
     virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item);
 
     // releaseBufferLocked relinquishes control over a buffer, returning that
     // control to the BufferQueue.
+    //
+    // Derived classes should override this method to perform any cleanup that
+    // must take place when a buffer is released back to the BufferQueue.  If
+    // it is overridden the derived class's implementation must call
+    // ConsumerBase::acquireBufferLocked.
     virtual status_t releaseBufferLocked(int buf, EGLDisplay display,
            EGLSyncKHR eglFence, const sp<Fence>& fence);
 
@@ -189,17 +197,12 @@ protected:
     // if none is supplied
     sp<BufferQueue> mBufferQueue;
 
-    // mAttached indicates whether the ConsumerBase is currently attached to
-    // an OpenGL ES context.  For legacy reasons, this is initialized to true,
-    // indicating that the ConsumerBase is considered to be attached to
-    // whatever context is current at the time of the first updateTexImage call.
-    // It is set to false by detachFromContext, and then set to true again by
-    // attachToContext.
-    bool mAttached;
-
     // mMutex is the mutex used to prevent concurrent access to the member
     // variables of ConsumerBase objects. It must be locked whenever the
-    // member variables are accessed.
+    // member variables are accessed or when any of the *Locked methods are
+    // called.
+    //
+    // This mutex is intended to be locked by derived classes.
     mutable Mutex mMutex;
 };
 
