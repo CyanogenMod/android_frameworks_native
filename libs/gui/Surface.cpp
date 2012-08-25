@@ -92,6 +92,12 @@ bool SurfaceControl::isSameSurface(
     return lhs->mSurface->asBinder() == rhs->mSurface->asBinder();
 }
 
+status_t SurfaceControl::setLayerStack(int32_t layerStack) {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->setLayerStack(mToken, layerStack);
+}
 status_t SurfaceControl::setLayer(int32_t layer) {
     status_t err = validate();
     if (err < 0) return err;
@@ -299,8 +305,11 @@ void Surface::init(const sp<ISurfaceTexture>& surfaceTexture)
             setUsage(GraphicBuffer::USAGE_HW_RENDER);
         }
 
+        // TODO: the display metrics should come from the display manager
         DisplayInfo dinfo;
-        SurfaceComposerClient::getDisplayInfo(0, &dinfo);
+        sp<IBinder> display = SurfaceComposerClient::getBuiltInDisplay(
+                ISurfaceComposer::eDisplayIdMain);
+        SurfaceComposerClient::getDisplayInfo(display, &dinfo);
         const_cast<float&>(ANativeWindow::xdpi) = dinfo.xdpi;
         const_cast<float&>(ANativeWindow::ydpi) = dinfo.ydpi;
         const_cast<uint32_t&>(ANativeWindow::flags) = 0;

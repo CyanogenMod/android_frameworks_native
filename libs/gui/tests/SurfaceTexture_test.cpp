@@ -83,7 +83,7 @@ protected:
             ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
 
             mSurfaceControl = mComposerClient->createSurface(
-                    String8("Test Surface"), 0,
+                    String8("Test Surface"),
                     getSurfaceWidth(), getSurfaceHeight(),
                     PIXEL_FORMAT_RGB_888, 0);
 

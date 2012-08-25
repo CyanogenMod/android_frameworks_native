@@ -60,6 +60,7 @@ public:
     // release surface data from java
     void        clear();
     
+    status_t    setLayerStack(int32_t layerStack);
     status_t    setLayer(int32_t layer);
     status_t    setPosition(int32_t x, int32_t y);
     status_t    setSize(uint32_t w, uint32_t h);

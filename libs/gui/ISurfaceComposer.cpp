@@ -102,15 +102,15 @@ public:
         remote()->transact(BnSurfaceComposer::BOOT_FINISHED, data, &reply);
     }
 
-    virtual status_t captureScreen(DisplayID dpy,
-            sp<IMemoryHeap>* heap,
+    virtual status_t captureScreen(
+            const sp<IBinder>& display, sp<IMemoryHeap>* heap,
             uint32_t* width, uint32_t* height, PixelFormat* format,
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        data.writeInt32(dpy);
+        data.writeStrongBinder(display);
         data.writeInt32(reqWidth);
         data.writeInt32(reqHeight);
         data.writeInt32(minLayerZ);
@@ -210,18 +210,18 @@ public:
         remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
     }
 
-    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info)
+    virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        data.writeInt32(dpy);
+        data.writeStrongBinder(display);
         remote()->transact(BnSurfaceComposer::GET_DISPLAY_INFO, data, &reply);
         memcpy(info, reply.readInplace(sizeof(DisplayInfo)), sizeof(DisplayInfo));
         return reply.readInt32();
     }
 
 
-    virtual void connectDisplay(const sp<ISurfaceTexture> display) {
+    virtual void connectDisplay(const sp<ISurfaceTexture>& display) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeStrongBinder(display->asBinder());
@@ -274,7 +274,7 @@ status_t BnSurfaceComposer::onTransact(
         } break;
         case CAPTURE_SCREEN: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            DisplayID dpy = data.readInt32();
+            sp<IBinder> display = data.readStrongBinder();
             uint32_t reqWidth = data.readInt32();
             uint32_t reqHeight = data.readInt32();
             uint32_t minLayerZ = data.readInt32();
@@ -282,7 +282,7 @@ status_t BnSurfaceComposer::onTransact(
             sp<IMemoryHeap> heap;
             uint32_t w, h;
             PixelFormat f;
-            status_t res = captureScreen(dpy, &heap, &w, &h, &f,
+            status_t res = captureScreen(display, &heap, &w, &h, &f,
                     reqWidth, reqHeight, minLayerZ, maxLayerZ);
             reply->writeStrongBinder(heap->asBinder());
             reply->writeInt32(w);
@@ -327,8 +327,8 @@ status_t BnSurfaceComposer::onTransact(
         case GET_DISPLAY_INFO: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             DisplayInfo info;
-            DisplayID dpy = data.readInt32();
-            status_t result = getDisplayInfo(dpy, &info);
+            sp<IBinder> display = data.readStrongBinder();
+            status_t result = getDisplayInfo(display, &info);
             memcpy(reply->writeInplace(sizeof(DisplayInfo)), &info, sizeof(DisplayInfo));
             reply->writeInt32(result);
         } break;
