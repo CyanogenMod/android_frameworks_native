@@ -86,11 +86,9 @@ BufferQueue::BufferQueue(bool allowSynchronousMode, int bufferCount,
     mDefaultWidth(1),
     mDefaultHeight(1),
     mMinUndequeuedBuffers(bufferCount),
-    mMinAsyncBufferSlots(bufferCount + 1),
-    mMinSyncBufferSlots(bufferCount),
-    mBufferCount(mMinAsyncBufferSlots),
-    mClientBufferCount(0),
-    mServerBufferCount(mMinAsyncBufferSlots),
+    mMaxBufferCount(bufferCount + 1),
+    mDefaultMaxBufferCount(bufferCount + 1),
+    mOverrideMaxBufferCount(0),
     mSynchronousMode(false),
     mAllowSynchronousMode(allowSynchronousMode),
     mConnectedApi(NO_CONNECTED_API),
@@ -120,19 +118,19 @@ BufferQueue::~BufferQueue() {
     ST_LOGV("~BufferQueue");
 }
 
-status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
-    if (bufferCount > NUM_BUFFER_SLOTS)
+status_t BufferQueue::setDefaultMaxBufferCountLocked(int count) {
+    if (count > NUM_BUFFER_SLOTS)
         return BAD_VALUE;
 
-    mServerBufferCount = bufferCount;
+    mDefaultMaxBufferCount = count;
 
-    if (bufferCount == mBufferCount)
+    if (count == mMaxBufferCount)
         return OK;
 
-    if (!mClientBufferCount &&
-        bufferCount >= mBufferCount) {
+    if (!mOverrideMaxBufferCount &&
+        count >= mMaxBufferCount) {
         // easy, we just have more buffers
-        mBufferCount = bufferCount;
+        mMaxBufferCount = count;
         mDequeueCondition.broadcast();
     } else {
         // we're here because we're either
@@ -140,15 +138,16 @@ status_t BufferQueue::setBufferCountServerLocked(int bufferCount) {
         // - or there is a client-buffer-count in effect
 
         // less than 2 buffers is never allowed
-        if (bufferCount < 2)
+        if (count < 2)
             return BAD_VALUE;
 
-        // when there is non client-buffer-count in effect, the client is not
-        // allowed to dequeue more than one buffer at a time,
-        // so the next time they dequeue a buffer, we know that they don't
-        // own one. the actual resizing will happen during the next
-        // dequeueBuffer.
+        // When there is no client-buffer-count in effect, the client is not
+        // allowed to dequeue more than one buffer at a time, so the next time
+        // they dequeue a buffer, we know that they don't own one. the actual
+        // resizing will happen during the next dequeueBuffer.
 
+        // We signal this condition in case there is already a blocked
+        // dequeueBuffer call.
         mDequeueCondition.broadcast();
     }
     return OK;
@@ -199,20 +198,19 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         }
 
         // Error out if the user has dequeued buffers
-        for (int i=0 ; i<mBufferCount ; i++) {
+        for (int i=0 ; i<mMaxBufferCount ; i++) {
             if (mSlots[i].mBufferState == BufferSlot::DEQUEUED) {
                 ST_LOGE("setBufferCount: client owns some buffers");
                 return -EINVAL;
             }
         }
 
-        const int minBufferSlots = mSynchronousMode ?
-            mMinSyncBufferSlots : mMinAsyncBufferSlots;
+        const int minBufferSlots = getMinMaxBufferCountLocked();
         if (bufferCount == 0) {
-            mClientBufferCount = 0;
-            bufferCount = (mServerBufferCount >= minBufferSlots) ?
-                    mServerBufferCount : minBufferSlots;
-            return setBufferCountServerLocked(bufferCount);
+            mOverrideMaxBufferCount = 0;
+            bufferCount = (mDefaultMaxBufferCount >= minBufferSlots) ?
+                    mDefaultMaxBufferCount : minBufferSlots;
+            return setDefaultMaxBufferCountLocked(bufferCount);
         }
 
         if (bufferCount < minBufferSlots) {
@@ -224,8 +222,8 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         // here we're guaranteed that the client doesn't have dequeued buffers
         // and will release all of its buffer references.
         freeAllBuffersLocked();
-        mBufferCount = bufferCount;
-        mClientBufferCount = bufferCount;
+        mMaxBufferCount = bufferCount;
+        mOverrideMaxBufferCount = bufferCount;
         mBufferHasBeenQueued = false;
         mQueue.clear();
         mDequeueCondition.broadcast();
@@ -282,9 +280,9 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
         ST_LOGE("requestBuffer: SurfaceTexture has been abandoned!");
         return NO_INIT;
     }
-    if (slot < 0 || mBufferCount <= slot) {
+    if (slot < 0 || mMaxBufferCount <= slot) {
         ST_LOGE("requestBuffer: slot index out of range [0, %d]: %d",
-                mBufferCount, slot);
+                mMaxBufferCount, slot);
         return BAD_VALUE;
     }
     mSlots[slot].mRequestBufferCalled = true;
@@ -330,21 +328,20 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             // The condition "number of buffers needs to change" is true if
             // - the client doesn't care about how many buffers there are
             // - AND the actual number of buffer is different from what was
-            //   set in the last setBufferCountServer()
+            //   set in the last setDefaultMaxBufferCount()
             //                         - OR -
-            //   setBufferCountServer() was set to a value incompatible with
+            //   setDefaultMaxBufferCount() was set to a value incompatible with
             //   the synchronization mode (for instance because the sync mode
             //   changed since)
             //
             // As long as this condition is true AND the FIFO is not empty, we
             // wait on mDequeueCondition.
 
-            const int minBufferCountNeeded = mSynchronousMode ?
-                    mMinSyncBufferSlots : mMinAsyncBufferSlots;
+            const int minBufferCountNeeded = getMinMaxBufferCountLocked();
 
-            const bool numberOfBuffersNeedsToChange = !mClientBufferCount &&
-                    ((mServerBufferCount != mBufferCount) ||
-                            (mServerBufferCount < minBufferCountNeeded));
+            const bool numberOfBuffersNeedsToChange = !mOverrideMaxBufferCount &&
+                    ((mDefaultMaxBufferCount != mMaxBufferCount) ||
+                            (mDefaultMaxBufferCount < minBufferCountNeeded));
 
             if (!mQueue.isEmpty() && numberOfBuffersNeedsToChange) {
                 // wait for the FIFO to drain
@@ -357,9 +354,9 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             if (numberOfBuffersNeedsToChange) {
                 // here we're guaranteed that mQueue is empty
                 freeAllBuffersLocked();
-                mBufferCount = mServerBufferCount;
-                if (mBufferCount < minBufferCountNeeded)
-                    mBufferCount = minBufferCountNeeded;
+                mMaxBufferCount = mDefaultMaxBufferCount;
+                if (mMaxBufferCount < minBufferCountNeeded)
+                    mMaxBufferCount = minBufferCountNeeded;
                 mBufferHasBeenQueued = false;
                 returnFlags |= ISurfaceTexture::RELEASE_ALL_BUFFERS;
             }
@@ -367,7 +364,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             // look for a free buffer to give to the client
             found = INVALID_BUFFER_SLOT;
             dequeuedCount = 0;
-            for (int i = 0; i < mBufferCount; i++) {
+            for (int i = 0; i < mMaxBufferCount; i++) {
                 const int state = mSlots[i].mBufferState;
                 if (state == BufferSlot::DEQUEUED) {
                     dequeuedCount++;
@@ -397,7 +394,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
 
             // clients are not allowed to dequeue more than one buffer
             // if they didn't set a buffer count.
-            if (!mClientBufferCount && dequeuedCount) {
+            if (!mOverrideMaxBufferCount && dequeuedCount) {
                 ST_LOGE("dequeueBuffer: can't dequeue multiple buffers without "
                         "setting the buffer count");
                 return -EINVAL;
@@ -409,7 +406,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             if (mBufferHasBeenQueued) {
                 // make sure the client is not trying to dequeue more buffers
                 // than allowed.
-                const int avail = mBufferCount - (dequeuedCount+1);
+                const int avail = mMaxBufferCount - (dequeuedCount+1);
                 if (avail < (mMinUndequeuedBuffers-int(mSynchronousMode))) {
                     ST_LOGE("dequeueBuffer: mMinUndequeuedBuffers=%d exceeded "
                             "(dequeued=%d)",
@@ -560,9 +557,9 @@ status_t BufferQueue::queueBuffer(int buf,
             ST_LOGE("queueBuffer: SurfaceTexture has been abandoned!");
             return NO_INIT;
         }
-        if (buf < 0 || buf >= mBufferCount) {
+        if (buf < 0 || buf >= mMaxBufferCount) {
             ST_LOGE("queueBuffer: slot index out of range [0, %d]: %d",
-                    mBufferCount, buf);
+                    mMaxBufferCount, buf);
             return -EINVAL;
         } else if (mSlots[buf].mBufferState != BufferSlot::DEQUEUED) {
             ST_LOGE("queueBuffer: slot %d is not owned by the client "
@@ -656,9 +653,9 @@ void BufferQueue::cancelBuffer(int buf, sp<Fence> fence) {
         return;
     }
 
-    if (buf < 0 || buf >= mBufferCount) {
+    if (buf < 0 || buf >= mMaxBufferCount) {
         ST_LOGE("cancelBuffer: slot index out of range [0, %d]: %d",
-                mBufferCount, buf);
+                mMaxBufferCount, buf);
         return;
     } else if (mSlots[buf].mBufferState != BufferSlot::DEQUEUED) {
         ST_LOGE("cancelBuffer: slot %d is not owned by the client (state=%d)",
@@ -779,9 +776,9 @@ void BufferQueue::dump(String8& result, const char* prefix,
     }
 
     snprintf(buffer, SIZE,
-            "%s-BufferQueue mBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
+            "%s-BufferQueue mMaxBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
             "default-format=%d, FIFO(%d)={%s}\n",
-            prefix, mBufferCount, mSynchronousMode, mDefaultWidth,
+            prefix, mMaxBufferCount, mSynchronousMode, mDefaultWidth,
             mDefaultHeight, mDefaultBufferFormat, fifoSize, fifo.string());
     result.append(buffer);
 
@@ -798,7 +795,7 @@ void BufferQueue::dump(String8& result, const char* prefix,
         }
     } stateName;
 
-    for (int i=0 ; i<mBufferCount ; i++) {
+    for (int i=0 ; i<mMaxBufferCount ; i++) {
         const BufferSlot& slot(mSlots[i]);
         snprintf(buffer, SIZE,
                 "%s%s[%02d] "
@@ -991,10 +988,10 @@ status_t BufferQueue::setDefaultBufferSize(uint32_t w, uint32_t h)
     return OK;
 }
 
-status_t BufferQueue::setBufferCountServer(int bufferCount) {
+status_t BufferQueue::setDefaultMaxBufferCount(int bufferCount) {
     ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
-    return setBufferCountServerLocked(bufferCount);
+    return setDefaultMaxBufferCountLocked(bufferCount);
 }
 
 void BufferQueue::freeAllBuffersExceptHeadLocked() {
@@ -1036,6 +1033,10 @@ status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
         }
     }
     return err;
+}
+
+int BufferQueue::getMinMaxBufferCountLocked() const {
+    return mSynchronousMode ? mMinUndequeuedBuffers : mMinUndequeuedBuffers + 1;
 }
 
 BufferQueue::ProxyConsumerListener::ProxyConsumerListener(
