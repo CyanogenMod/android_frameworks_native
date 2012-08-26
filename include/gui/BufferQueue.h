@@ -34,7 +34,11 @@ namespace android {
 
 class BufferQueue : public BnSurfaceTexture {
 public:
+#ifdef QCOM_HARDWARE
+    enum { MIN_UNDEQUEUED_BUFFERS = 3 };
+#else
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
+#endif
     enum { NUM_BUFFER_SLOTS = 32 };
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
@@ -143,6 +147,8 @@ public:
     // for interlaced use cases where the user can pass extra information about
     // the type of the frame whether it is interlaced or progressive frame.
     virtual status_t setBuffersSize(int size);
+
+    virtual status_t setMinUndequeuedBufferCount(int count);
 #endif
 
     // connect attempts to connect a producer client API to the BufferQueue.

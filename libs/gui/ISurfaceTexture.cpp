@@ -40,6 +40,7 @@ enum {
     SET_SYNCHRONOUS_MODE,
 #ifdef QCOM_HARDWARE
     SET_BUFFERS_SIZE,
+    SET_MIN_UNDEQUEUED_BUFFER_COUNT,
 #endif
     CONNECT,
     DISCONNECT,
@@ -160,6 +161,18 @@ public:
         result = reply.readInt32();
         return result;
     }
+
+    virtual status_t setMinUndequeuedBufferCount(int count) {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
+        data.writeInt32(count);
+        status_t result = remote()->transact(SET_MIN_UNDEQUEUED_BUFFER_COUNT, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
 #endif
 
     virtual status_t connect(int api, QueueBufferOutput* output) {
@@ -267,6 +280,13 @@ status_t BnSurfaceTexture::onTransact(
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int size = data.readInt32();
             status_t res = setBuffersSize(size);
+            reply->writeInt32(res);
+            return NO_ERROR;
+        } break;
+        case SET_MIN_UNDEQUEUED_BUFFER_COUNT: {
+            CHECK_INTERFACE(ISurfaceTexture, data, reply);
+            int size = data.readInt32();
+            status_t res = setMinUndequeuedBufferCount(size);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
