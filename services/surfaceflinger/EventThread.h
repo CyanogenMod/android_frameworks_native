@@ -76,7 +76,7 @@ public:
     void onScreenAcquired();
 
     // called when receiving a vsync event
-    void onVSyncReceived(int display, nsecs_t timestamp);
+    void onVSyncReceived(const wp<IBinder>& display, nsecs_t timestamp);
 
     Vector< sp<EventThread::Connection> > waitForEvent(
             DisplayEventReceiver::Event* event);

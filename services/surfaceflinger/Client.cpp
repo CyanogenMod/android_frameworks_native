@@ -140,9 +140,8 @@ sp<ISurface> Client::createSurface(
         }
         sp<ISurface> getResult() const { return result; }
         virtual bool handler() {
-            // TODO don't require display id to create a layer
             result = flinger->createLayer(params, name, client,
-                    ISurfaceComposer::eDisplayIdMain, w, h, format, flags);
+                    w, h, format, flags);
             return true;
         }
     };
