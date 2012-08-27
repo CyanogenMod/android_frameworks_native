@@ -100,7 +100,7 @@ public:
     static void closeGlobalTransaction(bool synchronous = false);
 
     status_t    hide(SurfaceID id);
-    status_t    show(SurfaceID id, int32_t layer = -1);
+    status_t    show(SurfaceID id);
     status_t    setFlags(SurfaceID id, uint32_t flags, uint32_t mask);
     status_t    setTransparentRegionHint(SurfaceID id, const Region& transparent);
     status_t    setLayer(SurfaceID id, int32_t layer);
