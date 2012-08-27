@@ -112,6 +112,14 @@ public:
     static ssize_t getDisplayHeight(DisplayID dpy);
     static ssize_t getDisplayOrientation(DisplayID dpy);
 
+    static inline sp<IBinder> getBuiltInDisplay(int32_t dpy) {
+        return NULL;
+    }
+
+    static inline status_t getDisplayInfo(const sp<IBinder>& dpy, DisplayInfo* info) {
+        return getDisplayInfo(0, info);
+    }
+
     status_t linkToComposerDeath(const sp<IBinder::DeathRecipient>& recipient,
             void* cookie = NULL, uint32_t flags = 0);
 
