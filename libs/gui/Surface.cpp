@@ -122,11 +122,11 @@ status_t SurfaceControl::hide() {
     const sp<SurfaceComposerClient>& client(mClient);
     return client->hide(mToken);
 }
-status_t SurfaceControl::show(int32_t layer) {
+status_t SurfaceControl::show() {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->show(mToken, layer);
+    return client->show(mToken);
 }
 status_t SurfaceControl::setFlags(uint32_t flags, uint32_t mask) {
     status_t err = validate();
