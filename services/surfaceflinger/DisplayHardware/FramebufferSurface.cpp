@@ -67,8 +67,7 @@ public:
  */
 
 FramebufferSurface::FramebufferSurface():
-    ConsumerBase(new BufferQueue(true, NUM_FRAME_BUFFERS,
-            new GraphicBufferAlloc())),
+    ConsumerBase(new BufferQueue(true, new GraphicBufferAlloc())),
     fbDev(0),
     mCurrentBufferSlot(-1),
     mCurrentBuffer(0)

@@ -92,13 +92,11 @@ public:
     };
 
 
-    // BufferQueue manages a pool of gralloc memory slots to be used
-    // by producers and consumers.
-    // allowSynchronousMode specifies whether or not synchronous mode can be
-    // enabled.
-    // bufferCount sets the minimum number of undequeued buffers for this queue
+    // BufferQueue manages a pool of gralloc memory slots to be used by
+    // producers and consumers. allowSynchronousMode specifies whether or not
+    // synchronous mode can be enabled by the producer. allocator is used to
+    // allocate all the needed gralloc buffers.
     BufferQueue(bool allowSynchronousMode = true,
-            int bufferCount = MIN_UNDEQUEUED_BUFFERS,
             const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueue();
 
@@ -257,6 +255,11 @@ public:
     // take effect once the client sets the count back to zero.
     status_t setDefaultMaxBufferCount(int bufferCount);
 
+    // setMaxAcquiredBufferCount sets the maximum number of buffers that can
+    // be acquired by the consumer at one time.  This call will fail if a
+    // producer is connected to the BufferQueue.
+    status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers);
+
     // isSynchronousMode returns whether the SurfaceTexture is currently in
     // synchronous mode.
     bool isSynchronousMode() const;
@@ -307,12 +310,16 @@ private:
     // given the current BufferQueue state.
     int getMinMaxBufferCountLocked() const;
 
+    // getMinUndequeuedBufferCountLocked returns the minimum number of buffers
+    // that must remain in a state other than DEQUEUED.
+    int getMinUndequeuedBufferCountLocked() const;
+
     // getMaxBufferCountLocked returns the maximum number of buffers that can
     // be allocated at once.  This value depends upon the following member
     // variables:
     //
     //      mSynchronousMode
-    //      mMinUndequeuedBuffers
+    //      mMaxAcquiredBufferCount
     //      mDefaultMaxBufferCount
     //      mOverrideMaxBufferCount
     //
@@ -442,9 +449,14 @@ private:
     // in requestBuffers() if a width and height of zero is specified.
     uint32_t mDefaultHeight;
 
-    // mMinUndequeuedBuffers is a constraint on the number of buffers
-    // not dequeued at any time
-    int mMinUndequeuedBuffers;
+    // mMaxAcquiredBufferCount is the number of buffers that the consumer may
+    // acquire at one time.  It defaults to 1 and can be changed by the
+    // consumer via the setMaxAcquiredBufferCount method, but this may only be
+    // done when no producer is connected to the BufferQueue.
+    //
+    // This value is used to derive the value returned for the
+    // MIN_UNDEQUEUED_BUFFERS query by the producer.
+    int mMaxAcquiredBufferCount;
 
     // mDefaultMaxBufferCount is the default limit on the number of buffers
     // that will be allocated at one time.  This default limit is set by the
