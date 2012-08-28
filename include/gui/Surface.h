@@ -65,7 +65,7 @@ public:
     status_t    setPosition(int32_t x, int32_t y);
     status_t    setSize(uint32_t w, uint32_t h);
     status_t    hide();
-    status_t    show(int32_t layer = -1);
+    status_t    show();
     status_t    setFlags(uint32_t flags, uint32_t mask);
     status_t    setTransparentRegionHint(const Region& transparent);
     status_t    setAlpha(float alpha=1.0f);
