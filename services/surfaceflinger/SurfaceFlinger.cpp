@@ -757,26 +757,31 @@ void SurfaceFlinger::rebuildLayerStacks() {
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
+            const Transform& tr(hw->getTransform());
+            const Rect bounds(hw->getBounds());
+
             Region opaqueRegion;
             Region dirtyRegion;
             computeVisibleRegions(currentLayers,
                     hw->getLayerStack(), dirtyRegion, opaqueRegion);
-            hw->dirtyRegion.orSelf(dirtyRegion);
 
             Vector< sp<LayerBase> > layersSortedByZ;
             const size_t count = currentLayers.size();
             for (size_t i=0 ; i<count ; i++) {
-                const Layer::State& s(currentLayers[i]->drawingState());
+                const sp<LayerBase>& layer(currentLayers[i]);
+                const Layer::State& s(layer->drawingState());
                 if (s.layerStack == hw->getLayerStack()) {
-                    if (!currentLayers[i]->visibleRegion.isEmpty()) {
-                        layersSortedByZ.add(currentLayers[i]);
+                    Region visibleRegion(tr.transform(layer->visibleRegion));
+                    visibleRegion.andSelf(bounds);
+                    if (!visibleRegion.isEmpty()) {
+                        layersSortedByZ.add(layer);
                     }
                 }
             }
             hw->setVisibleLayersSortedByZ(layersSortedByZ);
-            hw->undefinedRegion.set(hw->getBounds());
-            hw->undefinedRegion.subtractSelf(
-                    hw->getTransform().transform(opaqueRegion));
+            hw->undefinedRegion.set(bounds);
+            hw->undefinedRegion.subtractSelf(tr.transform(opaqueRegion));
+            hw->dirtyRegion.orSelf(dirtyRegion);
         }
     }
 }
