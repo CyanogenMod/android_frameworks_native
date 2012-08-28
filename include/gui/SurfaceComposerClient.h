@@ -67,6 +67,11 @@ public:
     // Get information about a display
     static status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
 
+    // TODO: Remove me.  Do not use.
+    // This is a compatibility shim for one product whose drivers are depending on
+    // this legacy function (when they shouldn't).
+    static status_t getDisplayInfo(int32_t displayId, DisplayInfo* info);
+
     // ------------------------------------------------------------------------
     // surface creation / destruction
 
