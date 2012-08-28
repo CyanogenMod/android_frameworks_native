@@ -41,8 +41,8 @@ namespace android {
 
 int32_t LayerBase::sSequence = 1;
 
-LayerBase::LayerBase(SurfaceFlinger* flinger, DisplayID display)
-    : dpy(display), contentDirty(false),
+LayerBase::LayerBase(SurfaceFlinger* flinger)
+    : contentDirty(false),
       sequence(uint32_t(android_atomic_inc(&sSequence))),
       mFlinger(flinger), mFiltering(false),
       mNeedsFiltering(false),
@@ -461,9 +461,9 @@ sp<Layer> LayerBase::getLayer() const {
 
 int32_t LayerBaseClient::sIdentity = 1;
 
-LayerBaseClient::LayerBaseClient(SurfaceFlinger* flinger, DisplayID display,
+LayerBaseClient::LayerBaseClient(SurfaceFlinger* flinger,
         const sp<Client>& client)
-    : LayerBase(flinger, display),
+    : LayerBase(flinger),
       mHasSurface(false),
       mClientRef(client),
       mIdentity(uint32_t(android_atomic_inc(&sIdentity)))

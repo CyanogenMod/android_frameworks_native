@@ -35,8 +35,7 @@ class LayerScreenshot : public LayerBaseClient
     GLfloat mTexCoords[8];
     sp<SurfaceFlinger> mFlinger;
 public:    
-            LayerScreenshot(SurfaceFlinger* flinger, DisplayID display,
-                        const sp<Client>& client);
+            LayerScreenshot(SurfaceFlinger* flinger, const sp<Client>& client);
         virtual ~LayerScreenshot();
 
         status_t capture();
@@ -51,7 +50,7 @@ public:
     virtual const char* getTypeId() const { return "LayerScreenshot"; }
 
 private:
-    status_t captureLocked();
+    status_t captureLocked(int32_t layerStack);
     void initTexture(GLfloat u, GLfloat v);
 };
 

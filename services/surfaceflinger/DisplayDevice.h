@@ -51,10 +51,12 @@ public:
     // region in screen space
     Region undefinedRegion;
 
-    enum {
-        DISPLAY_ID_MAIN = HWC_DISPLAY_PRIMARY,
-        DISPLAY_ID_HDMI = HWC_DISPLAY_EXTERNAL,
-        DISPLAY_ID_COUNT = HWC_NUM_DISPLAY_TYPES
+    enum DisplayType {
+        DISPLAY_ID_INVALID = -1,
+        DISPLAY_PRIMARY     = HWC_DISPLAY_PRIMARY,
+        DISPLAY_EXTERNAL    = HWC_DISPLAY_EXTERNAL,
+        NUM_DISPLAY_TYPES   = HWC_NUM_DISPLAY_TYPES,
+        DISPLAY_VIRTUAL     = HWC_NUM_DISPLAY_TYPES
     };
 
     enum {
@@ -64,7 +66,7 @@ public:
 
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
-            int32_t dpy, int32_t hwcDisplayId,
+            DisplayType type, const wp<IBinder>& displayToken,
             const sp<ANativeWindow>& nativeWindow,
             const sp<FramebufferSurface>& framebufferSurface,
             EGLConfig config);
@@ -87,7 +89,7 @@ public:
     EGLSurface  getEGLSurface() const;
 
     void                    setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers);
-    Vector< sp<LayerBase> > getVisibleLayersSortedByZ() const;
+    const Vector< sp<LayerBase> >& getVisibleLayersSortedByZ() const;
     bool                    getSecureLayerVisible() const;
     Region                  getDirtyRegion(bool repaintEverything) const;
 
@@ -97,8 +99,9 @@ public:
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
     uint32_t                getLayerStack() const { return mLayerStack; }
-    int32_t                 getDisplayId() const { return mId; }
+    int32_t                 getDisplayType() const { return mType; }
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
+    const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
 
     status_t compositionComplete() const;
     
@@ -123,10 +126,6 @@ public:
     uint32_t getPageFlipCount() const;
     void dump(String8& res) const;
 
-    inline bool operator < (const DisplayDevice& rhs) const {
-        return mId < rhs.mId;
-    }
-
 private:
     void init(EGLConfig config);
 
@@ -134,8 +133,9 @@ private:
      *  Constants, set during initialization
      */
     sp<SurfaceFlinger> mFlinger;
-    int32_t mId;
+    DisplayType mType;
     int32_t mHwcDisplayId;
+    wp<IBinder> mDisplayToken;
 
     // ANativeWindow this display is rendering into
     sp<ANativeWindow> mNativeWindow;

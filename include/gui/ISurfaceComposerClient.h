@@ -30,12 +30,6 @@
 #include <gui/ISurface.h>
 
 namespace android {
-
-// ----------------------------------------------------------------------------
-
-// TODO: Remove this declaration, it is only used internally by SurfaceFlinger.
-typedef int32_t    DisplayID;
-
 // ----------------------------------------------------------------------------
 
 class ISurfaceComposerClient : public IInterface

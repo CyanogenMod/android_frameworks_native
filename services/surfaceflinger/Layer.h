@@ -50,9 +50,7 @@ class GLExtensions;
 class Layer : public LayerBaseClient
 {
 public:
-            Layer(SurfaceFlinger* flinger, DisplayID display,
-                    const sp<Client>& client);
-
+            Layer(SurfaceFlinger* flinger, const sp<Client>& client);
     virtual ~Layer();
 
     virtual const char* getTypeId() const { return "Layer"; }

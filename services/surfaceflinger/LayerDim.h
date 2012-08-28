@@ -32,8 +32,7 @@ namespace android {
 class LayerDim : public LayerBaseClient
 {
 public:    
-                LayerDim(SurfaceFlinger* flinger, DisplayID display,
-                        const sp<Client>& client);
+                LayerDim(SurfaceFlinger* flinger, const sp<Client>& client);
         virtual ~LayerDim();
 
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;

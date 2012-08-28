@@ -106,7 +106,7 @@ void EventThread::onScreenAcquired() {
 }
 
 
-void EventThread::onVSyncReceived(int, nsecs_t timestamp) {
+void EventThread::onVSyncReceived(const wp<IBinder>&, nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mVSyncTimestamp = timestamp;
     mVSyncCount++;
