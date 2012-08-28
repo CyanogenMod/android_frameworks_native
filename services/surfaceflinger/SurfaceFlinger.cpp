@@ -511,9 +511,11 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     return false;
 }
 
-status_t SurfaceFlinger::getDisplayInfo(DisplayID dpy, DisplayInfo* info) {
-    // TODO: this is here only for compatibility -- should go away eventually.
-    if (uint32_t(dpy) >= 1) {
+status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) {
+    // TODO: this is mostly here only for compatibility
+    //       the display size is needed but the display metrics should come from elsewhere
+    if (display != mDefaultDisplays[ISurfaceComposer::eDisplayIdMain]) {
+        // TODO: additional displays not yet supported
         return BAD_INDEX;
     }
 
@@ -570,7 +572,7 @@ sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
     return mEventThread->createEventConnection();
 }
 
-void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture> surface) {
+void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture>& surface) {
 
     sp<IBinder> token;
     { // scope for the lock
@@ -2242,7 +2244,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
 
 // ---------------------------------------------------------------------------
 
-status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
+status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
         sp<IMemoryHeap>* heap,
         uint32_t* w, uint32_t* h, PixelFormat* f,
         uint32_t sw, uint32_t sh,
@@ -2252,9 +2254,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
     status_t result = PERMISSION_DENIED;
 
-    // only one display supported for now
-    if (CC_UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT)) {
-        ALOGE("invalid display %d", dpy);
+    const DisplayDeviceState& disp(mDrawingState.displays.valueFor(display));
+    if (CC_UNLIKELY(disp.id < 0)) {
         return BAD_VALUE;
     }
 
@@ -2263,7 +2264,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     }
 
     // get screen geometry
-    sp<const DisplayDevice> hw(getDisplayDevice(dpy));
+    sp<const DisplayDevice> hw(getDisplayDevice(disp.id));
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
 
@@ -2316,6 +2317,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
         glClearColor(0,0,0,1);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // TODO: filter the layers that are drawn based on the layer stack of the display.
         const LayerVector& layers(mDrawingState.layersSortedByZ);
         const size_t count = layers.size();
         for (size_t i=0 ; i<count ; ++i) {
@@ -2377,14 +2379,13 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 }
 
 
-status_t SurfaceFlinger::captureScreen(DisplayID dpy,
+status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         sp<IMemoryHeap>* heap,
         uint32_t* width, uint32_t* height, PixelFormat* format,
         uint32_t sw, uint32_t sh,
         uint32_t minLayerZ, uint32_t maxLayerZ)
 {
-    // only one display supported for now
-    if (CC_UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT))
+    if (CC_UNLIKELY(display == 0))
         return BAD_VALUE;
 
     if (!GLExtensions::getInstance().haveFramebufferObject())
@@ -2392,7 +2393,7 @@ status_t SurfaceFlinger::captureScreen(DisplayID dpy,
 
     class MessageCaptureScreen : public MessageBase {
         SurfaceFlinger* flinger;
-        DisplayID dpy;
+        sp<IBinder> display;
         sp<IMemoryHeap>* heap;
         uint32_t* w;
         uint32_t* h;
@@ -2403,11 +2404,11 @@ status_t SurfaceFlinger::captureScreen(DisplayID dpy,
         uint32_t maxLayerZ;
         status_t result;
     public:
-        MessageCaptureScreen(SurfaceFlinger* flinger, DisplayID dpy,
+        MessageCaptureScreen(SurfaceFlinger* flinger, const sp<IBinder>& display,
                 sp<IMemoryHeap>* heap, uint32_t* w, uint32_t* h, PixelFormat* f,
                 uint32_t sw, uint32_t sh,
                 uint32_t minLayerZ, uint32_t maxLayerZ)
-            : flinger(flinger), dpy(dpy),
+            : flinger(flinger), display(display),
               heap(heap), w(w), h(h), f(f), sw(sw), sh(sh),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
               result(PERMISSION_DENIED)
@@ -2418,14 +2419,14 @@ status_t SurfaceFlinger::captureScreen(DisplayID dpy,
         }
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
-            result = flinger->captureScreenImplLocked(dpy,
+            result = flinger->captureScreenImplLocked(display,
                     heap, w, h, f, sw, sh, minLayerZ, maxLayerZ);
             return true;
         }
     };
 
     sp<MessageBase> msg = new MessageCaptureScreen(this,
-            dpy, heap, width, height, format, sw, sh, minLayerZ, maxLayerZ);
+            display, heap, width, height, format, sw, sh, minLayerZ, maxLayerZ);
     status_t res = postMessageSync(msg);
     if (res == NO_ERROR) {
         res = static_cast<MessageCaptureScreen*>( msg.get() )->getResult();
