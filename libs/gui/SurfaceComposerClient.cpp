@@ -94,6 +94,7 @@ class Composer : public Singleton<Composer>
 
 public:
     sp<IBinder> createDisplay();
+    sp<IBinder> getBuiltInDisplay(int32_t id);
 
     status_t setPosition(const sp<SurfaceComposerClient>& client, SurfaceID id,
             float x, float y);
@@ -133,6 +134,10 @@ ANDROID_SINGLETON_STATIC_INSTANCE(Composer);
 
 sp<IBinder> Composer::createDisplay() {
     return ComposerService::getComposerService()->createDisplay();
+}
+
+sp<IBinder> Composer::getBuiltInDisplay(int32_t id) {
+    return ComposerService::getComposerService()->getBuiltInDisplay(id);
 }
 
 void Composer::closeGlobalTransactionImpl(bool synchronous) {
@@ -403,25 +408,7 @@ void SurfaceComposerClient::dispose() {
 }
 
 sp<SurfaceControl> SurfaceComposerClient::createSurface(
-        DisplayID display,
-        uint32_t w,
-        uint32_t h,
-        PixelFormat format,
-        uint32_t flags)
-{
-    String8 name;
-    const size_t SIZE = 128;
-    char buffer[SIZE];
-    snprintf(buffer, SIZE, "<pid_%d>", getpid());
-    name.append(buffer);
-
-    return SurfaceComposerClient::createSurface(name, display,
-            w, h, format, flags);
-}
-
-sp<SurfaceControl> SurfaceComposerClient::createSurface(
         const String8& name,
-        DisplayID display,
         uint32_t w,
         uint32_t h,
         PixelFormat format,
@@ -431,7 +418,7 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
     if (mStatus == NO_ERROR) {
         ISurfaceComposerClient::surface_data_t data;
         sp<ISurface> surface = mClient->createSurface(&data, name,
-                display, w, h, format, flags);
+                w, h, format, flags);
         if (surface != 0) {
             result = new SurfaceControl(this, surface, data);
         }
@@ -441,6 +428,10 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
 
 sp<IBinder> SurfaceComposerClient::createDisplay() {
     return Composer::getInstance().createDisplay();
+}
+
+sp<IBinder> SurfaceComposerClient::getBuiltInDisplay(int32_t id) {
+    return Composer::getInstance().getBuiltInDisplay(id);
 }
 
 status_t SurfaceComposerClient::destroySurface(SurfaceID sid) {
@@ -517,12 +508,6 @@ status_t SurfaceComposerClient::setMatrix(SurfaceID id, float dsdx, float dtdx,
     return getComposer().setMatrix(this, id, dsdx, dtdx, dsdy, dtdy);
 }
 
-status_t SurfaceComposerClient::setOrientation(DisplayID dpy,
-        int orientation, uint32_t flags)
-{
-    return Composer::getInstance().setOrientation(orientation);
-}
-
 // ----------------------------------------------------------------------------
 
 void SurfaceComposerClient::setDisplaySurface(const sp<IBinder>& token,
@@ -553,9 +538,9 @@ void SurfaceComposerClient::setDisplayFrame(const sp<IBinder>& token,
 // ----------------------------------------------------------------------------
 
 status_t SurfaceComposerClient::getDisplayInfo(
-        DisplayID dpy, DisplayInfo* info)
+        const sp<IBinder>& display, DisplayInfo* info)
 {
-    return ComposerService::getComposerService()->getDisplayInfo(dpy, info);
+    return ComposerService::getComposerService()->getDisplayInfo(display, info);
 }
 
 // ----------------------------------------------------------------------------
@@ -564,30 +549,32 @@ ScreenshotClient::ScreenshotClient()
     : mWidth(0), mHeight(0), mFormat(PIXEL_FORMAT_NONE) {
 }
 
-status_t ScreenshotClient::update() {
+status_t ScreenshotClient::update(const sp<IBinder>& display) {
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;
     mHeap = 0;
-    return s->captureScreen(0, &mHeap,
+    return s->captureScreen(display, &mHeap,
             &mWidth, &mHeight, &mFormat, 0, 0,
             0, -1UL);
 }
 
-status_t ScreenshotClient::update(uint32_t reqWidth, uint32_t reqHeight) {
+status_t ScreenshotClient::update(const sp<IBinder>& display,
+        uint32_t reqWidth, uint32_t reqHeight) {
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;
     mHeap = 0;
-    return s->captureScreen(0, &mHeap,
+    return s->captureScreen(display, &mHeap,
             &mWidth, &mHeight, &mFormat, reqWidth, reqHeight,
             0, -1UL);
 }
 
-status_t ScreenshotClient::update(uint32_t reqWidth, uint32_t reqHeight,
+status_t ScreenshotClient::update(const sp<IBinder>& display,
+        uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ) {
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;
     mHeap = 0;
-    return s->captureScreen(0, &mHeap,
+    return s->captureScreen(display, &mHeap,
             &mWidth, &mHeight, &mFormat, reqWidth, reqHeight,
             minLayerZ, maxLayerZ);
 }

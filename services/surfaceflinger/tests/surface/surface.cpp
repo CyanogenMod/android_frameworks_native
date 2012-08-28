@@ -37,7 +37,7 @@ int main(int argc, char** argv)
     sp<SurfaceComposerClient> client = new SurfaceComposerClient();
     
     sp<SurfaceControl> surfaceControl = client->createSurface(
-            0, 160, 240, PIXEL_FORMAT_RGB_565);
+            String8("surface"), 160, 240, PIXEL_FORMAT_RGB_565, 0);
     SurfaceComposerClient::openGlobalTransaction();
     surfaceControl->setLayer(100000);
     SurfaceComposerClient::closeGlobalTransaction();

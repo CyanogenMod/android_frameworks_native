@@ -65,7 +65,7 @@ public:
     /* return an IDisplayEventConnection */
     virtual sp<IDisplayEventConnection> createDisplayEventConnection() = 0;
 
-    /* create a display with given id.
+    /* create a display
      * requires ACCESS_SURFACE_FLINGER permission.
      */
     virtual sp<IBinder> createDisplay() = 0;
@@ -92,10 +92,10 @@ public:
     /* Capture the specified screen. requires READ_FRAME_BUFFER permission
      * This function will fail if there is a secure window on screen.
      */
-    virtual status_t captureScreen(DisplayID dpy, sp<IMemoryHeap>* heap,
+    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
             uint32_t* width, uint32_t* height, PixelFormat* format,
-            uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
-            uint32_t maxLayerZ) = 0;
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
 
 
     /* triggers screen off and waits for it to complete */
@@ -104,12 +104,12 @@ public:
     /* triggers screen on and waits for it to complete */
     virtual void unblank() = 0;
 
-    /* returns information about a physical screen. This is intended to be
-     * used by low-level native tests */
-    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info) = 0;
+    /* returns information about a display
+     * intended to be used to get information about built-in displays */
+    virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) = 0;
 
     /* connects to an external display */
-    virtual void connectDisplay(const sp<ISurfaceTexture> display) = 0;
+    virtual void connectDisplay(const sp<ISurfaceTexture>& display) = 0;
 };
 
 // ----------------------------------------------------------------------------

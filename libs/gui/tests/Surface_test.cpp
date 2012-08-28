@@ -33,7 +33,7 @@ protected:
         ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
 
         mSurfaceControl = mComposerClient->createSurface(
-                String8("Test Surface"), 0, 32, 32, PIXEL_FORMAT_RGBA_8888, 0);
+                String8("Test Surface"), 32, 32, PIXEL_FORMAT_RGBA_8888, 0);
 
         ASSERT_TRUE(mSurfaceControl != NULL);
         ASSERT_TRUE(mSurfaceControl->isValid());
@@ -85,7 +85,8 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     uint32_t w=0, h=0;
     PixelFormat fmt=0;
     sp<ISurfaceComposer> sf(ComposerService::getComposerService());
-    ASSERT_EQ(NO_ERROR, sf->captureScreen(0, &heap, &w, &h, &fmt, 64, 64, 0,
+    sp<IBinder> display(sf->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
+    ASSERT_EQ(NO_ERROR, sf->captureScreen(display, &heap, &w, &h, &fmt, 64, 64, 0,
             0x7fffffff));
     ASSERT_TRUE(heap != NULL);
 
@@ -117,7 +118,7 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     }
     heap = 0;
     w = h = fmt = 0;
-    ASSERT_EQ(NO_ERROR, sf->captureScreen(0, &heap, &w, &h, &fmt,
+    ASSERT_EQ(NO_ERROR, sf->captureScreen(display, &heap, &w, &h, &fmt,
             64, 64, 0, 0x7fffffff));
     ASSERT_TRUE(heap != NULL);
 }
