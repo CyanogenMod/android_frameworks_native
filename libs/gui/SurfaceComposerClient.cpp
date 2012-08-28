@@ -479,7 +479,7 @@ status_t SurfaceComposerClient::hide(SurfaceID id) {
             layer_state_t::eLayerHidden);
 }
 
-status_t SurfaceComposerClient::show(SurfaceID id, int32_t) {
+status_t SurfaceComposerClient::show(SurfaceID id) {
     return getComposer().setFlags(this, id,
             0,
             layer_state_t::eLayerHidden);
