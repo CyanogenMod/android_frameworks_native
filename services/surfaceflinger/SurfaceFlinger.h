@@ -367,7 +367,8 @@ private:
             const Region& dirty);
 
     void postFramebuffer();
-    void drawWormhole(const Region& region) const;
+    void drawWormhole(const sp<const DisplayDevice>& hw,
+            const Region& region) const;
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
     }
