@@ -96,6 +96,10 @@ public:
         eElectronBeamAnimationOff = 0x10
     };
 
+    enum {
+        eDisplayIdMain = 0
+    };
+
     /* create connection with surface flinger, requires
      * ACCESS_SURFACE_FLINGER permission
      */
