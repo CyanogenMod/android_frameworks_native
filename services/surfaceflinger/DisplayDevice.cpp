@@ -68,12 +68,12 @@ void checkGLErrors()
 
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
-        int32_t display, int32_t hwcDisplayId,
+        DisplayType type, const wp<IBinder>& displayToken,
         const sp<ANativeWindow>& nativeWindow,
         const sp<FramebufferSurface>& framebufferSurface,
         EGLConfig config)
     : mFlinger(flinger),
-      mId(display), mHwcDisplayId(hwcDisplayId),
+      mType(type), mHwcDisplayId(-1),
       mNativeWindow(nativeWindow),
       mFramebufferSurface(framebufferSurface),
       mDisplay(EGL_NO_DISPLAY),
@@ -141,7 +141,10 @@ void DisplayDevice::init(EGLConfig config)
     mPageFlipCount = 0;
 
     // external displays are always considered enabled
-    mScreenAcquired = mId >= DisplayDevice::DISPLAY_ID_COUNT;
+    mScreenAcquired = (mType >= DisplayDevice::NUM_DISPLAY_TYPES);
+
+    // get an h/w composer ID
+    mHwcDisplayId = mFlinger->allocateHwcDisplayId(mType);
 
     // initialize the display orientation transform.
     DisplayDevice::setOrientation(DisplayState::eOrientationDefault);
@@ -210,7 +213,7 @@ void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& lay
     }
 }
 
-Vector< sp<LayerBase> > DisplayDevice::getVisibleLayersSortedByZ() const {
+const Vector< sp<LayerBase> >& DisplayDevice::getVisibleLayersSortedByZ() const {
     return mVisibleLayersSortedByZ;
 }
 

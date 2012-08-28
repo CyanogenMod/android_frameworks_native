@@ -113,21 +113,23 @@ public:
     void repaintEverything();
 
     // renders content on given display to a texture. thread-safe version.
-    status_t renderScreenToTexture(DisplayID dpy, GLuint* textureName,
+    status_t renderScreenToTexture(uint32_t layerStack, GLuint* textureName,
         GLfloat* uOut, GLfloat* vOut);
 
     // renders content on given display to a texture, w/o acquiring main lock
-    status_t renderScreenToTextureLocked(DisplayID dpy, GLuint* textureName,
+    status_t renderScreenToTextureLocked(uint32_t layerStack, GLuint* textureName,
         GLfloat* uOut, GLfloat* vOut);
 
     // returns the default Display
     sp<const DisplayDevice> getDefaultDisplayDevice() const {
-        return getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN);
+        return getDisplayDevice(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY]);
     }
 
     // utility function to delete a texture on the main thread
     void deleteTextureAsync(GLuint texture);
 
+    // allocate a h/w composer display id
+    int32_t allocateHwcDisplayId(DisplayDevice::DisplayType type);
 
     // enable/disable h/w composer event
     // TODO: this should be made accessible only to EventThread
@@ -161,8 +163,10 @@ private:
 
     struct DisplayDeviceState {
         DisplayDeviceState();
-        DisplayDeviceState(int32_t id);
-        int32_t id;
+        DisplayDeviceState(DisplayDevice::DisplayType type);
+        bool isValid() const { return type >= 0; }
+        bool isMainDisplay() const { return type == DisplayDevice::DISPLAY_PRIMARY; }
+        DisplayDevice::DisplayType type;
         sp<ISurfaceTexture> surface;
         uint32_t layerStack;
         Rect viewport;
@@ -221,7 +225,7 @@ private:
     /* ------------------------------------------------------------------------
      * HWComposer::EventHandler interface
      */
-    virtual void onVSyncReceived(int dpy, nsecs_t timestamp);
+    virtual void onVSyncReceived(int type, nsecs_t timestamp);
 
     /* ------------------------------------------------------------------------
      * Message handling
@@ -265,17 +269,17 @@ private:
      * Layer management
      */
     sp<ISurface> createLayer(ISurfaceComposerClient::surface_data_t* params,
-        const String8& name, const sp<Client>& client, DisplayID display,
-        uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
+            const String8& name, const sp<Client>& client,
+            uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
 
-    sp<Layer> createNormalLayer(const sp<Client>& client, DisplayID display,
-        uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format);
+    sp<Layer> createNormalLayer(const sp<Client>& client,
+            uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format);
 
-    sp<LayerDim> createDimLayer(const sp<Client>& client, DisplayID display,
-        uint32_t w, uint32_t h, uint32_t flags);
+    sp<LayerDim> createDimLayer(const sp<Client>& client,
+            uint32_t w, uint32_t h, uint32_t flags);
 
     sp<LayerScreenshot> createScreenshotLayer(const sp<Client>& client,
-        DisplayID display, uint32_t w, uint32_t h, uint32_t flags);
+            uint32_t w, uint32_t h, uint32_t flags);
 
     // called in response to the window-manager calling
     // ISurfaceComposerClient::destroySurface()
@@ -326,10 +330,10 @@ private:
     // called when starting, or restarting after system_server death
     void initializeDisplays();
 
-    sp<const DisplayDevice> getDisplayDevice(DisplayID dpy) const {
+    sp<const DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) const {
         return mDisplays.valueFor(dpy);
     }
-    const sp<DisplayDevice>& getDisplayDevice(DisplayID dpy) {
+    const sp<DisplayDevice>& getDisplayDevice(const wp<IBinder>& dpy) {
         return mDisplays.valueFor(dpy);
     }
 
@@ -371,7 +375,7 @@ private:
     /* ------------------------------------------------------------------------
      * Display management
      */
-    int32_t chooseNewDisplayIdLocked() const;
+
 
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
@@ -413,14 +417,14 @@ private:
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
-    sp<IBinder> mDefaultDisplays[DisplayDevice::DISPLAY_ID_COUNT];
+    sp<IBinder> mDefaultDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members
     // don't need synchronization
     State mDrawingState;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
-    DefaultKeyedVector<int32_t, sp<DisplayDevice> > mDisplays;
+    DefaultKeyedVector< wp<IBinder>, sp<DisplayDevice> > mDisplays;
 
     // don't use a lock for these, we don't care
     int mDebugRegion;

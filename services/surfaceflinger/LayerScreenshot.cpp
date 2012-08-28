@@ -34,9 +34,9 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-LayerScreenshot::LayerScreenshot(SurfaceFlinger* flinger, DisplayID display,
+LayerScreenshot::LayerScreenshot(SurfaceFlinger* flinger,
         const sp<Client>& client)
-    : LayerBaseClient(flinger, display, client),
+    : LayerBaseClient(flinger, client),
       mTextureName(0), mFlinger(flinger)
 {
 }
@@ -48,9 +48,10 @@ LayerScreenshot::~LayerScreenshot()
     }
 }
 
-status_t LayerScreenshot::captureLocked() {
+status_t LayerScreenshot::captureLocked(int32_t layerStack) {
     GLfloat u, v;
-    status_t result = mFlinger->renderScreenToTextureLocked(0, &mTextureName, &u, &v);
+    status_t result = mFlinger->renderScreenToTextureLocked(layerStack,
+            &mTextureName, &u, &v);
     if (result != NO_ERROR) {
         return result;
     }
@@ -93,7 +94,7 @@ uint32_t LayerScreenshot::doTransaction(uint32_t flags)
     if (draw.flags & layer_state_t::eLayerHidden) {
         if (!(curr.flags & layer_state_t::eLayerHidden)) {
             // we're going from hidden to visible
-            status_t err = captureLocked();
+            status_t err = captureLocked(curr.layerStack);
             if (err != NO_ERROR) {
                 ALOGW("createScreenshotSurface failed (%s)", strerror(-err));
             }

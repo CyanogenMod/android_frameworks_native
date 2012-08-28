@@ -50,9 +50,8 @@ namespace android {
 
 // ---------------------------------------------------------------------------
 
-Layer::Layer(SurfaceFlinger* flinger,
-        DisplayID display, const sp<Client>& client)
-    :   LayerBaseClient(flinger, display, client),
+Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
+    :   LayerBaseClient(flinger, client),
         mTextureName(-1U),
         mQueuedFrames(0),
         mCurrentTransform(0),
