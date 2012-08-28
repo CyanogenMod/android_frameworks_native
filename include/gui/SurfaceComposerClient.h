@@ -39,6 +39,7 @@ class DisplayInfo;
 class Composer;
 class IMemoryHeap;
 class ISurfaceComposerClient;
+class ISurfaceTexture;
 class Region;
 
 // ---------------------------------------------------------------------------
@@ -64,7 +65,7 @@ public:
             void* cookie = NULL, uint32_t flags = 0);
 
     // Get information about a display
-    static status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
+    static status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
 
     // ------------------------------------------------------------------------
     // surface creation / destruction
@@ -72,22 +73,18 @@ public:
     //! Create a surface
     sp<SurfaceControl> createSurface(
             const String8& name,// name of the surface
-            DisplayID display,  // Display to create this surface on
             uint32_t w,         // width in pixel
             uint32_t h,         // height in pixel
             PixelFormat format, // pixel-format desired
             uint32_t flags = 0  // usage flags
     );
 
-    sp<SurfaceControl> createSurface(
-            DisplayID display,  // Display to create this surface on
-            uint32_t w,         // width in pixel
-            uint32_t h,         // height in pixel
-            PixelFormat format, // pixel-format desired
-            uint32_t flags = 0  // usage flags
-    );
-
+    //! Create a display
     static sp<IBinder> createDisplay();
+
+    //! Get the token for the existing default displays.
+    //! Possible values for id are eDisplayIdMain and eDisplayIdHdmi.
+    static sp<IBinder> getBuiltInDisplay(int32_t id);
 
     // ------------------------------------------------------------------------
     // Composer parameters
@@ -101,9 +98,6 @@ public:
         
     //! Close a composer transaction on all active SurfaceComposerClients.
     static void closeGlobalTransaction(bool synchronous = false);
-
-    //! Set the orientation of the given display
-    static int setOrientation(DisplayID dpy, int orientation, uint32_t flags);
 
     status_t    hide(SurfaceID id);
     status_t    show(SurfaceID id, int32_t layer = -1);
@@ -150,9 +144,11 @@ public:
     ScreenshotClient();
 
     // frees the previous screenshot and capture a new one
-    status_t update();
-    status_t update(uint32_t reqWidth, uint32_t reqHeight);
-    status_t update(uint32_t reqWidth, uint32_t reqHeight,
+    status_t update(const sp<IBinder>& display);
+    status_t update(const sp<IBinder>& display,
+            uint32_t reqWidth, uint32_t reqHeight);
+    status_t update(const sp<IBinder>& display,
+            uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ);
 
     // release memory occupied by the screenshot

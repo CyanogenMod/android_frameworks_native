@@ -38,8 +38,8 @@ int main(int argc, char** argv)
     // create a client to surfaceflinger
     sp<SurfaceComposerClient> client = new SurfaceComposerClient();
     
-    sp<Surface> surface = client->createSurface(0, 160, 240,
-            PIXEL_FORMAT_RGB_565);
+    sp<Surface> surface = client->createSurface(String8("resize"),
+            160, 240, PIXEL_FORMAT_RGB_565, 0);
 
 
     SurfaceComposerClient::openGlobalTransaction();

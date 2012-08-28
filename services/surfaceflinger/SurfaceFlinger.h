@@ -195,7 +195,7 @@ private:
     virtual bool authenticateSurfaceTexture(
         const sp<ISurfaceTexture>& surface) const;
     virtual sp<IDisplayEventConnection> createDisplayEventConnection();
-    virtual status_t captureScreen(DisplayID dpy, sp<IMemoryHeap>* heap,
+    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
         uint32_t* width, uint32_t* height, PixelFormat* format,
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);
@@ -203,8 +203,8 @@ private:
     virtual void blank();
     // called when screen is turning back on
     virtual void unblank();
-    virtual status_t getDisplayInfo(DisplayID dpy, DisplayInfo* info);
-    virtual void connectDisplay(const sp<ISurfaceTexture> display);
+    virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
+    virtual void connectDisplay(const sp<ISurfaceTexture>& display);
 
     /* ------------------------------------------------------------------------
      * DeathRecipient interface
@@ -304,7 +304,7 @@ private:
 
     void startBootAnim();
 
-    status_t captureScreenImplLocked(DisplayID dpy, sp<IMemoryHeap>* heap,
+    status_t captureScreenImplLocked(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
         uint32_t* width, uint32_t* height, PixelFormat* format,
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);

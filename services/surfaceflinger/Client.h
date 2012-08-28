@@ -54,7 +54,7 @@ private:
     // ISurfaceComposerClient interface
     virtual sp<ISurface> createSurface(
             surface_data_t* params, const String8& name,
-            DisplayID display, uint32_t w, uint32_t h,PixelFormat format,
+            uint32_t w, uint32_t h,PixelFormat format,
             uint32_t flags);
 
     virtual status_t destroySurface(SurfaceID surfaceId);

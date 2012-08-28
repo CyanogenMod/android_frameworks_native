@@ -111,7 +111,7 @@ status_t Client::onTransact(
 sp<ISurface> Client::createSurface(
         ISurfaceComposerClient::surface_data_t* params,
         const String8& name,
-        DisplayID display, uint32_t w, uint32_t h, PixelFormat format,
+        uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
 {
     /*
@@ -125,7 +125,6 @@ sp<ISurface> Client::createSurface(
         ISurfaceComposerClient::surface_data_t* params;
         Client* client;
         const String8& name;
-        DisplayID display;
         uint32_t w, h;
         PixelFormat format;
         uint32_t flags;
@@ -133,22 +132,23 @@ sp<ISurface> Client::createSurface(
         MessageCreateLayer(SurfaceFlinger* flinger,
                 ISurfaceComposerClient::surface_data_t* params,
                 const String8& name, Client* client,
-                DisplayID display, uint32_t w, uint32_t h, PixelFormat format,
+                uint32_t w, uint32_t h, PixelFormat format,
                 uint32_t flags)
             : flinger(flinger), params(params), client(client), name(name),
-              display(display), w(w), h(h), format(format), flags(flags)
+              w(w), h(h), format(format), flags(flags)
         {
         }
         sp<ISurface> getResult() const { return result; }
         virtual bool handler() {
+            // TODO don't require display id to create a layer
             result = flinger->createLayer(params, name, client,
-                    display, w, h, format, flags);
+                    ISurfaceComposer::eDisplayIdMain, w, h, format, flags);
             return true;
         }
     };
 
     sp<MessageBase> msg = new MessageCreateLayer(mFlinger.get(),
-            params, name, this, display, w, h, format, flags);
+            params, name, this, w, h, format, flags);
     mFlinger->postMessageSync(msg);
     return static_cast<MessageCreateLayer*>( msg.get() )->getResult();
 }

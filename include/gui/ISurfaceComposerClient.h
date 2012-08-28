@@ -33,6 +33,7 @@ namespace android {
 
 // ----------------------------------------------------------------------------
 
+// TODO: Remove this declaration, it is only used internally by SurfaceFlinger.
 typedef int32_t    DisplayID;
 
 // ----------------------------------------------------------------------------
@@ -70,7 +71,7 @@ public:
      * Requires ACCESS_SURFACE_FLINGER permission
      */
     virtual sp<ISurface> createSurface(surface_data_t* data,
-            const String8& name, DisplayID display, uint32_t w, uint32_t h,
+            const String8& name, uint32_t w, uint32_t h,
             PixelFormat format, uint32_t flags) = 0;
 
     /*
