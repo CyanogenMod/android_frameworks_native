@@ -1288,7 +1288,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             // screen is already cleared here
             if (!region.isEmpty()) {
                 // can happen with SurfaceView
-                drawWormhole(region);
+                drawWormhole(hw, region);
             }
         }
 
@@ -1328,27 +1328,26 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
     }
 }
 
-void SurfaceFlinger::drawWormhole(const Region& region) const
+void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
+        const Region& region) const
 {
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
     glColor4f(0,0,0,0);
 
-    GLfloat vertices[4][2];
-    glVertexPointer(2, GL_FLOAT, 0, vertices);
+    const int32_t height = hw->getHeight();
     Region::const_iterator it = region.begin();
     Region::const_iterator const end = region.end();
     while (it != end) {
         const Rect& r = *it++;
-        vertices[0][0] = r.left;
-        vertices[0][1] = r.top;
-        vertices[1][0] = r.right;
-        vertices[1][1] = r.top;
-        vertices[2][0] = r.right;
-        vertices[2][1] = r.bottom;
-        vertices[3][0] = r.left;
-        vertices[3][1] = r.bottom;
+        GLfloat vertices[][2] = {
+                { r.left,  height - r.top },
+                { r.left,  height - r.bottom },
+                { r.right, height - r.bottom },
+                { r.right, height - r.top }
+        };
+        glVertexPointer(2, GL_FLOAT, 0, vertices);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 }
