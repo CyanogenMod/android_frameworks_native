@@ -54,9 +54,8 @@ class LayerBase : public RefBase
     static int32_t sSequence;
 
 public:
-            LayerBase(SurfaceFlinger* flinger, DisplayID display);
+            LayerBase(SurfaceFlinger* flinger);
 
-    DisplayID           dpy;
     mutable bool        contentDirty;
             // regions below are in window-manager space
             Region      visibleRegion;
@@ -293,8 +292,7 @@ private:
 class LayerBaseClient : public LayerBase
 {
 public:
-            LayerBaseClient(SurfaceFlinger* flinger, DisplayID display,
-                        const sp<Client>& client);
+            LayerBaseClient(SurfaceFlinger* flinger, const sp<Client>& client);
 
             virtual ~LayerBaseClient();
 

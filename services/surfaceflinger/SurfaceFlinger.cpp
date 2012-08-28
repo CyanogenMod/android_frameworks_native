@@ -155,24 +155,6 @@ sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
     return bclient;
 }
 
-int32_t SurfaceFlinger::chooseNewDisplayIdLocked() const
-{
-    int32_t id = DisplayDevice::DISPLAY_ID_COUNT - 1;
-    bool available;
-    do {
-        id++;
-        available = true;
-        for (size_t i = 0; i < mCurrentState.displays.size(); i++) {
-            const DisplayDeviceState& dds(mCurrentState.displays.valueAt(i));
-            if (dds.id == id) {
-                available = false;
-                break;
-            }
-        }
-    } while (!available);
-    return id;
-}
-
 sp<IBinder> SurfaceFlinger::createDisplay()
 {
     class DisplayToken : public BBinder {
@@ -192,15 +174,14 @@ sp<IBinder> SurfaceFlinger::createDisplay()
     sp<BBinder> token = new DisplayToken(this);
 
     Mutex::Autolock _l(mStateLock);
-    int32_t id = chooseNewDisplayIdLocked();
-    DisplayDeviceState info(id);
+    DisplayDeviceState info(DisplayDevice::DISPLAY_VIRTUAL);
     mCurrentState.displays.add(token, info);
 
     return token;
 }
 
 sp<IBinder> SurfaceFlinger::getBuiltInDisplay(int32_t id) {
-    if (uint32_t(id) >= DisplayDevice::DISPLAY_ID_COUNT) {
+    if (uint32_t(id) >= DisplayDevice::NUM_DISPLAY_TYPES) {
         ALOGE("getDefaultDisplay: id=%d is not a valid default display id", id);
         return NULL;
     }
@@ -416,14 +397,16 @@ status_t SurfaceFlinger::readyToRun()
 
     // initialize our main display hardware
 
-    for (size_t i=0 ; i<DisplayDevice::DISPLAY_ID_COUNT ; i++) {
+    for (size_t i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
         mDefaultDisplays[i] = new BBinder();
-        mCurrentState.displays.add(mDefaultDisplays[i], DisplayDeviceState(i));
+        mCurrentState.displays.add(mDefaultDisplays[i],
+                DisplayDeviceState((DisplayDevice::DisplayType)i));
     }
     sp<DisplayDevice> hw = new DisplayDevice(this,
-            DisplayDevice::DISPLAY_ID_MAIN, HWC_DISPLAY_PRIMARY,
+            DisplayDevice::DISPLAY_PRIMARY,
+            mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY],
             anw, fbs, mEGLConfig);
-    mDisplays.add(hw->getDisplayId(), hw);
+    mDisplays.add(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY], hw);
 
     //  initialize OpenGL ES
     EGLSurface surface = hw->getEGLSurface();
@@ -451,6 +434,11 @@ status_t SurfaceFlinger::readyToRun()
     startBootAnim();
 
     return NO_ERROR;
+}
+
+int32_t SurfaceFlinger::allocateHwcDisplayId(DisplayDevice::DisplayType type) {
+    return (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) ?
+            type : mHwc->allocateDisplayId();
 }
 
 void SurfaceFlinger::startBootAnim() {
@@ -637,8 +625,12 @@ bool SurfaceFlinger::threadLoop() {
     return true;
 }
 
-void SurfaceFlinger::onVSyncReceived(int dpy, nsecs_t timestamp) {
-    mEventThread->onVSyncReceived(dpy, timestamp);
+void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
+    if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
+        // we should only receive DisplayDevice::DisplayType from the vsync callback
+        const wp<IBinder>& token(mDefaultDisplays[type]);
+        mEventThread->onVSyncReceived(token, timestamp);
+    }
 }
 
 void SurfaceFlinger::eventControl(int event, int enabled) {
@@ -718,7 +710,7 @@ void SurfaceFlinger::doDebugFlashRegions()
                 }
                 hw->compositionComplete();
                 // FIXME
-                if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
+                if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
                     eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
                 }
             }
@@ -863,8 +855,7 @@ void SurfaceFlinger::postFramebuffer()
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
-        DisplayDevice::makeCurrent(
-                getDisplayDevice(DisplayDevice::DISPLAY_ID_MAIN), mEGLContext);
+        DisplayDevice::makeCurrent(getDefaultDisplayDevice(), mEGLContext);
         hwc.commit();
     }
 
@@ -958,40 +949,36 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 const ssize_t j = curr.indexOfKey(draw.keyAt(i));
                 if (j < 0) {
                     // in drawing state but not in current state
-                    if (draw[i].id != DisplayDevice::DISPLAY_ID_MAIN) {
-                        mDisplays.removeItem(draw[i].id);
+                    if (!draw[i].isMainDisplay()) {
+                        mDisplays.removeItem(draw.keyAt(i));
                     } else {
                         ALOGW("trying to remove the main display");
                     }
                 } else {
                     // this display is in both lists. see if something changed.
                     const DisplayDeviceState& state(curr[j]);
+                    const wp<IBinder>& display(curr.keyAt(j));
                     if (state.surface->asBinder() != draw[i].surface->asBinder()) {
                         // changing the surface is like destroying and
                         // recreating the DisplayDevice
-                        const int32_t hwcDisplayId =
-                            (uint32_t(state.id) < DisplayDevice::DISPLAY_ID_COUNT) ?
-                                state.id : getHwComposer().allocateDisplayId();
-
                         sp<SurfaceTextureClient> stc(
                                 new SurfaceTextureClient(state.surface));
-
                         sp<DisplayDevice> disp = new DisplayDevice(this,
-                            state.id, hwcDisplayId, stc, 0, mEGLConfig);
+                            state.type, display, stc, NULL, mEGLConfig);
 
                         disp->setLayerStack(state.layerStack);
                         disp->setOrientation(state.orientation);
                         // TODO: take viewport and frame into account
-                        mDisplays.replaceValueFor(state.id, disp);
+                        mDisplays.replaceValueFor(display, disp);
                     }
                     if (state.layerStack != draw[i].layerStack) {
-                        const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
+                        const sp<DisplayDevice>& disp(getDisplayDevice(display));
                         disp->setLayerStack(state.layerStack);
                     }
                     if (state.orientation != draw[i].orientation ||
                         state.viewport != draw[i].viewport ||
                         state.frame != draw[i].frame) {
-                        const sp<DisplayDevice>& disp(getDisplayDevice(state.id));
+                        const sp<DisplayDevice>& disp(getDisplayDevice(display));
                         disp->setOrientation(state.orientation);
                         // TODO: take viewport and frame into account
                     }
@@ -1003,15 +990,12 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
-                    const int32_t hwcDisplayId =
-                        (uint32_t(state.id) < DisplayDevice::DISPLAY_ID_COUNT) ?
-                            state.id : getHwComposer().allocateDisplayId();
-
                     sp<SurfaceTextureClient> stc(
                             new SurfaceTextureClient(state.surface));
+                    const wp<IBinder>& display(curr.keyAt(i));
                     sp<DisplayDevice> disp = new DisplayDevice(this,
-                        state.id, hwcDisplayId, stc, 0, mEGLConfig);
-                    mDisplays.add(state.id, disp);
+                        state.type, display, stc, 0, mEGLConfig);
+                    mDisplays.add(display, disp);
                 }
             }
         }
@@ -1262,7 +1246,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
     // GL composition and only on those.
     // however, currently hwc.commit() already does that for the main
     // display and never for the other ones
-    if (hw->getDisplayId() >= DisplayDevice::DISPLAY_ID_COUNT) {
+    if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
@@ -1485,7 +1469,7 @@ uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
 {
     uint32_t flags = 0;
     DisplayDeviceState& disp(mCurrentState.displays.editValueFor(s.token));
-    if (disp.id >= 0) {
+    if (disp.isValid()) {
         const uint32_t what = s.what;
         if (what & DisplayState::eSurfaceChanged) {
             if (disp.surface->asBinder() != s.surface->asBinder()) {
@@ -1588,7 +1572,7 @@ sp<ISurface> SurfaceFlinger::createLayer(
         ISurfaceComposerClient::surface_data_t* params,
         const String8& name,
         const sp<Client>& client,
-        DisplayID d, uint32_t w, uint32_t h, PixelFormat format,
+       uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
 {
     sp<LayerBaseClient> layer;
@@ -1603,14 +1587,14 @@ sp<ISurface> SurfaceFlinger::createLayer(
     //ALOGD("createLayer for (%d x %d), name=%s", w, h, name.string());
     switch (flags & ISurfaceComposerClient::eFXSurfaceMask) {
         case ISurfaceComposerClient::eFXSurfaceNormal:
-            layer = createNormalLayer(client, d, w, h, flags, format);
+            layer = createNormalLayer(client, w, h, flags, format);
             break;
         case ISurfaceComposerClient::eFXSurfaceBlur:
         case ISurfaceComposerClient::eFXSurfaceDim:
-            layer = createDimLayer(client, d, w, h, flags);
+            layer = createDimLayer(client, w, h, flags);
             break;
         case ISurfaceComposerClient::eFXSurfaceScreenshot:
-            layer = createScreenshotLayer(client, d, w, h, flags);
+            layer = createScreenshotLayer(client, w, h, flags);
             break;
     }
 
@@ -1630,7 +1614,7 @@ sp<ISurface> SurfaceFlinger::createLayer(
 }
 
 sp<Layer> SurfaceFlinger::createNormalLayer(
-        const sp<Client>& client, DisplayID display,
+        const sp<Client>& client,
         uint32_t w, uint32_t h, uint32_t flags,
         PixelFormat& format)
 {
@@ -1654,7 +1638,7 @@ sp<Layer> SurfaceFlinger::createNormalLayer(
         format = PIXEL_FORMAT_RGBA_8888;
 #endif
 
-    sp<Layer> layer = new Layer(this, display, client);
+    sp<Layer> layer = new Layer(this, client);
     status_t err = layer->setBuffers(w, h, format, flags);
     if (CC_LIKELY(err != NO_ERROR)) {
         ALOGE("createNormalLayer() failed (%s)", strerror(-err));
@@ -1664,18 +1648,18 @@ sp<Layer> SurfaceFlinger::createNormalLayer(
 }
 
 sp<LayerDim> SurfaceFlinger::createDimLayer(
-        const sp<Client>& client, DisplayID display,
+        const sp<Client>& client,
         uint32_t w, uint32_t h, uint32_t flags)
 {
-    sp<LayerDim> layer = new LayerDim(this, display, client);
+    sp<LayerDim> layer = new LayerDim(this, client);
     return layer;
 }
 
 sp<LayerScreenshot> SurfaceFlinger::createScreenshotLayer(
-        const sp<Client>& client, DisplayID display,
+        const sp<Client>& client,
         uint32_t w, uint32_t h, uint32_t flags)
 {
-    sp<LayerScreenshot> layer = new LayerScreenshot(this, display, client);
+    sp<LayerScreenshot> layer = new LayerScreenshot(this, client);
     return layer;
 }
 
@@ -1733,7 +1717,7 @@ void SurfaceFlinger::onInitializeDisplays() {
     Vector<DisplayState> displays;
     DisplayState d;
     d.what = DisplayState::eOrientationChanged;
-    d.token = mDefaultDisplays[DisplayDevice::DISPLAY_ID_MAIN];
+    d.token = mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY];
     d.orientation = DisplayState::eOrientationDefault;
     displays.add(d);
     setTransactionState(state, displays, 0);
@@ -1973,7 +1957,7 @@ void SurfaceFlinger::dumpAllLocked(
                 "   id=%x, layerStack=%u, (%4dx%4d), orient=%2d, tr=%08x, "
                 "flips=%u, secure=%d, numLayers=%u\n",
                 dpy,
-                hw->getDisplayId(), hw->getLayerStack(),
+                hw->getDisplayType(), hw->getLayerStack(),
                 hw->getWidth(), hw->getHeight(),
                 hw->getOrientation(), hw->getTransform().getType(),
                 hw->getPageFlipCount(),
@@ -2169,14 +2153,14 @@ void SurfaceFlinger::repaintEverything() {
 
 // ---------------------------------------------------------------------------
 
-status_t SurfaceFlinger::renderScreenToTexture(DisplayID dpy,
+status_t SurfaceFlinger::renderScreenToTexture(uint32_t layerStack,
         GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
 {
     Mutex::Autolock _l(mStateLock);
-    return renderScreenToTextureLocked(dpy, textureName, uOut, vOut);
+    return renderScreenToTextureLocked(layerStack, textureName, uOut, vOut);
 }
 
-status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
+status_t SurfaceFlinger::renderScreenToTextureLocked(uint32_t layerStack,
         GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
 {
     ATRACE_CALL();
@@ -2185,7 +2169,8 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
         return INVALID_OPERATION;
 
     // get screen geometry
-    sp<const DisplayDevice> hw(getDisplayDevice(dpy));
+    // FIXME: figure out what it means to have a screenshot texture w/ multi-display
+    sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
     GLfloat u = 1;
@@ -2254,17 +2239,12 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
 
     status_t result = PERMISSION_DENIED;
 
-    const DisplayDeviceState& disp(mDrawingState.displays.valueFor(display));
-    if (CC_UNLIKELY(disp.id < 0)) {
-        return BAD_VALUE;
-    }
-
     if (!GLExtensions::getInstance().haveFramebufferObject()) {
         return INVALID_OPERATION;
     }
 
     // get screen geometry
-    sp<const DisplayDevice> hw(getDisplayDevice(disp.id));
+    sp<const DisplayDevice> hw(getDisplayDevice(display));
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
 
@@ -2317,19 +2297,15 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
         glClearColor(0,0,0,1);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // TODO: filter the layers that are drawn based on the layer stack of the display.
-        const LayerVector& layers(mDrawingState.layersSortedByZ);
+        const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
         const size_t count = layers.size();
         for (size_t i=0 ; i<count ; ++i) {
             const sp<LayerBase>& layer(layers[i]);
-            const uint32_t flags = layer->drawingState().flags;
-            if (!(flags & layer_state_t::eLayerHidden)) {
-                const uint32_t z = layer->drawingState().z;
-                if (z >= minLayerZ && z <= maxLayerZ) {
-                    if (filtering) layer->setFiltering(true);
-                    layer->draw(hw);
-                    if (filtering) layer->setFiltering(false);
-                }
+            const uint32_t z = layer->drawingState().z;
+            if (z >= minLayerZ && z <= maxLayerZ) {
+                if (filtering) layer->setFiltering(true);
+                layer->draw(hw);
+                if (filtering) layer->setFiltering(false);
             }
         }
 
@@ -2465,11 +2441,12 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 
 // ---------------------------------------------------------------------------
 
-SurfaceFlinger::DisplayDeviceState::DisplayDeviceState() : id(-1) {
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
+    : type(DisplayDevice::DISPLAY_ID_INVALID) {
 }
 
-SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(int32_t id)
-    : id(id), layerStack(0), orientation(0) {
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(DisplayDevice::DisplayType type)
+    : type(type), layerStack(0), orientation(0) {
 }
 
 // ---------------------------------------------------------------------------
