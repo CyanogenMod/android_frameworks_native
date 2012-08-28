@@ -31,13 +31,6 @@ ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
 	LOCAL_CFLAGS += -DNEVER_DEFAULT_TO_ASYNC_MODE
 endif
 
-ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
-    LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
-    LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
-    LOCAL_SHARED_LIBRARIES += libqdutils
-    LOCAL_CFLAGS += -DQCOMHW
-endif
-
 ifeq ($(TARGET_DISABLE_TRIPLE_BUFFERING), true)
 	LOCAL_CFLAGS += -DTARGET_DISABLE_TRIPLE_BUFFERING
 endif
@@ -51,6 +44,13 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libui \
 	libgui
+
+ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
+    LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
+    LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
+    LOCAL_SHARED_LIBRARIES += libqdutils
+    LOCAL_CFLAGS += -DQCOMHW
+endif
 
 # this is only needed for DDMS debugging
 ifneq ($(TARGET_BUILD_PDK), true)
