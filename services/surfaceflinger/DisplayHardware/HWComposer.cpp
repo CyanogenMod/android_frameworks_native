@@ -46,8 +46,31 @@
 
 namespace android {
 
-static bool hwcHasVersion(const hwc_composer_device_1_t* hwc, uint32_t version) {
-    return hwc->common.version >= version;
+#define MIN_HWC_HEADER_VERSION 0
+
+static uint32_t hwcApiVersion(const hwc_composer_device_1_t* hwc) {
+    uint32_t hwcVersion = hwc->common.version;
+    if (MIN_HWC_HEADER_VERSION == 0 &&
+            (hwcVersion & HARDWARE_API_VERSION_2_MAJ_MIN_MASK) == 0) {
+        // legacy version encoding
+        hwcVersion <<= 16;
+    }
+    return hwcVersion & HARDWARE_API_VERSION_2_MAJ_MIN_MASK;
+}
+
+static uint32_t hwcHeaderVersion(const hwc_composer_device_1_t* hwc) {
+    uint32_t hwcVersion = hwc->common.version;
+    if (MIN_HWC_HEADER_VERSION == 0 &&
+            (hwcVersion & HARDWARE_API_VERSION_2_MAJ_MIN_MASK) == 0) {
+        // legacy version encoding
+        hwcVersion <<= 16;
+    }
+    return hwcVersion & HARDWARE_API_VERSION_2_HEADER_MASK;
+}
+
+static bool hwcHasApiVersion(const hwc_composer_device_1_t* hwc,
+        uint32_t version) {
+    return hwcApiVersion(hwc) >= (version & HARDWARE_API_VERSION_2_MAJ_MIN_MASK);
 }
 
 // ---------------------------------------------------------------------------
@@ -91,8 +114,10 @@ HWComposer::HWComposer(
         ALOGE_IF(err, "%s device failed to initialize (%s)",
                 HWC_HARDWARE_COMPOSER, strerror(-err));
         if (err == 0) {
-            if (mHwc->common.version < HWC_DEVICE_API_VERSION_1_0) {
-                ALOGE("%s device version %#x too old, will not be used",
+            if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0) ||
+                    hwcHeaderVersion(mHwc) < MIN_HWC_HEADER_VERSION ||
+                    hwcHeaderVersion(mHwc) > HWC_HEADER_VERSION) {
+                ALOGE("%s device version %#x unsupported, will not be used",
                         HWC_HARDWARE_COMPOSER, mHwc->common.version);
                 hwc_close_1(mHwc);
                 mHwc = NULL;
@@ -100,6 +125,9 @@ HWComposer::HWComposer(
         }
 
         if (mHwc) {
+            ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
+                    (hwcApiVersion(mHwc) >> 24) & 0xff,
+                    (hwcApiVersion(mHwc) >> 16) & 0xff);
             if (mHwc->registerProcs) {
                 mCBContext->hwc = this;
                 mCBContext->procs.invalidate = &hook_invalidate;
@@ -125,12 +153,14 @@ HWComposer::HWComposer(
 
             // the number of displays we actually have depends on the
             // hw composer version
-            if (mHwc->common.version == HWC_DEVICE_API_VERSION_1_1) {
-                // 1.1 adds support for multiple displays
-                mNumDisplays = HWC_NUM_DISPLAY_TYPES;
-            } else if (mHwc->common.version > HWC_DEVICE_API_VERSION_1_1) {
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
                 // 1.2 adds support for virtual displays
                 mNumDisplays = MAX_DISPLAYS;
+            } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+                // 1.1 adds support for multiple displays
+                mNumDisplays = HWC_NUM_DISPLAY_TYPES;
+            } else {
+                mNumDisplays = 1;
             }
         }
     }
@@ -326,7 +356,7 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
 status_t HWComposer::commit() {
     int err = NO_ERROR;
     if (mHwc) {
-        if (mHwc->common.version == HWC_DEVICE_API_VERSION_1_0) {
+        if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // On version 1.0, the OpenGL ES target surface is communicated
             // by the (dpy, sur) fields and we are guaranteed to have only
             // a single display.
