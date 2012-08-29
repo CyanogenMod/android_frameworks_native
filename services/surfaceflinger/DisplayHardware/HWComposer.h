@@ -53,7 +53,7 @@ class HWComposer
 public:
     class EventHandler {
         friend class HWComposer;
-        virtual void onVSyncReceived(int dpy, nsecs_t timestamp) = 0;
+        virtual void onVSyncReceived(int disp, nsecs_t timestamp) = 0;
     protected:
         virtual ~EventHandler() {}
     };
@@ -242,12 +242,16 @@ private:
     struct cb_context;
 
     static void hook_invalidate(const struct hwc_procs* procs);
-    static void hook_vsync(const struct hwc_procs* procs, int dpy,
+    static void hook_vsync(const struct hwc_procs* procs, int disp,
             int64_t timestamp);
+    static void hook_hotplug(const struct hwc_procs* procs, int disp,
+            int connected);
 
     inline void invalidate();
-    inline void vsync(int dpy, int64_t timestamp);
+    inline void vsync(int disp, int64_t timestamp);
+    inline void hotplug(int disp, int connected);
 
+    void queryDisplayProperties(int disp);
 
     struct DisplayData {
         DisplayData() : xdpi(0), ydpi(0), refresh(0),

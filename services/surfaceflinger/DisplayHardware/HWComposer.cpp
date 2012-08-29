@@ -132,23 +132,21 @@ HWComposer::HWComposer(
                 mCBContext->hwc = this;
                 mCBContext->procs.invalidate = &hook_invalidate;
                 mCBContext->procs.vsync = &hook_vsync;
+                if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+                    mCBContext->procs.hotplug = &hook_hotplug;
+                else
+                    mCBContext->procs.hotplug = NULL;
                 memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
                 mHwc->registerProcs(mHwc, &mCBContext->procs);
             }
 
             // always turn vsync off when we start
             needVSyncThread = false;
-            mHwc->eventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
-
-            int period;
-            if (mHwc->query(mHwc, HWC_VSYNC_PERIOD, &period) == NO_ERROR) {
-                mDisplayData[HWC_DISPLAY_PRIMARY].refresh = nsecs_t(period);
-            }
+            mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
 
             // these IDs are always reserved
             for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
                 mAllocatedDisplayIDs.markBit(i);
-                // TODO: we query xdpi / ydpi / refresh
             }
 
             // the number of displays we actually have depends on the
@@ -166,7 +164,9 @@ HWComposer::HWComposer(
     }
 
     if (fbDev) {
-        // if we're here it means we are on version 1.0
+        ALOG_ASSERT(!(mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)),
+                "should only have fbdev if no hwc or hwc is 1.0");
+
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
         disp.xdpi = fbDev->xdpi;
         disp.ydpi = fbDev->ydpi;
@@ -176,8 +176,11 @@ HWComposer::HWComposer(
         }
         if (disp.refresh == 0) {
             disp.refresh = nsecs_t(1e9 / 60.0);
-            ALOGW("getting VSYNC period thin air: %lld", mDisplayData[HWC_DISPLAY_PRIMARY].refresh);
+            ALOGW("getting VSYNC period from thin air: %lld",
+                    mDisplayData[HWC_DISPLAY_PRIMARY].refresh);
         }
+    } else if (mHwc) {
+        queryDisplayProperties(HWC_DISPLAY_PRIMARY);
     }
 
     if (needVSyncThread) {
@@ -207,22 +210,109 @@ void HWComposer::hook_invalidate(const struct hwc_procs* procs) {
     ctx->hwc->invalidate();
 }
 
-void HWComposer::hook_vsync(const struct hwc_procs* procs, int dpy,
+void HWComposer::hook_vsync(const struct hwc_procs* procs, int disp,
         int64_t timestamp) {
     cb_context* ctx = reinterpret_cast<cb_context*>(
             const_cast<hwc_procs_t*>(procs));
-    ctx->hwc->vsync(dpy, timestamp);
+    ctx->hwc->vsync(disp, timestamp);
+}
+
+void HWComposer::hook_hotplug(const struct hwc_procs* procs, int disp,
+        int connected) {
+    cb_context* ctx = reinterpret_cast<cb_context*>(
+            const_cast<hwc_procs_t*>(procs));
+    ctx->hwc->hotplug(disp, connected);
 }
 
 void HWComposer::invalidate() {
     mFlinger->repaintEverything();
 }
 
-void HWComposer::vsync(int dpy, int64_t timestamp) {
+void HWComposer::vsync(int disp, int64_t timestamp) {
     ATRACE_INT("VSYNC", ++mVSyncCount&1);
-    mEventHandler.onVSyncReceived(dpy, timestamp);
+    mEventHandler.onVSyncReceived(disp, timestamp);
     Mutex::Autolock _l(mLock);
     mLastHwVSync = timestamp;
+}
+
+void HWComposer::hotplug(int disp, int connected) {
+    if (disp == HWC_DISPLAY_PRIMARY || disp >= HWC_NUM_DISPLAY_TYPES) {
+        ALOGE("hotplug event received for invalid display: disp=%d connected=%d",
+                disp, connected);
+        return;
+    }
+
+    if (connected)
+        queryDisplayProperties(disp);
+
+    // TODO: tell someone else about this
+}
+
+static const uint32_t DISPLAY_ATTRIBUTES[] = {
+    HWC_DISPLAY_VSYNC_PERIOD,
+    HWC_DISPLAY_RESOLUTION_X,
+    HWC_DISPLAY_RESOLUTION_Y,
+    HWC_DISPLAY_DPI_X,
+    HWC_DISPLAY_DPI_Y,
+    HWC_DISPLAY_NO_ATTRIBUTE,
+};
+#define NUM_DISPLAY_ATTRIBUTES (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0])
+
+// http://developer.android.com/reference/android/util/DisplayMetrics.html
+#define ANDROID_DENSITY_TV    213
+#define ANDROID_DENSITY_XHIGH 320
+
+void HWComposer::queryDisplayProperties(int disp) {
+    ALOG_ASSERT(mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
+
+    int32_t values[NUM_DISPLAY_ATTRIBUTES - 1];
+    memset(values, 0, sizeof(values));
+
+    uint32_t config;
+    size_t numConfigs = 1;
+    status_t err = mHwc->getDisplayConfigs(mHwc, disp, &config, &numConfigs);
+    if (err == NO_ERROR) {
+        mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES,
+                values);
+    }
+
+    int32_t w = 0, h = 0;
+    for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
+        switch (DISPLAY_ATTRIBUTES[i]) {
+        case HWC_DISPLAY_VSYNC_PERIOD:
+            mDisplayData[disp].refresh = nsecs_t(values[i]);
+            break;
+        case HWC_DISPLAY_RESOLUTION_X:
+            // TODO: we'll probably want to remember this eventually
+            w = values[i];
+            break;
+        case HWC_DISPLAY_RESOLUTION_Y:
+            // TODO: we'll probably want to remember this eventually
+            h = values[i];
+            break;
+        case HWC_DISPLAY_DPI_X:
+            mDisplayData[disp].xdpi = values[i] / 1000.0f;
+            break;
+        case HWC_DISPLAY_DPI_Y:
+            mDisplayData[disp].ydpi = values[i] / 1000.0f;
+            break;
+        default:
+            ALOG_ASSERT(false, "unknown display attribute %#x",
+                    DISPLAY_ATTRIBUTES[i]);
+            break;
+        }
+    }
+
+    if (mDisplayData[disp].xdpi == 0.0f || mDisplayData[disp].ydpi == 0.0f) {
+        // is there anything smarter we can do?
+        if (h >= 1080) {
+            mDisplayData[disp].xdpi = ANDROID_DENSITY_XHIGH;
+            mDisplayData[disp].ydpi = ANDROID_DENSITY_XHIGH;
+        } else {
+            mDisplayData[disp].xdpi = ANDROID_DENSITY_TV;
+            mDisplayData[disp].ydpi = ANDROID_DENSITY_TV;
+        }
+    }
 }
 
 int32_t HWComposer::allocateDisplayId() {
