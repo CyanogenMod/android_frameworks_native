@@ -40,6 +40,7 @@ enum {
     SET_SYNCHRONOUS_MODE,
 #ifdef QCOM_HARDWARE
     SET_BUFFERS_SIZE,
+    UPDATE_BUFFERS_GEOMETRY,
 #endif
     CONNECT,
     DISCONNECT,
@@ -160,6 +161,20 @@ public:
         result = reply.readInt32();
         return result;
     }
+
+    virtual status_t updateBuffersGeometry(int w, int h, int f) {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceTexture::getInterfaceDescriptor());
+        data.writeInt32(w);
+        data.writeInt32(h);
+        data.writeInt32(f);
+        status_t result = remote()->transact(UPDATE_BUFFERS_GEOMETRY, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
 #endif
 
     virtual status_t connect(int api, QueueBufferOutput* output) {
@@ -267,6 +282,15 @@ status_t BnSurfaceTexture::onTransact(
             CHECK_INTERFACE(ISurfaceTexture, data, reply);
             int size = data.readInt32();
             status_t res = setBuffersSize(size);
+            reply->writeInt32(res);
+            return NO_ERROR;
+        } break;
+        case UPDATE_BUFFERS_GEOMETRY: {
+            CHECK_INTERFACE(ISurfaceTexture, data, reply);
+            int w = data.readInt32();
+            int h = data.readInt32();
+            int f = data.readInt32();
+            status_t res = updateBuffersGeometry(w, h, f);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;

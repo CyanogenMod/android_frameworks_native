@@ -154,6 +154,10 @@ protected:
    // for interlaced use cases where the user can pass extra information about
    // the type of the frame whether it is interlaced or progressive frame.
     virtual status_t setBuffersSize(int size) = 0;
+
+    // update buffer width, height and format information from the client
+    // which will take effect in the next queue buffer.
+    virtual status_t updateBuffersGeometry(int w, int h, int f) = 0;
 #endif
 
     // connect attempts to connect a client API to the SurfaceTexture.  This
