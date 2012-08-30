@@ -258,7 +258,12 @@ status_t GraphicBuffer::unflatten(void const* buffer, size_t size,
     mOwner = ownHandle;
 
     if (handle != 0) {
-        mBufferMapper.registerBuffer(handle);
+        status_t err = mBufferMapper.registerBuffer(handle);
+        if (err != NO_ERROR) {
+            ALOGE("unflatten: registerBuffer failed: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
     }
 
     return NO_ERROR;

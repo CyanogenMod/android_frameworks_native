@@ -711,7 +711,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferNpot) {
     ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(),
             -1));
 
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -757,7 +757,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferPow2) {
     ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(),
             -1));
 
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -817,7 +817,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferWithCrop) {
         ASSERT_EQ(NO_ERROR, mANW->queueBuffer(mANW.get(),
                 buf->getNativeBuffer(), -1));
 
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
         glClearColor(0.2, 0.2, 0.2, 0.2);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -966,7 +966,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
         if (i > 1) {
             mFW->waitForFrame();
         }
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         drawTexture();
 
         for (int j = 0; j < numTestPixels; j++) {
@@ -997,7 +997,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferNpot) {
 
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1039,7 +1039,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferPow2) {
 
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1196,7 +1196,7 @@ TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
     EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
-    EXPECT_EQ(OK,mST->updateTexImage());
+    EXPECT_EQ(OK, mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
     assertRectEq(Rect(23, 78, 123, 477), r);
 
@@ -1230,7 +1230,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
-    EXPECT_EQ(OK,mST->updateTexImage());
+    EXPECT_EQ(OK, mST->updateTexImage());
     Rect r = mST->getCurrentCrop();
     // crop should be the same as crop (same aspect ratio)
     assertRectEq(Rect(10, 20, 330, 200), r);
@@ -1241,7 +1241,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
-    EXPECT_EQ(OK,mST->updateTexImage());
+    EXPECT_EQ(OK, mST->updateTexImage());
     r = mST->getCurrentCrop();
     // crop should be the same height, but have cropped left and right borders
     // offset is 30.6 px L+, R-
@@ -1253,7 +1253,7 @@ TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
     EXPECT_EQ (OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
     mFW->waitForFrame();
-    EXPECT_EQ(OK,mST->updateTexImage());
+    EXPECT_EQ(OK, mST->updateTexImage());
     r = mST->getCurrentCrop();
     // crop should be the same width, but have cropped top and bottom borders
     // offset is 37.5 px
@@ -1453,8 +1453,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
 
     glDisable(GL_SCISSOR_TEST);
 
-    mST->updateTexImage(); // Skip the first frame, which was empty
-    mST->updateTexImage();
+    // Skip the first frame, which was empty
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1508,7 +1509,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
                 mEglContext));
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
         mFW->waitForFrame();
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         buffers[i] = mST->getCurrentBuffer();
     }
 
@@ -1639,8 +1640,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
 
     glDisable(GL_SCISSOR_TEST);
 
-    mST->updateTexImage(); // Skip the first frame, which was empty
-    mST->updateTexImage();
+    // Skip the first frame, which was empty
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1696,8 +1698,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedUserSizedGLFilledBuffer)
 
     glDisable(GL_SCISSOR_TEST);
 
-    mST->updateTexImage(); // Skip the first frame, which was empty
-    mST->updateTexImage();
+    // Skip the first frame, which was empty
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1753,8 +1756,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedGLFilledBuffer) {
 
     glDisable(GL_SCISSOR_TEST);
 
-    mST->updateTexImage(); // Skip the first frame, which was empty
-    mST->updateTexImage();
+    // Skip the first frame, which was empty
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     glClearColor(0.2, 0.2, 0.2, 0.2);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1944,7 +1948,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     runProducerThread(new PT());
 
     mFC->waitForFrame();
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
     mFC->finishFrame();
 
     // TODO: Add frame verification once RGB TEX_EXTERNAL_OES is supported!
@@ -1964,7 +1968,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
 
     mFC->waitForFrame();
     mFC->finishFrame();
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     // TODO: Add frame verification once RGB TEX_EXTERNAL_OES is supported!
 }
@@ -1990,7 +1994,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     for (int i = 0; i < NUM_ITERATIONS; i++) {
         mFC->waitForFrame();
         ALOGV("+updateTexImage");
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         ALOGV("-updateTexImage");
         mFC->finishFrame();
 
@@ -2020,7 +2024,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
         mFC->waitForFrame();
         mFC->finishFrame();
         ALOGV("+updateTexImage");
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         ALOGV("-updateTexImage");
 
         // TODO: Add frame verification once RGB TEX_EXTERNAL_OES is supported!
@@ -2062,7 +2066,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     // that happens before we call setDefaultMaxBufferCount.  It's possible that the
     // driver does not dequeue a buffer at EGLSurface creation time, so we
     // cannot rely on this to cause the second dequeueBuffer call to block.
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     mFC->waitForFrame();
     mFC->finishFrame();
@@ -2081,15 +2085,15 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     }
 
     // Consume the two pending buffers to unblock the producer thread.
-    mST->updateTexImage();
-    mST->updateTexImage();
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
 
     // Consume the remaining buffers from the producer thread.
     for (int i = 0; i < NUM_ITERATIONS-3; i++) {
         mFC->waitForFrame();
         mFC->finishFrame();
         ALOGV("+updateTexImage");
-        mST->updateTexImage();
+        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
         ALOGV("-updateTexImage");
     }
 }
