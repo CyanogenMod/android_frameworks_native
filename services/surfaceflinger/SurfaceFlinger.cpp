@@ -1264,15 +1264,13 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
 
 void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
+    const int32_t id = hw->getHwcDisplayId();
     HWComposer& hwc(getHwComposer());
-    int32_t id = hw->getHwcDisplayId();
     HWComposer::LayerListIterator cur = hwc.begin(id);
     const HWComposer::LayerListIterator end = hwc.end(id);
 
-    const bool hasGlesComposition = hwc.hasGlesComposition(id);
-    const bool hasHwcComposition = hwc.hasHwcComposition(id);
-    if (cur==end || hasGlesComposition) {
-
+    const bool hasGlesComposition = hwc.hasGlesComposition(id) || (cur==end);
+    if (hasGlesComposition) {
         DisplayDevice::makeCurrent(hw, mEGLContext);
 
         // set the frame buffer
@@ -1280,6 +1278,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         glLoadIdentity();
 
         // Never touch the framebuffer if we don't have any framebuffer layers
+        const bool hasHwcComposition = hwc.hasHwcComposition(id);
         if (hasHwcComposition) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
@@ -1296,38 +1295,49 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                 drawWormhole(hw, region);
             }
         }
+    }
 
-        /*
-         * and then, render the layers targeted at the framebuffer
-         */
+    /*
+     * and then, render the layers targeted at the framebuffer
+     */
 
-        const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
-        const size_t count = layers.size();
-        const Transform& tr = hw->getTransform();
-        for (size_t i=0 ; i<count ; ++i) {
+    const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
+    const size_t count = layers.size();
+    const Transform& tr = hw->getTransform();
+    if (cur != end) {
+        // we're using h/w composer
+        for (size_t i=0 ; i<count && cur!=end ; ++i, ++cur) {
             const sp<LayerBase>& layer(layers[i]);
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
-            if (cur != end) {
-                // we're using h/w composer
-                if (!clip.isEmpty()) {
-                    if (cur->getCompositionType() == HWC_OVERLAY) {
-                        if (i && (cur->getHints() & HWC_HINT_CLEAR_FB)
-                                && layer->isOpaque()) {
+            if (!clip.isEmpty()) {
+                switch (cur->getCompositionType()) {
+                    case HWC_OVERLAY: {
+                        if ((cur->getHints() & HWC_HINT_CLEAR_FB)
+                                && i
+                                && layer->isOpaque()
+                                && hasGlesComposition) {
                             // never clear the very first layer since we're
                             // guaranteed the FB is already cleared
                             layer->clearWithOpenGL(hw, clip);
                         }
-                    } else {
-                        layer->draw(hw, clip);
+                        break;
                     }
-                    layer->setAcquireFence(hw, *cur);
+                    case HWC_FRAMEBUFFER: {
+                        layer->draw(hw, clip);
+                        break;
+                    }
                 }
-                ++cur;
-            } else {
-                // we're not using h/w composer
-                if (!clip.isEmpty()) {
-                    layer->draw(hw, clip);
-                }
+            }
+            layer->setAcquireFence(hw, *cur);
+        }
+    } else {
+        // we're not using h/w composer
+        for (size_t i=0 ; i<count ; ++i) {
+            const sp<LayerBase>& layer(layers[i]);
+            const Region clip(dirty.intersect(
+                    tr.transform(layer->visibleRegion)));
+            if (!clip.isEmpty()) {
+                layer->draw(hw, clip);
             }
         }
     }
