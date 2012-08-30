@@ -140,6 +140,8 @@ bool EventThread::threadLoop() {
     return true;
 }
 
+// This will return when (1) a vsync event has been received, and (2) there was
+// at least one connection interested in receiving it when we started waiting.
 Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
         DisplayEventReceiver::Event* event)
 {
@@ -193,31 +195,54 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
             // don't report it, and disable VSYNC events
             disableVSyncLocked();
         } else if (!timestamp && waitForVSync) {
+            // we have at least one client, so we want vsync enabled
+            // (TODO: this function is called right after we finish
+            // notifying clients of a vsync, so this call will be made
+            // at the vsync rate, e.g. 60fps.  If we can accurately
+            // track the current state we could avoid making this call
+            // so often.)
             enableVSyncLocked();
         }
 
-        // note: !timestamp implies signalConnections.isEmpty()
+        // note: !timestamp implies signalConnections.isEmpty(), because we
+        // don't populate signalConnections if there's no vsync pending
         if (!timestamp) {
             // wait for something to happen
-            if (CC_UNLIKELY(mUseSoftwareVSync && waitForVSync)) {
-                // h/w vsync cannot be used (screen is off), so we use
-                // a  timeout instead. it doesn't matter how imprecise this
-                // is, we just need to make sure to serve the clients
-                if (mCondition.waitRelative(mLock, ms2ns(16)) == TIMED_OUT) {
+            if (waitForVSync) {
+                // This is where we spend most of our time, waiting
+                // for vsync events and new client registrations.
+                //
+                // If the screen is off, we can't use h/w vsync, so we
+                // use a 16ms timeout instead.  It doesn't need to be
+                // precise, we just need to keep feeding our clients.
+                //
+                // We don't want to stall if there's a driver bug, so we
+                // use a (long) timeout when waiting for h/w vsync, and
+                // generate fake events when necessary.
+                bool softwareSync = mUseSoftwareVSync;
+                nsecs_t timeout = softwareSync ? ms2ns(16) : ms2ns(1000);
+                if (mCondition.waitRelative(mLock, timeout) == TIMED_OUT) {
+                    if (!softwareSync) {
+                        ALOGW("Timed out waiting for hw vsync; faking it");
+                    }
                     mVSyncTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     mVSyncCount++;
                 }
             } else {
-                // This is where we spend most of our time, waiting
-                // for a vsync events and registered clients
+                // Nobody is interested in vsync, so we just want to sleep.
+                // h/w vsync should be disabled, so this will wait until we
+                // get a new connection, or an existing connection becomes
+                // interested in receiving vsync again.
                 mCondition.wait(mLock);
             }
         }
     } while (signalConnections.isEmpty());
 
     // here we're guaranteed to have a timestamp and some connections to signal
+    // (The connections might have dropped out of mDisplayEventConnections
+    // while we were asleep, but we'll still have strong references to them.)
 
-    // dispatch vsync events to listeners...
+    // fill in vsync event info
     event->header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
     event->header.timestamp = timestamp;
     event->vsync.count = vsyncCount;
