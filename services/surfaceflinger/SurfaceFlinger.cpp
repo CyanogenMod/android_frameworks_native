@@ -1255,8 +1255,9 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
     // FIXME: we need to call eglSwapBuffers() on displays that have
     // GL composition and only on those.
     // however, currently hwc.commit() already does that for the main
-    // display and never for the other ones
-    if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
+    // display (if there is a hwc) and never for the other ones
+    if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL ||
+            getHwComposer().initCheck() != NO_ERROR) {
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
