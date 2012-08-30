@@ -944,7 +944,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
         if (!curr.isIdenticalTo(draw)) {
             mVisibleRegionsDirty = true;
             const size_t cc = curr.size();
-            const size_t dc = draw.size();
+                  size_t dc = draw.size();
 
             // find the displays that were removed
             // (ie: in drawing state but not in current state)
@@ -965,27 +965,27 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const wp<IBinder>& display(curr.keyAt(j));
                     if (state.surface->asBinder() != draw[i].surface->asBinder()) {
                         // changing the surface is like destroying and
-                        // recreating the DisplayDevice
-                        sp<SurfaceTextureClient> stc(
-                                new SurfaceTextureClient(state.surface));
-                        sp<DisplayDevice> disp = new DisplayDevice(this,
-                            state.type, display, stc, NULL, mEGLConfig);
+                        // recreating the DisplayDevice, so we just remove it
+                        // from the drawing state, so that it get re-added
+                        // below.
+                        mDisplays.removeItem(display);
+                        mDrawingState.displays.removeItemsAt(i);
+                        dc--; i--;
+                        // at this point we must loop to the next item
+                        continue;
+                    }
 
-                        disp->setLayerStack(state.layerStack);
-                        disp->setOrientation(state.orientation);
-                        // TODO: take viewport and frame into account
-                        mDisplays.replaceValueFor(display, disp);
-                    }
-                    if (state.layerStack != draw[i].layerStack) {
-                        const sp<DisplayDevice>& disp(getDisplayDevice(display));
-                        disp->setLayerStack(state.layerStack);
-                    }
-                    if (state.orientation != draw[i].orientation ||
-                        state.viewport != draw[i].viewport ||
-                        state.frame != draw[i].frame) {
-                        const sp<DisplayDevice>& disp(getDisplayDevice(display));
-                        disp->setOrientation(state.orientation);
-                        // TODO: take viewport and frame into account
+                    const sp<DisplayDevice>& disp(getDisplayDevice(display));
+                    if (disp != NULL) {
+                        if (state.layerStack != draw[i].layerStack) {
+                            disp->setLayerStack(state.layerStack);
+                        }
+                        if (state.orientation != draw[i].orientation ||
+                                state.viewport != draw[i].viewport ||
+                                state.frame != draw[i].frame) {
+                            disp->setOrientation(state.orientation);
+                            // TODO: take viewport and frame into account
+                        }
                     }
                 }
             }
@@ -995,12 +995,17 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
-                    sp<SurfaceTextureClient> stc(
-                            new SurfaceTextureClient(state.surface));
-                    const wp<IBinder>& display(curr.keyAt(i));
-                    sp<DisplayDevice> disp = new DisplayDevice(this,
-                        state.type, display, stc, 0, mEGLConfig);
-                    mDisplays.add(display, disp);
+                    if (state.surface != NULL) {
+                        sp<SurfaceTextureClient> stc(
+                                new SurfaceTextureClient(state.surface));
+                        const wp<IBinder>& display(curr.keyAt(i));
+                        sp<DisplayDevice> disp = new DisplayDevice(this,
+                                state.type, display, stc, 0, mEGLConfig);
+                        disp->setLayerStack(state.layerStack);
+                        disp->setOrientation(state.orientation);
+                        // TODO: take viewport and frame into account
+                        mDisplays.add(display, disp);
+                    }
                 }
             }
         }
