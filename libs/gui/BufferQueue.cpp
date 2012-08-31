@@ -812,6 +812,23 @@ void BufferQueue::freeAllBuffersLocked() {
 status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
     ATRACE_CALL();
     Mutex::Autolock _l(mMutex);
+
+    // Check that the consumer doesn't currently have the maximum number of
+    // buffers acquired.  We allow the max buffer count to be exceeded by one
+    // buffer, so that the consumer can successfully set up the newly acquired
+    // buffer before releasing the old one.
+    int numAcquiredBuffers = 0;
+    for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
+        if (mSlots[i].mBufferState == BufferSlot::ACQUIRED) {
+            numAcquiredBuffers++;
+        }
+    }
+    if (numAcquiredBuffers >= mMaxAcquiredBufferCount+1) {
+        ST_LOGE("acquireBuffer: max acquired buffer count reached: %d (max=%d)",
+                numAcquiredBuffers, mMaxAcquiredBufferCount);
+        return INVALID_OPERATION;
+    }
+
     // check if queue is empty
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
