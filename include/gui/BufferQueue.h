@@ -252,10 +252,10 @@ public:
     // requestBuffers when a with and height of zero is requested.
     status_t setDefaultBufferSize(uint32_t w, uint32_t h);
 
-    // setBufferCountServer set the buffer count. If the client has requested
+    // setDefaultBufferCount set the buffer count. If the client has requested
     // a buffer count using setBufferCount, the server-buffer count will
     // take effect once the client sets the count back to zero.
-    status_t setBufferCountServer(int bufferCount);
+    status_t setDefaultMaxBufferCount(int bufferCount);
 
     // isSynchronousMode returns whether the SurfaceTexture is currently in
     // synchronous mode.
@@ -298,7 +298,14 @@ private:
     // are freed except the current buffer.
     status_t drainQueueAndFreeBuffersLocked();
 
-    status_t setBufferCountServerLocked(int bufferCount);
+    // setDefaultMaxBufferCountLocked sets the maximum number of buffer slots
+    // that will be used if the producer does not override the buffer slot
+    // count.
+    status_t setDefaultMaxBufferCountLocked(int count);
+
+    // getMinBufferCountLocked returns the minimum number of buffers allowed
+    // given the current BufferQueue state.
+    int getMinMaxBufferCountLocked() const;
 
     struct BufferSlot {
 
@@ -426,26 +433,22 @@ private:
     // not dequeued at any time
     int mMinUndequeuedBuffers;
 
-    // mMinAsyncBufferSlots is a constraint on the minimum mBufferCount
-    // when this BufferQueue is in asynchronous mode
-    int mMinAsyncBufferSlots;
+    // mMaxBufferCount is the maximum number of buffers that will be allocated
+    // at once.
+    int mMaxBufferCount;
 
-    // mMinSyncBufferSlots is a constraint on the minimum mBufferCount
-    // when this BufferQueue is in synchronous mode
-    int mMinSyncBufferSlots;
+    // mDefaultMaxBufferCount is the default limit on the number of buffers
+    // that will be allocated at one time.  This default limit is set by the
+    // consumer.  The limit (as opposed to the default limit) may be
+    // overridden by the producer.
+    int mDefaultMaxBufferCount;
 
-    // mBufferCount is the number of buffer slots that the client and server
-    // must maintain. It defaults to MIN_ASYNC_BUFFER_SLOTS and can be changed
-    // by calling setBufferCount or setBufferCountServer
-    int mBufferCount;
-
-    // mClientBufferCount is the number of buffer slots requested by the client.
-    // The default is zero, which means the client doesn't care how many buffers
-    // there is.
-    int mClientBufferCount;
-
-    // mServerBufferCount buffer count requested by the server-side
-    int mServerBufferCount;
+    // mOverrideMaxBufferCount is the limit on the number of buffers that will
+    // be allocated at one time. This value is set by the image producer by
+    // calling setBufferCount. The default is zero, which means the producer
+    // doesn't care about the number of buffers in the pool. In that case
+    // mDefaultMaxBufferCount is used as the limit.
+    int mOverrideMaxBufferCount;
 
     // mGraphicBufferAlloc is the connection to SurfaceFlinger that is used to
     // allocate new GraphicBuffer objects.

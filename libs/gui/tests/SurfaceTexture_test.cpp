@@ -848,7 +848,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
     enum { numFrames = 1024 };
 
     ASSERT_EQ(NO_ERROR, mST->setSynchronousMode(true));
-    ASSERT_EQ(NO_ERROR, mST->setBufferCountServer(2));
+    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
     ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
             texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
@@ -1321,7 +1321,7 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
     };
 
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
-    ASSERT_EQ(OK, mST->setBufferCountServer(2));
+    ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
 
     sp<Thread> pt(new ProducerThread(mANW));
     pt->run();
@@ -1584,7 +1584,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
 
 TEST_F(SurfaceTextureGLToGLTest, EglSurfaceDefaultsToSynchronousMode) {
     // This test requires 3 buffers to run on a single thread.
-    mST->setBufferCountServer(3);
+    mST->setDefaultMaxBufferCount(3);
 
     ASSERT_TRUE(mST->isSynchronousMode());
 
@@ -2045,7 +2045,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     };
 
     ASSERT_EQ(OK, mST->setSynchronousMode(true));
-    ASSERT_EQ(OK, mST->setBufferCountServer(2));
+    ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
 
     runProducerThread(new PT());
 
@@ -2059,7 +2059,7 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
     // We must call updateTexImage to consume the first frame so that the
     // SurfaceTexture is able to reduce the buffer count to 2.  This is because
     // the GL driver may dequeue a buffer when the EGLSurface is created, and
-    // that happens before we call setBufferCountServer.  It's possible that the
+    // that happens before we call setDefaultMaxBufferCount.  It's possible that the
     // driver does not dequeue a buffer at EGLSurface creation time, so we
     // cannot rely on this to cause the second dequeueBuffer call to block.
     mST->updateTexImage();
@@ -2586,7 +2586,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 TEST_F(SurfaceTextureMultiContextGLTest,
         UpdateTexImageSucceedsForBufferConsumedBeforeDetach) {
     ASSERT_EQ(NO_ERROR, mST->setSynchronousMode(true));
-    ASSERT_EQ(NO_ERROR, mST->setBufferCountServer(2));
+    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
 
     // produce two frames and consume them both on the primary context
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));

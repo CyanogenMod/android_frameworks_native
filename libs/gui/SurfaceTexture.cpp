@@ -125,9 +125,9 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mBufferQueue->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
-status_t SurfaceTexture::setBufferCountServer(int bufferCount) {
+status_t SurfaceTexture::setDefaultMaxBufferCount(int bufferCount) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setBufferCountServer(bufferCount);
+    return mBufferQueue->setDefaultMaxBufferCount(bufferCount);
 }
 
 
