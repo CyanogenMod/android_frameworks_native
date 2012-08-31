@@ -81,12 +81,12 @@ static const char* scalingModeName(int scalingMode) {
     }
 }
 
-BufferQueue::BufferQueue(bool allowSynchronousMode, int bufferCount,
+BufferQueue::BufferQueue(bool allowSynchronousMode,
         const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultWidth(1),
     mDefaultHeight(1),
-    mMinUndequeuedBuffers(bufferCount),
-    mDefaultMaxBufferCount(bufferCount + 1),
+    mMaxAcquiredBufferCount(1),
+    mDefaultMaxBufferCount(2),
     mOverrideMaxBufferCount(0),
     mSynchronousMode(false),
     mAllowSynchronousMode(allowSynchronousMode),
@@ -233,8 +233,7 @@ int BufferQueue::query(int what, int* outValue)
         value = mDefaultBufferFormat;
         break;
     case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
-        value = mSynchronousMode ?
-                (mMinUndequeuedBuffers-1) : mMinUndequeuedBuffers;
+        value = getMinUndequeuedBufferCountLocked();
         break;
     case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND:
         value = (mQueue.size() >= 2);
@@ -356,17 +355,18 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             }
 
             // See whether a buffer has been queued since the last
-            // setBufferCount so we know whether to perform the
-            // mMinUndequeuedBuffers check below.
+            // setBufferCount so we know whether to perform the min undequeued
+            // buffers check below.
             if (mBufferHasBeenQueued) {
                 // make sure the client is not trying to dequeue more buffers
                 // than allowed.
-                const int avail = maxBufferCount - (dequeuedCount+1);
-                if (avail < (mMinUndequeuedBuffers-int(mSynchronousMode))) {
-                    ST_LOGE("dequeueBuffer: mMinUndequeuedBuffers=%d exceeded "
-                            "(dequeued=%d)",
-                            mMinUndequeuedBuffers-int(mSynchronousMode),
-                            dequeuedCount);
+                const int newUndequeuedCount = maxBufferCount - (dequeuedCount+1);
+                const int minUndequeuedCount = getMinUndequeuedBufferCountLocked();
+                if (newUndequeuedCount < minUndequeuedCount) {
+                    ST_LOGE("dequeueBuffer: min undequeued buffer count (%d) "
+                            "exceeded (dequeued=%d undequeudCount=%d)",
+                            minUndequeuedCount, dequeuedCount,
+                            newUndequeuedCount);
                     return -EBUSY;
                 }
             }
@@ -954,6 +954,16 @@ status_t BufferQueue::setDefaultMaxBufferCount(int bufferCount) {
     return setDefaultMaxBufferCountLocked(bufferCount);
 }
 
+status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
+    ATRACE_CALL();
+    Mutex::Autolock lock(mMutex);
+    if (mConnectedApi != NO_CONNECTED_API) {
+        return INVALID_OPERATION;
+    }
+    mMaxAcquiredBufferCount = maxAcquiredBuffers;
+    return OK;
+}
+
 void BufferQueue::freeAllBuffersExceptHeadLocked() {
     int head = -1;
     if (!mQueue.empty()) {
@@ -996,7 +1006,12 @@ status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
 }
 
 int BufferQueue::getMinMaxBufferCountLocked() const {
-    return mSynchronousMode ? mMinUndequeuedBuffers : mMinUndequeuedBuffers + 1;
+    return getMinUndequeuedBufferCountLocked() + 1;
+}
+
+int BufferQueue::getMinUndequeuedBufferCountLocked() const {
+    return mSynchronousMode ? mMaxAcquiredBufferCount :
+            mMaxAcquiredBufferCount + 1;
 }
 
 int BufferQueue::getMaxBufferCountLocked() const {

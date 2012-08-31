@@ -30,7 +30,7 @@
 namespace android {
 
 CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers) :
-    ConsumerBase(new BufferQueue(true, maxLockedBuffers) ),
+    ConsumerBase(new BufferQueue(true) ),
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
@@ -41,6 +41,7 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers) :
 
     mBufferQueue->setSynchronousMode(true);
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
+    mBufferQueue->setMaxAcquiredBufferCount(maxLockedBuffers);
 }
 
 CpuConsumer::~CpuConsumer() {

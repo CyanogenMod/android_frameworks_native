@@ -31,10 +31,11 @@ namespace android {
 
 BufferItemConsumer::BufferItemConsumer(uint32_t consumerUsage,
         int bufferCount, bool synchronousMode) :
-    ConsumerBase(new BufferQueue(true, bufferCount) )
+    ConsumerBase(new BufferQueue(true) )
 {
     mBufferQueue->setConsumerUsageBits(consumerUsage);
     mBufferQueue->setSynchronousMode(synchronousMode);
+    mBufferQueue->setMaxAcquiredBufferCount(bufferCount);
 }
 
 BufferItemConsumer::~BufferItemConsumer() {
