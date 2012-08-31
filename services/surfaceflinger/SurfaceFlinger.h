@@ -388,6 +388,7 @@ private:
     void clearStatsLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void dumpAllLocked(String8& result, char* buffer, size_t SIZE) const;
+    bool startDdmConnection();
 
     /* ------------------------------------------------------------------------
      * Attributes

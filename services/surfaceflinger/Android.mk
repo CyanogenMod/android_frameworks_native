@@ -52,3 +52,19 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_MODULE:= libsurfaceflinger
 
 include $(BUILD_SHARED_LIBRARY)
+
+###############################################################
+# uses jni which may not be available in PDK
+ifneq ($(wildcard libnativehelper/include),)
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= \
+    DdmConnection.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libcutils \
+	libdl
+
+LOCAL_MODULE:= libsurfaceflinger_ddmconnection
+
+include $(BUILD_SHARED_LIBRARY)
+endif # libnativehelper

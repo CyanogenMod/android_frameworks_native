@@ -19,6 +19,9 @@
 
 namespace android {
 
+// wrapper for dlsym
+extern "C" void DdmConnection_start(const char* name);
+
 class DdmConnection {
 public:
     static void start(const char* name);
