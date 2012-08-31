@@ -307,6 +307,19 @@ private:
     // given the current BufferQueue state.
     int getMinMaxBufferCountLocked() const;
 
+    // getMaxBufferCountLocked returns the maximum number of buffers that can
+    // be allocated at once.  This value depends upon the following member
+    // variables:
+    //
+    //      mSynchronousMode
+    //      mMinUndequeuedBuffers
+    //      mDefaultMaxBufferCount
+    //      mOverrideMaxBufferCount
+    //
+    // Any time one of these member variables is changed while a producer is
+    // connected, mDequeueCondition must be broadcast.
+    int getMaxBufferCountLocked() const;
+
     struct BufferSlot {
 
         BufferSlot()
@@ -432,10 +445,6 @@ private:
     // mMinUndequeuedBuffers is a constraint on the number of buffers
     // not dequeued at any time
     int mMinUndequeuedBuffers;
-
-    // mMaxBufferCount is the maximum number of buffers that will be allocated
-    // at once.
-    int mMaxBufferCount;
 
     // mDefaultMaxBufferCount is the default limit on the number of buffers
     // that will be allocated at one time.  This default limit is set by the
