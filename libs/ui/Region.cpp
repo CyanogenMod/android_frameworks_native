@@ -48,22 +48,20 @@ enum {
 
 // ----------------------------------------------------------------------------
 
-Region::Region()
-    : mBounds(0,0)
-{
+Region::Region() {
+    mStorage.add(Rect(0,0));
 }
 
 Region::Region(const Region& rhs)
-    : mBounds(rhs.mBounds), mStorage(rhs.mStorage)
+    : mStorage(rhs.mStorage)
 {
 #if VALIDATE_REGIONS
     validate(rhs, "rhs copy-ctor");
 #endif
 }
 
-Region::Region(const Rect& rhs)
-    : mBounds(rhs)
-{
+Region::Region(const Rect& rhs) {
+    mStorage.add(rhs);
 }
 
 Region::~Region()
@@ -76,40 +74,46 @@ Region& Region::operator = (const Region& rhs)
     validate(*this, "this->operator=");
     validate(rhs, "rhs.operator=");
 #endif
-    mBounds = rhs.mBounds;
     mStorage = rhs.mStorage;
     return *this;
 }
 
 Region& Region::makeBoundsSelf()
 {
-    mStorage.clear();
+    if (mStorage.size() >= 2) {
+        const Rect bounds(getBounds());
+        mStorage.clear();
+        mStorage.add(bounds);
+    }
     return *this;
 }
 
 void Region::clear()
 {
-    mBounds.clear();
     mStorage.clear();
+    mStorage.add(Rect(0,0));
 }
 
 void Region::set(const Rect& r)
 {
-    mBounds = r;
     mStorage.clear();
+    mStorage.add(r);
 }
 
 void Region::set(uint32_t w, uint32_t h)
 {
-    mBounds = Rect(int(w), int(h));
     mStorage.clear();
+    mStorage.add(Rect(w,h));
 }
 
 // ----------------------------------------------------------------------------
 
 void Region::addRectUnchecked(int l, int t, int r, int b)
 {
-    mStorage.add(Rect(l,t,r,b));
+    Rect rect(l,t,r,b);
+    size_t where = mStorage.size() - 1;
+    mStorage.insertAt(rect, where, 1);
+
 #if VALIDATE_REGIONS
     validate(*this, "addRectUnchecked");
 #endif
@@ -252,7 +256,7 @@ const Region Region::operation(const Region& rhs, int dx, int dy, int op) const 
 // to obtain an optimal region.
 class Region::rasterizer : public region_operator<Rect>::region_rasterizer 
 {
-    Rect& bounds;
+    Rect bounds;
     Vector<Rect>& storage;
     Rect* head;
     Rect* tail;
@@ -260,10 +264,7 @@ class Region::rasterizer : public region_operator<Rect>::region_rasterizer
     Rect* cur;
 public:
     rasterizer(Region& reg) 
-        : bounds(reg.mBounds), storage(reg.mStorage), head(), tail(), cur() {
-        bounds.top = bounds.bottom = 0;
-        bounds.left   = INT_MAX;
-        bounds.right  = INT_MIN;
+        : bounds(INT_MAX, 0, INT_MIN, 0), storage(reg.mStorage), head(), tail(), cur() {
         storage.clear();
     }
 
@@ -281,6 +282,7 @@ public:
             bounds.left  = 0;
             bounds.right = 0;
         }
+        storage.add(bounds);
     }
     
     virtual void operator()(const Rect& rect) {
@@ -371,6 +373,9 @@ bool Region::validate(const Region& reg, const char* name)
                 b.left, b.top, b.right, b.bottom,
                 reg.getBounds().left, reg.getBounds().top, 
                 reg.getBounds().right, reg.getBounds().bottom);
+    }
+    if (reg.mStorage.size() == 2) {
+        ALOGE("mStorage size is 2, which is never valid");
     }
     if (result == false) {
         reg.dump(name);
@@ -533,7 +538,6 @@ void Region::translate(Region& reg, int dx, int dy)
 #if VALIDATE_REGIONS
         validate(reg, "translate (before)");
 #endif
-        reg.mBounds.translate(dx, dy);
         size_t count = reg.mStorage.size();
         Rect* rects = reg.mStorage.editArray();
         while (count) {
@@ -556,12 +560,11 @@ void Region::translate(Region& dst, const Region& reg, int dx, int dy)
 // ----------------------------------------------------------------------------
 
 size_t Region::getSize() const {
-    return (mStorage.size() + 1) * sizeof(Rect);
+    return mStorage.size() * sizeof(Rect);
 }
 
 status_t Region::flatten(void* buffer) const {
     Rect* rects = reinterpret_cast<Rect*>(buffer);
-    *rects++ = mBounds;
     memcpy(rects, mStorage.array(), mStorage.size() * sizeof(Rect));
     return NO_ERROR;
 }
@@ -570,8 +573,6 @@ status_t Region::unflatten(void const* buffer, size_t size) {
     mStorage.clear();
     if (size >= sizeof(Rect)) {
         Rect const* rects = reinterpret_cast<Rect const*>(buffer);
-        mBounds = *rects++;
-        size -= sizeof(Rect);
         size_t count = size / sizeof(Rect);
         if (count > 0) {
             ssize_t err = mStorage.insertAt(0, count);
@@ -581,25 +582,21 @@ status_t Region::unflatten(void const* buffer, size_t size) {
             memcpy(mStorage.editArray(), rects, count*sizeof(Rect));
         }
     }
+#if VALIDATE_REGIONS
+    validate(*this, "Region::unflatten");
+#endif
     return NO_ERROR;
 }
 
 // ----------------------------------------------------------------------------
 
 Region::const_iterator Region::begin() const {
-    return isRect() ? &mBounds : mStorage.array();
+    return mStorage.array();
 }
 
 Region::const_iterator Region::end() const {
-    if (isRect()) {
-        if (isEmpty()) {
-            return &mBounds;
-        } else {
-            return &mBounds + 1;
-        }
-    } else {
-        return mStorage.array() + mStorage.size();
-    }
+    size_t numRects = isRect() ? 1 : mStorage.size() - 1;
+    return mStorage.array() + numRects;
 }
 
 Rect const* Region::getArray(size_t* count) const {
@@ -607,16 +604,6 @@ Rect const* Region::getArray(size_t* count) const {
     const_iterator const e(end());
     if (count) *count = e-b;
     return b;
-}
-
-size_t Region::getRects(Vector<Rect>& rectList) const
-{
-    rectList = mStorage;
-    if (rectList.isEmpty()) {
-        rectList.clear();
-        rectList.add(mBounds);
-    }
-    return rectList.size();
 }
 
 // ----------------------------------------------------------------------------
