@@ -529,7 +529,7 @@ void Region::boolean_operation(int op, Region& dst,
 
 void Region::translate(Region& reg, int dx, int dy)
 {
-    if (!reg.isEmpty()) {
+    if ((dx || dy) && !reg.isEmpty()) {
 #if VALIDATE_REGIONS
         validate(reg, "translate (before)");
 #endif
