@@ -104,9 +104,9 @@ void Layer::onFirstRef()
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
-    mSurfaceTexture->setBufferCountServer(2);
+    mSurfaceTexture->setDefaultMaxBufferCount(2);
 #else
-    mSurfaceTexture->setBufferCountServer(3);
+    mSurfaceTexture->setDefaultMaxBufferCount(3);
 #endif
 }
 

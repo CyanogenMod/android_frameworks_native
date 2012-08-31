@@ -87,10 +87,10 @@ public:
     // when finished with it.
     void setReleaseFence(int fenceFd);
 
-    // setBufferCountServer set the buffer count. If the client has requested
-    // a buffer count using setBufferCount, the server-buffer count will
-    // take effect once the client sets the count back to zero.
-    status_t setBufferCountServer(int bufferCount);
+    // setDefaultMaxBufferCount sets the default limit on the maximum number
+    // of buffers that will be allocated at one time. The image producer may
+    // override the limit.
+    status_t setDefaultMaxBufferCount(int bufferCount);
 
     // getTransformMatrix retrieves the 4x4 texture coordinate transform matrix
     // associated with the texture image set by the most recent call to
