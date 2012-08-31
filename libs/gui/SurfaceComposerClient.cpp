@@ -115,13 +115,15 @@ class Composer : public Singleton<Composer>
     SortedVector<ComposerState> mComposerStates;
     SortedVector<DisplayState > mDisplayStates;
     uint32_t                    mForceSynchronous;
+    uint32_t                    mTransactionNestCount;
     bool                        mAnimation;
 
     Composer() : Singleton<Composer>(),
-        mForceSynchronous(0),
+        mForceSynchronous(0), mTransactionNestCount(0),
         mAnimation(false)
     { }
 
+    void openGlobalTransactionImpl();
     void closeGlobalTransactionImpl(bool synchronous);
     void setAnimationTransactionImpl();
 
@@ -166,6 +168,10 @@ public:
         Composer::getInstance().setAnimationTransactionImpl();
     }
 
+    static void openGlobalTransaction() {
+        Composer::getInstance().openGlobalTransactionImpl();
+    }
+
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
     }
@@ -184,6 +190,13 @@ sp<IBinder> Composer::getBuiltInDisplay(int32_t id) {
     return ComposerService::getComposerService()->getBuiltInDisplay(id);
 }
 
+void Composer::openGlobalTransactionImpl() {
+    { // scope for the lock
+        Mutex::Autolock _l(mLock);
+        mTransactionNestCount += 1;
+    }
+}
+
 void Composer::closeGlobalTransactionImpl(bool synchronous) {
     sp<ISurfaceComposer> sm(ComposerService::getComposerService());
 
@@ -193,13 +206,21 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
 
     { // scope for the lock
         Mutex::Autolock _l(mLock);
+        mForceSynchronous |= synchronous;
+        if (!mTransactionNestCount) {
+            ALOGW("At least one call to closeGlobalTransaction() was not matched by a prior "
+                    "call to openGlobalTransaction().");
+        } else if (--mTransactionNestCount) {
+            return;
+        }
+
         transaction = mComposerStates;
         mComposerStates.clear();
 
         displayTransaction = mDisplayStates;
         mDisplayStates.clear();
 
-        if (synchronous || mForceSynchronous) {
+        if (mForceSynchronous) {
             flags |= ISurfaceComposer::eSynchronous;
         }
         if (mAnimation) {
@@ -483,7 +504,7 @@ inline Composer& SurfaceComposerClient::getComposer() {
 // ----------------------------------------------------------------------------
 
 void SurfaceComposerClient::openGlobalTransaction() {
-    // Currently a no-op
+    Composer::openGlobalTransaction();
 }
 
 void SurfaceComposerClient::closeGlobalTransaction(bool synchronous) {
