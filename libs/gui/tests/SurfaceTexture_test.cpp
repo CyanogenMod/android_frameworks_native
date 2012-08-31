@@ -1420,6 +1420,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
 
     mST->setDefaultBufferSize(texWidth, texHeight);
 
+    // This test requires 3 buffers to complete run on a single thread.
+    mST->setDefaultMaxBufferCount(3);
+
     // Do the producer side of things
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
             mProducerEglSurface, mProducerEglContext));
@@ -1612,6 +1615,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
     enum { texWidth = 64 };
     enum { texHeight = 64 };
 
+    // This test requires 3 buffers to complete run on a single thread.
+    mST->setDefaultMaxBufferCount(3);
+
     // Set the user buffer size.
     native_window_set_buffers_user_dimensions(mANW.get(), texWidth, texHeight);
 
@@ -1665,6 +1671,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
 TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedUserSizedGLFilledBuffer) {
     enum { texWidth = 64 };
     enum { texHeight = 16 };
+
+    // This test requires 3 buffers to complete run on a single thread.
+    mST->setDefaultMaxBufferCount(3);
 
     // Set the transform hint.
     mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
@@ -1723,6 +1732,9 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedUserSizedGLFilledBuffer)
 TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedGLFilledBuffer) {
     enum { texWidth = 64 };
     enum { texHeight = 16 };
+
+    // This test requires 3 buffers to complete run on a single thread.
+    mST->setDefaultMaxBufferCount(3);
 
     // Set the transform hint.
     mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
