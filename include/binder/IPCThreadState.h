@@ -41,7 +41,6 @@ public:
 
             int                 getCallingPid();
             int                 getCallingUid();
-            int                 getOrigCallingUid();
 
             void                setStrictModePolicy(int32_t policy);
             int32_t             getStrictModePolicy() const;
@@ -117,7 +116,6 @@ private:
             status_t            mLastError;
             pid_t               mCallingPid;
             uid_t               mCallingUid;
-            uid_t               mOrigCallingUid;
             int32_t             mStrictModePolicy;
             int32_t             mLastTransactionBinderFlags;
 };
