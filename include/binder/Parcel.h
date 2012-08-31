@@ -285,9 +285,12 @@ status_t Parcel::write(const LightFlattenable<T>& val) {
             return err;
         }
     }
-    void* buffer = writeInplace(size);
-    return buffer == NULL ? NO_MEMORY :
-        val.flatten(buffer);
+    if (size) {
+        void* buffer = writeInplace(size);
+        return buffer == NULL ? NO_MEMORY :
+                val.flatten(buffer);
+    }
+    return NO_ERROR;
 }
 
 template<typename T>
@@ -303,9 +306,12 @@ status_t Parcel::read(LightFlattenable<T>& val) const {
         }
         size = s;
     }
-    void const* buffer = readInplace(size);
-    return buffer == NULL ? NO_MEMORY :
-        val.unflatten(buffer, size);
+    if (size) {
+        void const* buffer = readInplace(size);
+        return buffer == NULL ? NO_MEMORY :
+                val.unflatten(buffer, size);
+    }
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------
