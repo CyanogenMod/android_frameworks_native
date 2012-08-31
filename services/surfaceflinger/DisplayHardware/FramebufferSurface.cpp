@@ -93,7 +93,7 @@ FramebufferSurface::FramebufferSurface():
         mBufferQueue->setDefaultBufferFormat(fbDev->format);
         mBufferQueue->setDefaultBufferSize(fbDev->width, fbDev->height);
         mBufferQueue->setSynchronousMode(true);
-        mBufferQueue->setBufferCountServer(NUM_FRAME_BUFFERS);
+        mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
     } else {
         ALOGE("Couldn't get gralloc module");
     }
