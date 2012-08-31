@@ -55,7 +55,7 @@ public:
         status_t result = reply.readInt32();
         if (result == NO_ERROR) {
             graphicBuffer = new GraphicBuffer();
-            reply.read(*graphicBuffer);
+            result = reply.read(*graphicBuffer);
             // reply.readStrongBinder();
             // here we don't even have to read the BufferReference from
             // the parcel, it'll die with the parcel.

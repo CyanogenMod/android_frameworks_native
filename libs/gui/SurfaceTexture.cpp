@@ -288,7 +288,9 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
-            ST_LOGE("updateTexImage failed on acquire %d", err);
+            ST_LOGE("updateTexImage: acquire failed: %s (%d)",
+                strerror(-err), err);
+            return err;
         }
         // We always bind the texture even if we don't update its contents.
         glBindTexture(mTexTarget, mTexName);
