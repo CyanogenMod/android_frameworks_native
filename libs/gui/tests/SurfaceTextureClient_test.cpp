@@ -241,7 +241,7 @@ TEST_F(SurfaceTextureClientTest, BufferGeometrySizeCanBeChangedWithoutFormat) {
     EXPECT_EQ(1, buf->height);
     EXPECT_EQ(PIXEL_FORMAT_RGB_565, buf->format);
     ASSERT_EQ(OK, mANW->cancelBuffer(mANW.get(), buf, -1));
-    EXPECT_EQ(OK, native_window_set_buffers_geometry(mANW.get(), 16, 8, 0));
+    EXPECT_EQ(OK, native_window_set_buffers_dimensions(mANW.get(), 16, 8));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf));
     EXPECT_EQ(16, buf->width);
     EXPECT_EQ(8, buf->height);
@@ -597,15 +597,15 @@ TEST_F(SurfaceTextureClientTest, GetTransformMatrixSucceedsAfterFreeingBuffersWi
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 6)); // frees buffers
     mST->getTransformMatrix(mtx);
 
-    // This accounts for the 1 texel shrink for each edge that's included in the
+    // This accounts for the .5 texel shrink for each edge that's included in the
     // transform matrix to avoid texturing outside the crop region.
-    EXPECT_EQ(.375f, mtx[0]);
+    EXPECT_EQ(0.5, mtx[0]);
     EXPECT_EQ(0.f, mtx[1]);
     EXPECT_EQ(0.f, mtx[2]);
     EXPECT_EQ(0.f, mtx[3]);
 
     EXPECT_EQ(0.f, mtx[4]);
-    EXPECT_EQ(-.375f, mtx[5]);
+    EXPECT_EQ(-0.5, mtx[5]);
     EXPECT_EQ(0.f, mtx[6]);
     EXPECT_EQ(0.f, mtx[7]);
 
@@ -614,8 +614,8 @@ TEST_F(SurfaceTextureClientTest, GetTransformMatrixSucceedsAfterFreeingBuffersWi
     EXPECT_EQ(1.f, mtx[10]);
     EXPECT_EQ(0.f, mtx[11]);
 
-    EXPECT_EQ(.125f, mtx[12]);
-    EXPECT_EQ(.5f, mtx[13]);
+    EXPECT_EQ(0.0625f, mtx[12]);
+    EXPECT_EQ(0.5625f, mtx[13]);
     EXPECT_EQ(0.f, mtx[14]);
     EXPECT_EQ(1.f, mtx[15]);
 }
