@@ -28,6 +28,7 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
+class SharedBuffer;
 class String8;
 
 // ---------------------------------------------------------------------------
@@ -106,16 +107,23 @@ public:
 
     
     /* various ways to access the rectangle list */
+
     
+    // STL-like iterators
     typedef Rect const* const_iterator;
-    
-            const_iterator begin() const;
-            const_iterator end() const;
+    const_iterator begin() const;
+    const_iterator end() const;
+
+    // returns an array of rect which has the same life-time has this
+    // Region object.
+    Rect const* getArray(size_t* count) const;
+
+    // returns a SharedBuffer as well as the number of rects.
+    // ownership is transfered to the caller.
+    // the caller must call SharedBuffer::release() to free the memory.
+    SharedBuffer const* getSharedBuffer(size_t* count) const;
 
     /* no user serviceable parts here... */
-            
-            Rect const* getArray(size_t* count) const;
-
             
             // add a rectangle to the internal list. This rectangle must
             // be sorted in Y and X and must not make the region invalid.
