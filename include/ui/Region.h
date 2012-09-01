@@ -41,10 +41,10 @@ public:
                         
         Region& operator = (const Region& rhs);
 
-    inline  bool        isEmpty() const     { return mBounds.isEmpty();  }
-    inline  bool        isRect() const      { return mStorage.isEmpty(); }
+    inline  bool        isEmpty() const     { return getBounds().isEmpty(); }
+    inline  bool        isRect() const      { return mStorage.size() == 1; }
 
-    inline  Rect        getBounds() const   { return mBounds; }
+    inline  Rect        getBounds() const   { return mStorage[mStorage.size() - 1]; }
     inline  Rect        bounds() const      { return getBounds(); }
 
             // the region becomes its bounds
@@ -114,7 +114,6 @@ public:
 
     /* no user serviceable parts here... */
             
-            size_t      getRects(Vector<Rect>& rectList) const;
             Rect const* getArray(size_t* count) const;
 
             
@@ -156,8 +155,11 @@ private:
 
     static bool validate(const Region& reg, const char* name);
     
-    Rect            mBounds;
-    Vector<Rect>    mStorage;
+    // mStorage is a (manually) sorted array of Rects describing the region
+    // with an extra Rect as the last element which is set to the
+    // bounds of the region. However, if the region is
+    // a simple Rect then mStorage contains only that rect.
+    Vector<Rect> mStorage;
 };
 
 
