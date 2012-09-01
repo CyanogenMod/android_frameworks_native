@@ -23,6 +23,10 @@
 
 namespace android {
 
+void DdmConnection_start(const char* name) {
+    ALOGI("DdmConnection_start");
+    DdmConnection::start(name);
+}
 
 void DdmConnection::start(const char* name) {
     JavaVM* vm;

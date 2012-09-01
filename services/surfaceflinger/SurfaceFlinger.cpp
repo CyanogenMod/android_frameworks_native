@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <math.h>
+#include <dlfcn.h>
 
 #include <EGL/egl.h>
 #include <GLES/gl.h>
@@ -108,9 +109,11 @@ SurfaceFlinger::SurfaceFlinger()
     property_get("debug.sf.ddms", value, "0");
     mDebugDDMS = atoi(value);
     if (mDebugDDMS) {
-        DdmConnection::start(getServiceName());
+        if (!startDdmConnection()) {
+            // start failed, and DDMS debugging not enabled
+            mDebugDDMS = 0;
+        }
     }
-
     ALOGI_IF(mDebugRegion, "showupdates enabled");
     ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
 }
@@ -2059,6 +2062,24 @@ void SurfaceFlinger::dumpAllLocked(
     const GraphicBufferAllocator& alloc(GraphicBufferAllocator::get());
     alloc.dump(result);
     hw->dump(result);
+}
+
+bool SurfaceFlinger::startDdmConnection()
+{
+    void* libddmconnection_dso =
+            dlopen("libsurfaceflinger_ddmconnection.so", RTLD_NOW);
+    if (!libddmconnection_dso) {
+        return false;
+    }
+    void (*DdmConnection_start)(const char* name);
+    DdmConnection_start =
+            (typeof DdmConnection_start)dlsym(libddmconnection_dso, "DdmConnection_start");
+    if (!DdmConnection_start) {
+        dlclose(libddmconnection_dso);
+        return false;
+    }
+    (*DdmConnection_start)(getServiceName());
+    return true;
 }
 
 status_t SurfaceFlinger::onTransact(
