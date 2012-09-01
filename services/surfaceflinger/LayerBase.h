@@ -218,7 +218,7 @@ public:
     /** called after page-flip
      */
     virtual void onLayerDisplayed(const sp<const DisplayDevice>& hw,
-            HWComposer::HWCLayerInterface* layer) { }
+            HWComposer::HWCLayerInterface* layer);
 
     /** called before composition.
      * returns true if the layer has pending updates.

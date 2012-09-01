@@ -573,9 +573,12 @@ public:
         reinterpret_cast<Rect&>(getLayer()->sourceCrop) = crop;
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
-        getLayer()->visibleRegionScreen.rects =
-                reinterpret_cast<hwc_rect_t const *>(
-                        reg.getArray(&getLayer()->visibleRegionScreen.numRects));
+        // Region::getSharedBuffer creates a reference to the underlying
+        // SharedBuffer of this Region, this reference is freed
+        // in onDisplayed()
+        hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
+        SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
+        visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
     }
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
@@ -584,6 +587,16 @@ public:
             getLayer()->handle = 0;
         } else {
             getLayer()->handle = buffer->handle;
+        }
+    }
+    virtual void onDisplayed() {
+        hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
+        SharedBuffer const* sb = SharedBuffer::bufferFromData(visibleRegion.rects);
+        if (sb) {
+            sb->release();
+            // not technically needed but safer
+            visibleRegion.numRects = 0;
+            visibleRegion.rects = NULL;
         }
     }
 };

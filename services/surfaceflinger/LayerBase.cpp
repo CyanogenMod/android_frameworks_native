@@ -288,17 +288,28 @@ void LayerBase::setGeometry(
     // scaling is already applied in transformedBounds
     layer.setFrame(transformedBounds);
     layer.setCrop(transformedBounds.getBounds());
-    layer.setVisibleRegionScreen(tr.transform(visibleRegion));
 }
 
 void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     layer.setBuffer(0);
+    // we have to set the visible region on every frame because
+    // we currently free it during onLayerDisplayed(), which is called
+    // after HWComposer::commit() -- every frame.
+    const Transform& tr = hw->getTransform();
+    layer.setVisibleRegionScreen(tr.transform(visibleRegion));
 }
 
 void LayerBase::setAcquireFence(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
     layer.setAcquireFenceFd(-1);
+}
+
+void LayerBase::onLayerDisplayed(const sp<const DisplayDevice>& hw,
+        HWComposer::HWCLayerInterface* layer) {
+    if (layer) {
+        layer->onDisplayed();
+    }
 }
 
 void LayerBase::setFiltering(bool filtering)

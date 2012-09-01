@@ -72,6 +72,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
 
 void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface* layer) {
+    LayerBaseClient::onLayerDisplayed(hw, layer);
     if (layer) {
         mSurfaceTexture->setReleaseFence(layer->getAndResetReleaseFenceFd());
     }
