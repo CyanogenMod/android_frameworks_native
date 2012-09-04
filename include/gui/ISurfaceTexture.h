@@ -39,9 +39,6 @@ class ISurfaceTexture : public IInterface
 public:
     DECLARE_META_INTERFACE(SurfaceTexture);
 
-protected:
-    friend class SurfaceTextureClient;
-
     enum {
         BUFFER_NEEDS_REALLOCATION = 0x1,
         RELEASE_ALL_BUFFERS       = 0x2,
