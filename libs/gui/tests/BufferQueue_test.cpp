@@ -93,4 +93,25 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     ASSERT_EQ(INVALID_OPERATION, mBQ->acquireBuffer(&item));
 }
 
+TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {
+    sp<DummyConsumer> dc(new DummyConsumer);
+    mBQ->consumerConnect(dc);
+
+    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
+    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
+    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(
+            BufferQueue::MAX_MAX_ACQUIRED_BUFFERS+1));
+    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(100));
+}
+
+TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
+    sp<DummyConsumer> dc(new DummyConsumer);
+    mBQ->consumerConnect(dc);
+
+    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
+    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));
+    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(
+            BufferQueue::MAX_MAX_ACQUIRED_BUFFERS));
+}
+
 } // namespace android

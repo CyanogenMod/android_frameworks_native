@@ -974,6 +974,11 @@ status_t BufferQueue::setDefaultMaxBufferCount(int bufferCount) {
 status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
+    if (maxAcquiredBuffers < 1 || maxAcquiredBuffers > MAX_MAX_ACQUIRED_BUFFERS) {
+        ST_LOGE("setMaxAcquiredBufferCount: invalid count specified: %d",
+                maxAcquiredBuffers);
+        return BAD_VALUE;
+    }
     if (mConnectedApi != NO_CONNECTED_API) {
         return INVALID_OPERATION;
     }
