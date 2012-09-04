@@ -93,11 +93,16 @@ public:
     bool                    getSecureLayerVisible() const;
     Region                  getDirtyRegion(bool repaintEverything) const;
 
-    status_t                setOrientation(int orientation);
     void                    setLayerStack(uint32_t stack);
+    void                    setOrientation(int orientation);
+    void                    setViewport(const Rect& viewport);
+    void                    setFrame(const Rect& frame);
 
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
+    const Rect&             getViewport() const { return mViewport; }
+    const Rect&             getFrame() const { return mFrame; }
+
     uint32_t                getLayerStack() const { return mLayerStack; }
     int32_t                 getDisplayType() const { return mType; }
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
@@ -110,7 +115,8 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
-    static void makeCurrent(const sp<const DisplayDevice>& hw, EGLContext ctx);
+    static EGLBoolean makeCurrent(EGLDisplay dpy,
+            const sp<const DisplayDevice>& hw, EGLContext ctx);
 
     /* ------------------------------------------------------------------------
      * blank / unplank management
@@ -170,11 +176,16 @@ private:
     /*
      * Transaction state
      */
-    static status_t orientationToTransfrom(int orientation, int w, int h,
-            Transform* tr);
-    Transform mGlobalTransform;
-    int mOrientation;
+    static status_t orientationToTransfrom(int orientation,
+            int w, int h, Transform* tr);
+
+    void updateGeometryTransform();
+
     uint32_t mLayerStack;
+    int mOrientation;
+    Rect mViewport;
+    Rect mFrame;
+    Transform mGlobalTransform;
 };
 
 }; // namespace android

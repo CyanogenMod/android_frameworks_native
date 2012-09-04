@@ -297,8 +297,8 @@ EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config)
     return ctxt;
 }
 
-void SurfaceFlinger::initializeGL(EGLDisplay display, EGLSurface surface) {
-    EGLBoolean result = eglMakeCurrent(display, surface, surface, mEGLContext);
+void SurfaceFlinger::initializeGL(EGLDisplay display, const sp<DisplayDevice>& hw) {
+    EGLBoolean result = DisplayDevice::makeCurrent(display, hw, mEGLContext);
     if (!result) {
         ALOGE("Couldn't create a working GLES context. check logs. exiting...");
         exit(0);
@@ -313,10 +313,6 @@ void SurfaceFlinger::initializeGL(EGLDisplay display, EGLSurface surface) {
             eglQueryString(display, EGL_VENDOR),
             eglQueryString(display, EGL_VERSION),
             eglQueryString(display, EGL_EXTENSIONS));
-
-    EGLint w, h;
-    eglQuerySurface(display, surface, EGL_WIDTH,  &w);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &h);
 
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
@@ -343,12 +339,6 @@ void SurfaceFlinger::initializeGL(EGLDisplay display, EGLSurface surface) {
     glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0,
             GL_RGB, GL_UNSIGNED_SHORT_5_6_5, protTexData);
-
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    // put the origin in the left-bottom corner
-    glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
 
     // print some debugging info
     EGLint r,g,b,a;
@@ -412,8 +402,7 @@ status_t SurfaceFlinger::readyToRun()
     mDisplays.add(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY], hw);
 
     //  initialize OpenGL ES
-    EGLSurface surface = hw->getEGLSurface();
-    initializeGL(mEGLDisplay, surface);
+    initializeGL(mEGLDisplay, hw);
 
     // start the EventThread
     mEventThread = new EventThread(this);
@@ -863,7 +852,7 @@ void SurfaceFlinger::postFramebuffer()
         // FIXME: EGL spec says:
         //   "surface must be bound to the calling thread's current context,
         //    for the current rendering API."
-        DisplayDevice::makeCurrent(getDefaultDisplayDevice(), mEGLContext);
+        DisplayDevice::makeCurrent(mEGLDisplay, getDefaultDisplayDevice(), mEGLContext);
         hwc.commit();
     }
 
@@ -983,11 +972,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         if (state.layerStack != draw[i].layerStack) {
                             disp->setLayerStack(state.layerStack);
                         }
-                        if (state.orientation != draw[i].orientation ||
-                                state.viewport != draw[i].viewport ||
-                                state.frame != draw[i].frame) {
+                        if (state.orientation != draw[i].orientation) {
                             disp->setOrientation(state.orientation);
-                            // TODO: take viewport and frame into account
+                        }
+                        if (state.viewport != draw[i].viewport) {
+                            disp->setViewport(state.viewport);
+                        }
+                        if (state.frame != draw[i].frame) {
+                            disp->setFrame(state.frame);
                         }
                     }
                 }
@@ -1006,7 +998,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.type, display, stc, 0, mEGLConfig);
                         disp->setLayerStack(state.layerStack);
                         disp->setOrientation(state.orientation);
-                        // TODO: take viewport and frame into account
+                        disp->setViewport(state.viewport);
+                        disp->setFrame(state.frame);
                         mDisplays.add(display, disp);
                     }
                 }
@@ -1280,7 +1273,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 
     const bool hasGlesComposition = hwc.hasGlesComposition(id) || (cur==end);
     if (hasGlesComposition) {
-        DisplayDevice::makeCurrent(hw, mEGLContext);
+        DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
 
         // set the frame buffer
         glMatrixMode(GL_MODELVIEW);
@@ -1977,15 +1970,18 @@ void SurfaceFlinger::dumpAllLocked(
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
         snprintf(buffer, SIZE,
                 "+ DisplayDevice[%u]\n"
-                "   id=%x, layerStack=%u, (%4dx%4d), orient=%2d, tr=%08x, "
-                "flips=%u, secure=%d, numLayers=%u\n",
+                "   id=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
+                "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d]\n",
                 dpy,
                 hw->getDisplayType(), hw->getLayerStack(),
                 hw->getWidth(), hw->getHeight(),
                 hw->getOrientation(), hw->getTransform().getType(),
                 hw->getPageFlipCount(),
                 hw->getSecureLayerVisible(),
-                hw->getVisibleLayersSortedByZ().size());
+                hw->getVisibleLayersSortedByZ().size(),
+                hw->getViewport().left, hw->getViewport().top, hw->getViewport().right, hw->getViewport().bottom,
+                hw->getFrame().left, hw->getFrame().top, hw->getFrame().right, hw->getFrame().bottom);
+
         result.append(buffer);
     }
 
@@ -2488,6 +2484,8 @@ SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
 
 SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(DisplayDevice::DisplayType type)
     : type(type), layerStack(0), orientation(0) {
+    viewport.makeInvalid();
+    frame.makeInvalid();
 }
 
 // ---------------------------------------------------------------------------
