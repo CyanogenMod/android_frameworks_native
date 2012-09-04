@@ -93,6 +93,10 @@ enum {
 
     ACONFIGURATION_SMALLEST_SCREEN_WIDTH_DP_ANY = 0x0000,
 
+    ACONFIGURATION_LAYOUTDIR_ANY  = 0x00,
+    ACONFIGURATION_LAYOUTDIR_LTR  = 0x01,
+    ACONFIGURATION_LAYOUTDIR_RTL  = 0x02,
+
     ACONFIGURATION_MCC = 0x0001,
     ACONFIGURATION_MNC = 0x0002,
     ACONFIGURATION_LOCALE = 0x0004,
@@ -107,6 +111,7 @@ enum {
     ACONFIGURATION_SCREEN_LAYOUT = 0x0800,
     ACONFIGURATION_UI_MODE = 0x1000,
     ACONFIGURATION_SMALLEST_SCREEN_SIZE = 0x2000,
+    ACONFIGURATION_LAYOUTDIR = 0x4000,
 };
 
 /**
@@ -329,6 +334,17 @@ int32_t AConfiguration_getSmallestScreenWidthDp(AConfiguration* config);
  * Set the configuration's smallest screen width in dp units.
  */
 void AConfiguration_setSmallestScreenWidthDp(AConfiguration* config, int32_t value);
+
+/**
+ * Return the configuration's layout direction, or
+ * ACONFIGURATION_LAYOUTDIR_ANY if not set.
+ */
+int32_t AConfiguration_getLayoutDirection(AConfiguration* config);
+
+/**
+ * Set the configuration's layout direction.
+ */
+void AConfiguration_setLayoutDirection(AConfiguration* config, int32_t value);
 
 /**
  * Perform a diff between two configurations.  Returns a bit mask of
