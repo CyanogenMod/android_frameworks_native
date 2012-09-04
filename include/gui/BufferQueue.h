@@ -41,6 +41,10 @@ public:
     enum { INVALID_BUFFER_SLOT = -1 };
     enum { STALE_BUFFER_SLOT = 1, NO_BUFFER_AVAILABLE };
 
+    // When in async mode we reserve two slots in order to guarantee that the
+    // producer and consumer can run asynchronously.
+    enum { MAX_MAX_ACQUIRED_BUFFERS = NUM_BUFFER_SLOTS - 2 };
+
     // ConsumerListener is the interface through which the BufferQueue notifies
     // the consumer of events that the consumer may wish to react to.  Because
     // the consumer will generally have a mutex that is locked during calls from
