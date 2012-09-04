@@ -7,6 +7,7 @@ LOCAL_MODULE := libgui_test
 LOCAL_MODULE_TAGS := tests
 
 LOCAL_SRC_FILES := \
+    BufferQueue_test.cpp \
     CpuConsumer_test.cpp \
     SurfaceTextureClient_test.cpp \
     SurfaceTexture_test.cpp \
