@@ -339,7 +339,9 @@ void produceOneFrame(const sp<ANativeWindow>& anw,
     ASSERT_NO_ERROR(err, "queueBuffer error:");
 };
 
-TEST_P(CpuConsumerTest, FromCpuSingle) {
+// This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
+// supported on all devices.
+TEST_P(CpuConsumerTest, DISABLED_FromCpuSingle) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
@@ -371,7 +373,9 @@ TEST_P(CpuConsumerTest, FromCpuSingle) {
     mCC->unlockBuffer(b);
 }
 
-TEST_P(CpuConsumerTest, FromCpuManyInQueue) {
+// This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
+// supported on all devices.
+TEST_P(CpuConsumerTest, DISABLED_FromCpuManyInQueue) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
@@ -412,7 +416,9 @@ TEST_P(CpuConsumerTest, FromCpuManyInQueue) {
     }
 }
 
-TEST_P(CpuConsumerTest, FromCpuLockMax) {
+// This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
+// supported on all devices.
+TEST_P(CpuConsumerTest, DISABLED_FromCpuLockMax) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
