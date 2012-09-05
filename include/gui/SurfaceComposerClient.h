@@ -121,11 +121,21 @@ public:
             const sp<ISurfaceTexture>& surface);
     static void setDisplayLayerStack(const sp<IBinder>& token,
             uint32_t layerStack);
-    static void setDisplayOrientation(const sp<IBinder>& token,
-            uint32_t orientation);
-    static void setDisplayViewport(const sp<IBinder>& token,
-            const Rect& viewport);
-    static void setDisplayFrame(const sp<IBinder>& token, const Rect& frame);
+
+    /* setDisplayProjection() defines the projection of layer stacks
+     * to a given display.
+     *
+     * - orientation defines the display's orientation.
+     * - layerStackRect defines which area of the window manager coordinate
+     * space will be used.
+     * - displayRect defines where on the display will layerStackRect be
+     * mapped to. displayRect is specified post-orientation, that is
+     * it uses the orientation seen by the end-user.
+     */
+    static void setDisplayProjection(const sp<IBinder>& token,
+            uint32_t orientation,
+            const Rect& layerStackRect,
+            const Rect& displayRect);
 
 private:
     virtual void onFirstRef();

@@ -972,14 +972,12 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         if (state.layerStack != draw[i].layerStack) {
                             disp->setLayerStack(state.layerStack);
                         }
-                        if (state.orientation != draw[i].orientation) {
-                            disp->setOrientation(state.orientation);
-                        }
-                        if (state.viewport != draw[i].viewport) {
-                            disp->setViewport(state.viewport);
-                        }
-                        if (state.frame != draw[i].frame) {
-                            disp->setFrame(state.frame);
+                        if ((state.orientation != draw[i].orientation)
+                                || (state.viewport != draw[i].viewport)
+                                || (state.frame != draw[i].frame))
+                        {
+                            disp->setProjection(state.orientation,
+                                    state.viewport, state.viewport);
                         }
                     }
                 }
@@ -997,9 +995,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         sp<DisplayDevice> disp = new DisplayDevice(this,
                                 state.type, display, stc, 0, mEGLConfig);
                         disp->setLayerStack(state.layerStack);
-                        disp->setOrientation(state.orientation);
-                        disp->setViewport(state.viewport);
-                        disp->setFrame(state.frame);
+                        disp->setProjection(state.orientation,
+                                state.viewport, state.viewport);
                         mDisplays.add(display, disp);
                     }
                 }
@@ -1499,19 +1496,15 @@ uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
                 flags |= eDisplayTransactionNeeded;
             }
         }
-        if (what & DisplayState::eOrientationChanged) {
+        if (what & DisplayState::eDisplayProjectionChanged) {
             if (disp.orientation != s.orientation) {
                 disp.orientation = s.orientation;
                 flags |= eDisplayTransactionNeeded;
             }
-        }
-        if (what & DisplayState::eFrameChanged) {
             if (disp.frame != s.frame) {
                 disp.frame = s.frame;
                 flags |= eDisplayTransactionNeeded;
             }
-        }
-        if (what & DisplayState::eViewportChanged) {
             if (disp.viewport != s.viewport) {
                 disp.viewport = s.viewport;
                 flags |= eDisplayTransactionNeeded;
@@ -1732,7 +1725,7 @@ void SurfaceFlinger::onInitializeDisplays() {
     Vector<ComposerState> state;
     Vector<DisplayState> displays;
     DisplayState d;
-    d.what = DisplayState::eOrientationChanged;
+    d.what = DisplayState::eDisplayProjectionChanged;
     d.token = mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY];
     d.orientation = DisplayState::eOrientationDefault;
     displays.add(d);
