@@ -546,6 +546,7 @@ public:
         getLayer()->compositionType = HWC_FRAMEBUFFER;
         getLayer()->hints = 0;
         getLayer()->flags = HWC_SKIP_LAYER;
+        getLayer()->handle = 0;
         getLayer()->transform = 0;
         getLayer()->blending = HWC_BLENDING_NONE;
         getLayer()->visibleRegionScreen.numRects = 0;
