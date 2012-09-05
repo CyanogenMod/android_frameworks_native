@@ -276,10 +276,10 @@ void Layer::setGeometry(
 
 void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
-    const sp<GraphicBuffer>& buffer(mActiveBuffer);
+    LayerBaseClient::setPerFrameData(hw, layer);
     // NOTE: buffer can be NULL if the client never drew into this
     // layer yet, or if we ran out of memory
-    layer.setBuffer(buffer);
+    layer.setBuffer(mActiveBuffer);
 }
 
 void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
