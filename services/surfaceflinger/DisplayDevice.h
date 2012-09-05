@@ -94,9 +94,7 @@ public:
     Region                  getDirtyRegion(bool repaintEverything) const;
 
     void                    setLayerStack(uint32_t stack);
-    void                    setOrientation(int orientation);
-    void                    setViewport(const Rect& viewport);
-    void                    setFrame(const Rect& frame);
+    void                    setProjection(int orientation, const Rect& viewport, const Rect& frame);
 
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }

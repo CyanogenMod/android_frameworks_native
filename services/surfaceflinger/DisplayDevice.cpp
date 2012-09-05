@@ -150,7 +150,7 @@ void DisplayDevice::init(EGLConfig config)
     mHwcDisplayId = mFlinger->allocateHwcDisplayId(mType);
 
     // initialize the display orientation transform.
-    DisplayDevice::setOrientation(DisplayState::eOrientationDefault);
+    setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }
 
 uint32_t DisplayDevice::getPageFlipCount() const {
@@ -298,23 +298,12 @@ status_t DisplayDevice::orientationToTransfrom(
     return NO_ERROR;
 }
 
-void DisplayDevice::setOrientation(int orientation) {
+void DisplayDevice::setProjection(int orientation,
+        const Rect& viewport, const Rect& frame) {
     mOrientation = orientation;
+    mViewport = viewport;
+    mFrame = frame;
     updateGeometryTransform();
-}
-
-void DisplayDevice::setViewport(const Rect& viewport) {
-    if (viewport.isValid()) {
-        mViewport = viewport;
-        updateGeometryTransform();
-    }
-}
-
-void DisplayDevice::setFrame(const Rect& frame) {
-    if (frame.isValid()) {
-        mFrame = frame;
-        updateGeometryTransform();
-    }
 }
 
 void DisplayDevice::updateGeometryTransform() {
