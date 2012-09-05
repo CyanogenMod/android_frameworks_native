@@ -320,7 +320,7 @@ private:
         EGLint const* attrs, PixelFormat format, EGLConfig* outConfig);
     static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
     static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
-    void initializeGL(EGLDisplay display, EGLSurface surface);
+    void initializeGL(EGLDisplay display, const sp<DisplayDevice>& hw);
     uint32_t getMaxTextureSize() const;
     uint32_t getMaxViewportDims() const;
 

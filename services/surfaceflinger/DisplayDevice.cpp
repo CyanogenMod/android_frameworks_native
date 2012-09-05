@@ -38,6 +38,7 @@
 #include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/HWComposer.h"
 
+#include "clz.h"
 #include "DisplayDevice.h"
 #include "GLExtensions.h"
 #include "SurfaceFlinger.h"
@@ -84,8 +85,8 @@ DisplayDevice::DisplayDevice(
       mPageFlipCount(),
       mSecureLayerVisible(false),
       mScreenAcquired(false),
-      mOrientation(),
-      mLayerStack(0)
+      mLayerStack(0),
+      mOrientation()
 {
     init(config);
 }
@@ -139,6 +140,8 @@ void DisplayDevice::init(EGLConfig config)
     mSurface = surface;
     mFormat  = format;
     mPageFlipCount = 0;
+    mViewport.makeInvalid();
+    mFrame.makeInvalid();
 
     // external displays are always considered enabled
     mScreenAcquired = (mType >= DisplayDevice::NUM_DISPLAY_TYPES);
@@ -192,12 +195,23 @@ void DisplayDevice::dump(String8& res) const
     }
 }
 
-void DisplayDevice::makeCurrent(const sp<const DisplayDevice>& hw, EGLContext ctx) {
+EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy,
+        const sp<const DisplayDevice>& hw, EGLContext ctx) {
+    EGLBoolean result = EGL_TRUE;
     EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
     if (sur != hw->mSurface) {
-        EGLDisplay dpy = eglGetCurrentDisplay();
-        eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
+        result = eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
+        if (result == EGL_TRUE) {
+            GLsizei w = hw->mDisplayWidth;
+            GLsizei h = hw->mDisplayHeight;
+            glViewport(0, 0, w, h);
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            // put the origin in the left-bottom corner
+            glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
+        }
     }
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -223,10 +237,10 @@ bool DisplayDevice::getSecureLayerVisible() const {
 
 Region DisplayDevice::getDirtyRegion(bool repaintEverything) const {
     Region dirty;
-    const Transform& planeTransform(mGlobalTransform);
     if (repaintEverything) {
         dirty.set(getBounds());
     } else {
+        const Transform& planeTransform(mGlobalTransform);
         dirty = planeTransform.transform(this->dirtyRegion);
         dirty.andSelf(getBounds());
     }
@@ -284,18 +298,73 @@ status_t DisplayDevice::orientationToTransfrom(
     return NO_ERROR;
 }
 
-status_t DisplayDevice::setOrientation(int orientation) {
+void DisplayDevice::setOrientation(int orientation) {
+    mOrientation = orientation;
+    updateGeometryTransform();
+}
+
+void DisplayDevice::setViewport(const Rect& viewport) {
+    if (viewport.isValid()) {
+        mViewport = viewport;
+        updateGeometryTransform();
+    }
+}
+
+void DisplayDevice::setFrame(const Rect& frame) {
+    if (frame.isValid()) {
+        mFrame = frame;
+        updateGeometryTransform();
+    }
+}
+
+void DisplayDevice::updateGeometryTransform() {
     int w = mDisplayWidth;
     int h = mDisplayHeight;
+    Transform R, S;
+    if (DisplayDevice::orientationToTransfrom(
+            mOrientation, w, h, &R) == NO_ERROR) {
+        dirtyRegion.set(bounds());
 
-    DisplayDevice::orientationToTransfrom(
-            orientation, w, h, &mGlobalTransform);
-    if (orientation & DisplayState::eOrientationSwapMask) {
-        int tmp = w;
-        w = h;
-        h = tmp;
+        Rect viewport(mViewport);
+        Rect frame(mFrame);
+
+        if (!frame.isValid()) {
+            // the destination frame can be invalid if it has never been set,
+            // in that case we assume the whole display frame.
+            frame = Rect(w, h);
+        }
+
+        if (viewport.isEmpty()) {
+            // viewport can be invalid if it has never been set, in that case
+            // we assume the whole display size.
+            // it's also invalid to have an empty viewport, so we handle that
+            // case in the same way.
+            viewport = Rect(w, h);
+            if (R.getOrientation() & Transform::ROT_90) {
+                // viewport is always specified in the logical orientation
+                // of the display (ie: post-rotation).
+                swap(viewport.right, viewport.bottom);
+            }
+        }
+
+        float src_width  = viewport.width();
+        float src_height = viewport.height();
+        float dst_width  = frame.width();
+        float dst_height = frame.height();
+        if (src_width != src_height || dst_width != dst_height) {
+            float sx = dst_width  / src_width;
+            float sy = dst_height / src_height;
+            S.set(sx, 0, 0, sy);
+        }
+        float src_x = viewport.left;
+        float src_y = viewport.top;
+        float dst_x = frame.left;
+        float dst_y = frame.top;
+        float tx = dst_x - src_x;
+        float ty = dst_y - src_y;
+        S.set(tx, ty);
+
+        // rotate first, followed by scaling
+        mGlobalTransform = S * R;
     }
-    mOrientation = orientation;
-    dirtyRegion.set(bounds());
-    return NO_ERROR;
 }
