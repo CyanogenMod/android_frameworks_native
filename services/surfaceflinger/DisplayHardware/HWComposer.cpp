@@ -598,6 +598,8 @@ public:
             visibleRegion.numRects = 0;
             visibleRegion.rects = NULL;
         }
+
+        getLayer()->acquireFenceFd = -1;
     }
 };
 
