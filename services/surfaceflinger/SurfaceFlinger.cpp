@@ -1027,10 +1027,10 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 // TODO: we could traverse the tree from front to back and
                 //       compute the actual visible region
                 // TODO: we could cache the transformed region
-                Layer::State front(layer->drawingState());
-                Region visibleReg = front.transform.transform(
-                        Region(Rect(front.active.w, front.active.h)));
-                invalidateLayerStack(front.layerStack, visibleReg);
+                const Layer::State& s(layer->drawingState());
+                Region visibleReg = s.transform.transform(
+                        Region(Rect(s.active.w, s.active.h)));
+                invalidateLayerStack(s.layerStack, visibleReg);
             }
         }
     }
@@ -1202,7 +1202,7 @@ void SurfaceFlinger::handlePageFlip()
     for (size_t i=0 ; i<count ; i++) {
         const sp<LayerBase>& layer(currentLayers[i]);
         const Region dirty(layer->latchBuffer(visibleRegions));
-        Layer::State s(layer->drawingState());
+        const Layer::State& s(layer->drawingState());
         invalidateLayerStack(s.layerStack, dirty);
     }
 
