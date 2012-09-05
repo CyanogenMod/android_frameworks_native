@@ -154,8 +154,6 @@ protected:
    // for interlaced use cases where the user can pass extra information about
    // the type of the frame whether it is interlaced or progressive frame.
     virtual status_t setBuffersSize(int size) = 0;
-
-    virtual status_t setMinUndequeuedBufferCount(int count) = 0;
 #endif
 
     // connect attempts to connect a client API to the SurfaceTexture.  This
