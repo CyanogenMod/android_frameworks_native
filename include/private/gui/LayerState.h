@@ -107,11 +107,9 @@ struct DisplayState {
     };
 
     enum {
-        eSurfaceChanged     = 0x01,
-        eLayerStackChanged  = 0x02,
-        eOrientationChanged = 0x04,
-        eViewportChanged    = 0x08,
-        eFrameChanged       = 0x10
+        eSurfaceChanged             = 0x01,
+        eLayerStackChanged          = 0x02,
+        eDisplayProjectionChanged   = 0x04
     };
 
     uint32_t what;

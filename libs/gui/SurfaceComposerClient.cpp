@@ -119,9 +119,10 @@ public:
 
     void setDisplaySurface(const sp<IBinder>& token, const sp<ISurfaceTexture>& surface);
     void setDisplayLayerStack(const sp<IBinder>& token, uint32_t layerStack);
-    void setDisplayOrientation(const sp<IBinder>& token, uint32_t orientation);
-    void setDisplayViewport(const sp<IBinder>& token, const Rect& viewport);
-    void setDisplayFrame(const sp<IBinder>& token, const Rect& frame);
+    void setDisplayProjection(const sp<IBinder>& token,
+            uint32_t orientation,
+            const Rect& layerStackRect,
+            const Rect& displayRect);
 
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
@@ -326,37 +327,17 @@ void Composer::setDisplayLayerStack(const sp<IBinder>& token,
     s.what |= DisplayState::eLayerStackChanged;
 }
 
-void Composer::setDisplayOrientation(const sp<IBinder>& token,
-        uint32_t orientation) {
+void Composer::setDisplayProjection(const sp<IBinder>& token,
+        uint32_t orientation,
+        const Rect& layerStackRect,
+        const Rect& displayRect) {
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
     s.orientation = orientation;
-    s.what |= DisplayState::eOrientationChanged;
+    s.viewport = layerStackRect;
+    s.frame = displayRect;
+    s.what |= DisplayState::eDisplayProjectionChanged;
     mForceSynchronous = true; // TODO: do we actually still need this?
-}
-
-// FIXME: get rid of this eventually
-status_t Composer::setOrientation(int orientation) {
-    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
-    sp<IBinder> token(sm->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
-    Composer::setDisplayOrientation(token, orientation);
-    return NO_ERROR;
-}
-
-void Composer::setDisplayViewport(const sp<IBinder>& token,
-        const Rect& viewport) {
-    Mutex::Autolock _l(mLock);
-    DisplayState& s(getDisplayStateLocked(token));
-    s.viewport = viewport;
-    s.what |= DisplayState::eViewportChanged;
-}
-
-void Composer::setDisplayFrame(const sp<IBinder>& token,
-        const Rect& frame) {
-    Mutex::Autolock _l(mLock);
-    DisplayState& s(getDisplayStateLocked(token));
-    s.frame = frame;
-    s.what |= DisplayState::eFrameChanged;
 }
 
 // ---------------------------------------------------------------------------
@@ -520,19 +501,12 @@ void SurfaceComposerClient::setDisplayLayerStack(const sp<IBinder>& token,
     Composer::getInstance().setDisplayLayerStack(token, layerStack);
 }
 
-void SurfaceComposerClient::setDisplayOrientation(const sp<IBinder>& token,
-        uint32_t orientation) {
-    Composer::getInstance().setDisplayOrientation(token, orientation);
-}
-
-void SurfaceComposerClient::setDisplayViewport(const sp<IBinder>& token,
-        const Rect& viewport) {
-    Composer::getInstance().setDisplayViewport(token, viewport);
-}
-
-void SurfaceComposerClient::setDisplayFrame(const sp<IBinder>& token,
-        const Rect& frame) {
-    Composer::getInstance().setDisplayFrame(token, frame);
+void SurfaceComposerClient::setDisplayProjection(const sp<IBinder>& token,
+        uint32_t orientation,
+        const Rect& layerStackRect,
+        const Rect& displayRect) {
+    Composer::getInstance().setDisplayProjection(token, orientation,
+            layerStackRect, displayRect);
 }
 
 // ----------------------------------------------------------------------------
