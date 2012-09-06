@@ -134,7 +134,7 @@ status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
         CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__, slotIndex);
         return err;
     }
-    releaseBufferLocked(slotIndex, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE);
+    releaseBufferLocked(slotIndex, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
 
     mCurrentLockedBuffers--;
 
