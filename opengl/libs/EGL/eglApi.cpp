@@ -652,6 +652,7 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
     // These extensions should not be exposed to applications. They're used
     // internally by the Android EGL layer.
     if (!strcmp(procname, "eglSetBlobCacheFuncsANDROID") ||
+        !strcmp(procname, "eglDupNativeFenceFDANDROID") ||
         !strcmp(procname, "eglHibernateProcessIMG") ||
         !strcmp(procname, "eglAwakenProcessIMG")) {
         return NULL;
@@ -1190,7 +1191,20 @@ EGLBoolean eglGetSyncAttribKHR(EGLDisplay dpy, EGLSyncKHR sync,
 // ANDROID extensions
 // ----------------------------------------------------------------------------
 
-/* ANDROID extensions entry-point go here */
+EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_NO_NATIVE_FENCE_FD_ANDROID;
+
+    EGLint result = EGL_NO_NATIVE_FENCE_FD_ANDROID;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglDupNativeFenceFDANDROID) {
+        result = cnx->egl.eglDupNativeFenceFDANDROID(dp->disp.dpy, sync);
+    }
+    return result;
+}
 
 // ----------------------------------------------------------------------------
 // NVIDIA extensions

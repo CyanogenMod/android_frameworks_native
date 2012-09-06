@@ -270,6 +270,20 @@ typedef EGLBoolean (EGLAPIENTRYP PFEGLHIBERNATEPROCESSIMGPROC)(void);
 typedef EGLBoolean (EGLAPIENTRYP PFEGLAWAKENPROCESSIMGPROC)(void);
 #endif
 
+/* EGL_ANDROID_native_fence_sync
+ */
+#ifndef EGL_ANDROID_native_fence_sync
+#define EGL_ANDROID_native_fence_sync 1
+#define EGL_SYNC_NATIVE_FENCE_ANDROID                 0x3144
+#define EGL_SYNC_NATIVE_FENCE_FD_ANDROID              0x3145
+#define EGL_NO_NATIVE_FENCE_FD_ANDROID                -1
+#define EGL_SYNC_NATIVE_FENCE_SIGNALED_ANDROID        0x3146
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLint EGLAPIENTRY eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync);
+#endif
+typedef EGLint (EGLAPIENTRYP PFNEGLDUPNATIVEFENCEFDANDROID) (EGLDisplay dpy, EGLSyncKHR sync);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
