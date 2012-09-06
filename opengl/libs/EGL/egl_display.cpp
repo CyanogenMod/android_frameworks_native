@@ -59,6 +59,7 @@ static char const * const sExtensionString  =
 // extensions not exposed to applications but used by the ANDROID system
 //      "EGL_ANDROID_recordable "               // mandatory
 //      "EGL_ANDROID_blob_cache "               // strongly recommended
+//      "EGL_ANDROID_native_fence_sync "        // strongly recommended
 //      "EGL_IMG_hibernate_process "            // optional
 
 extern void initEglTraceLevel();
