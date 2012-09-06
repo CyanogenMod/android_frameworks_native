@@ -20,7 +20,7 @@ Status
 
 Version
 
-    Version 2, July 23, 2012
+    Version 3, September 4, 2012
 
 Number
 
