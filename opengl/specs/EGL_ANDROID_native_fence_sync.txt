@@ -74,7 +74,7 @@ New Tokens
     Accepted by the <attrib_list> parameter of eglCreateSyncKHR, and returned
     by eglDupNativeFenceFDANDROID in the event of an error:
 
-    EGL_NO_NATIVE_FENCE_ANDROID            -1
+    EGL_NO_NATIVE_FENCE_FD_ANDROID         -1
 
     Returned in <value> when eglGetSyncAttribKHR is called with <attribute>
     EGL_SYNC_CONDITION_KHR:
@@ -90,7 +90,7 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     object is created. In this case the EGL_SYNC_NATIVE_FENCE_FD_ANDROID
     attribute may optionally be specified. If this attribute is specified, it
     must be set to either a file descriptor that refers to a native fence
-    object or to the value EGL_NO_NATIVE_FENCE_ANDROID.
+    object or to the value EGL_NO_NATIVE_FENCE_FD_ANDROID.
 
     The default values for the EGL native fence sync object attributes are as
     follows:
@@ -202,7 +202,7 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     The command
 
         EGLint eglDupNativeFenceFDANDROID(
-                            EGLdisplay dpy,
+                            EGLDisplay dpy,
                             EGLSyncKHR sync);
 
     duplicates the file descriptor stored in the
