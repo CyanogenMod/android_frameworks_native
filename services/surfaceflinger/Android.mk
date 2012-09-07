@@ -49,7 +49,7 @@ ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
     LOCAL_SHARED_LIBRARIES += libqdutils
-    LOCAL_CFLAGS += -DQCOMHW
+    LOCAL_CFLAGS += -DQCOM_HARDWARE
 endif
 
 # this is only needed for DDMS debugging

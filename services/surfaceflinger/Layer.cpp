@@ -43,7 +43,7 @@
 #include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
 
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
 #include <gpuformats.h>
 #endif
 
@@ -358,7 +358,7 @@ void Layer::onDraw(const Region& clip) const
         }
         return;
     }
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
     if (!qdutils::isGPUSupportedFormat(mActiveBuffer->format)) {
         clearWithOpenGL(clip, 0, 0, 0, 1);
         return;

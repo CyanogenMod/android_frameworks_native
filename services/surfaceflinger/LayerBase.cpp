@@ -27,7 +27,7 @@
 #include <GLES/glext.h>
 
 #include <hardware/hardware.h>
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
 #include <gralloc_priv.h>
 #endif
 
@@ -582,7 +582,7 @@ LayerBaseClient::LayerCleaner::~LayerCleaner() {
 
 //Helper for external-only layers
 bool isLayerExternalOnly(const sp<Layer>& layer) {
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
     if(layer != NULL) {
         const sp<GraphicBuffer>& buffer(layer->getActiveBuffer());
         if (buffer != NULL) {

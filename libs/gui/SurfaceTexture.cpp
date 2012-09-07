@@ -39,7 +39,7 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
 #include <gpuformats.h>
 #endif
 
@@ -256,7 +256,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
                 ST_LOGE("updateTexImage: buffer at slot %d is null", buf);
                 err = BAD_VALUE;
             } else {
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
                 gpuSupportedFormat = qdutils::isGPUSupportedFormat(
                     mEGLSlots[buf].mGraphicBuffer->format);
 #endif

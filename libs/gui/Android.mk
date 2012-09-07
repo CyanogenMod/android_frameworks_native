@@ -54,7 +54,7 @@ endif
 ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
-    LOCAL_CFLAGS += -DQCOMHW
+    LOCAL_CFLAGS += -DQCOM_HARDWARE
 endif
 
 include $(BUILD_SHARED_LIBRARY)

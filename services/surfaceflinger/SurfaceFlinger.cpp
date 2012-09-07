@@ -68,7 +68,7 @@
 #include "SecTVOutService.h"
 #endif
 
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
 #include <clear_regions.h>
 #endif
 
@@ -577,7 +577,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // Currently unused: const uint32_t flags = mCurrentState.orientationFlags;
             GraphicPlane& plane(graphicPlane(dpy));
             plane.setOrientation(orientation);
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
             const Transform& planeTransform(plane.transform());
 #endif
             // update the shared control block
@@ -602,7 +602,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             else
                 mHdmiClient->setHdmiRotate(0, overlayLayerCount);
 #endif
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
             //set the new orientation to HWC
             HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
             hwc.eventControl(DisplayHardware::EVENT_ORIENTATION,
@@ -1015,7 +1015,7 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
     } else if (cur && !mWormholeRegion.isEmpty()) {
             const Region region(mWormholeRegion.intersect(mDirtyRegion));
             if (!region.isEmpty()) {
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
                if (0 != qdutils::qcomuiClearRegion(region, hw.getEGLDisplay()))
 #endif
                       drawWormhole();
