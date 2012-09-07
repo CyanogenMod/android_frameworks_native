@@ -977,7 +977,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 || (state.frame != draw[i].frame))
                         {
                             disp->setProjection(state.orientation,
-                                    state.viewport, state.viewport);
+                                    state.viewport, state.frame);
                         }
                     }
                 }
@@ -996,7 +996,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.type, display, stc, 0, mEGLConfig);
                         disp->setLayerStack(state.layerStack);
                         disp->setProjection(state.orientation,
-                                state.viewport, state.viewport);
+                                state.viewport, state.frame);
                         mDisplays.add(display, disp);
                     }
                 }
@@ -1963,7 +1963,7 @@ void SurfaceFlinger::dumpAllLocked(
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
         snprintf(buffer, SIZE,
                 "+ DisplayDevice[%u]\n"
-                "   id=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
+                "   type=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
                 "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d]\n",
                 dpy,
                 hw->getDisplayType(), hw->getLayerStack(),
