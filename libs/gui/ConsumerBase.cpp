@@ -185,15 +185,40 @@ status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item) {
         mSlots[item->mBuf].mGraphicBuffer = item->mGraphicBuffer;
     }
 
+    mSlots[item->mBuf].mFence = item->mFence;
+
     CB_LOGV("acquireBufferLocked: -> slot=%d", item->mBuf);
 
     return OK;
 }
 
+status_t ConsumerBase::addReleaseFence(int slot, const sp<Fence>& fence) {
+    CB_LOGV("addReleaseFence: slot=%d", slot);
+
+    if (!mSlots[slot].mFence.get()) {
+        mSlots[slot].mFence = fence;
+    } else {
+        sp<Fence> mergedFence = Fence::merge(
+                String8("ConsumerBase merged release"),
+                mSlots[slot].mFence, fence);
+        if (!mergedFence.get()) {
+            CB_LOGE("failed to merge release fences");
+            // synchronization is broken, the best we can do is hope fences
+            // signal in order so the new fence will act like a union
+            mSlots[slot].mFence = fence;
+            return BAD_VALUE;
+        }
+        mSlots[slot].mFence = mergedFence;
+    }
+
+    return OK;
+}
+
 status_t ConsumerBase::releaseBufferLocked(int slot, EGLDisplay display,
-       EGLSyncKHR eglFence, const sp<Fence>& fence) {
+       EGLSyncKHR eglFence) {
     CB_LOGV("releaseBufferLocked: slot=%d", slot);
-    status_t err = mBufferQueue->releaseBuffer(slot, display, eglFence, fence);
+    status_t err = mBufferQueue->releaseBuffer(slot, display, eglFence,
+            mSlots[slot].mFence);
     if (err == BufferQueue::STALE_BUFFER_SLOT) {
         freeBufferLocked(slot);
     }
