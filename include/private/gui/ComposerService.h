@@ -33,13 +33,26 @@ class ISurfaceComposer;
 
 // ---------------------------------------------------------------------------
 
+// This holds our connection to the composer service (i.e. SurfaceFlinger).
+// If the remote side goes away, we will re-establish the connection.
+// Users of this class should not retain the value from
+// getComposerService() for an extended period.
+//
+// (It's not clear that using Singleton is useful here anymore.)
 class ComposerService : public Singleton<ComposerService>
 {
-    // these are constants
     sp<ISurfaceComposer> mComposerService;
+    sp<IBinder::DeathRecipient> mDeathObserver;
+    Mutex mLock;
+
     ComposerService();
+    void connectLocked();
+    void composerServiceDied();
     friend class Singleton<ComposerService>;
 public:
+
+    // Get a connection to the Composer Service.  This will block until
+    // a connection is established.
     static sp<ISurfaceComposer> getComposerService();
 };
 
