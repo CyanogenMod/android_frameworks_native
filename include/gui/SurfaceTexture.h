@@ -220,7 +220,7 @@ protected:
     // releaseBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase.
     virtual status_t releaseBufferLocked(int buf, EGLDisplay display,
-           EGLSyncKHR eglFence, const sp<Fence>& fence);
+           EGLSyncKHR eglFence);
 
     static bool isExternalFormat(uint32_t format);
 

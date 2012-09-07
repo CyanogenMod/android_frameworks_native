@@ -125,7 +125,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
         item.mBuf != mCurrentBufferSlot) {
         // Release the previous buffer.
         err = releaseBufferLocked(mCurrentBufferSlot, EGL_NO_DISPLAY,
-                EGL_NO_SYNC_KHR, Fence::NO_FENCE);
+                EGL_NO_SYNC_KHR);
         if (err != NO_ERROR && err != BufferQueue::STALE_BUFFER_SLOT) {
             ALOGE("error releasing buffer: %s (%d)", strerror(-err), err);
             return err;

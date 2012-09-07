@@ -172,9 +172,9 @@ status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
 }
 
 status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
-       EGLSyncKHR eglFence, const sp<Fence>& fence) {
+       EGLSyncKHR eglFence) {
     status_t err = ConsumerBase::releaseBufferLocked(buf, mEglDisplay,
-           eglFence, fence);
+           eglFence);
 
     mEglSlots[mCurrentTexture].mEglFence = EGL_NO_SYNC_KHR;
 
@@ -229,7 +229,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // not accept this buffer. this is used by SurfaceFlinger to
         // reject buffers which have the wrong size
         if (rejecter && rejecter->reject(mSlots[buf].mGraphicBuffer, item)) {
-            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR, item.mFence);
+            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR);
             glBindTexture(mTexTarget, mTexName);
             return NO_ERROR;
         }
@@ -256,7 +256,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         if (err != NO_ERROR) {
             // Release the buffer we just acquired.  It's not safe to
             // release the old buffer, so instead we just drop the new frame.
-            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR, item.mFence);
+            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR);
             return err;
         }
 
@@ -268,8 +268,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         // release old buffer
         if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
             status_t status = releaseBufferLocked(mCurrentTexture, dpy,
-                    mEglSlots[mCurrentTexture].mEglFence,
-                    mSlots[mCurrentTexture].mFence);
+                    mEglSlots[mCurrentTexture].mEglFence);
             if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
                 ST_LOGE("updateTexImage: failed to release buffer: %s (%d)",
                        strerror(-status), status);
@@ -304,20 +303,10 @@ void SurfaceTexture::setReleaseFence(int fenceFd) {
     sp<Fence> fence(new Fence(fenceFd));
     if (fenceFd == -1 || mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT)
         return;
-    if (!mSlots[mCurrentTexture].mFence.get()) {
-        mSlots[mCurrentTexture].mFence = fence;
-    } else {
-        sp<Fence> mergedFence = Fence::merge(
-                String8("SurfaceTexture merged release"),
-                mSlots[mCurrentTexture].mFence, fence);
-        if (!mergedFence.get()) {
-            ST_LOGE("failed to merge release fences");
-            // synchronization is broken, the best we can do is hope fences
-            // signal in order so the new fence will act like a union
-            mSlots[mCurrentTexture].mFence = fence;
-            return;
-        }
-        mSlots[mCurrentTexture].mFence = mergedFence;
+    status_t err = addReleaseFence(mCurrentTexture, fence);
+    if (err != OK) {
+        ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
+                strerror(-err), err);
     }
 }
 
