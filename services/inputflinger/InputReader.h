@@ -268,6 +268,12 @@ struct TouchAffineTransformation {
         y_xmix(0.0f), y_scale(1.0f), y_offset(0.0f) {
     }
 
+    TouchAffineTransformation(float xscale, float xymix, float xoffset,
+            float yxmix, float yscale, float yoffset) :
+        x_scale(xscale), x_ymix(xymix), x_offset(xoffset),
+        y_xmix(yxmix), y_scale(yscale), y_offset(yoffset) {
+    }
+
     void applyTo(float& x, float& y) const;
 };
 
