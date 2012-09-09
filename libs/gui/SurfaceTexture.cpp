@@ -39,6 +39,20 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
+// This compile option makes SurfaceTexture use the
+// EGL_ANDROID_native_fence_sync extension to create Android native fences to
+// signal when all GLES reads for a given buffer have completed.  It is not
+// compatible with using the EGL_KHR_fence_sync extension for the same
+// purpose.
+#ifdef USE_NATIVE_FENCE_SYNC
+#ifdef USE_FENCE_SYNC
+#error "USE_NATIVE_FENCE_SYNC and USE_FENCE_SYNC are incompatible"
+#endif
+const bool useNativeFenceSync = true;
+#else
+const bool useNativeFenceSync = false;
+#endif
+
 // This compile option makes SurfaceTexture use the EGL_KHR_fence_sync extension
 // to synchronize access to the buffers.  It will cause dequeueBuffer to stall,
 // waiting for the GL reads for the buffer being dequeued to complete before
@@ -443,36 +457,60 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
 status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
     ST_LOGV("syncForReleaseLocked");
 
-    if (mUseFenceSync && mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        EGLSyncKHR fence = mEglSlots[mCurrentTexture].mEglFence;
-        if (fence != EGL_NO_SYNC_KHR) {
-            // There is already a fence for the current slot.  We need to wait
-            // on that before replacing it with another fence to ensure that all
-            // outstanding buffer accesses have completed before the producer
-            // accesses it.
-            EGLint result = eglClientWaitSyncKHR(dpy, fence, 0, 1000000000);
-            if (result == EGL_FALSE) {
-                ST_LOGE("syncForReleaseLocked: error waiting for previous "
-                        "fence: %#x", eglGetError());
+    if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
+        if (useNativeFenceSync) {
+            EGLSyncKHR sync = eglCreateSyncKHR(dpy,
+                    EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
+            if (sync == EGL_NO_SYNC_KHR) {
+                ST_LOGE("syncForReleaseLocked: error creating EGL fence: %#x",
+                        eglGetError());
                 return UNKNOWN_ERROR;
-            } else if (result == EGL_TIMEOUT_EXPIRED_KHR) {
-                ST_LOGE("syncForReleaseLocked: timeout waiting for previous "
-                        "fence");
-                return TIMED_OUT;
             }
-            eglDestroySyncKHR(dpy, fence);
-        }
+            glFlush();
+            int fenceFd = eglDupNativeFenceFDANDROID(dpy, sync);
+            if (fenceFd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
+                ST_LOGE("syncForReleaseLocked: error dup'ing native fence "
+                        "fd: %#x", eglGetError());
+                return UNKNOWN_ERROR;
+            }
+            sp<Fence> fence(new Fence(fenceFd));
+            status_t err = addReleaseFence(mCurrentTexture, fence);
+            if (err != OK) {
+                ST_LOGE("syncForReleaseLocked: error adding release fence: "
+                        "%s (%d)", strerror(-err), err);
+                return err;
+            }
+        } else if (mUseFenceSync) {
+            EGLSyncKHR fence = mEglSlots[mCurrentTexture].mEglFence;
+            if (fence != EGL_NO_SYNC_KHR) {
+                // There is already a fence for the current slot.  We need to
+                // wait on that before replacing it with another fence to
+                // ensure that all outstanding buffer accesses have completed
+                // before the producer accesses it.
+                EGLint result = eglClientWaitSyncKHR(dpy, fence, 0, 1000000000);
+                if (result == EGL_FALSE) {
+                    ST_LOGE("syncForReleaseLocked: error waiting for previous "
+                            "fence: %#x", eglGetError());
+                    return UNKNOWN_ERROR;
+                } else if (result == EGL_TIMEOUT_EXPIRED_KHR) {
+                    ST_LOGE("syncForReleaseLocked: timeout waiting for previous "
+                            "fence");
+                    return TIMED_OUT;
+                }
+                eglDestroySyncKHR(dpy, fence);
+            }
 
-        // Create a fence for the outstanding accesses in the current OpenGL ES
-        // context.
-        fence = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR, NULL);
-        if (fence == EGL_NO_SYNC_KHR) {
-            ST_LOGE("syncForReleaseLocked: error creating fence: %#x",
-                    eglGetError());
-            return UNKNOWN_ERROR;
+            // Create a fence for the outstanding accesses in the current
+            // OpenGL ES context.
+            fence = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR, NULL);
+            if (fence == EGL_NO_SYNC_KHR) {
+                ST_LOGE("syncForReleaseLocked: error creating fence: %#x",
+                        eglGetError());
+                return UNKNOWN_ERROR;
+            }
+            glFlush();
+            mEglSlots[mCurrentTexture].mEglFence = fence;
         }
-        glFlush();
-        mEglSlots[mCurrentTexture].mEglFence = fence;
     }
 
     return OK;
