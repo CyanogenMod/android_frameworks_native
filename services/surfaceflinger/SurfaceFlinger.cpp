@@ -1728,6 +1728,8 @@ void SurfaceFlinger::onInitializeDisplays() {
     d.what = DisplayState::eDisplayProjectionChanged;
     d.token = mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY];
     d.orientation = DisplayState::eOrientationDefault;
+    d.frame.makeInvalid();
+    d.viewport.makeInvalid();
     displays.add(d);
     setTransactionState(state, displays, 0);
 
