@@ -64,8 +64,7 @@ public:
 
     HWComposer(
             const sp<SurfaceFlinger>& flinger,
-            EventHandler& handler,
-            framebuffer_device_t const* fbDev);
+            EventHandler& handler);
 
     ~HWComposer();
 
@@ -106,6 +105,11 @@ public:
 
     // needed forward declarations
     class LayerListIterator;
+
+    // Forwarding to FB HAL for pre-HWC-1.1 code (see FramebufferSurface).
+    int fbPost(buffer_handle_t buffer);
+    int fbCompositionComplete();
+    void fbDump(String8& result);
 
     /*
      * Interface to hardware composer's layers functionality.
@@ -208,10 +212,15 @@ public:
 
     void eventControl(int event, int enabled);
 
-    nsecs_t getRefreshPeriod() const;
-    nsecs_t getRefreshTimestamp() const;
-    float getDpiX() const;
-    float getDpiY() const;
+    // Query display parameters.  Pass in a display index (e.g.
+    // HWC_DISPLAY_PRIMARY).
+    nsecs_t getRefreshPeriod(int disp) const;
+    nsecs_t getRefreshTimestamp(int disp) const;
+    uint32_t getResolutionX(int disp) const;
+    uint32_t getResolutionY(int disp) const;
+    uint32_t getFormat(int disp) const;
+    float getDpiX(int disp) const;
+    float getDpiY(int disp) const;
 
     // this class is only used to fake the VSync event on systems that don't
     // have it.
@@ -236,6 +245,8 @@ public:
             const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
 
 private:
+    void loadHwcModule();
+    void loadFbHalModule();
 
     LayerListIterator getLayerIterator(int32_t id, size_t index);
     size_t getNumLayers(int32_t id) const;
@@ -261,6 +272,9 @@ private:
         ~DisplayData() {
             free(list);
         }
+        uint32_t xres;
+        uint32_t yres;
+        uint32_t format;    // pixel format from FB hal, for pre-hwc-1.1
         float xdpi;
         float ydpi;
         nsecs_t refresh;
@@ -271,7 +285,7 @@ private:
     };
 
     sp<SurfaceFlinger>              mFlinger;
-    hw_module_t const*              mModule;
+    framebuffer_device_t*           mFbDev;
     struct hwc_composer_device_1*   mHwc;
     // invariant: mLists[0] != NULL iff mHwc != NULL
     // mLists[i>0] can be NULL. that display is to be ignored
