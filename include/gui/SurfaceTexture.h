@@ -77,6 +77,9 @@ public:
     //
     // This call may only be made while the OpenGL ES context to which the
     // target texture belongs is bound to the calling thread.
+    //
+    // After calling this method the doGLFenceWait method must be called
+    // before issuing OpenGL ES commands that access the texture contents.
     status_t updateTexImage();
 
     // setReleaseFence stores a fence file descriptor that will signal when the
@@ -153,6 +156,12 @@ public:
     // getCurrentFence returns the fence indicating when the current buffer is
     // ready to be read from.
     sp<Fence> getCurrentFence() const;
+
+    // doGLFenceWait inserts a wait command into the OpenGL ES command stream
+    // to ensure that it is safe for future OpenGL ES commands to access the
+    // current texture buffer.  This must be called each time updateTexImage
+    // is called before issuing OpenGL ES commands that access the texture.
+    status_t doGLFenceWait() const;
 
     // isSynchronousMode returns whether the SurfaceTexture is currently in
     // synchronous mode.
