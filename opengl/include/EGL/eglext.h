@@ -284,6 +284,16 @@ EGLAPI EGLint EGLAPIENTRY eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR 
 typedef EGLint (EGLAPIENTRYP PFNEGLDUPNATIVEFENCEFDANDROID) (EGLDisplay dpy, EGLSyncKHR sync);
 #endif
 
+/* EGL_ANDROID_wait_sync
+ */
+#ifndef EGL_ANDROID_wait_sync
+#define EGL_ANDROID_wait_sync
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLint EGLAPIENTRY eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
+#endif
+typedef EGLint (EGLAPIENTRYP PFNEGLWAITSYNCANDROID) (EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
