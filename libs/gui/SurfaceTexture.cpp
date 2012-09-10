@@ -48,9 +48,19 @@
 #ifdef USE_FENCE_SYNC
 #error "USE_NATIVE_FENCE_SYNC and USE_FENCE_SYNC are incompatible"
 #endif
-const bool useNativeFenceSync = true;
+static const bool useNativeFenceSync = true;
 #else
-const bool useNativeFenceSync = false;
+static const bool useNativeFenceSync = false;
+#endif
+
+// This compile option makes SurfaceTexture use the EGL_ANDROID_sync_wait
+// extension to insert server-side waits into the GLES command stream.  This
+// feature requires the EGL_ANDROID_native_fence_sync and
+// EGL_ANDROID_wait_sync extensions.
+#ifdef USE_WAIT_SYNC
+static const bool useWaitSync = true;
+#else
+static const bool useWaitSync = false;
 #endif
 
 // This compile option makes SurfaceTexture use the EGL_KHR_fence_sync extension
@@ -723,6 +733,66 @@ uint32_t SurfaceTexture::getCurrentScalingMode() const {
 sp<Fence> SurfaceTexture::getCurrentFence() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentFence;
+}
+
+status_t SurfaceTexture::doGLFenceWait() const {
+    Mutex::Autolock lock(mMutex);
+
+    EGLDisplay dpy = eglGetCurrentDisplay();
+    EGLContext ctx = eglGetCurrentContext();
+
+    if (mEglDisplay != dpy || mEglDisplay == EGL_NO_DISPLAY) {
+        ST_LOGE("doGLFenceWait: invalid current EGLDisplay");
+        return INVALID_OPERATION;
+    }
+
+    if (mEglContext != ctx || mEglContext == EGL_NO_CONTEXT) {
+        ST_LOGE("doGLFenceWait: invalid current EGLContext");
+        return INVALID_OPERATION;
+    }
+
+    if (mCurrentFence != NULL) {
+        if (useWaitSync) {
+            // Create an EGLSyncKHR from the current fence.
+            int fenceFd = mCurrentFence->dup();
+            if (fenceFd == -1) {
+                ST_LOGE("doGLFenceWait: error dup'ing fence fd: %d", errno);
+                return -errno;
+            }
+            EGLint attribs[] = {
+                EGL_SYNC_NATIVE_FENCE_FD_ANDROID, fenceFd,
+                EGL_NONE
+            };
+            EGLSyncKHR sync = eglCreateSyncKHR(dpy,
+                    EGL_SYNC_NATIVE_FENCE_ANDROID, attribs);
+            if (sync == EGL_NO_SYNC_KHR) {
+                close(fenceFd);
+                ST_LOGE("doGLFenceWait: error creating EGL fence: %#x",
+                        eglGetError());
+                return UNKNOWN_ERROR;
+            }
+
+            // XXX: The spec draft is inconsistent as to whether this should
+            // return an EGLint or void.  Ignore the return value for now, as
+            // it's not strictly needed.
+            eglWaitSyncANDROID(dpy, sync, 0);
+            EGLint eglErr = eglGetError();
+            eglDestroySyncKHR(dpy, sync);
+            if (eglErr != EGL_SUCCESS) {
+                ST_LOGE("doGLFenceWait: error waiting for EGL fence: %#x",
+                        eglErr);
+                return UNKNOWN_ERROR;
+            }
+        } else {
+            status_t err = mCurrentFence->wait(Fence::TIMEOUT_NEVER);
+            if (err != NO_ERROR) {
+                ST_LOGE("doGLFenceWait: error waiting for fence: %d", err);
+                return err;
+            }
+        }
+    }
+
+    return NO_ERROR;
 }
 
 bool SurfaceTexture::isSynchronousMode() const {
