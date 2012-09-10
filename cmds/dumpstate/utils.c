@@ -41,6 +41,7 @@
 
 /* list of native processes to include in the native dumps */
 static const char* native_processes_to_dump[] = {
+        "/system/bin/drmserver",
         "/system/bin/mediaserver",
         "/system/bin/sdcard",
         "/system/bin/surfaceflinger",
