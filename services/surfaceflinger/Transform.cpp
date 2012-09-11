@@ -192,7 +192,6 @@ Transform::vec3 Transform::transform(const vec3& v) const {
 
 void Transform::transform(float* point, int x, int y) const
 {
-    const mat33& M(mMatrix);
     vec2 v(x, y);
     v = transform(v);
     point[0] = v[0];
