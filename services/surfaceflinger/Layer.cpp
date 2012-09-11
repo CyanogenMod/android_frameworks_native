@@ -333,11 +333,9 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         return;
     }
 
-    // TODO: replace this with a server-side wait
-    sp<Fence> fence = mSurfaceTexture->getCurrentFence();
-    if (fence.get()) {
-        status_t err = fence->wait(Fence::TIMEOUT_NEVER);
-        ALOGW_IF(err != OK, "Layer::onDraw: failed waiting for fence: %d", err);
+    status_t err = mSurfaceTexture->doGLFenceWait();
+    if (err != OK) {
+        ALOGE("onDraw: failed waiting for fence: %d", err);
         // Go ahead and draw the buffer anyway; no matter what we do the screen
         // is probably going to have something visibly wrong.
     }
