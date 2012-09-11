@@ -515,7 +515,7 @@ void Layer::onPostComposition() {
         const size_t offset = mFrameLatencyOffset;
         mFrameStats[offset].timestamp = mSurfaceTexture->getTimestamp();
         mFrameStats[offset].set = systemTime();
-        mFrameStats[offset].vsync = hwc.getRefreshTimestamp();
+        mFrameStats[offset].vsync = hwc.getRefreshTimestamp(HWC_DISPLAY_PRIMARY);
         mFrameLatencyOffset = (mFrameLatencyOffset + 1) % 128;
         mFrameLatencyNeeded = false;
     }
@@ -726,7 +726,8 @@ void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
     const size_t o = mFrameLatencyOffset;
-    const nsecs_t period = mFlinger->getHwComposer().getRefreshPeriod();
+    const nsecs_t period =
+            mFlinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
     result.appendFormat("%lld\n", period);
     for (size_t i=0 ; i<128 ; i++) {
         const size_t index = (o+i) % 128;

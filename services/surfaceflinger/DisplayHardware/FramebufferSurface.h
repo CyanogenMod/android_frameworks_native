@@ -30,13 +30,13 @@ namespace android {
 
 class Rect;
 class String8;
+class HWComposer;
 
 // ---------------------------------------------------------------------------
 
 class FramebufferSurface : public ConsumerBase {
 public:
-
-    static sp<FramebufferSurface> create();
+    FramebufferSurface(HWComposer& hwc);
 
     bool isUpdateOnDemand() const { return false; }
     status_t setUpdateRectangle(const Rect& updateRect);
@@ -49,21 +49,11 @@ public:
     // BufferQueue.  The new buffer is returned in the 'buffer' argument.
     status_t nextBuffer(sp<GraphicBuffer>* buffer);
 
-    // FIXME: currently there are information we can only get from the
-    // FB HAL, and FB HAL can only be instantiated once on some devices.
-    // Eventually this functionality will have to move in HWC or somewhere else.
-    const framebuffer_device_t* getFbHal() const {
-        return fbDev;
-    }
-
 private:
-    FramebufferSurface();
-    virtual ~FramebufferSurface(); // this class cannot be overloaded
+    virtual ~FramebufferSurface() { }; // this class cannot be overloaded
 
     virtual void onFrameAvailable();
     virtual void freeBufferLocked(int slotIndex);
-
-    framebuffer_device_t* fbDev;
 
     // mCurrentBufferIndex is the slot index of the current buffer or
     // INVALID_BUFFER_SLOT to indicate that either there is no current buffer
@@ -73,6 +63,9 @@ private:
     // mCurrentBuffer is the current buffer or NULL to indicate that there is
     // no current buffer.
     sp<GraphicBuffer> mCurrentBuffer;
+
+    // Hardware composer, owned by SurfaceFlinger.
+    HWComposer& mHwc;
 };
 
 // ---------------------------------------------------------------------------
