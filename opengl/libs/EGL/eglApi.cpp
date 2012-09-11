@@ -653,6 +653,7 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
     // internally by the Android EGL layer.
     if (!strcmp(procname, "eglSetBlobCacheFuncsANDROID") ||
         !strcmp(procname, "eglDupNativeFenceFDANDROID") ||
+        !strcmp(procname, "eglWaitSyncANDROID") ||
         !strcmp(procname, "eglHibernateProcessIMG") ||
         !strcmp(procname, "eglAwakenProcessIMG")) {
         return NULL;
@@ -1202,6 +1203,21 @@ EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
     egl_connection_t* const cnx = &gEGLImpl;
     if (cnx->dso && cnx->egl.eglDupNativeFenceFDANDROID) {
         result = cnx->egl.eglDupNativeFenceFDANDROID(dp->disp.dpy, sync);
+    }
+    return result;
+}
+
+EGLint eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_NO_NATIVE_FENCE_FD_ANDROID;
+
+    EGLint result = EGL_FALSE;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglWaitSyncANDROID) {
+        result = cnx->egl.eglWaitSyncANDROID(dp->disp.dpy, sync, flags);
     }
     return result;
 }
