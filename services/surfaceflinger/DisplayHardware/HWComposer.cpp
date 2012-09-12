@@ -188,7 +188,7 @@ HWComposer::HWComposer(
 
 HWComposer::~HWComposer() {
     if (mHwc) {
-        mHwc->eventControl(mHwc, 0, EVENT_VSYNC, 0);
+        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
     }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
@@ -540,7 +540,7 @@ status_t HWComposer::commit() {
 
 status_t HWComposer::release() const {
     if (mHwc) {
-        mHwc->eventControl(mHwc, 0, HWC_EVENT_VSYNC, 0);
+        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
         return (status_t)mHwc->blank(mHwc, 0, 1);
     }
     return NO_ERROR;

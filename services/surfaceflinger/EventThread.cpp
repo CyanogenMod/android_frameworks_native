@@ -265,11 +265,6 @@ void EventThread::disableVSyncLocked() {
     mDebugVsyncEnabled = false;
 }
 
-status_t EventThread::readyToRun() {
-    ALOGI("EventThread ready to run.");
-    return NO_ERROR;
-}
-
 void EventThread::dump(String8& result, char* buffer, size_t SIZE) const {
     Mutex::Autolock _l(mLock);
     result.appendFormat("VSYNC state: %s\n",
