@@ -33,19 +33,10 @@
 #include <ui/GraphicBuffer.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
+#include "DisplayHardware/HWComposer.h"
 
 // ----------------------------------------------------------------------------
 namespace android {
-// ----------------------------------------------------------------------------
-
-sp<FramebufferSurface> FramebufferSurface::create() {
-    sp<FramebufferSurface> result = new FramebufferSurface();
-    if (result->fbDev == NULL) {
-        result = NULL;
-    }
-    return result;
-}
-
 // ----------------------------------------------------------------------------
 
 class GraphicBufferAlloc : public BnGraphicBufferAlloc {
@@ -66,36 +57,21 @@ public:
  *
  */
 
-FramebufferSurface::FramebufferSurface():
+FramebufferSurface::FramebufferSurface(HWComposer& hwc) :
     ConsumerBase(new BufferQueue(true, new GraphicBufferAlloc())),
-    fbDev(0),
     mCurrentBufferSlot(-1),
-    mCurrentBuffer(0)
+    mCurrentBuffer(0),
+    mHwc(hwc)
 {
-    hw_module_t const* module;
-
-    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
-        int stride;
-        int err;
-        int i;
-        err = framebuffer_open(module, &fbDev);
-        ALOGE_IF(err, "couldn't open framebuffer HAL (%s)", strerror(-err));
-
-        // bail out if we can't initialize the modules
-        if (!fbDev)
-            return;
-
-        mName = "FramebufferSurface";
-        mBufferQueue->setConsumerName(mName);
-        mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
-                GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER);
-        mBufferQueue->setDefaultBufferFormat(fbDev->format);
-        mBufferQueue->setDefaultBufferSize(fbDev->width, fbDev->height);
-        mBufferQueue->setSynchronousMode(true);
-        mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
-    } else {
-        ALOGE("Couldn't get gralloc module");
-    }
+    mName = "FramebufferSurface";
+    mBufferQueue->setConsumerName(mName);
+    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
+                                       GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER);
+    mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(HWC_DISPLAY_PRIMARY));
+    mBufferQueue->setDefaultBufferSize(mHwc.getResolutionX(HWC_DISPLAY_PRIMARY),
+                                       mHwc.getResolutionY(HWC_DISPLAY_PRIMARY));
+    mBufferQueue->setSynchronousMode(true);
+    mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
 }
 
 status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
@@ -145,12 +121,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
     return NO_ERROR;
 }
 
-FramebufferSurface::~FramebufferSurface() {
-    if (fbDev) {
-        framebuffer_close(fbDev);
-    }
-}
-
+// Overrides ConsumerBase::onFrameAvailable(), does not call base class impl.
 void FramebufferSurface::onFrameAvailable() {
     // XXX: The following code is here temporarily as part of the transition
     // away from the framebuffer HAL.
@@ -161,7 +132,7 @@ void FramebufferSurface::onFrameAvailable() {
                 strerror(-err), err);
         return;
     }
-    err = fbDev->post(fbDev, buf->handle);
+    err = mHwc.fbPost(buf->handle);
     if (err != NO_ERROR) {
         ALOGE("error posting framebuffer: %d", err);
     }
@@ -181,19 +152,11 @@ status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
 
 status_t FramebufferSurface::compositionComplete()
 {
-    if (fbDev->compositionComplete) {
-        return fbDev->compositionComplete(fbDev);
-    }
-    return INVALID_OPERATION;
+    return mHwc.fbCompositionComplete();
 }
 
 void FramebufferSurface::dump(String8& result) {
-    if (fbDev->common.version >= 1 && fbDev->dump) {
-        const size_t SIZE = 4096;
-        char buffer[SIZE];
-        fbDev->dump(fbDev, buffer, SIZE);
-        result.append(buffer);
-    }
+    mHwc.fbDump(result);
     ConsumerBase::dump(result);
 }
 

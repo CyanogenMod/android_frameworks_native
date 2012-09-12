@@ -90,10 +90,9 @@ struct HWComposer::cb_context {
 
 HWComposer::HWComposer(
         const sp<SurfaceFlinger>& flinger,
-        EventHandler& handler,
-        framebuffer_device_t const* fbDev)
+        EventHandler& handler)
     : mFlinger(flinger),
-      mModule(0), mHwc(0), mNumDisplays(1),
+      mFbDev(0), mHwc(0), mNumDisplays(1),
       mCBContext(new cb_context),
       mEventHandler(handler),
       mVSyncCount(0), mDebugForceFakeVSync(false)
@@ -107,71 +106,62 @@ HWComposer::HWComposer(
     mDebugForceFakeVSync = atoi(value);
 
     bool needVSyncThread = true;
-    int err = hw_get_module(HWC_HARDWARE_MODULE_ID, &mModule);
-    ALOGW_IF(err, "%s module not found", HWC_HARDWARE_MODULE_ID);
-    if (err == 0) {
-        err = hwc_open_1(mModule, &mHwc);
-        ALOGE_IF(err, "%s device failed to initialize (%s)",
-                HWC_HARDWARE_COMPOSER, strerror(-err));
-        if (err == 0) {
-            if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0) ||
-                    hwcHeaderVersion(mHwc) < MIN_HWC_HEADER_VERSION ||
-                    hwcHeaderVersion(mHwc) > HWC_HEADER_VERSION) {
-                ALOGE("%s device version %#x unsupported, will not be used",
-                        HWC_HARDWARE_COMPOSER, mHwc->common.version);
-                hwc_close_1(mHwc);
-                mHwc = NULL;
-            }
+
+    // Note: some devices may insist that the FB HAL be opened before HWC.
+    loadFbHalModule();
+    loadHwcModule();
+
+    if (mHwc) {
+        ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
+              (hwcApiVersion(mHwc) >> 24) & 0xff,
+              (hwcApiVersion(mHwc) >> 16) & 0xff);
+        if (mHwc->registerProcs) {
+            mCBContext->hwc = this;
+            mCBContext->procs.invalidate = &hook_invalidate;
+            mCBContext->procs.vsync = &hook_vsync;
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+                mCBContext->procs.hotplug = &hook_hotplug;
+            else
+                mCBContext->procs.hotplug = NULL;
+            memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
+            mHwc->registerProcs(mHwc, &mCBContext->procs);
         }
 
-        if (mHwc) {
-            ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
-                    (hwcApiVersion(mHwc) >> 24) & 0xff,
-                    (hwcApiVersion(mHwc) >> 16) & 0xff);
-            if (mHwc->registerProcs) {
-                mCBContext->hwc = this;
-                mCBContext->procs.invalidate = &hook_invalidate;
-                mCBContext->procs.vsync = &hook_vsync;
-                if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
-                    mCBContext->procs.hotplug = &hook_hotplug;
-                else
-                    mCBContext->procs.hotplug = NULL;
-                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
-                mHwc->registerProcs(mHwc, &mCBContext->procs);
-            }
+        // don't need a vsync thread if we have a hardware composer
+        needVSyncThread = false;
+        // always turn vsync off when we start
+        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
 
-            // always turn vsync off when we start
-            needVSyncThread = false;
-            mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
+        // these IDs are always reserved
+        for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+            mAllocatedDisplayIDs.markBit(i);
+        }
 
-            // these IDs are always reserved
-            for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
-                mAllocatedDisplayIDs.markBit(i);
-            }
-
-            // the number of displays we actually have depends on the
-            // hw composer version
-            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
-                // 1.2 adds support for virtual displays
-                mNumDisplays = MAX_DISPLAYS;
-            } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
-                // 1.1 adds support for multiple displays
-                mNumDisplays = HWC_NUM_DISPLAY_TYPES;
-            } else {
-                mNumDisplays = 1;
-            }
+        // the number of displays we actually have depends on the
+        // hw composer version
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
+            // 1.2 adds support for virtual displays
+            mNumDisplays = MAX_DISPLAYS;
+        } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+            // 1.1 adds support for multiple displays
+            mNumDisplays = HWC_NUM_DISPLAY_TYPES;
+        } else {
+            mNumDisplays = 1;
         }
     }
 
-    if (fbDev) {
+    if (mFbDev) {
         ALOG_ASSERT(!(mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)),
                 "should only have fbdev if no hwc or hwc is 1.0");
 
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
-        disp.xdpi = fbDev->xdpi;
-        disp.ydpi = fbDev->ydpi;
+        disp.xres = mFbDev->width;
+        disp.yres = mFbDev->height;
+        disp.format = mFbDev->format;
+        disp.xdpi = mFbDev->xdpi;
+        disp.ydpi = mFbDev->ydpi;
         if (disp.refresh == 0) {
-            disp.refresh = nsecs_t(1e9 / fbDev->fps);
+            disp.refresh = nsecs_t(1e9 / mFbDev->fps);
             ALOGW("getting VSYNC period from fb HAL: %lld", disp.refresh);
         }
         if (disp.refresh == 0) {
@@ -197,7 +187,55 @@ HWComposer::~HWComposer() {
     if (mHwc) {
         hwc_close_1(mHwc);
     }
+    if (mFbDev) {
+        framebuffer_close(mFbDev);
+    }
     delete mCBContext;
+}
+
+// Load and prepare the hardware composer module.  Sets mHwc.
+void HWComposer::loadHwcModule()
+{
+    hw_module_t const* module;
+
+    if (hw_get_module(HWC_HARDWARE_MODULE_ID, &module) != 0) {
+        ALOGE("%s module not found", HWC_HARDWARE_MODULE_ID);
+        return;
+    }
+
+    int err = hwc_open_1(module, &mHwc);
+    if (err) {
+        ALOGE("%s device failed to initialize (%s)",
+              HWC_HARDWARE_COMPOSER, strerror(-err));
+        return;
+    }
+
+    if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0) ||
+            hwcHeaderVersion(mHwc) < MIN_HWC_HEADER_VERSION ||
+            hwcHeaderVersion(mHwc) > HWC_HEADER_VERSION) {
+        ALOGE("%s device version %#x unsupported, will not be used",
+              HWC_HARDWARE_COMPOSER, mHwc->common.version);
+        hwc_close_1(mHwc);
+        mHwc = NULL;
+        return;
+    }
+}
+
+// Load and prepare the FB HAL, which uses the gralloc module.  Sets mFbDev.
+void HWComposer::loadFbHalModule()
+{
+    hw_module_t const* module;
+
+    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) != 0) {
+        ALOGE("%s module not found", GRALLOC_HARDWARE_MODULE_ID);
+        return;
+    }
+
+    int err = framebuffer_open(module, &mFbDev);
+    if (err) {
+        ALOGE("framebuffer_open failed (%s)", strerror(-err));
+        return;
+    }
 }
 
 status_t HWComposer::initCheck() const {
@@ -265,6 +303,7 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
 void HWComposer::queryDisplayProperties(int disp) {
     ALOG_ASSERT(mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
 
+    // use zero as default value for unspecified attributes
     int32_t values[NUM_DISPLAY_ATTRIBUTES - 1];
     memset(values, 0, sizeof(values));
 
@@ -283,12 +322,10 @@ void HWComposer::queryDisplayProperties(int disp) {
             mDisplayData[disp].refresh = nsecs_t(values[i]);
             break;
         case HWC_DISPLAY_RESOLUTION_X:
-            // TODO: we'll probably want to remember this eventually
-            w = values[i];
+            mDisplayData[disp].xres = values[i];
             break;
         case HWC_DISPLAY_RESOLUTION_Y:
-            // TODO: we'll probably want to remember this eventually
-            h = values[i];
+            mDisplayData[disp].yres = values[i];
             break;
         case HWC_DISPLAY_DPI_X:
             mDisplayData[disp].xdpi = values[i] / 1000.0f;
@@ -336,25 +373,37 @@ status_t HWComposer::freeDisplayId(int32_t id) {
     return NO_ERROR;
 }
 
-nsecs_t HWComposer::getRefreshPeriod() const {
-    return mDisplayData[HWC_DISPLAY_PRIMARY].refresh;
+nsecs_t HWComposer::getRefreshPeriod(int disp) const {
+    return mDisplayData[disp].refresh;
 }
 
-nsecs_t HWComposer::getRefreshTimestamp() const {
+nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
     // this returns the last refresh timestamp.
     // if the last one is not available, we estimate it based on
     // the refresh period and whatever closest timestamp we have.
     Mutex::Autolock _l(mLock);
     nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    return now - ((now - mLastHwVSync) %  mDisplayData[HWC_DISPLAY_PRIMARY].refresh);
+    return now - ((now - mLastHwVSync) %  mDisplayData[disp].refresh);
 }
 
-float HWComposer::getDpiX() const {
-    return mDisplayData[HWC_DISPLAY_PRIMARY].xdpi;
+uint32_t HWComposer::getResolutionX(int disp) const {
+    return mDisplayData[disp].xres;
 }
 
-float HWComposer::getDpiY() const {
-    return mDisplayData[HWC_DISPLAY_PRIMARY].ydpi;
+uint32_t HWComposer::getResolutionY(int disp) const {
+    return mDisplayData[disp].yres;
+}
+
+uint32_t HWComposer::getFormat(int disp) const {
+    return mDisplayData[disp].format;
+}
+
+float HWComposer::getDpiX(int disp) const {
+    return mDisplayData[disp].xdpi;
+}
+
+float HWComposer::getDpiY(int disp) const {
+    return mDisplayData[disp].ydpi;
 }
 
 void HWComposer::eventControl(int event, int enabled) {
@@ -492,6 +541,30 @@ size_t HWComposer::getNumLayers(int32_t id) const {
     return (mHwc && mDisplayData[id].list) ?
             mDisplayData[id].list->numHwLayers : 0;
 }
+
+int HWComposer::fbPost(buffer_handle_t buffer)
+{
+    return mFbDev->post(mFbDev, buffer);
+}
+
+int HWComposer::fbCompositionComplete()
+{
+    if (mFbDev->compositionComplete) {
+        return mFbDev->compositionComplete(mFbDev);
+    } else {
+        return INVALID_OPERATION;
+    }
+}
+
+void HWComposer::fbDump(String8& result) {
+    if (mFbDev->common.version >= 1 && mFbDev->dump) {
+        const size_t SIZE = 4096;
+        char buffer[SIZE];
+        mFbDev->dump(mFbDev, buffer, SIZE);
+        result.append(buffer);
+    }
+}
+
 
 /*
  * Helper template to implement a concrete HWCLayer
@@ -680,7 +753,7 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
 HWComposer::VSyncThread::VSyncThread(HWComposer& hwc)
     : mHwc(hwc), mEnabled(false),
       mNextFakeVSync(0),
-      mRefreshPeriod(hwc.getRefreshPeriod())
+      mRefreshPeriod(hwc.getRefreshPeriod(HWC_DISPLAY_PRIMARY))
 {
 }
 

@@ -366,13 +366,18 @@ status_t SurfaceFlinger::readyToRun()
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
-    // initialize EGL
+    // initialize EGL for the default display
     mEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     eglInitialize(mEGLDisplay, NULL, NULL);
 
+    // Initialize the H/W composer object.  There may or may not be an
+    // actual hardware composer underneath.
+    mHwc = new HWComposer(this,
+            *static_cast<HWComposer::EventHandler *>(this));
+
     // Initialize the main display
     // create native window to main display
-    sp<FramebufferSurface> fbs = FramebufferSurface::create();
+    sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc);
     if (fbs == NULL) {
         ALOGE("Display subsystem failed to initialize. check logs. exiting...");
         exit(0);
@@ -407,11 +412,6 @@ status_t SurfaceFlinger::readyToRun()
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
-
-    // initialize the H/W composer
-    mHwc = new HWComposer(this,
-            *static_cast<HWComposer::EventHandler *>(this),
-            fbs->getFbHal());
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
@@ -500,8 +500,8 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     }
 
     const HWComposer& hwc(getHwComposer());
-    float xdpi = hwc.getDpiX();
-    float ydpi = hwc.getDpiY();
+    float xdpi = hwc.getDpiX(HWC_DISPLAY_PRIMARY);
+    float ydpi = hwc.getDpiY(HWC_DISPLAY_PRIMARY);
 
     // TODO: Not sure if display density should handled by SF any longer
     class Density {
@@ -538,7 +538,7 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     info->h = hw->getHeight();
     info->xdpi = xdpi;
     info->ydpi = ydpi;
-    info->fps = float(1e9 / hwc.getRefreshPeriod());
+    info->fps = float(1e9 / hwc.getRefreshPeriod(HWC_DISPLAY_PRIMARY));
     info->density = density;
     info->orientation = hw->getOrientation();
     // TODO: this needs to go away (currently needed only by webkit)
@@ -2018,9 +2018,9 @@ void SurfaceFlinger::dumpAllLocked(
             mLastSwapBufferTime/1000.0,
             mLastTransactionTime/1000.0,
             mTransactionFlags,
-            1e9 / hwc.getRefreshPeriod(),
-            hwc.getDpiX(),
-            hwc.getDpiY());
+            1e9 / hwc.getRefreshPeriod(HWC_DISPLAY_PRIMARY),
+            hwc.getDpiX(HWC_DISPLAY_PRIMARY),
+            hwc.getDpiY(HWC_DISPLAY_PRIMARY));
     result.append(buffer);
 
     snprintf(buffer, SIZE, "  eglSwapBuffers time: %f us\n",
