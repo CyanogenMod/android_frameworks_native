@@ -439,7 +439,7 @@ void LayerBase::dump(String8& result, char* buffer, size_t SIZE) const
             "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, needsDithering=%1d, invalidate=%1d, "
             "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n",
-            s.z, s.layerStack, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
+            s.layerStack, s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
             isOpaque(), needsDithering(), contentDirty,
