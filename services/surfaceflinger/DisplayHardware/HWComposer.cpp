@@ -111,6 +111,12 @@ HWComposer::HWComposer(
     loadFbHalModule();
     loadHwcModule();
 
+    if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1) && !mFbDev) {
+        ALOGE("ERROR: failed to open framebuffer, aborting");
+        // FB mandatory on <= 1.0, give up
+        abort();
+    }
+
     if (mHwc) {
         ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
               (hwcApiVersion(mHwc) >> 24) & 0xff,
