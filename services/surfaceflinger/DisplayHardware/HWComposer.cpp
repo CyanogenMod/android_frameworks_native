@@ -111,9 +111,10 @@ HWComposer::HWComposer(
     loadFbHalModule();
     loadHwcModule();
 
-    if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1) && !mFbDev) {
+    // If we have no HWC, or a pre-1.1 HWC, an FB dev is mandatory.
+    if ((!mHwc || !hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+            && !mFbDev) {
         ALOGE("ERROR: failed to open framebuffer, aborting");
-        // FB mandatory on <= 1.0, give up
         abort();
     }
 
@@ -186,7 +187,9 @@ HWComposer::HWComposer(
 }
 
 HWComposer::~HWComposer() {
-    mHwc->eventControl(mHwc, 0, EVENT_VSYNC, 0);
+    if (mHwc) {
+        mHwc->eventControl(mHwc, 0, EVENT_VSYNC, 0);
+    }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
     }
