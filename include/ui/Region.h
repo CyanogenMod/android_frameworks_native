@@ -161,7 +161,8 @@ private:
     static void translate(Region& reg, int dx, int dy);
     static void translate(Region& dst, const Region& reg, int dx, int dy);
 
-    static bool validate(const Region& reg, const char* name);
+    static bool validate(const Region& reg,
+            const char* name, bool silent = false);
     
     // mStorage is a (manually) sorted array of Rects describing the region
     // with an extra Rect as the last element which is set to the
