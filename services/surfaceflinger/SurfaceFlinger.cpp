@@ -43,6 +43,7 @@
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/PixelFormat.h>
 
+#include <utils/misc.h>
 #include <utils/String8.h>
 #include <utils/String16.h>
 #include <utils/StopWatch.h>
@@ -243,6 +244,16 @@ status_t SurfaceFlinger::selectConfigForPixelFormat(
     eglGetConfigs(dpy, NULL, 0, &numConfigs);
     EGLConfig* const configs = new EGLConfig[numConfigs];
     eglChooseConfig(dpy, attrs, configs, numConfigs, &n);
+
+    if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+        // FIXME: temporary hack until HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
+        // is supported by the implementation. we can only be in this case
+        // if we have HWC 1.1
+        *outConfig = configs[0];
+        delete [] configs;
+        return NO_ERROR;
+    }
+
     for (int i=0 ; i<n ; i++) {
         EGLint nativeVisualId = 0;
         eglGetConfigAttrib(dpy, configs[i], EGL_NATIVE_VISUAL_ID, &nativeVisualId);
@@ -264,6 +275,11 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     status_t err;
     EGLint attribs[] = {
             EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
+            EGL_RED_SIZE,               8,
+            EGL_GREEN_SIZE,             8,
+            EGL_BLUE_SIZE,              8,
+            // EGL_RECORDABLE_ANDROID must be last so that we can retry
+            // without it easily (see below)
             EGL_RECORDABLE_ANDROID,     EGL_TRUE,
             EGL_NONE
     };
@@ -271,7 +287,7 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     if (err) {
         // maybe we failed because of EGL_RECORDABLE_ANDROID
         ALOGW("couldn't find an EGLConfig with EGL_RECORDABLE_ANDROID");
-        attribs[2] = EGL_NONE;
+        attribs[NELEM(attribs) - 3] = EGL_NONE;
         err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
     }
     ALOGE_IF(err, "couldn't find an EGLConfig matching the screen format");
@@ -297,13 +313,7 @@ EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config)
     return ctxt;
 }
 
-void SurfaceFlinger::initializeGL(EGLDisplay display, const sp<DisplayDevice>& hw) {
-    EGLBoolean result = DisplayDevice::makeCurrent(display, hw, mEGLContext);
-    if (!result) {
-        ALOGE("Couldn't create a working GLES context. check logs. exiting...");
-        exit(0);
-    }
-
+void SurfaceFlinger::initializeGL(EGLDisplay display) {
     GLExtensions& extensions(GLExtensions::getInstance());
     extensions.initWithGLStrings(
             glGetString(GL_VENDOR),
@@ -375,39 +385,45 @@ status_t SurfaceFlinger::readyToRun()
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this));
 
-    // Initialize the main display
-    // create native window to main display
-    sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc);
-    if (fbs == NULL) {
-        ALOGE("Display subsystem failed to initialize. check logs. exiting...");
-        exit(0);
-    }
-
-    sp<SurfaceTextureClient> stc(new SurfaceTextureClient(
-            static_cast<sp<ISurfaceTexture> >(fbs->getBufferQueue())));
-
     // initialize the config and context
-    int format;
-    ANativeWindow* const anw = stc.get();
-    anw->query(anw, NATIVE_WINDOW_FORMAT, &format);
+    EGLint format = mHwc->getVisualID();
     mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
-    // initialize our main display hardware
-
+    // initialize our non-virtual displays
     for (size_t i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
         mDefaultDisplays[i] = new BBinder();
         mCurrentState.displays.add(mDefaultDisplays[i],
-                DisplayDeviceState((DisplayDevice::DisplayType)i));
+                DisplayDeviceState(DisplayDevice::DisplayType(i)));
     }
+
+    // The main display is a bit special and always exists
+    //
+    // if we didn't add it here, it would be added automatically during the
+    // first transaction, however this would also create some difficulties:
+    //
+    // - there would be a race where a client could call getDisplayInfo(),
+    //   for instance before the DisplayDevice is created.
+    //
+    // - we need a GL context current in a few places, when initializing
+    //   OpenGL ES (see below), or creating a layer,
+    //   or when a texture is (asynchronously) destroyed, and for that
+    //   we need a valid surface, so it's conveniant to use the main display
+    //   for that.
+
+    sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc);
+    sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
+                static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
     sp<DisplayDevice> hw = new DisplayDevice(this,
             DisplayDevice::DISPLAY_PRIMARY,
             mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY],
-            anw, fbs, mEGLConfig);
+            stc, fbs, mEGLConfig);
     mDisplays.add(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY], hw);
 
+
     //  initialize OpenGL ES
-    initializeGL(mEGLDisplay, hw);
+    DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
+    initializeGL(mEGLDisplay);
 
     // start the EventThread
     mEventThread = new EventThread(this);
@@ -415,6 +431,7 @@ status_t SurfaceFlinger::readyToRun()
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
+
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();
@@ -1009,16 +1026,41 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
-                    if (state.surface != NULL) {
-                        sp<SurfaceTextureClient> stc(
-                                new SurfaceTextureClient(state.surface));
-                        const wp<IBinder>& display(curr.keyAt(i));
-                        sp<DisplayDevice> disp = new DisplayDevice(this,
-                                state.type, display, stc, 0, mEGLConfig);
-                        disp->setLayerStack(state.layerStack);
-                        disp->setProjection(state.orientation,
+
+                    sp<FramebufferSurface> fbs;
+                    sp<SurfaceTextureClient> stc;
+                    if (!state.isVirtualDisplay()) {
+
+                        ALOGE_IF(state.surface!=NULL,
+                                "adding a supported display, but rendering "
+                                "surface is provided (%p), ignoring it",
+                                state.surface.get());
+
+                        // for supported (by hwc) displays we provide our
+                        // own rendering surface
+                        fbs = new FramebufferSurface(*mHwc);
+                        stc = new SurfaceTextureClient(
+                                static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
+                    } else {
+                        if (state.surface != NULL) {
+                            stc = new SurfaceTextureClient(state.surface);
+                        }
+                    }
+
+                    const wp<IBinder>& display(curr.keyAt(i));
+                    if (stc != NULL) {
+                        sp<DisplayDevice> hw = new DisplayDevice(this,
+                                state.type, display, stc, fbs, mEGLConfig);
+                        hw->setLayerStack(state.layerStack);
+                        hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
-                        mDisplays.add(display, disp);
+                        mDisplays.add(display, hw);
+                        if (hw->getDisplayType() < DisplayDevice::NUM_DISPLAY_TYPES) {
+                            // notify the system that this display is now up
+                            // (note onScreenAcquired() is safe to call from
+                            // here because we're in the main thread)
+                            onScreenAcquired(hw);
+                        }
                     }
                 }
             }
@@ -1753,9 +1795,7 @@ void SurfaceFlinger::onInitializeDisplays() {
     d.viewport.makeInvalid();
     displays.add(d);
     setTransactionState(state, displays, 0);
-
-    // XXX: this should init default device to "unblank" and all other devices to "blank"
-    onScreenAcquired();
+    onScreenAcquired(getDefaultDisplayDevice());
 }
 
 void SurfaceFlinger::initializeDisplays() {
@@ -1773,21 +1813,25 @@ void SurfaceFlinger::initializeDisplays() {
 }
 
 
-void SurfaceFlinger::onScreenAcquired() {
+void SurfaceFlinger::onScreenAcquired(const sp<const DisplayDevice>& hw) {
     ALOGD("Screen about to return, flinger = %p", this);
-    sp<const DisplayDevice> hw(getDefaultDisplayDevice()); // XXX: this should be per DisplayDevice
     getHwComposer().acquire();
     hw->acquireScreen();
-    mEventThread->onScreenAcquired();
+    if (hw->getDisplayType() == DisplayDevice::DISPLAY_PRIMARY) {
+        // FIXME: eventthread only knows about the main display right now
+        mEventThread->onScreenAcquired();
+    }
     mVisibleRegionsDirty = true;
     repaintEverything();
 }
 
-void SurfaceFlinger::onScreenReleased() {
+void SurfaceFlinger::onScreenReleased(const sp<const DisplayDevice>& hw) {
     ALOGD("About to give-up screen, flinger = %p", this);
-    sp<const DisplayDevice> hw(getDefaultDisplayDevice()); // XXX: this should be per DisplayDevice
     if (hw->isScreenAcquired()) {
-        mEventThread->onScreenReleased();
+        if (hw->getDisplayType() == DisplayDevice::DISPLAY_PRIMARY) {
+            // FIXME: eventthread only knows about the main display right now
+            mEventThread->onScreenReleased();
+        }
         hw->releaseScreen();
         getHwComposer().release();
         mVisibleRegionsDirty = true;
@@ -1801,7 +1845,8 @@ void SurfaceFlinger::unblank() {
     public:
         MessageScreenAcquired(SurfaceFlinger* flinger) : flinger(flinger) { }
         virtual bool handler() {
-            flinger->onScreenAcquired();
+            // FIXME: should this be per-display?
+            flinger->onScreenAcquired(flinger->getDefaultDisplayDevice());
             return true;
         }
     };
@@ -1815,7 +1860,8 @@ void SurfaceFlinger::blank() {
     public:
         MessageScreenReleased(SurfaceFlinger* flinger) : flinger(flinger) { }
         virtual bool handler() {
-            flinger->onScreenReleased();
+            // FIXME: should this be per-display?
+            flinger->onScreenReleased(flinger->getDefaultDisplayDevice());
             return true;
         }
     };

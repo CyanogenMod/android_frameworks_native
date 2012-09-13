@@ -166,6 +166,7 @@ private:
         DisplayDeviceState(DisplayDevice::DisplayType type);
         bool isValid() const { return type >= 0; }
         bool isMainDisplay() const { return type == DisplayDevice::DISPLAY_PRIMARY; }
+        bool isVirtualDisplay() const { return type >= DisplayDevice::DISPLAY_VIRTUAL; }
         DisplayDevice::DisplayType type;
         sp<ISurfaceTexture> surface;
         uint32_t layerStack;
@@ -238,9 +239,9 @@ private:
     // called on the main thread in response to initializeDisplays()
     void onInitializeDisplays();
     // called on the main thread in response to blank()
-    void onScreenReleased();
+    void onScreenReleased(const sp<const DisplayDevice>& hw);
     // called on the main thread in response to unblank()
-    void onScreenAcquired();
+    void onScreenAcquired(const sp<const DisplayDevice>& hw);
 
     void handleMessageTransaction();
     void handleMessageInvalidate();
@@ -320,7 +321,7 @@ private:
         EGLint const* attrs, PixelFormat format, EGLConfig* outConfig);
     static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
     static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
-    void initializeGL(EGLDisplay display, const sp<DisplayDevice>& hw);
+    void initializeGL(EGLDisplay display);
     uint32_t getMaxTextureSize() const;
     uint32_t getMaxViewportDims() const;
 

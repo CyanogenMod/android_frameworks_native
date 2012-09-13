@@ -561,22 +561,34 @@ size_t HWComposer::getNumLayers(int32_t id) const {
             mDisplayData[id].list->numHwLayers : 0;
 }
 
-int HWComposer::fbPost(buffer_handle_t buffer)
-{
-    return mFbDev->post(mFbDev, buffer);
-}
-
-int HWComposer::fbCompositionComplete()
-{
-    if (mFbDev->compositionComplete) {
-        return mFbDev->compositionComplete(mFbDev);
+int HWComposer::getVisualID() const {
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+        return HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
     } else {
-        return INVALID_OPERATION;
+        return mFbDev->format;
     }
 }
 
+int HWComposer::fbPost(buffer_handle_t buffer) {
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return mFbDev->post(mFbDev, buffer);
+    }
+    return NO_ERROR;
+}
+
+int HWComposer::fbCompositionComplete() {
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+        if (mFbDev->compositionComplete) {
+            return mFbDev->compositionComplete(mFbDev);
+        } else {
+            return INVALID_OPERATION;
+        }
+    }
+    return NO_ERROR;
+}
+
 void HWComposer::fbDump(String8& result) {
-    if (mFbDev->common.version >= 1 && mFbDev->dump) {
+    if (mFbDev && mFbDev->common.version >= 1 && mFbDev->dump) {
         const size_t SIZE = 4096;
         char buffer[SIZE];
         mFbDev->dump(mFbDev, buffer, SIZE);
@@ -727,7 +739,7 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
 void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {
     if (mHwc) {
-        result.append("Hardware Composer state:\n");
+        result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);

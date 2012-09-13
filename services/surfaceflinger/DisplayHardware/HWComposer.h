@@ -106,6 +106,10 @@ public:
     // needed forward declarations
     class LayerListIterator;
 
+    // return the visual id to be used to find a suitable EGLConfig for
+    // *ALL* displays.
+    int getVisualID() const;
+
     // Forwarding to FB HAL for pre-HWC-1.1 code (see FramebufferSurface).
     int fbPost(buffer_handle_t buffer);
     int fbCompositionComplete();
