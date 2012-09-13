@@ -20,6 +20,7 @@
 
 #include <utils/Log.h>
 #include <utils/String8.h>
+#include <utils/CallStack.h>
 
 #include <ui/Rect.h>
 #include <ui/Region.h>
@@ -338,47 +339,72 @@ private:
     }
 };
 
-bool Region::validate(const Region& reg, const char* name)
+bool Region::validate(const Region& reg, const char* name, bool silent)
 {
     bool result = true;
     const_iterator cur = reg.begin();
     const_iterator const tail = reg.end();
-    const_iterator prev = cur++;
+    const_iterator prev = cur;
     Rect b(*prev);
     while (cur != tail) {
-        b.left   = b.left   < cur->left   ? b.left   : cur->left;
-        b.top    = b.top    < cur->top    ? b.top    : cur->top;
-        b.right  = b.right  > cur->right  ? b.right  : cur->right;
-        b.bottom = b.bottom > cur->bottom ? b.bottom : cur->bottom;
-        if (cur->top == prev->top) {
-            if (cur->bottom != prev->bottom) {
-                ALOGE("%s: invalid span %p", name, cur);
+        if (cur->isValid() == false) {
+            ALOGE_IF(!silent, "%s: region contains an invalid Rect", name);
+            result = false;
+        }
+        if (cur->right > region_operator<Rect>::max_value) {
+            ALOGE_IF(!silent, "%s: rect->right > max_value", name);
+            result = false;
+        }
+        if (cur->bottom > region_operator<Rect>::max_value) {
+            ALOGE_IF(!silent, "%s: rect->right > max_value", name);
+            result = false;
+        }
+        if (prev != cur) {
+            b.left   = b.left   < cur->left   ? b.left   : cur->left;
+            b.top    = b.top    < cur->top    ? b.top    : cur->top;
+            b.right  = b.right  > cur->right  ? b.right  : cur->right;
+            b.bottom = b.bottom > cur->bottom ? b.bottom : cur->bottom;
+            if ((*prev < *cur) == false) {
+                ALOGE_IF(!silent, "%s: region's Rects not sorted", name);
                 result = false;
-            } else if (cur->left < prev->right) {
-                ALOGE("%s: spans overlap horizontally prev=%p, cur=%p",
+            }
+            if (cur->top == prev->top) {
+                if (cur->bottom != prev->bottom) {
+                    ALOGE_IF(!silent, "%s: invalid span %p", name, cur);
+                    result = false;
+                } else if (cur->left < prev->right) {
+                    ALOGE_IF(!silent,
+                            "%s: spans overlap horizontally prev=%p, cur=%p",
+                            name, prev, cur);
+                    result = false;
+                }
+            } else if (cur->top < prev->bottom) {
+                ALOGE_IF(!silent,
+                        "%s: spans overlap vertically prev=%p, cur=%p",
                         name, prev, cur);
                 result = false;
             }
-        } else if (cur->top < prev->bottom) {
-            ALOGE("%s: spans overlap vertically prev=%p, cur=%p",
-                    name, prev, cur);
-            result = false;
+            prev = cur;
         }
-        prev = cur;
         cur++;
     }
     if (b != reg.getBounds()) {
         result = false;
-        ALOGE("%s: invalid bounds [%d,%d,%d,%d] vs. [%d,%d,%d,%d]", name,
+        ALOGE_IF(!silent,
+                "%s: invalid bounds [%d,%d,%d,%d] vs. [%d,%d,%d,%d]", name,
                 b.left, b.top, b.right, b.bottom,
                 reg.getBounds().left, reg.getBounds().top, 
                 reg.getBounds().right, reg.getBounds().bottom);
     }
     if (reg.mStorage.size() == 2) {
-        ALOGE("mStorage size is 2, which is never valid");
+        result = false;
+        ALOGE_IF(!silent, "%s: mStorage size is 2, which is never valid", name);
     }
-    if (result == false) {
+    if (result == false && !silent) {
         reg.dump(name);
+        CallStack stack;
+        stack.update();
+        stack.dump("");
     }
     return result;
 }
@@ -564,27 +590,37 @@ size_t Region::getSize() const {
 }
 
 status_t Region::flatten(void* buffer) const {
+#if VALIDATE_REGIONS
+    validate(*this, "Region::flatten");
+#endif
     Rect* rects = reinterpret_cast<Rect*>(buffer);
     memcpy(rects, mStorage.array(), mStorage.size() * sizeof(Rect));
     return NO_ERROR;
 }
 
 status_t Region::unflatten(void const* buffer, size_t size) {
-    mStorage.clear();
+    Region result;
     if (size >= sizeof(Rect)) {
         Rect const* rects = reinterpret_cast<Rect const*>(buffer);
         size_t count = size / sizeof(Rect);
         if (count > 0) {
-            ssize_t err = mStorage.insertAt(0, count);
+            result.mStorage.clear();
+            ssize_t err = result.mStorage.insertAt(0, count);
             if (err < 0) {
                 return status_t(err);
             }
-            memcpy(mStorage.editArray(), rects, count*sizeof(Rect));
+            memcpy(result.mStorage.editArray(), rects, count*sizeof(Rect));
         }
     }
 #if VALIDATE_REGIONS
-    validate(*this, "Region::unflatten");
+    validate(result, "Region::unflatten");
 #endif
+
+    if (!result.validate(result, "Region::unflatten", true)) {
+        ALOGE("Region::unflatten() failed, invalid region");
+        return BAD_VALUE;
+    }
+    mStorage = result.mStorage;
     return NO_ERROR;
 }
 
