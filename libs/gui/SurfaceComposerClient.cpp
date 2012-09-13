@@ -46,14 +46,49 @@ ANDROID_SINGLETON_STATIC_INSTANCE(ComposerService);
 
 ComposerService::ComposerService()
 : Singleton<ComposerService>() {
+    Mutex::Autolock _l(mLock);
+    connectLocked();
+}
+
+void ComposerService::connectLocked() {
     const String16 name("SurfaceFlinger");
     while (getService(name, &mComposerService) != NO_ERROR) {
         usleep(250000);
     }
+    assert(mComposerService != NULL);
+
+    // Create the death listener.
+    class DeathObserver : public IBinder::DeathRecipient {
+        ComposerService& mComposerService;
+        virtual void binderDied(const wp<IBinder>& who) {
+            ALOGW("ComposerService remote (surfaceflinger) died [%p]",
+                  who.unsafe_get());
+            mComposerService.composerServiceDied();
+        }
+     public:
+        DeathObserver(ComposerService& mgr) : mComposerService(mgr) { }
+    };
+
+    mDeathObserver = new DeathObserver(*const_cast<ComposerService*>(this));
+    mComposerService->asBinder()->linkToDeath(mDeathObserver);
 }
 
-sp<ISurfaceComposer> ComposerService::getComposerService() {
-    return ComposerService::getInstance().mComposerService;
+/*static*/ sp<ISurfaceComposer> ComposerService::getComposerService() {
+    ComposerService& instance = ComposerService::getInstance();
+    Mutex::Autolock _l(instance.mLock);
+    if (instance.mComposerService == NULL) {
+        ComposerService::getInstance().connectLocked();
+        assert(instance.mComposerService != NULL);
+        ALOGD("ComposerService reconnected");
+    }
+    return instance.mComposerService;
+}
+
+void ComposerService::composerServiceDied()
+{
+    Mutex::Autolock _l(mLock);
+    mComposerService = NULL;
+    mDeathObserver = NULL;
 }
 
 // ---------------------------------------------------------------------------
