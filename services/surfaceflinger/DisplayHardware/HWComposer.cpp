@@ -162,8 +162,8 @@ HWComposer::HWComposer(
                 "should only have fbdev if no hwc or hwc is 1.0");
 
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
-        disp.xres = mFbDev->width;
-        disp.yres = mFbDev->height;
+        disp.width = mFbDev->width;
+        disp.height = mFbDev->height;
         disp.format = mFbDev->format;
         disp.xdpi = mFbDev->xdpi;
         disp.ydpi = mFbDev->ydpi;
@@ -297,8 +297,8 @@ void HWComposer::hotplug(int disp, int connected) {
 
 static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_VSYNC_PERIOD,
-    HWC_DISPLAY_RESOLUTION_X,
-    HWC_DISPLAY_RESOLUTION_Y,
+    HWC_DISPLAY_WIDTH,
+    HWC_DISPLAY_HEIGHT,
     HWC_DISPLAY_DPI_X,
     HWC_DISPLAY_DPI_Y,
     HWC_DISPLAY_NO_ATTRIBUTE,
@@ -330,11 +330,11 @@ void HWComposer::queryDisplayProperties(int disp) {
         case HWC_DISPLAY_VSYNC_PERIOD:
             mDisplayData[disp].refresh = nsecs_t(values[i]);
             break;
-        case HWC_DISPLAY_RESOLUTION_X:
-            mDisplayData[disp].xres = values[i];
+        case HWC_DISPLAY_WIDTH:
+            mDisplayData[disp].width = values[i];
             break;
-        case HWC_DISPLAY_RESOLUTION_Y:
-            mDisplayData[disp].yres = values[i];
+        case HWC_DISPLAY_HEIGHT:
+            mDisplayData[disp].height = values[i];
             break;
         case HWC_DISPLAY_DPI_X:
             mDisplayData[disp].xdpi = values[i] / 1000.0f;
@@ -395,12 +395,12 @@ nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
     return now - ((now - mLastHwVSync) %  mDisplayData[disp].refresh);
 }
 
-uint32_t HWComposer::getResolutionX(int disp) const {
-    return mDisplayData[disp].xres;
+uint32_t HWComposer::getWidth(int disp) const {
+    return mDisplayData[disp].width;
 }
 
-uint32_t HWComposer::getResolutionY(int disp) const {
-    return mDisplayData[disp].yres;
+uint32_t HWComposer::getHeight(int disp) const {
+    return mDisplayData[disp].height;
 }
 
 uint32_t HWComposer::getFormat(int disp) const {
@@ -446,9 +446,9 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             disp.list = (hwc_display_contents_1_t*)malloc(size);
             disp.capacity = numLayers;
         }
+        disp.list->retireFenceFd = -1;
         disp.list->flags = HWC_GEOMETRY_CHANGED;
         disp.list->numHwLayers = numLayers;
-        disp.list->flipFenceFd = -1;
     }
     return NO_ERROR;
 }
@@ -457,10 +457,20 @@ status_t HWComposer::prepare() {
     for (size_t i=0 ; i<mNumDisplays ; i++) {
         mLists[i] = mDisplayData[i].list;
         if (mLists[i]) {
-            mLists[i]->dpy = EGL_NO_DISPLAY;
-            mLists[i]->sur = EGL_NO_SURFACE;
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
+                mLists[i]->outbuf = NULL;
+                mLists[i]->outbufAcquireFenceFd = -1;
+            } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+                // garbage data to catch improper use
+                mLists[i]->dpy = (hwc_display_t)0xDEADBEEF;
+                mLists[i]->sur = (hwc_surface_t)0xDEADBEEF;
+            } else {
+                mLists[i]->dpy = EGL_NO_DISPLAY;
+                mLists[i]->sur = EGL_NO_SURFACE;
+            }
         }
     }
+
     int err = mHwc->prepare(mHwc, mNumDisplays, mLists);
     if (err == NO_ERROR) {
         // here we're just making sure that "skip" layers are set
@@ -517,9 +527,9 @@ status_t HWComposer::commit() {
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
             if (disp.list) {
-                if (disp.list->flipFenceFd != -1) {
-                    close(disp.list->flipFenceFd);
-                    disp.list->flipFenceFd = -1;
+                if (disp.list->retireFenceFd != -1) {
+                    close(disp.list->retireFenceFd);
+                    disp.list->retireFenceFd = -1;
                 }
                 disp.list->flags &= ~HWC_GEOMETRY_CHANGED;
             }

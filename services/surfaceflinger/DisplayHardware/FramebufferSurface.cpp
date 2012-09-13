@@ -68,8 +68,8 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc) :
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
                                        GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER);
     mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(HWC_DISPLAY_PRIMARY));
-    mBufferQueue->setDefaultBufferSize(mHwc.getResolutionX(HWC_DISPLAY_PRIMARY),
-                                       mHwc.getResolutionY(HWC_DISPLAY_PRIMARY));
+    mBufferQueue->setDefaultBufferSize(mHwc.getWidth(HWC_DISPLAY_PRIMARY),
+                                       mHwc.getHeight(HWC_DISPLAY_PRIMARY));
     mBufferQueue->setSynchronousMode(true);
     mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
 }
