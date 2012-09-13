@@ -216,8 +216,8 @@ public:
     // HWC_DISPLAY_PRIMARY).
     nsecs_t getRefreshPeriod(int disp) const;
     nsecs_t getRefreshTimestamp(int disp) const;
-    uint32_t getResolutionX(int disp) const;
-    uint32_t getResolutionY(int disp) const;
+    uint32_t getWidth(int disp) const;
+    uint32_t getHeight(int disp) const;
     uint32_t getFormat(int disp) const;
     float getDpiX(int disp) const;
     float getDpiY(int disp) const;
@@ -272,8 +272,8 @@ private:
         ~DisplayData() {
             free(list);
         }
-        uint32_t xres;
-        uint32_t yres;
+        uint32_t width;
+        uint32_t height;
         uint32_t format;    // pixel format from FB hal, for pre-hwc-1.1
         float xdpi;
         float ydpi;
