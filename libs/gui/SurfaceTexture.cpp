@@ -478,6 +478,7 @@ status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
             }
             glFlush();
             int fenceFd = eglDupNativeFenceFDANDROID(dpy, sync);
+            eglDestroySyncKHR(dpy, sync);
             if (fenceFd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
                 ST_LOGE("syncForReleaseLocked: error dup'ing native fence "
                         "fd: %#x", eglGetError());
