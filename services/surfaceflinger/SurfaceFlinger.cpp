@@ -753,27 +753,29 @@ void SurfaceFlinger::rebuildLayerStacks() {
         ATRACE_CALL();
         mVisibleRegionsDirty = false;
         invalidateHwcGeometry();
+
         const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            Region opaqueRegion;
+            Region dirtyRegion;
+            Vector< sp<LayerBase> > layersSortedByZ;
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
             const Transform& tr(hw->getTransform());
             const Rect bounds(hw->getBounds());
+            if (hw->canDraw()) {
+                SurfaceFlinger::computeVisibleRegions(currentLayers,
+                        hw->getLayerStack(), dirtyRegion, opaqueRegion);
 
-            Region opaqueRegion;
-            Region dirtyRegion;
-            computeVisibleRegions(currentLayers,
-                    hw->getLayerStack(), dirtyRegion, opaqueRegion);
-
-            Vector< sp<LayerBase> > layersSortedByZ;
-            const size_t count = currentLayers.size();
-            for (size_t i=0 ; i<count ; i++) {
-                const sp<LayerBase>& layer(currentLayers[i]);
-                const Layer::State& s(layer->drawingState());
-                if (s.layerStack == hw->getLayerStack()) {
-                    Region visibleRegion(tr.transform(layer->visibleRegion));
-                    visibleRegion.andSelf(bounds);
-                    if (!visibleRegion.isEmpty()) {
-                        layersSortedByZ.add(layer);
+                const size_t count = currentLayers.size();
+                for (size_t i=0 ; i<count ; i++) {
+                    const sp<LayerBase>& layer(currentLayers[i]);
+                    const Layer::State& s(layer->drawingState());
+                    if (s.layerStack == hw->getLayerStack()) {
+                        Region visibleRegion(tr.transform(layer->visibleRegion));
+                        visibleRegion.andSelf(bounds);
+                        if (!visibleRegion.isEmpty()) {
+                            layersSortedByZ.add(layer);
+                        }
                     }
                 }
             }
@@ -1776,6 +1778,7 @@ void SurfaceFlinger::onScreenReleased() {
         mEventThread->onScreenReleased();
         hw->releaseScreen();
         getHwComposer().release();
+        mVisibleRegionsDirty = true;
         // from this point on, SF will stop drawing
     }
 }

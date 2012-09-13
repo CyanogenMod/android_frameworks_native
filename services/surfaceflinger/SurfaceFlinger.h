@@ -351,8 +351,8 @@ private:
      * Compositing
      */
     void invalidateHwcGeometry();
-    void computeVisibleRegions(const LayerVector& currentLayers,
-            uint32_t layerStack,
+    static void computeVisibleRegions(
+            const LayerVector& currentLayers, uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
 
     void preComposition();
