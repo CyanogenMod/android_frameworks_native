@@ -26,10 +26,10 @@ namespace android {
 template<typename RECT>
 class region_operator
 {
+public:
     typedef typename RECT::value_type TYPE;    
     static const TYPE max_value = 0x7FFFFFF;
 
-public:
     /* 
      * Common boolean operations:
      * value is computed as 0b101 op 0b110
