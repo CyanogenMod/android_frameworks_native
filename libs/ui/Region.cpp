@@ -114,10 +114,6 @@ void Region::addRectUnchecked(int l, int t, int r, int b)
     Rect rect(l,t,r,b);
     size_t where = mStorage.size() - 1;
     mStorage.insertAt(rect, where, 1);
-
-#if VALIDATE_REGIONS
-    validate(*this, "addRectUnchecked");
-#endif
 }
 
 // ----------------------------------------------------------------------------
