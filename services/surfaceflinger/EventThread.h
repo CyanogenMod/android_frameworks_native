@@ -85,7 +85,6 @@ public:
 
 private:
     virtual bool        threadLoop();
-    virtual status_t    readyToRun();
     virtual void        onFirstRef();
 
     void removeDisplayEventConnection(const wp<Connection>& connection);
