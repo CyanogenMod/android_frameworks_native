@@ -1976,7 +1976,8 @@ void SurfaceFlinger::dumpAllLocked(
         snprintf(buffer, SIZE,
                 "+ DisplayDevice[%u]\n"
                 "   type=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
-                "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d]\n",
+                "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
+                "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
                 dpy,
                 hw->getDisplayType(), hw->getLayerStack(),
                 hw->getWidth(), hw->getHeight(),
@@ -1985,7 +1986,10 @@ void SurfaceFlinger::dumpAllLocked(
                 hw->getSecureLayerVisible(),
                 hw->getVisibleLayersSortedByZ().size(),
                 hw->getViewport().left, hw->getViewport().top, hw->getViewport().right, hw->getViewport().bottom,
-                hw->getFrame().left, hw->getFrame().top, hw->getFrame().right, hw->getFrame().bottom);
+                hw->getFrame().left, hw->getFrame().top, hw->getFrame().right, hw->getFrame().bottom,
+                hw->getTransform()[0][0], hw->getTransform()[1][0], hw->getTransform()[2][0],
+                hw->getTransform()[0][1], hw->getTransform()[1][1], hw->getTransform()[2][1],
+                hw->getTransform()[0][2], hw->getTransform()[1][2], hw->getTransform()[2][2]);
 
         result.append(buffer);
     }
