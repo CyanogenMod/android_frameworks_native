@@ -89,6 +89,10 @@ public:
     // only for debugging
     inline const sp<GraphicBuffer>& getActiveBuffer() const { return mActiveBuffer; }
 
+    // Updates the transform hint in our SurfaceTexture to match
+    // the current orientation of the default display device.
+    virtual void updateTransformHint() const;
+
 protected:
     virtual void onFirstRef();
     virtual void dump(String8& result, char* scratch, size_t size) const;
@@ -100,7 +104,6 @@ private:
     void onFrameQueued();
     virtual sp<ISurface> createSurface();
     uint32_t getEffectiveUsage(uint32_t usage) const;
-    uint32_t getTransformHint() const;
     bool isCropped() const;
     Rect computeBufferCrop() const;
     static bool getOpacityForFormat(uint32_t format);
