@@ -245,15 +245,6 @@ status_t SurfaceFlinger::selectConfigForPixelFormat(
     EGLConfig* const configs = new EGLConfig[numConfigs];
     eglChooseConfig(dpy, attrs, configs, numConfigs, &n);
 
-    if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
-        // FIXME: temporary hack until HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
-        // is supported by the implementation. we can only be in this case
-        // if we have HWC 1.1
-        *outConfig = configs[0];
-        delete [] configs;
-        return NO_ERROR;
-    }
-
     for (int i=0 ; i<n ; i++) {
         EGLint nativeVisualId = 0;
         eglGetConfigAttrib(dpy, configs[i], EGL_NATIVE_VISUAL_ID, &nativeVisualId);
@@ -273,6 +264,7 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     EGLConfig config;
     EGLint dummy;
     status_t err;
+
     EGLint attribs[] = {
             EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
             EGL_RED_SIZE,               8,
@@ -389,6 +381,9 @@ status_t SurfaceFlinger::readyToRun()
     EGLint format = mHwc->getVisualID();
     mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
+
+    LOG_ALWAYS_FATAL_IF(mEGLContext == EGL_NO_CONTEXT,
+            "couldn't create EGLContext");
 
     // initialize our non-virtual displays
     for (size_t i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
@@ -725,10 +720,7 @@ void SurfaceFlinger::doDebugFlashRegions()
                     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
                 }
                 hw->compositionComplete();
-                // FIXME
-                if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
-                    eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
-                }
+                hw->swapBuffers(getHwComposer());
             }
         }
     }
@@ -885,6 +877,7 @@ void SurfaceFlinger::postFramebuffer()
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         sp<const DisplayDevice> hw(mDisplays[dpy]);
         const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
+        hw->onSwapBuffersCompleted(hwc);
         const size_t count = currentLayers.size();
         int32_t id = hw->getHwcDisplayId();
         if (id >=0 && hwc.initCheck() == NO_ERROR) {
@@ -1160,7 +1153,7 @@ void SurfaceFlinger::computeVisibleRegions(
 
 
         // handle hidden surfaces by setting the visible region to empty
-        if (CC_LIKELY(!(s.flags & layer_state_t::eLayerHidden) && s.alpha)) {
+        if (CC_LIKELY(layer->isVisible())) {
             const bool translucent = !layer->isOpaque();
             Rect bounds(layer->computeBounds());
             visibleRegion.set(bounds);
@@ -1308,20 +1301,11 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
 
     doComposeSurfaces(hw, dirtyRegion);
 
-    // FIXME: we need to call eglSwapBuffers() on displays that have
-    // GL composition and only on those.
-    // however, currently hwc.commit() already does that for the main
-    // display (if there is a hwc) and never for the other ones
-    if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL ||
-            getHwComposer().initCheck() != NO_ERROR) {
-        // FIXME: EGL spec says:
-        //   "surface must be bound to the calling thread's current context,
-        //    for the current rendering API."
-        eglSwapBuffers(mEGLDisplay, hw->getEGLSurface());
-    }
-
     // update the swap region and clear the dirty region
     hw->swapRegion.orSelf(dirtyRegion);
+
+    // swap buffers (presentation)
+    hw->swapBuffers(getHwComposer());
 }
 
 void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
@@ -1386,6 +1370,12 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                     }
                     case HWC_FRAMEBUFFER: {
                         layer->draw(hw, clip);
+                        break;
+                    }
+                    case HWC_FRAMEBUFFER_TARGET: {
+                        // this should not happen as the iterator shouldn't
+                        // let us get there.
+                        ALOGW("HWC_FRAMEBUFFER_TARGET found in hwc list (index=%d)", i);
                         break;
                     }
                 }

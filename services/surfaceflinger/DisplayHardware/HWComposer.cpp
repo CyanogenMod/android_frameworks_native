@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 #include <utils/Errors.h>
+#include <utils/misc.h>
 #include <utils/String8.h>
 #include <utils/Thread.h>
 #include <utils/Trace.h>
@@ -43,6 +44,7 @@
 #include "LayerBase.h"
 #include "HWComposer.h"
 #include "SurfaceFlinger.h"
+#include <utils/CallStack.h>
 
 namespace android {
 
@@ -110,6 +112,14 @@ HWComposer::HWComposer(
     // Note: some devices may insist that the FB HAL be opened before HWC.
     loadFbHalModule();
     loadHwcModule();
+
+    if (mFbDev && mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+        // close FB HAL if we don't needed it.
+        // FIXME: this is temporary until we're not forced to open FB HAL
+        // before HWC.
+        framebuffer_close(mFbDev);
+        mFbDev = NULL;
+    }
 
     // If we have no HWC, or a pre-1.1 HWC, an FB dev is mandatory.
     if ((!mHwc || !hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
@@ -310,7 +320,7 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
 #define ANDROID_DENSITY_XHIGH 320
 
 void HWComposer::queryDisplayProperties(int disp) {
-    ALOG_ASSERT(mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
+    LOG_ALWAYS_FATAL_IF(!mHwc || !hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
 
     // use zero as default value for unspecified attributes
     int32_t values[NUM_DISPLAY_ATTRIBUTES - 1];
@@ -319,7 +329,11 @@ void HWComposer::queryDisplayProperties(int disp) {
     uint32_t config;
     size_t numConfigs = 1;
     status_t err = mHwc->getDisplayConfigs(mHwc, disp, &config, &numConfigs);
+    LOG_ALWAYS_FATAL_IF(err, "getDisplayAttributes failed (%s)", strerror(-err));
+
     if (err == NO_ERROR) {
+        ALOGD("config=%d, numConfigs=%d, NUM_DISPLAY_ATTRIBUTES=%d",
+                config, numConfigs, NUM_DISPLAY_ATTRIBUTES);
         mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES,
                 values);
     }
@@ -343,8 +357,8 @@ void HWComposer::queryDisplayProperties(int disp) {
             mDisplayData[disp].ydpi = values[i] / 1000.0f;
             break;
         default:
-            ALOG_ASSERT(false, "unknown display attribute %#x",
-                    DISPLAY_ATTRIBUTES[i]);
+            ALOG_ASSERT(false, "unknown display attribute[%d] %#x",
+                    i, DISPLAY_ATTRIBUTES[i]);
             break;
         }
     }
@@ -439,12 +453,34 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
 
     if (mHwc) {
         DisplayData& disp(mDisplayData[id]);
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+            // we need space for the HWC_FRAMEBUFFER_TARGET
+            numLayers++;
+        }
         if (disp.capacity < numLayers || disp.list == NULL) {
-            const size_t size = sizeof(hwc_display_contents_1_t)
+            size_t size = sizeof(hwc_display_contents_1_t)
                     + numLayers * sizeof(hwc_layer_1_t);
             free(disp.list);
             disp.list = (hwc_display_contents_1_t*)malloc(size);
             disp.capacity = numLayers;
+        }
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+            disp.framebufferTarget = &disp.list->hwLayers[numLayers - 1];
+            memset(disp.framebufferTarget, 0, sizeof(hwc_layer_1_t));
+            const hwc_rect_t r = { 0, 0, disp.width, disp.height };
+            disp.framebufferTarget->compositionType = HWC_FRAMEBUFFER_TARGET;
+            disp.framebufferTarget->hints = 0;
+            disp.framebufferTarget->flags = 0;
+            disp.framebufferTarget->handle = disp.fbTargetHandle;
+            disp.framebufferTarget->transform = 0;
+            disp.framebufferTarget->blending = HWC_BLENDING_PREMULT;
+            disp.framebufferTarget->sourceCrop = r;
+            disp.framebufferTarget->displayFrame = r;
+            disp.framebufferTarget->visibleRegionScreen.numRects = 1;
+            disp.framebufferTarget->visibleRegionScreen.rects =
+                &disp.framebufferTarget->displayFrame;
+            disp.framebufferTarget->acquireFenceFd = -1;
+            disp.framebufferTarget->releaseFenceFd = -1;
         }
         disp.list->retireFenceFd = -1;
         disp.list->flags = HWC_GEOMETRY_CHANGED;
@@ -453,9 +489,46 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
     return NO_ERROR;
 }
 
+status_t HWComposer::setFramebufferTarget(int32_t id,
+        const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buf) {
+    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id)) {
+        return BAD_INDEX;
+    }
+    DisplayData& disp(mDisplayData[id]);
+    if (!disp.framebufferTarget) {
+        // this should never happen, but apparently eglCreateWindowSurface()
+        // triggers a SurfaceTextureClient::queueBuffer()  on some
+        // devices (!?) -- log and ignore.
+        ALOGE("HWComposer: framebufferTarget is null");
+        CallStack stack;
+        stack.update();
+        stack.dump("");
+        return NO_ERROR;
+    }
+
+    int acquireFenceFd = -1;
+    if (acquireFence != NULL) {
+        acquireFenceFd = acquireFence->dup();
+    }
+
+    // ALOGD("fbPost: handle=%p, fence=%d", buf->handle, acquireFenceFd);
+    disp.fbTargetHandle = buf->handle;
+    disp.framebufferTarget->handle = disp.fbTargetHandle;
+    disp.framebufferTarget->acquireFenceFd = acquireFenceFd;
+    return NO_ERROR;
+}
+
 status_t HWComposer::prepare() {
     for (size_t i=0 ; i<mNumDisplays ; i++) {
-        mLists[i] = mDisplayData[i].list;
+        DisplayData& disp(mDisplayData[i]);
+        if (disp.framebufferTarget) {
+            // make sure to reset the type to HWC_FRAMEBUFFER_TARGET
+            // DO NOT reset the handle field to NULL, because it's possible
+            // that we have nothing to redraw (eg: eglSwapBuffers() not called)
+            // in which case, we should continue to use the same buffer.
+            disp.framebufferTarget->compositionType = HWC_FRAMEBUFFER_TARGET;
+        }
+        mLists[i] = disp.list;
         if (mLists[i]) {
             if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
                 mLists[i]->outbuf = NULL;
@@ -472,6 +545,8 @@ status_t HWComposer::prepare() {
     }
 
     int err = mHwc->prepare(mHwc, mNumDisplays, mLists);
+    ALOGE_IF(err, "HWComposer: prepare failed (%s)", strerror(-err));
+
     if (err == NO_ERROR) {
         // here we're just making sure that "skip" layers are set
         // to HWC_FRAMEBUFFER and we're also counting how many layers
@@ -483,6 +558,10 @@ status_t HWComposer::prepare() {
             if (disp.list) {
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     hwc_layer_1_t& l = disp.list->hwLayers[i];
+
+                    //ALOGD("prepare: %d, type=%d, handle=%p",
+                    //        i, l.compositionType, l.handle);
+
                     if (l.flags & HWC_SKIP_LAYER) {
                         l.compositionType = HWC_FRAMEBUFFER;
                     }
@@ -509,6 +588,21 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
     return mDisplayData[id].hasFbComp;
+}
+
+int HWComposer::getAndResetReleaseFenceFd(int32_t id) {
+    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return BAD_INDEX;
+
+    int fd = INVALID_OPERATION;
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+        const DisplayData& disp(mDisplayData[id]);
+        if (disp.framebufferTarget) {
+            fd = disp.framebufferTarget->releaseFenceFd;
+            disp.framebufferTarget->releaseFenceFd = -1;
+        }
+    }
+    return fd;
 }
 
 status_t HWComposer::commit() {
@@ -553,38 +647,43 @@ status_t HWComposer::acquire() const {
     return NO_ERROR;
 }
 
-size_t HWComposer::getNumLayers(int32_t id) const {
-    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id)) {
-        return 0;
-    }
-    return (mHwc && mDisplayData[id].list) ?
-            mDisplayData[id].list->numHwLayers : 0;
-}
-
 int HWComposer::getVisualID() const {
     if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
-        return HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+        // FIXME: temporary hack until HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
+        // is supported by the implementation. we can only be in this case
+        // if we have HWC 1.1
+        return HAL_PIXEL_FORMAT_RGBA_8888;
+        //return HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
     } else {
         return mFbDev->format;
     }
 }
 
-int HWComposer::fbPost(buffer_handle_t buffer) {
-    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-        return mFbDev->post(mFbDev, buffer);
+bool HWComposer::supportsFramebufferTarget() const {
+    return (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
+}
+
+int HWComposer::fbPost(int32_t id,
+        const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buffer) {
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+        return setFramebufferTarget(id, acquireFence, buffer);
+    } else {
+        if (acquireFence != NULL) {
+            acquireFence->wait(Fence::TIMEOUT_NEVER);
+        }
+        return mFbDev->post(mFbDev, buffer->handle);
     }
-    return NO_ERROR;
 }
 
 int HWComposer::fbCompositionComplete() {
-    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-        if (mFbDev->compositionComplete) {
-            return mFbDev->compositionComplete(mFbDev);
-        } else {
-            return INVALID_OPERATION;
-        }
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+        return NO_ERROR;
+
+    if (mFbDev->compositionComplete) {
+        return mFbDev->compositionComplete(mFbDev);
+    } else {
+        return INVALID_OPERATION;
     }
-    return NO_ERROR;
 }
 
 void HWComposer::fbDump(String8& result) {
@@ -595,7 +694,6 @@ void HWComposer::fbDump(String8& result) {
         result.append(buffer);
     }
 }
-
 
 /*
  * Helper template to implement a concrete HWCLayer
@@ -733,7 +831,22 @@ HWComposer::LayerListIterator HWComposer::begin(int32_t id) {
  * returns an iterator on the end of the layer list
  */
 HWComposer::LayerListIterator HWComposer::end(int32_t id) {
-    return getLayerIterator(id, getNumLayers(id));
+    size_t numLayers = 0;
+    if (uint32_t(id) <= 31 && mAllocatedDisplayIDs.hasBit(id)) {
+        const DisplayData& disp(mDisplayData[id]);
+        if (mHwc && disp.list) {
+            numLayers = disp.list->numHwLayers;
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+                // with HWC 1.1, the last layer is always the HWC_FRAMEBUFFER_TARGET,
+                // which we ignore when iterating through the layer list.
+                ALOGE_IF(!numLayers, "mDisplayData[%d].list->numHwLayers is 0", id);
+                if (numLayers) {
+                    numLayers--;
+                }
+            }
+        }
+    }
+    return getLayerIterator(id, numLayers);
 }
 
 void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
@@ -747,27 +860,47 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                 result.appendFormat("  id=%d, numHwLayers=%u, flags=%08x\n",
                         i, disp.list->numHwLayers, disp.list->flags);
                 result.append(
-                        "   type   |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
-                        "----------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
-                //      " ________ | ________ | ________ | ________ | __ | _____ | ________ | [_____,_____,_____,_____] | [_____,_____,_____,_____]
+                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
+                        "------------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
+                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____,_____,_____,_____] | [_____,_____,_____,_____]
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
-                    const sp<LayerBase> layer(visibleLayersSortedByZ[i]);
                     int32_t format = -1;
-                    if (layer->getLayer() != NULL) {
-                        const sp<GraphicBuffer>& buffer(
+                    String8 name("unknown");
+                    if (i < visibleLayersSortedByZ.size()) {
+                        const sp<LayerBase>& layer(visibleLayersSortedByZ[i]);
+                        if (layer->getLayer() != NULL) {
+                            const sp<GraphicBuffer>& buffer(
                                 layer->getLayer()->getActiveBuffer());
-                        if (buffer != NULL) {
-                            format = buffer->getPixelFormat();
+                            if (buffer != NULL) {
+                                format = buffer->getPixelFormat();
+                            }
                         }
+                        name = layer->getName();
                     }
+
+                    int type = l.compositionType;
+                    if (type == HWC_FRAMEBUFFER_TARGET) {
+                        name = "HWC_FRAMEBUFFER_TARGET";
+                        format = disp.format;
+                    }
+
+                    static char const* compositionTypeName[] = {
+                            "GLES",
+                            "HWC",
+                            "BACKGROUND",
+                            "FB TARGET",
+                            "UNKNOWN"};
+                    if (type >= NELEM(compositionTypeName))
+                        type = NELEM(compositionTypeName) - 1;
+
                     result.appendFormat(
-                            " %8s | %08x | %08x | %08x | %02x | %05x | %08x | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] %s\n",
-                            l.compositionType ? "OVERLAY" : "FB",
+                            " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] %s\n",
+                                    compositionTypeName[type],
                                     intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
                                     l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                                     l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
-                                    layer->getName().string());
+                                    name.string());
                 }
             }
         }

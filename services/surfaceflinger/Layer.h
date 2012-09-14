@@ -82,6 +82,7 @@ public:
     virtual void onRemoved();
     virtual sp<Layer> getLayer() const { return const_cast<Layer*>(this); }
     virtual void setName(const String8& name);
+    virtual bool isVisible() const;
 
     // LayerBaseClient interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;

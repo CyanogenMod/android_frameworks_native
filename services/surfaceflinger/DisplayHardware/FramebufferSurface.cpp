@@ -74,15 +74,13 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc) :
     mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
 }
 
-status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
+status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence) {
     Mutex::Autolock lock(mMutex);
 
     BufferQueue::BufferItem item;
     status_t err = acquireBufferLocked(&item);
     if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
-        if (buffer != NULL) {
-            *buffer = mCurrentBuffer;
-        }
+        outBuffer = mCurrentBuffer;
         return NO_ERROR;
     } else if (err != NO_ERROR) {
         ALOGE("error acquiring buffer: %s (%d)", strerror(-err), err);
@@ -107,32 +105,24 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>* buffer) {
             return err;
         }
     }
-
     mCurrentBufferSlot = item.mBuf;
     mCurrentBuffer = mSlots[mCurrentBufferSlot].mGraphicBuffer;
-    if (item.mFence != NULL) {
-        item.mFence->wait(Fence::TIMEOUT_NEVER);
-    }
-
-    if (buffer != NULL) {
-        *buffer = mCurrentBuffer;
-    }
-
+    outFence = item.mFence;
+    outBuffer = mCurrentBuffer;
     return NO_ERROR;
 }
 
 // Overrides ConsumerBase::onFrameAvailable(), does not call base class impl.
 void FramebufferSurface::onFrameAvailable() {
-    // XXX: The following code is here temporarily as part of the transition
-    // away from the framebuffer HAL.
     sp<GraphicBuffer> buf;
-    status_t err = nextBuffer(&buf);
+    sp<Fence> acquireFence;
+    status_t err = nextBuffer(buf, acquireFence);
     if (err != NO_ERROR) {
-        ALOGE("error latching next FramebufferSurface buffer: %s (%d)",
+        ALOGE("error latching nnext FramebufferSurface buffer: %s (%d)",
                 strerror(-err), err);
         return;
     }
-    err = mHwc.fbPost(buf->handle);
+    err = mHwc.fbPost(0, acquireFence, buf); // FIXME: use real display id
     if (err != NO_ERROR) {
         ALOGE("error posting framebuffer: %d", err);
     }
@@ -143,6 +133,19 @@ void FramebufferSurface::freeBufferLocked(int slotIndex) {
     if (slotIndex == mCurrentBufferSlot) {
         mCurrentBufferSlot = BufferQueue::INVALID_BUFFER_SLOT;
     }
+}
+
+status_t FramebufferSurface::setReleaseFenceFd(int fenceFd) {
+    status_t err = NO_ERROR;
+    if (fenceFd >= 0) {
+        sp<Fence> fence(new Fence(fenceFd));
+        if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
+            status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+            ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
+                    strerror(-err), err);
+        }
+    }
+    return err;
 }
 
 status_t FramebufferSurface::setUpdateRectangle(const Rect& r)

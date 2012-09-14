@@ -36,6 +36,7 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
 
 struct hwc_composer_device_1;
 struct hwc_display_contents_1;
+struct hwc_layer_1;
 struct hwc_procs;
 struct framebuffer_device_t;
 
@@ -43,6 +44,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 class GraphicBuffer;
+class Fence;
 class LayerBase;
 class Region;
 class String8;
@@ -97,11 +99,17 @@ public:
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(int32_t id, size_t numLayers);
 
+    bool supportsFramebufferTarget() const;
+
     // does this display have layers handled by HWC
     bool hasHwcComposition(int32_t id) const;
 
     // does this display have layers handled by GLES
     bool hasGlesComposition(int32_t id) const;
+
+    // get the releaseFence file descriptor for the given display
+    // the release fence is only valid after commit()
+    int getAndResetReleaseFenceFd(int32_t id);
 
     // needed forward declarations
     class LayerListIterator;
@@ -111,7 +119,7 @@ public:
     int getVisualID() const;
 
     // Forwarding to FB HAL for pre-HWC-1.1 code (see FramebufferSurface).
-    int fbPost(buffer_handle_t buffer);
+    int fbPost(int32_t id, const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buf);
     int fbCompositionComplete();
     void fbDump(String8& result);
 
@@ -253,7 +261,6 @@ private:
     void loadFbHalModule();
 
     LayerListIterator getLayerIterator(int32_t id, size_t index);
-    size_t getNumLayers(int32_t id) const;
 
     struct cb_context;
 
@@ -269,10 +276,15 @@ private:
 
     void queryDisplayProperties(int disp);
 
+    status_t setFramebufferTarget(int32_t id,
+            const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buf);
+
+
     struct DisplayData {
         DisplayData() : xdpi(0), ydpi(0), refresh(0),
             hasFbComp(false), hasOvComp(false),
-            capacity(0), list(NULL) { }
+            capacity(0), list(NULL),
+            framebufferTarget(NULL), fbTargetHandle(NULL) { }
         ~DisplayData() {
             free(list);
         }
@@ -286,6 +298,8 @@ private:
         bool hasOvComp;
         size_t capacity;
         hwc_display_contents_1* list;
+        hwc_layer_1* framebufferTarget;
+        buffer_handle_t fbTargetHandle;
     };
 
     sp<SurfaceFlinger>              mFlinger;
