@@ -309,7 +309,7 @@ void DisplayDevice::setProjection(int orientation,
 void DisplayDevice::updateGeometryTransform() {
     int w = mDisplayWidth;
     int h = mDisplayHeight;
-    Transform T, R, S;
+    Transform TL, TP, R, S;
     if (DisplayDevice::orientationToTransfrom(
             mOrientation, w, h, &R) == NO_ERROR) {
         dirtyRegion.set(bounds());
@@ -350,13 +350,12 @@ void DisplayDevice::updateGeometryTransform() {
         float src_y = viewport.top;
         float dst_x = frame.left;
         float dst_y = frame.top;
-        float tx = dst_x - src_x;
-        float ty = dst_y - src_y;
-        T.set(tx, ty);
+        TL.set(-src_x, -src_y);
+        TP.set(dst_x, dst_y);
 
-        // The viewport and frame are both in the logical orientation, so the
-        // translation is also in that space. So translation must be applied
-        // before rotating from logical to physical orientation.
-        mGlobalTransform = S * R * T;
+        // The viewport and frame are both in the logical orientation.
+        // Apply the logical translation, scale to physical size, apply the
+        // physical translation and finally rotate to the physical orientation.
+        mGlobalTransform = R * TP * S * TL;
     }
 }
