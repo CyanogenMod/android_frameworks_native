@@ -293,6 +293,10 @@ EGLBoolean egl_display_t::terminate() {
 
     mHibernation.setDisplayValid(false);
 
+    // Reset the extension string since it will be regenerated if we get
+    // reinitialized.
+    mExtensionString.setTo("");
+
     // Mark all objects remaining in the list as terminated, unless
     // there are no reference to them, it which case, we're free to
     // delete them.
