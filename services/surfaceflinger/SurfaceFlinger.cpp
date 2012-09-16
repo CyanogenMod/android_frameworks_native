@@ -988,6 +988,18 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                             disp->setProjection(state.orientation,
                                     state.viewport, state.frame);
                         }
+
+                        // Walk through all the layers in currentLayers,
+                        // and update their transform hint.
+                        //
+                        // TODO: we could be much more clever about which
+                        // layers we touch and how often we do these updates
+                        // (e.g. only touch the layers associated with this
+                        // display, and only on a rotation).
+                        for (size_t i = 0; i < count; i++) {
+                            const sp<LayerBase>& layerBase = currentLayers[i];
+                            layerBase->updateTransformHint();
+                        }
                     }
                 }
             }

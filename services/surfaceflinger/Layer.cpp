@@ -109,6 +109,8 @@ void Layer::onFirstRef()
 #else
     mSurfaceTexture->setDefaultMaxBufferCount(3);
 #endif
+
+    updateTransformHint();
 }
 
 Layer::~Layer()
@@ -429,12 +431,12 @@ uint32_t Layer::doTransaction(uint32_t flags)
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
         ALOGD_IF(DEBUG_RESIZE,
-                "doTransaction: geometry (layer=%p), scalingMode=%d\n"
+                "doTransaction: geometry (layer=%p '%s'), tr=%02x, scalingMode=%d\n"
                 "  current={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n"
                 "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                this, mCurrentScalingMode,
+                this, (const char*) getName(), mCurrentTransform, mCurrentScalingMode,
                 temp.active.w, temp.active.h,
                 temp.active.crop.left,
                 temp.active.crop.top,
@@ -597,10 +599,10 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     }
 
                     ALOGD_IF(DEBUG_RESIZE,
-                            "lockPageFlip: (layer=%p), buffer (%ux%u, tr=%02x), scalingMode=%d\n"
+                            "latchBuffer/reject: buffer (%ux%u, tr=%02x), scalingMode=%d\n"
                             "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                             "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                            this, bufWidth, bufHeight, item.mTransform, item.mScalingMode,
+                            bufWidth, bufHeight, item.mTransform, item.mScalingMode,
                             front.active.w, front.active.h,
                             front.active.crop.left,
                             front.active.crop.top,
@@ -630,10 +632,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
 
         Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
-
-        // XXX: not sure if setTransformHint belongs here
-        // it should only be needed when the main screen orientation changes
-        mSurfaceTexture->setTransformHint(getTransformHint());
 
         if (mSurfaceTexture->updateTexImage(&r) < NO_ERROR) {
             // something happened!
@@ -711,9 +709,9 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
     snprintf(buffer, SIZE,
             "      "
             "format=%2d, activeBuffer=[%4ux%4u:%4u,%3X],"
-            " transform-hint=0x%02x, queued-frames=%d, mRefreshPending=%d\n",
+            " queued-frames=%d, mRefreshPending=%d\n",
             mFormat, w0, h0, s0,f0,
-            getTransformHint(), mQueuedFrames, mRefreshPending);
+            mQueuedFrames, mRefreshPending);
 
     result.append(buffer);
 
@@ -759,7 +757,7 @@ uint32_t Layer::getEffectiveUsage(uint32_t usage) const
     return usage;
 }
 
-uint32_t Layer::getTransformHint() const {
+void Layer::updateTransformHint() const {
     uint32_t orientation = 0;
     if (!mFlinger->mDebugDisableTransformHint) {
         // The transform hint is used to improve performance on the main
@@ -774,7 +772,7 @@ uint32_t Layer::getTransformHint() const {
             orientation = 0;
         }
     }
-    return orientation;
+    mSurfaceTexture->setTransformHint(orientation);
 }
 
 // ---------------------------------------------------------------------------
