@@ -402,9 +402,11 @@ private:
         Rect mCrop;
 
         // mTransform is the current transform flags for this buffer slot.
+        // (example: NATIVE_WINDOW_TRANSFORM_ROT_90)
         uint32_t mTransform;
 
         // mScalingMode is the current scaling mode for this buffer slot.
+        // (example: NATIVE_WINDOW_SCALING_MODE_FREEZE)
         uint32_t mScalingMode;
 
         // mTimestamp is the current timestamp for this buffer slot. This gets

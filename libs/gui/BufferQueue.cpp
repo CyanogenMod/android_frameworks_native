@@ -150,6 +150,7 @@ status_t BufferQueue::setConsumerUsageBits(uint32_t usage) {
 }
 
 status_t BufferQueue::setTransformHint(uint32_t hint) {
+    ST_LOGV("setTransformHint: %02x", hint);
     Mutex::Autolock lock(mMutex);
     mTransformHint = hint;
     return OK;
@@ -737,9 +738,10 @@ void BufferQueue::dump(String8& result, const char* prefix,
 
     snprintf(buffer, SIZE,
             "%s-BufferQueue maxBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
-            "default-format=%d, FIFO(%d)={%s}\n",
+            "default-format=%d, transform-hint=%02x, FIFO(%d)={%s}\n",
             prefix, maxBufferCount, mSynchronousMode, mDefaultWidth,
-            mDefaultHeight, mDefaultBufferFormat, fifoSize, fifo.string());
+            mDefaultHeight, mDefaultBufferFormat, mTransformHint,
+            fifoSize, fifo.string());
     result.append(buffer);
 
 
