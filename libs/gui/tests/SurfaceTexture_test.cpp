@@ -1414,6 +1414,59 @@ protected:
     EGLContext mProducerEglContext;
 };
 
+TEST_F(SurfaceTextureGLToGLTest, TransformHintGetsRespected) {
+    const uint32_t texWidth = 32;
+    const uint32_t texHeight = 64;
+
+    mST->setDefaultBufferSize(texWidth, texHeight);
+    mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
+
+    // This test requires 3 buffers to avoid deadlock because we're
+    // both producer and consumer, and only using one thread.
+    mST->setDefaultMaxBufferCount(3);
+
+    // Do the producer side of things
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Start a buffer with our chosen size and transform hint moving
+    // through the system.
+    glClear(GL_COLOR_BUFFER_BIT);  // give the driver something to do
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+    mST->updateTexImage();  // consume it
+    // Swap again.
+    glClear(GL_COLOR_BUFFER_BIT);
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+    mST->updateTexImage();
+
+    // The current buffer should either show the effects of the transform
+    // hint (in the form of an inverse transform), or show that the
+    // transform hint has been ignored.
+    sp<GraphicBuffer> buf = mST->getCurrentBuffer();
+    if (mST->getCurrentTransform() == NATIVE_WINDOW_TRANSFORM_ROT_270) {
+        ASSERT_EQ(texWidth, buf->getHeight());
+        ASSERT_EQ(texHeight, buf->getWidth());
+    } else {
+        ASSERT_EQ(texWidth, buf->getWidth());
+        ASSERT_EQ(texHeight, buf->getHeight());
+    }
+
+    // Reset the transform hint and confirm that it takes.
+    mST->setTransformHint(0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+    mST->updateTexImage();
+    glClear(GL_COLOR_BUFFER_BIT);
+    eglSwapBuffers(mEglDisplay, mProducerEglSurface);
+    mST->updateTexImage();
+
+    buf = mST->getCurrentBuffer();
+    ASSERT_EQ((uint32_t) 0, mST->getCurrentTransform());
+    ASSERT_EQ(texWidth, buf->getWidth());
+    ASSERT_EQ(texHeight, buf->getHeight());
+}
+
 TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
     const int texWidth = 64;
     const int texHeight = 64;
