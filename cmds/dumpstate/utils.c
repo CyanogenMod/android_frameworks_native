@@ -109,7 +109,8 @@ out_close:
 
 void do_dmesg() {
     printf("------ KERNEL LOG (dmesg) ------\n");
-    int size = klogctl(10, NULL, 0); /* Get size of kernel buffer */
+    /* Get size of kernel buffer */
+    int size = klogctl(KLOG_SIZE_BUFFER, NULL, 0);
     if (size <= 0) {
         printf("Unexpected klogctl return value: %d\n\n", size);
         return;
