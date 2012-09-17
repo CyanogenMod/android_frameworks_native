@@ -246,7 +246,7 @@ private:
         virtual ~BufferRejecter() { }
     };
     friend class Layer;
-    status_t updateTexImage(BufferRejecter* rejecter);
+    status_t updateTexImage(BufferRejecter* rejecter, bool skipSync);
 
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
@@ -263,6 +263,13 @@ private:
     // current texture.  It uses mCurrentTransform and the current GraphicBuffer
     // to compute this matrix and stores it in mCurrentTransformMatrix.
     void computeCurrentTransformMatrix();
+
+    // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
+    // stream to ensure that it is safe for future OpenGL ES commands to
+    // access the current texture buffer.  This must be called each time
+    // updateTexImage is called before issuing OpenGL ES commands that access
+    // the texture.
+    status_t doGLFenceWaitLocked() const;
 
     // syncForReleaseLocked performs the synchronization needed to release the
     // current slot from an OpenGL ES context.  If needed it will set the

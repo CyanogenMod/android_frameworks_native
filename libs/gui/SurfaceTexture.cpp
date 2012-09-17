@@ -164,7 +164,7 @@ status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 }
 
 status_t SurfaceTexture::updateTexImage() {
-    return SurfaceTexture::updateTexImage(NULL);
+    return SurfaceTexture::updateTexImage(NULL, false);
 }
 
 status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
@@ -205,7 +205,7 @@ status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
     return err;
 }
 
-status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
+status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter, bool skipSync) {
     ATRACE_CALL();
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
@@ -308,6 +308,15 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
         mCurrentScalingMode = item.mScalingMode;
         mCurrentTimestamp = item.mTimestamp;
         mCurrentFence = item.mFence;
+        if (!skipSync) {
+            // SurfaceFlinger needs to lazily perform GLES synchronization
+            // only when it's actually going to use GLES for compositing.
+            // Eventually SurfaceFlinger should have its own consumer class,
+            // but for now we'll just hack it in to SurfaceTexture.
+            // SurfaceFlinger is responsible for calling doGLFenceWait before
+            // texturing from this SurfaceTexture.
+            doGLFenceWaitLocked();
+        }
         computeCurrentTransformMatrix();
     } else  {
         if (err < 0) {
@@ -738,6 +747,10 @@ sp<Fence> SurfaceTexture::getCurrentFence() const {
 
 status_t SurfaceTexture::doGLFenceWait() const {
     Mutex::Autolock lock(mMutex);
+    return doGLFenceWaitLocked();
+}
+
+status_t SurfaceTexture::doGLFenceWaitLocked() const {
 
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
