@@ -332,8 +332,6 @@ void HWComposer::queryDisplayProperties(int disp) {
     LOG_ALWAYS_FATAL_IF(err, "getDisplayAttributes failed (%s)", strerror(-err));
 
     if (err == NO_ERROR) {
-        ALOGD("config=%d, numConfigs=%d, NUM_DISPLAY_ATTRIBUTES=%d",
-                config, numConfigs, NUM_DISPLAY_ATTRIBUTES);
         mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES,
                 values);
     }
