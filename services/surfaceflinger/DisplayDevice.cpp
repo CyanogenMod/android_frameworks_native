@@ -179,7 +179,7 @@ void DisplayDevice::flip(const Region& dirty) const
                 b.left, b.top, b.width(), b.height());
     } 
 #endif
-    
+
     mPageFlipCount++;
 }
 
@@ -188,14 +188,21 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
         // no HWC, we call eglSwapBuffers()
         eglSwapBuffers(mDisplay, mSurface);
     } else {
-        if (hwc.hasGlesComposition(mType)) {
-            if (hwc.supportsFramebufferTarget() ||
-                    mType >= DisplayDevice::DISPLAY_VIRTUAL) {
-                // as of hwc 1.1 we always call eglSwapBuffers, however,
-                // on older versions of HWC, we need to call it only on
-                // virtual displays
+        // We have a valid HWC, but not all displays can use it, in particular
+        // the virtual displays are on their own.
+        // TODO: HWC 1.2 will allow virtual displays
+        if (mType >= DisplayDevice::DISPLAY_VIRTUAL) {
+            // always call eglSwapBuffers() for virtual displays
+            eglSwapBuffers(mDisplay, mSurface);
+        } else if (hwc.supportsFramebufferTarget()) {
+            // as of hwc 1.1 we always call eglSwapBuffers if we have some
+            // GLES layers
+            if (hwc.hasGlesComposition(mType)) {
                 eglSwapBuffers(mDisplay, mSurface);
             }
+        } else {
+            // HWC doesn't have the framebuffer target, we don't call
+            // eglSwapBuffers(), since this is handled by HWComposer::commit().
         }
     }
 }
