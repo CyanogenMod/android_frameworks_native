@@ -115,7 +115,7 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h,
 
 #ifdef EXYNOS4_ENHANCEMENTS
     if (format == 0x105)
-        usage = 0x21002900; // just don't ask
+        usage = 0x01002900; // just don't ask
 #endif
 
 #ifdef QCOM_HARDWARE
