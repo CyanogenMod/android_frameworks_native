@@ -2025,25 +2025,7 @@ void SurfaceFlinger::dumpAllLocked(
     result.append(buffer);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
-        snprintf(buffer, SIZE,
-                "+ DisplayDevice[%u] '%s'\n"
-                "   type=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
-                "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
-                "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
-                dpy, (const char*) hw->getDisplayName(),
-                hw->getDisplayType(), hw->getLayerStack(),
-                hw->getWidth(), hw->getHeight(),
-                hw->getOrientation(), hw->getTransform().getType(),
-                hw->getPageFlipCount(),
-                hw->getSecureLayerVisible(),
-                hw->getVisibleLayersSortedByZ().size(),
-                hw->getViewport().left, hw->getViewport().top, hw->getViewport().right, hw->getViewport().bottom,
-                hw->getFrame().left, hw->getFrame().top, hw->getFrame().right, hw->getFrame().bottom,
-                hw->getTransform()[0][0], hw->getTransform()[1][0], hw->getTransform()[2][0],
-                hw->getTransform()[0][1], hw->getTransform()[1][1], hw->getTransform()[2][1],
-                hw->getTransform()[0][2], hw->getTransform()[1][2], hw->getTransform()[2][2]);
-
-        result.append(buffer);
+        hw->dump(result, buffer, SIZE);
     }
 
     /*
@@ -2118,7 +2100,6 @@ void SurfaceFlinger::dumpAllLocked(
      */
     const GraphicBufferAllocator& alloc(GraphicBufferAllocator::get());
     alloc.dump(result);
-    hw->dump(result);
 }
 
 bool SurfaceFlinger::startDdmConnection()
