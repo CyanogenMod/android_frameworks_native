@@ -235,13 +235,6 @@ uint32_t DisplayDevice::getFlags() const
     return mFlags;
 }
 
-void DisplayDevice::dump(String8& res) const
-{
-    if (mFramebufferSurface != NULL) {
-        mFramebufferSurface->dump(res);
-    }
-}
-
 EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy,
         const sp<const DisplayDevice>& hw, EGLContext ctx) {
     EGLBoolean result = EGL_TRUE;
@@ -404,5 +397,32 @@ void DisplayDevice::updateGeometryTransform() {
         // Apply the logical translation, scale to physical size, apply the
         // physical translation and finally rotate to the physical orientation.
         mGlobalTransform = R * TP * S * TL;
+    }
+}
+
+void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
+    const Transform& tr(mGlobalTransform);
+    snprintf(buffer, SIZE,
+        "+ DisplayDevice: %s\n"
+        "   type=%x, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
+        "flips=%u, secure=%d, acquired=%d, numLayers=%u\n"
+        "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
+        "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
+        mType, mDisplayName.string(),
+        mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
+        mOrientation, tr.getType(), getPageFlipCount(),
+        mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
+        mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
+        mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,
+        tr[0][0], tr[1][0], tr[2][0],
+        tr[0][1], tr[1][1], tr[2][1],
+        tr[0][2], tr[1][2], tr[2][2]);
+
+    result.append(buffer);
+
+    String8 fbtargetDump;
+    if (mFramebufferSurface != NULL) {
+        mFramebufferSurface->dump(fbtargetDump);
+        result.append(fbtargetDump);
     }
 }
