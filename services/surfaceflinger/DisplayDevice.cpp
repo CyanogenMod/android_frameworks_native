@@ -183,6 +183,32 @@ void DisplayDevice::flip(const Region& dirty) const
     mPageFlipCount++;
 }
 
+void DisplayDevice::swapBuffers(HWComposer& hwc) const {
+    if (hwc.initCheck() != NO_ERROR) {
+        // no HWC, we call eglSwapBuffers()
+        eglSwapBuffers(mDisplay, mSurface);
+    } else {
+        if (hwc.hasGlesComposition(mType)) {
+            if (hwc.supportsFramebufferTarget() ||
+                    mType >= DisplayDevice::DISPLAY_VIRTUAL) {
+                // as of hwc 1.1 we always call eglSwapBuffers, however,
+                // on older versions of HWC, we need to call it only on
+                // virtual displays
+                eglSwapBuffers(mDisplay, mSurface);
+            }
+        }
+    }
+}
+
+void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
+    if (hwc.initCheck() == NO_ERROR) {
+        if (hwc.supportsFramebufferTarget()) {
+            int fd = hwc.getAndResetReleaseFenceFd(mType);
+            mFramebufferSurface->setReleaseFenceFd(fd);
+        }
+    }
+}
+
 uint32_t DisplayDevice::getFlags() const
 {
     return mFlags;

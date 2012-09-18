@@ -44,16 +44,24 @@ public:
 
     virtual void dump(String8& result);
 
-    // nextBuffer waits for and then latches the next buffer from the
-    // BufferQueue and releases the previously latched buffer to the
-    // BufferQueue.  The new buffer is returned in the 'buffer' argument.
-    status_t nextBuffer(sp<GraphicBuffer>* buffer);
+    // setReleaseFenceFd stores a fence file descriptor that will signal when the
+    // current buffer is no longer being read. This fence will be returned to
+    // the producer when the current buffer is released by updateTexImage().
+    // Multiple fences can be set for a given buffer; they will be merged into
+    // a single union fence. The SurfaceTexture will close the file descriptor
+    // when finished with it.
+    status_t setReleaseFenceFd(int fenceFd);
 
 private:
     virtual ~FramebufferSurface() { }; // this class cannot be overloaded
 
     virtual void onFrameAvailable();
     virtual void freeBufferLocked(int slotIndex);
+
+    // nextBuffer waits for and then latches the next buffer from the
+    // BufferQueue and releases the previously latched buffer to the
+    // BufferQueue.  The new buffer is returned in the 'buffer' argument.
+    status_t nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence);
 
     // mCurrentBufferIndex is the slot index of the current buffer or
     // INVALID_BUFFER_SLOT to indicate that either there is no current buffer

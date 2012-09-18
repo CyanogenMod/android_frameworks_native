@@ -211,6 +211,11 @@ public:
      */
     virtual bool isProtected() const   { return false; }
 
+    /*
+     * isVisible - true if this layer is visibile, false otherwise
+     */
+    virtual bool isVisible() const;
+
     /** called with the state lock when the surface is removed from the
      *  current list */
     virtual void onRemoved() { }
