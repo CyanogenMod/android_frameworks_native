@@ -68,7 +68,7 @@ public:
     /* create a display
      * requires ACCESS_SURFACE_FLINGER permission.
      */
-    virtual sp<IBinder> createDisplay() = 0;
+    virtual sp<IBinder> createDisplay(const String8& displayName) = 0;
 
     /* get the token for the existing default displays. possible values
      * for id are eDisplayIdMain and eDisplayIdHdmi.
