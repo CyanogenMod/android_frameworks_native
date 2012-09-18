@@ -149,6 +149,20 @@ void DisplayDevice::init(EGLConfig config)
     // get an h/w composer ID
     mHwcDisplayId = mFlinger->allocateHwcDisplayId(mType);
 
+    // Name the display.  The name will be replaced shortly if the display
+    // was created with createDisplay().
+    switch (mType) {
+        case DISPLAY_PRIMARY:
+            mDisplayName = "Built-in Screen";
+            break;
+        case DISPLAY_EXTERNAL:
+            mDisplayName = "HDMI Screen";
+            break;
+        default:
+            mDisplayName = "Virtual Screen";    // e.g. Overlay #n
+            break;
+    }
+
     // initialize the display orientation transform.
     setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }

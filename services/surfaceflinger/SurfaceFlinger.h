@@ -173,6 +173,7 @@ private:
         Rect viewport;
         Rect frame;
         uint8_t orientation;
+        String8 displayName;
     };
 
     struct State {
@@ -192,7 +193,7 @@ private:
      */
     virtual sp<ISurfaceComposerClient> createConnection();
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc();
-    virtual sp<IBinder> createDisplay();
+    virtual sp<IBinder> createDisplay(const String8& displayName);
     virtual sp<IBinder> getBuiltInDisplay(int32_t id);
     virtual void setTransactionState(const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays, uint32_t flags);

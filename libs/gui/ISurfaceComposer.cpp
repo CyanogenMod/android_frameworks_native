@@ -179,10 +179,11 @@ public:
         return result;
     }
 
-    virtual sp<IBinder> createDisplay()
+    virtual sp<IBinder> createDisplay(const String8& displayName)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeString8(displayName);
         remote()->transact(BnSurfaceComposer::CREATE_DISPLAY, data, &reply);
         return reply.readStrongBinder();
     }
@@ -305,7 +306,8 @@ status_t BnSurfaceComposer::onTransact(
         } break;
         case CREATE_DISPLAY: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> display(createDisplay());
+            String8 displayName = data.readString8();
+            sp<IBinder> display(createDisplay(displayName));
             reply->writeStrongBinder(display);
             return NO_ERROR;
         } break;
