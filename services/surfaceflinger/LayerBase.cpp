@@ -321,6 +321,11 @@ bool LayerBase::getFiltering() const
     return mFiltering;
 }
 
+bool LayerBase::isVisible() const {
+    const Layer::State& s(mDrawingState);
+    return !(s.flags & layer_state_t::eLayerHidden) && s.alpha;
+}
+
 void LayerBase::draw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     onDraw(hw, clip);

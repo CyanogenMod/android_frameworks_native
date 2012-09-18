@@ -40,6 +40,7 @@ class DisplayInfo;
 class FramebufferSurface;
 class LayerBase;
 class SurfaceFlinger;
+class HWComposer;
 
 class DisplayDevice : public LightRefBase<DisplayDevice>
 {
@@ -106,8 +107,12 @@ public:
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
     const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
 
+    void swapBuffers(HWComposer& hwc) const;
     status_t compositionComplete() const;
     
+    // called after h/w composer has completed its set() call
+    void onSwapBuffersCompleted(HWComposer& hwc) const;
+
     Rect getBounds() const {
         return Rect(mDisplayWidth, mDisplayHeight);
     }

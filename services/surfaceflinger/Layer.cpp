@@ -523,6 +523,10 @@ void Layer::onPostComposition() {
     }
 }
 
+bool Layer::isVisible() const {
+    return LayerBaseClient::isVisible() && (mActiveBuffer != NULL);
+}
+
 Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 {
     ATRACE_CALL();
