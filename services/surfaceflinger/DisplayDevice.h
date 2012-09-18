@@ -138,7 +138,7 @@ public:
      * Debugging
      */
     uint32_t getPageFlipCount() const;
-    void dump(String8& res) const;
+    void dump(String8& result, char* buffer, size_t SIZE) const;
 
 private:
     void init(EGLConfig config);
