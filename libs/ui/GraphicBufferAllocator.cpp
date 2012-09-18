@@ -114,8 +114,13 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h,
     status_t err; 
 
 #ifdef EXYNOS4_ENHANCEMENTS
-    if (format == 0x105)
-        usage = 0x01002900; // just don't ask
+    if (format == 0x105) {
+        // 0x105 = HAL_PIXEL_FORMAT_YCbCr_420_SP (Samsung-specific pixel format)
+        usage = GRALLOC_USAGE_HW_FIMC1; // Samsung specific flag for video rendering
+        usage |= GRALLOC_USAGE_EXTERNAL_DISP;
+        usage |= GRALLOC_USAGE_HW_COMPOSER;
+        usage |= GRALLOC_USAGE_HW_TEXTURE;
+    }
 #endif
 
 #ifdef QCOM_HARDWARE
