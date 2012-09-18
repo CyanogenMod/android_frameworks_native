@@ -648,7 +648,7 @@ status_t HWComposer::acquire() const {
 }
 
 int HWComposer::getVisualID() const {
-    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
         // FIXME: temporary hack until HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
         // is supported by the implementation. we can only be in this case
         // if we have HWC 1.1
@@ -665,7 +665,7 @@ bool HWComposer::supportsFramebufferTarget() const {
 
 int HWComposer::fbPost(int32_t id,
         const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buffer) {
-    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
         return setFramebufferTarget(id, acquireFence, buffer);
     } else {
         if (acquireFence != NULL) {
@@ -676,7 +676,7 @@ int HWComposer::fbPost(int32_t id,
 }
 
 int HWComposer::fbCompositionComplete() {
-    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
         return NO_ERROR;
 
     if (mFbDev->compositionComplete) {
