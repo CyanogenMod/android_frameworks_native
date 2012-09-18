@@ -159,7 +159,7 @@ sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
     return bclient;
 }
 
-sp<IBinder> SurfaceFlinger::createDisplay()
+sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName)
 {
     class DisplayToken : public BBinder {
         sp<SurfaceFlinger> flinger;
@@ -179,6 +179,7 @@ sp<IBinder> SurfaceFlinger::createDisplay()
 
     Mutex::Autolock _l(mStateLock);
     DisplayDeviceState info(DisplayDevice::DISPLAY_VIRTUAL);
+    info.displayName = displayName;
     mCurrentState.displays.add(token, info);
 
     return token;
@@ -573,7 +574,7 @@ void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture>& surface) {
     }
 
     if (token == 0) {
-        token = createDisplay();
+        token = createDisplay(String8("Display from connectDisplay"));
     }
 
     { // scope for the lock
@@ -1047,6 +1048,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
+                        hw->setDisplayName(state.displayName);
                         mDisplays.add(display, hw);
                         if (hw->getDisplayType() < DisplayDevice::NUM_DISPLAY_TYPES) {
                             // notify the system that this display is now up
@@ -2019,14 +2021,16 @@ void SurfaceFlinger::dumpAllLocked(
      * Dump Display state
      */
 
+    snprintf(buffer, SIZE, "Displays (%d entries)\n", mDisplays.size());
+    result.append(buffer);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
         snprintf(buffer, SIZE,
-                "+ DisplayDevice[%u]\n"
+                "+ DisplayDevice[%u] '%s'\n"
                 "   type=%x, layerStack=%u, (%4dx%4d), orient=%2d (type=%08x), "
                 "flips=%u, secure=%d, numLayers=%u, v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
                 "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
-                dpy,
+                dpy, (const char*) hw->getDisplayName(),
                 hw->getDisplayType(), hw->getLayerStack(),
                 hw->getWidth(), hw->getHeight(),
                 hw->getOrientation(), hw->getTransform().getType(),

@@ -118,11 +118,16 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
+    void setDisplayName(const String8& displayName) {
+        mDisplayName = displayName;
+    }
+    const String8& getDisplayName() const { return mDisplayName; }
+
     static EGLBoolean makeCurrent(EGLDisplay dpy,
             const sp<const DisplayDevice>& hw, EGLContext ctx);
 
     /* ------------------------------------------------------------------------
-     * blank / unplank management
+     * blank / unblank management
      */
     void releaseScreen() const;
     void acquireScreen() const;
@@ -160,6 +165,7 @@ private:
     PixelFormat     mFormat;
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
+    String8         mDisplayName;
 
     /*
      * Can only accessed from the main thread, these members

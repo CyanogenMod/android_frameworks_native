@@ -85,7 +85,7 @@ public:
     );
 
     //! Create a display
-    static sp<IBinder> createDisplay();
+    static sp<IBinder> createDisplay(const String8& displayName);
 
     //! Get the token for the existing default displays.
     //! Possible values for id are eDisplayIdMain and eDisplayIdHdmi.
