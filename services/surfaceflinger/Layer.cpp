@@ -637,7 +637,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
 
-        if (mSurfaceTexture->updateTexImage(&r) < NO_ERROR) {
+        if (mSurfaceTexture->updateTexImage(&r, true) < NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
             return outDirtyRegion;
