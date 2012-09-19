@@ -33,68 +33,6 @@
 
 namespace android {
 // ---------------------------------------------------------------------------
-class BatteryService : public Singleton<BatteryService> {
-    static const int TRANSACTION_noteStartSensor = IBinder::FIRST_CALL_TRANSACTION + 3;
-    static const int TRANSACTION_noteStopSensor = IBinder::FIRST_CALL_TRANSACTION + 4;
-    static const String16 DESCRIPTOR;
-
-    friend class Singleton<BatteryService>;
-    sp<IBinder> mBatteryStatService;
-
-    BatteryService() {
-        const sp<IServiceManager> sm(defaultServiceManager());
-        if (sm != NULL) {
-            const String16 name("batteryinfo");
-            mBatteryStatService = sm->getService(name);
-        }
-    }
-
-    status_t noteStartSensor(int uid, int handle) {
-        Parcel data, reply;
-        data.writeInterfaceToken(DESCRIPTOR);
-        data.writeInt32(uid);
-        data.writeInt32(handle);
-        status_t err = mBatteryStatService->transact(
-                TRANSACTION_noteStartSensor, data, &reply, 0);
-        err = reply.readExceptionCode();
-        return err;
-    }
-
-    status_t noteStopSensor(int uid, int handle) {
-        Parcel data, reply;
-        data.writeInterfaceToken(DESCRIPTOR);
-        data.writeInt32(uid);
-        data.writeInt32(handle);
-        status_t err = mBatteryStatService->transact(
-                TRANSACTION_noteStopSensor, data, &reply, 0);
-        err = reply.readExceptionCode();
-        return err;
-    }
-
-public:
-    void enableSensor(int handle) {
-        if (mBatteryStatService != 0) {
-            int uid = IPCThreadState::self()->getCallingUid();
-            int64_t identity = IPCThreadState::self()->clearCallingIdentity();
-            noteStartSensor(uid, handle);
-            IPCThreadState::self()->restoreCallingIdentity(identity);
-        }
-    }
-    void disableSensor(int handle) {
-        if (mBatteryStatService != 0) {
-            int uid = IPCThreadState::self()->getCallingUid();
-            int64_t identity = IPCThreadState::self()->clearCallingIdentity();
-            noteStopSensor(uid, handle);
-            IPCThreadState::self()->restoreCallingIdentity(identity);
-        }
-    }
-};
-
-const String16 BatteryService::DESCRIPTOR("com.android.internal.app.IBatteryStats");
-
-ANDROID_SINGLETON_STATIC_INSTANCE(BatteryService)
-
-// ---------------------------------------------------------------------------
 
 ANDROID_SINGLETON_STATIC_INSTANCE(SensorDevice)
 
@@ -218,16 +156,9 @@ status_t SensorDevice::activate(void* ident, int handle, int enabled)
         ALOGD_IF(DEBUG_CONNECTIONS, "\t>>> actuating h/w");
 
         err = mSensorDevice->activate(mSensorDevice, handle, enabled);
-        if (enabled) {
-            ALOGE_IF(err, "Error activating sensor %d (%s)", handle, strerror(-err));
-            if (err == 0) {
-                BatteryService::getInstance().enableSensor(handle);
-            }
-        } else {
-            if (err == 0) {
-                BatteryService::getInstance().disableSensor(handle);
-            }
-        }
+        ALOGE_IF(err, "Error %s sensor %d (%s)",
+                enabled ? "activating" : "disabling",
+                handle, strerror(-err));
     }
 
     { // scope for the lock

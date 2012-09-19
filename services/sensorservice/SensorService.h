@@ -77,13 +77,14 @@ class SensorService :
 
         sp<SensorService> const mService;
         sp<BitTube> const mChannel;
+        uid_t mUid;
         mutable Mutex mConnectionLock;
 
         // protected by SensorService::mLock
         SortedVector<int> mSensorInfo;
 
     public:
-        SensorEventConnection(const sp<SensorService>& service);
+        SensorEventConnection(const sp<SensorService>& service, uid_t uid);
 
         status_t sendEvents(sensors_event_t const* buffer, size_t count,
                 sensors_event_t* scratch = NULL);
@@ -91,6 +92,8 @@ class SensorService :
         bool hasAnySensor() const;
         bool addSensor(int32_t handle);
         bool removeSensor(int32_t handle);
+
+        uid_t getUid() const { return mUid; }
     };
 
     class SensorRecord {
