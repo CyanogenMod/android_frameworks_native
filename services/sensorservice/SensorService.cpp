@@ -462,6 +462,9 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
                 if (mActiveConnections.indexOf(connection) < 0) {
                     mActiveConnections.add(connection);
                 }
+            } else {
+                ALOGW("sensor %08x already enabled in connection %p (ignoring)",
+                        handle, connection.get());
             }
         }
     }
@@ -567,7 +570,7 @@ void SensorService::SensorEventConnection::onFirstRef()
 
 bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
     Mutex::Autolock _l(mConnectionLock);
-    if (mSensorInfo.indexOf(handle) <= 0) {
+    if (mSensorInfo.indexOf(handle) < 0) {
         mSensorInfo.add(handle);
         return true;
     }
