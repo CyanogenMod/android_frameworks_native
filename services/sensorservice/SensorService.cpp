@@ -383,7 +383,8 @@ Vector<Sensor> SensorService::getSensorList()
 
 sp<ISensorEventConnection> SensorService::createSensorEventConnection()
 {
-    sp<SensorEventConnection> result(new SensorEventConnection(this));
+    uid_t uid = IPCThreadState::self()->getCallingUid();
+    sp<SensorEventConnection> result(new SensorEventConnection(this, uid));
     return result;
 }
 
@@ -553,8 +554,8 @@ bool SensorService::SensorRecord::removeConnection(
 // ---------------------------------------------------------------------------
 
 SensorService::SensorEventConnection::SensorEventConnection(
-        const sp<SensorService>& service)
-    : mService(service), mChannel(new BitTube())
+        const sp<SensorService>& service, uid_t uid)
+    : mService(service), mChannel(new BitTube()), mUid(uid)
 {
 }
 
