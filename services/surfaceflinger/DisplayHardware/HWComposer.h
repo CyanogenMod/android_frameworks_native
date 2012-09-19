@@ -274,7 +274,7 @@ private:
     inline void vsync(int disp, int64_t timestamp);
     inline void hotplug(int disp, int connected);
 
-    void queryDisplayProperties(int disp);
+    status_t queryDisplayProperties(int disp);
 
     status_t setFramebufferTarget(int32_t id,
             const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buf);
