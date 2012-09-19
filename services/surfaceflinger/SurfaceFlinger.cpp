@@ -1031,15 +1031,16 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
                 layer->draw(clip);
             }
         }
+
+#ifdef QCOM_HARDWARE
     } else if (cur && !mWormholeRegion.isEmpty()) {
             const Region region(mWormholeRegion.intersect(mDirtyRegion));
             if (!region.isEmpty()) {
-#ifdef QCOM_HARDWARE
                 if (0 != qdutils::CBUtils::qcomuiClearRegion(region,
                                             hw.getEGLDisplay()))
-#endif
                       drawWormhole();
         }
+#endif
     }
 }
 
