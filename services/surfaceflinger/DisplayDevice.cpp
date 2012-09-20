@@ -408,7 +408,7 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         "flips=%u, secure=%d, acquired=%d, numLayers=%u\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
-        mType, mDisplayName.string(),
+        mDisplayName.string(), mType,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
         mOrientation, tr.getType(), getPageFlipCount(),
         mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
