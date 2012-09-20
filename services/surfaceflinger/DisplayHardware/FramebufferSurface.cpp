@@ -33,23 +33,12 @@
 #include <ui/GraphicBuffer.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
+#include "DisplayHardware/GraphicBufferAlloc.h"
 #include "DisplayHardware/HWComposer.h"
 
 // ----------------------------------------------------------------------------
 namespace android {
 // ----------------------------------------------------------------------------
-
-class GraphicBufferAlloc : public BnGraphicBufferAlloc {
-public:
-    GraphicBufferAlloc() { };
-    virtual ~GraphicBufferAlloc() { };
-    virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
-            PixelFormat format, uint32_t usage, status_t* error) {
-        sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format, usage));
-        return graphicBuffer;
-    }
-};
-
 
 /*
  * This implements the (main) framebuffer management. This class is used

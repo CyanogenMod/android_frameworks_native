@@ -11,6 +11,7 @@ LOCAL_SRC_FILES:= \
     LayerDim.cpp                            \
     LayerScreenshot.cpp                     \
     DisplayHardware/FramebufferSurface.cpp  \
+    DisplayHardware/GraphicBufferAlloc.cpp  \
     DisplayHardware/HWComposer.cpp          \
     DisplayHardware/PowerHAL.cpp            \
     GLExtensions.cpp                        \
