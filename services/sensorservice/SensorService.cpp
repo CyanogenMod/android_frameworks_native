@@ -39,6 +39,7 @@
 
 #include <hardware/sensors.h>
 
+#include "BatteryService.h"
 #include "CorrectedGyroSensor.h"
 #include "GravitySensor.h"
 #include "LinearAccelerationSensor.h"
@@ -383,7 +384,8 @@ Vector<Sensor> SensorService::getSensorList()
 
 sp<ISensorEventConnection> SensorService::createSensorEventConnection()
 {
-    sp<SensorEventConnection> result(new SensorEventConnection(this));
+    uid_t uid = IPCThreadState::self()->getCallingUid();
+    sp<SensorEventConnection> result(new SensorEventConnection(this, uid));
     return result;
 }
 
@@ -420,6 +422,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
         }
     }
     mActiveConnections.remove(connection);
+    BatteryService::cleanup(c->getUid());
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
@@ -457,6 +460,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         if (err == NO_ERROR) {
             // connection now active
             if (connection->addSensor(handle)) {
+                BatteryService::enableSensor(connection->getUid(), handle);
                 // the sensor was added (which means it wasn't already there)
                 // so, see if this connection becomes active
                 if (mActiveConnections.indexOf(connection) < 0) {
@@ -482,7 +486,9 @@ status_t SensorService::disable(const sp<SensorEventConnection>& connection,
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec) {
         // see if this connection becomes inactive
-        connection->removeSensor(handle);
+        if (connection->removeSensor(handle)) {
+            BatteryService::disableSensor(connection->getUid(), handle);
+        }
         if (connection->hasAnySensor() == false) {
             mActiveConnections.remove(connection);
         }
@@ -553,8 +559,8 @@ bool SensorService::SensorRecord::removeConnection(
 // ---------------------------------------------------------------------------
 
 SensorService::SensorEventConnection::SensorEventConnection(
-        const sp<SensorService>& service)
-    : mService(service), mChannel(new BitTube())
+        const sp<SensorService>& service, uid_t uid)
+    : mService(service), mChannel(new BitTube()), mUid(uid)
 {
 }
 
