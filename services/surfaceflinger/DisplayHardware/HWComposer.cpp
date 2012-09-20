@@ -301,10 +301,7 @@ void HWComposer::hotplug(int disp, int connected) {
                 disp, connected);
         return;
     }
-
-    if (connected)
-        queryDisplayProperties(disp);
-
+    queryDisplayProperties(disp);
     mEventHandler.onHotplugReceived(disp, bool(connected));
 }
 
@@ -335,6 +332,7 @@ status_t HWComposer::queryDisplayProperties(int disp) {
     status_t err = mHwc->getDisplayConfigs(mHwc, disp, &config, &numConfigs);
     if (err != NO_ERROR) {
         // this can happen if an unpluggable display is not connected
+        mDisplayData[disp].connected = false;
         return err;
     }
 
@@ -365,6 +363,9 @@ status_t HWComposer::queryDisplayProperties(int disp) {
         }
     }
 
+    // FIXME: what should we set the format to?
+    mDisplayData[disp].format = HAL_PIXEL_FORMAT_RGBA_8888;
+    mDisplayData[disp].connected = true;
     if (mDisplayData[disp].xdpi == 0.0f || mDisplayData[disp].ydpi == 0.0f) {
         // is there anything smarter we can do?
         if (h >= 1080) {
@@ -430,6 +431,10 @@ float HWComposer::getDpiX(int disp) const {
 
 float HWComposer::getDpiY(int disp) const {
     return mDisplayData[disp].ydpi;
+}
+
+bool HWComposer::isConnected(int disp) const {
+    return mDisplayData[disp].connected;
 }
 
 void HWComposer::eventControl(int event, int enabled) {
@@ -503,9 +508,9 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
         // triggers a SurfaceTextureClient::queueBuffer()  on some
         // devices (!?) -- log and ignore.
         ALOGE("HWComposer: framebufferTarget is null");
-        CallStack stack;
-        stack.update();
-        stack.dump("");
+//        CallStack stack;
+//        stack.update();
+//        stack.dump("");
         return NO_ERROR;
     }
 

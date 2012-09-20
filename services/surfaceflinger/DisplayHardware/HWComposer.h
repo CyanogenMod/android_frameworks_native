@@ -234,6 +234,7 @@ public:
     uint32_t getFormat(int disp) const;
     float getDpiX(int disp) const;
     float getDpiY(int disp) const;
+    bool isConnected(int disp) const;
 
     // this class is only used to fake the VSync event on systems that don't
     // have it.
@@ -283,7 +284,7 @@ private:
 
     struct DisplayData {
         DisplayData() : xdpi(0), ydpi(0), refresh(0),
-            hasFbComp(false), hasOvComp(false),
+            connected(false), hasFbComp(false), hasOvComp(false),
             capacity(0), list(NULL),
             framebufferTarget(NULL), fbTargetHandle(NULL) { }
         ~DisplayData() {
@@ -295,6 +296,7 @@ private:
         float xdpi;
         float ydpi;
         nsecs_t refresh;
+        bool connected;
         bool hasFbComp;
         bool hasOvComp;
         size_t capacity;
