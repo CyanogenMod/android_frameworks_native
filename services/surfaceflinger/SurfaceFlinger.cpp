@@ -268,25 +268,41 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
 
     EGLint attribs[] = {
             EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
+            // The rest of the attributes must be in this order and at the end
+            // of the list; we rely on that for fallback searches below.
             EGL_RED_SIZE,               8,
             EGL_GREEN_SIZE,             8,
             EGL_BLUE_SIZE,              8,
-            // EGL_RECORDABLE_ANDROID must be last so that we can retry
-            // without it easily (see below)
             EGL_RECORDABLE_ANDROID,     EGL_TRUE,
             EGL_NONE
     };
     err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
-    if (err) {
-        // maybe we failed because of EGL_RECORDABLE_ANDROID
-        ALOGW("couldn't find an EGLConfig with EGL_RECORDABLE_ANDROID");
-        attribs[NELEM(attribs) - 3] = EGL_NONE;
-        err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
-    }
-    ALOGE_IF(err, "couldn't find an EGLConfig matching the screen format");
-    if (eglGetConfigAttrib(display, config, EGL_CONFIG_CAVEAT, &dummy) == EGL_TRUE) {
+    if (!err)
+        goto success;
+
+    // maybe we failed because of EGL_RECORDABLE_ANDROID
+    ALOGW("no suitable EGLConfig found, trying without EGL_RECORDABLE_ANDROID");
+    attribs[NELEM(attribs) - 3] = EGL_NONE;
+    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    if (!err)
+        goto success;
+
+    // allow less than 24-bit color; the non-gpu-accelerated emulator only
+    // supports 16-bit color
+    ALOGW("no suitable EGLConfig found, trying with 16-bit color allowed");
+    attribs[NELEM(attribs) - 9] = EGL_NONE;
+    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    if (!err)
+        goto success;
+
+    // this EGL is too lame for Android
+    ALOGE("no suitable EGLConfig found, giving up");
+
+    return 0;
+
+success:
+    if (eglGetConfigAttrib(display, config, EGL_CONFIG_CAVEAT, &dummy))
         ALOGW_IF(dummy == EGL_SLOW_CONFIG, "EGL_SLOW_CONFIG selected!");
-    }
     return config;
 }
 
