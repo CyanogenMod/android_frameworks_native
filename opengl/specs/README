@@ -8,9 +8,10 @@ for use by Android extensions.
 ----------------     ----------------------------------
 0x3140               EGL_ANDROID_image_native_buffer
 0x3141               (unused)
-0x3142               EGL_ANDROID_recordable
+0x3142               EGL_RECORDABLE_ANDROID (EGL_ANDROID_recordable)
 0x3143               EGL_VERSION_HW_ANDROID (internal use)
-0x3144               EGL_SYNC_ANDROID_FENCE_ANDROID
-0x3145               EGL_SYNC_FENCE_FD_ANDROID
-0x3146               EGL_SYNC_ANDROID_FENCE_SIGNALED_ANDROID
-0x3147 - 0x314F      (unused)
+0x3144               EGL_SYNC_NATIVE_FENCE_ANDROID (EGL_ANDROID_native_fence_sync)
+0x3145               EGL_SYNC_NATIVE_FENCE_FD_ANDROID (EGL_ANDROID_native_fence_sync)
+0x3146               EGL_SYNC_NATIVE_FENCE_SIGNALED_ANDROID (EGL_ANDROID_native_fence_sync)
+0x3147               EGL_FRAMEBUFFER_TARGET_ANDROID (EGL_ANDROID_framebuffer_target)
+0x3148 - 0x314F      (unused)
