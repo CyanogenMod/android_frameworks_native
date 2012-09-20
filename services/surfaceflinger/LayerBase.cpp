@@ -87,6 +87,10 @@ void LayerBase::initStates(uint32_t w, uint32_t h, uint32_t flags)
     mDrawingState = mCurrentState;
 }
 
+bool LayerBase::needsFiltering(const sp<const DisplayDevice>& hw) const {
+    return mNeedsFiltering || hw->needsFiltering();
+}
+
 void LayerBase::commitTransaction() {
     mDrawingState = mCurrentState;
 }

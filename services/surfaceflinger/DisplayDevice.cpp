@@ -397,6 +397,10 @@ void DisplayDevice::updateGeometryTransform() {
         // Apply the logical translation, scale to physical size, apply the
         // physical translation and finally rotate to the physical orientation.
         mGlobalTransform = R * TP * S * TL;
+
+        const uint8_t type = mGlobalTransform.getType();
+        mNeedsFiltering = (!mGlobalTransform.preserveRects() ||
+                (type >= Transform::SCALE));
     }
 }
 
