@@ -37,7 +37,6 @@
 
 #include <ui/PixelFormat.h>
 
-#include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
 
@@ -58,22 +57,13 @@ namespace android {
 class Client;
 class DisplayEventConnection;
 class EventThread;
+class IGraphicBufferAlloc;
 class Layer;
 class LayerBase;
 class LayerBaseClient;
 class LayerDim;
 class LayerScreenshot;
 class SurfaceTextureClient;
-
-// ---------------------------------------------------------------------------
-
-class GraphicBufferAlloc : public BnGraphicBufferAlloc {
-public:
-    GraphicBufferAlloc();
-    virtual ~GraphicBufferAlloc();
-    virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
-        PixelFormat format, uint32_t usage, status_t* error);
-};
 
 // ---------------------------------------------------------------------------
 
