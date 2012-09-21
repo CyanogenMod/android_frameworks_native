@@ -187,7 +187,10 @@ HWComposer::HWComposer(
                     mDisplayData[HWC_DISPLAY_PRIMARY].refresh);
         }
     } else if (mHwc) {
-        queryDisplayProperties(HWC_DISPLAY_PRIMARY);
+        // here we're guaranteed to have at least HWC 1.1
+        for (size_t i =0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+            queryDisplayProperties(i);
+        }
     }
 
     if (needVSyncThread) {
@@ -319,7 +322,8 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
 #define ANDROID_DENSITY_TV    213
 #define ANDROID_DENSITY_XHIGH 320
 
-void HWComposer::queryDisplayProperties(int disp) {
+status_t HWComposer::queryDisplayProperties(int disp) {
+
     LOG_ALWAYS_FATAL_IF(!mHwc || !hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1));
 
     // use zero as default value for unspecified attributes
@@ -329,12 +333,12 @@ void HWComposer::queryDisplayProperties(int disp) {
     uint32_t config;
     size_t numConfigs = 1;
     status_t err = mHwc->getDisplayConfigs(mHwc, disp, &config, &numConfigs);
-    LOG_ALWAYS_FATAL_IF(err, "getDisplayAttributes failed (%s)", strerror(-err));
-
-    if (err == NO_ERROR) {
-        mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES,
-                values);
+    if (err != NO_ERROR) {
+        // this can happen if an unpluggable display is not connected
+        return err;
     }
+
+    mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES, values);
 
     int32_t w = 0, h = 0;
     for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
@@ -371,6 +375,7 @@ void HWComposer::queryDisplayProperties(int disp) {
             mDisplayData[disp].ydpi = ANDROID_DENSITY_TV;
         }
     }
+    return NO_ERROR;
 }
 
 int32_t HWComposer::allocateDisplayId() {
