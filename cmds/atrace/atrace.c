@@ -30,7 +30,8 @@
 /* Command line options */
 static int g_traceDurationSeconds = 5;
 static bool g_traceSchedSwitch = false;
-static bool g_traceCpuFrequency = false;
+static bool g_traceFrequency = false;
+static bool g_traceBusUtilization = false;
 static bool g_traceCpuIdle = false;
 static bool g_traceDisk = false;
 static bool g_traceGovernorLoad = false;
@@ -58,8 +59,14 @@ static const char* k_schedSwitchEnablePath =
 static const char* k_schedWakeupEnablePath =
     "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable";
 
+static const char* k_memoryBusEnablePath =
+    "/sys/kernel/debug/tracing/events/memory_bus/enable";
+
 static const char* k_cpuFreqEnablePath =
     "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable";
+
+static const char *k_clockSetRateEnablePath =
+    "/sys/kernel/debug/tracing/events/power/clock_set_rate/enable";
 
 static const char* k_cpuIdleEnablePath =
     "/sys/kernel/debug/tracing/events/power/cpu_idle/enable";
@@ -141,10 +148,23 @@ static bool setSchedSwitchTracingEnable(bool enable)
     return ok;
 }
 
-// Enable or disable tracing of the CPU clock frequency.
-static bool setCpuFrequencyTracingEnable(bool enable)
+// Enable or disable tracing of the Bus utilization.
+static bool setBusUtilizationTracingEnable(bool enable)
 {
-    return setKernelOptionEnable(k_cpuFreqEnablePath, enable);
+    bool ok = false;
+    // these can be platform specific so make sure that at least
+    // one succeeds.
+    ok |= setKernelOptionEnable(k_memoryBusEnablePath, enable);
+    return ok;
+}
+
+// Enable or disable tracing of the CPU clock frequency.
+static bool setFrequencyTracingEnable(bool enable)
+{
+    bool ok = true;
+    ok &= setKernelOptionEnable(k_cpuFreqEnablePath, enable);
+    ok &= setKernelOptionEnable(k_clockSetRateEnablePath, enable);
+    return ok;
 }
 
 // Enable or disable tracing of CPU idle events.
@@ -225,7 +245,8 @@ static bool startTrace(bool isRoot)
     // Set up the tracing options that don't require root.
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
-    ok &= setCpuFrequencyTracingEnable(g_traceCpuFrequency);
+    ok &= setBusUtilizationTracingEnable(g_traceBusUtilization);
+    ok &= setFrequencyTracingEnable(g_traceFrequency);
     ok &= setCpuIdleTracingEnable(g_traceCpuIdle);
     if (fileExists(k_governorLoadEnablePath) || g_traceGovernorLoad) {
         ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
@@ -260,7 +281,8 @@ static void stopTrace(bool isRoot)
     // Set the options back to their defaults.
     setTraceOverwriteEnable(true);
     setSchedSwitchTracingEnable(false);
-    setCpuFrequencyTracingEnable(false);
+    setBusUtilizationTracingEnable(false);
+    setFrequencyTracingEnable(false);
     if (fileExists(k_governorLoadEnablePath)) {
         setGovernorLoadTracingEnable(false);
     }
@@ -380,10 +402,11 @@ static void showHelp(const char *cmd)
                     "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
                     "  -d              trace disk I/O\n"
-                    "  -f              trace CPU frequency changes\n"
+                    "  -f              trace clock frequency changes\n"
                     "  -l              trace CPU frequency governor load\n"
                     "  -s              trace the kernel scheduler switches\n"
                     "  -t N            trace for N seconds [defualt 5]\n"
+                    "  -u              trace bus utilization\n"
                     "  -w              trace the kernel workqueue\n"
                     "  -z              compress the trace dump\n");
 }
@@ -415,7 +438,7 @@ int main(int argc, char **argv)
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "b:cidflst:wz");
+        ret = getopt(argc, argv, "b:cidflst:uwz");
 
         if (ret < 0) {
             break;
@@ -447,7 +470,7 @@ int main(int argc, char **argv)
             break;
 
             case 'f':
-                g_traceCpuFrequency = true;
+                g_traceFrequency = true;
             break;
 
             case 's':
@@ -456,6 +479,14 @@ int main(int argc, char **argv)
 
             case 't':
                 g_traceDurationSeconds = atoi(optarg);
+            break;
+
+            case 'u':
+                if (!isRoot) {
+                    fprintf(stderr, "error: tracing bus utilization requires root privileges\n");
+                    exit(1);
+                }
+                g_traceBusUtilization = true;
             break;
 
             case 'w':
