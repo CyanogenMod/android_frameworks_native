@@ -200,7 +200,7 @@ status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
     status_t err = ConsumerBase::releaseBufferLocked(buf, mEglDisplay,
            eglFence);
 
-    mEglSlots[mCurrentTexture].mEglFence = EGL_NO_SYNC_KHR;
+    mEglSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
 
     return err;
 }
