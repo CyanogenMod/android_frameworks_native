@@ -305,7 +305,7 @@ void HWComposer::hotplug(int disp, int connected) {
     if (connected)
         queryDisplayProperties(disp);
 
-    // TODO: tell someone else about this
+    mEventHandler.onHotplugReceived(disp, bool(connected));
 }
 
 static const uint32_t DISPLAY_ATTRIBUTES[] = {

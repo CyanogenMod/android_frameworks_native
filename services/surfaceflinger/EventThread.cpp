@@ -106,10 +106,21 @@ void EventThread::onScreenAcquired() {
 }
 
 
-void EventThread::onVSyncReceived(const wp<IBinder>&, nsecs_t timestamp) {
+void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mVSyncTimestamp = timestamp;
     mVSyncCount++;
+    mCondition.broadcast();
+}
+
+void EventThread::onHotplugReceived(int type, bool connected) {
+    Mutex::Autolock _l(mLock);
+    DisplayEventReceiver::Event event;
+    event.header.type = DisplayEventReceiver::DISPLAY_EVENT_HOTPLUG;
+    event.header.timestamp = systemTime();
+    event.hotplug.id = type;
+    event.hotplug.connected = connected;
+    mPendingEvents.add(event);
     mCondition.broadcast();
 }
 
@@ -118,7 +129,7 @@ bool EventThread::threadLoop() {
     Vector< sp<EventThread::Connection> > signalConnections;
     signalConnections = waitForEvent(&vsync);
 
-    // dispatch vsync events to listeners...
+    // dispatch events to listeners...
     const size_t count = signalConnections.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<Connection>& conn(signalConnections[i]);
@@ -146,17 +157,28 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
         DisplayEventReceiver::Event* event)
 {
     Mutex::Autolock _l(mLock);
-
-    size_t vsyncCount;
-    nsecs_t timestamp;
     Vector< sp<EventThread::Connection> > signalConnections;
 
     do {
-        // latch VSYNC event if any
+        bool eventPending = false;
         bool waitForVSync = false;
-        vsyncCount = mVSyncCount;
-        timestamp = mVSyncTimestamp;
+        size_t vsyncCount = mVSyncCount;
+        nsecs_t timestamp = mVSyncTimestamp;
         mVSyncTimestamp = 0;
+
+        if (timestamp) {
+            // we have a vsync event to dispatch
+            event->header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
+            event->header.timestamp = timestamp;
+            event->vsync.count = vsyncCount;
+        } else {
+            eventPending = !mPendingEvents.isEmpty();
+            if (eventPending) {
+                // we have some other event to dispatch
+                *event = mPendingEvents[0];
+                mPendingEvents.removeAt(0);
+            }
+        }
 
         // find out connections waiting for events
         size_t count = mDisplayEventConnections.size();
@@ -179,6 +201,11 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
                             // continuous event, and time to report it
                             signalConnections.add(connection);
                         }
+                    } else if (eventPending) {
+                        // we don't have a vsync event to process
+                        // (timestamp==0), but we have some pending
+                        // messages.
+                        signalConnections.add(connection);
                     }
                 }
             } else {
@@ -206,7 +233,7 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
 
         // note: !timestamp implies signalConnections.isEmpty(), because we
         // don't populate signalConnections if there's no vsync pending
-        if (!timestamp) {
+        if (!timestamp && !eventPending) {
             // wait for something to happen
             if (waitForVSync) {
                 // This is where we spend most of our time, waiting
@@ -241,12 +268,6 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
     // here we're guaranteed to have a timestamp and some connections to signal
     // (The connections might have dropped out of mDisplayEventConnections
     // while we were asleep, but we'll still have strong references to them.)
-
-    // fill in vsync event info
-    event->header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
-    event->header.timestamp = timestamp;
-    event->vsync.count = vsyncCount;
-
     return signalConnections;
 }
 

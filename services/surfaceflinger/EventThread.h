@@ -76,7 +76,8 @@ public:
     void onScreenAcquired();
 
     // called when receiving a vsync event
-    void onVSyncReceived(const wp<IBinder>& display, nsecs_t timestamp);
+    void onVSyncReceived(int type, nsecs_t timestamp);
+    void onHotplugReceived(int type, bool connected);
 
     Vector< sp<EventThread::Connection> > waitForEvent(
             DisplayEventReceiver::Event* event);
@@ -100,6 +101,7 @@ private:
 
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
+    Vector< DisplayEventReceiver::Event > mPendingEvents;
     nsecs_t mVSyncTimestamp;
     bool mUseSoftwareVSync;
     size_t mVSyncCount;

@@ -56,6 +56,7 @@ public:
     class EventHandler {
         friend class HWComposer;
         virtual void onVSyncReceived(int disp, nsecs_t timestamp) = 0;
+        virtual void onHotplugReceived(int disp, bool connected) = 0;
     protected:
         virtual ~EventHandler() {}
     };
