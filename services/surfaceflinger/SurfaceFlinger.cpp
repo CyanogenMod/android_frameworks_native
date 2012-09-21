@@ -522,16 +522,21 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
 }
 
 status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) {
-    // TODO: this is mostly here only for compatibility
-    //       the display size is needed but the display metrics should come from elsewhere
-    if (display != mDefaultDisplays[ISurfaceComposer::eDisplayIdMain]) {
-        // TODO: additional displays not yet supported
-        return BAD_INDEX;
+    int32_t type = BAD_VALUE;
+    for (int i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
+        if (display == mDefaultDisplays[i]) {
+            type = i;
+            break;
+        }
+    }
+
+    if (type < 0) {
+        return type;
     }
 
     const HWComposer& hwc(getHwComposer());
-    float xdpi = hwc.getDpiX(HWC_DISPLAY_PRIMARY);
-    float ydpi = hwc.getDpiY(HWC_DISPLAY_PRIMARY);
+    float xdpi = hwc.getDpiX(type);
+    float ydpi = hwc.getDpiY(type);
 
     // TODO: Not sure if display density should handled by SF any longer
     class Density {
@@ -549,30 +554,39 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
         static int getBuildDensity()  {
             return getDensityFromProperty("ro.sf.lcd_density"); }
     };
-    // The density of the device is provided by a build property
-    float density = Density::getBuildDensity() / 160.0f;
-    if (density == 0) {
-        // the build doesn't provide a density -- this is wrong!
-        // use xdpi instead
-        ALOGE("ro.sf.lcd_density must be defined as a build property");
-        density = xdpi / 160.0f;
-    }
-    if (Density::getEmuDensity()) {
-        // if "qemu.sf.lcd_density" is specified, it overrides everything
-        xdpi = ydpi = density = Density::getEmuDensity();
-        density /= 160.0f;
+
+    if (type == DisplayDevice::DISPLAY_PRIMARY) {
+        // The density of the device is provided by a build property
+        float density = Density::getBuildDensity() / 160.0f;
+        if (density == 0) {
+            // the build doesn't provide a density -- this is wrong!
+            // use xdpi instead
+            ALOGE("ro.sf.lcd_density must be defined as a build property");
+            density = xdpi / 160.0f;
+        }
+        if (Density::getEmuDensity()) {
+            // if "qemu.sf.lcd_density" is specified, it overrides everything
+            xdpi = ydpi = density = Density::getEmuDensity();
+            density /= 160.0f;
+        }
+        info->density = density;
+
+        // TODO: this needs to go away (currently needed only by webkit)
+        sp<const DisplayDevice> hw(getDefaultDisplayDevice());
+        info->orientation = hw->getOrientation();
+        getPixelFormatInfo(hw->getFormat(), &info->pixelFormatInfo);
+    } else {
+        // TODO: where should this value come from?
+        static const int TV_DENSITY = 213;
+        info->density = TV_DENSITY / 160.0f;
+        info->orientation = 0;
     }
 
-    sp<const DisplayDevice> hw(getDefaultDisplayDevice());
-    info->w = hw->getWidth();
-    info->h = hw->getHeight();
+    info->w = hwc.getWidth(type);
+    info->h = hwc.getHeight(type);
     info->xdpi = xdpi;
     info->ydpi = ydpi;
-    info->fps = float(1e9 / hwc.getRefreshPeriod(HWC_DISPLAY_PRIMARY));
-    info->density = density;
-    info->orientation = hw->getOrientation();
-    // TODO: this needs to go away (currently needed only by webkit)
-    getPixelFormatInfo(hw->getFormat(), &info->pixelFormatInfo);
+    info->fps = float(1e9 / hwc.getRefreshPeriod(type));
     return NO_ERROR;
 }
 
