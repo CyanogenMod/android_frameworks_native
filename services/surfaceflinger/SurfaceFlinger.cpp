@@ -536,6 +536,10 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     }
 
     const HWComposer& hwc(getHwComposer());
+    if (!hwc.isConnected(type)) {
+        return NAME_NOT_FOUND;
+    }
+
     float xdpi = hwc.getDpiX(type);
     float ydpi = hwc.getDpiY(type);
 
