@@ -101,6 +101,7 @@ public:
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Rect&             getViewport() const { return mViewport; }
     const Rect&             getFrame() const { return mFrame; }
+    bool                    needsFiltering() const { return mNeedsFiltering; }
 
     uint32_t                getLayerStack() const { return mLayerStack; }
     int32_t                 getDisplayType() const { return mType; }
@@ -195,6 +196,7 @@ private:
     Rect mViewport;
     Rect mFrame;
     Transform mGlobalTransform;
+    bool mNeedsFiltering;
 };
 
 }; // namespace android

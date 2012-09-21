@@ -344,7 +344,7 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
     if (!isProtected()) {
         // TODO: we could be more subtle with isFixedSize()
-        const bool useFiltering = getFiltering() || needsFiltering() || isFixedSize();
+        const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
 
         // Query the texture matrix given our current filtering mode.
         float textureMatrix[16];
