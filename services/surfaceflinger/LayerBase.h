@@ -197,7 +197,7 @@ public:
     /**
      * needsLinearFiltering - true if this surface's state requires filtering
      */
-    virtual bool needsFiltering() const { return mNeedsFiltering; }
+    virtual bool needsFiltering(const sp<const DisplayDevice>& hw) const;
 
     /**
      * isSecure - true if this surface is secure, that is if it prevents
