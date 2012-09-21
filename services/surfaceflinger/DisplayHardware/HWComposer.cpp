@@ -172,6 +172,7 @@ HWComposer::HWComposer(
                 "should only have fbdev if no hwc or hwc is 1.0");
 
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
+        disp.connected = true;
         disp.width = mFbDev->width;
         disp.height = mFbDev->height;
         disp.format = mFbDev->format;
