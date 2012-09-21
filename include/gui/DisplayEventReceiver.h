@@ -48,6 +48,7 @@ public:
 
         struct Header {
             uint32_t type;
+            uint32_t id;
             nsecs_t timestamp;
         };
 
@@ -56,7 +57,6 @@ public:
         };
 
         struct Hotplug {
-            int32_t id;
             bool connected;
         };
 
