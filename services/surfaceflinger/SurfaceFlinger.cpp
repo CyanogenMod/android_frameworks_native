@@ -671,8 +671,21 @@ void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
     }
     if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
         // we should only receive DisplayDevice::DisplayType from the vsync callback
-        const wp<IBinder>& token(mDefaultDisplays[type]);
-        mEventThread->onVSyncReceived(token, timestamp);
+        mEventThread->onVSyncReceived(type, timestamp);
+    }
+}
+
+void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
+    if (mEventThread == NULL) {
+        // This is a temporary workaround for b/7145521.  A non-null pointer
+        // does not mean EventThread has finished initializing, so this
+        // is not a correct fix.
+        ALOGW("WARNING: EventThread not started, ignoring hotplug");
+        return;
+    }
+    if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
+        // we should only receive DisplayDevice::DisplayType from the vsync callback
+        mEventThread->onHotplugReceived(type, connected);
     }
 }
 
