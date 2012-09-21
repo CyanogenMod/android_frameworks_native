@@ -36,7 +36,7 @@ class HWComposer;
 
 class FramebufferSurface : public ConsumerBase {
 public:
-    FramebufferSurface(HWComposer& hwc);
+    FramebufferSurface(HWComposer& hwc, int disp);
 
     bool isUpdateOnDemand() const { return false; }
     status_t setUpdateRectangle(const Rect& updateRect);
@@ -62,6 +62,9 @@ private:
     // BufferQueue and releases the previously latched buffer to the
     // BufferQueue.  The new buffer is returned in the 'buffer' argument.
     status_t nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence);
+
+    // mDisplayType must match one of the HWC display types
+    int mDisplayType;
 
     // mCurrentBufferIndex is the slot index of the current buffer or
     // INVALID_BUFFER_SLOT to indicate that either there is no current buffer

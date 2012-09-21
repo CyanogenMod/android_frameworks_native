@@ -46,8 +46,9 @@ namespace android {
  *
  */
 
-FramebufferSurface::FramebufferSurface(HWComposer& hwc) :
+FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
     ConsumerBase(new BufferQueue(true, new GraphicBufferAlloc())),
+    mDisplayType(disp),
     mCurrentBufferSlot(-1),
     mCurrentBuffer(0),
     mHwc(hwc)
@@ -55,10 +56,10 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc) :
     mName = "FramebufferSurface";
     mBufferQueue->setConsumerName(mName);
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
-                                       GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER);
-    mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(HWC_DISPLAY_PRIMARY));
-    mBufferQueue->setDefaultBufferSize(mHwc.getWidth(HWC_DISPLAY_PRIMARY),
-                                       mHwc.getHeight(HWC_DISPLAY_PRIMARY));
+                                       GRALLOC_USAGE_HW_RENDER |
+                                       GRALLOC_USAGE_HW_COMPOSER);
+    mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(disp));
+    mBufferQueue->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
     mBufferQueue->setSynchronousMode(true);
     mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
 }
@@ -111,7 +112,7 @@ void FramebufferSurface::onFrameAvailable() {
                 strerror(-err), err);
         return;
     }
-    err = mHwc.fbPost(0, acquireFence, buf); // FIXME: use real display id
+    err = mHwc.fbPost(mDisplayType, acquireFence, buf);
     if (err != NO_ERROR) {
         ALOGE("error posting framebuffer: %d", err);
     }

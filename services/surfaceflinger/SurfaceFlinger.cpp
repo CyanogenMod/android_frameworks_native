@@ -405,34 +405,35 @@ status_t SurfaceFlinger::readyToRun()
 
     // initialize our non-virtual displays
     for (size_t i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
+        DisplayDevice::DisplayType type((DisplayDevice::DisplayType)i);
         mDefaultDisplays[i] = new BBinder();
-        mCurrentState.displays.add(mDefaultDisplays[i],
-                DisplayDeviceState(DisplayDevice::DisplayType(i)));
+        wp<IBinder> token = mDefaultDisplays[i];
+        mCurrentState.displays.add(token, DisplayDeviceState(type));
+
+        // set-up the displays that are already connected
+        if (mHwc->isConnected(i)) {
+            sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
+            sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
+                        static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
+            sp<DisplayDevice> hw = new DisplayDevice(this,
+                    type, token, stc, fbs, mEGLConfig);
+
+            if (i > DisplayDevice::DISPLAY_PRIMARY) {
+                // FIXME: currently we don't really handle blank/unblank
+                // for displays other than the main display, so we always
+                // assume a connected display is unblanked.
+                hw->acquireScreen();
+            }
+            mDisplays.add(token, hw);
+        }
     }
 
-    // The main display is a bit special and always exists
-    //
-    // if we didn't add it here, it would be added automatically during the
-    // first transaction, however this would also create some difficulties:
-    //
-    // - there would be a race where a client could call getDisplayInfo(),
-    //   for instance before the DisplayDevice is created.
-    //
-    // - we need a GL context current in a few places, when initializing
-    //   OpenGL ES (see below), or creating a layer,
-    //   or when a texture is (asynchronously) destroyed, and for that
-    //   we need a valid surface, so it's conveniant to use the main display
-    //   for that.
-
-    sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc);
-    sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
-                static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
-    sp<DisplayDevice> hw = new DisplayDevice(this,
-            DisplayDevice::DISPLAY_PRIMARY,
-            mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY],
-            stc, fbs, mEGLConfig);
-    mDisplays.add(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY], hw);
-
+    //  we need a GL context current in a few places, when initializing
+    //  OpenGL ES (see below), or creating a layer,
+    //  or when a texture is (asynchronously) destroyed, and for that
+    //  we need a valid surface, so it's convenient to use the main display
+    //  for that.
+    sp<const DisplayDevice> hw = getDefaultDisplayDevice();
 
     //  initialize OpenGL ES
     DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
@@ -1076,7 +1077,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
-                        fbs = new FramebufferSurface(*mHwc);
+                        fbs = new FramebufferSurface(*mHwc, state.type);
                         stc = new SurfaceTextureClient(
                                 static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
                     } else {
