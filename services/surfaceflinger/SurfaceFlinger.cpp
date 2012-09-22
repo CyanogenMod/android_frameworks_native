@@ -408,10 +408,10 @@ status_t SurfaceFlinger::readyToRun()
         DisplayDevice::DisplayType type((DisplayDevice::DisplayType)i);
         mDefaultDisplays[i] = new BBinder();
         wp<IBinder> token = mDefaultDisplays[i];
-        mCurrentState.displays.add(token, DisplayDeviceState(type));
 
         // set-up the displays that are already connected
-        if (mHwc->isConnected(i)) {
+        if (mHwc->isConnected(i) || type==DisplayDevice::DISPLAY_PRIMARY) {
+            mCurrentState.displays.add(token, DisplayDeviceState(type));
             sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
             sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
                         static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
@@ -688,7 +688,17 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
         ALOGW("WARNING: EventThread not started, ignoring hotplug");
         return;
     }
+
     if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
+        Mutex::Autolock _l(mStateLock);
+        if (connected == false) {
+            mCurrentState.displays.removeItem(mDefaultDisplays[type]);
+        } else {
+            DisplayDeviceState info((DisplayDevice::DisplayType)type);
+            mCurrentState.displays.add(mDefaultDisplays[type], info);
+        }
+        setTransactionFlags(eDisplayTransactionNeeded);
+
         // we should only receive DisplayDevice::DisplayType from the vsync callback
         mEventThread->onHotplugReceived(type, connected);
     }

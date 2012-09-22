@@ -337,7 +337,12 @@ status_t HWComposer::queryDisplayProperties(int disp) {
         return err;
     }
 
-    mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES, values);
+    err = mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES, values);
+    if (err != NO_ERROR) {
+        // we can't get this display's info. turn it off.
+        mDisplayData[disp].connected = false;
+        return err;
+    }
 
     int32_t w = 0, h = 0;
     for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
