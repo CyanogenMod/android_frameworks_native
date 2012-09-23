@@ -16,5 +16,6 @@
 
 <!-- This is the standard set of features for a front facing camera. -->
 <permissions>
+    <feature name="android.hardware.camera.any" />
     <feature name="android.hardware.camera.front" />
 </permissions>
