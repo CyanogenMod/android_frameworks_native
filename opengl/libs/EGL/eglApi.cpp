@@ -1112,11 +1112,12 @@ EGLBoolean eglDestroyImageKHR(EGLDisplay dpy, EGLImageKHR img)
     const egl_display_ptr dp = validate_display(dpy);
     if (!dp) return EGL_FALSE;
 
+    EGLBoolean result = EGL_FALSE;
     egl_connection_t* const cnx = &gEGLImpl;
     if (cnx->dso && cnx->egl.eglDestroyImageKHR) {
-        cnx->egl.eglDestroyImageKHR(dp->disp.dpy, img);
+        result = cnx->egl.eglDestroyImageKHR(dp->disp.dpy, img);
     }
-    return EGL_TRUE;
+    return result;
 }
 
 // ----------------------------------------------------------------------------
