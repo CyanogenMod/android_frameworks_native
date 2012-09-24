@@ -119,9 +119,7 @@ public:
     }
     inline Rect bounds() const { return getBounds(); }
 
-    void setDisplayName(const String8& displayName) {
-        mDisplayName = displayName;
-    }
+    void setDisplayName(const String8& displayName);
     const String8& getDisplayName() const { return mDisplayName; }
 
     static EGLBoolean makeCurrent(EGLDisplay dpy,
