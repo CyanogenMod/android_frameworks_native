@@ -167,6 +167,13 @@ void DisplayDevice::init(EGLConfig config)
     setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }
 
+void DisplayDevice::setDisplayName(const String8& displayName) {
+    if (!displayName.isEmpty()) {
+        // never override the name with an empty name
+        mDisplayName = displayName;
+    }
+}
+
 uint32_t DisplayDevice::getPageFlipCount() const {
     return mPageFlipCount;
 }
