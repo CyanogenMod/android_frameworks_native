@@ -23,6 +23,8 @@
 #include <gui/DisplayEventReceiver.h>
 #include <gui/IDisplayEventConnection.h>
 
+#include <hardware/hwcomposer_defs.h>
+
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <utils/SortedVector.h>
@@ -102,9 +104,8 @@ private:
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
     Vector< DisplayEventReceiver::Event > mPendingEvents;
-    nsecs_t mVSyncTimestamp;
+    DisplayEventReceiver::Event mVSyncEvent[HWC_DISPLAY_TYPES_SUPPORTED];
     bool mUseSoftwareVSync;
-    size_t mVSyncCount;
 
     // for debugging
     bool mDebugVsyncEnabled;
