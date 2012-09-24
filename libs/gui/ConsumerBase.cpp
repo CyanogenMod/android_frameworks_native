@@ -199,7 +199,7 @@ status_t ConsumerBase::addReleaseFence(int slot, const sp<Fence>& fence) {
         mSlots[slot].mFence = fence;
     } else {
         sp<Fence> mergedFence = Fence::merge(
-                String8("ConsumerBase merged release"),
+                String8::format("%.28s:%d", mName.string(), slot),
                 mSlots[slot].mFence, fence);
         if (!mergedFence.get()) {
             CB_LOGE("failed to merge release fences");
