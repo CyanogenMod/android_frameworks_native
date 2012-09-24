@@ -865,9 +865,18 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
-            if (disp.list) {
-                result.appendFormat("  id=%d, numHwLayers=%u, flags=%08x\n",
-                        i, disp.list->numHwLayers, disp.list->flags);
+
+            if (disp.connected) {
+                result.appendFormat(
+                        "  Display[%d] : %ux%u, xdpi=%f, ydpi=%f, refresh=%lld\n",
+                        i, disp.width, disp.height, disp.xdpi, disp.ydpi, disp.refresh);
+            }
+
+            if (disp.list && disp.connected) {
+                result.appendFormat(
+                        "  numHwLayers=%u, flags=%08x\n",
+                        disp.list->numHwLayers, disp.list->flags);
+
                 result.append(
                         "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
                         "------------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");

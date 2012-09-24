@@ -125,22 +125,24 @@ void EventThread::onHotplugReceived(int type, bool connected) {
 }
 
 bool EventThread::threadLoop() {
-    DisplayEventReceiver::Event vsync;
+    DisplayEventReceiver::Event event;
     Vector< sp<EventThread::Connection> > signalConnections;
-    signalConnections = waitForEvent(&vsync);
+    signalConnections = waitForEvent(&event);
 
     // dispatch events to listeners...
     const size_t count = signalConnections.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<Connection>& conn(signalConnections[i]);
-        // now see if we still need to report this VSYNC event
-        status_t err = conn->postEvent(vsync);
+        // now see if we still need to report this event
+        status_t err = conn->postEvent(event);
         if (err == -EAGAIN || err == -EWOULDBLOCK) {
             // The destination doesn't accept events anymore, it's probably
             // full. For now, we just drop the events on the floor.
-            // Note that some events cannot be dropped and would have to be
-            // re-sent later. Right-now we don't have the ability to do
-            // this, but it doesn't matter for VSYNC.
+            // FIXME: Note that some events cannot be dropped and would have
+            // to be re-sent later.
+            // Right-now we don't have the ability to do this.
+            ALOGW("EventThread: dropping event (%08x) for connection %p",
+                    event.header.type, conn.get());
         } else if (err < 0) {
             // handle any other error on the pipe as fatal. the only
             // reasonable thing to do is to clean-up this connection.
@@ -185,6 +187,7 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
         for (size_t i=0 ; i<count ; i++) {
             sp<Connection> connection(mDisplayEventConnections[i].promote());
             if (connection != NULL) {
+                bool added = false;
                 if (connection->count >= 0) {
                     // we need vsync events because at least
                     // one connection is waiting for it
@@ -196,17 +199,21 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
                             // fired this time around
                             connection->count = -1;
                             signalConnections.add(connection);
+                            added = true;
                         } else if (connection->count == 1 ||
                                 (vsyncCount % connection->count) == 0) {
                             // continuous event, and time to report it
                             signalConnections.add(connection);
+                            added = true;
                         }
-                    } else if (eventPending) {
-                        // we don't have a vsync event to process
-                        // (timestamp==0), but we have some pending
-                        // messages.
-                        signalConnections.add(connection);
                     }
+                }
+
+                if (eventPending && !timestamp && !added) {
+                    // we don't have a vsync event to process
+                    // (timestamp==0), but we have some pending
+                    // messages.
+                    signalConnections.add(connection);
                 }
             } else {
                 // we couldn't promote this reference, the connection has
