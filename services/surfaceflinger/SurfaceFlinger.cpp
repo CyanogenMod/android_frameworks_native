@@ -792,6 +792,12 @@ void SurfaceFlinger::doDebugFlashRegions()
     if (mDebugRegion > 1) {
         usleep(mDebugRegion * 1000);
     }
+
+    HWComposer& hwc(getHwComposer());
+    if (hwc.initCheck() == NO_ERROR) {
+        status_t err = hwc.prepare();
+        ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
+    }
 }
 
 void SurfaceFlinger::preComposition()
