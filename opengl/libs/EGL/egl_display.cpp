@@ -52,6 +52,7 @@ static char const * const sExtensionString  =
         "EGL_KHR_gl_texture_cubemap_image "
         "EGL_KHR_gl_renderbuffer_image "
         "EGL_KHR_fence_sync "
+        "EGL_EXT_create_context_robustness "
         "EGL_NV_system_time "
         "EGL_ANDROID_image_native_buffer "      // mandatory
         ;
