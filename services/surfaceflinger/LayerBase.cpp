@@ -232,10 +232,9 @@ void LayerBase::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* me
     const Layer::State& s(drawingState());
     const Transform tr(hw->getTransform() * s.transform);
     const uint32_t hw_h = hw->getHeight();
-    const Rect& crop(s.active.crop);
     Rect win(s.active.w, s.active.h);
-    if (!crop.isEmpty()) {
-        win.intersect(crop, &win);
+    if (!s.active.crop.isEmpty()) {
+        win.intersect(s.active.crop, &win);
     }
     if (mesh) {
         tr.transform(mesh->mVertices[0], win.left,  win.top);
@@ -250,10 +249,9 @@ void LayerBase::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* me
 
 Rect LayerBase::computeBounds() const {
     const Layer::State& s(drawingState());
-    const Rect& crop(s.active.crop);
     Rect win(s.active.w, s.active.h);
-    if (!crop.isEmpty()) {
-        win.intersect(crop, &win);
+    if (!s.active.crop.isEmpty()) {
+        win.intersect(s.active.crop, &win);
     }
     return s.transform.transform(win);
 }
@@ -400,14 +398,15 @@ void LayerBase::drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& 
         GLfloat v;
     };
 
-    Rect crop(s.active.w, s.active.h);
+    Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
-        crop = s.active.crop;
+        win.intersect(s.active.crop, &win);
     }
-    GLfloat left   = GLfloat(crop.left)   / GLfloat(s.active.w);
-    GLfloat top    = GLfloat(crop.top)    / GLfloat(s.active.h);
-    GLfloat right  = GLfloat(crop.right)  / GLfloat(s.active.w);
-    GLfloat bottom = GLfloat(crop.bottom) / GLfloat(s.active.h);
+
+    GLfloat left   = GLfloat(win.left)   / GLfloat(s.active.w);
+    GLfloat top    = GLfloat(win.top)    / GLfloat(s.active.h);
+    GLfloat right  = GLfloat(win.right)  / GLfloat(s.active.w);
+    GLfloat bottom = GLfloat(win.bottom) / GLfloat(s.active.h);
 
     TexCoords texCoords[4];
     texCoords[0].u = left;
