@@ -927,10 +927,13 @@ void SurfaceFlinger::postFramebuffer()
 
     HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
-        // FIXME: EGL spec says:
-        //   "surface must be bound to the calling thread's current context,
-        //    for the current rendering API."
-        DisplayDevice::makeCurrent(mEGLDisplay, getDefaultDisplayDevice(), mEGLContext);
+        if (!hwc.supportsFramebufferTarget()) {
+            // EGL spec says:
+            //   "surface must be bound to the calling thread's current context,
+            //    for the current rendering API."
+            DisplayDevice::makeCurrent(mEGLDisplay,
+                    getDefaultDisplayDevice(), mEGLContext);
+        }
         hwc.commit();
     }
 
