@@ -37,11 +37,13 @@
 
 #include <gui/BitTube.h>
 #include <gui/BufferQueue.h>
+#include <gui/GuiConfig.h>
 #include <gui/IDisplayEventConnection.h>
 #include <gui/SurfaceTextureClient.h>
 
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/PixelFormat.h>
+#include <ui/UiConfig.h>
 
 #include <utils/misc.h>
 #include <utils/String8.h>
@@ -2045,6 +2047,26 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
     }
 }
 
+/*static*/ void SurfaceFlinger::appendSfConfigString(String8& result)
+{
+    static const char* config =
+            " [sf"
+#ifdef NO_RGBX_8888
+            " NO_RGBX_8888"
+#endif
+#ifdef HAS_CONTEXT_PRIORITY
+            " HAS_CONTEXT_PRIORITY"
+#endif
+#ifdef NEVER_DEFAULT_TO_ASYNC_MODE
+            " NEVER_DEFAULT_TO_ASYNC_MODE"
+#endif
+#ifdef TARGET_DISABLE_TRIPLE_BUFFERING
+            " TARGET_DISABLE_TRIPLE_BUFFERING"
+#endif
+            "]";
+    result.append(config);
+}
+
 void SurfaceFlinger::dumpAllLocked(
         String8& result, char* buffer, size_t SIZE) const
 {
@@ -2054,6 +2076,15 @@ void SurfaceFlinger::dumpAllLocked(
     const nsecs_t inTransaction(mDebugInTransaction);
     nsecs_t inSwapBuffersDuration = (inSwapBuffers) ? now-inSwapBuffers : 0;
     nsecs_t inTransactionDuration = (inTransaction) ? now-inTransaction : 0;
+
+    /*
+     * Dump library configuration.
+     */
+    result.append("Build configuration:");
+    appendSfConfigString(result);
+    appendUiConfigString(result);
+    appendGuiConfigString(result);
+    result.append("\n");
 
     /*
      * Dump the visible layer list
