@@ -919,9 +919,10 @@ void SurfaceFlinger::rebuildLayerStacks() {
                     const sp<LayerBase>& layer(currentLayers[i]);
                     const Layer::State& s(layer->drawingState());
                     if (s.layerStack == hw->getLayerStack()) {
-                        Region visibleRegion(tr.transform(layer->visibleRegion));
-                        visibleRegion.andSelf(bounds);
-                        if (!visibleRegion.isEmpty()) {
+                        Region drawRegion(tr.transform(
+                                layer->visibleNonTransparentRegion));
+                        drawRegion.andSelf(bounds);
+                        if (!drawRegion.isEmpty()) {
                             layersSortedByZ.add(layer);
                         }
                     }
@@ -1294,6 +1295,16 @@ void SurfaceFlinger::computeVisibleRegions(
          */
         Region coveredRegion;
 
+        /*
+         * transparentRegion: area of a surface that is hinted to be completely
+         * transparent. This is only used to tell when the layer has no visible
+         * non-transparent regions and can be removed from the layer list. It
+         * does not affect the visibleRegion of this layer or any layers
+         * beneath it. The hint may not be correct if apps don't respect the
+         * SurfaceView restrictions (which, sadly, some don't).
+         */
+        Region transparentRegion;
+
 
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(layer->isVisible())) {
@@ -1303,21 +1314,19 @@ void SurfaceFlinger::computeVisibleRegions(
             if (!visibleRegion.isEmpty()) {
                 // Remove the transparent area from the visible region
                 if (translucent) {
-                    Region transparentRegionScreen;
                     const Transform tr(s.transform);
                     if (tr.transformed()) {
                         if (tr.preserveRects()) {
                             // transform the transparent region
-                            transparentRegionScreen = tr.transform(s.transparentRegion);
+                            transparentRegion = tr.transform(s.transparentRegion);
                         } else {
                             // transformation too complex, can't do the
                             // transparent region optimization.
-                            transparentRegionScreen.clear();
+                            transparentRegion.clear();
                         }
                     } else {
-                        transparentRegionScreen = s.transparentRegion;
+                        transparentRegion = s.transparentRegion;
                     }
-                    visibleRegion.subtractSelf(transparentRegionScreen);
                 }
 
                 // compute the opaque region
@@ -1373,9 +1382,11 @@ void SurfaceFlinger::computeVisibleRegions(
         // Update aboveOpaqueLayers for next (lower) layer
         aboveOpaqueLayers.orSelf(opaqueRegion);
 
-        // Store the visible region is screen space
+        // Store the visible region in screen space
         layer->setVisibleRegion(visibleRegion);
         layer->setCoveredRegion(coveredRegion);
+        layer->setVisibleNonTransparentRegion(
+                visibleRegion.subtract(transparentRegion));
     }
 
     outOpaqueRegion = aboveOpaqueLayers;
