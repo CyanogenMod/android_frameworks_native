@@ -317,7 +317,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter, bool skipSync)
             // texturing from this SurfaceTexture.
             doGLFenceWaitLocked();
         }
-        computeCurrentTransformMatrix();
+        computeCurrentTransformMatrixLocked();
     } else  {
         if (err < 0) {
             ST_LOGE("updateTexImage: acquire failed: %s (%d)",
@@ -566,15 +566,24 @@ void SurfaceTexture::getTransformMatrix(float mtx[16]) {
 
 void SurfaceTexture::setFilteringEnabled(bool enabled) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        ST_LOGE("setFilteringEnabled: SurfaceTexture is abandoned!");
+        return;
+    }
     bool needsRecompute = mFilteringEnabled != enabled;
     mFilteringEnabled = enabled;
-    if (needsRecompute) {
-        computeCurrentTransformMatrix();
+
+    if (needsRecompute && mCurrentTextureBuf==NULL) {
+        ST_LOGD("setFilteringEnabled called with mCurrentTextureBuf == NULL");
+    }
+
+    if (needsRecompute && mCurrentTextureBuf != NULL) {
+        computeCurrentTransformMatrixLocked();
     }
 }
 
-void SurfaceTexture::computeCurrentTransformMatrix() {
-    ST_LOGV("computeCurrentTransformMatrix");
+void SurfaceTexture::computeCurrentTransformMatrixLocked() {
+    ST_LOGV("computeCurrentTransformMatrixLocked");
 
     float xform[16];
     for (int i = 0; i < 16; i++) {
@@ -603,6 +612,11 @@ void SurfaceTexture::computeCurrentTransformMatrix() {
     }
 
     sp<GraphicBuffer>& buf(mCurrentTextureBuf);
+
+    if (buf == NULL) {
+        ST_LOGD("computeCurrentTransformMatrixLocked: mCurrentTextureBuf is NULL");
+    }
+
     Rect cropRect = mCurrentCrop;
     float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
     float bufferWidth = buf->getWidth();
