@@ -259,10 +259,11 @@ private:
     // This method must be called with mMutex locked.
     virtual void freeBufferLocked(int slotIndex);
 
-    // computeCurrentTransformMatrix computes the transform matrix for the
+    // computeCurrentTransformMatrixLocked computes the transform matrix for the
     // current texture.  It uses mCurrentTransform and the current GraphicBuffer
     // to compute this matrix and stores it in mCurrentTransformMatrix.
-    void computeCurrentTransformMatrix();
+    // mCurrentTextureBuf must not be NULL.
+    void computeCurrentTransformMatrixLocked();
 
     // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
     // stream to ensure that it is safe for future OpenGL ES commands to
