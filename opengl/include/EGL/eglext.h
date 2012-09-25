@@ -304,6 +304,13 @@ EGLAPI EGLint EGLAPIENTRY eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EG
 typedef EGLint (EGLAPIENTRYP PFNEGLWAITSYNCANDROID) (EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
 #endif
 
+/* EGL_ANDROID_framebuffer_target
+ */
+#ifndef EGL_ANDROID_framebuffer_target
+#define EGL_ANDROID_framebuffer_target
+#define EGL_FRAMEBUFFER_TARGET_ANDROID                0x3147
+#endif
+
 #ifdef __cplusplus
 }
 #endif
