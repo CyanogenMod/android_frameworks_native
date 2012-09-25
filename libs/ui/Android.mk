@@ -23,7 +23,8 @@ LOCAL_SRC_FILES:= \
 	GraphicBufferMapper.cpp \
 	PixelFormat.cpp \
 	Rect.cpp \
-	Region.cpp
+	Region.cpp \
+	UiConfig.cpp
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \

@@ -382,6 +382,7 @@ private:
         String8& result, char* buffer, size_t SIZE) const;
     void dumpAllLocked(String8& result, char* buffer, size_t SIZE) const;
     bool startDdmConnection();
+    static void appendSfConfigString(String8& result);
 
     /* ------------------------------------------------------------------------
      * Attributes
