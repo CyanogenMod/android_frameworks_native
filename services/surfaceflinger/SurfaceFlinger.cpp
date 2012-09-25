@@ -2497,7 +2497,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
             sp<MemoryHeapBase> base(
                     new MemoryHeapBase(size, 0, "screen-capture") );
             void* const ptr = base->getBase();
-            if (ptr) {
+            if (ptr != MAP_FAILED) {
                 // capture the screen with glReadPixels()
                 ScopedTrace _t(ATRACE_TAG, "glReadPixels");
                 glReadPixels(0, 0, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, ptr);

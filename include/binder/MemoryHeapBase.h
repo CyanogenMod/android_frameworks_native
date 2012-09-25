@@ -58,10 +58,13 @@ public:
 
     /* implement IMemoryHeap interface */
     virtual int         getHeapID() const;
+
+    /* virtual address of the heap. returns MAP_FAILED in case of error */
     virtual void*       getBase() const;
+
     virtual size_t      getSize() const;
     virtual uint32_t    getFlags() const;
-    virtual uint32_t      getOffset() const;
+    virtual uint32_t    getOffset() const;
 
     const char*         getDevice() const;
 
