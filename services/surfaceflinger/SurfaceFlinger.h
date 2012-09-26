@@ -309,8 +309,8 @@ private:
     /* ------------------------------------------------------------------------
      * EGL
      */
-    static status_t selectConfigForPixelFormat(EGLDisplay dpy,
-        EGLint const* attrs, PixelFormat format, EGLConfig* outConfig);
+    static status_t selectConfigForAttribute(EGLDisplay dpy,
+        EGLint const* attrs, EGLint attribute, EGLint value, EGLConfig* outConfig);
     static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
     static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
     void initializeGL(EGLDisplay display);
