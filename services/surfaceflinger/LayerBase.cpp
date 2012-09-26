@@ -193,6 +193,12 @@ void LayerBase::setCoveredRegion(const Region& coveredRegion) {
     this->coveredRegion = coveredRegion;
 }
 
+void LayerBase::setVisibleNonTransparentRegion(const Region&
+        setVisibleNonTransparentRegion) {
+    // always called from main thread
+    this->visibleNonTransparentRegion = setVisibleNonTransparentRegion;
+}
+
 uint32_t LayerBase::doTransaction(uint32_t flags)
 {
     const Layer::State& front(drawingState());

@@ -60,6 +60,7 @@ public:
             // regions below are in window-manager space
             Region      visibleRegion;
             Region      coveredRegion;
+            Region      visibleNonTransparentRegion;
             int32_t     sequence;
             
             struct Geometry {
@@ -110,7 +111,7 @@ public:
             bool setSize(uint32_t w, uint32_t h);
             bool setAlpha(uint8_t alpha);
             bool setMatrix(const layer_state_t::matrix22_t& matrix);
-            bool setTransparentRegionHint(const Region& opaque);
+            bool setTransparentRegionHint(const Region& transparent);
             bool setFlags(uint8_t flags, uint8_t mask);
             bool setCrop(const Rect& crop);
             bool setLayerStack(uint32_t layerStack);
@@ -175,6 +176,13 @@ public:
      * (transparently or not) by another surface.
      */
     virtual void setCoveredRegion(const Region& coveredRegion);
+
+    /**
+     * setVisibleNonTransparentRegion - called when the visible and
+     * non-transparent region changes.
+     */
+    virtual void setVisibleNonTransparentRegion(const Region&
+            visibleNonTransparentRegion);
 
     /**
      * latchBuffer - called each time the screen is redrawn and returns whether
