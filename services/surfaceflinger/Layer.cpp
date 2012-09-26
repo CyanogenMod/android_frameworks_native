@@ -655,7 +655,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         if (oldActiveBuffer == NULL) {
              // the first time we receive a buffer, we need to trigger a
              // geometry invalidation.
-             mFlinger->invalidateHwcGeometry();
+            recomputeVisibleRegions = true;
          }
 
         Rect crop(mSurfaceTexture->getCurrentCrop());
@@ -668,7 +668,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             mCurrentCrop = crop;
             mCurrentTransform = transform;
             mCurrentScalingMode = scalingMode;
-            mFlinger->invalidateHwcGeometry();
+            recomputeVisibleRegions = true;
         }
 
         if (oldActiveBuffer != NULL) {
@@ -676,7 +676,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             uint32_t bufHeight = mActiveBuffer->getHeight();
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
-                mFlinger->invalidateHwcGeometry();
+                recomputeVisibleRegions = true;
             }
         }
 
