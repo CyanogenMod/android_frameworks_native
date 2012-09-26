@@ -237,10 +237,10 @@ void SurfaceFlinger::deleteTextureAsync(GLuint texture) {
     postMessageAsync(new MessageDestroyGLTexture(texture));
 }
 
-status_t SurfaceFlinger::selectConfigForPixelFormat(
+status_t SurfaceFlinger::selectConfigForAttribute(
         EGLDisplay dpy,
         EGLint const* attrs,
-        PixelFormat format,
+        EGLint attribute, EGLint wanted,
         EGLConfig* outConfig)
 {
     EGLConfig config = NULL;
@@ -249,11 +249,20 @@ status_t SurfaceFlinger::selectConfigForPixelFormat(
     EGLConfig* const configs = new EGLConfig[numConfigs];
     eglChooseConfig(dpy, attrs, configs, numConfigs, &n);
 
-    for (int i=0 ; i<n ; i++) {
-        EGLint nativeVisualId = 0;
-        eglGetConfigAttrib(dpy, configs[i], EGL_NATIVE_VISUAL_ID, &nativeVisualId);
-        if (nativeVisualId>0 && format == nativeVisualId) {
-            *outConfig = configs[i];
+    if (n) {
+        if (attribute != EGL_NONE) {
+            for (int i=0 ; i<n ; i++) {
+                EGLint value = 0;
+                eglGetConfigAttrib(dpy, configs[i], attribute, &value);
+                if (wanted == value) {
+                    *outConfig = configs[i];
+                    delete [] configs;
+                    return NO_ERROR;
+                }
+            }
+        } else {
+            // just pick the first one
+            *outConfig = configs[0];
             delete [] configs;
             return NO_ERROR;
         }
@@ -262,6 +271,58 @@ status_t SurfaceFlinger::selectConfigForPixelFormat(
     return NAME_NOT_FOUND;
 }
 
+class EGLAttributeVector {
+    struct Attribute;
+    class Adder;
+    friend class Adder;
+    KeyedVector<Attribute, EGLint> mList;
+    struct Attribute {
+        Attribute() {};
+        Attribute(EGLint v) : v(v) { }
+        EGLint v;
+        bool operator < (const Attribute& other) const {
+            // this places EGL_NONE at the end
+            EGLint lhs(v);
+            EGLint rhs(other.v);
+            if (lhs == EGL_NONE) lhs = 0x7FFFFFFF;
+            if (rhs == EGL_NONE) rhs = 0x7FFFFFFF;
+            return lhs < rhs;
+        }
+    };
+    class Adder {
+        friend class EGLAttributeVector;
+        EGLAttributeVector& v;
+        EGLint attribute;
+        Adder(EGLAttributeVector& v, EGLint attribute)
+            : v(v), attribute(attribute) {
+        }
+    public:
+        void operator = (EGLint value) {
+            if (attribute != EGL_NONE) {
+                v.mList.add(attribute, value);
+            }
+        }
+        operator EGLint () const { return v.mList[attribute]; }
+    };
+public:
+    EGLAttributeVector() {
+        mList.add(EGL_NONE, EGL_NONE);
+    }
+    void remove(EGLint attribute) {
+        if (attribute != EGL_NONE) {
+            mList.removeItem(attribute);
+        }
+    }
+    Adder operator [] (EGLint attribute) {
+        return Adder(*this, attribute);
+    }
+    EGLint operator [] (EGLint attribute) const {
+       return mList[attribute];
+    }
+    // cast-operator to (EGLint const*)
+    operator EGLint const* () const { return &mList.keyAt(0).v; }
+};
+
 EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId) {
     // select our EGLConfig. It must support EGL_RECORDABLE_ANDROID if
     // it is to be used with WIFI displays
@@ -269,32 +330,42 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     EGLint dummy;
     status_t err;
 
-    EGLint attribs[] = {
-            EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
-            // The rest of the attributes must be in this order and at the end
-            // of the list; we rely on that for fallback searches below.
-            EGL_RED_SIZE,               8,
-            EGL_GREEN_SIZE,             8,
-            EGL_BLUE_SIZE,              8,
-            EGL_RECORDABLE_ANDROID,     EGL_TRUE,
-            EGL_NONE
-    };
-    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    EGLAttributeVector attribs;
+    attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT;
+    attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
+    attribs[EGL_FRAMEBUFFER_TARGET_ANDROID] = EGL_TRUE;
+    attribs[EGL_RED_SIZE]                   = 8;
+    attribs[EGL_GREEN_SIZE]                 = 8;
+    attribs[EGL_BLUE_SIZE]                  = 8;
+
+    err = selectConfigForAttribute(display, attribs, EGL_NONE, EGL_NONE, &config);
+    if (!err)
+        goto success;
+
+    // maybe we failed because of EGL_FRAMEBUFFER_TARGET_ANDROID
+    ALOGW("no suitable EGLConfig found, trying without EGL_FRAMEBUFFER_TARGET_ANDROID");
+    attribs.remove(EGL_FRAMEBUFFER_TARGET_ANDROID);
+    err = selectConfigForAttribute(display, attribs,
+            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
     if (!err)
         goto success;
 
     // maybe we failed because of EGL_RECORDABLE_ANDROID
     ALOGW("no suitable EGLConfig found, trying without EGL_RECORDABLE_ANDROID");
-    attribs[NELEM(attribs) - 3] = EGL_NONE;
-    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    attribs.remove(EGL_RECORDABLE_ANDROID);
+    err = selectConfigForAttribute(display, attribs,
+            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
     if (!err)
         goto success;
 
     // allow less than 24-bit color; the non-gpu-accelerated emulator only
     // supports 16-bit color
     ALOGW("no suitable EGLConfig found, trying with 16-bit color allowed");
-    attribs[NELEM(attribs) - 9] = EGL_NONE;
-    err = selectConfigForPixelFormat(display, attribs, nativeVisualId, &config);
+    attribs.remove(EGL_RED_SIZE);
+    attribs.remove(EGL_GREEN_SIZE);
+    attribs.remove(EGL_BLUE_SIZE);
+    err = selectConfigForAttribute(display, attribs,
+            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
     if (!err)
         goto success;
 
