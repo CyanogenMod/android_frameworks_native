@@ -228,11 +228,14 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
         }
     }
 
-    // TODO: we should at least handle EGL_CONTEXT_LOST, by recreating the
-    // context and resetting our state.
-    LOG_ALWAYS_FATAL_IF(!success,
-            "eglSwapBuffers(%p, %p) failed with 0x%8x",
-            mDisplay, mSurface, eglGetError());
+    if (!success) {
+        EGLint error = eglGetError();
+        if (error == EGL_CONTEXT_LOST ||
+                mType == DisplayDevice::DISPLAY_PRIMARY) {
+            LOG_ALWAYS_FATAL("eglSwapBuffers(%p, %p) failed with 0x%08x",
+                    mDisplay, mSurface, eglGetError());
+        }
+    }
 }
 
 void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
