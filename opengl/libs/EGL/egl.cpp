@@ -166,8 +166,13 @@ void setGLHooksThreadSpecific(gl_hooks_t const *value) {
 
 static int gl_no_context() {
     if (egl_tls_t::logNoContextCall()) {
-        ALOGE("call to OpenGL ES API with no current context "
-             "(logged once per thread)");
+        char const* const error = "call to OpenGL ES API with "
+                "no current context (logged once per thread)";
+        if (LOG_NDEBUG) {
+            ALOGE(error);
+        } else {
+            LOG_ALWAYS_FATAL(error);
+        }
         char value[PROPERTY_VALUE_MAX];
         property_get("debug.egl.callstack", value, "0");
         if (atoi(value)) {
