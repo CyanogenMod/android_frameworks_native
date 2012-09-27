@@ -196,9 +196,9 @@ private:
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);
     // called when screen needs to turn off
-    virtual void blank();
+    virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
-    virtual void unblank();
+    virtual void unblank(const sp<IBinder>& display);
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
     virtual void connectDisplay(const sp<ISurfaceTexture>& display);
 

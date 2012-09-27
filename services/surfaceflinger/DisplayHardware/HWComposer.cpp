@@ -646,17 +646,19 @@ status_t HWComposer::commit() {
     return (status_t)err;
 }
 
-status_t HWComposer::release() const {
+status_t HWComposer::release(int disp) const {
+    LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
     if (mHwc) {
-        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
-        return (status_t)mHwc->blank(mHwc, 0, 1);
+        mHwc->eventControl(mHwc, disp, HWC_EVENT_VSYNC, 0);
+        return (status_t)mHwc->blank(mHwc, disp, 1);
     }
     return NO_ERROR;
 }
 
-status_t HWComposer::acquire() const {
+status_t HWComposer::acquire(int disp) const {
+    LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
     if (mHwc) {
-        return (status_t)mHwc->blank(mHwc, 0, 0);
+        return (status_t)mHwc->blank(mHwc, disp, 0);
     }
     return NO_ERROR;
 }

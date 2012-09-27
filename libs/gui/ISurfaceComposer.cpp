@@ -197,17 +197,19 @@ public:
         return reply.readStrongBinder();
     }
 
-    virtual void blank()
+    virtual void blank(const sp<IBinder>& display)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
         remote()->transact(BnSurfaceComposer::BLANK, data, &reply);
     }
 
-    virtual void unblank()
+    virtual void unblank(const sp<IBinder>& display)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
         remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
     }
 
@@ -320,11 +322,13 @@ status_t BnSurfaceComposer::onTransact(
         } break;
         case BLANK: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            blank();
+            sp<IBinder> display = data.readStrongBinder();
+            blank(display);
         } break;
         case UNBLANK: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            unblank();
+            sp<IBinder> display = data.readStrongBinder();
+            unblank(display);
         } break;
         case GET_DISPLAY_INFO: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
