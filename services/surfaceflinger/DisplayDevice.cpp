@@ -259,16 +259,20 @@ EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy,
     if (sur != hw->mSurface) {
         result = eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
         if (result == EGL_TRUE) {
-            GLsizei w = hw->mDisplayWidth;
-            GLsizei h = hw->mDisplayHeight;
-            glViewport(0, 0, w, h);
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            // put the origin in the left-bottom corner
-            glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
+            setViewportAndProjection(hw);
         }
     }
     return result;
+}
+
+void DisplayDevice::setViewportAndProjection(const sp<const DisplayDevice>& hw) {
+    GLsizei w = hw->mDisplayWidth;
+    GLsizei h = hw->mDisplayHeight;
+    glViewport(0, 0, w, h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    // put the origin in the left-bottom corner
+    glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
 }
 
 // ----------------------------------------------------------------------------
