@@ -99,10 +99,10 @@ public:
 
 
     /* triggers screen off and waits for it to complete */
-    virtual void blank() = 0;
+    virtual void blank(const sp<IBinder>& display) = 0;
 
     /* triggers screen on and waits for it to complete */
-    virtual void unblank() = 0;
+    virtual void unblank(const sp<IBinder>& display) = 0;
 
     /* returns information about a display
      * intended to be used to get information about built-in displays */

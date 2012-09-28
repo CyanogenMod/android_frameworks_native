@@ -490,11 +490,11 @@ status_t SurfaceFlinger::readyToRun()
                         static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
             sp<DisplayDevice> hw = new DisplayDevice(this,
                     type, token, stc, fbs, mEGLConfig);
-
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
-                // FIXME: currently we don't really handle blank/unblank
+                // FIXME: currently we don't get blank/unblank requests
                 // for displays other than the main display, so we always
                 // assume a connected display is unblanked.
+                ALOGD("marking display %d as acquired/unblanked", i);
                 hw->acquireScreen();
             }
             mDisplays.add(token, hw);
@@ -1972,59 +1972,94 @@ void SurfaceFlinger::initializeDisplays() {
 
 
 void SurfaceFlinger::onScreenAcquired(const sp<const DisplayDevice>& hw) {
-    ALOGD("Screen about to return, flinger = %p", this);
-    getHwComposer().acquire();
+    ALOGD("Screen acquired, type=%d flinger=%p", hw->getDisplayType(), this);
+    if (hw->isScreenAcquired()) {
+        // this is expected, e.g. when power manager wakes up during boot
+        ALOGD(" screen was previously acquired");
+        return;
+    }
+
     hw->acquireScreen();
-    if (hw->getDisplayType() == DisplayDevice::DISPLAY_PRIMARY) {
-        // FIXME: eventthread only knows about the main display right now
-        mEventThread->onScreenAcquired();
+    int32_t type = hw->getDisplayType();
+    if (type < DisplayDevice::NUM_DISPLAY_TYPES) {
+        // built-in display, tell the HWC
+        getHwComposer().acquire(type);
+
+        if (type == DisplayDevice::DISPLAY_PRIMARY) {
+            // FIXME: eventthread only knows about the main display right now
+            mEventThread->onScreenAcquired();
+        }
     }
     mVisibleRegionsDirty = true;
     repaintEverything();
 }
 
 void SurfaceFlinger::onScreenReleased(const sp<const DisplayDevice>& hw) {
-    ALOGD("About to give-up screen, flinger = %p", this);
-    if (hw->isScreenAcquired()) {
-        if (hw->getDisplayType() == DisplayDevice::DISPLAY_PRIMARY) {
+    ALOGD("Screen released, type=%d flinger=%p", hw->getDisplayType(), this);
+    if (!hw->isScreenAcquired()) {
+        ALOGD(" screen was previously released");
+        return;
+    }
+
+    hw->releaseScreen();
+    int32_t type = hw->getDisplayType();
+    if (type < DisplayDevice::NUM_DISPLAY_TYPES) {
+        if (type == DisplayDevice::DISPLAY_PRIMARY) {
             // FIXME: eventthread only knows about the main display right now
             mEventThread->onScreenReleased();
         }
-        hw->releaseScreen();
-        getHwComposer().release();
-        mVisibleRegionsDirty = true;
-        // from this point on, SF will stop drawing
+
+        // built-in display, tell the HWC
+        getHwComposer().release(type);
+    }
+    mVisibleRegionsDirty = true;
+    // from this point on, SF will stop drawing on this display
+}
+
+void SurfaceFlinger::unblank(const sp<IBinder>& display) {
+    class MessageScreenAcquired : public MessageBase {
+        SurfaceFlinger* mFlinger;
+        const sp<DisplayDevice>& mHw;
+    public:
+        MessageScreenAcquired(SurfaceFlinger* flinger,
+                const sp<DisplayDevice>& hw) : mFlinger(flinger), mHw(hw) { }
+        virtual bool handler() {
+            mFlinger->onScreenAcquired(mHw);
+            return true;
+        }
+    };
+    const sp<DisplayDevice>& hw = getDisplayDevice(display);
+    if (hw == NULL) {
+        ALOGE("Attempt to unblank null display %p", display.get());
+    } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+        ALOGW("Attempt to unblank virtual display");
+    } else {
+        sp<MessageBase> msg = new MessageScreenAcquired(this, hw);
+        postMessageSync(msg);
     }
 }
 
-void SurfaceFlinger::unblank() {
-    class MessageScreenAcquired : public MessageBase {
-        SurfaceFlinger* flinger;
-    public:
-        MessageScreenAcquired(SurfaceFlinger* flinger) : flinger(flinger) { }
-        virtual bool handler() {
-            // FIXME: should this be per-display?
-            flinger->onScreenAcquired(flinger->getDefaultDisplayDevice());
-            return true;
-        }
-    };
-    sp<MessageBase> msg = new MessageScreenAcquired(this);
-    postMessageSync(msg);
-}
-
-void SurfaceFlinger::blank() {
+void SurfaceFlinger::blank(const sp<IBinder>& display) {
     class MessageScreenReleased : public MessageBase {
-        SurfaceFlinger* flinger;
+        SurfaceFlinger* mFlinger;
+        const sp<DisplayDevice>& mHw;
     public:
-        MessageScreenReleased(SurfaceFlinger* flinger) : flinger(flinger) { }
+        MessageScreenReleased(SurfaceFlinger* flinger,
+                const sp<DisplayDevice>& hw) : mFlinger(flinger), mHw(hw) { }
         virtual bool handler() {
-            // FIXME: should this be per-display?
-            flinger->onScreenReleased(flinger->getDefaultDisplayDevice());
+            mFlinger->onScreenReleased(mHw);
             return true;
         }
     };
-    sp<MessageBase> msg = new MessageScreenReleased(this);
-    postMessageSync(msg);
+    const sp<DisplayDevice>& hw = getDisplayDevice(display);
+    if (hw == NULL) {
+        ALOGE("Attempt to blank null display %p", display.get());
+    } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+        ALOGW("Attempt to blank virtual display");
+    } else {
+        sp<MessageBase> msg = new MessageScreenReleased(this, hw);
+        postMessageSync(msg);
+    }
 }
 
 // ---------------------------------------------------------------------------
