@@ -105,6 +105,16 @@ struct GetAndroidNativeBufferUsageParams {
 // colorformat will be relayed by the GRalloc Buffers.
 // OMX_COLOR_FormatAndroidOpaque  = 0x7F000001,
 
+// A pointer to this struct is passed to OMX_SetParameter when the extension
+// index for the 'OMX.google.android.index.prependSPSPPSToIDRFrames' extension
+// is given.
+// A successful result indicates that future IDR frames will be prefixed by
+// SPS/PPS.
+struct PrependSPSPPSToIDRFramesParams {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_BOOL bEnable;
+};
 
 }  // namespace android
 
