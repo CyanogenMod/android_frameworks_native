@@ -125,6 +125,8 @@ public:
     static EGLBoolean makeCurrent(EGLDisplay dpy,
             const sp<const DisplayDevice>& hw, EGLContext ctx);
 
+    static void setViewportAndProjection(const sp<const DisplayDevice>& hw);
+
     /* ------------------------------------------------------------------------
      * blank / unblank management
      */

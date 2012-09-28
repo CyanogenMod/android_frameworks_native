@@ -2510,6 +2510,8 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(uint32_t layerStack,
     glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
             GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
 
+    DisplayDevice::setViewportAndProjection(hw);
+
     // redraw the screen entirely...
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
