@@ -940,8 +940,31 @@ void SurfaceFlinger::setUpHWComposer() {
     HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         // build the h/w work list
-        const bool workListsDirty = mHwWorkListDirty;
-        mHwWorkListDirty = false;
+        if (CC_UNLIKELY(mHwWorkListDirty)) {
+            mHwWorkListDirty = false;
+            for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+                sp<const DisplayDevice> hw(mDisplays[dpy]);
+                const int32_t id = hw->getHwcDisplayId();
+                if (id >= 0) {
+                    const Vector< sp<LayerBase> >& currentLayers(
+                        hw->getVisibleLayersSortedByZ());
+                    const size_t count = currentLayers.size();
+                    if (hwc.createWorkList(id, count) == NO_ERROR) {
+                        HWComposer::LayerListIterator cur = hwc.begin(id);
+                        const HWComposer::LayerListIterator end = hwc.end(id);
+                        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                            const sp<LayerBase>& layer(currentLayers[i]);
+                            layer->setGeometry(hw, *cur);
+                            if (mDebugDisableHWC || mDebugRegion) {
+                                cur->setSkip(true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // set the per-frame data
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
             const int32_t id = hw->getHwcDisplayId();
@@ -949,28 +972,19 @@ void SurfaceFlinger::setUpHWComposer() {
                 const Vector< sp<LayerBase> >& currentLayers(
                     hw->getVisibleLayersSortedByZ());
                 const size_t count = currentLayers.size();
-                if (hwc.createWorkList(id, count) >= 0) {
-                    HWComposer::LayerListIterator cur = hwc.begin(id);
-                    const HWComposer::LayerListIterator end = hwc.end(id);
-                    for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-                        const sp<LayerBase>& layer(currentLayers[i]);
-
-                        if (CC_UNLIKELY(workListsDirty)) {
-                            layer->setGeometry(hw, *cur);
-                            if (mDebugDisableHWC || mDebugRegion) {
-                                cur->setSkip(true);
-                            }
-                        }
-
-                        /*
-                         * update the per-frame h/w composer data for each layer
-                         * and build the transparent region of the FB
-                         */
-                        layer->setPerFrameData(hw, *cur);
-                    }
+                HWComposer::LayerListIterator cur = hwc.begin(id);
+                const HWComposer::LayerListIterator end = hwc.end(id);
+                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                    /*
+                     * update the per-frame h/w composer data for each layer
+                     * and build the transparent region of the FB
+                     */
+                    const sp<LayerBase>& layer(currentLayers[i]);
+                    layer->setPerFrameData(hw, *cur);
                 }
             }
         }
+
         status_t err = hwc.prepare();
         ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
     }
