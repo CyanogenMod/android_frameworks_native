@@ -48,7 +48,7 @@ using namespace android;
 #define DEBUG_PRINT_CALL_STACK_ON_ERROR 0
 #define SYSTRACE_CALL_GL_API 0
 
-#if USE_FAST_TLS_KEY___
+#if USE_FAST_TLS_KEY
 
     #ifdef HAVE_ARM_TLS_REGISTER
         #define GET_TLS(reg) \
