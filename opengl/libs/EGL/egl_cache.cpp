@@ -30,11 +30,11 @@
 #endif
 
 #ifndef MAX_EGL_CACHE_SIZE
-#define MAX_EGL_CACHE_SIZE (64 * 1024);
+#define MAX_EGL_CACHE_SIZE (2096 * 1024);
 #endif
 
 // Cache size limits.
-static const size_t maxKeySize = 1024;
+static const size_t maxKeySize = 4096;
 static const size_t maxValueSize = MAX_EGL_CACHE_ENTRY_SIZE;
 static const size_t maxTotalSize = MAX_EGL_CACHE_SIZE;
 
