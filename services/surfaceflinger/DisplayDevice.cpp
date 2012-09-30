@@ -273,6 +273,7 @@ void DisplayDevice::setViewportAndProjection(const sp<const DisplayDevice>& hw) 
     glLoadIdentity();
     // put the origin in the left-bottom corner
     glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
+    glMatrixMode(GL_MODELVIEW);
 }
 
 // ----------------------------------------------------------------------------
