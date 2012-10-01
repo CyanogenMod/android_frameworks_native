@@ -2597,6 +2597,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
     if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
 
         // invert everything, b/c glReadPixel() below will invert the FB
+        GLint  viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
         glViewport(0, 0, sw, sh);
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
@@ -2645,7 +2647,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
                 result = NO_MEMORY;
             }
         }
-        glViewport(0, 0, hw_w, hw_h);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
