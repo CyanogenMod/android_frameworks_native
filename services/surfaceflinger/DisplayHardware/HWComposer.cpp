@@ -613,6 +613,7 @@ int HWComposer::getAndResetReleaseFenceFd(int32_t id) {
         const DisplayData& disp(mDisplayData[id]);
         if (disp.framebufferTarget) {
             fd = disp.framebufferTarget->releaseFenceFd;
+            disp.framebufferTarget->acquireFenceFd = -1;
             disp.framebufferTarget->releaseFenceFd = -1;
         }
     }
