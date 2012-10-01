@@ -236,11 +236,9 @@ void fixup_glShaderSource(GLMessage *glmsg, void *pointersToFixup[]) {
     ::std::string src = "";
     for (int i = 0; i < count; i++) {
         if (lengthp != NULL)
-            src.append(*stringpp, *lengthp);
+            src.append(*stringpp++, *lengthp++);
         else
-            src.append(*stringpp);  // assume null terminated
-        stringpp++;
-        lengthp++;
+            src.append(*stringpp++);  // assume null terminated
     }
 
     arg_strpp->add_charvalue(src);
