@@ -686,7 +686,7 @@ int HWComposer::fbPost(int32_t id,
         return setFramebufferTarget(id, acquireFence, buffer);
     } else {
         if (acquireFence != NULL) {
-            acquireFence->wait(Fence::TIMEOUT_NEVER);
+            acquireFence->waitForever(1000, "HWComposer::fbPost");
         }
         return mFbDev->post(mFbDev, buffer->handle);
     }
