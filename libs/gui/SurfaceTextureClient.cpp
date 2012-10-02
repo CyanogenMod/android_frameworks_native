@@ -129,15 +129,18 @@ int SurfaceTextureClient::hook_queueBuffer(ANativeWindow* window,
 int SurfaceTextureClient::hook_dequeueBuffer_DEPRECATED(ANativeWindow* window,
         ANativeWindowBuffer** buffer) {
     SurfaceTextureClient* c = getSelf(window);
+    ANativeWindowBuffer* buf;
     int fenceFd = -1;
-    int result = c->dequeueBuffer(buffer, &fenceFd);
+    int result = c->dequeueBuffer(&buf, &fenceFd);
     sp<Fence> fence(new Fence(fenceFd));
-    int waitResult = fence->wait(Fence::TIMEOUT_NEVER);
+    int waitResult = fence->waitForever(1000, "dequeueBuffer_DEPRECATED");
     if (waitResult != OK) {
-        ALOGE("hook_dequeueBuffer_DEPRECATED: Fence::wait returned an "
-                "error: %d", waitResult);
+        ALOGE("dequeueBuffer_DEPRECATED: Fence::wait returned an error: %d",
+                waitResult);
+        c->cancelBuffer(buf, -1);
         return waitResult;
     }
+    *buffer = buf;
     return result;
 }
 
@@ -751,7 +754,7 @@ status_t SurfaceTextureClient::lock(
         sp<GraphicBuffer> backBuffer(GraphicBuffer::getSelf(out));
         sp<Fence> fence(new Fence(fenceFd));
 
-        err = fence->wait(Fence::TIMEOUT_NEVER);
+        err = fence->waitForever(1000, "SurfaceTextureClient::lock");
         if (err != OK) {
             ALOGE("Fence::wait failed (%s)", strerror(-err));
             cancelBuffer(out, fenceFd);

@@ -812,7 +812,8 @@ status_t SurfaceTexture::doGLFenceWaitLocked() const {
                 return UNKNOWN_ERROR;
             }
         } else {
-            status_t err = mCurrentFence->wait(Fence::TIMEOUT_NEVER);
+            status_t err = mCurrentFence->waitForever(1000,
+                    "SurfaceTexture::doGLFenceWaitLocked");
             if (err != NO_ERROR) {
                 ST_LOGE("doGLFenceWait: error waiting for fence: %d", err);
                 return err;

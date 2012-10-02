@@ -78,7 +78,7 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     int buf = b.mBuf;
 
     if (b.mFence.get()) {
-        err = b.mFence->wait(Fence::TIMEOUT_NEVER);
+        err = b.mFence->waitForever(1000, "CpuConsumer::lockNextBuffer");
         if (err != OK) {
             CC_LOGE("Failed to wait for fence of acquired buffer: %s (%d)",
                     strerror(-err), err);

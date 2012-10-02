@@ -50,6 +50,20 @@ int Fence::wait(unsigned int timeout) {
     return sync_wait(mFenceFd, timeout);
 }
 
+int Fence::waitForever(unsigned int warningTimeout, const char* logname) {
+    ATRACE_CALL();
+    if (mFenceFd == -1) {
+        return NO_ERROR;
+    }
+    int err = sync_wait(mFenceFd, warningTimeout);
+    if (err == -ETIME) {
+        ALOGE("%s: fence %d didn't signal in %u ms", logname, mFenceFd,
+                warningTimeout);
+        err = sync_wait(mFenceFd, TIMEOUT_NEVER);
+    }
+    return err;
+}
+
 sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
         const sp<Fence>& f2) {
     ATRACE_CALL();
