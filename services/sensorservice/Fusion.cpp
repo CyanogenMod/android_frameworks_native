@@ -201,15 +201,15 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     // q11 = su^2.dt
     //
 
-    const float dT2 = dT*dT;
-    const float dT3 = dT2*dT;
-
-    // variance of integrated output at 1/dT Hz (random drift)
-    const float q00 = gyroVAR * dT + 0.33333f * biasVAR * dT3;
+    // variance of integrated output at 1/dT Hz
+    // (random drift)
+    const float q00 = gyroVAR * dT;
 
     // variance of drift rate ramp
     const float q11 = biasVAR * dT;
-    const float q10 = 0.5f * biasVAR * dT2;
+
+    const float u   = q11 / dT;
+    const float q10 = 0.5f*u*dT*dT;
     const float q01 = q10;
 
     GQGt[0][0] =  q00;      // rad^2
@@ -220,22 +220,6 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     // initial covariance: Var{ x(t0) }
     // TODO: initialize P correctly
     P = 0;
-
-    // it is unclear how to set the initial covariance. It does affect
-    // how quickly the fusion converges. Experimentally it would take
-    // about 10 seconds at 200 Hz to estimate the gyro-drift with an
-    // initial covariance of 0, and about a second with an initial covariance
-    // of about 1 deg/s.
-    const float covv = 0;
-    const float covu = 0.5f * (float(M_PI) / 180);
-    mat33_t& Pv = P[0][0];
-    Pv[0][0] = covv;
-    Pv[1][1] = covv;
-    Pv[2][2] = covv;
-    mat33_t& Pu = P[1][1];
-    Pu[0][0] = covu;
-    Pu[1][1] = covu;
-    Pu[2][2] = covu;
 }
 
 bool Fusion::hasEstimate() const {
@@ -373,11 +357,6 @@ mat33_t Fusion::getRotationMatrix() const {
 
 mat34_t Fusion::getF(const vec4_t& q) {
     mat34_t F;
-
-    // This is used to compute the derivative of q
-    // F = | [q.xyz]x |
-    //     |  -q.xyz  |
-
     F[0].x = q.w;   F[1].x =-q.z;   F[2].x = q.y;
     F[0].y = q.z;   F[1].y = q.w;   F[2].y =-q.x;
     F[0].z =-q.y;   F[1].z = q.x;   F[2].z = q.w;
@@ -389,18 +368,10 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const vec4_t q  = x0;
     const vec3_t b  = x1;
     const vec3_t we = w - b;
+    const vec4_t dq = getF(q)*((0.5f*dT)*we);
+    x0 = normalize_quat(q + dq);
 
-    // q(k+1) = O(we)*q(k)
-    // --------------------
-    //
-    // O(w) = | cos(0.5*||w||*dT)*I33 - [psi]x                   psi |
-    //        | -psi'                              cos(0.5*||w||*dT) |
-    //
-    // psi = sin(0.5*||w||*dT)*w / ||w||
-    //
-    //
     // P(k+1) = Phi(k)*P(k)*Phi(k)' + G*Q(k)*G'
-    // ----------------------------------------
     //
     // G = | -I33    0 |
     //     |    0  I33 |
@@ -421,25 +392,12 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const mat33_t wx(crossMatrix(we, 0));
     const mat33_t wx2(wx*wx);
     const float lwedT = length(we)*dT;
-    const float hlwedT = 0.5f*lwedT;
     const float ilwe = 1/length(we);
     const float k0 = (1-cosf(lwedT))*(ilwe*ilwe);
     const float k1 = sinf(lwedT);
-    const float k2 = cosf(hlwedT);
-    const vec3_t psi(sinf(hlwedT)*ilwe*we);
-    const mat33_t O33(crossMatrix(-psi, k2));
-    mat44_t O;
-    O[0].xyz = O33[0];  O[0].w = -psi.x;
-    O[1].xyz = O33[1];  O[1].w = -psi.y;
-    O[2].xyz = O33[2];  O[2].w = -psi.z;
-    O[3].xyz = psi;     O[3].w = k2;
 
     Phi[0][0] = I33 - wx*(k1*ilwe) + wx2*k0;
     Phi[1][0] = wx*k0 - I33dT - wx2*(ilwe*ilwe*ilwe)*(lwedT-k1);
-
-    x0 = O*q;
-    if (x0.w < 0)
-        x0 = -x0;
 
     P = Phi*P*transpose(Phi) + GQGt;
 
@@ -467,12 +425,7 @@ void Fusion::update(const vec3_t& z, const vec3_t& Bi, float sigma) {
     K[1] = transpose(P[1][0])*LtSi;
 
     // update...
-    // P = (I-K*H) * P
-    // P -= K*H*P
-    // | K0 | * | L 0 | * P = | K0*L  0 | * | P00  P10 | = | K0*L*P00  K0*L*P10 |
-    // | K1 |                 | K1*L  0 |   | P01  P11 |   | K1*L*P00  K1*L*P10 |
-    // Note: the Joseph form is numerically more stable and given by:
-    //     P = (I-KH) * P * (I-KH)' + K*R*R'
+    // P -= K*H*P;
     const mat33_t K0L(K[0] * L);
     const mat33_t K1L(K[1] * L);
     P[0][0] -= K0L*P[0][0];
