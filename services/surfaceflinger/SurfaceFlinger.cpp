@@ -1123,7 +1123,13 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 if (j < 0) {
                     // in drawing state but not in current state
                     if (!draw[i].isMainDisplay()) {
+                        // Call makeCurrent() on the primary display so we can
+                        // be sure that nothing associated with this display
+                        // is current.
+                        const sp<const DisplayDevice>& hw(getDefaultDisplayDevice());
+                        DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
                         mDisplays.removeItem(draw.keyAt(i));
+                        getHwComposer().disconnectDisplay(draw[i].type);
                     } else {
                         ALOGW("trying to remove the main display");
                     }
