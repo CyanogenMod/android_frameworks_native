@@ -32,23 +32,6 @@
 #include <gui/SurfaceTexture.h>
 #include <utils/Trace.h>
 
-// This compile option causes SurfaceTexture to return the buffer that is currently
-// attached to the GL texture from dequeueBuffer when no other buffers are
-// available.  It requires the drivers (Gralloc, GL, OMX IL, and Camera) to do
-// implicit cross-process synchronization to prevent the buffer from being
-// written to before the buffer has (a) been detached from the GL texture and
-// (b) all GL reads from the buffer have completed.
-
-// During refactoring, do not support dequeuing the current buffer
-#undef ALLOW_DEQUEUE_CURRENT_BUFFER
-
-#ifdef ALLOW_DEQUEUE_CURRENT_BUFFER
-#define FLAG_ALLOW_DEQUEUE_CURRENT_BUFFER    true
-#warning "ALLOW_DEQUEUE_CURRENT_BUFFER enabled"
-#else
-#define FLAG_ALLOW_DEQUEUE_CURRENT_BUFFER    false
-#endif
-
 // Macros for including the BufferQueue name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
 #define ST_LOGD(x, ...) ALOGD("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
@@ -325,24 +308,16 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
                     dequeuedCount++;
                 }
 
-                // this logic used to be if (FLAG_ALLOW_DEQUEUE_CURRENT_BUFFER)
-                // but dequeuing the current buffer is disabled.
-                if (false) {
-                    // This functionality has been temporarily removed so
-                    // BufferQueue and SurfaceTexture can be refactored into
-                    // separate objects
-                } else {
-                    if (state == BufferSlot::FREE) {
-                        /* We return the oldest of the free buffers to avoid
-                         * stalling the producer if possible.  This is because
-                         * the consumer may still have pending reads of the
-                         * buffers in flight.
-                         */
-                        bool isOlder = mSlots[i].mFrameNumber <
-                                mSlots[found].mFrameNumber;
-                        if (found < 0 || isOlder) {
-                            found = i;
-                        }
+                if (state == BufferSlot::FREE) {
+                    /* We return the oldest of the free buffers to avoid
+                     * stalling the producer if possible.  This is because
+                     * the consumer may still have pending reads of the
+                     * buffers in flight.
+                     */
+                    bool isOlder = mSlots[i].mFrameNumber <
+                            mSlots[found].mFrameNumber;
+                    if (found < 0 || isOlder) {
+                        found = i;
                     }
                 }
             }
