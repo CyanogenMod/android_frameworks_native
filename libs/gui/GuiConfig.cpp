@@ -28,8 +28,8 @@ void appendGuiConfigString(String8& configStr)
 #ifdef USE_NATIVE_FENCE_SYNC
             " USE_NATIVE_FENCE_SYNC"
 #endif
-#ifdef ALLOW_DEQUEUE_CURRENT_BUFFER
-            " ALLOW_DEQUEUE_CURRENT_BUFFER"
+#ifdef USE_WAIT_SYNC
+            " USE_WAIT_SYNC"
 #endif
             "]";
     configStr.append(config);

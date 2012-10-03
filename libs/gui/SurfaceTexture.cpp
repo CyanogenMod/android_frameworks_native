@@ -63,16 +63,6 @@ static const bool useWaitSync = true;
 static const bool useWaitSync = false;
 #endif
 
-// This compile option makes SurfaceTexture use the EGL_KHR_fence_sync extension
-// to synchronize access to the buffers.  It will cause dequeueBuffer to stall,
-// waiting for the GL reads for the buffer being dequeued to complete before
-// allowing the buffer to be dequeued.
-#ifdef USE_FENCE_SYNC
-#ifdef ALLOW_DEQUEUE_CURRENT_BUFFER
-#error "USE_FENCE_SYNC and ALLOW_DEQUEUE_CURRENT_BUFFER are incompatible"
-#endif
-#endif
-
 // Macros for including the SurfaceTexture name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGD(x, ...) ALOGD("[%s] "x, mName.string(), ##__VA_ARGS__)
