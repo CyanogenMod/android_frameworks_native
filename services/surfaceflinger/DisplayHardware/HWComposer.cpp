@@ -540,7 +540,12 @@ status_t HWComposer::prepare() {
             // DO NOT reset the handle field to NULL, because it's possible
             // that we have nothing to redraw (eg: eglSwapBuffers() not called)
             // in which case, we should continue to use the same buffer.
+            LOG_FATAL_IF(disp.list == NULL);
             disp.framebufferTarget->compositionType = HWC_FRAMEBUFFER_TARGET;
+        }
+        if (!disp.connected && disp.list != NULL) {
+            ALOGW("WARNING: disp %d: connected, non-null list, layers=%d",
+                  i, disp.list->numHwLayers);
         }
         mLists[i] = disp.list;
         if (mLists[i]) {
@@ -662,6 +667,17 @@ status_t HWComposer::acquire(int disp) const {
         return (status_t)mHwc->blank(mHwc, disp, 0);
     }
     return NO_ERROR;
+}
+
+void HWComposer::disconnectDisplay(int disp) {
+    LOG_ALWAYS_FATAL_IF(disp < 0 || disp == HWC_DISPLAY_PRIMARY ||
+                        disp >= HWC_NUM_DISPLAY_TYPES);
+    DisplayData& dd(mDisplayData[disp]);
+    if (dd.list != NULL) {
+        free(dd.list);
+        dd.list = NULL;
+        dd.framebufferTarget = NULL;    // points into dd.list
+    }
 }
 
 int HWComposer::getVisualID() const {
