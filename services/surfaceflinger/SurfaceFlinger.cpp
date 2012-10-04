@@ -1707,8 +1707,12 @@ void SurfaceFlinger::setTransactionState(
 
 uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
 {
+    ssize_t dpyIdx = mCurrentState.displays.indexOfKey(s.token);
+    if (dpyIdx < 0)
+        return 0;
+
     uint32_t flags = 0;
-    DisplayDeviceState& disp(mCurrentState.displays.editValueFor(s.token));
+    DisplayDeviceState& disp(mCurrentState.displays.editValueAt(dpyIdx));
     if (disp.isValid()) {
         const uint32_t what = s.what;
         if (what & DisplayState::eSurfaceChanged) {
