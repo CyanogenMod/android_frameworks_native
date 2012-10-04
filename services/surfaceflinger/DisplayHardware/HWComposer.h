@@ -92,10 +92,10 @@ public:
     status_t commit();
 
     // release hardware resources and blank screen
-    status_t release(int disp) const;
+    status_t release(int disp);
 
     // acquire hardware resources and unblank screen
-    status_t acquire(int disp) const;
+    status_t acquire(int disp);
 
     // reset state when an external, non-virtual display is disconnected
     void disconnectDisplay(int disp);
@@ -226,7 +226,7 @@ public:
         EVENT_VSYNC = HWC_EVENT_VSYNC
     };
 
-    void eventControl(int event, int enabled);
+    void eventControl(int disp, int event, int enabled);
 
     // Query display parameters.  Pass in a display index (e.g.
     // HWC_DISPLAY_PRIMARY).
@@ -289,7 +289,7 @@ private:
         DisplayData() : xdpi(0), ydpi(0), refresh(0),
             connected(false), hasFbComp(false), hasOvComp(false),
             capacity(0), list(NULL),
-            framebufferTarget(NULL), fbTargetHandle(NULL) { }
+            framebufferTarget(NULL), fbTargetHandle(NULL), events(0) { }
         ~DisplayData() {
             free(list);
         }
@@ -306,6 +306,8 @@ private:
         hwc_display_contents_1* list;
         hwc_layer_1* framebufferTarget;
         buffer_handle_t fbTargetHandle;
+        // protected by mEventControlLock
+        int32_t events;
     };
 
     sp<SurfaceFlinger>              mFlinger;
@@ -327,6 +329,9 @@ private:
     // protected by mLock
     mutable Mutex mLock;
     mutable nsecs_t mLastHwVSync;
+
+    // thread-safe
+    mutable Mutex mEventControlLock;
 };
 
 // ---------------------------------------------------------------------------
