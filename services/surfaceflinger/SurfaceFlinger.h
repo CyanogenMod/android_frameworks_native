@@ -123,7 +123,7 @@ public:
 
     // enable/disable h/w composer event
     // TODO: this should be made accessible only to EventThread
-    void eventControl(int event, int enabled);
+    void eventControl(int disp, int event, int enabled);
 
     // called on the main thread by MessageQueue when an internal message
     // is received

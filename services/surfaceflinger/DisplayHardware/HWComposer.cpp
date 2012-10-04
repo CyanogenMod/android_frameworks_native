@@ -147,7 +147,7 @@ HWComposer::HWComposer(
         // don't need a vsync thread if we have a hardware composer
         needVSyncThread = false;
         // always turn vsync off when we start
-        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
+        eventControl(HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
 
         // these IDs are always reserved
         for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
@@ -202,7 +202,7 @@ HWComposer::HWComposer(
 
 HWComposer::~HWComposer() {
     if (mHwc) {
-        mHwc->eventControl(mHwc, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
+        eventControl(HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
     }
     if (mVSyncThread != NULL) {
         mVSyncThread->requestExitAndWait();
@@ -443,16 +443,32 @@ bool HWComposer::isConnected(int disp) const {
     return mDisplayData[disp].connected;
 }
 
-void HWComposer::eventControl(int event, int enabled) {
+void HWComposer::eventControl(int disp, int event, int enabled) {
+    if (uint32_t(disp)>31 || !mAllocatedDisplayIDs.hasBit(disp)) {
+        return;
+    }
     status_t err = NO_ERROR;
-    if (mHwc) {
-        if (!mDebugForceFakeVSync) {
-            err = mHwc->eventControl(mHwc, 0, event, enabled);
-            // error here should not happen -- not sure what we should
-            // do if it does.
-            ALOGE_IF(err, "eventControl(%d, %d) failed %s",
-                    event, enabled, strerror(-err));
+    if (mHwc && !mDebugForceFakeVSync) {
+        // NOTE: we use our own internal lock here because we have to call
+        // into the HWC with the lock held, and we want to make sure
+        // that even if HWC blocks (which it shouldn't), it won't
+        // affect other threads.
+        Mutex::Autolock _l(mEventControlLock);
+        const int32_t eventBit = 1UL << event;
+        const int32_t newValue = enabled ? eventBit : 0;
+        const int32_t oldValue = mDisplayData[disp].events & eventBit;
+        if (newValue != oldValue) {
+            ATRACE_CALL();
+            err = mHwc->eventControl(mHwc, disp, event, enabled);
+            if (!err) {
+                int32_t& events(mDisplayData[disp].events);
+                events = (events & ~eventBit) | newValue;
+            }
         }
+        // error here should not happen -- not sure what we should
+        // do if it does.
+        ALOGE_IF(err, "eventControl(%d, %d) failed %s",
+                event, enabled, strerror(-err));
     }
 
     if (err == NO_ERROR && mVSyncThread != NULL) {
@@ -652,16 +668,16 @@ status_t HWComposer::commit() {
     return (status_t)err;
 }
 
-status_t HWComposer::release(int disp) const {
+status_t HWComposer::release(int disp) {
     LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
     if (mHwc) {
-        mHwc->eventControl(mHwc, disp, HWC_EVENT_VSYNC, 0);
+        eventControl(disp, HWC_EVENT_VSYNC, 0);
         return (status_t)mHwc->blank(mHwc, disp, 1);
     }
     return NO_ERROR;
 }
 
-status_t HWComposer::acquire(int disp) const {
+status_t HWComposer::acquire(int disp) {
     LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
     if (mHwc) {
         return (status_t)mHwc->blank(mHwc, disp, 0);
@@ -965,8 +981,10 @@ HWComposer::VSyncThread::VSyncThread(HWComposer& hwc)
 
 void HWComposer::VSyncThread::setEnabled(bool enabled) {
     Mutex::Autolock _l(mLock);
-    mEnabled = enabled;
-    mCondition.signal();
+    if (mEnabled != enabled) {
+        mEnabled = enabled;
+        mCondition.signal();
+    }
 }
 
 void HWComposer::VSyncThread::onFirstRef() {

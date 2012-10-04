@@ -777,8 +777,8 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
     }
 }
 
-void SurfaceFlinger::eventControl(int event, int enabled) {
-    getHwComposer().eventControl(event, enabled);
+void SurfaceFlinger::eventControl(int disp, int event, int enabled) {
+    getHwComposer().eventControl(disp, event, enabled);
 }
 
 void SurfaceFlinger::onMessageReceived(int32_t what) {
