@@ -97,6 +97,9 @@ public:
     // acquire hardware resources and unblank screen
     status_t acquire(int disp) const;
 
+    // reset state when an external, non-virtual display is disconnected
+    void disconnectDisplay(int disp);
+
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(int32_t id, size_t numLayers);
 
