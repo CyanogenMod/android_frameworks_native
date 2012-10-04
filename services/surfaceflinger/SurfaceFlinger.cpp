@@ -2333,13 +2333,18 @@ void SurfaceFlinger::dumpAllLocked(
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
                     (mDebugDisableHWC || mDebugRegion) ? "disabled" : "enabled");
     result.append(buffer);
-    hwc.dump(result, buffer, SIZE, hw->getVisibleLayersSortedByZ());
+    hwc.dump(result, buffer, SIZE);
 
     /*
      * Dump gralloc state
      */
     const GraphicBufferAllocator& alloc(GraphicBufferAllocator::get());
     alloc.dump(result);
+}
+
+const Vector< sp<LayerBase> >&
+SurfaceFlinger::getLayerSortedByZForHwcDisplay(int disp) {
+    return getDisplayDevice( getBuiltInDisplay(disp) )->getVisibleLayersSortedByZ();
 }
 
 bool SurfaceFlinger::startDdmConnection()

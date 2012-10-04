@@ -130,6 +130,10 @@ public:
     // TODO: this should be made accessible only to MessageQueue
     void onMessageReceived(int32_t what);
 
+    // for debugging only
+    // TODO: this should be made accessible only to HWComposer
+    const Vector< sp<LayerBase> >& getLayerSortedByZForHwcDisplay(int disp);
+
 private:
     friend class Client;
     friend class DisplayEventConnection;
