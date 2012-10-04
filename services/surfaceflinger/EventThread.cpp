@@ -308,14 +308,14 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
 void EventThread::enableVSyncLocked() {
     if (!mUseSoftwareVSync) {
         // never enable h/w VSYNC when screen is off
-        mFlinger->eventControl(SurfaceFlinger::EVENT_VSYNC, true);
+        mFlinger->eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
         mPowerHAL.vsyncHint(true);
     }
     mDebugVsyncEnabled = true;
 }
 
 void EventThread::disableVSyncLocked() {
-    mFlinger->eventControl(SurfaceFlinger::EVENT_VSYNC, false);
+    mFlinger->eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
     mPowerHAL.vsyncHint(false);
     mDebugVsyncEnabled = false;
 }
