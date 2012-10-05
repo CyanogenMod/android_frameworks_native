@@ -193,7 +193,12 @@ status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item) {
 }
 
 status_t ConsumerBase::addReleaseFence(int slot, const sp<Fence>& fence) {
-    CB_LOGV("addReleaseFence: slot=%d", slot);
+    Mutex::Autolock lock(mMutex);
+    return addReleaseFenceLocked(slot, fence);
+}
+
+status_t ConsumerBase::addReleaseFenceLocked(int slot, const sp<Fence>& fence) {
+    CB_LOGV("addReleaseFenceLocked: slot=%d", slot);
 
     if (!mSlots[slot].mFence.get()) {
         mSlots[slot].mFence = fence;

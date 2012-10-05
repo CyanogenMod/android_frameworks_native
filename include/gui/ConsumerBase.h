@@ -150,16 +150,17 @@ protected:
     // Derived classes should override this method to perform any cleanup that
     // must take place when a buffer is released back to the BufferQueue.  If
     // it is overridden the derived class's implementation must call
-    // ConsumerBase::acquireBufferLocked.
+    // ConsumerBase::releaseBufferLocked.
     virtual status_t releaseBufferLocked(int buf, EGLDisplay display,
            EGLSyncKHR eglFence);
 
-    // addReleaseFence adds the sync points associated with a fence to the set
+    // addReleaseFence* adds the sync points associated with a fence to the set
     // of sync points that must be reached before the buffer in the given slot
     // may be used after the slot has been released.  This should be called by
     // derived classes each time some asynchronous work is kicked off that
     // references the buffer.
     status_t addReleaseFence(int slot, const sp<Fence>& fence);
+    status_t addReleaseFenceLocked(int slot, const sp<Fence>& fence);
 
     // Slot contains the information and object references that
     // ConsumerBase maintains about a BufferQueue buffer slot.

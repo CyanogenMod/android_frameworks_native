@@ -484,7 +484,7 @@ status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
                 return UNKNOWN_ERROR;
             }
             sp<Fence> fence(new Fence(fenceFd));
-            status_t err = addReleaseFence(mCurrentTexture, fence);
+            status_t err = addReleaseFenceLocked(mCurrentTexture, fence);
             if (err != OK) {
                 ST_LOGE("syncForReleaseLocked: error adding release fence: "
                         "%s (%d)", strerror(-err), err);
