@@ -48,4 +48,4 @@
 # NEWER CLEAN STEPS MUST BE AT THE END OF THE LIST
 # ************************************************
 $(call add-clean-step, find $(PRODUCT_OUT) -type f -name "libgui*" -print0 | xargs -0 rm -f)
-$(call add-clean-step, rm -rf $PRODUCT_OUT/obj/SHARED_LIBRARIES/libgui_intermediates)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/obj/SHARED_LIBRARIES/libgui_intermediates)
