@@ -686,8 +686,11 @@ status_t HWComposer::acquire(int disp) {
 }
 
 void HWComposer::disconnectDisplay(int disp) {
-    LOG_ALWAYS_FATAL_IF(disp < 0 || disp == HWC_DISPLAY_PRIMARY ||
-                        disp >= HWC_NUM_DISPLAY_TYPES);
+    LOG_ALWAYS_FATAL_IF(disp < 0 || disp == HWC_DISPLAY_PRIMARY);
+    if (disp >= HWC_NUM_DISPLAY_TYPES) {
+        // nothing to do for these yet
+        return;
+    }
     DisplayData& dd(mDisplayData[disp]);
     if (dd.list != NULL) {
         free(dd.list);
