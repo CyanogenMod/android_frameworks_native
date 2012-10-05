@@ -82,7 +82,7 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
 
     Mutex::Autolock _l(mMutex);
 
-    err = addReleaseFence(item.mBuf, releaseFence);
+    err = addReleaseFenceLocked(item.mBuf, releaseFence);
 
     err = releaseBufferLocked(item.mBuf, EGL_NO_DISPLAY,
             EGL_NO_SYNC_KHR);
