@@ -93,6 +93,11 @@ static const char* k_tracePath =
 static const char* k_traceMarkerPath =
     "/sys/kernel/debug/tracing/trace_marker";
 
+// Check whether a file exists.
+static bool fileExists(const char* filename) {
+    return access(filename, F_OK) != -1;
+}
+
 // Write a string to a file, returning true if the write was successful.
 bool writeStr(const char* filename, const char* str)
 {
@@ -151,11 +156,14 @@ static bool setSchedSwitchTracingEnable(bool enable)
 // Enable or disable tracing of the Bus utilization.
 static bool setBusUtilizationTracingEnable(bool enable)
 {
-    bool ok = false;
+    bool ok = true, oneSet = false;
     // these can be platform specific so make sure that at least
     // one succeeds.
-    ok |= setKernelOptionEnable(k_memoryBusEnablePath, enable);
-    return ok;
+    if (fileExists(k_memoryBusEnablePath)) {
+        ok &= setKernelOptionEnable(k_memoryBusEnablePath, enable);
+        oneSet |= ok;
+    }
+    return ok && (oneSet || !enable);
 }
 
 // Enable or disable tracing of the CPU clock frequency.
@@ -163,7 +171,9 @@ static bool setFrequencyTracingEnable(bool enable)
 {
     bool ok = true;
     ok &= setKernelOptionEnable(k_cpuFreqEnablePath, enable);
-    ok &= setKernelOptionEnable(k_clockSetRateEnablePath, enable);
+    if (fileExists(k_clockSetRateEnablePath)) {
+        ok &= setKernelOptionEnable(k_clockSetRateEnablePath, enable);
+    }
     return ok;
 }
 
@@ -177,7 +187,11 @@ static bool setCpuIdleTracingEnable(bool enable)
 // the CPU load.
 static bool setGovernorLoadTracingEnable(bool enable)
 {
-    return setKernelOptionEnable(k_governorLoadEnablePath, enable);
+    bool ok = true;
+    if (fileExists(k_governorLoadEnablePath) || enable) {
+        ok &= setKernelOptionEnable(k_governorLoadEnablePath, enable);
+    }
+    return ok;
 }
 
 // Enable or disable tracing of the kernel workqueues.
@@ -232,11 +246,6 @@ static bool setGlobalClockEnable(bool enable)
     return writeStr(k_traceClockPath, enable ? "global" : "local");
 }
 
-// Check whether a file exists.
-static bool fileExists(const char* filename) {
-    return access(filename, F_OK) != -1;
-}
-
 // Enable tracing in the kernel.
 static bool startTrace(bool isRoot)
 {
@@ -245,12 +254,9 @@ static bool startTrace(bool isRoot)
     // Set up the tracing options that don't require root.
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setSchedSwitchTracingEnable(g_traceSchedSwitch);
-    ok &= setBusUtilizationTracingEnable(g_traceBusUtilization);
     ok &= setFrequencyTracingEnable(g_traceFrequency);
     ok &= setCpuIdleTracingEnable(g_traceCpuIdle);
-    if (fileExists(k_governorLoadEnablePath) || g_traceGovernorLoad) {
-        ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
-    }
+    ok &= setGovernorLoadTracingEnable(g_traceGovernorLoad);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
 
@@ -258,6 +264,7 @@ static bool startTrace(bool isRoot)
     // require root should have errored out earlier if we're not running as
     // root.
     if (isRoot) {
+        ok &= setBusUtilizationTracingEnable(g_traceBusUtilization);
         ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
         ok &= setDiskTracingEnabled(g_traceDisk);
     }
@@ -281,14 +288,12 @@ static void stopTrace(bool isRoot)
     // Set the options back to their defaults.
     setTraceOverwriteEnable(true);
     setSchedSwitchTracingEnable(false);
-    setBusUtilizationTracingEnable(false);
     setFrequencyTracingEnable(false);
-    if (fileExists(k_governorLoadEnablePath)) {
-        setGovernorLoadTracingEnable(false);
-    }
+    setGovernorLoadTracingEnable(false);
     setGlobalClockEnable(false);
 
     if (isRoot) {
+        setBusUtilizationTracingEnable(false);
         setWorkqueueTracingEnabled(false);
         setDiskTracingEnabled(false);
     }
