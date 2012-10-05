@@ -44,9 +44,17 @@ using namespace android;
 #undef CALL_GL_API
 #undef CALL_GL_API_RETURN
 
+#ifdef IS_MANTA
+#define DEBUG_CALL_GL_API 1
+#else
 #define DEBUG_CALL_GL_API 0
+#endif
 #define DEBUG_PRINT_CALL_STACK_ON_ERROR 0
 #define SYSTRACE_CALL_GL_API 0
+
+#ifdef IS_MANTA
+#undef USE_FAST_TLS_KEY
+#endif
 
 #if USE_FAST_TLS_KEY
 
@@ -91,7 +99,7 @@ using namespace android;
         GLenum status = GL_NO_ERROR; \
         bool error = false; \
         while ((status = glGetError()) != GL_NO_ERROR) { \
-            ALOGD("[" #_api "] 0x%x", status); \
+            ALOGD("GL Error: [" #_api "] 0x%x", status); \
             error = true; \
         } \
         if (DEBUG_PRINT_CALL_STACK_ON_ERROR && error) { \
