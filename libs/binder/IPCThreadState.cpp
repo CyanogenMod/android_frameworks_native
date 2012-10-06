@@ -482,6 +482,18 @@ void IPCThreadState::joinThreadPool(bool isMain)
         if(result == TIMED_OUT && !isMain) {
             break;
         }
+
+        // HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK
+        // FIXME: we sometimes get unexplained EINVAL which causes this
+        // thread to spin forever. TEMPORARILY allow it to exit.
+        // We should probably assert on eng builds
+        if(result == -EINVAL && !isMain) {
+            ALOGE("**** THREAD %p (PID %d) ERROR (%d) LEAVING THE THREAD POOL\n",
+                (void*)pthread_self(), getpid(), result);
+            break;
+        }
+        // HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK HACK
+
     } while (result != -ECONNREFUSED && result != -EBADF);
 
     LOG_THREADPOOL("**** THREAD %p (PID %d) IS LEAVING THE THREAD POOL err=%p\n",
