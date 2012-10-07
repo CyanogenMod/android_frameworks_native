@@ -78,10 +78,10 @@ void DdmConnection::start(const char* name) {
             startClass = env->FindClass("android/ddm/DdmHandleAppName");
             if (startClass) {
                 startMeth = env->GetStaticMethodID(startClass,
-                        "setAppName", "(Ljava/lang/String;)V");
+                        "setAppName", "(Ljava/lang/String;I)V");
                 if (startMeth) {
                     jstring str = env->NewStringUTF(name);
-                    env->CallStaticVoidMethod(startClass, startMeth, str);
+                    env->CallStaticVoidMethod(startClass, startMeth, str, getuid());
                     env->DeleteLocalRef(str);
                 }
             }
