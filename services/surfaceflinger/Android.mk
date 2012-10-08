@@ -3,7 +3,6 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
     Client.cpp                              \
-    DdmConnection.cpp                       \
     DisplayDevice.cpp                       \
     EventThread.cpp                         \
     Layer.cpp                               \
@@ -58,6 +57,8 @@ include $(BUILD_SHARED_LIBRARY)
 # uses jni which may not be available in PDK
 ifneq ($(wildcard libnativehelper/include),)
 include $(CLEAR_VARS)
+LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
+
 LOCAL_SRC_FILES:= \
     DdmConnection.cpp
 
