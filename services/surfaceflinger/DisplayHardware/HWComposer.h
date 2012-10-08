@@ -258,8 +258,7 @@ public:
     friend class VSyncThread;
 
     // for debugging ----------------------------------------------------------
-    void dump(String8& out, char* scratch, size_t SIZE,
-            const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const;
+    void dump(String8& out, char* scratch, size_t SIZE) const;
 
 private:
     void loadHwcModule();
