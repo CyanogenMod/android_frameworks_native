@@ -901,13 +901,15 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, numLayers);
 }
 
-void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
-        const Vector< sp<LayerBase> >& visibleLayersSortedByZ) const {
+void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
     if (mHwc) {
         result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
+
+            const Vector< sp<LayerBase> >& visibleLayersSortedByZ =
+                    mFlinger->getLayerSortedByZForHwcDisplay(i);
 
             if (disp.connected) {
                 result.appendFormat(
@@ -928,6 +930,7 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE,
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
                     int32_t format = -1;
                     String8 name("unknown");
+
                     if (i < visibleLayersSortedByZ.size()) {
                         const sp<LayerBase>& layer(visibleLayersSortedByZ[i]);
                         if (layer->getLayer() != NULL) {
