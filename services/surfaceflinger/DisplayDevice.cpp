@@ -233,7 +233,7 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
         if (error == EGL_CONTEXT_LOST ||
                 mType == DisplayDevice::DISPLAY_PRIMARY) {
             LOG_ALWAYS_FATAL("eglSwapBuffers(%p, %p) failed with 0x%08x",
-                    mDisplay, mSurface, eglGetError());
+                    mDisplay, mSurface, error);
         }
     }
 }
