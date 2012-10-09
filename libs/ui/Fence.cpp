@@ -42,26 +42,27 @@ Fence::~Fence() {
     }
 }
 
-int Fence::wait(unsigned int timeout) {
+status_t Fence::wait(unsigned int timeout) {
     ATRACE_CALL();
     if (mFenceFd == -1) {
         return NO_ERROR;
     }
-    return sync_wait(mFenceFd, timeout);
+    int err = sync_wait(mFenceFd, timeout);
+    return err < 0 ? -errno : status_t(NO_ERROR);
 }
 
-int Fence::waitForever(unsigned int warningTimeout, const char* logname) {
+status_t Fence::waitForever(unsigned int warningTimeout, const char* logname) {
     ATRACE_CALL();
     if (mFenceFd == -1) {
         return NO_ERROR;
     }
     int err = sync_wait(mFenceFd, warningTimeout);
-    if (err == -ETIME) {
+    if (err < 0 && errno == ETIME) {
         ALOGE("%s: fence %d didn't signal in %u ms", logname, mFenceFd,
                 warningTimeout);
         err = sync_wait(mFenceFd, TIMEOUT_NEVER);
     }
-    return err;
+    return err < 0 ? -errno : status_t(NO_ERROR);
 }
 
 sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
