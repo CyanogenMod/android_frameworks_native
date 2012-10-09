@@ -67,6 +67,12 @@ public:
     // Get information about a display
     static status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
 
+    /* triggers screen off and waits for it to complete */
+    static void blankDisplay(const sp<IBinder>& display);
+
+    /* triggers screen on and waits for it to complete */
+    static void unblankDisplay(const sp<IBinder>& display);
+
     // ------------------------------------------------------------------------
     // surface creation / destruction
 

@@ -552,6 +552,14 @@ status_t SurfaceComposerClient::getDisplayInfo(
     return ComposerService::getComposerService()->getDisplayInfo(display, info);
 }
 
+void SurfaceComposerClient::blankDisplay(const sp<IBinder>& token) {
+    ComposerService::getComposerService()->blank(token);
+}
+
+void SurfaceComposerClient::unblankDisplay(const sp<IBinder>& token) {
+    ComposerService::getComposerService()->unblank(token);
+}
+
 // ----------------------------------------------------------------------------
 
 ScreenshotClient::ScreenshotClient()
