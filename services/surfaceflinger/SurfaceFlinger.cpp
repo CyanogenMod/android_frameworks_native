@@ -1212,12 +1212,6 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.viewport, state.frame);
                         hw->setDisplayName(state.displayName);
                         mDisplays.add(display, hw);
-                        if (hw->getDisplayType() < DisplayDevice::NUM_DISPLAY_TYPES) {
-                            // notify the system that this display is now up
-                            // (note onScreenAcquired() is safe to call from
-                            // here because we're in the main thread)
-                            onScreenAcquired(hw);
-                        }
                     }
                 }
             }
