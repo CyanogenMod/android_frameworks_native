@@ -60,14 +60,14 @@ public:
     // before the fence signals then -ETIME is returned.  A timeout of
     // TIMEOUT_NEVER may be used to indicate that the call should wait
     // indefinitely for the fence to signal.
-    int wait(unsigned int timeout);
+    status_t wait(unsigned int timeout);
 
     // waitForever is a convenience function for waiting forever for a fence to
     // signal (just like wait(TIMEOUT_NEVER)), but issuing an error to the
     // system log and fence state to the kernel log if the wait lasts longer
     // than warningTimeout. The logname argument should be a string identifying
     // the caller and will be included in the log message.
-    int waitForever(unsigned int warningTimeout, const char* logname);
+    status_t waitForever(unsigned int warningTimeout, const char* logname);
 
     // TIMEOUT_NEVER may be passed to the wait method to indicate that it
     // should wait indefinitely for the fence to signal.
