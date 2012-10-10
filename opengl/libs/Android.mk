@@ -126,10 +126,6 @@ LOCAL_SRC_FILES:= 		\
 	GLES2/gl2.cpp.arm 	\
 #
 
-ifneq (,$(filter manta, $(TARGET_DEVICE)))
-       LOCAL_CFLAGS += -DIS_MANTA
-endif
-
 LOCAL_SHARED_LIBRARIES += libcutils libutils libEGL
 LOCAL_LDLIBS := -lpthread -ldl
 LOCAL_MODULE:= libGLESv2
