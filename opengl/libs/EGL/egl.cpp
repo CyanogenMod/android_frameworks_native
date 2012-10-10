@@ -192,7 +192,6 @@ static void early_egl_init(void)
 #if EGL_TRACE
     pthread_key_create(&gGLTraceKey, NULL);
     initEglTraceLevel();
-    initEglDebugLevel();
 #endif
     uint32_t addr = (uint32_t)((void*)gl_no_context);
     android_memset32(
