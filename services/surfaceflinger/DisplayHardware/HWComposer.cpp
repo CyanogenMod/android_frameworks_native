@@ -696,6 +696,7 @@ void HWComposer::disconnectDisplay(int disp) {
         free(dd.list);
         dd.list = NULL;
         dd.framebufferTarget = NULL;    // points into dd.list
+        dd.fbTargetHandle = NULL;
     }
 }
 
