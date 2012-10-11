@@ -772,8 +772,7 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
         }
         setTransactionFlags(eDisplayTransactionNeeded);
 
-        // we should only receive DisplayDevice::DisplayType from the vsync callback
-        mEventThread->onHotplugReceived(type, connected);
+        // Defer EventThread notification until SF has updated mDisplays.
     }
 }
 
@@ -1130,6 +1129,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
                         mDisplays.removeItem(draw.keyAt(i));
                         getHwComposer().disconnectDisplay(draw[i].type);
+                        mEventThread->onHotplugReceived(draw[i].type, false);
                     } else {
                         ALOGW("trying to remove the main display");
                     }
@@ -1212,6 +1212,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.viewport, state.frame);
                         hw->setDisplayName(state.displayName);
                         mDisplays.add(display, hw);
+                        mEventThread->onHotplugReceived(state.type, true);
                     }
                 }
             }
