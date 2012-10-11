@@ -620,6 +620,16 @@ void SurfaceFlinger::computeVisibleRegions(
          */
         Region coveredRegion;
 
+        /*
+         * transparentRegion: area of a surface that is hinted to be completely
+         * transparent. This is only used to tell when the layer has no visible
+         * non-transparent regions and can be removed from the layer list. It
+         * does not affect the visibleRegion of this layer or any layers
+         * beneath it. The hint may not be correct if apps don't respect the
+         * SurfaceView restrictions (which, sadly, some don't).
+         */
+        Region transparentRegion;
+
 
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(!(s.flags & ISurfaceComposer::eLayerHidden) && s.alpha)) {
@@ -630,7 +640,7 @@ void SurfaceFlinger::computeVisibleRegions(
             if (!visibleRegion.isEmpty()) {
                 // Remove the transparent area from the visible region
                 if (translucent) {
-                    visibleRegion.subtractSelf(layer->transparentRegionScreen);
+                    transparentRegion = layer->transparentRegionScreen;
                 }
 
                 // compute the opaque region
@@ -689,6 +699,8 @@ void SurfaceFlinger::computeVisibleRegions(
         // Store the visible region is screen space
         layer->setVisibleRegion(visibleRegion);
         layer->setCoveredRegion(coveredRegion);
+        layer->setVisibleNonTransparentRegion(
+                visibleRegion.subtract(transparentRegion));
 
         // If a secure layer is partially visible, lock-down the screen!
         if (layer->isSecure() && !visibleRegion.isEmpty()) {
@@ -740,7 +752,7 @@ void SurfaceFlinger::handlePageFlip()
             mVisibleLayersSortedByZ.clear();
             mVisibleLayersSortedByZ.setCapacity(count);
             for (size_t i=0 ; i<count ; i++) {
-                if (!currentLayers[i]->visibleRegionScreen.isEmpty())
+                if (!currentLayers[i]->visibleNonTransparentRegion.isEmpty())
                     mVisibleLayersSortedByZ.add(currentLayers[i]);
             }
 

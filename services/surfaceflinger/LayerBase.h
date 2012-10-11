@@ -63,6 +63,7 @@ public:
             Region      visibleRegionScreen;
             Region      transparentRegionScreen;
             Region      coveredRegionScreen;
+            Region      visibleNonTransparentRegion;
             int32_t     sequence;
             
             struct Geometry {
@@ -98,7 +99,7 @@ public:
             bool setSize(uint32_t w, uint32_t h);
             bool setAlpha(uint8_t alpha);
             bool setMatrix(const layer_state_t::matrix22_t& matrix);
-            bool setTransparentRegionHint(const Region& opaque);
+            bool setTransparentRegionHint(const Region& transparent);
             bool setFlags(uint8_t flags, uint8_t mask);
             bool setCrop(const Rect& crop);
             
@@ -157,6 +158,13 @@ public:
      * (transparently or not) by another surface.
      */
     virtual void setCoveredRegion(const Region& coveredRegion);
+
+    /**
+     * setVisibleNonTransparentRegion - called when the visible and
+     * non-transparent region changes.
+     */
+    virtual void setVisibleNonTransparentRegion(const Region&
+            visibleNonTransparentRegion);
 
     /**
      * validateVisibility - cache a bunch of things
