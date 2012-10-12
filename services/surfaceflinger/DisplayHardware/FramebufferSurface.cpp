@@ -36,6 +36,10 @@
 #include "DisplayHardware/GraphicBufferAlloc.h"
 #include "DisplayHardware/HWComposer.h"
 
+#ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS
+#define NUM_FRAMEBUFFER_SURFACE_BUFFERS (2)
+#endif
+
 // ----------------------------------------------------------------------------
 namespace android {
 // ----------------------------------------------------------------------------
@@ -61,7 +65,7 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
     mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(disp));
     mBufferQueue->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
     mBufferQueue->setSynchronousMode(true);
-    mBufferQueue->setDefaultMaxBufferCount(NUM_FRAME_BUFFERS);
+    mBufferQueue->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
 status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence) {
