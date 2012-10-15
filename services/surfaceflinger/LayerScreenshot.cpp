@@ -122,12 +122,13 @@ void LayerScreenshot::onDraw(const sp<const DisplayDevice>& hw, const Region& cl
         } else {
             glEnable(GL_BLEND);
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            glColor4f(alpha, alpha, alpha, alpha);
             glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         }
 
         LayerMesh mesh;
         computeGeometry(hw, &mesh);
+
+        glColor4f(alpha, alpha, alpha, alpha);
 
         glDisable(GL_TEXTURE_EXTERNAL_OES);
         glEnable(GL_TEXTURE_2D);
