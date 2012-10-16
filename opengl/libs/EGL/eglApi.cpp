@@ -204,6 +204,59 @@ EGLBoolean eglChooseConfig( EGLDisplay dpy, const EGLint *attrib_list,
 
     egl_connection_t* const cnx = &gEGLImpl;
     if (cnx->dso) {
+        if (attrib_list) {
+            char value[PROPERTY_VALUE_MAX];
+            property_get("debug.egl.force_msaa", value, "false");
+
+            if (!strcmp(value, "true")) {
+                size_t attribCount = 0;
+                EGLint attrib = attrib_list[0];
+
+                // Only enable MSAA if the context is OpenGL ES 2.0 and
+                // if a depth buffer is requested
+                const EGLint *attribRendererable = NULL;
+                const EGLint *attribCaveat = NULL;
+
+                // Count the number of attributes and look for
+                // EGL_RENDERABLE_TYPE and ELG_DEPTH_SIZE
+                while (attrib != EGL_NONE) {
+                    attrib = attrib_list[attribCount];
+                    switch (attrib) {
+                        case EGL_RENDERABLE_TYPE:
+                            attribRendererable = &attrib_list[attribCount];
+                            break;
+                        case EGL_CONFIG_CAVEAT:
+                            attribCaveat = &attrib_list[attribCount];
+                            break;
+                    }
+                    attribCount++;
+                }
+
+                if (attribRendererable && attribRendererable[1] == EGL_OPENGL_ES2_BIT &&
+                        (!attribCaveat || attribCaveat[1] != EGL_NONE)) {
+    
+                    // Insert 2 extra attributes to force-enable MSAA 4x
+                    EGLint aaAttribs[attribCount + 4];
+                    aaAttribs[0] = EGL_SAMPLE_BUFFERS;
+                    aaAttribs[1] = 1;
+                    aaAttribs[2] = EGL_SAMPLES;
+                    aaAttribs[3] = 4;
+
+                    memcpy(&aaAttribs[4], attrib_list, attribCount * sizeof(EGLint));
+
+                    EGLint numConfigAA;
+                    EGLBoolean resAA = cnx->egl.eglChooseConfig(
+                            dp->disp.dpy, aaAttribs, configs, config_size, &numConfigAA);
+
+                    if (resAA == EGL_TRUE && numConfigAA > 0) {
+                        ALOGD("Enabling MSAA 4x");
+                        *num_config = numConfigAA;
+                        return resAA;
+                    }
+                }
+            }
+        }
+
         res = cnx->egl.eglChooseConfig(
                 dp->disp.dpy, attrib_list, configs, config_size, num_config);
     }
