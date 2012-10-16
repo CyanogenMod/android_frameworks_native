@@ -115,12 +115,15 @@ class Composer : public Singleton<Composer>
     SortedVector<ComposerState> mComposerStates;
     SortedVector<DisplayState > mDisplayStates;
     uint32_t                    mForceSynchronous;
+    bool                        mAnimation;
 
     Composer() : Singleton<Composer>(),
-        mForceSynchronous(0)
+        mForceSynchronous(0),
+        mAnimation(false)
     { }
 
     void closeGlobalTransactionImpl(bool synchronous);
+    void setAnimationTransactionImpl();
 
     layer_state_t* getLayerStateLocked(
             const sp<SurfaceComposerClient>& client, SurfaceID id);
@@ -159,6 +162,10 @@ public:
             const Rect& layerStackRect,
             const Rect& displayRect);
 
+    static void setAnimationTransaction() {
+        Composer::getInstance().setAnimationTransactionImpl();
+    }
+
     static void closeGlobalTransaction(bool synchronous) {
         Composer::getInstance().closeGlobalTransactionImpl(synchronous);
     }
@@ -194,10 +201,20 @@ void Composer::closeGlobalTransactionImpl(bool synchronous) {
         if (synchronous || mForceSynchronous) {
             flags |= ISurfaceComposer::eSynchronous;
         }
+        if (mAnimation) {
+            flags |= ISurfaceComposer::eAnimation;
+        }
+
         mForceSynchronous = false;
+        mAnimation = false;
     }
 
    sm->setTransactionState(transaction, displayTransaction, flags);
+}
+
+void Composer::setAnimationTransactionImpl() {
+    Mutex::Autolock _l(mLock);
+    mAnimation = true;
 }
 
 layer_state_t* Composer::getLayerStateLocked(
@@ -469,6 +486,10 @@ void SurfaceComposerClient::openGlobalTransaction() {
 
 void SurfaceComposerClient::closeGlobalTransaction(bool synchronous) {
     Composer::closeGlobalTransaction(synchronous);
+}
+
+void SurfaceComposerClient::setAnimationTransaction() {
+    Composer::setAnimationTransaction();
 }
 
 // ----------------------------------------------------------------------------
