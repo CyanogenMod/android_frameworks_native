@@ -101,9 +101,12 @@ public:
 
     //! Open a composer transaction on all active SurfaceComposerClients.
     static void openGlobalTransaction();
-        
+
     //! Close a composer transaction on all active SurfaceComposerClients.
     static void closeGlobalTransaction(bool synchronous = false);
+
+    //! Flag the currently open transaction as an animation transaction.
+    static void setAnimationTransaction();
 
     status_t    hide(SurfaceID id);
     status_t    show(SurfaceID id);

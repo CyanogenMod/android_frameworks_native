@@ -398,7 +398,8 @@ private:
     volatile int32_t mTransactionFlags;
     Condition mTransactionCV;
     SortedVector<sp<LayerBase> > mLayerPurgatory;
-    bool mTransationPending;
+    bool mTransactionPending;
+    bool mAnimTransactionPending;
     Vector<sp<LayerBase> > mLayersPendingRemoval;
 
     // protected by mStateLock (but we could use another lock)
