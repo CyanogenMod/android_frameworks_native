@@ -327,10 +327,13 @@ private:
     // called when starting, or restarting after system_server death
     void initializeDisplays();
 
+    // NOTE: can only be called from the main thread or with mStateLock held
     sp<const DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) const {
         return mDisplays.valueFor(dpy);
     }
-    const sp<DisplayDevice>& getDisplayDevice(const wp<IBinder>& dpy) {
+
+    // NOTE: can only be called from the main thread or with mStateLock held
+    sp<DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) {
         return mDisplays.valueFor(dpy);
     }
 
@@ -425,6 +428,9 @@ private:
     State mDrawingState;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
+
+    // this may only be written from the main thread with mStateLock held
+    // it may be read from other threads with mStateLock held
     DefaultKeyedVector< wp<IBinder>, sp<DisplayDevice> > mDisplays;
 
     // don't use a lock for these, we don't care

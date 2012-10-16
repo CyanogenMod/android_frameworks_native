@@ -507,7 +507,7 @@ status_t SurfaceFlinger::readyToRun()
     //  or when a texture is (asynchronously) destroyed, and for that
     //  we need a valid surface, so it's convenient to use the main display
     //  for that.
-    sp<const DisplayDevice> hw = getDefaultDisplayDevice();
+    sp<const DisplayDevice> hw(getDefaultDisplayDevice());
 
     //  initialize OpenGL ES
     DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
@@ -1126,7 +1126,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // Call makeCurrent() on the primary display so we can
                         // be sure that nothing associated with this display
                         // is current.
-                        const sp<const DisplayDevice>& hw(getDefaultDisplayDevice());
+                        const sp<const DisplayDevice> hw(getDefaultDisplayDevice());
                         DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
                         mDisplays.removeItem(draw.keyAt(i));
                         getHwComposer().disconnectDisplay(draw[i].type);
@@ -1150,7 +1150,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         continue;
                     }
 
-                    const sp<DisplayDevice>& disp(getDisplayDevice(display));
+                    const sp<DisplayDevice> disp(getDisplayDevice(display));
                     if (disp != NULL) {
                         if (state.layerStack != draw[i].layerStack) {
                             disp->setLayerStack(state.layerStack);
@@ -2043,48 +2043,48 @@ void SurfaceFlinger::onScreenReleased(const sp<const DisplayDevice>& hw) {
 
 void SurfaceFlinger::unblank(const sp<IBinder>& display) {
     class MessageScreenAcquired : public MessageBase {
-        SurfaceFlinger* mFlinger;
-        const sp<DisplayDevice>& mHw;
+        SurfaceFlinger& mFlinger;
+        sp<IBinder> mDisplay;
     public:
-        MessageScreenAcquired(SurfaceFlinger* flinger,
-                const sp<DisplayDevice>& hw) : mFlinger(flinger), mHw(hw) { }
+        MessageScreenAcquired(SurfaceFlinger& flinger,
+                const sp<IBinder>& disp) : mFlinger(flinger), mDisplay(disp) { }
         virtual bool handler() {
-            mFlinger->onScreenAcquired(mHw);
+            const sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
+            if (hw == NULL) {
+                ALOGE("Attempt to unblank null display %p", mDisplay.get());
+            } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+                ALOGW("Attempt to unblank virtual display");
+            } else {
+                mFlinger.onScreenAcquired(hw);
+            }
             return true;
         }
     };
-    const sp<DisplayDevice>& hw = getDisplayDevice(display);
-    if (hw == NULL) {
-        ALOGE("Attempt to unblank null display %p", display.get());
-    } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
-        ALOGW("Attempt to unblank virtual display");
-    } else {
-        sp<MessageBase> msg = new MessageScreenAcquired(this, hw);
-        postMessageSync(msg);
-    }
+    sp<MessageBase> msg = new MessageScreenAcquired(*this, display);
+    postMessageSync(msg);
 }
 
 void SurfaceFlinger::blank(const sp<IBinder>& display) {
     class MessageScreenReleased : public MessageBase {
-        SurfaceFlinger* mFlinger;
-        const sp<DisplayDevice>& mHw;
+        SurfaceFlinger& mFlinger;
+        sp<IBinder> mDisplay;
     public:
-        MessageScreenReleased(SurfaceFlinger* flinger,
-                const sp<DisplayDevice>& hw) : mFlinger(flinger), mHw(hw) { }
+        MessageScreenReleased(SurfaceFlinger& flinger,
+                const sp<IBinder>& disp) : mFlinger(flinger), mDisplay(disp) { }
         virtual bool handler() {
-            mFlinger->onScreenReleased(mHw);
+            const sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
+            if (hw == NULL) {
+                ALOGE("Attempt to blank null display %p", mDisplay.get());
+            } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+                ALOGW("Attempt to blank virtual display");
+            } else {
+                mFlinger.onScreenReleased(hw);
+            }
             return true;
         }
     };
-    const sp<DisplayDevice>& hw = getDisplayDevice(display);
-    if (hw == NULL) {
-        ALOGE("Attempt to blank null display %p", display.get());
-    } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
-        ALOGW("Attempt to blank virtual display");
-    } else {
-        sp<MessageBase> msg = new MessageScreenReleased(this, hw);
-        postMessageSync(msg);
-    }
+    sp<MessageBase> msg = new MessageScreenReleased(*this, display);
+    postMessageSync(msg);
 }
 
 // ---------------------------------------------------------------------------
@@ -2359,6 +2359,7 @@ void SurfaceFlinger::dumpAllLocked(
 
 const Vector< sp<LayerBase> >&
 SurfaceFlinger::getLayerSortedByZForHwcDisplay(int disp) {
+    // Note: mStateLock is held here
     return getDisplayDevice( getBuiltInDisplay(disp) )->getVisibleLayersSortedByZ();
 }
 
