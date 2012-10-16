@@ -86,7 +86,8 @@ const String16 sDump("android.permission.DUMP");
 SurfaceFlinger::SurfaceFlinger()
     :   BnSurfaceComposer(), Thread(false),
         mTransactionFlags(0),
-        mTransationPending(false),
+        mTransactionPending(false),
+        mAnimTransactionPending(false),
         mLayersRemoved(false),
         mRepaintEverything(0),
         mBootTime(systemTime()),
@@ -1264,7 +1265,8 @@ void SurfaceFlinger::commitTransaction()
     }
 
     mDrawingState = mCurrentState;
-    mTransationPending = false;
+    mTransactionPending = false;
+    mAnimTransactionPending = false;
     mTransactionCV.broadcast();
 }
 
@@ -1665,6 +1667,21 @@ void SurfaceFlinger::setTransactionState(
     Mutex::Autolock _l(mStateLock);
     uint32_t transactionFlags = 0;
 
+    if (flags & eAnimation) {
+        // For window updates that are part of an animation we must wait for
+        // previous animation "frames" to be handled.
+        while (mAnimTransactionPending) {
+            status_t err = mTransactionCV.waitRelative(mStateLock, 500 * 1000);
+            if (CC_UNLIKELY(err != NO_ERROR)) {
+                // just in case something goes wrong in SF, return to the
+                // caller after a few hundred microseconds.
+                ALOGW_IF(err == TIMED_OUT, "setTransactionState timed out!");
+                mAnimTransactionPending = false;
+                break;
+            }
+        }
+    }
+
     size_t count = displays.size();
     for (size_t i=0 ; i<count ; i++) {
         const DisplayState& s(displays[i]);
@@ -1685,15 +1702,18 @@ void SurfaceFlinger::setTransactionState(
         // if this is a synchronous transaction, wait for it to take effect
         // before returning.
         if (flags & eSynchronous) {
-            mTransationPending = true;
+            mTransactionPending = true;
         }
-        while (mTransationPending) {
+        if (flags & eAnimation) {
+            mAnimTransactionPending = true;
+        }
+        while (mTransactionPending) {
             status_t err = mTransactionCV.waitRelative(mStateLock, s2ns(5));
             if (CC_UNLIKELY(err != NO_ERROR)) {
                 // just in case something goes wrong in SF, return to the
                 // called after a few seconds.
-                ALOGW_IF(err == TIMED_OUT, "closeGlobalTransaction timed out!");
-                mTransationPending = false;
+                ALOGW_IF(err == TIMED_OUT, "setTransactionState timed out!");
+                mTransactionPending = false;
                 break;
             }
         }
