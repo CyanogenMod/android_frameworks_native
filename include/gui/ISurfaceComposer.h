@@ -46,6 +46,7 @@ public:
     // flags for setTransactionState()
     enum {
         eSynchronous = 0x01,
+        eAnimation   = 0x02,
     };
 
     enum {
