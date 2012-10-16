@@ -213,12 +213,12 @@ EGLBoolean eglChooseConfig( EGLDisplay dpy, const EGLint *attrib_list,
                 EGLint attrib = attrib_list[0];
 
                 // Only enable MSAA if the context is OpenGL ES 2.0 and
-                // if a depth buffer is requested
+                // if no caveat is requested
                 const EGLint *attribRendererable = NULL;
                 const EGLint *attribCaveat = NULL;
 
                 // Count the number of attributes and look for
-                // EGL_RENDERABLE_TYPE and ELG_DEPTH_SIZE
+                // EGL_RENDERABLE_TYPE and EGL_CONFIG_CAVEAT
                 while (attrib != EGL_NONE) {
                     attrib = attrib_list[attribCount];
                     switch (attrib) {
