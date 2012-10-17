@@ -35,6 +35,7 @@ static bool g_traceBusUtilization = false;
 static bool g_traceCpuIdle = false;
 static bool g_traceDisk = false;
 static bool g_traceGovernorLoad = false;
+static bool g_traceSync = false;
 static bool g_traceWorkqueue = false;
 static bool g_traceOverwrite = false;
 static int g_traceBufferSizeKB = 2048;
@@ -75,6 +76,9 @@ static const char* k_cpuIdleEnablePath =
 
 static const char* k_governorLoadEnablePath =
     "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable";
+
+static const char* k_syncEnablePath =
+    "/sys/kernel/debug/tracing/events/sync/enable";
 
 static const char* k_workqueueEnablePath =
     "/sys/kernel/debug/tracing/events/workqueue/enable";
@@ -196,6 +200,16 @@ static bool setGovernorLoadTracingEnable(bool enable)
     return ok;
 }
 
+// Enable or disable tracing of sync timelines and waits.
+static bool setSyncTracingEnabled(bool enable)
+{
+    bool ok = true;
+    if (fileExists(k_syncEnablePath) || enable) {
+        ok &= setKernelOptionEnable(k_syncEnablePath, enable);
+    }
+    return ok;
+}
+
 // Enable or disable tracing of the kernel workqueues.
 static bool setWorkqueueTracingEnabled(bool enable)
 {
@@ -267,6 +281,7 @@ static bool startTrace(bool isRoot)
     // root.
     if (isRoot) {
         ok &= setBusUtilizationTracingEnable(g_traceBusUtilization);
+        ok &= setSyncTracingEnabled(g_traceSync);
         ok &= setWorkqueueTracingEnabled(g_traceWorkqueue);
         ok &= setDiskTracingEnabled(g_traceDisk);
     }
@@ -296,6 +311,7 @@ static void stopTrace(bool isRoot)
 
     if (isRoot) {
         setBusUtilizationTracingEnable(false);
+        setSyncTracingEnabled(false);
         setWorkqueueTracingEnabled(false);
         setDiskTracingEnabled(false);
     }
@@ -415,6 +431,7 @@ static void showHelp(const char *cmd)
                     "  -t N            trace for N seconds [defualt 5]\n"
                     "  -u              trace bus utilization\n"
                     "  -w              trace the kernel workqueue\n"
+                    "  -y              trace sync timelines and waits\n"
                     "  -z              compress the trace dump\n");
 }
 
@@ -447,7 +464,7 @@ int main(int argc, char **argv)
     for (;;) {
         int ret;
 
-        ret = getopt(argc, argv, "b:cidflst:uwznS:");
+        ret = getopt(argc, argv, "b:cidflst:uwyznS:");
 
         if (ret < 0) {
             break;
@@ -512,6 +529,14 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 g_traceWorkqueue = true;
+            break;
+
+            case 'y':
+                if (!isRoot) {
+                    fprintf(stderr, "error: tracing sync requires root privileges\n");
+                    exit(1);
+                }
+                g_traceSync = true;
             break;
 
             case 'z':
