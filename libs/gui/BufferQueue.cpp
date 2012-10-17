@@ -385,18 +385,8 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             (uint32_t(buffer->format) != format) ||
             ((uint32_t(buffer->usage) & usage) != usage))
         {
-            status_t error;
-            sp<GraphicBuffer> graphicBuffer(
-                    mGraphicBufferAlloc->createGraphicBuffer(
-                            w, h, format, usage, &error));
-            if (graphicBuffer == 0) {
-                ST_LOGE("dequeueBuffer: SurfaceComposer::createGraphicBuffer "
-                        "failed");
-                return error;
-            }
-
             mSlots[buf].mAcquireCalled = false;
-            mSlots[buf].mGraphicBuffer = graphicBuffer;
+            mSlots[buf].mGraphicBuffer = NULL;
             mSlots[buf].mRequestBufferCalled = false;
             mSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
             mSlots[buf].mFence.clear();
@@ -411,6 +401,30 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
         mSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
         mSlots[buf].mFence.clear();
     }  // end lock scope
+
+    if (returnFlags & ISurfaceTexture::BUFFER_NEEDS_REALLOCATION) {
+        status_t error;
+        sp<GraphicBuffer> graphicBuffer(
+                mGraphicBufferAlloc->createGraphicBuffer(
+                        w, h, format, usage, &error));
+        if (graphicBuffer == 0) {
+            ST_LOGE("dequeueBuffer: SurfaceComposer::createGraphicBuffer "
+                    "failed");
+            return error;
+        }
+
+        { // Scope for the lock
+            Mutex::Autolock lock(mMutex);
+
+            if (mAbandoned) {
+                ST_LOGE("dequeueBuffer: SurfaceTexture has been abandoned!");
+                return NO_INIT;
+            }
+
+            mSlots[*outBuf].mGraphicBuffer = graphicBuffer;
+        }
+    }
+
 
     if (eglFence != EGL_NO_SYNC_KHR) {
         EGLint result = eglClientWaitSyncKHR(dpy, eglFence, 0, 1000000000);
