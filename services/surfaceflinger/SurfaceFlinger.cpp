@@ -1664,6 +1664,7 @@ void SurfaceFlinger::setTransactionState(
         const Vector<DisplayState>& displays,
         uint32_t flags)
 {
+    ATRACE_CALL();
     Mutex::Autolock _l(mStateLock);
     uint32_t transactionFlags = 0;
 
@@ -1671,11 +1672,12 @@ void SurfaceFlinger::setTransactionState(
         // For window updates that are part of an animation we must wait for
         // previous animation "frames" to be handled.
         while (mAnimTransactionPending) {
-            status_t err = mTransactionCV.waitRelative(mStateLock, 500 * 1000);
+            status_t err = mTransactionCV.waitRelative(mStateLock, s2ns(5));
             if (CC_UNLIKELY(err != NO_ERROR)) {
                 // just in case something goes wrong in SF, return to the
-                // caller after a few hundred microseconds.
-                ALOGW_IF(err == TIMED_OUT, "setTransactionState timed out!");
+                // caller after a few seconds.
+                ALOGW_IF(err == TIMED_OUT, "setTransactionState timed out "
+                        "waiting for previous animation frame");
                 mAnimTransactionPending = false;
                 break;
             }
