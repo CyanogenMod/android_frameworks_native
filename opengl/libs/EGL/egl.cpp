@@ -62,12 +62,18 @@ EGLAPI pthread_key_t gGLTraceKey = -1;
 // ----------------------------------------------------------------------------
 
 /**
- * There are two different tracing methods:
- * 1. libs/EGL/trace.cpp: Traces all functions to logcat.
+ * There are three different tracing methods:
+ * 1. libs/EGL/trace.cpp: Traces all functions to systrace.
+ *    To enable:
+ *      - set system property "debug.egl.trace" to "systrace" to trace all apps.
+ * 2. libs/EGL/trace.cpp: Logs a stack trace for GL errors after each function call.
+ *    To enable:
+ *      - set system property "debug.egl.trace" to "error" to trace all apps.
+ * 3. libs/EGL/trace.cpp: Traces all functions to logcat.
  *    To enable:
  *      - set system property "debug.egl.trace" to 1 to trace all apps.
  *      - or call setGLTraceLevel(1) from an app to enable tracing for that app.
- * 2. libs/GLES_trace: Traces all functions via protobuf to host.
+ * 4. libs/GLES_trace: Traces all functions via protobuf to host.
  *    To enable:
  *        - set system property "debug.egl.debug_proc" to the application name.
  *      - or call setGLDebugLevel(1) from the app.
@@ -75,10 +81,15 @@ EGLAPI pthread_key_t gGLTraceKey = -1;
 static int sEGLTraceLevel;
 static int sEGLApplicationTraceLevel;
 
+static bool sEGLSystraceEnabled;
+static bool sEGLGetErrorEnabled;
+
 int gEGLDebugLevel;
 static int sEGLApplicationDebugLevel;
 
 extern gl_hooks_t gHooksTrace;
+extern gl_hooks_t gHooksSystrace;
+extern gl_hooks_t gHooksErrorTrace;
 
 static inline void setGlTraceThreadSpecific(gl_hooks_t const *value) {
     pthread_setspecific(gGLTraceKey, value);
@@ -91,6 +102,20 @@ gl_hooks_t const* getGLTraceThreadSpecific() {
 void initEglTraceLevel() {
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.egl.trace", value, "0");
+
+    sEGLGetErrorEnabled = !strcasecmp(value, "error");
+    if (sEGLGetErrorEnabled) {
+        sEGLSystraceEnabled = false;
+        sEGLTraceLevel = 0;
+        return;
+    }
+
+    sEGLSystraceEnabled = !strcasecmp(value, "systrace");
+    if (sEGLSystraceEnabled) {
+        sEGLTraceLevel = 0;
+        return;
+    }
+
     int propertyLevel = atoi(value);
     int applicationLevel = sEGLApplicationTraceLevel;
     sEGLTraceLevel = propertyLevel > applicationLevel ? propertyLevel : applicationLevel;
@@ -125,7 +150,13 @@ void initEglDebugLevel() {
 }
 
 void setGLHooksThreadSpecific(gl_hooks_t const *value) {
-    if (sEGLTraceLevel > 0) {
+    if (sEGLGetErrorEnabled) {
+        setGlTraceThreadSpecific(value);
+        setGlThreadSpecific(&gHooksErrorTrace);
+    } else if (sEGLSystraceEnabled) {
+        setGlTraceThreadSpecific(value);
+        setGlThreadSpecific(&gHooksSystrace);
+    } else if (sEGLTraceLevel > 0) {
         setGlTraceThreadSpecific(value);
         setGlThreadSpecific(&gHooksTrace);
     } else if (gEGLDebugLevel > 0 && value != &gHooksNoContext) {
