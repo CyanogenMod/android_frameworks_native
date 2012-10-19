@@ -128,6 +128,11 @@ HWComposer::HWComposer(
         abort();
     }
 
+    // these display IDs are always reserved
+    for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+        mAllocatedDisplayIDs.markBit(i);
+    }
+
     if (mHwc) {
         ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
               (hwcApiVersion(mHwc) >> 24) & 0xff,
@@ -148,11 +153,6 @@ HWComposer::HWComposer(
         needVSyncThread = false;
         // always turn vsync off when we start
         eventControl(HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
-
-        // these IDs are always reserved
-        for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
-            mAllocatedDisplayIDs.markBit(i);
-        }
 
         // the number of displays we actually have depends on the
         // hw composer version
@@ -445,6 +445,13 @@ bool HWComposer::isConnected(int disp) const {
 
 void HWComposer::eventControl(int disp, int event, int enabled) {
     if (uint32_t(disp)>31 || !mAllocatedDisplayIDs.hasBit(disp)) {
+        ALOGD("eventControl ignoring event %d on unallocated disp %d (en=%d)",
+              event, disp, enabled);
+        return;
+    }
+    if (event != EVENT_VSYNC) {
+        ALOGW("eventControl got unexpected event %d (disp=%d en=%d)",
+              event, disp, enabled);
         return;
     }
     status_t err = NO_ERROR;
