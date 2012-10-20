@@ -179,11 +179,12 @@ public:
         return result;
     }
 
-    virtual sp<IBinder> createDisplay(const String8& displayName)
+    virtual sp<IBinder> createDisplay(const String8& displayName, bool secure)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeString8(displayName);
+        data.writeInt32(secure ? 1 : 0);
         remote()->transact(BnSurfaceComposer::CREATE_DISPLAY, data, &reply);
         return reply.readStrongBinder();
     }
@@ -221,14 +222,6 @@ public:
         remote()->transact(BnSurfaceComposer::GET_DISPLAY_INFO, data, &reply);
         memcpy(info, reply.readInplace(sizeof(DisplayInfo)), sizeof(DisplayInfo));
         return reply.readInt32();
-    }
-
-
-    virtual void connectDisplay(const sp<ISurfaceTexture>& display) {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        data.writeStrongBinder(display->asBinder());
-        remote()->transact(BnSurfaceComposer::CONNECT_DISPLAY, data, &reply);
     }
 };
 
@@ -309,7 +302,8 @@ status_t BnSurfaceComposer::onTransact(
         case CREATE_DISPLAY: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             String8 displayName = data.readString8();
-            sp<IBinder> display(createDisplay(displayName));
+            bool secure = bool(data.readInt32());
+            sp<IBinder> display(createDisplay(displayName, secure));
             reply->writeStrongBinder(display);
             return NO_ERROR;
         } break;
@@ -337,12 +331,6 @@ status_t BnSurfaceComposer::onTransact(
             status_t result = getDisplayInfo(display, &info);
             memcpy(reply->writeInplace(sizeof(DisplayInfo)), &info, sizeof(DisplayInfo));
             reply->writeInt32(result);
-        } break;
-        case CONNECT_DISPLAY: {
-            CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<ISurfaceTexture> surfaceTexture =
-                    interface_cast<ISurfaceTexture>(data.readStrongBinder());
-            connectDisplay(surfaceTexture);
         } break;
         default:
             return BBinder::onTransact(code, data, reply, flags);

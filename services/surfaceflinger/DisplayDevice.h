@@ -67,7 +67,9 @@ public:
 
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
-            DisplayType type, const wp<IBinder>& displayToken,
+            DisplayType type,
+            bool isSecure,
+            const wp<IBinder>& displayToken,
             const sp<ANativeWindow>& nativeWindow,
             const sp<FramebufferSurface>& framebufferSurface,
             EGLConfig config);
@@ -77,6 +79,10 @@ public:
     // whether this is a valid object. An invalid DisplayDevice is returned
     // when an non existing id is requested
     bool isValid() const;
+
+    // isSecure indicates whether this display can be trusted to display
+    // secure surfaces.
+    bool isSecure() const { return mIsSecure; }
 
     // Flip the front and back buffers if the back buffer is "dirty".  Might
     // be instantaneous, might involve copying the frame buffer around.
@@ -167,6 +173,7 @@ private:
     uint32_t        mFlags;
     mutable uint32_t mPageFlipCount;
     String8         mDisplayName;
+    bool            mIsSecure;
 
     /*
      * Can only accessed from the main thread, these members
