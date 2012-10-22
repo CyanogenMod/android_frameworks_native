@@ -253,6 +253,10 @@ void Layer::setGeometry(
         layer.setSkip(true);
     }
 
+    if (isSecure() && !hw->isSecure()) {
+        layer.setSkip(true);
+    }
+
     /*
      * Transformations are applied in this order:
      * 1) buffer orientation/flip/mirror
@@ -342,7 +346,9 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         // is probably going to have something visibly wrong.
     }
 
-    if (!isProtected()) {
+    bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
+
+    if (!blackOutLayer) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
 

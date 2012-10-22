@@ -163,7 +163,8 @@ sp<ISurfaceComposerClient> SurfaceFlinger::createConnection()
     return bclient;
 }
 
-sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName)
+sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName,
+        bool secure)
 {
     class DisplayToken : public BBinder {
         sp<SurfaceFlinger> flinger;
@@ -184,6 +185,7 @@ sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName)
     Mutex::Autolock _l(mStateLock);
     DisplayDeviceState info(DisplayDevice::DISPLAY_VIRTUAL);
     info.displayName = displayName;
+    info.isSecure = secure;
     mCurrentState.displays.add(token, info);
 
     return token;
@@ -485,12 +487,14 @@ status_t SurfaceFlinger::readyToRun()
 
         // set-up the displays that are already connected
         if (mHwc->isConnected(i) || type==DisplayDevice::DISPLAY_PRIMARY) {
+            // All non-virtual displays are currently considered secure.
+            bool isSecure = true;
             mCurrentState.displays.add(token, DisplayDeviceState(type));
             sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
             sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
                         static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
             sp<DisplayDevice> hw = new DisplayDevice(this,
-                    type, token, stc, fbs, mEGLConfig);
+                    type, isSecure, token, stc, fbs, mEGLConfig);
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
                 // FIXME: currently we don't get blank/unblank requests
                 // for displays other than the main display, so we always
@@ -666,6 +670,10 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     info->xdpi = xdpi;
     info->ydpi = ydpi;
     info->fps = float(1e9 / hwc.getRefreshPeriod(type));
+
+    // All non-virtual displays are currently considered secure.
+    info->secure = true;
+
     return NO_ERROR;
 }
 
@@ -673,34 +681,6 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
 
 sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
     return mEventThread->createEventConnection();
-}
-
-void SurfaceFlinger::connectDisplay(const sp<ISurfaceTexture>& surface) {
-
-    sp<IBinder> token;
-    { // scope for the lock
-        Mutex::Autolock _l(mStateLock);
-        token = mExtDisplayToken;
-    }
-
-    if (token == 0) {
-        token = createDisplay(String8("Display from connectDisplay"));
-    }
-
-    { // scope for the lock
-        Mutex::Autolock _l(mStateLock);
-        if (surface == 0) {
-            // release our current display. we're guarantee to have
-            // a reference to it (token), while we hold the lock
-            mExtDisplayToken = 0;
-        } else {
-            mExtDisplayToken = token;
-        }
-
-        DisplayDeviceState& info(mCurrentState.displays.editValueFor(token));
-        info.surface = surface;
-        setTransactionFlags(eDisplayTransactionNeeded);
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1183,6 +1163,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             for (size_t i=0 ; i<cc ; i++) {
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
+                    bool isSecure = false;
 
                     sp<FramebufferSurface> fbs;
                     sp<SurfaceTextureClient> stc;
@@ -1193,21 +1174,28 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 "surface is provided (%p), ignoring it",
                                 state.surface.get());
 
+                        // All non-virtual displays are currently considered
+                        // secure.
+                        isSecure = true;
+
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
                         fbs = new FramebufferSurface(*mHwc, state.type);
                         stc = new SurfaceTextureClient(
-                                static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
+                                static_cast< sp<ISurfaceTexture> >(
+                                        fbs->getBufferQueue()));
                     } else {
                         if (state.surface != NULL) {
                             stc = new SurfaceTextureClient(state.surface);
                         }
+                        isSecure = state.isSecure;
                     }
 
                     const wp<IBinder>& display(curr.keyAt(i));
                     if (stc != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
-                                state.type, display, stc, fbs, mEGLConfig);
+                                state.type, isSecure, display, stc, fbs,
+                                mEGLConfig);
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
