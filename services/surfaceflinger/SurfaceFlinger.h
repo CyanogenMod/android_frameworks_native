@@ -140,6 +140,7 @@ private:
     friend class LayerBase;
     friend class LayerBaseClient;
     friend class Layer;
+    friend class LayerScreenshot;
 
     // We're reference counted, never destroy SurfaceFlinger directly
     virtual ~SurfaceFlinger();
@@ -168,6 +169,7 @@ private:
         Rect frame;
         uint8_t orientation;
         String8 displayName;
+        bool isSecure;
     };
 
     struct State {
@@ -187,7 +189,7 @@ private:
      */
     virtual sp<ISurfaceComposerClient> createConnection();
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc();
-    virtual sp<IBinder> createDisplay(const String8& displayName);
+    virtual sp<IBinder> createDisplay(const String8& displayName, bool secure);
     virtual sp<IBinder> getBuiltInDisplay(int32_t id);
     virtual void setTransactionState(const Vector<ComposerState>& state,
             const Vector<DisplayState>& displays, uint32_t flags);
@@ -204,7 +206,6 @@ private:
     // called when screen is turning back on
     virtual void unblank(const sp<IBinder>& display);
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
-    virtual void connectDisplay(const sp<ISurfaceTexture>& display);
 
     /* ------------------------------------------------------------------------
      * DeathRecipient interface

@@ -37,7 +37,7 @@ namespace android {
 LayerScreenshot::LayerScreenshot(SurfaceFlinger* flinger,
         const sp<Client>& client)
     : LayerBaseClient(flinger, client),
-      mTextureName(0), mFlinger(flinger)
+      mTextureName(0), mFlinger(flinger), mIsSecure(false)
 {
 }
 
@@ -56,6 +56,10 @@ status_t LayerScreenshot::captureLocked(int32_t layerStack) {
         return result;
     }
     initTexture(u, v);
+
+    // Currently screenshot always comes from the default display
+    mIsSecure = mFlinger->getDefaultDisplayDevice()->getSecureLayerVisible();
+
     return NO_ERROR;
 }
 
@@ -66,6 +70,10 @@ status_t LayerScreenshot::capture() {
         return result;
     }
     initTexture(u, v);
+
+    // Currently screenshot always comes from the default display
+    mIsSecure = mFlinger->getDefaultDisplayDevice()->getSecureLayerVisible();
+    
     return NO_ERROR;
 }
 
@@ -83,6 +91,10 @@ void LayerScreenshot::initStates(uint32_t w, uint32_t h, uint32_t flags) {
     LayerBaseClient::initStates(w, h, flags);
     if (!(flags & ISurfaceComposerClient::eHidden)) {
         capture();
+    }
+    if (flags & ISurfaceComposerClient::eSecure) {
+        ALOGW("ignoring surface flag eSecure - LayerScreenshot is considered "
+                "secure iff it captures the contents of a secure surface.");
     }
 }
 
@@ -125,6 +137,11 @@ void LayerScreenshot::onDraw(const sp<const DisplayDevice>& hw, const Region& cl
             glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         }
 
+        GLuint texName = mTextureName;
+        if (isSecure() && !hw->isSecure()) {
+            texName = mFlinger->getProtectedTexName();
+        }
+
         LayerMesh mesh;
         computeGeometry(hw, &mesh);
 
@@ -133,7 +150,7 @@ void LayerScreenshot::onDraw(const sp<const DisplayDevice>& hw, const Region& cl
         glDisable(GL_TEXTURE_EXTERNAL_OES);
         glEnable(GL_TEXTURE_2D);
 
-        glBindTexture(GL_TEXTURE_2D, mTextureName);
+        glBindTexture(GL_TEXTURE_2D, texName);
         glMatrixMode(GL_TEXTURE);
         glLoadIdentity();
         glMatrixMode(GL_MODELVIEW);

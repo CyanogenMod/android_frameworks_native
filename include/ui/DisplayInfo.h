@@ -32,7 +32,8 @@ struct DisplayInfo {
     float fps;
     float density;
     uint8_t orientation;
-    uint8_t reserved[3];
+    bool secure;
+    uint8_t reserved[2];
     // TODO: this needs to go away (currently needed only by webkit)
     PixelFormatInfo pixelFormatInfo;
 };
