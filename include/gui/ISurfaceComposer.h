@@ -69,7 +69,8 @@ public:
     /* create a display
      * requires ACCESS_SURFACE_FLINGER permission.
      */
-    virtual sp<IBinder> createDisplay(const String8& displayName) = 0;
+    virtual sp<IBinder> createDisplay(const String8& displayName,
+            bool secure) = 0;
 
     /* get the token for the existing default displays. possible values
      * for id are eDisplayIdMain and eDisplayIdHdmi.
@@ -108,9 +109,6 @@ public:
     /* returns information about a display
      * intended to be used to get information about built-in displays */
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) = 0;
-
-    /* connects to an external display */
-    virtual void connectDisplay(const sp<ISurfaceTexture>& display) = 0;
 };
 
 // ----------------------------------------------------------------------------

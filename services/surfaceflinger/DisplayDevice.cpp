@@ -69,7 +69,9 @@ void checkGLErrors()
 
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
-        DisplayType type, const wp<IBinder>& displayToken,
+        DisplayType type,
+        bool isSecure,
+        const wp<IBinder>& displayToken,
         const sp<ANativeWindow>& nativeWindow,
         const sp<FramebufferSurface>& framebufferSurface,
         EGLConfig config)
@@ -83,6 +85,7 @@ DisplayDevice::DisplayDevice(
       mDisplayWidth(), mDisplayHeight(), mFormat(),
       mFlags(),
       mPageFlipCount(),
+      mIsSecure(isSecure),
       mSecureLayerVisible(false),
       mScreenAcquired(false),
       mLayerStack(0),
@@ -431,13 +434,13 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
     snprintf(buffer, SIZE,
         "+ DisplayDevice: %s\n"
         "   type=%x, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
-        "flips=%u, secure=%d, acquired=%d, numLayers=%u\n"
+        "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%u\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
         mDisplayName.string(), mType,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
         mOrientation, tr.getType(), getPageFlipCount(),
-        mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
+        mIsSecure, mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
         mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
         mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,
         tr[0][0], tr[1][0], tr[2][0],
