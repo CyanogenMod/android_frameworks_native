@@ -1681,8 +1681,23 @@ void SurfaceFlinger::setTransactionState(
     count = state.size();
     for (size_t i=0 ; i<count ; i++) {
         const ComposerState& s(state[i]);
-        sp<Client> client( static_cast<Client *>(s.client.get()) );
-        transactionFlags |= setClientStateLocked(client, s.state);
+        // Here we need to check that the interface we're given is indeed
+        // one of our own. A malicious client could give us a NULL
+        // IInterface, or one of its own or even one of our own but a
+        // different type. All these situations would cause us to crash.
+        //
+        // NOTE: it would be better to use RTTI as we could directly check
+        // that we have a Client*. however, RTTI is disabled in Android.
+        if (s.client != NULL) {
+            sp<IBinder> binder = s.client->asBinder();
+            if (binder != NULL) {
+                String16 desc(binder->getInterfaceDescriptor());
+                if (desc == ISurfaceComposerClient::descriptor) {
+                    sp<Client> client( static_cast<Client *>(s.client.get()) );
+                    transactionFlags |= setClientStateLocked(client, s.state);
+                }
+            }
+        }
     }
 
     if (transactionFlags) {
