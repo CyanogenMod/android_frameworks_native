@@ -1500,6 +1500,28 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                 drawWormhole(hw, region);
             }
         }
+
+        if (hw->getDisplayType() >= DisplayDevice::DISPLAY_EXTERNAL) {
+            // TODO: just to be on the safe side, we don't set the
+            // scissor on the main display. It should never be needed
+            // anyways (though in theory it could since the API allows it).
+            const Rect& bounds(hw->getBounds());
+            const Transform& tr(hw->getTransform());
+            const Rect scissor(tr.transform(hw->getViewport()));
+            if (scissor != bounds) {
+                // scissor doesn't match the screen's dimensions, so we
+                // need to clear everything outside of it and enable
+                // the GL scissor so we don't draw anything where we shouldn't
+                const GLint height = hw->getHeight();
+                glScissor(scissor.left, height - scissor.bottom,
+                        scissor.getWidth(), scissor.getHeight());
+                // clear everything unscissored
+                glClearColor(0, 0, 0, 0);
+                glClear(GL_COLOR_BUFFER_BIT);
+                // enable scissor for this frame
+                glEnable(GL_SCISSOR_TEST);
+            }
+        }
     }
 
     /*
@@ -1552,6 +1574,9 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             }
         }
     }
+
+    // disable scissor at the end of the frame
+    glDisable(GL_SCISSOR_TEST);
 }
 
 void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
