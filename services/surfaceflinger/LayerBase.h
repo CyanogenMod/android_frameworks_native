@@ -49,7 +49,7 @@ class SurfaceFlinger;
 
 // ---------------------------------------------------------------------------
 
-class LayerBase : public RefBase
+class LayerBase : virtual public RefBase
 {
     static int32_t sSequence;
 

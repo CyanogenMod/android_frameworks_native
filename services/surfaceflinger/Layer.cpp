@@ -82,25 +82,13 @@ void Layer::onFirstRef()
 {
     LayerBaseClient::onFirstRef();
 
-    struct FrameQueuedListener : public SurfaceTexture::FrameAvailableListener {
-        FrameQueuedListener(Layer* layer) : mLayer(layer) { }
-    private:
-        wp<Layer> mLayer;
-        virtual void onFrameAvailable() {
-            sp<Layer> that(mLayer.promote());
-            if (that != 0) {
-                that->onFrameQueued();
-            }
-        }
-    };
-
     // Creates a custom BufferQueue for SurfaceTexture to use
     sp<BufferQueue> bq = new SurfaceTextureLayer();
     mSurfaceTexture = new SurfaceTexture(mTextureName, true,
             GL_TEXTURE_EXTERNAL_OES, false, bq);
 
     mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
-    mSurfaceTexture->setFrameAvailableListener(new FrameQueuedListener(this));
+    mSurfaceTexture->setFrameAvailableListener(this);
     mSurfaceTexture->setSynchronousMode(true);
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
@@ -118,7 +106,7 @@ Layer::~Layer()
     mFlinger->deleteTextureAsync(mTextureName);
 }
 
-void Layer::onFrameQueued() {
+void Layer::onFrameAvailable() {
     android_atomic_inc(&mQueuedFrames);
     mFlinger->signalLayerUpdate();
 }

@@ -47,7 +47,8 @@ class GLExtensions;
 
 // ---------------------------------------------------------------------------
 
-class Layer : public LayerBaseClient
+class Layer : public LayerBaseClient,
+              public SurfaceTexture::FrameAvailableListener
 {
 public:
             Layer(SurfaceFlinger* flinger, const sp<Client>& client);
@@ -102,12 +103,14 @@ protected:
 
 private:
     friend class SurfaceTextureLayer;
-    void onFrameQueued();
     virtual sp<ISurface> createSurface();
     uint32_t getEffectiveUsage(uint32_t usage) const;
     bool isCropped() const;
     Rect computeBufferCrop() const;
     static bool getOpacityForFormat(uint32_t format);
+
+    // Interface implementation for SurfaceTexture::FrameAvailableListener
+    virtual void onFrameAvailable();
 
     // -----------------------------------------------------------------------
 
