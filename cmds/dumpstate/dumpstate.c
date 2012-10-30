@@ -85,6 +85,7 @@ static void dumpstate() {
     dump_file("ZONEINFO", "/proc/zoneinfo");
     dump_file("PAGETYPEINFO", "/proc/pagetypeinfo");
     dump_file("BUDDYINFO", "/proc/buddyinfo");
+    dump_file("FRAGMENTATION INFO", "/d/extfrag/unusable_index");
 
 
     dump_file("KERNEL WAKELOCKS", "/proc/wakelocks");
