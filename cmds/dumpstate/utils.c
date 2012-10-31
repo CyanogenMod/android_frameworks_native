@@ -242,12 +242,23 @@ void do_dmesg() {
 }
 
 void do_showmap(int pid, const char *name) {
+    static bool ran = false, skip = false;
     char title[255];
     char arg[255];
 
     sprintf(title, "SHOW MAP %d (%s)", pid, name);
     sprintf(arg, "%d", pid);
-    run_command(title, 10, SU_PATH, "root", "showmap", arg, NULL);
+
+    if (skip) {
+        /* Skip due to non-zero exit status on first run. */
+        printf("------ %s: Skipped. ------\n", title);
+    } else {
+        int status = run_command(title, 10, SU_PATH, "root", "showmap", arg, NULL);
+        if (!ran) {
+            ran  = true;
+            skip = !WIFEXITED(status) || WEXITSTATUS(status) != 0;
+        }
+    }
 }
 
 /* prints the contents of a file */
@@ -316,7 +327,21 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
     /* handle child case */
     if (pid == 0) {
         const char *args[1024] = {command};
-        size_t arg;
+        size_t arg = 1;
+        char sucmd[255];
+        bool su = false;
+
+        if (strcmp(command, SU_PATH) == 0) {
+            /* Need to transform calls to su from:
+             *   su LOGIN COMMAND ...
+             * to:
+             *   su -c 'COMMAND "$@"' -- LOGIN COMMAND ... */
+            args[arg++] = "-c";
+            args[arg++] = sucmd;
+            args[arg++] = "--";
+            sucmd[0] = '\0';
+            su = true;
+        }
 
         /* make sure the child dies when dumpstate dies */
         prctl(PR_SET_PDEATHSIG, SIGKILL);
@@ -330,9 +355,10 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
         va_list ap;
         va_start(ap, command);
         if (title) printf("------ %s (%s", title, command);
-        for (arg = 1; arg < sizeof(args) / sizeof(args[0]); ++arg) {
+        for (; arg < sizeof(args) / sizeof(args[0]); ++arg) {
             args[arg] = va_arg(ap, const char *);
             if (args[arg] == NULL) break;
+            if (su && arg == 5) snprintf(sucmd, sizeof(sucmd), "%s \"$@\"", args[arg]);
             if (title) printf(" %s", args[arg]);
         }
         if (title) printf(") ------\n");
