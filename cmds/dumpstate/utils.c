@@ -131,12 +131,23 @@ void do_dmesg() {
 }
 
 void do_showmap(int pid, const char *name) {
+    static bool ran = false, skip = false;
     char title[255];
     char arg[255];
 
     sprintf(title, "SHOW MAP %d (%s)", pid, name);
     sprintf(arg, "%d", pid);
-    run_command(title, 10, SU_PATH, "root", "showmap", arg, NULL);
+
+    if (skip) {
+        /* Skip due to non-zero exit status on first run. */
+        printf("------ %s: Skipped. ------\n", title);
+    } else {
+        int status = run_command(title, 10, SU_PATH, "root", "showmap", arg, NULL);
+        if (!ran) {
+            ran  = true;
+            skip = !WIFEXITED(status) || WEXITSTATUS(status) != 0;
+        }
+    }
 }
 
 /* prints the contents of a file */
