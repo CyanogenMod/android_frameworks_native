@@ -107,6 +107,7 @@ public:
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Rect&             getViewport() const { return mViewport; }
     const Rect&             getFrame() const { return mFrame; }
+    const Rect&             getScissor() const { return mScissor; }
     bool                    needsFiltering() const { return mNeedsFiltering; }
 
     uint32_t                getLayerStack() const { return mLayerStack; }
@@ -200,8 +201,12 @@ private:
 
     uint32_t mLayerStack;
     int mOrientation;
+    // user-provided visible area of the layer stack
     Rect mViewport;
+    // user-provided rectangle where mViewport gets mapped to
     Rect mFrame;
+    // pre-computed scissor to apply to the display
+    Rect mScissor;
     Transform mGlobalTransform;
     bool mNeedsFiltering;
 };

@@ -1493,7 +1493,20 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             glClearColor(0, 0, 0, 0);
             glClear(GL_COLOR_BUFFER_BIT);
         } else {
-            const Region region(hw->undefinedRegion.intersect(dirty));
+            // we start with the whole screen area
+            const Region bounds(hw->getBounds());
+
+            // we remove the scissor part
+            // we're left with the letterbox region
+            // (common case is that letterbox ends-up being empty)
+            const Region letterbox(bounds.subtract(hw->getScissor()));
+
+            // compute the area to clear
+            Region region(hw->undefinedRegion.merge(letterbox));
+
+            // but limit it to the dirty region
+            region.andSelf(dirty);
+
             // screen is already cleared here
             if (!region.isEmpty()) {
                 // can happen with SurfaceView
@@ -1501,13 +1514,12 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             }
         }
 
-        if (hw->getDisplayType() >= DisplayDevice::DISPLAY_EXTERNAL) {
-            // TODO: just to be on the safe side, we don't set the
+        if (hw->getDisplayType() != DisplayDevice::DISPLAY_PRIMARY) {
+            // just to be on the safe side, we don't set the
             // scissor on the main display. It should never be needed
             // anyways (though in theory it could since the API allows it).
             const Rect& bounds(hw->getBounds());
-            const Transform& tr(hw->getTransform());
-            const Rect scissor(tr.transform(hw->getViewport()));
+            const Rect& scissor(hw->getScissor());
             if (scissor != bounds) {
                 // scissor doesn't match the screen's dimensions, so we
                 // need to clear everything outside of it and enable
@@ -1515,9 +1527,6 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                 const GLint height = hw->getHeight();
                 glScissor(scissor.left, height - scissor.bottom,
                         scissor.getWidth(), scissor.getHeight());
-                // clear everything unscissored
-                glClearColor(0, 0, 0, 0);
-                glClear(GL_COLOR_BUFFER_BIT);
                 // enable scissor for this frame
                 glEnable(GL_SCISSOR_TEST);
             }
