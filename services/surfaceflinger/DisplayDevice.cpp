@@ -426,6 +426,11 @@ void DisplayDevice::updateGeometryTransform() {
         const uint8_t type = mGlobalTransform.getType();
         mNeedsFiltering = (!mGlobalTransform.preserveRects() ||
                 (type >= Transform::SCALE));
+
+        mScissor = mGlobalTransform.transform(mViewport);
+        if (mScissor.isEmpty()) {
+            mScissor.set(getBounds());
+        }
     }
 }
 
@@ -435,7 +440,7 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         "+ DisplayDevice: %s\n"
         "   type=%x, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
         "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%u\n"
-        "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], "
+        "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], s:[%d,%d,%d,%d],"
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
         mDisplayName.string(), mType,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
@@ -443,6 +448,7 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         mIsSecure, mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
         mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
         mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,
+        mScissor.left, mScissor.top, mScissor.right, mScissor.bottom,
         tr[0][0], tr[1][0], tr[2][0],
         tr[0][1], tr[1][1], tr[2][1],
         tr[0][2], tr[1][2], tr[2][2]);
