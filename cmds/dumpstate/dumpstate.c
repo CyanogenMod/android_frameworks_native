@@ -102,7 +102,7 @@ static void dumpstate() {
     run_command("LIST OF OPEN FILES", 10, SU_PATH, "root", "lsof", NULL);
 
     for_each_pid(do_showmap, "SMAPS OF ALL PROCESSES");
-    for_each_pid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
+    for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
     run_command("SYSTEM LOG", 20, "logcat", "-v", "threadtime", "-d", "*:v", NULL);
