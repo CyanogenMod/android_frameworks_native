@@ -19,9 +19,13 @@
 
 #include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #define SU_PATH "/system/xbin/su"
+
+typedef void (for_each_pid_func)(int, const char *);
+typedef void (for_each_tid_func)(int, int, const char *);
 
 /* prints the contents of a file */
 int dump_file(const char *title, const char* path);
@@ -42,10 +46,13 @@ pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level);
 const char *dump_traces();
 
 /* for each process in the system, run the specified function */
-void for_each_pid(void (*func)(int, const char *), const char *header);
+void for_each_pid(for_each_pid_func func, const char *header);
+
+/* for each thread in the system, run the specified function */
+void for_each_tid(for_each_tid_func func, const char *header);
 
 /* Displays a blocked processes in-kernel wait channel */
-void show_wchan(int pid, const char *name);
+void show_wchan(int pid, int tid, const char *name);
 
 /* Runs "showmap" for a process */
 void do_showmap(int pid, const char *name);

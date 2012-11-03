@@ -48,7 +48,7 @@ static const char* native_processes_to_dump[] = {
         NULL,
 };
 
-void for_each_pid(void (*func)(int, const char *), const char *header) {
+static void __for_each_pid(void (*helper)(int, const char *, void *), const char *header, void *arg) {
     DIR *d;
     struct dirent *de;
 
@@ -73,23 +73,85 @@ void for_each_pid(void (*func)(int, const char *), const char *header) {
         if ((fd = open(cmdpath, O_RDONLY)) < 0) {
             strcpy(cmdline, "N/A");
         } else {
-            read(fd, cmdline, sizeof(cmdline));
+            read(fd, cmdline, sizeof(cmdline) - 1);
             close(fd);
         }
-        func(pid, cmdline);
+        helper(pid, cmdline, arg);
     }
 
     closedir(d);
 }
 
-void show_wchan(int pid, const char *name) {
+static void for_each_pid_helper(int pid, const char *cmdline, void *arg) {
+    for_each_pid_func *func = arg;
+    func(pid, cmdline);
+}
+
+void for_each_pid(for_each_pid_func func, const char *header) {
+    __for_each_pid(for_each_pid_helper, header, func);
+}
+
+static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
+    DIR *d;
+    struct dirent *de;
+    char taskpath[255];
+    for_each_tid_func *func = arg;
+
+    sprintf(taskpath, "/proc/%d/task", pid);
+
+    if (!(d = opendir(taskpath))) {
+        printf("Failed to open %s (%s)\n", taskpath, strerror(errno));
+        return;
+    }
+
+    func(pid, pid, cmdline);
+
+    while ((de = readdir(d))) {
+        int tid;
+        int fd;
+        char commpath[255];
+        char comm[255];
+
+        if (!(tid = atoi(de->d_name))) {
+            continue;
+        }
+
+        if (tid == pid)
+            continue;
+
+        sprintf(commpath,"/proc/%d/comm", tid);
+        memset(comm, 0, sizeof(cmdline));
+        if ((fd = open(commpath, O_RDONLY)) < 0) {
+            strcpy(comm, "N/A");
+        } else {
+            char *c;
+            read(fd, comm, sizeof(comm) - 1);
+            close(fd);
+
+            c = strrchr(comm, '\n');
+            if (c) {
+                *c = '\0';
+            }
+        }
+        func(pid, tid, comm);
+    }
+
+    closedir(d);
+}
+
+void for_each_tid(for_each_tid_func func, const char *header) {
+    __for_each_pid(for_each_tid_helper, header, func);
+}
+
+void show_wchan(int pid, int tid, const char *name) {
     char path[255];
     char buffer[255];
     int fd;
+    char name_buffer[255];
 
     memset(buffer, 0, sizeof(buffer));
 
-    sprintf(path, "/proc/%d/wchan", pid);
+    sprintf(path, "/proc/%d/wchan", tid);
     if ((fd = open(path, O_RDONLY)) < 0) {
         printf("Failed to open '%s' (%s)\n", path, strerror(errno));
         return;
@@ -100,7 +162,10 @@ void show_wchan(int pid, const char *name) {
         goto out_close;
     }
 
-    printf("%-7d %-32s %s\n", pid, name, buffer);
+    snprintf(name_buffer, sizeof(name_buffer), "%*s%s",
+             pid == tid ? 0 : 3, "", name);
+
+    printf("%-7d %-32s %s\n", tid, name_buffer, buffer);
 
 out_close:
     close(fd);
