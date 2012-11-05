@@ -78,7 +78,7 @@ public:
 
     // setFrameAvailableListener sets the listener object that will be notified
     // when a new frame becomes available.
-    void setFrameAvailableListener(const sp<FrameAvailableListener>& listener);
+    void setFrameAvailableListener(const wp<FrameAvailableListener>& listener);
 
 private:
     ConsumerBase(const ConsumerBase&);
@@ -199,7 +199,7 @@ protected:
     // mFrameAvailableListener is the listener object that will be called when a
     // new frame becomes available. If it is not NULL it will be called from
     // queueBuffer.
-    sp<FrameAvailableListener> mFrameAvailableListener;
+    wp<FrameAvailableListener> mFrameAvailableListener;
 
     // The ConsumerBase has-a BufferQueue and is responsible for creating this object
     // if none is supplied
