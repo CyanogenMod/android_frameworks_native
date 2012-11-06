@@ -978,10 +978,10 @@ void SurfaceFlinger::doComposition() {
         if (hw->canDraw()) {
             // transform the dirty region into this screen's coordinate space
             const Region dirtyRegion(hw->getDirtyRegion(repaintEverything));
-            if (!dirtyRegion.isEmpty()) {
-                // repaint the framebuffer (if needed)
-                doDisplayComposition(hw, dirtyRegion);
-            }
+
+            // repaint the framebuffer (if needed)
+            doDisplayComposition(hw, dirtyRegion);
+
             hw->dirtyRegion.clear();
             hw->flip(hw->swapRegion);
             hw->swapRegion.clear();
