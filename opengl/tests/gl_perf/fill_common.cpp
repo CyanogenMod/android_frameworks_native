@@ -189,7 +189,7 @@ static void setupVA() {
 }
 
 static void randUniform(int pgm, const char *var) {
-    int loc = glGetUniformLocation(pgm, var);
+    GLint loc = glGetUniformLocation(pgm, var);
     if (loc >= 0) {
         float x = ((float)rand()) / RAND_MAX;
         float y = ((float)rand()) / RAND_MAX;
@@ -211,7 +211,7 @@ static void doLoop(bool warmup, int pgm, uint32_t passCount) {
     startTimer();
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     for (uint32_t ct=0; ct < passCount; ct++) {
-        int loc = glGetUniformLocation(pgm, "u_texOff");
+        GLint loc = glGetUniformLocation(pgm, "u_texOff");
         glUniform2f(loc, ((float)ct) / passCount, ((float)ct) / 2.f / passCount);
 
         randUniform(pgm, "u_color");
@@ -271,7 +271,7 @@ static void doSingleTest(uint32_t pgmNum, int tex) {
         printf("error running test\n");
         return;
     }
-    int loc = glGetUniformLocation(pgm, "u_tex0");
+    GLint loc = glGetUniformLocation(pgm, "u_tex0");
     if (loc >= 0) glUniform1i(loc, 0);
     loc = glGetUniformLocation(pgm, "u_tex1");
     if (loc >= 0) glUniform1i(loc, 1);
