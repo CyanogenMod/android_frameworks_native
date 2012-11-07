@@ -204,6 +204,15 @@ public:
     // This method will fail if the the IGraphicBufferProducer is not currently
     // connected to the specified client API.
     virtual status_t disconnect(int api) = 0;
+
+    // setBufferSize enables to specify the user defined size of the buffer
+    // that needs to be allocated by surfaceflinger for its client. This is
+    // useful for cases where the client doesn't want the gralloc to calculate
+    // buffer size. client should reset this value to 0, if it wants gralloc to
+    // calculate the size for the buffer. this will take effect from next
+    // dequeue buffer.
+    virtual status_t setBuffersSize(int size) = 0;
+
 };
 
 // ----------------------------------------------------------------------------

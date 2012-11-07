@@ -105,6 +105,7 @@ private:
     virtual status_t connect(const sp<IBinder>& token,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
+    virtual status_t setBuffersSize(int size);
 
     //
     // Utility methods
