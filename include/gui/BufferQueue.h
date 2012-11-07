@@ -148,6 +148,16 @@ public:
     // The default mode is asynchronous.
     virtual status_t setSynchronousMode(bool enabled);
 
+#ifdef QCOM_BSP
+    // setBufferSize enables us to specify user defined sizes for the buffers
+    // that need to be allocated by surfaceflinger for its client. This is
+    // useful for cases where the client doesn't want the gralloc to calculate
+    // buffer size. client should reset this value to 0, if it wants gralloc
+    // to calculate the size for the buffer. this will take effect from next
+    // dequeue buffer.
+    virtual status_t setBuffersSize(int size);
+#endif
+
     // connect attempts to connect a producer client API to the BufferQueue.
     // This must be called before any other ISurfaceTexture methods are called
     // except for getAllocator.
