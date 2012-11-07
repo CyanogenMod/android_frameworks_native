@@ -38,6 +38,10 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	liblog
 
+# Executed only on QCOM BSPs
+ifeq ($(TARGET_USES_QCOM_BSP),true)
+    LOCAL_CFLAGS += -DQCOM_BSP
+endif
 
 LOCAL_MODULE:= libgui
 
