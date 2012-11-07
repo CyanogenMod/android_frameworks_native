@@ -120,7 +120,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
             continue;
 
         sprintf(commpath,"/proc/%d/comm", tid);
-        memset(comm, 0, sizeof(cmdline));
+        memset(comm, 0, sizeof(comm));
         if ((fd = open(commpath, O_RDONLY)) < 0) {
             strcpy(comm, "N/A");
         } else {
