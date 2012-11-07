@@ -105,6 +105,10 @@ status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {
     return mProducer->setSidebandStream(stream);
 }
 
+status_t MonitoredProducer::setBuffersSize(int size) {
+    return mProducer->setBuffersSize(size);
+}
+
 void MonitoredProducer::allocateBuffers(bool async, uint32_t width,
         uint32_t height, uint32_t format, uint32_t usage) {
     mProducer->allocateBuffers(async, width, height, format, usage);

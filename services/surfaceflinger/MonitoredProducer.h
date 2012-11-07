@@ -51,6 +51,7 @@ public:
             bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
+    virtual status_t setBuffersSize(int size);
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
             uint32_t format, uint32_t usage);
     virtual IBinder* onAsBinder();
