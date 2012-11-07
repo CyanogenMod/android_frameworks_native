@@ -169,7 +169,7 @@ void API_ENTRY(glGetActiveUniform)(GLuint program, GLuint index, GLsizei bufsize
 void API_ENTRY(glGetAttachedShaders)(GLuint program, GLsizei maxcount, GLsizei* count, GLuint* shaders) {
     CALL_GL_API(glGetAttachedShaders, program, maxcount, count, shaders);
 }
-int API_ENTRY(glGetAttribLocation)(GLuint program, const GLchar* name) {
+GLint API_ENTRY(glGetAttribLocation)(GLuint program, const GLchar* name) {
     CALL_GL_API_RETURN(glGetAttribLocation, program, name);
 }
 void API_ENTRY(glGetBooleanv)(GLenum pname, GLboolean* params) {
@@ -226,7 +226,7 @@ void API_ENTRY(glGetUniformfv)(GLuint program, GLint location, GLfloat* params) 
 void API_ENTRY(glGetUniformiv)(GLuint program, GLint location, GLint* params) {
     CALL_GL_API(glGetUniformiv, program, location, params);
 }
-int API_ENTRY(glGetUniformLocation)(GLuint program, const GLchar* name) {
+GLint API_ENTRY(glGetUniformLocation)(GLuint program, const GLchar* name) {
     CALL_GL_API_RETURN(glGetUniformLocation, program, name);
 }
 void API_ENTRY(glGetVertexAttribfv)(GLuint index, GLenum pname, GLfloat* params) {

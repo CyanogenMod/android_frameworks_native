@@ -2214,7 +2214,7 @@ void GLTrace_glGetAttachedShaders(GLuint program, GLsizei maxcount, GLsizei* cou
     glContext->traceGLMessage(&glmsg);
 }
 
-int GLTrace_glGetAttribLocation(GLuint program, const GLchar* name) {
+GLint GLTrace_glGetAttribLocation(GLuint program, const GLchar* name) {
     GLMessage glmsg;
     GLTraceContext *glContext = getGLTraceContext();
 
@@ -2235,7 +2235,7 @@ int GLTrace_glGetAttribLocation(GLuint program, const GLchar* name) {
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
     nsecs_t threadStartTime = systemTime(SYSTEM_TIME_THREAD);
-    int retValue = glContext->hooks->gl.glGetAttribLocation(program, name);
+    GLint retValue = glContext->hooks->gl.glGetAttribLocation(program, name);
     nsecs_t threadEndTime = systemTime(SYSTEM_TIME_THREAD);
     nsecs_t wallEndTime = systemTime(SYSTEM_TIME_MONOTONIC);
 
@@ -2996,7 +2996,7 @@ void GLTrace_glGetUniformiv(GLuint program, GLint location, GLint* params) {
     glContext->traceGLMessage(&glmsg);
 }
 
-int GLTrace_glGetUniformLocation(GLuint program, const GLchar* name) {
+GLint GLTrace_glGetUniformLocation(GLuint program, const GLchar* name) {
     GLMessage glmsg;
     GLTraceContext *glContext = getGLTraceContext();
 
@@ -3017,7 +3017,7 @@ int GLTrace_glGetUniformLocation(GLuint program, const GLchar* name) {
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
     nsecs_t threadStartTime = systemTime(SYSTEM_TIME_THREAD);
-    int retValue = glContext->hooks->gl.glGetUniformLocation(program, name);
+    GLint retValue = glContext->hooks->gl.glGetUniformLocation(program, name);
     nsecs_t threadEndTime = systemTime(SYSTEM_TIME_THREAD);
     nsecs_t wallEndTime = systemTime(SYSTEM_TIME_MONOTONIC);
 
