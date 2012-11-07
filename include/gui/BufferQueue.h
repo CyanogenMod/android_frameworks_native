@@ -33,6 +33,23 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+#ifdef QCOM_BSP
+/*
+ * Structure to hold the buffer geometry
+ */
+struct QBufGeometry {
+    int mWidth;
+    int mHeight;
+    int mFormat;
+    QBufGeometry(): mWidth(0), mHeight(0), mFormat(0) {}
+    void set(int w, int h, int f) {
+        mWidth = w;
+        mHeight = h;
+        mFormat = f;
+    }
+};
+#endif
+
 class BufferQueue : public BnSurfaceTexture {
 public:
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
@@ -156,6 +173,11 @@ public:
     // to calculate the size for the buffer. this will take effect from next
     // dequeue buffer.
     virtual status_t setBuffersSize(int size);
+
+    // update buffer width, height and format for a native buffer
+    // dynamically from the client which will take effect in the next
+    // queue buffer.
+    virtual status_t updateBuffersGeometry(int w, int h, int f);
 #endif
 
     // connect attempts to connect a producer client API to the BufferQueue.
@@ -547,6 +569,11 @@ private:
 
     // mTransformHint is used to optimize for screen rotations
     uint32_t mTransformHint;
+
+#ifdef QCOM_BSP
+    // holds the updated buffer geometry info of the new video resolution.
+    QBufGeometry mNextBufferInfo;
+#endif
 };
 
 // ----------------------------------------------------------------------------

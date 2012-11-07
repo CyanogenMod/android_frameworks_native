@@ -407,6 +407,9 @@ int SurfaceTextureClient::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_BUFFERS_SIZE:
         res = dispatchSetBuffersSize(args);
         break;
+    case NATIVE_WINDOW_UPDATE_BUFFERS_GEOMETRY:
+        res = dispatchUpdateBuffersGeometry(args);
+        break;
 #endif
     case NATIVE_WINDOW_LOCK:
         res = dispatchLock(args);
@@ -489,6 +492,13 @@ int SurfaceTextureClient::dispatchSetBuffersFormat(va_list args) {
 int SurfaceTextureClient::dispatchSetBuffersSize(va_list args) {
     int size = va_arg(args, int);
     return setBuffersSize(size);
+}
+
+int SurfaceTextureClient::dispatchUpdateBuffersGeometry(va_list args) {
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    int f = va_arg(args, int);
+    return updateBuffersGeometry(w, h, f);
 }
 #endif
 
@@ -665,6 +675,22 @@ int SurfaceTextureClient::setBuffersSize(int size)
         return mSurfaceTexture->setBuffersSize(size);
     }
     return NO_ERROR;
+}
+
+int SurfaceTextureClient::updateBuffersGeometry(int w, int h, int f)
+{
+    ATRACE_CALL();
+    ALOGV("SurfaceTextureClient::updateBuffersGeometry");
+
+    if (w<0 || h<0 || f<0)
+        return BAD_VALUE;
+
+    if ((w && !h) || (!w && h))
+        return BAD_VALUE;
+
+    Mutex::Autolock lock(mMutex);
+    status_t err = mSurfaceTexture->updateBuffersGeometry(w, h, f);
+    return err;
 }
 #endif
 

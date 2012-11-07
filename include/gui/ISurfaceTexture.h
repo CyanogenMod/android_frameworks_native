@@ -172,6 +172,10 @@ public:
    // calculate the size for the buffer. this will take effect from next
    // dequeue buffer.
     virtual status_t setBuffersSize(int size) = 0;
+
+    // update buffer width, height and format information from the client
+    // which will take effect in the next queue buffer.
+    virtual status_t updateBuffersGeometry(int w, int h, int f) = 0;
 #endif
 
     // connect attempts to connect a client API to the SurfaceTexture.  This

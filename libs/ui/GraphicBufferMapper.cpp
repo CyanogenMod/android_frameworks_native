@@ -108,5 +108,18 @@ status_t GraphicBufferMapper::getphys(buffer_handle_t handle, void** paddr)
 }
 #endif
 
+#ifdef QCOM_BSP
+status_t GraphicBufferMapper::perform(buffer_handle_t handle, int operation,
+                                      uint32_t w, uint32_t h, uint32_t format)
+{
+    ATRACE_CALL();
+    status_t err;
+
+    err = mAllocMod->perform(mAllocMod, operation, w, h, format, handle);
+
+    ALOGW_IF(err, "perform(...) failed %d (%s)", err, strerror(-err));
+    return err;
+}
+#endif
 // ---------------------------------------------------------------------------
 }; // namespace android

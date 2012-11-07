@@ -213,6 +213,16 @@ status_t GraphicBuffer::unlock()
     return res;
 }
 
+#ifdef QCOM_BSP
+status_t GraphicBuffer::perform(buffer_handle_t hnd, int operation,
+                                uint32_t w, uint32_t h, PixelFormat format)
+{
+    status_t res = getBufferMapper().perform(hnd,
+                   GRALLOC_MODULE_PERFORM_UPDATE_BUFFER_GEOMETRY, w, h, format);
+    return res;
+}
+#endif
+
 size_t GraphicBuffer::getFlattenedSize() const {
     return (8 + (handle ? handle->numInts : 0))*sizeof(int);
 }

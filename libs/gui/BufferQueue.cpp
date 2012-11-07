@@ -64,6 +64,70 @@ static const char* scalingModeName(int scalingMode) {
     }
 }
 
+#ifdef QCOM_BSP
+/*
+ * Checks if memory needs to be reallocated for this buffer.
+ *
+ * @param: Geometry of the current buffer.
+ * @param: Required Geometry.
+ * @param: Geometry of the updated buffer.
+ *
+ * @return True if a memory reallocation is required.
+ */
+static bool needNewBuffer(const QBufGeometry currentGeometry,
+                   const QBufGeometry requiredGeometry,
+                   const QBufGeometry updatedGeometry)
+{
+    // no allocation required if there is change in resoultion or format.
+    if (updatedGeometry.mWidth && updatedGeometry.mHeight &&
+        updatedGeometry.mFormat) {
+        return false;
+    }
+    // If the current buffer info matches the updated info,
+    // we do not require any memory allocation.
+    if (currentGeometry.mWidth != requiredGeometry.mWidth ||
+        currentGeometry.mHeight != requiredGeometry.mHeight ||
+        currentGeometry.mFormat != requiredGeometry.mFormat) {
+        // Current and required geometry do not match. Allocation
+        // required.
+        return true;
+    }
+    return false;
+}
+
+/*
+ * Geometry update for the currently queued buffer is required or not.
+ *
+ * @param: buffer currently queued buffer.
+ * @param: Updated width
+ * @param: Updated height
+ * @param: Updated format
+ *
+ * @return True if a buffer needs to be updated with new attributes.
+ */
+static bool isBufferGeometryUpdateRequired(sp<GraphicBuffer> buffer,
+                                 const QBufGeometry updatedGeometry)
+{
+    if (buffer == 0) {
+        ALOGW("isBufferGeometryUpdateRequired: graphic buffer is NULL");
+        return false;
+    }
+
+    if (!updatedGeometry.mWidth || !updatedGeometry.mHeight ||
+        !updatedGeometry.mFormat) {
+        // No update required. Return.
+        return false;
+    }
+    if (buffer->width == updatedGeometry.mWidth &&
+        buffer->height == updatedGeometry.mHeight &&
+        buffer->format == updatedGeometry.mFormat) {
+        // The buffer has already been updated. Return.
+        return false;
+    }
+    return true;
+}
+#endif
+
 BufferQueue::BufferQueue(bool allowSynchronousMode,
         const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultWidth(1),
@@ -94,6 +158,9 @@ BufferQueue::BufferQueue(bool allowSynchronousMode,
     } else {
         mGraphicBufferAlloc = allocator;
     }
+#ifdef QCOM_BSP
+    mNextBufferInfo.set(0, 0, 0);
+#endif
 }
 
 BufferQueue::~BufferQueue() {
@@ -387,10 +454,29 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
         mSlots[buf].mBufferState = BufferSlot::DEQUEUED;
 
         const sp<GraphicBuffer>& buffer(mSlots[buf].mGraphicBuffer);
+#ifdef QCOM_BSP
+        QBufGeometry currentGeometry;
+        if (buffer != NULL)
+            currentGeometry.set(buffer->width, buffer->height, buffer->format);
+        else
+            currentGeometry.set(0, 0, 0);
+
+        QBufGeometry requiredGeometry;
+        requiredGeometry.set(w, h, format);
+
+        QBufGeometry updatedGeometry;
+        updatedGeometry.set(mNextBufferInfo.mWidth, mNextBufferInfo.mHeight,
+                            mNextBufferInfo.mFormat);
+#endif
+
         if ((buffer == NULL) ||
+#ifdef QCOM_BSP
+            needNewBuffer(currentGeometry, requiredGeometry, updatedGeometry) ||
+#else
             (uint32_t(buffer->width)  != w) ||
             (uint32_t(buffer->height) != h) ||
             (uint32_t(buffer->format) != format) ||
+#endif
             ((uint32_t(buffer->usage) & usage) != usage))
         {
             mSlots[buf].mAcquireCalled = false;
@@ -452,6 +538,15 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
 
     return returnFlags;
 }
+
+#ifdef QCOM_BSP
+status_t BufferQueue::updateBuffersGeometry(int w, int h, int f) {
+    ST_LOGV("updateBuffersGeometry: w=%d h=%d f=%d", w, h, f);
+    Mutex::Autolock lock(mMutex);
+    mNextBufferInfo.set(w, h, f);
+    return NO_ERROR;
+}
+#endif
 
 status_t BufferQueue::setSynchronousMode(bool enabled) {
     ATRACE_CALL();
@@ -526,7 +621,31 @@ status_t BufferQueue::queueBuffer(int buf,
             return -EINVAL;
         }
 
+#ifdef QCOM_BSP
+        // Update the buffer Geometry if required
+        QBufGeometry updatedGeometry;
+        updatedGeometry.set(mNextBufferInfo.mWidth,
+                            mNextBufferInfo.mHeight, mNextBufferInfo.mFormat);
+#endif
         const sp<GraphicBuffer>& graphicBuffer(mSlots[buf].mGraphicBuffer);
+#ifdef QCOM_BSP
+        //  Update the geometry of this buffer without reallocation.
+        if(isBufferGeometryUpdateRequired(graphicBuffer, updatedGeometry)) {
+            status_t res = graphicBuffer->perform(graphicBuffer->handle,
+                                GRALLOC_MODULE_PERFORM_UPDATE_BUFFER_GEOMETRY,
+                                updatedGeometry.mWidth,
+                                updatedGeometry.mHeight,
+                                updatedGeometry.mFormat);
+            if(res == NO_ERROR) {
+                graphicBuffer->width  = updatedGeometry.mWidth;
+                graphicBuffer->height = updatedGeometry.mHeight;
+                graphicBuffer->format = updatedGeometry.mFormat;
+                // set flags to destroy old eglImage and create new eglImage.
+                mSlots[buf].mAcquireCalled = false;
+                mSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
+            }
+        }
+#endif
         Rect bufferRect(graphicBuffer->getWidth(), graphicBuffer->getHeight());
         Rect croppedCrop;
         crop.intersect(bufferRect, &croppedCrop);
@@ -691,6 +810,9 @@ status_t BufferQueue::disconnect(int api) {
                 if (mConnectedApi == api) {
                     drainQueueAndFreeBuffersLocked();
                     mConnectedApi = NO_CONNECTED_API;
+#ifdef QCOM_BSP
+                    mNextBufferInfo.set(0, 0, 0);
+#endif
                     mDequeueCondition.broadcast();
                     listener = mConsumerListener;
                 } else {

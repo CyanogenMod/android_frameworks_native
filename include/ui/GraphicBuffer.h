@@ -103,6 +103,10 @@ public:
     status_t lock(uint32_t usage, void** vaddr);
     status_t lock(uint32_t usage, const Rect& rect, void** vaddr);
     status_t unlock();
+#ifdef QCOM_BSP
+    status_t perform(buffer_handle_t hnd, int operation,
+                     uint32_t w, uint32_t h, PixelFormat format);
+#endif
 
     ANativeWindowBuffer* getNativeBuffer() const;
     
