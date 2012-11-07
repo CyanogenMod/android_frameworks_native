@@ -192,6 +192,8 @@ static void dumpstate() {
     run_command("DUMP WIFI INTERNAL COUNTERS", 20,
             SU_PATH, "root", "wlutil", "counters", NULL);
 #endif
+    dump_file("INTERRUPTS (1)", "/proc/interrupts");
+
     property_get("dhcp.wlan0.gateway", network, "");
     if (network[0])
         run_command("PING GATEWAY", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
@@ -207,6 +209,7 @@ static void dumpstate() {
     run_command("DUMP WIFI INTERNAL COUNTERS", 20,
             SU_PATH, "root", "wlutil", "counters", NULL);
 #endif
+    dump_file("INTERRUPTS (2)", "/proc/interrupts");
 
     print_properties();
 
