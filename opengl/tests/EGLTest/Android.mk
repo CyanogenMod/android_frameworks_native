@@ -30,6 +30,9 @@ LOCAL_C_INCLUDES := \
     frameworks/native/opengl/libs \
     frameworks/native/opengl/libs/EGL \
 
+# gold in binutils 2.22 will warn about the usage of mktemp
+LOCAL_LDFLAGS += -Wl,--no-fatal-warnings
+
 include $(BUILD_EXECUTABLE)
 
 # Include subdirectory makefiles
