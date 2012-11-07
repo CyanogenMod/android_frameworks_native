@@ -585,6 +585,10 @@ void VirtualDisplaySurface::allocateBuffers(bool /* async */,
     // TODO: Should we actually allocate buffers for a virtual display?
 }
 
+status_t VirtualDisplaySurface::setBuffersSize(int size) {
+   return mSource[SOURCE_SINK]->setBuffersSize(size);
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

@@ -67,7 +67,9 @@ public:
                 usage, error);
         return buffer;
     }
+    virtual void setGraphicBufferSize(int size) {
 
+    }
     int getAllocCount() const { return mAllocCount; }
 
 private:

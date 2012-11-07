@@ -77,7 +77,6 @@ public:
     static void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
             sp<IGraphicBufferConsumer>* outConsumer,
             const sp<IGraphicBufferAlloc>& allocator = NULL);
-
 private:
     BufferQueue(); // Create through createBufferQueue
 };
