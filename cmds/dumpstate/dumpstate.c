@@ -188,6 +188,10 @@ static void dumpstate() {
     run_command("WIFI NETWORKS", 20,
             SU_PATH, "root", "wpa_cli", "list_networks", NULL);
 
+#ifdef FWDUMP_bcmdhd
+    run_command("DUMP WIFI INTERNAL COUNTERS", 20,
+            SU_PATH, "root", "wlutil", "counters", NULL);
+#endif
     property_get("dhcp.wlan0.gateway", network, "");
     if (network[0])
         run_command("PING GATEWAY", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
@@ -197,7 +201,7 @@ static void dumpstate() {
     property_get("dhcp.wlan0.dns2", network, "");
     if (network[0])
         run_command("PING DNS2", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
-#ifdef FWDUMP_bcm4329
+#ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI STATUS", 20,
             SU_PATH, "root", "dhdutil", "-i", "wlan0", "dump", NULL);
     run_command("DUMP WIFI INTERNAL COUNTERS", 20,
