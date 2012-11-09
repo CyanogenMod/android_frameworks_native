@@ -34,6 +34,7 @@
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 
+#include "FrameTracker.h"
 #include "LayerBase.h"
 #include "SurfaceTextureLayer.h"
 #include "Transform.h"
@@ -129,17 +130,7 @@ private:
     bool mCurrentOpacity;
     bool mRefreshPending;
     bool mFrameLatencyNeeded;
-    int mFrameLatencyOffset;
-
-    struct Statistics {
-        Statistics() : timestamp(0), set(0), vsync(0) { }
-        nsecs_t timestamp;  // buffer timestamp
-        nsecs_t set;        // buffer displayed timestamp
-        nsecs_t vsync;      // vsync immediately before set
-    };
-
-    // protected by mLock
-    Statistics mFrameStats[128];
+    FrameTracker mFrameTracker;
 
     // constants
     PixelFormat mFormat;

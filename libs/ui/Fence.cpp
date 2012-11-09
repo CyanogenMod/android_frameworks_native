@@ -18,6 +18,9 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+ // This is needed for stdint.h to define INT64_MAX in C++
+ #define __STDC_LIMIT_MACROS
+
 #include <sync/sync.h>
 #include <ui/Fence.h>
 #include <unistd.h>
@@ -84,6 +87,32 @@ int Fence::dup() const {
         return -1;
     }
     return ::dup(mFenceFd);
+}
+
+nsecs_t Fence::getSignalTime() const {
+    if (mFenceFd == -1) {
+        return -1;
+    }
+
+    struct sync_fence_info_data* finfo = sync_fence_info(mFenceFd);
+    if (finfo == NULL) {
+        ALOGE("sync_fence_info returned NULL for fd %d", mFenceFd);
+        return -1;
+    }
+    if (finfo->status != 1) {
+        return INT64_MAX;
+    }
+
+    struct sync_pt_info* pinfo = NULL;
+    uint64_t timestamp = 0;
+    while ((pinfo = sync_pt_info(finfo, pinfo)) != NULL) {
+        if (pinfo->timestamp_ns > timestamp) {
+            timestamp = pinfo->timestamp_ns;
+        }
+    }
+    sync_fence_info_free(finfo);
+
+    return nsecs_t(timestamp);
 }
 
 size_t Fence::getFlattenedSize() const {

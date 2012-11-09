@@ -5,6 +5,7 @@ LOCAL_SRC_FILES:= \
     Client.cpp                              \
     DisplayDevice.cpp                       \
     EventThread.cpp                         \
+    FrameTracker.cpp                        \
     Layer.cpp                               \
     LayerBase.cpp                           \
     LayerDim.cpp                            \

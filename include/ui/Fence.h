@@ -25,6 +25,7 @@
 #include <ui/Rect.h>
 #include <utils/Flattenable.h>
 #include <utils/String8.h>
+#include <utils/Timers.h>
 
 struct ANativeWindowBuffer;
 
@@ -39,6 +40,10 @@ class Fence
 {
 public:
     static const sp<Fence> NO_FENCE;
+
+    // TIMEOUT_NEVER may be passed to the wait method to indicate that it
+    // should wait indefinitely for the fence to signal.
+    enum { TIMEOUT_NEVER = -1 };
 
     // Construct a new Fence object with an invalid file descriptor.  This
     // should be done when the Fence object will be set up by unflattening
@@ -69,10 +74,6 @@ public:
     // the caller and will be included in the log message.
     status_t waitForever(unsigned int warningTimeout, const char* logname);
 
-    // TIMEOUT_NEVER may be passed to the wait method to indicate that it
-    // should wait indefinitely for the fence to signal.
-    enum { TIMEOUT_NEVER = -1 };
-
     // merge combines two Fence objects, creating a new Fence object that
     // becomes signaled when both f1 and f2 are signaled (even if f1 or f2 is
     // destroyed before it becomes signaled).  The name argument specifies the
@@ -84,6 +85,12 @@ public:
     // responsible for closing the returned file descriptor. On error, -1 will
     // be returned and errno will indicate the problem.
     int dup() const;
+
+    // getSignalTime returns the system monotonic clock time at which the
+    // fence transitioned to the signaled state.  If the fence is not signaled
+    // then INT64_MAX is returned.  If the fence is invalid or if an error
+    // occurs then -1 is returned.
+    nsecs_t getSignalTime() const;
 
     // Flattenable interface
     size_t getFlattenedSize() const;
