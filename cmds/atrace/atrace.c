@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -432,7 +433,12 @@ static void showHelp(const char *cmd)
                     "  -u              trace bus utilization\n"
                     "  -w              trace the kernel workqueue\n"
                     "  -y              trace sync timelines and waits\n"
-                    "  -z              compress the trace dump\n");
+                    "  -z              compress the trace dump\n"
+                    "  --async_start   start circular trace and return immediatly\n",
+                    "  --async_dump    dump the current contents of circular trace buffer\n",
+                    "  --async_stop    stop tracing and dump the current contents of circular\n",
+                    "                    trace buffer\n",
+            );
 }
 
 static void handleSignal(int signo) {
@@ -455,6 +461,10 @@ static void registerSigHandler() {
 int main(int argc, char **argv)
 {
     bool isRoot = (getuid() == 0);
+    bool async = false;
+    bool traceStart = true;
+    bool traceStop = true;
+    bool traceDump = true;
 
     if (argc == 2 && 0 == strcmp(argv[1], "--help")) {
         showHelp(argv[0]);
@@ -463,8 +473,16 @@ int main(int argc, char **argv)
 
     for (;;) {
         int ret;
+        int option_index = 0;
+        static struct option long_options[] = {
+            {"async_start",     no_argument, 0,  0 },
+            {"async_stop",      no_argument, 0,  0 },
+            {"async_dump",      no_argument, 0,  0 },
+            {0,         0,                 0,  0 }
+        };
 
-        ret = getopt(argc, argv, "b:cidflst:uwyznS:");
+        ret = getopt_long(argc, argv, "b:cidflst:uwyznS:",
+                          long_options, &option_index);
 
         if (ret < 0) {
             break;
@@ -543,6 +561,22 @@ int main(int argc, char **argv)
                 g_compress = true;
             break;
 
+            case 0:
+                if (!strcmp(long_options[option_index].name, "async_start")) {
+                    async = true;
+                    traceStop = false;
+                    traceDump = false;
+                    g_traceOverwrite = true;
+                } else if (!strcmp(long_options[option_index].name, "async_stop")) {
+                    async = true;
+                    traceStop = false;
+                } else if (!strcmp(long_options[option_index].name, "async_dump")) {
+                    async = true;
+                    traceStart = false;
+                    traceStop = false;
+                }
+                break;
+
             default:
                 fprintf(stderr, "\n");
                 showHelp(argv[0]);
@@ -559,7 +593,7 @@ int main(int argc, char **argv)
 
     bool ok = startTrace(isRoot);
 
-    if (ok) {
+    if (ok && traceStart) {
         printf("capturing trace...");
         fflush(stdout);
 
@@ -570,7 +604,7 @@ int main(int argc, char **argv)
         // another.
         ok = clearTrace();
 
-        if (ok) {
+        if (ok && !async) {
             // Sleep to allow the trace to be captured.
             struct timespec timeLeft;
             timeLeft.tv_sec = g_traceDurationSeconds;
@@ -584,9 +618,10 @@ int main(int argc, char **argv)
     }
 
     // Stop the trace and restore the default settings.
-    stopTrace(isRoot);
+    if (traceStop)
+        stopTrace(isRoot);
 
-    if (ok) {
+    if (ok && traceDump) {
         if (!g_traceAborted) {
             printf(" done\nTRACE:\n");
             fflush(stdout);
@@ -596,12 +631,13 @@ int main(int argc, char **argv)
             fflush(stdout);
         }
         clearTrace();
-    } else {
+    } else if (!ok) {
         fprintf(stderr, "unable to start tracing\n");
     }
 
     // Reset the trace buffer size to 1.
-    setTraceBufferSizeKB(1);
+    if (traceStop)
+        setTraceBufferSizeKB(1);
 
     return g_traceAborted ? 1 : 0;
 }
