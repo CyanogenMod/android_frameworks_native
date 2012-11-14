@@ -46,6 +46,7 @@ static struct {
     { AID_RADIO, "simphonebook" },
     { AID_MEDIA, "common_time.clock" },
     { AID_MEDIA, "common_time.config" },
+    { AID_KEYSTORE, "android.security.keystore" },
 };
 
 void *svcmgr_handle;
