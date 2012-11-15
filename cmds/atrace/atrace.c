@@ -434,10 +434,10 @@ static void showHelp(const char *cmd)
                     "  -w              trace the kernel workqueue\n"
                     "  -y              trace sync timelines and waits\n"
                     "  -z              compress the trace dump\n"
-                    "  --async_start   start circular trace and return immediatly\n",
-                    "  --async_dump    dump the current contents of circular trace buffer\n",
-                    "  --async_stop    stop tracing and dump the current contents of circular\n",
-                    "                    trace buffer\n",
+                    "  --async_start   start circular trace and return immediatly\n"
+                    "  --async_dump    dump the current contents of circular trace buffer\n"
+                    "  --async_stop    stop tracing and dump the current contents of circular\n"
+                    "                    trace buffer\n"
             );
 }
 
