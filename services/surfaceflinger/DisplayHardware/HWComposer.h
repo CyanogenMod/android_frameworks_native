@@ -22,13 +22,15 @@
 
 #include <hardware/hwcomposer_defs.h>
 
+#include <ui/Fence.h>
+
+#include <utils/BitSet.h>
 #include <utils/Condition.h>
 #include <utils/Mutex.h>
 #include <utils/StrongPointer.h>
 #include <utils/Thread.h>
 #include <utils/Timers.h>
 #include <utils/Vector.h>
-#include <utils/BitSet.h>
 
 extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            const struct timespec *request,
@@ -233,6 +235,7 @@ public:
     // HWC_DISPLAY_PRIMARY).
     nsecs_t getRefreshPeriod(int disp) const;
     nsecs_t getRefreshTimestamp(int disp) const;
+    sp<Fence> getDisplayFence(int disp) const;
     uint32_t getWidth(int disp) const;
     uint32_t getHeight(int disp) const;
     uint32_t getFormat(int disp) const;
@@ -306,6 +309,10 @@ private:
         hwc_display_contents_1* list;
         hwc_layer_1* framebufferTarget;
         buffer_handle_t fbTargetHandle;
+        sp<Fence> lastRetireFence;  // signals when the last set op retires
+        sp<Fence> lastDisplayFence; // signals when the last set op takes
+                                    // effect on screen
+
         // protected by mEventControlLock
         int32_t events;
     };

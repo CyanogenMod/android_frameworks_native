@@ -419,6 +419,11 @@ nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
     return now - ((now - mLastHwVSync) %  mDisplayData[disp].refresh);
 }
 
+sp<Fence> HWComposer::getDisplayFence(int disp) const {
+    return mDisplayData[disp].lastDisplayFence;
+}
+
+
 uint32_t HWComposer::getWidth(int disp) const {
     return mDisplayData[disp].width;
 }
@@ -663,9 +668,11 @@ status_t HWComposer::commit() {
 
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
+            disp.lastDisplayFence = disp.lastRetireFence;
+            disp.lastRetireFence = NULL;
             if (disp.list) {
                 if (disp.list->retireFenceFd != -1) {
-                    close(disp.list->retireFenceFd);
+                    disp.lastRetireFence = new Fence(disp.list->retireFenceFd);
                     disp.list->retireFenceFd = -1;
                 }
                 disp.list->flags &= ~HWC_GEOMETRY_CHANGED;
