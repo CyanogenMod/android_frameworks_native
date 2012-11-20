@@ -59,7 +59,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
         mCurrentOpacity(true),
         mRefreshPending(false),
         mFrameLatencyNeeded(false),
-        mFrameLatencyOffset(0),
         mFormat(PIXEL_FORMAT_NONE),
         mGLExtensions(GLExtensions::getInstance()),
         mOpaqueLayer(true),
@@ -507,12 +506,30 @@ bool Layer::onPreComposition() {
 
 void Layer::onPostComposition() {
     if (mFrameLatencyNeeded) {
+        nsecs_t desiredPresentTime = mSurfaceTexture->getTimestamp();
+        mFrameTracker.setDesiredPresentTime(desiredPresentTime);
+
+        sp<Fence> frameReadyFence = mSurfaceTexture->getCurrentFence();
+        if (frameReadyFence != NULL) {
+            mFrameTracker.setFrameReadyFence(frameReadyFence);
+        } else {
+            // There was no fence for this frame, so assume that it was ready
+            // to be presented at the desired present time.
+            mFrameTracker.setFrameReadyTime(desiredPresentTime);
+        }
+
         const HWComposer& hwc = mFlinger->getHwComposer();
-        const size_t offset = mFrameLatencyOffset;
-        mFrameStats[offset].timestamp = mSurfaceTexture->getTimestamp();
-        mFrameStats[offset].set = systemTime();
-        mFrameStats[offset].vsync = hwc.getRefreshTimestamp(HWC_DISPLAY_PRIMARY);
-        mFrameLatencyOffset = (mFrameLatencyOffset + 1) % 128;
+        sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
+        if (presentFence != NULL) {
+            mFrameTracker.setActualPresentFence(presentFence);
+        } else {
+            // The HWC doesn't support present fences, so use the refresh
+            // timestamp instead.
+            nsecs_t presentTime = hwc.getRefreshTimestamp(HWC_DISPLAY_PRIMARY);
+            mFrameTracker.setActualPresentTime(presentTime);
+        }
+
+        mFrameTracker.advanceFrame();
         mFrameLatencyNeeded = false;
     }
 }
@@ -721,27 +738,16 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
-    const size_t o = mFrameLatencyOffset;
     const nsecs_t period =
             mFlinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
     result.appendFormat("%lld\n", period);
-    for (size_t i=0 ; i<128 ; i++) {
-        const size_t index = (o+i) % 128;
-        const nsecs_t time_app   = mFrameStats[index].timestamp;
-        const nsecs_t time_set   = mFrameStats[index].set;
-        const nsecs_t time_vsync = mFrameStats[index].vsync;
-        result.appendFormat("%lld\t%lld\t%lld\n",
-                time_app,
-                time_vsync,
-                time_set);
-    }
-    result.append("\n");
+    mFrameTracker.dump(result);
 }
 
 void Layer::clearStats()
 {
     LayerBaseClient::clearStats();
-    memset(mFrameStats, 0, sizeof(mFrameStats));
+    mFrameTracker.clear();
 }
 
 uint32_t Layer::getEffectiveUsage(uint32_t usage) const
