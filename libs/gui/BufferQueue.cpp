@@ -314,12 +314,9 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
                      * the consumer may still have pending reads of the
                      * buffers in flight.
                      */
-                    if (found >= 0) {
-                        bool isOlder = mSlots[i].mFrameNumber <
-                                mSlots[found].mFrameNumber;
-                        if (isOlder) {
-                            found = i;
-                        }
+                    if ((found < 0) ||
+                            mSlots[i].mFrameNumber < mSlots[found].mFrameNumber) {
+                        found = i;
                     }
                 }
             }
