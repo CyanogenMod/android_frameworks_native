@@ -61,7 +61,11 @@ public:
         bool nonNull = reply.readInt32();
         if (nonNull) {
             *buf = new GraphicBuffer();
-            reply.read(**buf);
+            result = reply.read(**buf);
+            if(result != NO_ERROR) {
+                (*buf).clear();
+                return result;
+            }
         }
         result = reply.readInt32();
         return result;
