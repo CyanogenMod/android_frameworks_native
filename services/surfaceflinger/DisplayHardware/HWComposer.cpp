@@ -17,7 +17,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
 // Uncomment this to remove support for HWC_DEVICE_API_VERSION_0_3 and older
-#define HWC_REMOVE_DEPRECATED_VERSIONS 1
+// #define HWC_REMOVE_DEPRECATED_VERSIONS 1
 
 #include <stdint.h>
 #include <stdio.h>
@@ -59,6 +59,28 @@ namespace android {
 #define NUM_PHYSICAL_DISPLAYS HWC_NUM_DISPLAY_TYPES
 #define VIRTUAL_DISPLAY_ID_BASE HWC_NUM_DISPLAY_TYPES
 
+// ---------------------------------------------------------------------------
+// Support for HWC_DEVICE_API_VERSION_0_3 and older:
+// Since v0.3 is deprecated and support will be dropped soon, as much as
+// possible the code is written to target v1.0. When using a v0.3 HWC, we
+// allocate v0.3 structures, but assign them to v1.0 pointers.
+
+#if HWC_REMOVE_DEPRECATED_VERSIONS
+// We need complete types to satisfy semantic checks, even though the code
+// paths that use these won't get executed at runtime (and will likely be dead-
+// code-eliminated). When we remove the code to support v0.3 we can remove
+// these as well.
+typedef hwc_layer_1_t hwc_layer_t;
+typedef hwc_display_contents_1_t hwc_layer_list_t;
+typedef hwc_composer_device_1_t hwc_composer_device_t;
+#endif
+
+// This function assumes we've already rejected HWC's with lower-than-required
+// versions. Don't use it for the initial "does HWC meet requirements" check!
+
+#define MIN_HWC_HEADER_VERSION 0
+
+
 static uint32_t hwcApiVersion(const hwc_composer_device_1_t* hwc) {
     uint32_t hwcVersion = hwc->common.version;
     return hwcVersion & HARDWARE_API_VERSION_2_MAJ_MIN_MASK;
@@ -72,6 +94,106 @@ static uint32_t hwcHeaderVersion(const hwc_composer_device_1_t* hwc) {
 static bool hwcHasApiVersion(const hwc_composer_device_1_t* hwc,
         uint32_t version) {
     return hwcApiVersion(hwc) >= (version & HARDWARE_API_VERSION_2_MAJ_MIN_MASK);
+}
+
+static bool hwcHasVsyncEvent(const hwc_composer_device_1_t* hwc) {
+    return hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_0_3);
+}
+
+static size_t sizeofHwcLayerList(const hwc_composer_device_1_t* hwc,
+        size_t numLayers) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return sizeof(hwc_display_contents_1_t) + numLayers*sizeof(hwc_layer_1_t);
+    } else {
+        return sizeof(hwc_layer_list_t) + numLayers*sizeof(hwc_layer_t);
+    }
+}
+
+static int hwcEventControl(hwc_composer_device_1_t* hwc, int dpy,
+        int event, int enabled) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->eventControl(hwc, dpy, event, enabled);
+    } else {
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        return hwc0->methods->eventControl(hwc0, event, enabled);
+    }
+}
+
+static int hwcBlank(hwc_composer_device_1_t* hwc, int dpy, int blank) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->blank(hwc, dpy, blank);
+    } else {
+        if (blank) {
+            hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+            return hwc0->set(hwc0, NULL, NULL, NULL);
+        } else {
+            // HWC 0.x turns the screen on at the next set()
+            return NO_ERROR;
+        }
+    }
+}
+
+static int hwcPrepare(hwc_composer_device_1_t* hwc,
+        size_t numDisplays, hwc_display_contents_1_t** displays) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return hwc->prepare(hwc, numDisplays, displays);
+    } else {
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(displays[0]);
+        // In the past, SurfaceFlinger would pass a NULL list when doing full
+        // OpenGL ES composition. I don't know what, if any, dependencies there
+        // are on this behavior, so I'm playing it safe and preserving it.
+        // ... and I'm removing it. NULL layers kill the Tegra compositor (RC, Nov 2012)
+        /*if (list0->numHwLayers == 0)
+            return hwc0->prepare(hwc0, NULL);
+        else*/
+            return hwc0->prepare(hwc0, list0);
+    }
+}
+static int hwcSet(hwc_composer_device_1_t* hwc, EGLDisplay dpy, EGLSurface sur,
+        size_t numDisplays, hwc_display_contents_1_t** displays) {
+    int err;
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        displays[0]->dpy = dpy;
+        displays[0]->sur = sur;
+        err = hwc->set(hwc, numDisplays, displays);
+    } else {
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(displays[0]);
+        err = hwc0->set(hwc0, dpy, sur, list0);
+    }
+    return err;
+}
+
+static uint32_t& hwcFlags(hwc_composer_device_1_t* hwc,
+        hwc_display_contents_1_t* display) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return display->flags;
+    } else {
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(display);
+        return list0->flags;
+    }
+}
+
+static size_t& hwcNumHwLayers(hwc_composer_device_1_t* hwc,
+        hwc_display_contents_1_t* display) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        return display->numHwLayers;
+    } else {
+        hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(display);
+        return list0->numHwLayers;
+    }
+}
+
+static void hwcDump(hwc_composer_device_1_t* hwc, char* buff, int buff_len) {
+    if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_1_0)) {
+        if (hwc->dump)
+            hwc->dump(hwc, buff, buff_len);
+    } else if (hwcHasApiVersion(hwc, HWC_DEVICE_API_VERSION_0_1)) {
+        hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(hwc);
+        if (hwc0->dump)
+            hwc0->dump(hwc0, buff, buff_len);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -137,32 +259,48 @@ HWComposer::HWComposer(
         ALOGI("Using %s version %u.%u", HWC_HARDWARE_COMPOSER,
               (hwcApiVersion(mHwc) >> 24) & 0xff,
               (hwcApiVersion(mHwc) >> 16) & 0xff);
-        if (mHwc->registerProcs) {
-            mCBContext->hwc = this;
-            mCBContext->procs.invalidate = &hook_invalidate;
-            mCBContext->procs.vsync = &hook_vsync;
-            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
-                mCBContext->procs.hotplug = &hook_hotplug;
-            else
-                mCBContext->procs.hotplug = NULL;
-            memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
-            mHwc->registerProcs(mHwc, &mCBContext->procs);
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            if (mHwc->registerProcs) {
+                mCBContext->hwc = this;
+                mCBContext->procs.invalidate = &hook_invalidate;
+                mCBContext->procs.vsync = &hook_vsync;
+                if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
+                    mCBContext->procs.hotplug = &hook_hotplug;
+                else
+                    mCBContext->procs.hotplug = NULL;
+                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
+                mHwc->registerProcs(mHwc, &mCBContext->procs);
+            }
+        } else {
+            hwc_composer_device_t* hwc0 = reinterpret_cast<hwc_composer_device_t*>(mHwc);
+            if (hwc0->registerProcs) {
+                mCBContext->hwc = this;
+                mCBContext->procs.invalidate = &hook_invalidate;
+                mCBContext->procs.vsync = &hook_vsync;
+                memset(mCBContext->procs.zero, 0, sizeof(mCBContext->procs.zero));
+                hwc0->registerProcs(hwc0, &mCBContext->procs);
+            }
         }
 
         // don't need a vsync thread if we have a hardware composer
         needVSyncThread = false;
         // always turn vsync off when we start
-        eventControl(HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
+        if (hwcHasVsyncEvent(mHwc)) {
+            eventControl(HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, 0);
 
-        // the number of displays we actually have depends on the
-        // hw composer version
-        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
-            // 1.?? adds support for virtual displays
-            mNumDisplays = MAX_DISPLAYS;
-        } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
-            // 1.1 adds support for multiple displays
-            mNumDisplays = MAX_DISPLAYS;
+            // the number of displays we actually have depends on the
+            // hw composer version
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
+                // 1.?? adds support for virtual displays
+                mNumDisplays = MAX_DISPLAYS;
+            } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+                // 1.1 adds support for multiple displays
+                mNumDisplays = MAX_DISPLAYS;
+            } else {
+                mNumDisplays = 1;
+            }
         } else {
+            needVSyncThread = true;
             mNumDisplays = 1;
         }
     }
@@ -233,9 +371,10 @@ void HWComposer::loadHwcModule()
         return;
     }
 
-    if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0) ||
+    if (HWC_REMOVE_DEPRECATED_VERSIONS &&
+        (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0) ||
             hwcHeaderVersion(mHwc) < MIN_HWC_HEADER_VERSION ||
-            hwcHeaderVersion(mHwc) > HWC_HEADER_VERSION) {
+            hwcHeaderVersion(mHwc) > HWC_HEADER_VERSION)) {
         ALOGE("%s device version %#x unsupported, will not be used",
               HWC_HARDWARE_COMPOSER, mHwc->common.version);
         hwc_close_1(mHwc);
@@ -467,22 +606,26 @@ void HWComposer::eventControl(int disp, int event, int enabled) {
         return;
     }
     status_t err = NO_ERROR;
-    if (mHwc && !mDebugForceFakeVSync) {
-        // NOTE: we use our own internal lock here because we have to call
-        // into the HWC with the lock held, and we want to make sure
-        // that even if HWC blocks (which it shouldn't), it won't
-        // affect other threads.
-        Mutex::Autolock _l(mEventControlLock);
-        const int32_t eventBit = 1UL << event;
-        const int32_t newValue = enabled ? eventBit : 0;
-        const int32_t oldValue = mDisplayData[disp].events & eventBit;
-        if (newValue != oldValue) {
-            ATRACE_CALL();
-            err = mHwc->eventControl(mHwc, disp, event, enabled);
-            if (!err) {
-                int32_t& events(mDisplayData[disp].events);
-                events = (events & ~eventBit) | newValue;
+    if (mHwc && !mDebugForceFakeVSync && hwcHasVsyncEvent(mHwc))  {
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            // NOTE: we use our own internal lock here because we have to call
+            // into the HWC with the lock held, and we want to make sure
+            // that even if HWC blocks (which it shouldn't), it won't
+            // affect other threads.
+            Mutex::Autolock _l(mEventControlLock);
+            const int32_t eventBit = 1UL << event;
+            const int32_t newValue = enabled ? eventBit : 0;
+            const int32_t oldValue = mDisplayData[disp].events & eventBit;
+            if (newValue != oldValue) {
+                ATRACE_CALL();
+                err = hwcEventControl(mHwc, disp, event, enabled);
+                if (!err) {
+                    int32_t& events(mDisplayData[disp].events);
+                    events = (events & ~eventBit) | newValue;
+                }
             }
+        } else {
+            err = hwcEventControl(mHwc, disp, event, enabled);
         }
         // error here should not happen -- not sure what we should
         // do if it does.
@@ -507,8 +650,7 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             numLayers++;
         }
         if (disp.capacity < numLayers || disp.list == NULL) {
-            size_t size = sizeof(hwc_display_contents_1_t)
-                    + numLayers * sizeof(hwc_layer_1_t);
+            size_t size = sizeofHwcLayerList(mHwc, numLayers);
             free(disp.list);
             disp.list = (hwc_display_contents_1_t*)malloc(size);
             disp.capacity = numLayers;
@@ -532,9 +674,11 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             disp.framebufferTarget->releaseFenceFd = -1;
             disp.framebufferTarget->planeAlpha = 0xFF;
         }
-        disp.list->retireFenceFd = -1;
-        disp.list->flags = HWC_GEOMETRY_CHANGED;
-        disp.list->numHwLayers = numLayers;
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            disp.list->retireFenceFd = -1;
+        }
+        hwcFlags(mHwc, disp.list) = HWC_GEOMETRY_CHANGED;
+        hwcNumHwLayers(mHwc, disp.list) = numLayers;
     }
     return NO_ERROR;
 }
@@ -581,7 +725,7 @@ status_t HWComposer::prepare() {
         }
         if (!disp.connected && disp.list != NULL) {
             ALOGW("WARNING: disp %d: connected, non-null list, layers=%d",
-                  i, disp.list->numHwLayers);
+                    i, hwcNumHwLayers(mHwc, disp.list));
         }
         mLists[i] = disp.list;
         if (mLists[i]) {
@@ -592,27 +736,51 @@ status_t HWComposer::prepare() {
                 // garbage data to catch improper use
                 mLists[i]->dpy = (hwc_display_t)0xDEADBEEF;
                 mLists[i]->sur = (hwc_surface_t)0xDEADBEEF;
-            } else {
+            } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
                 mLists[i]->dpy = EGL_NO_DISPLAY;
                 mLists[i]->sur = EGL_NO_SURFACE;
             }
         }
     }
-
-    int err = mHwc->prepare(mHwc, mNumDisplays, mLists);
+    int err = hwcPrepare(mHwc, mNumDisplays, mLists);
     ALOGE_IF(err, "HWComposer: prepare failed (%s)", strerror(-err));
 
     if (err == NO_ERROR) {
-        // here we're just making sure that "skip" layers are set
-        // to HWC_FRAMEBUFFER and we're also counting how many layers
-        // we have of each type.
-        for (size_t i=0 ; i<mNumDisplays ; i++) {
-            DisplayData& disp(mDisplayData[i]);
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            // here we're just making sure that "skip" layers are set
+            // to HWC_FRAMEBUFFER and we're also counting how many layers
+            // we have of each type.
+            for (size_t i=0 ; i<mNumDisplays ; i++) {
+                DisplayData& disp(mDisplayData[i]);
+                disp.hasFbComp = false;
+                disp.hasOvComp = false;
+                if (disp.list) {
+                    for (size_t i=0 ; i<hwcNumHwLayers(mHwc, disp.list) ; i++) {
+                        hwc_layer_1_t& l = disp.list->hwLayers[i];
+
+                        //ALOGD("prepare: %d, type=%d, handle=%p",
+                        //        i, l.compositionType, l.handle);
+
+                        if (l.flags & HWC_SKIP_LAYER) {
+                            l.compositionType = HWC_FRAMEBUFFER;
+                        }
+                        if (l.compositionType == HWC_FRAMEBUFFER) {
+                            disp.hasFbComp = true;
+                        }
+                        if (l.compositionType == HWC_OVERLAY) {
+                            disp.hasOvComp = true;
+                        }
+                    }
+                }
+            }
+        } else {
+            DisplayData& disp(mDisplayData[0]);
             disp.hasFbComp = false;
             disp.hasOvComp = false;
             if (disp.list) {
-                for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
-                    hwc_layer_1_t& l = disp.list->hwLayers[i];
+                hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(disp.list);
+                for (size_t i=0 ; i<hwcNumHwLayers(mHwc, disp.list) ; i++) {
+                    hwc_layer_t& l = list0->hwLayers[i];
 
                     //ALOGD("prepare: %d, type=%d, handle=%p",
                     //        i, l.compositionType, l.handle);
@@ -628,7 +796,9 @@ status_t HWComposer::prepare() {
                     }
                 }
             }
+
         }
+
     }
     return (status_t)err;
 }
@@ -664,12 +834,19 @@ sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {
 status_t HWComposer::commit() {
     int err = NO_ERROR;
     if (mHwc) {
-        if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
-            // On version 1.0, the OpenGL ES target surface is communicated
-            // by the (dpy, sur) fields and we are guaranteed to have only
-            // a single display.
-            mLists[0]->dpy = eglGetCurrentDisplay();
-            mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+            if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
+                // On version 1.0, the OpenGL ES target surface is communicated
+                // by the (dpy, sur) fields and we are guaranteed to have only
+                // a single display.
+                mLists[0]->dpy = eglGetCurrentDisplay();
+                mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
+            }
+            err = hwcSet(mHwc, mLists[0]->dpy, mLists[0]->sur, mNumDisplays,
+                    const_cast<hwc_display_contents_1_t**>(mLists));
+        } else {
+            err = hwcSet(mHwc, eglGetCurrentDisplay(), eglGetCurrentSurface(EGL_DRAW), mNumDisplays,
+                    const_cast<hwc_display_contents_1_t**>(mLists));
         }
 
         for (size_t i=VIRTUAL_DISPLAY_ID_BASE; i<mNumDisplays; i++) {
@@ -688,11 +865,13 @@ status_t HWComposer::commit() {
             disp.lastDisplayFence = disp.lastRetireFence;
             disp.lastRetireFence = Fence::NO_FENCE;
             if (disp.list) {
-                if (disp.list->retireFenceFd != -1) {
-                    disp.lastRetireFence = new Fence(disp.list->retireFenceFd);
-                    disp.list->retireFenceFd = -1;
+                if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+                    if (disp.list->retireFenceFd != -1) {
+                        disp.lastRetireFence = new Fence(disp.list->retireFenceFd);
+                        disp.list->retireFenceFd = -1;
+                    }
                 }
-                disp.list->flags &= ~HWC_GEOMETRY_CHANGED;
+                hwcFlags(mHwc, disp.list) &= ~HWC_GEOMETRY_CHANGED;
             }
         }
     }
@@ -702,8 +881,10 @@ status_t HWComposer::commit() {
 status_t HWComposer::release(int disp) {
     LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     if (mHwc) {
-        eventControl(disp, HWC_EVENT_VSYNC, 0);
-        return (status_t)mHwc->blank(mHwc, disp, 1);
+        if (hwcHasVsyncEvent(mHwc)) {
+            eventControl(disp, HWC_EVENT_VSYNC, 0);
+        }
+        return (status_t)hwcBlank(mHwc, disp, 1);
     }
     return NO_ERROR;
 }
@@ -711,7 +892,7 @@ status_t HWComposer::release(int disp) {
 status_t HWComposer::acquire(int disp) {
     LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     if (mHwc) {
-        return (status_t)mHwc->blank(mHwc, disp, 0);
+        return (status_t)hwcBlank(mHwc, disp, 0);
     }
     return NO_ERROR;
 }
@@ -818,6 +999,93 @@ private:
         return NO_ERROR;
     }
 };
+
+// #if !HWC_REMOVE_DEPRECATED_VERSIONS
+/*
+ * Concrete implementation of HWCLayer for HWC_DEVICE_API_VERSION_0_3
+ * This implements the HWCLayer side of HWCIterableLayer.
+ */
+class HWCLayerVersion0 : public Iterable<HWCLayerVersion0, hwc_layer_t> {
+public:
+    HWCLayerVersion0(hwc_layer_t* layer)
+        : Iterable<HWCLayerVersion0, hwc_layer_t>(layer) { }
+
+    virtual int32_t getCompositionType() const {
+        return getLayer()->compositionType;
+    }
+    virtual uint32_t getHints() const {
+        return getLayer()->hints;
+    }
+    virtual int getAndResetReleaseFenceFd() {
+        // not supported on VERSION_03
+        return -1;
+    }
+    virtual void setAcquireFenceFd(int fenceFd) {
+        if (fenceFd != -1) {
+            ALOGE("HWC 0.x can't handle acquire fences");
+            close(fenceFd);
+        }
+    }
+
+    virtual void setDefaultState() {
+        getLayer()->compositionType = HWC_FRAMEBUFFER;
+        getLayer()->hints = 0;
+        getLayer()->flags = HWC_SKIP_LAYER;
+        getLayer()->handle = 0;
+        getLayer()->transform = 0;
+        getLayer()->blending = HWC_BLENDING_NONE;
+        getLayer()->visibleRegionScreen.numRects = 0;
+        getLayer()->visibleRegionScreen.rects = NULL;
+    }
+    virtual void setSkip(bool skip) {
+        if (skip) {
+            getLayer()->flags |= HWC_SKIP_LAYER;
+        } else {
+            getLayer()->flags &= ~HWC_SKIP_LAYER;
+        }
+    }
+    virtual void setBlending(uint32_t blending) {
+        getLayer()->blending = blending;
+    }
+    virtual void setTransform(uint32_t transform) {
+        getLayer()->transform = transform;
+    }
+    virtual void setFrame(const Rect& frame) {
+        reinterpret_cast<Rect&>(getLayer()->displayFrame) = frame;
+    }
+    virtual void setCrop(const Rect& crop) {
+        reinterpret_cast<Rect&>(getLayer()->sourceCrop) = crop;
+    }
+    virtual void setVisibleRegionScreen(const Region& reg) {
+        // Region::getSharedBuffer creates a reference to the underlying
+        // SharedBuffer of this Region, this reference is freed
+        // in onDisplayed()
+        hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
+        SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
+        visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
+    }
+    virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
+        if (buffer == 0 || buffer->handle == 0) {
+            getLayer()->compositionType = HWC_FRAMEBUFFER;
+            getLayer()->flags |= HWC_SKIP_LAYER;
+            getLayer()->handle = 0;
+        } else {
+            getLayer()->handle = buffer->handle;
+        }
+    }
+    virtual void onDisplayed() {
+        hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
+        SharedBuffer const* sb = SharedBuffer::bufferFromData(visibleRegion.rects);
+        if (sb) {
+            sb->release();
+            // not technically needed but safer
+            visibleRegion.numRects = 0;
+            visibleRegion.rects = NULL;
+        }
+
+    }
+};
+// #endif // !HWC_REMOVE_DEPRECATED_VERSIONS
 
 /*
  * Concrete implementation of HWCLayer for HWC_DEVICE_API_VERSION_1_0.
@@ -927,10 +1195,15 @@ HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t in
         return LayerListIterator();
     }
     const DisplayData& disp(mDisplayData[id]);
-    if (!mHwc || !disp.list || index > disp.list->numHwLayers) {
+    if (!mHwc || !disp.list || index > hwcNumHwLayers(mHwc,disp.list)) {
         return LayerListIterator();
     }
-    return LayerListIterator(new HWCLayerVersion1(mHwc, disp.list->hwLayers), index);
+    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+       return LayerListIterator(new HWCLayerVersion1(mHwc, disp.list->hwLayers), index);
+    } else {
+       hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(disp.list);
+       return LayerListIterator(new HWCLayerVersion0(list0->hwLayers), index);
+    }
 }
 
 /*
@@ -948,7 +1221,7 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     if (uint32_t(id) <= 31 && mAllocatedDisplayIDs.hasBit(id)) {
         const DisplayData& disp(mDisplayData[id]);
         if (mHwc && disp.list) {
-            numLayers = disp.list->numHwLayers;
+            numLayers = hwcNumHwLayers(mHwc, disp.list);
             if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
                 // with HWC 1.1, the last layer is always the HWC_FRAMEBUFFER_TARGET,
                 // which we ignore when iterating through the layer list.
@@ -1028,9 +1301,8 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
             }
         }
     }
-
-    if (mHwc && mHwc->dump) {
-        mHwc->dump(mHwc, buffer, SIZE);
+    if (mHwc) {
+        hwcDump(mHwc, buffer, SIZE);
         result.append(buffer);
     }
 }
@@ -1084,7 +1356,7 @@ bool HWComposer::VSyncThread::threadLoop() {
         err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
     } while (err<0 && errno == EINTR);
 
-    if (err == 0) {
+    if (err == 0 && mEnabled) {
         mHwc.mEventHandler.onVSyncReceived(0, next_vsync);
     }
 
