@@ -589,6 +589,14 @@ ScreenshotClient::ScreenshotClient()
     : mWidth(0), mHeight(0), mFormat(PIXEL_FORMAT_NONE) {
 }
 
+// TODO: Remove me.  Do not use.
+// This is a compatibility shim for one product whose drivers are depending on
+// this legacy function (when they shouldn't).
+status_t ScreenshotClient::update() {
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
+    return update(sm->getBuiltInDisplay(0));
+}
+
 status_t ScreenshotClient::update(const sp<IBinder>& display) {
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;

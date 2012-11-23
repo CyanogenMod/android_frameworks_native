@@ -162,6 +162,11 @@ class ScreenshotClient
 public:
     ScreenshotClient();
 
+    // TODO: Remove me.  Do not use.
+    // This is a compatibility shim for one product whose drivers are depending on
+    // this legacy function (when they shouldn't).
+    status_t update();
+
     // frees the previous screenshot and capture a new one
     status_t update(const sp<IBinder>& display);
     status_t update(const sp<IBinder>& display,
