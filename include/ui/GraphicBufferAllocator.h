@@ -56,7 +56,10 @@ public:
         USAGE_HW_TEXTURE        = GRALLOC_USAGE_HW_TEXTURE,
         USAGE_HW_RENDER         = GRALLOC_USAGE_HW_RENDER,
         USAGE_HW_2D             = GRALLOC_USAGE_HW_2D,
-        USAGE_HW_MASK           = GRALLOC_USAGE_HW_MASK
+        USAGE_HW_MASK           = GRALLOC_USAGE_HW_MASK,
+#ifdef EXYNOS4_ENHANCEMENTS
+        USAGE_HW_FIMC1          = GRALLOC_USAGE_HW_FIMC1
+#endif
     };
 
     static inline GraphicBufferAllocator& get() { return getInstance(); }
