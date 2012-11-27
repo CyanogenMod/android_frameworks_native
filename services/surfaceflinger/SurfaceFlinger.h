@@ -112,7 +112,7 @@ public:
 
     // returns the default Display
     sp<const DisplayDevice> getDefaultDisplayDevice() const {
-        return getDisplayDevice(mDefaultDisplays[DisplayDevice::DISPLAY_PRIMARY]);
+        return getDisplayDevice(mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]);
     }
 
     // utility function to delete a texture on the main thread
@@ -328,6 +328,9 @@ private:
     // called when starting, or restarting after system_server death
     void initializeDisplays();
 
+    // Create an IBinder for a builtin display and add it to current state
+    void createBuiltinDisplayLocked(DisplayDevice::DisplayType type);
+
     // NOTE: can only be called from the main thread or with mStateLock held
     sp<const DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) const {
         return mDisplays.valueFor(dpy);
@@ -422,7 +425,7 @@ private:
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
-    sp<IBinder> mDefaultDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
+    sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members
     // don't need synchronization
