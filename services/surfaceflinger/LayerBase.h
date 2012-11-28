@@ -246,7 +246,7 @@ public:
      * Updates the SurfaceTexture's transform hint, for layers that have
      * a SurfaceTexture.
      */
-    virtual void updateTransformHint() const { }
+    virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const { }
 
     /** always call base class first */
     virtual void dump(String8& result, char* scratch, size_t size) const;
