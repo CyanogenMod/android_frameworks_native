@@ -16,11 +16,11 @@ Contact
 
 Status
 
-    Draft.
+    Complete
 
 Version
 
-    Version 1, July 8, 2011
+    Version 2, July 15, 2011
 
 Number
 
