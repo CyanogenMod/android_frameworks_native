@@ -30,10 +30,10 @@
 
 #include <hardware/hardware.h>
 #include <gui/SurfaceTextureClient.h>
+#include <gui/GraphicBufferAlloc.h>
 #include <ui/GraphicBuffer.h>
 
 #include "DisplayHardware/FramebufferSurface.h"
-#include "DisplayHardware/GraphicBufferAlloc.h"
 #include "DisplayHardware/HWComposer.h"
 
 #ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS

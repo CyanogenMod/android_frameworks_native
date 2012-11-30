@@ -19,7 +19,7 @@
 
 #include <ui/GraphicBuffer.h>
 
-#include "DisplayHardware/GraphicBufferAlloc.h"
+#include <gui/GraphicBufferAlloc.h>
 
 // ----------------------------------------------------------------------------
 namespace android {

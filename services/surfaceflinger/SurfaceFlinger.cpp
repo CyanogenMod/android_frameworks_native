@@ -40,6 +40,7 @@
 #include <gui/GuiConfig.h>
 #include <gui/IDisplayEventConnection.h>
 #include <gui/SurfaceTextureClient.h>
+#include <gui/GraphicBufferAlloc.h>
 
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/PixelFormat.h>
@@ -65,7 +66,6 @@
 #include "SurfaceFlinger.h"
 
 #include "DisplayHardware/FramebufferSurface.h"
-#include "DisplayHardware/GraphicBufferAlloc.h"
 #include "DisplayHardware/HWComposer.h"
 
 
