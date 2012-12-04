@@ -40,14 +40,25 @@ endif
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
+
+ifeq ($(BOARD_USE_V4L2_ION), true)
+LOCAL_CFLAGS += -DUSE_V4L2_ION
+sources += \
+	MemoryHeapBaseIon.cpp
+LOCAL_C_INCLUDES := hardware/samsung/exynos4/hal/include
+LOCAL_SHARED_LIBRARIES := libsecion
+endif
+
 LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
-LOCAL_SHARED_LIBRARIES := liblog libcutils libutils
+LOCAL_SHARED_LIBRARIES += liblog libcutils libutils
 LOCAL_SRC_FILES := $(sources)
+
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
 LOCAL_SRC_FILES := $(sources)
+
 include $(BUILD_STATIC_LIBRARY)
