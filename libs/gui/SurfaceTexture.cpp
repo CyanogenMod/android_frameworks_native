@@ -154,7 +154,56 @@ status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 }
 
 status_t SurfaceTexture::updateTexImage() {
-    return SurfaceTexture::updateTexImage(NULL, false);
+    ATRACE_CALL();
+    ST_LOGV("updateTexImage");
+    Mutex::Autolock lock(mMutex);
+
+    if (mAbandoned) {
+        ST_LOGE("updateTexImage: SurfaceTexture is abandoned!");
+        return NO_INIT;
+    }
+
+    // Make sure the EGL state is the same as in previous calls.
+    status_t err = checkAndUpdateEglStateLocked();
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    BufferQueue::BufferItem item;
+
+    // Acquire the next buffer.
+    // In asynchronous mode the list is guaranteed to be one buffer
+    // deep, while in synchronous mode we use the oldest buffer.
+    err = acquireBufferLocked(&item);
+    if (err != NO_ERROR) {
+        if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
+            // We always bind the texture even if we don't update its contents.
+            ST_LOGV("updateTexImage: no buffers were available");
+            glBindTexture(mTexTarget, mTexName);
+            err = NO_ERROR;
+        } else {
+            ST_LOGE("updateTexImage: acquire failed: %s (%d)",
+                strerror(-err), err);
+        }
+        return err;
+    }
+
+    // Release the previous buffer.
+    err = releaseAndUpdateLocked(item);
+    if (err != NO_ERROR) {
+        // We always bind the texture.
+        glBindTexture(mTexTarget, mTexName);
+        return err;
+    }
+
+    // Bind the new buffer to the GL texture.
+    err = bindTextureImage();
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // Wait for the new buffer to be ready.
+    return doGLFenceWaitLocked();
 }
 
 status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
@@ -165,21 +214,16 @@ status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
 
     int slot = item->mBuf;
     if (item->mGraphicBuffer != NULL) {
+        // This buffer has not been acquired before, so we must assume
+        // that any EGLImage in mEglSlots is stale.
         if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage);
+            if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
+                ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
+                      slot);
+                // keep going
+            }
             mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
         }
-    }
-
-    // Update the GL texture object. We may have to do this even when
-    // item.mGraphicBuffer == NULL, if we destroyed the EGLImage when
-    // detaching from a context but the buffer has not been re-allocated.
-    if (mEglSlots[slot].mEglImage == EGL_NO_IMAGE_KHR) {
-        EGLImageKHR image = createImage(mEglDisplay, mSlots[slot].mGraphicBuffer);
-        if (image == EGL_NO_IMAGE_KHR) {
-            return UNKNOWN_ERROR;
-        }
-        mEglSlots[slot].mEglImage = image;
     }
 
     return NO_ERROR;
@@ -187,139 +231,139 @@ status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
 
 status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
        EGLSyncKHR eglFence) {
-    status_t err = ConsumerBase::releaseBufferLocked(buf, mEglDisplay,
-           eglFence);
+    status_t err = ConsumerBase::releaseBufferLocked(buf, display, eglFence);
 
     mEglSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
 
     return err;
 }
 
-status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter, bool skipSync) {
-    ATRACE_CALL();
-    ST_LOGV("updateTexImage");
-    Mutex::Autolock lock(mMutex);
-
+status_t SurfaceTexture::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
+{
     status_t err = NO_ERROR;
 
-    if (mAbandoned) {
-        ST_LOGE("updateTexImage: SurfaceTexture is abandoned!");
-        return NO_INIT;
-    }
-
     if (!mAttached) {
-        ST_LOGE("updateTexImage: SurfaceTexture is not attached to an OpenGL "
+        ST_LOGE("releaseAndUpdate: SurfaceTexture is not attached to an OpenGL "
                 "ES context");
         return INVALID_OPERATION;
     }
 
+    // Confirm state.
+    err = checkAndUpdateEglStateLocked();
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    int buf = item.mBuf;
+
+    // If the mEglSlot entry is empty, create an EGLImage for the gralloc
+    // buffer currently in the slot in ConsumerBase.
+    //
+    // We may have to do this even when item.mGraphicBuffer == NULL (which
+    // means the buffer was previously acquired), if we destroyed the
+    // EGLImage when detaching from a context but the buffer has not been
+    // re-allocated.
+    if (mEglSlots[buf].mEglImage == EGL_NO_IMAGE_KHR) {
+        EGLImageKHR image = createImage(mEglDisplay, mSlots[buf].mGraphicBuffer);
+        if (image == EGL_NO_IMAGE_KHR) {
+            ST_LOGW("releaseAndUpdate: unable to createImage on display=%p slot=%d",
+                  mEglDisplay, buf);
+            return UNKNOWN_ERROR;
+        }
+        mEglSlots[buf].mEglImage = image;
+    }
+
+    // Do whatever sync ops we need to do before releasing the old slot.
+    err = syncForReleaseLocked(mEglDisplay);
+    if (err != NO_ERROR) {
+        // Release the buffer we just acquired.  It's not safe to
+        // release the old buffer, so instead we just drop the new frame.
+        releaseBufferLocked(buf, mEglDisplay, EGL_NO_SYNC_KHR);
+        return err;
+    }
+
+    ST_LOGV("releaseAndUpdate: (slot=%d buf=%p) -> (slot=%d buf=%p)",
+            mCurrentTexture,
+            mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
+            buf, mSlots[buf].mGraphicBuffer->handle);
+
+    // release old buffer
+    if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
+        status_t status = releaseBufferLocked(mCurrentTexture, mEglDisplay,
+                mEglSlots[mCurrentTexture].mEglFence);
+        if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
+            ST_LOGE("releaseAndUpdate: failed to release buffer: %s (%d)",
+                   strerror(-status), status);
+            err = status;
+            // keep going, with error raised [?]
+        }
+    }
+
+    // Update the SurfaceTexture state.
+    mCurrentTexture = buf;
+    mCurrentTextureBuf = mSlots[buf].mGraphicBuffer;
+    mCurrentCrop = item.mCrop;
+    mCurrentTransform = item.mTransform;
+    mCurrentScalingMode = item.mScalingMode;
+    mCurrentTimestamp = item.mTimestamp;
+    mCurrentFence = item.mFence;
+
+    computeCurrentTransformMatrixLocked();
+
+    return err;
+}
+
+status_t SurfaceTexture::bindTextureImage() {
+    if (mEglDisplay == EGL_NO_DISPLAY) {
+        ALOGE("bindTextureImage: invalid display");
+        return INVALID_OPERATION;
+    }
+
+    GLint error;
+    while ((error = glGetError()) != GL_NO_ERROR) {
+        ST_LOGW("bindTextureImage: clearing GL error: %#04x", error);
+    }
+
+    glBindTexture(mTexTarget, mTexName);
+    if (mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT) {
+        if (mCurrentTextureBuf == NULL) {
+            ST_LOGE("bindTextureImage: no currently-bound texture");
+            return NO_INIT;
+        }
+        return bindUnslottedBufferLocked(mEglDisplay);
+    } else {
+        EGLImageKHR image = mEglSlots[mCurrentTexture].mEglImage;
+
+        glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+
+        while ((error = glGetError()) != GL_NO_ERROR) {
+            ST_LOGE("bindTextureImage: error binding external texture image %p"
+                    ": %#04x", image, error);
+            return UNKNOWN_ERROR;
+        }
+        return NO_ERROR;
+    }
+}
+
+status_t SurfaceTexture::checkAndUpdateEglStateLocked() {
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
 
     if ((mEglDisplay != dpy && mEglDisplay != EGL_NO_DISPLAY) ||
             dpy == EGL_NO_DISPLAY) {
-        ST_LOGE("updateTexImage: invalid current EGLDisplay");
+        ST_LOGE("checkAndUpdateEglState: invalid current EGLDisplay");
         return INVALID_OPERATION;
     }
 
     if ((mEglContext != ctx && mEglContext != EGL_NO_CONTEXT) ||
             ctx == EGL_NO_CONTEXT) {
-        ST_LOGE("updateTexImage: invalid current EGLContext");
+        ST_LOGE("checkAndUpdateEglState: invalid current EGLContext");
         return INVALID_OPERATION;
     }
 
     mEglDisplay = dpy;
     mEglContext = ctx;
-
-    BufferQueue::BufferItem item;
-
-    // In asynchronous mode the list is guaranteed to be one buffer
-    // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item);
-    if (err == NO_ERROR) {
-        int buf = item.mBuf;
-
-        // we call the rejecter here, in case the caller has a reason to
-        // not accept this buffer. this is used by SurfaceFlinger to
-        // reject buffers which have the wrong size
-        if (rejecter && rejecter->reject(mSlots[buf].mGraphicBuffer, item)) {
-            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR);
-            glBindTexture(mTexTarget, mTexName);
-            return NO_ERROR;
-        }
-
-        GLint error;
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGW("updateTexImage: clearing GL error: %#04x", error);
-        }
-
-        EGLImageKHR image = mEglSlots[buf].mEglImage;
-        glBindTexture(mTexTarget, mTexName);
-        glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
-
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGE("updateTexImage: error binding external texture image %p "
-                    "(slot %d): %#04x", image, buf, error);
-            err = UNKNOWN_ERROR;
-        }
-
-        if (err == NO_ERROR) {
-            err = syncForReleaseLocked(dpy);
-        }
-
-        if (err != NO_ERROR) {
-            // Release the buffer we just acquired.  It's not safe to
-            // release the old buffer, so instead we just drop the new frame.
-            releaseBufferLocked(buf, dpy, EGL_NO_SYNC_KHR);
-            return err;
-        }
-
-        ST_LOGV("updateTexImage: (slot=%d buf=%p) -> (slot=%d buf=%p)",
-                mCurrentTexture,
-                mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
-                buf, mSlots[buf].mGraphicBuffer->handle);
-
-        // release old buffer
-        if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-            status_t status = releaseBufferLocked(mCurrentTexture, dpy,
-                    mEglSlots[mCurrentTexture].mEglFence);
-            if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
-                ST_LOGE("updateTexImage: failed to release buffer: %s (%d)",
-                       strerror(-status), status);
-                err = status;
-            }
-        }
-
-        // Update the SurfaceTexture state.
-        mCurrentTexture = buf;
-        mCurrentTextureBuf = mSlots[buf].mGraphicBuffer;
-        mCurrentCrop = item.mCrop;
-        mCurrentTransform = item.mTransform;
-        mCurrentScalingMode = item.mScalingMode;
-        mCurrentTimestamp = item.mTimestamp;
-        mCurrentFence = item.mFence;
-        if (!skipSync) {
-            // SurfaceFlinger needs to lazily perform GLES synchronization
-            // only when it's actually going to use GLES for compositing.
-            // Eventually SurfaceFlinger should have its own consumer class,
-            // but for now we'll just hack it in to SurfaceTexture.
-            // SurfaceFlinger is responsible for calling doGLFenceWait before
-            // texturing from this SurfaceTexture.
-            doGLFenceWaitLocked();
-        }
-        computeCurrentTransformMatrixLocked();
-    } else  {
-        if (err < 0) {
-            ST_LOGE("updateTexImage: acquire failed: %s (%d)",
-                strerror(-err), err);
-            return err;
-        }
-        // We always bind the texture even if we don't update its contents.
-        glBindTexture(mTexTarget, mTexName);
-        return OK;
-    }
-
-    return err;
+    return NO_ERROR;
 }
 
 void SurfaceTexture::setReleaseFence(int fenceFd) {
@@ -427,30 +471,8 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
         // The EGLImageKHR that was associated with the slot was destroyed when
         // the SurfaceTexture was detached from the old context, so we need to
         // recreate it here.
-        EGLImageKHR image = createImage(dpy, mCurrentTextureBuf);
-        if (image == EGL_NO_IMAGE_KHR) {
-            return UNKNOWN_ERROR;
-        }
-
-        // Attach the current buffer to the GL texture.
-        glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
-
-        GLint error;
-        status_t err = OK;
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGE("attachToContext: error binding external texture image %p "
-                    "(slot %d): %#04x", image, mCurrentTexture, error);
-            err = UNKNOWN_ERROR;
-        }
-
-        // We destroy the EGLImageKHR here because the current buffer may no
-        // longer be associated with one of the buffer slots, so we have
-        // nowhere to to store it.  If the buffer is still associated with a
-        // slot then another EGLImageKHR will be created next time that buffer
-        // gets acquired in updateTexImage.
-        eglDestroyImageKHR(dpy, image);
-
-        if (err != OK) {
+        status_t err = bindUnslottedBufferLocked(dpy);
+        if (err != NO_ERROR) {
             return err;
         }
     }
@@ -462,6 +484,38 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
 
     return OK;
 }
+
+status_t SurfaceTexture::bindUnslottedBufferLocked(EGLDisplay dpy) {
+    ST_LOGV("bindUnslottedBuffer ct=%d ctb=%p",
+            mCurrentTexture, mCurrentTextureBuf.get());
+
+    // Create a temporary EGLImageKHR.
+    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf);
+    if (image == EGL_NO_IMAGE_KHR) {
+        return UNKNOWN_ERROR;
+    }
+
+    // Attach the current buffer to the GL texture.
+    glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+
+    GLint error;
+    status_t err = OK;
+    while ((error = glGetError()) != GL_NO_ERROR) {
+        ST_LOGE("bindUnslottedBuffer: error binding external texture image %p "
+                "(slot %d): %#04x", image, mCurrentTexture, error);
+        err = UNKNOWN_ERROR;
+    }
+
+    // We destroy the EGLImageKHR here because the current buffer may no
+    // longer be associated with one of the buffer slots, so we have
+    // nowhere to to store it.  If the buffer is still associated with a
+    // slot then another EGLImageKHR will be created next time that buffer
+    // gets acquired in updateTexImage.
+    eglDestroyImageKHR(dpy, image);
+
+    return err;
+}
+
 
 status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
     ST_LOGV("syncForReleaseLocked");
