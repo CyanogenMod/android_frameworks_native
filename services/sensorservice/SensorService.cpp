@@ -45,6 +45,7 @@
 #include "LinearAccelerationSensor.h"
 #include "OrientationSensor.h"
 #include "RotationVectorSensor.h"
+#include "RotationVectorSensor2.h"
 #include "SensorFusion.h"
 #include "SensorService.h"
 
@@ -136,6 +137,12 @@ void SensorService::onFirstRef()
                 if (orientationIndex >= 0) {
                     mUserSensorList.removeItemsAt(orientationIndex);
                 }
+            } else if (orientationIndex != -1) {
+                // If we don't have a gyro but have a orientation sensor from
+                // elsewhere, we can compute rotation vector from that.
+                // (Google Maps expects rotation vector sensor to exist.)
+
+                registerVirtualSensor( &RotationVectorSensor2::getInstance() );
             }
 
             // debugging sensor list
@@ -270,6 +277,12 @@ bool SensorService::threadLoop()
                 if (fusion.isEnabled()) {
                     for (size_t i=0 ; i<size_t(count) ; i++) {
                         fusion.process(event[i]);
+                    }
+                }
+                RotationVectorSensor2& rv2(RotationVectorSensor2::getInstance());
+                if (rv2.isEnabled()) {
+                    for (size_t i=0 ; i<size_t(count) ; i++) {
+                        rv2.process(event[i]);
                     }
                 }
                 for (size_t i=0 ; i<size_t(count) && k<minBufferSize ; i++) {
