@@ -129,21 +129,65 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
     return err;
 }
 
-status_t GraphicBufferAllocator::free(buffer_handle_t handle)
-{
-    ATRACE_CALL();
-    status_t err;
+class BufferLiberatorThread : public Thread {
+public:
 
-    err = mAllocDev->free(mAllocDev, handle);
-
-    ALOGW_IF(err, "free(...) failed %d (%s)", err, strerror(-err));
-    if (err == NO_ERROR) {
-        Mutex::Autolock _l(sLock);
-        KeyedVector<buffer_handle_t, alloc_rec_t>& list(sAllocList);
-        list.removeItem(handle);
+    static void queueCaptiveBuffer(buffer_handle_t handle) {
+        static sp<BufferLiberatorThread> thread(new BufferLiberatorThread);
+        static bool running = false;
+        if (!running) {
+            thread->run("BufferLiberator");
+            running = true;
+        }
+        {
+            Mutex::Autolock lock(thread->mMutex);
+            thread->mQueue.push_back(handle);
+            thread->mCondition.signal();
+        }
     }
 
-    return err;
+private:
+
+    BufferLiberatorThread() {}
+
+    virtual bool threadLoop() {
+        buffer_handle_t handle;
+        {
+            Mutex::Autolock lock(mMutex);
+            while (mQueue.isEmpty()) {
+                mCondition.wait(mMutex);
+            }
+            handle = mQueue[0];
+            mQueue.removeAt(0);
+        }
+
+        status_t err;
+        GraphicBufferAllocator& gba(GraphicBufferAllocator::get());
+        { // Scope for tracing
+            ATRACE_NAME("gralloc::free");
+            err = gba.mAllocDev->free(gba.mAllocDev, handle);
+        }
+        ALOGW_IF(err, "free(...) failed %d (%s)", err, strerror(-err));
+
+        if (err == NO_ERROR) {
+            Mutex::Autolock _l(GraphicBufferAllocator::sLock);
+            KeyedVector<buffer_handle_t, GraphicBufferAllocator::alloc_rec_t>&
+                    list(GraphicBufferAllocator::sAllocList);
+            list.removeItem(handle);
+        }
+
+        return true;
+    }
+
+    Vector<buffer_handle_t> mQueue;
+    Condition mCondition;
+    Mutex mMutex;
+};
+
+status_t GraphicBufferAllocator::free(buffer_handle_t handle)
+{
+    BufferLiberatorThread::queueCaptiveBuffer(handle);
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------
