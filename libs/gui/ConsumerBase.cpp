@@ -109,21 +109,35 @@ void ConsumerBase::onFrameAvailable() {
 }
 
 void ConsumerBase::onBuffersReleased() {
-    Mutex::Autolock lock(mMutex);
+    sp<GraphicBuffer> bufRefs[BufferQueue::NUM_BUFFER_SLOTS];
 
-    CB_LOGV("onBuffersReleased");
+    { // Scope for the lock
+        Mutex::Autolock lock(mMutex);
 
-    if (mAbandoned) {
-        // Nothing to do if we're already abandoned.
-        return;
+        CB_LOGV("onBuffersReleased");
+
+        if (mAbandoned) {
+            // Nothing to do if we're already abandoned.
+            return;
+        }
+
+        uint32_t mask = 0;
+        mBufferQueue->getReleasedBuffers(&mask);
+        for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+            if (mask & (1 << i)) {
+                // Grab a local reference to the buffers so that they don't
+                // get freed while the lock is held.
+                bufRefs[i] = mSlots[i].mGraphicBuffer;
+
+                freeBufferLocked(i);
+            }
+        }
     }
 
-    uint32_t mask = 0;
-    mBufferQueue->getReleasedBuffers(&mask);
+    // Clear the local buffer references.  This would happen automatically
+    // when the array gets dtor'd, but I'm doing it explicitly for clarity.
     for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        if (mask & (1 << i)) {
-            freeBufferLocked(i);
-        }
+        bufRefs[i].clear();
     }
 }
 
