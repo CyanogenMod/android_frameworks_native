@@ -562,6 +562,8 @@ static void showHelp(const char *cmd)
                     "  --async_dump    dump the current contents of circular trace buffer\n"
                     "  --async_stop    stop tracing and dump the current contents of circular\n"
                     "                    trace buffer\n"
+                    "  --list_categories\n"
+                    "                  list the available tracing categories\n"
             );
 }
 
