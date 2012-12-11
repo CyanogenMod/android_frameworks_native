@@ -20,8 +20,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <gui/SurfaceTexture.h>
-
 #include <utils/Timers.h>
 
 #include <ui/GraphicBuffer.h>
@@ -34,6 +32,7 @@
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 
+#include "SurfaceFlingerConsumer.h"
 #include "FrameTracker.h"
 #include "LayerBase.h"
 #include "SurfaceTextureLayer.h"
@@ -49,7 +48,7 @@ class GLExtensions;
 // ---------------------------------------------------------------------------
 
 class Layer : public LayerBaseClient,
-              public SurfaceTexture::FrameAvailableListener
+              public SurfaceFlingerConsumer::FrameAvailableListener
 {
 public:
             Layer(SurfaceFlinger* flinger, const sp<Client>& client);
@@ -92,7 +91,7 @@ public:
     // only for debugging
     inline const sp<GraphicBuffer>& getActiveBuffer() const { return mActiveBuffer; }
 
-    // Updates the transform hint in our SurfaceTexture to match
+    // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
     virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const;
 
@@ -110,13 +109,13 @@ private:
     Rect computeBufferCrop() const;
     static bool getOpacityForFormat(uint32_t format);
 
-    // Interface implementation for SurfaceTexture::FrameAvailableListener
+    // Interface implementation for SurfaceFlingerConsumer::FrameAvailableListener
     virtual void onFrameAvailable();
 
     // -----------------------------------------------------------------------
 
     // constants
-    sp<SurfaceTexture> mSurfaceTexture;
+    sp<SurfaceFlingerConsumer> mSurfaceFlingerConsumer;
     GLuint mTextureName;
 
     // thread-safe

@@ -74,14 +74,13 @@ public:
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0);
 
-    // updateTexImage sets the image contents of the target texture to that of
-    // the most recently queued buffer.
+    // updateTexImage acquires the most recently queued buffer, and sets the
+    // image contents of the target texture to it.
     //
     // This call may only be made while the OpenGL ES context to which the
     // target texture belongs is bound to the calling thread.
     //
-    // After calling this method the doGLFenceWait method must be called
-    // before issuing OpenGL ES commands that access the texture contents.
+    // This calls doGLFenceWait to ensure proper synchronization.
     status_t updateTexImage();
 
     // setReleaseFence stores a fence file descriptor that will signal when the
@@ -161,8 +160,7 @@ public:
 
     // doGLFenceWait inserts a wait command into the OpenGL ES command stream
     // to ensure that it is safe for future OpenGL ES commands to access the
-    // current texture buffer.  This must be called each time updateTexImage
-    // is called before issuing OpenGL ES commands that access the texture.
+    // current texture buffer.
     status_t doGLFenceWait() const;
 
     // isSynchronousMode returns whether the SurfaceTexture is currently in
@@ -233,23 +231,33 @@ protected:
     virtual status_t releaseBufferLocked(int buf, EGLDisplay display,
            EGLSyncKHR eglFence);
 
+    status_t releaseBufferLocked(int buf, EGLSyncKHR eglFence) {
+        return releaseBufferLocked(buf, mEglDisplay, eglFence);
+    }
+
     static bool isExternalFormat(uint32_t format);
 
-private:
-    // this version of updateTexImage() takes a functor used to reject or not
-    // the newly acquired buffer.
-    // this API is TEMPORARY and intended to be used by SurfaceFlinger only,
-    // which is why class Layer is made a friend of SurfaceTexture below.
-    class BufferRejecter {
-        friend class SurfaceTexture;
-        virtual bool reject(const sp<GraphicBuffer>& buf,
-                const BufferQueue::BufferItem& item) = 0;
-    protected:
-        virtual ~BufferRejecter() { }
-    };
-    friend class Layer;
-    status_t updateTexImage(BufferRejecter* rejecter, bool skipSync);
+    // This releases the buffer in the slot referenced by mCurrentTexture,
+    // then updates state to refer to the BufferItem, which must be a
+    // newly-acquired buffer.
+    status_t releaseAndUpdateLocked(const BufferQueue::BufferItem& item);
 
+    // Binds mTexName and the current buffer to mTexTarget.  Uses
+    // mCurrentTexture if it's set, mCurrentTextureBuf if not.
+    status_t bindTextureImage();
+
+    // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
+    // stream to ensure that it is safe for future OpenGL ES commands to
+    // access the current texture buffer.
+    status_t doGLFenceWaitLocked() const;
+
+    // Gets the current EGLDisplay and EGLContext values, and compares them
+    // to mEglDisplay and mEglContext.  If the fields have been previously
+    // set, the values must match; if not, the fields are set to the current
+    // values.
+    status_t checkAndUpdateEglStateLocked();
+
+private:
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
             const sp<GraphicBuffer>& graphicBuffer);
@@ -267,18 +275,18 @@ private:
     // mCurrentTextureBuf must not be NULL.
     void computeCurrentTransformMatrixLocked();
 
-    // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
-    // stream to ensure that it is safe for future OpenGL ES commands to
-    // access the current texture buffer.  This must be called each time
-    // updateTexImage is called before issuing OpenGL ES commands that access
-    // the texture.
-    status_t doGLFenceWaitLocked() const;
-
     // syncForReleaseLocked performs the synchronization needed to release the
     // current slot from an OpenGL ES context.  If needed it will set the
     // current slot's fence to guard against a producer accessing the buffer
     // before the outstanding accesses have completed.
     status_t syncForReleaseLocked(EGLDisplay dpy);
+
+    // Normally, when we bind a buffer to a texture target, we bind a buffer
+    // that is referenced by an entry in mEglSlots.  In some situations we
+    // have a buffer in mCurrentTextureBuf, but no corresponding entry for
+    // it in our slot array.  bindUnslottedBuffer handles that situation by
+    // binding the buffer without touching the EglSlots.
+    status_t bindUnslottedBufferLocked(EGLDisplay dpy);
 
     // The default consumer usage flags that SurfaceTexture always sets on its
     // BufferQueue instance; these will be OR:d with any additional flags passed
@@ -344,8 +352,8 @@ private:
 
     // EGLSlot contains the information and object references that
     // SurfaceTexture maintains about a BufferQueue buffer slot.
-    struct EGLSlot {
-        EGLSlot()
+    struct EglSlot {
+        EglSlot()
         : mEglImage(EGL_NO_IMAGE_KHR),
           mEglFence(EGL_NO_SYNC_KHR) {
         }
@@ -379,7 +387,7 @@ private:
     // slot that has not yet been used. The buffer allocated to a slot will also
     // be replaced if the requested buffer usage or geometry differs from that
     // of the buffer allocated to a slot.
-    EGLSlot mEglSlots[BufferQueue::NUM_BUFFER_SLOTS];
+    EglSlot mEglSlots[BufferQueue::NUM_BUFFER_SLOTS];
 
     // mCurrentTexture is the buffer slot index of the buffer that is currently
     // bound to the OpenGL texture. It is initialized to INVALID_BUFFER_SLOT,

@@ -17,6 +17,7 @@ LOCAL_SRC_FILES:= \
     GLExtensions.cpp                        \
     MessageQueue.cpp                        \
     SurfaceFlinger.cpp                      \
+    SurfaceFlingerConsumer.cpp              \
     SurfaceTextureLayer.cpp                 \
     Transform.cpp                           \
     

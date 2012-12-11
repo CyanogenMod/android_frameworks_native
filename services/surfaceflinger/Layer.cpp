@@ -73,7 +73,7 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface* layer) {
     LayerBaseClient::onLayerDisplayed(hw, layer);
     if (layer) {
-        mSurfaceTexture->setReleaseFence(layer->getAndResetReleaseFenceFd());
+        mSurfaceFlingerConsumer->setReleaseFence(layer->getAndResetReleaseFenceFd());
     }
 }
 
@@ -81,20 +81,20 @@ void Layer::onFirstRef()
 {
     LayerBaseClient::onFirstRef();
 
-    // Creates a custom BufferQueue for SurfaceTexture to use
+    // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
     sp<BufferQueue> bq = new SurfaceTextureLayer();
-    mSurfaceTexture = new SurfaceTexture(mTextureName, true,
+    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mTextureName, true,
             GL_TEXTURE_EXTERNAL_OES, false, bq);
 
-    mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
-    mSurfaceTexture->setFrameAvailableListener(this);
-    mSurfaceTexture->setSynchronousMode(true);
+    mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
+    mSurfaceFlingerConsumer->setFrameAvailableListener(this);
+    mSurfaceFlingerConsumer->setSynchronousMode(true);
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
-    mSurfaceTexture->setDefaultMaxBufferCount(2);
+    mSurfaceFlingerConsumer->setDefaultMaxBufferCount(2);
 #else
-    mSurfaceTexture->setDefaultMaxBufferCount(3);
+    mSurfaceFlingerConsumer->setDefaultMaxBufferCount(3);
 #endif
 
     const sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
@@ -115,12 +115,12 @@ void Layer::onFrameAvailable() {
 // in the purgatory list
 void Layer::onRemoved()
 {
-    mSurfaceTexture->abandon();
+    mSurfaceFlingerConsumer->abandon();
 }
 
 void Layer::setName(const String8& name) {
     LayerBase::setName(name);
-    mSurfaceTexture->setName(name);
+    mSurfaceFlingerConsumer->setName(name);
 }
 
 sp<ISurface> Layer::createSurface()
@@ -131,7 +131,7 @@ sp<ISurface> Layer::createSurface()
             sp<ISurfaceTexture> res;
             sp<const Layer> that( mOwner.promote() );
             if (that != NULL) {
-                res = that->mSurfaceTexture->getBufferQueue();
+                res = that->mSurfaceFlingerConsumer->getBufferQueue();
             }
             return res;
         }
@@ -146,7 +146,7 @@ sp<ISurface> Layer::createSurface()
 
 wp<IBinder> Layer::getSurfaceTextureBinder() const
 {
-    return mSurfaceTexture->getBufferQueue()->asBinder();
+    return mSurfaceFlingerConsumer->getBufferQueue()->asBinder();
 }
 
 status_t Layer::setBuffers( uint32_t w, uint32_t h,
@@ -177,15 +177,15 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     mOpaqueLayer = (flags & ISurfaceComposerClient::eOpaque);
     mCurrentOpacity = getOpacityForFormat(format);
 
-    mSurfaceTexture->setDefaultBufferSize(w, h);
-    mSurfaceTexture->setDefaultBufferFormat(format);
-    mSurfaceTexture->setConsumerUsageBits(getEffectiveUsage(0));
+    mSurfaceFlingerConsumer->setDefaultBufferSize(w, h);
+    mSurfaceFlingerConsumer->setDefaultBufferFormat(format);
+    mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
 
     return NO_ERROR;
 }
 
 Rect Layer::computeBufferCrop() const {
-    // Start with the SurfaceTexture's buffer crop...
+    // Start with the SurfaceFlingerConsumer's buffer crop...
     Rect crop;
     if (!mCurrentCrop.isEmpty()) {
         crop = mCurrentCrop;
@@ -202,7 +202,7 @@ Rect Layer::computeBufferCrop() const {
     if (!s.active.crop.isEmpty()) {
         // Transform the window crop to match the buffer coordinate system,
         // which means using the inverse of the current transform set on the
-        // SurfaceTexture.
+        // SurfaceFlingerConsumer.
         uint32_t invTransform = mCurrentTransform;
         int winWidth = s.active.w;
         int winHeight = s.active.h;
@@ -284,7 +284,7 @@ void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
     // acquire fence the first time a new buffer is acquired on EACH display.
 
     if (layer.getCompositionType() == HWC_OVERLAY) {
-        sp<Fence> fence = mSurfaceTexture->getCurrentFence();
+        sp<Fence> fence = mSurfaceFlingerConsumer->getCurrentFence();
         if (fence.get()) {
             fenceFd = fence->dup();
             if (fenceFd == -1) {
@@ -327,7 +327,15 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         return;
     }
 
-    status_t err = mSurfaceTexture->doGLFenceWait();
+    // Bind the current buffer to the GL texture.
+    status_t err = mSurfaceFlingerConsumer->bindTextureImage();
+    if (err != NO_ERROR) {
+        ALOGW("Layer::onDraw: bindTextureImage failed");
+        // keep going
+    }
+
+    // Wait for the buffer to be ready for us to draw into.
+    err = mSurfaceFlingerConsumer->doGLFenceWait();
     if (err != OK) {
         ALOGE("onDraw: failed waiting for fence: %d", err);
         // Go ahead and draw the buffer anyway; no matter what we do the screen
@@ -342,8 +350,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
         // Query the texture matrix given our current filtering mode.
         float textureMatrix[16];
-        mSurfaceTexture->setFilteringEnabled(useFiltering);
-        mSurfaceTexture->getTransformMatrix(textureMatrix);
+        mSurfaceFlingerConsumer->setFilteringEnabled(useFiltering);
+        mSurfaceFlingerConsumer->getTransformMatrix(textureMatrix);
 
         // Set things up for texturing.
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
@@ -462,7 +470,7 @@ uint32_t Layer::doTransaction(uint32_t flags)
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
-        mSurfaceTexture->setDefaultBufferSize(
+        mSurfaceFlingerConsumer->setDefaultBufferSize(
                 temp.requested.w, temp.requested.h);
     }
 
@@ -507,13 +515,10 @@ bool Layer::onPreComposition() {
 
 void Layer::onPostComposition() {
     if (mFrameLatencyNeeded) {
-        nsecs_t desiredPresentTime = mSurfaceTexture->getTimestamp();
+        nsecs_t desiredPresentTime = mSurfaceFlingerConsumer->getTimestamp();
         mFrameTracker.setDesiredPresentTime(desiredPresentTime);
 
-        sp<Fence> frameReadyFence = mSurfaceTexture->getCurrentFence();
-        // XXX: Temporarily don't use the fence from the SurfaceTexture to
-        // work around a driver bug.
-        frameReadyFence.clear();
+        sp<Fence> frameReadyFence = mSurfaceFlingerConsumer->getCurrentFence();
         if (frameReadyFence != NULL) {
             mFrameTracker.setFrameReadyFence(frameReadyFence);
         } else {
@@ -570,7 +575,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             mFlinger->signalLayerUpdate();
         }
 
-        struct Reject : public SurfaceTexture::BufferRejecter {
+        struct Reject : public SurfaceFlingerConsumer::BufferRejecter {
             Layer::State& front;
             Layer::State& current;
             bool& recomputeVisibleRegions;
@@ -655,14 +660,14 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
 
-        if (mSurfaceTexture->updateTexImage(&r, true) < NO_ERROR) {
+        if (mSurfaceFlingerConsumer->updateTexImage(&r) != NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
             return outDirtyRegion;
         }
 
         // update the active buffer
-        mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
+        mActiveBuffer = mSurfaceFlingerConsumer->getCurrentBuffer();
         if (mActiveBuffer == NULL) {
             // this can only happen if the very first buffer was rejected.
             return outDirtyRegion;
@@ -676,9 +681,9 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             recomputeVisibleRegions = true;
          }
 
-        Rect crop(mSurfaceTexture->getCurrentCrop());
-        const uint32_t transform(mSurfaceTexture->getCurrentTransform());
-        const uint32_t scalingMode(mSurfaceTexture->getCurrentScalingMode());
+        Rect crop(mSurfaceFlingerConsumer->getCurrentCrop());
+        const uint32_t transform(mSurfaceFlingerConsumer->getCurrentTransform());
+        const uint32_t scalingMode(mSurfaceFlingerConsumer->getCurrentScalingMode());
         if ((crop != mCurrentCrop) ||
             (transform != mCurrentTransform) ||
             (scalingMode != mCurrentScalingMode))
@@ -737,8 +742,8 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 
     result.append(buffer);
 
-    if (mSurfaceTexture != 0) {
-        mSurfaceTexture->dump(result, "            ", buffer, SIZE);
+    if (mSurfaceFlingerConsumer != 0) {
+        mSurfaceFlingerConsumer->dump(result, "            ", buffer, SIZE);
     }
 }
 
@@ -780,7 +785,7 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
             orientation = 0;
         }
     }
-    mSurfaceTexture->setTransformHint(orientation);
+    mSurfaceFlingerConsumer->setTransformHint(orientation);
 }
 
 // ---------------------------------------------------------------------------

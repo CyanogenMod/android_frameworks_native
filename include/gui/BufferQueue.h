@@ -182,8 +182,9 @@ public:
            mBuf(INVALID_BUFFER_SLOT) {
              mCrop.makeInvalid();
          }
-        // mGraphicBuffer points to the buffer allocated for this slot or is NULL
-        // if no buffer has been allocated.
+        // mGraphicBuffer points to the buffer allocated for this slot, or is NULL
+        // if the buffer in this slot has been acquired in the past (see
+        // BufferSlot.mAcquireCalled).
         sp<GraphicBuffer> mGraphicBuffer;
 
         // mCrop is the current crop rectangle for this buffer slot.
