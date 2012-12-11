@@ -327,17 +327,11 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         return;
     }
 
-    // Bind the current buffer to the GL texture.
+    // Bind the current buffer to the GL texture, and wait for it to be
+    // ready for us to draw into.
     status_t err = mSurfaceFlingerConsumer->bindTextureImage();
     if (err != NO_ERROR) {
-        ALOGW("Layer::onDraw: bindTextureImage failed");
-        // keep going
-    }
-
-    // Wait for the buffer to be ready for us to draw into.
-    err = mSurfaceFlingerConsumer->doGLFenceWait();
-    if (err != OK) {
-        ALOGE("onDraw: failed waiting for fence: %d", err);
+        ALOGW("onDraw: bindTextureImage failed (err=%d)", err);
         // Go ahead and draw the buffer anyway; no matter what we do the screen
         // is probably going to have something visibly wrong.
     }

@@ -77,12 +77,24 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
         return err;
     }
 
-    // Bind the new buffer to the GL texture.
-    // TODO: skip this on devices that support explicit sync
-    // (glEGLImageTargetTexture2DOES provides required implicit sync;
-    // without this we get wedged on older devices, but newer devices
-    // don't need it.)
-    return bindTextureImage();
+    if (!sUseNativeFenceSync) {
+        // Bind the new buffer to the GL texture.
+        //
+        // Older devices require the "implicit" synchronization provided
+        // by glEGLImageTargetTexture2DOES, which this method calls.  Newer
+        // devices will either call this in Layer::onDraw, or (if it's not
+        // a GL-composited layer) not at all.
+        err = bindTextureImageLocked();
+    }
+
+    return err;
+}
+
+status_t SurfaceFlingerConsumer::bindTextureImage()
+{
+    Mutex::Autolock lock(mMutex);
+
+    return bindTextureImageLocked();
 }
 
 // ---------------------------------------------------------------------------

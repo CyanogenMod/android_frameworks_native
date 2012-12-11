@@ -243,19 +243,19 @@ protected:
     status_t releaseAndUpdateLocked(const BufferQueue::BufferItem& item);
 
     // Binds mTexName and the current buffer to mTexTarget.  Uses
-    // mCurrentTexture if it's set, mCurrentTextureBuf if not.
-    status_t bindTextureImage();
-
-    // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
-    // stream to ensure that it is safe for future OpenGL ES commands to
-    // access the current texture buffer.
-    status_t doGLFenceWaitLocked() const;
+    // mCurrentTexture if it's set, mCurrentTextureBuf if not.  If the
+    // bind succeeds, this calls doGLFenceWait.
+    status_t bindTextureImageLocked();
 
     // Gets the current EGLDisplay and EGLContext values, and compares them
     // to mEglDisplay and mEglContext.  If the fields have been previously
     // set, the values must match; if not, the fields are set to the current
     // values.
     status_t checkAndUpdateEglStateLocked();
+
+    // If set, SurfaceTexture will use the EGL_ANDROID_native_fence_sync
+    // extension to create Android native fences for GLES activity.
+    static const bool sUseNativeFenceSync;
 
 private:
     // createImage creates a new EGLImage from a GraphicBuffer.
@@ -274,6 +274,11 @@ private:
     // to compute this matrix and stores it in mCurrentTransformMatrix.
     // mCurrentTextureBuf must not be NULL.
     void computeCurrentTransformMatrixLocked();
+
+    // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
+    // stream to ensure that it is safe for future OpenGL ES commands to
+    // access the current texture buffer.
+    status_t doGLFenceWaitLocked() const;
 
     // syncForReleaseLocked performs the synchronization needed to release the
     // current slot from an OpenGL ES context.  If needed it will set the

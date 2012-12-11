@@ -49,8 +49,8 @@ public:
     // texture.
     status_t updateTexImage(BufferRejecter* rejecter);
 
-    // Pass-through to SurfaceTexture implementation.
-    status_t bindTextureImage() { return SurfaceTexture::bindTextureImage(); }
+    // See SurfaceTexture::bindTextureImageLocked().
+    status_t bindTextureImage();
 };
 
 // ----------------------------------------------------------------------------

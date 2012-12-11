@@ -39,6 +39,8 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
+namespace android {
+
 // This compile option makes SurfaceTexture use the
 // EGL_ANDROID_native_fence_sync extension to create Android native fences to
 // signal when all GLES reads for a given buffer have completed.  It is not
@@ -48,9 +50,9 @@
 #ifdef USE_FENCE_SYNC
 #error "USE_NATIVE_FENCE_SYNC and USE_FENCE_SYNC are incompatible"
 #endif
-static const bool useNativeFenceSync = true;
+const bool SurfaceTexture::sUseNativeFenceSync = true;
 #else
-static const bool useNativeFenceSync = false;
+const bool SurfaceTexture::sUseNativeFenceSync = false;
 #endif
 
 // This compile option makes SurfaceTexture use the EGL_ANDROID_sync_wait
@@ -69,8 +71,6 @@ static const bool useWaitSync = false;
 #define ST_LOGI(x, ...) ALOGI("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGW(x, ...) ALOGW("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGE(x, ...) ALOGE("[%s] "x, mName.string(), ##__VA_ARGS__)
-
-namespace android {
 
 // Transform matrices
 static float mtxIdentity[16] = {
@@ -196,14 +196,8 @@ status_t SurfaceTexture::updateTexImage() {
         return err;
     }
 
-    // Bind the new buffer to the GL texture.
-    err = bindTextureImage();
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // Wait for the new buffer to be ready.
-    return doGLFenceWaitLocked();
+    // Bind the new buffer to the GL texture, and wait until it's ready.
+    return bindTextureImageLocked();
 }
 
 status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
@@ -313,7 +307,7 @@ status_t SurfaceTexture::releaseAndUpdateLocked(const BufferQueue::BufferItem& i
     return err;
 }
 
-status_t SurfaceTexture::bindTextureImage() {
+status_t SurfaceTexture::bindTextureImageLocked() {
     if (mEglDisplay == EGL_NO_DISPLAY) {
         ALOGE("bindTextureImage: invalid display");
         return INVALID_OPERATION;
@@ -330,7 +324,10 @@ status_t SurfaceTexture::bindTextureImage() {
             ST_LOGE("bindTextureImage: no currently-bound texture");
             return NO_INIT;
         }
-        return bindUnslottedBufferLocked(mEglDisplay);
+        status_t err = bindUnslottedBufferLocked(mEglDisplay);
+        if (err != NO_ERROR) {
+            return err;
+        }
     } else {
         EGLImageKHR image = mEglSlots[mCurrentTexture].mEglImage;
 
@@ -341,8 +338,11 @@ status_t SurfaceTexture::bindTextureImage() {
                     ": %#04x", image, error);
             return UNKNOWN_ERROR;
         }
-        return NO_ERROR;
     }
+
+    // Wait for the new buffer to be ready.
+    return doGLFenceWaitLocked();
+
 }
 
 status_t SurfaceTexture::checkAndUpdateEglStateLocked() {
@@ -521,7 +521,7 @@ status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
     ST_LOGV("syncForReleaseLocked");
 
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        if (useNativeFenceSync) {
+        if (sUseNativeFenceSync) {
             EGLSyncKHR sync = eglCreateSyncKHR(dpy,
                     EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
             if (sync == EGL_NO_SYNC_KHR) {
