@@ -90,6 +90,105 @@ void GraphicBufferAllocator::dumpToSystemLog()
     ALOGD("%s", s.string());
 }
 
+class BufferLiberatorThread : public Thread {
+public:
+
+    static void queueCaptiveBuffer(buffer_handle_t handle) {
+        size_t queueSize;
+        {
+            Mutex::Autolock lock(sMutex);
+            if (sThread == NULL) {
+                sThread = new BufferLiberatorThread;
+                sThread->run("BufferLiberator");
+            }
+
+            sThread->mQueue.push_back(handle);
+            sThread->mQueuedCondition.signal();
+            queueSize = sThread->mQueue.size();
+        }
+    }
+
+    static void waitForLiberation() {
+        Mutex::Autolock lock(sMutex);
+
+        waitForLiberationLocked();
+    }
+
+    static void maybeWaitForLiberation() {
+        Mutex::Autolock lock(sMutex);
+        if (sThread != NULL) {
+            if (sThread->mQueue.size() > 8) {
+                waitForLiberationLocked();
+            }
+        }
+    }
+
+private:
+
+    BufferLiberatorThread() {}
+
+    virtual bool threadLoop() {
+        buffer_handle_t handle;
+        { // Scope for mutex
+            Mutex::Autolock lock(sMutex);
+            while (mQueue.isEmpty()) {
+                mQueuedCondition.wait(sMutex);
+            }
+            handle = mQueue[0];
+        }
+
+        status_t err;
+        GraphicBufferAllocator& gba(GraphicBufferAllocator::get());
+        { // Scope for tracing
+            ATRACE_NAME("gralloc::free");
+            err = gba.mAllocDev->free(gba.mAllocDev, handle);
+        }
+        ALOGW_IF(err, "free(...) failed %d (%s)", err, strerror(-err));
+
+        if (err == NO_ERROR) {
+            Mutex::Autolock _l(GraphicBufferAllocator::sLock);
+            KeyedVector<buffer_handle_t, GraphicBufferAllocator::alloc_rec_t>&
+                    list(GraphicBufferAllocator::sAllocList);
+            list.removeItem(handle);
+        }
+
+        { // Scope for mutex
+            Mutex::Autolock lock(sMutex);
+            mQueue.removeAt(0);
+            mFreedCondition.broadcast();
+        }
+
+        return true;
+    }
+
+    static void waitForLiberationLocked() {
+        if (sThread == NULL) {
+            return;
+        }
+
+        const nsecs_t timeout = 500 * 1000 * 1000;
+        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+        nsecs_t timeToStop = now + timeout;
+        while (!sThread->mQueue.isEmpty() && now < timeToStop) {
+            sThread->mFreedCondition.waitRelative(sMutex, timeToStop - now);
+            now = systemTime(SYSTEM_TIME_MONOTONIC);
+        }
+
+        if (!sThread->mQueue.isEmpty()) {
+            ALOGW("waitForLiberationLocked timed out");
+        }
+    }
+
+    static Mutex sMutex;
+    static sp<BufferLiberatorThread> sThread;
+    Vector<buffer_handle_t> mQueue;
+    Condition mQueuedCondition;
+    Condition mFreedCondition;
+};
+
+Mutex BufferLiberatorThread::sMutex;
+sp<BufferLiberatorThread> BufferLiberatorThread::sThread;
+
 status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat format,
         int usage, buffer_handle_t* handle, int32_t* stride)
 {
@@ -100,13 +199,24 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
         w = h = 1;
 
     // we have a h/w allocator and h/w buffer is requested
-    status_t err; 
-    
+    status_t err;
+
+    // If too many async frees are queued up then wait for some of them to
+    // complete before attempting to allocate more memory.  This is exercised
+    // by the android.opengl.cts.GLSurfaceViewTest CTS test.
+    BufferLiberatorThread::maybeWaitForLiberation();
+
     err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride);
+
+    if (err != NO_ERROR) {
+        ALOGW("WOW! gralloc alloc failed, waiting for pending frees!");
+        BufferLiberatorThread::waitForLiberation();
+        err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride);
+    }
 
     ALOGW_IF(err, "alloc(%u, %u, %d, %08x, ...) failed %d (%s)",
             w, h, format, usage, err, strerror(-err));
-    
+
     if (err == NO_ERROR) {
         Mutex::Autolock _l(sLock);
         KeyedVector<buffer_handle_t, alloc_rec_t>& list(sAllocList);
@@ -129,60 +239,6 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
     return err;
 }
 
-class BufferLiberatorThread : public Thread {
-public:
-
-    static void queueCaptiveBuffer(buffer_handle_t handle) {
-        static sp<BufferLiberatorThread> thread(new BufferLiberatorThread);
-        static bool running = false;
-        if (!running) {
-            thread->run("BufferLiberator");
-            running = true;
-        }
-        {
-            Mutex::Autolock lock(thread->mMutex);
-            thread->mQueue.push_back(handle);
-            thread->mCondition.signal();
-        }
-    }
-
-private:
-
-    BufferLiberatorThread() {}
-
-    virtual bool threadLoop() {
-        buffer_handle_t handle;
-        {
-            Mutex::Autolock lock(mMutex);
-            while (mQueue.isEmpty()) {
-                mCondition.wait(mMutex);
-            }
-            handle = mQueue[0];
-            mQueue.removeAt(0);
-        }
-
-        status_t err;
-        GraphicBufferAllocator& gba(GraphicBufferAllocator::get());
-        { // Scope for tracing
-            ATRACE_NAME("gralloc::free");
-            err = gba.mAllocDev->free(gba.mAllocDev, handle);
-        }
-        ALOGW_IF(err, "free(...) failed %d (%s)", err, strerror(-err));
-
-        if (err == NO_ERROR) {
-            Mutex::Autolock _l(GraphicBufferAllocator::sLock);
-            KeyedVector<buffer_handle_t, GraphicBufferAllocator::alloc_rec_t>&
-                    list(GraphicBufferAllocator::sAllocList);
-            list.removeItem(handle);
-        }
-
-        return true;
-    }
-
-    Vector<buffer_handle_t> mQueue;
-    Condition mCondition;
-    Mutex mMutex;
-};
 
 status_t GraphicBufferAllocator::free(buffer_handle_t handle)
 {
