@@ -3,29 +3,30 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
 	BitTube.cpp \
+	BufferItemConsumer.cpp \
 	BufferQueue.cpp \
 	ConsumerBase.cpp \
+	CpuConsumer.cpp \
 	DisplayEventReceiver.cpp \
+	DummyConsumer.cpp \
+	GraphicBufferAlloc.cpp \
+	GuiConfig.cpp \
 	IDisplayEventConnection.cpp \
+	IGraphicBufferAlloc.cpp \
 	ISensorEventConnection.cpp \
 	ISensorServer.cpp \
+	ISurface.cpp \
+	ISurfaceComposer.cpp \
+	ISurfaceComposerClient.cpp \
 	ISurfaceTexture.cpp \
+	LayerState.cpp \
 	Sensor.cpp \
 	SensorEventQueue.cpp \
 	SensorManager.cpp \
-	SurfaceTexture.cpp \
-	SurfaceTextureClient.cpp \
-	ISurfaceComposer.cpp \
-	ISurface.cpp \
-	ISurfaceComposerClient.cpp \
-	IGraphicBufferAlloc.cpp \
-	LayerState.cpp \
 	Surface.cpp \
 	SurfaceComposerClient.cpp \
-	DummyConsumer.cpp \
-	CpuConsumer.cpp \
-	BufferItemConsumer.cpp \
-	GuiConfig.cpp
+	SurfaceTexture.cpp \
+	SurfaceTextureClient.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libbinder \
