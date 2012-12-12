@@ -111,11 +111,6 @@ static int do_rm_user(char **arg, char reply[REPLY_MAX])
     return delete_persona(atoi(arg[0])); /* userid */
 }
 
-static int do_clone_user_data(char **arg, char reply[REPLY_MAX])
-{
-    return clone_persona_data(atoi(arg[0]), atoi(arg[1]), atoi(arg[2]));
-}
-
 static int do_movefiles(char **arg, char reply[REPLY_MAX])
 {
     return movefiles();
@@ -149,7 +144,6 @@ struct cmdinfo cmds[] = {
     { "linklib",              3, do_linklib },
     { "mkuserdata",           3, do_mk_user_data },
     { "rmuser",               1, do_rm_user },
-    { "cloneuserdata",        3, do_clone_user_data },
 };
 
 static int readx(int s, void *_buf, int count)
