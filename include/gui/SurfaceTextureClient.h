@@ -41,12 +41,6 @@ public:
 
     SurfaceTextureClient(const sp<ISurfaceTexture>& surfaceTexture);
 
-    // SurfaceTextureClient is overloaded to assist in refactoring ST and BQ.
-    // SurfaceTexture is no longer an ISurfaceTexture, so client code
-    // calling the original constructor will fail. Thus this convenience method
-    // passes in the surfaceTexture's bufferQueue to the init method.
-    SurfaceTextureClient(const sp<SurfaceTexture>& surfaceTexture);
-
     sp<ISurfaceTexture> getISurfaceTexture() const;
 
 protected:
