@@ -385,7 +385,7 @@ protected:
     virtual void SetUp() {
         GLTest::SetUp();
         mST = new SurfaceTexture(TEX_ID);
-        mSTC = new SurfaceTextureClient(mST);
+        mSTC = new SurfaceTextureClient(mST->getBufferQueue());
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);
         ASSERT_NO_FATAL_FAILURE(mTextureRenderer->SetUp());

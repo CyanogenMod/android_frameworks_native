@@ -41,7 +41,7 @@ protected:
                 testInfo->name());
 
         mST = new SurfaceTexture(123);
-        mSTC = new SurfaceTextureClient(mST);
+        mSTC = new SurfaceTextureClient(mST->getBufferQueue());
         mANW = mSTC;
 
         // We need a valid GL context so we can test updateTexImage()
@@ -686,7 +686,7 @@ protected:
 
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
             sp<SurfaceTexture> st(new SurfaceTexture(i));
-            sp<SurfaceTextureClient> stc(new SurfaceTextureClient(st));
+            sp<SurfaceTextureClient> stc(new SurfaceTextureClient(st->getBufferQueue()));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);
             ASSERT_EQ(EGL_SUCCESS, eglGetError());
