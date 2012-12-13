@@ -42,6 +42,21 @@ namespace android {
 
 class String8;
 
+/*
+ * SurfaceTexture consumes buffers of graphics data from a BufferQueue,
+ * and makes them available to OpenGL as a texture.
+ *
+ * A typical usage pattern is to set up the SurfaceTexture with the
+ * desired options, and call updateTexImage() when a new frame is desired.
+ * If a new frame is available, the texture will be updated.  If not,
+ * the previous contents are retained.
+ *
+ * By default, the texture is attached to the GL_TEXTURE_EXTERNAL_OES
+ * texture target, in the EGL context of the first thread that calls
+ * updateTexImage().
+ *
+ * TODO: rename to GLConsumer (OpenGLConsumer?)
+ */
 class SurfaceTexture : public ConsumerBase {
 public:
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
