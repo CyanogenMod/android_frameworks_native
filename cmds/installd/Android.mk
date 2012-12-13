@@ -11,9 +11,8 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
     $(common_src_files)
-
+LOCAL_CFLAGS := -std=gnu99
 LOCAL_MODULE := libinstalld
-
 LOCAL_MODULE_TAGS := eng tests
 
 include $(BUILD_STATIC_LIBRARY)
@@ -36,7 +35,7 @@ LOCAL_STATIC_LIBRARIES := \
     libdiskusage
 
 LOCAL_MODULE := installd
-
+LOCAL_CFLAGS := -std=gnu99
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
