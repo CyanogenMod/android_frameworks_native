@@ -34,6 +34,22 @@ namespace android {
 
 class SurfaceTextureClient;
 
+/*
+ * This class defines an interface that is implemented by classes that
+ * produce buffers of graphics data.  For example, a class that decodes
+ * video for playback might use this to provide frames.  This is
+ * typically done indirectly, through SurfaceTextureClient.
+ *
+ * The underlying mechanism is a BufferQueue.  In normal operation, the
+ * producer calls dequeueBuffer() to get an empty buffer, fills it with
+ * data, then calls queueBuffer() to make it available to the consumer.
+ *
+ * The BnSurfaceTexture and BpSurfaceTexture classes provide the Binder
+ * IPC implementation.
+ *
+ * TODO: rename to IGraphicBufferProducer (IBufferProducer?
+ * IBufferQueueProducer?)
+ */
 class ISurfaceTexture : public IInterface
 {
 public:
