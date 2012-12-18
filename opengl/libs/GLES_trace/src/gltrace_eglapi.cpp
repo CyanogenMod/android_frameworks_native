@@ -33,6 +33,9 @@ using gltrace::GLTraceState;
 using gltrace::GLTraceContext;
 using gltrace::TCPStream;
 
+static pthread_mutex_t sGlTraceStateLock = PTHREAD_MUTEX_INITIALIZER;
+
+static int sGlTraceInProgress;
 static GLTraceState *sGLTraceState;
 static pthread_t sReceiveThreadId;
 
@@ -105,33 +108,66 @@ static void *commandReceiveTask(void *arg) {
     return NULL;
 }
 
-void GLTrace_start() {
-    char udsName[PROPERTY_VALUE_MAX];
+/**
+ * Starts Trace Server and waits for connection from the host.
+ * Returns -1 in case of connection error, 0 otherwise.
+ */
+int GLTrace_start() {
+    int status = 0;
+    int clientSocket = -1;
+    TCPStream *stream = NULL;
 
-    property_get("debug.egl.debug_portname", udsName, "gltrace");
-    int clientSocket = gltrace::acceptClientConnection(udsName);
-    if (clientSocket < 0) {
-        ALOGE("Error creating GLTrace server socket. Quitting application.");
-        exit(-1);
+    pthread_mutex_lock(&sGlTraceStateLock);
+
+    if (sGlTraceInProgress) {
+        goto done;
     }
 
+    char udsName[PROPERTY_VALUE_MAX];
+    property_get("debug.egl.debug_portname", udsName, "gltrace");
+    clientSocket = gltrace::acceptClientConnection(udsName);
+    if (clientSocket < 0) {
+        ALOGE("Error creating GLTrace server socket. Tracing disabled.");
+        status = -1;
+        goto done;
+    }
+
+    sGlTraceInProgress = 1;
+
     // create communication channel to the host
-    TCPStream *stream = new TCPStream(clientSocket);
+    stream = new TCPStream(clientSocket);
 
     // initialize tracing state
     sGLTraceState = new GLTraceState(stream);
 
     pthread_create(&sReceiveThreadId, NULL, commandReceiveTask, sGLTraceState);
+
+done:
+    pthread_mutex_unlock(&sGlTraceStateLock);
+    return status;
 }
 
 void GLTrace_stop() {
-    delete sGLTraceState;
-    sGLTraceState = NULL;
+    pthread_mutex_lock(&sGlTraceStateLock);
+
+    if (sGlTraceInProgress) {
+        sGlTraceInProgress = 0;
+        delete sGLTraceState;
+        sGLTraceState = NULL;
+    }
+
+    pthread_mutex_unlock(&sGlTraceStateLock);
 }
 
 void GLTrace_eglCreateContext(int version, EGLContext c) {
+    pthread_mutex_lock(&sGlTraceStateLock);
+    GLTraceState *state = sGLTraceState;
+    pthread_mutex_unlock(&sGlTraceStateLock);
+
+    if (state == NULL) return;
+
     // update trace state for new EGL context
-    GLTraceContext *traceContext = sGLTraceState->createTraceContext(version, c);
+    GLTraceContext *traceContext = state->createTraceContext(version, c);
     gltrace::setupTraceContextThreadSpecific(traceContext);
 
     // trace command through to the host
@@ -139,8 +175,19 @@ void GLTrace_eglCreateContext(int version, EGLContext c) {
 }
 
 void GLTrace_eglMakeCurrent(const unsigned version, gl_hooks_t *hooks, EGLContext c) {
+    pthread_mutex_lock(&sGlTraceStateLock);
+    GLTraceState *state = sGLTraceState;
+    pthread_mutex_unlock(&sGlTraceStateLock);
+
+    if (state == NULL) return;
+
     // setup per context state
-    GLTraceContext *traceContext = sGLTraceState->getTraceContext(c);
+    GLTraceContext *traceContext = state->getTraceContext(c);
+    if (traceContext == NULL) {
+        GLTrace_eglCreateContext(version, c);
+        traceContext = state->getTraceContext(c);
+    }
+
     traceContext->hooks = hooks;
     gltrace::setupTraceContextThreadSpecific(traceContext);
 

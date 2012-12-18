@@ -84,12 +84,19 @@ static int sEGLApplicationTraceLevel;
 static bool sEGLSystraceEnabled;
 static bool sEGLGetErrorEnabled;
 
-int gEGLDebugLevel;
-static int sEGLApplicationDebugLevel;
+static volatile int sEGLDebugLevel;
 
 extern gl_hooks_t gHooksTrace;
 extern gl_hooks_t gHooksSystrace;
 extern gl_hooks_t gHooksErrorTrace;
+
+int getEGLDebugLevel() {
+    return sEGLDebugLevel;
+}
+
+void setEGLDebugLevel(int level) {
+    sEGLDebugLevel = level;
+}
 
 static inline void setGlTraceThreadSpecific(gl_hooks_t const *value) {
     pthread_setspecific(gGLTraceKey, value);
@@ -122,36 +129,36 @@ void initEglTraceLevel() {
 }
 
 void initEglDebugLevel() {
-    int propertyLevel = 0;
-    char value[PROPERTY_VALUE_MAX];
+    if (getEGLDebugLevel() == 0) {
+        char value[PROPERTY_VALUE_MAX];
 
-    // check system property only on userdebug or eng builds
-    property_get("ro.debuggable", value, "0");
-    if (value[0] == '0')
-        return;
+        // check system property only on userdebug or eng builds
+        property_get("ro.debuggable", value, "0");
+        if (value[0] == '0')
+            return;
 
-    property_get("debug.egl.debug_proc", value, "");
-    if (strlen(value) > 0) {
-        long pid = getpid();
-        char procPath[128] = {};
-        sprintf(procPath, "/proc/%ld/cmdline", pid);
-        FILE * file = fopen(procPath, "r");
-        if (file) {
-            char cmdline[256] = {};
-            if (fgets(cmdline, sizeof(cmdline) - 1, file)) {
-                if (!strncmp(value, cmdline, strlen(value))) {
-                    // set EGL debug if the "debug.egl.debug_proc" property
-                    // matches the prefix of this application's command line
-                    propertyLevel = 1;
+        property_get("debug.egl.debug_proc", value, "");
+        if (strlen(value) > 0) {
+            FILE * file = fopen("/proc/self/cmdline", "r");
+            if (file) {
+                char cmdline[256];
+                if (fgets(cmdline, sizeof(cmdline), file)) {
+                    if (!strncmp(value, cmdline, strlen(value))) {
+                        // set EGL debug if the "debug.egl.debug_proc" property
+                        // matches the prefix of this application's command line
+                        setEGLDebugLevel(1);
+                    }
                 }
+                fclose(file);
             }
-            fclose(file);
         }
     }
 
-    gEGLDebugLevel = propertyLevel || sEGLApplicationDebugLevel;
-    if (gEGLDebugLevel > 0) {
-        GLTrace_start();
+    if (getEGLDebugLevel() > 0) {
+        if (GLTrace_start() < 0) {
+            ALOGE("Error starting Tracer for OpenGL ES. Disabling..");
+            setEGLDebugLevel(0);
+        }
     }
 }
 
@@ -165,10 +172,11 @@ void setGLHooksThreadSpecific(gl_hooks_t const *value) {
     } else if (sEGLTraceLevel > 0) {
         setGlTraceThreadSpecific(value);
         setGlThreadSpecific(&gHooksTrace);
-    } else if (gEGLDebugLevel > 0 && value != &gHooksNoContext) {
+    } else if (getEGLDebugLevel() > 0 && value != &gHooksNoContext) {
         setGlTraceThreadSpecific(value);
         setGlThreadSpecific(GLTrace_getGLHooks());
     } else {
+        setGlTraceThreadSpecific(NULL);
         setGlThreadSpecific(value);
     }
 }
@@ -186,9 +194,12 @@ void setGLTraceLevel(int level) {
  * Global entry point to allow applications to modify their own debug level.
  * Debugging is enabled if either the application requested it, or if the system property
  * matches the application's name.
+ * Note that this only sets the debug level. The value is read and used either in
+ * initEglDebugLevel() if the application hasn't initialized its display yet, or when
+ * eglSwapBuffers() is called next.
  */
 void EGLAPI setGLDebugLevel(int level) {
-    sEGLApplicationDebugLevel = level;
+    setEGLDebugLevel(level);
 }
 
 #else

@@ -9,9 +9,6 @@ Code Runtime Behavior:
     control whether tracing should be enabled for a certain process. If tracing is enabled, this
     calls GLTrace_start() to start the trace server.
     
-    Note that initEglTraceLevel() is also called from early_egl_init(), but that happens in the
-    context of the zygote, so that invocation has no effect.
-    
     egl_display_t::initialize() then calls setGLHooksThreadSpecific() where we set the thread
     specific gl_hooks structure to point to the trace implementation. From this point on, every
     GLES call is redirected to the trace implementation.
@@ -29,6 +26,37 @@ Code Runtime Behavior:
     Currently, the application is killed when the user stops tracing from the frontend GUI. We need
     to explore if a more graceful method of stopping the application, or detaching tracing from the
     application is required.
+
+
+Enabling tracing while the application is running:
+
+    In order to allow tracing of an already running application, we allow DdmServer to enable
+    OpenGL tracing. In such a case, the application already has its GL hooks set up to point to the
+    real GL implementation, and we need to switch them to point to the trace implementation.
+
+    This is achieved by checking whether tracing should be enabled at every eglSwap call.
+    (Note: We were already checking for tracing at every eglSwap, the only change now is that
+    the tracing could actually be ON/OFF at runtime - earlier it was set once and never changed).
+
+    If eglSwap detects that tracing should be enabled now, then it performs the following steps:
+        - switch the gl hooks to point to the trace implementation.
+        - call trace eglMakeCurrent to indicate that there is now a new context that is current.
+        - continue on with tracing the eglSwap call.
+    This switches the hooks to point to the trace implementation only for the current context.
+    But the other contexts have their gl hooks updated when they perform eglMakeCurrent.
+
+    The GLTrace version of eglMakeCurrent now has to be updated to allow switching to a context
+    it may not know of. In such a case, it creates a context matching the version that it is now
+    switching to.
+
+Disabling tracing:
+
+    We disable tracing under two conditions:
+        - stop tracing request from DdmServer
+        - gltrace transport gets disconnected from the host.
+    In either case, both actions simply disable the tracing flag. The current context gets its
+    gl hooks restored in the next eglSwap, and the other traced contexts get their gl hooks
+    restored when they perform a eglMakeCurrent.
 
 Code Structure:
 
