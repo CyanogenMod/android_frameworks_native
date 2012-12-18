@@ -31,7 +31,7 @@ namespace android {
 
 typedef int32_t    SurfaceID;
 
-class ISurfaceTexture;
+class IGraphicBufferProducer;
 
 class ISurface : public IInterface
 {
@@ -43,7 +43,7 @@ protected:
 public: 
     DECLARE_META_INTERFACE(Surface);
 
-    virtual sp<ISurfaceTexture> getSurfaceTexture() const = 0;
+    virtual sp<IGraphicBufferProducer> getSurfaceTexture() const = 0;
 };
 
 // ----------------------------------------------------------------------------

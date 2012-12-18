@@ -82,7 +82,7 @@ class BufferItemConsumer: public ConsumerBase
     status_t releaseBuffer(const BufferItem &item,
             const sp<Fence>& releaseFence = Fence::NO_FENCE);
 
-    sp<ISurfaceTexture> getProducerInterface() const { return getBufferQueue(); }
+    sp<IGraphicBufferProducer> getProducerInterface() const { return getBufferQueue(); }
 
 };
 

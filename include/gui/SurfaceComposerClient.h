@@ -39,7 +39,7 @@ class DisplayInfo;
 class Composer;
 class IMemoryHeap;
 class ISurfaceComposerClient;
-class ISurfaceTexture;
+class IGraphicBufferProducer;
 class Region;
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ public:
     status_t    destroySurface(SurfaceID sid);
 
     static void setDisplaySurface(const sp<IBinder>& token,
-            const sp<ISurfaceTexture>& surface);
+            const sp<IGraphicBufferProducer>& bufferProducer);
     static void setDisplayLayerStack(const sp<IBinder>& token,
             uint32_t layerStack);
 

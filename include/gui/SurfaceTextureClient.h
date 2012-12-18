@@ -17,8 +17,8 @@
 #ifndef ANDROID_GUI_SURFACETEXTURECLIENT_H
 #define ANDROID_GUI_SURFACETEXTURECLIENT_H
 
-#include <gui/ISurfaceTexture.h>
-#include <gui/SurfaceTexture.h>
+#include <gui/IGraphicBufferProducer.h>
+#include <gui/GLConsumer.h>
 #include <gui/BufferQueue.h>
 
 #include <ui/ANativeObjectBase.h>
@@ -44,7 +44,7 @@ class Surface;
  * compositing.  For example, a video decoder could render a frame and call
  * eglSwapBuffers(), which invokes ANativeWindow callbacks defined by
  * SurfaceTextureClient.  STC then acts as the BufferQueue producer,
- * providing the new frame to a consumer such as SurfaceTexture.
+ * providing the new frame to a consumer such as GLConsumer.
  *
  * TODO: rename to Surface.  The existing Surface class wraps STC with
  * some Binder goodies, which most users of Surface class don't care about.
@@ -54,14 +54,14 @@ class SurfaceTextureClient
 {
 public:
 
-    SurfaceTextureClient(const sp<ISurfaceTexture>& surfaceTexture);
+    SurfaceTextureClient(const sp<IGraphicBufferProducer>& bufferProducer);
 
-    sp<ISurfaceTexture> getISurfaceTexture() const;
+    sp<IGraphicBufferProducer> getISurfaceTexture() const;  // TODO: rename
 
 protected:
     SurfaceTextureClient();
     virtual ~SurfaceTextureClient();
-    void setISurfaceTexture(const sp<ISurfaceTexture>& surfaceTexture);
+    void setISurfaceTexture(const sp<IGraphicBufferProducer>& bufferProducer);
 
 private:
     // can't be copied
@@ -144,11 +144,12 @@ private:
     // mSurfaceTexture is the interface to the surface texture server. All
     // operations on the surface texture client ultimately translate into
     // interactions with the server using this interface.
-    sp<ISurfaceTexture> mSurfaceTexture;
+    // TODO: rename to mBufferProducer
+    sp<IGraphicBufferProducer> mSurfaceTexture;
 
     // mSlots stores the buffers that have been allocated for each buffer slot.
     // It is initialized to null pointers, and gets filled in with the result of
-    // ISurfaceTexture::requestBuffer when the client dequeues a buffer from a
+    // IGraphicBufferProducer::requestBuffer when the client dequeues a buffer from a
     // slot that has not yet been used. The buffer allocated to a slot will also
     // be replaced if the requested buffer usage or geometry differs from that
     // of the buffer allocated to a slot.
@@ -214,7 +215,7 @@ private:
     mutable bool mConsumerRunningBehind;
 
     // mMutex is the mutex used to prevent concurrent access to the member
-    // variables of SurfaceTexture objects. It must be locked whenever the
+    // variables of SurfaceTextureClient objects. It must be locked whenever the
     // member variables are accessed.
     mutable Mutex mMutex;
 

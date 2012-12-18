@@ -21,7 +21,7 @@
 #include <EGL/eglext.h>
 
 #include <gui/IGraphicBufferAlloc.h>
-#include <gui/ISurfaceTexture.h>
+#include <gui/IGraphicBufferProducer.h>
 
 #include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
@@ -33,7 +33,7 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-class BufferQueue : public BnSurfaceTexture {
+class BufferQueue : public BnGraphicBufferProducer {
 public:
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
     enum { NUM_BUFFER_SLOTS = 32 };
@@ -149,7 +149,7 @@ public:
     virtual status_t setSynchronousMode(bool enabled);
 
     // connect attempts to connect a producer client API to the BufferQueue.
-    // This must be called before any other ISurfaceTexture methods are called
+    // This must be called before any other IGraphicBufferProducer methods are called
     // except for getAllocator.
     //
     // This method will fail if the connect was previously called on the
@@ -158,7 +158,7 @@ public:
 
     // disconnect attempts to disconnect a producer client API from the
     // BufferQueue. Calling this method will cause any subsequent calls to other
-    // ISurfaceTexture methods to fail except for getAllocator and connect.
+    // IGraphicBufferProducer methods to fail except for getAllocator and connect.
     // Successfully calling connect after this will allow the other methods to
     // succeed again.
     //
@@ -265,7 +265,7 @@ public:
     // producer is connected to the BufferQueue.
     status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers);
 
-    // isSynchronousMode returns whether the SurfaceTexture is currently in
+    // isSynchronousMode returns whether the BufferQueue is currently in
     // synchronous mode.
     bool isSynchronousMode() const;
 
@@ -506,10 +506,10 @@ private:
     Fifo mQueue;
 
     // mAbandoned indicates that the BufferQueue will no longer be used to
-    // consume images buffers pushed to it using the ISurfaceTexture interface.
+    // consume images buffers pushed to it using the IGraphicBufferProducer interface.
     // It is initialized to false, and set to true in the abandon method.  A
     // BufferQueue that has been abandoned will return the NO_INIT error from
-    // all ISurfaceTexture methods capable of returning an error.
+    // all IGraphicBufferProducer methods capable of returning an error.
     bool mAbandoned;
 
     // mName is a string used to identify the BufferQueue in log messages.

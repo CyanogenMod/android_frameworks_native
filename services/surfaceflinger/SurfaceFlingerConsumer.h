@@ -17,20 +17,20 @@
 #ifndef ANDROID_SURFACEFLINGERCONSUMER_H
 #define ANDROID_SURFACEFLINGERCONSUMER_H
 
-#include <gui/SurfaceTexture.h>
+#include <gui/GLConsumer.h>
 
 namespace android {
 // ----------------------------------------------------------------------------
 
 /*
- * This is a thin wrapper around SurfaceTexture.
+ * This is a thin wrapper around GLConsumer.
  */
-class SurfaceFlingerConsumer : public SurfaceTexture {
+class SurfaceFlingerConsumer : public GLConsumer {
 public:
     SurfaceFlingerConsumer(GLuint tex, bool allowSynchronousMode = true,
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0)
-        : SurfaceTexture(tex, allowSynchronousMode, texTarget, useFenceSync,
+        : GLConsumer(tex, allowSynchronousMode, texTarget, useFenceSync,
             bufferQueue)
     {}
 
@@ -44,12 +44,12 @@ public:
     };
 
     // This version of updateTexImage() takes a functor that may be used to
-    // reject the newly acquired buffer.  Unlike the SurfaceTexture version,
+    // reject the newly acquired buffer.  Unlike the GLConsumer version,
     // this does not guarantee that the buffer has been bound to the GL
     // texture.
     status_t updateTexImage(BufferRejecter* rejecter);
 
-    // See SurfaceTexture::bindTextureImageLocked().
+    // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
 };
 

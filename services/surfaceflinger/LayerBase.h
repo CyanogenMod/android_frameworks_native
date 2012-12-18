@@ -243,8 +243,8 @@ public:
     virtual void onPostComposition() { }
 
     /**
-     * Updates the SurfaceTexture's transform hint, for layers that have
-     * a SurfaceTexture.
+     * Updates the GLConsumer's transform hint, for layers that have
+     * a GLConsumer.
      */
     virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const { }
 

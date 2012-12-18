@@ -33,7 +33,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ALOGE("updateTexImage: SurfaceTexture is abandoned!");
+        ALOGE("updateTexImage: GLConsumer is abandoned!");
         return NO_INIT;
     }
 

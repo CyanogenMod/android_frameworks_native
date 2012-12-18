@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "SurfaceTexture"
+#define LOG_TAG "GLConsumer"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
@@ -31,7 +31,7 @@
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
-#include <gui/SurfaceTexture.h>
+#include <gui/GLConsumer.h>
 
 #include <private/gui/ComposerService.h>
 
@@ -41,7 +41,7 @@
 
 namespace android {
 
-// This compile option makes SurfaceTexture use the
+// This compile option makes GLConsumer use the
 // EGL_ANDROID_native_fence_sync extension to create Android native fences to
 // signal when all GLES reads for a given buffer have completed.  It is not
 // compatible with using the EGL_KHR_fence_sync extension for the same
@@ -50,12 +50,12 @@ namespace android {
 #ifdef USE_FENCE_SYNC
 #error "USE_NATIVE_FENCE_SYNC and USE_FENCE_SYNC are incompatible"
 #endif
-const bool SurfaceTexture::sUseNativeFenceSync = true;
+const bool GLConsumer::sUseNativeFenceSync = true;
 #else
-const bool SurfaceTexture::sUseNativeFenceSync = false;
+const bool GLConsumer::sUseNativeFenceSync = false;
 #endif
 
-// This compile option makes SurfaceTexture use the EGL_ANDROID_sync_wait
+// This compile option makes GLConsumer use the EGL_ANDROID_sync_wait
 // extension to insert server-side waits into the GLES command stream.  This
 // feature requires the EGL_ANDROID_native_fence_sync and
 // EGL_ANDROID_wait_sync extensions.
@@ -65,7 +65,7 @@ static const bool useWaitSync = true;
 static const bool useWaitSync = false;
 #endif
 
-// Macros for including the SurfaceTexture name in log messages
+// Macros for including the GLConsumer name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGD(x, ...) ALOGD("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGI(x, ...) ALOGI("[%s] "x, mName.string(), ##__VA_ARGS__)
@@ -113,7 +113,7 @@ static float mtxRot270[16] = {
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
 
-SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
+GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
         GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
     ConsumerBase(bufferQueue == 0 ? new BufferQueue(allowSynchronousMode) : bufferQueue),
     mCurrentTransform(0),
@@ -131,7 +131,7 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mCurrentTexture(BufferQueue::INVALID_BUFFER_SLOT),
     mAttached(true)
 {
-    ST_LOGV("SurfaceTexture");
+    ST_LOGV("GLConsumer");
 
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
@@ -139,13 +139,13 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mBufferQueue->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
-status_t SurfaceTexture::setDefaultMaxBufferCount(int bufferCount) {
+status_t GLConsumer::setDefaultMaxBufferCount(int bufferCount) {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->setDefaultMaxBufferCount(bufferCount);
 }
 
 
-status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
+status_t GLConsumer::setDefaultBufferSize(uint32_t w, uint32_t h)
 {
     Mutex::Autolock lock(mMutex);
     mDefaultWidth = w;
@@ -153,13 +153,13 @@ status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
     return mBufferQueue->setDefaultBufferSize(w, h);
 }
 
-status_t SurfaceTexture::updateTexImage() {
+status_t GLConsumer::updateTexImage() {
     ATRACE_CALL();
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ST_LOGE("updateTexImage: SurfaceTexture is abandoned!");
+        ST_LOGE("updateTexImage: GLConsumer is abandoned!");
         return NO_INIT;
     }
 
@@ -200,7 +200,7 @@ status_t SurfaceTexture::updateTexImage() {
     return bindTextureImageLocked();
 }
 
-status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
+status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item) {
     status_t err = ConsumerBase::acquireBufferLocked(item);
     if (err != NO_ERROR) {
         return err;
@@ -223,7 +223,7 @@ status_t SurfaceTexture::acquireBufferLocked(BufferQueue::BufferItem *item) {
     return NO_ERROR;
 }
 
-status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
+status_t GLConsumer::releaseBufferLocked(int buf, EGLDisplay display,
        EGLSyncKHR eglFence) {
     status_t err = ConsumerBase::releaseBufferLocked(buf, display, eglFence);
 
@@ -232,12 +232,12 @@ status_t SurfaceTexture::releaseBufferLocked(int buf, EGLDisplay display,
     return err;
 }
 
-status_t SurfaceTexture::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
+status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
 {
     status_t err = NO_ERROR;
 
     if (!mAttached) {
-        ST_LOGE("releaseAndUpdate: SurfaceTexture is not attached to an OpenGL "
+        ST_LOGE("releaseAndUpdate: GLConsumer is not attached to an OpenGL "
                 "ES context");
         return INVALID_OPERATION;
     }
@@ -293,7 +293,7 @@ status_t SurfaceTexture::releaseAndUpdateLocked(const BufferQueue::BufferItem& i
         }
     }
 
-    // Update the SurfaceTexture state.
+    // Update the GLConsumer state.
     mCurrentTexture = buf;
     mCurrentTextureBuf = mSlots[buf].mGraphicBuffer;
     mCurrentCrop = item.mCrop;
@@ -307,7 +307,7 @@ status_t SurfaceTexture::releaseAndUpdateLocked(const BufferQueue::BufferItem& i
     return err;
 }
 
-status_t SurfaceTexture::bindTextureImageLocked() {
+status_t GLConsumer::bindTextureImageLocked() {
     if (mEglDisplay == EGL_NO_DISPLAY) {
         ALOGE("bindTextureImage: invalid display");
         return INVALID_OPERATION;
@@ -345,7 +345,7 @@ status_t SurfaceTexture::bindTextureImageLocked() {
 
 }
 
-status_t SurfaceTexture::checkAndUpdateEglStateLocked() {
+status_t GLConsumer::checkAndUpdateEglStateLocked() {
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
 
@@ -366,7 +366,7 @@ status_t SurfaceTexture::checkAndUpdateEglStateLocked() {
     return NO_ERROR;
 }
 
-void SurfaceTexture::setReleaseFence(int fenceFd) {
+void GLConsumer::setReleaseFence(int fenceFd) {
     sp<Fence> fence(new Fence(fenceFd));
     if (fenceFd == -1 || mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT)
         return;
@@ -377,18 +377,18 @@ void SurfaceTexture::setReleaseFence(int fenceFd) {
     }
 }
 
-status_t SurfaceTexture::detachFromContext() {
+status_t GLConsumer::detachFromContext() {
     ATRACE_CALL();
     ST_LOGV("detachFromContext");
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ST_LOGE("detachFromContext: abandoned SurfaceTexture");
+        ST_LOGE("detachFromContext: abandoned GLConsumer");
         return NO_INIT;
     }
 
     if (!mAttached) {
-        ST_LOGE("detachFromContext: SurfaceTexture is not attached to a "
+        ST_LOGE("detachFromContext: GLConsumer is not attached to a "
                 "context");
         return INVALID_OPERATION;
     }
@@ -417,7 +417,7 @@ status_t SurfaceTexture::detachFromContext() {
 
     // Because we're giving up the EGLDisplay we need to free all the EGLImages
     // that are associated with it.  They'll be recreated when the
-    // SurfaceTexture gets attached to a new OpenGL ES context (and thus gets a
+    // GLConsumer gets attached to a new OpenGL ES context (and thus gets a
     // new EGLDisplay).
     for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         EGLImageKHR img = mEglSlots[i].mEglImage;
@@ -434,18 +434,18 @@ status_t SurfaceTexture::detachFromContext() {
     return OK;
 }
 
-status_t SurfaceTexture::attachToContext(GLuint tex) {
+status_t GLConsumer::attachToContext(GLuint tex) {
     ATRACE_CALL();
     ST_LOGV("attachToContext");
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ST_LOGE("attachToContext: abandoned SurfaceTexture");
+        ST_LOGE("attachToContext: abandoned GLConsumer");
         return NO_INIT;
     }
 
     if (mAttached) {
-        ST_LOGE("attachToContext: SurfaceTexture is already attached to a "
+        ST_LOGE("attachToContext: GLConsumer is already attached to a "
                 "context");
         return INVALID_OPERATION;
     }
@@ -469,7 +469,7 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
 
     if (mCurrentTextureBuf != NULL) {
         // The EGLImageKHR that was associated with the slot was destroyed when
-        // the SurfaceTexture was detached from the old context, so we need to
+        // the GLConsumer was detached from the old context, so we need to
         // recreate it here.
         status_t err = bindUnslottedBufferLocked(dpy);
         if (err != NO_ERROR) {
@@ -485,7 +485,7 @@ status_t SurfaceTexture::attachToContext(GLuint tex) {
     return OK;
 }
 
-status_t SurfaceTexture::bindUnslottedBufferLocked(EGLDisplay dpy) {
+status_t GLConsumer::bindUnslottedBufferLocked(EGLDisplay dpy) {
     ST_LOGV("bindUnslottedBuffer ct=%d ctb=%p",
             mCurrentTexture, mCurrentTextureBuf.get());
 
@@ -517,7 +517,7 @@ status_t SurfaceTexture::bindUnslottedBufferLocked(EGLDisplay dpy) {
 }
 
 
-status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
+status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
     ST_LOGV("syncForReleaseLocked");
 
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
@@ -580,7 +580,7 @@ status_t SurfaceTexture::syncForReleaseLocked(EGLDisplay dpy) {
     return OK;
 }
 
-bool SurfaceTexture::isExternalFormat(uint32_t format)
+bool GLConsumer::isExternalFormat(uint32_t format)
 {
     switch (format) {
     // supported YUV formats
@@ -599,19 +599,19 @@ bool SurfaceTexture::isExternalFormat(uint32_t format)
     return false;
 }
 
-GLenum SurfaceTexture::getCurrentTextureTarget() const {
+GLenum GLConsumer::getCurrentTextureTarget() const {
     return mTexTarget;
 }
 
-void SurfaceTexture::getTransformMatrix(float mtx[16]) {
+void GLConsumer::getTransformMatrix(float mtx[16]) {
     Mutex::Autolock lock(mMutex);
     memcpy(mtx, mCurrentTransformMatrix, sizeof(mCurrentTransformMatrix));
 }
 
-void SurfaceTexture::setFilteringEnabled(bool enabled) {
+void GLConsumer::setFilteringEnabled(bool enabled) {
     Mutex::Autolock lock(mMutex);
     if (mAbandoned) {
-        ST_LOGE("setFilteringEnabled: SurfaceTexture is abandoned!");
+        ST_LOGE("setFilteringEnabled: GLConsumer is abandoned!");
         return;
     }
     bool needsRecompute = mFilteringEnabled != enabled;
@@ -626,7 +626,7 @@ void SurfaceTexture::setFilteringEnabled(bool enabled) {
     }
 }
 
-void SurfaceTexture::computeCurrentTransformMatrixLocked() {
+void GLConsumer::computeCurrentTransformMatrixLocked() {
     ST_LOGV("computeCurrentTransformMatrixLocked");
 
     float xform[16];
@@ -719,19 +719,19 @@ void SurfaceTexture::computeCurrentTransformMatrixLocked() {
     mtxMul(mtxBeforeFlipV, crop, xform);
 
     // SurfaceFlinger expects the top of its window textures to be at a Y
-    // coordinate of 0, so SurfaceTexture must behave the same way.  We don't
+    // coordinate of 0, so GLConsumer must behave the same way.  We don't
     // want to expose this to applications, however, so we must add an
     // additional vertical flip to the transform after all the other transforms.
     mtxMul(mCurrentTransformMatrix, mtxFlipV, mtxBeforeFlipV);
 }
 
-nsecs_t SurfaceTexture::getTimestamp() {
+nsecs_t GLConsumer::getTimestamp() {
     ST_LOGV("getTimestamp");
     Mutex::Autolock lock(mMutex);
     return mCurrentTimestamp;
 }
 
-EGLImageKHR SurfaceTexture::createImage(EGLDisplay dpy,
+EGLImageKHR GLConsumer::createImage(EGLDisplay dpy,
         const sp<GraphicBuffer>& graphicBuffer) {
     EGLClientBuffer cbuf = (EGLClientBuffer)graphicBuffer->getNativeBuffer();
     EGLint attrs[] = {
@@ -747,12 +747,12 @@ EGLImageKHR SurfaceTexture::createImage(EGLDisplay dpy,
     return image;
 }
 
-sp<GraphicBuffer> SurfaceTexture::getCurrentBuffer() const {
+sp<GraphicBuffer> GLConsumer::getCurrentBuffer() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentTextureBuf;
 }
 
-Rect SurfaceTexture::getCurrentCrop() const {
+Rect GLConsumer::getCurrentCrop() const {
     Mutex::Autolock lock(mMutex);
 
     Rect outCrop = mCurrentCrop;
@@ -788,27 +788,27 @@ Rect SurfaceTexture::getCurrentCrop() const {
     return outCrop;
 }
 
-uint32_t SurfaceTexture::getCurrentTransform() const {
+uint32_t GLConsumer::getCurrentTransform() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentTransform;
 }
 
-uint32_t SurfaceTexture::getCurrentScalingMode() const {
+uint32_t GLConsumer::getCurrentScalingMode() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentScalingMode;
 }
 
-sp<Fence> SurfaceTexture::getCurrentFence() const {
+sp<Fence> GLConsumer::getCurrentFence() const {
     Mutex::Autolock lock(mMutex);
     return mCurrentFence;
 }
 
-status_t SurfaceTexture::doGLFenceWait() const {
+status_t GLConsumer::doGLFenceWait() const {
     Mutex::Autolock lock(mMutex);
     return doGLFenceWaitLocked();
 }
 
-status_t SurfaceTexture::doGLFenceWaitLocked() const {
+status_t GLConsumer::doGLFenceWaitLocked() const {
 
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
@@ -857,7 +857,7 @@ status_t SurfaceTexture::doGLFenceWaitLocked() const {
             }
         } else {
             status_t err = mCurrentFence->waitForever(1000,
-                    "SurfaceTexture::doGLFenceWaitLocked");
+                    "GLConsumer::doGLFenceWaitLocked");
             if (err != NO_ERROR) {
                 ST_LOGE("doGLFenceWait: error waiting for fence: %d", err);
                 return err;
@@ -868,12 +868,12 @@ status_t SurfaceTexture::doGLFenceWaitLocked() const {
     return NO_ERROR;
 }
 
-bool SurfaceTexture::isSynchronousMode() const {
+bool GLConsumer::isSynchronousMode() const {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->isSynchronousMode();
 }
 
-void SurfaceTexture::freeBufferLocked(int slotIndex) {
+void GLConsumer::freeBufferLocked(int slotIndex) {
     ST_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     if (slotIndex == mCurrentTexture) {
         mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
@@ -887,42 +887,42 @@ void SurfaceTexture::freeBufferLocked(int slotIndex) {
     ConsumerBase::freeBufferLocked(slotIndex);
 }
 
-void SurfaceTexture::abandonLocked() {
+void GLConsumer::abandonLocked() {
     ST_LOGV("abandonLocked");
     mCurrentTextureBuf.clear();
     ConsumerBase::abandonLocked();
 }
 
-void SurfaceTexture::setName(const String8& name) {
+void GLConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
     mBufferQueue->setConsumerName(name);
 }
 
-status_t SurfaceTexture::setDefaultBufferFormat(uint32_t defaultFormat) {
+status_t GLConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->setDefaultBufferFormat(defaultFormat);
 }
 
-status_t SurfaceTexture::setConsumerUsageBits(uint32_t usage) {
+status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
     usage |= DEFAULT_USAGE_FLAGS;
     return mBufferQueue->setConsumerUsageBits(usage);
 }
 
-status_t SurfaceTexture::setTransformHint(uint32_t hint) {
+status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->setTransformHint(hint);
 }
 
-// Used for refactoring BufferQueue from SurfaceTexture
-// Should not be in final interface once users of SurfaceTexture are clean up.
-status_t SurfaceTexture::setSynchronousMode(bool enabled) {
+// Used for refactoring BufferQueue from GLConsumer
+// Should not be in final interface once users of GLConsumer are clean up.
+status_t GLConsumer::setSynchronousMode(bool enabled) {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->setSynchronousMode(enabled);
 }
 
-void SurfaceTexture::dumpLocked(String8& result, const char* prefix,
+void GLConsumer::dumpLocked(String8& result, const char* prefix,
         char* buffer, size_t size) const
 {
     snprintf(buffer, size,

@@ -24,7 +24,7 @@ namespace android {
 
 
 // The DummyConsumer does not keep a reference to BufferQueue
-// unlike SurfaceTexture.  This prevents a circular reference from
+// unlike GLConsumer.  This prevents a circular reference from
 // forming without having to use a ProxyConsumerListener
 class DummyConsumer : public BufferQueue::ConsumerListener {
 public:
@@ -33,7 +33,7 @@ public:
 protected:
 
     // Implementation of the BufferQueue::ConsumerListener interface.  These
-    // calls are used to notify the SurfaceTexture of asynchronous events in the
+    // calls are used to notify the GLConsumer of asynchronous events in the
     // BufferQueue.
     virtual void onFrameAvailable();
     virtual void onBuffersReleased();

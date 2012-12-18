@@ -46,7 +46,7 @@ public:
     // current buffer is no longer being read. This fence will be returned to
     // the producer when the current buffer is released by updateTexImage().
     // Multiple fences can be set for a given buffer; they will be merged into
-    // a single union fence. The SurfaceTexture will close the file descriptor
+    // a single union fence. The GLConsumer will close the file descriptor
     // when finished with it.
     status_t setReleaseFenceFd(int fenceFd);
 

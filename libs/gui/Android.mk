@@ -9,23 +9,23 @@ LOCAL_SRC_FILES:= \
 	CpuConsumer.cpp \
 	DisplayEventReceiver.cpp \
 	DummyConsumer.cpp \
+	GLConsumer.cpp \
 	GraphicBufferAlloc.cpp \
 	GuiConfig.cpp \
 	IDisplayEventConnection.cpp \
 	IGraphicBufferAlloc.cpp \
+	IGraphicBufferProducer.cpp \
 	ISensorEventConnection.cpp \
 	ISensorServer.cpp \
 	ISurface.cpp \
 	ISurfaceComposer.cpp \
 	ISurfaceComposerClient.cpp \
-	ISurfaceTexture.cpp \
 	LayerState.cpp \
 	Sensor.cpp \
 	SensorEventQueue.cpp \
 	SensorManager.cpp \
 	Surface.cpp \
 	SurfaceComposerClient.cpp \
-	SurfaceTexture.cpp \
 	SurfaceTextureClient.cpp \
 
 LOCAL_SHARED_LIBRARIES := \

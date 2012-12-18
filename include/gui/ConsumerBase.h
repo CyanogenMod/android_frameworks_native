@@ -53,7 +53,7 @@ public:
     // abandon frees all the buffers and puts the ConsumerBase into the
     // 'abandoned' state.  Once put in this state the ConsumerBase can never
     // leave it.  When in the 'abandoned' state, all methods of the
-    // ISurfaceTexture interface will fail with the NO_INIT error.
+    // IGraphicBufferProducer interface will fail with the NO_INIT error.
     //
     // Note that while calling this method causes all the buffers to be freed
     // from the perspective of the the ConsumerBase, if there are additional
@@ -186,7 +186,7 @@ protected:
     Slot mSlots[BufferQueue::NUM_BUFFER_SLOTS];
 
     // mAbandoned indicates that the BufferQueue will no longer be used to
-    // consume images buffers pushed to it using the ISurfaceTexture
+    // consume images buffers pushed to it using the IGraphicBufferProducer
     // interface. It is initialized to false, and set to true in the abandon
     // method.  A BufferQueue that has been abandoned will return the NO_INIT
     // error from all IConsumerBase methods capable of returning an error.

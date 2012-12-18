@@ -86,10 +86,10 @@ public:
      */
     virtual void bootFinished() = 0;
 
-    /* verify that an ISurfaceTexture was created by SurfaceFlinger.
+    /* verify that an IGraphicBufferProducer was created by SurfaceFlinger.
      */
     virtual bool authenticateSurfaceTexture(
-            const sp<ISurfaceTexture>& surface) const = 0;
+            const sp<IGraphicBufferProducer>& surface) const = 0;
 
     /* Capture the specified screen. requires READ_FRAME_BUFFER permission
      * This function will fail if there is a secure window on screen.

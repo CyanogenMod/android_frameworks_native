@@ -114,7 +114,7 @@ struct DisplayState {
 
     uint32_t what;
     sp<IBinder> token;
-    sp<ISurfaceTexture> surface;
+    sp<IGraphicBufferProducer> surface;
     uint32_t layerStack;
     uint32_t orientation;
     Rect viewport;

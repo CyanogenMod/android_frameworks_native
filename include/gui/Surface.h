@@ -37,7 +37,7 @@ namespace android {
 
 // ---------------------------------------------------------------------------
 
-class ISurfaceTexture;
+class IGraphicBufferProducer;
 class Surface;
 class SurfaceComposerClient;
 
@@ -126,7 +126,7 @@ public:
         uint32_t    reserved[2];
     };
 
-    explicit Surface(const sp<ISurfaceTexture>& st);
+    explicit Surface(const sp<IGraphicBufferProducer>& bp);
 
     static status_t writeToParcel(const sp<Surface>& control, Parcel* parcel);
 
@@ -137,7 +137,7 @@ public:
 
     bool        isValid();
     uint32_t    getIdentity() const { return mIdentity; }
-    sp<ISurfaceTexture> getSurfaceTexture();
+    sp<IGraphicBufferProducer> getSurfaceTexture();     // TODO: rename this
 
     // the lock/unlock APIs must be used from the same thread
     status_t    lock(SurfaceInfo* info, Region* dirty = NULL);
@@ -161,7 +161,7 @@ private:
     /*
      *  private stuff...
      */
-    void init(const sp<ISurfaceTexture>& surfaceTexture);
+    void init(const sp<IGraphicBufferProducer>& bufferProducer);
 
     static void cleanCachedSurfacesLocked();
 

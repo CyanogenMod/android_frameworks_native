@@ -27,7 +27,7 @@
 
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
-#include <gui/SurfaceTexture.h>
+#include <gui/GLConsumer.h>
 #include <gui/SurfaceTextureClient.h>
 
 #include <private/gui/ComposerService.h>
@@ -35,10 +35,10 @@
 namespace android {
 
 SurfaceTextureClient::SurfaceTextureClient(
-        const sp<ISurfaceTexture>& surfaceTexture)
+        const sp<IGraphicBufferProducer>& bufferProducer)
 {
     SurfaceTextureClient::init();
-    SurfaceTextureClient::setISurfaceTexture(surfaceTexture);
+    SurfaceTextureClient::setISurfaceTexture(bufferProducer);
 }
 
 SurfaceTextureClient::SurfaceTextureClient() {
@@ -86,12 +86,12 @@ void SurfaceTextureClient::init() {
 }
 
 void SurfaceTextureClient::setISurfaceTexture(
-        const sp<ISurfaceTexture>& surfaceTexture)
+        const sp<IGraphicBufferProducer>& bufferProducer)
 {
-    mSurfaceTexture = surfaceTexture;
+    mSurfaceTexture = bufferProducer;
 }
 
-sp<ISurfaceTexture> SurfaceTextureClient::getISurfaceTexture() const {
+sp<IGraphicBufferProducer> SurfaceTextureClient::getISurfaceTexture() const {
     return mSurfaceTexture;
 }
 
@@ -197,20 +197,20 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
     status_t result = mSurfaceTexture->dequeueBuffer(&buf, fence, reqW, reqH,
             mReqFormat, mReqUsage);
     if (result < 0) {
-        ALOGV("dequeueBuffer: ISurfaceTexture::dequeueBuffer(%d, %d, %d, %d)"
+        ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d)"
              "failed: %d", mReqWidth, mReqHeight, mReqFormat, mReqUsage,
              result);
         return result;
     }
     sp<GraphicBuffer>& gbuf(mSlots[buf].buffer);
-    if (result & ISurfaceTexture::RELEASE_ALL_BUFFERS) {
+    if (result & IGraphicBufferProducer::RELEASE_ALL_BUFFERS) {
         freeAllBuffers();
     }
 
-    if ((result & ISurfaceTexture::BUFFER_NEEDS_REALLOCATION) || gbuf == 0) {
+    if ((result & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) || gbuf == 0) {
         result = mSurfaceTexture->requestBuffer(buf, &gbuf);
         if (result != NO_ERROR) {
-            ALOGE("dequeueBuffer: ISurfaceTexture::requestBuffer failed: %d",
+            ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d",
                     result);
             return result;
         }
@@ -288,8 +288,8 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer, int fence
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : NULL);
-    ISurfaceTexture::QueueBufferOutput output;
-    ISurfaceTexture::QueueBufferInput input(timestamp, crop, mScalingMode,
+    IGraphicBufferProducer::QueueBufferOutput output;
+    IGraphicBufferProducer::QueueBufferInput input(timestamp, crop, mScalingMode,
             mTransform, fence);
     status_t err = mSurfaceTexture->queueBuffer(i, input, &output);
     if (err != OK)  {
@@ -497,7 +497,7 @@ int SurfaceTextureClient::connect(int api) {
     ATRACE_CALL();
     ALOGV("SurfaceTextureClient::connect");
     Mutex::Autolock lock(mMutex);
-    ISurfaceTexture::QueueBufferOutput output;
+    IGraphicBufferProducer::QueueBufferOutput output;
     int err = mSurfaceTexture->connect(api, &output);
     if (err == NO_ERROR) {
         uint32_t numPendingBuffers = 0;
@@ -566,7 +566,7 @@ int SurfaceTextureClient::setBufferCount(int bufferCount)
     Mutex::Autolock lock(mMutex);
 
     status_t err = mSurfaceTexture->setBufferCount(bufferCount);
-    ALOGE_IF(err, "ISurfaceTexture::setBufferCount(%d) returned %s",
+    ALOGE_IF(err, "IGraphicBufferProducer::setBufferCount(%d) returned %s",
             bufferCount, strerror(-err));
 
     if (err == NO_ERROR) {

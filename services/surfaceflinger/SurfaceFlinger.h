@@ -163,7 +163,7 @@ private:
         bool isMainDisplay() const { return type == DisplayDevice::DISPLAY_PRIMARY; }
         bool isVirtualDisplay() const { return type >= DisplayDevice::DISPLAY_VIRTUAL; }
         DisplayDevice::DisplayType type;
-        sp<ISurfaceTexture> surface;
+        sp<IGraphicBufferProducer> surface;
         uint32_t layerStack;
         Rect viewport;
         Rect frame;
@@ -195,7 +195,7 @@ private:
             const Vector<DisplayState>& displays, uint32_t flags);
     virtual void bootFinished();
     virtual bool authenticateSurfaceTexture(
-        const sp<ISurfaceTexture>& surface) const;
+        const sp<IGraphicBufferProducer>& bufferProducer) const;
     virtual sp<IDisplayEventConnection> createDisplayEventConnection();
     virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
         uint32_t* width, uint32_t* height, PixelFormat* format,

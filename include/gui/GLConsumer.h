@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_GUI_SURFACETEXTURE_H
-#define ANDROID_GUI_SURFACETEXTURE_H
+#ifndef ANDROID_GUI_CONSUMER_H
+#define ANDROID_GUI_CONSUMER_H
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include <gui/ISurfaceTexture.h>
+#include <gui/IGraphicBufferProducer.h>
 #include <gui/BufferQueue.h>
 #include <gui/ConsumerBase.h>
 
@@ -43,10 +43,10 @@ namespace android {
 class String8;
 
 /*
- * SurfaceTexture consumes buffers of graphics data from a BufferQueue,
+ * GLConsumer consumes buffers of graphics data from a BufferQueue,
  * and makes them available to OpenGL as a texture.
  *
- * A typical usage pattern is to set up the SurfaceTexture with the
+ * A typical usage pattern is to set up the GLConsumer with the
  * desired options, and call updateTexImage() when a new frame is desired.
  * If a new frame is available, the texture will be updated.  If not,
  * the previous contents are retained.
@@ -55,13 +55,13 @@ class String8;
  * texture target, in the EGL context of the first thread that calls
  * updateTexImage().
  *
- * TODO: rename to GLConsumer (OpenGLConsumer?)
+ * This class was previously called SurfaceTexture.
  */
-class SurfaceTexture : public ConsumerBase {
+class GLConsumer : public ConsumerBase {
 public:
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
 
-    // SurfaceTexture constructs a new SurfaceTexture object. tex indicates the
+    // GLConsumer constructs a new GLConsumer object. tex indicates the
     // name of the OpenGL ES texture to which images are to be streamed.
     // allowSynchronousMode specifies whether or not synchronous mode can be
     // enabled. texTarget specifies the OpenGL ES texture target to which the
@@ -71,7 +71,7 @@ public:
     // if behavior for queue/dequeue/connect etc needs to be customized.
     // Otherwise a default BufferQueue will be created and used.
     //
-    // For legacy reasons, the SurfaceTexture is created in a state where it is
+    // For legacy reasons, the GLConsumer is created in a state where it is
     // considered attached to an OpenGL ES context for the purposes of the
     // attachToContext and detachFromContext methods. However, despite being
     // considered "attached" to a context, the specific OpenGL ES context
@@ -79,13 +79,13 @@ public:
     // point, all calls to updateTexImage must be made with the same OpenGL ES
     // context current.
     //
-    // A SurfaceTexture may be detached from one OpenGL ES context and then
+    // A GLConsumer may be detached from one OpenGL ES context and then
     // attached to a different context using the detachFromContext and
     // attachToContext methods, respectively. The intention of these methods is
-    // purely to allow a SurfaceTexture to be transferred from one consumer
+    // purely to allow a GLConsumer to be transferred from one consumer
     // context to another. If such a transfer is not needed there is no
     // requirement that either of these methods be called.
-    SurfaceTexture(GLuint tex, bool allowSynchronousMode = true,
+    GLConsumer(GLuint tex, bool allowSynchronousMode = true,
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0);
 
@@ -102,7 +102,7 @@ public:
     // current buffer is no longer being read. This fence will be returned to
     // the producer when the current buffer is released by updateTexImage().
     // Multiple fences can be set for a given buffer; they will be merged into
-    // a single union fence. The SurfaceTexture will close the file descriptor
+    // a single union fence. The GLConsumer will close the file descriptor
     // when finished with it.
     void setReleaseFence(int fenceFd);
 
@@ -122,7 +122,7 @@ public:
     //
     // This transform is necessary to compensate for transforms that the stream
     // content producer may implicitly apply to the content. By forcing users of
-    // a SurfaceTexture to apply this transform we avoid performing an extra
+    // a GLConsumer to apply this transform we avoid performing an extra
     // copy of the data that would be needed to hide the transform from the
     // user.
     //
@@ -178,11 +178,11 @@ public:
     // current texture buffer.
     status_t doGLFenceWait() const;
 
-    // isSynchronousMode returns whether the SurfaceTexture is currently in
+    // isSynchronousMode returns whether the GLConsumer is currently in
     // synchronous mode.
     bool isSynchronousMode() const;
 
-    // set the name of the SurfaceTexture that will be used to identify it in
+    // set the name of the GLConsumer that will be used to identify it in
     // log messages.
     void setName(const String8& name);
 
@@ -194,29 +194,29 @@ public:
     virtual status_t setSynchronousMode(bool enabled);
 
     // getBufferQueue returns the BufferQueue object to which this
-    // SurfaceTexture is connected.
+    // GLConsumer is connected.
     sp<BufferQueue> getBufferQueue() const {
         return mBufferQueue;
     }
 
-    // detachFromContext detaches the SurfaceTexture from the calling thread's
+    // detachFromContext detaches the GLConsumer from the calling thread's
     // current OpenGL ES context.  This context must be the same as the context
     // that was current for previous calls to updateTexImage.
     //
-    // Detaching a SurfaceTexture from an OpenGL ES context will result in the
+    // Detaching a GLConsumer from an OpenGL ES context will result in the
     // deletion of the OpenGL ES texture object into which the images were being
-    // streamed.  After a SurfaceTexture has been detached from the OpenGL ES
+    // streamed.  After a GLConsumer has been detached from the OpenGL ES
     // context calls to updateTexImage will fail returning INVALID_OPERATION
-    // until the SurfaceTexture is attached to a new OpenGL ES context using the
+    // until the GLConsumer is attached to a new OpenGL ES context using the
     // attachToContext method.
     status_t detachFromContext();
 
-    // attachToContext attaches a SurfaceTexture that is currently in the
-    // 'detached' state to the current OpenGL ES context.  A SurfaceTexture is
+    // attachToContext attaches a GLConsumer that is currently in the
+    // 'detached' state to the current OpenGL ES context.  A GLConsumer is
     // in the 'detached' state iff detachFromContext has successfully been
     // called and no calls to attachToContext have succeeded since the last
     // detachFromContext call.  Calls to attachToContext made on a
-    // SurfaceTexture that is not in the 'detached' state will result in an
+    // GLConsumer that is not in the 'detached' state will result in an
     // INVALID_OPERATION error.
     //
     // The tex argument specifies the OpenGL ES texture object name in the
@@ -232,7 +232,7 @@ protected:
     // mCurrentTextureBuf in addition to the ConsumerBase behavior.
     virtual void abandonLocked();
 
-    // dumpLocked overrides the ConsumerBase method to dump SurfaceTexture-
+    // dumpLocked overrides the ConsumerBase method to dump GLConsumer-
     // specific info in addition to the ConsumerBase behavior.
     virtual void dumpLocked(String8& result, const char* prefix, char* buffer,
            size_t size) const;
@@ -268,7 +268,7 @@ protected:
     // values.
     status_t checkAndUpdateEglStateLocked();
 
-    // If set, SurfaceTexture will use the EGL_ANDROID_native_fence_sync
+    // If set, GLConsumer will use the EGL_ANDROID_native_fence_sync
     // extension to create Android native fences for GLES activity.
     static const bool sUseNativeFenceSync;
 
@@ -308,9 +308,9 @@ private:
     // binding the buffer without touching the EglSlots.
     status_t bindUnslottedBufferLocked(EGLDisplay dpy);
 
-    // The default consumer usage flags that SurfaceTexture always sets on its
+    // The default consumer usage flags that GLConsumer always sets on its
     // BufferQueue instance; these will be OR:d with any additional flags passed
-    // from the SurfaceTexture user. In particular, SurfaceTexture will always
+    // from the GLConsumer user. In particular, GLConsumer will always
     // consume buffers as hardware textures.
     static const uint32_t DEFAULT_USAGE_FLAGS = GraphicBuffer::USAGE_HW_TEXTURE;
 
@@ -371,7 +371,7 @@ private:
     const GLenum mTexTarget;
 
     // EGLSlot contains the information and object references that
-    // SurfaceTexture maintains about a BufferQueue buffer slot.
+    // GLConsumer maintains about a BufferQueue buffer slot.
     struct EglSlot {
         EglSlot()
         : mEglImage(EGL_NO_IMAGE_KHR),
@@ -388,13 +388,13 @@ private:
         EGLSyncKHR mEglFence;
     };
 
-    // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
+    // mEglDisplay is the EGLDisplay with which this GLConsumer is currently
     // associated.  It is intialized to EGL_NO_DISPLAY and gets set to the
     // current display when updateTexImage is called for the first time and when
     // attachToContext is called.
     EGLDisplay mEglDisplay;
 
-    // mEglContext is the OpenGL ES context with which this SurfaceTexture is
+    // mEglContext is the OpenGL ES context with which this GLConsumer is
     // currently associated.  It is initialized to EGL_NO_CONTEXT and gets set
     // to the current GL context when updateTexImage is called for the first
     // time and when attachToContext is called.
@@ -429,4 +429,4 @@ private:
 // ----------------------------------------------------------------------------
 }; // namespace android
 
-#endif // ANDROID_GUI_SURFACETEXTURE_H
+#endif // ANDROID_GUI_CONSUMER_H

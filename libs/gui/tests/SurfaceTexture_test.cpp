@@ -18,7 +18,7 @@
 //#define LOG_NDEBUG 0
 
 #include <gtest/gtest.h>
-#include <gui/SurfaceTexture.h>
+#include <gui/GLConsumer.h>
 #include <gui/SurfaceTextureClient.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/String8.h>
@@ -384,7 +384,7 @@ protected:
 
     virtual void SetUp() {
         GLTest::SetUp();
-        mST = new SurfaceTexture(TEX_ID);
+        mST = new GLConsumer(TEX_ID);
         mSTC = new SurfaceTextureClient(mST->getBufferQueue());
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);
@@ -406,7 +406,7 @@ protected:
 
     class TextureRenderer: public RefBase {
     public:
-        TextureRenderer(GLuint texName, const sp<SurfaceTexture>& st):
+        TextureRenderer(GLuint texName, const sp<GLConsumer>& st):
                 mTexName(texName),
                 mST(st) {
         }
@@ -447,7 +447,7 @@ protected:
             ASSERT_NE(-1, mTexMatrixHandle);
         }
 
-        // drawTexture draws the SurfaceTexture over the entire GL viewport.
+        // drawTexture draws the GLConsumer over the entire GL viewport.
         void drawTexture() {
             static const GLfloat triangleVertices[] = {
                 -1.0f, 1.0f,
@@ -494,14 +494,14 @@ protected:
         }
 
         GLuint mTexName;
-        sp<SurfaceTexture> mST;
+        sp<GLConsumer> mST;
         GLuint mPgm;
         GLint mPositionHandle;
         GLint mTexSamplerHandle;
         GLint mTexMatrixHandle;
     };
 
-    class FrameWaiter : public SurfaceTexture::FrameAvailableListener {
+    class FrameWaiter : public GLConsumer::FrameAvailableListener {
     public:
         FrameWaiter():
                 mPendingFrames(0) {
@@ -526,7 +526,7 @@ protected:
         Condition mCondition;
     };
 
-    // Note that SurfaceTexture will lose the notifications
+    // Note that GLConsumer will lose the notifications
     // onBuffersReleased and onFrameAvailable as there is currently
     // no way to forward the events.  This DisconnectWaiter will not let the
     // disconnect finish until finishDisconnect() is called.  It will
@@ -575,7 +575,7 @@ protected:
         Condition mFrameCondition;
     };
 
-    sp<SurfaceTexture> mST;
+    sp<GLConsumer> mST;
     sp<SurfaceTextureClient> mSTC;
     sp<ANativeWindow> mANW;
     sp<TextureRenderer> mTextureRenderer;
@@ -1070,7 +1070,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferPow2) {
     EXPECT_TRUE(checkPixel( 3, 52,  35, 231,  35,  35));
 }
 
-// Tests if SurfaceTexture and BufferQueue are robust enough
+// Tests if GLConsumer and BufferQueue are robust enough
 // to handle a special case where updateTexImage is called
 // in the middle of disconnect.  This ordering is enforced
 // by blocking in the disconnect callback.
@@ -1123,12 +1123,12 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
     sp<Thread> pt(new ProducerThread(mANW));
     pt->run();
 
-    // eat a frame so SurfaceTexture will own an at least one slot
+    // eat a frame so GLConsumer will own an at least one slot
     dw->waitForFrame();
     EXPECT_EQ(OK,mST->updateTexImage());
 
     dw->waitForFrame();
-    // Could fail here as SurfaceTexture thinks it still owns the slot
+    // Could fail here as GLConsumer thinks it still owns the slot
     // but bufferQueue has released all slots
     EXPECT_EQ(OK,mST->updateTexImage());
 
@@ -1136,7 +1136,7 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
 }
 
 
-// This test ensures that the SurfaceTexture clears the mCurrentTexture
+// This test ensures that the GLConsumer clears the mCurrentTexture
 // when it is disconnected and reconnected.  Otherwise it will
 // attempt to release a buffer that it does not owned
 TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
@@ -1581,7 +1581,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
     // This test should have the only reference to buffer 0.
     EXPECT_EQ(1, buffers[0]->getStrongCount());
 
-    // The SurfaceTexture should hold a single reference to buffer 1 in its
+    // The GLConsumer should hold a single reference to buffer 1 in its
     // mCurrentBuffer member.  All of the references in the slots should have
     // been released.
     EXPECT_EQ(2, buffers[1]->getStrongCount());
@@ -1615,7 +1615,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
         buffers[i] = mST->getCurrentBuffer();
     }
 
-    // Abandon the SurfaceTexture, releasing the ref that the SurfaceTexture has
+    // Abandon the GLConsumer, releasing the ref that the GLConsumer has
     // on buffers[2].
     mST->abandon();
 
@@ -1847,7 +1847,7 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedGLFilledBuffer) {
  * This test fixture is for testing GL -> GL texture streaming from one thread
  * to another.  It contains functionality to create a producer thread that will
  * perform GL rendering to an ANativeWindow that feeds frames to a
- * SurfaceTexture.  Additionally it supports interlocking the producer and
+ * GLConsumer.  Additionally it supports interlocking the producer and
  * consumer threads so that a specific sequence of calls can be
  * deterministically created by the test.
  *
@@ -1914,13 +1914,13 @@ protected:
     // FrameCondition is a utility class for interlocking between the producer
     // and consumer threads.  The FrameCondition object should be created and
     // destroyed in the consumer thread only.  The consumer thread should set
-    // the FrameCondition as the FrameAvailableListener of the SurfaceTexture,
+    // the FrameCondition as the FrameAvailableListener of the GLConsumer,
     // and should call both waitForFrame and finishFrame once for each expected
     // frame.
     //
     // This interlocking relies on the fact that onFrameAvailable gets called
-    // synchronously from SurfaceTexture::queueBuffer.
-    class FrameCondition : public SurfaceTexture::FrameAvailableListener {
+    // synchronously from GLConsumer::queueBuffer.
+    class FrameCondition : public GLConsumer::FrameAvailableListener {
     public:
         FrameCondition():
                 mFrameAvailable(false),
@@ -1951,7 +1951,7 @@ protected:
             ALOGV("-finishFrame");
         }
 
-        // This should be called by SurfaceTexture on the producer thread.
+        // This should be called by GLConsumer on the producer thread.
         virtual void onFrameAvailable() {
             Mutex::Autolock lock(mMutex);
             ALOGV("+onFrameAvailable");

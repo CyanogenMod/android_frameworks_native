@@ -40,7 +40,7 @@ protected:
         ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
                 testInfo->name());
 
-        mST = new SurfaceTexture(123);
+        mST = new GLConsumer(123);
         mSTC = new SurfaceTextureClient(mST->getBufferQueue());
         mANW = mSTC;
 
@@ -102,7 +102,7 @@ protected:
         return sDefaultConfigAttribs;
     }
 
-    sp<SurfaceTexture> mST;
+    sp<GLConsumer> mST;
     sp<SurfaceTextureClient> mSTC;
     sp<ANativeWindow> mANW;
 
@@ -112,7 +112,7 @@ protected:
 };
 
 TEST_F(SurfaceTextureClientTest, GetISurfaceTextureIsNotNull) {
-    sp<ISurfaceTexture> ist(mSTC->getISurfaceTexture());
+    sp<IGraphicBufferProducer> ist(mSTC->getISurfaceTexture());
     ASSERT_TRUE(ist != NULL);
 }
 
@@ -250,7 +250,7 @@ TEST_F(SurfaceTextureClientTest, BufferGeometrySizeCanBeChangedWithoutFormat) {
 }
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSetDefaultSize) {
-    sp<SurfaceTexture> st(mST);
+    sp<GLConsumer> st(mST);
     ANativeWindowBuffer* buf;
     EXPECT_EQ(OK, st->setDefaultBufferSize(16, 8));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf));
@@ -464,7 +464,7 @@ TEST_F(SurfaceTextureClientTest, SetCropCropsCrop) {
 // from the SurfaceTexture class.
 TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeWaitRetire) {
     class MyThread : public Thread {
-        sp<SurfaceTexture> mST;
+        sp<GLConsumer> mST;
         EGLContext ctx;
         EGLSurface sur;
         EGLDisplay dpy;
@@ -480,7 +480,7 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeWaitRetire) {
             return false;
         }
     public:
-        MyThread(const sp<SurfaceTexture>& mST)
+        MyThread(const sp<GLConsumer>& mST)
             : mST(mST), mBufferRetired(false) {
             ctx = eglGetCurrentContext();
             sur = eglGetCurrentSurface(EGL_DRAW);
@@ -685,7 +685,7 @@ protected:
         ASSERT_NE(EGL_NO_CONTEXT, mEglContext);
 
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
-            sp<SurfaceTexture> st(new SurfaceTexture(i));
+            sp<GLConsumer> st(new GLConsumer(i));
             sp<SurfaceTextureClient> stc(new SurfaceTextureClient(st->getBufferQueue()));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);

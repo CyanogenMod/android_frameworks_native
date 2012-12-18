@@ -82,7 +82,7 @@ class CpuConsumer: public ConsumerBase
     // lockNextBuffer.
     status_t unlockBuffer(const LockedBuffer &nativeBuffer);
 
-    sp<ISurfaceTexture> getProducerInterface() const { return getBufferQueue(); }
+    sp<IGraphicBufferProducer> getProducerInterface() const { return getBufferQueue(); }
 
   private:
     // Maximum number of buffers that can be locked at a time

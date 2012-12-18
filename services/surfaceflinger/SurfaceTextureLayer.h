@@ -29,8 +29,6 @@ namespace android {
 
 class Layer;
 
-// SurfaceTextureLayer is now a BufferQueue since SurfaceTexture has been
-// refactored
 class SurfaceTextureLayer : public BufferQueue
 {
 public:

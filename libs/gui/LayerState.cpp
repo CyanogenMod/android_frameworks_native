@@ -17,7 +17,7 @@
 #include <utils/Errors.h>
 #include <binder/Parcel.h>
 #include <gui/ISurfaceComposerClient.h>
-#include <gui/ISurfaceTexture.h>
+#include <gui/IGraphicBufferProducer.h>
 #include <private/gui/LayerState.h>
 
 namespace android {
@@ -74,7 +74,7 @@ status_t DisplayState::write(Parcel& output) const {
 
 status_t DisplayState::read(const Parcel& input) {
     token = input.readStrongBinder();
-    surface = interface_cast<ISurfaceTexture>(input.readStrongBinder());
+    surface = interface_cast<IGraphicBufferProducer>(input.readStrongBinder());
     what = input.readInt32();
     layerStack = input.readInt32();
     orientation = input.readInt32();

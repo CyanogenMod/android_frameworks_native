@@ -503,7 +503,7 @@ status_t SurfaceFlinger::readyToRun()
 
             sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
             sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
-                        static_cast< sp<ISurfaceTexture> >(fbs->getBufferQueue()));
+                        static_cast< sp<IGraphicBufferProducer> >(fbs->getBufferQueue()));
             sp<DisplayDevice> hw = new DisplayDevice(this,
                     type, isSecure, token, stc, fbs, mEGLConfig);
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
@@ -571,9 +571,9 @@ uint32_t SurfaceFlinger::getMaxViewportDims() const {
 // ----------------------------------------------------------------------------
 
 bool SurfaceFlinger::authenticateSurfaceTexture(
-        const sp<ISurfaceTexture>& surfaceTexture) const {
+        const sp<IGraphicBufferProducer>& bufferProducer) const {
     Mutex::Autolock _l(mStateLock);
-    sp<IBinder> surfaceTextureBinder(surfaceTexture->asBinder());
+    sp<IBinder> surfaceTextureBinder(bufferProducer->asBinder());
 
     // Check the visible layer list for the ISurface
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
@@ -590,7 +590,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     }
 
     // Check the layers in the purgatory.  This check is here so that if a
-    // SurfaceTexture gets destroyed before all the clients are done using it,
+    // GLConsumer gets destroyed before all the clients are done using it,
     // the error will not be reported as "surface XYZ is not authenticated", but
     // will instead fail later on when the client tries to use the surface,
     // which should be reported as "surface XYZ returned an -ENODEV".  The
@@ -1172,7 +1172,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // own rendering surface
                         fbs = new FramebufferSurface(*mHwc, state.type);
                         stc = new SurfaceTextureClient(
-                                static_cast< sp<ISurfaceTexture> >(
+                                static_cast< sp<IGraphicBufferProducer> >(
                                         fbs->getBufferQueue()));
                     } else {
                         if (state.surface != NULL) {

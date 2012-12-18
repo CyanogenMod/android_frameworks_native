@@ -506,7 +506,7 @@ LayerBaseClient::~LayerBaseClient()
 sp<ISurface> LayerBaseClient::createSurface()
 {
     class BSurface : public BnSurface, public LayerCleaner {
-        virtual sp<ISurfaceTexture> getSurfaceTexture() const { return 0; }
+        virtual sp<IGraphicBufferProducer> getSurfaceTexture() const { return 0; }
     public:
         BSurface(const sp<SurfaceFlinger>& flinger,
                 const sp<LayerBaseClient>& layer)

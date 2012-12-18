@@ -146,7 +146,7 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         Mutex::Autolock lock(mMutex);
 
         if (mAbandoned) {
-            ST_LOGE("setBufferCount: SurfaceTexture has been abandoned!");
+            ST_LOGE("setBufferCount: BufferQueue has been abandoned!");
             return NO_INIT;
         }
         if (bufferCount > NUM_BUFFER_SLOTS) {
@@ -200,7 +200,7 @@ int BufferQueue::query(int what, int* outValue)
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ST_LOGE("query: SurfaceTexture has been abandoned!");
+        ST_LOGE("query: BufferQueue has been abandoned!");
         return NO_INIT;
     }
 
@@ -233,7 +233,7 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     ST_LOGV("requestBuffer: slot=%d", slot);
     Mutex::Autolock lock(mMutex);
     if (mAbandoned) {
-        ST_LOGE("requestBuffer: SurfaceTexture has been abandoned!");
+        ST_LOGE("requestBuffer: BufferQueue has been abandoned!");
         return NO_INIT;
     }
     int maxBufferCount = getMaxBufferCountLocked();
@@ -282,7 +282,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
         bool tryAgain = true;
         while (tryAgain) {
             if (mAbandoned) {
-                ST_LOGE("dequeueBuffer: SurfaceTexture has been abandoned!");
+                ST_LOGE("dequeueBuffer: BufferQueue has been abandoned!");
                 return NO_INIT;
             }
 
@@ -294,7 +294,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
                 assert(mSlots[i].mBufferState == BufferSlot::FREE);
                 if (mSlots[i].mGraphicBuffer != NULL) {
                     freeBufferLocked(i);
-                    returnFlags |= ISurfaceTexture::RELEASE_ALL_BUFFERS;
+                    returnFlags |= IGraphicBufferProducer::RELEASE_ALL_BUFFERS;
                 }
             }
 
@@ -390,7 +390,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             mSlots[buf].mFence.clear();
             mSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
 
-            returnFlags |= ISurfaceTexture::BUFFER_NEEDS_REALLOCATION;
+            returnFlags |= IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION;
         }
 
         dpy = mSlots[buf].mEglDisplay;
@@ -400,7 +400,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
         mSlots[buf].mFence.clear();
     }  // end lock scope
 
-    if (returnFlags & ISurfaceTexture::BUFFER_NEEDS_REALLOCATION) {
+    if (returnFlags & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) {
         status_t error;
         sp<GraphicBuffer> graphicBuffer(
                 mGraphicBufferAlloc->createGraphicBuffer(
@@ -415,7 +415,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             Mutex::Autolock lock(mMutex);
 
             if (mAbandoned) {
-                ST_LOGE("dequeueBuffer: SurfaceTexture has been abandoned!");
+                ST_LOGE("dequeueBuffer: BufferQueue has been abandoned!");
                 return NO_INIT;
             }
 
@@ -449,7 +449,7 @@ status_t BufferQueue::setSynchronousMode(bool enabled) {
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
-        ST_LOGE("setSynchronousMode: SurfaceTexture has been abandoned!");
+        ST_LOGE("setSynchronousMode: BufferQueue has been abandoned!");
         return NO_INIT;
     }
 
@@ -498,7 +498,7 @@ status_t BufferQueue::queueBuffer(int buf,
     { // scope for the lock
         Mutex::Autolock lock(mMutex);
         if (mAbandoned) {
-            ST_LOGE("queueBuffer: SurfaceTexture has been abandoned!");
+            ST_LOGE("queueBuffer: BufferQueue has been abandoned!");
             return NO_INIT;
         }
         int maxBufferCount = getMaxBufferCountLocked();

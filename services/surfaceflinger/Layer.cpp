@@ -127,8 +127,8 @@ sp<ISurface> Layer::createSurface()
 {
     class BSurface : public BnSurface, public LayerCleaner {
         wp<const Layer> mOwner;
-        virtual sp<ISurfaceTexture> getSurfaceTexture() const {
-            sp<ISurfaceTexture> res;
+        virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
+            sp<IGraphicBufferProducer> res;
             sp<const Layer> that( mOwner.promote() );
             if (that != NULL) {
                 res = that->mSurfaceFlingerConsumer->getBufferQueue();

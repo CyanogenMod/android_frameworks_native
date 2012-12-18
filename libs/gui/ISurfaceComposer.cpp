@@ -28,7 +28,7 @@
 #include <gui/BitTube.h>
 #include <gui/IDisplayEventConnection.h>
 #include <gui/ISurfaceComposer.h>
-#include <gui/ISurfaceTexture.h>
+#include <gui/IGraphicBufferProducer.h>
 
 #include <private/gui/LayerState.h>
 
@@ -124,7 +124,7 @@ public:
     }
 
     virtual bool authenticateSurfaceTexture(
-            const sp<ISurfaceTexture>& surfaceTexture) const
+            const sp<IGraphicBufferProducer>& bufferProducer) const
     {
         Parcel data, reply;
         int err = NO_ERROR;
@@ -135,7 +135,7 @@ public:
                     "interface descriptor: %s (%d)", strerror(-err), -err);
             return false;
         }
-        err = data.writeStrongBinder(surfaceTexture->asBinder());
+        err = data.writeStrongBinder(bufferProducer->asBinder());
         if (err != NO_ERROR) {
             ALOGE("ISurfaceComposer::authenticateSurfaceTexture: error writing "
                     "strong binder to parcel: %s (%d)", strerror(-err), -err);
@@ -288,9 +288,9 @@ status_t BnSurfaceComposer::onTransact(
         } break;
         case AUTHENTICATE_SURFACE: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<ISurfaceTexture> surfaceTexture =
-                    interface_cast<ISurfaceTexture>(data.readStrongBinder());
-            int32_t result = authenticateSurfaceTexture(surfaceTexture) ? 1 : 0;
+            sp<IGraphicBufferProducer> bufferProducer =
+                    interface_cast<IGraphicBufferProducer>(data.readStrongBinder());
+            int32_t result = authenticateSurfaceTexture(bufferProducer) ? 1 : 0;
             reply->writeInt32(result);
         } break;
         case CREATE_DISPLAY_EVENT_CONNECTION: {

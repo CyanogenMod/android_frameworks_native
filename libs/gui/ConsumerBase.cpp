@@ -69,7 +69,7 @@ ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue) :
 
     status_t err = mBufferQueue->consumerConnect(proxy);
     if (err != NO_ERROR) {
-        CB_LOGE("SurfaceTexture: error connecting to BufferQueue: %s (%d)",
+        CB_LOGE("ConsumerBase: error connecting to BufferQueue: %s (%d)",
                 strerror(-err), err);
     } else {
         mBufferQueue->setConsumerName(mName);

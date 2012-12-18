@@ -179,7 +179,7 @@ status_t SurfaceControl::writeSurfaceToParcel(
         identity = control->mIdentity;
     }
     parcel->writeStrongBinder(sur!=0 ? sur->asBinder() : NULL);
-    parcel->writeStrongBinder(NULL);  // NULL ISurfaceTexture in this case.
+    parcel->writeStrongBinder(NULL);  // NULL IGraphicBufferProducer in this case.
     parcel->writeInt32(identity);
     return NO_ERROR;
 }
@@ -205,7 +205,7 @@ Surface::Surface(const sp<SurfaceControl>& surface)
       mSurface(surface->mSurface),
       mIdentity(surface->mIdentity)
 {
-    sp<ISurfaceTexture> st;
+    sp<IGraphicBufferProducer> st;
     if (mSurface != NULL) {
         st = mSurface->getSurfaceTexture();
     }
@@ -217,9 +217,9 @@ Surface::Surface(const Parcel& parcel, const sp<IBinder>& ref)
 {
     mSurface = interface_cast<ISurface>(ref);
     sp<IBinder> st_binder(parcel.readStrongBinder());
-    sp<ISurfaceTexture> st;
+    sp<IGraphicBufferProducer> st;
     if (st_binder != NULL) {
-        st = interface_cast<ISurfaceTexture>(st_binder);
+        st = interface_cast<IGraphicBufferProducer>(st_binder);
     } else if (mSurface != NULL) {
         st = mSurface->getSurfaceTexture();
     }
@@ -228,7 +228,7 @@ Surface::Surface(const Parcel& parcel, const sp<IBinder>& ref)
     init(st);
 }
 
-Surface::Surface(const sp<ISurfaceTexture>& st)
+Surface::Surface(const sp<IGraphicBufferProducer>& st)
     : SurfaceTextureClient(),
       mSurface(NULL),
       mIdentity(0)
@@ -240,7 +240,7 @@ status_t Surface::writeToParcel(
         const sp<Surface>& surface, Parcel* parcel)
 {
     sp<ISurface> sur;
-    sp<ISurfaceTexture> st;
+    sp<IGraphicBufferProducer> st;
     uint32_t identity = 0;
     if (Surface::isValid(surface)) {
         sur      = surface->mSurface;
@@ -249,8 +249,8 @@ status_t Surface::writeToParcel(
     } else if (surface != 0 &&
             (surface->mSurface != NULL ||
              surface->getISurfaceTexture() != NULL)) {
-        ALOGE("Parceling invalid surface with non-NULL ISurface/ISurfaceTexture as NULL: "
-             "mSurface = %p, surfaceTexture = %p, mIdentity = %d, ",
+        ALOGE("Parceling invalid surface with non-NULL ISurface/IGraphicBufferProducer "
+             "as NULL: mSurface = %p, bufferProducer = %p, mIdentity = %d, ",
              surface->mSurface.get(), surface->getISurfaceTexture().get(),
              surface->mIdentity);
     }
@@ -275,7 +275,7 @@ sp<Surface> Surface::readFromParcel(const Parcel& data) {
     } else {
         // The Surface was found in the cache, but we still should clear any
         // remaining data from the parcel.
-        data.readStrongBinder();  // ISurfaceTexture
+        data.readStrongBinder();  // IGraphicBufferProducer
         data.readInt32();         // identity
     }
     if (surface->mSurface == NULL && surface->getISurfaceTexture() == NULL) {
@@ -296,12 +296,12 @@ void Surface::cleanCachedSurfacesLocked() {
     }
 }
 
-void Surface::init(const sp<ISurfaceTexture>& surfaceTexture)
+void Surface::init(const sp<IGraphicBufferProducer>& bufferProducer)
 {
-    if (mSurface != NULL || surfaceTexture != NULL) {
-        ALOGE_IF(surfaceTexture==0, "got a NULL ISurfaceTexture from ISurface");
-        if (surfaceTexture != NULL) {
-            setISurfaceTexture(surfaceTexture);
+    if (mSurface != NULL || bufferProducer != NULL) {
+        ALOGE_IF(bufferProducer==0, "got a NULL IGraphicBufferProducer from ISurface");
+        if (bufferProducer != NULL) {
+            setISurfaceTexture(bufferProducer);
             setUsage(GraphicBuffer::USAGE_HW_RENDER);
         }
 
@@ -328,7 +328,7 @@ bool Surface::isValid() {
     return getISurfaceTexture() != NULL;
 }
 
-sp<ISurfaceTexture> Surface::getSurfaceTexture() {
+sp<IGraphicBufferProducer> Surface::getSurfaceTexture() {
     return getISurfaceTexture();
 }
 
