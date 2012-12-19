@@ -20,11 +20,11 @@ Status
 
 Version
 
-    Version 2, April 25, 2011
+    Version 3, December 13, 2012
 
 Number
 
-    EGL Extension #XXX
+    EGL Extension #48
 
 Dependencies
 
@@ -88,8 +88,8 @@ New Types
 New Procedures and Functions
 
     void eglSetBlobCacheFuncsANDROID(EGLDisplay dpy,
-                                     EGLSetBlobFunc set,
-                                     EGLGetBlobFunc get);
+                                     EGLSetBlobFuncANDROID set,
+                                     EGLGetBlobFuncANDROID get);
 
 New Tokens
 
@@ -199,6 +199,9 @@ Issues
     enough to become problematic. :)
 
 Revision History
+
+#3 (Jon Leech, December 13, 2012)
+    - Fix typo in New Functions section & assign extension #.
 
 #2 (Jamie Gennis, April 25, 2011)
     - Swapped the order of the size and pointer arguments to the get and set
