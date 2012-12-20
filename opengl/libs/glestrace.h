@@ -30,7 +30,7 @@ void GLTrace_eglReleaseThread();
 void GLTrace_eglSwapBuffers(void*, void*);
 
 /* Start and stop GL Tracing. */
-void GLTrace_start();
+int GLTrace_start();
 void GLTrace_stop();
 
 /* Obtain the gl_hooks structure filled with the trace implementation for all GL functions. */

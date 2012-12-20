@@ -97,7 +97,8 @@ namespace android {
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 extern EGLBoolean egl_init_drivers();
 extern const __eglMustCastToProperFunctionPointerType gExtensionForwarders[MAX_NUMBER_OF_GL_EXTENSIONS];
-extern int gEGLDebugLevel;
+extern int getEGLDebugLevel();
+extern void setEGLDebugLevel(int level);
 extern gl_hooks_t gHooksTrace;
 } // namespace android;
 
@@ -465,7 +466,7 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
             egl_context_t* c = new egl_context_t(dpy, context, config, cnx,
                     version);
 #if EGL_TRACE
-            if (gEGLDebugLevel > 0)
+            if (getEGLDebugLevel() > 0)
                 GLTrace_eglCreateContext(version, c);
 #endif
             return c;
@@ -578,7 +579,7 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
             setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
             egl_tls_t::setContext(ctx);
 #if EGL_TRACE
-            if (gEGLDebugLevel > 0)
+            if (getEGLDebugLevel() > 0)
                 GLTrace_eglMakeCurrent(c->version, c->cnx->hooks[c->version], ctx);
 #endif
             _c.acquire();
@@ -858,8 +859,31 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
         return setError(EGL_BAD_SURFACE, EGL_FALSE);
 
 #if EGL_TRACE
-    if (gEGLDebugLevel > 0)
+    gl_hooks_t const *trace_hooks = getGLTraceThreadSpecific();
+    if (getEGLDebugLevel() > 0) {
+        if (trace_hooks == NULL) {
+            if (GLTrace_start() < 0) {
+                ALOGE("Disabling Tracer for OpenGL ES");
+                setEGLDebugLevel(0);
+            } else {
+                // switch over to the trace version of hooks
+                EGLContext ctx = egl_tls_t::getContext();
+                egl_context_t * const c = get_context(ctx);
+                if (c) {
+                    setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
+                    GLTrace_eglMakeCurrent(c->version, c->cnx->hooks[c->version], ctx);
+                }
+            }
+        }
+
         GLTrace_eglSwapBuffers(dpy, draw);
+    } else if (trace_hooks != NULL) {
+        // tracing is now disabled, so switch back to the non trace version
+        EGLContext ctx = egl_tls_t::getContext();
+        egl_context_t * const c = get_context(ctx);
+        if (c) setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
+        GLTrace_stop();
+    }
 #endif
 
     egl_surface_t const * const s = get_surface(draw);
@@ -1078,7 +1102,7 @@ EGLBoolean eglReleaseThread(void)
 
     egl_tls_t::clearTLS();
 #if EGL_TRACE
-    if (gEGLDebugLevel > 0)
+    if (getEGLDebugLevel() > 0)
         GLTrace_eglReleaseThread();
 #endif
     return EGL_TRUE;
