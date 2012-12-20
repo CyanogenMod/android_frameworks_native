@@ -29,7 +29,7 @@
 
 namespace android {
 
-const sp<Fence> Fence::NO_FENCE = sp<Fence>();
+const sp<Fence> Fence::NO_FENCE = sp<Fence>(new Fence);
 
 Fence::Fence() :
     mFenceFd(-1) {
@@ -71,7 +71,19 @@ status_t Fence::waitForever(unsigned int warningTimeout, const char* logname) {
 sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
         const sp<Fence>& f2) {
     ATRACE_CALL();
-    int result = sync_merge(name.string(), f1->mFenceFd, f2->mFenceFd);
+    int result;
+    // Merge the two fences.  In the case where one of the fences is not a
+    // valid fence (e.g. NO_FENCE) we merge the one valid fence with itself so
+    // that a new fence with the given name is created.
+    if (f1->isValid() && f2->isValid()) {
+        result = sync_merge(name.string(), f1->mFenceFd, f2->mFenceFd);
+    } else if (f1->isValid()) {
+        result = sync_merge(name.string(), f1->mFenceFd, f1->mFenceFd);
+    } else if (f2->isValid()) {
+        result = sync_merge(name.string(), f2->mFenceFd, f2->mFenceFd);
+    } else {
+        return NO_FENCE;
+    }
     if (result == -1) {
         status_t err = -errno;
         ALOGE("merge: sync_merge(\"%s\", %d, %d) returned an error: %s (%d)",
@@ -83,9 +95,6 @@ sp<Fence> Fence::merge(const String8& name, const sp<Fence>& f1,
 }
 
 int Fence::dup() const {
-    if (mFenceFd == -1) {
-        return -1;
-    }
     return ::dup(mFenceFd);
 }
 
@@ -121,22 +130,24 @@ size_t Fence::getFlattenedSize() const {
 }
 
 size_t Fence::getFdCount() const {
-    return 1;
+    return isValid() ? 1 : 0;
 }
 
 status_t Fence::flatten(void* buffer, size_t size, int fds[],
         size_t count) const {
-    if (size != 0 || count != 1) {
+    if (size != getFlattenedSize() || count != getFdCount()) {
         return BAD_VALUE;
     }
 
-    fds[0] = mFenceFd;
+    if (isValid()) {
+        fds[0] = mFenceFd;
+    }
     return NO_ERROR;
 }
 
 status_t Fence::unflatten(void const* buffer, size_t size, int fds[],
         size_t count) {
-    if (size != 0 || count != 1) {
+    if (size != 0 || (count != 0 && count != 1)) {
         return BAD_VALUE;
     }
     if (mFenceFd != -1) {
@@ -144,7 +155,10 @@ status_t Fence::unflatten(void const* buffer, size_t size, int fds[],
         return INVALID_OPERATION;
     }
 
-    mFenceFd = fds[0];
+    if (count == 1) {
+        mFenceFd = fds[0];
+    }
+
     return NO_ERROR;
 }
 

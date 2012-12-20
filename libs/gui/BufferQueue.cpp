@@ -372,8 +372,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             h = mDefaultHeight;
         }
 
-        // buffer is now in DEQUEUED (but can also be current at the same time,
-        // if we're in synchronous mode)
         mSlots[buf].mBufferState = BufferSlot::DEQUEUED;
 
         const sp<GraphicBuffer>& buffer(mSlots[buf].mGraphicBuffer);
@@ -387,7 +385,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             mSlots[buf].mGraphicBuffer = NULL;
             mSlots[buf].mRequestBufferCalled = false;
             mSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
-            mSlots[buf].mFence.clear();
+            mSlots[buf].mFence = Fence::NO_FENCE;
             mSlots[buf].mEglDisplay = EGL_NO_DISPLAY;
 
             returnFlags |= IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION;
@@ -397,7 +395,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
         eglFence = mSlots[buf].mEglFence;
         outFence = mSlots[buf].mFence;
         mSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
-        mSlots[buf].mFence.clear();
+        mSlots[buf].mFence = Fence::NO_FENCE;
     }  // end lock scope
 
     if (returnFlags & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) {
@@ -422,7 +420,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
             mSlots[*outBuf].mGraphicBuffer = graphicBuffer;
         }
     }
-
 
     if (eglFence != EGL_NO_SYNC_KHR) {
         EGLint result = eglClientWaitSyncKHR(dpy, eglFence, 0, 1000000000);
@@ -487,6 +484,11 @@ status_t BufferQueue::queueBuffer(int buf,
     sp<Fence> fence;
 
     input.deflate(&timestamp, &crop, &scalingMode, &transform, &fence);
+
+    if (fence == NULL) {
+        ST_LOGE("queueBuffer: fence is NULL");
+        return BAD_VALUE;
+    }
 
     ST_LOGV("queueBuffer: slot=%d time=%#llx crop=[%d,%d,%d,%d] tr=%#x "
             "scale=%s",
@@ -606,6 +608,9 @@ void BufferQueue::cancelBuffer(int buf, sp<Fence> fence) {
     } else if (mSlots[buf].mBufferState != BufferSlot::DEQUEUED) {
         ST_LOGE("cancelBuffer: slot %d is not owned by the client (state=%d)",
                 buf, mSlots[buf].mBufferState);
+        return;
+    } else if (fence == NULL) {
+        ST_LOGE("cancelBuffer: fence is NULL");
         return;
     }
     mSlots[buf].mBufferState = BufferSlot::FREE;
@@ -785,7 +790,7 @@ void BufferQueue::freeBufferLocked(int slot) {
         eglDestroySyncKHR(mSlots[slot].mEglDisplay, mSlots[slot].mEglFence);
         mSlots[slot].mEglFence = EGL_NO_SYNC_KHR;
     }
-    mSlots[slot].mFence.clear();
+    mSlots[slot].mFence = Fence::NO_FENCE;
 }
 
 void BufferQueue::freeAllBuffersLocked() {
@@ -843,7 +848,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         mSlots[buf].mAcquireCalled = true;
         mSlots[buf].mNeedsCleanupOnRelease = false;
         mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
-        mSlots[buf].mFence.clear();
+        mSlots[buf].mFence = Fence::NO_FENCE;
 
         mQueue.erase(front);
         mDequeueCondition.broadcast();
@@ -863,8 +868,8 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
 
     Mutex::Autolock _l(mMutex);
 
-    if (buf == INVALID_BUFFER_SLOT) {
-        return -EINVAL;
+    if (buf == INVALID_BUFFER_SLOT || fence == NULL) {
+        return BAD_VALUE;
     }
 
     mSlots[buf].mEglDisplay = display;

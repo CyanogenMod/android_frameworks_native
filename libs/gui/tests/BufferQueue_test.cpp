@@ -71,7 +71,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<Fence> fence;
     sp<GraphicBuffer> buf;
     IGraphicBufferProducer::QueueBufferInput qbi(0, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, fence);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     BufferQueue::BufferItem item;
 
     for (int i = 0; i < 2; i++) {

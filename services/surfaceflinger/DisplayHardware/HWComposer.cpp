@@ -539,7 +539,7 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
     }
 
     int acquireFenceFd = -1;
-    if (acquireFence != NULL) {
+    if (acquireFence->isValid()) {
         acquireFenceFd = acquireFence->dup();
     }
 
@@ -659,7 +659,7 @@ status_t HWComposer::commit() {
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
             disp.lastDisplayFence = disp.lastRetireFence;
-            disp.lastRetireFence = NULL;
+            disp.lastRetireFence = Fence::NO_FENCE;
             if (disp.list) {
                 if (disp.list->retireFenceFd != -1) {
                     disp.lastRetireFence = new Fence(disp.list->retireFenceFd);
@@ -725,9 +725,7 @@ int HWComposer::fbPost(int32_t id,
     if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
         return setFramebufferTarget(id, acquireFence, buffer);
     } else {
-        if (acquireFence != NULL) {
-            acquireFence->waitForever(1000, "HWComposer::fbPost");
-        }
+        acquireFence->waitForever(1000, "HWComposer::fbPost");
         return mFbDev->post(mFbDev, buffer->handle);
     }
 }

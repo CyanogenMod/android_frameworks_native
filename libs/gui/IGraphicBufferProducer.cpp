@@ -94,9 +94,11 @@ public:
             return result;
         }
         *buf = reply.readInt32();
-        fence.clear();
-        bool hasFence = reply.readInt32();
-        if (hasFence) {
+        bool fenceWasWritten = reply.readInt32();
+        if (fenceWasWritten) {
+            // If the fence was written by the callee, then overwrite the
+            // caller's fence here.  If it wasn't written then don't touch the
+            // caller's fence.
             fence = new Fence();
             reply.read(*fence.get());
         }
@@ -121,13 +123,9 @@ public:
 
     virtual void cancelBuffer(int buf, sp<Fence> fence) {
         Parcel data, reply;
-        bool hasFence = fence.get() && fence->isValid();
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(buf);
-        data.writeInt32(hasFence);
-        if (hasFence) {
-            data.write(*fence.get());
-        }
+        data.write(*fence.get());
         remote()->transact(CANCEL_BUFFER, data, &reply);
     }
 
@@ -218,10 +216,9 @@ status_t BnGraphicBufferProducer::onTransact(
             int buf;
             sp<Fence> fence;
             int result = dequeueBuffer(&buf, fence, w, h, format, usage);
-            bool hasFence = fence.get() && fence->isValid();
             reply->writeInt32(buf);
-            reply->writeInt32(hasFence);
-            if (hasFence) {
+            reply->writeInt32(fence != NULL);
+            if (fence != NULL) {
                 reply->write(*fence.get());
             }
             reply->writeInt32(result);
@@ -241,12 +238,8 @@ status_t BnGraphicBufferProducer::onTransact(
         case CANCEL_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int buf = data.readInt32();
-            sp<Fence> fence;
-            bool hasFence = data.readInt32();
-            if (hasFence) {
-                fence = new Fence();
-                data.read(*fence.get());
-            }
+            sp<Fence> fence = new Fence();
+            data.read(*fence.get());
             cancelBuffer(buf, fence);
             return NO_ERROR;
         } break;
@@ -289,10 +282,6 @@ status_t BnGraphicBufferProducer::onTransact(
 
 // ----------------------------------------------------------------------------
 
-static bool isValid(const sp<Fence>& fence) {
-    return fence.get() && fence->isValid();
-}
-
 IGraphicBufferProducer::QueueBufferInput::QueueBufferInput(const Parcel& parcel) {
     parcel.read(*this);
 }
@@ -303,29 +292,24 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const
          + sizeof(crop)
          + sizeof(scalingMode)
          + sizeof(transform)
-         + sizeof(bool)
-         + (isValid(fence) ? fence->getFlattenedSize() : 0);
+         + fence->getFlattenedSize();
 }
 
 size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const
 {
-    return isValid(fence) ? fence->getFdCount() : 0;
+    return fence->getFdCount();
 }
 
 status_t IGraphicBufferProducer::QueueBufferInput::flatten(void* buffer, size_t size,
         int fds[], size_t count) const
 {
     status_t err = NO_ERROR;
-    bool haveFence = isValid(fence);
     char* p = (char*)buffer;
     memcpy(p, &timestamp,   sizeof(timestamp));   p += sizeof(timestamp);
     memcpy(p, &crop,        sizeof(crop));        p += sizeof(crop);
     memcpy(p, &scalingMode, sizeof(scalingMode)); p += sizeof(scalingMode);
     memcpy(p, &transform,   sizeof(transform));   p += sizeof(transform);
-    memcpy(p, &haveFence,   sizeof(haveFence));   p += sizeof(haveFence);
-    if (haveFence) {
-        err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
-    }
+    err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
     return err;
 }
 
@@ -333,17 +317,13 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(void const* buffer,
         size_t size, int fds[], size_t count)
 {
     status_t err = NO_ERROR;
-    bool haveFence;
     const char* p = (const char*)buffer;
     memcpy(&timestamp,   p, sizeof(timestamp));   p += sizeof(timestamp);
     memcpy(&crop,        p, sizeof(crop));        p += sizeof(crop);
     memcpy(&scalingMode, p, sizeof(scalingMode)); p += sizeof(scalingMode);
     memcpy(&transform,   p, sizeof(transform));   p += sizeof(transform);
-    memcpy(&haveFence,   p, sizeof(haveFence));   p += sizeof(haveFence);
-    if (haveFence) {
-        fence = new Fence();
-        err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
-    }
+    fence = new Fence();
+    err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
     return err;
 }
 
