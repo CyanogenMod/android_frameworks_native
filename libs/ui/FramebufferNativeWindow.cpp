@@ -76,6 +76,11 @@ FramebufferNativeWindow::FramebufferNativeWindow()
     : BASE(), fbDev(0), grDev(0), mUpdateOnDemand(false)
 {
     hw_module_t const* module;
+
+#ifdef SAMSUNG_HDMI_SUPPORT
+    mHdmiClient = android::SecHdmiClient::getInstance();
+#endif
+
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
         int stride;
         int err;
@@ -287,6 +292,25 @@ int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
     self->front = static_cast<NativeBuffer*>(buffer);
     self->mNumFreeBuffers++;
     self->mCondition.broadcast();
+#ifdef SAMSUNG_HDMI_SUPPORT
+#if defined(SAMSUNG_EXYNOS4210) || defined(SAMSUNG_EXYNOS4x12)
+    if (self->mHdmiClient != NULL)
+        self->mHdmiClient->blit2Hdmi(buffer->width, buffer->height,
+                                    HAL_PIXEL_FORMAT_BGRA_8888,
+                                    0, 0, 0,
+                                    0, 0,
+                                    android::SecHdmiClient::HDMI_MODE_UI,
+                                    0);
+#elif defined(SAMSUNG_EXYNOS5250)
+    if (self->mHdmiClient != NULL)
+        self->mHdmiClient->blit2Hdmi(buffer->width, buffer->height,
+                                    HAL_PIXEL_FORMAT_BGRA_8888,
+                                    0, 0, 0,
+                                    0, 0,
+                                    android::SecHdmiClient::HDMI_MODE_MIRROR,
+                                    0);
+#endif
+#endif
     return res;
 }
 

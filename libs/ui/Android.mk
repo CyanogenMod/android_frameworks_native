@@ -42,6 +42,25 @@ ifeq ($(TARGET_USES_QCOM_BSP),true)
     LOCAL_CFLAGS += -DQCOM_BSP
 endif
 
+ifeq ($(TARGET_SOC),exynos4210)
+    LOCAL_CFLAGS += -DSAMSUNG_EXYNOS4210
+endif
+
+ifeq ($(TARGET_SOC),exynos4x12)
+    LOCAL_CFLAGS += -DSAMSUNG_EXYNOS4x12
+endif
+
+ifeq ($(TARGET_SOC),exynos5250)
+    LOCAL_CFLAGS += -DSAMSUNG_EXYNOS5250
+endif
+
+ifeq ($(BOARD_USES_SAMSUNG_HDMI),true)
+LOCAL_CFLAGS += -DSAMSUNG_HDMI_SUPPORT
+LOCAL_SHARED_LIBRARIES += libhdmiclient
+LOCAL_C_INCLUDES += hardware/samsung/$(TARGET_BOARD_PLATFORM)/libhdmi/libhdmiservice
+LOCAL_C_INCLUDES += hardware/samsung/$(TARGET_BOARD_PLATFORM)/include
+endif
+
 LOCAL_MODULE:= libui
 
 include $(BUILD_SHARED_LIBRARY)

@@ -69,6 +69,10 @@
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/VirtualDisplaySurface.h"
 
+#ifdef SAMSUNG_HDMI_SUPPORT
+#include "SecTVOutService.h"
+#endif
+
 #define DISPLAY_COUNT       1
 
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
@@ -125,6 +129,16 @@ SurfaceFlinger::SurfaceFlinger()
     }
     ALOGI_IF(mDebugRegion, "showupdates enabled");
     ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
+
+#ifdef SAMSUNG_HDMI_SUPPORT
+    ALOGD(">>> Run service");
+    android::SecTVOutService::instantiate();
+#if defined(SAMSUNG_EXYNOS5250)
+    mHdmiClient = SecHdmiClient::getInstance();
+    mHdmiClient->setHdmiEnable(1);
+#endif
+#endif
+
 }
 
 void SurfaceFlinger::onFirstRef()
@@ -132,7 +146,6 @@ void SurfaceFlinger::onFirstRef()
     mEventQueue.init(this);
 
     run("SurfaceFlinger", PRIORITY_URGENT_DISPLAY);
-
     // Wait for the main thread to be done with its initialization
     mReadyToRunBarrier.wait();
 }
