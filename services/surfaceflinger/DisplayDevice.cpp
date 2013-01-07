@@ -80,6 +80,7 @@ DisplayDevice::DisplayDevice(
         EGLConfig config)
     : mFlinger(flinger),
       mType(type), mHwcDisplayId(-1),
+      mDisplayToken(displayToken),
       mNativeWindow(nativeWindow),
       mFramebufferSurface(framebufferSurface),
       mDisplay(EGL_NO_DISPLAY),
