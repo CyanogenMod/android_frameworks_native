@@ -35,19 +35,20 @@ namespace android {
 class Surface;
 
 /*
- * An implementation of ANativeWindow that also behaves as the producer
- * side of a BufferQueue.
+ * An implementation of ANativeWindow that feeds graphics buffers into a
+ * BufferQueue.
  *
  * This is typically used by programs that want to render frames through
  * some means (maybe OpenGL, a software renderer, or a hardware decoder)
  * and have the frames they create forwarded to SurfaceFlinger for
  * compositing.  For example, a video decoder could render a frame and call
  * eglSwapBuffers(), which invokes ANativeWindow callbacks defined by
- * SurfaceTextureClient.  STC then acts as the BufferQueue producer,
- * providing the new frame to a consumer such as GLConsumer.
+ * SurfaceTextureClient.  STC then forwards the buffers through Binder IPC
+ * to the BufferQueue's producer interface, providing the new frame to a
+ * consumer such as GLConsumer.
  *
- * TODO: rename to Surface.  The existing Surface class wraps STC with
- * some Binder goodies, which most users of Surface class don't care about.
+ * TODO: rename to Surface after merging or renaming the existing Surface
+ * class.
  */
 class SurfaceTextureClient
     : public ANativeObjectBase<ANativeWindow, SurfaceTextureClient, RefBase>

@@ -20,7 +20,6 @@
 
 #include <utils/Errors.h>
 
-#include "Layer.h"
 #include "SurfaceTextureLayer.h"
 
 namespace android {

@@ -29,12 +29,17 @@ namespace android {
 
 class Layer;
 
+/*
+ * This is a thin wrapper around BufferQueue, used by the Layer class.
+ */
 class SurfaceTextureLayer : public BufferQueue
 {
 public:
     SurfaceTextureLayer();
     ~SurfaceTextureLayer();
 
+    // After calling the superclass connect(), set or clear synchronous
+    // mode appropriately for the specified API.
     virtual status_t connect(int api, QueueBufferOutput* output);
 };
 

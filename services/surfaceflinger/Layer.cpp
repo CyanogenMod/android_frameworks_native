@@ -125,6 +125,22 @@ void Layer::setName(const String8& name) {
 
 sp<ISurface> Layer::createSurface()
 {
+    /*
+     * This class provides an implementation of BnSurface (the "native" or
+     * "remote" side of the Binder IPC interface ISurface), and mixes in
+     * LayerCleaner to ensure that mFlinger->onLayerDestroyed() is called for
+     * this layer when the BSurface is destroyed.
+     *
+     * The idea is to provide a handle to the Layer through ISurface that
+     * is cleaned up automatically when the last reference to the ISurface
+     * goes away.  (The references will be held on the "proxy" side, while
+     * the Layer exists on the "native" side.)
+     *
+     * The Layer has a reference to an instance of SurfaceFlinger's variant
+     * of GLConsumer, which holds a reference to the BufferQueue.  The
+     * getSurfaceTexture() call returns a Binder interface reference for
+     * the producer interface of the buffer queue associated with the Layer.
+     */
     class BSurface : public BnSurface, public LayerCleaner {
         wp<const Layer> mOwner;
         virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
