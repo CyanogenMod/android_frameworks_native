@@ -515,8 +515,18 @@ bool SurfaceTexture::isExternalFormat(uint32_t format)
     case HAL_PIXEL_FORMAT_YV12:
     // Legacy/deprecated YUV formats
     case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+#ifdef STE_HARDWARE
+    case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+#else
     case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+#endif
     case HAL_PIXEL_FORMAT_YCbCr_422_I:
+#ifdef STE_HARDWARE
+    case HAL_PIXEL_FORMAT_YCrCb_422_SP:
+    case HAL_PIXEL_FORMAT_YCrCb_422_P:
+    case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+    case HAL_PIXEL_FORMAT_YCrCb_420_P:
+#endif
         return true;
     }
 
