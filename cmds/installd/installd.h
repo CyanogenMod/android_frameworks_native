@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <inttypes.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -193,14 +192,12 @@ int ensure_media_user_dirs(userid_t userid);
 
 /* commands.c */
 
-int install(const char *pkgname, uid_t uid, gid_t gid,
-            bool restrictHomeDirectory);
+int install(const char *pkgname, uid_t uid, gid_t gid);
 int uninstall(const char *pkgname, uid_t persona);
 int renamepkg(const char *oldpkgname, const char *newpkgname);
 int fix_uid(const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *pkgname, uid_t persona);
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona,
-                   bool restrictHomeDirectory);
+int make_user_data(const char *pkgname, uid_t uid, uid_t persona);
 int delete_persona(uid_t persona);
 int delete_cache(const char *pkgname, uid_t persona);
 int move_dex(const char *src, const char *dst);
