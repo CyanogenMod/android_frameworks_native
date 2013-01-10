@@ -28,14 +28,12 @@ dir_rec_t android_app_lib_dir;
 dir_rec_t android_media_dir;
 dir_rec_array_t android_system_dirs;
 
-int install(const char *pkgname, uid_t uid, gid_t gid, bool restrictHomeDir)
+int install(const char *pkgname, uid_t uid, gid_t gid)
 {
     char pkgdir[PKG_PATH_MAX];
     char libsymlink[PKG_PATH_MAX];
     char applibdir[PKG_PATH_MAX];
     struct stat libStat;
-
-    mode_t defaultMode = restrictHomeDir ? 0700 : 0751;
 
     if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
         ALOGE("invalid uid/gid: %d %d\n", uid, gid);
@@ -57,11 +55,11 @@ int install(const char *pkgname, uid_t uid, gid_t gid, bool restrictHomeDir)
         return -1;
     }
 
-    if (mkdir(pkgdir, defaultMode) < 0) {
+    if (mkdir(pkgdir, 0751) < 0) {
         ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
         return -1;
     }
-    if (chmod(pkgdir, defaultMode) < 0) {
+    if (chmod(pkgdir, 0751) < 0) {
         ALOGE("cannot chmod dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(pkgdir);
         return -1;
@@ -186,14 +184,12 @@ int delete_user_data(const char *pkgname, uid_t persona)
     return delete_dir_contents(pkgdir, 0, "lib");
 }
 
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona, bool restrictHomeDir)
+int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
 {
     char pkgdir[PKG_PATH_MAX];
     char applibdir[PKG_PATH_MAX];
     char libsymlink[PKG_PATH_MAX];
     struct stat libStat;
-
-    mode_t defaultMode = restrictHomeDir ? 0700 : 0751;
 
     // Create the data dir for the package
     if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, persona)) {
@@ -208,11 +204,11 @@ int make_user_data(const char *pkgname, uid_t uid, uid_t persona, bool restrictH
         return -1;
     }
 
-    if (mkdir(pkgdir, defaultMode) < 0) {
+    if (mkdir(pkgdir, 0751) < 0) {
         ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
         return -errno;
     }
-    if (chmod(pkgdir, defaultMode) < 0) {
+    if (chmod(pkgdir, 0751) < 0) {
         ALOGE("cannot chmod dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(pkgdir);
         return -errno;
