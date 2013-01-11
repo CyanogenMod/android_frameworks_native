@@ -831,10 +831,10 @@ void SurfaceFlinger::doDebugFlashRegions()
                 while (it != end) {
                     const Rect& r = *it++;
                     GLfloat vertices[][2] = {
-                            { r.left,  height - r.top },
-                            { r.left,  height - r.bottom },
-                            { r.right, height - r.bottom },
-                            { r.right, height - r.top }
+                            { (GLfloat) r.left,  (GLfloat) (height - r.top) },
+                            { (GLfloat) r.left,  (GLfloat) (height - r.bottom) },
+                            { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
+                            { (GLfloat) r.right, (GLfloat) (height - r.top) }
                     };
                     glVertexPointer(2, GL_FLOAT, 0, vertices);
                     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -1646,10 +1646,10 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
     while (it != end) {
         const Rect& r = *it++;
         GLfloat vertices[][2] = {
-                { r.left,  height - r.top },
-                { r.left,  height - r.bottom },
-                { r.right, height - r.bottom },
-                { r.right, height - r.top }
+                { (GLfloat) r.left,  (GLfloat) (height - r.top) },
+                { (GLfloat) r.left,  (GLfloat) (height - r.bottom) },
+                { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
+                { (GLfloat) r.right, (GLfloat) (height - r.top) }
         };
         glVertexPointer(2, GL_FLOAT, 0, vertices);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
