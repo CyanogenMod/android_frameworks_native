@@ -47,11 +47,19 @@ class GLExtensions;
 
 // ---------------------------------------------------------------------------
 
+/*
+ * The Layer class is essentially a LayerBase combined with a BufferQueue.
+ * A new BufferQueue and a new SurfaceFlingerConsumer are created when the
+ * Layer is first referenced.
+ *
+ * This also implements onFrameAvailable(), which notifies SurfaceFlinger
+ * that new data has arrived.
+ */
 class Layer : public LayerBaseClient,
               public SurfaceFlingerConsumer::FrameAvailableListener
 {
 public:
-            Layer(SurfaceFlinger* flinger, const sp<Client>& client);
+    Layer(SurfaceFlinger* flinger, const sp<Client>& client);
     virtual ~Layer();
 
     virtual const char* getTypeId() const { return "Layer"; }
@@ -102,8 +110,9 @@ protected:
     virtual void clearStats();
 
 private:
-    friend class SurfaceTextureLayer;
+    // Creates an instance of ISurface for this Layer.
     virtual sp<ISurface> createSurface();
+
     uint32_t getEffectiveUsage(uint32_t usage) const;
     bool isCropped() const;
     Rect computeBufferCrop() const;

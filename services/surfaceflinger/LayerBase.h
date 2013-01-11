@@ -49,6 +49,18 @@ class SurfaceFlinger;
 
 // ---------------------------------------------------------------------------
 
+/*
+ * Layers are rectangular graphic entities, internal to SurfaceFlinger.
+ * They have properties including width, height, Z-depth, and 2D
+ * transformations (chiefly translation and 90-degree rotations).
+ *
+ * Layers are organized into "layer stacks".  Each layer is a member of
+ * exactly one layer stack, identified by an integer in Layer::State.  A
+ * given layer stack may appear on more than one display.
+ *
+ * Notable subclasses (below LayerBaseClient) include Layer, LayerDim, and
+ * LayerScreenshot.
+ */
 class LayerBase : virtual public RefBase
 {
     static int32_t sSequence;
@@ -308,16 +320,27 @@ private:
 
 // ---------------------------------------------------------------------------
 
+/*
+ * This adds some additional fields and methods to support some Binder IPC
+ * interactions.  In particular, the LayerBaseClient's lifetime can be
+ * managed by references to an ISurface object in another process.
+ */
 class LayerBaseClient : public LayerBase
 {
 public:
-            LayerBaseClient(SurfaceFlinger* flinger, const sp<Client>& client);
+    LayerBaseClient(SurfaceFlinger* flinger, const sp<Client>& client);
 
-            virtual ~LayerBaseClient();
+    virtual ~LayerBaseClient();
 
-            sp<ISurface> getSurface();
-            wp<IBinder> getSurfaceBinder() const;
-            virtual wp<IBinder> getSurfaceTextureBinder() const;
+    // Creates an ISurface associated with this object.  This may only be
+    // called once (see also getSurfaceBinder()).
+    sp<ISurface> getSurface();
+
+    // Returns the Binder object for the ISurface associated with
+    // this object.
+    wp<IBinder> getSurfaceBinder() const;
+
+    virtual wp<IBinder> getSurfaceTextureBinder() const;
 
     virtual sp<LayerBaseClient> getLayerBaseClient() const {
         return const_cast<LayerBaseClient*>(this); }
@@ -330,6 +353,10 @@ protected:
     virtual void dump(String8& result, char* scratch, size_t size) const;
     virtual void shortDump(String8& result, char* scratch, size_t size) const;
 
+    /*
+     * Trivial class, used to ensure that mFlinger->onLayerDestroyed(mLayer)
+     * is called.
+     */
     class LayerCleaner {
         sp<SurfaceFlinger> mFlinger;
         wp<LayerBaseClient> mLayer;
@@ -344,8 +371,13 @@ private:
     virtual sp<ISurface> createSurface();
 
     mutable Mutex mLock;
+
+    // Set to true if an ISurface has been associated with this object.
     mutable bool mHasSurface;
+
+    // The ISurface's Binder object, set by getSurface().
     wp<IBinder> mClientSurfaceBinder;
+
     const wp<Client> mClientRef;
     // only read
     const uint32_t mIdentity;

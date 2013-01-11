@@ -107,11 +107,9 @@ private:
 // ---------------------------------------------------------------------------
 
 /*
- * This is a small wrapper around SurfaceTextureClient that provides some
- * helper classes for Binder interaction.
+ * This is a small wrapper around SurfaceTextureClient.
  *
- * TODO: rename to SurfaceJniHelper.  May want to move SurfaceInfo and
- * the associated lock() / unlockAndPost() calls to STC.
+ * TODO: rename and/or merge with STC.
  */
 class Surface : public SurfaceTextureClient
 {

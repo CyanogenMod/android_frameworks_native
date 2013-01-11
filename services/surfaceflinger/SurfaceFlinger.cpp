@@ -575,13 +575,18 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     Mutex::Autolock _l(mStateLock);
     sp<IBinder> surfaceTextureBinder(bufferProducer->asBinder());
 
-    // Check the visible layer list for the ISurface
+    // We want to determine whether the IGraphicBufferProducer was created by
+    // SurfaceFlinger.  Check to see if we can find it in the layer list.
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<LayerBase>& layer(currentLayers[i]);
         sp<LayerBaseClient> lbc(layer->getLayerBaseClient());
         if (lbc != NULL) {
+            // If this is an instance of Layer (as opposed to, say, LayerDim),
+            // we will get the consumer interface of SurfaceFlingerConsumer's
+            // BufferQueue.  If it's the same Binder object as the graphic
+            // buffer producer interface, return success.
             wp<IBinder> lbcBinder = lbc->getSurfaceTextureBinder();
             if (lbcBinder == surfaceTextureBinder) {
                 return true;

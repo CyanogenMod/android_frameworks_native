@@ -39,6 +39,10 @@ class DisplayInfo;
 class IDisplayEventConnection;
 class IMemoryHeap;
 
+/*
+ * This class defines the Binder IPC interface for accessing various
+ * SurfaceFlinger features.
+ */
 class ISurfaceComposer: public IInterface {
 public:
     DECLARE_META_INTERFACE(SurfaceComposer);
