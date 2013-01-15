@@ -100,6 +100,7 @@ nsecs_t Fence::getSignalTime() const {
         return -1;
     }
     if (finfo->status != 1) {
+        sync_fence_info_free(finfo);
         return INT64_MAX;
     }
 
