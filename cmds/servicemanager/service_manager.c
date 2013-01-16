@@ -28,6 +28,7 @@ static struct {
     const char *name;
 } allowed[] = {
     { AID_MEDIA, "media.audio_flinger" },
+    { AID_MEDIA, "media.log" },
     { AID_MEDIA, "media.player" },
     { AID_MEDIA, "media.camera" },
     { AID_MEDIA, "media.audio_policy" },
