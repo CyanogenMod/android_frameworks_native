@@ -22,6 +22,8 @@
 
 namespace android {
 
+// Two different kinds of modules are covered under the same HDCPModule
+// structure below, a module either implements decryption or encryption.
 struct HDCPModule {
     typedef void (*ObserverFunc)(void *cookie, int msg, int ext1, int ext2);
 
@@ -32,7 +34,8 @@ struct HDCPModule {
         // i.e. the HDCP session is now fully setup (AKE, Locality Check,
         // SKE and any authentication with repeaters completed) or failed.
         // ext1 should be a suitable error code (status_t), ext2 is
-        // unused.
+        // unused for ENCRYPTION and in the case of HDCP_INITIALIZATION_COMPLETE
+        // holds the local TCP port the module is listening on.
         HDCP_INITIALIZATION_COMPLETE,
         HDCP_INITIALIZATION_FAILED,
 
@@ -46,6 +49,11 @@ struct HDCPModule {
         HDCP_REVOKED_CONNECTION,
         HDCP_TOPOLOGY_EXECEEDED,
         HDCP_UNKNOWN_ERROR,
+
+        // DECRYPTION only: Indicates that a client has successfully connected,
+        // a secure session established and the module is ready to accept
+        // future calls to "decrypt".
+        HDCP_SESSION_ESTABLISHED,
     };
 
     // Module can call the notification function to signal completion/failure
@@ -55,24 +63,48 @@ struct HDCPModule {
 
     virtual ~HDCPModule() {};
 
-    // Request to setup an HDCP session with the specified host listening
-    // on the specified port.
-    virtual status_t initAsync(const char *host, unsigned port) = 0;
+    // ENCRYPTION: Request to setup an HDCP session with the host specified
+    // by addr and listening on the specified port.
+    // DECRYPTION: Request to setup an HDCP session, addr is the interface
+    // address the module should bind its socket to. port will be 0.
+    // The module will pick the port to listen on itself and report its choice
+    // in the "ext2" argument of the HDCP_INITIALIZATION_COMPLETE callback.
+    virtual status_t initAsync(const char *addr, unsigned port) = 0;
 
     // Request to shutdown the active HDCP session.
     virtual status_t shutdownAsync() = 0;
 
-    // Encrypt a data according to the HDCP spec. The data is to be
-    // encrypted in-place, only size bytes of data should be read/write,
-    // even if the size is not a multiple of 128 bit (16 bytes).
+    // ENCRYPTION only:
+    // Encrypt data according to the HDCP spec. "size" bytes of data are
+    // available at "inData" (virtual address), "size" may not be a multiple
+    // of 128 bits (16 bytes). An equal number of encrypted bytes should be
+    // written to the buffer at "outData" (virtual address).
     // This operation is to be synchronous, i.e. this call does not return
     // until outData contains size bytes of encrypted data.
     // streamCTR will be assigned by the caller (to 0 for the first PES stream,
     // 1 for the second and so on)
-    // inputCTR will be maintained by the callee for each PES stream.
+    // inputCTR _will_be_maintained_by_the_callee_ for each PES stream.
     virtual status_t encrypt(
             const void *inData, size_t size, uint32_t streamCTR,
-            uint64_t *outInputCTR, void *outData) = 0;
+            uint64_t *outInputCTR, void *outData) {
+        return INVALID_OPERATION;
+    }
+
+    // DECRYPTION only:
+    // Decrypt data according to the HDCP spec.
+    // "size" bytes of encrypted data are available at "inData"
+    // (virtual address), "size" may not be a multiple of 128 bits (16 bytes).
+    // An equal number of decrypted bytes should be written to the buffer
+    // at "outData" (virtual address).
+    // This operation is to be synchronous, i.e. this call does not return
+    // until outData contains size bytes of decrypted data.
+    // Both streamCTR and inputCTR will be provided by the caller.
+    virtual status_t decrypt(
+            const void *inData, size_t size,
+            uint32_t streamCTR, uint64_t inputCTR,
+            void *outData) {
+        return INVALID_OPERATION;
+    }
 
 private:
     HDCPModule(const HDCPModule &);
@@ -81,12 +113,17 @@ private:
 
 }  // namespace android
 
-// A shared library exporting the following method should be included to
+// A shared library exporting the following methods should be included to
 // support HDCP functionality. The shared library must be called
 // "libstagefright_hdcp.so", it will be dynamically loaded into the
 // mediaserver process.
 extern "C" {
+    // Create a module for ENCRYPTION.
     extern android::HDCPModule *createHDCPModule(
+            void *cookie, android::HDCPModule::ObserverFunc);
+
+    // Create a module for DECRYPTION.
+    extern android::HDCPModule *createHDCPModuleForDecryption(
             void *cookie, android::HDCPModule::ObserverFunc);
 }
 
