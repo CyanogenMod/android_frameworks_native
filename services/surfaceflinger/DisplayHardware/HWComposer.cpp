@@ -782,9 +782,10 @@ private:
  * This implements the HWCLayer side of HWCIterableLayer.
  */
 class HWCLayerVersion1 : public Iterable<HWCLayerVersion1, hwc_layer_1_t> {
+    struct hwc_composer_device_1* mHwc;
 public:
-    HWCLayerVersion1(hwc_layer_1_t* layer)
-        : Iterable<HWCLayerVersion1, hwc_layer_1_t>(layer) { }
+    HWCLayerVersion1(struct hwc_composer_device_1* hwc, hwc_layer_1_t* layer)
+        : Iterable<HWCLayerVersion1, hwc_layer_1_t>(layer), mHwc(hwc) { }
 
     virtual int32_t getCompositionType() const {
         return getLayer()->compositionType;
@@ -800,17 +801,29 @@ public:
     virtual void setAcquireFenceFd(int fenceFd) {
         getLayer()->acquireFenceFd = fenceFd;
     }
+    virtual void setPerFrameDefaultState() {
+        //getLayer()->compositionType = HWC_FRAMEBUFFER;
+    }
+    virtual void setPlaneAlpha(uint8_t alpha) {
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
+            getLayer()->planeAlpha = alpha;
+        } else {
+            getLayer()->flags |= HWC_SKIP_LAYER;
+        }
+    }
     virtual void setDefaultState() {
-        getLayer()->compositionType = HWC_FRAMEBUFFER;
-        getLayer()->hints = 0;
-        getLayer()->flags = HWC_SKIP_LAYER;
-        getLayer()->handle = 0;
-        getLayer()->transform = 0;
-        getLayer()->blending = HWC_BLENDING_NONE;
-        getLayer()->visibleRegionScreen.numRects = 0;
-        getLayer()->visibleRegionScreen.rects = NULL;
-        getLayer()->acquireFenceFd = -1;
-        getLayer()->releaseFenceFd = -1;
+        hwc_layer_1_t* const l = getLayer();
+        l->compositionType = HWC_FRAMEBUFFER;
+        l->hints = 0;
+        l->flags = HWC_SKIP_LAYER;
+        l->handle = 0;
+        l->transform = 0;
+        l->blending = HWC_BLENDING_NONE;
+        l->visibleRegionScreen.numRects = 0;
+        l->visibleRegionScreen.rects = NULL;
+        l->acquireFenceFd = -1;
+        l->releaseFenceFd = -1;
+        l->planeAlpha = 0xFF;
     }
     virtual void setSkip(bool skip) {
         if (skip) {
@@ -873,7 +886,7 @@ HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t in
     if (!mHwc || !disp.list || index > disp.list->numHwLayers) {
         return LayerListIterator();
     }
-    return LayerListIterator(new HWCLayerVersion1(disp.list->hwLayers), index);
+    return LayerListIterator(new HWCLayerVersion1(mHwc, disp.list->hwLayers), index);
 }
 
 /*

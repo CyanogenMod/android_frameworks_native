@@ -283,7 +283,7 @@ void LayerBase::setGeometry(
         layer.setTransform(finalTransform);
     }
 
-    if (!isOpaque()) {
+    if (!isOpaque() || s.alpha != 0xFF) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
                 HWC_BLENDING_COVERAGE);
