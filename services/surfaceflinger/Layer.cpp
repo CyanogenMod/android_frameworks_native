@@ -539,9 +539,6 @@ void Layer::onPostComposition() {
 
         const HWComposer& hwc = mFlinger->getHwComposer();
         sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
-        // XXX: Temporarily don't use the present fence from HWC to work
-        // around a driver bug.
-        presentFence.clear();
         if (presentFence != NULL) {
             mFrameTracker.setActualPresentFence(presentFence);
         } else {
