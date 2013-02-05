@@ -31,28 +31,34 @@ FrameTracker::FrameTracker() :
 }
 
 void FrameTracker::setDesiredPresentTime(nsecs_t presentTime) {
+    Mutex::Autolock lock(mMutex);
     mFrameRecords[mOffset].desiredPresentTime = presentTime;
 }
 
 void FrameTracker::setFrameReadyTime(nsecs_t readyTime) {
+    Mutex::Autolock lock(mMutex);
     mFrameRecords[mOffset].frameReadyTime = readyTime;
 }
 
 void FrameTracker::setFrameReadyFence(const sp<Fence>& readyFence) {
+    Mutex::Autolock lock(mMutex);
     mFrameRecords[mOffset].frameReadyFence = readyFence;
     mNumFences++;
 }
 
 void FrameTracker::setActualPresentTime(nsecs_t presentTime) {
+    Mutex::Autolock lock(mMutex);
     mFrameRecords[mOffset].actualPresentTime = presentTime;
 }
 
 void FrameTracker::setActualPresentFence(const sp<Fence>& readyFence) {
+    Mutex::Autolock lock(mMutex);
     mFrameRecords[mOffset].actualPresentFence = readyFence;
     mNumFences++;
 }
 
 void FrameTracker::advanceFrame() {
+    Mutex::Autolock lock(mMutex);
     mOffset = (mOffset+1) % NUM_FRAME_RECORDS;
     mFrameRecords[mOffset].desiredPresentTime = INT64_MAX;
     mFrameRecords[mOffset].frameReadyTime = INT64_MAX;
@@ -74,10 +80,11 @@ void FrameTracker::advanceFrame() {
 
     // Clean up the signaled fences to keep the number of open fence FDs in
     // this process reasonable.
-    processFences();
+    processFencesLocked();
 }
 
 void FrameTracker::clear() {
+    Mutex::Autolock lock(mMutex);
     for (size_t i = 0; i < NUM_FRAME_RECORDS; i++) {
         mFrameRecords[i].desiredPresentTime = 0;
         mFrameRecords[i].frameReadyTime = 0;
@@ -86,9 +93,12 @@ void FrameTracker::clear() {
         mFrameRecords[i].actualPresentFence.clear();
     }
     mNumFences = 0;
+    mFrameRecords[mOffset].desiredPresentTime = INT64_MAX;
+    mFrameRecords[mOffset].frameReadyTime = INT64_MAX;
+    mFrameRecords[mOffset].actualPresentTime = INT64_MAX;
 }
 
-void FrameTracker::processFences() const {
+void FrameTracker::processFencesLocked() const {
     FrameRecord* records = const_cast<FrameRecord*>(mFrameRecords);
     int& numFences = const_cast<int&>(mNumFences);
 
@@ -116,7 +126,8 @@ void FrameTracker::processFences() const {
 }
 
 void FrameTracker::dump(String8& result) const {
-    processFences();
+    Mutex::Autolock lock(mMutex);
+    processFencesLocked();
 
     const size_t o = mOffset;
     for (size_t i = 1; i < NUM_FRAME_RECORDS; i++) {

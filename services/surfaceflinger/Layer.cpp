@@ -757,9 +757,6 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
-    const nsecs_t period =
-            mFlinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
-    result.appendFormat("%lld\n", period);
     mFrameTracker.dump(result);
 }
 

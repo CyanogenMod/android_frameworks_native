@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include <utils/Mutex.h>
 #include <utils/Timers.h>
 #include <utils/RefBase.h>
 
@@ -96,7 +97,7 @@ private:
     // This method is const because although it modifies the frame records it
     // does so in such a way that the information represented should not
     // change.  This allows it to be called from the dump method.
-    void processFences() const;
+    void processFencesLocked() const;
 
     // mFrameRecords is the circular buffer storing the tracked data for each
     // frame.
@@ -113,6 +114,9 @@ private:
     // The number of fences is tracked so that the run time of processFences
     // doesn't grow with NUM_FRAME_RECORDS.
     int mNumFences;
+
+    // mMutex is used to protect access to all member variables.
+    mutable Mutex mMutex;
 };
 
 }

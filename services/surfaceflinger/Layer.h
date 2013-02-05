@@ -129,6 +129,7 @@ private:
 
     // thread-safe
     volatile int32_t mQueuedFrames;
+    FrameTracker mFrameTracker;
 
     // main thread
     sp<GraphicBuffer> mActiveBuffer;
@@ -138,7 +139,6 @@ private:
     bool mCurrentOpacity;
     bool mRefreshPending;
     bool mFrameLatencyNeeded;
-    FrameTracker mFrameTracker;
 
     // constants
     PixelFormat mFormat;
