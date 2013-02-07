@@ -119,7 +119,7 @@ void GLTrace_glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei
 void GLTrace_glSampleCoverage(GLclampf value, GLboolean invert);
 void GLTrace_glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 void GLTrace_glShaderBinary(GLsizei n, const GLuint* shaders, GLenum binaryformat, const GLvoid* binary, GLsizei length);
-void GLTrace_glShaderSource(GLuint shader, GLsizei count, const GLchar** string, const GLint* length);
+void GLTrace_glShaderSource(GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length);
 void GLTrace_glStencilFunc(GLenum func, GLint ref, GLuint mask);
 void GLTrace_glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask);
 void GLTrace_glStencilMask(GLuint mask);

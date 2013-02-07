@@ -354,7 +354,7 @@ TRACE_GL_VOID(glSelectPerfMonitorCountersAMD, (GLuint monitor, GLboolean enable,
 TRACE_GL_VOID(glSetFenceNV, (GLuint fence, GLenum condition), (fence, condition), 2, "GLuint", fence, "GLenum", condition)
 TRACE_GL_VOID(glShadeModel, (GLenum mode), (mode), 1, "GLenum", mode)
 TRACE_GL_VOID(glShaderBinary, (GLsizei n, const GLuint* shaders, GLenum binaryformat, const GLvoid* binary, GLsizei length), (n, shaders, binaryformat, binary, length), 5, "GLsizei", n, "const GLuint*", shaders, "GLenum", binaryformat, "const GLvoid*", binary, "GLsizei", length)
-TRACE_GL_VOID(glShaderSource, (GLuint shader, GLsizei count, const GLchar** string, const GLint* length), (shader, count, string, length), 4, "GLuint", shader, "GLsizei", count, "const GLchar**", string, "const GLint*", length)
+TRACE_GL_VOID(glShaderSource, (GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length), (shader, count, string, length), 4, "GLuint", shader, "GLsizei", count, "const GLchar* const*", string, "const GLint*", length)
 TRACE_GL_VOID(glStartTilingQCOM, (GLuint x, GLuint y, GLuint width, GLuint height, GLbitfield preserveMask), (x, y, width, height, preserveMask), 5, "GLuint", x, "GLuint", y, "GLuint", width, "GLuint", height, "GLbitfield", preserveMask)
 TRACE_GL_VOID(glStencilFunc, (GLenum func, GLint ref, GLuint mask), (func, ref, mask), 3, "GLenum", func, "GLint", ref, "GLuint", mask)
 TRACE_GL_VOID(glStencilFuncSeparate, (GLenum face, GLenum func, GLint ref, GLuint mask), (face, func, ref, mask), 4, "GLenum", face, "GLenum", func, "GLint", ref, "GLuint", mask)
