@@ -808,7 +808,9 @@ public:
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
             getLayer()->planeAlpha = alpha;
         } else {
-            getLayer()->flags |= HWC_SKIP_LAYER;
+            if (alpha < 0xFF) {
+                getLayer()->flags |= HWC_SKIP_LAYER;
+            }
         }
     }
     virtual void setDefaultState() {
