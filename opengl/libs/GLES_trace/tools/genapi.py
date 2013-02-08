@@ -60,6 +60,8 @@ class DataType:
             return "add_floatvalue("
         elif self.name == "bool":
             return "add_boolvalue("
+        elif self.name == "int64":
+            return "add_int64value("
         else:
             raise ValueError("Unknown value type %s" % self.name)
 
@@ -71,9 +73,10 @@ DataType.BOOL = DataType("bool")
 DataType.INT = DataType("int")
 DataType.FLOAT = DataType("float")
 DataType.POINTER = DataType("pointer")
+DataType.INT64 = DataType("int64")
 
 # mapping of GL types to protobuf DataType
-GL2PROTOBUF_TYPE_MAP = {
+GLPROTOBUF_TYPE_MAP = {
     "GLvoid":DataType.VOID,
     "void":DataType.VOID,
     "GLchar":DataType.CHAR,
@@ -95,9 +98,14 @@ GL2PROTOBUF_TYPE_MAP = {
     "GLsizeiptr":DataType.INT,
     "GLintptr":DataType.INT,
     "GLeglImageOES":DataType.POINTER,
+    "GLint64":DataType.INT64,
+    "GLuint64":DataType.INT64,
+    "GLsync":DataType.POINTER,
 }
 
 API_SPECS = [
+    ('GL3','../GLES2/gl3_api.in'),
+    ('GL3Ext','../GLES2/gl3ext_api.in'),
     ('GL2','../GLES2/gl2_api.in'),
     ('GL2Ext','../GLES2/gl2ext_api.in'),
     ('GL1','../GLES_CM/gl_api.in'),
@@ -126,7 +134,7 @@ HEADER_LICENSE = """/*
 HEADER_INCLUDES = """
 #include <cutils/log.h>
 #include <utils/Timers.h>
-#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>
 
 #include "gltrace.pb.h"
 #include "gltrace_context.h"
@@ -210,7 +218,7 @@ def getDataTypeFromKw(kw):
 
     if kw.count('*') > 0:
         return DataType.POINTER
-    return GL2PROTOBUF_TYPE_MAP.get(kw)
+    return GLPROTOBUF_TYPE_MAP.get(kw)
 
 def getNameTypePair(decl):
     """ Split declaration of a variable to a tuple of (variable name, DataType).
@@ -356,7 +364,7 @@ def parseAllSpecs(specs):
 def removeDuplicates(apis):
     '''Remove all duplicate function entries.
 
-    The input list contains functions declared in GL1 and GL2 APIs.
+    The input list contains functions declared in GL1, GL2, and GL3 APIs.
     This will return a list that contains only the first function if there are
     multiple functions with the same name.'''
     uniqs = []
@@ -402,7 +410,7 @@ def genSrcs(apis, fname):
         f.writelines(lines)
 
 if __name__ == '__main__':
-    apis = parseAllSpecs(API_SPECS)     # read in all the specfiles
-    apis = removeDuplicates(apis)       # remove duplication of functions common to GL1 and GL2
+    apis = parseAllSpecs(API_SPECS)    # read in all the specfiles
+    apis = removeDuplicates(apis)      # remove duplication of functions common to multiple versions
     genHeaders(apis, 'gltrace_api.h')  # generate header file
     genSrcs(apis, 'gltrace_api.cpp')   # generate source file

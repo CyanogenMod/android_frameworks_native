@@ -419,6 +419,110 @@ bool GLMessage_Function_IsValid(int value) {
     case 373:
     case 374:
     case 375:
+    case 376:
+    case 377:
+    case 378:
+    case 379:
+    case 380:
+    case 381:
+    case 382:
+    case 383:
+    case 384:
+    case 385:
+    case 386:
+    case 387:
+    case 388:
+    case 389:
+    case 390:
+    case 391:
+    case 392:
+    case 393:
+    case 394:
+    case 395:
+    case 396:
+    case 397:
+    case 398:
+    case 399:
+    case 400:
+    case 401:
+    case 402:
+    case 403:
+    case 404:
+    case 405:
+    case 406:
+    case 407:
+    case 408:
+    case 409:
+    case 410:
+    case 411:
+    case 412:
+    case 413:
+    case 414:
+    case 415:
+    case 416:
+    case 417:
+    case 418:
+    case 419:
+    case 420:
+    case 421:
+    case 422:
+    case 423:
+    case 424:
+    case 425:
+    case 426:
+    case 427:
+    case 428:
+    case 429:
+    case 430:
+    case 431:
+    case 432:
+    case 433:
+    case 434:
+    case 435:
+    case 436:
+    case 437:
+    case 438:
+    case 439:
+    case 440:
+    case 441:
+    case 442:
+    case 443:
+    case 444:
+    case 445:
+    case 446:
+    case 447:
+    case 448:
+    case 449:
+    case 450:
+    case 451:
+    case 452:
+    case 453:
+    case 454:
+    case 455:
+    case 456:
+    case 457:
+    case 458:
+    case 459:
+    case 460:
+    case 461:
+    case 462:
+    case 463:
+    case 464:
+    case 465:
+    case 466:
+    case 467:
+    case 468:
+    case 469:
+    case 470:
+    case 471:
+    case 472:
+    case 473:
+    case 474:
+    case 475:
+    case 476:
+    case 477:
+    case 478:
+    case 479:
     case 502:
     case 503:
     case 504:
@@ -910,6 +1014,110 @@ const GLMessage_Function GLMessage::glVertexAttribPointer;
 const GLMessage_Function GLMessage::glVertexPointer;
 const GLMessage_Function GLMessage::glViewport;
 const GLMessage_Function GLMessage::glWeightPointerOES;
+const GLMessage_Function GLMessage::glReadBuffer;
+const GLMessage_Function GLMessage::glDrawRangeElements;
+const GLMessage_Function GLMessage::glTexImage3D;
+const GLMessage_Function GLMessage::glTexSubImage3D;
+const GLMessage_Function GLMessage::glCopyTexSubImage3D;
+const GLMessage_Function GLMessage::glCompressedTexImage3D;
+const GLMessage_Function GLMessage::glCompressedTexSubImage3D;
+const GLMessage_Function GLMessage::glGenQueries;
+const GLMessage_Function GLMessage::glDeleteQueries;
+const GLMessage_Function GLMessage::glIsQuery;
+const GLMessage_Function GLMessage::glBeginQuery;
+const GLMessage_Function GLMessage::glEndQuery;
+const GLMessage_Function GLMessage::glGetQueryiv;
+const GLMessage_Function GLMessage::glGetQueryObjectuiv;
+const GLMessage_Function GLMessage::glUnmapBuffer;
+const GLMessage_Function GLMessage::glGetBufferPointerv;
+const GLMessage_Function GLMessage::glDrawBuffers;
+const GLMessage_Function GLMessage::glUniformMatrix2x3fv;
+const GLMessage_Function GLMessage::glUniformMatrix3x2fv;
+const GLMessage_Function GLMessage::glUniformMatrix2x4fv;
+const GLMessage_Function GLMessage::glUniformMatrix4x2fv;
+const GLMessage_Function GLMessage::glUniformMatrix3x4fv;
+const GLMessage_Function GLMessage::glUniformMatrix4x3fv;
+const GLMessage_Function GLMessage::glBlitFramebuffer;
+const GLMessage_Function GLMessage::glRenderbufferStorageMultisample;
+const GLMessage_Function GLMessage::glFramebufferTextureLayer;
+const GLMessage_Function GLMessage::glMapBufferRange;
+const GLMessage_Function GLMessage::glFlushMappedBufferRange;
+const GLMessage_Function GLMessage::glBindVertexArray;
+const GLMessage_Function GLMessage::glDeleteVertexArrays;
+const GLMessage_Function GLMessage::glGenVertexArrays;
+const GLMessage_Function GLMessage::glIsVertexArray;
+const GLMessage_Function GLMessage::glGetIntegeri_v;
+const GLMessage_Function GLMessage::glBeginTransformFeedback;
+const GLMessage_Function GLMessage::glEndTransformFeedback;
+const GLMessage_Function GLMessage::glBindBufferRange;
+const GLMessage_Function GLMessage::glBindBufferBase;
+const GLMessage_Function GLMessage::glTransformFeedbackVaryings;
+const GLMessage_Function GLMessage::glGetTransformFeedbackVarying;
+const GLMessage_Function GLMessage::glVertexAttribIPointer;
+const GLMessage_Function GLMessage::glGetVertexAttribIiv;
+const GLMessage_Function GLMessage::glGetVertexAttribIuiv;
+const GLMessage_Function GLMessage::glVertexAttribI4i;
+const GLMessage_Function GLMessage::glVertexAttribI4ui;
+const GLMessage_Function GLMessage::glVertexAttribI4iv;
+const GLMessage_Function GLMessage::glVertexAttribI4uiv;
+const GLMessage_Function GLMessage::glGetUniformuiv;
+const GLMessage_Function GLMessage::glGetFragDataLocation;
+const GLMessage_Function GLMessage::glUniform1ui;
+const GLMessage_Function GLMessage::glUniform2ui;
+const GLMessage_Function GLMessage::glUniform3ui;
+const GLMessage_Function GLMessage::glUniform4ui;
+const GLMessage_Function GLMessage::glUniform1uiv;
+const GLMessage_Function GLMessage::glUniform2uiv;
+const GLMessage_Function GLMessage::glUniform3uiv;
+const GLMessage_Function GLMessage::glUniform4uiv;
+const GLMessage_Function GLMessage::glClearBufferiv;
+const GLMessage_Function GLMessage::glClearBufferuiv;
+const GLMessage_Function GLMessage::glClearBufferfv;
+const GLMessage_Function GLMessage::glClearBufferfi;
+const GLMessage_Function GLMessage::glGetStringi;
+const GLMessage_Function GLMessage::glCopyBufferSubData;
+const GLMessage_Function GLMessage::glGetUniformIndices;
+const GLMessage_Function GLMessage::glGetActiveUniformsiv;
+const GLMessage_Function GLMessage::glGetUniformBlockIndex;
+const GLMessage_Function GLMessage::glGetActiveUniformBlockiv;
+const GLMessage_Function GLMessage::glGetActiveUniformBlockName;
+const GLMessage_Function GLMessage::glUniformBlockBinding;
+const GLMessage_Function GLMessage::glDrawArraysInstanced;
+const GLMessage_Function GLMessage::glDrawElementsInstanced;
+const GLMessage_Function GLMessage::glFenceSync;
+const GLMessage_Function GLMessage::glIsSync;
+const GLMessage_Function GLMessage::glDeleteSync;
+const GLMessage_Function GLMessage::glClientWaitSync;
+const GLMessage_Function GLMessage::glWaitSync;
+const GLMessage_Function GLMessage::glGetInteger64v;
+const GLMessage_Function GLMessage::glGetSynciv;
+const GLMessage_Function GLMessage::glGetInteger64i_v;
+const GLMessage_Function GLMessage::glGetBufferParameteri64v;
+const GLMessage_Function GLMessage::glGenSamplers;
+const GLMessage_Function GLMessage::glDeleteSamplers;
+const GLMessage_Function GLMessage::glIsSampler;
+const GLMessage_Function GLMessage::glBindSampler;
+const GLMessage_Function GLMessage::glSamplerParameteri;
+const GLMessage_Function GLMessage::glSamplerParameteriv;
+const GLMessage_Function GLMessage::glSamplerParameterf;
+const GLMessage_Function GLMessage::glSamplerParameterfv;
+const GLMessage_Function GLMessage::glGetSamplerParameteriv;
+const GLMessage_Function GLMessage::glGetSamplerParameterfv;
+const GLMessage_Function GLMessage::glVertexAttribDivisor;
+const GLMessage_Function GLMessage::glBindTransformFeedback;
+const GLMessage_Function GLMessage::glDeleteTransformFeedbacks;
+const GLMessage_Function GLMessage::glGenTransformFeedbacks;
+const GLMessage_Function GLMessage::glIsTransformFeedback;
+const GLMessage_Function GLMessage::glPauseTransformFeedback;
+const GLMessage_Function GLMessage::glResumeTransformFeedback;
+const GLMessage_Function GLMessage::glGetProgramBinary;
+const GLMessage_Function GLMessage::glProgramBinary;
+const GLMessage_Function GLMessage::glProgramParameteri;
+const GLMessage_Function GLMessage::glInvalidateFramebuffer;
+const GLMessage_Function GLMessage::glInvalidateSubFramebuffer;
+const GLMessage_Function GLMessage::glTexStorage2D;
+const GLMessage_Function GLMessage::glTexStorage3D;
+const GLMessage_Function GLMessage::glGetInternalformativ;
 const GLMessage_Function GLMessage::glActiveShaderProgramEXT;
 const GLMessage_Function GLMessage::glAlphaFuncQCOM;
 const GLMessage_Function GLMessage::glBeginQueryEXT;
@@ -1032,6 +1240,7 @@ bool GLMessage_DataType_Type_IsValid(int value) {
     case 5:
     case 6:
     case 7:
+    case 8:
       return true;
     default:
       return false;
@@ -1046,6 +1255,7 @@ const GLMessage_DataType_Type GLMessage_DataType::INT;
 const GLMessage_DataType_Type GLMessage_DataType::FLOAT;
 const GLMessage_DataType_Type GLMessage_DataType::BOOL;
 const GLMessage_DataType_Type GLMessage_DataType::ENUM;
+const GLMessage_DataType_Type GLMessage_DataType::INT64;
 const GLMessage_DataType_Type GLMessage_DataType::Type_MIN;
 const GLMessage_DataType_Type GLMessage_DataType::Type_MAX;
 const int GLMessage_DataType::Type_ARRAYSIZE;
@@ -1058,6 +1268,7 @@ const int GLMessage_DataType::kFloatValueFieldNumber;
 const int GLMessage_DataType::kCharValueFieldNumber;
 const int GLMessage_DataType::kRawBytesFieldNumber;
 const int GLMessage_DataType::kBoolValueFieldNumber;
+const int GLMessage_DataType::kInt64ValueFieldNumber;
 #endif  // !_MSC_VER
 
 GLMessage_DataType::GLMessage_DataType()
@@ -1115,6 +1326,7 @@ void GLMessage_DataType::Clear() {
   charvalue_.Clear();
   rawbytes_.Clear();
   boolvalue_.Clear();
+  int64value_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1250,6 +1462,28 @@ bool GLMessage_DataType::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(56)) goto parse_boolValue;
+        if (input->ExpectTag(64)) goto parse_int64Value;
+        break;
+      }
+      
+      // repeated int64 int64Value = 8;
+      case 8: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_int64Value:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
+                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
+                 1, 64, input, this->mutable_int64value())));
+        } else if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag)
+                   == ::google::protobuf::internal::WireFormatLite::
+                      WIRETYPE_LENGTH_DELIMITED) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
+                   ::google::protobuf::int64, ::google::protobuf::internal::WireFormatLite::TYPE_INT64>(
+                 input, this->mutable_int64value())));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(64)) goto parse_int64Value;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1312,6 +1546,12 @@ void GLMessage_DataType::SerializeWithCachedSizes(
       7, this->boolvalue(i), output);
   }
   
+  // repeated int64 int64Value = 8;
+  for (int i = 0; i < this->int64value_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt64(
+      8, this->int64value(i), output);
+  }
+  
 }
 
 int GLMessage_DataType::ByteSize() const {
@@ -1368,6 +1608,16 @@ int GLMessage_DataType::ByteSize() const {
     total_size += 1 * this->boolvalue_size() + data_size;
   }
   
+  // repeated int64 int64Value = 8;
+  {
+    int data_size = 0;
+    for (int i = 0; i < this->int64value_size(); i++) {
+      data_size += ::google::protobuf::internal::WireFormatLite::
+        Int64Size(this->int64value(i));
+    }
+    total_size += 1 * this->int64value_size() + data_size;
+  }
+  
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -1386,6 +1636,7 @@ void GLMessage_DataType::MergeFrom(const GLMessage_DataType& from) {
   charvalue_.MergeFrom(from.charvalue_);
   rawbytes_.MergeFrom(from.rawbytes_);
   boolvalue_.MergeFrom(from.boolvalue_);
+  int64value_.MergeFrom(from.int64value_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from._has_bit(0)) {
       set_type(from.type());
@@ -1417,6 +1668,7 @@ void GLMessage_DataType::Swap(GLMessage_DataType* other) {
     charvalue_.Swap(&other->charvalue_);
     rawbytes_.Swap(&other->rawbytes_);
     boolvalue_.Swap(&other->boolvalue_);
+    int64value_.Swap(&other->int64value_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     std::swap(_cached_size_, other->_cached_size_);
   }

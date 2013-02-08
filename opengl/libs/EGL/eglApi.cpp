@@ -1,16 +1,16 @@
-/* 
+/*
  ** Copyright 2007, The Android Open Source Project
  **
- ** Licensed under the Apache License, Version 2.0 (the "License"); 
- ** you may not use this file except in compliance with the License. 
- ** You may obtain a copy of the License at 
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
  **
- **     http://www.apache.org/licenses/LICENSE-2.0 
+ **     http://www.apache.org/licenses/LICENSE-2.0
  **
- ** Unless required by applicable law or agreed to in writing, software 
- ** distributed under the License is distributed on an "AS IS" BASIS, 
- ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- ** See the License for the specific language governing permissions and 
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
 
@@ -25,8 +25,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
@@ -154,7 +152,7 @@ EGLBoolean eglTerminate(EGLDisplay dpy)
     if (!dp) return setError(EGL_BAD_DISPLAY, EGL_FALSE);
 
     EGLBoolean res = dp->terminate();
-    
+
     return res;
 }
 
@@ -235,7 +233,7 @@ EGLBoolean eglChooseConfig( EGLDisplay dpy, const EGLint *attrib_list,
 
                 if (attribRendererable && attribRendererable[1] == EGL_OPENGL_ES2_BIT &&
                         (!attribCaveat || attribCaveat[1] != EGL_NONE)) {
-    
+
                     // Insert 2 extra attributes to force-enable MSAA 4x
                     EGLint aaAttribs[attribCount + 4];
                     aaAttribs[0] = EGL_SAMPLE_BUFFERS;
@@ -272,7 +270,7 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig config,
     egl_connection_t* cnx = NULL;
     const egl_display_ptr dp = validate_display_connection(dpy, cnx);
     if (!dp) return EGL_FALSE;
-    
+
     return cnx->egl.eglGetConfigAttrib(
             dp->disp.dpy, config, attribute, value);
 }
@@ -371,7 +369,7 @@ EGLSurface eglCreatePbufferSurface( EGLDisplay dpy, EGLConfig config,
     }
     return EGL_NO_SURFACE;
 }
-                                    
+
 EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface surface)
 {
     clearError();
@@ -457,7 +455,7 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
                     if (attr == EGL_CONTEXT_CLIENT_VERSION) {
                         if (value == 1) {
                             version = egl_connection_t::GLESv1_INDEX;
-                        } else if (value == 2) {
+                        } else if (value == 2 || value == 3) {
                             version = egl_connection_t::GLESv2_INDEX;
                         }
                     }
@@ -492,7 +490,7 @@ EGLBoolean eglDestroyContext(EGLDisplay dpy, EGLContext ctx)
     ContextRef _c(dp.get(), ctx);
     if (!_c.get())
         return setError(EGL_BAD_CONTEXT, EGL_FALSE);
-    
+
     egl_context_t * const c = get_context(ctx);
     EGLBoolean result = c->cnx->egl.eglDestroyContext(dp->disp.dpy, c->context);
     if (result == EGL_TRUE) {
@@ -540,7 +538,7 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
 
     // these are the current objects structs
     egl_context_t * cur_c = get_context(getContext());
-    
+
     if (ctx != EGL_NO_CONTEXT) {
         c = get_context(ctx);
         impl_ctx = c->context;
@@ -638,7 +636,7 @@ EGLSurface eglGetCurrentSurface(EGLint readdraw)
         if (!c) return setError(EGL_BAD_CONTEXT, EGL_NO_SURFACE);
         switch (readdraw) {
             case EGL_READ: return c->read;
-            case EGL_DRAW: return c->draw;            
+            case EGL_DRAW: return c->draw;
             default: return setError(EGL_BAD_PARAMETER, EGL_NO_SURFACE);
         }
     }
