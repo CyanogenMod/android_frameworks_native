@@ -216,7 +216,7 @@ static void dumpstate() {
     run_command("VOLD DUMP", 10, "vdc", "dump", NULL);
     run_command("SECURE CONTAINERS", 10, "vdc", "asec", "list", NULL);
 
-    run_command("FILESYSTEMS & FREE SPACE", 10, SU_PATH, "root", "df", NULL);
+    run_command("FILESYSTEMS & FREE SPACE", 10, "df", NULL);
 
     run_command("PACKAGE SETTINGS", 20, SU_PATH, "root", "cat", "/data/system/packages.xml", NULL);
     dump_file("PACKAGE UID ERRORS", "/data/system/uiderrors.txt");
