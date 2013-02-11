@@ -93,6 +93,7 @@ SurfaceFlinger::SurfaceFlinger()
         mBootTime(systemTime()),
         mVisibleRegionsDirty(false),
         mHwWorkListDirty(false),
+        mAnimCompositionPending(false),
         mDebugRegion(0),
         mDebugDDMS(0),
         mDebugDisableHWC(0),
@@ -885,6 +886,22 @@ void SurfaceFlinger::postComposition()
     for (size_t i=0 ; i<count ; i++) {
         currentLayers[i]->onPostComposition();
     }
+
+    if (mAnimCompositionPending) {
+        mAnimCompositionPending = false;
+
+        const HWComposer& hwc = getHwComposer();
+        sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
+        if (presentFence != NULL) {
+            mAnimFrameTracker.setActualPresentFence(presentFence);
+        } else {
+            // The HWC doesn't support present fences, so use the refresh
+            // timestamp instead.
+            nsecs_t presentTime = hwc.getRefreshTimestamp(HWC_DISPLAY_PRIMARY);
+            mAnimFrameTracker.setActualPresentTime(presentTime);
+        }
+        mAnimFrameTracker.advanceFrame();
+    }
 }
 
 void SurfaceFlinger::rebuildLayerStacks() {
@@ -1300,6 +1317,10 @@ void SurfaceFlinger::commitTransaction()
         }
         mLayersPendingRemoval.clear();
     }
+
+    // If this transaction is part of a window animation then the next frame
+    // we composite should be considered an animation as well.
+    mAnimCompositionPending = mAnimTransactionPending;
 
     mDrawingState = mCurrentState;
     mTransactionPending = false;
@@ -2264,22 +2285,26 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
         index++;
     }
 
-    const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
-    const size_t count = currentLayers.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
-        if (name.isEmpty()) {
-            snprintf(buffer, SIZE, "%s\n", layer->getName().string());
-            result.append(buffer);
-        }
-        if (name.isEmpty() || (name == layer->getName())) {
-            layer->dumpStats(result, buffer, SIZE);
+    const nsecs_t period =
+            getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+    result.appendFormat("%lld\n", period);
+
+    if (name.isEmpty()) {
+        mAnimFrameTracker.dump(result);
+    } else {
+        const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
+        const size_t count = currentLayers.size();
+        for (size_t i=0 ; i<count ; i++) {
+            const sp<LayerBase>& layer(currentLayers[i]);
+            if (name == layer->getName()) {
+                layer->dumpStats(result, buffer, SIZE);
+            }
         }
     }
 }
 
 void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const
+        String8& result, char* buffer, size_t SIZE)
 {
     String8 name;
     if (index < args.size()) {
@@ -2295,6 +2320,8 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
             layer->clearStats();
         }
     }
+
+    mAnimFrameTracker.clear();
 }
 
 /*static*/ void SurfaceFlinger::appendSfConfigString(String8& result)

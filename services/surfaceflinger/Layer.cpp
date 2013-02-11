@@ -536,9 +536,6 @@ void Layer::onPostComposition() {
 
         const HWComposer& hwc = mFlinger->getHwComposer();
         sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
-        // XXX: Temporarily don't use the present fence from HWC to work
-        // around a driver bug.
-        presentFence.clear();
         if (presentFence != NULL) {
             mFrameTracker.setActualPresentFence(presentFence);
         } else {
@@ -757,9 +754,6 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBaseClient::dumpStats(result, buffer, SIZE);
-    const nsecs_t period =
-            mFlinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
-    result.appendFormat("%lld\n", period);
     mFrameTracker.dump(result);
 }
 

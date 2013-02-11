@@ -45,8 +45,9 @@
 #include <private/gui/LayerState.h>
 
 #include "Barrier.h"
-#include "MessageQueue.h"
 #include "DisplayDevice.h"
+#include "FrameTracker.h"
+#include "MessageQueue.h"
 
 #include "DisplayHardware/HWComposer.h"
 
@@ -390,7 +391,7 @@ private:
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
         String8& result, char* buffer, size_t SIZE) const;
     void clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const;
+        String8& result, char* buffer, size_t SIZE);
     void dumpAllLocked(String8& result, char* buffer, size_t SIZE) const;
     bool startDdmConnection();
     static void appendSfConfigString(String8& result);
@@ -432,6 +433,7 @@ private:
     State mDrawingState;
     bool mVisibleRegionsDirty;
     bool mHwWorkListDirty;
+    bool mAnimCompositionPending;
 
     // this may only be written from the main thread with mStateLock held
     // it may be read from other threads with mStateLock held
@@ -451,6 +453,7 @@ private:
     // these are thread safe
     mutable MessageQueue mEventQueue;
     mutable Barrier mReadyToRunBarrier;
+    FrameTracker mAnimFrameTracker;
 
     // protected by mDestroyedLayerLock;
     mutable Mutex mDestroyedLayerLock;
