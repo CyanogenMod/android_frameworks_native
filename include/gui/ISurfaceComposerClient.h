@@ -54,24 +54,17 @@ public:
         eFXSurfaceMask      = 0x000F0000,
     };
 
-    struct surface_data_t {
-        int32_t token;
-        int32_t identity;
-        status_t readFromParcel(const Parcel& parcel);
-        status_t writeToParcel(Parcel* parcel) const;
-    };
-
     /*
      * Requires ACCESS_SURFACE_FLINGER permission
      */
-    virtual sp<ISurface> createSurface(surface_data_t* data,
+    virtual sp<ISurface> createSurface(
             const String8& name, uint32_t w, uint32_t h,
             PixelFormat format, uint32_t flags) = 0;
 
     /*
      * Requires ACCESS_SURFACE_FLINGER permission
      */
-    virtual status_t destroySurface(SurfaceID sid) = 0;
+    virtual status_t destroySurface(const sp<IBinder>& handle) = 0;
 };
 
 // ----------------------------------------------------------------------------

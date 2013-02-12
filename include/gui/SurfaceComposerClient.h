@@ -108,18 +108,18 @@ public:
     //! Flag the currently open transaction as an animation transaction.
     static void setAnimationTransaction();
 
-    status_t    hide(SurfaceID id);
-    status_t    show(SurfaceID id);
-    status_t    setFlags(SurfaceID id, uint32_t flags, uint32_t mask);
-    status_t    setTransparentRegionHint(SurfaceID id, const Region& transparent);
-    status_t    setLayer(SurfaceID id, int32_t layer);
-    status_t    setAlpha(SurfaceID id, float alpha=1.0f);
-    status_t    setMatrix(SurfaceID id, float dsdx, float dtdx, float dsdy, float dtdy);
-    status_t    setPosition(SurfaceID id, float x, float y);
-    status_t    setSize(SurfaceID id, uint32_t w, uint32_t h);
-    status_t    setCrop(SurfaceID id, const Rect& crop);
-    status_t    setLayerStack(SurfaceID id, uint32_t layerStack);
-    status_t    destroySurface(SurfaceID sid);
+    status_t    hide(const sp<IBinder>& id);
+    status_t    show(const sp<IBinder>& id);
+    status_t    setFlags(const sp<IBinder>& id, uint32_t flags, uint32_t mask);
+    status_t    setTransparentRegionHint(const sp<IBinder>& id, const Region& transparent);
+    status_t    setLayer(const sp<IBinder>& id, int32_t layer);
+    status_t    setAlpha(const sp<IBinder>& id, float alpha=1.0f);
+    status_t    setMatrix(const sp<IBinder>& id, float dsdx, float dtdx, float dsdy, float dtdy);
+    status_t    setPosition(const sp<IBinder>& id, float x, float y);
+    status_t    setSize(const sp<IBinder>& id, uint32_t w, uint32_t h);
+    status_t    setCrop(const sp<IBinder>& id, const Rect& crop);
+    status_t    setLayerStack(const sp<IBinder>& id, uint32_t layerStack);
+    status_t    destroySurface(const sp<IBinder>& id);
 
     static void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);

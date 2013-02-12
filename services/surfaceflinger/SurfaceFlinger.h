@@ -267,8 +267,7 @@ private:
     /* ------------------------------------------------------------------------
      * Layer management
      */
-    sp<ISurface> createLayer(ISurfaceComposerClient::surface_data_t* params,
-            const String8& name, const sp<Client>& client,
+    sp<ISurface> createLayer(const String8& name, const sp<Client>& client,
             uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
 
     sp<Layer> createNormalLayer(const sp<Client>& client,
@@ -284,7 +283,7 @@ private:
     // ISurfaceComposerClient::destroySurface()
     // The specified layer is first placed in a purgatory list
     // until all references from the client are released.
-    status_t onLayerRemoved(const sp<Client>& client, SurfaceID sid);
+    status_t onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle);
 
     // called when all clients have released all their references to
     // this layer meaning it is entirely safe to destroy all
@@ -295,7 +294,7 @@ private:
     status_t removeLayer(const sp<LayerBase>& layer);
 
     // add a layer to SurfaceFlinger
-    ssize_t addClientLayer(const sp<Client>& client,
+    void addClientLayer(const sp<Client>& client, const sp<IBinder>& handle,
         const sp<LayerBaseClient>& lbc);
 
     status_t removeLayer_l(const sp<LayerBase>& layer);

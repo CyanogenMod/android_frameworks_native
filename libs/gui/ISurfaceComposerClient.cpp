@@ -50,8 +50,7 @@ public:
     {
     }
 
-    virtual sp<ISurface> createSurface( surface_data_t* params,
-                                        const String8& name,
+    virtual sp<ISurface> createSurface( const String8& name,
                                         uint32_t w,
                                         uint32_t h,
                                         PixelFormat format,
@@ -65,15 +64,14 @@ public:
         data.writeInt32(format);
         data.writeInt32(flags);
         remote()->transact(CREATE_SURFACE, data, &reply);
-        params->readFromParcel(reply);
         return interface_cast<ISurface>(reply.readStrongBinder());
     }
 
-    virtual status_t destroySurface(SurfaceID sid)
+    virtual status_t destroySurface(const sp<IBinder>& handle)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
-        data.writeInt32(sid);
+        data.writeStrongBinder(handle);
         remote()->transact(DESTROY_SURFACE, data, &reply);
         return reply.readInt32();
     }
@@ -89,42 +87,23 @@ status_t BnSurfaceComposerClient::onTransact(
      switch(code) {
         case CREATE_SURFACE: {
             CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
-            surface_data_t params;
             String8 name = data.readString8();
             uint32_t w = data.readInt32();
             uint32_t h = data.readInt32();
             PixelFormat format = data.readInt32();
             uint32_t flags = data.readInt32();
-            sp<ISurface> s = createSurface(&params, name, w, h,
-                    format, flags);
-            params.writeToParcel(reply);
+            sp<ISurface> s = createSurface(name, w, h, format, flags);
             reply->writeStrongBinder(s->asBinder());
             return NO_ERROR;
         } break;
         case DESTROY_SURFACE: {
             CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
-            reply->writeInt32( destroySurface( data.readInt32() ) );
+            reply->writeInt32( destroySurface( data.readStrongBinder() ) );
             return NO_ERROR;
         } break;
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }
-}
-
-// ----------------------------------------------------------------------
-
-status_t ISurfaceComposerClient::surface_data_t::readFromParcel(const Parcel& parcel)
-{
-    token    = parcel.readInt32();
-    identity = parcel.readInt32();
-    return NO_ERROR;
-}
-
-status_t ISurfaceComposerClient::surface_data_t::writeToParcel(Parcel* parcel) const
-{
-    parcel->writeInt32(token);
-    parcel->writeInt32(identity);
-    return NO_ERROR;
 }
 
 }; // namespace android

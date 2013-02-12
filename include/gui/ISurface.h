@@ -29,8 +29,6 @@
 
 namespace android {
 
-typedef int32_t    SurfaceID;
-
 class IGraphicBufferProducer;
 
 class ISurface : public IInterface
