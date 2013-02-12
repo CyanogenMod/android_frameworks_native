@@ -14,8 +14,11 @@
 
 # we have the common sources, plus some device-specific stuff
 sources := \
+    AppOpsManager.cpp \
     Binder.cpp \
     BpBinder.cpp \
+    IAppOpsCallback.cpp \
+    IAppOpsService.cpp \
     IInterface.cpp \
     IMemory.cpp \
     IPCThreadState.cpp \
