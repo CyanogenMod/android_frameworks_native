@@ -1000,6 +1000,9 @@ public:
         getLayer()->visibleRegionScreen.numRects = 0;
         getLayer()->visibleRegionScreen.rects = NULL;
     }
+    virtual void setPerFrameDefaultState() {
+        //getLayer()->compositionType = HWC_FRAMEBUFFER;
+    }
     virtual void setSkip(bool skip) {
         if (skip) {
             getLayer()->flags |= HWC_SKIP_LAYER;
@@ -1073,7 +1076,9 @@ public:
     virtual void setAcquireFenceFd(int fenceFd) {
         getLayer()->acquireFenceFd = fenceFd;
     }
-
+    virtual void setPerFrameDefaultState() {
+        //getLayer()->compositionType = HWC_FRAMEBUFFER;
+    }
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
         getLayer()->hints = 0;

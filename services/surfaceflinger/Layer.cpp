@@ -110,7 +110,8 @@ void Layer::onFirstRef()
     mSurfaceTexture->setDefaultMaxBufferCount(3);
 #endif
 
-    updateTransformHint();
+    const sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
+    updateTransformHint(hw);
 }
 
 Layer::~Layer()
@@ -767,15 +768,12 @@ uint32_t Layer::getEffectiveUsage(uint32_t usage) const
     return usage;
 }
 
-void Layer::updateTransformHint() const {
+void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
     uint32_t orientation = 0;
     if (!mFlinger->mDebugDisableTransformHint) {
-        // The transform hint is used to improve performance on the main
-        // display -- we can only have a single transform hint, it cannot
+        // The transform hint is used to improve performance, but we can
+        // only have a single transform hint, it cannot
         // apply to all displays.
-        // This is why we use the default display here. This is not an
-        // oversight.
-        sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
         const Transform& planeTransform(hw->getTransform());
         orientation = planeTransform.getOrientation();
         if (orientation & Transform::ROT_INVALID) {

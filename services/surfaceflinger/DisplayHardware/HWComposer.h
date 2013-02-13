@@ -141,6 +141,7 @@ public:
         virtual int32_t getCompositionType() const = 0;
         virtual uint32_t getHints() const = 0;
         virtual int getAndResetReleaseFenceFd() = 0;
+        virtual void setPerFrameDefaultState() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
         virtual void setBlending(uint32_t blending) = 0;

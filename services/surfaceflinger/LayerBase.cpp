@@ -300,6 +300,7 @@ void LayerBase::setGeometry(
 
 void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
+    layer.setPerFrameDefaultState();
     // we have to set the visible region on every frame because
     // we currently free it during onLayerDisplayed(), which is called
     // after HWComposer::commit() -- every frame.

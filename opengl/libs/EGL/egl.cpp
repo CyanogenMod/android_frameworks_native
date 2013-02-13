@@ -124,6 +124,12 @@ void initEglTraceLevel() {
 void initEglDebugLevel() {
     int propertyLevel = 0;
     char value[PROPERTY_VALUE_MAX];
+
+    // check system property only on userdebug or eng builds
+    property_get("ro.debuggable", value, "0");
+    if (value[0] == '0')
+        return;
+
     property_get("debug.egl.debug_proc", value, "");
     if (strlen(value) > 0) {
         long pid = getpid();

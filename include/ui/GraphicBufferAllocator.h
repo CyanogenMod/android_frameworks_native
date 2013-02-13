@@ -87,6 +87,7 @@ private:
     static KeyedVector<buffer_handle_t, alloc_rec_t> sAllocList;
     
     friend class Singleton<GraphicBufferAllocator>;
+    friend class BufferLiberatorThread;
     GraphicBufferAllocator();
     ~GraphicBufferAllocator();
     
