@@ -216,7 +216,7 @@ int SurfaceTextureClient::dequeueBuffer(android_native_buffer_t** buffer,
         }
     }
 
-    if (fence.get()) {
+    if (fence->isValid()) {
         *fenceFd = fence->dup();
         if (*fenceFd == -1) {
             ALOGE("dequeueBuffer: error duping fence: %d", errno);
@@ -241,7 +241,7 @@ int SurfaceTextureClient::cancelBuffer(android_native_buffer_t* buffer,
     if (i < 0) {
         return i;
     }
-    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : NULL);
+    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     mSurfaceTexture->cancelBuffer(i, fence);
     return OK;
 }
@@ -287,7 +287,7 @@ int SurfaceTextureClient::queueBuffer(android_native_buffer_t* buffer, int fence
     Rect crop;
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
-    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : NULL);
+    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, crop, mScalingMode,
             mTransform, fence);

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <ui/Fence.h>
-
 #include <ui/DisplayInfo.h>
 #include <gui/SurfaceComposerClient.h>
 

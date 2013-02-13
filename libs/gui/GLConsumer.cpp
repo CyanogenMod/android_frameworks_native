@@ -117,6 +117,7 @@ GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
         GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
     ConsumerBase(bufferQueue == 0 ? new BufferQueue(allowSynchronousMode) : bufferQueue),
     mCurrentTransform(0),
+    mCurrentFence(Fence::NO_FENCE),
     mCurrentTimestamp(0),
     mFilteringEnabled(true),
     mTexName(tex),
@@ -823,7 +824,7 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
         return INVALID_OPERATION;
     }
 
-    if (mCurrentFence != NULL) {
+    if (mCurrentFence->isValid()) {
         if (useWaitSync) {
             // Create an EGLSyncKHR from the current fence.
             int fenceFd = mCurrentFence->dup();

@@ -84,7 +84,7 @@ ConsumerBase::~ConsumerBase() {
 void ConsumerBase::freeBufferLocked(int slotIndex) {
     CB_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     mSlots[slotIndex].mGraphicBuffer = 0;
-    mSlots[slotIndex].mFence = 0;
+    mSlots[slotIndex].mFence = Fence::NO_FENCE;
 }
 
 // Used for refactoring, should not be in final interface
@@ -228,7 +228,7 @@ status_t ConsumerBase::releaseBufferLocked(int slot, EGLDisplay display,
         freeBufferLocked(slot);
     }
 
-    mSlots[slot].mFence.clear();
+    mSlots[slot].mFence = Fence::NO_FENCE;
 
     return err;
 }

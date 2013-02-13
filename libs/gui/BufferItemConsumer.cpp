@@ -62,7 +62,7 @@ status_t BufferItemConsumer::acquireBuffer(BufferItem *item, bool waitForFence) 
         return err;
     }
 
-    if (waitForFence && item->mFence.get()) {
+    if (waitForFence) {
         err = item->mFence->waitForever(1000, "BufferItemConsumer::acquireBuffer");
         if (err != OK) {
             BI_LOGE("Failed to wait for fence of acquired buffer: %s (%d)",

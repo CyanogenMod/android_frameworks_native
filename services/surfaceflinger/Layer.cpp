@@ -298,7 +298,7 @@ void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
 
     if (layer.getCompositionType() == HWC_OVERLAY) {
         sp<Fence> fence = mSurfaceFlingerConsumer->getCurrentFence();
-        if (fence.get()) {
+        if (fence->isValid()) {
             fenceFd = fence->dup();
             if (fenceFd == -1) {
                 ALOGW("failed to dup layer fence, skipping sync: %d", errno);

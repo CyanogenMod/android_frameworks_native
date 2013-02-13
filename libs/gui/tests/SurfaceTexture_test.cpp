@@ -202,7 +202,6 @@ protected:
             while ((err = glGetError()) != GL_NO_ERROR) {
                 msg += String8::format(", %#x", err);
             }
-            fprintf(stderr, "pixel check failure: %s\n", msg.string());
             return ::testing::AssertionFailure(
                     ::testing::Message(msg.string()));
         }
@@ -228,7 +227,6 @@ protected:
             msg += String8::format("a(%d isn't %d)", pixel[3], a);
         }
         if (!msg.isEmpty()) {
-            fprintf(stderr, "pixel check failure: %s\n", msg.string());
             return ::testing::AssertionFailure(
                     ::testing::Message(msg.string()));
         } else {
