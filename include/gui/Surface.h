@@ -31,8 +31,6 @@
 #include <gui/ISurface.h>
 #include <gui/ISurfaceComposerClient.h>
 
-#define ANDROID_VIEW_SURFACE_JNI_ID    "mNativeSurface"
-
 namespace android {
 
 // ---------------------------------------------------------------------------

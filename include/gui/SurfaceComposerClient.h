@@ -21,6 +21,7 @@
 #include <sys/types.h>
 
 #include <binder/IBinder.h>
+#include <binder/IMemory.h>
 
 #include <utils/RefBase.h>
 #include <utils/Singleton.h>
