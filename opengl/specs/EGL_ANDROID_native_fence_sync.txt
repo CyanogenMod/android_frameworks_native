@@ -100,10 +100,10 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
       EGL_SYNC_TYPE_KHR                  EGL_SYNC_NATIVE_FENCE_ANDROID
       EGL_SYNC_STATUS_KHR                EGL_UNSIGNALED_KHR
       EGL_SYNC_CONDITION_KHR             EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR
-      EGL_SYNC_NATIVE_FENCE_FD_ANDROID   EGL_NO_NATIVE_FENCE_ANDROID
+      EGL_SYNC_NATIVE_FENCE_FD_ANDROID   EGL_NO_NATIVE_FENCE_FD_ANDROID
 
     If the EGL_SYNC_NATIVE_FENCE_FD_ANDROID attribute is not
-    EGL_NO_NATIVE_FENCE_ANDROID then the EGL_SYNC_CONDITION_KHR attribute is
+    EGL_NO_NATIVE_FENCE_FD_ANDROID then the EGL_SYNC_CONDITION_KHR attribute is
     set to EGL_SYNC_NATIVE_FENCE_SIGNALED_ANDROID and the EGL_SYNC_STATUS_KHR
     attribute is set to reflect the signal status of the native fence object.
     Additionally, the EGL implementation assumes ownership of the file
@@ -114,7 +114,7 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
 
     "When a fence sync object is created or when an EGL native fence sync
     object is created with the EGL_SYNC_NATIVE_FENCE_FD_ANDROID attribute set
-    to EGL_NO_NATIVE_FENCE_ANDROID, eglCreateSyncKHR also inserts a fence
+    to EGL_NO_NATIVE_FENCE_FD_ANDROID, eglCreateSyncKHR also inserts a fence
     command into the command stream of the bound client API's current context
     (i.e., the context returned by eglGetCurrentContext), and associates it
     with the newly created sync object.
@@ -157,8 +157,9 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
         empty (containing only EGL_NONE), EGL_NO_SYNC_KHR is returned and an
         EGL_BAD_ATTRIBUTE error is generated.
       * If <type> is EGL_SYNC_NATIVE_FENCE_ANDROID and <attrib_list> contains
-        an attribute other than EGL_SYNC_NATIVE_FENCE_FD_ANDROID, EGL_NO_SYNC_KHR is
-        returned and an EGL_BAD_ATTRIBUTE error is generated.
+        an attribute other than EGL_SYNC_NATIVE_FENCE_FD_ANDROID,
+        EGL_NO_SYNC_KHR is returned and an EGL_BAD_ATTRIBUTE error is
+        generated.
       * If <type> is not a supported type of sync object,
         EGL_NO_SYNC_KHR is returned and an EGL_BAD_ATTRIBUTE error is
         generated.
@@ -193,8 +194,8 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     "If no errors are generated, EGL_TRUE is returned, and <sync> will no
     longer be the handle of a valid sync object.  Additionally, if <sync> is an
     EGL native fence sync object and the EGL_SYNC_NATIVE_FENCE_FD_ANDROID
-    attribute is not EGL_NO_NATIVE_FENCE_ANDROID then that file descriptor is
-    closed."
+    attribute is not EGL_NO_NATIVE_FENCE_FD_ANDROID then that file descriptor
+    is closed."
 
     Add the following after the last paragraph of Section 3.8.1 (Sync
     Objects), added by KHR_fence_sync
@@ -213,11 +214,11 @@ Changes to Chapter 3 of the EGL 1.2 Specification (EGL Functions and Errors)
     ------
 
       * If <sync> is not a valid sync object for <dpy>,
-        EGL_NO_NATIVE_FENCE_ANDROID is returned and an EGL_BAD_PARAMETER
+        EGL_NO_NATIVE_FENCE_FD_ANDROID is returned and an EGL_BAD_PARAMETER
         error is generated.
       * If the EGL_SYNC_NATIVE_FENCE_FD_ANDROID attribute of <sync> is
-        EGL_NO_NATIVE_FENCE_ANDROID, EGL_NO_NATIVE_FENCE_ANDROID is returned
-        and an EGL_BAD_PARAMETER error is generated.
+        EGL_NO_NATIVE_FENCE_FD_ANDROID, EGL_NO_NATIVE_FENCE_FD_ANDROID is
+        returned and an EGL_BAD_PARAMETER error is generated.
       * If <dpy> does not match the display passed to eglCreateSyncKHR
         when <sync> was created, the behaviour is undefined."
 

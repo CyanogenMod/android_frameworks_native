@@ -1073,7 +1073,9 @@ public:
     virtual void setAcquireFenceFd(int fenceFd) {
         getLayer()->acquireFenceFd = fenceFd;
     }
-
+    virtual void setPerFrameDefaultState() {
+        //getLayer()->compositionType = HWC_FRAMEBUFFER;
+    }
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
         getLayer()->hints = 0;
