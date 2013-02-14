@@ -1682,17 +1682,16 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
     }
 }
 
-ssize_t SurfaceFlinger::addClientLayer(const sp<Client>& client,
+void SurfaceFlinger::addClientLayer(const sp<Client>& client,
+        const sp<IBinder>& handle,
         const sp<LayerBaseClient>& lbc)
 {
     // attach this layer to the client
-    size_t name = client->attachLayer(lbc);
+    client->attachLayer(handle, lbc);
 
     // add this layer to the current state list
     Mutex::Autolock _l(mStateLock);
     mCurrentState.layersSortedByZ.add(lbc);
-
-    return ssize_t(name);
 }
 
 status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
@@ -1933,10 +1932,9 @@ uint32_t SurfaceFlinger::setClientStateLocked(
 }
 
 sp<ISurface> SurfaceFlinger::createLayer(
-        ISurfaceComposerClient::surface_data_t* params,
         const String8& name,
         const sp<Client>& client,
-       uint32_t w, uint32_t h, PixelFormat format,
+        uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
 {
     sp<LayerBaseClient> layer;
@@ -1965,11 +1963,9 @@ sp<ISurface> SurfaceFlinger::createLayer(
     if (layer != 0) {
         layer->initStates(w, h, flags);
         layer->setName(name);
-        ssize_t token = addClientLayer(client, layer);
         surfaceHandle = layer->getSurface();
         if (surfaceHandle != 0) {
-            params->token = token;
-            params->identity = layer->getIdentity();
+            addClientLayer(client, surfaceHandle->asBinder(), layer);
         }
         setTransactionFlags(eTransactionNeeded);
     }
@@ -2027,7 +2023,7 @@ sp<LayerScreenshot> SurfaceFlinger::createScreenshotLayer(
     return layer;
 }
 
-status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, SurfaceID sid)
+status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle)
 {
     /*
      * called by the window manager, when a surface should be marked for
@@ -2040,7 +2036,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, SurfaceID sid)
 
     status_t err = NAME_NOT_FOUND;
     Mutex::Autolock _l(mStateLock);
-    sp<LayerBaseClient> layer = client->getLayerUser(sid);
+    sp<LayerBaseClient> layer = client->getLayerUser(handle);
 
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);

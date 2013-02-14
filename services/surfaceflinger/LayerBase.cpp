@@ -483,14 +483,11 @@ sp<Layer> LayerBase::getLayer() const {
 
 // ---------------------------------------------------------------------------
 
-int32_t LayerBaseClient::sIdentity = 1;
-
 LayerBaseClient::LayerBaseClient(SurfaceFlinger* flinger,
         const sp<Client>& client)
     : LayerBase(flinger),
       mHasSurface(false),
-      mClientRef(client),
-      mIdentity(uint32_t(android_atomic_inc(&sIdentity)))
+      mClientRef(client)
 {
 }
 
@@ -540,12 +537,8 @@ wp<IBinder> LayerBaseClient::getSurfaceTextureBinder() const {
 void LayerBaseClient::dump(String8& result, char* buffer, size_t SIZE) const
 {
     LayerBase::dump(result, buffer, SIZE);
-
     sp<Client> client(mClientRef.promote());
-    snprintf(buffer, SIZE,
-            "      client=%p, identity=%u\n",
-            client.get(), getIdentity());
-
+    snprintf(buffer, SIZE, "      client=%p\n", client.get());
     result.append(buffer);
 }
 

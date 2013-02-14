@@ -48,11 +48,12 @@ namespace android {
 
 SurfaceControl::SurfaceControl(
         const sp<SurfaceComposerClient>& client, 
-        const sp<ISurface>& surface,
-        const ISurfaceComposerClient::surface_data_t& data)
-    : mClient(client), mSurface(surface),
-      mToken(data.token), mIdentity(data.identity)
+        const sp<ISurface>& surface)
+    : mClient(client)
 {
+    if (surface != 0) {
+        mSurface = surface->asBinder();
+    }
 }
         
 SurfaceControl::~SurfaceControl()
@@ -63,9 +64,8 @@ SurfaceControl::~SurfaceControl()
 void SurfaceControl::destroy()
 {
     if (isValid()) {
-        mClient->destroySurface(mToken);
+        mClient->destroySurface(mSurface);
     }
-
     // clear all references and trigger an IPC now, to make sure things
     // happen without delay, since these resources are quite heavy.
     mClient.clear();
@@ -89,81 +89,81 @@ bool SurfaceControl::isSameSurface(
 {
     if (lhs == 0 || rhs == 0)
         return false;
-    return lhs->mSurface->asBinder() == rhs->mSurface->asBinder();
+    return lhs->mSurface == rhs->mSurface;
 }
 
 status_t SurfaceControl::setLayerStack(int32_t layerStack) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayerStack(mToken, layerStack);
+    return client->setLayerStack(mSurface, layerStack);
 }
 status_t SurfaceControl::setLayer(int32_t layer) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayer(mToken, layer);
+    return client->setLayer(mSurface, layer);
 }
 status_t SurfaceControl::setPosition(int32_t x, int32_t y) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setPosition(mToken, x, y);
+    return client->setPosition(mSurface, x, y);
 }
 status_t SurfaceControl::setSize(uint32_t w, uint32_t h) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setSize(mToken, w, h);
+    return client->setSize(mSurface, w, h);
 }
 status_t SurfaceControl::hide() {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->hide(mToken);
+    return client->hide(mSurface);
 }
 status_t SurfaceControl::show() {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->show(mToken);
+    return client->show(mSurface);
 }
 status_t SurfaceControl::setFlags(uint32_t flags, uint32_t mask) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setFlags(mToken, flags, mask);
+    return client->setFlags(mSurface, flags, mask);
 }
 status_t SurfaceControl::setTransparentRegionHint(const Region& transparent) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setTransparentRegionHint(mToken, transparent);
+    return client->setTransparentRegionHint(mSurface, transparent);
 }
 status_t SurfaceControl::setAlpha(float alpha) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setAlpha(mToken, alpha);
+    return client->setAlpha(mSurface, alpha);
 }
 status_t SurfaceControl::setMatrix(float dsdx, float dtdx, float dsdy, float dtdy) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setMatrix(mToken, dsdx, dtdx, dsdy, dtdy);
+    return client->setMatrix(mSurface, dsdx, dtdx, dsdy, dtdy);
 }
 status_t SurfaceControl::setCrop(const Rect& crop) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setCrop(mToken, crop);
+    return client->setCrop(mSurface, crop);
 }
 
 status_t SurfaceControl::validate() const
 {
-    if (mToken<0 || mClient==0) {
-        ALOGE("invalid token (%d, identity=%u) or client (%p)", 
-                mToken, mIdentity, mClient.get());
+    if (mSurface==0 || mClient==0) {
+        ALOGE("invalid ISurface (%p) or client (%p)",
+                mSurface.get(), mClient.get());
         return NO_INIT;
     }
     return NO_ERROR;
@@ -172,15 +172,12 @@ status_t SurfaceControl::validate() const
 status_t SurfaceControl::writeSurfaceToParcel(
         const sp<SurfaceControl>& control, Parcel* parcel)
 {
-    sp<ISurface> sur;
-    uint32_t identity = 0;
+    sp<IBinder> sur;
     if (SurfaceControl::isValid(control)) {
-        sur      = control->mSurface;
-        identity = control->mIdentity;
+        sur = control->mSurface;
     }
-    parcel->writeStrongBinder(sur!=0 ? sur->asBinder() : NULL);
+    parcel->writeStrongBinder(sur);
     parcel->writeStrongBinder(NULL);  // NULL IGraphicBufferProducer in this case.
-    parcel->writeInt32(identity);
     return NO_ERROR;
 }
 
@@ -198,13 +195,10 @@ sp<Surface> SurfaceControl::getSurface() const
 //  Surface
 // ============================================================================
 
-// ---------------------------------------------------------------------------
-
 Surface::Surface(const sp<SurfaceControl>& surface)
-    : SurfaceTextureClient(),
-      mSurface(surface->mSurface),
-      mIdentity(surface->mIdentity)
+    : SurfaceTextureClient()
 {
+    mSurface = interface_cast<ISurface>(surface->mSurface);
     sp<IGraphicBufferProducer> st;
     if (mSurface != NULL) {
         st = mSurface->getSurfaceTexture();
@@ -223,15 +217,12 @@ Surface::Surface(const Parcel& parcel, const sp<IBinder>& ref)
     } else if (mSurface != NULL) {
         st = mSurface->getSurfaceTexture();
     }
-
-    mIdentity   = parcel.readInt32();
     init(st);
 }
 
 Surface::Surface(const sp<IGraphicBufferProducer>& st)
     : SurfaceTextureClient(),
-      mSurface(NULL),
-      mIdentity(0)
+      mSurface(NULL)
 {
     init(st);
 }
@@ -245,19 +236,16 @@ status_t Surface::writeToParcel(
     if (Surface::isValid(surface)) {
         sur      = surface->mSurface;
         st       = surface->getISurfaceTexture();
-        identity = surface->mIdentity;
     } else if (surface != 0 &&
             (surface->mSurface != NULL ||
              surface->getISurfaceTexture() != NULL)) {
         ALOGE("Parceling invalid surface with non-NULL ISurface/IGraphicBufferProducer "
-             "as NULL: mSurface = %p, bufferProducer = %p, mIdentity = %d, ",
-             surface->mSurface.get(), surface->getISurfaceTexture().get(),
-             surface->mIdentity);
+             "as NULL: mSurface = %p, bufferProducer = %p ",
+             surface->mSurface.get(), surface->getISurfaceTexture().get());
     }
 
     parcel->writeStrongBinder(sur != NULL ? sur->asBinder() : NULL);
     parcel->writeStrongBinder(st != NULL ? st->asBinder() : NULL);
-    parcel->writeInt32(identity);
     return NO_ERROR;
 
 }

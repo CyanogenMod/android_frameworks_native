@@ -51,7 +51,7 @@ struct layer_state_t {
     };
 
     layer_state_t()
-        :   surface(0), what(0),
+        :   what(0),
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
             reserved(0)
@@ -70,7 +70,7 @@ struct layer_state_t {
                 float   dsdy;
                 float   dtdy;
             };
-            SurfaceID       surface;
+            sp<IBinder>     surface;
             uint32_t        what;
             float           x;
             float           y;

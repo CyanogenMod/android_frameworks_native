@@ -24,29 +24,41 @@ namespace android {
 
 status_t layer_state_t::write(Parcel& output) const
 {
-    status_t err;
-
-    err = output.write(transparentRegion);
-    if (err < NO_ERROR) return err;
-
-    // NOTE: regions are at the end of the structure
-    size_t size = sizeof(layer_state_t);
-    size -= sizeof(transparentRegion);
-    err = output.write(this, size);
-    return err;
+    output.writeStrongBinder(surface);
+    output.writeInt32(what);
+    output.writeFloat(x);
+    output.writeFloat(y);
+    output.writeInt32(z);
+    output.writeInt32(w);
+    output.writeInt32(h);
+    output.writeInt32(layerStack);
+    output.writeFloat(alpha);
+    output.writeInt32(flags);
+    output.writeInt32(mask);
+    *reinterpret_cast<layer_state_t::matrix22_t *>(
+            output.writeInplace(sizeof(layer_state_t::matrix22_t))) = matrix;
+    output.write(crop);
+    output.write(transparentRegion);
+    return NO_ERROR;
 }
 
 status_t layer_state_t::read(const Parcel& input)
 {
-    status_t err;
-
-    err = input.read(transparentRegion);
-    if (err < NO_ERROR) return err;
-
-    // NOTE: regions are at the end of the structure
-    size_t size = sizeof(layer_state_t);
-    size -= sizeof(transparentRegion);
-    input.read(this, size);
+    surface = input.readStrongBinder();
+    what = input.readInt32();
+    x = input.readFloat();
+    y = input.readFloat();
+    z = input.readInt32();
+    w = input.readInt32();
+    h = input.readInt32();
+    layerStack = input.readInt32();
+    alpha = input.readFloat();
+    flags = input.readInt32();
+    mask = input.readInt32();
+    matrix = *reinterpret_cast<layer_state_t::matrix22_t const *>(
+            input.readInplace(sizeof(layer_state_t::matrix22_t)));
+    input.read(crop);
+    input.read(transparentRegion);
     return NO_ERROR;
 }
 

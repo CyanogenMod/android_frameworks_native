@@ -50,13 +50,11 @@ public:
         return (surface != 0) && surface->isValid();
     }
     bool isValid() {
-        return mToken>=0 && mClient!=0;
+        return mSurface!=0 && mClient!=0;
     }
     static bool isSameSurface(
             const sp<SurfaceControl>& lhs, const sp<SurfaceControl>& rhs);
         
-    uint32_t    getIdentity() const { return mIdentity; }
-
     // release surface data from java
     void        clear();
     
@@ -87,8 +85,7 @@ private:
 
     SurfaceControl(
             const sp<SurfaceComposerClient>& client,
-            const sp<ISurface>& surface,
-            const ISurfaceComposerClient::surface_data_t& data);
+            const sp<ISurface>& surface);
 
     ~SurfaceControl();
 
@@ -96,11 +93,8 @@ private:
     void destroy();
     
     sp<SurfaceComposerClient>   mClient;
-    sp<ISurface>                mSurface;
-    SurfaceID                   mToken;
-    uint32_t                    mIdentity;
+    sp<IBinder>                 mSurface;
     mutable Mutex               mLock;
-    
     mutable sp<Surface>         mSurfaceData;
 };
     

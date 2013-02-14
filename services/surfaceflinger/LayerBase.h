@@ -347,8 +347,6 @@ public:
 
     virtual const char* getTypeId() const { return "LayerBaseClient"; }
 
-    uint32_t getIdentity() const { return mIdentity; }
-
 protected:
     virtual void dump(String8& result, char* scratch, size_t size) const;
     virtual void shortDump(String8& result, char* scratch, size_t size) const;
@@ -379,9 +377,6 @@ private:
     wp<IBinder> mClientSurfaceBinder;
 
     const wp<Client> mClientRef;
-    // only read
-    const uint32_t mIdentity;
-    static int32_t sIdentity;
 };
 
 // ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ const String16 sAccessSurfaceFlinger("android.permission.ACCESS_SURFACE_FLINGER"
 // ---------------------------------------------------------------------------
 
 Client::Client(const sp<SurfaceFlinger>& flinger)
-    : mFlinger(flinger), mNameGenerator(1)
+    : mFlinger(flinger)
 {
 }
 
@@ -54,12 +54,10 @@ status_t Client::initCheck() const {
     return NO_ERROR;
 }
 
-size_t Client::attachLayer(const sp<LayerBaseClient>& layer)
+void Client::attachLayer(const sp<IBinder>& handle, const sp<LayerBaseClient>& layer)
 {
     Mutex::Autolock _l(mLock);
-    size_t name = mNameGenerator++;
-    mLayers.add(name, layer);
-    return name;
+    mLayers.add(handle, layer);
 }
 
 void Client::detachLayer(const LayerBaseClient* layer)
@@ -74,14 +72,14 @@ void Client::detachLayer(const LayerBaseClient* layer)
         }
     }
 }
-sp<LayerBaseClient> Client::getLayerUser(int32_t i) const
+sp<LayerBaseClient> Client::getLayerUser(const sp<IBinder>& handle) const
 {
     Mutex::Autolock _l(mLock);
     sp<LayerBaseClient> lbc;
-    wp<LayerBaseClient> layer(mLayers.valueFor(i));
+    wp<LayerBaseClient> layer(mLayers.valueFor(handle));
     if (layer != 0) {
         lbc = layer.promote();
-        ALOGE_IF(lbc==0, "getLayerUser(name=%d) is dead", int(i));
+        ALOGE_IF(lbc==0, "getLayerUser(name=%p) is dead", handle.get());
     }
     return lbc;
 }
@@ -109,7 +107,6 @@ status_t Client::onTransact(
 
 
 sp<ISurface> Client::createSurface(
-        ISurfaceComposerClient::surface_data_t* params,
         const String8& name,
         uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
@@ -122,7 +119,6 @@ sp<ISurface> Client::createSurface(
     class MessageCreateLayer : public MessageBase {
         sp<ISurface> result;
         SurfaceFlinger* flinger;
-        ISurfaceComposerClient::surface_data_t* params;
         Client* client;
         const String8& name;
         uint32_t w, h;
@@ -130,29 +126,28 @@ sp<ISurface> Client::createSurface(
         uint32_t flags;
     public:
         MessageCreateLayer(SurfaceFlinger* flinger,
-                ISurfaceComposerClient::surface_data_t* params,
                 const String8& name, Client* client,
                 uint32_t w, uint32_t h, PixelFormat format,
                 uint32_t flags)
-            : flinger(flinger), params(params), client(client), name(name),
+            : flinger(flinger), client(client), name(name),
               w(w), h(h), format(format), flags(flags)
         {
         }
         sp<ISurface> getResult() const { return result; }
         virtual bool handler() {
-            result = flinger->createLayer(params, name, client,
-                    w, h, format, flags);
+            result = flinger->createLayer(name, client, w, h, format, flags);
             return true;
         }
     };
 
     sp<MessageBase> msg = new MessageCreateLayer(mFlinger.get(),
-            params, name, this, w, h, format, flags);
+            name, this, w, h, format, flags);
     mFlinger->postMessageSync(msg);
     return static_cast<MessageCreateLayer*>( msg.get() )->getResult();
 }
-status_t Client::destroySurface(SurfaceID sid) {
-    return mFlinger->onLayerRemoved(this, sid);
+
+status_t Client::destroySurface(const sp<IBinder>& handle) {
+    return mFlinger->onLayerRemoved(this, handle);
 }
 
 // ---------------------------------------------------------------------------

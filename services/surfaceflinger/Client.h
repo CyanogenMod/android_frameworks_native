@@ -44,20 +44,20 @@ public:
     status_t initCheck() const;
 
     // protected by SurfaceFlinger::mStateLock
-    size_t attachLayer(const sp<LayerBaseClient>& layer);
+    void attachLayer(const sp<IBinder>& handle, const sp<LayerBaseClient>& layer);
 
     void detachLayer(const LayerBaseClient* layer);
 
-    sp<LayerBaseClient> getLayerUser(int32_t i) const;
+    sp<LayerBaseClient> getLayerUser(const sp<IBinder>& handle) const;
 
 private:
     // ISurfaceComposerClient interface
     virtual sp<ISurface> createSurface(
-            surface_data_t* params, const String8& name,
+            const String8& name,
             uint32_t w, uint32_t h,PixelFormat format,
             uint32_t flags);
 
-    virtual status_t destroySurface(SurfaceID surfaceId);
+    virtual status_t destroySurface(const sp<IBinder>& handle);
 
     virtual status_t onTransact(
         uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags);
@@ -66,8 +66,7 @@ private:
     sp<SurfaceFlinger> mFlinger;
 
     // protected by mLock
-    DefaultKeyedVector< size_t, wp<LayerBaseClient> > mLayers;
-    size_t mNameGenerator;
+    DefaultKeyedVector< wp<IBinder>, wp<LayerBaseClient> > mLayers;
 
     // thread-safe
     mutable Mutex mLock;
