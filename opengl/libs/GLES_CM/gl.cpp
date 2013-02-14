@@ -97,14 +97,7 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
 
 #if USE_FAST_TLS_KEY && !CHECK_FOR_GL_ERRORS
 
-    #ifdef HAVE_ARM_TLS_REGISTER
-        #define GET_TLS(reg) \
-            "mrc p15, 0, " #reg ", c13, c0, 3 \n"
-    #else
-        #define GET_TLS(reg) \
-            "mov   " #reg ", #0xFFFF0FFF      \n"  \
-            "ldr   " #reg ", [" #reg ", #-15] \n"
-    #endif
+    #define GET_TLS(reg) "mrc p15, 0, " #reg ", c13, c0, 3 \n"
 
     #define API_ENTRY(_api) __attribute__((naked)) _api
 

@@ -23,11 +23,6 @@ LOCAL_LDLIBS := -lpthread -ldl
 LOCAL_MODULE:= libEGL
 LOCAL_LDFLAGS += -Wl,--exclude-libs=ALL
 LOCAL_SHARED_LIBRARIES += libdl
-# Bionic's private TLS header relies on the ARCH_ARM_HAVE_TLS_REGISTER to
-# select the appropriate TLS codepath
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-    LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
-endif
 # we need to access the private Bionic header <bionic_tls.h>
 LOCAL_C_INCLUDES += bionic/libc/private
 
@@ -47,10 +42,6 @@ endif
 ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
   # see Loader.cpp for details
   LOCAL_CFLAGS += -DSYSTEMUI_PBSIZE_HACK=1
-endif
-
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-  LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
 endif
 
 ifneq ($(MAX_EGL_CACHE_ENTRY_SIZE),)
@@ -100,18 +91,11 @@ LOCAL_MODULE:= libGLESv1_CM
 
 LOCAL_SHARED_LIBRARIES += libdl
 # we need to access the private Bionic header <bionic_tls.h>
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-    LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
-endif
 LOCAL_C_INCLUDES += bionic/libc/private
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv1\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
-
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-  LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
-endif
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -132,18 +116,11 @@ LOCAL_MODULE:= libGLESv2
 
 LOCAL_SHARED_LIBRARIES += libdl
 # we need to access the private Bionic header <bionic_tls.h>
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-    LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
-endif
 LOCAL_C_INCLUDES += bionic/libc/private
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv2\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
-
-ifeq ($(ARCH_ARM_HAVE_TLS_REGISTER),true)
-  LOCAL_CFLAGS += -DHAVE_ARM_TLS_REGISTER
-endif
 
 include $(BUILD_SHARED_LIBRARY)
 
