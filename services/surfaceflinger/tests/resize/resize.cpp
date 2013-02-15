@@ -38,26 +38,27 @@ int main(int argc, char** argv)
     // create a client to surfaceflinger
     sp<SurfaceComposerClient> client = new SurfaceComposerClient();
     
-    sp<Surface> surface = client->createSurface(String8("resize"),
+    sp<SurfaceControl> surfaceControl = client->createSurface(String8("resize"),
             160, 240, PIXEL_FORMAT_RGB_565, 0);
 
+    sp<Surface> surface = surfaceControl->getSurface();
 
     SurfaceComposerClient::openGlobalTransaction();
-    surface->setLayer(100000);
+    surfaceControl->setLayer(100000);
     SurfaceComposerClient::closeGlobalTransaction();
 
-    Surface::SurfaceInfo info;
-    surface->lock(&info);
-    ssize_t bpr = info.s * bytesPerPixel(info.format);
-    android_memset16((uint16_t*)info.bits, 0xF800, bpr*info.h);
+    ANativeWindow_Buffer outBuffer;
+    surface->lock(&outBuffer, NULL);
+    ssize_t bpr = outBuffer.stride * bytesPerPixel(outBuffer.format);
+    android_memset16((uint16_t*)outBuffer.bits, 0xF800, bpr*outBuffer.height);
     surface->unlockAndPost();
 
-    surface->lock(&info);
-    android_memset16((uint16_t*)info.bits, 0x07E0, bpr*info.h);
+    surface->lock(&outBuffer);
+    android_memset16((uint16_t*)outBuffer.bits, 0x07E0, bpr*outBuffer.height);
     surface->unlockAndPost();
 
     SurfaceComposerClient::openGlobalTransaction();
-    surface->setSize(320, 240);
+    surfaceControl->setSize(320, 240);
     SurfaceComposerClient::closeGlobalTransaction();
 
     

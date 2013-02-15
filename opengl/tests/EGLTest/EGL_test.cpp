@@ -19,7 +19,7 @@
 #include <utils/String8.h>
 
 #include <EGL/egl.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <gui/DummyConsumer.h>
 
 
@@ -104,7 +104,7 @@ TEST_F(EGLTest, EGLTerminateSucceedsWithRemainingObjects) {
     // Create a EGLSurface
     sp<BufferQueue> bq = new BufferQueue();
     bq->consumerConnect(new DummyConsumer());
-    sp<SurfaceTextureClient> mSTC = new SurfaceTextureClient(static_cast<sp<IGraphicBufferProducer> >( bq));
+    sp<Surface> mSTC = new Surface(static_cast<sp<IGraphicBufferProducer> >( bq));
     sp<ANativeWindow> mANW = mSTC;
 
     EGLSurface eglSurface = eglCreateWindowSurface(mEglDisplay, config,

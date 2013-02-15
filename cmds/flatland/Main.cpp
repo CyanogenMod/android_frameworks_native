@@ -19,7 +19,7 @@
 #include <gui/GraphicBufferAlloc.h>
 #include <gui/Surface.h>
 #include <gui/GLConsumer.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <ui/Fence.h>
 #include <utils/Trace.h>
 

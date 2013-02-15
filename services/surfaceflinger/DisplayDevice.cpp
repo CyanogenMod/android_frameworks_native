@@ -27,7 +27,7 @@
 #include <ui/DisplayInfo.h>
 #include <ui/PixelFormat.h>
 
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 
 #include <GLES/gl.h>
 #include <EGL/egl.h>

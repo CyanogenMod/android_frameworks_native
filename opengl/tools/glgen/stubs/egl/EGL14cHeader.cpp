@@ -28,7 +28,7 @@
 
 #include <gui/Surface.h>
 #include <gui/GLConsumer.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 
 #include <ui/ANativeObjectBase.h>
 

@@ -529,7 +529,7 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
     DisplayData& disp(mDisplayData[id]);
     if (!disp.framebufferTarget) {
         // this should never happen, but apparently eglCreateWindowSurface()
-        // triggers a SurfaceTextureClient::queueBuffer()  on some
+        // triggers a Surface::queueBuffer()  on some
         // devices (!?) -- log and ignore.
         ALOGE("HWComposer: framebufferTarget is null");
 //        CallStack stack;

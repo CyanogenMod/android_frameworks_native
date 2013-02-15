@@ -205,7 +205,7 @@ bool GLHelper::createNamedSurfaceTexture(GLuint name, uint32_t w, uint32_t h,
     glc->setDefaultMaxBufferCount(3);
     glc->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
 
-    sp<ANativeWindow> anw = new SurfaceTextureClient(bq);
+    sp<ANativeWindow> anw = new Surface(bq);
     EGLSurface s = eglCreateWindowSurface(mDisplay, mConfig, anw.get(), NULL);
     if (s == EGL_NO_SURFACE) {
         fprintf(stderr, "eglCreateWindowSurface error: %#x\n", eglGetError());

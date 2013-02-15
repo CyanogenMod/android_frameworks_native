@@ -39,7 +39,7 @@
 #include <gui/BufferQueue.h>
 #include <gui/GuiConfig.h>
 #include <gui/IDisplayEventConnection.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <gui/GraphicBufferAlloc.h>
 
 #include <ui/GraphicBufferAllocator.h>
@@ -503,7 +503,7 @@ status_t SurfaceFlinger::readyToRun()
             wp<IBinder> token = mBuiltinDisplays[i];
 
             sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
-            sp<SurfaceTextureClient> stc = new SurfaceTextureClient(
+            sp<Surface> stc = new Surface(
                         static_cast< sp<IGraphicBufferProducer> >(fbs->getBufferQueue()));
             sp<DisplayDevice> hw = new DisplayDevice(this,
                     type, isSecure, token, stc, fbs, mEGLConfig);
@@ -1182,7 +1182,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const DisplayDeviceState& state(curr[i]);
 
                     sp<FramebufferSurface> fbs;
-                    sp<SurfaceTextureClient> stc;
+                    sp<Surface> stc;
                     if (!state.isVirtualDisplay()) {
 
                         ALOGE_IF(state.surface!=NULL,
@@ -1193,12 +1193,12 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
                         fbs = new FramebufferSurface(*mHwc, state.type);
-                        stc = new SurfaceTextureClient(
+                        stc = new Surface(
                                 static_cast< sp<IGraphicBufferProducer> >(
                                         fbs->getBufferQueue()));
                     } else {
                         if (state.surface != NULL) {
-                            stc = new SurfaceTextureClient(state.surface);
+                            stc = new Surface(state.surface);
                         }
                     }
 

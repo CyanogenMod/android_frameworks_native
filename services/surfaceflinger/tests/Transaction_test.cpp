@@ -31,14 +31,14 @@ namespace android {
 // Fill an RGBA_8888 formatted surface with a single color.
 static void fillSurfaceRGBA8(const sp<SurfaceControl>& sc,
         uint8_t r, uint8_t g, uint8_t b) {
-    Surface::SurfaceInfo info;
+    ANativeWindow_Buffer outBuffer;
     sp<Surface> s = sc->getSurface();
     ASSERT_TRUE(s != NULL);
-    ASSERT_EQ(NO_ERROR, s->lock(&info));
-    uint8_t* img = reinterpret_cast<uint8_t*>(info.bits);
-    for (uint32_t y = 0; y < info.h; y++) {
-        for (uint32_t x = 0; x < info.w; x++) {
-            uint8_t* pixel = img + (4 * (y*info.s + x));
+    ASSERT_EQ(NO_ERROR, s->lock(&outBuffer, NULL));
+    uint8_t* img = reinterpret_cast<uint8_t*>(outBuffer.bits);
+    for (uint32_t y = 0; y < outBuffer.height; y++) {
+        for (uint32_t x = 0; x < outBuffer.width; x++) {
+            uint8_t* pixel = img + (4 * (y*outBuffer.stride + x));
             pixel[0] = r;
             pixel[1] = g;
             pixel[2] = b;

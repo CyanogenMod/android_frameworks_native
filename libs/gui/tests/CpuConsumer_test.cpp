@@ -26,7 +26,7 @@
 
 #include <gtest/gtest.h>
 #include <gui/CpuConsumer.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/String8.h>
 #include <utils/Thread.h>
@@ -64,7 +64,7 @@ protected:
         mCC = new CpuConsumer(params.maxLockedBuffers);
         String8 name("CpuConsumer_Under_Test");
         mCC->setName(name);
-        mSTC = new SurfaceTextureClient(mCC->getProducerInterface());
+        mSTC = new Surface(mCC->getProducerInterface());
         mANW = mSTC;
     }
 
@@ -149,7 +149,7 @@ protected:
     };
 
     sp<CpuConsumer> mCC;
-    sp<SurfaceTextureClient> mSTC;
+    sp<Surface> mSTC;
     sp<ANativeWindow> mANW;
 };
 

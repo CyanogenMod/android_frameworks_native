@@ -25,8 +25,8 @@ LOCAL_SRC_FILES:= \
 	SensorEventQueue.cpp \
 	SensorManager.cpp \
 	Surface.cpp \
+	SurfaceControl.cpp \
 	SurfaceComposerClient.cpp \
-	SurfaceTextureClient.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libbinder \

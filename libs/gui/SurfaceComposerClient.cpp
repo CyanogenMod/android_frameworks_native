@@ -31,6 +31,7 @@
 
 #include <ui/DisplayInfo.h>
 
+#include <gui/IGraphicBufferProducer.h>
 #include <gui/ISurface.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>

@@ -30,7 +30,7 @@
 
 #include <ui/PixelFormat.h>
 
-#include <gui/Surface.h>
+#include <gui/SurfaceControl.h>
 
 namespace android {
 

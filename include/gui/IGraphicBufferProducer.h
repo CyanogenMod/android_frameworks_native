@@ -32,14 +32,14 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-class SurfaceTextureClient;
+class Surface;
 
 /*
  * This class defines the Binder IPC interface for the producer side of
  * a queue of graphics buffers.  It's used to send graphics data from one
  * component to another.  For example, a class that decodes video for
  * playback might use this to provide frames.  This is typically done
- * indirectly, through SurfaceTextureClient.
+ * indirectly, through Surface.
  *
  * The underlying mechanism is a BufferQueue, which implements
  * BnGraphicBufferProducer.  In normal operation, the producer calls

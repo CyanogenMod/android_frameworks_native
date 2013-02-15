@@ -112,7 +112,7 @@ not_valid_surface:
         goto exit;
     }
     glConsumer = android::SurfaceTexture_getSurfaceTexture(_env, win);
-    window = new android::SurfaceTextureClient(glConsumer);
+    window = new android::Surface(glConsumer);
 
     if (window == NULL)
         goto not_valid_surface;

@@ -19,7 +19,6 @@
 
 #include <gtest/gtest.h>
 #include <gui/GLConsumer.h>
-#include <gui/SurfaceTextureClient.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/String8.h>
 #include <utils/threads.h>
@@ -383,7 +382,7 @@ protected:
     virtual void SetUp() {
         GLTest::SetUp();
         mST = new GLConsumer(TEX_ID);
-        mSTC = new SurfaceTextureClient(mST->getBufferQueue());
+        mSTC = new Surface(mST->getBufferQueue());
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);
         ASSERT_NO_FATAL_FAILURE(mTextureRenderer->SetUp());
@@ -574,7 +573,7 @@ protected:
     };
 
     sp<GLConsumer> mST;
-    sp<SurfaceTextureClient> mSTC;
+    sp<Surface> mSTC;
     sp<ANativeWindow> mANW;
     sp<TextureRenderer> mTextureRenderer;
     sp<FrameWaiter> mFW;

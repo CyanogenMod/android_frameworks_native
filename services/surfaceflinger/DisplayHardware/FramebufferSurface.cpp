@@ -29,7 +29,7 @@
 #include <EGL/egl.h>
 
 #include <hardware/hardware.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <gui/GraphicBufferAlloc.h>
 #include <ui/GraphicBuffer.h>
 

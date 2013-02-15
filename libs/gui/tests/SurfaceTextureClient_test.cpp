@@ -19,7 +19,7 @@
 
 #include <EGL/egl.h>
 #include <gtest/gtest.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <system/graphics.h>
 #include <utils/Log.h>
 #include <utils/Thread.h>
@@ -41,7 +41,7 @@ protected:
                 testInfo->name());
 
         mST = new GLConsumer(123);
-        mSTC = new SurfaceTextureClient(mST->getBufferQueue());
+        mSTC = new Surface(mST->getBufferQueue());
         mANW = mSTC;
 
         // We need a valid GL context so we can test updateTexImage()
@@ -103,7 +103,7 @@ protected:
     }
 
     sp<GLConsumer> mST;
-    sp<SurfaceTextureClient> mSTC;
+    sp<Surface> mSTC;
     sp<ANativeWindow> mANW;
 
     EGLDisplay mEglDisplay;
@@ -128,7 +128,7 @@ TEST_F(SurfaceTextureClientTest, ConcreteTypeIsSurfaceTextureClient) {
     int result = -123;
     int err = mANW->query(mANW.get(), NATIVE_WINDOW_CONCRETE_TYPE, &result);
     EXPECT_EQ(NO_ERROR, err);
-    EXPECT_EQ(NATIVE_WINDOW_SURFACE_TEXTURE_CLIENT, result);
+    EXPECT_EQ(NATIVE_WINDOW_SURFACE, result);
 }
 
 TEST_F(SurfaceTextureClientTest, EglCreateWindowSurfaceSucceeds) {
@@ -686,7 +686,7 @@ protected:
 
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
             sp<GLConsumer> st(new GLConsumer(i));
-            sp<SurfaceTextureClient> stc(new SurfaceTextureClient(st->getBufferQueue()));
+            sp<Surface> stc(new Surface(st->getBufferQueue()));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);
             ASSERT_EQ(EGL_SUCCESS, eglGetError());

@@ -64,7 +64,7 @@ class LayerBase;
 class LayerBaseClient;
 class LayerDim;
 class LayerScreenshot;
-class SurfaceTextureClient;
+class Surface;
 
 // ---------------------------------------------------------------------------
 
