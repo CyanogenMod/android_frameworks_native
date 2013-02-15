@@ -17,6 +17,7 @@
 #include <gui/GraphicBufferAlloc.h>
 #include <gui/GLConsumer.h>
 #include <gui/Surface.h>
+#include <gui/SurfaceControl.h>
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
