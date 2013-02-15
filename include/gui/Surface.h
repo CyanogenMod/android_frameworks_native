@@ -57,6 +57,10 @@ public:
     static status_t writeToParcel(const sp<Surface>& surface, Parcel* parcel);
     static sp<Surface> readFromParcel(const Parcel& data);
 
+    bool isValid(const sp<Surface>& surface) const {
+        return surface != NULL && surface->getIGraphicBufferProducer() != NULL;
+    }
+
     // FIXME: temporary for source compatibility...
     sp<IGraphicBufferProducer> getISurfaceTexture() const {
         return getIGraphicBufferProducer();
