@@ -90,7 +90,8 @@ public:
     SurfaceFlinger();
 
     enum {
-        EVENT_VSYNC = HWC_EVENT_VSYNC
+        EVENT_VSYNC = HWC_EVENT_VSYNC,
+        EVENT_ORIENTATION = HWC_EVENT_ORIENTATION
     };
 
     // post an asynchronous message to the main thread

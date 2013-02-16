@@ -608,42 +608,50 @@ void HWComposer::eventControl(int disp, int event, int enabled) {
               event, disp, enabled);
         return;
     }
-    if (event != EVENT_VSYNC) {
-        ALOGW("eventControl got unexpected event %d (disp=%d en=%d)",
-              event, disp, enabled);
-        return;
-    }
     status_t err = NO_ERROR;
-    if (mHwc && !mDebugForceFakeVSync && hwcHasVsyncEvent(mHwc))  {
-        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
-            // NOTE: we use our own internal lock here because we have to call
-            // into the HWC with the lock held, and we want to make sure
-            // that even if HWC blocks (which it shouldn't), it won't
-            // affect other threads.
-            Mutex::Autolock _l(mEventControlLock);
-            const int32_t eventBit = 1UL << event;
-            const int32_t newValue = enabled ? eventBit : 0;
-            const int32_t oldValue = mDisplayData[disp].events & eventBit;
-            if (newValue != oldValue) {
-                ATRACE_CALL();
-                err = hwcEventControl(mHwc, disp, event, enabled);
-                if (!err) {
-                    int32_t& events(mDisplayData[disp].events);
-                    events = (events & ~eventBit) | newValue;
+    switch(event) {
+        case EVENT_VSYNC:
+            if (mHwc && !mDebugForceFakeVSync && hwcHasVsyncEvent(mHwc)) {
+                if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0)) {
+                    // NOTE: we use our own internal lock here because we have to
+                    // call into the HWC with the lock held, and we want to make
+                    // sure that even if HWC blocks (which it shouldn't), it won't
+                    // affect other threads.
+                    Mutex::Autolock _l(mEventControlLock);
+                    const int32_t eventBit = 1UL << event;
+                    const int32_t newValue = enabled ? eventBit : 0;
+                    const int32_t oldValue = mDisplayData[disp].events & eventBit;
+                    if (newValue != oldValue) {
+                        ATRACE_CALL();
+                        err = mHwc->eventControl(mHwc, disp, event, enabled);
+                        if (!err) {
+                            int32_t& events(mDisplayData[disp].events);
+                            events = (events & ~eventBit) | newValue;
+                        }
+                    }
+                } else {
+                    err = hwcEventControl(mHwc, disp, event, enabled);
                 }
+                // error here should not happen -- not sure what we should
+                // do if it does.
+                ALOGE_IF(err, "eventControl(%d, %d) failed %s",
+                         event, enabled, strerror(-err));
             }
-        } else {
-            err = hwcEventControl(mHwc, disp, event, enabled);
-        }
-        // error here should not happen -- not sure what we should
-        // do if it does.
-        ALOGE_IF(err, "eventControl(%d, %d) failed %s",
-                event, enabled, strerror(-err));
-    }
 
-    if (err == NO_ERROR && mVSyncThread != NULL) {
-        mVSyncThread->setEnabled(enabled);
+            if (err == NO_ERROR && mVSyncThread != NULL) {
+                mVSyncThread->setEnabled(enabled);
+            }
+            break;
+        case EVENT_ORIENTATION:
+            // Orientation event
+            err = mHwc->eventControl(mHwc, disp, event, enabled);
+            break;
+        default:
+            ALOGW("eventControl got unexpected event %d (disp=%d en=%d)",
+                    event, disp, enabled);
+            break;
     }
+    return;
 }
 
 status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
@@ -763,13 +771,14 @@ status_t HWComposer::prepare() {
                 disp.hasFbComp = false;
                 disp.hasOvComp = false;
                 if (disp.list) {
-                    for (size_t i=0 ; i<hwcNumHwLayers(mHwc, disp.list) ; i++) {
-                        hwc_layer_1_t& l = disp.list->hwLayers[i];
+                    for (size_t j=0 ; j<disp.list->numHwLayers ; j++) {
+                        hwc_layer_1_t& l = disp.list->hwLayers[j];
 
                         //ALOGD("prepare: %d, type=%d, handle=%p",
                         //        i, l.compositionType, l.handle);
 
-                        if (l.flags & HWC_SKIP_LAYER) {
+                        if ((i == DisplayDevice::DISPLAY_PRIMARY) &&
+                                    l.flags & HWC_SKIP_LAYER) {
                             l.compositionType = HWC_FRAMEBUFFER;
                         }
                         if (l.compositionType == HWC_FRAMEBUFFER) {
@@ -791,7 +800,7 @@ status_t HWComposer::prepare() {
                     hwc_layer_t& l = list0->hwLayers[i];
 
                     //ALOGD("prepare: %d, type=%d, handle=%p",
-                    //        i, l.compositionType, l.handle);
+                    //        j, l.compositionType, l.handle);
 
                     if (l.flags & HWC_SKIP_LAYER) {
                         l.compositionType = HWC_FRAMEBUFFER;
@@ -1058,6 +1067,9 @@ public:
             getLayer()->flags &= ~HWC_SKIP_LAYER;
         }
     }
+    virtual void setAnimating(bool animating) {
+        // Not bothering for legacy path
+    }
     virtual void setBlending(uint32_t blending) {
         getLayer()->blending = blending;
     }
@@ -1156,6 +1168,13 @@ public:
             getLayer()->flags |= HWC_SKIP_LAYER;
         } else {
             getLayer()->flags &= ~HWC_SKIP_LAYER;
+        }
+    }
+    virtual void setAnimating(bool animating) {
+        if (animating) {
+            getLayer()->flags |= HWC_SCREENSHOT_ANIMATOR_LAYER;
+        } else {
+            getLayer()->flags &= ~HWC_SCREENSHOT_ANIMATOR_LAYER;
         }
     }
     virtual void setBlending(uint32_t blending) {
