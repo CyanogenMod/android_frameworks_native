@@ -32,23 +32,21 @@ sp<IAppOpsService> AppOpsManager::getService()
     int64_t startTime = 0;
     mLock.lock();
     sp<IAppOpsService> service = mService;
-    while (true) {
-        if (service == NULL || !service->asBinder()->isBinderAlive()) {
-            sp<IBinder> binder = defaultServiceManager()->checkService(_appops);
-            if (binder == NULL) {
-                // Wait for the app ops service to come back...
-                if (startTime == 0) {
-                    startTime = uptimeMillis();
-                    ALOGI("Waiting for app ops service");
-                } else if ((uptimeMillis()-startTime) > 10000) {
-                    ALOGW("Waiting too long for app ops service, giving up");
-                    return NULL;
-                }
-                sleep(1);
-            } else {
-                service = interface_cast<IAppOpsService>(binder);
-                mService = service;
+    while (service == NULL || !service->asBinder()->isBinderAlive()) {
+        sp<IBinder> binder = defaultServiceManager()->checkService(_appops);
+        if (binder == NULL) {
+            // Wait for the app ops service to come back...
+            if (startTime == 0) {
+                startTime = uptimeMillis();
+                ALOGI("Waiting for app ops service");
+            } else if ((uptimeMillis()-startTime) > 10000) {
+                ALOGW("Waiting too long for app ops service, giving up");
+                return NULL;
             }
+            sleep(1);
+        } else {
+            service = interface_cast<IAppOpsService>(binder);
+            mService = service;
         }
     }
     mLock.unlock();

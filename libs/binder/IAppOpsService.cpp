@@ -45,8 +45,8 @@ public:
         data.writeString16(packageName);
         remote()->transact(CHECK_OPERATION_TRANSACTION, data, &reply);
         // fail on exception
-        if (reply.readExceptionCode() != 0) return 0;
-        return reply.readInt32() != 0;
+        if (reply.readExceptionCode() != 0) return MODE_ERRORED;
+        return reply.readInt32();
     }
 
     virtual int32_t noteOperation(int32_t code, int32_t uid, const String16& packageName) {
@@ -57,8 +57,8 @@ public:
         data.writeString16(packageName);
         remote()->transact(NOTE_OPERATION_TRANSACTION, data, &reply);
         // fail on exception
-        if (reply.readExceptionCode() != 0) return 0;
-        return reply.readInt32() != 0;
+        if (reply.readExceptionCode() != 0) return MODE_ERRORED;
+        return reply.readInt32();
     }
 
     virtual int32_t startOperation(int32_t code, int32_t uid, const String16& packageName) {
@@ -69,8 +69,8 @@ public:
         data.writeString16(packageName);
         remote()->transact(START_OPERATION_TRANSACTION, data, &reply);
         // fail on exception
-        if (reply.readExceptionCode() != 0) return 0;
-        return reply.readInt32() != 0;
+        if (reply.readExceptionCode() != 0) return MODE_ERRORED;
+        return reply.readInt32();
     }
 
     virtual void finishOperation(int32_t code, int32_t uid, const String16& packageName) {

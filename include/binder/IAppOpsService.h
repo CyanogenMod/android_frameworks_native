@@ -46,6 +46,12 @@ public:
         START_WATCHING_MODE_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+4,
         STOP_WATCHING_MODE_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+5
     };
+
+    enum {
+        MODE_ALLOWED = 0,
+        MODE_IGNORED = 1,
+        MODE_ERRORED = 2
+    };
 };
 
 // ----------------------------------------------------------------------
@@ -64,4 +70,3 @@ public:
 }; // namespace android
 
 #endif // ANDROID_IAPP_OPS_SERVICE_H
-

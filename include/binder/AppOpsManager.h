@@ -28,9 +28,9 @@ class AppOpsManager
 {
 public:
     enum {
-        MODE_ALLOWED = 0,
-        MODE_IGNORED = 1,
-        MODE_ERRORED = 2
+        MODE_ALLOWED = IAppOpsService::MODE_ALLOWED,
+        MODE_IGNORED = IAppOpsService::MODE_IGNORED,
+        MODE_ERRORED = IAppOpsService::MODE_ERRORED
     };
 
     enum {
