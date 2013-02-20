@@ -65,6 +65,10 @@ public:
         SWAP_RECTANGLE  = 0x00080000,
     };
 
+    enum {
+        NO_LAYER_STACK = 0xFFFFFFFF,
+    };
+
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             DisplayType type,
@@ -117,7 +121,7 @@ public:
 
     void swapBuffers(HWComposer& hwc) const;
     status_t compositionComplete() const;
-    
+
     // called after h/w composer has completed its set() call
     void onSwapBuffersCompleted(HWComposer& hwc) const;
 

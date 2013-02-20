@@ -1347,7 +1347,7 @@ void SurfaceFlinger::computeVisibleRegions(
         // start with the whole surface at its current location
         const Layer::State& s(layer->drawingState());
 
-        // only consider the layers on the given later stack
+        // only consider the layers on the given layer stack
         if (s.layerStack != layerStack)
             continue;
 
@@ -2072,12 +2072,14 @@ status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBaseClient>& layer)
 // ---------------------------------------------------------------------------
 
 void SurfaceFlinger::onInitializeDisplays() {
-    // reset screen orientation
+    // reset screen orientation and use primary layer stack
     Vector<ComposerState> state;
     Vector<DisplayState> displays;
     DisplayState d;
-    d.what = DisplayState::eDisplayProjectionChanged;
+    d.what = DisplayState::eDisplayProjectionChanged |
+             DisplayState::eLayerStackChanged;
     d.token = mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY];
+    d.layerStack = 0;
     d.orientation = DisplayState::eOrientationDefault;
     d.frame.makeInvalid();
     d.viewport.makeInvalid();
@@ -2901,7 +2903,7 @@ SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
 }
 
 SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(DisplayDevice::DisplayType type)
-    : type(type), layerStack(0), orientation(0) {
+    : type(type), layerStack(DisplayDevice::NO_LAYER_STACK), orientation(0) {
     viewport.makeInvalid();
     frame.makeInvalid();
 }
