@@ -50,21 +50,39 @@ class Surface
 {
 public:
 
+    /*
+     * creates a Surface from the given IGraphicBufferProducer (which concrete
+     * implementation is a BufferQueue).
+     *
+     * Surface is mainly state-less while it's disconnected, it can be
+     * viewed as a glorified IGraphicBufferProducer holder. It's therefore
+     * safe to create other Surfaces from the same IGraphicBufferProducer.
+     *
+     * However, once a Surface is connected, it'll prevent other Surfaces
+     * referring to the same IGraphicBufferProducer to become connected and
+     * therefore prevent them to be used as actual producers of buffers.
+     */
     Surface(const sp<IGraphicBufferProducer>& bufferProducer);
 
+    /* getIGraphicBufferProducer() returns the IGraphicBufferProducer this
+     * Surface was created with. Usually it's an error to use the
+     * IGraphicBufferProducer while the Surface is connected.
+     */
     sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
 
-    static status_t writeToParcel(const sp<Surface>& surface, Parcel* parcel);
-    static sp<Surface> readFromParcel(const Parcel& data);
-
+    /* convenience function to check that the given surface is non NULL as
+     * well as its IGraphicBufferProducer */
     static bool isValid(const sp<Surface>& surface) {
         return surface != NULL && surface->getIGraphicBufferProducer() != NULL;
     }
 
-    // FIXME: temporary for source compatibility...
-    sp<IGraphicBufferProducer> getISurfaceTexture() const {
-        return getIGraphicBufferProducer();
-    }
+    /* writes the given Surface into a Parcel */
+    static status_t writeToParcel(const sp<Surface>& surface, Parcel* parcel);
+
+    /* constructs a Surface from a Parcel. see Surface::writeToParcel()
+     * and SurfaceControl::writeToParcel() */
+    static sp<Surface> readFromParcel(const Parcel& data);
+
 
 protected:
     Surface();

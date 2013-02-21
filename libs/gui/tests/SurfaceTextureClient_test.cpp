@@ -112,7 +112,7 @@ protected:
 };
 
 TEST_F(SurfaceTextureClientTest, GetISurfaceTextureIsNotNull) {
-    sp<IGraphicBufferProducer> ist(mSTC->getISurfaceTexture());
+    sp<IGraphicBufferProducer> ist(mSTC->getIGraphicBufferProducer());
     ASSERT_TRUE(ist != NULL);
 }
 
