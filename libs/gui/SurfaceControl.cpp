@@ -106,7 +106,7 @@ status_t SurfaceControl::setLayer(int32_t layer) {
     const sp<SurfaceComposerClient>& client(mClient);
     return client->setLayer(mSurface, layer);
 }
-status_t SurfaceControl::setPosition(int32_t x, int32_t y) {
+status_t SurfaceControl::setPosition(float x, float y) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
