@@ -196,13 +196,13 @@ static void dumpstate() {
 
     property_get("dhcp.wlan0.gateway", network, "");
     if (network[0])
-        run_command("PING GATEWAY", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
+        run_command("PING GATEWAY", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
     property_get("dhcp.wlan0.dns1", network, "");
     if (network[0])
-        run_command("PING DNS1", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
+        run_command("PING DNS1", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
     property_get("dhcp.wlan0.dns2", network, "");
     if (network[0])
-        run_command("PING DNS2", 10, SU_PATH, "root", "ping", "-c", "3", "-i", ".5", network, NULL);
+        run_command("PING DNS2", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
 #ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI STATUS", 20,
             SU_PATH, "root", "dhdutil", "-i", "wlan0", "dump", NULL);
