@@ -34,7 +34,7 @@ not_valid_surface:
         goto exit;
     }
 
-    window = android::android_Surface_getNativeWindow(_env, win);
+    window = android::android_view_Surface_getNativeWindow(_env, win);
 
     if (window == NULL)
         goto not_valid_surface;
@@ -112,7 +112,11 @@ not_valid_surface:
         goto exit;
     }
     glConsumer = android::SurfaceTexture_getSurfaceTexture(_env, win);
-    window = new android::Surface(glConsumer);
+
+    if (glConsumer == NULL)
+        goto not_valid_surface;
+
+    window = new android::Surface(glConsumer->getBufferQueue());
 
     if (window == NULL)
         goto not_valid_surface;
