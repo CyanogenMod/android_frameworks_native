@@ -22,8 +22,21 @@ public class ParameterChecker {
     HashMap<String,String[]> map = new HashMap<String,String[]>();
 
     public ParameterChecker(BufferedReader reader) throws Exception {
-        String s;
-        while ((s = reader.readLine()) != null) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            String s = line.trim();
+
+            // skip empty lines
+            if (s.isEmpty()) {
+                continue;
+            }
+
+            // skip single-line comments
+            if (s.startsWith("//") ||
+                s.startsWith("#")) {
+                continue;
+            }
+
             String[] tokens = s.split("\\s");
             map.put(tokens[0], tokens);
         }
