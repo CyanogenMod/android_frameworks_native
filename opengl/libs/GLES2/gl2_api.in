@@ -292,7 +292,7 @@ void API_ENTRY(glScissor)(GLint x, GLint y, GLsizei width, GLsizei height) {
 void API_ENTRY(glShaderBinary)(GLsizei n, const GLuint* shaders, GLenum binaryformat, const GLvoid* binary, GLsizei length) {
     CALL_GL_API(glShaderBinary, n, shaders, binaryformat, binary, length);
 }
-void API_ENTRY(glShaderSource)(GLuint shader, GLsizei count, const GLchar** string, const GLint* length) {
+void API_ENTRY(glShaderSource)(GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length) {
     CALL_GL_API(glShaderSource, shader, count, string, length);
 }
 void API_ENTRY(glStencilFunc)(GLenum func, GLint ref, GLuint mask) {

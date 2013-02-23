@@ -3839,7 +3839,7 @@ void GLTrace_glShaderBinary(GLsizei n, const GLuint* shaders, GLenum binaryforma
     glContext->traceGLMessage(&glmsg);
 }
 
-void GLTrace_glShaderSource(GLuint shader, GLsizei count, const GLchar** string, const GLint* length) {
+void GLTrace_glShaderSource(GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length) {
     GLMessage glmsg;
     GLTraceContext *glContext = getGLTraceContext();
 
