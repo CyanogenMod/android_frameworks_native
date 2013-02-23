@@ -61,6 +61,7 @@ protected:
                 &myConfig, 1, &numConfigs));
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
 
+        mEglConfig = myConfig;
         EGLint pbufferAttribs[] = {
             EGL_WIDTH, 16,
             EGL_HEIGHT, 16,
@@ -95,7 +96,7 @@ protected:
 
     virtual EGLint const* getConfigAttribs() {
         static EGLint sDefaultConfigAttribs[] = {
-            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT | EGL_WINDOW_BIT,
             EGL_NONE
         };
 
@@ -109,6 +110,7 @@ protected:
     EGLDisplay mEglDisplay;
     EGLSurface mEglSurface;
     EGLContext mEglContext;
+    EGLConfig  mEglConfig;
 };
 
 TEST_F(SurfaceTextureClientTest, GetISurfaceTextureIsNotNull) {
@@ -167,6 +169,34 @@ TEST_F(SurfaceTextureClientTest, EglCreateWindowSurfaceSucceeds) {
     }
 
     eglTerminate(dpy);
+}
+
+TEST_F(SurfaceTextureClientTest, EglSwapBuffersAbandonErrorIsEglBadSurface) {
+
+    EGLSurface eglSurface = eglCreateWindowSurface(mEglDisplay, mEglConfig, mANW.get(), NULL);
+    EXPECT_NE(EGL_NO_SURFACE, eglSurface);
+    EXPECT_EQ(EGL_SUCCESS, eglGetError());
+
+    EGLBoolean success = eglMakeCurrent(mEglDisplay, eglSurface, eglSurface, mEglContext);
+    EXPECT_EQ(EGL_TRUE, success);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    success = eglSwapBuffers(mEglDisplay, eglSurface);
+    EXPECT_EQ(EGL_TRUE, success);
+
+    mST->abandon();
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    success = eglSwapBuffers(mEglDisplay, eglSurface);
+    EXPECT_EQ(EGL_FALSE, success);
+    EXPECT_EQ(EGL_BAD_SURFACE, eglGetError());
+
+    success = eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
+    ASSERT_EQ(EGL_TRUE, success);
+
+    if (eglSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(mEglDisplay, eglSurface);
+    }
 }
 
 TEST_F(SurfaceTextureClientTest, BufferGeometryInvalidSizesFail) {
