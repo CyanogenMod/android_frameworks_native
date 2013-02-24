@@ -43,11 +43,12 @@ enum GLMessage_DataType_Type {
   GLMessage_DataType_Type_INT = 4,
   GLMessage_DataType_Type_FLOAT = 5,
   GLMessage_DataType_Type_BOOL = 6,
-  GLMessage_DataType_Type_ENUM = 7
+  GLMessage_DataType_Type_ENUM = 7,
+  GLMessage_DataType_Type_INT64 = 8
 };
 bool GLMessage_DataType_Type_IsValid(int value);
 const GLMessage_DataType_Type GLMessage_DataType_Type_Type_MIN = GLMessage_DataType_Type_VOID;
-const GLMessage_DataType_Type GLMessage_DataType_Type_Type_MAX = GLMessage_DataType_Type_ENUM;
+const GLMessage_DataType_Type GLMessage_DataType_Type_Type_MAX = GLMessage_DataType_Type_INT64;
 const int GLMessage_DataType_Type_Type_ARRAYSIZE = GLMessage_DataType_Type_Type_MAX + 1;
 
 enum GLMessage_Function {
@@ -427,6 +428,110 @@ enum GLMessage_Function {
   GLMessage_Function_glVertexPointer = 373,
   GLMessage_Function_glViewport = 374,
   GLMessage_Function_glWeightPointerOES = 375,
+  GLMessage_Function_glReadBuffer = 376,
+  GLMessage_Function_glDrawRangeElements = 377,
+  GLMessage_Function_glTexImage3D = 378,
+  GLMessage_Function_glTexSubImage3D = 379,
+  GLMessage_Function_glCopyTexSubImage3D = 380,
+  GLMessage_Function_glCompressedTexImage3D = 381,
+  GLMessage_Function_glCompressedTexSubImage3D = 382,
+  GLMessage_Function_glGenQueries = 383,
+  GLMessage_Function_glDeleteQueries = 384,
+  GLMessage_Function_glIsQuery = 385,
+  GLMessage_Function_glBeginQuery = 386,
+  GLMessage_Function_glEndQuery = 387,
+  GLMessage_Function_glGetQueryiv = 388,
+  GLMessage_Function_glGetQueryObjectuiv = 389,
+  GLMessage_Function_glUnmapBuffer = 390,
+  GLMessage_Function_glGetBufferPointerv = 391,
+  GLMessage_Function_glDrawBuffers = 392,
+  GLMessage_Function_glUniformMatrix2x3fv = 393,
+  GLMessage_Function_glUniformMatrix3x2fv = 394,
+  GLMessage_Function_glUniformMatrix2x4fv = 395,
+  GLMessage_Function_glUniformMatrix4x2fv = 396,
+  GLMessage_Function_glUniformMatrix3x4fv = 397,
+  GLMessage_Function_glUniformMatrix4x3fv = 398,
+  GLMessage_Function_glBlitFramebuffer = 399,
+  GLMessage_Function_glRenderbufferStorageMultisample = 400,
+  GLMessage_Function_glFramebufferTextureLayer = 401,
+  GLMessage_Function_glMapBufferRange = 402,
+  GLMessage_Function_glFlushMappedBufferRange = 403,
+  GLMessage_Function_glBindVertexArray = 404,
+  GLMessage_Function_glDeleteVertexArrays = 405,
+  GLMessage_Function_glGenVertexArrays = 406,
+  GLMessage_Function_glIsVertexArray = 407,
+  GLMessage_Function_glGetIntegeri_v = 408,
+  GLMessage_Function_glBeginTransformFeedback = 409,
+  GLMessage_Function_glEndTransformFeedback = 410,
+  GLMessage_Function_glBindBufferRange = 411,
+  GLMessage_Function_glBindBufferBase = 412,
+  GLMessage_Function_glTransformFeedbackVaryings = 413,
+  GLMessage_Function_glGetTransformFeedbackVarying = 414,
+  GLMessage_Function_glVertexAttribIPointer = 415,
+  GLMessage_Function_glGetVertexAttribIiv = 416,
+  GLMessage_Function_glGetVertexAttribIuiv = 417,
+  GLMessage_Function_glVertexAttribI4i = 418,
+  GLMessage_Function_glVertexAttribI4ui = 419,
+  GLMessage_Function_glVertexAttribI4iv = 420,
+  GLMessage_Function_glVertexAttribI4uiv = 421,
+  GLMessage_Function_glGetUniformuiv = 422,
+  GLMessage_Function_glGetFragDataLocation = 423,
+  GLMessage_Function_glUniform1ui = 424,
+  GLMessage_Function_glUniform2ui = 425,
+  GLMessage_Function_glUniform3ui = 426,
+  GLMessage_Function_glUniform4ui = 427,
+  GLMessage_Function_glUniform1uiv = 428,
+  GLMessage_Function_glUniform2uiv = 429,
+  GLMessage_Function_glUniform3uiv = 430,
+  GLMessage_Function_glUniform4uiv = 431,
+  GLMessage_Function_glClearBufferiv = 432,
+  GLMessage_Function_glClearBufferuiv = 433,
+  GLMessage_Function_glClearBufferfv = 434,
+  GLMessage_Function_glClearBufferfi = 435,
+  GLMessage_Function_glGetStringi = 436,
+  GLMessage_Function_glCopyBufferSubData = 437,
+  GLMessage_Function_glGetUniformIndices = 438,
+  GLMessage_Function_glGetActiveUniformsiv = 439,
+  GLMessage_Function_glGetUniformBlockIndex = 440,
+  GLMessage_Function_glGetActiveUniformBlockiv = 441,
+  GLMessage_Function_glGetActiveUniformBlockName = 442,
+  GLMessage_Function_glUniformBlockBinding = 443,
+  GLMessage_Function_glDrawArraysInstanced = 444,
+  GLMessage_Function_glDrawElementsInstanced = 445,
+  GLMessage_Function_glFenceSync = 446,
+  GLMessage_Function_glIsSync = 447,
+  GLMessage_Function_glDeleteSync = 448,
+  GLMessage_Function_glClientWaitSync = 449,
+  GLMessage_Function_glWaitSync = 450,
+  GLMessage_Function_glGetInteger64v = 451,
+  GLMessage_Function_glGetSynciv = 452,
+  GLMessage_Function_glGetInteger64i_v = 453,
+  GLMessage_Function_glGetBufferParameteri64v = 454,
+  GLMessage_Function_glGenSamplers = 455,
+  GLMessage_Function_glDeleteSamplers = 456,
+  GLMessage_Function_glIsSampler = 457,
+  GLMessage_Function_glBindSampler = 458,
+  GLMessage_Function_glSamplerParameteri = 459,
+  GLMessage_Function_glSamplerParameteriv = 460,
+  GLMessage_Function_glSamplerParameterf = 461,
+  GLMessage_Function_glSamplerParameterfv = 462,
+  GLMessage_Function_glGetSamplerParameteriv = 463,
+  GLMessage_Function_glGetSamplerParameterfv = 464,
+  GLMessage_Function_glVertexAttribDivisor = 465,
+  GLMessage_Function_glBindTransformFeedback = 466,
+  GLMessage_Function_glDeleteTransformFeedbacks = 467,
+  GLMessage_Function_glGenTransformFeedbacks = 468,
+  GLMessage_Function_glIsTransformFeedback = 469,
+  GLMessage_Function_glPauseTransformFeedback = 470,
+  GLMessage_Function_glResumeTransformFeedback = 471,
+  GLMessage_Function_glGetProgramBinary = 472,
+  GLMessage_Function_glProgramBinary = 473,
+  GLMessage_Function_glProgramParameteri = 474,
+  GLMessage_Function_glInvalidateFramebuffer = 475,
+  GLMessage_Function_glInvalidateSubFramebuffer = 476,
+  GLMessage_Function_glTexStorage2D = 477,
+  GLMessage_Function_glTexStorage3D = 478,
+  GLMessage_Function_glGetInternalformativ = 479,
   GLMessage_Function_glActiveShaderProgramEXT = 502,
   GLMessage_Function_glAlphaFuncQCOM = 503,
   GLMessage_Function_glBeginQueryEXT = 504,
@@ -593,6 +698,7 @@ class GLMessage_DataType : public ::google::protobuf::MessageLite {
   static const Type FLOAT = GLMessage_DataType_Type_FLOAT;
   static const Type BOOL = GLMessage_DataType_Type_BOOL;
   static const Type ENUM = GLMessage_DataType_Type_ENUM;
+  static const Type INT64 = GLMessage_DataType_Type_INT64;
   static inline bool Type_IsValid(int value) {
     return GLMessage_DataType_Type_IsValid(value);
   }
@@ -687,6 +793,18 @@ class GLMessage_DataType : public ::google::protobuf::MessageLite {
   inline ::google::protobuf::RepeatedField< bool >*
       mutable_boolvalue();
   
+  // repeated int64 int64Value = 8;
+  inline int int64value_size() const;
+  inline void clear_int64value();
+  static const int kInt64ValueFieldNumber = 8;
+  inline ::google::protobuf::int64 int64value(int index) const;
+  inline void set_int64value(int index, ::google::protobuf::int64 value);
+  inline void add_int64value(::google::protobuf::int64 value);
+  inline const ::google::protobuf::RepeatedField< ::google::protobuf::int64 >&
+      int64value() const;
+  inline ::google::protobuf::RepeatedField< ::google::protobuf::int64 >*
+      mutable_int64value();
+  
   // @@protoc_insertion_point(class_scope:android.gltrace.GLMessage.DataType)
  private:
   mutable int _cached_size_;
@@ -698,11 +816,12 @@ class GLMessage_DataType : public ::google::protobuf::MessageLite {
   ::google::protobuf::RepeatedPtrField< ::std::string> charvalue_;
   ::google::protobuf::RepeatedPtrField< ::std::string> rawbytes_;
   ::google::protobuf::RepeatedField< bool > boolvalue_;
+  ::google::protobuf::RepeatedField< ::google::protobuf::int64 > int64value_;
   friend void  protobuf_AddDesc_gltrace_2eproto();
   friend void protobuf_AssignDesc_gltrace_2eproto();
   friend void protobuf_ShutdownFile_gltrace_2eproto();
   
-  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
   
   // WHY DOES & HAVE LOWER PRECEDENCE THAN != !?
   inline bool _has_bit(int index) const {
@@ -1243,6 +1362,110 @@ class GLMessage : public ::google::protobuf::MessageLite {
   static const Function glVertexPointer = GLMessage_Function_glVertexPointer;
   static const Function glViewport = GLMessage_Function_glViewport;
   static const Function glWeightPointerOES = GLMessage_Function_glWeightPointerOES;
+  static const Function glReadBuffer = GLMessage_Function_glReadBuffer;
+  static const Function glDrawRangeElements = GLMessage_Function_glDrawRangeElements;
+  static const Function glTexImage3D = GLMessage_Function_glTexImage3D;
+  static const Function glTexSubImage3D = GLMessage_Function_glTexSubImage3D;
+  static const Function glCopyTexSubImage3D = GLMessage_Function_glCopyTexSubImage3D;
+  static const Function glCompressedTexImage3D = GLMessage_Function_glCompressedTexImage3D;
+  static const Function glCompressedTexSubImage3D = GLMessage_Function_glCompressedTexSubImage3D;
+  static const Function glGenQueries = GLMessage_Function_glGenQueries;
+  static const Function glDeleteQueries = GLMessage_Function_glDeleteQueries;
+  static const Function glIsQuery = GLMessage_Function_glIsQuery;
+  static const Function glBeginQuery = GLMessage_Function_glBeginQuery;
+  static const Function glEndQuery = GLMessage_Function_glEndQuery;
+  static const Function glGetQueryiv = GLMessage_Function_glGetQueryiv;
+  static const Function glGetQueryObjectuiv = GLMessage_Function_glGetQueryObjectuiv;
+  static const Function glUnmapBuffer = GLMessage_Function_glUnmapBuffer;
+  static const Function glGetBufferPointerv = GLMessage_Function_glGetBufferPointerv;
+  static const Function glDrawBuffers = GLMessage_Function_glDrawBuffers;
+  static const Function glUniformMatrix2x3fv = GLMessage_Function_glUniformMatrix2x3fv;
+  static const Function glUniformMatrix3x2fv = GLMessage_Function_glUniformMatrix3x2fv;
+  static const Function glUniformMatrix2x4fv = GLMessage_Function_glUniformMatrix2x4fv;
+  static const Function glUniformMatrix4x2fv = GLMessage_Function_glUniformMatrix4x2fv;
+  static const Function glUniformMatrix3x4fv = GLMessage_Function_glUniformMatrix3x4fv;
+  static const Function glUniformMatrix4x3fv = GLMessage_Function_glUniformMatrix4x3fv;
+  static const Function glBlitFramebuffer = GLMessage_Function_glBlitFramebuffer;
+  static const Function glRenderbufferStorageMultisample = GLMessage_Function_glRenderbufferStorageMultisample;
+  static const Function glFramebufferTextureLayer = GLMessage_Function_glFramebufferTextureLayer;
+  static const Function glMapBufferRange = GLMessage_Function_glMapBufferRange;
+  static const Function glFlushMappedBufferRange = GLMessage_Function_glFlushMappedBufferRange;
+  static const Function glBindVertexArray = GLMessage_Function_glBindVertexArray;
+  static const Function glDeleteVertexArrays = GLMessage_Function_glDeleteVertexArrays;
+  static const Function glGenVertexArrays = GLMessage_Function_glGenVertexArrays;
+  static const Function glIsVertexArray = GLMessage_Function_glIsVertexArray;
+  static const Function glGetIntegeri_v = GLMessage_Function_glGetIntegeri_v;
+  static const Function glBeginTransformFeedback = GLMessage_Function_glBeginTransformFeedback;
+  static const Function glEndTransformFeedback = GLMessage_Function_glEndTransformFeedback;
+  static const Function glBindBufferRange = GLMessage_Function_glBindBufferRange;
+  static const Function glBindBufferBase = GLMessage_Function_glBindBufferBase;
+  static const Function glTransformFeedbackVaryings = GLMessage_Function_glTransformFeedbackVaryings;
+  static const Function glGetTransformFeedbackVarying = GLMessage_Function_glGetTransformFeedbackVarying;
+  static const Function glVertexAttribIPointer = GLMessage_Function_glVertexAttribIPointer;
+  static const Function glGetVertexAttribIiv = GLMessage_Function_glGetVertexAttribIiv;
+  static const Function glGetVertexAttribIuiv = GLMessage_Function_glGetVertexAttribIuiv;
+  static const Function glVertexAttribI4i = GLMessage_Function_glVertexAttribI4i;
+  static const Function glVertexAttribI4ui = GLMessage_Function_glVertexAttribI4ui;
+  static const Function glVertexAttribI4iv = GLMessage_Function_glVertexAttribI4iv;
+  static const Function glVertexAttribI4uiv = GLMessage_Function_glVertexAttribI4uiv;
+  static const Function glGetUniformuiv = GLMessage_Function_glGetUniformuiv;
+  static const Function glGetFragDataLocation = GLMessage_Function_glGetFragDataLocation;
+  static const Function glUniform1ui = GLMessage_Function_glUniform1ui;
+  static const Function glUniform2ui = GLMessage_Function_glUniform2ui;
+  static const Function glUniform3ui = GLMessage_Function_glUniform3ui;
+  static const Function glUniform4ui = GLMessage_Function_glUniform4ui;
+  static const Function glUniform1uiv = GLMessage_Function_glUniform1uiv;
+  static const Function glUniform2uiv = GLMessage_Function_glUniform2uiv;
+  static const Function glUniform3uiv = GLMessage_Function_glUniform3uiv;
+  static const Function glUniform4uiv = GLMessage_Function_glUniform4uiv;
+  static const Function glClearBufferiv = GLMessage_Function_glClearBufferiv;
+  static const Function glClearBufferuiv = GLMessage_Function_glClearBufferuiv;
+  static const Function glClearBufferfv = GLMessage_Function_glClearBufferfv;
+  static const Function glClearBufferfi = GLMessage_Function_glClearBufferfi;
+  static const Function glGetStringi = GLMessage_Function_glGetStringi;
+  static const Function glCopyBufferSubData = GLMessage_Function_glCopyBufferSubData;
+  static const Function glGetUniformIndices = GLMessage_Function_glGetUniformIndices;
+  static const Function glGetActiveUniformsiv = GLMessage_Function_glGetActiveUniformsiv;
+  static const Function glGetUniformBlockIndex = GLMessage_Function_glGetUniformBlockIndex;
+  static const Function glGetActiveUniformBlockiv = GLMessage_Function_glGetActiveUniformBlockiv;
+  static const Function glGetActiveUniformBlockName = GLMessage_Function_glGetActiveUniformBlockName;
+  static const Function glUniformBlockBinding = GLMessage_Function_glUniformBlockBinding;
+  static const Function glDrawArraysInstanced = GLMessage_Function_glDrawArraysInstanced;
+  static const Function glDrawElementsInstanced = GLMessage_Function_glDrawElementsInstanced;
+  static const Function glFenceSync = GLMessage_Function_glFenceSync;
+  static const Function glIsSync = GLMessage_Function_glIsSync;
+  static const Function glDeleteSync = GLMessage_Function_glDeleteSync;
+  static const Function glClientWaitSync = GLMessage_Function_glClientWaitSync;
+  static const Function glWaitSync = GLMessage_Function_glWaitSync;
+  static const Function glGetInteger64v = GLMessage_Function_glGetInteger64v;
+  static const Function glGetSynciv = GLMessage_Function_glGetSynciv;
+  static const Function glGetInteger64i_v = GLMessage_Function_glGetInteger64i_v;
+  static const Function glGetBufferParameteri64v = GLMessage_Function_glGetBufferParameteri64v;
+  static const Function glGenSamplers = GLMessage_Function_glGenSamplers;
+  static const Function glDeleteSamplers = GLMessage_Function_glDeleteSamplers;
+  static const Function glIsSampler = GLMessage_Function_glIsSampler;
+  static const Function glBindSampler = GLMessage_Function_glBindSampler;
+  static const Function glSamplerParameteri = GLMessage_Function_glSamplerParameteri;
+  static const Function glSamplerParameteriv = GLMessage_Function_glSamplerParameteriv;
+  static const Function glSamplerParameterf = GLMessage_Function_glSamplerParameterf;
+  static const Function glSamplerParameterfv = GLMessage_Function_glSamplerParameterfv;
+  static const Function glGetSamplerParameteriv = GLMessage_Function_glGetSamplerParameteriv;
+  static const Function glGetSamplerParameterfv = GLMessage_Function_glGetSamplerParameterfv;
+  static const Function glVertexAttribDivisor = GLMessage_Function_glVertexAttribDivisor;
+  static const Function glBindTransformFeedback = GLMessage_Function_glBindTransformFeedback;
+  static const Function glDeleteTransformFeedbacks = GLMessage_Function_glDeleteTransformFeedbacks;
+  static const Function glGenTransformFeedbacks = GLMessage_Function_glGenTransformFeedbacks;
+  static const Function glIsTransformFeedback = GLMessage_Function_glIsTransformFeedback;
+  static const Function glPauseTransformFeedback = GLMessage_Function_glPauseTransformFeedback;
+  static const Function glResumeTransformFeedback = GLMessage_Function_glResumeTransformFeedback;
+  static const Function glGetProgramBinary = GLMessage_Function_glGetProgramBinary;
+  static const Function glProgramBinary = GLMessage_Function_glProgramBinary;
+  static const Function glProgramParameteri = GLMessage_Function_glProgramParameteri;
+  static const Function glInvalidateFramebuffer = GLMessage_Function_glInvalidateFramebuffer;
+  static const Function glInvalidateSubFramebuffer = GLMessage_Function_glInvalidateSubFramebuffer;
+  static const Function glTexStorage2D = GLMessage_Function_glTexStorage2D;
+  static const Function glTexStorage3D = GLMessage_Function_glTexStorage3D;
+  static const Function glGetInternalformativ = GLMessage_Function_glGetInternalformativ;
   static const Function glActiveShaderProgramEXT = GLMessage_Function_glActiveShaderProgramEXT;
   static const Function glAlphaFuncQCOM = GLMessage_Function_glAlphaFuncQCOM;
   static const Function glBeginQueryEXT = GLMessage_Function_glBeginQueryEXT;
@@ -1658,6 +1881,31 @@ GLMessage_DataType::boolvalue() const {
 inline ::google::protobuf::RepeatedField< bool >*
 GLMessage_DataType::mutable_boolvalue() {
   return &boolvalue_;
+}
+
+// repeated int64 int64Value = 8;
+inline int GLMessage_DataType::int64value_size() const {
+  return int64value_.size();
+}
+inline void GLMessage_DataType::clear_int64value() {
+  int64value_.Clear();
+}
+inline ::google::protobuf::int64 GLMessage_DataType::int64value(int index) const {
+  return int64value_.Get(index);
+}
+inline void GLMessage_DataType::set_int64value(int index, ::google::protobuf::int64 value) {
+  int64value_.Set(index, value);
+}
+inline void GLMessage_DataType::add_int64value(::google::protobuf::int64 value) {
+  int64value_.Add(value);
+}
+inline const ::google::protobuf::RepeatedField< ::google::protobuf::int64 >&
+GLMessage_DataType::int64value() const {
+  return int64value_;
+}
+inline ::google::protobuf::RepeatedField< ::google::protobuf::int64 >*
+GLMessage_DataType::mutable_int64value() {
+  return &int64value_;
 }
 
 // -------------------------------------------------------------------

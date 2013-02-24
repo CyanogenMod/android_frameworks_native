@@ -124,6 +124,20 @@ LOCAL_CFLAGS += -fvisibility=hidden
 
 include $(BUILD_SHARED_LIBRARY)
 
+# Symlink libGLESv3.so -> libGLESv2.so
+# Platform modules should link against libGLESv2.so (-lGLESv2), but NDK apps
+# will be linked against libGLESv3.so.
+LIBGLESV2 := $(LOCAL_INSTALLED_MODULE)
+LIBGLESV3 := $(subst libGLESv2,libGLESv3,$(LIBGLESV2))
+$(LIBGLESV3): $(LIBGLESV2)
+	@echo "Symlink: $@ -> $(notdir $<)"
+	@mkdir -p $(dir $@)
+	$(hide) ln -sf $(notdir $<) $@
+ALL_MODULES.$(LOCAL_MODULE).INSTALLED := \
+	$(ALL_MODULES.$(LOCAL_MODULE).INSTALLED) $(LIBGLESV3)
+LIBGLESV2 :=
+LIBGLESV3 :=
+
 ###############################################################################
 # Build the ETC1 host static library
 #

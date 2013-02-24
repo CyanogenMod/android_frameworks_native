@@ -21,8 +21,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 
 #include <cutils/log.h>
 
@@ -39,7 +37,8 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 struct GLenumString {
-    GLenum e;
+    // The GL_TIMEOUT_IGNORED "enum" doesn't fit in a GLenum, so use GLuint64
+    GLuint64 e;
     const char* s;
 };
 
