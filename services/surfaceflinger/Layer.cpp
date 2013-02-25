@@ -526,7 +526,7 @@ void Layer::onPostComposition() {
         mFrameTracker.setDesiredPresentTime(desiredPresentTime);
 
         sp<Fence> frameReadyFence = mSurfaceFlingerConsumer->getCurrentFence();
-        if (frameReadyFence != NULL) {
+        if (frameReadyFence->isValid()) {
             mFrameTracker.setFrameReadyFence(frameReadyFence);
         } else {
             // There was no fence for this frame, so assume that it was ready
@@ -536,7 +536,7 @@ void Layer::onPostComposition() {
 
         const HWComposer& hwc = mFlinger->getHwComposer();
         sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
-        if (presentFence != NULL) {
+        if (presentFence->isValid()) {
             mFrameTracker.setActualPresentFence(presentFence);
         } else {
             // The HWC doesn't support present fences, so use the refresh
