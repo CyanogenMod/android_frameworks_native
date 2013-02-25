@@ -651,6 +651,8 @@ status_t BufferQueue::queueBuffer(int buf,
                 Fifo::iterator front(mQueue.begin());
                 // buffer currently queued is freed
                 mSlots[*front].mBufferState = BufferSlot::FREE;
+                // reset the frame number of the freed buffer
+                mSlots[*front].mFrameNumber = 0;
                 // and we record the new buffer index in the queued list
                 *front = buf;
             }
