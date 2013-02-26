@@ -47,6 +47,11 @@ enum {
     op_xor  = region_operator<Rect>::op_xor
 };
 
+enum {
+    direction_LTR,
+    direction_RTL
+};
+
 // ----------------------------------------------------------------------------
 
 Region::Region() {
@@ -67,6 +72,133 @@ Region::Region(const Rect& rhs) {
 
 Region::~Region()
 {
+}
+
+/**
+ * Copy rects from the src vector into the dst vector, resolving vertical T-Junctions along the way
+ *
+ * First pass through, divideSpanRTL will be set because the 'previous span' (indexing into the dst
+ * vector) will be reversed. Each rectangle in the original list, starting from the bottom, will be
+ * compared with the span directly below, and subdivided as needed to resolve T-junctions.
+ *
+ * The resulting temporary vector will be a completely reversed copy of the original, without any
+ * bottom-up T-junctions.
+ *
+ * Second pass through, divideSpanRTL will be false since the previous span will index into the
+ * final, correctly ordered region buffer. Each rectangle will be compared with the span directly
+ * above it, and subdivided to resolve any remaining T-junctions.
+ */
+static void reverseRectsResolvingJunctions(const Rect* begin, const Rect* end,
+        Vector<Rect>& dst, int spanDirection) {
+    dst.clear();
+
+    const Rect* current = end - 1;
+    int lastTop = current->top;
+
+    // add first span immediately
+    do {
+        dst.add(*current);
+        current--;
+    } while (current->top == lastTop && current >= begin);
+
+    unsigned int beginLastSpan = -1;
+    unsigned int endLastSpan = -1;
+    int top = -1;
+    int bottom = -1;
+
+    // for all other spans, split if a t-junction exists in the span directly above
+    while (current >= begin) {
+        if (current->top != (current + 1)->top) {
+            // new span
+            if ((spanDirection == direction_RTL && current->bottom != (current + 1)->top) ||
+                    (spanDirection == direction_LTR && current->top != (current + 1)->bottom)) {
+                // previous span not directly adjacent, don't check for T junctions
+                beginLastSpan = INT_MAX;
+            } else {
+                beginLastSpan = endLastSpan + 1;
+            }
+            endLastSpan = dst.size() - 1;
+
+            top = current->top;
+            bottom = current->bottom;
+        }
+        int left = current->left;
+        int right = current->right;
+
+        for (unsigned int prevIndex = beginLastSpan; prevIndex <= endLastSpan; prevIndex++) {
+            const Rect* prev = &dst[prevIndex];
+            if (spanDirection == direction_RTL) {
+                // iterating over previous span RTL, quit if it's too far left
+                if (prev->right <= left) break;
+
+                if (prev->right > left && prev->right < right) {
+                    dst.add(Rect(prev->right, top, right, bottom));
+                    right = prev->right;
+                }
+
+                if (prev->left > left && prev->left < right) {
+                    dst.add(Rect(prev->left, top, right, bottom));
+                    right = prev->left;
+                }
+
+                // if an entry in the previous span is too far right, nothing further left in the
+                // current span will need it
+                if (prev->left >= right) {
+                    beginLastSpan = prevIndex;
+                }
+            } else {
+                // iterating over previous span LTR, quit if it's too far right
+                if (prev->left >= right) break;
+
+                if (prev->left > left && prev->left < right) {
+                    dst.add(Rect(left, top, prev->left, bottom));
+                    left = prev->left;
+                }
+
+                if (prev->right > left && prev->right < right) {
+                    dst.add(Rect(left, top, prev->right, bottom));
+                    left = prev->right;
+                }
+                // if an entry in the previous span is too far left, nothing further right in the
+                // current span will need it
+                if (prev->right <= left) {
+                    beginLastSpan = prevIndex;
+                }
+            }
+        }
+
+        if (left < right) {
+            dst.add(Rect(left, top, right, bottom));
+        }
+
+        current--;
+    }
+}
+
+/**
+ * Creates a new region with the same data as the argument, but divides rectangles as necessary to
+ * remove T-Junctions
+ *
+ * Note: the output will not necessarily be a very efficient representation of the region, since it
+ * may be that a triangle-based approach would generate significantly simpler geometry
+ */
+Region Region::createTJunctionFreeRegion(const Region& r) {
+    if (r.isEmpty()) return r;
+    if (r.isRect()) return r;
+
+    Vector<Rect> reversed;
+    reverseRectsResolvingJunctions(r.begin(), r.end(), reversed, direction_RTL);
+
+    Region outputRegion;
+    reverseRectsResolvingJunctions(reversed.begin(), reversed.end(),
+            outputRegion.mStorage, direction_LTR);
+    outputRegion.mStorage.add(r.getBounds()); // to make region valid, mStorage must end with bounds
+
+#if VALIDATE_REGIONS
+    validate(outputRegion, "T-Junction free region");
+#endif
+
+    return outputRegion;
 }
 
 Region& Region::operator = (const Region& rhs)
