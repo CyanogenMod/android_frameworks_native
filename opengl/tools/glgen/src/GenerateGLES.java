@@ -42,7 +42,6 @@ public class GenerateGLES {
             }
 
             CFunc cfunc = CFunc.parseCFunc(s);
-
             String fname = cfunc.getName();
             String stubRoot = "stubs/gles11/" + fname;
             String javaPath = stubRoot + ".java";
@@ -96,10 +95,9 @@ public class GenerateGLES {
                 new PrintStream(new FileOutputStream("out/" + gl11Filename));
             PrintStream gl11cStream =
                 new PrintStream(new FileOutputStream("out/" + gl11cFilename));
-            gl11Stream.println("/*");
-            gl11cStream.println("/*");
             copy("stubs/gles11/" + suffix + "Header.java-if", gl11Stream);
             copy("stubs/gles11/" + suffix + "cHeader.cpp", gl11cStream);
+            copy("stubs/gles11/common.cpp", gl11cStream);
             GLESCodeEmitter emitter = new GLESCodeEmitter(
                     "android/opengl/" + suffix,
                     checker, gl11Stream, gl11cStream);

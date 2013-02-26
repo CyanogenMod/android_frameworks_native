@@ -197,30 +197,30 @@ public class JniCodeEmitter {
 
     void printIfcheckPostamble(PrintStream out, boolean isBuffer, boolean emitExceptionCheck,
             String iii) {
-                printIfcheckPostamble(out, isBuffer, emitExceptionCheck,
-                                      "offset", "_remaining", iii);
-            }
+        printIfcheckPostamble(out, isBuffer, emitExceptionCheck,
+                "offset", "_remaining", iii);
+    }
 
     void printIfcheckPostamble(PrintStream out, boolean isBuffer, boolean emitExceptionCheck,
             String offset, String remaining, String iii) {
-                out.println(iii + "    default:");
-                out.println(iii + "        _needed = 0;");
-                out.println(iii + "        break;");
-                out.println(iii + "}");
+        out.println(iii + "    default:");
+        out.println(iii + "        _needed = 1;");
+        out.println(iii + "        break;");
+        out.println(iii + "}");
 
-                out.println(iii + "if (" + remaining + " < _needed) {");
-                out.println(iii + indent + "_exception = 1;");
-                out.println(iii + indent +
-                           "_exceptionType = \"java/lang/IllegalArgumentException\";");
-                out.println(iii + indent +
-                           "_exceptionMessage = \"" +
-                           (isBuffer ? "remaining()" : "length - " + offset) +
-                           " < needed\";");
-                out.println(iii + indent + "goto exit;");
-                out.println(iii + "}");
+        out.println(iii + "if (" + remaining + " < _needed) {");
+        out.println(iii + indent + "_exception = 1;");
+        out.println(iii + indent +
+                "_exceptionType = \"java/lang/IllegalArgumentException\";");
+        out.println(iii + indent +
+                "_exceptionMessage = \"" +
+                (isBuffer ? "remaining()" : "length - " + offset) +
+                " < needed\";");
+        out.println(iii + indent + "goto exit;");
+        out.println(iii + "}");
 
-                needsExit = true;
-            }
+        needsExit = true;
+    }
 
     boolean isNullAllowed(CFunc cfunc) {
         String[] checks = mChecker.getChecks(cfunc.getName());
@@ -932,8 +932,8 @@ public class JniCodeEmitter {
         // Emit an _exeption variable if there will be error checks
         if (emitExceptionCheck) {
             out.println(indent + "jint _exception = 0;");
-            out.println(indent + "const char * _exceptionType;");
-            out.println(indent + "const char * _exceptionMessage;");
+            out.println(indent + "const char * _exceptionType = NULL;");
+            out.println(indent + "const char * _exceptionMessage = NULL;");
         }
 
         // Emit a single _array or multiple _XXXArray variables

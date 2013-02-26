@@ -70,7 +70,7 @@ if [ $JAVA_RESULT -ne 0 ]; then
     exit $JAVA_RESULT
 fi
 
-echo "Generating static OpenGLES 1.1 bindings"
+echo "Generating static OpenGLES bindings"
 java -classpath src GenerateGLES
 JAVA_RESULT=$?
 if [ $JAVA_RESULT -ne 0 ]; then
@@ -78,7 +78,7 @@ if [ $JAVA_RESULT -ne 0 ]; then
     exit $JAVA_RESULT
 fi
 
-echo "Generating static EGL 1.4 bindings"
+echo "Generating static EGL bindings"
 java -classpath src GenerateEGL
 JAVA_RESULT=$?
 if [ $JAVA_RESULT -ne 0 ]; then
