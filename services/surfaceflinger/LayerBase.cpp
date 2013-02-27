@@ -259,7 +259,7 @@ Rect LayerBase::computeBounds() const {
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
-    return s.transform.transform(win);
+    return win;
 }
 
 Region LayerBase::latchBuffer(bool& recomputeVisibleRegions) {
@@ -289,13 +289,16 @@ void LayerBase::setGeometry(
                 HWC_BLENDING_COVERAGE);
     }
 
-    const Transform& tr = hw->getTransform();
-    Rect transformedBounds(computeBounds());
-    transformedBounds = tr.transform(transformedBounds);
 
-    // scaling is already applied in transformedBounds
-    layer.setFrame(transformedBounds);
-    layer.setCrop(transformedBounds.getBounds());
+    Rect bounds(computeBounds());
+
+    // apply the layer's transform, followed by the display's global transform
+    // here we're guaranteed that the layer's transform preserves rects
+
+    const Transform& tr = hw->getTransform();
+    Rect frame(tr.transform(s.transform.transform(bounds)));
+    layer.setFrame(frame);
+    layer.setCrop(bounds);
 }
 
 void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,
