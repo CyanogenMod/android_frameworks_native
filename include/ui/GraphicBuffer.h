@@ -124,7 +124,6 @@ private:
     friend class Surface;
     friend class BpSurface;
     friend class BnSurface;
-    friend class Surface;
     friend class LightRefBase<GraphicBuffer>;
     GraphicBuffer(const GraphicBuffer& rhs);
     GraphicBuffer& operator = (const GraphicBuffer& rhs);
