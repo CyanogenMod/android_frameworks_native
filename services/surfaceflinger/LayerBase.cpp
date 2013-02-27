@@ -306,8 +306,11 @@ void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,
     // we have to set the visible region on every frame because
     // we currently free it during onLayerDisplayed(), which is called
     // after HWComposer::commit() -- every frame.
+    // Apply this display's projection's viewport to the visible region
+    // before giving it to the HWC HAL.
     const Transform& tr = hw->getTransform();
-    layer.setVisibleRegionScreen(tr.transform(visibleRegion));
+    Region visible = tr.transform(visibleRegion.intersect(hw->getViewport()));
+    layer.setVisibleRegionScreen(visible);
 }
 
 void LayerBase::setAcquireFence(const sp<const DisplayDevice>& hw,

@@ -105,8 +105,8 @@ public:
 
     int                     getOrientation() const { return mOrientation; }
     const Transform&        getTransform() const { return mGlobalTransform; }
-    const Rect&             getViewport() const { return mViewport; }
-    const Rect&             getFrame() const { return mFrame; }
+    const Rect              getViewport() const { return mViewport; }
+    const Rect              getFrame() const { return mFrame; }
     const Rect&             getScissor() const { return mScissor; }
     bool                    needsFiltering() const { return mNeedsFiltering; }
 
@@ -196,8 +196,6 @@ private:
      */
     static status_t orientationToTransfrom(int orientation,
             int w, int h, Transform* tr);
-
-    void updateGeometryTransform();
 
     uint32_t mLayerStack;
     int mOrientation;
