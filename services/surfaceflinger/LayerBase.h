@@ -260,6 +260,18 @@ public:
      */
     virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const { }
 
+    /**
+     * returns the rectangle that crops the content of the layer and scales it
+     * to the layer's size.
+     */
+    virtual Rect getContentCrop() const;
+
+    /*
+     * returns the transform bits (90 rotation / h-flip / v-flip) of the
+     * layer's content
+     */
+    virtual uint32_t getContentTransform() const;
+
     /** always call base class first */
     virtual void dump(String8& result, char* scratch, size_t size) const;
     virtual void shortDump(String8& result, char* scratch, size_t size) const;
@@ -281,6 +293,9 @@ public:
 
     void setFiltering(bool filtering);
     bool getFiltering() const;
+
+private:
+    Rect computeCrop(const sp<const DisplayDevice>& hw) const;
 
 protected:
           void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,

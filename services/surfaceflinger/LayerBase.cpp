@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <math.h>
 
 #include <utils/Errors.h>
 #include <utils/Log.h>
@@ -267,6 +268,61 @@ Region LayerBase::latchBuffer(bool& recomputeVisibleRegions) {
     return result;
 }
 
+
+Rect LayerBase::getContentCrop() const {
+    // regular layers just use their active area as the content crop
+    const State& s(drawingState());
+    return Rect(s.active.w, s.active.h);
+}
+
+uint32_t LayerBase::getContentTransform() const {
+    // regular layers don't have a content transform
+    return 0;
+}
+
+Rect LayerBase::computeCrop(const sp<const DisplayDevice>& hw) const {
+    // the content crop is the area of the content that gets scaled to the
+    // layer's size.
+    Rect crop(getContentCrop());
+
+    // the active.crop is the area of the window that gets cropped, but not
+    // scaled in any ways.
+    const State& s(drawingState());
+    Rect activeCrop(s.active.crop);
+    if (!activeCrop.isEmpty()) {
+        // Transform the window crop to match the buffer coordinate system,
+        // which means using the inverse of the current transform set on the
+        // SurfaceFlingerConsumer.
+        uint32_t invTransform = getContentTransform();
+        int winWidth = s.active.w;
+        int winHeight = s.active.h;
+        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            winWidth = s.active.h;
+            winHeight = s.active.w;
+        }
+        const Rect winCrop = activeCrop.transform(
+                invTransform, s.active.w, s.active.h);
+
+        // the code below essentially performs a scaled intersection
+        // of crop and winCrop
+        float xScale = float(crop.width()) / float(winWidth);
+        float yScale = float(crop.height()) / float(winHeight);
+
+        int insetL = int(ceilf( winCrop.left                * xScale));
+        int insetT = int(ceilf( winCrop.top                 * yScale));
+        int insetR = int(ceilf((winWidth  - winCrop.right ) * xScale));
+        int insetB = int(ceilf((winHeight - winCrop.bottom) * yScale));
+
+        crop.left   += insetL;
+        crop.top    += insetT;
+        crop.right  -= insetR;
+        crop.bottom -= insetB;
+    }
+    return crop;
+}
+
 void LayerBase::setGeometry(
     const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer)
@@ -290,15 +346,13 @@ void LayerBase::setGeometry(
     }
 
 
-    Rect bounds(computeBounds());
-
     // apply the layer's transform, followed by the display's global transform
     // here we're guaranteed that the layer's transform preserves rects
 
-    const Transform& tr = hw->getTransform();
-    Rect frame(tr.transform(s.transform.transform(bounds)));
-    layer.setFrame(frame);
-    layer.setCrop(bounds);
+    Rect frame(s.transform.transform(computeBounds()));
+    const Transform& tr(hw->getTransform());
+    layer.setFrame(tr.transform(frame));
+    layer.setCrop(computeCrop(hw));
 }
 
 void LayerBase::setPerFrameData(const sp<const DisplayDevice>& hw,

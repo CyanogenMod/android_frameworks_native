@@ -103,6 +103,9 @@ public:
     // the current orientation of the display device.
     virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const;
 
+    virtual Rect getContentCrop() const;
+    virtual uint32_t getContentTransform() const;
+
 protected:
     virtual void onFirstRef();
     virtual void dump(String8& result, char* scratch, size_t size) const;
@@ -115,7 +118,6 @@ private:
 
     uint32_t getEffectiveUsage(uint32_t usage) const;
     bool isCropped() const;
-    Rect computeBufferCrop() const;
     static bool getOpacityForFormat(uint32_t format);
 
     // Interface implementation for SurfaceFlingerConsumer::FrameAvailableListener
