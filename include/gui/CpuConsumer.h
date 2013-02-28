@@ -57,7 +57,7 @@ class CpuConsumer: public ConsumerBase
 
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies
     // how many buffers can be locked for user access at the same time.
-    CpuConsumer(uint32_t maxLockedBuffers);
+    CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode = true);
 
     virtual ~CpuConsumer();
 
