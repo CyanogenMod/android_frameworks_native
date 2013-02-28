@@ -892,7 +892,7 @@ void SurfaceFlinger::postComposition()
 
         const HWComposer& hwc = getHwComposer();
         sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
-        if (presentFence != NULL) {
+        if (presentFence->isValid()) {
             mAnimFrameTracker.setActualPresentFence(presentFence);
         } else {
             // The HWC doesn't support present fences, so use the refresh
