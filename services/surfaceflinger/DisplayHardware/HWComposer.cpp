@@ -1049,5 +1049,21 @@ bool HWComposer::VSyncThread::threadLoop() {
     return true;
 }
 
+HWComposer::DisplayData::DisplayData()
+:   width(0), height(0), format(0),
+    xdpi(0.0f), ydpi(0.0f),
+    refresh(0),
+    connected(false),
+    hasFbComp(false), hasOvComp(false),
+    capacity(0), list(NULL),
+    framebufferTarget(NULL), fbTargetHandle(0),
+    lastRetireFence(Fence::NO_FENCE), lastDisplayFence(Fence::NO_FENCE),
+    events(0)
+{}
+
+HWComposer::DisplayData::~DisplayData() {
+    free(list);
+}
+
 // ---------------------------------------------------------------------------
 }; // namespace android

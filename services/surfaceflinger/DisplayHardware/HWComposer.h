@@ -289,13 +289,8 @@ private:
 
 
     struct DisplayData {
-        DisplayData() : xdpi(0), ydpi(0), refresh(0),
-            connected(false), hasFbComp(false), hasOvComp(false),
-            capacity(0), list(NULL),
-            framebufferTarget(NULL), fbTargetHandle(NULL), events(0) { }
-        ~DisplayData() {
-            free(list);
-        }
+        DisplayData();
+        ~DisplayData();
         uint32_t width;
         uint32_t height;
         uint32_t format;    // pixel format from FB hal, for pre-hwc-1.1
