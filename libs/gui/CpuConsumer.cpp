@@ -17,8 +17,9 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "CpuConsumer"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
-#include <utils/Log.h>
 
+#include <cutils/compiler.h>
+#include <utils/Log.h>
 #include <gui/CpuConsumer.h>
 
 #define CC_LOGV(x, ...) ALOGV("[%s] "x, mName.string(), ##__VA_ARGS__)
@@ -34,9 +35,8 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode) :
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
-    for (size_t i=0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        mLockedSlots[i].mBufferPointer = NULL;
-    }
+    // Create tracking entries for locked buffers
+    mAcquiredBuffers.insertAt(0, maxLockedBuffers);
 
     mBufferQueue->setSynchronousMode(synchronousMode);
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
@@ -44,20 +44,10 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode) :
 }
 
 CpuConsumer::~CpuConsumer() {
-    status_t err;
-    for (size_t i=0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        if (mLockedSlots[i].mBufferPointer != NULL) {
-            mLockedSlots[i].mBufferPointer = NULL;
-            err = mLockedSlots[i].mGraphicBuffer->unlock();
-            mLockedSlots[i].mGraphicBuffer.clear();
-            if (err != OK) {
-                CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__,
-                        i);
-            }
-
-        }
-    }
+    // ConsumerBase destructor does all the work.
 }
+
+
 
 void CpuConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
@@ -109,8 +99,19 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
                 err);
         return err;
     }
-    mLockedSlots[buf].mBufferPointer = bufferPointer;
-    mLockedSlots[buf].mGraphicBuffer = mSlots[buf].mGraphicBuffer;
+    size_t lockedIdx = 0;
+    for (; lockedIdx < mMaxLockedBuffers; lockedIdx++) {
+        if (mAcquiredBuffers[lockedIdx].mSlot ==
+                BufferQueue::INVALID_BUFFER_SLOT) {
+            break;
+        }
+    }
+    assert(lockedIdx < mMaxLockedBuffers);
+
+    AcquiredBuffer &ab = mAcquiredBuffers.editItemAt(lockedIdx);
+    ab.mSlot = buf;
+    ab.mBufferPointer = bufferPointer;
+    ab.mGraphicBuffer = mSlots[buf].mGraphicBuffer;
 
     nativeBuffer->data   =
             reinterpret_cast<uint8_t*>(bufferPointer);
@@ -132,29 +133,46 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
 status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
     Mutex::Autolock _l(mMutex);
-    int slotIndex = 0;
+    size_t lockedIdx = 0;
     status_t err;
 
     void *bufPtr = reinterpret_cast<void *>(nativeBuffer.data);
-    for (; slotIndex < BufferQueue::NUM_BUFFER_SLOTS; slotIndex++) {
-        if (bufPtr == mLockedSlots[slotIndex].mBufferPointer) break;
+    for (; lockedIdx < mMaxLockedBuffers; lockedIdx++) {
+        if (bufPtr == mAcquiredBuffers[lockedIdx].mBufferPointer) break;
     }
-    if (slotIndex == BufferQueue::NUM_BUFFER_SLOTS) {
+    if (lockedIdx == mMaxLockedBuffers) {
         CC_LOGE("%s: Can't find buffer to free", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    mLockedSlots[slotIndex].mBufferPointer = NULL;
-    err = mLockedSlots[slotIndex].mGraphicBuffer->unlock();
-    mLockedSlots[slotIndex].mGraphicBuffer.clear();
+    return releaseAcquiredBufferLocked(lockedIdx);
+}
+
+status_t CpuConsumer::releaseAcquiredBufferLocked(int lockedIdx) {
+    status_t err;
+
+    err = mAcquiredBuffers[lockedIdx].mGraphicBuffer->unlock();
     if (err != OK) {
-        CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__, slotIndex);
+        CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__,
+                lockedIdx);
         return err;
     }
-    releaseBufferLocked(slotIndex, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+    int buf = mAcquiredBuffers[lockedIdx].mSlot;
+
+    // release the buffer if it hasn't already been freed by the BufferQueue.
+    // This can happen, for example, when the producer of this buffer
+    // disconnected after this buffer was acquired.
+    if (CC_LIKELY(mAcquiredBuffers[lockedIdx].mGraphicBuffer ==
+            mSlots[buf].mGraphicBuffer)) {
+        releaseBufferLocked(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+    }
+
+    AcquiredBuffer &ab = mAcquiredBuffers.editItemAt(lockedIdx);
+    ab.mSlot = BufferQueue::INVALID_BUFFER_SLOT;
+    ab.mBufferPointer = NULL;
+    ab.mGraphicBuffer.clear();
 
     mCurrentLockedBuffers--;
-
     return OK;
 }
 
