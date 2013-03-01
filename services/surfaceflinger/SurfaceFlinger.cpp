@@ -2020,6 +2020,7 @@ sp<LayerScreenshot> SurfaceFlinger::createScreenshotLayer(
         uint32_t w, uint32_t h, uint32_t flags)
 {
     sp<LayerScreenshot> layer = new LayerScreenshot(this, client);
+    layer->setBuffers(w, h, PIXEL_FORMAT_RGBA_8888, flags);
     return layer;
 }
 
@@ -2603,101 +2604,69 @@ void SurfaceFlinger::repaintEverything() {
 }
 
 // ---------------------------------------------------------------------------
-
-status_t SurfaceFlinger::renderScreenToTexture(uint32_t layerStack,
-        GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
-{
-    Mutex::Autolock _l(mStateLock);
-    return renderScreenToTextureLocked(layerStack, textureName, uOut, vOut);
-}
-
-status_t SurfaceFlinger::renderScreenToTextureLocked(uint32_t layerStack,
-        GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
-{
-    ATRACE_CALL();
-
-    if (!GLExtensions::getInstance().haveFramebufferObject())
-        return INVALID_OPERATION;
-
-    // get screen geometry
-    // FIXME: figure out what it means to have a screenshot texture w/ multi-display
-    sp<const DisplayDevice> hw(getDefaultDisplayDevice());
-    const uint32_t hw_w = hw->getWidth();
-    const uint32_t hw_h = hw->getHeight();
-    GLfloat u = 1;
-    GLfloat v = 1;
-
-    // make sure to clear all GL error flags
-    while ( glGetError() != GL_NO_ERROR ) ;
-
-    // create a FBO
-    GLuint name, tname;
-    glGenTextures(1, &tname);
-    glBindTexture(GL_TEXTURE_2D, tname);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-            hw_w, hw_h, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    if (glGetError() != GL_NO_ERROR) {
-        while ( glGetError() != GL_NO_ERROR ) ;
-        GLint tw = (2 << (31 - clz(hw_w)));
-        GLint th = (2 << (31 - clz(hw_h)));
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-                tw, th, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-        u = GLfloat(hw_w) / tw;
-        v = GLfloat(hw_h) / th;
-    }
-    glGenFramebuffersOES(1, &name);
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
-
-    DisplayDevice::setViewportAndProjection(hw);
-
-    // redraw the screen entirely...
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
-    const size_t count = layers.size();
-    for (size_t i=0 ; i<count ; ++i) {
-        const sp<LayerBase>& layer(layers[i]);
-        layer->draw(hw);
-    }
-
-    hw->compositionComplete();
-
-    // back to main framebuffer
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-    glDeleteFramebuffersOES(1, &name);
-
-    *textureName = tname;
-    *uOut = u;
-    *vOut = v;
-    return NO_ERROR;
-}
-
+// Capture screen into an IGraphiBufferProducer
 // ---------------------------------------------------------------------------
 
-status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
-        sp<IMemoryHeap>* heap,
-        uint32_t* w, uint32_t* h, PixelFormat* f,
-        uint32_t sw, uint32_t sh,
+status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
+        const sp<IGraphicBufferProducer>& producer,
+        uint32_t reqWidth, uint32_t reqHeight,
+        uint32_t minLayerZ, uint32_t maxLayerZ) {
+
+    if (CC_UNLIKELY(display == 0))
+        return BAD_VALUE;
+
+    if (CC_UNLIKELY(producer == 0))
+        return BAD_VALUE;
+
+    class MessageCaptureScreen : public MessageBase {
+        SurfaceFlinger* flinger;
+        sp<IBinder> display;
+        sp<IGraphicBufferProducer> producer;
+        uint32_t reqWidth, reqHeight;
+        uint32_t minLayerZ,maxLayerZ;
+        status_t result;
+    public:
+        MessageCaptureScreen(SurfaceFlinger* flinger,
+                const sp<IBinder>& display,
+                const sp<IGraphicBufferProducer>& producer,
+                uint32_t reqWidth, uint32_t reqHeight,
+                uint32_t minLayerZ, uint32_t maxLayerZ)
+            : flinger(flinger), display(display), producer(producer),
+              reqWidth(reqWidth), reqHeight(reqHeight),
+              minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
+              result(PERMISSION_DENIED)
+        {
+        }
+        status_t getResult() const {
+            return result;
+        }
+        virtual bool handler() {
+            Mutex::Autolock _l(flinger->mStateLock);
+            sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
+            result = flinger->captureScreenImplLocked(hw, producer,
+                    reqWidth, reqHeight, minLayerZ, maxLayerZ);
+            return true;
+        }
+    };
+
+    sp<MessageBase> msg = new MessageCaptureScreen(this,
+            display, producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
+    status_t res = postMessageSync(msg);
+    if (res == NO_ERROR) {
+        res = static_cast<MessageCaptureScreen*>( msg.get() )->getResult();
+    }
+    return res;
+}
+
+status_t SurfaceFlinger::captureScreenImplLocked(
+        const sp<const DisplayDevice>& hw,
+        const sp<IGraphicBufferProducer>& producer,
+        uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ)
 {
     ATRACE_CALL();
 
-    status_t result = PERMISSION_DENIED;
-
-    if (!GLExtensions::getInstance().haveFramebufferObject()) {
-        return INVALID_OPERATION;
-    }
-
     // get screen geometry
-    sp<const DisplayDevice> hw(getDisplayDevice(display));
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
 
@@ -2707,68 +2676,128 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
         return PERMISSION_DENIED;
     }
 
-    if ((sw > hw_w) || (sh > hw_h)) {
-        ALOGE("size mismatch (%d, %d) > (%d, %d)", sw, sh, hw_w, hw_h);
+    if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
+        ALOGE("size mismatch (%d, %d) > (%d, %d)",
+                reqWidth, reqHeight, hw_w, hw_h);
         return BAD_VALUE;
     }
 
-    sw = (!sw) ? hw_w : sw;
-    sh = (!sh) ? hw_h : sh;
-    const size_t size = sw * sh * 4;
-    const bool filtering = sw != hw_w || sh != hw_h;
+    reqWidth = (!reqWidth) ? hw_w : reqWidth;
+    reqHeight = (!reqHeight) ? hw_h : reqHeight;
+    const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
 
-//    ALOGD("screenshot: sw=%d, sh=%d, minZ=%d, maxZ=%d",
-//            sw, sh, minLayerZ, maxLayerZ);
+    // Create a surface to render into
+    sp<Surface> surface = new Surface(producer);
+    ANativeWindow* const window = surface.get();
+
+    // set the buffer size to what the user requested
+    native_window_set_buffers_user_dimensions(window, reqWidth, reqHeight);
+
+    // and create the corresponding EGLSurface
+    EGLSurface eglSurface = eglCreateWindowSurface(
+            mEGLDisplay, mEGLConfig, window, NULL);
+    if (eglSurface == EGL_NO_SURFACE) {
+        ALOGE("captureScreenImplLocked: eglCreateWindowSurface() failed 0x%4x",
+                eglGetError());
+        return BAD_VALUE;
+    }
+
+    if (!eglMakeCurrent(mEGLDisplay, eglSurface, eglSurface, mEGLContext)) {
+        ALOGE("captureScreenImplLocked: eglMakeCurrent() failed 0x%4x",
+                eglGetError());
+        eglDestroySurface(mEGLDisplay, eglSurface);
+        return BAD_VALUE;
+    }
 
     // make sure to clear all GL error flags
     while ( glGetError() != GL_NO_ERROR ) ;
 
-    // create a FBO
-    GLuint name, tname;
-    glGenRenderbuffersOES(1, &tname);
-    glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
-    glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, sw, sh);
+    // set-up our viewport
+    glViewport(0, 0, reqWidth, reqHeight);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrthof(0, hw_w, 0, hw_h, 0, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 
-    glGenFramebuffersOES(1, &name);
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
-            GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, tname);
+    // redraw the screen entirely...
+    glDisable(GL_TEXTURE_EXTERNAL_OES);
+    glDisable(GL_TEXTURE_2D);
+    glClearColor(0,0,0,1);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
-
-    if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
-
-        // invert everything, b/c glReadPixel() below will invert the FB
-        GLint  viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
-        glViewport(0, 0, sw, sh);
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
-        glOrthof(0, hw_w, hw_h, 0, 0, 1);
-        glMatrixMode(GL_MODELVIEW);
-
-        // redraw the screen entirely...
-        glClearColor(0,0,0,1);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
-        const size_t count = layers.size();
-        for (size_t i=0 ; i<count ; ++i) {
-            const sp<LayerBase>& layer(layers[i]);
-            const uint32_t z = layer->drawingState().z;
-            if (z >= minLayerZ && z <= maxLayerZ) {
-                if (filtering) layer->setFiltering(true);
-                layer->draw(hw);
-                if (filtering) layer->setFiltering(false);
-            }
+    const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
+    const size_t count = layers.size();
+    for (size_t i=0 ; i<count ; ++i) {
+        const sp<LayerBase>& layer(layers[i]);
+        const uint32_t z = layer->drawingState().z;
+        if (z >= minLayerZ && z <= maxLayerZ) {
+            if (filtering) layer->setFiltering(true);
+            layer->draw(hw);
+            if (filtering) layer->setFiltering(false);
         }
+    }
 
-        // check for errors and return screen capture
-        if (glGetError() != GL_NO_ERROR) {
-            // error while rendering
-            result = INVALID_OPERATION;
-        } else {
+    // and finishing things up...
+    if (eglSwapBuffers(mEGLDisplay, eglSurface) != EGL_TRUE) {
+        ALOGE("captureScreenImplLocked: eglSwapBuffers() failed 0x%4x",
+                eglGetError());
+        eglDestroySurface(mEGLDisplay, eglSurface);
+        return BAD_VALUE;
+    }
+
+    eglDestroySurface(mEGLDisplay, eglSurface);
+    return NO_ERROR;
+}
+
+// ---------------------------------------------------------------------------
+// Capture screen into an IMemoryHeap (legacy)
+// ---------------------------------------------------------------------------
+
+status_t SurfaceFlinger::captureScreenImplLocked(
+        const sp<const DisplayDevice>& hw,
+        sp<IMemoryHeap>* heap,
+        uint32_t* w, uint32_t* h, PixelFormat* f,
+        uint32_t sw, uint32_t sh,
+        uint32_t minLayerZ, uint32_t maxLayerZ)
+{
+    ATRACE_CALL();
+
+    if (!GLExtensions::getInstance().haveFramebufferObject()) {
+        return INVALID_OPERATION;
+    }
+
+    // create the texture that will receive the screenshot, later we'll
+    // attach a FBO to it so we can call glReadPixels().
+    GLuint tname;
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // the GLConsumer will provide the BufferQueue
+    sp<GLConsumer> consumer = new GLConsumer(tname, true, GL_TEXTURE_2D);
+    consumer->getBufferQueue()->setDefaultBufferFormat(HAL_PIXEL_FORMAT_RGBA_8888);
+
+    // call the new screenshot taking code, passing a BufferQueue to it
+    status_t result = captureScreenImplLocked(hw,
+            consumer->getBufferQueue(), sw, sh, minLayerZ, maxLayerZ);
+
+    if (result == NO_ERROR) {
+        result = consumer->updateTexImage();
+        if (result == NO_ERROR) {
+            // create a FBO
+            GLuint name;
+            glGenFramebuffersOES(1, &name);
+            glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+            glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
+                    GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
+
+            sp<GraphicBuffer> buf(consumer->getCurrentBuffer());
+            sw = buf->getWidth();
+            sh = buf->getHeight();
+            size_t size = buf->getStride() * sh * 4;
+
             // allocate shared memory large enough to hold the
             // screen capture
             sp<MemoryHeapBase> base(
@@ -2788,59 +2817,48 @@ status_t SurfaceFlinger::captureScreenImplLocked(const sp<IBinder>& display,
             } else {
                 result = NO_MEMORY;
             }
+
+            // back to main framebuffer
+            glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
+            glDeleteFramebuffersOES(1, &name);
         }
-        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
-        glMatrixMode(GL_MODELVIEW);
-    } else {
-        result = BAD_VALUE;
     }
 
-    // release FBO resources
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-    glDeleteRenderbuffersOES(1, &tname);
-    glDeleteFramebuffersOES(1, &name);
-
-    hw->compositionComplete();
-
-//    ALOGD("screenshot: result = %s", result<0 ? strerror(result) : "OK");
+    glDeleteTextures(1, &tname);
 
     return result;
 }
 
-
 status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         sp<IMemoryHeap>* heap,
-        uint32_t* width, uint32_t* height, PixelFormat* format,
-        uint32_t sw, uint32_t sh,
+        uint32_t* outWidth, uint32_t* outHeight, PixelFormat* outFormat,
+        uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ)
 {
     if (CC_UNLIKELY(display == 0))
         return BAD_VALUE;
 
-    if (!GLExtensions::getInstance().haveFramebufferObject())
-        return INVALID_OPERATION;
-
     class MessageCaptureScreen : public MessageBase {
         SurfaceFlinger* flinger;
         sp<IBinder> display;
         sp<IMemoryHeap>* heap;
-        uint32_t* w;
-        uint32_t* h;
-        PixelFormat* f;
-        uint32_t sw;
-        uint32_t sh;
+        uint32_t* outWidth;
+        uint32_t* outHeight;
+        PixelFormat* outFormat;
+        uint32_t reqWidth;
+        uint32_t reqHeight;
         uint32_t minLayerZ;
         uint32_t maxLayerZ;
         status_t result;
     public:
-        MessageCaptureScreen(SurfaceFlinger* flinger, const sp<IBinder>& display,
-                sp<IMemoryHeap>* heap, uint32_t* w, uint32_t* h, PixelFormat* f,
-                uint32_t sw, uint32_t sh,
+        MessageCaptureScreen(SurfaceFlinger* flinger,
+                const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+                uint32_t* outWidth, uint32_t* outHeight, PixelFormat* outFormat,
+                uint32_t reqWidth, uint32_t reqHeight,
                 uint32_t minLayerZ, uint32_t maxLayerZ)
-            : flinger(flinger), display(display),
-              heap(heap), w(w), h(h), f(f), sw(sw), sh(sh),
+            : flinger(flinger), display(display), heap(heap),
+              outWidth(outWidth), outHeight(outHeight), outFormat(outFormat),
+              reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
               result(PERMISSION_DENIED)
         {
@@ -2850,14 +2868,17 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         }
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
-            result = flinger->captureScreenImplLocked(display,
-                    heap, w, h, f, sw, sh, minLayerZ, maxLayerZ);
+            sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
+            result = flinger->captureScreenImplLocked(hw, heap,
+                    outWidth, outHeight, outFormat,
+                    reqWidth, reqHeight, minLayerZ, maxLayerZ);
             return true;
         }
     };
 
-    sp<MessageBase> msg = new MessageCaptureScreen(this,
-            display, heap, width, height, format, sw, sh, minLayerZ, maxLayerZ);
+    sp<MessageBase> msg = new MessageCaptureScreen(this, display, heap,
+            outWidth, outHeight, outFormat,
+            reqWidth, reqHeight, minLayerZ, maxLayerZ);
     status_t res = postMessageSync(msg);
     if (res == NO_ERROR) {
         res = static_cast<MessageCaptureScreen*>( msg.get() )->getResult();
