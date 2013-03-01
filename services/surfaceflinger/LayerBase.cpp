@@ -281,6 +281,14 @@ uint32_t LayerBase::getContentTransform() const {
 }
 
 Rect LayerBase::computeCrop(const sp<const DisplayDevice>& hw) const {
+    /*
+     * The way we compute the crop (aka. texture coordinates when we have a
+     * Layer) produces a different output from the GL code in
+     * drawWithOpenGL() due to HWC being limited to integers. The difference
+     * can be large if getContentTransform() contains a large scale factor.
+     * See comments in drawWithOpenGL() for more details.
+     */
+
     // the content crop is the area of the content that gets scaled to the
     // layer's size.
     Rect crop(getContentCrop());
@@ -288,7 +296,21 @@ Rect LayerBase::computeCrop(const sp<const DisplayDevice>& hw) const {
     // the active.crop is the area of the window that gets cropped, but not
     // scaled in any ways.
     const State& s(drawingState());
-    Rect activeCrop(s.active.crop);
+
+    // apply the projection's clipping to the window crop in
+    // layerstack space, and convert-back to layer space.
+    // if there are no window scaling (or content scaling) involved,
+    // this operation will map to full pixels in the buffer.
+    // NOTE: should we revert to GL composition if a scaling is involved
+    // since it cannot be represented in the HWC API?
+    Rect activeCrop(s.transform.transform(s.active.crop));
+    activeCrop.intersect(hw->getViewport(), &activeCrop);
+    activeCrop = s.transform.inverse().transform(activeCrop);
+
+    // paranoia: make sure the window-crop is constrained in the
+    // window's bounds
+    activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
+
     if (!activeCrop.isEmpty()) {
         // Transform the window crop to match the buffer coordinate system,
         // which means using the inverse of the current transform set on the
@@ -350,6 +372,7 @@ void LayerBase::setGeometry(
     // here we're guaranteed that the layer's transform preserves rects
 
     Rect frame(s.transform.transform(computeBounds()));
+    frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
     layer.setCrop(computeCrop(hw));
@@ -464,10 +487,22 @@ void LayerBase::drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& 
         GLfloat v;
     };
 
-    Rect win(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        win.intersect(s.active.crop, &win);
-    }
+
+    /*
+     * NOTE: the way we compute the texture coordinates here produces
+     * different results than when we take the HWC path -- in the later case
+     * the "source crop" is rounded to texel boundaries.
+     * This can produce significantly different results when the texture
+     * is scaled by a large amount.
+     *
+     * The GL code below is more logical (imho), and the difference with
+     * HWC is due to a limitation of the HWC API to integers -- a question
+     * is suspend is wether we should ignore this problem or revert to
+     * GL composition when a buffer scaling is applied (maybe with some
+     * minimal value)? Or, we could make GL behave like HWC -- but this feel
+     * like more of a hack.
+     */
+    const Rect win(computeBounds());
 
     GLfloat left   = GLfloat(win.left)   / GLfloat(s.active.w);
     GLfloat top    = GLfloat(win.top)    / GLfloat(s.active.h);
