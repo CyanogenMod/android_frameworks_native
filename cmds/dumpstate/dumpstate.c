@@ -25,7 +25,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <linux/capability.h>
+#include <sys/capability.h>
 #include <linux/prctl.h>
 
 #include <cutils/properties.h>
