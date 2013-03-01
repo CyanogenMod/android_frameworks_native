@@ -34,9 +34,8 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers) :
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
-
-    for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        mBufferPointers[i] = NULL;
+    for (size_t i=0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+        mLockedSlots[i].mBufferPointer = NULL;
     }
 
     mBufferQueue->setSynchronousMode(true);
@@ -45,6 +44,19 @@ CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers) :
 }
 
 CpuConsumer::~CpuConsumer() {
+    status_t err;
+    for (size_t i=0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+        if (mLockedSlots[i].mBufferPointer != NULL) {
+            mLockedSlots[i].mBufferPointer = NULL;
+            err = mLockedSlots[i].mGraphicBuffer->unlock();
+            mLockedSlots[i].mGraphicBuffer.clear();
+            if (err != OK) {
+                CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__,
+                        i);
+            }
+
+        }
+    }
 }
 
 void CpuConsumer::setName(const String8& name) {
@@ -86,18 +98,22 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
         }
     }
 
+    void *bufferPointer = NULL;
     err = mSlots[buf].mGraphicBuffer->lock(
         GraphicBuffer::USAGE_SW_READ_OFTEN,
         b.mCrop,
-        &mBufferPointers[buf]);
+        &bufferPointer);
 
-    if (mBufferPointers[buf] != NULL && err != OK) {
+    if (bufferPointer != NULL && err != OK) {
         CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)", strerror(-err),
                 err);
         return err;
     }
+    mLockedSlots[buf].mBufferPointer = bufferPointer;
+    mLockedSlots[buf].mGraphicBuffer = mSlots[buf].mGraphicBuffer;
 
-    nativeBuffer->data   = reinterpret_cast<uint8_t*>(mBufferPointers[buf]);
+    nativeBuffer->data   =
+            reinterpret_cast<uint8_t*>(bufferPointer);
     nativeBuffer->width  = mSlots[buf].mGraphicBuffer->getWidth();
     nativeBuffer->height = mSlots[buf].mGraphicBuffer->getHeight();
     nativeBuffer->format = mSlots[buf].mGraphicBuffer->getPixelFormat();
@@ -121,15 +137,16 @@ status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
 
     void *bufPtr = reinterpret_cast<void *>(nativeBuffer.data);
     for (; slotIndex < BufferQueue::NUM_BUFFER_SLOTS; slotIndex++) {
-        if (bufPtr == mBufferPointers[slotIndex]) break;
+        if (bufPtr == mLockedSlots[slotIndex].mBufferPointer) break;
     }
     if (slotIndex == BufferQueue::NUM_BUFFER_SLOTS) {
         CC_LOGE("%s: Can't find buffer to free", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    mBufferPointers[slotIndex] = NULL;
-    err = mSlots[slotIndex].mGraphicBuffer->unlock();
+    mLockedSlots[slotIndex].mBufferPointer = NULL;
+    err = mLockedSlots[slotIndex].mGraphicBuffer->unlock();
+    mLockedSlots[slotIndex].mGraphicBuffer.clear();
     if (err != OK) {
         CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__, slotIndex);
         return err;
@@ -142,17 +159,6 @@ status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
 }
 
 void CpuConsumer::freeBufferLocked(int slotIndex) {
-    if (mBufferPointers[slotIndex] != NULL) {
-        status_t err;
-        CC_LOGW("Buffer %d freed while locked by consumer", slotIndex);
-        mBufferPointers[slotIndex] = NULL;
-        err = mSlots[slotIndex].mGraphicBuffer->unlock();
-        if (err != OK) {
-            CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__,
-                    slotIndex);
-        }
-        mCurrentLockedBuffers--;
-    }
     ConsumerBase::freeBufferLocked(slotIndex);
 }
 

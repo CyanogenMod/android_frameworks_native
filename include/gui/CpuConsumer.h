@@ -92,7 +92,11 @@ class CpuConsumer: public ConsumerBase
 
     // Array for tracking pointers passed to the consumer, matching the
     // mSlots indexing
-    void *mBufferPointers[BufferQueue::NUM_BUFFER_SLOTS];
+    struct LockedSlot {
+        sp<GraphicBuffer> mGraphicBuffer;
+        void *mBufferPointer;
+    } mLockedSlots[BufferQueue::NUM_BUFFER_SLOTS];
+
     // Count of currently locked buffers
     uint32_t mCurrentLockedBuffers;
 
