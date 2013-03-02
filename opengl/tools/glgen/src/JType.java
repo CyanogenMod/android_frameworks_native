@@ -56,6 +56,7 @@ public class JType {
     typeMapping.put(new CType("EGLNativeWindowType"), new JType("int"));
     typeMapping.put(new CType("EGLNativeDisplayType"), new JType("int"));
     typeMapping.put(new CType("EGLClientBuffer"), new JType("int"));
+    typeMapping.put(new CType("EGLnsecsANDROID"), new JType("long"));
 
     // EGL nonprimitive types
     typeMapping.put(new CType("EGLConfig"), new JType("EGLConfig", true, false));
