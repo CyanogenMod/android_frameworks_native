@@ -735,7 +735,7 @@ status_t Surface::writeToParcel(
 sp<Surface> Surface::readFromParcel(const Parcel& data) {
     sp<IBinder> binder(data.readStrongBinder());
     sp<IGraphicBufferProducer> bp(interface_cast<IGraphicBufferProducer>(binder));
-    return new Surface(bp);
+    return bp != NULL ? new Surface(bp): NULL;
 }
 
 // ----------------------------------------------------------------------------
