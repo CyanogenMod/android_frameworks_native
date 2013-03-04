@@ -287,7 +287,8 @@ void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& lay
     mSecureLayerVisible = false;
     size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        if (layers[i]->isSecure()) {
+        const sp<LayerBase>& layer(layers[i]);
+        if (layer->isSecure()) {
             mSecureLayerVisible = true;
         }
     }
@@ -365,74 +366,72 @@ status_t DisplayDevice::orientationToTransfrom(
 }
 
 void DisplayDevice::setProjection(int orientation,
-        const Rect& viewport, const Rect& frame) {
+        const Rect& newViewport, const Rect& newFrame) {
+    Rect viewport(newViewport);
+    Rect frame(newFrame);
+
+    const int w = mDisplayWidth;
+    const int h = mDisplayHeight;
+
+    Transform R;
+    DisplayDevice::orientationToTransfrom(orientation, w, h, &R);
+
+    if (!frame.isValid()) {
+        // the destination frame can be invalid if it has never been set,
+        // in that case we assume the whole display frame.
+        frame = Rect(w, h);
+    }
+
+    if (viewport.isEmpty()) {
+        // viewport can be invalid if it has never been set, in that case
+        // we assume the whole display size.
+        // it's also invalid to have an empty viewport, so we handle that
+        // case in the same way.
+        viewport = Rect(w, h);
+        if (R.getOrientation() & Transform::ROT_90) {
+            // viewport is always specified in the logical orientation
+            // of the display (ie: post-rotation).
+            swap(viewport.right, viewport.bottom);
+        }
+    }
+
+    dirtyRegion.set(getBounds());
+
+    Transform TL, TP, S;
+    float src_width  = viewport.width();
+    float src_height = viewport.height();
+    float dst_width  = frame.width();
+    float dst_height = frame.height();
+    if (src_width != dst_width || src_height != dst_height) {
+        float sx = dst_width  / src_width;
+        float sy = dst_height / src_height;
+        S.set(sx, 0, 0, sy);
+    }
+
+    float src_x = viewport.left;
+    float src_y = viewport.top;
+    float dst_x = frame.left;
+    float dst_y = frame.top;
+    TL.set(-src_x, -src_y);
+    TP.set(dst_x, dst_y);
+
+    // The viewport and frame are both in the logical orientation.
+    // Apply the logical translation, scale to physical size, apply the
+    // physical translation and finally rotate to the physical orientation.
+    mGlobalTransform = R * TP * S * TL;
+
+    const uint8_t type = mGlobalTransform.getType();
+    mNeedsFiltering = (!mGlobalTransform.preserveRects() ||
+            (type >= Transform::SCALE));
+
+    mScissor = mGlobalTransform.transform(viewport);
+    if (mScissor.isEmpty()) {
+        mScissor.set(getBounds());
+    }
+
     mOrientation = orientation;
     mViewport = viewport;
     mFrame = frame;
-    updateGeometryTransform();
-}
-
-void DisplayDevice::updateGeometryTransform() {
-    int w = mDisplayWidth;
-    int h = mDisplayHeight;
-    Transform TL, TP, R, S;
-    if (DisplayDevice::orientationToTransfrom(
-            mOrientation, w, h, &R) == NO_ERROR) {
-        dirtyRegion.set(bounds());
-
-        Rect viewport(mViewport);
-        Rect frame(mFrame);
-
-        if (!frame.isValid()) {
-            // the destination frame can be invalid if it has never been set,
-            // in that case we assume the whole display frame.
-            frame = Rect(w, h);
-        }
-
-        if (viewport.isEmpty()) {
-            // viewport can be invalid if it has never been set, in that case
-            // we assume the whole display size.
-            // it's also invalid to have an empty viewport, so we handle that
-            // case in the same way.
-            viewport = Rect(w, h);
-            if (R.getOrientation() & Transform::ROT_90) {
-                // viewport is always specified in the logical orientation
-                // of the display (ie: post-rotation).
-                swap(viewport.right, viewport.bottom);
-            }
-        }
-
-        float src_width  = viewport.width();
-        float src_height = viewport.height();
-        float dst_width  = frame.width();
-        float dst_height = frame.height();
-        if (src_width != dst_width || src_height != dst_height) {
-            float sx = dst_width  / src_width;
-            float sy = dst_height / src_height;
-            S.set(sx, 0, 0, sy);
-        }
-
-        float src_x = viewport.left;
-        float src_y = viewport.top;
-        float dst_x = frame.left;
-        float dst_y = frame.top;
-        TL.set(-src_x, -src_y);
-        TP.set(dst_x, dst_y);
-
-        // The viewport and frame are both in the logical orientation.
-        // Apply the logical translation, scale to physical size, apply the
-        // physical translation and finally rotate to the physical orientation.
-        mGlobalTransform = R * TP * S * TL;
-
-        const uint8_t type = mGlobalTransform.getType();
-        mNeedsFiltering = (!mGlobalTransform.preserveRects() ||
-                (type >= Transform::SCALE));
-
-        mScissor = mGlobalTransform.transform(mViewport);
-        if (mScissor.isEmpty()) {
-            mScissor.set(getBounds());
-        }
-    }
 }
 
 void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {

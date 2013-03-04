@@ -80,6 +80,8 @@ public:
             Rect    transform(const Rect& bounds) const;
             Transform operator * (const Transform& rhs) const;
 
+            Transform inverse() const;
+
             // for debugging
             void dump(const char* name) const;
 

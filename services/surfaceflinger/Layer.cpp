@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <math.h>
 
 #include <cutils/compiler.h>
 #include <cutils/native_handle.h>
@@ -200,46 +199,25 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     return NO_ERROR;
 }
 
-Rect Layer::computeBufferCrop() const {
-    // Start with the SurfaceFlingerConsumer's buffer crop...
+Rect Layer::getContentCrop() const {
+    // this is the crop rectangle that applies to the buffer
+    // itself (as opposed to the window)
     Rect crop;
     if (!mCurrentCrop.isEmpty()) {
+        // if the buffer crop is defined, we use that
         crop = mCurrentCrop;
-    } else  if (mActiveBuffer != NULL){
-        crop = Rect(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
+    } else if (mActiveBuffer != NULL) {
+        // otherwise we use the whole buffer
+        crop = mActiveBuffer->getBounds();
     } else {
+        // if we don't have a buffer yet, we use an empty/invalid crop
         crop.makeInvalid();
-        return crop;
     }
-
-    // ... then reduce that in the same proportions as the window crop reduces
-    // the window size.
-    const State& s(drawingState());
-    if (!s.active.crop.isEmpty()) {
-        // Transform the window crop to match the buffer coordinate system,
-        // which means using the inverse of the current transform set on the
-        // SurfaceFlingerConsumer.
-        uint32_t invTransform = mCurrentTransform;
-        int winWidth = s.active.w;
-        int winHeight = s.active.h;
-        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
-                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
-            winWidth = s.active.h;
-            winHeight = s.active.w;
-        }
-        Rect winCrop = s.active.crop.transform(invTransform,
-                s.active.w, s.active.h);
-
-        float xScale = float(crop.width()) / float(winWidth);
-        float yScale = float(crop.height()) / float(winHeight);
-        crop.left += int(ceilf(float(winCrop.left) * xScale));
-        crop.top += int(ceilf(float(winCrop.top) * yScale));
-        crop.right -= int(ceilf(float(winWidth - winCrop.right) * xScale));
-        crop.bottom -= int(ceilf(float(winHeight - winCrop.bottom) * yScale));
-    }
-
     return crop;
+}
+
+uint32_t Layer::getContentTransform() const {
+    return mCurrentTransform;
 }
 
 void Layer::setGeometry(
@@ -278,7 +256,6 @@ void Layer::setGeometry(
     } else {
         layer.setTransform(finalTransform);
     }
-    layer.setCrop(computeBufferCrop());
 }
 
 void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
