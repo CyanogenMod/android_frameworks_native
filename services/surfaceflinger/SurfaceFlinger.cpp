@@ -1384,7 +1384,7 @@ void SurfaceFlinger::computeVisibleRegions(
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(layer->isVisible())) {
             const bool translucent = !layer->isOpaque();
-            Rect bounds(layer->computeBounds());
+            Rect bounds(s.transform.transform(layer->computeBounds()));
             visibleRegion.set(bounds);
             if (!visibleRegion.isEmpty()) {
                 // Remove the transparent area from the visible region
