@@ -54,7 +54,7 @@ public class JniCodeEmitter {
         } else if (baseType.equals("short")) {
             jniName += "S";
         } else if (baseType.equals("long")) {
-            jniName += "L";
+            jniName += "J";
         } else if (baseType.equals("byte")) {
             jniName += "B";
         } else if (baseType.equals("String")) {
