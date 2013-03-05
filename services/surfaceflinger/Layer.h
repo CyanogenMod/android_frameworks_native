@@ -68,7 +68,7 @@ public:
     status_t setBuffers(uint32_t w, uint32_t h, 
             PixelFormat format, uint32_t flags=0);
 
-    bool isFixedSize() const;
+    virtual bool isFixedSize() const;
 
     // LayerBase interface
     virtual void setGeometry(const sp<const DisplayDevice>& hw,

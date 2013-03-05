@@ -23,13 +23,13 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "LayerBase.h"
+#include "Layer.h"
 
 // ---------------------------------------------------------------------------
 
 namespace android {
 
-class LayerDim : public LayerBase
+class LayerDim : public Layer
 {
 public:    
                 LayerDim(SurfaceFlinger* flinger, const sp<Client>& client);
@@ -41,6 +41,10 @@ public:
     virtual bool isProtectedByApp() const { return false; }
     virtual bool isProtectedByDRM() const { return false; }
     virtual const char* getTypeId() const { return "LayerDim"; }
+
+    virtual bool isFixedSize() const      { return true; }
+    virtual bool isVisible() const;
+    virtual sp<ISurface> createSurface();
 };
 
 // ---------------------------------------------------------------------------
