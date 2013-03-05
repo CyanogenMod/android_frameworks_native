@@ -1307,6 +1307,28 @@ EGLint eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags)
     return result;
 }
 
+EGLBoolean eglPresentationTimeANDROID(EGLDisplay dpy, EGLSurface surface,
+        EGLnsecsANDROID time)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) {
+        return EGL_FALSE;
+    }
+
+    SurfaceRef _s(dp.get(), surface);
+    if (!_s.get()) {
+        setError(EGL_BAD_SURFACE, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    egl_surface_t const * const s = get_surface(surface);
+    native_window_set_buffers_timestamp(s->win.get(), time);
+
+    return EGL_TRUE;
+}
+
 // ----------------------------------------------------------------------------
 // NVIDIA extensions
 // ----------------------------------------------------------------------------

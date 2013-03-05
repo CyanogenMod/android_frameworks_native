@@ -311,6 +311,18 @@ typedef EGLint (EGLAPIENTRYP PFNEGLWAITSYNCANDROID) (EGLDisplay dpy, EGLSyncKHR 
 #define EGL_FRAMEBUFFER_TARGET_ANDROID                0x3147
 #endif
 
+/* EGL_ANDROID_presentation_time
+ */
+#ifndef EGL_ANDROID_presentation_time
+#define EGL_ANDROID_presentation_time 1
+typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLBoolean eglPresentationTimeANDROID(EGLDisplay dpy, EGLSurface sur, EGLnsecsANDROID time);
+#else
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLPRESENTATIONTIMEANDROID) (EGLDisplay dpy, EGLSurface sur, EGLnsecsANDROID time);
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif
