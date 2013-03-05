@@ -156,10 +156,19 @@ private:
 
 class ScreenshotClient
 {
+public:
+    static status_t capture(
+            const sp<IBinder>& display,
+            const sp<IGraphicBufferProducer>& producer,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ);
+
+private:
     sp<IMemoryHeap> mHeap;
     uint32_t mWidth;
     uint32_t mHeight;
     PixelFormat mFormat;
+
 public:
     ScreenshotClient();
 

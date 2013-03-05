@@ -103,7 +103,6 @@ public:
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
 
-
     /* triggers screen off and waits for it to complete */
     virtual void blank(const sp<IBinder>& display) = 0;
 
@@ -113,6 +112,11 @@ public:
     /* returns information about a display
      * intended to be used to get information about built-in displays */
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) = 0;
+
+    virtual status_t captureScreen(const sp<IBinder>& display,
+            const sp<IGraphicBufferProducer>& producer,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -130,11 +134,12 @@ public:
         GET_BUILT_IN_DISPLAY,
         SET_TRANSACTION_STATE,
         AUTHENTICATE_SURFACE,
-        CAPTURE_SCREEN,
+        CAPTURE_SCREEN_DEPRECATED,
         BLANK,
         UNBLANK,
         GET_DISPLAY_INFO,
         CONNECT_DISPLAY,
+        CAPTURE_SCREEN,
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,
