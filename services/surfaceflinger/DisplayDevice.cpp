@@ -89,7 +89,7 @@ DisplayDevice::DisplayDevice(
       mIsSecure(isSecure),
       mSecureLayerVisible(false),
       mScreenAcquired(false),
-      mLayerStack(0),
+      mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
     init(config);
@@ -196,13 +196,13 @@ void DisplayDevice::flip(const Region& dirty) const
     EGLDisplay dpy = mDisplay;
     EGLSurface surface = mSurface;
 
-#ifdef EGL_ANDROID_swap_rectangle    
+#ifdef EGL_ANDROID_swap_rectangle
     if (mFlags & SWAP_RECTANGLE) {
         const Region newDirty(dirty.intersect(bounds()));
         const Rect b(newDirty.getBounds());
         eglSetSwapRectangleANDROID(dpy, surface,
                 b.left, b.top, b.width(), b.height());
-    } 
+    }
 #endif
 
     mPageFlipCount++;
