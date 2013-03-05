@@ -35,6 +35,11 @@
 
 #include <ui/FramebufferNativeWindow.h>
 
+#define CPU_CONSUMER_TEST_FORMAT_RAW 0
+#define CPU_CONSUMER_TEST_FORMAT_Y8 0
+#define CPU_CONSUMER_TEST_FORMAT_Y16 0
+#define CPU_CONSUMER_TEST_FORMAT_RGBA_8888 1
+
 namespace android {
 
 struct CpuConsumerTestParams {
@@ -157,7 +162,7 @@ protected:
     ASSERT_EQ(NO_ERROR, err) << msg << strerror(-err)
 
 void checkPixel(const CpuConsumer::LockedBuffer &buf,
-        uint32_t x, uint32_t y, uint32_t r, uint32_t g, uint32_t b) {
+        uint32_t x, uint32_t y, uint32_t r, uint32_t g=0, uint32_t b=0) {
     // Ignores components that don't exist for given pixel
     switch(buf.format) {
         case HAL_PIXEL_FORMAT_RAW_SENSOR: {
@@ -179,6 +184,31 @@ void checkPixel(const CpuConsumer::LockedBuffer &buf,
             }
             break;
         }
+        // ignores g,b
+        case HAL_PIXEL_FORMAT_Y8: {
+            uint8_t *bPtr = (uint8_t*)buf.data;
+            bPtr += y * buf.stride + x;
+            EXPECT_EQ(r, *bPtr) << "at x = " << x << " y = " << y;
+            break;
+        }
+        // ignores g,b
+        case HAL_PIXEL_FORMAT_Y16: {
+            // stride is in pixels, not in bytes
+            uint16_t *bPtr = ((uint16_t*)buf.data) + y * buf.stride + x;
+
+            EXPECT_EQ(r, *bPtr) << "at x = " << x << " y = " << y;
+            break;
+        }
+        case HAL_PIXEL_FORMAT_RGBA_8888: {
+            const int bytesPerPixel = 4;
+            uint8_t *bPtr = (uint8_t*)buf.data;
+            bPtr += (y * buf.stride + x) * bytesPerPixel;
+
+            EXPECT_EQ(r, bPtr[0]) << "at x = " << x << " y = " << y;
+            EXPECT_EQ(g, bPtr[1]) << "at x = " << x << " y = " << y;
+            EXPECT_EQ(b, bPtr[2]) << "at x = " << x << " y = " << y;
+            break;
+        }
         default: {
             ADD_FAILURE() << "Unknown format for check:" << buf.format;
             break;
@@ -188,6 +218,61 @@ void checkPixel(const CpuConsumer::LockedBuffer &buf,
 
 // Fill a YV12 buffer with a multi-colored checkerboard pattern
 void fillYV12Buffer(uint8_t* buf, int w, int h, int stride);
+
+// Fill a Y8/Y16 buffer with a multi-colored checkerboard pattern
+template <typename T> // T == uint8_t or uint16_t
+void fillGreyscaleBuffer(T* buf, int w, int h, int stride, int bpp) {
+    const int blockWidth = w > 16 ? w / 16 : 1;
+    const int blockHeight = h > 16 ? h / 16 : 1;
+    const int yuvTexOffsetY = 0;
+
+    ASSERT_TRUE(bpp == 8 || bpp == 16);
+    ASSERT_TRUE(sizeof(T)*8 == bpp);
+
+    // stride is in pixels, not in bytes
+    int yuvTexStrideY = stride;
+    for (int x = 0; x < w; x++) {
+        for (int y = 0; y < h; y++) {
+            int parityX = (x / blockWidth) & 1;
+            int parityY = (y / blockHeight) & 1;
+            T intensity = (parityX ^ parityY) ? 63 : 191;
+            buf[yuvTexOffsetY + (y * yuvTexStrideY) + x] = intensity;
+        }
+    }
+}
+
+inline uint8_t chooseColorRgba8888(int blockX, int blockY, uint8_t channel) {
+    const int colorVariations = 3;
+    uint8_t color = ((blockX % colorVariations) + (blockY % colorVariations))
+                        % (colorVariations) == channel ? 191: 63;
+
+    return color;
+}
+
+// Fill a RGBA8888 buffer with a multi-colored checkerboard pattern
+void fillRgba8888Buffer(uint8_t* buf, int w, int h, int stride)
+{
+    const int blockWidth = w > 16 ? w / 16 : 1;
+    const int blockHeight = h > 16 ? h / 16 : 1;
+    const int bytesPerPixel = 4;
+
+    // stride is in pixels, not in bytes
+    for (int x = 0; x < w; ++x) {
+        for (int y = 0; y < h; ++y) {
+            int blockX = (x / blockWidth);
+            int blockY = (y / blockHeight);
+
+            uint8_t r = chooseColorRgba8888(blockX, blockY, 0);
+            uint8_t g = chooseColorRgba8888(blockX, blockY, 1);
+            uint8_t b = chooseColorRgba8888(blockX, blockY, 2);
+
+            buf[(y*stride + x)*bytesPerPixel + 0] = r;
+            buf[(y*stride + x)*bytesPerPixel + 1] = g;
+            buf[(y*stride + x)*bytesPerPixel + 2] = b;
+            buf[(y*stride + x)*bytesPerPixel + 3] = 255;
+        }
+    }
+}
 
 // Fill a RAW sensor buffer with a multi-colored checkerboard pattern.
 // Assumes GRBG mosaic ordering. Result should be a grid in a 2x2 pattern
@@ -215,6 +300,89 @@ void fillBayerRawBuffer(uint8_t* buf, int w, int h, int stride) {
         }
     }
 
+}
+
+template<typename T> // uint8_t or uint16_t
+void checkGreyscaleBuffer(const CpuConsumer::LockedBuffer &buf) {
+    uint32_t w = buf.width;
+    uint32_t h = buf.height;
+    const int blockWidth = w > 16 ? w / 16 : 1;
+    const int blockHeight = h > 16 ? h / 16 : 1;
+    const int blockRows = h / blockHeight;
+    const int blockCols = w / blockWidth;
+
+    // Top-left square is bright
+    checkPixel(buf, 0, 0, 191);
+    checkPixel(buf, 1, 0, 191);
+    checkPixel(buf, 0, 1, 191);
+    checkPixel(buf, 1, 1, 191);
+
+    // One-right square is dark
+    checkPixel(buf, blockWidth,     0, 63);
+    checkPixel(buf, blockWidth + 1, 0, 63);
+    checkPixel(buf, blockWidth,     1, 63);
+    checkPixel(buf, blockWidth + 1, 1, 63);
+
+    // One-down square is dark
+    checkPixel(buf, 0, blockHeight, 63);
+    checkPixel(buf, 1, blockHeight, 63);
+    checkPixel(buf, 0, blockHeight + 1, 63);
+    checkPixel(buf, 1, blockHeight + 1, 63);
+
+    // One-diag square is bright
+    checkPixel(buf, blockWidth,     blockHeight, 191);
+    checkPixel(buf, blockWidth + 1, blockHeight, 191);
+    checkPixel(buf, blockWidth,     blockHeight + 1, 191);
+    checkPixel(buf, blockWidth + 1, blockHeight + 1, 191);
+
+    // Test bottom-right pixel
+    const int maxBlockX = ((w-1 + (blockWidth-1)) / blockWidth) & 0x1;
+    const int maxBlockY = ((h-1 + (blockHeight-1)) / blockHeight) & 0x1;
+    uint32_t pixelValue = ((maxBlockX % 2) == (maxBlockY % 2)) ? 191 : 63;
+    checkPixel(buf, w-1, h-1, pixelValue);
+}
+
+void checkRgba8888Buffer(const CpuConsumer::LockedBuffer &buf) {
+    uint32_t w = buf.width;
+    uint32_t h = buf.height;
+    const int blockWidth = w > 16 ? w / 16 : 1;
+    const int blockHeight = h > 16 ? h / 16 : 1;
+    const int blockRows = h / blockHeight;
+    const int blockCols = w / blockWidth;
+
+    // Top-left square is bright red
+    checkPixel(buf, 0, 0, 191, 63, 63);
+    checkPixel(buf, 1, 0, 191, 63, 63);
+    checkPixel(buf, 0, 1, 191, 63, 63);
+    checkPixel(buf, 1, 1, 191, 63, 63);
+
+    // One-right square is bright green
+    checkPixel(buf, blockWidth,     0, 63, 191, 63);
+    checkPixel(buf, blockWidth + 1, 0, 63, 191, 63);
+    checkPixel(buf, blockWidth,     1, 63, 191, 63);
+    checkPixel(buf, blockWidth + 1, 1, 63, 191, 63);
+
+    // One-down square is bright green
+    checkPixel(buf, 0, blockHeight, 63, 191, 63);
+    checkPixel(buf, 1, blockHeight, 63, 191, 63);
+    checkPixel(buf, 0, blockHeight + 1, 63, 191, 63);
+    checkPixel(buf, 1, blockHeight + 1, 63, 191, 63);
+
+    // One-diag square is bright blue
+    checkPixel(buf, blockWidth,     blockHeight, 63, 63, 191);
+    checkPixel(buf, blockWidth + 1, blockHeight, 63, 63, 191);
+    checkPixel(buf, blockWidth,     blockHeight + 1, 63, 63, 191);
+    checkPixel(buf, blockWidth + 1, blockHeight + 1, 63, 63, 191);
+
+    // Test bottom-right pixel
+    {
+        const int maxBlockX = ((w-1) / blockWidth);
+        const int maxBlockY = ((h-1) / blockHeight);
+        uint8_t r = chooseColorRgba8888(maxBlockX, maxBlockY, 0);
+        uint8_t g = chooseColorRgba8888(maxBlockX, maxBlockY, 1);
+        uint8_t b = chooseColorRgba8888(maxBlockX, maxBlockY, 2);
+        checkPixel(buf, w-1, h-1, r, g, b);
+    }
 }
 
 void checkBayerRawBuffer(const CpuConsumer::LockedBuffer &buf) {
@@ -256,6 +424,23 @@ void checkBayerRawBuffer(const CpuConsumer::LockedBuffer &buf) {
     unsigned short maxG = maxBlockY ? 1000: 200;
     unsigned short maxB = maxBlockX ? 1000: 200;
     checkPixel(buf, w-1, h-1, maxR, maxG, maxB);
+}
+
+void checkAnyBuffer(const CpuConsumer::LockedBuffer &buf, int format) {
+    switch (format) {
+        case HAL_PIXEL_FORMAT_RAW_SENSOR:
+            checkBayerRawBuffer(buf);
+            break;
+        case HAL_PIXEL_FORMAT_Y8:
+            checkGreyscaleBuffer<uint8_t>(buf);
+            break;
+        case HAL_PIXEL_FORMAT_Y16:
+            checkGreyscaleBuffer<uint16_t>(buf);
+            break;
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+            checkRgba8888Buffer(buf);
+            break;
+    }
 }
 
 void fillYV12BufferRect(uint8_t* buf, int w, int h, int stride,
@@ -322,6 +507,18 @@ void produceOneFrame(const sp<ANativeWindow>& anw,
         case HAL_PIXEL_FORMAT_RAW_SENSOR:
             fillBayerRawBuffer(img, params.width, params.height, buf->getStride());
             break;
+        case HAL_PIXEL_FORMAT_Y8:
+            fillGreyscaleBuffer<uint8_t>(img, params.width, params.height,
+                                         buf->getStride(), /*bpp*/8);
+            break;
+        case HAL_PIXEL_FORMAT_Y16:
+            fillGreyscaleBuffer<uint16_t>((uint16_t*)img, params.width,
+                                          params.height, buf->getStride(),
+                                          /*bpp*/16);
+            break;
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+            fillRgba8888Buffer(img, params.width, params.height, buf->getStride());
+            break;
         default:
             FAIL() << "Unknown pixel format under test!";
             break;
@@ -341,7 +538,7 @@ void produceOneFrame(const sp<ANativeWindow>& anw,
 
 // This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
 // supported on all devices.
-TEST_P(CpuConsumerTest, DISABLED_FromCpuSingle) {
+TEST_P(CpuConsumerTest, FromCpuSingle) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
@@ -369,13 +566,13 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuSingle) {
     EXPECT_EQ(stride, b.stride);
     EXPECT_EQ(time, b.timestamp);
 
-    checkBayerRawBuffer(b);
+    checkAnyBuffer(b, GetParam().format);
     mCC->unlockBuffer(b);
 }
 
 // This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
 // supported on all devices.
-TEST_P(CpuConsumerTest, DISABLED_FromCpuManyInQueue) {
+TEST_P(CpuConsumerTest, FromCpuManyInQueue) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
@@ -410,7 +607,7 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuManyInQueue) {
         EXPECT_EQ(stride[i], b.stride);
         EXPECT_EQ(time[i], b.timestamp);
 
-        checkBayerRawBuffer(b);
+        checkAnyBuffer(b, GetParam().format);
 
         mCC->unlockBuffer(b);
     }
@@ -418,7 +615,7 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuManyInQueue) {
 
 // This test is disabled because the HAL_PIXEL_FORMAT_RAW_SENSOR format is not
 // supported on all devices.
-TEST_P(CpuConsumerTest, DISABLED_FromCpuLockMax) {
+TEST_P(CpuConsumerTest, FromCpuLockMax) {
     status_t err;
     CpuConsumerTestParams params = GetParam();
 
@@ -452,7 +649,7 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuLockMax) {
         EXPECT_EQ(stride, b[i].stride);
         EXPECT_EQ(time, b[i].timestamp);
 
-        checkBayerRawBuffer(b[i]);
+        checkAnyBuffer(b[i], GetParam().format);
     }
 
     ALOGV("Locking frame %d (too many)", params.maxLockedBuffers);
@@ -475,7 +672,7 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuLockMax) {
     EXPECT_EQ(stride, bTooMuch.stride);
     EXPECT_EQ(time, bTooMuch.timestamp);
 
-    checkBayerRawBuffer(bTooMuch);
+    checkAnyBuffer(bTooMuch, GetParam().format);
 
     ALOGV("Unlocking extra buffer");
     err = mCC->unlockBuffer(bTooMuch);
@@ -493,17 +690,66 @@ TEST_P(CpuConsumerTest, DISABLED_FromCpuLockMax) {
 
 }
 
+CpuConsumerTestParams y8TestSets[] = {
+    { 512,   512, 1, HAL_PIXEL_FORMAT_Y8},
+    { 512,   512, 3, HAL_PIXEL_FORMAT_Y8},
+    { 2608, 1960, 1, HAL_PIXEL_FORMAT_Y8},
+    { 2608, 1960, 3, HAL_PIXEL_FORMAT_Y8},
+    { 100,   100, 1, HAL_PIXEL_FORMAT_Y8},
+    { 100,   100, 3, HAL_PIXEL_FORMAT_Y8},
+};
+
+CpuConsumerTestParams y16TestSets[] = {
+    { 512,   512, 1, HAL_PIXEL_FORMAT_Y16},
+    { 512,   512, 3, HAL_PIXEL_FORMAT_Y16},
+    { 2608, 1960, 1, HAL_PIXEL_FORMAT_Y16},
+    { 2608, 1960, 3, HAL_PIXEL_FORMAT_Y16},
+    { 100,   100, 1, HAL_PIXEL_FORMAT_Y16},
+    { 100,   100, 3, HAL_PIXEL_FORMAT_Y16},
+};
+
 CpuConsumerTestParams rawTestSets[] = {
     { 512,   512, 1, HAL_PIXEL_FORMAT_RAW_SENSOR},
     { 512,   512, 3, HAL_PIXEL_FORMAT_RAW_SENSOR},
     { 2608, 1960, 1, HAL_PIXEL_FORMAT_RAW_SENSOR},
     { 2608, 1960, 3, HAL_PIXEL_FORMAT_RAW_SENSOR},
     { 100,   100, 1, HAL_PIXEL_FORMAT_RAW_SENSOR},
-    { 100,   100, 3, HAL_PIXEL_FORMAT_RAW_SENSOR}
+    { 100,   100, 3, HAL_PIXEL_FORMAT_RAW_SENSOR},
 };
 
+CpuConsumerTestParams rgba8888TestSets[] = {
+    { 512,   512, 1, HAL_PIXEL_FORMAT_RGBA_8888},
+    { 512,   512, 3, HAL_PIXEL_FORMAT_RGBA_8888},
+    { 2608, 1960, 1, HAL_PIXEL_FORMAT_RGBA_8888},
+    { 2608, 1960, 3, HAL_PIXEL_FORMAT_RGBA_8888},
+    { 100,   100, 1, HAL_PIXEL_FORMAT_RGBA_8888},
+    { 100,   100, 3, HAL_PIXEL_FORMAT_RGBA_8888},
+};
+
+#if CPU_CONSUMER_TEST_FORMAT_Y8
+INSTANTIATE_TEST_CASE_P(Y8Tests,
+        CpuConsumerTest,
+        ::testing::ValuesIn(y8TestSets));
+#endif
+
+#if CPU_CONSUMER_TEST_FORMAT_Y16
+INSTANTIATE_TEST_CASE_P(Y16Tests,
+        CpuConsumerTest,
+        ::testing::ValuesIn(y16TestSets));
+#endif
+
+#if CPU_CONSUMER_TEST_FORMAT_RAW
 INSTANTIATE_TEST_CASE_P(RawTests,
         CpuConsumerTest,
         ::testing::ValuesIn(rawTestSets));
+#endif
+
+#if CPU_CONSUMER_TEST_FORMAT_RGBA_8888
+INSTANTIATE_TEST_CASE_P(Rgba8888Tests,
+        CpuConsumerTest,
+        ::testing::ValuesIn(rgba8888TestSets));
+#endif
+
+
 
 } // namespace android
