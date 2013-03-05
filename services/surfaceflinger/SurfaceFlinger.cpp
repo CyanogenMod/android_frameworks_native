@@ -581,16 +581,13 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<LayerBase>& layer(currentLayers[i]);
-        sp<LayerBaseClient> lbc(layer->getLayerBaseClient());
-        if (lbc != NULL) {
-            // If this is an instance of Layer (as opposed to, say, LayerDim),
-            // we will get the consumer interface of SurfaceFlingerConsumer's
-            // BufferQueue.  If it's the same Binder object as the graphic
-            // buffer producer interface, return success.
-            wp<IBinder> lbcBinder = lbc->getSurfaceTextureBinder();
-            if (lbcBinder == surfaceTextureBinder) {
-                return true;
-            }
+        // If this is an instance of Layer (as opposed to, say, LayerDim),
+        // we will get the consumer interface of SurfaceFlingerConsumer's
+        // BufferQueue.  If it's the same Binder object as the graphic
+        // buffer producer interface, return success.
+        wp<IBinder> lbcBinder = layer->getSurfaceTextureBinder();
+        if (lbcBinder == surfaceTextureBinder) {
+            return true;
         }
     }
 
@@ -604,12 +601,9 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     size_t purgatorySize =  mLayerPurgatory.size();
     for (size_t i=0 ; i<purgatorySize ; i++) {
         const sp<LayerBase>& layer(mLayerPurgatory.itemAt(i));
-        sp<LayerBaseClient> lbc(layer->getLayerBaseClient());
-        if (lbc != NULL) {
-            wp<IBinder> lbcBinder = lbc->getSurfaceTextureBinder();
-            if (lbcBinder == surfaceTextureBinder) {
-                return true;
-            }
+        wp<IBinder> lbcBinder = layer->getSurfaceTextureBinder();
+        if (lbcBinder == surfaceTextureBinder) {
+            return true;
         }
     }
 
@@ -1683,7 +1677,7 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
 
 void SurfaceFlinger::addClientLayer(const sp<Client>& client,
         const sp<IBinder>& handle,
-        const sp<LayerBaseClient>& lbc)
+        const sp<LayerBase>& lbc)
 {
     // attach this layer to the client
     client->attachLayer(handle, lbc);
@@ -1872,7 +1866,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
         const layer_state_t& s)
 {
     uint32_t flags = 0;
-    sp<LayerBaseClient> layer(client->getLayerUser(s.surface));
+    sp<LayerBase> layer(client->getLayerUser(s.surface));
     if (layer != 0) {
         const uint32_t what = s.what;
         if (what & layer_state_t::ePositionChanged) {
@@ -1936,7 +1930,7 @@ sp<ISurface> SurfaceFlinger::createLayer(
         uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
 {
-    sp<LayerBaseClient> layer;
+    sp<LayerBase> layer;
     sp<ISurface> surfaceHandle;
 
     if (int32_t(w|h) < 0) {
@@ -2023,7 +2017,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBind
 
     status_t err = NAME_NOT_FOUND;
     Mutex::Autolock _l(mStateLock);
-    sp<LayerBaseClient> layer = client->getLayerUser(handle);
+    sp<LayerBase> layer = client->getLayerUser(handle);
 
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);
@@ -2034,11 +2028,11 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBind
     return err;
 }
 
-status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBaseClient>& layer)
+status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBase>& layer)
 {
     // called by ~ISurface() when all references are gone
     status_t err = NO_ERROR;
-    sp<LayerBaseClient> l(layer.promote());
+    sp<LayerBase> l(layer.promote());
     if (l != NULL) {
         Mutex::Autolock _l(mStateLock);
         err = removeLayer_l(l);

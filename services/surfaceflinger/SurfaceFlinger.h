@@ -61,7 +61,6 @@ class EventThread;
 class IGraphicBufferAlloc;
 class Layer;
 class LayerBase;
-class LayerBaseClient;
 class LayerDim;
 class Surface;
 
@@ -130,7 +129,6 @@ private:
     friend class Client;
     friend class DisplayEventConnection;
     friend class LayerBase;
-    friend class LayerBaseClient;
     friend class Layer;
 
     // We're reference counted, never destroy SurfaceFlinger directly
@@ -279,14 +277,14 @@ private:
     // called when all clients have released all their references to
     // this layer meaning it is entirely safe to destroy all
     // resources associated to this layer.
-    status_t onLayerDestroyed(const wp<LayerBaseClient>& layer);
+    status_t onLayerDestroyed(const wp<LayerBase>& layer);
 
     // remove a layer from SurfaceFlinger immediately
     status_t removeLayer(const sp<LayerBase>& layer);
 
     // add a layer to SurfaceFlinger
     void addClientLayer(const sp<Client>& client, const sp<IBinder>& handle,
-        const sp<LayerBaseClient>& lbc);
+        const sp<LayerBase>& lbc);
 
     status_t removeLayer_l(const sp<LayerBase>& layer);
     status_t purgatorizeLayer_l(const sp<LayerBase>& layer);

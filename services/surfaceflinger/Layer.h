@@ -55,7 +55,7 @@ class GLExtensions;
  * This also implements onFrameAvailable(), which notifies SurfaceFlinger
  * that new data has arrived.
  */
-class Layer : public LayerBaseClient,
+class Layer : public LayerBase,
               public SurfaceFlingerConsumer::FrameAvailableListener
 {
 public:
@@ -93,7 +93,7 @@ public:
     virtual void setName(const String8& name);
     virtual bool isVisible() const;
 
-    // LayerBaseClient interface
+    // LayerBase interface
     virtual wp<IBinder> getSurfaceTextureBinder() const;
 
     // only for debugging

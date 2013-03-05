@@ -50,7 +50,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
-    :   LayerBaseClient(flinger, client),
+    :   LayerBase(flinger, client),
         mTextureName(-1U),
         mQueuedFrames(0),
         mCurrentTransform(0),
@@ -70,7 +70,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
 
 void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface* layer) {
-    LayerBaseClient::onLayerDisplayed(hw, layer);
+    LayerBase::onLayerDisplayed(hw, layer);
     if (layer) {
         mSurfaceFlingerConsumer->setReleaseFence(layer->getAndResetReleaseFenceFd());
     }
@@ -78,7 +78,7 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
 
 void Layer::onFirstRef()
 {
-    LayerBaseClient::onFirstRef();
+    LayerBase::onFirstRef();
 
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
     sp<BufferQueue> bq = new SurfaceTextureLayer();
@@ -224,7 +224,7 @@ void Layer::setGeometry(
     const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer)
 {
-    LayerBaseClient::setGeometry(hw, layer);
+    LayerBase::setGeometry(hw, layer);
 
     // enable this layer
     layer.setSkip(false);
@@ -260,7 +260,7 @@ void Layer::setGeometry(
 
 void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface& layer) {
-    LayerBaseClient::setPerFrameData(hw, layer);
+    LayerBase::setPerFrameData(hw, layer);
     // NOTE: buffer can be NULL if the client never drew into this
     // layer yet, or if we ran out of memory
     layer.setBuffer(mActiveBuffer);
@@ -528,7 +528,7 @@ void Layer::onPostComposition() {
 }
 
 bool Layer::isVisible() const {
-    return LayerBaseClient::isVisible() && (mActiveBuffer != NULL);
+    return LayerBase::isVisible() && (mActiveBuffer != NULL);
 }
 
 Region Layer::latchBuffer(bool& recomputeVisibleRegions)
@@ -704,7 +704,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
 void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 {
-    LayerBaseClient::dump(result, buffer, SIZE);
+    LayerBase::dump(result, buffer, SIZE);
 
     sp<const GraphicBuffer> buf0(mActiveBuffer);
     uint32_t w0=0, h0=0, s0=0, f0=0;
@@ -730,13 +730,13 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
 
 void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const
 {
-    LayerBaseClient::dumpStats(result, buffer, SIZE);
+    LayerBase::dumpStats(result, buffer, SIZE);
     mFrameTracker.dump(result);
 }
 
 void Layer::clearStats()
 {
-    LayerBaseClient::clearStats();
+    LayerBase::clearStats();
     mFrameTracker.clear();
 }
 

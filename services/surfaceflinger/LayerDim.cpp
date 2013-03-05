@@ -34,7 +34,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 LayerDim::LayerDim(SurfaceFlinger* flinger, const sp<Client>& client)
-    : LayerBaseClient(flinger, client)
+    : LayerBase(flinger, client)
 {
 }
 

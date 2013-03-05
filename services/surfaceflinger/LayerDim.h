@@ -29,7 +29,7 @@
 
 namespace android {
 
-class LayerDim : public LayerBaseClient
+class LayerDim : public LayerBase
 {
 public:    
                 LayerDim(SurfaceFlinger* flinger, const sp<Client>& client);

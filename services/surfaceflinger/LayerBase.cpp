@@ -42,18 +42,24 @@ namespace android {
 
 int32_t LayerBase::sSequence = 1;
 
-LayerBase::LayerBase(SurfaceFlinger* flinger)
+LayerBase::LayerBase(SurfaceFlinger* flinger, const sp<Client>& client)
     : contentDirty(false),
       sequence(uint32_t(android_atomic_inc(&sSequence))),
       mFlinger(flinger), mFiltering(false),
       mNeedsFiltering(false),
       mTransactionFlags(0),
-      mPremultipliedAlpha(true), mName("unnamed"), mDebug(false)
+      mPremultipliedAlpha(true), mName("unnamed"), mDebug(false),
+      mHasSurface(false),
+      mClientRef(client)
 {
 }
 
 LayerBase::~LayerBase()
 {
+    sp<Client> c(mClientRef.promote());
+    if (c != 0) {
+        c->detachLayer(this);
+    }
 }
 
 void LayerBase::setName(const String8& name) {
@@ -542,19 +548,22 @@ void LayerBase::dump(String8& result, char* buffer, size_t SIZE) const
 
     s.transparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
+    sp<Client> client(mClientRef.promote());
 
     snprintf(buffer, SIZE,
             "      "
             "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, needsDithering=%1d, invalidate=%1d, "
-            "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n",
+            "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
+            "      client=%p\n",
             s.layerStack, s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
             isOpaque(), needsDithering(), contentDirty,
             s.alpha, s.flags,
             s.transform[0][0], s.transform[0][1],
-            s.transform[1][0], s.transform[1][1]);
+            s.transform[1][0], s.transform[1][1],
+            client.get());
     result.append(buffer);
 }
 
@@ -568,52 +577,32 @@ void LayerBase::dumpStats(String8& result, char* scratch, size_t SIZE) const {
 void LayerBase::clearStats() {
 }
 
-sp<LayerBaseClient> LayerBase::getLayerBaseClient() const {
-    return 0;
-}
-
 sp<Layer> LayerBase::getLayer() const {
     return 0;
 }
 
 // ---------------------------------------------------------------------------
 
-LayerBaseClient::LayerBaseClient(SurfaceFlinger* flinger,
-        const sp<Client>& client)
-    : LayerBase(flinger),
-      mHasSurface(false),
-      mClientRef(client)
-{
-}
-
-LayerBaseClient::~LayerBaseClient()
-{
-    sp<Client> c(mClientRef.promote());
-    if (c != 0) {
-        c->detachLayer(this);
-    }
-}
-
-sp<ISurface> LayerBaseClient::createSurface()
+sp<ISurface> LayerBase::createSurface()
 {
     class BSurface : public BnSurface, public LayerCleaner {
         virtual sp<IGraphicBufferProducer> getSurfaceTexture() const { return 0; }
     public:
         BSurface(const sp<SurfaceFlinger>& flinger,
-                const sp<LayerBaseClient>& layer)
+                const sp<LayerBase>& layer)
             : LayerCleaner(flinger, layer) { }
     };
     sp<ISurface> sur(new BSurface(mFlinger, this));
     return sur;
 }
 
-sp<ISurface> LayerBaseClient::getSurface()
+sp<ISurface> LayerBase::getSurface()
 {
     sp<ISurface> s;
     Mutex::Autolock _l(mLock);
 
     LOG_ALWAYS_FATAL_IF(mHasSurface,
-            "LayerBaseClient::getSurface() has already been called");
+            "LayerBase::getSurface() has already been called");
 
     mHasSurface = true;
     s = createSurface();
@@ -621,36 +610,22 @@ sp<ISurface> LayerBaseClient::getSurface()
     return s;
 }
 
-wp<IBinder> LayerBaseClient::getSurfaceBinder() const {
+wp<IBinder> LayerBase::getSurfaceBinder() const {
     return mClientSurfaceBinder;
 }
 
-wp<IBinder> LayerBaseClient::getSurfaceTextureBinder() const {
+wp<IBinder> LayerBase::getSurfaceTextureBinder() const {
     return 0;
-}
-
-void LayerBaseClient::dump(String8& result, char* buffer, size_t SIZE) const
-{
-    LayerBase::dump(result, buffer, SIZE);
-    sp<Client> client(mClientRef.promote());
-    snprintf(buffer, SIZE, "      client=%p\n", client.get());
-    result.append(buffer);
-}
-
-
-void LayerBaseClient::shortDump(String8& result, char* scratch, size_t size) const
-{
-    LayerBaseClient::dump(result, scratch, size);
 }
 
 // ---------------------------------------------------------------------------
 
-LayerBaseClient::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,
-        const sp<LayerBaseClient>& layer)
+LayerBase::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,
+        const sp<LayerBase>& layer)
     : mFlinger(flinger), mLayer(layer) {
 }
 
-LayerBaseClient::LayerCleaner::~LayerCleaner() {
+LayerBase::LayerCleaner::~LayerCleaner() {
     // destroy client resources
     mFlinger->onLayerDestroyed(mLayer);
 }

@@ -44,7 +44,6 @@ class Client;
 class DisplayDevice;
 class GraphicBuffer;
 class Layer;
-class LayerBaseClient;
 class SurfaceFlinger;
 
 // ---------------------------------------------------------------------------
@@ -57,15 +56,25 @@ class SurfaceFlinger;
  * Layers are organized into "layer stacks".  Each layer is a member of
  * exactly one layer stack, identified by an integer in Layer::State.  A
  * given layer stack may appear on more than one display.
- *
- * Notable subclasses (below LayerBaseClient) include Layer and LayerDim.
  */
 class LayerBase : virtual public RefBase
 {
     static int32_t sSequence;
 
 public:
-            LayerBase(SurfaceFlinger* flinger);
+            LayerBase(SurfaceFlinger* flinger, const sp<Client>& client);
+
+
+            // Creates an ISurface associated with this object.  This may only be
+            // called once (see also getSurfaceBinder()).
+            sp<ISurface> getSurface();
+
+            // Returns the Binder object for the ISurface associated with
+            // this object.
+            wp<IBinder> getSurfaceBinder() const;
+
+            virtual wp<IBinder> getSurfaceTextureBinder() const;
+
 
     mutable bool        contentDirty;
             // regions below are in window-manager space
@@ -138,7 +147,6 @@ public:
             Rect computeBounds() const;
 
 
-    virtual sp<LayerBaseClient> getLayerBaseClient() const;
     virtual sp<Layer> getLayer() const;
 
     virtual const char* getTypeId() const { return "LayerBase"; }
@@ -294,12 +302,31 @@ public:
     bool getFiltering() const;
 
 private:
+    virtual sp<ISurface> createSurface();
+
     Rect computeCrop(const sp<const DisplayDevice>& hw) const;
 
 protected:
           void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
                   GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
           void drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const;
+
+
+          /*
+           * Trivial class, used to ensure that mFlinger->onLayerDestroyed(mLayer)
+           * is called.
+           */
+          class LayerCleaner {
+              sp<SurfaceFlinger> mFlinger;
+              wp<LayerBase> mLayer;
+          protected:
+              ~LayerCleaner();
+          public:
+              LayerCleaner(const sp<SurfaceFlinger>& flinger,
+                      const sp<LayerBase>& layer);
+          };
+
+
 
                 sp<SurfaceFlinger> mFlinger;
 
@@ -323,64 +350,7 @@ protected:
     mutable     bool            mDebug;
 
 
-public:
-    // called from class SurfaceFlinger
-    virtual ~LayerBase();
-
 private:
-    LayerBase(const LayerBase& rhs);
-};
-
-
-// ---------------------------------------------------------------------------
-
-/*
- * This adds some additional fields and methods to support some Binder IPC
- * interactions.  In particular, the LayerBaseClient's lifetime can be
- * managed by references to an ISurface object in another process.
- */
-class LayerBaseClient : public LayerBase
-{
-public:
-    LayerBaseClient(SurfaceFlinger* flinger, const sp<Client>& client);
-
-    virtual ~LayerBaseClient();
-
-    // Creates an ISurface associated with this object.  This may only be
-    // called once (see also getSurfaceBinder()).
-    sp<ISurface> getSurface();
-
-    // Returns the Binder object for the ISurface associated with
-    // this object.
-    wp<IBinder> getSurfaceBinder() const;
-
-    virtual wp<IBinder> getSurfaceTextureBinder() const;
-
-    virtual sp<LayerBaseClient> getLayerBaseClient() const {
-        return const_cast<LayerBaseClient*>(this); }
-
-    virtual const char* getTypeId() const { return "LayerBaseClient"; }
-
-protected:
-    virtual void dump(String8& result, char* scratch, size_t size) const;
-    virtual void shortDump(String8& result, char* scratch, size_t size) const;
-
-    /*
-     * Trivial class, used to ensure that mFlinger->onLayerDestroyed(mLayer)
-     * is called.
-     */
-    class LayerCleaner {
-        sp<SurfaceFlinger> mFlinger;
-        wp<LayerBaseClient> mLayer;
-    protected:
-        ~LayerCleaner();
-    public:
-        LayerCleaner(const sp<SurfaceFlinger>& flinger,
-                const sp<LayerBaseClient>& layer);
-    };
-
-private:
-    virtual sp<ISurface> createSurface();
 
     mutable Mutex mLock;
 
@@ -391,6 +361,14 @@ private:
     wp<IBinder> mClientSurfaceBinder;
 
     const wp<Client> mClientRef;
+
+
+public:
+    // called from class SurfaceFlinger
+    virtual ~LayerBase();
+
+private:
+    LayerBase(const LayerBase& rhs);
 };
 
 // ---------------------------------------------------------------------------
