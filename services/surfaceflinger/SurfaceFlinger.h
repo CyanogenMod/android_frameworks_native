@@ -103,14 +103,6 @@ public:
     // force full composition on all displays
     void repaintEverything();
 
-    // renders content on given display to a texture. thread-safe version.
-    status_t renderScreenToTexture(uint32_t layerStack, GLuint* textureName,
-        GLfloat* uOut, GLfloat* vOut);
-
-    // renders content on given display to a texture, w/o acquiring main lock
-    status_t renderScreenToTextureLocked(uint32_t layerStack, GLuint* textureName,
-        GLfloat* uOut, GLfloat* vOut);
-
     // returns the default Display
     sp<const DisplayDevice> getDefaultDisplayDevice() const {
         return getDisplayDevice(mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]);
@@ -202,6 +194,10 @@ private:
         uint32_t* width, uint32_t* height, PixelFormat* format,
         uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
         uint32_t maxLayerZ);
+    virtual status_t captureScreen(const sp<IBinder>& display,
+            const sp<IGraphicBufferProducer>& producer,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ);
     // called when screen needs to turn off
     virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
@@ -306,10 +302,18 @@ private:
 
     void startBootAnim();
 
-    status_t captureScreenImplLocked(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
-        uint32_t* width, uint32_t* height, PixelFormat* format,
-        uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
-        uint32_t maxLayerZ);
+    status_t captureScreenImplLocked(
+            const sp<const DisplayDevice>& hw,
+            sp<IMemoryHeap>* heap,
+            uint32_t* width, uint32_t* height, PixelFormat* format,
+            uint32_t reqWidth, uint32_t reqHeight, uint32_t minLayerZ,
+            uint32_t maxLayerZ);
+
+    status_t captureScreenImplLocked(
+            const sp<const DisplayDevice>& hw,
+            const sp<IGraphicBufferProducer>& producer,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ);
 
     /* ------------------------------------------------------------------------
      * EGL

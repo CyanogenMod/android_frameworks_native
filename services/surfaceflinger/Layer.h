@@ -112,6 +112,10 @@ protected:
     virtual void dumpStats(String8& result, char* buffer, size_t SIZE) const;
     virtual void clearStats();
 
+    sp<SurfaceFlingerConsumer> getConsumer() const {
+        return mSurfaceFlingerConsumer;
+    }
+
 private:
     // Creates an instance of ISurface for this Layer.
     virtual sp<ISurface> createSurface();

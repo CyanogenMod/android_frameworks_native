@@ -606,6 +606,17 @@ void SurfaceComposerClient::unblankDisplay(const sp<IBinder>& token) {
 
 // ----------------------------------------------------------------------------
 
+status_t ScreenshotClient::capture(
+        const sp<IBinder>& display,
+        const sp<IGraphicBufferProducer>& producer,
+        uint32_t reqWidth, uint32_t reqHeight,
+        uint32_t minLayerZ, uint32_t maxLayerZ) {
+    sp<ISurfaceComposer> s(ComposerService::getComposerService());
+    if (s == NULL) return NO_INIT;
+    return s->captureScreen(display, producer,
+            reqWidth, reqHeight, minLayerZ, maxLayerZ);
+}
+
 ScreenshotClient::ScreenshotClient()
     : mWidth(0), mHeight(0), mFormat(PIXEL_FORMAT_NONE) {
 }
