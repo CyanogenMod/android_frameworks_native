@@ -62,7 +62,6 @@
 #include "GLExtensions.h"
 #include "Layer.h"
 #include "LayerDim.h"
-#include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
 
 #include "DisplayHardware/FramebufferSurface.h"
@@ -1951,12 +1950,8 @@ sp<ISurface> SurfaceFlinger::createLayer(
         case ISurfaceComposerClient::eFXSurfaceNormal:
             layer = createNormalLayer(client, w, h, flags, format);
             break;
-        case ISurfaceComposerClient::eFXSurfaceBlur:
         case ISurfaceComposerClient::eFXSurfaceDim:
             layer = createDimLayer(client, w, h, flags);
-            break;
-        case ISurfaceComposerClient::eFXSurfaceScreenshot:
-            layer = createScreenshotLayer(client, w, h, flags);
             break;
     }
 
@@ -2012,15 +2007,6 @@ sp<LayerDim> SurfaceFlinger::createDimLayer(
         uint32_t w, uint32_t h, uint32_t flags)
 {
     sp<LayerDim> layer = new LayerDim(this, client);
-    return layer;
-}
-
-sp<LayerScreenshot> SurfaceFlinger::createScreenshotLayer(
-        const sp<Client>& client,
-        uint32_t w, uint32_t h, uint32_t flags)
-{
-    sp<LayerScreenshot> layer = new LayerScreenshot(this, client);
-    layer->setBuffers(w, h, PIXEL_FORMAT_RGBA_8888, flags);
     return layer;
 }
 

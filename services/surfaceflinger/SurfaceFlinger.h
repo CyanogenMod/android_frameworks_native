@@ -63,7 +63,6 @@ class Layer;
 class LayerBase;
 class LayerBaseClient;
 class LayerDim;
-class LayerScreenshot;
 class Surface;
 
 // ---------------------------------------------------------------------------
@@ -133,7 +132,6 @@ private:
     friend class LayerBase;
     friend class LayerBaseClient;
     friend class Layer;
-    friend class LayerScreenshot;
 
     // We're reference counted, never destroy SurfaceFlinger directly
     virtual ~SurfaceFlinger();
@@ -270,9 +268,6 @@ private:
             uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format);
 
     sp<LayerDim> createDimLayer(const sp<Client>& client,
-            uint32_t w, uint32_t h, uint32_t flags);
-
-    sp<LayerScreenshot> createScreenshotLayer(const sp<Client>& client,
             uint32_t w, uint32_t h, uint32_t flags);
 
     // called in response to the window-manager calling

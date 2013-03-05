@@ -58,8 +58,7 @@ class SurfaceFlinger;
  * exactly one layer stack, identified by an integer in Layer::State.  A
  * given layer stack may appear on more than one display.
  *
- * Notable subclasses (below LayerBaseClient) include Layer, LayerDim, and
- * LayerScreenshot.
+ * Notable subclasses (below LayerBaseClient) include Layer and LayerDim.
  */
 class LayerBase : virtual public RefBase
 {
