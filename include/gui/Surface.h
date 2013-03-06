@@ -121,6 +121,8 @@ public:
 
     explicit Surface(const sp<ISurfaceTexture>& st);
 
+    Surface (sp<BufferQueue>&) {}
+
     static status_t writeToParcel(const sp<Surface>& control, Parcel* parcel);
 
     static sp<Surface> readFromParcel(const Parcel& data);
@@ -134,6 +136,7 @@ public:
 
     // the lock/unlock APIs must be used from the same thread
     status_t    lock(SurfaceInfo* info, Region* dirty = NULL);
+    int lock(ANativeWindow_Buffer*, ARect*) { return 0; }
     status_t    unlockAndPost();
 
     sp<IBinder> asBinder() const;
