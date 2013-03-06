@@ -2815,6 +2815,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                     *h = sh;
                     *f = PIXEL_FORMAT_RGBA_8888;
                     result = NO_ERROR;
+                } else {
+                    result = NO_MEMORY;
                 }
             } else {
                 result = NO_MEMORY;
