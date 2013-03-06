@@ -34,12 +34,10 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 LayerDim::LayerDim(SurfaceFlinger* flinger, const sp<Client>& client)
-    : Layer(flinger, client)
-{
+    : Layer(flinger, client) {
 }
 
-LayerDim::~LayerDim()
-{
+LayerDim::~LayerDim() {
 }
 
 void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
@@ -77,7 +75,7 @@ sp<ISurface> LayerDim::createSurface()
         virtual sp<IGraphicBufferProducer> getSurfaceTexture() const { return 0; }
     public:
         BSurface(const sp<SurfaceFlinger>& flinger,
-                const sp<LayerBase>& layer)
+                const sp<Layer>& layer)
             : LayerCleaner(flinger, layer) { }
     };
     sp<ISurface> sur(new BSurface(mFlinger, this));
@@ -85,7 +83,7 @@ sp<ISurface> LayerDim::createSurface()
 }
 
 bool LayerDim::isVisible() const {
-    const Layer::State& s(mDrawingState);
+    const Layer::State& s(drawingState());
     return !(s.flags & layer_state_t::eLayerHidden) && s.alpha;
 }
 

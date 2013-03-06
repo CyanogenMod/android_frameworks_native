@@ -580,7 +580,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
+        const sp<Layer>& layer(currentLayers[i]);
         // If this is an instance of Layer (as opposed to, say, LayerDim),
         // we will get the consumer interface of SurfaceFlingerConsumer's
         // BufferQueue.  If it's the same Binder object as the graphic
@@ -600,7 +600,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     // should not cause any harm.
     size_t purgatorySize =  mLayerPurgatory.size();
     for (size_t i=0 ; i<purgatorySize ; i++) {
-        const sp<LayerBase>& layer(mLayerPurgatory.itemAt(i));
+        const sp<Layer>& layer(mLayerPurgatory.itemAt(i));
         wp<IBinder> lbcBinder = layer->getSurfaceTextureBinder();
         if (lbcBinder == surfaceTextureBinder) {
             return true;
@@ -908,7 +908,7 @@ void SurfaceFlinger::rebuildLayerStacks() {
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             Region opaqueRegion;
             Region dirtyRegion;
-            Vector< sp<LayerBase> > layersSortedByZ;
+            Vector< sp<Layer> > layersSortedByZ;
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
             const Transform& tr(hw->getTransform());
             const Rect bounds(hw->getBounds());
@@ -918,7 +918,7 @@ void SurfaceFlinger::rebuildLayerStacks() {
 
                 const size_t count = currentLayers.size();
                 for (size_t i=0 ; i<count ; i++) {
-                    const sp<LayerBase>& layer(currentLayers[i]);
+                    const sp<Layer>& layer(currentLayers[i]);
                     const Layer::State& s(layer->drawingState());
                     if (s.layerStack == hw->getLayerStack()) {
                         Region drawRegion(tr.transform(
@@ -948,14 +948,14 @@ void SurfaceFlinger::setUpHWComposer() {
                 sp<const DisplayDevice> hw(mDisplays[dpy]);
                 const int32_t id = hw->getHwcDisplayId();
                 if (id >= 0) {
-                    const Vector< sp<LayerBase> >& currentLayers(
+                    const Vector< sp<Layer> >& currentLayers(
                         hw->getVisibleLayersSortedByZ());
                     const size_t count = currentLayers.size();
                     if (hwc.createWorkList(id, count) == NO_ERROR) {
                         HWComposer::LayerListIterator cur = hwc.begin(id);
                         const HWComposer::LayerListIterator end = hwc.end(id);
                         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
-                            const sp<LayerBase>& layer(currentLayers[i]);
+                            const sp<Layer>& layer(currentLayers[i]);
                             layer->setGeometry(hw, *cur);
                             if (mDebugDisableHWC || mDebugRegion) {
                                 cur->setSkip(true);
@@ -971,7 +971,7 @@ void SurfaceFlinger::setUpHWComposer() {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
             const int32_t id = hw->getHwcDisplayId();
             if (id >= 0) {
-                const Vector< sp<LayerBase> >& currentLayers(
+                const Vector< sp<Layer> >& currentLayers(
                     hw->getVisibleLayersSortedByZ());
                 const size_t count = currentLayers.size();
                 HWComposer::LayerListIterator cur = hwc.begin(id);
@@ -981,7 +981,7 @@ void SurfaceFlinger::setUpHWComposer() {
                      * update the per-frame h/w composer data for each layer
                      * and build the transparent region of the FB
                      */
-                    const sp<LayerBase>& layer(currentLayers[i]);
+                    const sp<Layer>& layer(currentLayers[i]);
                     layer->setPerFrameData(hw, *cur);
                 }
             }
@@ -1035,7 +1035,7 @@ void SurfaceFlinger::postFramebuffer()
 
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         sp<const DisplayDevice> hw(mDisplays[dpy]);
-        const Vector< sp<LayerBase> >& currentLayers(hw->getVisibleLayersSortedByZ());
+        const Vector< sp<Layer> >& currentLayers(hw->getVisibleLayersSortedByZ());
         hw->onSwapBuffersCompleted(hwc);
         const size_t count = currentLayers.size();
         int32_t id = hw->getHwcDisplayId();
@@ -1091,7 +1091,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
     if (transactionFlags & eTraversalNeeded) {
         for (size_t i=0 ; i<count ; i++) {
-            const sp<LayerBase>& layer(currentLayers[i]);
+            const sp<Layer>& layer(currentLayers[i]);
             uint32_t trFlags = layer->getTransactionFlags(eTransactionNeeded);
             if (!trFlags) continue;
 
@@ -1238,8 +1238,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // NOTE: we rely on the fact that layers are sorted by
             // layerStack first (so we don't have to traverse the list
             // of displays for every layer).
-            const sp<LayerBase>& layerBase(currentLayers[i]);
-            uint32_t layerStack = layerBase->drawingState().layerStack;
+            const sp<Layer>& layer(currentLayers[i]);
+            uint32_t layerStack = layer->drawingState().layerStack;
             if (i==0 || currentlayerStack != layerStack) {
                 currentlayerStack = layerStack;
                 // figure out if this layerstack is mirrored
@@ -1261,7 +1261,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             if (disp != NULL) {
                 // presumably this means this layer is using a layerStack
                 // that is not visible on any display
-                layerBase->updateTransformHint(disp);
+                layer->updateTransformHint(disp);
             }
         }
     }
@@ -1284,7 +1284,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
         mVisibleRegionsDirty = true;
         const size_t count = previousLayers.size();
         for (size_t i=0 ; i<count ; i++) {
-            const sp<LayerBase>& layer(previousLayers[i]);
+            const sp<Layer>& layer(previousLayers[i]);
             if (currentLayers.indexOf(layer) < 0) {
                 // this layer is not visible anymore
                 // TODO: we could traverse the tree from front to back and
@@ -1335,7 +1335,7 @@ void SurfaceFlinger::computeVisibleRegions(
 
     size_t i = currentLayers.size();
     while (i--) {
-        const sp<LayerBase>& layer = currentLayers[i];
+        const sp<Layer>& layer = currentLayers[i];
 
         // start with the whole surface at its current location
         const Layer::State& s(layer->drawingState());
@@ -1478,7 +1478,7 @@ void SurfaceFlinger::handlePageFlip()
     const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
     const size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
+        const sp<Layer>& layer(currentLayers[i]);
         const Region dirty(layer->latchBuffer(visibleRegions));
         const Layer::State& s(layer->drawingState());
         invalidateLayerStack(s.layerStack, dirty);
@@ -1600,13 +1600,13 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
      * and then, render the layers targeted at the framebuffer
      */
 
-    const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
+    const Vector< sp<Layer> >& layers(hw->getVisibleLayersSortedByZ());
     const size_t count = layers.size();
     const Transform& tr = hw->getTransform();
     if (cur != end) {
         // we're using h/w composer
         for (size_t i=0 ; i<count && cur!=end ; ++i, ++cur) {
-            const sp<LayerBase>& layer(layers[i]);
+            const sp<Layer>& layer(layers[i]);
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
                 switch (cur->getCompositionType()) {
@@ -1638,7 +1638,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
     } else {
         // we're not using h/w composer
         for (size_t i=0 ; i<count ; ++i) {
-            const sp<LayerBase>& layer(layers[i]);
+            const sp<Layer>& layer(layers[i]);
             const Region clip(dirty.intersect(
                     tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
@@ -1677,7 +1677,7 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
 
 void SurfaceFlinger::addClientLayer(const sp<Client>& client,
         const sp<IBinder>& handle,
-        const sp<LayerBase>& lbc)
+        const sp<Layer>& lbc)
 {
     // attach this layer to the client
     client->attachLayer(handle, lbc);
@@ -1687,7 +1687,7 @@ void SurfaceFlinger::addClientLayer(const sp<Client>& client,
     mCurrentState.layersSortedByZ.add(lbc);
 }
 
-status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
+status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer)
 {
     Mutex::Autolock _l(mStateLock);
     status_t err = purgatorizeLayer_l(layer);
@@ -1696,9 +1696,9 @@ status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
     return err;
 }
 
-status_t SurfaceFlinger::removeLayer_l(const sp<LayerBase>& layerBase)
+status_t SurfaceFlinger::removeLayer_l(const sp<Layer>& layer)
 {
-    ssize_t index = mCurrentState.layersSortedByZ.remove(layerBase);
+    ssize_t index = mCurrentState.layersSortedByZ.remove(layer);
     if (index >= 0) {
         mLayersRemoved = true;
         return NO_ERROR;
@@ -1706,16 +1706,16 @@ status_t SurfaceFlinger::removeLayer_l(const sp<LayerBase>& layerBase)
     return status_t(index);
 }
 
-status_t SurfaceFlinger::purgatorizeLayer_l(const sp<LayerBase>& layerBase)
+status_t SurfaceFlinger::purgatorizeLayer_l(const sp<Layer>& layer)
 {
     // First add the layer to the purgatory list, which makes sure it won't
     // go away, then remove it from the main list (through a transaction).
-    ssize_t err = removeLayer_l(layerBase);
+    ssize_t err = removeLayer_l(layer);
     if (err >= 0) {
-        mLayerPurgatory.add(layerBase);
+        mLayerPurgatory.add(layer);
     }
 
-    mLayersPendingRemoval.push(layerBase);
+    mLayersPendingRemoval.push(layer);
 
     // it's possible that we don't find a layer, because it might
     // have been destroyed already -- this is not technically an error
@@ -1866,7 +1866,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
         const layer_state_t& s)
 {
     uint32_t flags = 0;
-    sp<LayerBase> layer(client->getLayerUser(s.surface));
+    sp<Layer> layer(client->getLayerUser(s.surface));
     if (layer != 0) {
         const uint32_t what = s.what;
         if (what & layer_state_t::ePositionChanged) {
@@ -1930,7 +1930,7 @@ sp<ISurface> SurfaceFlinger::createLayer(
         uint32_t w, uint32_t h, PixelFormat format,
         uint32_t flags)
 {
-    sp<LayerBase> layer;
+    sp<Layer> layer;
     sp<ISurface> surfaceHandle;
 
     if (int32_t(w|h) < 0) {
@@ -2017,7 +2017,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBind
 
     status_t err = NAME_NOT_FOUND;
     Mutex::Autolock _l(mStateLock);
-    sp<LayerBase> layer = client->getLayerUser(handle);
+    sp<Layer> layer = client->getLayerUser(handle);
 
     if (layer != 0) {
         err = purgatorizeLayer_l(layer);
@@ -2028,11 +2028,11 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBind
     return err;
 }
 
-status_t SurfaceFlinger::onLayerDestroyed(const wp<LayerBase>& layer)
+status_t SurfaceFlinger::onLayerDestroyed(const wp<Layer>& layer)
 {
     // called by ~ISurface() when all references are gone
     status_t err = NO_ERROR;
-    sp<LayerBase> l(layer.promote());
+    sp<Layer> l(layer.promote());
     if (l != NULL) {
         Mutex::Autolock _l(mStateLock);
         err = removeLayer_l(l);
@@ -2249,7 +2249,7 @@ void SurfaceFlinger::listLayersLocked(const Vector<String16>& args, size_t& inde
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
+        const sp<Layer>& layer(currentLayers[i]);
         snprintf(buffer, SIZE, "%s\n", layer->getName().string());
         result.append(buffer);
     }
@@ -2274,7 +2274,7 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
         const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
         const size_t count = currentLayers.size();
         for (size_t i=0 ; i<count ; i++) {
-            const sp<LayerBase>& layer(currentLayers[i]);
+            const sp<Layer>& layer(currentLayers[i]);
             if (name == layer->getName()) {
                 layer->dumpStats(result, buffer, SIZE);
             }
@@ -2294,7 +2294,7 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
+        const sp<Layer>& layer(currentLayers[i]);
         if (name.isEmpty() || (name == layer->getName())) {
             layer->clearStats();
         }
@@ -2350,7 +2350,7 @@ void SurfaceFlinger::dumpAllLocked(
     snprintf(buffer, SIZE, "Visible layers (count = %d)\n", count);
     result.append(buffer);
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(currentLayers[i]);
+        const sp<Layer>& layer(currentLayers[i]);
         layer->dump(result, buffer, SIZE);
     }
 
@@ -2362,7 +2362,7 @@ void SurfaceFlinger::dumpAllLocked(
     snprintf(buffer, SIZE, "Purgatory state (%d entries)\n", purgatorySize);
     result.append(buffer);
     for (size_t i=0 ; i<purgatorySize ; i++) {
-        const sp<LayerBase>& layer(mLayerPurgatory.itemAt(i));
+        const sp<Layer>& layer(mLayerPurgatory.itemAt(i));
         layer->shortDump(result, buffer, SIZE);
     }
 
@@ -2451,7 +2451,7 @@ void SurfaceFlinger::dumpAllLocked(
     alloc.dump(result);
 }
 
-const Vector< sp<LayerBase> >&
+const Vector< sp<Layer> >&
 SurfaceFlinger::getLayerSortedByZForHwcDisplay(int disp) {
     // Note: mStateLock is held here
     return getDisplayDevice( getBuiltInDisplay(disp) )->getVisibleLayersSortedByZ();
@@ -2708,10 +2708,10 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    const Vector< sp<LayerBase> >& layers(hw->getVisibleLayersSortedByZ());
+    const Vector< sp<Layer> >& layers(hw->getVisibleLayersSortedByZ());
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
-        const sp<LayerBase>& layer(layers[i]);
+        const sp<Layer>& layer(layers[i]);
         const uint32_t z = layer->drawingState().z;
         if (z >= minLayerZ && z <= maxLayerZ) {
             if (filtering) layer->setFiltering(true);
@@ -2874,15 +2874,15 @@ SurfaceFlinger::LayerVector::LayerVector() {
 }
 
 SurfaceFlinger::LayerVector::LayerVector(const LayerVector& rhs)
-    : SortedVector<sp<LayerBase> >(rhs) {
+    : SortedVector<sp<Layer> >(rhs) {
 }
 
 int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
     const void* rhs) const
 {
     // sort layers per layer-stack, then by z-order and finally by sequence
-    const sp<LayerBase>& l(*reinterpret_cast<const sp<LayerBase>*>(lhs));
-    const sp<LayerBase>& r(*reinterpret_cast<const sp<LayerBase>*>(rhs));
+    const sp<Layer>& l(*reinterpret_cast<const sp<Layer>*>(lhs));
+    const sp<Layer>& r(*reinterpret_cast<const sp<Layer>*>(rhs));
 
     uint32_t ls = l->currentState().layerStack;
     uint32_t rs = r->currentState().layerStack;

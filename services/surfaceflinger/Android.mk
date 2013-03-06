@@ -7,7 +7,6 @@ LOCAL_SRC_FILES:= \
     EventThread.cpp                         \
     FrameTracker.cpp                        \
     Layer.cpp                               \
-    LayerBase.cpp                           \
     LayerDim.cpp                            \
     DisplayHardware/FramebufferSurface.cpp  \
     DisplayHardware/HWComposer.cpp          \

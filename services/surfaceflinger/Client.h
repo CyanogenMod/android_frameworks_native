@@ -30,7 +30,7 @@ namespace android {
 
 // ---------------------------------------------------------------------------
 
-class LayerBase;
+class Layer;
 class SurfaceFlinger;
 
 // ---------------------------------------------------------------------------
@@ -44,11 +44,11 @@ public:
     status_t initCheck() const;
 
     // protected by SurfaceFlinger::mStateLock
-    void attachLayer(const sp<IBinder>& handle, const sp<LayerBase>& layer);
+    void attachLayer(const sp<IBinder>& handle, const sp<Layer>& layer);
 
-    void detachLayer(const LayerBase* layer);
+    void detachLayer(const Layer* layer);
 
-    sp<LayerBase> getLayerUser(const sp<IBinder>& handle) const;
+    sp<Layer> getLayerUser(const sp<IBinder>& handle) const;
 
 private:
     // ISurfaceComposerClient interface
@@ -66,7 +66,7 @@ private:
     sp<SurfaceFlinger> mFlinger;
 
     // protected by mLock
-    DefaultKeyedVector< wp<IBinder>, wp<LayerBase> > mLayers;
+    DefaultKeyedVector< wp<IBinder>, wp<Layer> > mLayers;
 
     // thread-safe
     mutable Mutex mLock;
