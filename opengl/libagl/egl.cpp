@@ -147,6 +147,7 @@ struct egl_surface_t
     EGLDisplay          dpy;
     EGLConfig           config;
     EGLContext          ctx;
+    bool                zombie;
 
                 egl_surface_t(EGLDisplay dpy, EGLConfig config, int32_t depthFormat);
     virtual     ~egl_surface_t();
@@ -173,7 +174,7 @@ protected:
 egl_surface_t::egl_surface_t(EGLDisplay dpy,
         EGLConfig config,
         int32_t depthFormat)
-    : magic(MAGIC), dpy(dpy), config(config), ctx(0)
+    : magic(MAGIC), dpy(dpy), config(config), ctx(0), zombie(false)
 {
     depth.version = sizeof(GGLSurface);
     depth.data = 0;
@@ -1580,11 +1581,12 @@ EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface eglSurface)
         if (surface->dpy != dpy)
             return setError(EGL_BAD_DISPLAY, EGL_FALSE);
         if (surface->ctx) {
-            // FIXME: this surface is current check what the spec says
+            // defer disconnect/delete until no longer current
+            surface->zombie = true;
+        } else {
             surface->disconnect();
-            surface->ctx = 0;
+            delete surface;
         }
-        delete surface;
     }
     return EGL_TRUE;
 }
@@ -1736,6 +1738,9 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
             if (c->draw) {
                 egl_surface_t* s = reinterpret_cast<egl_surface_t*>(c->draw);
                 s->disconnect();
+                s->ctx = EGL_NO_CONTEXT;
+                if (s->zombie)
+                    delete s;
             }
             if (c->read) {
                 // FIXME: unlock/disconnect the read surface too 
@@ -1777,8 +1782,10 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
                 egl_surface_t* r = (egl_surface_t*)c->read;
                 if (d) {
                     c->draw = 0;
-                    d->ctx = EGL_NO_CONTEXT;
                     d->disconnect();
+                    d->ctx = EGL_NO_CONTEXT;
+                    if (d->zombie)
+                        delete d;
                 }
                 if (r) {
                     c->read = 0;
