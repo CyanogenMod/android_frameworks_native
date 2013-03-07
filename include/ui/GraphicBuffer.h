@@ -24,6 +24,7 @@
 #include <ui/PixelFormat.h>
 #include <ui/Rect.h>
 #include <utils/Flattenable.h>
+#include <utils/RefBase.h>
 
 
 struct ANativeWindowBuffer;
@@ -37,10 +38,8 @@ class GraphicBufferMapper;
 // ===========================================================================
 
 class GraphicBuffer
-    : public ANativeObjectBase<
-        ANativeWindowBuffer,
-        GraphicBuffer, 
-        LightRefBase<GraphicBuffer> >, public Flattenable
+    : public ANativeObjectBase< ANativeWindowBuffer, GraphicBuffer, RefBase >,
+      public Flattenable
 {
 public:
 
