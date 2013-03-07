@@ -38,7 +38,7 @@ namespace android {
 
 class DisplayInfo;
 class FramebufferSurface;
-class LayerBase;
+class Layer;
 class SurfaceFlinger;
 class HWComposer;
 
@@ -99,8 +99,8 @@ public:
 
     EGLSurface  getEGLSurface() const;
 
-    void                    setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers);
-    const Vector< sp<LayerBase> >& getVisibleLayersSortedByZ() const;
+    void                    setVisibleLayersSortedByZ(const Vector< sp<Layer> >& layers);
+    const Vector< sp<Layer> >& getVisibleLayersSortedByZ() const;
     bool                    getSecureLayerVisible() const;
     Region                  getDirtyRegion(bool repaintEverything) const;
 
@@ -186,7 +186,7 @@ private:
      */
 
     // list of visible layers on that display
-    Vector< sp<LayerBase> > mVisibleLayersSortedByZ;
+    Vector< sp<Layer> > mVisibleLayersSortedByZ;
 
     // Whether we have a visible secure layer on this display
     bool mSecureLayerVisible;
