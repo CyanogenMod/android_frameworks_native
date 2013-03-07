@@ -5,9 +5,10 @@ LOCAL_SRC_FILES:= \
 	gl2_yuvtex.cpp
 
 LOCAL_SHARED_LIBRARIES := \
-	libcutils \
+    libcutils \
     libEGL \
     libGLESv2 \
+    libutils \
     libui
 
 LOCAL_C_INCLUDES += $(call include-path-for, opengl-tests-includes)
