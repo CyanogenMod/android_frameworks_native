@@ -47,7 +47,6 @@ namespace android {
 
 class GraphicBuffer;
 class Fence;
-class LayerBase;
 class Region;
 class String8;
 class SurfaceFlinger;

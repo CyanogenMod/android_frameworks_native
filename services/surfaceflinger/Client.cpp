@@ -23,7 +23,6 @@
 
 #include "Client.h"
 #include "Layer.h"
-#include "LayerBase.h"
 #include "SurfaceFlinger.h"
 
 namespace android {
@@ -43,7 +42,7 @@ Client::~Client()
 {
     const size_t count = mLayers.size();
     for (size_t i=0 ; i<count ; i++) {
-        sp<LayerBaseClient> layer(mLayers.valueAt(i).promote());
+        sp<Layer> layer(mLayers.valueAt(i).promote());
         if (layer != 0) {
             mFlinger->removeLayer(layer);
         }
@@ -54,13 +53,13 @@ status_t Client::initCheck() const {
     return NO_ERROR;
 }
 
-void Client::attachLayer(const sp<IBinder>& handle, const sp<LayerBaseClient>& layer)
+void Client::attachLayer(const sp<IBinder>& handle, const sp<Layer>& layer)
 {
     Mutex::Autolock _l(mLock);
     mLayers.add(handle, layer);
 }
 
-void Client::detachLayer(const LayerBaseClient* layer)
+void Client::detachLayer(const Layer* layer)
 {
     Mutex::Autolock _l(mLock);
     // we do a linear search here, because this doesn't happen often
@@ -72,11 +71,11 @@ void Client::detachLayer(const LayerBaseClient* layer)
         }
     }
 }
-sp<LayerBaseClient> Client::getLayerUser(const sp<IBinder>& handle) const
+sp<Layer> Client::getLayerUser(const sp<IBinder>& handle) const
 {
     Mutex::Autolock _l(mLock);
-    sp<LayerBaseClient> lbc;
-    wp<LayerBaseClient> layer(mLayers.valueFor(handle));
+    sp<Layer> lbc;
+    wp<Layer> layer(mLayers.valueFor(handle));
     if (layer != 0) {
         lbc = layer.promote();
         ALOGE_IF(lbc==0, "getLayerUser(name=%p) is dead", handle.get());
