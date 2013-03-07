@@ -134,17 +134,12 @@ status_t FramebufferSurface::setReleaseFenceFd(int fenceFd) {
     if (fenceFd >= 0) {
         sp<Fence> fence(new Fence(fenceFd));
         if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
-            status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+            err = addReleaseFence(mCurrentBufferSlot, fence);
             ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
                     strerror(-err), err);
         }
     }
     return err;
-}
-
-status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
-{
-    return INVALID_OPERATION;
 }
 
 status_t FramebufferSurface::compositionComplete()
@@ -153,8 +148,14 @@ status_t FramebufferSurface::compositionComplete()
 }
 
 void FramebufferSurface::dump(String8& result) {
-    mHwc.fbDump(result);
     ConsumerBase::dump(result);
+}
+
+void FramebufferSurface::dumpLocked(String8& result, const char* prefix,
+            char* buffer, size_t SIZE) const
+{
+    mHwc.fbDump(result);
+    ConsumerBase::dumpLocked(result, prefix, buffer, SIZE);
 }
 
 // ----------------------------------------------------------------------------

@@ -380,6 +380,7 @@ int32_t HWComposer::allocateDisplayId() {
     }
     int32_t id = mAllocatedDisplayIDs.firstUnmarkedBit();
     mAllocatedDisplayIDs.markBit(id);
+    mDisplayData[id].connected = true;
     return id;
 }
 
@@ -392,6 +393,7 @@ status_t HWComposer::freeDisplayId(int32_t id) {
         return BAD_INDEX;
     }
     mAllocatedDisplayIDs.clearBit(id);
+    mDisplayData[id].connected = false;
     return NO_ERROR;
 }
 

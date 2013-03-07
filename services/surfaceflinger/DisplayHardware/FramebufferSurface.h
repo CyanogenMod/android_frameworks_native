@@ -36,11 +36,11 @@ class FramebufferSurface : public ConsumerBase {
 public:
     FramebufferSurface(HWComposer& hwc, int disp);
 
-    bool isUpdateOnDemand() const { return false; }
-    status_t setUpdateRectangle(const Rect& updateRect);
     status_t compositionComplete();
 
-    virtual void dump(String8& result);
+    // TODO(jessehall): This overrides the non-virtual ConsumerBase version.
+    // Will rework slightly in a following change.
+    void dump(String8& result);
 
     // setReleaseFenceFd stores a fence file descriptor that will signal when the
     // current buffer is no longer being read. This fence will be returned to
@@ -55,6 +55,9 @@ private:
 
     virtual void onFrameAvailable();
     virtual void freeBufferLocked(int slotIndex);
+
+    virtual void dumpLocked(String8& result, const char* prefix,
+            char* buffer, size_t SIZE) const;
 
     // nextBuffer waits for and then latches the next buffer from the
     // BufferQueue and releases the previously latched buffer to the

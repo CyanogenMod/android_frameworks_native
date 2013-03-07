@@ -1131,7 +1131,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
                         mDisplays.removeItem(draw.keyAt(i));
                         getHwComposer().disconnectDisplay(draw[i].type);
-                        mEventThread->onHotplugReceived(draw[i].type, false);
+                        if (draw[i].type < DisplayDevice::NUM_DISPLAY_TYPES)
+                            mEventThread->onHotplugReceived(draw[i].type, false);
                     } else {
                         ALOGW("trying to remove the main display");
                     }
@@ -1204,7 +1205,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.viewport, state.frame);
                         hw->setDisplayName(state.displayName);
                         mDisplays.add(display, hw);
-                        mEventThread->onHotplugReceived(state.type, true);
+                        if (state.type < DisplayDevice::NUM_DISPLAY_TYPES)
+                            mEventThread->onHotplugReceived(state.type, true);
                     }
                 }
             }
