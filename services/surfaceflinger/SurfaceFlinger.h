@@ -60,10 +60,7 @@ class DisplayEventConnection;
 class EventThread;
 class IGraphicBufferAlloc;
 class Layer;
-class LayerBase;
-class LayerBaseClient;
 class LayerDim;
-class LayerScreenshot;
 class Surface;
 
 // ---------------------------------------------------------------------------
@@ -125,15 +122,12 @@ public:
 
     // for debugging only
     // TODO: this should be made accessible only to HWComposer
-    const Vector< sp<LayerBase> >& getLayerSortedByZForHwcDisplay(int disp);
+    const Vector< sp<Layer> >& getLayerSortedByZForHwcDisplay(int disp);
 
 private:
     friend class Client;
     friend class DisplayEventConnection;
-    friend class LayerBase;
-    friend class LayerBaseClient;
     friend class Layer;
-    friend class LayerScreenshot;
 
     // We're reference counted, never destroy SurfaceFlinger directly
     virtual ~SurfaceFlinger();
@@ -142,7 +136,7 @@ private:
      * Internal data structures
      */
 
-    class LayerVector : public SortedVector<sp<LayerBase> > {
+    class LayerVector : public SortedVector< sp<Layer> > {
     public:
         LayerVector();
         LayerVector(const LayerVector& rhs);
@@ -272,9 +266,6 @@ private:
     sp<LayerDim> createDimLayer(const sp<Client>& client,
             uint32_t w, uint32_t h, uint32_t flags);
 
-    sp<LayerScreenshot> createScreenshotLayer(const sp<Client>& client,
-            uint32_t w, uint32_t h, uint32_t flags);
-
     // called in response to the window-manager calling
     // ISurfaceComposerClient::destroySurface()
     // The specified layer is first placed in a purgatory list
@@ -284,17 +275,17 @@ private:
     // called when all clients have released all their references to
     // this layer meaning it is entirely safe to destroy all
     // resources associated to this layer.
-    status_t onLayerDestroyed(const wp<LayerBaseClient>& layer);
+    status_t onLayerDestroyed(const wp<Layer>& layer);
 
     // remove a layer from SurfaceFlinger immediately
-    status_t removeLayer(const sp<LayerBase>& layer);
+    status_t removeLayer(const sp<Layer>& layer);
 
     // add a layer to SurfaceFlinger
     void addClientLayer(const sp<Client>& client, const sp<IBinder>& handle,
-        const sp<LayerBaseClient>& lbc);
+        const sp<Layer>& lbc);
 
-    status_t removeLayer_l(const sp<LayerBase>& layer);
-    status_t purgatorizeLayer_l(const sp<LayerBase>& layer);
+    status_t removeLayer_l(const sp<Layer>& layer);
+    status_t purgatorizeLayer_l(const sp<Layer>& layer);
 
     /* ------------------------------------------------------------------------
      * Boot animation, on/off animations and screen capture
@@ -408,10 +399,10 @@ private:
     State mCurrentState;
     volatile int32_t mTransactionFlags;
     Condition mTransactionCV;
-    SortedVector<sp<LayerBase> > mLayerPurgatory;
+    SortedVector< sp<Layer> > mLayerPurgatory;
     bool mTransactionPending;
     bool mAnimTransactionPending;
-    Vector<sp<LayerBase> > mLayersPendingRemoval;
+    Vector< sp<Layer> > mLayersPendingRemoval;
 
     // protected by mStateLock (but we could use another lock)
     bool mLayersRemoved;
@@ -460,7 +451,7 @@ private:
 
     // protected by mDestroyedLayerLock;
     mutable Mutex mDestroyedLayerLock;
-    Vector<LayerBase const *> mDestroyedLayers;
+    Vector<Layer const *> mDestroyedLayers;
 
     /* ------------------------------------------------------------------------
      * Feature prototyping

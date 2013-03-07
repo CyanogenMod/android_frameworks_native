@@ -42,7 +42,7 @@
 #include "DisplayDevice.h"
 #include "GLExtensions.h"
 #include "SurfaceFlinger.h"
-#include "LayerBase.h"
+#include "Layer.h"
 
 // ----------------------------------------------------------------------------
 using namespace android;
@@ -282,19 +282,19 @@ void DisplayDevice::setViewportAndProjection(const sp<const DisplayDevice>& hw) 
 
 // ----------------------------------------------------------------------------
 
-void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<LayerBase> >& layers) {
+void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<Layer> >& layers) {
     mVisibleLayersSortedByZ = layers;
     mSecureLayerVisible = false;
     size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<LayerBase>& layer(layers[i]);
+        const sp<Layer>& layer(layers[i]);
         if (layer->isSecure()) {
             mSecureLayerVisible = true;
         }
     }
 }
 
-const Vector< sp<LayerBase> >& DisplayDevice::getVisibleLayersSortedByZ() const {
+const Vector< sp<Layer> >& DisplayDevice::getVisibleLayersSortedByZ() const {
     return mVisibleLayersSortedByZ;
 }
 

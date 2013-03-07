@@ -41,7 +41,6 @@
 #include <cutils/properties.h>
 
 #include "Layer.h"           // needed only for debugging
-#include "LayerBase.h"
 #include "HWComposer.h"
 #include "SurfaceFlinger.h"
 #include <utils/CallStack.h>
@@ -925,7 +924,7 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
 
-            const Vector< sp<LayerBase> >& visibleLayersSortedByZ =
+            const Vector< sp<Layer> >& visibleLayersSortedByZ =
                     mFlinger->getLayerSortedByZForHwcDisplay(i);
 
             if (disp.connected) {
@@ -949,13 +948,11 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
                     String8 name("unknown");
 
                     if (i < visibleLayersSortedByZ.size()) {
-                        const sp<LayerBase>& layer(visibleLayersSortedByZ[i]);
-                        if (layer->getLayer() != NULL) {
-                            const sp<GraphicBuffer>& buffer(
-                                layer->getLayer()->getActiveBuffer());
-                            if (buffer != NULL) {
-                                format = buffer->getPixelFormat();
-                            }
+                        const sp<Layer>& layer(visibleLayersSortedByZ[i]);
+                        const sp<GraphicBuffer>& buffer(
+                                layer->getActiveBuffer());
+                        if (buffer != NULL) {
+                            format = buffer->getPixelFormat();
                         }
                         name = layer->getName();
                     }
