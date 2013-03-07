@@ -2810,6 +2810,9 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
     glDeleteTextures(1, &tname);
 
+    DisplayDevice::makeCurrent(mEGLDisplay,
+            getDefaultDisplayDevice(), mEGLContext);
+
     return result;
 }
 
