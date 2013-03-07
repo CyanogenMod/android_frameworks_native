@@ -420,9 +420,8 @@ void egl_window_surface_v2_t::disconnect()
         bits = NULL;
         unlock(buffer);
     }
-    // enqueue the last frame
-    nativeWindow->queueBuffer(nativeWindow, buffer, -1);
     if (buffer) {
+        nativeWindow->cancelBuffer(nativeWindow, buffer, -1);
         buffer->common.decRef(&buffer->common);
         buffer = 0;
     }
