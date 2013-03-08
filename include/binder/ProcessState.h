@@ -71,6 +71,7 @@ public:
             void                spawnPooledThread(bool isMain);
             
             status_t            setThreadPoolMaxThreadCount(size_t maxThreads);
+            void                giveThreadPoolName();
 
 private:
     friend class IPCThreadState;
@@ -80,6 +81,7 @@ private:
 
                                 ProcessState(const ProcessState& o);
             ProcessState&       operator=(const ProcessState& o);
+            String8             makeBinderThreadName();
             
             struct handle_entry {
                 IBinder* binder;
