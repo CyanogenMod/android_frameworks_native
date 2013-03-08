@@ -1636,6 +1636,81 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
     }
 }
 
+TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentBeforeConsumerDeathUnrefsBuffers) {
+    sp<GraphicBuffer> buffer;
+
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+
+    // Produce a frame
+    glClear(GL_COLOR_BUFFER_BIT);
+    EXPECT_TRUE(eglSwapBuffers(mEglDisplay, mProducerEglSurface));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Destroy the EGLSurface.
+    EXPECT_TRUE(eglDestroySurface(mEglDisplay, mProducerEglSurface));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    mProducerEglSurface = EGL_NO_SURFACE;
+    mSTC.clear();
+    mANW.clear();
+    mTextureRenderer.clear();
+
+    // Consume a frame
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    buffer = mST->getCurrentBuffer();
+
+    // Destroy the GL texture object to release its ref
+    GLuint texID = TEX_ID;
+    glDeleteTextures(1, &texID);
+
+    // make un-current, all references to buffer should be gone
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE,
+            EGL_NO_SURFACE, EGL_NO_CONTEXT));
+
+    // Destroy consumer
+    mST.clear();
+
+    EXPECT_EQ(1, buffer->getStrongCount());
+}
+
+TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentAfterConsumerDeathUnrefsBuffers) {
+    sp<GraphicBuffer> buffer;
+
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
+            mProducerEglSurface, mProducerEglContext));
+
+    // Produce a frame
+    glClear(GL_COLOR_BUFFER_BIT);
+    EXPECT_TRUE(eglSwapBuffers(mEglDisplay, mProducerEglSurface));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Destroy the EGLSurface.
+    EXPECT_TRUE(eglDestroySurface(mEglDisplay, mProducerEglSurface));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    mProducerEglSurface = EGL_NO_SURFACE;
+    mSTC.clear();
+    mANW.clear();
+    mTextureRenderer.clear();
+
+    // Consume a frame
+    ASSERT_EQ(NO_ERROR, mST->updateTexImage());
+    buffer = mST->getCurrentBuffer();
+
+    // Destroy the GL texture object to release its ref
+    GLuint texID = TEX_ID;
+    glDeleteTextures(1, &texID);
+
+    // Destroy consumer
+    mST.clear();
+
+    // make un-current, all references to buffer should be gone
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE,
+            EGL_NO_SURFACE, EGL_NO_CONTEXT));
+
+    EXPECT_EQ(1, buffer->getStrongCount());
+}
+
+
 TEST_F(SurfaceTextureGLToGLTest, EglSurfaceDefaultsToSynchronousMode) {
     // This test requires 3 buffers to run on a single thread.
     mST->setDefaultMaxBufferCount(3);
