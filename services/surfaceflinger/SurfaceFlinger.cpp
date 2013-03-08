@@ -2720,6 +2720,9 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         }
     }
 
+    // compositionComplete is needed for older driver
+    hw->compositionComplete();
+
     // and finishing things up...
     if (eglSwapBuffers(mEGLDisplay, eglSurface) != EGL_TRUE) {
         ALOGE("captureScreenImplLocked: eglSwapBuffers() failed 0x%4x",
