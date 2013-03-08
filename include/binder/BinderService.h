@@ -36,13 +36,18 @@ class BinderService
 public:
     static status_t publish(bool allowIsolated = false) {
         sp<IServiceManager> sm(defaultServiceManager());
-        return sm->addService(String16(SERVICE::getServiceName()), new SERVICE(), allowIsolated);
+        return sm->addService(
+                String16(SERVICE::getServiceName()),
+                new SERVICE(), allowIsolated);
     }
 
     static void publishAndJoinThreadPool(bool allowIsolated = false) {
         sp<IServiceManager> sm(defaultServiceManager());
-        sm->addService(String16(SERVICE::getServiceName()), new SERVICE(), allowIsolated);
+        sm->addService(
+                String16(SERVICE::getServiceName()),
+                new SERVICE(), allowIsolated);
         ProcessState::self()->startThreadPool();
+        ProcessState::self()->giveThreadPoolName();
         IPCThreadState::self()->joinThreadPool();
     }
 
