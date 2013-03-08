@@ -283,15 +283,20 @@ void ProcessState::setArgV0(const char* txt)
     }
 }
 
+String8 ProcessState::makeBinderThreadName() {
+    int32_t s = android_atomic_add(1, &mThreadPoolSeq);
+    String8 name;
+    name.appendFormat("Binder_%X", s);
+    return name;
+}
+
 void ProcessState::spawnPooledThread(bool isMain)
 {
     if (mThreadPoolStarted) {
-        int32_t s = android_atomic_add(1, &mThreadPoolSeq);
-        char buf[16];
-        snprintf(buf, sizeof(buf), "Binder_%X", s);
-        ALOGV("Spawning new pooled thread, name=%s\n", buf);
+        String8 name = makeBinderThreadName();
+        ALOGV("Spawning new pooled thread, name=%s\n", name.string());
         sp<Thread> t = new PoolThread(isMain);
-        t->run(buf);
+        t->run(name.string());
     }
 }
 
@@ -302,6 +307,10 @@ status_t ProcessState::setThreadPoolMaxThreadCount(size_t maxThreads) {
         ALOGE("Binder ioctl to set max threads failed: %s", strerror(-result));
     }
     return result;
+}
+
+void ProcessState::giveThreadPoolName() {
+    androidSetThreadName( makeBinderThreadName().string() );
 }
 
 static int open_driver()
