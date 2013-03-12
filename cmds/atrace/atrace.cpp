@@ -69,43 +69,44 @@ struct TracingCategory {
 
 /* Tracing categories */
 static const TracingCategory k_categories[] = {
-    { "gfx",    "Graphics",         ATRACE_TAG_GRAPHICS, { } },
-    { "input",  "Input",            ATRACE_TAG_INPUT, { } },
-    { "view",   "View System",      ATRACE_TAG_VIEW, { } },
-    { "wm",     "Window Manager",   ATRACE_TAG_WINDOW_MANAGER, { } },
-    { "am",     "Activity Manager", ATRACE_TAG_ACTIVITY_MANAGER, { } },
-    { "audio",  "Audio",            ATRACE_TAG_AUDIO, { } },
-    { "video",  "Video",            ATRACE_TAG_VIDEO, { } },
-    { "camera", "Camera",           ATRACE_TAG_CAMERA, { } },
-    { "hal",    "Hardware Modules", ATRACE_TAG_HAL, { } },
-    { "sched",  "CPU Scheduling",   0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
-        { REQ,  "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
+    { "gfx",        "Graphics",         ATRACE_TAG_GRAPHICS, { } },
+    { "input",      "Input",            ATRACE_TAG_INPUT, { } },
+    { "view",       "View System",      ATRACE_TAG_VIEW, { } },
+    { "webview",    "WebView",          ATRACE_TAG_WEBVIEW, { } },
+    { "wm",         "Window Manager",   ATRACE_TAG_WINDOW_MANAGER, { } },
+    { "am",         "Activity Manager", ATRACE_TAG_ACTIVITY_MANAGER, { } },
+    { "audio",      "Audio",            ATRACE_TAG_AUDIO, { } },
+    { "video",      "Video",            ATRACE_TAG_VIDEO, { } },
+    { "camera",     "Camera",           ATRACE_TAG_CAMERA, { } },
+    { "hal",        "Hardware Modules", ATRACE_TAG_HAL, { } },
+    { "sched",      "CPU Scheduling",   0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
     } },
-    { "freq",   "CPU Frequency",    0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable" },
-        { OPT, "/sys/kernel/debug/tracing/events/power/clock_set_rate/enable" },
+    { "freq",       "CPU Frequency",    0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable" },
+        { OPT,      "/sys/kernel/debug/tracing/events/power/clock_set_rate/enable" },
     } },
-    { "membus", "Memory Bus Utilization", 0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/memory_bus/enable" },
+    { "membus",     "Memory Bus Utilization", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/memory_bus/enable" },
     } },
-    { "idle",   "CPU Idle",         0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/power/cpu_idle/enable" },
+    { "idle",       "CPU Idle",         0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_idle/enable" },
     } },
-    { "disk",   "Disk I/O",         0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_enter/enable" },
-        { REQ,  "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_exit/enable" },
-        { REQ,  "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable" },
-        { REQ,  "/sys/kernel/debug/tracing/events/block/block_rq_complete/enable" },
+    { "disk",       "Disk I/O",         0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_enter/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_exit/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_complete/enable" },
     } },
-    { "load",   "CPU Load",         0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable" },
+    { "load",       "CPU Load",         0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable" },
     } },
-    { "sync",   "Synchronization",  0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/sync/enable" },
+    { "sync",       "Synchronization",  0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/sync/enable" },
     } },
-    { "workq",  "Kernel Workqueues", 0, {
-        { REQ,  "/sys/kernel/debug/tracing/events/workqueue/enable" },
+    { "workq",      "Kernel Workqueues", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/workqueue/enable" },
     } },
 };
 
