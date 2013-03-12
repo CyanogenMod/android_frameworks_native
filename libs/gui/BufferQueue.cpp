@@ -995,7 +995,7 @@ void BufferQueue::freeAllBuffersExceptHeadLocked() {
 }
 
 status_t BufferQueue::drainQueueLocked() {
-    while (mSynchronousMode && !mQueue.isEmpty()) {
+    while (mSynchronousMode && mQueue.size() > 1) {
         mDequeueCondition.wait(mMutex);
         if (mAbandoned) {
             ST_LOGE("drainQueueLocked: BufferQueue has been abandoned!");
@@ -1012,7 +1012,7 @@ status_t BufferQueue::drainQueueLocked() {
 status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
     status_t err = drainQueueLocked();
     if (err == NO_ERROR) {
-        if (mSynchronousMode) {
+        if (mQueue.empty()) {
             freeAllBuffersLocked();
         } else {
             freeAllBuffersExceptHeadLocked();
