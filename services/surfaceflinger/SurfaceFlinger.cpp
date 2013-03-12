@@ -2708,15 +2708,17 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    const Vector< sp<Layer> >& layers(hw->getVisibleLayersSortedByZ());
+    const LayerVector& layers( mDrawingState.layersSortedByZ );
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<Layer>& layer(layers[i]);
-        const uint32_t z = layer->drawingState().z;
-        if (z >= minLayerZ && z <= maxLayerZ) {
-            if (filtering) layer->setFiltering(true);
-            layer->draw(hw);
-            if (filtering) layer->setFiltering(false);
+        const Layer::State& state(layer->drawingState());
+        if (state.layerStack == hw->getLayerStack()) {
+            if (state.z >= minLayerZ && state.z <= maxLayerZ) {
+                if (filtering) layer->setFiltering(true);
+                layer->draw(hw);
+                if (filtering) layer->setFiltering(false);
+            }
         }
     }
 
