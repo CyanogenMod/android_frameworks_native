@@ -2787,7 +2787,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
             sp<GraphicBuffer> buf(consumer->getCurrentBuffer());
             sw = buf->getWidth();
             sh = buf->getHeight();
-            size_t size = buf->getStride() * sh * 4;
+            size_t size = sw * sh * 4;
 
             // allocate shared memory large enough to hold the
             // screen capture
