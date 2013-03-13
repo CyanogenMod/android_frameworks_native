@@ -52,10 +52,11 @@ public:
 
 private:
     // ISurfaceComposerClient interface
-    virtual sp<ISurface> createSurface(
+    virtual status_t createSurface(
             const String8& name,
-            uint32_t w, uint32_t h,PixelFormat format,
-            uint32_t flags);
+            uint32_t w, uint32_t h,PixelFormat format, uint32_t flags,
+            sp<IBinder>* handle,
+            sp<IGraphicBufferProducer>* gbp);
 
     virtual status_t destroySurface(const sp<IBinder>& handle);
 

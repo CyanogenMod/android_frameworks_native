@@ -257,14 +257,18 @@ private:
     /* ------------------------------------------------------------------------
      * Layer management
      */
-    sp<ISurface> createLayer(const String8& name, const sp<Client>& client,
-            uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
+    status_t createLayer(const String8& name, const sp<Client>& client,
+            uint32_t w, uint32_t h, PixelFormat format, uint32_t flags,
+            sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp);
 
-    sp<Layer> createNormalLayer(const sp<Client>& client,
-            uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format);
+    status_t createNormalLayer(const sp<Client>& client, const String8& name,
+            uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format,
+            sp<IBinder>* outHandle, sp<IGraphicBufferProducer>* outGbp,
+            sp<Layer>* outLayer);
 
-    sp<LayerDim> createDimLayer(const sp<Client>& client,
-            uint32_t w, uint32_t h, uint32_t flags);
+    status_t createDimLayer(const sp<Client>& client, const String8& name,
+            uint32_t w, uint32_t h, uint32_t flags, sp<IBinder>* outHandle,
+            sp<IGraphicBufferProducer>* outGbp, sp<Layer>* outLayer);
 
     // called in response to the window-manager calling
     // ISurfaceComposerClient::destroySurface()

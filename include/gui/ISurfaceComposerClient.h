@@ -27,10 +27,10 @@
 
 #include <ui/PixelFormat.h>
 
-#include <gui/ISurface.h>
-
 namespace android {
 // ----------------------------------------------------------------------------
+
+class IGraphicBufferProducer;
 
 class ISurfaceComposerClient : public IInterface
 {
@@ -55,9 +55,11 @@ public:
     /*
      * Requires ACCESS_SURFACE_FLINGER permission
      */
-    virtual sp<ISurface> createSurface(
+    virtual status_t createSurface(
             const String8& name, uint32_t w, uint32_t h,
-            PixelFormat format, uint32_t flags) = 0;
+            PixelFormat format, uint32_t flags,
+            sp<IBinder>* handle,
+            sp<IGraphicBufferProducer>* gbp) = 0;
 
     /*
      * Requires ACCESS_SURFACE_FLINGER permission

@@ -32,7 +32,6 @@
 #include <ui/DisplayInfo.h>
 
 #include <gui/IGraphicBufferProducer.h>
-#include <gui/ISurface.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
 #include <gui/SurfaceComposerClient.h>
@@ -471,14 +470,18 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
         PixelFormat format,
         uint32_t flags)
 {
-    sp<SurfaceControl> result;
+    sp<SurfaceControl> sur;
     if (mStatus == NO_ERROR) {
-        sp<ISurface> surface = mClient->createSurface(name, w, h, format, flags);
-        if (surface != 0) {
-            result = new SurfaceControl(this, surface);
+        sp<IBinder> handle;
+        sp<IGraphicBufferProducer> gbp;
+        status_t err = mClient->createSurface(name, w, h, format, flags,
+                &handle, &gbp);
+        ALOGE_IF(err, "SurfaceComposerClient::createSurface error %s", strerror(-err));
+        if (err == NO_ERROR) {
+            sur = new SurfaceControl(this, handle, gbp);
         }
     }
-    return result;
+    return sur;
 }
 
 sp<IBinder> SurfaceComposerClient::createDisplay(const String8& displayName,

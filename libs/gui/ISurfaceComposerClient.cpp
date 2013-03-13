@@ -29,7 +29,7 @@
 #include <ui/Point.h>
 #include <ui/Rect.h>
 
-#include <gui/ISurface.h>
+#include <gui/IGraphicBufferProducer.h>
 #include <gui/ISurfaceComposerClient.h>
 #include <private/gui/LayerState.h>
 
@@ -46,16 +46,13 @@ class BpSurfaceComposerClient : public BpInterface<ISurfaceComposerClient>
 {
 public:
     BpSurfaceComposerClient(const sp<IBinder>& impl)
-        : BpInterface<ISurfaceComposerClient>(impl)
-    {
+        : BpInterface<ISurfaceComposerClient>(impl) {
     }
 
-    virtual sp<ISurface> createSurface( const String8& name,
-                                        uint32_t w,
-                                        uint32_t h,
-                                        PixelFormat format,
-                                        uint32_t flags)
-    {
+    virtual status_t createSurface(const String8& name, uint32_t w,
+            uint32_t h, PixelFormat format, uint32_t flags,
+            sp<IBinder>* handle,
+            sp<IGraphicBufferProducer>* gbp) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
         data.writeString8(name);
@@ -64,11 +61,12 @@ public:
         data.writeInt32(format);
         data.writeInt32(flags);
         remote()->transact(CREATE_SURFACE, data, &reply);
-        return interface_cast<ISurface>(reply.readStrongBinder());
+        *handle = reply.readStrongBinder();
+        *gbp = interface_cast<IGraphicBufferProducer>(reply.readStrongBinder());
+        return reply.readInt32();
     }
 
-    virtual status_t destroySurface(const sp<IBinder>& handle)
-    {
+    virtual status_t destroySurface(const sp<IBinder>& handle) {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
         data.writeStrongBinder(handle);
@@ -92,8 +90,13 @@ status_t BnSurfaceComposerClient::onTransact(
             uint32_t h = data.readInt32();
             PixelFormat format = data.readInt32();
             uint32_t flags = data.readInt32();
-            sp<ISurface> s = createSurface(name, w, h, format, flags);
-            reply->writeStrongBinder(s->asBinder());
+            sp<IBinder> handle;
+            sp<IGraphicBufferProducer> gbp;
+            status_t result = createSurface(name, w, h, format, flags,
+                    &handle, &gbp);
+            reply->writeStrongBinder(handle);
+            reply->writeStrongBinder(gbp->asBinder());
+            reply->writeInt32(result);
             return NO_ERROR;
         } break;
         case DESTROY_SURFACE: {

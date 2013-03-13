@@ -124,16 +124,12 @@ public:
 
     // -----------------------------------------------------------------------
 
-    Layer(SurfaceFlinger* flinger, const sp<Client>& client);
+    Layer(SurfaceFlinger* flinger, const sp<Client>& client,
+            const String8& name, uint32_t w, uint32_t h, uint32_t flags);
     virtual ~Layer();
 
     // the this layer's size and format
-    status_t setBuffers(uint32_t w, uint32_t h, 
-            PixelFormat format, uint32_t flags=0);
-
-    // Creates an ISurface associated with this object.  This may only be
-    // called once. to provide your own ISurface, override createSurface().
-    sp<ISurface> getSurface();
+    status_t setBuffers(uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
 
     // modify current state
     bool setPosition(float x, float y);
@@ -154,17 +150,13 @@ public:
     void computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const;
     Rect computeBounds() const;
 
+    sp<IBinder> getHandle();
+    sp<BufferQueue> getBufferQueue() const;
+    String8 getName() const;
+
     // -----------------------------------------------------------------------
 
-    /*
-     * initStates - called just after construction
-     */
-    virtual void initStates(uint32_t w, uint32_t h, uint32_t flags);
-
     virtual const char* getTypeId() const { return "Layer"; }
-
-    virtual void setName(const String8& name);
-    String8 getName() const;
 
     virtual void setGeometry(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
@@ -277,8 +269,6 @@ public:
     virtual void onRemoved();
 
 
-    virtual wp<IBinder> getSurfaceTextureBinder() const;
-
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
     virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const;
@@ -336,9 +326,6 @@ protected:
 
 
 private:
-    // Creates an instance of ISurface for this Layer.
-    virtual sp<ISurface> createSurface();
-
     // Interface implementation for SurfaceFlingerConsumer::FrameAvailableListener
     virtual void onFrameAvailable();
 
@@ -394,7 +381,7 @@ private:
 
     // protected by mLock
     mutable Mutex mLock;
-    // Set to true if an ISurface has been associated with this object.
+    // Set to true once we've returned this surface's handle
     mutable bool mHasSurface;
     const wp<Client> mClientRef;
 };
