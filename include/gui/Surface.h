@@ -76,24 +76,13 @@ public:
         return surface != NULL && surface->getIGraphicBufferProducer() != NULL;
     }
 
-    /* writes the given Surface into a Parcel */
-    static status_t writeToParcel(const sp<Surface>& surface, Parcel* parcel);
-
-    /* constructs a Surface from a Parcel. see Surface::writeToParcel()
-     * and SurfaceControl::writeToParcel() */
-    static sp<Surface> readFromParcel(const Parcel& data);
-
-
 protected:
-    Surface();
     virtual ~Surface();
-    void setIGraphicBufferProducer(const sp<IGraphicBufferProducer>& bufferProducer);
 
 private:
     // can't be copied
     Surface& operator = (const Surface& rhs);
     Surface(const Surface& rhs);
-    void init();
 
     // ANativeWindow hooks
     static int hook_cancelBuffer(ANativeWindow* window,
