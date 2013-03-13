@@ -38,22 +38,8 @@ namespace android {
 
 Surface::Surface(
         const sp<IGraphicBufferProducer>& bufferProducer)
+    : mGraphicBufferProducer(bufferProducer)
 {
-    Surface::init();
-    Surface::setIGraphicBufferProducer(bufferProducer);
-}
-
-Surface::Surface() {
-    Surface::init();
-}
-
-Surface::~Surface() {
-    if (mConnectedToCpu) {
-        Surface::disconnect(NATIVE_WINDOW_API_CPU);
-    }
-}
-
-void Surface::init() {
     // Initialize the ANativeWindow function pointers.
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
     ANativeWindow::dequeueBuffer    = hook_dequeueBuffer;
@@ -87,10 +73,10 @@ void Surface::init() {
     mConnectedToCpu = false;
 }
 
-void Surface::setIGraphicBufferProducer(
-        const sp<IGraphicBufferProducer>& bufferProducer)
-{
-    mGraphicBufferProducer = bufferProducer;
+Surface::~Surface() {
+    if (mConnectedToCpu) {
+        Surface::disconnect(NATIVE_WINDOW_API_CPU);
+    }
 }
 
 sp<IGraphicBufferProducer> Surface::getIGraphicBufferProducer() const {
@@ -719,23 +705,6 @@ static status_t copyBlt(
         dst->unlock();
 
     return err;
-}
-
-// ----------------------------------------------------------------------------
-
-status_t Surface::writeToParcel(
-        const sp<Surface>& surface, Parcel* parcel) {
-    sp<IGraphicBufferProducer> bp;
-    if (surface != NULL) {
-        bp = surface->mGraphicBufferProducer;
-    }
-    return parcel->writeStrongBinder(bp->asBinder());
-}
-
-sp<Surface> Surface::readFromParcel(const Parcel& data) {
-    sp<IBinder> binder(data.readStrongBinder());
-    sp<IGraphicBufferProducer> bp(interface_cast<IGraphicBufferProducer>(binder));
-    return bp != NULL ? new Surface(bp): NULL;
 }
 
 // ----------------------------------------------------------------------------
