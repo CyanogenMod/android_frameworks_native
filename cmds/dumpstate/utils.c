@@ -379,7 +379,7 @@ pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level) {
         chp = strchr(chp, '/');
         if (chp) {
             *chp = 0;
-            mkdir(path, 0775);  /* drwxrwxr-x */
+            mkdir(path, 0770);  /* drwxrwx--- */
             *chp++ = '/';
         }
     }
