@@ -24,7 +24,6 @@
 
 #include <ui/Region.h>
 #include <ui/Rect.h>
-#include <gui/ISurface.h>
 
 namespace android {
 

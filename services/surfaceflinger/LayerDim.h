@@ -32,7 +32,8 @@ namespace android {
 class LayerDim : public Layer
 {
 public:    
-                LayerDim(SurfaceFlinger* flinger, const sp<Client>& client);
+                LayerDim(SurfaceFlinger* flinger, const sp<Client>& client,
+                        const String8& name, uint32_t w, uint32_t h, uint32_t flags);
         virtual ~LayerDim();
 
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
@@ -44,7 +45,6 @@ public:
 
     virtual bool isFixedSize() const      { return true; }
     virtual bool isVisible() const;
-    virtual sp<ISurface> createSurface();
 };
 
 // ---------------------------------------------------------------------------

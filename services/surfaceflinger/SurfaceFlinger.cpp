@@ -581,11 +581,10 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
-        // If this is an instance of Layer (as opposed to, say, LayerDim),
-        // we will get the consumer interface of SurfaceFlingerConsumer's
+        // Get the consumer interface of SurfaceFlingerConsumer's
         // BufferQueue.  If it's the same Binder object as the graphic
         // buffer producer interface, return success.
-        wp<IBinder> lbcBinder = layer->getSurfaceTextureBinder();
+        sp<IBinder> lbcBinder = layer->getBufferQueue()->asBinder();
         if (lbcBinder == surfaceTextureBinder) {
             return true;
         }
@@ -601,7 +600,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
     size_t purgatorySize =  mLayerPurgatory.size();
     for (size_t i=0 ; i<purgatorySize ; i++) {
         const sp<Layer>& layer(mLayerPurgatory.itemAt(i));
-        wp<IBinder> lbcBinder = layer->getSurfaceTextureBinder();
+        sp<IBinder> lbcBinder = layer->getBufferQueue()->asBinder();
         if (lbcBinder == surfaceTextureBinder) {
             return true;
         }
@@ -1720,7 +1719,7 @@ status_t SurfaceFlinger::purgatorizeLayer_l(const sp<Layer>& layer)
     // it's possible that we don't find a layer, because it might
     // have been destroyed already -- this is not technically an error
     // from the user because there is a race between Client::destroySurface(),
-    // ~Client() and ~ISurface().
+    // ~Client() and ~LayerCleaner().
     return (err == NAME_NOT_FOUND) ? status_t(NO_ERROR) : err;
 }
 
@@ -1924,48 +1923,49 @@ uint32_t SurfaceFlinger::setClientStateLocked(
     return flags;
 }
 
-sp<ISurface> SurfaceFlinger::createLayer(
+status_t SurfaceFlinger::createLayer(
         const String8& name,
         const sp<Client>& client,
-        uint32_t w, uint32_t h, PixelFormat format,
-        uint32_t flags)
+        uint32_t w, uint32_t h, PixelFormat format, uint32_t flags,
+        sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp)
 {
-    sp<Layer> layer;
-    sp<ISurface> surfaceHandle;
-
+    //ALOGD("createLayer for (%d x %d), name=%s", w, h, name.string());
     if (int32_t(w|h) < 0) {
         ALOGE("createLayer() failed, w or h is negative (w=%d, h=%d)",
                 int(w), int(h));
-        return surfaceHandle;
+        return BAD_VALUE;
     }
 
-    //ALOGD("createLayer for (%d x %d), name=%s", w, h, name.string());
+    status_t result = NO_ERROR;
+
+    sp<Layer> layer;
+
     switch (flags & ISurfaceComposerClient::eFXSurfaceMask) {
         case ISurfaceComposerClient::eFXSurfaceNormal:
-            layer = createNormalLayer(client, w, h, flags, format);
+            result = createNormalLayer(client,
+                    name, w, h, flags, format,
+                    handle, gbp, &layer);
             break;
         case ISurfaceComposerClient::eFXSurfaceDim:
-            layer = createDimLayer(client, w, h, flags);
+            result = createDimLayer(client,
+                    name, w, h, flags,
+                    handle, gbp, &layer);
+            break;
+        default:
+            result = BAD_VALUE;
             break;
     }
 
-    if (layer != 0) {
-        layer->initStates(w, h, flags);
-        layer->setName(name);
-        surfaceHandle = layer->getSurface();
-        if (surfaceHandle != 0) {
-            addClientLayer(client, surfaceHandle->asBinder(), layer);
-        }
+    if (result == NO_ERROR) {
+        addClientLayer(client, *handle, layer);
         setTransactionFlags(eTransactionNeeded);
     }
-
-    return surfaceHandle;
+    return result;
 }
 
-sp<Layer> SurfaceFlinger::createNormalLayer(
-        const sp<Client>& client,
-        uint32_t w, uint32_t h, uint32_t flags,
-        PixelFormat& format)
+status_t SurfaceFlinger::createNormalLayer(const sp<Client>& client,
+        const String8& name, uint32_t w, uint32_t h, uint32_t flags, PixelFormat& format,
+        sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp, sp<Layer>* outLayer)
 {
     // initialize the surfaces
     switch (format) {
@@ -1987,21 +1987,25 @@ sp<Layer> SurfaceFlinger::createNormalLayer(
         format = PIXEL_FORMAT_RGBA_8888;
 #endif
 
-    sp<Layer> layer = new Layer(this, client);
-    status_t err = layer->setBuffers(w, h, format, flags);
-    if (CC_LIKELY(err != NO_ERROR)) {
-        ALOGE("createNormalLayer() failed (%s)", strerror(-err));
-        layer.clear();
+    *outLayer = new Layer(this, client, name, w, h, flags);
+    status_t err = (*outLayer)->setBuffers(w, h, format, flags);
+    if (err == NO_ERROR) {
+        *handle = (*outLayer)->getHandle();
+        *gbp = (*outLayer)->getBufferQueue();
     }
-    return layer;
+
+    ALOGE_IF(err, "createNormalLayer() failed (%s)", strerror(-err));
+    return err;
 }
 
-sp<LayerDim> SurfaceFlinger::createDimLayer(
-        const sp<Client>& client,
-        uint32_t w, uint32_t h, uint32_t flags)
+status_t SurfaceFlinger::createDimLayer(const sp<Client>& client,
+        const String8& name, uint32_t w, uint32_t h, uint32_t flags,
+        sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp, sp<Layer>* outLayer)
 {
-    sp<LayerDim> layer = new LayerDim(this, client);
-    return layer;
+    *outLayer = new LayerDim(this, client, name, w, h, flags);
+    *handle = (*outLayer)->getHandle();
+    *gbp = (*outLayer)->getBufferQueue();
+    return NO_ERROR;
 }
 
 status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle)
@@ -2030,7 +2034,7 @@ status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBind
 
 status_t SurfaceFlinger::onLayerDestroyed(const wp<Layer>& layer)
 {
-    // called by ~ISurface() when all references are gone
+    // called by ~LayerCleaner() when all references are gone
     status_t err = NO_ERROR;
     sp<Layer> l(layer.promote());
     if (l != NULL) {

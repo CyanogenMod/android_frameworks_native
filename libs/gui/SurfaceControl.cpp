@@ -34,7 +34,6 @@
 #include <ui/GraphicBuffer.h>
 #include <ui/Rect.h>
 
-#include <gui/ISurface.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
@@ -48,13 +47,10 @@ namespace android {
 
 SurfaceControl::SurfaceControl(
         const sp<SurfaceComposerClient>& client, 
-        const sp<ISurface>& surface)
-    : mClient(client)
+        const sp<IBinder>& handle,
+        const sp<IGraphicBufferProducer>& gbp)
+    : mClient(client), mHandle(handle), mGraphicBufferProducer(gbp)
 {
-    if (surface != 0) {
-        mSurface = surface->asBinder();
-        mGraphicBufferProducer = surface->getSurfaceTexture();
-    }
 }
         
 SurfaceControl::~SurfaceControl()
@@ -65,12 +61,12 @@ SurfaceControl::~SurfaceControl()
 void SurfaceControl::destroy()
 {
     if (isValid()) {
-        mClient->destroySurface(mSurface);
+        mClient->destroySurface(mHandle);
     }
     // clear all references and trigger an IPC now, to make sure things
     // happen without delay, since these resources are quite heavy.
     mClient.clear();
-    mSurface.clear();
+    mHandle.clear();
     mGraphicBufferProducer.clear();
     IPCThreadState::self()->flushCommands();
 }
@@ -91,81 +87,81 @@ bool SurfaceControl::isSameSurface(
 {
     if (lhs == 0 || rhs == 0)
         return false;
-    return lhs->mSurface == rhs->mSurface;
+    return lhs->mHandle == rhs->mHandle;
 }
 
 status_t SurfaceControl::setLayerStack(int32_t layerStack) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayerStack(mSurface, layerStack);
+    return client->setLayerStack(mHandle, layerStack);
 }
 status_t SurfaceControl::setLayer(int32_t layer) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayer(mSurface, layer);
+    return client->setLayer(mHandle, layer);
 }
 status_t SurfaceControl::setPosition(int32_t x, int32_t y) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setPosition(mSurface, x, y);
+    return client->setPosition(mHandle, x, y);
 }
 status_t SurfaceControl::setSize(uint32_t w, uint32_t h) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setSize(mSurface, w, h);
+    return client->setSize(mHandle, w, h);
 }
 status_t SurfaceControl::hide() {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->hide(mSurface);
+    return client->hide(mHandle);
 }
 status_t SurfaceControl::show() {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->show(mSurface);
+    return client->show(mHandle);
 }
 status_t SurfaceControl::setFlags(uint32_t flags, uint32_t mask) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setFlags(mSurface, flags, mask);
+    return client->setFlags(mHandle, flags, mask);
 }
 status_t SurfaceControl::setTransparentRegionHint(const Region& transparent) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setTransparentRegionHint(mSurface, transparent);
+    return client->setTransparentRegionHint(mHandle, transparent);
 }
 status_t SurfaceControl::setAlpha(float alpha) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setAlpha(mSurface, alpha);
+    return client->setAlpha(mHandle, alpha);
 }
 status_t SurfaceControl::setMatrix(float dsdx, float dtdx, float dsdy, float dtdy) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setMatrix(mSurface, dsdx, dtdx, dsdy, dtdy);
+    return client->setMatrix(mHandle, dsdx, dtdx, dsdy, dtdy);
 }
 status_t SurfaceControl::setCrop(const Rect& crop) {
     status_t err = validate();
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
-    return client->setCrop(mSurface, crop);
+    return client->setCrop(mHandle, crop);
 }
 
 status_t SurfaceControl::validate() const
 {
-    if (mSurface==0 || mClient==0) {
-        ALOGE("invalid ISurface (%p) or client (%p)",
-                mSurface.get(), mClient.get());
+    if (mHandle==0 || mClient==0) {
+        ALOGE("invalid handle (%p) or client (%p)",
+                mHandle.get(), mClient.get());
         return NO_INIT;
     }
     return NO_ERROR;
