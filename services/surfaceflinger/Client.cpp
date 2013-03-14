@@ -105,10 +105,11 @@ status_t Client::onTransact(
 }
 
 
-sp<ISurface> Client::createSurface(
+status_t Client::createSurface(
         const String8& name,
-        uint32_t w, uint32_t h, PixelFormat format,
-        uint32_t flags)
+        uint32_t w, uint32_t h, PixelFormat format, uint32_t flags,
+        sp<IBinder>* handle,
+        sp<IGraphicBufferProducer>* gbp)
 {
     /*
      * createSurface must be called from the GL thread so that it can
@@ -116,9 +117,11 @@ sp<ISurface> Client::createSurface(
      */
 
     class MessageCreateLayer : public MessageBase {
-        sp<ISurface> result;
         SurfaceFlinger* flinger;
         Client* client;
+        sp<IBinder>* handle;
+        sp<IGraphicBufferProducer>* gbp;
+        status_t result;
         const String8& name;
         uint32_t w, h;
         PixelFormat format;
@@ -126,21 +129,23 @@ sp<ISurface> Client::createSurface(
     public:
         MessageCreateLayer(SurfaceFlinger* flinger,
                 const String8& name, Client* client,
-                uint32_t w, uint32_t h, PixelFormat format,
-                uint32_t flags)
-            : flinger(flinger), client(client), name(name),
-              w(w), h(h), format(format), flags(flags)
-        {
+                uint32_t w, uint32_t h, PixelFormat format, uint32_t flags,
+                sp<IBinder>* handle,
+                sp<IGraphicBufferProducer>* gbp)
+            : flinger(flinger), client(client),
+              handle(handle), gbp(gbp),
+              name(name), w(w), h(h), format(format), flags(flags) {
         }
-        sp<ISurface> getResult() const { return result; }
+        status_t getResult() const { return result; }
         virtual bool handler() {
-            result = flinger->createLayer(name, client, w, h, format, flags);
+            result = flinger->createLayer(name, client, w, h, format, flags,
+                    handle, gbp);
             return true;
         }
     };
 
     sp<MessageBase> msg = new MessageCreateLayer(mFlinger.get(),
-            name, this, w, h, format, flags);
+            name, this, w, h, format, flags, handle, gbp);
     mFlinger->postMessageSync(msg);
     return static_cast<MessageCreateLayer*>( msg.get() )->getResult();
 }

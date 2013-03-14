@@ -27,7 +27,6 @@
 #include <ui/PixelFormat.h>
 #include <ui/Region.h>
 
-#include <gui/ISurface.h>
 #include <gui/ISurfaceComposerClient.h>
 
 namespace android {
@@ -46,9 +45,11 @@ public:
     static bool isValid(const sp<SurfaceControl>& surface) {
         return (surface != 0) && surface->isValid();
     }
+
     bool isValid() {
-        return mSurface!=0 && mClient!=0;
+        return mHandle!=0 && mClient!=0;
     }
+
     static bool isSameSurface(
             const sp<SurfaceControl>& lhs, const sp<SurfaceControl>& rhs);
         
@@ -82,7 +83,8 @@ private:
 
     SurfaceControl(
             const sp<SurfaceComposerClient>& client,
-            const sp<ISurface>& surface);
+            const sp<IBinder>& handle,
+            const sp<IGraphicBufferProducer>& gbp);
 
     ~SurfaceControl();
 
@@ -90,7 +92,7 @@ private:
     void destroy();
     
     sp<SurfaceComposerClient>   mClient;
-    sp<IBinder>                 mSurface;
+    sp<IBinder>                 mHandle;
     sp<IGraphicBufferProducer>  mGraphicBufferProducer;
     mutable Mutex               mLock;
     mutable sp<Surface>         mSurfaceData;

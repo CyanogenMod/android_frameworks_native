@@ -17,7 +17,6 @@ LOCAL_SRC_FILES:= \
 	IGraphicBufferProducer.cpp \
 	ISensorEventConnection.cpp \
 	ISensorServer.cpp \
-	ISurface.cpp \
 	ISurfaceComposer.cpp \
 	ISurfaceComposerClient.cpp \
 	LayerState.cpp \

@@ -52,7 +52,8 @@ namespace android {
 
 int32_t Layer::sSequence = 1;
 
-Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
+Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
+        const String8& name, uint32_t w, uint32_t h, uint32_t flags)
     :   contentDirty(false),
         sequence(uint32_t(android_atomic_inc(&sSequence))),
         mFlinger(flinger),
@@ -79,6 +80,29 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client)
 {
     mCurrentCrop.makeInvalid();
     glGenTextures(1, &mTextureName);
+
+    uint32_t layerFlags = 0;
+    if (flags & ISurfaceComposerClient::eHidden)
+        layerFlags = layer_state_t::eLayerHidden;
+
+    if (flags & ISurfaceComposerClient::eNonPremultiplied)
+        mPremultipliedAlpha = false;
+
+    mName = name;
+
+    mCurrentState.active.w = w;
+    mCurrentState.active.h = h;
+    mCurrentState.active.crop.makeInvalid();
+    mCurrentState.z = 0;
+    mCurrentState.alpha = 0xFF;
+    mCurrentState.layerStack = 0;
+    mCurrentState.flags = layerFlags;
+    mCurrentState.sequence = 0;
+    mCurrentState.transform.set(0, 0);
+    mCurrentState.requested = mCurrentState.active;
+
+    // drawing state & current state are identical
+    mDrawingState = mCurrentState;
 }
 
 void Layer::onFirstRef()
@@ -91,6 +115,7 @@ void Layer::onFirstRef()
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setFrameAvailableListener(this);
     mSurfaceFlingerConsumer->setSynchronousMode(true);
+    mSurfaceFlingerConsumer->setName(mName);
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
@@ -103,8 +128,7 @@ void Layer::onFirstRef()
     updateTransformHint(hw);
 }
 
-Layer::~Layer()
-{
+Layer::~Layer() {
     sp<Client> c(mClientRef.promote());
     if (c != 0) {
         c->detachLayer(this);
@@ -139,37 +163,8 @@ void Layer::onRemoved() {
 // set-up
 // ---------------------------------------------------------------------------
 
-void Layer::setName(const String8& name) {
-    mName = name;
-    mSurfaceFlingerConsumer->setName(name);
-}
-
 String8 Layer::getName() const {
     return mName;
-}
-
-void Layer::initStates(uint32_t w, uint32_t h, uint32_t flags)
-{
-    uint32_t layerFlags = 0;
-    if (flags & ISurfaceComposerClient::eHidden)
-        layerFlags = layer_state_t::eLayerHidden;
-
-    if (flags & ISurfaceComposerClient::eNonPremultiplied)
-        mPremultipliedAlpha = false;
-
-    mCurrentState.active.w = w;
-    mCurrentState.active.h = h;
-    mCurrentState.active.crop.makeInvalid();
-    mCurrentState.z = 0;
-    mCurrentState.alpha = 0xFF;
-    mCurrentState.layerStack = 0;
-    mCurrentState.flags = layerFlags;
-    mCurrentState.sequence = 0;
-    mCurrentState.transform.set(0, 0);
-    mCurrentState.requested = mCurrentState.active;
-
-    // drawing state & current state are identical
-    mDrawingState = mCurrentState;
 }
 
 status_t Layer::setBuffers( uint32_t w, uint32_t h,
@@ -207,58 +202,46 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     return NO_ERROR;
 }
 
-sp<ISurface> Layer::createSurface() {
-    /*
-     * This class provides an implementation of BnSurface (the "native" or
-     * "remote" side of the Binder IPC interface ISurface), and mixes in
-     * LayerCleaner to ensure that mFlinger->onLayerDestroyed() is called for
-     * this layer when the BSurface is destroyed.
-     *
-     * The idea is to provide a handle to the Layer through ISurface that
-     * is cleaned up automatically when the last reference to the ISurface
-     * goes away.  (The references will be held on the "proxy" side, while
-     * the Layer exists on the "native" side.)
-     *
-     * The Layer has a reference to an instance of SurfaceFlinger's variant
-     * of GLConsumer, which holds a reference to the BufferQueue.  The
-     * getSurfaceTexture() call returns a Binder interface reference for
-     * the producer interface of the buffer queue associated with the Layer.
-     */
-    class BSurface : public BnSurface, public LayerCleaner {
-        wp<const Layer> mOwner;
-        virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
-            sp<IGraphicBufferProducer> res;
-            sp<const Layer> that( mOwner.promote() );
-            if (that != NULL) {
-                res = that->mSurfaceFlingerConsumer->getBufferQueue();
-            }
-            return res;
-        }
-    public:
-        BSurface(const sp<SurfaceFlinger>& flinger,
-                const sp<Layer>& layer)
-            : LayerCleaner(flinger, layer), mOwner(layer) { }
-    };
-    sp<ISurface> sur(new BSurface(mFlinger, this));
-    return sur;
-}
-
-wp<IBinder> Layer::getSurfaceTextureBinder() const {
-    return mSurfaceFlingerConsumer->getBufferQueue()->asBinder();
-}
-
-sp<ISurface> Layer::getSurface()
-{
-    sp<ISurface> s;
+sp<IBinder> Layer::getHandle() {
     Mutex::Autolock _l(mLock);
 
     LOG_ALWAYS_FATAL_IF(mHasSurface,
-            "Layer::getSurface() has already been called");
+            "Layer::getHandle() has already been called");
 
     mHasSurface = true;
-    s = createSurface();
-    return s;
+
+    /*
+     * The layer handle is just a BBinder object passed to the client
+     * (remote process) -- we don't keep any reference on our side such that
+     * the dtor is called when the remote side let go of its reference.
+     *
+     * LayerCleaner ensures that mFlinger->onLayerDestroyed() is called for
+     * this layer when the handle is destroyed.
+     */
+
+    class Handle : public BBinder, public LayerCleaner {
+        wp<const Layer> mOwner;
+    public:
+        Handle(const sp<SurfaceFlinger>& flinger, const sp<Layer>& layer)
+            : LayerCleaner(flinger, layer), mOwner(layer) {
+        }
+    };
+
+    return new Handle(mFlinger, this);
 }
+
+sp<BufferQueue> Layer::getBufferQueue() const {
+    return mSurfaceFlingerConsumer->getBufferQueue();
+}
+
+//virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
+//    sp<IGraphicBufferProducer> res;
+//    sp<const Layer> that( mOwner.promote() );
+//    if (that != NULL) {
+//        res = that->mSurfaceFlingerConsumer->getBufferQueue();
+//    }
+//    return res;
+//}
 
 // ---------------------------------------------------------------------------
 // h/w composer set-up
