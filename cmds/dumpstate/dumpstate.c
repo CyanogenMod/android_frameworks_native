@@ -161,7 +161,7 @@ static void dumpstate() {
 
     if (screenshot_path[0]) {
         ALOGI("taking screenshot\n");
-        run_command(NULL, 5, "/system/bin/screencap", "-p", screenshot_path, NULL);
+        run_command(NULL, 10, "/system/bin/screencap", "-p", screenshot_path, NULL);
         ALOGI("wrote screenshot: %s\n", screenshot_path);
     }
 
