@@ -161,7 +161,7 @@ static void dumpstate() {
 
     if (screenshot_path[0]) {
         ALOGI("taking screenshot\n");
-        run_command(NULL, 5, SU_PATH, "root", "screenshot", screenshot_path, NULL);
+        run_command(NULL, 5, "/system/bin/screencap", "-p", screenshot_path, NULL);
         ALOGI("wrote screenshot: %s\n", screenshot_path);
     }
 
@@ -311,6 +311,7 @@ static void usage() {
             "  -b: play sound file instead of vibrate, at beginning of job\n"
             "  -e: play sound file instead of vibrate, at end of job\n"
             "  -q: disable vibrate\n"
+            "  -B: send broadcast when finished (requires -o and -p)\n"
 		);
 }
 
@@ -323,6 +324,7 @@ int main(int argc, char *argv[]) {
     char* end_sound = 0;
     int use_socket = 0;
     int do_fb = 0;
+    int do_broadcast = 0;
 
     if (getuid() != 0) {
         // Old versions of the adb client would call the
@@ -348,7 +350,7 @@ int main(int argc, char *argv[]) {
     dump_traces_path = dump_traces();
 
     int c;
-    while ((c = getopt(argc, argv, "b:de:ho:svqzp")) != -1) {
+    while ((c = getopt(argc, argv, "b:de:ho:svqzpB")) != -1) {
         switch (c) {
             case 'b': begin_sound = optarg;  break;
             case 'd': do_add_date = 1;       break;
@@ -359,6 +361,7 @@ int main(int argc, char *argv[]) {
             case 'q': do_vibrate = 0;        break;
             case 'z': do_compress = 6;       break;
             case 'p': do_fb = 1;             break;
+            case 'B': do_broadcast = 1;      break;
             case '?': printf("\n");
             case 'h':
                 usage();
@@ -472,6 +475,14 @@ int main(int argc, char *argv[]) {
     /* rename the (now complete) .tmp file to its final location */
     if (use_outfile && rename(tmp_path, path)) {
         fprintf(stderr, "rename(%s, %s): %s\n", tmp_path, path, strerror(errno));
+    }
+
+    if (do_broadcast && use_outfile && do_fb) {
+        run_command(NULL, 5, "/system/bin/am", "broadcast",
+                "-a", "android.intent.action.BUGREPORT_FINISHED",
+                "--es", "android.intent.extra.BUGREPORT", path,
+                "--es", "android.intent.extra.SCREENSHOT", screenshot_path,
+                "--receiver-permission", "android.permission.DUMP", NULL);
     }
 
     ALOGI("done\n");
