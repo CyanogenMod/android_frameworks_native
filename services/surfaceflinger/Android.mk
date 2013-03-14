@@ -2,22 +2,22 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-    Client.cpp                              \
-    DisplayDevice.cpp                       \
-    EventThread.cpp                         \
-    FrameTracker.cpp                        \
-    Layer.cpp                               \
-    LayerDim.cpp                            \
-    DisplayHardware/FramebufferSurface.cpp  \
-    DisplayHardware/HWComposer.cpp          \
-    DisplayHardware/PowerHAL.cpp            \
-    GLExtensions.cpp                        \
-    MessageQueue.cpp                        \
-    SurfaceFlinger.cpp                      \
-    SurfaceFlingerConsumer.cpp              \
-    SurfaceTextureLayer.cpp                 \
-    Transform.cpp                           \
-    
+    Client.cpp \
+    DisplayDevice.cpp \
+    EventThread.cpp \
+    FrameTracker.cpp \
+    GLExtensions.cpp \
+    Layer.cpp \
+    LayerDim.cpp \
+    MessageQueue.cpp \
+    SurfaceFlinger.cpp \
+    SurfaceFlingerConsumer.cpp \
+    SurfaceTextureLayer.cpp \
+    Transform.cpp \
+    DisplayHardware/FramebufferSurface.cpp \
+    DisplayHardware/HWComposer.cpp \
+    DisplayHardware/PowerHAL.cpp \
+    DisplayHardware/VirtualDisplaySurface.cpp \
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES

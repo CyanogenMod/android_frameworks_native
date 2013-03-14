@@ -37,7 +37,7 @@ struct ANativeWindow;
 namespace android {
 
 class DisplayInfo;
-class FramebufferSurface;
+class DisplaySurface;
 class Layer;
 class SurfaceFlinger;
 class HWComposer;
@@ -74,8 +74,7 @@ public:
             DisplayType type,
             bool isSecure,
             const wp<IBinder>& displayToken,
-            const sp<ANativeWindow>& nativeWindow,
-            const sp<FramebufferSurface>& framebufferSurface,
+            const sp<DisplaySurface>& displaySurface,
             EGLConfig config);
 
     ~DisplayDevice();
@@ -165,9 +164,7 @@ private:
 
     // ANativeWindow this display is rendering into
     sp<ANativeWindow> mNativeWindow;
-
-    // set if mNativeWindow is a FramebufferSurface
-    sp<FramebufferSurface> mFramebufferSurface;
+    sp<DisplaySurface> mDisplaySurface;
 
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;

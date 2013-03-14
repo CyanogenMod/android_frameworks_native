@@ -617,14 +617,14 @@ status_t HWComposer::prepare() {
 }
 
 bool HWComposer::hasHwcComposition(int32_t id) const {
-    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
     return mDisplayData[id].hasOvComp;
 }
 
 bool HWComposer::hasGlesComposition(int32_t id) const {
-    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
-        return false;
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return true;
     return mDisplayData[id].hasFbComp;
 }
 

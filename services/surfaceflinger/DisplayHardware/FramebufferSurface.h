@@ -22,6 +22,8 @@
 
 #include <gui/ConsumerBase.h>
 
+#include "DisplaySurface.h"
+
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
@@ -32,23 +34,20 @@ class HWComposer;
 
 // ---------------------------------------------------------------------------
 
-class FramebufferSurface : public ConsumerBase {
+class FramebufferSurface : public ConsumerBase,
+                           public DisplaySurface {
 public:
     FramebufferSurface(HWComposer& hwc, int disp);
 
-    status_t compositionComplete();
+    virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
 
-    // TODO(jessehall): This overrides the non-virtual ConsumerBase version.
-    // Will rework slightly in a following change.
-    void dump(String8& result);
+    virtual status_t compositionComplete();
+    virtual status_t advanceFrame();
+    virtual status_t setReleaseFenceFd(int fenceFd);
 
-    // setReleaseFenceFd stores a fence file descriptor that will signal when the
-    // current buffer is no longer being read. This fence will be returned to
-    // the producer when the current buffer is released by updateTexImage().
-    // Multiple fences can be set for a given buffer; they will be merged into
-    // a single union fence. The GLConsumer will close the file descriptor
-    // when finished with it.
-    status_t setReleaseFenceFd(int fenceFd);
+    // Implementation of DisplaySurface::dump(). Note that ConsumerBase also
+    // has a non-virtual dump() with the same signature.
+    virtual void dump(String8& result) const;
 
 private:
     virtual ~FramebufferSurface() { }; // this class cannot be overloaded

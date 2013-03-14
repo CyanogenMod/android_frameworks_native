@@ -66,6 +66,7 @@
 
 #include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/HWComposer.h"
+#include "DisplayHardware/VirtualDisplaySurface.h"
 
 
 #define EGL_VERSION_HW_ANDROID  0x3143
@@ -501,11 +502,9 @@ status_t SurfaceFlinger::readyToRun()
             createBuiltinDisplayLocked(type);
             wp<IBinder> token = mBuiltinDisplays[i];
 
-            sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i);
-            sp<Surface> stc = new Surface(
-                        static_cast< sp<IGraphicBufferProducer> >(fbs->getBufferQueue()));
             sp<DisplayDevice> hw = new DisplayDevice(this,
-                    type, isSecure, token, stc, fbs, mEGLConfig);
+                    type, isSecure, token, new FramebufferSurface(*mHwc, i),
+                    mEGLConfig);
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
                 // FIXME: currently we don't get blank/unblank requests
                 // for displays other than the main display, so we always
@@ -1174,10 +1173,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 if (draw.indexOfKey(curr.keyAt(i)) < 0) {
                     const DisplayDeviceState& state(curr[i]);
 
-                    sp<FramebufferSurface> fbs;
-                    sp<Surface> stc;
-                    if (!state.isVirtualDisplay()) {
-
+                    sp<DisplaySurface> dispSurface;
+                    if (state.isVirtualDisplay()) {
+                        if (state.surface != NULL) {
+                            dispSurface = new VirtualDisplaySurface(
+                                    *mHwc, state.type, state.surface,
+                                    state.displayName);
+                        }
+                    } else {
                         ALOGE_IF(state.surface!=NULL,
                                 "adding a supported display, but rendering "
                                 "surface is provided (%p), ignoring it",
@@ -1185,21 +1188,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
-                        fbs = new FramebufferSurface(*mHwc, state.type);
-                        stc = new Surface(
-                                static_cast< sp<IGraphicBufferProducer> >(
-                                        fbs->getBufferQueue()));
-                    } else {
-                        if (state.surface != NULL) {
-                            stc = new Surface(state.surface);
-                        }
+                        dispSurface = new FramebufferSurface(*mHwc, state.type);
                     }
 
                     const wp<IBinder>& display(curr.keyAt(i));
-                    if (stc != NULL) {
+                    if (dispSurface != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
-                                state.type, state.isSecure, display, stc, fbs,
-                                mEGLConfig);
+                                state.type, state.isSecure, display,
+                                dispSurface, mEGLConfig);
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
