@@ -40,6 +40,9 @@ protected:
     const sp<IMemoryHeap>& getHeap() const { return mHeap; }
 
 private:
+    // Backwards compatibility for libdatabase_sqlcipher (http://b/8253769).
+    MemoryBase(const sp<IMemoryHeap>& heap, long offset, unsigned int size);
+
     size_t          mSize;
     ssize_t         mOffset;
     sp<IMemoryHeap> mHeap;
