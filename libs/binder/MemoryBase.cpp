@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "MemoryBase"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,14 +29,6 @@ MemoryBase::MemoryBase(const sp<IMemoryHeap>& heap,
         ssize_t offset, size_t size)
     : mSize(size), mOffset(offset), mHeap(heap)
 {
-}
-
-MemoryBase::MemoryBase(const sp<IMemoryHeap>& heap,
-        long offset, unsigned int size)
-    : mSize(size), mOffset(offset), mHeap(heap)
-{
-    ALOGW("Using temporary compatibility workaround for usage of MemoryBase "
-          "private API. Please fix your application!");
 }
 
 sp<IMemoryHeap> MemoryBase::getMemory(ssize_t* offset, size_t* size) const
