@@ -17,7 +17,7 @@
 #ifndef ANDROID_SF_VIRTUAL_DISPLAY_SURFACE_H
 #define ANDROID_SF_VIRTUAL_DISPLAY_SURFACE_H
 
-#include <utils/String8.h>
+#include "BufferQueueInterposer.h"
 #include "DisplaySurface.h"
 
 // ---------------------------------------------------------------------------
@@ -26,6 +26,28 @@ namespace android {
 
 class HWComposer;
 
+/* This DisplaySurface implementation uses a BufferQueueInterposer to pass
+ * partially- or fully-composited buffers from the OpenGL ES driver to
+ * HWComposer to use as the output buffer for virtual displays. Allowing HWC
+ * to compose into the same buffer that contains GLES results saves bandwidth
+ * compared to having two separate BufferQueues for frames with at least some
+ * GLES composition.
+ *
+ * The alternative would be to have two complete BufferQueues, one from GLES
+ * to HWC and one from HWC to the virtual display sink (e.g. video encoder).
+ * For GLES-only frames, the same bandwidth saving could be achieved if buffers
+ * could be acquired from the GLES->HWC queue and inserted into the HWC->sink
+ * queue. That would be complicated and doesn't help the mixed GLES+HWC case.
+ *
+ * On frames with no GLES composition, the VirtualDisplaySurface dequeues a
+ * buffer directly from the sink IGraphicBufferProducer and passes it to HWC,
+ * bypassing the GLES driver. This is only guaranteed to work if
+ * eglSwapBuffers doesn't immediately dequeue a buffer for the next frame,
+ * since we can't rely on being able to dequeue more than one buffer at a time.
+ *
+ * TODO(jessehall): Add a libgui test that ensures that EGL/GLES do lazy
+ * dequeBuffers; we've wanted to require that for other reasons anyway.
+ */
 class VirtualDisplaySurface : public DisplaySurface {
 public:
     VirtualDisplaySurface(HWComposer& hwc, int disp,
@@ -45,8 +67,13 @@ private:
     // immutable after construction
     HWComposer& mHwc;
     int mDisplayId;
-    sp<IGraphicBufferProducer> mSink;
+    sp<BufferQueueInterposer> mSource;
     String8 mName;
+
+    // mutable, must be synchronized with mMutex
+    Mutex mMutex;
+    sp<GraphicBuffer> mAcquiredBuffer;
+    sp<Fence> mReleaseFence;
 };
 
 // ---------------------------------------------------------------------------

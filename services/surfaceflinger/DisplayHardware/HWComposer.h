@@ -112,7 +112,7 @@ public:
     // does this display have layers handled by GLES
     bool hasGlesComposition(int32_t id) const;
 
-    // get the releaseFence file descriptor for the given display
+    // get the releaseFence file descriptor for a display's framebuffer layer.
     // the release fence is only valid after commit()
     int getAndResetReleaseFenceFd(int32_t id);
 

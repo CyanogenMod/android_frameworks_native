@@ -655,6 +655,18 @@ status_t HWComposer::commit() {
             mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
         }
 
+        // For virtual displays, the framebufferTarget buffer also serves as
+        // the HWC output buffer, so we need to copy the buffer handle and
+        // dup() the acquire fence.
+        for (size_t i=HWC_NUM_DISPLAY_TYPES; i<mNumDisplays; i++) {
+            DisplayData& disp(mDisplayData[i]);
+            if (disp.framebufferTarget) {
+                mLists[i]->outbuf = disp.framebufferTarget->handle;
+                mLists[i]->outbufAcquireFenceFd =
+                        dup(disp.framebufferTarget->acquireFenceFd);
+            }
+        }
+
         err = mHwc->set(mHwc, mNumDisplays, mLists);
 
         for (size_t i=0 ; i<mNumDisplays ; i++) {
