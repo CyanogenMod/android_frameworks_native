@@ -2719,9 +2719,11 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         const Layer::State& state(layer->drawingState());
         if (state.layerStack == hw->getLayerStack()) {
             if (state.z >= minLayerZ && state.z <= maxLayerZ) {
-                if (filtering) layer->setFiltering(true);
-                layer->draw(hw);
-                if (filtering) layer->setFiltering(false);
+                if (layer->isVisible()) {
+                    if (filtering) layer->setFiltering(true);
+                    layer->draw(hw);
+                    if (filtering) layer->setFiltering(false);
+                }
             }
         }
     }
