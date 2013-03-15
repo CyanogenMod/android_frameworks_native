@@ -574,39 +574,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
         const sp<IGraphicBufferProducer>& bufferProducer) const {
     Mutex::Autolock _l(mStateLock);
     sp<IBinder> surfaceTextureBinder(bufferProducer->asBinder());
-
-    // We want to determine whether the IGraphicBufferProducer was created by
-    // SurfaceFlinger.  Check to see if we can find it in the layer list.
-    const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
-    size_t count = currentLayers.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<Layer>& layer(currentLayers[i]);
-        // Get the consumer interface of SurfaceFlingerConsumer's
-        // BufferQueue.  If it's the same Binder object as the graphic
-        // buffer producer interface, return success.
-        sp<IBinder> lbcBinder = layer->getBufferQueue()->asBinder();
-        if (lbcBinder == surfaceTextureBinder) {
-            return true;
-        }
-    }
-
-    // Check the layers in the purgatory.  This check is here so that if a
-    // GLConsumer gets destroyed before all the clients are done using it,
-    // the error will not be reported as "surface XYZ is not authenticated", but
-    // will instead fail later on when the client tries to use the surface,
-    // which should be reported as "surface XYZ returned an -ENODEV".  The
-    // purgatorized layers are no less authentic than the visible ones, so this
-    // should not cause any harm.
-    size_t purgatorySize =  mLayerPurgatory.size();
-    for (size_t i=0 ; i<purgatorySize ; i++) {
-        const sp<Layer>& layer(mLayerPurgatory.itemAt(i));
-        sp<IBinder> lbcBinder = layer->getBufferQueue()->asBinder();
-        if (lbcBinder == surfaceTextureBinder) {
-            return true;
-        }
-    }
-
-    return false;
+    return mGraphicBufferProducerList.indexOf(surfaceTextureBinder) >= 0;
 }
 
 status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) {
@@ -1676,6 +1644,7 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
 
 void SurfaceFlinger::addClientLayer(const sp<Client>& client,
         const sp<IBinder>& handle,
+        const sp<IGraphicBufferProducer>& gbc,
         const sp<Layer>& lbc)
 {
     // attach this layer to the client
@@ -1684,43 +1653,20 @@ void SurfaceFlinger::addClientLayer(const sp<Client>& client,
     // add this layer to the current state list
     Mutex::Autolock _l(mStateLock);
     mCurrentState.layersSortedByZ.add(lbc);
+    mGraphicBufferProducerList.add(gbc->asBinder());
 }
 
 status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer)
 {
     Mutex::Autolock _l(mStateLock);
-    status_t err = purgatorizeLayer_l(layer);
-    if (err == NO_ERROR)
-        setTransactionFlags(eTransactionNeeded);
-    return err;
-}
-
-status_t SurfaceFlinger::removeLayer_l(const sp<Layer>& layer)
-{
     ssize_t index = mCurrentState.layersSortedByZ.remove(layer);
     if (index >= 0) {
+        mLayersPendingRemoval.push(layer);
         mLayersRemoved = true;
+        setTransactionFlags(eTransactionNeeded);
         return NO_ERROR;
     }
     return status_t(index);
-}
-
-status_t SurfaceFlinger::purgatorizeLayer_l(const sp<Layer>& layer)
-{
-    // First add the layer to the purgatory list, which makes sure it won't
-    // go away, then remove it from the main list (through a transaction).
-    ssize_t err = removeLayer_l(layer);
-    if (err >= 0) {
-        mLayerPurgatory.add(layer);
-    }
-
-    mLayersPendingRemoval.push(layer);
-
-    // it's possible that we don't find a layer, because it might
-    // have been destroyed already -- this is not technically an error
-    // from the user because there is a race between Client::destroySurface(),
-    // ~Client() and ~LayerCleaner().
-    return (err == NAME_NOT_FOUND) ? status_t(NO_ERROR) : err;
 }
 
 uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t flags)
@@ -1957,7 +1903,7 @@ status_t SurfaceFlinger::createLayer(
     }
 
     if (result == NO_ERROR) {
-        addClientLayer(client, *handle, layer);
+        addClientLayer(client, *handle, *gbp, layer);
         setTransactionFlags(eTransactionNeeded);
     }
     return result;
@@ -2010,44 +1956,25 @@ status_t SurfaceFlinger::createDimLayer(const sp<Client>& client,
 
 status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle)
 {
-    /*
-     * called by the window manager, when a surface should be marked for
-     * destruction.
-     *
-     * The surface is removed from the current and drawing lists, but placed
-     * in the purgatory queue, so it's not destroyed right-away (we need
-     * to wait for all client's references to go away first).
-     */
-
-    status_t err = NAME_NOT_FOUND;
-    Mutex::Autolock _l(mStateLock);
-    sp<Layer> layer = client->getLayerUser(handle);
-
-    if (layer != 0) {
-        err = purgatorizeLayer_l(layer);
-        if (err == NO_ERROR) {
-            setTransactionFlags(eTransactionNeeded);
-        }
+    // called by the window manager when it wants to remove a Layer
+    status_t err = NO_ERROR;
+    sp<Layer> l(client->getLayerUser(handle));
+    if (l != NULL) {
+        err = removeLayer(l);
+        ALOGE_IF(err<0 && err != NAME_NOT_FOUND,
+                "error removing layer=%p (%s)", l.get(), strerror(-err));
     }
     return err;
 }
 
 status_t SurfaceFlinger::onLayerDestroyed(const wp<Layer>& layer)
 {
-    // called by ~LayerCleaner() when all references are gone
+    // called by ~LayerCleaner() when all references to the IBinder (handle)
+    // are gone
     status_t err = NO_ERROR;
     sp<Layer> l(layer.promote());
     if (l != NULL) {
-        Mutex::Autolock _l(mStateLock);
-        err = removeLayer_l(l);
-        if (err == NAME_NOT_FOUND) {
-            // The surface wasn't in the current list, which means it was
-            // removed already, which means it is in the purgatory,
-            // and need to be removed from there.
-            ssize_t idx = mLayerPurgatory.remove(l);
-            ALOGE_IF(idx < 0,
-                    "layer=%p is not in the purgatory list", l.get());
-        }
+        err = removeLayer(l);
         ALOGE_IF(err<0 && err != NAME_NOT_FOUND,
                 "error removing layer=%p (%s)", l.get(), strerror(-err));
     }
@@ -2356,18 +2283,6 @@ void SurfaceFlinger::dumpAllLocked(
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
         layer->dump(result, buffer, SIZE);
-    }
-
-    /*
-     * Dump the layers in the purgatory
-     */
-
-    const size_t purgatorySize = mLayerPurgatory.size();
-    snprintf(buffer, SIZE, "Purgatory state (%d entries)\n", purgatorySize);
-    result.append(buffer);
-    for (size_t i=0 ; i<purgatorySize ; i++) {
-        const sp<Layer>& layer(mLayerPurgatory.itemAt(i));
-        layer->shortDump(result, buffer, SIZE);
     }
 
     /*
