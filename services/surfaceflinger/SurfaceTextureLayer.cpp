@@ -20,17 +20,35 @@
 
 #include <utils/Errors.h>
 
+#include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
 
 
-SurfaceTextureLayer::SurfaceTextureLayer()
-    : BufferQueue(true) {
+SurfaceTextureLayer::SurfaceTextureLayer(const sp<SurfaceFlinger>& flinger)
+    : BufferQueue(true), flinger(flinger) {
 }
 
 SurfaceTextureLayer::~SurfaceTextureLayer() {
+    // remove ourselves from SurfaceFlinger's list. We do this asynchronously
+    // because we don't know where this dtor is called from, it could be
+    // called with the mStateLock held, leading to a dead-lock (it actually
+    // happens).
+    class MessageCleanUpList : public MessageBase {
+        sp<SurfaceFlinger> flinger;
+        wp<IBinder> gbp;
+    public:
+        MessageCleanUpList(const sp<SurfaceFlinger>& flinger, const wp<IBinder>& gbp)
+            : flinger(flinger), gbp(gbp) { }
+        virtual bool handler() {
+            Mutex::Autolock _l(flinger->mStateLock);
+            flinger->mGraphicBufferProducerList.remove(gbp);
+            return true;
+        }
+    };
+    flinger->postMessageAsync( new MessageCleanUpList(flinger, this) );
 }
 
 status_t SurfaceTextureLayer::connect(int api, QueueBufferOutput* output) {

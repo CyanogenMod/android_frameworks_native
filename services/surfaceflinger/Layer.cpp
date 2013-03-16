@@ -108,7 +108,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 void Layer::onFirstRef()
 {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
-    sp<BufferQueue> bq = new SurfaceTextureLayer();
+    sp<BufferQueue> bq = new SurfaceTextureLayer(mFlinger);
     mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mTextureName, true,
             GL_TEXTURE_EXTERNAL_OES, false, bq);
 
@@ -153,8 +153,9 @@ void Layer::onFrameAvailable() {
     mFlinger->signalLayerUpdate();
 }
 
-// called with SurfaceFlinger::mStateLock as soon as the layer is entered
-// in the purgatory list
+// called with SurfaceFlinger::mStateLock from the drawing thread after
+// the layer has been remove from the current state list (and just before
+// it's removed from the drawing state list)
 void Layer::onRemoved() {
     mSurfaceFlingerConsumer->abandon();
 }
