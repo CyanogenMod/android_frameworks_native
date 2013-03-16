@@ -103,16 +103,23 @@ public:
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
 
-    /* triggers screen off and waits for it to complete */
+    /* triggers screen off and waits for it to complete
+     * requires ACCESS_SURFACE_FLINGER permission.
+     */
     virtual void blank(const sp<IBinder>& display) = 0;
 
-    /* triggers screen on and waits for it to complete */
+    /* triggers screen on and waits for it to complete
+     * requires ACCESS_SURFACE_FLINGER permission.
+     */
     virtual void unblank(const sp<IBinder>& display) = 0;
 
     /* returns information about a display
      * intended to be used to get information about built-in displays */
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) = 0;
 
+    /* Capture the specified screen. requires READ_FRAME_BUFFER permission
+     * This function will fail if there is a secure window on screen.
+     */
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
