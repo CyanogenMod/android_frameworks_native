@@ -2399,6 +2399,7 @@ status_t SurfaceFlinger::onTransact(
 {
     switch (code) {
         case CREATE_CONNECTION:
+        case CREATE_DISPLAY:
         case SET_TRANSACTION_STATE:
         case BOOT_FINISHED:
         case BLANK:
@@ -2417,6 +2418,7 @@ status_t SurfaceFlinger::onTransact(
             break;
         }
         case CAPTURE_SCREEN:
+        case CAPTURE_SCREEN_DEPRECATED:
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();
