@@ -128,6 +128,7 @@ private:
     friend class Client;
     friend class DisplayEventConnection;
     friend class Layer;
+    friend class SurfaceTextureLayer;
 
     // We're reference counted, never destroy SurfaceFlinger directly
     virtual ~SurfaceFlinger();
@@ -272,8 +273,6 @@ private:
 
     // called in response to the window-manager calling
     // ISurfaceComposerClient::destroySurface()
-    // The specified layer is first placed in a purgatory list
-    // until all references from the client are released.
     status_t onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle);
 
     // called when all clients have released all their references to
@@ -285,11 +284,10 @@ private:
     status_t removeLayer(const sp<Layer>& layer);
 
     // add a layer to SurfaceFlinger
-    void addClientLayer(const sp<Client>& client, const sp<IBinder>& handle,
-        const sp<Layer>& lbc);
-
-    status_t removeLayer_l(const sp<Layer>& layer);
-    status_t purgatorizeLayer_l(const sp<Layer>& layer);
+    void addClientLayer(const sp<Client>& client,
+            const sp<IBinder>& handle,
+            const sp<IGraphicBufferProducer>& gbc,
+            const sp<Layer>& lbc);
 
     /* ------------------------------------------------------------------------
      * Boot animation, on/off animations and screen capture
@@ -403,10 +401,10 @@ private:
     State mCurrentState;
     volatile int32_t mTransactionFlags;
     Condition mTransactionCV;
-    SortedVector< sp<Layer> > mLayerPurgatory;
     bool mTransactionPending;
     bool mAnimTransactionPending;
     Vector< sp<Layer> > mLayersPendingRemoval;
+    SortedVector< wp<IBinder> > mGraphicBufferProducerList;
 
     // protected by mStateLock (but we could use another lock)
     bool mLayersRemoved;
