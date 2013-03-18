@@ -265,7 +265,7 @@ public:
 
 private:
     void loadHwcModule();
-    void loadFbHalModule();
+    int loadFbHalModule();
 
     LayerListIterator getLayerIterator(int32_t id, size_t index);
 
