@@ -117,6 +117,7 @@ static int g_traceBufferSizeKB = 2048;
 static bool g_compress = false;
 static bool g_nohup = false;
 static int g_initialSleepSecs = 0;
+static const char* g_kernelTraceFuncs = NULL;
 
 /* Global state */
 static bool g_traceAborted = false;
@@ -131,6 +132,30 @@ static const char* k_traceBufferSizePath =
 
 static const char* k_tracingOverwriteEnablePath =
     "/sys/kernel/debug/tracing/options/overwrite";
+
+static const char* k_currentTracerPath =
+    "/sys/kernel/debug/tracing/current_tracer";
+
+static const char* k_printTgidPath =
+    "/sys/kernel/debug/tracing/options/print-tgid";
+
+static const char* k_funcgraphAbsTimePath =
+    "/sys/kernel/debug/tracing/options/funcgraph-abstime";
+
+static const char* k_funcgraphCpuPath =
+    "/sys/kernel/debug/tracing/options/funcgraph-cpu";
+
+static const char* k_funcgraphProcPath =
+    "/sys/kernel/debug/tracing/options/funcgraph-proc";
+
+static const char* k_funcgraphFlatPath =
+    "/sys/kernel/debug/tracing/options/funcgraph-flat";
+
+static const char* k_funcgraphDurationPath =
+    "/sys/kernel/debug/tracing/options/funcgraph-duration";
+
+static const char* k_ftraceFilterPath =
+    "/sys/kernel/debug/tracing/set_ftrace_filter";
 
 static const char* k_tracingOnPath =
     "/sys/kernel/debug/tracing/tracing_on";
@@ -148,10 +173,22 @@ static bool fileIsWritable(const char* filename) {
     return access(filename, W_OK) != -1;
 }
 
-// Write a string to a file, returning true if the write was successful.
-static bool writeStr(const char* filename, const char* str)
+// Truncate a file.
+static bool truncateFile(const char* path)
 {
-    int fd = open(filename, O_WRONLY);
+    int err = truncate(path, 0);
+    if (err != 0) {
+        fprintf(stderr, "error truncating %s: %s (%d)\n", path,
+                strerror(errno), errno);
+        return false;
+    }
+
+    return true;
+}
+
+static bool _writeStr(const char* filename, const char* str, int flags)
+{
+    int fd = open(filename, flags);
     if (fd == -1) {
         fprintf(stderr, "error opening %s: %s (%d)\n", filename,
                 strerror(errno), errno);
@@ -169,6 +206,18 @@ static bool writeStr(const char* filename, const char* str)
     close(fd);
 
     return ok;
+}
+
+// Write a string to a file, returning true if the write was successful.
+static bool writeStr(const char* filename, const char* str)
+{
+    return _writeStr(filename, str, O_WRONLY);
+}
+
+// Append a string to a file, returning true if the write was successful.
+static bool appendStr(const char* filename, const char* str)
+{
+    return _writeStr(filename, str, O_APPEND|O_WRONLY);
 }
 
 // Enable or disable a kernel option by writing a "1" or a "0" into a /sys
@@ -244,16 +293,7 @@ static bool setTracingEnabled(bool enable)
 // Clear the contents of the kernel trace.
 static bool clearTrace()
 {
-    int traceFD = creat(k_tracePath, 0);
-    if (traceFD == -1) {
-        fprintf(stderr, "error truncating %s: %s (%d)\n", k_tracePath,
-                strerror(errno), errno);
-        return false;
-    }
-
-    close(traceFD);
-
-    return true;
+    return truncateFile(k_tracePath);
 }
 
 // Set the size of the kernel's trace buffer in kilobytes.
@@ -273,6 +313,14 @@ static bool setTraceBufferSizeKB(int size)
 static bool setGlobalClockEnable(bool enable)
 {
     return writeStr(k_traceClockPath, enable ? "global" : "local");
+}
+
+static bool setPrintTgidEnableIfPresent(bool enable)
+{
+    if (fileExists(k_printTgidPath)) {
+        return setKernelOptionEnable(k_printTgidPath, enable);
+    }
+    return true;
 }
 
 // Poke all the binder-enabled processes in the system to get them to re-read
@@ -330,8 +378,90 @@ static bool disableKernelTraceEvents() {
     return ok;
 }
 
-// Enable tracing in the kernel.
-static bool startTrace()
+// Verify that the comma separated list of functions are being traced by the
+// kernel.
+static bool verifyKernelTraceFuncs(const char* funcs)
+{
+    int fd = open(k_ftraceFilterPath, O_RDONLY);
+    if (fd == -1) {
+        fprintf(stderr, "error opening %s: %s (%d)\n", k_ftraceFilterPath,
+            strerror(errno), errno);
+        return false;
+    }
+
+    char buf[4097];
+    ssize_t n = read(fd, buf, 4096);
+    close(fd);
+    if (n == -1) {
+        fprintf(stderr, "error reading %s: %s (%d)\n", k_ftraceFilterPath,
+            strerror(errno), errno);
+        return false;
+    }
+
+    buf[n] = '\0';
+    String8 funcList = String8::format("\n%s", buf);
+
+    // Make sure that every function listed in funcs is in the list we just
+    // read from the kernel.
+    bool ok = true;
+    char* myFuncs = strdup(funcs);
+    char* func = strtok(myFuncs, ",");
+    while (func) {
+        String8 fancyFunc = String8::format("\n%s\n", func);
+        bool found = funcList.find(fancyFunc.string(), 0) >= 0;
+        if (!found || func[0] == '\0') {
+            fprintf(stderr, "error: \"%s\" is not a valid kernel function "
+                "to trace.\n", func);
+            ok = false;
+        }
+        func = strtok(NULL, ",");
+    }
+    free(myFuncs);
+
+    return ok;
+}
+
+// Set the comma separated list of functions that the kernel is to trace.
+static bool setKernelTraceFuncs(const char* funcs)
+{
+    bool ok = true;
+
+    if (funcs == NULL || funcs[0] == '\0') {
+        // Disable kernel function tracing.
+        ok &= writeStr(k_currentTracerPath, "nop");
+        if (fileExists(k_ftraceFilterPath)) {
+            ok &= truncateFile(k_ftraceFilterPath);
+        }
+    } else {
+        // Enable kernel function tracing.
+        ok &= writeStr(k_currentTracerPath, "function_graph");
+        ok &= setKernelOptionEnable(k_funcgraphAbsTimePath, true);
+        ok &= setKernelOptionEnable(k_funcgraphCpuPath, true);
+        ok &= setKernelOptionEnable(k_funcgraphProcPath, true);
+        ok &= setKernelOptionEnable(k_funcgraphFlatPath, true);
+
+        // Set the requested filter functions.
+        ok &= truncateFile(k_ftraceFilterPath);
+        char* myFuncs = strdup(funcs);
+        char* func = strtok(myFuncs, ",");
+        while (func) {
+            ok &= appendStr(k_ftraceFilterPath, func);
+            func = strtok(NULL, ",");
+        }
+        free(myFuncs);
+
+        // Verify that the set functions are being traced.
+        if (ok) {
+            ok &= verifyKernelTraceFuncs(funcs);
+        }
+    }
+
+    return ok;
+}
+
+// Set all the kernel tracing settings to the desired state for this trace
+// capture.
+static bool setUpTrace()
 {
     bool ok = true;
 
@@ -339,6 +469,8 @@ static bool startTrace()
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
+    ok &= setPrintTgidEnableIfPresent(true);
+    ok &= setKernelTraceFuncs(g_kernelTraceFuncs);
 
     // Set up the tags property.
     uint64_t tags = 0;
@@ -373,18 +505,12 @@ static bool startTrace()
         }
     }
 
-    // Enable tracing.
-    ok &= setTracingEnabled(true);
-
     return ok;
 }
 
-// Disable tracing in the kernel.
-static void stopTrace()
+// Reset all the kernel tracing settings to their default state.
+static void cleanUpTrace()
 {
-    // Disable tracing.
-    setTracingEnabled(false);
-
     // Disable all tracing that we're able to.
     disableKernelTraceEvents();
 
@@ -393,10 +519,23 @@ static void stopTrace()
 
     // Set the options back to their defaults.
     setTraceOverwriteEnable(true);
+    setTraceBufferSizeKB(1);
     setGlobalClockEnable(false);
+    setPrintTgidEnableIfPresent(false);
+    setKernelTraceFuncs(NULL);
+}
 
-    // Note that we can't reset the trace buffer size here because that would
-    // clear the trace before we've read it.
+
+// Enable tracing in the kernel.
+static bool startTrace()
+{
+    return setTracingEnabled(true);
+}
+
+// Disable tracing in the kernel.
+static void stopTrace()
+{
+    setTracingEnabled(false);
 }
 
 // Read the current kernel trace and write it to stdout.
@@ -556,6 +695,7 @@ static void showHelp(const char *cmd)
     fprintf(stderr, "options include:\n"
                     "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
+                    "  -k fname,...    trace the listed kernel functions\n"
                     "  -n              ignore signals\n"
                     "  -s N            sleep for N seconds before tracing [default 0]\n"
                     "  -t N            trace for N seconds [defualt 5]\n"
@@ -592,7 +732,7 @@ int main(int argc, char **argv)
             {           0,                0, 0,  0 }
         };
 
-        ret = getopt_long(argc, argv, "b:cns:t:z",
+        ret = getopt_long(argc, argv, "b:ck:ns:t:z",
                           long_options, &option_index);
 
         if (ret < 0) {
@@ -613,6 +753,10 @@ int main(int argc, char **argv)
             case 'c':
                 g_traceOverwrite = true;
             break;
+
+            case 'k':
+                g_kernelTraceFuncs = optarg;
+                break;
 
             case 'n':
                 g_nohup = true;
@@ -663,7 +807,9 @@ int main(int argc, char **argv)
         sleep(g_initialSleepSecs);
     }
 
-    bool ok = startTrace();
+    bool ok = true;
+    ok &= setUpTrace();
+    ok &= startTrace();
 
     if (ok && traceStart) {
         printf("capturing trace...");
@@ -709,7 +855,7 @@ int main(int argc, char **argv)
 
     // Reset the trace buffer size to 1.
     if (traceStop)
-        setTraceBufferSizeKB(1);
+        cleanUpTrace();
 
     return g_traceAborted ? 1 : 0;
 }
