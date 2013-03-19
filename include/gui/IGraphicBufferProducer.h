@@ -84,7 +84,7 @@ public:
     // the buffer. The contents of the buffer must not be overwritten until the
     // fence signals. If the fence is NULL, the buffer may be written
     // immediately.
-    virtual status_t dequeueBuffer(int *slot, sp<Fence>& fence,
+    virtual status_t dequeueBuffer(int *slot, sp<Fence>* fence,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) = 0;
 
     // queueBuffer indicates that the client has finished filling in the
@@ -165,7 +165,7 @@ public:
     // cancelBuffer indicates that the client does not wish to fill in the
     // buffer associated with slot and transfers ownership of the slot back to
     // the server.
-    virtual void cancelBuffer(int slot, sp<Fence> fence) = 0;
+    virtual void cancelBuffer(int slot, const sp<Fence>& fence) = 0;
 
     // query retrieves some information for this surface
     // 'what' tokens allowed are that of android_natives.h

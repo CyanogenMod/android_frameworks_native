@@ -69,10 +69,9 @@ public:
     // ConsumerBase is connected.
     sp<BufferQueue> getBufferQueue() const;
 
-    // dump writes the current state to a string.  These methods should NOT be
-    // overridden by child classes.  Instead they should override the
-    // dumpLocked method, which is called by these methods after locking the
-    // mutex.
+    // dump writes the current state to a string. Child classes should add
+    // their state to the dump by overriding the dumpLocked method, which is
+    // called by these methods after locking the mutex.
     void dump(String8& result) const;
     void dump(String8& result, const char* prefix, char* buffer, size_t SIZE) const;
 

@@ -41,7 +41,7 @@ EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
       mUseSoftwareVSync(false),
       mDebugVsyncEnabled(false) {
 
-    for (int32_t i=0 ; i<HWC_DISPLAY_TYPES_SUPPORTED ; i++) {
+    for (int32_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
         mVSyncEvent[i].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
         mVSyncEvent[i].header.id = 0;
         mVSyncEvent[i].header.timestamp = 0;
@@ -112,11 +112,11 @@ void EventThread::onScreenAcquired() {
 
 
 void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
-    ALOGE_IF(type >= HWC_DISPLAY_TYPES_SUPPORTED,
-            "received event for an invalid display (id=%d)", type);
+    ALOGE_IF(type >= HWC_NUM_DISPLAY_TYPES,
+            "received vsync event for an invalid display (id=%d)", type);
 
     Mutex::Autolock _l(mLock);
-    if (type < HWC_DISPLAY_TYPES_SUPPORTED) {
+    if (type < HWC_NUM_DISPLAY_TYPES) {
         mVSyncEvent[type].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
         mVSyncEvent[type].header.id = type;
         mVSyncEvent[type].header.timestamp = timestamp;
@@ -126,11 +126,11 @@ void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
 }
 
 void EventThread::onHotplugReceived(int type, bool connected) {
-    ALOGE_IF(type >= HWC_DISPLAY_TYPES_SUPPORTED,
-            "received event for an invalid display (id=%d)", type);
+    ALOGE_IF(type >= HWC_NUM_DISPLAY_TYPES,
+            "received hotplug event for an invalid display (id=%d)", type);
 
     Mutex::Autolock _l(mLock);
-    if (type < HWC_DISPLAY_TYPES_SUPPORTED) {
+    if (type < HWC_NUM_DISPLAY_TYPES) {
         DisplayEventReceiver::Event event;
         event.header.type = DisplayEventReceiver::DISPLAY_EVENT_HOTPLUG;
         event.header.id = type;
@@ -184,7 +184,7 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
 
         size_t vsyncCount = 0;
         nsecs_t timestamp = 0;
-        for (int32_t i=0 ; i<HWC_DISPLAY_TYPES_SUPPORTED ; i++) {
+        for (int32_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
             timestamp = mVSyncEvent[i].header.timestamp;
             if (timestamp) {
                 // we have a vsync event to dispatch
