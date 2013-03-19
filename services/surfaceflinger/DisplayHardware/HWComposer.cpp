@@ -99,7 +99,7 @@ HWComposer::HWComposer(
     bool needVSyncThread = true;
 
     // Note: some devices may insist that the FB HAL be opened before HWC.
-    loadFbHalModule();
+    int fberr = loadFbHalModule();
     loadHwcModule();
 
     if (mFbDev && mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
@@ -113,7 +113,8 @@ HWComposer::HWComposer(
     // If we have no HWC, or a pre-1.1 HWC, an FB dev is mandatory.
     if ((!mHwc || !hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1))
             && !mFbDev) {
-        ALOGE("ERROR: failed to open framebuffer, aborting");
+        ALOGE("ERROR: failed to open framebuffer (%s), aborting",
+                strerror(-fberr));
         abort();
     }
 
@@ -234,20 +235,17 @@ void HWComposer::loadHwcModule()
 }
 
 // Load and prepare the FB HAL, which uses the gralloc module.  Sets mFbDev.
-void HWComposer::loadFbHalModule()
+int HWComposer::loadFbHalModule()
 {
     hw_module_t const* module;
 
-    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) != 0) {
+    int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
+    if (err != 0) {
         ALOGE("%s module not found", GRALLOC_HARDWARE_MODULE_ID);
-        return;
+        return err;
     }
 
-    int err = framebuffer_open(module, &mFbDev);
-    if (err) {
-        ALOGE("framebuffer_open failed (%s)", strerror(-err));
-        return;
-    }
+    return framebuffer_open(module, &mFbDev);
 }
 
 status_t HWComposer::initCheck() const {
