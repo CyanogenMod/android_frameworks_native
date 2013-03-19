@@ -254,7 +254,7 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
+status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
         uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
     ATRACE_CALL();
     ST_LOGV("dequeueBuffer: w=%d h=%d fmt=%#x usage=%#x", w, h, format, usage);
@@ -393,7 +393,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>& outFence,
 
         dpy = mSlots[buf].mEglDisplay;
         eglFence = mSlots[buf].mEglFence;
-        outFence = mSlots[buf].mFence;
+        *outFence = mSlots[buf].mFence;
         mSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
         mSlots[buf].mFence = Fence::NO_FENCE;
     }  // end lock scope
@@ -590,7 +590,7 @@ status_t BufferQueue::queueBuffer(int buf,
     return OK;
 }
 
-void BufferQueue::cancelBuffer(int buf, sp<Fence> fence) {
+void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
     ATRACE_CALL();
     ST_LOGV("cancelBuffer: slot=%d", buf);
     Mutex::Autolock lock(mMutex);

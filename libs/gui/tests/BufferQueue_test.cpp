@@ -76,7 +76,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-                mBQ->dequeueBuffer(&slot, fence, 1, 1, 0,
+                mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
                     GRALLOC_USAGE_SW_READ_OFTEN));
         ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
         ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
@@ -84,7 +84,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mBQ->dequeueBuffer(&slot, fence, 1, 1, 0,
+            mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
                 GRALLOC_USAGE_SW_READ_OFTEN));
     ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
     ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));

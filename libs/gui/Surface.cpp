@@ -182,8 +182,8 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
     int reqW = mReqWidth ? mReqWidth : mUserWidth;
     int reqH = mReqHeight ? mReqHeight : mUserHeight;
     sp<Fence> fence;
-    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, fence, reqW, reqH,
-            mReqFormat, mReqUsage);
+    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
+            reqW, reqH, mReqFormat, mReqUsage);
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d)"
              "failed: %d", mReqWidth, mReqHeight, mReqFormat, mReqUsage,

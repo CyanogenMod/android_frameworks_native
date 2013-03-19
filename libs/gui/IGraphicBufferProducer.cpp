@@ -81,7 +81,7 @@ public:
         return result;
     }
 
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>& fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
@@ -99,8 +99,8 @@ public:
             // If the fence was written by the callee, then overwrite the
             // caller's fence here.  If it wasn't written then don't touch the
             // caller's fence.
-            fence = new Fence();
-            reply.read(*fence.get());
+            *fence = new Fence();
+            reply.read(*(fence->get()));
         }
         result = reply.readInt32();
         return result;
@@ -121,7 +121,7 @@ public:
         return result;
     }
 
-    virtual void cancelBuffer(int buf, sp<Fence> fence) {
+    virtual void cancelBuffer(int buf, const sp<Fence>& fence) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(buf);
@@ -215,7 +215,7 @@ status_t BnGraphicBufferProducer::onTransact(
             uint32_t usage  = data.readInt32();
             int buf;
             sp<Fence> fence;
-            int result = dequeueBuffer(&buf, fence, w, h, format, usage);
+            int result = dequeueBuffer(&buf, &fence, w, h, format, usage);
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {

@@ -35,7 +35,7 @@
 
 #include <hardware/gralloc.h>
 
-#include "DisplayHardware/FramebufferSurface.h"
+#include "DisplayHardware/DisplaySurface.h"
 #include "DisplayHardware/HWComposer.h"
 
 #include "clz.h"
@@ -72,14 +72,12 @@ DisplayDevice::DisplayDevice(
         DisplayType type,
         bool isSecure,
         const wp<IBinder>& displayToken,
-        const sp<ANativeWindow>& nativeWindow,
-        const sp<FramebufferSurface>& framebufferSurface,
+        const sp<DisplaySurface>& displaySurface,
         EGLConfig config)
     : mFlinger(flinger),
       mType(type), mHwcDisplayId(-1),
       mDisplayToken(displayToken),
-      mNativeWindow(nativeWindow),
-      mFramebufferSurface(framebufferSurface),
+      mDisplaySurface(displaySurface),
       mDisplay(EGL_NO_DISPLAY),
       mSurface(EGL_NO_SURFACE),
       mContext(EGL_NO_CONTEXT),
@@ -92,6 +90,7 @@ DisplayDevice::DisplayDevice(
       mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
+    mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
     init(config);
 }
 
@@ -183,10 +182,7 @@ uint32_t DisplayDevice::getPageFlipCount() const {
 }
 
 status_t DisplayDevice::compositionComplete() const {
-    if (mFramebufferSurface == NULL) {
-        return NO_ERROR;
-    }
-    return mFramebufferSurface->compositionComplete();
+    return mDisplaySurface->compositionComplete();
 }
 
 void DisplayDevice::flip(const Region& dirty) const
@@ -209,45 +205,38 @@ void DisplayDevice::flip(const Region& dirty) const
 }
 
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
-    EGLBoolean success = EGL_TRUE;
-    if (hwc.initCheck() != NO_ERROR) {
-        // no HWC, we call eglSwapBuffers()
-        success = eglSwapBuffers(mDisplay, mSurface);
-    } else {
-        // We have a valid HWC, but not all displays can use it, in particular
-        // the virtual displays are on their own.
-        // TODO: HWC 1.2 will allow virtual displays
-        if (mType >= DisplayDevice::DISPLAY_VIRTUAL) {
-            // always call eglSwapBuffers() for virtual displays
-            success = eglSwapBuffers(mDisplay, mSurface);
-        } else if (hwc.supportsFramebufferTarget()) {
-            // as of hwc 1.1 we always call eglSwapBuffers if we have some
-            // GLES layers
-            if (hwc.hasGlesComposition(mType)) {
-                success = eglSwapBuffers(mDisplay, mSurface);
+    // We need to call eglSwapBuffers() unless:
+    // (a) there was no GLES composition this frame, or
+    // (b) we're using a legacy HWC with no framebuffer target support (in
+    //     which case HWComposer::commit() handles things).
+    if (hwc.initCheck() != NO_ERROR ||
+            (hwc.hasGlesComposition(mHwcDisplayId) &&
+             hwc.supportsFramebufferTarget())) {
+        EGLBoolean success = eglSwapBuffers(mDisplay, mSurface);
+        if (!success) {
+            EGLint error = eglGetError();
+            if (error == EGL_CONTEXT_LOST ||
+                    mType == DisplayDevice::DISPLAY_PRIMARY) {
+                LOG_ALWAYS_FATAL("eglSwapBuffers(%p, %p) failed with 0x%08x",
+                        mDisplay, mSurface, error);
+            } else {
+                ALOGE("eglSwapBuffers(%p, %p) failed with 0x%08x",
+                        mDisplay, mSurface, error);
             }
-        } else {
-            // HWC doesn't have the framebuffer target, we don't call
-            // eglSwapBuffers(), since this is handled by HWComposer::commit().
         }
     }
 
-    if (!success) {
-        EGLint error = eglGetError();
-        if (error == EGL_CONTEXT_LOST ||
-                mType == DisplayDevice::DISPLAY_PRIMARY) {
-            LOG_ALWAYS_FATAL("eglSwapBuffers(%p, %p) failed with 0x%08x",
-                    mDisplay, mSurface, error);
-        }
+    status_t result = mDisplaySurface->advanceFrame();
+    if (result != NO_ERROR) {
+        ALOGE("[%s] failed pushing new frame to HWC: %d",
+                mDisplayName.string(), result);
     }
 }
 
 void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
     if (hwc.initCheck() == NO_ERROR) {
-        if (hwc.supportsFramebufferTarget()) {
-            int fd = hwc.getAndResetReleaseFenceFd(mType);
-            mFramebufferSurface->setReleaseFenceFd(fd);
-        }
+        int fd = hwc.getAndResetReleaseFenceFd(mType);
+        mDisplaySurface->setReleaseFenceFd(fd);
     }
 }
 
@@ -455,9 +444,7 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
 
     result.append(buffer);
 
-    String8 fbtargetDump;
-    if (mFramebufferSurface != NULL) {
-        mFramebufferSurface->dump(fbtargetDump);
-        result.append(fbtargetDump);
-    }
+    String8 surfaceDump;
+    mDisplaySurface->dump(surfaceDump);
+    result.append(surfaceDump);
 }

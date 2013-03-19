@@ -128,7 +128,7 @@ public:
     // GL_MAX_VIEWPORT_DIMS and GL_MAX_TEXTURE_SIZE (see: glGetIntegerv).
     // An error due to invalid dimensions might not be reported until
     // updateTexImage() is called.
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>& fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
             uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
 
     // queueBuffer returns a filled buffer to the BufferQueue. In addition, a
@@ -139,7 +139,7 @@ public:
     virtual status_t queueBuffer(int buf,
             const QueueBufferInput& input, QueueBufferOutput* output);
 
-    virtual void cancelBuffer(int buf, sp<Fence> fence);
+    virtual void cancelBuffer(int buf, const sp<Fence>& fence);
 
     // setSynchronousMode set whether dequeueBuffer is synchronous or
     // asynchronous. In synchronous mode, dequeueBuffer blocks until

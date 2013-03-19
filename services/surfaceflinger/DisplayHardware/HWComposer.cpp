@@ -380,6 +380,7 @@ int32_t HWComposer::allocateDisplayId() {
     }
     int32_t id = mAllocatedDisplayIDs.firstUnmarkedBit();
     mAllocatedDisplayIDs.markBit(id);
+    mDisplayData[id].connected = true;
     return id;
 }
 
@@ -392,6 +393,7 @@ status_t HWComposer::freeDisplayId(int32_t id) {
         return BAD_INDEX;
     }
     mAllocatedDisplayIDs.clearBit(id);
+    mDisplayData[id].connected = false;
     return NO_ERROR;
 }
 
@@ -615,14 +617,14 @@ status_t HWComposer::prepare() {
 }
 
 bool HWComposer::hasHwcComposition(int32_t id) const {
-    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
     return mDisplayData[id].hasOvComp;
 }
 
 bool HWComposer::hasGlesComposition(int32_t id) const {
-    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
-        return false;
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return true;
     return mDisplayData[id].hasFbComp;
 }
 
@@ -651,6 +653,18 @@ status_t HWComposer::commit() {
             // a single display.
             mLists[0]->dpy = eglGetCurrentDisplay();
             mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
+        }
+
+        // For virtual displays, the framebufferTarget buffer also serves as
+        // the HWC output buffer, so we need to copy the buffer handle and
+        // dup() the acquire fence.
+        for (size_t i=HWC_NUM_DISPLAY_TYPES; i<mNumDisplays; i++) {
+            DisplayData& disp(mDisplayData[i]);
+            if (disp.framebufferTarget) {
+                mLists[i]->outbuf = disp.framebufferTarget->handle;
+                mLists[i]->outbufAcquireFenceFd =
+                        dup(disp.framebufferTarget->acquireFenceFd);
+            }
         }
 
         err = mHwc->set(mHwc, mNumDisplays, mLists);
