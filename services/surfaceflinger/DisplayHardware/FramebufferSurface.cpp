@@ -68,6 +68,17 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
     mBufferQueue->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
+sp<IGraphicBufferProducer> FramebufferSurface::getIGraphicBufferProducer() const {
+    return getBufferQueue();
+}
+
+status_t FramebufferSurface::advanceFrame() {
+    // Once we remove FB HAL support, we can call nextBuffer() from here
+    // instead of using onFrameAvailable(). No real benefit, except it'll be
+    // more like VirtualDisplaySurface.
+    return NO_ERROR;
+}
+
 status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence) {
     Mutex::Autolock lock(mMutex);
 
@@ -134,7 +145,7 @@ status_t FramebufferSurface::setReleaseFenceFd(int fenceFd) {
     if (fenceFd >= 0) {
         sp<Fence> fence(new Fence(fenceFd));
         if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
-            status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+            err = addReleaseFence(mCurrentBufferSlot, fence);
             ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
                     strerror(-err), err);
         }
@@ -142,19 +153,36 @@ status_t FramebufferSurface::setReleaseFenceFd(int fenceFd) {
     return err;
 }
 
-status_t FramebufferSurface::setUpdateRectangle(const Rect& r)
-{
-    return INVALID_OPERATION;
-}
-
 status_t FramebufferSurface::compositionComplete()
 {
     return mHwc.fbCompositionComplete();
 }
 
-void FramebufferSurface::dump(String8& result) {
-    mHwc.fbDump(result);
+// Since DisplaySurface and ConsumerBase both have a method with this
+// signature, results will vary based on the static pointer type the caller is
+// using:
+//   void dump(FrameBufferSurface* fbs, String8& s) {
+//       // calls FramebufferSurface::dump()
+//       fbs->dump(s);
+//
+//       // calls ConsumerBase::dump() since it is non-virtual
+//       static_cast<ConsumerBase*>(fbs)->dump(s);
+//
+//       // calls FramebufferSurface::dump() since it is virtual
+//       static_cast<DisplaySurface*>(fbs)->dump(s);
+//   }
+// To make sure that all of these end up doing the same thing, we just redirect
+// to ConsumerBase::dump() here. It will take the internal lock, and then call
+// virtual dumpLocked(), which is where the real work happens.
+void FramebufferSurface::dump(String8& result) const {
     ConsumerBase::dump(result);
+}
+
+void FramebufferSurface::dumpLocked(String8& result, const char* prefix,
+            char* buffer, size_t SIZE) const
+{
+    mHwc.fbDump(result);
+    ConsumerBase::dumpLocked(result, prefix, buffer, SIZE);
 }
 
 // ----------------------------------------------------------------------------
