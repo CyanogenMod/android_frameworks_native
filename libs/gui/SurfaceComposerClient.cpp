@@ -31,6 +31,7 @@
 
 #include <ui/DisplayInfo.h>
 
+#include <gui/CpuConsumer.h>
 #include <gui/IGraphicBufferProducer.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
@@ -617,30 +618,21 @@ status_t ScreenshotClient::capture(
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;
     return s->captureScreen(display, producer,
-            reqWidth, reqHeight, minLayerZ, maxLayerZ);
+            reqWidth, reqHeight, minLayerZ, maxLayerZ,
+            false);
 }
 
 ScreenshotClient::ScreenshotClient()
-    : mWidth(0), mHeight(0), mFormat(PIXEL_FORMAT_NONE) {
+    : mHaveBuffer(false) {
+    memset(&mBuffer, 0, sizeof(mBuffer));
 }
 
-status_t ScreenshotClient::update(const sp<IBinder>& display) {
-    sp<ISurfaceComposer> s(ComposerService::getComposerService());
-    if (s == NULL) return NO_INIT;
-    mHeap = 0;
-    return s->captureScreen(display, &mHeap,
-            &mWidth, &mHeight, &mFormat, 0, 0,
-            0, -1UL);
-}
-
-status_t ScreenshotClient::update(const sp<IBinder>& display,
-        uint32_t reqWidth, uint32_t reqHeight) {
-    sp<ISurfaceComposer> s(ComposerService::getComposerService());
-    if (s == NULL) return NO_INIT;
-    mHeap = 0;
-    return s->captureScreen(display, &mHeap,
-            &mWidth, &mHeight, &mFormat, reqWidth, reqHeight,
-            0, -1UL);
+sp<CpuConsumer> ScreenshotClient::getCpuConsumer() const {
+    if (mCpuConsumer == NULL) {
+        mCpuConsumer = new CpuConsumer(1);
+        mCpuConsumer->setName(String8("ScreenshotClient"));
+    }
+    return mCpuConsumer;
 }
 
 status_t ScreenshotClient::update(const sp<IBinder>& display,
@@ -648,38 +640,66 @@ status_t ScreenshotClient::update(const sp<IBinder>& display,
         uint32_t minLayerZ, uint32_t maxLayerZ) {
     sp<ISurfaceComposer> s(ComposerService::getComposerService());
     if (s == NULL) return NO_INIT;
-    mHeap = 0;
-    return s->captureScreen(display, &mHeap,
-            &mWidth, &mHeight, &mFormat, reqWidth, reqHeight,
-            minLayerZ, maxLayerZ);
+    sp<CpuConsumer> cpuConsumer = getCpuConsumer();
+
+    if (mHaveBuffer) {
+        mCpuConsumer->unlockBuffer(mBuffer);
+        memset(&mBuffer, 0, sizeof(mBuffer));
+        mHaveBuffer = false;
+    }
+
+    status_t err = s->captureScreen(display,cpuConsumer->getBufferQueue(),
+            reqWidth, reqHeight, minLayerZ, maxLayerZ, true);
+
+    if (err == NO_ERROR) {
+        err = mCpuConsumer->lockNextBuffer(&mBuffer);
+        if (err == NO_ERROR) {
+            mHaveBuffer = true;
+        }
+    }
+    return err;
+}
+
+status_t ScreenshotClient::update(const sp<IBinder>& display) {
+    return ScreenshotClient::update(display, 0, 0, 0, -1UL);
+}
+
+status_t ScreenshotClient::update(const sp<IBinder>& display,
+        uint32_t reqWidth, uint32_t reqHeight) {
+    return ScreenshotClient::update(display, reqWidth, reqHeight, 0, -1UL);
 }
 
 void ScreenshotClient::release() {
-    mHeap = 0;
+    if (mHaveBuffer) {
+        mCpuConsumer->unlockBuffer(mBuffer);
+        memset(&mBuffer, 0, sizeof(mBuffer));
+        mHaveBuffer = false;
+    }
+    mCpuConsumer.clear();
 }
 
 void const* ScreenshotClient::getPixels() const {
-    return mHeap->getBase();
+    return mBuffer.data;
 }
 
 uint32_t ScreenshotClient::getWidth() const {
-    return mWidth;
+    return mBuffer.width;
 }
 
 uint32_t ScreenshotClient::getHeight() const {
-    return mHeight;
+    return mBuffer.height;
 }
 
 PixelFormat ScreenshotClient::getFormat() const {
-    return mFormat;
+    return mBuffer.format;
 }
 
 uint32_t ScreenshotClient::getStride() const {
-    return mWidth;
+    return mBuffer.stride;
 }
 
 size_t ScreenshotClient::getSize() const {
-    return mHeap->getSize();
+    return mBuffer.stride * mBuffer.height * bytesPerPixel(mBuffer.format);
 }
 
 // ----------------------------------------------------------------------------
