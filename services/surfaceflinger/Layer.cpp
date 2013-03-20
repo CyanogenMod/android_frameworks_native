@@ -144,7 +144,7 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
         HWComposer::HWCLayerInterface* layer) {
     if (layer) {
         layer->onDisplayed();
-        mSurfaceFlingerConsumer->setReleaseFence(layer->getAndResetReleaseFenceFd());
+        mSurfaceFlingerConsumer->setReleaseFence(layer->getAndResetReleaseFence());
     }
 }
 

@@ -70,9 +70,8 @@ status_t VirtualDisplaySurface::advanceFrame() {
     return mHwc.fbPost(mDisplayId, fence, mAcquiredBuffer);
 }
 
-void VirtualDisplaySurface::onFrameCommitted(int fenceFd) {
+void VirtualDisplaySurface::onFrameCommitted(const sp<Fence>& fence) {
     Mutex::Autolock lock(mMutex);
-    sp<Fence> fence(new Fence(fenceFd));
     if (mAcquiredBuffer != NULL) {
         status_t result = mSource->releaseBuffer(fence);
         ALOGE_IF(result != NO_ERROR, "VirtualDisplaySurface \"%s\": "

@@ -52,7 +52,7 @@ public:
     // hardware composer and a release fence is available for the buffer.
     // Further operations on the buffer can be queued as long as they wait for
     // the fence to signal.
-    virtual void onFrameCommitted(int fenceFd) = 0;
+    virtual void onFrameCommitted(const sp<Fence>& fence) = 0;
 
     virtual void dump(String8& result) const = 0;
 

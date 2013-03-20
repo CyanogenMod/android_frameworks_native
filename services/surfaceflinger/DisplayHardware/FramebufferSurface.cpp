@@ -140,14 +140,12 @@ void FramebufferSurface::freeBufferLocked(int slotIndex) {
     }
 }
 
-void FramebufferSurface::onFrameCommitted(int fenceFd) {
-    if (fenceFd >= 0) {
-        sp<Fence> fence(new Fence(fenceFd));
-        if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
-            status_t err = addReleaseFence(mCurrentBufferSlot, fence);
-            ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
-                    strerror(-err), err);
-        }
+void FramebufferSurface::onFrameCommitted(const sp<Fence>& fence) {
+    if (fence->isValid() &&
+            mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
+        status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+        ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
+                strerror(-err), err);
     }
 }
 

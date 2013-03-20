@@ -367,14 +367,14 @@ status_t GLConsumer::checkAndUpdateEglStateLocked() {
     return NO_ERROR;
 }
 
-void GLConsumer::setReleaseFence(int fenceFd) {
-    sp<Fence> fence(new Fence(fenceFd));
-    if (fenceFd == -1 || mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT)
-        return;
-    status_t err = addReleaseFence(mCurrentTexture, fence);
-    if (err != OK) {
-        ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
-                strerror(-err), err);
+void GLConsumer::setReleaseFence(const sp<Fence>& fence) {
+    if (fence->isValid() &&
+            mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
+        status_t err = addReleaseFence(mCurrentTexture, fence);
+        if (err != OK) {
+            ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
+                    strerror(-err), err);
+        }
     }
 }
 
