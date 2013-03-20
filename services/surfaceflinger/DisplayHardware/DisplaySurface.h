@@ -43,15 +43,16 @@ public:
     // this frame. Some implementations may only push a new buffer to
     // HWComposer if GLES composition took place, others need to push a new
     // buffer on every frame.
+    //
+    // advanceFrame must be followed by a call to  onFrameCommitted before
+    // advanceFrame may be called again.
     virtual status_t advanceFrame() = 0;
 
-    // setReleaseFenceFd stores a fence file descriptor that will signal when
-    // the current buffer is no longer being read. This fence will be returned
-    // to the producer when the current buffer is released by updateTexImage().
-    // Multiple fences can be set for a given buffer; they will be merged into
-    // a single union fence. The GLConsumer will close the file descriptor
-    // when finished with it.
-    virtual status_t setReleaseFenceFd(int fenceFd) = 0;
+    // onFrameCommitted is called after the frame has been committed to the
+    // hardware composer and a release fence is available for the buffer.
+    // Further operations on the buffer can be queued as long as they wait for
+    // the fence to signal.
+    virtual void onFrameCommitted(int fenceFd) = 0;
 
     virtual void dump(String8& result) const = 0;
 

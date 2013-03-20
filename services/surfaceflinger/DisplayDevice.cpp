@@ -236,7 +236,7 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
 void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
     if (hwc.initCheck() == NO_ERROR) {
         int fd = hwc.getAndResetReleaseFenceFd(mType);
-        mDisplaySurface->setReleaseFenceFd(fd);
+        mDisplaySurface->onFrameCommitted(fd);
     }
 }
 
