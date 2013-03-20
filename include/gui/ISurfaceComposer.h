@@ -95,14 +95,6 @@ public:
     virtual bool authenticateSurfaceTexture(
             const sp<IGraphicBufferProducer>& surface) const = 0;
 
-    /* Capture the specified screen. requires READ_FRAME_BUFFER permission
-     * This function will fail if there is a secure window on screen.
-     */
-    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
-            uint32_t* width, uint32_t* height, PixelFormat* format,
-            uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
-
     /* triggers screen off and waits for it to complete
      * requires ACCESS_SURFACE_FLINGER permission.
      */
@@ -123,7 +115,8 @@ public:
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool isCpuConsumer) = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -141,7 +134,6 @@ public:
         GET_BUILT_IN_DISPLAY,
         SET_TRANSACTION_STATE,
         AUTHENTICATE_SURFACE,
-        CAPTURE_SCREEN_DEPRECATED,
         BLANK,
         UNBLANK,
         GET_DISPLAY_INFO,

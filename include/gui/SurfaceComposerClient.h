@@ -30,6 +30,7 @@
 
 #include <ui/PixelFormat.h>
 
+#include <gui/CpuConsumer.h>
 #include <gui/SurfaceControl.h>
 
 namespace android {
@@ -38,7 +39,6 @@ namespace android {
 
 class DisplayInfo;
 class Composer;
-class IMemoryHeap;
 class ISurfaceComposerClient;
 class IGraphicBufferProducer;
 class Region;
@@ -164,10 +164,9 @@ public:
             uint32_t minLayerZ, uint32_t maxLayerZ);
 
 private:
-    sp<IMemoryHeap> mHeap;
-    uint32_t mWidth;
-    uint32_t mHeight;
-    PixelFormat mFormat;
+    mutable sp<CpuConsumer> mCpuConsumer;
+    CpuConsumer::LockedBuffer mBuffer;
+    bool mHaveBuffer;
 
 public:
     ScreenshotClient();
@@ -179,6 +178,8 @@ public:
     status_t update(const sp<IBinder>& display,
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ);
+
+    sp<CpuConsumer> getCpuConsumer() const;
 
     // release memory occupied by the screenshot
     void release();
