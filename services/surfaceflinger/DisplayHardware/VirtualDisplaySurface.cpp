@@ -70,9 +70,21 @@ status_t VirtualDisplaySurface::advanceFrame() {
     return mHwc.fbPost(mDisplayId, fence, mAcquiredBuffer);
 }
 
-void VirtualDisplaySurface::onFrameCommitted(const sp<Fence>& fence) {
+void VirtualDisplaySurface::onFrameCommitted() {
     Mutex::Autolock lock(mMutex);
     if (mAcquiredBuffer != NULL) {
+        // fbFence signals when reads from the framebuffer are finished
+        // outFence signals when writes to the output buffer are finished
+        // It's unlikely that there will be an implementation where fbFence
+        // signals after outFence (in fact they'll typically be the same
+        // sync_pt), but just to be pedantic we merge them so the sink will
+        // be sure to wait until both are complete.
+        sp<Fence> fbFence = mHwc.getAndResetReleaseFence(mDisplayId);
+        sp<Fence> outFence = mHwc.getLastRetireFence(mDisplayId);
+        sp<Fence> fence = Fence::merge(
+                String8::format("HWC done: %.21s", mName.string()),
+                fbFence, outFence);
+
         status_t result = mSource->releaseBuffer(fence);
         ALOGE_IF(result != NO_ERROR, "VirtualDisplaySurface \"%s\": "
                 "failed to release buffer: %d", mName.string(), result);
