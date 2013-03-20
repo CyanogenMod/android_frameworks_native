@@ -49,6 +49,9 @@ namespace android {
 
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
 
+#define NUM_PHYSICAL_DISPLAYS HWC_NUM_DISPLAY_TYPES
+#define VIRTUAL_DISPLAY_ID_BASE HWC_NUM_DISPLAY_TYPES
+
 static uint32_t hwcApiVersion(const hwc_composer_device_1_t* hwc) {
     uint32_t hwcVersion = hwc->common.version;
     return hwcVersion & HARDWARE_API_VERSION_2_MAJ_MIN_MASK;
@@ -119,7 +122,7 @@ HWComposer::HWComposer(
     }
 
     // these display IDs are always reserved
-    for (size_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+    for (size_t i=0 ; i<NUM_PHYSICAL_DISPLAYS ; i++) {
         mAllocatedDisplayIDs.markBit(i);
     }
 
@@ -151,7 +154,7 @@ HWComposer::HWComposer(
             mNumDisplays = MAX_DISPLAYS;
         } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // 1.1 adds support for multiple displays
-            mNumDisplays = HWC_NUM_DISPLAY_TYPES;
+            mNumDisplays = NUM_PHYSICAL_DISPLAYS;
         } else {
             mNumDisplays = 1;
         }
@@ -179,7 +182,7 @@ HWComposer::HWComposer(
         }
     } else if (mHwc) {
         // here we're guaranteed to have at least HWC 1.1
-        for (size_t i =0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+        for (size_t i =0 ; i<NUM_PHYSICAL_DISPLAYS ; i++) {
             queryDisplayProperties(i);
         }
     }
@@ -284,7 +287,7 @@ void HWComposer::vsync(int disp, int64_t timestamp) {
 }
 
 void HWComposer::hotplug(int disp, int connected) {
-    if (disp == HWC_DISPLAY_PRIMARY || disp >= HWC_NUM_DISPLAY_TYPES) {
+    if (disp == HWC_DISPLAY_PRIMARY || disp >= VIRTUAL_DISPLAY_ID_BASE) {
         ALOGE("hotplug event received for invalid display: disp=%d connected=%d",
                 disp, connected);
         return;
@@ -383,7 +386,7 @@ int32_t HWComposer::allocateDisplayId() {
 }
 
 status_t HWComposer::freeDisplayId(int32_t id) {
-    if (id < HWC_NUM_DISPLAY_TYPES) {
+    if (id < NUM_PHYSICAL_DISPLAYS) {
         // cannot free the reserved IDs
         return BAD_VALUE;
     }
@@ -657,7 +660,7 @@ status_t HWComposer::commit() {
         // For virtual displays, the framebufferTarget buffer also serves as
         // the HWC output buffer, so we need to copy the buffer handle and
         // dup() the acquire fence.
-        for (size_t i=HWC_NUM_DISPLAY_TYPES; i<mNumDisplays; i++) {
+        for (size_t i=VIRTUAL_DISPLAY_ID_BASE; i<mNumDisplays; i++) {
             DisplayData& disp(mDisplayData[i]);
             if (disp.framebufferTarget) {
                 mLists[i]->outbuf = disp.framebufferTarget->handle;
@@ -685,7 +688,7 @@ status_t HWComposer::commit() {
 }
 
 status_t HWComposer::release(int disp) {
-    LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
+    LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     if (mHwc) {
         eventControl(disp, HWC_EVENT_VSYNC, 0);
         return (status_t)mHwc->blank(mHwc, disp, 1);
@@ -694,7 +697,7 @@ status_t HWComposer::release(int disp) {
 }
 
 status_t HWComposer::acquire(int disp) {
-    LOG_FATAL_IF(disp >= HWC_NUM_DISPLAY_TYPES);
+    LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     if (mHwc) {
         return (status_t)mHwc->blank(mHwc, disp, 0);
     }
