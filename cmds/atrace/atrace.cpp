@@ -176,12 +176,17 @@ static bool fileIsWritable(const char* filename) {
 // Truncate a file.
 static bool truncateFile(const char* path)
 {
-    int err = truncate(path, 0);
-    if (err != 0) {
+    // This uses creat rather than truncate because some of the debug kernel
+    // device nodes (e.g. k_ftraceFilterPath) currently aren't changed by
+    // calls to truncate, but they are cleared by calls to creat.
+    int traceFD = creat(path, 0);
+    if (traceFD == -1) {
         fprintf(stderr, "error truncating %s: %s (%d)\n", path,
-                strerror(errno), errno);
+            strerror(errno), errno);
         return false;
     }
+
+    close(traceFD);
 
     return true;
 }
