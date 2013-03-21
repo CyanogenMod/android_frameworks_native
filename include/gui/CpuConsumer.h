@@ -37,7 +37,7 @@ namespace android {
  * This queue is synchronous by default.
  */
 
-class CpuConsumer: public ConsumerBase
+class CpuConsumer : public ConsumerBase
 {
   public:
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
@@ -88,14 +88,25 @@ class CpuConsumer: public ConsumerBase
     // Maximum number of buffers that can be locked at a time
     uint32_t mMaxLockedBuffers;
 
+    status_t releaseAcquiredBufferLocked(int lockedIdx);
+
     virtual void freeBufferLocked(int slotIndex);
 
-    // Array for tracking pointers passed to the consumer, matching the
-    // mSlots indexing
-    struct LockedSlot {
+    // Tracking for buffers acquired by the user
+    struct AcquiredBuffer {
+        // Need to track the original mSlot index and the buffer itself because
+        // the mSlot entry may be freed/reused before the acquired buffer is
+        // released.
+        int mSlot;
         sp<GraphicBuffer> mGraphicBuffer;
         void *mBufferPointer;
-    } mLockedSlots[BufferQueue::NUM_BUFFER_SLOTS];
+
+        AcquiredBuffer() :
+                mSlot(BufferQueue::INVALID_BUFFER_SLOT),
+                mBufferPointer(NULL) {
+        }
+    };
+    Vector<AcquiredBuffer> mAcquiredBuffers;
 
     // Count of currently locked buffers
     uint32_t mCurrentLockedBuffers;
