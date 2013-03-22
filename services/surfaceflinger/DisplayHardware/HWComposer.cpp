@@ -627,9 +627,9 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     return mDisplayData[id].hasFbComp;
 }
 
-int HWComposer::getAndResetReleaseFenceFd(int32_t id) {
+sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
-        return BAD_INDEX;
+        return Fence::NO_FENCE;
 
     int fd = INVALID_OPERATION;
     if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
@@ -640,7 +640,7 @@ int HWComposer::getAndResetReleaseFenceFd(int32_t id) {
             disp.framebufferTarget->releaseFenceFd = -1;
         }
     }
-    return fd;
+    return fd >= 0 ? new Fence(fd) : Fence::NO_FENCE;
 }
 
 status_t HWComposer::commit() {
@@ -803,10 +803,10 @@ public:
     virtual uint32_t getHints() const {
         return getLayer()->hints;
     }
-    virtual int getAndResetReleaseFenceFd() {
+    virtual sp<Fence> getAndResetReleaseFence() {
         int fd = getLayer()->releaseFenceFd;
         getLayer()->releaseFenceFd = -1;
-        return fd;
+        return fd >= 0 ? new Fence(fd) : Fence::NO_FENCE;
     }
     virtual void setAcquireFenceFd(int fenceFd) {
         getLayer()->acquireFenceFd = fenceFd;

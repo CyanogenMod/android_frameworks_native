@@ -58,7 +58,7 @@ public:
 
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
-    virtual void onFrameCommitted(int fenceFd);
+    virtual void onFrameCommitted(const sp<Fence>& fence);
     virtual void dump(String8& result) const;
 
 private:

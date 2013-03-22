@@ -43,7 +43,7 @@ public:
 
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
-    virtual void onFrameCommitted(int fenceFd);
+    virtual void onFrameCommitted(const sp<Fence>& fence);
 
     // Implementation of DisplaySurface::dump(). Note that ConsumerBase also
     // has a non-virtual dump() with the same signature.

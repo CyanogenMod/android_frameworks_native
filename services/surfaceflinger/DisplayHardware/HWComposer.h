@@ -114,7 +114,7 @@ public:
 
     // get the releaseFence file descriptor for a display's framebuffer layer.
     // the release fence is only valid after commit()
-    int getAndResetReleaseFenceFd(int32_t id);
+    sp<Fence> getAndResetReleaseFence(int32_t id);
 
     // needed forward declarations
     class LayerListIterator;
@@ -141,7 +141,7 @@ public:
     public:
         virtual int32_t getCompositionType() const = 0;
         virtual uint32_t getHints() const = 0;
-        virtual int getAndResetReleaseFenceFd() = 0;
+        virtual sp<Fence> getAndResetReleaseFence() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
         virtual void setBlending(uint32_t blending) = 0;
