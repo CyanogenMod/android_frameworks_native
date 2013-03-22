@@ -419,6 +419,7 @@ private:
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
+    EGLint mEGLNativeVisualId;
     sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members
