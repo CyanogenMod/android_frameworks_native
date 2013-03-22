@@ -109,6 +109,9 @@ SurfaceFlinger::SurfaceFlinger()
     // debugging stuff...
     char value[PROPERTY_VALUE_MAX];
 
+    property_get("ro.bq.gpu_to_cpu_unsupported", value, "0");
+    mGpuToCpuSupported = !!atoi(value);
+
     property_get("debug.sf.showupdates", value, "0");
     mDebugRegion = atoi(value);
 
@@ -2546,15 +2549,16 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
-            // TODO: if we know the GL->CPU path works, we can call
+            // When we know the GL->CPU path works, we can call
             // captureScreenImplLocked() directly, instead of using the
             // "CpuConsumer" version, which is much less efficient -- it is
             // however needed by some older drivers.
-            if (isCpuConsumer) {
-                result = flinger->captureScreenImplCpuConsumerLocked(hw,
+
+            if (flinger->mGpuToCpuSupported || !isCpuConsumer) {
+                result = flinger->captureScreenImplLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             } else {
-                result = flinger->captureScreenImplLocked(hw,
+                result = flinger->captureScreenImplCpuConsumerLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             }
             return true;
