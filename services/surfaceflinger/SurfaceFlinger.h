@@ -412,6 +412,7 @@ private:
     HWComposer* mHwc;
     GLuint mProtectedTexName;
     nsecs_t mBootTime;
+    bool mGpuToCpuSupported;
     sp<EventThread> mEventThread;
     GLint mMaxViewportDims[2];
     GLint mMaxTextureSize;
