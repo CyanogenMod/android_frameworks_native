@@ -98,13 +98,12 @@ public:
     // This calls doGLFenceWait to ensure proper synchronization.
     status_t updateTexImage();
 
-    // setReleaseFence stores a fence file descriptor that will signal when the
-    // current buffer is no longer being read. This fence will be returned to
-    // the producer when the current buffer is released by updateTexImage().
-    // Multiple fences can be set for a given buffer; they will be merged into
-    // a single union fence. The GLConsumer will close the file descriptor
-    // when finished with it.
-    void setReleaseFence(int fenceFd);
+    // setReleaseFence stores a fence that will signal when the current buffer
+    // is no longer being read. This fence will be returned to the producer
+    // when the current buffer is released by updateTexImage(). Multiple
+    // fences can be set for a given buffer; they will be merged into a single
+    // union fence.
+    void setReleaseFence(const sp<Fence>& fence);
 
     // setDefaultMaxBufferCount sets the default limit on the maximum number
     // of buffers that will be allocated at one time. The image producer may
