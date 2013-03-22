@@ -480,6 +480,7 @@ int32_t SurfaceFlinger::allocateHwcDisplayId(DisplayDevice::DisplayType type) {
 
 void SurfaceFlinger::startBootAnim() {
     // start boot animation
+    mBootFinished = false;
     property_set("service.bootanim.exit", "0");
     property_set("ctl.start", "bootanim");
 }
@@ -1318,8 +1319,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 || (state.viewport != draw[i].viewport)
                                 || (state.frame != draw[i].frame))
                         {
-                            disp->setProjection(state.orientation,
-                                    state.viewport, state.frame);
+                            // Honor the orientation change after boot
+                            // animation completes or the new orientation is
+                            // same as panel orientation..
+                            if(mBootFinished ||
+                               state.orientation == disp->getOrientation()) {
+                                disp->setProjection(state.orientation,
+                                        state.viewport, state.frame);
+                            }
                         }
                         if (state.width != draw[i].width || state.height != draw[i].height) {
                             disp->setDisplaySize(state.width, state.height);
