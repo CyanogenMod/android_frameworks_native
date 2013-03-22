@@ -540,7 +540,6 @@ done:
 }
 
 
-/* a simpler version of dexOptGenerateCacheFileName() */
 int create_cache_path(char path[PKG_PATH_MAX], const char *src)
 {
     char *tmp;
@@ -580,7 +579,7 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
 }
 
 static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
-    const char* dexopt_flags)
+    const char* output_file_name, const char* dexopt_flags)
 {
     static const char* DEX_OPT_BIN = "/system/bin/dexopt";
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
@@ -590,9 +589,33 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
     sprintf(zip_num, "%d", zip_fd);
     sprintf(odex_num, "%d", odex_fd);
 
+    ALOGV("Running %s in=%s out=%s\n", DEX_OPT_BIN, input_file_name, output_file_name);
     execl(DEX_OPT_BIN, DEX_OPT_BIN, "--zip", zip_num, odex_num, input_file_name,
         dexopt_flags, (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX_OPT_BIN, strerror(errno));
+}
+
+static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
+    const char* output_file_name, const char* dexopt_flags)
+{
+    static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
+    static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
+    char zip_fd_arg[strlen("--zip-fd=") + MAX_INT_LEN];
+    char zip_location_arg[strlen("--zip-location=") + PKG_PATH_MAX];
+    char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
+    char oat_location_arg[strlen("--oat-name=") + PKG_PATH_MAX];
+
+    sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
+    sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
+    sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
+    sprintf(oat_location_arg, "--oat-location=%s", output_file_name);
+
+    ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
+    execl(DEX2OAT_BIN, DEX2OAT_BIN,
+          zip_fd_arg, zip_location_arg,
+          oat_fd_arg, oat_location_arg,
+          (char*) NULL);
+    ALOGE("execl(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
 }
 
 static int wait_dexopt(pid_t pid, const char* apk_path)
@@ -631,31 +654,33 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
 {
     struct utimbuf ut;
     struct stat apk_stat, dex_stat;
-    char dex_path[PKG_PATH_MAX];
+    char out_path[PKG_PATH_MAX];
     char dexopt_flags[PROPERTY_VALUE_MAX];
+    char dalvik_vm_lib[PROPERTY_VALUE_MAX];
     char *end;
-    int res, zip_fd=-1, odex_fd=-1;
+    int res, zip_fd=-1, out_fd=-1;
 
-        /* Before anything else: is there a .odex file?  If so, we have
-         * pre-optimized the apk and there is nothing to do here.
-         */
     if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
         return -1;
     }
 
     /* platform-specific flags affecting optimization and verification */
     property_get("dalvik.vm.dexopt-flags", dexopt_flags, "");
+    ALOGV("dalvik.vm.dexopt_flags=%s\n", dexopt_flags);
 
-    strcpy(dex_path, apk_path);
-    end = strrchr(dex_path, '.');
-    if (end != NULL) {
-        strcpy(end, ".odex");
-        if (stat(dex_path, &dex_stat) == 0) {
-            return 0;
-        }
+    /* The command to run depend ones the value of dalvik.vm.lib */
+    property_get("dalvik.vm.lib", dalvik_vm_lib, "libdvm.so");
+    ALOGV("dalvik.vm.lib=%s\n", dalvik_vm_lib);
+
+    /* Before anything else: is there a .odex file?  If so, we have
+     * precompiled the apk and there is nothing to do here.
+     */
+    sprintf(out_path, "%s%s", apk_path, ".odex");
+    if (stat(out_path, &dex_stat) == 0) {
+        return 0;
     }
 
-    if (create_cache_path(dex_path, apk_path)) {
+    if (create_cache_path(out_path, apk_path)) {
         return -1;
     }
 
@@ -664,24 +689,24 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
 
     zip_fd = open(apk_path, O_RDONLY, 0);
     if (zip_fd < 0) {
-        ALOGE("dexopt cannot open '%s' for input\n", apk_path);
+        ALOGE("installd cannot open '%s' for input during dexopt\n", apk_path);
         return -1;
     }
 
-    unlink(dex_path);
-    odex_fd = open(dex_path, O_RDWR | O_CREAT | O_EXCL, 0644);
-    if (odex_fd < 0) {
-        ALOGE("dexopt cannot open '%s' for output\n", dex_path);
+    unlink(out_path);
+    out_fd = open(out_path, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (out_fd < 0) {
+        ALOGE("installd cannot open '%s' for output during dexopt\n", out_path);
         goto fail;
     }
-    if (fchmod(odex_fd,
+    if (fchmod(out_fd,
                S_IRUSR|S_IWUSR|S_IRGRP |
                (is_public ? S_IROTH : 0)) < 0) {
-        ALOGE("dexopt cannot chmod '%s'\n", dex_path);
+        ALOGE("installd cannot chmod '%s' during dexopt\n", out_path);
         goto fail;
     }
-    if (fchown(odex_fd, AID_SYSTEM, uid) < 0) {
-        ALOGE("dexopt cannot chown '%s'\n", dex_path);
+    if (fchown(out_fd, AID_SYSTEM, uid) < 0) {
+        ALOGE("installd cannot chown '%s' during dexopt\n", out_path);
         goto fail;
     }
 
@@ -692,11 +717,11 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         if (setgid(uid) != 0) {
-            ALOGE("setgid(%d) failed during dexopt\n", uid);
+            ALOGE("setgid(%d) failed in installd during dexopt\n", uid);
             exit(64);
         }
         if (setuid(uid) != 0) {
-            ALOGE("setuid(%d) during dexopt\n", uid);
+            ALOGE("setuid(%d) failed in installd during dexopt\n", uid);
             exit(65);
         }
         // drop capabilities
@@ -709,33 +734,39 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
             ALOGE("capset failed: %s\n", strerror(errno));
             exit(66);
         }
-        if (flock(odex_fd, LOCK_EX | LOCK_NB) != 0) {
-            ALOGE("flock(%s) failed: %s\n", dex_path, strerror(errno));
+        if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
+            ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
             exit(67);
         }
 
-        run_dexopt(zip_fd, odex_fd, apk_path, dexopt_flags);
+        if (strncmp(dalvik_vm_lib, "libdvm", 6) == 0) {
+            run_dexopt(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
+        } else if (strncmp(dalvik_vm_lib, "libart", 6) == 0) {
+            run_dex2oat(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
+        } else {
+            exit(69);   /* Unexpected dalvik.vm.lib value */
+        }
         exit(68);   /* only get here on exec failure */
     } else {
         res = wait_dexopt(pid, apk_path);
         if (res != 0) {
-            ALOGE("dexopt failed on '%s' res = %d\n", dex_path, res);
+            ALOGE("dexopt in='%s' out='%s' res=%d\n", apk_path, out_path, res);
             goto fail;
         }
     }
 
     ut.actime = apk_stat.st_atime;
     ut.modtime = apk_stat.st_mtime;
-    utime(dex_path, &ut);
-    
-    close(odex_fd);
+    utime(out_path, &ut);
+
+    close(out_fd);
     close(zip_fd);
     return 0;
 
 fail:
-    if (odex_fd >= 0) {
-        close(odex_fd);
-        unlink(dex_path);
+    if (out_fd >= 0) {
+        close(out_fd);
+        unlink(out_path);
     }
     if (zip_fd >= 0) {
         close(zip_fd);
