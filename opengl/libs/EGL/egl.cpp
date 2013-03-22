@@ -222,9 +222,7 @@ static int gl_no_context() {
         char value[PROPERTY_VALUE_MAX];
         property_get("debug.egl.callstack", value, "0");
         if (atoi(value)) {
-            CallStack stack;
-            stack.update();
-            stack.dump();
+            CallStack stack(LOG_TAG);
         }
     }
     return 0;
