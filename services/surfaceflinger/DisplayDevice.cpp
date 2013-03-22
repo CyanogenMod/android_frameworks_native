@@ -70,12 +70,13 @@ void checkGLErrors()
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         DisplayType type,
+        int32_t hwcId,
         bool isSecure,
         const wp<IBinder>& displayToken,
         const sp<DisplaySurface>& displaySurface,
         EGLConfig config)
     : mFlinger(flinger),
-      mType(type), mHwcDisplayId(-1),
+      mType(type), mHwcDisplayId(hwcId),
       mDisplayToken(displayToken),
       mDisplaySurface(displaySurface),
       mDisplay(EGL_NO_DISPLAY),
@@ -91,7 +92,48 @@ DisplayDevice::DisplayDevice(
       mOrientation()
 {
     mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
-    init(config);
+    ANativeWindow* const window = mNativeWindow.get();
+
+    int format;
+    window->query(window, NATIVE_WINDOW_FORMAT, &format);
+
+    /*
+     * Create our display's surface
+     */
+
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    surface = eglCreateWindowSurface(display, config, window, NULL);
+    eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
+
+    mDisplay = display;
+    mSurface = surface;
+    mFormat  = format;
+    mPageFlipCount = 0;
+    mViewport.makeInvalid();
+    mFrame.makeInvalid();
+
+    // virtual displays are always considered enabled
+    mScreenAcquired = (mType >= DisplayDevice::DISPLAY_VIRTUAL);
+
+    // Name the display.  The name will be replaced shortly if the display
+    // was created with createDisplay().
+    switch (mType) {
+        case DISPLAY_PRIMARY:
+            mDisplayName = "Built-in Screen";
+            break;
+        case DISPLAY_EXTERNAL:
+            mDisplayName = "HDMI Screen";
+            break;
+        default:
+            mDisplayName = "Virtual Screen";    // e.g. Overlay #n
+            break;
+    }
+
+    // initialize the display orientation transform.
+    setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }
 
 DisplayDevice::~DisplayDevice() {
@@ -119,55 +161,6 @@ PixelFormat DisplayDevice::getFormat() const {
 
 EGLSurface DisplayDevice::getEGLSurface() const {
     return mSurface;
-}
-
-void DisplayDevice::init(EGLConfig config)
-{
-    ANativeWindow* const window = mNativeWindow.get();
-
-    int format;
-    window->query(window, NATIVE_WINDOW_FORMAT, &format);
-
-    /*
-     * Create our display's surface
-     */
-
-    EGLSurface surface;
-    EGLint w, h;
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    surface = eglCreateWindowSurface(display, config, window, NULL);
-    eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
-
-    mDisplay = display;
-    mSurface = surface;
-    mFormat  = format;
-    mPageFlipCount = 0;
-    mViewport.makeInvalid();
-    mFrame.makeInvalid();
-
-    // external displays are always considered enabled
-    mScreenAcquired = (mType >= DisplayDevice::NUM_DISPLAY_TYPES);
-
-    // get an h/w composer ID
-    mHwcDisplayId = mFlinger->allocateHwcDisplayId(mType);
-
-    // Name the display.  The name will be replaced shortly if the display
-    // was created with createDisplay().
-    switch (mType) {
-        case DISPLAY_PRIMARY:
-            mDisplayName = "Built-in Screen";
-            break;
-        case DISPLAY_EXTERNAL:
-            mDisplayName = "HDMI Screen";
-            break;
-        default:
-            mDisplayName = "Virtual Screen";    // e.g. Overlay #n
-            break;
-    }
-
-    // initialize the display orientation transform.
-    setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }
 
 void DisplayDevice::setDisplayName(const String8& displayName) {

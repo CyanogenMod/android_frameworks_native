@@ -510,7 +510,8 @@ status_t SurfaceFlinger::readyToRun()
             wp<IBinder> token = mBuiltinDisplays[i];
 
             sp<DisplayDevice> hw = new DisplayDevice(this,
-                    type, isSecure, token, new FramebufferSurface(*mHwc, i),
+                    type, allocateHwcDisplayId(type), isSecure, token,
+                    new FramebufferSurface(*mHwc, i),
                     mEGLConfig);
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
                 // FIXME: currently we don't get blank/unblank requests
@@ -1149,10 +1150,11 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const DisplayDeviceState& state(curr[i]);
 
                     sp<DisplaySurface> dispSurface;
+                    int32_t hwcDisplayId = allocateHwcDisplayId(state.type);
                     if (state.isVirtualDisplay()) {
                         if (state.surface != NULL) {
                             dispSurface = new VirtualDisplaySurface(
-                                    *mHwc, state.type, state.surface,
+                                    *mHwc, hwcDisplayId, state.surface,
                                     state.displayName);
                         }
                     } else {
@@ -1169,8 +1171,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const wp<IBinder>& display(curr.keyAt(i));
                     if (dispSurface != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
-                                state.type, state.isSecure, display,
-                                dispSurface, mEGLConfig);
+                                state.type, hwcDisplayId, state.isSecure,
+                                display, dispSurface, mEGLConfig);
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
