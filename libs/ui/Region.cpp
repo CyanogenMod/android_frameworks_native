@@ -530,9 +530,7 @@ bool Region::validate(const Region& reg, const char* name, bool silent)
     }
     if (result == false && !silent) {
         reg.dump(name);
-        CallStack stack;
-        stack.update();
-        stack.dump("");
+        CallStack stack(LOG_TAG);
     }
     return result;
 }
