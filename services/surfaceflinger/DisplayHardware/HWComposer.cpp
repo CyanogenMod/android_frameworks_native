@@ -512,6 +512,7 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
                 &disp.framebufferTarget->displayFrame;
             disp.framebufferTarget->acquireFenceFd = -1;
             disp.framebufferTarget->releaseFenceFd = -1;
+            disp.framebufferTarget->planeAlpha = 0xFF;
         }
         disp.list->retireFenceFd = -1;
         disp.list->flags = HWC_GEOMETRY_CHANGED;
