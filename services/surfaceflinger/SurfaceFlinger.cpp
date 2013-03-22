@@ -492,6 +492,10 @@ status_t SurfaceFlinger::readyToRun()
     mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
     mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
 
+    // figure out which format we got
+    eglGetConfigAttrib(mEGLDisplay, mEGLConfig,
+            EGL_NATIVE_VISUAL_ID, &mEGLNativeVisualId);
+
     LOG_ALWAYS_FATAL_IF(mEGLContext == EGL_NO_CONTEXT,
             "couldn't create EGLContext");
 
@@ -2331,13 +2335,18 @@ void SurfaceFlinger::dumpAllLocked(
             "  transaction-flags         : %08x\n"
             "  refresh-rate              : %f fps\n"
             "  x-dpi                     : %f\n"
-            "  y-dpi                     : %f\n",
+            "  y-dpi                     : %f\n"
+            "  EGL_NATIVE_VISUAL_ID      : %d\n"
+            "  gpu_to_cpu_unsupported    : %d\n"
+            ,
             mLastSwapBufferTime/1000.0,
             mLastTransactionTime/1000.0,
             mTransactionFlags,
             1e9 / hwc.getRefreshPeriod(HWC_DISPLAY_PRIMARY),
             hwc.getDpiX(HWC_DISPLAY_PRIMARY),
-            hwc.getDpiY(HWC_DISPLAY_PRIMARY));
+            hwc.getDpiY(HWC_DISPLAY_PRIMARY),
+            mEGLNativeVisualId,
+            !mGpuToCpuSupported);
     result.append(buffer);
 
     snprintf(buffer, SIZE, "  eglSwapBuffers time: %f us\n",
@@ -2549,12 +2558,27 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
-            // When we know the GL->CPU path works, we can call
-            // captureScreenImplLocked() directly, instead of using the
-            // "CpuConsumer" version, which is much less efficient -- it is
-            // however needed by some older drivers.
 
-            if (flinger->mGpuToCpuSupported || !isCpuConsumer) {
+            bool useReadPixels = false;
+            if (isCpuConsumer) {
+                bool formatSupportedBytBitmap =
+                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBA_8888) ||
+                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBX_8888);
+                if (formatSupportedBytBitmap == false) {
+                    // the pixel format we have is not compatible with
+                    // Bitmap.java, which is the likely client of this API,
+                    // so we just revert to glReadPixels() in that case.
+                    useReadPixels = true;
+                }
+                if (flinger->mGpuToCpuSupported == false) {
+                    // When we know the GL->CPU path works, we can call
+                    // captureScreenImplLocked() directly, instead of using the
+                    // glReadPixels() workaround.
+                    useReadPixels = true;
+                }
+            }
+
+            if (!useReadPixels) {
                 result = flinger->captureScreenImplLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             } else {
