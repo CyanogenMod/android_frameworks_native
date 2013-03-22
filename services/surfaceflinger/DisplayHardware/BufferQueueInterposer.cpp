@@ -16,6 +16,7 @@
 
 #undef LOG_TAG
 #define LOG_TAG "BQInterposer"
+//#define LOG_NDEBUG 0
 
 #include "BufferQueueInterposer.h"
 
@@ -42,19 +43,6 @@ BufferQueueInterposer::BufferQueueInterposer(
     mAcquired(false)
 {
     BQI_LOGV("BufferQueueInterposer sink=%p", sink.get());
-
-    // We need one additional dequeued buffer beyond what the source needs.
-    // To have more than one (the default), we must call setBufferCount. But
-    // we have no way of knowing what the sink has set as the minimum buffer
-    // count, so if we just call setBufferCount(3) it may fail (and does, on
-    // one device using a video encoder sink). So far on the devices we care
-    // about, this is the smallest value that works.
-    //
-    // TODO: Change IGraphicBufferProducer and implementations to support this.
-    // Maybe change it so both the consumer and producer declare how many
-    // buffers they need, and the IGBP adds them? Then BQInterposer would just
-    // add 1 to the source's buffer count.
-    mSink->setBufferCount(6);
 }
 
 BufferQueueInterposer::~BufferQueueInterposer() {
