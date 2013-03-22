@@ -59,20 +59,20 @@ namespace android {
 //   existing interfaces have some problems when the implementation isn't the
 //   final consumer.
 //
-// - The interposer needs at least one buffer in addition to those used by the
-//   source and sink. setBufferCount and QueueBufferOutput both need to
-//   account for this. It's not possible currently to do this generically,
-//   since we can't find out how many buffers the source and sink need. (See
-//   the horrible hack in the BufferQueueInterposer constructor).
+// - The client of the interposer may need one or more buffers in addition to
+//   those used by the source and sink. IGraphicBufferProducer will probably
+//   need to change to allow the producer to specify how many buffers it needs
+//   to dequeue at a time, and then the interposer can add its requirements to
+//   those of the source.
 //
 // - Abandoning, disconnecting, and connecting need to pass through somehow.
 //   There needs to be a way to tell the interposer client to release its
 //   buffer immediately so it can be queued/released, e.g. when the source
 //   calls disconnect().
 //
-// - Right now the source->BQI queue is synchronous even if the BQI->sink
-//   queue is asynchronous. Need to figure out how asynchronous should behave
-//   and implement that.
+// - Right now the source->BQI queue is synchronous even if the BQI->sink queue
+//   is asynchronous. Need to figure out how asynchronous should behave and
+//   implement that.
 
 class BufferQueueInterposer : public BnGraphicBufferProducer {
 public:

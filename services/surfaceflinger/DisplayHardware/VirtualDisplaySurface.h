@@ -58,7 +58,7 @@ public:
 
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
-    virtual status_t setReleaseFenceFd(int fenceFd);
+    virtual void onFrameCommitted(int fenceFd);
     virtual void dump(String8& result) const;
 
 private:
@@ -73,7 +73,6 @@ private:
     // mutable, must be synchronized with mMutex
     Mutex mMutex;
     sp<GraphicBuffer> mAcquiredBuffer;
-    sp<Fence> mReleaseFence;
 };
 
 // ---------------------------------------------------------------------------
