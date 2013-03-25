@@ -21,24 +21,30 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int disp,
+VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
         const sp<IGraphicBufferProducer>& sink, const String8& name)
 :   mHwc(hwc),
-    mDisplayId(disp),
-    mSource(new BufferQueueInterposer(sink, name)),
+    mDisplayId(dispId),
     mName(name)
-{}
+{
+    if (mDisplayId >= 0) {
+        mInterposer = new BufferQueueInterposer(sink, name);
+        mSourceProducer = mInterposer;
+    } else {
+        mSourceProducer = sink;
+    }
+}
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {
     if (mAcquiredBuffer != NULL) {
-        status_t result = mSource->releaseBuffer(Fence::NO_FENCE);
+        status_t result = mInterposer->releaseBuffer(Fence::NO_FENCE);
         ALOGE_IF(result != NO_ERROR, "VirtualDisplaySurface \"%s\": "
                 "failed to release buffer: %d", mName.string(), result);
     }
 }
 
 sp<IGraphicBufferProducer> VirtualDisplaySurface::getIGraphicBufferProducer() const {
-    return mSource;
+    return mSourceProducer;
 }
 
 status_t VirtualDisplaySurface::compositionComplete() {
@@ -46,6 +52,9 @@ status_t VirtualDisplaySurface::compositionComplete() {
 }
 
 status_t VirtualDisplaySurface::advanceFrame() {
+    if (mInterposer == NULL)
+        return NO_ERROR;
+
     Mutex::Autolock lock(mMutex);
     status_t result = NO_ERROR;
 
@@ -57,12 +66,12 @@ status_t VirtualDisplaySurface::advanceFrame() {
     }
 
     sp<Fence> fence;
-    result = mSource->acquireBuffer(&mAcquiredBuffer, &fence);
+    result = mInterposer->acquireBuffer(&mAcquiredBuffer, &fence);
     if (result == BufferQueueInterposer::NO_BUFFER_AVAILABLE) {
-        result = mSource->pullEmptyBuffer();
+        result = mInterposer->pullEmptyBuffer();
         if (result != NO_ERROR)
             return result;
-        result = mSource->acquireBuffer(&mAcquiredBuffer, &fence);
+        result = mInterposer->acquireBuffer(&mAcquiredBuffer, &fence);
     }
     if (result != NO_ERROR)
         return result;
@@ -71,6 +80,9 @@ status_t VirtualDisplaySurface::advanceFrame() {
 }
 
 void VirtualDisplaySurface::onFrameCommitted() {
+    if (mInterposer == NULL)
+        return;
+
     Mutex::Autolock lock(mMutex);
     if (mAcquiredBuffer != NULL) {
         // fbFence signals when reads from the framebuffer are finished
@@ -85,7 +97,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
                 String8::format("HWC done: %.21s", mName.string()),
                 fbFence, outFence);
 
-        status_t result = mSource->releaseBuffer(fence);
+        status_t result = mInterposer->releaseBuffer(fence);
         ALOGE_IF(result != NO_ERROR, "VirtualDisplaySurface \"%s\": "
                 "failed to release buffer: %d", mName.string(), result);
         mAcquiredBuffer.clear();
