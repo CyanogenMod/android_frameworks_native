@@ -1102,12 +1102,14 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // Call makeCurrent() on the primary display so we can
                         // be sure that nothing associated with this display
                         // is current.
-                        const sp<const DisplayDevice> hw(getDefaultDisplayDevice());
-                        DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
-                        mDisplays.removeItem(draw.keyAt(i));
-                        getHwComposer().disconnectDisplay(draw[i].type);
+                        const sp<const DisplayDevice> defaultDisplay(getDefaultDisplayDevice());
+                        DisplayDevice::makeCurrent(mEGLDisplay, defaultDisplay, mEGLContext);
+                        sp<DisplayDevice> hw(getDisplayDevice(draw.keyAt(i)));
+                        if (hw != NULL)
+                            hw->disconnect(getHwComposer());
                         if (draw[i].type < DisplayDevice::NUM_DISPLAY_TYPES)
                             mEventThread->onHotplugReceived(draw[i].type, false);
+                        mDisplays.removeItem(draw.keyAt(i));
                     } else {
                         ALOGW("trying to remove the main display");
                     }
@@ -1120,6 +1122,9 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // recreating the DisplayDevice, so we just remove it
                         // from the drawing state, so that it get re-added
                         // below.
+                        sp<DisplayDevice> hw(getDisplayDevice(display));
+                        if (hw != NULL)
+                            hw->disconnect(getHwComposer());
                         mDisplays.removeItem(display);
                         mDrawingState.displays.removeItemsAt(i);
                         dc--; i--;
@@ -1150,9 +1155,13 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const DisplayDeviceState& state(curr[i]);
 
                     sp<DisplaySurface> dispSurface;
-                    int32_t hwcDisplayId = allocateHwcDisplayId(state.type);
+                    int32_t hwcDisplayId = -1;
                     if (state.isVirtualDisplay()) {
+                        // Virtual displays without a surface are dormant:
+                        // they have external state (layer stack, projection,
+                        // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
+                            hwcDisplayId = allocateHwcDisplayId(state.type);
                             dispSurface = new VirtualDisplaySurface(
                                     *mHwc, hwcDisplayId, state.surface,
                                     state.displayName);
@@ -1162,7 +1171,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 "adding a supported display, but rendering "
                                 "surface is provided (%p), ignoring it",
                                 state.surface.get());
-
+                        hwcDisplayId = allocateHwcDisplayId(state.type);
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
                         dispSurface = new FramebufferSurface(*mHwc, state.type);

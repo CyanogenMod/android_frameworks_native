@@ -953,17 +953,17 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
+            if (!disp.connected)
+                continue;
 
             const Vector< sp<Layer> >& visibleLayersSortedByZ =
                     mFlinger->getLayerSortedByZForHwcDisplay(i);
 
-            if (disp.connected) {
-                result.appendFormat(
-                        "  Display[%d] : %ux%u, xdpi=%f, ydpi=%f, refresh=%lld\n",
-                        i, disp.width, disp.height, disp.xdpi, disp.ydpi, disp.refresh);
-            }
+            result.appendFormat(
+                    "  Display[%d] : %ux%u, xdpi=%f, ydpi=%f, refresh=%lld\n",
+                    i, disp.width, disp.height, disp.xdpi, disp.ydpi, disp.refresh);
 
-            if (disp.list && disp.connected) {
+            if (disp.list) {
                 result.appendFormat(
                         "  numHwLayers=%u, flags=%08x\n",
                         disp.list->numHwLayers, disp.list->flags);

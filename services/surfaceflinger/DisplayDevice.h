@@ -146,6 +146,9 @@ public:
     bool isScreenAcquired() const;
     bool canDraw() const;
 
+    // release HWC resources (if any) for removable displays
+    void disconnect(HWComposer& hwc);
+
     /* ------------------------------------------------------------------------
      * Debugging
      */
