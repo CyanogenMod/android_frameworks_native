@@ -72,6 +72,7 @@ public:
     DisplayDevice(
             const sp<SurfaceFlinger>& flinger,
             DisplayType type,
+            int32_t hwcId,  // negative for non-HWC-composited displays
             bool isSecure,
             const wp<IBinder>& displayToken,
             const sp<DisplaySurface>& displaySurface,
@@ -152,8 +153,6 @@ public:
     void dump(String8& result, char* buffer, size_t SIZE) const;
 
 private:
-    void init(EGLConfig config);
-
     /*
      *  Constants, set during initialization
      */
