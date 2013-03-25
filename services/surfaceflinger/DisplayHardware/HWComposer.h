@@ -128,6 +128,17 @@ public:
     int fbCompositionComplete();
     void fbDump(String8& result);
 
+    // Set the output buffer and acquire fence for a virtual display.
+    // Returns INVALID_OPERATION if id is not a virtual display.
+    status_t setOutputBuffer(int32_t id, const sp<Fence>& acquireFence,
+            const sp<GraphicBuffer>& buf);
+
+    // Get the retire fence for the last committed frame. This fence will
+    // signal when the h/w composer is completely finished with the frame.
+    // For physical displays, it is no longer being displayed. For virtual
+    // displays, writes to the output buffer are complete.
+    sp<Fence> getLastRetireFence(int32_t id);
+
     /*
      * Interface to hardware composer's layers functionality.
      * This abstracts the HAL interface to layers which can evolve in
@@ -306,6 +317,8 @@ private:
         sp<Fence> lastRetireFence;  // signals when the last set op retires
         sp<Fence> lastDisplayFence; // signals when the last set op takes
                                     // effect on screen
+        buffer_handle_t outbufHandle;
+        sp<Fence> outbufAcquireFence;
 
         // protected by mEventControlLock
         int32_t events;

@@ -49,10 +49,9 @@ public:
     virtual status_t advanceFrame() = 0;
 
     // onFrameCommitted is called after the frame has been committed to the
-    // hardware composer and a release fence is available for the buffer.
-    // Further operations on the buffer can be queued as long as they wait for
-    // the fence to signal.
-    virtual void onFrameCommitted(const sp<Fence>& fence) = 0;
+    // hardware composer. The surface collects the release fence for this
+    // frame's buffer.
+    virtual void onFrameCommitted() = 0;
 
     virtual void dump(String8& result) const = 0;
 
