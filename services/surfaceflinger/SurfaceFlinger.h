@@ -122,7 +122,7 @@ public:
 
     // for debugging only
     // TODO: this should be made accessible only to HWComposer
-    const Vector< sp<Layer> >& getLayerSortedByZForHwcDisplay(int disp);
+    const Vector< sp<Layer> >& getLayerSortedByZForHwcDisplay(int id);
 
 private:
     friend class Client;

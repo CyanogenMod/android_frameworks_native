@@ -2381,9 +2381,21 @@ void SurfaceFlinger::dumpAllLocked(
 }
 
 const Vector< sp<Layer> >&
-SurfaceFlinger::getLayerSortedByZForHwcDisplay(int disp) {
+SurfaceFlinger::getLayerSortedByZForHwcDisplay(int id) {
     // Note: mStateLock is held here
-    return getDisplayDevice( getBuiltInDisplay(disp) )->getVisibleLayersSortedByZ();
+    wp<IBinder> dpy;
+    for (size_t i=0 ; i<mDisplays.size() ; i++) {
+        if (mDisplays.valueAt(i)->getHwcDisplayId() == id) {
+            dpy = mDisplays.keyAt(i);
+            break;
+        }
+    }
+    if (dpy == NULL) {
+        ALOGE("getLayerSortedByZForHwcDisplay: invalid hwc display id %d", id);
+        // Just use the primary display so we have something to return
+        dpy = getBuiltInDisplay(DisplayDevice::DISPLAY_PRIMARY);
+    }
+    return getDisplayDevice(dpy)->getVisibleLayersSortedByZ();
 }
 
 bool SurfaceFlinger::startDdmConnection()
