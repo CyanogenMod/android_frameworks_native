@@ -657,15 +657,12 @@ status_t HWComposer::commit() {
             mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
         }
 
-        // For virtual displays, the framebufferTarget buffer also serves as
-        // the HWC output buffer, so we need to copy the buffer handle and
-        // dup() the acquire fence.
         for (size_t i=VIRTUAL_DISPLAY_ID_BASE; i<mNumDisplays; i++) {
             DisplayData& disp(mDisplayData[i]);
-            if (disp.framebufferTarget) {
-                mLists[i]->outbuf = disp.framebufferTarget->handle;
+            if (disp.outbufHandle) {
+                mLists[i]->outbuf = disp.outbufHandle;
                 mLists[i]->outbufAcquireFenceFd =
-                        dup(disp.framebufferTarget->acquireFenceFd);
+                        disp.outbufAcquireFence->dup();
             }
         }
 
@@ -706,17 +703,15 @@ status_t HWComposer::acquire(int disp) {
 
 void HWComposer::disconnectDisplay(int disp) {
     LOG_ALWAYS_FATAL_IF(disp < 0 || disp == HWC_DISPLAY_PRIMARY);
-    if (disp >= HWC_NUM_DISPLAY_TYPES) {
-        // nothing to do for these yet
-        return;
-    }
     DisplayData& dd(mDisplayData[disp]);
-    if (dd.list != NULL) {
-        free(dd.list);
-        dd.list = NULL;
-        dd.framebufferTarget = NULL;    // points into dd.list
-        dd.fbTargetHandle = NULL;
-    }
+    free(dd.list);
+    dd.list = NULL;
+    dd.framebufferTarget = NULL;    // points into dd.list
+    dd.fbTargetHandle = NULL;
+    dd.outbufHandle = NULL;
+    dd.lastRetireFence = Fence::NO_FENCE;
+    dd.lastDisplayFence = Fence::NO_FENCE;
+    dd.outbufAcquireFence = Fence::NO_FENCE;
 }
 
 int HWComposer::getVisualID() const {
@@ -763,6 +758,25 @@ void HWComposer::fbDump(String8& result) {
         mFbDev->dump(mFbDev, buffer, SIZE);
         result.append(buffer);
     }
+}
+
+status_t HWComposer::setOutputBuffer(int32_t id, const sp<Fence>& acquireFence,
+        const sp<GraphicBuffer>& buf) {
+    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return BAD_INDEX;
+    if (id < VIRTUAL_DISPLAY_ID_BASE)
+        return INVALID_OPERATION;
+
+    DisplayData& disp(mDisplayData[id]);
+    disp.outbufHandle = buf->handle;
+    disp.outbufAcquireFence = acquireFence;
+    return NO_ERROR;
+}
+
+sp<Fence> HWComposer::getLastRetireFence(int32_t id) {
+    if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return Fence::NO_FENCE;
+    return mDisplayData[id].lastRetireFence;
 }
 
 /*
@@ -1071,6 +1085,7 @@ HWComposer::DisplayData::DisplayData()
     capacity(0), list(NULL),
     framebufferTarget(NULL), fbTargetHandle(0),
     lastRetireFence(Fence::NO_FENCE), lastDisplayFence(Fence::NO_FENCE),
+    outbufHandle(NULL), outbufAcquireFence(Fence::NO_FENCE),
     events(0)
 {}
 

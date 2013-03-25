@@ -140,7 +140,8 @@ void FramebufferSurface::freeBufferLocked(int slotIndex) {
     }
 }
 
-void FramebufferSurface::onFrameCommitted(const sp<Fence>& fence) {
+void FramebufferSurface::onFrameCommitted() {
+    sp<Fence> fence = mHwc.getAndResetReleaseFence(mDisplayType);
     if (fence->isValid() &&
             mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
         status_t err = addReleaseFence(mCurrentBufferSlot, fence);
