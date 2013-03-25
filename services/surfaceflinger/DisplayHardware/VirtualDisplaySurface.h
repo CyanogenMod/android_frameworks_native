@@ -45,12 +45,18 @@ class HWComposer;
  * eglSwapBuffers doesn't immediately dequeue a buffer for the next frame,
  * since we can't rely on being able to dequeue more than one buffer at a time.
  *
+ * This class also has a passthrough mode, where it doesn't use a
+ * BufferQueueInterposer and never sends buffers to HWC. Instead, OpenGL ES
+ * output buffers are queued directly to the virtual display sink; this class
+ * is inactive after construction. This mode is used when the HWC doesn't
+ * support compositing for virtual displays.
+ *
  * TODO(jessehall): Add a libgui test that ensures that EGL/GLES do lazy
  * dequeBuffers; we've wanted to require that for other reasons anyway.
  */
 class VirtualDisplaySurface : public DisplaySurface {
 public:
-    VirtualDisplaySurface(HWComposer& hwc, int disp,
+    VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
             const sp<IGraphicBufferProducer>& sink,
             const String8& name);
 
@@ -66,9 +72,13 @@ private:
 
     // immutable after construction
     HWComposer& mHwc;
-    int mDisplayId;
-    sp<BufferQueueInterposer> mSource;
+    int32_t mDisplayId;
     String8 mName;
+
+    // with HWC support, both of these point to the same object.
+    // otherwise, mInterposer is NULL and mSourceProducer is the sink.
+    sp<BufferQueueInterposer> mInterposer;
+    sp<IGraphicBufferProducer> mSourceProducer;
 
     // mutable, must be synchronized with mMutex
     Mutex mMutex;
