@@ -478,7 +478,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (do_broadcast && use_outfile && do_fb) {
-        run_command(NULL, 5, "/system/bin/am", "broadcast",
+        run_command(NULL, 5, "/system/bin/am", "broadcast", "--user", "0",
                 "-a", "android.intent.action.BUGREPORT_FINISHED",
                 "--es", "android.intent.extra.BUGREPORT", path,
                 "--es", "android.intent.extra.SCREENSHOT", screenshot_path,
