@@ -37,6 +37,8 @@ namespace android {
 
 #if USE_FAST_TLS_KEY
 
+    #if defined(__arm__)
+
     #define GET_TLS(reg) "mrc p15, 0, " #reg ", c13, c0, 3 \n"
 
     #define API_ENTRY(_api) __attribute__((naked)) _api
@@ -56,6 +58,41 @@ namespace android {
                                       ext.extensions[_api]))    \
             :                                                   \
             );
+
+    #elif defined(__mips__)
+
+        #define API_ENTRY(_api) __attribute__((noinline)) _api
+
+        #define CALL_GL_EXTENSION_API(_api, ...)                    \
+            register unsigned int t0 asm("t0");                     \
+            register unsigned int fn asm("t1");                     \
+            register unsigned int tls asm("v1");                    \
+            asm volatile(                                           \
+                ".set  push\n\t"                                    \
+                ".set  noreorder\n\t"                               \
+                ".set  mips32r2\n\t"                                \
+                "rdhwr %[tls], $29\n\t"                             \
+                "lw    %[t0], %[OPENGL_API](%[tls])\n\t"            \
+                "beqz  %[t0], 1f\n\t"                               \
+                " move %[fn], $ra\n\t"                              \
+                "lw    %[fn], %[API](%[t0])\n\t"                    \
+                "movz  %[fn], $ra, %[fn]\n\t"                       \
+                "1:\n\t"                                            \
+                "j     %[fn]\n\t"                                   \
+                " nop\n\t"                                          \
+                ".set  pop\n\t"                                     \
+                : [fn] "=c"(fn),                                    \
+                  [tls] "=&r"(tls),                                 \
+                  [t0] "=&r"(t0)                                    \
+                : [OPENGL_API] "I"(TLS_SLOT_OPENGL_API*4),          \
+                  [API] "I"(__builtin_offsetof(gl_hooks_t,          \
+                                          ext.extensions[_api]))    \
+                :                                                   \
+            );
+
+    #else
+        #error Unsupported architecture
+    #endif
 
     #define GL_EXTENSION_NAME(_n)   __glExtFwd##_n
 
