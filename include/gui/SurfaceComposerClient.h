@@ -170,6 +170,7 @@ private:
 
 public:
     ScreenshotClient();
+    ~ScreenshotClient();
 
     // frees the previous screenshot and capture a new one
     status_t update(const sp<IBinder>& display);
