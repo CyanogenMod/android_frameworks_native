@@ -627,6 +627,10 @@ ScreenshotClient::ScreenshotClient()
     memset(&mBuffer, 0, sizeof(mBuffer));
 }
 
+ScreenshotClient::~ScreenshotClient() {
+    ScreenshotClient::release();
+}
+
 sp<CpuConsumer> ScreenshotClient::getCpuConsumer() const {
     if (mCpuConsumer == NULL) {
         mCpuConsumer = new CpuConsumer(1);
