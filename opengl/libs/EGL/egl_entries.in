@@ -56,6 +56,7 @@ EGL_ENTRY(EGLBoolean,  eglDestroyImageKHR,  EGLDisplay, EGLImageKHR)
 EGL_ENTRY(EGLSyncKHR,   eglCreateSyncKHR,       EGLDisplay, EGLenum, const EGLint *)
 EGL_ENTRY(EGLBoolean,   eglDestroySyncKHR,      EGLDisplay, EGLSyncKHR)
 EGL_ENTRY(EGLint,       eglClientWaitSyncKHR,   EGLDisplay, EGLSyncKHR, EGLint, EGLTimeKHR)
+EGL_ENTRY(EGLBoolean,   eglSignalSyncKHR,       EGLDisplay, EGLSyncKHR, EGLenum)
 EGL_ENTRY(EGLBoolean,   eglGetSyncAttribKHR,    EGLDisplay, EGLSyncKHR, EGLint, EGLint *)
 
 /* ANDROID extensions */
