@@ -433,8 +433,10 @@ static bool setKernelTraceFuncs(const char* funcs)
 
     if (funcs == NULL || funcs[0] == '\0') {
         // Disable kernel function tracing.
-        ok &= writeStr(k_currentTracerPath, "nop");
-        if (fileExists(k_ftraceFilterPath)) {
+        if (fileIsWritable(k_currentTracerPath)) {
+            ok &= writeStr(k_currentTracerPath, "nop");
+        }
+        if (fileIsWritable(k_ftraceFilterPath)) {
             ok &= truncateFile(k_ftraceFilterPath);
         }
     } else {
@@ -761,11 +763,11 @@ int main(int argc, char **argv)
 
             case 'k':
                 g_kernelTraceFuncs = optarg;
-                break;
+            break;
 
             case 'n':
                 g_nohup = true;
-                break;
+            break;
 
             case 's':
                 g_initialSleepSecs = atoi(optarg);
@@ -796,7 +798,7 @@ int main(int argc, char **argv)
                     listSupportedCategories();
                     exit(0);
                 }
-                break;
+            break;
 
             default:
                 fprintf(stderr, "\n");
