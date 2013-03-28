@@ -24,9 +24,10 @@
 ** MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 */
 
-/* Platform-specific types and definitions.
- * $Revision: 7244 $ on $Date: 2009-01-20 17:06:59 -0800 (Tue, 20 Jan 2009) $
- * 
+/* Khronos platform-specific types and definitions.
+ *
+ * $Revision: 9356 $ on $Date: 2009-10-21 02:52:25 -0700 (Wed, 21 Oct 2009) $
+ *
  * Adopters may modify this file to suit their platform. Adopters are
  * encouraged to submit platform specific modifications to the Khronos
  * group so that they can be included in future versions of this file.
@@ -37,19 +38,19 @@
  * A predefined template which fills in some of the bug fields can be
  * reached using http://tinyurl.com/khrplatform-h-bugreport, but you
  * must create a Bugzilla login first.
- * 
+ *
  *
  * See the Implementer's Guidelines for information about where this file
- * should be located on your system.
+ * should be located on your system and for more details of its use:
  *    http://www.khronos.org/registry/implementers_guide.pdf
  *
- * 
  * This file should be included as
  *        #include <KHR/khrplatform.h>
- * by the Khronos API header file that uses its types and defines.
+ * by Khronos client API header files that use its types and defines.
  *
- * The types in this file should only be used to define API-specific types.
- * Types defined in this file:
+ * The types in khrplatform.h should only be used to define API-specific types.
+ *
+ * Types defined in khrplatform.h:
  *    khronos_int8_t              signed   8  bit
  *    khronos_uint8_t             unsigned 8  bit
  *    khronos_int16_t             signed   16 bit
@@ -67,16 +68,25 @@
  *    khronos_utime_nanoseconds_t unsigned time interval or absolute time in
  *                                         nanoseconds
  *    khronos_stime_nanoseconds_t signed time interval in nanoseconds
+ *    khronos_boolean_enum_t      enumerated boolean type. This should
+ *      only be used as a base type when a client API's boolean type is
+ *      an enum. Client APIs which use an integer or other type for
+ *      booleans cannot use this as the base type for their boolean.
  *
- * KHRONOS_SUPPORT_INT64 is 1 if 64 bit integers are supported; otherwise 0.
- * KHRONOS_SUPPORT_FLOAT is 1 if floats are supported; otherwise 0.
- * 
+ * Tokens defined in khrplatform.h:
  *
- * Macros defined in this file:
+ *    KHRONOS_FALSE, KHRONOS_TRUE Enumerated boolean false/true values.
+ *
+ *    KHRONOS_SUPPORT_INT64 is 1 if 64 bit integers are supported; otherwise 0.
+ *    KHRONOS_SUPPORT_FLOAT is 1 if floats are supported; otherwise 0.
+ *
+ * Calling convention macros defined in this file:
  *    KHRONOS_APICALL
  *    KHRONOS_APIENTRY
  *    KHRONOS_APIATTRIBUTES
+ *
  * These may be used in function prototypes as:
+ *
  *      KHRONOS_APICALL void KHRONOS_APIENTRY funcname(
  *                                  int arg1,
  *                                  int arg2) KHRONOS_APIATTRIBUTES;
@@ -228,16 +238,34 @@ typedef          float         khronos_float_t;
 #if KHRONOS_SUPPORT_INT64
 /* Time types
  *
- * These types can be used to represent a time interval in nanoseconds or 
- * an absolute Unadjusted System Time.  Unadjusted System Time is the number 
- * of nanoseconds since some arbitrary system event (e.g. since the last 
- * time the system booted).  The Unadjusted System Time is an unsigned 
- * 64 bit value that wraps back to 0 every 584 years.  Time intervals 
+ * These types can be used to represent a time interval in nanoseconds or
+ * an absolute Unadjusted System Time.  Unadjusted System Time is the number
+ * of nanoseconds since some arbitrary system event (e.g. since the last
+ * time the system booted).  The Unadjusted System Time is an unsigned
+ * 64 bit value that wraps back to 0 every 584 years.  Time intervals
  * may be either signed or unsigned.
  */
 typedef khronos_uint64_t       khronos_utime_nanoseconds_t;
 typedef khronos_int64_t        khronos_stime_nanoseconds_t;
 #endif
 
+/*
+ * Dummy value used to pad enum types to 32 bits.
+ */
+#ifndef KHRONOS_MAX_ENUM
+#define KHRONOS_MAX_ENUM 0x7FFFFFFF
+#endif
+
+/*
+ * Enumerated boolean type
+ *
+ * Values other than zero should be considered to be true.  Therefore
+ * comparisons should not be made against KHRONOS_TRUE.
+ */
+typedef enum {
+    KHRONOS_FALSE = 0,
+    KHRONOS_TRUE  = 1,
+    KHRONOS_BOOLEAN_ENUM_FORCE_SIZE = KHRONOS_MAX_ENUM
+} khronos_boolean_enum_t;
 
 #endif /* __khrplatform_h_ */
