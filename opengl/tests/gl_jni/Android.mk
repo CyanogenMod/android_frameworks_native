@@ -30,7 +30,7 @@ include $(CLEAR_VARS)
 # Optional tag would mean it doesn't get installed by default
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_CFLAGS := -Werror
+LOCAL_CFLAGS := -Werror -Wno-error=unused-parameter
 
 LOCAL_SRC_FILES:= \
   gl_code.cpp
