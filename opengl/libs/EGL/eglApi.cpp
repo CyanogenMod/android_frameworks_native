@@ -54,25 +54,105 @@ using namespace android;
 
 #define EGL_VERSION_HW_ANDROID  0x3143
 
+namespace android {
+
 struct extention_map_t {
     const char* name;
     __eglMustCastToProperFunctionPointerType address;
 };
 
-static const extention_map_t sExtentionMap[] = {
+/*
+ * This is the list of EGL extensions exposed to applications,
+ * some of them are mandatory because used by the ANDROID system.
+ *
+ * Mandatory extensions are required per the CDD and not explicitly
+ * checked during EGL initialization. the system *assumes* these extensions
+ * are present. the system may not function properly if some mandatory
+ * extensions are missing.
+ *
+ * NOTE: gExtensionString MUST have a single space as the last character.
+ */
+extern char const * const gExtensionString  =
+        "EGL_KHR_image "                        // mandatory
+        "EGL_KHR_image_base "                   // mandatory
+        "EGL_KHR_image_pixmap "
+        "EGL_KHR_lock_surface "
+        "EGL_KHR_gl_texture_2D_image "
+        "EGL_KHR_gl_texture_cubemap_image "
+        "EGL_KHR_gl_renderbuffer_image "
+        "EGL_KHR_reusable_sync "
+        "EGL_KHR_fence_sync "
+        "EGL_EXT_create_context_robustness "
+        "EGL_NV_system_time "
+        "EGL_ANDROID_image_native_buffer "      // mandatory
+        "EGL_KHR_wait_sync "                    // strongly recommended
+        "EGL_ANDROID_presentation_time "
+        ;
+
+// extensions not exposed to applications but used by the ANDROID system
+//      "EGL_ANDROID_blob_cache "               // strongly recommended
+//      "EGL_IMG_hibernate_process "            // optional
+//      "EGL_ANDROID_native_fence_sync "        // strongly recommended
+//      "EGL_ANDROID_framebuffer_target "       // mandatory for HWC 1.1
+//      "EGL_ANDROID_recordable "               // mandatory
+
+
+/*
+ * EGL Extensions entry-points exposed to 3rd party applications
+ * (keep in sync with gExtensionString above)
+ *
+ */
+static const extention_map_t sExtensionMap[] = {
+    // EGL_KHR_lock_surface
     { "eglLockSurfaceKHR",
             (__eglMustCastToProperFunctionPointerType)&eglLockSurfaceKHR },
     { "eglUnlockSurfaceKHR",
             (__eglMustCastToProperFunctionPointerType)&eglUnlockSurfaceKHR },
+
+    // EGL_KHR_image, EGL_KHR_image_base
     { "eglCreateImageKHR",
             (__eglMustCastToProperFunctionPointerType)&eglCreateImageKHR },
     { "eglDestroyImageKHR",
             (__eglMustCastToProperFunctionPointerType)&eglDestroyImageKHR },
+
+    // EGL_KHR_reusable_sync, EGL_KHR_fence_sync
+    { "eglCreateSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglCreateSyncKHR },
+    { "eglDestroySyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglDestroySyncKHR },
+    { "eglClientWaitSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglClientWaitSyncKHR },
+    { "eglSignalSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglSignalSyncKHR },
+    { "eglGetSyncAttribKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglGetSyncAttribKHR },
+
+    // EGL_NV_system_time
     { "eglGetSystemTimeFrequencyNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeFrequencyNV },
     { "eglGetSystemTimeNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeNV },
+
+    // EGL_KHR_wait_sync
+    { "eglWaitSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglWaitSyncKHR },
+
+    // EGL_ANDROID_presentation_time
+    { "eglPresentationTimeANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglPresentationTimeANDROID },
 };
+
+/*
+ * These extensions entry-points should not be exposed to applications.
+ * They're used internally by the Android EGL layer.
+ */
+#define FILTER_EXTENSIONS(procname) \
+        (!strcmp((procname), "eglSetBlobCacheFuncsANDROID") ||    \
+         !strcmp((procname), "eglHibernateProcessIMG")      ||    \
+         !strcmp((procname), "eglAwakenProcessIMG")         ||    \
+         !strcmp((procname), "eglDupNativeFenceFDANDROID"))
+
+
 
 // accesses protected by sExtensionMapMutex
 static DefaultKeyedVector<String8, __eglMustCastToProperFunctionPointerType> sGLExtentionMap;
@@ -91,14 +171,15 @@ static void(*findProcAddress(const char* name,
 
 // ----------------------------------------------------------------------------
 
-namespace android {
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 extern EGLBoolean egl_init_drivers();
 extern const __eglMustCastToProperFunctionPointerType gExtensionForwarders[MAX_NUMBER_OF_GL_EXTENSIONS];
 extern int getEGLDebugLevel();
 extern void setEGLDebugLevel(int level);
 extern gl_hooks_t gHooksTrace;
+
 } // namespace android;
+
 
 // ----------------------------------------------------------------------------
 
@@ -707,18 +788,12 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
         return  NULL;
     }
 
-    // These extensions should not be exposed to applications. They're used
-    // internally by the Android EGL layer.
-    if (!strcmp(procname, "eglSetBlobCacheFuncsANDROID") ||
-        !strcmp(procname, "eglDupNativeFenceFDANDROID") ||
-        !strcmp(procname, "eglWaitSyncANDROID") ||
-        !strcmp(procname, "eglHibernateProcessIMG") ||
-        !strcmp(procname, "eglAwakenProcessIMG")) {
+    if (FILTER_EXTENSIONS(procname)) {
         return NULL;
     }
 
     __eglMustCastToProperFunctionPointerType addr;
-    addr = findProcAddress(procname, sExtentionMap, NELEM(sExtentionMap));
+    addr = findProcAddress(procname, sExtensionMap, NELEM(sExtensionMap));
     if (addr) return addr;
 
 
@@ -1239,6 +1314,21 @@ EGLBoolean eglDestroySyncKHR(EGLDisplay dpy, EGLSyncKHR sync)
     return result;
 }
 
+EGLBoolean eglSignalSyncKHR(EGLDisplay dpy, EGLSyncKHR sync, EGLenum mode) {
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_FALSE;
+
+    EGLBoolean result = EGL_FALSE;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglSignalSyncKHR) {
+        result = cnx->egl.eglSignalSyncKHR(
+                dp->disp.dpy, sync, mode);
+    }
+    return result;
+}
+
 EGLint eglClientWaitSyncKHR(EGLDisplay dpy, EGLSyncKHR sync,
         EGLint flags, EGLTimeKHR timeout)
 {
@@ -1274,6 +1364,22 @@ EGLBoolean eglGetSyncAttribKHR(EGLDisplay dpy, EGLSyncKHR sync,
 }
 
 // ----------------------------------------------------------------------------
+// EGL_EGLEXT_VERSION 15
+// ----------------------------------------------------------------------------
+
+EGLint eglWaitSyncKHR(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags) {
+    clearError();
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_FALSE;
+    EGLint result = EGL_FALSE;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglWaitSyncKHR) {
+        result = cnx->egl.eglWaitSyncKHR(dp->disp.dpy, sync, flags);
+    }
+    return result;
+}
+
+// ----------------------------------------------------------------------------
 // ANDROID extensions
 // ----------------------------------------------------------------------------
 
@@ -1288,21 +1394,6 @@ EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
     egl_connection_t* const cnx = &gEGLImpl;
     if (cnx->dso && cnx->egl.eglDupNativeFenceFDANDROID) {
         result = cnx->egl.eglDupNativeFenceFDANDROID(dp->disp.dpy, sync);
-    }
-    return result;
-}
-
-EGLint eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags)
-{
-    clearError();
-
-    const egl_display_ptr dp = validate_display(dpy);
-    if (!dp) return EGL_NO_NATIVE_FENCE_FD_ANDROID;
-
-    EGLint result = EGL_FALSE;
-    egl_connection_t* const cnx = &gEGLImpl;
-    if (cnx->dso && cnx->egl.eglWaitSyncANDROID) {
-        result = cnx->egl.eglWaitSyncANDROID(dp->disp.dpy, sync, flags);
     }
     return result;
 }

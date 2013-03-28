@@ -55,10 +55,10 @@ const bool GLConsumer::sUseNativeFenceSync = true;
 const bool GLConsumer::sUseNativeFenceSync = false;
 #endif
 
-// This compile option makes GLConsumer use the EGL_ANDROID_sync_wait
+// This compile option makes GLConsumer use the EGL_KHR_wait_sync
 // extension to insert server-side waits into the GLES command stream.  This
 // feature requires the EGL_ANDROID_native_fence_sync and
-// EGL_ANDROID_wait_sync extensions.
+// EGL_KHR_wait_sync extensions.
 #ifdef USE_WAIT_SYNC
 static const bool useWaitSync = true;
 #else
@@ -848,7 +848,7 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
             // XXX: The spec draft is inconsistent as to whether this should
             // return an EGLint or void.  Ignore the return value for now, as
             // it's not strictly needed.
-            eglWaitSyncANDROID(dpy, sync, 0);
+            eglWaitSyncKHR(dpy, sync, 0);
             EGLint eglErr = eglGetError();
             eglDestroySyncKHR(dpy, sync);
             if (eglErr != EGL_SUCCESS) {
