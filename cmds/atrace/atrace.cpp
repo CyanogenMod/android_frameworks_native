@@ -42,6 +42,7 @@ using namespace android;
 enum { MAX_SYS_FILES = 8 };
 
 const char* k_traceTagsProperty = "debug.atrace.tags.enableflags";
+const char* k_traceAppCmdlineProperty = "debug.atrace.app_cmdlines";
 
 typedef enum { OPT, REQ } requiredness  ;
 
@@ -118,6 +119,7 @@ static bool g_compress = false;
 static bool g_nohup = false;
 static int g_initialSleepSecs = 0;
 static const char* g_kernelTraceFuncs = NULL;
+static const char* g_debugAppCmdLine = "";
 
 /* Global state */
 static bool g_traceAborted = false;
@@ -365,7 +367,18 @@ static bool setTagsProperty(uint64_t tags)
         fprintf(stderr, "error setting trace tags system property\n");
         return false;
     }
-    return pokeBinderServices();
+    return true;
+}
+
+// Set the system property that indicates which apps should perform
+// application-level tracing.
+static bool setAppCmdlineProperty(const char* cmdline)
+{
+    if (property_set(k_traceAppCmdlineProperty, cmdline) < 0) {
+        fprintf(stderr, "error setting trace app system property\n");
+        return false;
+    }
+    return true;
 }
 
 // Disable all /sys/ enable files.
@@ -488,6 +501,8 @@ static bool setUpTrace()
         }
     }
     ok &= setTagsProperty(tags);
+    ok &= setAppCmdlineProperty(g_debugAppCmdLine);
+    ok &= pokeBinderServices();
 
     // Disable all the sysfs enables.  This is done as a separate loop from
     // the enables to allow the same enable to exist in multiple categories.
@@ -521,8 +536,10 @@ static void cleanUpTrace()
     // Disable all tracing that we're able to.
     disableKernelTraceEvents();
 
-    // Disable all the trace tags.
+    // Reset the system properties.
     setTagsProperty(0);
+    setAppCmdlineProperty("");
+    pokeBinderServices();
 
     // Set the options back to their defaults.
     setTraceOverwriteEnable(true);
@@ -700,6 +717,8 @@ static void showHelp(const char *cmd)
 {
     fprintf(stderr, "usage: %s [options] [categories...]\n", cmd);
     fprintf(stderr, "options include:\n"
+                    "  -a appname      enable app-level tracing for a comma "
+                        "separated list of cmdlines\n"
                     "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
                     "  -k fname,...    trace the listed kernel functions\n"
@@ -739,7 +758,7 @@ int main(int argc, char **argv)
             {           0,                0, 0,  0 }
         };
 
-        ret = getopt_long(argc, argv, "b:ck:ns:t:z",
+        ret = getopt_long(argc, argv, "a:b:ck:ns:t:z",
                           long_options, &option_index);
 
         if (ret < 0) {
@@ -753,6 +772,10 @@ int main(int argc, char **argv)
         }
 
         switch(ret) {
+            case 'a':
+                g_debugAppCmdLine = optarg;
+            break;
+
             case 'b':
                 g_traceBufferSizeKB = atoi(optarg);
             break;
