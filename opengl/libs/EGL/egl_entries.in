@@ -56,14 +56,30 @@ EGL_ENTRY(EGLBoolean,  eglDestroyImageKHR,  EGLDisplay, EGLImageKHR)
 EGL_ENTRY(EGLSyncKHR,   eglCreateSyncKHR,       EGLDisplay, EGLenum, const EGLint *)
 EGL_ENTRY(EGLBoolean,   eglDestroySyncKHR,      EGLDisplay, EGLSyncKHR)
 EGL_ENTRY(EGLint,       eglClientWaitSyncKHR,   EGLDisplay, EGLSyncKHR, EGLint, EGLTimeKHR)
+EGL_ENTRY(EGLBoolean,   eglSignalSyncKHR,       EGLDisplay, EGLSyncKHR, EGLenum)
 EGL_ENTRY(EGLBoolean,   eglGetSyncAttribKHR,    EGLDisplay, EGLSyncKHR, EGLint, EGLint *)
+
+/* EGL_EGLEXT_VERSION 15 */
+
+//    EGL_ENTRY(EGLStreamKHR, eglCreateStreamKHR,     EGLDisplay, const EGLint *)
+//    EGL_ENTRY(EGLBoolean,   eglDestroyStreamKHR,    EGLDisplay, EGLStreamKHR)
+//    EGL_ENTRY(EGLBoolean,   eglStreamAttribKHR,     EGLDisplay, EGLStreamKHR, EGLenum, EGLint)
+//    EGL_ENTRY(EGLBoolean,   eglQueryStreamKHR,      EGLDisplay, EGLStreamKHR, EGLenum, EGLint *)
+//    EGL_ENTRY(EGLBoolean,   eglQueryStreamu64KHR,   EGLDisplay, EGLStreamKHR, EGLenum, EGLuint64KHR *)
+//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerGLTextureExternalKHR,  EGLDisplay, EGLStreamKHR)
+//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerAcquireKHR,            EGLDisplay, EGLStreamKHR)
+//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerReleaseKHR,            EGLDisplay, EGLStreamKHR)
+//    EGL_ENTRY(EGLSurface,   eglCreateStreamProducerSurfaceKHR,      EGLDisplay, EGLConfig, EGLStreamKHR, const EGLint *)
+//    EGL_ENTRY(EGLBoolean,   eglQueryStreamTimeKHR,  EGLDisplay, EGLStreamKHR, EGLenum, EGLTimeKHR*)
+//    EGL_ENTRY(EGLNativeFileDescriptorKHR,   eglGetStreamFileDescriptorKHR,          EGLDisplay, EGLStreamKHR)
+//    EGL_ENTRY(EGLStreamKHR, eglCreateStreamFromFileDescriptorKHR,   EGLDisplay, EGLNativeFileDescriptorKHR)
+EGL_ENTRY(EGLint,       eglWaitSyncKHR,         EGLDisplay, EGLSyncKHR, EGLint)
 
 /* ANDROID extensions */
 
 EGL_ENTRY(EGLBoolean, eglSetSwapRectangleANDROID, EGLDisplay, EGLSurface, EGLint, EGLint, EGLint, EGLint)
 EGL_ENTRY(EGLClientBuffer, eglGetRenderBufferANDROID, EGLDisplay, EGLSurface)
 EGL_ENTRY(EGLint, eglDupNativeFenceFDANDROID, EGLDisplay, EGLSyncKHR)
-EGL_ENTRY(EGLint, eglWaitSyncANDROID, EGLDisplay, EGLSyncKHR, EGLint)
 
 /* NVIDIA extensions */
 

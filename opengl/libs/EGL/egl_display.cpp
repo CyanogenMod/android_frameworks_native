@@ -34,35 +34,7 @@ static char const * const sVendorString     = "Android";
 static char const * const sVersionString    = "1.4 Android META-EGL";
 static char const * const sClientApiString  = "OpenGL_ES";
 
-// this is the list of EGL extensions that are exposed to applications
-// some of them are mandatory because used by the ANDROID system.
-//
-// mandatory extensions are required per the CDD and not explicitly
-// checked during EGL initialization. the system *assumes* these extensions
-// are present. the system may not function properly if some mandatory
-// extensions are missing.
-//
-// NOTE: sExtensionString MUST be have a single space as the last character.
-//
-static char const * const sExtensionString  =
-        "EGL_KHR_image "                        // mandatory
-        "EGL_KHR_image_base "                   // mandatory
-        "EGL_KHR_image_pixmap "
-        "EGL_KHR_gl_texture_2D_image "
-        "EGL_KHR_gl_texture_cubemap_image "
-        "EGL_KHR_gl_renderbuffer_image "
-        "EGL_KHR_fence_sync "
-        "EGL_EXT_create_context_robustness "
-        "EGL_NV_system_time "
-        "EGL_ANDROID_image_native_buffer "      // mandatory
-        ;
-
-// extensions not exposed to applications but used by the ANDROID system
-//      "EGL_ANDROID_recordable "               // mandatory
-//      "EGL_ANDROID_framebuffer_target "       // mandatory for HWC 1.1
-//      "EGL_ANDROID_blob_cache "               // strongly recommended
-//      "EGL_ANDROID_native_fence_sync "        // strongly recommended
-//      "EGL_IMG_hibernate_process "            // optional
+extern char const * const gExtensionString;
 
 extern void initEglTraceLevel();
 extern void initEglDebugLevel();
@@ -211,7 +183,7 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     mClientApiString.setTo(sClientApiString);
 
     // we only add extensions that exist in the implementation
-    char const* start = sExtensionString;
+    char const* start = gExtensionString;
     char const* end;
     do {
         // find the space separating this extension for the next one
