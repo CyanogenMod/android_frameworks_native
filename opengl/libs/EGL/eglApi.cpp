@@ -85,7 +85,7 @@ extern char const * const gExtensionString  =
         "EGL_EXT_create_context_robustness "
         "EGL_NV_system_time "
         "EGL_ANDROID_image_native_buffer "      // mandatory
-        "EGL_ANDROID_wait_sync "                // strongly recommended
+        "EGL_KHR_wait_sync "                    // strongly recommended
         "EGL_ANDROID_presentation_time "
         ;
 
@@ -133,9 +133,9 @@ static const extention_map_t sExtensionMap[] = {
     { "eglGetSystemTimeNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeNV },
 
-    // EGL_ANDROID_wait_sync
-    { "eglWaitSyncANDROID",
-            (__eglMustCastToProperFunctionPointerType)&eglWaitSyncANDROID },
+    // EGL_KHR_wait_sync
+    { "eglWaitSyncKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglWaitSyncKHR },
 
     // EGL_ANDROID_presentation_time
     { "eglPresentationTimeANDROID",
@@ -1364,6 +1364,22 @@ EGLBoolean eglGetSyncAttribKHR(EGLDisplay dpy, EGLSyncKHR sync,
 }
 
 // ----------------------------------------------------------------------------
+// EGL_EGLEXT_VERSION 15
+// ----------------------------------------------------------------------------
+
+EGLint eglWaitSyncKHR(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags) {
+    clearError();
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_FALSE;
+    EGLint result = EGL_FALSE;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglWaitSyncKHR) {
+        result = cnx->egl.eglWaitSyncKHR(dp->disp.dpy, sync, flags);
+    }
+    return result;
+}
+
+// ----------------------------------------------------------------------------
 // ANDROID extensions
 // ----------------------------------------------------------------------------
 
@@ -1378,21 +1394,6 @@ EGLint eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
     egl_connection_t* const cnx = &gEGLImpl;
     if (cnx->dso && cnx->egl.eglDupNativeFenceFDANDROID) {
         result = cnx->egl.eglDupNativeFenceFDANDROID(dp->disp.dpy, sync);
-    }
-    return result;
-}
-
-EGLint eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags)
-{
-    clearError();
-
-    const egl_display_ptr dp = validate_display(dpy);
-    if (!dp) return EGL_NO_NATIVE_FENCE_FD_ANDROID;
-
-    EGLint result = EGL_FALSE;
-    egl_connection_t* const cnx = &gEGLImpl;
-    if (cnx->dso && cnx->egl.eglWaitSyncANDROID) {
-        result = cnx->egl.eglWaitSyncANDROID(dp->disp.dpy, sync, flags);
     }
     return result;
 }

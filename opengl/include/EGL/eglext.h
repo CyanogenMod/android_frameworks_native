@@ -558,14 +558,6 @@ typedef EGLint (EGLAPIENTRYP PFNEGLDUPNATIVEFENCEFDANDROIDPROC)(EGLDisplay dpy, 
 #define EGL_YUV_CHROMA_SITING_0_5_EXT		0x3285
 #endif
 
-#ifndef EGL_ANDROID_wait_sync
-#define EGL_ANDROID_wait_sync
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLint EGLAPIENTRY eglWaitSyncANDROID(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
-#endif
-typedef EGLint (EGLAPIENTRYP PFNEGLWAITSYNCANDROID) (EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
-#endif
-
 #ifndef EGL_ANDROID_presentation_time
 #define EGL_ANDROID_presentation_time 1
 typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
