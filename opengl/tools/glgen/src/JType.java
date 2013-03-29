@@ -46,6 +46,7 @@ public class JType {
     typeMapping.put(new CType("GLubyte", true, true), new JType("String", false, false));
     typeMapping.put(new CType("char", false, true), new JType("byte"));
     typeMapping.put(new CType("char", true, true), new JType("String", false, false));
+    typeMapping.put(new CType("GLchar", true, true), new JType("String", false, false));
     typeMapping.put(new CType("int"), new JType("int"));
 
     // EGL primitive types
@@ -80,6 +81,8 @@ public class JType {
             new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLenum", false, true),
             new JType("java.nio.IntBuffer", true, false));
+    typeMapping.put(new CType("GLenum", true, true),
+            new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLfixed", false, true),
             new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLfixed", true, true),
@@ -107,6 +110,7 @@ public class JType {
     arrayTypeMapping.put(new CType("GLboolean", false, true),
             new JType("boolean", false, true));
     arrayTypeMapping.put(new CType("GLenum", false, true), new JType("int", false, true));
+    arrayTypeMapping.put(new CType("GLenum", true, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfixed", true, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfixed", false, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfloat", false, true), new JType("float", false, true));
