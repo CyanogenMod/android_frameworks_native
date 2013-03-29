@@ -52,8 +52,6 @@ using namespace android;
 
 // ----------------------------------------------------------------------------
 
-#define EGL_VERSION_HW_ANDROID  0x3143
-
 namespace android {
 
 struct extention_map_t {
@@ -1021,12 +1019,29 @@ const char* eglQueryString(EGLDisplay dpy, EGLint name)
             return dp->getExtensionString();
         case EGL_CLIENT_APIS:
             return dp->getClientApiString();
-        case EGL_VERSION_HW_ANDROID:
-            return dp->disp.queryString.version;
     }
     return setError(EGL_BAD_PARAMETER, (const char *)0);
 }
 
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return (const char *) NULL;
+
+    switch (name) {
+        case EGL_VENDOR:
+            return dp->disp.queryString.vendor;
+        case EGL_VERSION:
+            return dp->disp.queryString.version;
+        case EGL_EXTENSIONS:
+            return dp->disp.queryString.extensions;
+        case EGL_CLIENT_APIS:
+            return dp->disp.queryString.clientApi;
+    }
+    return setError(EGL_BAD_PARAMETER, (const char *)0);
+}
 
 // ----------------------------------------------------------------------------
 // EGL 1.1

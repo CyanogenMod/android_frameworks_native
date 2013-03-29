@@ -267,10 +267,6 @@ protected:
     // values.
     status_t checkAndUpdateEglStateLocked();
 
-    // If set, GLConsumer will use the EGL_ANDROID_native_fence_sync
-    // extension to create Android native fences for GLES activity.
-    static const bool sUseNativeFenceSync;
-
 private:
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,

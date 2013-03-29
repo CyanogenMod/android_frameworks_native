@@ -26,6 +26,7 @@ LOCAL_SRC_FILES:= \
 	Surface.cpp \
 	SurfaceControl.cpp \
 	SurfaceComposerClient.cpp \
+	SyncFeatures.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libbinder \
@@ -39,23 +40,11 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_MODULE:= libgui
 
-ifeq ($(TARGET_BOARD_PLATFORM), omap4)
-	LOCAL_CFLAGS += -DUSE_FENCE_SYNC
+ifeq ($(TARGET_BOARD_PLATFORM), tegra)
+	LOCAL_CFLAGS += -DDONT_USE_FENCE_SYNC
 endif
-ifeq ($(TARGET_BOARD_PLATFORM), s5pc110)
-	LOCAL_CFLAGS += -DUSE_FENCE_SYNC
-endif
-ifeq ($(TARGET_BOARD_PLATFORM), exynos5)
-	LOCAL_CFLAGS += -DUSE_NATIVE_FENCE_SYNC
-	LOCAL_CFLAGS += -DUSE_WAIT_SYNC
-endif
-ifneq ($(filter generic%,$(TARGET_DEVICE)),)
-    # Emulator build
-    LOCAL_CFLAGS += -DUSE_FENCE_SYNC
-endif
-
-ifeq ($(TARGET_BOARD_PLATFORM), msm8960)
-	LOCAL_CFLAGS += -DUSE_NATIVE_FENCE_SYNC
+ifeq ($(TARGET_BOARD_PLATFORM), tegra3)
+	LOCAL_CFLAGS += -DDONT_USE_FENCE_SYNC
 endif
 
 include $(BUILD_SHARED_LIBRARY)

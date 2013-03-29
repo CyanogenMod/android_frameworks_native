@@ -19,9 +19,10 @@
 
 #include "SurfaceFlingerConsumer.h"
 
+#include <private/gui/SyncFeatures.h>
+
 #include <utils/Trace.h>
 #include <utils/Errors.h>
-
 
 namespace android {
 
@@ -78,7 +79,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
         return err;
     }
 
-    if (!sUseNativeFenceSync) {
+    if (!SyncFeatures::getInstance().useNativeFenceSync()) {
         // Bind the new buffer to the GL texture.
         //
         // Older devices require the "implicit" synchronization provided

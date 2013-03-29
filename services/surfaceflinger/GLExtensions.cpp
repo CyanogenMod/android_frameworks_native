@@ -80,7 +80,7 @@ void GLExtensions::initWithGLStrings(
         mHaveDirectTexture = true;
     }
 #else
-#warning "EGL_ANDROID_image_native_buffer not supported"
+#error "EGL_ANDROID_image_native_buffer not supported"
 #endif
 
     if (hasExtension("GL_ARB_texture_non_power_of_two")) {
