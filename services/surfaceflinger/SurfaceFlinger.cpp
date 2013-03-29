@@ -53,6 +53,7 @@
 #include <utils/Trace.h>
 
 #include <private/android_filesystem_config.h>
+#include <private/gui/SyncFeatures.h>
 
 #include "clz.h"
 #include "DdmConnection.h"
@@ -68,10 +69,9 @@
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/VirtualDisplaySurface.h"
 
-
-#define EGL_VERSION_HW_ANDROID  0x3143
-
 #define DISPLAY_COUNT       1
+
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -2280,6 +2280,10 @@ void SurfaceFlinger::dumpAllLocked(
     appendGuiConfigString(result);
     result.append("\n");
 
+    result.append("Sync configuration: ");
+    result.append(SyncFeatures::getInstance().toString());
+    result.append("\n");
+
     /*
      * Dump the visible layer list
      */
@@ -2313,17 +2317,20 @@ void SurfaceFlinger::dumpAllLocked(
     HWComposer& hwc(getHwComposer());
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     const GLExtensions& extensions(GLExtensions::getInstance());
+
+    snprintf(buffer, SIZE, "EGL implementation : %s\n",
+            eglQueryStringImplementationANDROID(mEGLDisplay, EGL_VERSION));
+    result.append(buffer);
+    snprintf(buffer, SIZE, "%s\n",
+            eglQueryStringImplementationANDROID(mEGLDisplay, EGL_EXTENSIONS));
+    result.append(buffer);
+
     snprintf(buffer, SIZE, "GLES: %s, %s, %s\n",
             extensions.getVendor(),
             extensions.getRenderer(),
             extensions.getVersion());
     result.append(buffer);
-
-    snprintf(buffer, SIZE, "EGL : %s\n",
-            eglQueryString(mEGLDisplay, EGL_VERSION_HW_ANDROID));
-    result.append(buffer);
-
-    snprintf(buffer, SIZE, "EXTS: %s\n", extensions.getExtension());
+    snprintf(buffer, SIZE, "%s\n", extensions.getExtension());
     result.append(buffer);
 
     hw->undefinedRegion.dump(result, "undefinedRegion");

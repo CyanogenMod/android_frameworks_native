@@ -28,42 +28,19 @@
 
 #include <hardware/hardware.h>
 
+#include <gui/GLConsumer.h>
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
-#include <gui/GLConsumer.h>
 
 #include <private/gui/ComposerService.h>
+#include <private/gui/SyncFeatures.h>
 
 #include <utils/Log.h>
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
 namespace android {
-
-// This compile option makes GLConsumer use the
-// EGL_ANDROID_native_fence_sync extension to create Android native fences to
-// signal when all GLES reads for a given buffer have completed.  It is not
-// compatible with using the EGL_KHR_fence_sync extension for the same
-// purpose.
-#ifdef USE_NATIVE_FENCE_SYNC
-#ifdef USE_FENCE_SYNC
-#error "USE_NATIVE_FENCE_SYNC and USE_FENCE_SYNC are incompatible"
-#endif
-const bool GLConsumer::sUseNativeFenceSync = true;
-#else
-const bool GLConsumer::sUseNativeFenceSync = false;
-#endif
-
-// This compile option makes GLConsumer use the EGL_KHR_wait_sync
-// extension to insert server-side waits into the GLES command stream.  This
-// feature requires the EGL_ANDROID_native_fence_sync and
-// EGL_KHR_wait_sync extensions.
-#ifdef USE_WAIT_SYNC
-static const bool useWaitSync = true;
-#else
-static const bool useWaitSync = false;
-#endif
 
 // Macros for including the GLConsumer name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mName.string(), ##__VA_ARGS__)
@@ -97,18 +74,6 @@ static float mtxRot90[16] = {
     0, 0, 1, 0,
     1, 0, 0, 1,
 };
-static float mtxRot180[16] = {
-    -1, 0, 0, 0,
-    0, -1, 0, 0,
-    0, 0, 1, 0,
-    1, 1, 0, 1,
-};
-static float mtxRot270[16] = {
-    0, -1, 0, 0,
-    1, 0, 0, 0,
-    0, 0, 1, 0,
-    0, 1, 0, 1,
-};
 
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
@@ -121,11 +86,7 @@ GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
     mCurrentTimestamp(0),
     mFilteringEnabled(true),
     mTexName(tex),
-#ifdef USE_FENCE_SYNC
     mUseFenceSync(useFenceSync),
-#else
-    mUseFenceSync(false),
-#endif
     mTexTarget(texTarget),
     mEglDisplay(EGL_NO_DISPLAY),
     mEglContext(EGL_NO_CONTEXT),
@@ -522,7 +483,7 @@ status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
     ST_LOGV("syncForReleaseLocked");
 
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        if (sUseNativeFenceSync) {
+        if (SyncFeatures::getInstance().useNativeFenceSync()) {
             EGLSyncKHR sync = eglCreateSyncKHR(dpy,
                     EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
             if (sync == EGL_NO_SYNC_KHR) {
@@ -545,7 +506,7 @@ status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
                         "%s (%d)", strerror(-err), err);
                 return err;
             }
-        } else if (mUseFenceSync) {
+        } else if (mUseFenceSync && SyncFeatures::getInstance().useFenceSync()) {
             EGLSyncKHR fence = mEglSlots[mCurrentTexture].mEglFence;
             if (fence != EGL_NO_SYNC_KHR) {
                 // There is already a fence for the current slot.  We need to
@@ -825,7 +786,7 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
     }
 
     if (mCurrentFence->isValid()) {
-        if (useWaitSync) {
+        if (SyncFeatures::getInstance().useWaitSync()) {
             // Create an EGLSyncKHR from the current fence.
             int fenceFd = mCurrentFence->dup();
             if (fenceFd == -1) {
