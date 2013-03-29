@@ -74,6 +74,30 @@ GLfixed vsquare3(GLfixed a, GLfixed b, GLfixed c)
         ); 
     return r;
 
+#elif defined(__mips__)
+
+    GLfixed res;
+    int32_t t1,t2,t3;
+    asm(
+        "mult  %[a], %[a]       \r\n"
+        "li    %[res],0x8000 \r\n"
+        "madd   %[b],%[b] \r\n"
+        "move   %[t3],$zero \r\n"
+        "madd   %[c],%[c] \r\n"
+        "mflo   %[t1]\r\n"
+        "mfhi   %[t2]\r\n"
+        "addu   %[t1],%[res],%[t1]\r\n"          /*add 0x8000*/
+        "sltu   %[t3],%[t1],%[res]\r\n"
+        "addu   %[t2],%[t2],%[t3]\r\n"
+        "srl    %[res],%[t1],16\r\n"
+        "sll    %[t2],%[t2],16\r\n"
+        "or     %[res],%[res],%[t2]\r\n"
+        :   [res]"=&r"(res),[t1]"=&r"(t1),[t2]"=&r"(t2),[t3]"=&r"(t3)
+        :   [a] "r" (a),[b] "r" (b),[c] "r" (c)
+        : "%hi","%lo"
+        );
+    return res;
+
 #else
 
     return ((   int64_t(a)*a +
@@ -136,6 +160,26 @@ static inline GLfixed mla3a( GLfixed a0, GLfixed b0,
         ); 
     return r;
     
+#elif defined(__mips__)
+
+    GLfixed res;
+    int32_t t1,t2;
+    asm(
+        "mult  %[a0],%[b0]       \r\n"
+        "madd  %[a1],%[b1]       \r\n"
+        "madd  %[a2],%[b2]       \r\n"
+        "mflo  %[t2]\r\n"
+        "mfhi  %[t1]\r\n"
+        "srl    %[t2],%[t2],16\r\n"
+        "sll    %[t1],%[t1],16\r\n"
+        "or     %[t2],%[t2],%[t1]\r\n"
+        "addu   %[res],%[t2],%[c]"
+        :   [res]"=&r"(res),[t1]"=&r"(t1),[t2]"=&r"(t2)
+        :   [a0] "r" (a0),[b0] "r" (b0),[a1] "r" (a1),[b1] "r" (b1),[a2] "r" (a2),[b2] "r" (b2),[c] "r" (c)
+        : "%hi","%lo"
+        );
+    return res;
+
 #else
 
     return ((   int64_t(a0)*b0 +
