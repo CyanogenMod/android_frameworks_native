@@ -18,7 +18,6 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
-#define GL_GLEXT_PROTOTYPES
 #define EGL_EGLEXT_PROTOTYPES
 
 #include <EGL/egl.h>
