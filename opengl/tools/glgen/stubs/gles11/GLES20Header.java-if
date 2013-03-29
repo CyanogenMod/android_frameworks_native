@@ -296,6 +296,9 @@ public class GLES20 {
     public static final int GL_RGB5_A1                                 = 0x8057;
     public static final int GL_RGB565                                  = 0x8D62;
     public static final int GL_DEPTH_COMPONENT16                       = 0x81A5;
+    // GL_STENCIL_INDEX does not appear in gl2.h or gl2ext.h, and there is no
+    // token with value 0x1901. It shouldn't be here, but we can't remove it
+    // now in case someone is using it.
     public static final int GL_STENCIL_INDEX                           = 0x1901;
     public static final int GL_STENCIL_INDEX8                          = 0x8D48;
     public static final int GL_RENDERBUFFER_WIDTH                      = 0x8D42;
