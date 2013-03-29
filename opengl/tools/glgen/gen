@@ -63,7 +63,12 @@ fi
 popd > /dev/null
 
 echo "Generating JSR239-like APIs"
-java -classpath src GenerateGL -c specs/jsr239/glspec-1.0 specs/jsr239/glspec-1.0ext specs/jsr239/glspec-1.1 specs/jsr239/glspec-1.1ext specs/jsr239/glspec-1.1extpack specs/jsr239/glspec-checks
+java -classpath src GenerateGL -c specs/jsr239/glspec-1.0 \
+                                  specs/jsr239/glspec-1.0ext \
+                                  specs/jsr239/glspec-1.1 \
+                                  specs/jsr239/glspec-1.1ext \
+                                  specs/jsr239/glspec-1.1extpack \
+                                  specs/jsr239/glspec-checks
 JAVA_RESULT=$?
 if [ $JAVA_RESULT -ne 0 ]; then
     echo "Could not run GenerateGL."
@@ -90,7 +95,18 @@ rm src/*.class
 
 pushd out > /dev/null
 mkdir classes
-javac -d classes android/opengl/EGL14.java com/google/android/gles_jni/GLImpl.java javax/microedition/khronos/opengles/GL10.java javax/microedition/khronos/opengles/GL10Ext.java javax/microedition/khronos/opengles/GL11.java javax/microedition/khronos/opengles/GL11Ext.java javax/microedition/khronos/opengles/GL11ExtensionPack.java android/opengl/GLES10.java android/opengl/GLES10Ext.java android/opengl/GLES11.java android/opengl/GLES11Ext.java android/opengl/GLES20.java
+javac -d classes    android/opengl/EGL14.java \
+                    com/google/android/gles_jni/GLImpl.java \
+                    javax/microedition/khronos/opengles/GL10.java \
+                    javax/microedition/khronos/opengles/GL10Ext.java \
+                    javax/microedition/khronos/opengles/GL11.java \
+                    javax/microedition/khronos/opengles/GL11Ext.java \
+                    javax/microedition/khronos/opengles/GL11ExtensionPack.java \
+                    android/opengl/GLES10.java \
+                    android/opengl/GLES10Ext.java \
+                    android/opengl/GLES11.java \
+                    android/opengl/GLES11Ext.java \
+                    android/opengl/GLES20.java
 popd > /dev/null
 JAVA_RESULT=$?
 if [ $JAVA_RESULT -ne 0 ]; then
