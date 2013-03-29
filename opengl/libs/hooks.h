@@ -32,7 +32,7 @@
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 
-#if !defined(__arm__)
+#if !defined(__arm__) && !defined(__mips__)
 #define USE_SLOW_BINDING            1
 #else
 #define USE_SLOW_BINDING            0
