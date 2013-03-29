@@ -28,7 +28,8 @@ ANDROID_SINGLETON_STATIC_INSTANCE( GLExtensions )
 GLExtensions::GLExtensions()
     : mHaveTextureExternal(false),
       mHaveNpot(false),
-      mHaveDirectTexture(false)
+      mHaveDirectTexture(false),
+      mHaveFramebufferObject(false)
 {
 }
 
