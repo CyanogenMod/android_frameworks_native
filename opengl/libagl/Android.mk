@@ -34,6 +34,13 @@ ifeq ($(TARGET_ARCH),arm)
 	LOCAL_CFLAGS += -fstrict-aliasing
 endif
 
+ifeq ($(TARGET_ARCH),mips)
+    LOCAL_SRC_FILES += arch-$(TARGET_ARCH)/fixed_asm.S
+    LOCAL_CFLAGS += -fstrict-aliasing
+    # The graphics code can generate division by zero
+    LOCAL_CFLAGS += -mno-check-zero-division
+endif
+
 # we need to access the private Bionic header <bionic_tls.h>
 LOCAL_C_INCLUDES += bionic/libc/private
 
