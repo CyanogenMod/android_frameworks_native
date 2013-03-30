@@ -324,7 +324,11 @@ private:
     static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
     void initializeGL(EGLDisplay display);
     uint32_t getMaxTextureSize() const;
+    uint32_t getMinColorDepth() const;
     uint32_t getMaxViewportDims() const;
+
+    // 0: surface doesn't need dithering, 1: use if necessary, 2: use permanently
+    inline int getUseDithering() const { return mUseDithering; }
 
     /* ------------------------------------------------------------------------
      * Display and layer stack management
@@ -423,6 +427,7 @@ private:
     sp<EventThread> mEventThread;
     GLint mMaxViewportDims[2];
     GLint mMaxTextureSize;
+    GLint mMinColorDepth;
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
@@ -448,6 +453,7 @@ private:
     volatile nsecs_t mDebugInTransaction;
     nsecs_t mLastTransactionTime;
     bool mBootFinished;
+    int mUseDithering;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;

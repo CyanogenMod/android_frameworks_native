@@ -354,6 +354,7 @@ void LayerBase::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region&
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
+    glDisable(GL_DITHER);
 
     LayerMesh mesh;
     computeGeometry(hw, &mesh);
@@ -426,6 +427,12 @@ void LayerBase::drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& 
     texCoords[3].v = top;
     for (int i = 0; i < 4; i++) {
         texCoords[i].v = 1.0f - texCoords[i].v;
+    }
+
+    if (needsDithering()) {
+        glEnable(GL_DITHER);
+    } else {
+        glDisable(GL_DITHER);
     }
 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
