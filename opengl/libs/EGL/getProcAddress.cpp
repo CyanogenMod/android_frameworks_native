@@ -64,9 +64,9 @@ namespace android {
         #define API_ENTRY(_api) __attribute__((noinline)) _api
 
         #define CALL_GL_EXTENSION_API(_api, ...)                    \
-            register unsigned int t0 asm("t0");                     \
-            register unsigned int fn asm("t1");                     \
-            register unsigned int tls asm("v1");                    \
+            register unsigned int _t0 asm("t0");                    \
+            register unsigned int _fn asm("t1");                    \
+            register unsigned int _tls asm("v1");                   \
             asm volatile(                                           \
                 ".set  push\n\t"                                    \
                 ".set  noreorder\n\t"                               \
@@ -81,9 +81,9 @@ namespace android {
                 "j     %[fn]\n\t"                                   \
                 " nop\n\t"                                          \
                 ".set  pop\n\t"                                     \
-                : [fn] "=c"(fn),                                    \
-                  [tls] "=&r"(tls),                                 \
-                  [t0] "=&r"(t0)                                    \
+                : [fn] "=c"(_fn),                                   \
+                  [tls] "=&r"(_tls),                                \
+                  [t0] "=&r"(_t0)                                   \
                 : [OPENGL_API] "I"(TLS_SLOT_OPENGL_API*4),          \
                   [API] "I"(__builtin_offsetof(gl_hooks_t,          \
                                           ext.extensions[_api]))    \
