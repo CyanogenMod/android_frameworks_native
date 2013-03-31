@@ -122,10 +122,10 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
     #define API_ENTRY(_api) __attribute__((noinline)) _api
 
     #define CALL_GL_API(_api, ...)                               \
-        register unsigned int t0 asm("t0");                      \
-        register unsigned int fn asm("t1");                      \
-        register unsigned int tls asm("v1");                     \
-        register unsigned int v0 asm("v0");                      \
+        register unsigned int _t0 asm("t0");                     \
+        register unsigned int _fn asm("t1");                     \
+        register unsigned int _tls asm("v1");                    \
+        register unsigned int _v0 asm("v0");                     \
         asm volatile(                                            \
             ".set  push\n\t"                                     \
             ".set  noreorder\n\t"                                \
@@ -140,10 +140,10 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
             "j     %[fn]\n\t"                                    \
             " move %[v0], $0\n\t"                                \
             ".set  pop\n\t"                                      \
-            : [fn] "=c"(fn),                                     \
-              [tls] "=&r"(tls),                                  \
-              [t0] "=&r"(t0),                                    \
-              [v0] "=&r"(v0)                                     \
+            : [fn] "=c"(_fn),                                    \
+              [tls] "=&r"(_tls),                                 \
+              [t0] "=&r"(_t0),                                   \
+              [v0] "=&r"(_v0)                                    \
             : [OPENGL_API] "I"(TLS_SLOT_OPENGL_API*4),           \
               [API] "I"(__builtin_offsetof(gl_hooks_t, gl._api)) \
             :                                                    \
