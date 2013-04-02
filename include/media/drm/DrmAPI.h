@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (C) 2013 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -71,17 +71,17 @@ namespace android {
     public:
         enum EventType {
             kDrmPluginEventProvisionRequired,
-            kDrmPluginEventLicenseNeeded,
-            kDrmPluginEventLicenseExpired,
+            kDrmPluginEventKeyNeeded,
+            kDrmPluginEventKeyExpired,
             kDrmPluginEventVendorDefined
         };
 
-        // A license can be for offline content or for online streaming.
-        // Offline licenses are persisted on the device and may be used when the device
+        // Drm keys can be for offline content or for online streaming.
+        // Offline keys are persisted on the device and may be used when the device
         // is disconnected from the network.
-        enum LicenseType {
-            kLicenseType_Offline,
-            kLicenseType_Streaming
+        enum KeyType {
+            kKeyType_Offline,
+            kKeyType_Streaming
         };
 
         DrmPlugin() {}
@@ -94,38 +94,45 @@ namespace android {
         // Close a session on the DrmPlugin object.
         virtual status_t closeSession(Vector<uint8_t> const &sessionId) = 0;
 
-        // A license request/response exchange occurs between the app and a License
-        // Server to obtain the keys required to decrypt the content.  getLicenseRequest()
-        // is used to obtain an opaque license request blob that is delivered to the
+        // A key request/response exchange occurs between the app and a License
+        // Server to obtain the keys required to decrypt the content.  getKeyRequest()
+        // is used to obtain an opaque key request blob that is delivered to the
         // license server.
         //
-        // The init data passed to getLicenseRequest is container-specific and its
+        // The init data passed to getKeyRequest is container-specific and its
         // meaning is interpreted based on the mime type provided in the mimeType
-        // parameter to getLicenseRequest.  It could contain, for example, the content
+        // parameter to getKeyRequest.  It could contain, for example, the content
         // ID, key ID or other data obtained from the content metadata that is required
-        // in generating the license request.
+        // in generating the key request.
         //
-        // licenseType specifes if the license is for streaming or offline content
+        // keyType specifes if the keys are to be used for streaming or offline content
         //
-        // optionalParameters are included in the license server request message to
-        // allow a client application to provide additional message parameters to the
-        // server.
+        // optionalParameters are included in the key request message to allow a
+        // client application to provide additional message parameters to the server.
         //
-        // If successful, the opaque license request blob is returned to the caller.
+        // If successful, the opaque key request blob is returned to the caller.
         virtual status_t
-            getLicenseRequest(Vector<uint8_t> const &sessionId,
-                              Vector<uint8_t> const &initData,
-                              String8 const &mimeType, LicenseType licenseType,
-                              KeyedVector<String8, String8> const &optionalParameters,
-                              Vector<uint8_t> &request, String8 &defaultUrl) = 0;
+            getKeyRequest(Vector<uint8_t> const &sessionId,
+                          Vector<uint8_t> const &initData,
+                          String8 const &mimeType, KeyType keyType,
+                          KeyedVector<String8, String8> const &optionalParameters,
+                          Vector<uint8_t> &request, String8 &defaultUrl) = 0;
 
-        // After a license response is received by the app, it is provided to the
-        // Drm plugin using provideLicenseResponse.
-        virtual status_t provideLicenseResponse(Vector<uint8_t> const &sessionId,
-                                                Vector<uint8_t> const &response) = 0;
+        // After a key response is received by the app, it is provided to the
+        // Drm plugin using provideKeyResponse.  Returns the id of the key set
+        // in keySetId.  The keySetId can be used by removeKeys or restoreKeys
+        // when the keys are used for offline content.
+        virtual status_t provideKeyResponse(Vector<uint8_t> const &sessionId,
+                                            Vector<uint8_t> const &response,
+                                            Vector<uint8_t> &keySetId) = 0;
 
-        // Remove the keys associated with a license.
-        virtual status_t removeLicense(Vector<uint8_t> const &sessionId) = 0;
+        // Remove the persisted keys associated with an offline license for a session.
+        virtual status_t removeKeys(Vector<uint8_t> const &keySetId) = 0;
+
+        // Restore persisted offline keys into a new session.  keySetId identifies
+        // the keys to load, obtained from a prior call to provideKeyResponse().
+        virtual status_t restoreKeys(Vector<uint8_t> const &sessionId,
+                                     Vector<uint8_t> const &keySetId) = 0;
 
         // Request an informative description of the license for the session.  The status
         // is in the form of {name, value} pairs.  Since DRM license policies vary by
@@ -133,12 +140,12 @@ namespace android {
         // Refer to your DRM provider documentation for definitions of the field names
         // for a particular DrmEngine.
         virtual status_t
-            queryLicenseStatus(Vector<uint8_t> const &sessionId,
-                               KeyedVector<String8, String8> &infoMap) const = 0;
+            queryKeyStatus(Vector<uint8_t> const &sessionId,
+                           KeyedVector<String8, String8> &infoMap) const = 0;
 
         // A provision request/response exchange occurs between the app and a
         // provisioning server to retrieve a device certificate.  getProvisionRequest
-        // is used to obtain an opaque license request blob that is delivered to the
+        // is used to obtain an opaque key request blob that is delivered to the
         // provisioning server.
         //
         // If successful, the opaque provision request blob is returned to the caller.
@@ -194,6 +201,66 @@ namespace android {
                                            String8 const &value ) = 0;
         virtual status_t setPropertyByteArray(String8 const &name,
                                               Vector<uint8_t> const &value ) = 0;
+
+        // The following methods implement operations on a CryptoSession to support
+        // encrypt, decrypt, sign verify operations on operator-provided
+        // session keys.
+
+        //
+        // The algorithm string conforms to JCA Standard Names for Cipher
+        // Transforms and is case insensitive.  For example "AES/CBC/PKCS5Padding".
+        //
+        // Return OK if the algorithm is supported, otherwise return BAD_VALUE
+        //
+        virtual status_t setCipherAlgorithm(Vector<uint8_t> const &sessionId,
+                                            String8 const &algorithm) = 0;
+
+        //
+        // The algorithm string conforms to JCA Standard Names for Mac
+        // Algorithms and is case insensitive.  For example "HmacSHA256".
+        //
+        // Return OK if the algorithm is supported, otherwise return BAD_VALUE
+        //
+        virtual status_t setMacAlgorithm(Vector<uint8_t> const &sessionId,
+                                         String8 const &algorithm) = 0;
+
+        // Encrypt the provided input buffer with the cipher algorithm
+        // specified by setCipherAlgorithm and the key selected by keyId,
+        // and return the encrypted data.
+        virtual status_t encrypt(Vector<uint8_t> const &sessionId,
+                                 Vector<uint8_t> const &keyId,
+                                 Vector<uint8_t> const &input,
+                                 Vector<uint8_t> const &iv,
+                                 Vector<uint8_t> &output) = 0;
+
+        // Decrypt the provided input buffer with the cipher algorithm
+        // specified by setCipherAlgorithm and the key selected by keyId,
+        // and return the decrypted data.
+        virtual status_t decrypt(Vector<uint8_t> const &sessionId,
+                                 Vector<uint8_t> const &keyId,
+                                 Vector<uint8_t> const &input,
+                                 Vector<uint8_t> const &iv,
+                                 Vector<uint8_t> &output) = 0;
+
+        // Compute a signature on the provided message using the mac algorithm
+        // specified by setMacAlgorithm and the key selected by keyId,
+        // and return the signature.
+        virtual status_t sign(Vector<uint8_t> const &sessionId,
+                              Vector<uint8_t> const &keyId,
+                              Vector<uint8_t> const &message,
+                              Vector<uint8_t> &signature) = 0;
+
+        // Compute a signature on the provided message using the mac algorithm
+        // specified by setMacAlgorithm and the key selected by keyId,
+        // and compare with the expected result.  Set result to true or
+        // false depending on the outcome.
+        virtual status_t verify(Vector<uint8_t> const &sessionId,
+                                Vector<uint8_t> const &keyId,
+                                Vector<uint8_t> const &message,
+                                Vector<uint8_t> const &signature,
+                                bool &match) = 0;
+
+
 
         // TODO: provide way to send an event
     private:
