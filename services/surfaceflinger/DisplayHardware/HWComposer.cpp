@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <utils/CallStack.h>
 #include <utils/Errors.h>
 #include <utils/misc.h>
 #include <utils/String8.h>
@@ -40,10 +41,10 @@
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
-#include "Layer.h"           // needed only for debugging
 #include "HWComposer.h"
-#include "SurfaceFlinger.h"
-#include <utils/CallStack.h>
+
+#include "../Layer.h"           // needed only for debugging
+#include "../SurfaceFlinger.h"
 
 namespace android {
 
