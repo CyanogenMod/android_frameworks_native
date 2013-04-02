@@ -33,8 +33,8 @@
 #include <gui/GraphicBufferAlloc.h>
 #include <ui/GraphicBuffer.h>
 
-#include "DisplayHardware/FramebufferSurface.h"
-#include "DisplayHardware/HWComposer.h"
+#include "FramebufferSurface.h"
+#include "HWComposer.h"
 
 #ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS
 #define NUM_FRAMEBUFFER_SURFACE_BUFFERS (2)
