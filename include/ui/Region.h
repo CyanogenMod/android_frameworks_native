@@ -108,6 +108,10 @@ public:
     inline  Region&     operator += (const Point& pt);
 
     
+    // returns true if the regions share the same underlying storage
+    bool isTriviallyEqual(const Region& region) const;
+
+
     /* various ways to access the rectangle list */
 
     

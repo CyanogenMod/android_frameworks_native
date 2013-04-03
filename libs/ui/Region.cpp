@@ -239,6 +239,10 @@ void Region::set(uint32_t w, uint32_t h)
     mStorage.add(Rect(w,h));
 }
 
+bool Region::isTriviallyEqual(const Region& region) const {
+    return begin() == region.begin();
+}
+
 // ----------------------------------------------------------------------------
 
 void Region::addRectUnchecked(int l, int t, int r, int b)
