@@ -143,6 +143,15 @@ DisplayDevice::~DisplayDevice() {
     }
 }
 
+void DisplayDevice::disconnect(HWComposer& hwc) {
+    if (mHwcDisplayId >= 0) {
+        hwc.disconnectDisplay(mHwcDisplayId);
+        if (mHwcDisplayId >= DISPLAY_VIRTUAL)
+            hwc.freeDisplayId(mHwcDisplayId);
+        mHwcDisplayId = -1;
+    }
+}
+
 bool DisplayDevice::isValid() const {
     return mFlinger != NULL;
 }
@@ -419,11 +428,11 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
     const Transform& tr(mGlobalTransform);
     snprintf(buffer, SIZE,
         "+ DisplayDevice: %s\n"
-        "   type=%x, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
+        "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
         "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%u\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], s:[%d,%d,%d,%d],"
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
-        mDisplayName.string(), mType,
+        mDisplayName.string(), mType, mHwcDisplayId,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
         mOrientation, tr.getType(), getPageFlipCount(),
         mIsSecure, mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),

@@ -108,9 +108,6 @@ public:
     // utility function to delete a texture on the main thread
     void deleteTextureAsync(GLuint texture);
 
-    // allocate a h/w composer display id
-    int32_t allocateHwcDisplayId(DisplayDevice::DisplayType type);
-
     // enable/disable h/w composer event
     // TODO: this should be made accessible only to EventThread
     void eventControl(int disp, int event, int enabled);
@@ -337,6 +334,9 @@ private:
     // mark a region of a layer stack dirty. this updates the dirty
     // region of all screens presenting this layer stack.
     void invalidateLayerStack(uint32_t layerStack, const Region& dirty);
+
+    // allocate a h/w composer display id
+    int32_t allocateHwcDisplayId(DisplayDevice::DisplayType type);
 
     /* ------------------------------------------------------------------------
      * H/W composer
