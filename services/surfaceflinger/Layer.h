@@ -103,7 +103,11 @@ public:
         uint8_t reserved[2];
         int32_t sequence; // changes when visible regions can change
         Transform transform;
-        Region transparentRegion;
+        // the transparentRegion hint is a bit special, it's latched only
+        // when we receive a buffer -- this is because it's "content"
+        // dependent.
+        Region activeTransparentRegion;
+        Region requestedTransparentRegion;
     };
 
     class LayerMesh {
