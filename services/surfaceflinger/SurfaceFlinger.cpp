@@ -1360,14 +1360,14 @@ void SurfaceFlinger::computeVisibleRegions(
                     if (tr.transformed()) {
                         if (tr.preserveRects()) {
                             // transform the transparent region
-                            transparentRegion = tr.transform(s.transparentRegion);
+                            transparentRegion = tr.transform(s.activeTransparentRegion);
                         } else {
                             // transformation too complex, can't do the
                             // transparent region optimization.
                             transparentRegion.clear();
                         }
                     } else {
-                        transparentRegion = s.transparentRegion;
+                        transparentRegion = s.activeTransparentRegion;
                     }
                 }
 

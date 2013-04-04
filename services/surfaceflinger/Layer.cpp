@@ -881,8 +881,7 @@ bool Layer::setMatrix(const layer_state_t::matrix22_t& matrix) {
     return true;
 }
 bool Layer::setTransparentRegionHint(const Region& transparent) {
-    mCurrentState.sequence++;
-    mCurrentState.transparentRegion = transparent;
+    mCurrentState.requestedTransparentRegion = transparent;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1008,7 +1007,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     swap(bufWidth, bufHeight);
                 }
 
-
                 bool isFixedSize = item.mScalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
                 if (front.active != front.requested) {
 
@@ -1061,6 +1059,17 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                         return true;
                     }
                 }
+
+                // if the transparent region has changed (this test is
+                // conservative, but that's fine, worst case we're doing
+                // a bit of extra work), we latch the new one and we
+                // trigger a visible-region recompute.
+                if (!front.activeTransparentRegion.isTriviallyEqual(
+                        front.requestedTransparentRegion)) {
+                    front.activeTransparentRegion = front.requestedTransparentRegion;
+                    recomputeVisibleRegions = true;
+                }
+
                 return false;
             }
         };
@@ -1168,7 +1177,7 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
             getTypeId(), this, getName().string());
     result.append(buffer);
 
-    s.transparentRegion.dump(result, "transparentRegion");
+    s.activeTransparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
     sp<Client> client(mClientRef.promote());
 
