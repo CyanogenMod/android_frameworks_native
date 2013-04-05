@@ -106,7 +106,7 @@ status_t BufferQueue::setDefaultMaxBufferCountLocked(int count) {
     mDefaultMaxBufferCount = count;
     mDequeueCondition.broadcast();
 
-    return OK;
+    return NO_ERROR;
 }
 
 bool BufferQueue::isSynchronousMode() const {
@@ -122,20 +122,20 @@ void BufferQueue::setConsumerName(const String8& name) {
 status_t BufferQueue::setDefaultBufferFormat(uint32_t defaultFormat) {
     Mutex::Autolock lock(mMutex);
     mDefaultBufferFormat = defaultFormat;
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
     mConsumerUsageBits = usage;
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::setTransformHint(uint32_t hint) {
     ST_LOGV("setTransformHint: %02x", hint);
     Mutex::Autolock lock(mMutex);
     mTransformHint = hint;
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::setBufferCount(int bufferCount) {
@@ -150,7 +150,8 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
             return NO_INIT;
         }
         if (bufferCount > NUM_BUFFER_SLOTS) {
-            ST_LOGE("setBufferCount: bufferCount larger than slots available");
+            ST_LOGE("setBufferCount: bufferCount too large (max %d)",
+                    NUM_BUFFER_SLOTS);
             return BAD_VALUE;
         }
 
@@ -167,7 +168,7 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         if (bufferCount == 0) {
             mOverrideMaxBufferCount = 0;
             mDequeueCondition.broadcast();
-            return OK;
+            return NO_ERROR;
         }
 
         if (bufferCount < minBufferSlots) {
@@ -191,7 +192,7 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         listener->onBuffersReleased();
     }
 
-    return OK;
+    return NO_ERROR;
 }
 
 int BufferQueue::query(int what, int* outValue)
@@ -587,7 +588,7 @@ status_t BufferQueue::queueBuffer(int buf,
     if (listener != 0) {
         listener->onFrameAvailable();
     }
-    return OK;
+    return NO_ERROR;
 }
 
 void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
@@ -858,7 +859,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
         return NO_BUFFER_AVAILABLE;
     }
 
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
@@ -889,7 +890,7 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
     }
 
     mDequeueCondition.broadcast();
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListener) {
@@ -900,10 +901,14 @@ status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListen
         ST_LOGE("consumerConnect: BufferQueue has been abandoned!");
         return NO_INIT;
     }
+    if (consumerListener == NULL) {
+        ST_LOGE("consumerConnect: consumerListener may not be NULL");
+        return BAD_VALUE;
+    }
 
     mConsumerListener = consumerListener;
 
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::consumerDisconnect() {
@@ -920,7 +925,7 @@ status_t BufferQueue::consumerDisconnect() {
     mQueue.clear();
     freeAllBuffersLocked();
     mDequeueCondition.broadcast();
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::getReleasedBuffers(uint32_t* slotMask) {
@@ -956,7 +961,7 @@ status_t BufferQueue::setDefaultBufferSize(uint32_t w, uint32_t h)
     Mutex::Autolock lock(mMutex);
     mDefaultWidth = w;
     mDefaultHeight = h;
-    return OK;
+    return NO_ERROR;
 }
 
 status_t BufferQueue::setDefaultMaxBufferCount(int bufferCount) {
@@ -977,7 +982,7 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
         return INVALID_OPERATION;
     }
     mMaxAcquiredBufferCount = maxAcquiredBuffers;
-    return OK;
+    return NO_ERROR;
 }
 
 void BufferQueue::freeAllBuffersExceptHeadLocked() {
