@@ -31,7 +31,7 @@
 #include <utils/String8.h>
 
 #include "egldefs.h"
-#include "hooks.h"
+#include "../hooks.h"
 
 // ----------------------------------------------------------------------------
 namespace android {
