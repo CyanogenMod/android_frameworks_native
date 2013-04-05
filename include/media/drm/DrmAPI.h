@@ -22,6 +22,7 @@
 #include <utils/Vector.h>
 #include <utils/KeyedVector.h>
 #include <utils/RefBase.h>
+#include <utils/Mutex.h>
 #include <media/stagefright/foundation/ABase.h>
 
 //  Loadable DrmEngine shared libraries should define the entry points
@@ -34,7 +35,8 @@
 
 namespace android {
 
-    struct DrmPlugin;
+    class DrmPlugin;
+    class DrmPluginListener;
 
     // DRMs are implemented in DrmEngine plugins, which are dynamically
     // loadable shared libraries that implement the entry points
@@ -70,7 +72,7 @@ namespace android {
     class DrmPlugin {
     public:
         enum EventType {
-            kDrmPluginEventProvisionRequired,
+            kDrmPluginEventProvisionRequired = 1,
             kDrmPluginEventKeyNeeded,
             kDrmPluginEventKeyExpired,
             kDrmPluginEventVendorDefined
@@ -261,11 +263,45 @@ namespace android {
                                 bool &match) = 0;
 
 
+        status_t setListener(const sp<DrmPluginListener>& listener) {
+            Mutex::Autolock lock(mEventLock);
+            mListener = listener;
+            return OK;
+        }
 
-        // TODO: provide way to send an event
+    protected:
+        // Plugins call sendEvent to deliver events to the java app
+        void sendEvent(EventType eventType, int extra,
+                       Vector<uint8_t> const *sessionId,
+                       Vector<uint8_t> const *data);
+
     private:
+        Mutex mEventLock;
+        sp<DrmPluginListener> mListener;
+
         DISALLOW_EVIL_CONSTRUCTORS(DrmPlugin);
     };
+
+    class DrmPluginListener: virtual public RefBase
+    {
+    public:
+        virtual void sendEvent(DrmPlugin::EventType eventType, int extra,
+                               Vector<uint8_t> const *sesionId,
+                               Vector<uint8_t> const *data) = 0;
+    };
+
+    inline void DrmPlugin::sendEvent(EventType eventType, int extra,
+                                     Vector<uint8_t> const *sessionId,
+                                     Vector<uint8_t> const *data) {
+
+        mEventLock.lock();
+        sp<DrmPluginListener> listener = mListener;
+        mEventLock.unlock();
+
+        if (listener != NULL) {
+            listener->sendEvent(eventType, extra, sessionId, data);
+        }
+    }
 
 }  // namespace android
 
