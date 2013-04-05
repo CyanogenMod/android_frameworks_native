@@ -1187,8 +1187,15 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 state.viewport, state.frame);
                         hw->setDisplayName(state.displayName);
                         mDisplays.add(display, hw);
-                        if (state.type < DisplayDevice::NUM_DISPLAY_TYPES)
+                        if (state.isVirtualDisplay()) {
+                            if (hwcDisplayId >= 0) {
+                                mHwc->setVirtualDisplayProperties(hwcDisplayId,
+                                        hw->getWidth(), hw->getHeight(),
+                                        hw->getFormat());
+                            }
+                        } else {
                             mEventThread->onHotplugReceived(state.type, true);
+                        }
                     }
                 }
             }
