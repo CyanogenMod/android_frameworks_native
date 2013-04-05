@@ -22,7 +22,6 @@
 #include <EGL/egl.h>
 
 #include "egldefs.h"
-#include "hooks.h"
 
 // ----------------------------------------------------------------------------
 namespace android {

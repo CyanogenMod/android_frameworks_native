@@ -32,11 +32,11 @@
 #include <utils/CallStack.h>
 #include <utils/String8.h>
 
-#include "egldefs.h"
-#include "egl_impl.h"
+#include "../egl_impl.h"
+#include "../glestrace.h"
+
 #include "egl_tls.h"
-#include "glestrace.h"
-#include "hooks.h"
+#include "egldefs.h"
 #include "Loader.h"
 
 #include "egl_display.h"
@@ -387,7 +387,7 @@ gl_hooks_t const* getGlThreadSpecific() {
 #define EGL_ENTRY(_r, _api, ...) #_api,
 
 char const * const gl_names[] = {
-    #include "entries.in"
+    #include "../entries.in"
     NULL
 };
 

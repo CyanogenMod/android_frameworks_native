@@ -17,7 +17,7 @@
 #ifndef ANDROID_EGLDEFS_H
 #define ANDROID_EGLDEFS_H
 
-#include "hooks.h"
+#include "../hooks.h"
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 4

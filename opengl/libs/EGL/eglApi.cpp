@@ -37,13 +37,11 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
-#include "egl_impl.h"
-#include "egl_tls.h"
-#include "glestrace.h"
-#include "hooks.h"
+#include "../egl_impl.h"
+#include "../glestrace.h"
+#include "../hooks.h"
 
 #include "egl_display.h"
-#include "egl_impl.h"
 #include "egl_object.h"
 #include "egl_tls.h"
 #include "egldefs.h"
