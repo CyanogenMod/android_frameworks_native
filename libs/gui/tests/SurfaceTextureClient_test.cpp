@@ -178,21 +178,21 @@ TEST_F(SurfaceTextureClientTest, EglSwapBuffersAbandonErrorIsEglBadSurface) {
     EXPECT_EQ(EGL_SUCCESS, eglGetError());
 
     EGLBoolean success = eglMakeCurrent(mEglDisplay, eglSurface, eglSurface, mEglContext);
-    EXPECT_EQ(EGL_TRUE, success);
+    EXPECT_TRUE(success);
 
     glClear(GL_COLOR_BUFFER_BIT);
     success = eglSwapBuffers(mEglDisplay, eglSurface);
-    EXPECT_EQ(EGL_TRUE, success);
+    EXPECT_TRUE(success);
 
     mST->abandon();
 
     glClear(GL_COLOR_BUFFER_BIT);
     success = eglSwapBuffers(mEglDisplay, eglSurface);
-    EXPECT_EQ(EGL_FALSE, success);
+    EXPECT_FALSE(success);
     EXPECT_EQ(EGL_BAD_SURFACE, eglGetError());
 
     success = eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
-    ASSERT_EQ(EGL_TRUE, success);
+    ASSERT_TRUE(success);
 
     if (eglSurface != EGL_NO_SURFACE) {
         eglDestroySurface(mEglDisplay, eglSurface);

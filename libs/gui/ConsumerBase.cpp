@@ -76,7 +76,18 @@ ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue) :
 }
 
 ConsumerBase::~ConsumerBase() {
-	CB_LOGV("~ConsumerBase");
+    CB_LOGV("~ConsumerBase");
+    Mutex::Autolock lock(mMutex);
+
+    // Verify that abandon() has been called before we get here.  This should
+    // be done by ConsumerBase::onLastStrongRef(), but it's possible for a
+    // derived class to override that method and not call
+    // ConsumerBase::onLastStrongRef().
+    LOG_ALWAYS_FATAL_IF(!mAbandoned, "[%s] ~ConsumerBase was called, but the "
+        "consumer is not abandoned!", mName.string());
+}
+
+void ConsumerBase::onLastStrongRef(const void* id) {
     abandon();
 }
 
