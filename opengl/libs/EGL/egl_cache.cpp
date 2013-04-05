@@ -14,9 +14,10 @@
  ** limitations under the License.
  */
 
+#include "../egl_impl.h"
+
 #include "egl_cache.h"
 #include "egl_display.h"
-#include "egl_impl.h"
 #include "egldefs.h"
 
 #include <fcntl.h>

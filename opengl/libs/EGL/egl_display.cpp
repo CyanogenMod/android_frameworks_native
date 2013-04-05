@@ -18,11 +18,12 @@
 
 #include <string.h>
 
+#include "../egl_impl.h"
+
 #include "egl_cache.h"
 #include "egl_display.h"
 #include "egl_object.h"
 #include "egl_tls.h"
-#include "egl_impl.h"
 #include "Loader.h"
 #include <cutils/properties.h>
 

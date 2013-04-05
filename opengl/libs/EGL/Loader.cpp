@@ -27,9 +27,9 @@
 
 #include <EGL/egl.h>
 
+#include "../glestrace.h"
+
 #include "egldefs.h"
-#include "glestrace.h"
-#include "hooks.h"
 #include "Loader.h"
 
 // ----------------------------------------------------------------------------

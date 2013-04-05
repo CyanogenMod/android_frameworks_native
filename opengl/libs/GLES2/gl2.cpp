@@ -27,8 +27,8 @@
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
-#include "hooks.h"
-#include "egl_impl.h"
+#include "../hooks.h"
+#include "../egl_impl.h"
 
 using namespace android;
 
