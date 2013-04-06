@@ -76,7 +76,11 @@ status_t VirtualDisplaySurface::advanceFrame() {
     if (result != NO_ERROR)
         return result;
 
-    return mHwc.fbPost(mDisplayId, fence, mAcquiredBuffer);
+    result = mHwc.fbPost(mDisplayId, fence, mAcquiredBuffer);
+    if (result == NO_ERROR) {
+        result = mHwc.setOutputBuffer(mDisplayId, fence, mAcquiredBuffer);
+    }
+    return result;
 }
 
 void VirtualDisplaySurface::onFrameCommitted() {
