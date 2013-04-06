@@ -253,6 +253,9 @@ public:
     float getDpiY(int disp) const;
     bool isConnected(int disp) const;
 
+    status_t setVirtualDisplayProperties(int32_t id, uint32_t w, uint32_t h,
+            uint32_t format);
+
     // this class is only used to fake the VSync event on systems that don't
     // have it.
     class VSyncThread : public Thread {

@@ -38,6 +38,8 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
+#include <android/configuration.h>
+
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
@@ -297,6 +299,11 @@ void HWComposer::hotplug(int disp, int connected) {
     mEventHandler.onHotplugReceived(disp, bool(connected));
 }
 
+static float getDefaultDensity(uint32_t height) {
+    if (height >= 1080) return ACONFIGURATION_DENSITY_XHIGH;
+    else                return ACONFIGURATION_DENSITY_TV;
+}
+
 static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_VSYNC_PERIOD,
     HWC_DISPLAY_WIDTH,
@@ -306,10 +313,6 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_NO_ATTRIBUTE,
 };
 #define NUM_DISPLAY_ATTRIBUTES (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0])
-
-// http://developer.android.com/reference/android/util/DisplayMetrics.html
-#define ANDROID_DENSITY_TV    213
-#define ANDROID_DENSITY_XHIGH 320
 
 status_t HWComposer::queryDisplayProperties(int disp) {
 
@@ -364,15 +367,23 @@ status_t HWComposer::queryDisplayProperties(int disp) {
     mDisplayData[disp].format = HAL_PIXEL_FORMAT_RGBA_8888;
     mDisplayData[disp].connected = true;
     if (mDisplayData[disp].xdpi == 0.0f || mDisplayData[disp].ydpi == 0.0f) {
-        // is there anything smarter we can do?
-        if (h >= 1080) {
-            mDisplayData[disp].xdpi = ANDROID_DENSITY_XHIGH;
-            mDisplayData[disp].ydpi = ANDROID_DENSITY_XHIGH;
-        } else {
-            mDisplayData[disp].xdpi = ANDROID_DENSITY_TV;
-            mDisplayData[disp].ydpi = ANDROID_DENSITY_TV;
-        }
+        float dpi = getDefaultDensity(h);
+        mDisplayData[disp].xdpi = dpi;
+        mDisplayData[disp].ydpi = dpi;
     }
+    return NO_ERROR;
+}
+
+status_t HWComposer::setVirtualDisplayProperties(int32_t id,
+        uint32_t w, uint32_t h, uint32_t format) {
+    if (id < VIRTUAL_DISPLAY_ID_BASE || id >= int32_t(mNumDisplays) ||
+            !mAllocatedDisplayIDs.hasBit(id)) {
+        return BAD_INDEX;
+    }
+    mDisplayData[id].width = w;
+    mDisplayData[id].height = h;
+    mDisplayData[id].format = format;
+    mDisplayData[id].xdpi = mDisplayData[id].ydpi = getDefaultDensity(h);
     return NO_ERROR;
 }
 
@@ -415,7 +426,6 @@ nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
 sp<Fence> HWComposer::getDisplayFence(int disp) const {
     return mDisplayData[disp].lastDisplayFence;
 }
-
 
 uint32_t HWComposer::getWidth(int disp) const {
     return mDisplayData[disp].width;
