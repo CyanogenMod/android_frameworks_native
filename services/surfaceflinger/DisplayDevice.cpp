@@ -188,6 +188,25 @@ void DisplayDevice::flip(const Region& dirty) const
     mPageFlipCount++;
 }
 
+status_t DisplayDevice::prepareFrame(const HWComposer& hwc) const {
+    DisplaySurface::CompositionType compositionType;
+    bool haveGles = hwc.hasGlesComposition(mHwcDisplayId);
+    bool haveHwc = hwc.hasHwcComposition(mHwcDisplayId);
+    if (haveGles && haveHwc) {
+        compositionType = DisplaySurface::COMPOSITION_MIXED;
+    } else if (haveGles) {
+        compositionType = DisplaySurface::COMPOSITION_GLES;
+    } else if (haveHwc) {
+        compositionType = DisplaySurface::COMPOSITION_HWC;
+    } else {
+        // Nothing to do -- when turning the screen off we get a frame like
+        // this. Call it a HWC frame since we won't be doing any GLES work but
+        // will do a prepare/set cycle.
+        compositionType = DisplaySurface::COMPOSITION_HWC;
+    }
+    return mDisplaySurface->prepareFrame(compositionType);
+}
+
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
     // We need to call eglSwapBuffers() unless:
     // (a) there was no GLES composition this frame, or

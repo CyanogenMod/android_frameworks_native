@@ -895,6 +895,11 @@ void SurfaceFlinger::setUpHWComposer() {
 
         status_t err = hwc.prepare();
         ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
+
+        for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            sp<const DisplayDevice> hw(mDisplays[dpy]);
+            hw->prepareFrame(hwc);
+        }
     }
 }
 
