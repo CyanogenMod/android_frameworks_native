@@ -181,6 +181,12 @@ status_t SensorDevice::setDelay(void* ident, int handle, int64_t ns)
     return mSensorDevice->setDelay(mSensorDevice, handle, ns);
 }
 
+int SensorDevice::getHalDeviceVersion() const {
+    if (!mSensorDevice) return -1;
+
+    return mSensorDevice->common.version;
+}
+
 // ---------------------------------------------------------------------------
 
 status_t SensorDevice::Info::setDelayForIdent(void* ident, int64_t ns)
