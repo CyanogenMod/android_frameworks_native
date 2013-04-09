@@ -89,6 +89,18 @@ protected:
     // buffers from the given BufferQueue.
     ConsumerBase(const sp<BufferQueue> &bufferQueue);
 
+    // onLastStrongRef gets called by RefBase just before the dtor of the most
+    // derived class.  It is used to clean up the buffers so that ConsumerBase
+    // can coordinate the clean-up by calling into virtual methods implemented
+    // by the derived classes.  This would not be possible from the
+    // ConsuemrBase dtor because by the time that gets called the derived
+    // classes have already been destructed.
+    //
+    // This methods should not need to be overridden by derived classes, but
+    // if they are overridden the ConsumerBase implementation must be called
+    // from the derived class.
+    virtual void onLastStrongRef(const void* id);
+
     // Implementation of the BufferQueue::ConsumerListener interface.  These
     // calls are used to notify the ConsumerBase of asynchronous events in the
     // BufferQueue.  These methods should not need to be overridden by derived
