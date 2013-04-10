@@ -36,6 +36,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libsync \
 	libui \
 	libutils \
+	liblog
 
 
 LOCAL_MODULE:= libgui
