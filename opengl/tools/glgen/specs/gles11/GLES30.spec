@@ -184,7 +184,7 @@ void glUniformMatrix4x3fv ( GLint location, GLsizei count, GLboolean transpose, 
 void glBlitFramebuffer ( GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter )
 void glRenderbufferStorageMultisample ( GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height )
 void glFramebufferTextureLayer ( GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer )
-// GLvoid * glMapBufferRange ( GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access )
+GLvoid * glMapBufferRange ( GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access )
 void glFlushMappedBufferRange ( GLenum target, GLintptr offset, GLsizeiptr length )
 void glBindVertexArray ( GLuint array )
 void glDeleteVertexArrays ( GLsizei n, const GLuint *arrays )
