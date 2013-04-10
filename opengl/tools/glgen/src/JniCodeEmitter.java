@@ -749,10 +749,20 @@ public class JniCodeEmitter {
 
         String outName = "android_" + jfunc.getName();
         boolean isPointerFunc = isPointerFunc(jfunc);
-        boolean isVBOPointerFunc = (outName.endsWith("Pointer") ||
-                outName.endsWith("PointerOES") ||
-            outName.endsWith("DrawElements") || outName.endsWith("VertexAttribPointer")) &&
-            !jfunc.getCFunc().hasPointerArg();
+        boolean isPointerOffsetFunc =
+            (outName.endsWith("Pointer") || outName.endsWith("PointerOES") ||
+             outName.endsWith("glDrawElements") ||
+             outName.endsWith("glDrawRangeElements") ||
+             outName.endsWith("glTexImage2D") ||
+             outName.endsWith("glTexSubImage2D") ||
+             outName.endsWith("glCompressedTexImage2D") ||
+             outName.endsWith("glCompressedTexSubImage2D") ||
+             outName.endsWith("glTexImage3D") ||
+             outName.endsWith("glTexSubImage3D") ||
+             outName.endsWith("glCompressedTexImage3D") ||
+             outName.endsWith("glCompressedTexSubImage3D") ||
+             outName.endsWith("glReadPixels"))
+            && !jfunc.getCFunc().hasPointerArg();
         if (isPointerFunc) {
             outName += "Bounds";
         }
@@ -1271,8 +1281,8 @@ public class JniCodeEmitter {
             }
             for (int i = 0; i < numArgs; i++) {
                 String typecast;
-                if (i == numArgs - 1 && isVBOPointerFunc) {
-                    typecast = "(const GLvoid *)";
+                if (i == numArgs - 1 && isPointerOffsetFunc) {
+                    typecast = "(GLvoid *)";
                 } else {
                     typecast = "(" + cfunc.getArgType(i).getDeclaration() + ")";
                 }
