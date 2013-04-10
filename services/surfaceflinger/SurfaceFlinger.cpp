@@ -1013,8 +1013,9 @@ void SurfaceFlinger::rebuildLayerStacks() {
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
             const Transform& tr(hw->getTransform());
             const Rect bounds(hw->getBounds());
+            int dpyId = hw->getHwcDisplayId();
             if (hw->canDraw()) {
-                SurfaceFlinger::computeVisibleRegions(layers,
+                SurfaceFlinger::computeVisibleRegions(dpyId, currentLayers,
                         hw->getLayerStack(), dirtyRegion, opaqueRegion);
 
                 const size_t count = layers.size();
@@ -1482,7 +1483,7 @@ void SurfaceFlinger::commitTransaction()
     mTransactionCV.broadcast();
 }
 
-void SurfaceFlinger::computeVisibleRegions(
+void SurfaceFlinger::computeVisibleRegions(size_t dpy,
         const LayerVector& currentLayers, uint32_t layerStack,
         Region& outDirtyRegion, Region& outOpaqueRegion)
 {
@@ -1493,7 +1494,7 @@ void SurfaceFlinger::computeVisibleRegions(
     Region dirty;
 
     outDirtyRegion.clear();
-
+    bool bIgnoreLayers = false;
     size_t i = currentLayers.size();
     while (i--) {
         const sp<Layer>& layer = currentLayers[i];
@@ -1501,8 +1502,34 @@ void SurfaceFlinger::computeVisibleRegions(
         // start with the whole surface at its current location
         const Layer::State& s(layer->getDrawingState());
 
-        // only consider the layers on the given layer stack
-        if (s.layerStack != layerStack)
+#ifdef QCOM_BSP
+        if(bIgnoreLayers) {
+            // Ignore all other layers except the layers marked as ext_only
+            // by setting visible non transparent region empty.
+            Region visibleNonTransRegion;
+            visibleNonTransRegion.set(Rect(0,0));
+            layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+            continue;
+        }
+        // Only add the layer marked as "external_only" to external list and
+        // only remove the layer marked as "external_only" from primary list
+        // and do not add the layer marked as "internal_only" to external list
+        if ((dpy && layer->isExtOnly())) {
+            bIgnoreLayers = true;
+        } else if(layer->isExtOnly() || (dpy && layer->isIntOnly())) {
+            // Ignore only ext_only layers for primary by setting
+            // visible non transparent region empty.
+            Region visibleNonTransRegion;
+            visibleNonTransRegion.set(Rect(0,0));
+            layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+            continue;
+        }
+#endif
+
+        // only consider the layers on the given later stack
+        // Override layers created using presentation class by the layers having
+        // ext_only flag enabled
+        if (s.layerStack != layerStack && !bIgnoreLayers)
             continue;
 
         /*
