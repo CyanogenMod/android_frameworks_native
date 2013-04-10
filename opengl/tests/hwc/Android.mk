@@ -40,6 +40,7 @@ LOCAL_SHARED_LIBRARIES := \
     libEGL \
     libGLESv2 \
     libutils \
+    liblog \
     libui \
     libhardware \
 
@@ -72,6 +73,7 @@ LOCAL_SHARED_LIBRARIES := \
     libEGL \
     libGLESv2 \
     libutils \
+    liblog \
     libui \
     libhardware \
 
@@ -102,6 +104,7 @@ LOCAL_SHARED_LIBRARIES := \
     libEGL \
     libGLESv2 \
     libutils \
+    liblog \
     libui \
     libhardware \
 
@@ -132,6 +135,7 @@ LOCAL_SHARED_LIBRARIES := \
     libEGL \
     libGLESv2 \
     libutils \
+    liblog \
     libui \
     libhardware \
 

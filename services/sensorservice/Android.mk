@@ -21,6 +21,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libhardware \
 	libutils \
+	liblog \
 	libbinder \
 	libui \
 	libgui

@@ -22,7 +22,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_CFLAGS := -DGOOGLE_PROTOBUF_NO_RTTI
 LOCAL_STATIC_LIBRARIES := libprotobuf-cpp-2.3.0-lite liblzf
-LOCAL_SHARED_LIBRARIES := libcutils libutils libstlport
+LOCAL_SHARED_LIBRARIES := libcutils libutils liblog libstlport
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLES_trace\"
 

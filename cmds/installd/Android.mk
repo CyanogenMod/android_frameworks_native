@@ -30,6 +30,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
+    liblog \
     libselinux
 
 LOCAL_STATIC_LIBRARIES := \

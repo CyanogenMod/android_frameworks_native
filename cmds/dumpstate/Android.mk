@@ -9,7 +9,7 @@ LOCAL_SRC_FILES := dumpstate.c utils.c
 
 LOCAL_MODULE := dumpstate
 
-LOCAL_SHARED_LIBRARIES := libcutils
+LOCAL_SHARED_LIBRARIES := libcutils liblog
 
 ifdef BOARD_LIB_DUMPSTATE
 LOCAL_STATIC_LIBRARIES := $(BOARD_LIB_DUMPSTATE)
