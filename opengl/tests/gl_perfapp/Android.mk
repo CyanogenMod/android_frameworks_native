@@ -40,6 +40,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SHARED_LIBRARIES := \
 	libutils \
+	liblog \
 	libEGL \
 	libGLESv2
 

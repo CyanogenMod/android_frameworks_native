@@ -26,7 +26,7 @@ LOCAL_CFLAGS += -DLOG_TAG=\"libagl\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
 
-LOCAL_SHARED_LIBRARIES := libcutils libhardware libutils libpixelflinger libETC1 libui
+LOCAL_SHARED_LIBRARIES := libcutils libhardware libutils liblog libpixelflinger libETC1 libui
 LOCAL_LDLIBS := -lpthread -ldl
 
 ifeq ($(TARGET_ARCH),arm)

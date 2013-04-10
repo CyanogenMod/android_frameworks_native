@@ -5,7 +5,7 @@ LOCAL_SRC_FILES := screenshot.c
 
 LOCAL_MODULE := screenshot
 
-LOCAL_SHARED_LIBRARIES := libcutils libz
+LOCAL_SHARED_LIBRARIES := libcutils libz liblog
 LOCAL_STATIC_LIBRARIES := libpng
 LOCAL_C_INCLUDES += external/zlib
 

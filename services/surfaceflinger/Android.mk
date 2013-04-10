@@ -44,6 +44,7 @@ endif
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
+	liblog \
 	libdl \
 	libhardware \
 	libutils \
@@ -68,6 +69,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
+	liblog \
 	libdl
 
 LOCAL_MODULE:= libsurfaceflinger_ddmconnection
