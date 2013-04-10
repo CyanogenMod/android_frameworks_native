@@ -1421,7 +1421,8 @@ public class JniCodeEmitter {
                             "return toEGLHandle(_env, " + baseType + "Class, " +
                             baseType + "Constructor, _returnValue);");
             } else {
-                out.println(indent + "return _returnValue;");
+                out.println(indent + "return (" +
+                            getJniType(jfunc.getType()) + ")_returnValue;");
             }
         }
 
