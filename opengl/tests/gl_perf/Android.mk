@@ -6,7 +6,8 @@ LOCAL_SRC_FILES:= \
 	filltest.cpp
 
 LOCAL_SHARED_LIBRARIES := \
-	libcutils \
+    libcutils \
+    liblog \
     libEGL \
     libGLESv2 \
     libui
