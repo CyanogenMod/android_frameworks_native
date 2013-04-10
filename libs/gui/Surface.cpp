@@ -723,7 +723,8 @@ status_t Surface::lock(
             return err;
         }
         // we're intending to do software rendering from this point
-        setUsage(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
+        setUsage(mReqUsage | GRALLOC_USAGE_SW_READ_OFTEN |
+                GRALLOC_USAGE_SW_WRITE_OFTEN);
     }
 
     ANativeWindowBuffer* out;

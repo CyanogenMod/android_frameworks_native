@@ -354,7 +354,7 @@ private:
      * Compositing
      */
     void invalidateHwcGeometry();
-    static void computeVisibleRegions(
+    static void computeVisibleRegions(size_t dpy,
             const LayerVector& currentLayers, uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
 

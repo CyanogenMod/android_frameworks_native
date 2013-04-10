@@ -44,6 +44,10 @@
 
 #include "DisplayHardware/HWComposer.h"
 
+#ifdef QCOM_BSP
+#include <gralloc_priv.h>
+#endif
+
 #define DEBUG_RESIZE    0
 
 namespace android {
@@ -370,6 +374,15 @@ void Layer::setGeometry(
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
+#ifdef QCOM_BSP
+    // set dest_rect to frame buffer width and height, if external_only flag
+    // for the layer is enabled.
+    if(isExtOnly()) {
+        uint32_t w = hw->getWidth();
+        uint32_t h = hw->getHeight();
+        layer.setFrame(Rect(w,h));
+    }
+#endif
     layer.setCrop(computeCrop(hw));
     layer.setPlaneAlpha(s.alpha);
 
@@ -1254,6 +1267,29 @@ Layer::LayerCleaner::~LayerCleaner() {
     mFlinger->onLayerDestroyed(mLayer);
 }
 
+#ifdef QCOM_BSP
+bool Layer::isExtOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_EXTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+
+bool Layer::isIntOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_INTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+#endif
 // ---------------------------------------------------------------------------
 
 
