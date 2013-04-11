@@ -2646,6 +2646,61 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     return res;
 }
 
+
+void SurfaceFlinger::renderScreenImplLocked(
+        const sp<const DisplayDevice>& hw,
+        uint32_t reqWidth, uint32_t reqHeight,
+        uint32_t minLayerZ, uint32_t maxLayerZ,
+        bool yswap)
+{
+    ATRACE_CALL();
+
+    // get screen geometry
+    const uint32_t hw_w = hw->getWidth();
+    const uint32_t hw_h = hw->getHeight();
+
+    const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
+
+    // make sure to clear all GL error flags
+    while ( glGetError() != GL_NO_ERROR ) ;
+
+    // set-up our viewport
+    glViewport(0, 0, reqWidth, reqHeight);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    if (yswap)  glOrthof(0, hw_w, hw_h, 0, 0, 1);
+    else        glOrthof(0, hw_w, 0, hw_h, 0, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // redraw the screen entirely...
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0,0,0,1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_TEXTURE_EXTERNAL_OES);
+    glDisable(GL_TEXTURE_2D);
+
+    const LayerVector& layers( mDrawingState.layersSortedByZ );
+    const size_t count = layers.size();
+    for (size_t i=0 ; i<count ; ++i) {
+        const sp<Layer>& layer(layers[i]);
+        const Layer::State& state(layer->drawingState());
+        if (state.layerStack == hw->getLayerStack()) {
+            if (state.z >= minLayerZ && state.z <= maxLayerZ) {
+                if (layer->isVisible()) {
+                    if (filtering) layer->setFiltering(true);
+                    layer->draw(hw);
+                    if (filtering) layer->setFiltering(false);
+                }
+            }
+        }
+    }
+
+    // compositionComplete is needed for older driver
+    hw->compositionComplete();
+}
+
+
 status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<const DisplayDevice>& hw,
         const sp<IGraphicBufferProducer>& producer,
@@ -2672,7 +2727,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
     reqWidth = (!reqWidth) ? hw_w : reqWidth;
     reqHeight = (!reqHeight) ? hw_h : reqHeight;
-    const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
 
     // Create a surface to render into
     sp<Surface> surface = new Surface(producer);
@@ -2697,41 +2751,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         return BAD_VALUE;
     }
 
-    // make sure to clear all GL error flags
-    while ( glGetError() != GL_NO_ERROR ) ;
-
-    // set-up our viewport
-    glViewport(0, 0, reqWidth, reqHeight);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrthof(0, hw_w, 0, hw_h, 0, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    // redraw the screen entirely...
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    const LayerVector& layers( mDrawingState.layersSortedByZ );
-    const size_t count = layers.size();
-    for (size_t i=0 ; i<count ; ++i) {
-        const sp<Layer>& layer(layers[i]);
-        const Layer::State& state(layer->drawingState());
-        if (state.layerStack == hw->getLayerStack()) {
-            if (state.z >= minLayerZ && state.z <= maxLayerZ) {
-                if (layer->isVisible()) {
-                    if (filtering) layer->setFiltering(true);
-                    layer->draw(hw);
-                    if (filtering) layer->setFiltering(false);
-                }
-            }
-        }
-    }
-
-    // compositionComplete is needed for older driver
-    hw->compositionComplete();
+    renderScreenImplLocked(hw, reqWidth, reqHeight, minLayerZ, maxLayerZ, false);
 
     // and finishing things up...
     if (eglSwapBuffers(mEGLDisplay, eglSurface) != EGL_TRUE) {
@@ -2759,102 +2779,87 @@ status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
         return INVALID_OPERATION;
     }
 
-    // create the texture that will receive the screenshot, later we'll
-    // attach a FBO to it so we can call glReadPixels().
-    GLuint tname;
-    glGenTextures(1, &tname);
-    glBindTexture(GL_TEXTURE_2D, tname);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // get screen geometry
+    const uint32_t hw_w = hw->getWidth();
+    const uint32_t hw_h = hw->getHeight();
 
-    // the GLConsumer will provide the BufferQueue
-    sp<GLConsumer> consumer = new GLConsumer(tname, true, GL_TEXTURE_2D);
-    consumer->getBufferQueue()->setDefaultBufferFormat(HAL_PIXEL_FORMAT_RGBA_8888);
-
-    // call the new screenshot taking code, passing a BufferQueue to it
-    status_t result = captureScreenImplLocked(hw,
-            consumer->getBufferQueue(), reqWidth, reqHeight, minLayerZ, maxLayerZ);
-
-    if (result == NO_ERROR) {
-        result = consumer->updateTexImage();
-        if (result == NO_ERROR) {
-            // create a FBO
-            GLuint name;
-            glGenFramebuffersOES(1, &name);
-            glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-            glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-                    GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
-
-            reqWidth = consumer->getCurrentBuffer()->getWidth();
-            reqHeight = consumer->getCurrentBuffer()->getHeight();
-
-            {
-                // in this block we render the screenshot into the
-                // CpuConsumer using glReadPixels from our GLConsumer,
-                // Some older drivers don't support the GL->CPU path so
-                // have to wrap it with a CPU->CPU path, which is what
-                // glReadPixels essentially is
-
-                sp<Surface> sur = new Surface(producer);
-                ANativeWindow* window = sur.get();
-                ANativeWindowBuffer* buffer;
-                void* vaddr;
-
-                if (native_window_api_connect(window,
-                        NATIVE_WINDOW_API_CPU) == NO_ERROR) {
-                    int err = 0;
-                    err = native_window_set_buffers_dimensions(window,
-                            reqWidth, reqHeight);
-                    err |= native_window_set_buffers_format(window,
-                            HAL_PIXEL_FORMAT_RGBA_8888);
-                    err |= native_window_set_usage(window,
-                            GRALLOC_USAGE_SW_READ_OFTEN |
-                            GRALLOC_USAGE_SW_WRITE_OFTEN);
-
-                    if (err == NO_ERROR) {
-                        if (native_window_dequeue_buffer_and_wait(window,
-                                &buffer) == NO_ERROR) {
-                            sp<GraphicBuffer> buf =
-                                    static_cast<GraphicBuffer*>(buffer);
-                            if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN,
-                                    &vaddr) == NO_ERROR) {
-                                if (buffer->stride != int(reqWidth)) {
-                                    // we're unlucky here, glReadPixels is
-                                    // not able to deal with a stride not
-                                    // equal to the width.
-                                    uint32_t* tmp = new uint32_t[reqWidth*reqHeight];
-                                    if (tmp != NULL) {
-                                        glReadPixels(0, 0, reqWidth, reqHeight,
-                                                GL_RGBA, GL_UNSIGNED_BYTE, tmp);
-                                        for (size_t y=0 ; y<reqHeight ; y++) {
-                                            memcpy((uint32_t*)vaddr + y*buffer->stride,
-                                                    tmp + y*reqWidth, reqWidth*4);
-                                        }
-                                        delete [] tmp;
-                                    }
-                                } else {
-                                    glReadPixels(0, 0, reqWidth, reqHeight,
-                                            GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
-                                }
-                                buf->unlock();
-                            }
-                            window->queueBuffer(window, buffer, -1);
-                        }
-                    }
-                    native_window_api_disconnect(window, NATIVE_WINDOW_API_CPU);
-                }
-            }
-
-            // back to main framebuffer
-            glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-            glDeleteFramebuffersOES(1, &name);
-        }
+    // if we have secure windows on this display, never allow the screen capture
+    if (hw->getSecureLayerVisible()) {
+        ALOGW("FB is protected: PERMISSION_DENIED");
+        return PERMISSION_DENIED;
     }
 
-    glDeleteTextures(1, &tname);
+    if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
+        ALOGE("size mismatch (%d, %d) > (%d, %d)",
+                reqWidth, reqHeight, hw_w, hw_h);
+        return BAD_VALUE;
+    }
 
-    DisplayDevice::makeCurrent(mEGLDisplay,
-            getDefaultDisplayDevice(), mEGLContext);
+    reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
+    reqHeight = (!reqHeight) ? hw_h : reqHeight;
+
+    GLuint tname;
+    glGenRenderbuffersOES(1, &tname);
+    glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
+    glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, reqWidth, reqHeight);
+
+    // create a FBO
+    GLuint name;
+    glGenFramebuffersOES(1, &name);
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
+            GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, tname);
+
+    GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+
+    status_t result = NO_ERROR;
+    if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
+
+        renderScreenImplLocked(hw, reqWidth, reqHeight, minLayerZ, maxLayerZ, true);
+
+        // Below we render the screenshot into the
+        // CpuConsumer using glReadPixels from our FBO.
+        // Some older drivers don't support the GL->CPU path so we
+        // have to wrap it with a CPU->CPU path, which is what
+        // glReadPixels essentially is.
+
+        sp<Surface> sur = new Surface(producer);
+        ANativeWindow* window = sur.get();
+
+        if (native_window_api_connect(window, NATIVE_WINDOW_API_CPU) == NO_ERROR) {
+            int err = 0;
+            err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
+            err |= native_window_set_buffers_format(window, HAL_PIXEL_FORMAT_RGBA_8888);
+            err |= native_window_set_usage(window,
+                    GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
+
+            if (err == NO_ERROR) {
+                ANativeWindowBuffer* buffer;
+                if (native_window_dequeue_buffer_and_wait(window,  &buffer) == NO_ERROR) {
+                    sp<GraphicBuffer> buf = static_cast<GraphicBuffer*>(buffer);
+                    void* vaddr;
+                    if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
+                        glReadPixels(0, 0, buffer->stride, reqHeight,
+                                GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
+                        buf->unlock();
+                    }
+                    window->queueBuffer(window, buffer, -1);
+                }
+            }
+            native_window_api_disconnect(window, NATIVE_WINDOW_API_CPU);
+        }
+
+    } else {
+        ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES while taking screenshot");
+        result = INVALID_OPERATION;
+    }
+
+    // back to main framebuffer
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
+    glDeleteRenderbuffersOES(1, &tname);
+    glDeleteFramebuffersOES(1, &name);
+
+    DisplayDevice::setViewportAndProjection(hw);
 
     return result;
 }
