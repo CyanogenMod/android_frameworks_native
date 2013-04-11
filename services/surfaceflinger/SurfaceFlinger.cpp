@@ -1242,17 +1242,22 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         if (disp == NULL) {
                             disp = hw;
                         } else {
-                            disp = getDefaultDisplayDevice();
+                            disp = NULL;
                             break;
                         }
                     }
                 }
             }
-            if (disp != NULL) {
-                // presumably this means this layer is using a layerStack
-                // that is not visible on any display
-                layer->updateTransformHint(disp);
+            if (disp == NULL) {
+                // NOTE: TEMPORARY FIX ONLY. Real fix should cause layers to
+                // redraw after transform hint changes. See bug 8508397.
+
+                // could be null when this layer is using a layerStack
+                // that is not visible on any display. Also can occur at
+                // screen off/on times.
+                disp = getDefaultDisplayDevice();
             }
+            layer->updateTransformHint(disp);
         }
     }
 
