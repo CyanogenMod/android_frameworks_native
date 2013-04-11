@@ -61,6 +61,12 @@ void MessageQueue::Handler::dispatchInvalidate() {
     }
 }
 
+void MessageQueue::Handler::dispatchTransaction() {
+    if ((android_atomic_or(eventMaskTransaction, &mEventMask) & eventMaskTransaction) == 0) {
+        mQueue.mLooper->sendMessage(this, Message(MessageQueue::TRANSACTION));
+    }
+}
+
 void MessageQueue::Handler::handleMessage(const Message& message) {
     switch (message.what) {
         case INVALIDATE:
@@ -69,6 +75,10 @@ void MessageQueue::Handler::handleMessage(const Message& message) {
             break;
         case REFRESH:
             android_atomic_and(~eventMaskRefresh, &mEventMask);
+            mQueue.mFlinger->onMessageReceived(message.what);
+            break;
+        case TRANSACTION:
+            android_atomic_and(~eventMaskTransaction, &mEventMask);
             mQueue.mFlinger->onMessageReceived(message.what);
             break;
     }
@@ -132,6 +142,7 @@ status_t MessageQueue::postMessage(
     return NO_ERROR;
 }
 
+
 /* when INVALIDATE_ON_VSYNC is set SF only processes
  * buffer updates on VSYNC and performs a refresh immediately
  * after.
@@ -142,6 +153,10 @@ status_t MessageQueue::postMessage(
  * THIS MODE IS BUGGY ON GALAXY NEXUS AND WILL CAUSE HANGS
  */
 #define INVALIDATE_ON_VSYNC 1
+
+void MessageQueue::invalidateTransactionNow() {
+    mHandler->dispatchTransaction();
+}
 
 void MessageQueue::invalidate() {
 #if INVALIDATE_ON_VSYNC
