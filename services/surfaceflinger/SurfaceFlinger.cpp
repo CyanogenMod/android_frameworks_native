@@ -744,6 +744,9 @@ void SurfaceFlinger::eventControl(int disp, int event, int enabled) {
 void SurfaceFlinger::onMessageReceived(int32_t what) {
     ATRACE_CALL();
     switch (what) {
+    case MessageQueue::TRANSACTION:
+        handleMessageTransaction();
+        break;
     case MessageQueue::INVALIDATE:
         handleMessageTransaction();
         handleMessageInvalidate();
@@ -2625,6 +2628,13 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
             return true;
         }
     };
+
+    // make sure to process transactions before screenshots -- a transaction
+    // might already be pending but scheduled for VSYNC; this guarantees we
+    // will handle it before the screenshot. When VSYNC finally arrives
+    // the scheduled transaction will be a no-op. If no transactions are
+    // scheduled at this time, this will end-up being a no-op as well.
+    mEventQueue.invalidateTransactionNow();
 
     sp<MessageBase> msg = new MessageCaptureScreen(this,
             display, producer, reqWidth, reqHeight, minLayerZ, maxLayerZ,
