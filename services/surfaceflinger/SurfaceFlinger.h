@@ -288,6 +288,12 @@ private:
 
     void startBootAnim();
 
+    void renderScreenImplLocked(
+            const sp<const DisplayDevice>& hw,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool yswap);
+
     status_t captureScreenImplLocked(
             const sp<const DisplayDevice>& hw,
             const sp<IGraphicBufferProducer>& producer,
