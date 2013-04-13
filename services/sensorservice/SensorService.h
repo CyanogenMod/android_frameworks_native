@@ -53,6 +53,7 @@ class SensorService :
    friend class BinderService<SensorService>;
 
    static const nsecs_t MINIMUM_EVENTS_PERIOD =   1000000; // 1000 Hz
+   static const char* WAKE_LOCK_NAME;
 
             SensorService();
     virtual ~SensorService();
@@ -109,10 +110,15 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> getActiveVirtualSensors() const;
 
     String8 getSensorName(int handle) const;
+    int getSensorType(int handle) const;
     void recordLastValue(sensors_event_t const * buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     void registerSensor(SensorInterface* sensor);
     void registerVirtualSensor(SensorInterface* sensor);
+    status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
+        int handle);
+    void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
+        sensors_event_t const* buffer, const int count);
 
     // constants
     Vector<Sensor> mSensorList;
