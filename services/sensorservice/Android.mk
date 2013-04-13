@@ -20,6 +20,7 @@ LOCAL_CFLAGS:= -DLOG_TAG=\"SensorService\"
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libhardware \
+	libhardware_legacy \
 	libutils \
 	liblog \
 	libbinder \
