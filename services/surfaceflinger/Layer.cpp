@@ -1067,6 +1067,16 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                 if (!front.activeTransparentRegion.isTriviallyEqual(
                         front.requestedTransparentRegion)) {
                     front.activeTransparentRegion = front.requestedTransparentRegion;
+
+                    // We also need to update the current state so that
+                    // we don't end-up overwriting the drawing state with
+                    // this stale current state during the next transaction
+                    //
+                    // NOTE: We don't need to hold the transaction lock here
+                    // because State::active is only accessed from this thread.
+                    current.activeTransparentRegion = front.activeTransparentRegion;
+
+                    // recompute visible region
                     recomputeVisibleRegions = true;
                 }
 
