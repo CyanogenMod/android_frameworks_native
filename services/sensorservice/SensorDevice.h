@@ -52,6 +52,7 @@ class SensorDevice : public Singleton<SensorDevice> {
 public:
     ssize_t getSensorList(sensor_t const** list);
     status_t initCheck() const;
+    int getHalDeviceVersion() const;
     ssize_t poll(sensors_event_t* buffer, size_t count);
     status_t activate(void* ident, int handle, int enabled);
     status_t setDelay(void* ident, int handle, int64_t ns);
