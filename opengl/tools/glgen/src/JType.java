@@ -46,7 +46,10 @@ public class JType {
     typeMapping.put(new CType("GLubyte", true, true), new JType("String", false, false));
     typeMapping.put(new CType("char", false, true), new JType("byte"));
     typeMapping.put(new CType("char", true, true), new JType("String", false, false));
+    typeMapping.put(new CType("GLchar", true, true), new JType("String", false, false));
     typeMapping.put(new CType("int"), new JType("int"));
+    typeMapping.put(new CType("GLuint64"), new JType("long"));
+    typeMapping.put(new CType("GLsync"), new JType("long"));
 
     // EGL primitive types
     typeMapping.put(new CType("EGLint"), new JType("int"));
@@ -80,6 +83,8 @@ public class JType {
             new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLenum", false, true),
             new JType("java.nio.IntBuffer", true, false));
+    typeMapping.put(new CType("GLenum", true, true),
+            new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLfixed", false, true),
             new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLfixed", true, true),
@@ -100,6 +105,8 @@ public class JType {
             new JType("java.nio.IntBuffer", true, false));
     typeMapping.put(new CType("GLshort", true, true),
             new JType("java.nio.ShortBuffer", true, false));
+    typeMapping.put(new CType("GLint64", false, true),
+            new JType("java.nio.LongBuffer", true, false));
 
     // Typed pointers map to arrays + offsets
     arrayTypeMapping.put(new CType("char", false, true),
@@ -107,6 +114,7 @@ public class JType {
     arrayTypeMapping.put(new CType("GLboolean", false, true),
             new JType("boolean", false, true));
     arrayTypeMapping.put(new CType("GLenum", false, true), new JType("int", false, true));
+    arrayTypeMapping.put(new CType("GLenum", true, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfixed", true, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfixed", false, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLfloat", false, true), new JType("float", false, true));
@@ -120,6 +128,7 @@ public class JType {
     arrayTypeMapping.put(new CType("GLuint", true, true), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLintptr"), new JType("int", false, true));
     arrayTypeMapping.put(new CType("GLsizeiptr"), new JType("int", false, true));
+    arrayTypeMapping.put(new CType("GLint64", false, true), new JType("long", false, true));
 
     //EGL typed pointers map to arrays + offsets
     arrayTypeMapping.put(new CType("EGLint", false, true), new JType("int", false, true));

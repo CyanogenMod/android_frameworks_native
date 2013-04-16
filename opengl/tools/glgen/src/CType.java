@@ -70,7 +70,8 @@ public class CType {
     }
 
     public boolean isConstCharPointer() {
-        return isConst && isPointer && baseType.equals("char");
+        return isConst && isPointer &&
+            (baseType.equals("char") || baseType.equals("GLchar"));
     }
 
     public boolean isTypedPointer() {
