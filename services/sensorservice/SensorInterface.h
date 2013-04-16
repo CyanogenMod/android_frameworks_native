@@ -40,6 +40,11 @@ public:
     virtual status_t setDelay(void* ident, int handle, int64_t ns) = 0;
     virtual Sensor getSensor() const = 0;
     virtual bool isVirtual() const = 0;
+    virtual status_t resetStateWithoutActuatingHardware(void *ident, int handle) {
+        // Override when you want to clean up for sensors which auto disable
+        // after trigger, or when enabling sensors fail.
+        return INVALID_OPERATION;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -61,6 +66,7 @@ public:
     virtual status_t setDelay(void* ident, int handle, int64_t ns);
     virtual Sensor getSensor() const;
     virtual bool isVirtual() const { return false; }
+    virtual status_t resetStateWithoutActuatingHardware(void *ident, int handle);
 };
 
 
