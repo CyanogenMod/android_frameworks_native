@@ -84,7 +84,7 @@ public class GenerateGLES {
 
         // Generate files
         for(String suffix: new String[] {"GLES10", "GLES10Ext",
-                "GLES11", "GLES11Ext", "GLES20"})
+                "GLES11", "GLES11Ext", "GLES20", "GLES30"})
         {
             BufferedReader spec11Reader =
                 new BufferedReader(new FileReader("specs/gles11/"
