@@ -960,6 +960,13 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
 
     egl_surface_t const * const s = get_surface(draw);
 
+    if (CC_UNLIKELY(dp->traceGpuCompletion)) {
+        EGLSyncKHR sync = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR, NULL);
+        if (sync != EGL_NO_SYNC_KHR) {
+            FrameCompletionThread::queueSync(sync);
+        }
+    }
+
     if (CC_UNLIKELY(dp->finishOnSwap)) {
         uint32_t pixel;
         egl_context_t * const c = get_context( egl_tls_t::getContext() );
@@ -970,19 +977,7 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
         }
     }
 
-    EGLBoolean result = s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
-
-    if (CC_UNLIKELY(dp->traceGpuCompletion)) {
-        EGLSyncKHR sync = EGL_NO_SYNC_KHR;
-        {
-            sync = eglCreateSyncKHR(dpy, EGL_SYNC_FENCE_KHR, NULL);
-        }
-        if (sync != EGL_NO_SYNC_KHR) {
-            FrameCompletionThread::queueSync(sync);
-        }
-    }
-
-    return result;
+    return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
 }
 
 EGLBoolean eglCopyBuffers(  EGLDisplay dpy, EGLSurface surface,
