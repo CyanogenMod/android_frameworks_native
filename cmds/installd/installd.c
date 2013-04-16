@@ -16,6 +16,8 @@
 
 #include <sys/capability.h>
 #include <linux/prctl.h>
+#include <selinux/android.h>
+#include <selinux/avc.h>
 
 #include "installd.h"
 
@@ -525,6 +527,7 @@ int main(const int argc, const char *argv[]) {
     struct sockaddr addr;
     socklen_t alen;
     int lsocket, s, count;
+    int selinux_enabled = (is_selinux_enabled() > 0);
 
     ALOGI("installd firing up\n");
 
@@ -535,6 +538,11 @@ int main(const int argc, const char *argv[]) {
 
     if (initialize_directories() < 0) {
         ALOGE("Could not create directories; exiting.\n");
+        exit(1);
+    }
+
+    if (selinux_enabled && selinux_status_open(true) < 0) {
+        ALOGE("Could not open selinux status; exiting.\n");
         exit(1);
     }
 
@@ -576,6 +584,9 @@ int main(const int argc, const char *argv[]) {
                 break;
             }
             buf[count] = 0;
+            if (selinux_enabled && selinux_status_updated() > 0) {
+                selinux_android_seapp_context_reload();
+            }
             if (execute(s, buf)) break;
         }
         ALOGI("closing connection\n");
