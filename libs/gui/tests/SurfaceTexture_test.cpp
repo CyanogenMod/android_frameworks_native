@@ -29,10 +29,14 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES/gl.h>
+#include <GLES/glext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
 #include <ui/FramebufferNativeWindow.h>
+#include <utils/UniquePtr.h>
+#include <android/native_window.h>
 
 namespace android {
 
@@ -374,6 +378,107 @@ static int abs(int value) {
 
 
 // XXX: Code above this point should live elsewhere
+
+class MultiTextureConsumerTest : public GLTest {
+protected:
+    enum { TEX_ID = 123 };
+
+    virtual void SetUp() {
+        GLTest::SetUp();
+        mGlConsumer = new GLConsumer(TEX_ID);
+        mSurface = new Surface(mGlConsumer->getBufferQueue());
+        mANW = mSurface.get();
+
+    }
+    virtual void TearDown() {
+        GLTest::TearDown();
+    }
+    virtual EGLint const* getContextAttribs() {
+        return NULL;
+    }
+    virtual EGLint const* getConfigAttribs() {
+        static EGLint sDefaultConfigAttribs[] = {
+            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_ALPHA_SIZE, 8,
+            EGL_NONE };
+
+        return sDefaultConfigAttribs;
+    }
+    sp<GLConsumer> mGlConsumer;
+    sp<Surface> mSurface;
+    ANativeWindow* mANW;
+};
+
+
+TEST_F(MultiTextureConsumerTest, EGLImageTargetWorks) {
+    ANativeWindow_Buffer buffer;
+
+    ASSERT_EQ(native_window_set_usage(mANW, GRALLOC_USAGE_SW_WRITE_OFTEN), NO_ERROR);
+    ASSERT_EQ(native_window_set_buffers_format(mANW, HAL_PIXEL_FORMAT_RGBA_8888), NO_ERROR);
+
+    glShadeModel(GL_FLAT);
+    glDisable(GL_DITHER);
+    glDisable(GL_CULL_FACE);
+    glViewport(0, 0, getSurfaceWidth(), getSurfaceHeight());
+    glOrthof(0, getSurfaceWidth(), 0, getSurfaceHeight(), 0, 1);
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glColor4f(1, 1, 1, 1);
+
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, TEX_ID);
+    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    uint32_t texel = 0x80808080;
+    glBindTexture(GL_TEXTURE_2D, TEX_ID+1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &texel);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, TEX_ID+1);
+    glEnable(GL_TEXTURE_2D);
+    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, TEX_ID);
+    glEnable(GL_TEXTURE_EXTERNAL_OES);
+    glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    for (int i=0 ; i<8 ; i++) {
+        mSurface->lock(&buffer, NULL);
+        memset(buffer.bits, (i&7) * 0x20, buffer.stride * buffer.height * 4);
+        mSurface->unlockAndPost();
+
+        mGlConsumer->updateTexImage();
+
+        GLfloat vertices[][2] = { {i*16.0f, 0}, {(i+1)*16.0f, 0}, {(i+1)*16.0f, 16.0f}, {i*16.0f, 16.0f} };
+        glVertexPointer(2, GL_FLOAT, 0, vertices);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+        ASSERT_EQ( glGetError(), GL_NO_ERROR );
+    }
+    ASSERT_TRUE( eglSwapBuffers(mEglDisplay, mEglSurface) );
+
+    uint32_t* pixels = new uint32_t[8*16*16];
+    glReadPixels(0, 0, 8*16, 16, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    for (int i=0 ; i<8 ; i++) {
+        uint32_t p = pixels[i*16 + 8 + 8*(8*16)]; // center of each square
+        EXPECT_EQ(p, (i&7) * 0x10101010);
+    }
+
+    delete [] pixels;
+}
+
+
 
 class SurfaceTextureGLTest : public GLTest {
 protected:
