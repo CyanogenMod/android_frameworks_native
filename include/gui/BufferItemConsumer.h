@@ -84,6 +84,14 @@ class BufferItemConsumer: public ConsumerBase
 
     sp<IGraphicBufferProducer> getProducerInterface() const { return getBufferQueue(); }
 
+    // setDefaultBufferSize is used to set the size of buffers returned by
+    // requestBuffers when a with and height of zero is requested.
+    status_t setDefaultBufferSize(uint32_t w, uint32_t h);
+
+    // setDefaultBufferFormat allows the BufferQueue to create
+    // GraphicBuffers of a defaultFormat if no format is specified
+    // in dequeueBuffer
+    status_t setDefaultBufferFormat(uint32_t defaultFormat);
 };
 
 } // namespace android
