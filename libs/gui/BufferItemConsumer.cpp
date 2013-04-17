@@ -93,4 +93,14 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
     return err;
 }
 
+status_t BufferItemConsumer::setDefaultBufferSize(uint32_t w, uint32_t h) {
+    Mutex::Autolock _l(mMutex);
+    return mBufferQueue->setDefaultBufferSize(w, h);
+}
+
+status_t BufferItemConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
+    Mutex::Autolock _l(mMutex);
+    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+}
+
 } // namespace android
