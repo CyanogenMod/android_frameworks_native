@@ -54,6 +54,10 @@ status_t HardwareSensor::setDelay(void* ident, int handle, int64_t ns) {
     return mSensorDevice.setDelay(ident, handle, ns);
 }
 
+status_t HardwareSensor::resetStateWithoutActuatingHardware(void *ident, int handle) {
+    return mSensorDevice.resetStateWithoutActuatingHardware(ident, handle);
+}
+
 Sensor HardwareSensor::getSensor() const {
     return mSensor;
 }
