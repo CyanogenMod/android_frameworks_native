@@ -242,10 +242,18 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
 
 void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
         sensors_event_t const* buffer, const int count) {
+    SensorInterface* sensor;
+    status_t err = NO_ERROR;
     for (int i=0 ; i<count ; i++) {
         int handle = buffer[i].sensor;
         if (getSensorType(handle) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
             if (connection->hasSensor(handle)) {
+                sensor = mSensorMap.valueFor(handle);
+                err = sensor ?sensor->resetStateWithoutActuatingHardware(connection.get(), handle)
+                        : status_t(BAD_VALUE);
+                if (err != NO_ERROR) {
+                    ALOGE("Sensor Inteface: Resetting state failed with err: %d", err);
+                }
                 cleanupWithoutDisable(connection, handle);
             }
         }
@@ -530,6 +538,9 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     status_t err = sensor ? sensor->activate(connection.get(), true) : status_t(BAD_VALUE);
 
     if (err != NO_ERROR) {
+        // enable has failed, reset state in SensorDevice.
+        status_t resetErr = sensor ? sensor->resetStateWithoutActuatingHardware(connection.get(),
+                handle) : status_t(BAD_VALUE);
         // enable has failed, reset our state.
         cleanupWithoutDisable(connection, handle);
     }
