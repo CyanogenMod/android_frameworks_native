@@ -2145,11 +2145,14 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
     char buffer[SIZE];
     String8 result;
 
-    if (!PermissionCache::checkCallingPermission(sDump)) {
+
+    IPCThreadState* ipc = IPCThreadState::self();
+    const int pid = ipc->getCallingPid();
+    const int uid = ipc->getCallingUid();
+    if ((uid != AID_SHELL) &&
+            !PermissionCache::checkPermission(sDump, pid, uid)) {
         snprintf(buffer, SIZE, "Permission Denial: "
-                "can't dump SurfaceFlinger from pid=%d, uid=%d\n",
-                IPCThreadState::self()->getCallingPid(),
-                IPCThreadState::self()->getCallingUid());
+                "can't dump SurfaceFlinger from pid=%d, uid=%d\n", pid, uid);
         result.append(buffer);
     } else {
         // Try to get the main lock, but don't insist if we can't
