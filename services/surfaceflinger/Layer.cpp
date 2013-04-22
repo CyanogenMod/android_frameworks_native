@@ -36,6 +36,7 @@
 #include <gui/Surface.h>
 
 #include "clz.h"
+#include "Colorizer.h"
 #include "DisplayDevice.h"
 #include "GLExtensions.h"
 #include "Layer.h"
@@ -1178,13 +1179,15 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
 // debugging
 // ----------------------------------------------------------------------------
 
-void Layer::dump(String8& result) const
+void Layer::dump(String8& result, Colorizer& colorizer) const
 {
     const Layer::State& s(drawingState());
 
+    colorizer.colorize(result, Colorizer::GREEN);
     result.appendFormat(
             "+ %s %p (%s)\n",
             getTypeId(), this, getName().string());
+    colorizer.reset(result);
 
     s.activeTransparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
@@ -1222,11 +1225,6 @@ void Layer::dump(String8& result) const
     if (mSurfaceFlingerConsumer != 0) {
         mSurfaceFlingerConsumer->dump(result, "            ");
     }
-}
-
-
-void Layer::shortDump(String8& result) const {
-    Layer::dump(result);
 }
 
 void Layer::dumpStats(String8& result) const {

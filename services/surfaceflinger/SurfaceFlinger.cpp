@@ -55,10 +55,11 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SyncFeatures.h>
 
+#include "Client.h"
 #include "clz.h"
+#include "Colorizer.h"
 #include "DdmConnection.h"
 #include "DisplayDevice.h"
-#include "Client.h"
 #include "EventThread.h"
 #include "GLExtensions.h"
 #include "Layer.h"
@@ -2285,6 +2286,15 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
 void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
         String8& result) const
 {
+    bool colorize = false;
+    if (index < args.size()
+            && (args[index] == String16("--color"))) {
+        colorize = true;
+        index++;
+    }
+
+    Colorizer colorizer(colorize);
+
     // figure out if we're stuck somewhere
     const nsecs_t now = systemTime();
     const nsecs_t inSwapBuffers(mDebugInSwapBuffers);
@@ -2295,13 +2305,18 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     /*
      * Dump library configuration.
      */
+
+    colorizer.bold(result);
     result.append("Build configuration:");
+    colorizer.reset(result);
     appendSfConfigString(result);
     appendUiConfigString(result);
     appendGuiConfigString(result);
     result.append("\n");
 
+    colorizer.bold(result);
     result.append("Sync configuration: ");
+    colorizer.reset(result);
     result.append(SyncFeatures::getInstance().toString());
     result.append("\n");
 
@@ -2310,17 +2325,21 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
      */
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
+    colorizer.bold(result);
     result.appendFormat("Visible layers (count = %d)\n", count);
+    colorizer.reset(result);
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
-        layer->dump(result);
+        layer->dump(result, colorizer);
     }
 
     /*
      * Dump Display state
      */
 
+    colorizer.bold(result);
     result.appendFormat("Displays (%d entries)\n", mDisplays.size());
+    colorizer.reset(result);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
         hw->dump(result);
@@ -2330,20 +2349,27 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
      * Dump SurfaceFlinger global state
      */
 
+    colorizer.bold(result);
     result.append("SurfaceFlinger global state:\n");
+    colorizer.reset(result);
 
     HWComposer& hwc(getHwComposer());
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     const GLExtensions& extensions(GLExtensions::getInstance());
 
-    result.appendFormat("EGL implementation : %s\n%s\n",
-            eglQueryStringImplementationANDROID(mEGLDisplay, EGL_VERSION),
+    colorizer.bold(result);
+    result.appendFormat("EGL implementation : %s\n",
+            eglQueryStringImplementationANDROID(mEGLDisplay, EGL_VERSION));
+    colorizer.reset(result);
+    result.appendFormat("%s\n",
             eglQueryStringImplementationANDROID(mEGLDisplay, EGL_EXTENSIONS));
 
+    colorizer.bold(result);
     result.appendFormat("GLES: %s, %s, %s\n",
             extensions.getVendor(),
             extensions.getRenderer(),
             extensions.getVersion());
+    colorizer.reset(result);
     result.appendFormat("%s\n", extensions.getExtension());
 
     hw->undefinedRegion.dump(result, "undefinedRegion");
@@ -2382,7 +2408,9 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     /*
      * Dump HWComposer state
      */
+    colorizer.bold(result);
     result.append("h/w composer state:\n");
+    colorizer.reset(result);
     result.appendFormat("  h/w composer %s and %s\n",
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
                     (mDebugDisableHWC || mDebugRegion) ? "disabled" : "enabled");
