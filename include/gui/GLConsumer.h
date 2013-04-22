@@ -233,8 +233,7 @@ protected:
 
     // dumpLocked overrides the ConsumerBase method to dump GLConsumer-
     // specific info in addition to the ConsumerBase behavior.
-    virtual void dumpLocked(String8& result, const char* prefix, char* buffer,
-           size_t size) const;
+    virtual void dumpLocked(String8& result, const char* prefix) const;
 
     // acquireBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase behavior.

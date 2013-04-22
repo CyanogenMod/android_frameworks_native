@@ -55,8 +55,7 @@ private:
     virtual void onFrameAvailable();
     virtual void freeBufferLocked(int slotIndex);
 
-    virtual void dumpLocked(String8& result, const char* prefix,
-            char* buffer, size_t SIZE) const;
+    virtual void dumpLocked(String8& result, const char* prefix) const;
 
     // nextBuffer waits for and then latches the next buffer from the
     // BufferQueue and releases the previously latched buffer to the

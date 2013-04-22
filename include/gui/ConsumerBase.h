@@ -73,7 +73,7 @@ public:
     // their state to the dump by overriding the dumpLocked method, which is
     // called by these methods after locking the mutex.
     void dump(String8& result) const;
-    void dump(String8& result, const char* prefix, char* buffer, size_t SIZE) const;
+    void dump(String8& result, const char* prefix) const;
 
     // setFrameAvailableListener sets the listener object that will be notified
     // when a new frame becomes available.
@@ -143,8 +143,7 @@ protected:
     // should call ConsumerBase::dumpLocked.
     //
     // This method must be called with mMutex locked.
-    virtual void dumpLocked(String8& result, const char* prefix, char* buffer,
-            size_t size) const;
+    virtual void dumpLocked(String8& result, const char* prefix) const;
 
     // acquireBufferLocked fetches the next buffer from the BufferQueue and
     // updates the buffer slot for the buffer returned.

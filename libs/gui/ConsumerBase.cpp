@@ -165,23 +165,19 @@ void ConsumerBase::setFrameAvailableListener(
 }
 
 void ConsumerBase::dump(String8& result) const {
-    char buffer[1024];
-    dump(result, "", buffer, 1024);
+    dump(result, "");
 }
 
-void ConsumerBase::dump(String8& result, const char* prefix,
-        char* buffer, size_t size) const {
+void ConsumerBase::dump(String8& result, const char* prefix) const {
     Mutex::Autolock _l(mMutex);
-    dumpLocked(result, prefix, buffer, size);
+    dumpLocked(result, prefix);
 }
 
-void ConsumerBase::dumpLocked(String8& result, const char* prefix,
-        char* buffer, size_t SIZE) const {
-    snprintf(buffer, SIZE, "%smAbandoned=%d\n", prefix, int(mAbandoned));
-    result.append(buffer);
+void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
+    result.appendFormat("%smAbandoned=%d\n", prefix, int(mAbandoned));
 
     if (!mAbandoned) {
-        mBufferQueue->dump(result, prefix, buffer, SIZE);
+        mBufferQueue->dump(result, prefix);
     }
 }
 

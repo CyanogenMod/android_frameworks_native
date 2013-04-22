@@ -1178,21 +1178,19 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
 // debugging
 // ----------------------------------------------------------------------------
 
-void Layer::dump(String8& result, char* buffer, size_t SIZE) const
+void Layer::dump(String8& result) const
 {
     const Layer::State& s(drawingState());
 
-    snprintf(buffer, SIZE,
+    result.appendFormat(
             "+ %s %p (%s)\n",
             getTypeId(), this, getName().string());
-    result.append(buffer);
 
     s.activeTransparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
     sp<Client> client(mClientRef.promote());
 
-    snprintf(buffer, SIZE,
-            "      "
+    result.appendFormat(            "      "
             "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, invalidate=%1d, "
             "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
@@ -1205,7 +1203,6 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
             s.transform[0][0], s.transform[0][1],
             s.transform[1][0], s.transform[1][1],
             client.get());
-    result.append(buffer);
 
     sp<const GraphicBuffer> buf0(mActiveBuffer);
     uint32_t w0=0, h0=0, s0=0, f0=0;
@@ -1215,26 +1212,24 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
         s0 = buf0->getStride();
         f0 = buf0->format;
     }
-    snprintf(buffer, SIZE,
+    result.appendFormat(
             "      "
             "format=%2d, activeBuffer=[%4ux%4u:%4u,%3X],"
             " queued-frames=%d, mRefreshPending=%d\n",
             mFormat, w0, h0, s0,f0,
             mQueuedFrames, mRefreshPending);
 
-    result.append(buffer);
-
     if (mSurfaceFlingerConsumer != 0) {
-        mSurfaceFlingerConsumer->dump(result, "            ", buffer, SIZE);
+        mSurfaceFlingerConsumer->dump(result, "            ");
     }
 }
 
 
-void Layer::shortDump(String8& result, char* scratch, size_t size) const {
-    Layer::dump(result, scratch, size);
+void Layer::shortDump(String8& result) const {
+    Layer::dump(result);
 }
 
-void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const {
+void Layer::dumpStats(String8& result) const {
     mFrameTracker.dump(result);
 }
 

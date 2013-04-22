@@ -229,7 +229,7 @@ public:
 
     // dump our state in a String
     virtual void dump(String8& result) const;
-    virtual void dump(String8& result, const char* prefix, char* buffer, size_t SIZE) const;
+    virtual void dump(String8& result, const char* prefix) const;
 
     // public facing structure for BufferSlot
     struct BufferItem {

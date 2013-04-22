@@ -175,11 +175,10 @@ void FramebufferSurface::dump(String8& result) const {
     ConsumerBase::dump(result);
 }
 
-void FramebufferSurface::dumpLocked(String8& result, const char* prefix,
-            char* buffer, size_t SIZE) const
+void FramebufferSurface::dumpLocked(String8& result, const char* prefix) const
 {
     mHwc.fbDump(result);
-    ConsumerBase::dumpLocked(result, prefix, buffer, SIZE);
+    ConsumerBase::dumpLocked(result, prefix);
 }
 
 // ----------------------------------------------------------------------------
