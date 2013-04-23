@@ -323,7 +323,7 @@ private:
     uint32_t mCurrentTransform;
 
     // mCurrentScalingMode is the scaling mode for the current texture. It gets
-    // set to each time updateTexImage is called.
+    // set each time updateTexImage is called.
     uint32_t mCurrentScalingMode;
 
     // mCurrentFence is the fence received from BufferQueue in updateTexImage.
