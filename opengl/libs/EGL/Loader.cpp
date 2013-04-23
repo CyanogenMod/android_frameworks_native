@@ -161,7 +161,7 @@ Loader::Loader()
             if (sscanf(line, "%u %u %s", &dpy, &impl, tag) == 3) {
                 //ALOGD(">>> %u %u %s", dpy, impl, tag);
                 // We only load the h/w accelerated implementation
-                if (tag != String8("android")) {
+                if (String8("android") != tag) {
                     mDriverTag = tag;
                 }
             }
