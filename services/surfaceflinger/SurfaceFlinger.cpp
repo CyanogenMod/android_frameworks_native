@@ -2613,33 +2613,11 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
+            bool useReadPixels = isCpuConsumer && !flinger->mGpuToCpuSupported;
+            result = flinger->captureScreenImplLocked(hw,
+                    producer, reqWidth, reqHeight, minLayerZ, maxLayerZ,
+                    useReadPixels);
 
-            bool useReadPixels = false;
-            if (isCpuConsumer) {
-                bool formatSupportedBytBitmap =
-                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBA_8888) ||
-                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBX_8888);
-                if (formatSupportedBytBitmap == false) {
-                    // the pixel format we have is not compatible with
-                    // Bitmap.java, which is the likely client of this API,
-                    // so we just revert to glReadPixels() in that case.
-                    useReadPixels = true;
-                }
-                if (flinger->mGpuToCpuSupported == false) {
-                    // When we know the GL->CPU path works, we can call
-                    // captureScreenImplLocked() directly, instead of using the
-                    // glReadPixels() workaround.
-                    useReadPixels = true;
-                }
-            }
-
-            if (!useReadPixels) {
-                result = flinger->captureScreenImplLocked(hw,
-                        producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
-            } else {
-                result = flinger->captureScreenImplCpuConsumerLocked(hw,
-                        producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
-            }
             return true;
         }
     };
@@ -2720,73 +2698,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<const DisplayDevice>& hw,
         const sp<IGraphicBufferProducer>& producer,
         uint32_t reqWidth, uint32_t reqHeight,
-        uint32_t minLayerZ, uint32_t maxLayerZ)
-{
-    ATRACE_CALL();
-
-    // get screen geometry
-    const uint32_t hw_w = hw->getWidth();
-    const uint32_t hw_h = hw->getHeight();
-
-    // if we have secure windows on this display, never allow the screen capture
-    if (hw->getSecureLayerVisible()) {
-        ALOGW("FB is protected: PERMISSION_DENIED");
-        return PERMISSION_DENIED;
-    }
-
-    if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
-        ALOGE("size mismatch (%d, %d) > (%d, %d)",
-                reqWidth, reqHeight, hw_w, hw_h);
-        return BAD_VALUE;
-    }
-
-    reqWidth = (!reqWidth) ? hw_w : reqWidth;
-    reqHeight = (!reqHeight) ? hw_h : reqHeight;
-
-    // Create a surface to render into
-    sp<Surface> surface = new Surface(producer);
-    ANativeWindow* const window = surface.get();
-
-    // set the buffer size to what the user requested
-    native_window_set_buffers_user_dimensions(window, reqWidth, reqHeight);
-
-    // and create the corresponding EGLSurface
-    EGLSurface eglSurface = eglCreateWindowSurface(
-            mEGLDisplay, mEGLConfig, window, NULL);
-    if (eglSurface == EGL_NO_SURFACE) {
-        ALOGE("captureScreenImplLocked: eglCreateWindowSurface() failed 0x%4x",
-                eglGetError());
-        return BAD_VALUE;
-    }
-
-    if (!eglMakeCurrent(mEGLDisplay, eglSurface, eglSurface, mEGLContext)) {
-        ALOGE("captureScreenImplLocked: eglMakeCurrent() failed 0x%4x",
-                eglGetError());
-        eglDestroySurface(mEGLDisplay, eglSurface);
-        return BAD_VALUE;
-    }
-
-    renderScreenImplLocked(hw, reqWidth, reqHeight, minLayerZ, maxLayerZ, false);
-
-    // and finishing things up...
-    if (eglSwapBuffers(mEGLDisplay, eglSurface) != EGL_TRUE) {
-        ALOGE("captureScreenImplLocked: eglSwapBuffers() failed 0x%4x",
-                eglGetError());
-        eglDestroySurface(mEGLDisplay, eglSurface);
-        return BAD_VALUE;
-    }
-
-    eglDestroySurface(mEGLDisplay, eglSurface);
-
-    return NO_ERROR;
-}
-
-
-status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
-        const sp<const DisplayDevice>& hw,
-        const sp<IGraphicBufferProducer>& producer,
-        uint32_t reqWidth, uint32_t reqHeight,
-        uint32_t minLayerZ, uint32_t maxLayerZ)
+        uint32_t minLayerZ, uint32_t maxLayerZ,
+        bool useReadPixels)
 {
     ATRACE_CALL();
 
@@ -2813,66 +2726,102 @@ status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
     reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
     reqHeight = (!reqHeight) ? hw_h : reqHeight;
 
-    GLuint tname;
-    glGenRenderbuffersOES(1, &tname);
-    glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
-    glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, reqWidth, reqHeight);
-
-    // create a FBO
-    GLuint name;
-    glGenFramebuffersOES(1, &name);
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
-            GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, tname);
-
-    GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+    // create a surface (because we're a producer, and we need to
+    // dequeue/queue a buffer)
+    sp<Surface> sur = new Surface(producer);
+    ANativeWindow* window = sur.get();
 
     status_t result = NO_ERROR;
-    if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
-
-        renderScreenImplLocked(hw, reqWidth, reqHeight, minLayerZ, maxLayerZ, true);
-
-        // Below we render the screenshot into the
-        // CpuConsumer using glReadPixels from our FBO.
-        // Some older drivers don't support the GL->CPU path so we
-        // have to wrap it with a CPU->CPU path, which is what
-        // glReadPixels essentially is.
-
-        sp<Surface> sur = new Surface(producer);
-        ANativeWindow* window = sur.get();
-
-        if (native_window_api_connect(window, NATIVE_WINDOW_API_CPU) == NO_ERROR) {
-            int err = 0;
-            err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
-            err |= native_window_set_buffers_format(window, HAL_PIXEL_FORMAT_RGBA_8888);
-            err |= native_window_set_usage(window,
-                    GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
-
-            if (err == NO_ERROR) {
-                ANativeWindowBuffer* buffer;
-                if (native_window_dequeue_buffer_and_wait(window,  &buffer) == NO_ERROR) {
-                    sp<GraphicBuffer> buf = static_cast<GraphicBuffer*>(buffer);
-                    void* vaddr;
-                    if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
-                        glReadPixels(0, 0, buffer->stride, reqHeight,
-                                GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
-                        buf->unlock();
-                    }
-                    window->queueBuffer(window, buffer, -1);
-                }
-            }
-            native_window_api_disconnect(window, NATIVE_WINDOW_API_CPU);
+    if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) == NO_ERROR) {
+        uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+        if (!useReadPixels) {
+            usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
         }
 
-    } else {
-        ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES while taking screenshot");
-        result = INVALID_OPERATION;
-    }
+        int err = 0;
+        err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
+        err |= native_window_set_buffers_format(window, HAL_PIXEL_FORMAT_RGBA_8888);
+        err |= native_window_set_usage(window, usage);
 
-    // back to main framebuffer
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-    glDeleteRenderbuffersOES(1, &tname);
-    glDeleteFramebuffersOES(1, &name);
+        if (err == NO_ERROR) {
+            ANativeWindowBuffer* buffer;
+            /* TODO: Once we have the sync framework everywhere this can use
+             * server-side waits on the fence that dequeueBuffer returns.
+             */
+            result = native_window_dequeue_buffer_and_wait(window,  &buffer);
+            if (result == NO_ERROR) {
+                // create an EGLImage from the buffer so we can later
+                // turn it into a texture
+                EGLImageKHR image = eglCreateImageKHR(mEGLDisplay, EGL_NO_CONTEXT,
+                        EGL_NATIVE_BUFFER_ANDROID, buffer, NULL);
+                if (image != EGL_NO_IMAGE_KHR) {
+                    GLuint tname, name;
+                    if (!useReadPixels) {
+                        // turn our EGLImage into a texture
+                        glGenTextures(1, &tname);
+                        glBindTexture(GL_TEXTURE_2D, tname);
+                        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+                        // create a Framebuffer Object to render into
+                        glGenFramebuffersOES(1, &name);
+                        glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+                        glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
+                                GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
+                    } else {
+                        // since we're going to use glReadPixels() anyways,
+                        // use an intermediate renderbuffer instead
+                        glGenRenderbuffersOES(1, &tname);
+                        glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
+                        glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, reqWidth, reqHeight);
+                        // create a FBO to render into
+                        glGenFramebuffersOES(1, &name);
+                        glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+                        glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
+                                GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, tname);
+                    }
+
+                    GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+                    if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
+                        // this will in fact render into our dequeued buffer
+                        // via an FBO, which means we didn't have to create
+                        // an EGLSurface and therefore we're not
+                        // dependent on the context's EGLConfig.
+                        renderScreenImplLocked(hw, reqWidth, reqHeight,
+                                minLayerZ, maxLayerZ, true);
+
+                        if (useReadPixels) {
+                            sp<GraphicBuffer> buf = static_cast<GraphicBuffer*>(buffer);
+                            void* vaddr;
+                            if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
+                                glReadPixels(0, 0, buffer->stride, reqHeight,
+                                        GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
+                                buf->unlock();
+                            }
+                        }
+                    } else {
+                        ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES error while taking screenshot");
+                        result = INVALID_OPERATION;
+                    }
+
+                    // back to main framebuffer
+                    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
+                    glDeleteFramebuffersOES(1, &name);
+                    if (!useReadPixels) {
+                        glDeleteTextures(1, &tname);
+                    } else {
+                        glDeleteRenderbuffersOES(1, &tname);
+                    }
+                    // destroy our image
+                    eglDestroyImageKHR(mEGLDisplay, image);
+                } else {
+                    result = BAD_VALUE;
+                }
+                window->queueBuffer(window, buffer, -1);
+            }
+        } else {
+            result = BAD_VALUE;
+        }
+        native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
+    }
 
     DisplayDevice::setViewportAndProjection(hw);
 
