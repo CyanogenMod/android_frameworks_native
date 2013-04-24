@@ -51,6 +51,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 class Client;
+class Colorizer;
 class DisplayDevice;
 class GraphicBuffer;
 class SurfaceFlinger;
@@ -304,9 +305,8 @@ public:
 
 
     /* always call base class first */
-    virtual void dump(String8& result, char* scratch, size_t size) const;
-    virtual void shortDump(String8& result, char* scratch, size_t size) const;
-    virtual void dumpStats(String8& result, char* buffer, size_t SIZE) const;
+    virtual void dump(String8& result, Colorizer& colorizer) const;
+    virtual void dumpStats(String8& result) const;
     virtual void clearStats();
 
 protected:

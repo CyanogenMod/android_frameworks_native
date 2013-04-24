@@ -887,18 +887,16 @@ status_t GLConsumer::setSynchronousMode(bool enabled) {
     return mBufferQueue->setSynchronousMode(enabled);
 }
 
-void GLConsumer::dumpLocked(String8& result, const char* prefix,
-        char* buffer, size_t size) const
+void GLConsumer::dumpLocked(String8& result, const char* prefix) const
 {
-    snprintf(buffer, size,
+    result.appendFormat(
        "%smTexName=%d mCurrentTexture=%d\n"
        "%smCurrentCrop=[%d,%d,%d,%d] mCurrentTransform=%#x\n",
        prefix, mTexName, mCurrentTexture, prefix, mCurrentCrop.left,
        mCurrentCrop.top, mCurrentCrop.right, mCurrentCrop.bottom,
        mCurrentTransform);
-    result.append(buffer);
 
-    ConsumerBase::dumpLocked(result, prefix, buffer, size);
+    ConsumerBase::dumpLocked(result, prefix);
 }
 
 static void mtxMul(float out[16], const float a[16], const float b[16]) {

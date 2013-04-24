@@ -546,9 +546,6 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
         // triggers a Surface::queueBuffer()  on some
         // devices (!?) -- log and ignore.
         ALOGE("HWComposer: framebufferTarget is null");
-//        CallStack stack;
-//        stack.update();
-//        stack.dump("");
         return NO_ERROR;
     }
 
@@ -958,7 +955,7 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, numLayers);
 }
 
-void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
+void HWComposer::dump(String8& result) const {
     if (mHwc) {
         result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
@@ -1026,6 +1023,8 @@ void HWComposer::dump(String8& result, char* buffer, size_t SIZE) const {
     }
 
     if (mHwc && mHwc->dump) {
+        const size_t SIZE = 4096;
+        char buffer[SIZE];
         mHwc->dump(mHwc, buffer, SIZE);
         result.append(buffer);
     }

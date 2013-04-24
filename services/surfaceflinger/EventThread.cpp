@@ -320,7 +320,7 @@ void EventThread::disableVSyncLocked() {
     mDebugVsyncEnabled = false;
 }
 
-void EventThread::dump(String8& result, char* buffer, size_t SIZE) const {
+void EventThread::dump(String8& result) const {
     Mutex::Autolock _l(mLock);
     result.appendFormat("VSYNC state: %s\n",
             mDebugVsyncEnabled?"enabled":"disabled");

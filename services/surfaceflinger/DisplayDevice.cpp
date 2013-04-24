@@ -424,9 +424,9 @@ void DisplayDevice::setProjection(int orientation,
     mFrame = frame;
 }
 
-void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
+void DisplayDevice::dump(String8& result) const {
     const Transform& tr(mGlobalTransform);
-    snprintf(buffer, SIZE,
+    result.appendFormat(
         "+ DisplayDevice: %s\n"
         "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
         "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%u\n"
@@ -442,8 +442,6 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         tr[0][0], tr[1][0], tr[2][0],
         tr[0][1], tr[1][1], tr[2][1],
         tr[0][2], tr[1][2], tr[2][2]);
-
-    result.append(buffer);
 
     String8 surfaceDump;
     mDisplaySurface->dump(surfaceDump);

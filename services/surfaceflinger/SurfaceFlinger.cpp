@@ -55,10 +55,11 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SyncFeatures.h>
 
+#include "Client.h"
 #include "clz.h"
+#include "Colorizer.h"
 #include "DdmConnection.h"
 #include "DisplayDevice.h"
-#include "Client.h"
 #include "EventThread.h"
 #include "GLExtensions.h"
 #include "Layer.h"
@@ -2141,19 +2142,15 @@ void SurfaceFlinger::blank(const sp<IBinder>& display) {
 
 status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
 {
-    const size_t SIZE = 4096;
-    char buffer[SIZE];
     String8 result;
-
 
     IPCThreadState* ipc = IPCThreadState::self();
     const int pid = ipc->getCallingPid();
     const int uid = ipc->getCallingUid();
     if ((uid != AID_SHELL) &&
             !PermissionCache::checkPermission(sDump, pid, uid)) {
-        snprintf(buffer, SIZE, "Permission Denial: "
+        result.appendFormat("Permission Denial: "
                 "can't dump SurfaceFlinger from pid=%d, uid=%d\n", pid, uid);
-        result.append(buffer);
     } else {
         // Try to get the main lock, but don't insist if we can't
         // (this would indicate SF is stuck, but we want to be able to
@@ -2164,10 +2161,9 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
         }
         const bool locked(retry >= 0);
         if (!locked) {
-            snprintf(buffer, SIZE,
+            result.append(
                     "SurfaceFlinger appears to be unresponsive, "
                     "dumping anyways (no locks held)\n");
-            result.append(buffer);
         }
 
         bool dumpAll = true;
@@ -2177,27 +2173,27 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
             if ((index < numArgs) &&
                     (args[index] == String16("--list"))) {
                 index++;
-                listLayersLocked(args, index, result, buffer, SIZE);
+                listLayersLocked(args, index, result);
                 dumpAll = false;
             }
 
             if ((index < numArgs) &&
                     (args[index] == String16("--latency"))) {
                 index++;
-                dumpStatsLocked(args, index, result, buffer, SIZE);
+                dumpStatsLocked(args, index, result);
                 dumpAll = false;
             }
 
             if ((index < numArgs) &&
                     (args[index] == String16("--latency-clear"))) {
                 index++;
-                clearStatsLocked(args, index, result, buffer, SIZE);
+                clearStatsLocked(args, index, result);
                 dumpAll = false;
             }
         }
 
         if (dumpAll) {
-            dumpAllLocked(result, buffer, SIZE);
+            dumpAllLocked(args, index, result);
         }
 
         if (locked) {
@@ -2209,19 +2205,18 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
 }
 
 void SurfaceFlinger::listLayersLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const
+        String8& result) const
 {
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
-        snprintf(buffer, SIZE, "%s\n", layer->getName().string());
-        result.append(buffer);
+        result.appendFormat("%s\n", layer->getName().string());
     }
 }
 
 void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const
+        String8& result) const
 {
     String8 name;
     if (index < args.size()) {
@@ -2241,14 +2236,14 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
         for (size_t i=0 ; i<count ; i++) {
             const sp<Layer>& layer(currentLayers[i]);
             if (name == layer->getName()) {
-                layer->dumpStats(result, buffer, SIZE);
+                layer->dumpStats(result);
             }
         }
     }
 }
 
 void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE)
+        String8& result)
 {
     String8 name;
     if (index < args.size()) {
@@ -2288,9 +2283,18 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
     result.append(config);
 }
 
-void SurfaceFlinger::dumpAllLocked(
-        String8& result, char* buffer, size_t SIZE) const
+void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
+        String8& result) const
 {
+    bool colorize = false;
+    if (index < args.size()
+            && (args[index] == String16("--color"))) {
+        colorize = true;
+        index++;
+    }
+
+    Colorizer colorizer(colorize);
+
     // figure out if we're stuck somewhere
     const nsecs_t now = systemTime();
     const nsecs_t inSwapBuffers(mDebugInSwapBuffers);
@@ -2301,13 +2305,18 @@ void SurfaceFlinger::dumpAllLocked(
     /*
      * Dump library configuration.
      */
+
+    colorizer.bold(result);
     result.append("Build configuration:");
+    colorizer.reset(result);
     appendSfConfigString(result);
     appendUiConfigString(result);
     appendGuiConfigString(result);
     result.append("\n");
 
+    colorizer.bold(result);
     result.append("Sync configuration: ");
+    colorizer.reset(result);
     result.append(SyncFeatures::getInstance().toString());
     result.append("\n");
 
@@ -2316,56 +2325,57 @@ void SurfaceFlinger::dumpAllLocked(
      */
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
-    snprintf(buffer, SIZE, "Visible layers (count = %d)\n", count);
-    result.append(buffer);
+    colorizer.bold(result);
+    result.appendFormat("Visible layers (count = %d)\n", count);
+    colorizer.reset(result);
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
-        layer->dump(result, buffer, SIZE);
+        layer->dump(result, colorizer);
     }
 
     /*
      * Dump Display state
      */
 
-    snprintf(buffer, SIZE, "Displays (%d entries)\n", mDisplays.size());
-    result.append(buffer);
+    colorizer.bold(result);
+    result.appendFormat("Displays (%d entries)\n", mDisplays.size());
+    colorizer.reset(result);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
-        hw->dump(result, buffer, SIZE);
+        hw->dump(result);
     }
 
     /*
      * Dump SurfaceFlinger global state
      */
 
-    snprintf(buffer, SIZE, "SurfaceFlinger global state:\n");
-    result.append(buffer);
+    colorizer.bold(result);
+    result.append("SurfaceFlinger global state:\n");
+    colorizer.reset(result);
 
     HWComposer& hwc(getHwComposer());
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     const GLExtensions& extensions(GLExtensions::getInstance());
 
-    snprintf(buffer, SIZE, "EGL implementation : %s\n",
+    colorizer.bold(result);
+    result.appendFormat("EGL implementation : %s\n",
             eglQueryStringImplementationANDROID(mEGLDisplay, EGL_VERSION));
-    result.append(buffer);
-    snprintf(buffer, SIZE, "%s\n",
+    colorizer.reset(result);
+    result.appendFormat("%s\n",
             eglQueryStringImplementationANDROID(mEGLDisplay, EGL_EXTENSIONS));
-    result.append(buffer);
 
-    snprintf(buffer, SIZE, "GLES: %s, %s, %s\n",
+    colorizer.bold(result);
+    result.appendFormat("GLES: %s, %s, %s\n",
             extensions.getVendor(),
             extensions.getRenderer(),
             extensions.getVersion());
-    result.append(buffer);
-    snprintf(buffer, SIZE, "%s\n", extensions.getExtension());
-    result.append(buffer);
+    colorizer.reset(result);
+    result.appendFormat("%s\n", extensions.getExtension());
 
     hw->undefinedRegion.dump(result, "undefinedRegion");
-    snprintf(buffer, SIZE,
-            "  orientation=%d, canDraw=%d\n",
+    result.appendFormat("  orientation=%d, canDraw=%d\n",
             hw->getOrientation(), hw->canDraw());
-    result.append(buffer);
-    snprintf(buffer, SIZE,
+    result.appendFormat(
             "  last eglSwapBuffers() time: %f us\n"
             "  last transaction time     : %f us\n"
             "  transaction-flags         : %08x\n"
@@ -2383,31 +2393,28 @@ void SurfaceFlinger::dumpAllLocked(
             hwc.getDpiY(HWC_DISPLAY_PRIMARY),
             mEGLNativeVisualId,
             !mGpuToCpuSupported);
-    result.append(buffer);
 
-    snprintf(buffer, SIZE, "  eglSwapBuffers time: %f us\n",
+    result.appendFormat("  eglSwapBuffers time: %f us\n",
             inSwapBuffersDuration/1000.0);
-    result.append(buffer);
 
-    snprintf(buffer, SIZE, "  transaction time: %f us\n",
+    result.appendFormat("  transaction time: %f us\n",
             inTransactionDuration/1000.0);
-    result.append(buffer);
 
     /*
      * VSYNC state
      */
-    mEventThread->dump(result, buffer, SIZE);
+    mEventThread->dump(result);
 
     /*
      * Dump HWComposer state
      */
-    snprintf(buffer, SIZE, "h/w composer state:\n");
-    result.append(buffer);
-    snprintf(buffer, SIZE, "  h/w composer %s and %s\n",
+    colorizer.bold(result);
+    result.append("h/w composer state:\n");
+    colorizer.reset(result);
+    result.appendFormat("  h/w composer %s and %s\n",
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
                     (mDebugDisableHWC || mDebugRegion) ? "disabled" : "enabled");
-    result.append(buffer);
-    hwc.dump(result, buffer, SIZE);
+    hwc.dump(result);
 
     /*
      * Dump gralloc state

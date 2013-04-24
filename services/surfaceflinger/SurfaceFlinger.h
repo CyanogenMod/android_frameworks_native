@@ -385,12 +385,13 @@ private:
      * Debugging & dumpsys
      */
     void listLayersLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const;
+        String8& result) const;
     void dumpStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE) const;
+        String8& result) const;
     void clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result, char* buffer, size_t SIZE);
-    void dumpAllLocked(String8& result, char* buffer, size_t SIZE) const;
+        String8& result);
+    void dumpAllLocked(const Vector<String16>& args, size_t& index,
+        String8& result) const;
     bool startDdmConnection();
     static void appendSfConfigString(String8& result);
 

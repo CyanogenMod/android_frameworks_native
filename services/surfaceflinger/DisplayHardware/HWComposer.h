@@ -275,7 +275,7 @@ public:
     friend class VSyncThread;
 
     // for debugging ----------------------------------------------------------
-    void dump(String8& out, char* scratch, size_t SIZE) const;
+    void dump(String8& out) const;
 
 private:
     void loadHwcModule();

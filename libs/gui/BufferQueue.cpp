@@ -707,36 +707,29 @@ status_t BufferQueue::disconnect(int api) {
     return err;
 }
 
-void BufferQueue::dump(String8& result) const
-{
-    char buffer[1024];
-    BufferQueue::dump(result, "", buffer, 1024);
+void BufferQueue::dump(String8& result) const {
+    BufferQueue::dump(result, "");
 }
 
-void BufferQueue::dump(String8& result, const char* prefix,
-        char* buffer, size_t SIZE) const
-{
+void BufferQueue::dump(String8& result, const char* prefix) const {
     Mutex::Autolock _l(mMutex);
 
     String8 fifo;
     int fifoSize = 0;
     Fifo::const_iterator i(mQueue.begin());
     while (i != mQueue.end()) {
-       snprintf(buffer, SIZE, "%02d ", *i++);
-       fifoSize++;
-       fifo.append(buffer);
+        fifo.appendFormat("%02d ", *i++);
+        fifoSize++;
     }
 
     int maxBufferCount = getMaxBufferCountLocked();
 
-    snprintf(buffer, SIZE,
+    result.appendFormat(
             "%s-BufferQueue maxBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
             "default-format=%d, transform-hint=%02x, FIFO(%d)={%s}\n",
             prefix, maxBufferCount, mSynchronousMode, mDefaultWidth,
             mDefaultHeight, mDefaultBufferFormat, mTransformHint,
             fifoSize, fifo.string());
-    result.append(buffer);
-
 
     struct {
         const char * operator()(int state) const {
@@ -752,7 +745,7 @@ void BufferQueue::dump(String8& result, const char* prefix,
 
     for (int i=0 ; i<maxBufferCount ; i++) {
         const BufferSlot& slot(mSlots[i]);
-        snprintf(buffer, SIZE,
+        result.appendFormat(
                 "%s%s[%02d] "
                 "state=%-8s, crop=[%d,%d,%d,%d], "
                 "xform=0x%02x, time=%#llx, scale=%s",
@@ -762,15 +755,13 @@ void BufferQueue::dump(String8& result, const char* prefix,
                 slot.mCrop.bottom, slot.mTransform, slot.mTimestamp,
                 scalingModeName(slot.mScalingMode)
         );
-        result.append(buffer);
 
         const sp<GraphicBuffer>& buf(slot.mGraphicBuffer);
         if (buf != NULL) {
-            snprintf(buffer, SIZE,
+            result.appendFormat(
                     ", %p [%4ux%4u:%4u,%3X]",
                     buf->handle, buf->width, buf->height, buf->stride,
                     buf->format);
-            result.append(buffer);
         }
         result.append("\n");
     }
