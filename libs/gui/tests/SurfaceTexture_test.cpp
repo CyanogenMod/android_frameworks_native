@@ -463,19 +463,12 @@ TEST_F(MultiTextureConsumerTest, EGLImageTargetWorks) {
         glVertexPointer(2, GL_FLOAT, 0, vertices);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-        ASSERT_EQ( glGetError(), GL_NO_ERROR );
+        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
     }
-    ASSERT_TRUE( eglSwapBuffers(mEglDisplay, mEglSurface) );
-
-    uint32_t* pixels = new uint32_t[8*16*16];
-    glReadPixels(0, 0, 8*16, 16, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     for (int i=0 ; i<8 ; i++) {
-        uint32_t p = pixels[i*16 + 8 + 8*(8*16)]; // center of each square
-        EXPECT_EQ(p, (i&7) * 0x10101010);
+        EXPECT_TRUE(checkPixel(i*16 + 8,  8, i*16, i*16, i*16, i*16, 0));
     }
-
-    delete [] pixels;
 }
 
 
