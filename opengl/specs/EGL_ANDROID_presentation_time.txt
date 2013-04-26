@@ -107,8 +107,8 @@ Issues
     presentation time when an absolute time is needed be queried on Android?
 
     RESOLVED: The current clock value can be queried from the Java
-    SystemClock#uptimeMillis() method or from the native clock_gettime
-    function by passing CLOCK_MONOTONIC as the clock identifier.
+    System.nanoTime() method, or from the native clock_gettime function by
+    passing CLOCK_MONOTONIC as the clock identifier.
 
 Revision History
 
