@@ -84,7 +84,7 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     int res = 0;
 
         /* pkgdir, persona, apkpath */
-    res = get_size(arg[0], atoi(arg[1]), arg[2], arg[3], arg[4],
+    res = get_size(arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
             &codesize, &datasize, &cachesize, &asecsize);
 
     /*
@@ -138,7 +138,7 @@ struct cmdinfo cmds[] = {
     { "fixuid",               3, do_fixuid },
     { "freecache",            1, do_free_cache },
     { "rmcache",              2, do_rm_cache },
-    { "getsize",              5, do_get_size },
+    { "getsize",              6, do_get_size },
     { "rmuserdata",           2, do_rm_user_data },
     { "movefiles",            0, do_movefiles },
     { "linklib",              3, do_linklib },

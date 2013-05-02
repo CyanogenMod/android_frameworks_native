@@ -421,7 +421,7 @@ int rm_dex(const char *path)
 }
 
 int get_size(const char *pkgname, int persona, const char *apkpath,
-             const char *fwdlock_apkpath, const char *asecpath,
+             const char *libdirpath, const char *fwdlock_apkpath, const char *asecpath,
              int64_t *_codesize, int64_t *_datasize, int64_t *_cachesize,
              int64_t* _asecsize)
 {
@@ -460,8 +460,8 @@ int get_size(const char *pkgname, int persona, const char *apkpath,
     }
 
         /* add in size of any libraries */
-    if (!create_pkg_path_in_dir(path, &android_app_lib_dir, pkgname, PKG_DIR_POSTFIX)) {
-        d = opendir(path);
+    if (libdirpath != NULL && libdirpath[0] != '!') {
+        d = opendir(libdirpath);
         if (d != NULL) {
             dfd = dirfd(d);
             codesize += calculate_dir_size(dfd);
