@@ -298,14 +298,8 @@ private:
             const sp<const DisplayDevice>& hw,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ);
-
-    status_t captureScreenImplCpuConsumerLocked(
-            const sp<const DisplayDevice>& hw,
-            const sp<IGraphicBufferProducer>& producer,
-            uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ);
-
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useReadPixels);
 
     /* ------------------------------------------------------------------------
      * EGL
