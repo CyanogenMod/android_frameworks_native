@@ -84,26 +84,26 @@ public class GenerateEGL {
         ParameterChecker checker = new ParameterChecker(checksReader);
 
 
-        BufferedReader specReader =
-                new BufferedReader(new FileReader("specs/egl/EGL14.spec"));
-
-        String egljFilename = "android/opengl/EGL14.java";
-        String eglcFilename = "android_opengl_EGL14.cpp";
-        PrintStream egljStream =
-            new PrintStream(new FileOutputStream("out/" + egljFilename));
-        PrintStream eglcStream =
-            new PrintStream(new FileOutputStream("out/" + eglcFilename));
-        egljStream.println("/*");
-        eglcStream.println("/*");
-        copy("stubs/egl/EGL14Header.java-if", egljStream);
-        copy("stubs/egl/EGL14cHeader.cpp", eglcStream);
-        EGLCodeEmitter emitter = new EGLCodeEmitter(
-                "android/opengl/EGL14",
-                checker, egljStream, eglcStream);
-        emit(emitter, specReader, egljStream, eglcStream);
-        emitter.emitNativeRegistration("register_android_opengl_jni_EGL14");
-        egljStream.println("}");
-        egljStream.close();
-        eglcStream.close();
+        for(String suffix: new String[] {"EGL14", "EGLExt"}) {
+            BufferedReader specReader = new BufferedReader(new FileReader(
+                    "specs/egl/" + suffix + ".spec"));
+            String egljFilename = "android/opengl/" + suffix + ".java";
+            String eglcFilename = "android_opengl_" + suffix + ".cpp";
+            PrintStream egljStream =
+                new PrintStream(new FileOutputStream("out/" + egljFilename));
+            PrintStream eglcStream =
+                new PrintStream(new FileOutputStream("out/" + eglcFilename));
+            copy("stubs/egl/" + suffix + "Header.java-if", egljStream);
+            copy("stubs/egl/" + suffix + "cHeader.cpp", eglcStream);
+            EGLCodeEmitter emitter = new EGLCodeEmitter(
+                    "android/opengl/" + suffix,
+                    checker, egljStream, eglcStream);
+            emit(emitter, specReader, egljStream, eglcStream);
+            emitter.emitNativeRegistration(
+                    "register_android_opengl_jni_" + suffix);
+            egljStream.println("}");
+            egljStream.close();
+            eglcStream.close();
+        }
     }
 }
