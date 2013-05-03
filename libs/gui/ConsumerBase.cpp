@@ -95,6 +95,7 @@ void ConsumerBase::freeBufferLocked(int slotIndex) {
     CB_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     mSlots[slotIndex].mGraphicBuffer = 0;
     mSlots[slotIndex].mFence = Fence::NO_FENCE;
+    mSlots[slotIndex].mFrameNumber = 0;
 }
 
 // Used for refactoring, should not be in final interface
@@ -191,20 +192,30 @@ status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item) {
         mSlots[item->mBuf].mGraphicBuffer = item->mGraphicBuffer;
     }
 
+    mSlots[item->mBuf].mFrameNumber = item->mFrameNumber;
     mSlots[item->mBuf].mFence = item->mFence;
 
-    CB_LOGV("acquireBufferLocked: -> slot=%d", item->mBuf);
+    CB_LOGV("acquireBufferLocked: -> slot=%d/%llu",
+            item->mBuf, item->mFrameNumber);
 
     return OK;
 }
 
-status_t ConsumerBase::addReleaseFence(int slot, const sp<Fence>& fence) {
+status_t ConsumerBase::addReleaseFence(int slot,
+        const sp<GraphicBuffer> graphicBuffer, const sp<Fence>& fence) {
     Mutex::Autolock lock(mMutex);
-    return addReleaseFenceLocked(slot, fence);
+    return addReleaseFenceLocked(slot, graphicBuffer, fence);
 }
 
-status_t ConsumerBase::addReleaseFenceLocked(int slot, const sp<Fence>& fence) {
+status_t ConsumerBase::addReleaseFenceLocked(int slot,
+        const sp<GraphicBuffer> graphicBuffer, const sp<Fence>& fence) {
     CB_LOGV("addReleaseFenceLocked: slot=%d", slot);
+
+    // If consumer no longer tracks this graphicBuffer, we can safely
+    // drop this fence, as it will never be received by the producer.
+    if (!stillTracking(slot, graphicBuffer)) {
+        return OK;
+    }
 
     if (!mSlots[slot].mFence.get()) {
         mSlots[slot].mFence = fence;
@@ -225,11 +236,20 @@ status_t ConsumerBase::addReleaseFenceLocked(int slot, const sp<Fence>& fence) {
     return OK;
 }
 
-status_t ConsumerBase::releaseBufferLocked(int slot, EGLDisplay display,
-       EGLSyncKHR eglFence) {
-    CB_LOGV("releaseBufferLocked: slot=%d", slot);
-    status_t err = mBufferQueue->releaseBuffer(slot, display, eglFence,
-            mSlots[slot].mFence);
+status_t ConsumerBase::releaseBufferLocked(
+        int slot, const sp<GraphicBuffer> graphicBuffer,
+        EGLDisplay display, EGLSyncKHR eglFence) {
+    // If consumer no longer tracks this graphicBuffer (we received a new
+    // buffer on the same slot), the buffer producer is definitely no longer
+    // tracking it.
+    if (!stillTracking(slot, graphicBuffer)) {
+        return OK;
+    }
+
+    CB_LOGV("releaseBufferLocked: slot=%d/%llu",
+            slot, mSlots[slot].mFrameNumber);
+    status_t err = mBufferQueue->releaseBuffer(slot, mSlots[slot].mFrameNumber,
+            display, eglFence, mSlots[slot].mFence);
     if (err == BufferQueue::STALE_BUFFER_SLOT) {
         freeBufferLocked(slot);
     }
@@ -237,6 +257,15 @@ status_t ConsumerBase::releaseBufferLocked(int slot, EGLDisplay display,
     mSlots[slot].mFence = Fence::NO_FENCE;
 
     return err;
+}
+
+bool ConsumerBase::stillTracking(int slot,
+        const sp<GraphicBuffer> graphicBuffer) {
+    if (slot < 0 || slot >= BufferQueue::NUM_BUFFER_SLOTS) {
+        return false;
+    }
+    return (mSlots[slot].mGraphicBuffer != NULL &&
+            mSlots[slot].mGraphicBuffer->handle == graphicBuffer->handle);
 }
 
 } // namespace android

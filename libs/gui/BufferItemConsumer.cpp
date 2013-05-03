@@ -82,9 +82,9 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
 
     Mutex::Autolock _l(mMutex);
 
-    err = addReleaseFenceLocked(item.mBuf, releaseFence);
+    err = addReleaseFenceLocked(item.mBuf, item.mGraphicBuffer, releaseFence);
 
-    err = releaseBufferLocked(item.mBuf, EGL_NO_DISPLAY,
+    err = releaseBufferLocked(item.mBuf, item.mGraphicBuffer, EGL_NO_DISPLAY,
             EGL_NO_SYNC_KHR);
     if (err != OK) {
         BI_LOGE("Failed to release buffer: %s (%d)",

@@ -189,7 +189,9 @@ status_t CpuConsumer::releaseAcquiredBufferLocked(int lockedIdx) {
     // disconnected after this buffer was acquired.
     if (CC_LIKELY(mAcquiredBuffers[lockedIdx].mGraphicBuffer ==
             mSlots[buf].mGraphicBuffer)) {
-        releaseBufferLocked(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+        releaseBufferLocked(
+                buf, mAcquiredBuffers[lockedIdx].mGraphicBuffer,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
     }
 
     AcquiredBuffer &ab = mAcquiredBuffers.editItemAt(lockedIdx);

@@ -240,7 +240,8 @@ public:
            mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
            mTimestamp(0),
            mFrameNumber(0),
-           mBuf(INVALID_BUFFER_SLOT) {
+           mBuf(INVALID_BUFFER_SLOT),
+           mAcquireCalled(false) {
              mCrop.makeInvalid();
         }
         // mGraphicBuffer points to the buffer allocated for this slot, or is NULL
@@ -269,6 +270,9 @@ public:
 
         // mFence is a fence that will signal when the buffer is idle.
         sp<Fence> mFence;
+
+        // Indicates whether this buffer has been seen by a consumer yet
+        bool mAcquireCalled;
     };
 
     // The following public functions are the consumer-facing interface
@@ -285,7 +289,7 @@ public:
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
     // being accessed.  The fence will signal when the buffer is no longer
-    // in use.
+    // in use. frameNumber is used to indentify the exact buffer returned.
     //
     // If releaseBuffer returns STALE_BUFFER_SLOT, then the consumer must free
     // any references to the just-released buffer that it might have, as if it
@@ -294,7 +298,8 @@ public:
     //
     // Note that the dependencies on EGL will be removed once we switch to using
     // the Android HW Sync HAL.
-    status_t releaseBuffer(int buf, EGLDisplay display, EGLSyncKHR fence,
+    status_t releaseBuffer(int buf, uint64_t frameNumber,
+            EGLDisplay display, EGLSyncKHR fence,
             const sp<Fence>& releaseFence);
 
     // consumerConnect connects a consumer to the BufferQueue.  Only one
@@ -410,20 +415,20 @@ private:
     // connected, mDequeueCondition must be broadcast.
     int getMaxBufferCountLocked() const;
 
+    // stillTracking returns true iff the buffer item is still being tracked
+    // in one of the slots.
+    bool stillTracking(const BufferItem *item) const;
+
     struct BufferSlot {
 
         BufferSlot()
         : mEglDisplay(EGL_NO_DISPLAY),
           mBufferState(BufferSlot::FREE),
           mRequestBufferCalled(false),
-          mTransform(0),
-          mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
-          mTimestamp(0),
           mFrameNumber(0),
           mEglFence(EGL_NO_SYNC_KHR),
           mAcquireCalled(false),
           mNeedsCleanupOnRelease(false) {
-            mCrop.makeInvalid();
         }
 
         // mGraphicBuffer points to the buffer allocated for this slot or is NULL
@@ -481,21 +486,6 @@ private:
         // call requestBuffer() when told to do so. Technically this is not
         // needed but useful for debugging and catching producer bugs.
         bool mRequestBufferCalled;
-
-        // mCrop is the current crop rectangle for this buffer slot.
-        Rect mCrop;
-
-        // mTransform is the current transform flags for this buffer slot.
-        // (example: NATIVE_WINDOW_TRANSFORM_ROT_90)
-        uint32_t mTransform;
-
-        // mScalingMode is the current scaling mode for this buffer slot.
-        // (example: NATIVE_WINDOW_SCALING_MODE_FREEZE)
-        uint32_t mScalingMode;
-
-        // mTimestamp is the current timestamp for this buffer slot. This gets
-        // to set by queueBuffer each time this slot is queued.
-        int64_t mTimestamp;
 
         // mFrameNumber is the number of the queued frame for this slot.  This
         // is used to dequeue buffers in LRU order (useful because buffers
@@ -592,7 +582,7 @@ private:
     mutable Condition mDequeueCondition;
 
     // mQueue is a FIFO of queued buffers used in synchronous mode
-    typedef Vector<int> Fifo;
+    typedef Vector<BufferItem> Fifo;
     Fifo mQueue;
 
     // mAbandoned indicates that the BufferQueue will no longer be used to
@@ -613,7 +603,7 @@ private:
     mutable Mutex mMutex;
 
     // mFrameCounter is the free running counter, incremented on every
-    // successful queueBuffer call.
+    // successful queueBuffer call, and buffer allocation.
     uint64_t mFrameCounter;
 
     // mBufferHasBeenQueued is true once a buffer has been queued.  It is

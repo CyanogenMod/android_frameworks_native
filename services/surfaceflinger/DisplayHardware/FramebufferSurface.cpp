@@ -103,8 +103,8 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT &&
         item.mBuf != mCurrentBufferSlot) {
         // Release the previous buffer.
-        err = releaseBufferLocked(mCurrentBufferSlot, EGL_NO_DISPLAY,
-                EGL_NO_SYNC_KHR);
+        err = releaseBufferLocked(mCurrentBufferSlot, mCurrentBuffer,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
         if (err != NO_ERROR && err != BufferQueue::STALE_BUFFER_SLOT) {
             ALOGE("error releasing buffer: %s (%d)", strerror(-err), err);
             return err;
@@ -144,7 +144,8 @@ void FramebufferSurface::onFrameCommitted() {
     sp<Fence> fence = mHwc.getAndResetReleaseFence(mDisplayType);
     if (fence->isValid() &&
             mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+        status_t err = addReleaseFence(mCurrentBufferSlot,
+                mCurrentBuffer, fence);
         ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
                 strerror(-err), err);
     }

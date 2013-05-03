@@ -418,6 +418,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
                 return NO_INIT;
             }
 
+            mSlots[*outBuf].mFrameNumber = ~0;
             mSlots[*outBuf].mGraphicBuffer = graphicBuffer;
         }
     }
@@ -435,7 +436,8 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
         eglDestroySyncKHR(dpy, eglFence);
     }
 
-    ST_LOGV("dequeueBuffer: returning slot=%d buf=%p flags=%#x", *outBuf,
+    ST_LOGV("dequeueBuffer: returning slot=%d/%llu buf=%p flags=%#x", *outBuf,
+            mSlots[*outBuf].mFrameNumber,
             mSlots[*outBuf].mGraphicBuffer->handle, returnFlags);
 
     return returnFlags;
@@ -491,15 +493,22 @@ status_t BufferQueue::queueBuffer(int buf,
         return BAD_VALUE;
     }
 
-    ST_LOGV("queueBuffer: slot=%d time=%#llx crop=[%d,%d,%d,%d] tr=%#x "
-            "scale=%s",
-            buf, timestamp, crop.left, crop.top, crop.right, crop.bottom,
-            transform, scalingModeName(scalingMode));
+    switch (scalingMode) {
+        case NATIVE_WINDOW_SCALING_MODE_FREEZE:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
+        case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
+            break;
+        default:
+            ST_LOGE("unknown scaling mode: %d", scalingMode);
+            return -EINVAL;
+    }
 
     sp<ConsumerListener> listener;
 
     { // scope for the lock
         Mutex::Autolock lock(mMutex);
+
         if (mAbandoned) {
             ST_LOGE("queueBuffer: BufferQueue has been abandoned!");
             return NO_INIT;
@@ -519,6 +528,12 @@ status_t BufferQueue::queueBuffer(int buf,
             return -EINVAL;
         }
 
+        ST_LOGV("queueBuffer: slot=%d/%llu time=%#llx crop=[%d,%d,%d,%d] "
+                "tr=%#x scale=%s",
+                buf, mFrameCounter + 1, timestamp,
+                crop.left, crop.top, crop.right, crop.bottom,
+                transform, scalingModeName(scalingMode));
+
         const sp<GraphicBuffer>& graphicBuffer(mSlots[buf].mGraphicBuffer);
         Rect bufferRect(graphicBuffer->getWidth(), graphicBuffer->getHeight());
         Rect croppedCrop;
@@ -529,9 +544,25 @@ status_t BufferQueue::queueBuffer(int buf,
             return -EINVAL;
         }
 
+        mSlots[buf].mFence = fence;
+        mSlots[buf].mBufferState = BufferSlot::QUEUED;
+        mFrameCounter++;
+        mSlots[buf].mFrameNumber = mFrameCounter;
+
+        BufferItem item;
+        item.mAcquireCalled = mSlots[buf].mAcquireCalled;
+        item.mGraphicBuffer = mSlots[buf].mGraphicBuffer;
+        item.mCrop = crop;
+        item.mTransform = transform;
+        item.mScalingMode = scalingMode;
+        item.mTimestamp = timestamp;
+        item.mFrameNumber = mFrameCounter;
+        item.mBuf = buf;
+        item.mFence = fence;
+
         if (mSynchronousMode) {
             // In synchronous mode we queue all buffers in a FIFO.
-            mQueue.push_back(buf);
+            mQueue.push_back(item);
 
             // Synchronous mode always signals that an additional frame should
             // be consumed.
@@ -539,7 +570,7 @@ status_t BufferQueue::queueBuffer(int buf,
         } else {
             // In asynchronous mode we only keep the most recent buffer.
             if (mQueue.empty()) {
-                mQueue.push_back(buf);
+                mQueue.push_back(item);
 
                 // Asynchronous mode only signals that a frame should be
                 // consumed if no previous frame was pending. If a frame were
@@ -547,33 +578,14 @@ status_t BufferQueue::queueBuffer(int buf,
                 listener = mConsumerListener;
             } else {
                 Fifo::iterator front(mQueue.begin());
-                // buffer currently queued is freed
-                mSlots[*front].mBufferState = BufferSlot::FREE;
+                // buffer slot currently queued is marked free if still tracked
+                if (stillTracking(front)) {
+                    mSlots[front->mBuf].mBufferState = BufferSlot::FREE;
+                }
                 // and we record the new buffer index in the queued list
-                *front = buf;
+                *front = item;
             }
         }
-
-        mSlots[buf].mTimestamp = timestamp;
-        mSlots[buf].mCrop = crop;
-        mSlots[buf].mTransform = transform;
-        mSlots[buf].mFence = fence;
-
-        switch (scalingMode) {
-            case NATIVE_WINDOW_SCALING_MODE_FREEZE:
-            case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
-            case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
-                break;
-            default:
-                ST_LOGE("unknown scaling mode: %d (ignoring)", scalingMode);
-                scalingMode = mSlots[buf].mScalingMode;
-                break;
-        }
-
-        mSlots[buf].mBufferState = BufferSlot::QUEUED;
-        mSlots[buf].mScalingMode = scalingMode;
-        mFrameCounter++;
-        mSlots[buf].mFrameNumber = mFrameCounter;
 
         mBufferHasBeenQueued = true;
         mDequeueCondition.broadcast();
@@ -718,7 +730,14 @@ void BufferQueue::dump(String8& result, const char* prefix) const {
     int fifoSize = 0;
     Fifo::const_iterator i(mQueue.begin());
     while (i != mQueue.end()) {
-        fifo.appendFormat("%02d ", *i++);
+        fifo.appendFormat("%02d:%p crop=[%d,%d,%d,%d], "
+                "xform=0x%02x, time=%#llx, scale=%s\n",
+                i->mBuf, i->mGraphicBuffer.get(),
+                i->mCrop.left, i->mCrop.top, i->mCrop.right,
+                i->mCrop.bottom, i->mTransform, i->mTimestamp,
+                scalingModeName(i->mScalingMode)
+                );
+        i++;
         fifoSize++;
     }
 
@@ -746,14 +765,10 @@ void BufferQueue::dump(String8& result, const char* prefix) const {
     for (int i=0 ; i<maxBufferCount ; i++) {
         const BufferSlot& slot(mSlots[i]);
         result.appendFormat(
-                "%s%s[%02d] "
-                "state=%-8s, crop=[%d,%d,%d,%d], "
-                "xform=0x%02x, time=%#llx, scale=%s",
+            "%s%s[%02d:%p] state=%-8s",
                 prefix, (slot.mBufferState == BufferSlot::ACQUIRED)?">":" ", i,
-                stateName(slot.mBufferState),
-                slot.mCrop.left, slot.mCrop.top, slot.mCrop.right,
-                slot.mCrop.bottom, slot.mTransform, slot.mTimestamp,
-                scalingModeName(slot.mScalingMode)
+                slot.mGraphicBuffer.get(),
+                stateName(slot.mBufferState)
         );
 
         const sp<GraphicBuffer>& buf(slot.mGraphicBuffer);
@@ -820,27 +835,27 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
     // deep, while in synchronous mode we use the oldest buffer.
     if (!mQueue.empty()) {
         Fifo::iterator front(mQueue.begin());
-        int buf = *front;
-
+        int buf = front->mBuf;
+        *buffer = *front;
         ATRACE_BUFFER_INDEX(buf);
 
-        if (mSlots[buf].mAcquireCalled) {
-            buffer->mGraphicBuffer = NULL;
-        } else {
-            buffer->mGraphicBuffer = mSlots[buf].mGraphicBuffer;
+        ST_LOGV("acquireBuffer: acquiring { slot=%d/%llu, buffer=%p }",
+                front->mBuf, front->mFrameNumber,
+                front->mGraphicBuffer->handle);
+        // if front buffer still being tracked update slot state
+        if (stillTracking(front)) {
+            mSlots[buf].mAcquireCalled = true;
+            mSlots[buf].mNeedsCleanupOnRelease = false;
+            mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
+            mSlots[buf].mFence = Fence::NO_FENCE;
         }
-        buffer->mCrop = mSlots[buf].mCrop;
-        buffer->mTransform = mSlots[buf].mTransform;
-        buffer->mScalingMode = mSlots[buf].mScalingMode;
-        buffer->mFrameNumber = mSlots[buf].mFrameNumber;
-        buffer->mTimestamp = mSlots[buf].mTimestamp;
-        buffer->mBuf = buf;
-        buffer->mFence = mSlots[buf].mFence;
 
-        mSlots[buf].mAcquireCalled = true;
-        mSlots[buf].mNeedsCleanupOnRelease = false;
-        mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
-        mSlots[buf].mFence = Fence::NO_FENCE;
+        // If the buffer has previously been acquired by the consumer, set
+        // mGraphicBuffer to NULL to avoid unnecessarily remapping this
+        // buffer on the consumer side.
+        if (buffer->mAcquireCalled) {
+            buffer->mGraphicBuffer = NULL;
+        }
 
         mQueue.erase(front);
         mDequeueCondition.broadcast();
@@ -853,7 +868,8 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
+status_t BufferQueue::releaseBuffer(
+        int buf, uint64_t frameNumber, EGLDisplay display,
         EGLSyncKHR eglFence, const sp<Fence>& fence) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
@@ -864,12 +880,35 @@ status_t BufferQueue::releaseBuffer(int buf, EGLDisplay display,
         return BAD_VALUE;
     }
 
-    mSlots[buf].mEglDisplay = display;
-    mSlots[buf].mEglFence = eglFence;
-    mSlots[buf].mFence = fence;
+    // Check if this buffer slot is on the queue
+    bool slotQueued = false;
+    Fifo::iterator front(mQueue.begin());
+    while (front != mQueue.end() && !slotQueued) {
+        if (front->mBuf == buf)
+            slotQueued = true;
+        front++;
+    }
+
+    // If the frame number has changed because buffer has been reallocated,
+    // we can ignore this releaseBuffer for the old buffer.
+    if (frameNumber != mSlots[buf].mFrameNumber) {
+        // This should only occur if new buffer is still in the queue
+        ALOGE_IF(!slotQueued,
+                "received old buffer(#%lld) after new buffer(#%lld) on same "
+                "slot #%d already acquired", frameNumber,
+                mSlots[buf].mFrameNumber, buf);
+        return STALE_BUFFER_SLOT;
+    }
+    // this should never happen
+    ALOGE_IF(slotQueued,
+            "received new buffer(#%lld) on slot #%d that has not yet been "
+            "acquired", frameNumber, buf);
 
     // The buffer can now only be released if its in the acquired state
     if (mSlots[buf].mBufferState == BufferSlot::ACQUIRED) {
+        mSlots[buf].mEglDisplay = display;
+        mSlots[buf].mEglFence = eglFence;
+        mSlots[buf].mFence = fence;
         mSlots[buf].mBufferState = BufferSlot::FREE;
     } else if (mSlots[buf].mNeedsCleanupOnRelease) {
         ST_LOGV("releasing a stale buf %d its state was %d", buf, mSlots[buf].mBufferState);
@@ -934,6 +973,17 @@ status_t BufferQueue::getReleasedBuffers(uint32_t* slotMask) {
             mask |= 1 << i;
         }
     }
+
+    // Remove buffers in flight (on the queue) from the mask where acquire has
+    // been called, as the consumer will not receive the buffer address, so
+    // it should not free these slots.
+    Fifo::iterator front(mQueue.begin());
+    while (front != mQueue.end()) {
+        if (front->mAcquireCalled)
+            mask &= ~(1 << front->mBuf);
+        front++;
+    }
+
     *slotMask = mask;
 
     ST_LOGV("getReleasedBuffers: returning mask %#x", mask);
@@ -977,16 +1027,14 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
 }
 
 void BufferQueue::freeAllBuffersExceptHeadLocked() {
-    int head = -1;
-    if (!mQueue.empty()) {
-        Fifo::iterator front(mQueue.begin());
-        head = *front;
-    }
+    // only called if mQueue is not empty
+    Fifo::iterator front(mQueue.begin());
     mBufferHasBeenQueued = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
-        if (i != head) {
+        const BufferSlot &slot = mSlots[i];
+        if (slot.mGraphicBuffer == NULL ||
+            slot.mGraphicBuffer->handle != front->mGraphicBuffer->handle)
             freeBufferLocked(i);
-        }
     }
 }
 
@@ -1050,6 +1098,22 @@ int BufferQueue::getMaxBufferCountLocked() const {
     }
 
     return maxBufferCount;
+}
+
+bool BufferQueue::stillTracking(const BufferItem *item) const {
+    const BufferSlot &slot = mSlots[item->mBuf];
+
+    ST_LOGV("stillTracking?: item: { slot=%d/%llu, buffer=%p }, "
+            "slot: { slot=%d/%llu, buffer=%p }",
+            item->mBuf, item->mFrameNumber,
+            (item->mGraphicBuffer.get() ? item->mGraphicBuffer->handle : 0),
+            item->mBuf, slot.mFrameNumber,
+            (slot.mGraphicBuffer.get() ? slot.mGraphicBuffer->handle : 0));
+
+    // Compare item with its original buffer slot.  We can check the slot
+    // as the buffer would not be moved to a different slot by the producer.
+    return (slot.mGraphicBuffer != NULL &&
+            item->mGraphicBuffer->handle == slot.mGraphicBuffer->handle);
 }
 
 BufferQueue::ProxyConsumerListener::ProxyConsumerListener(

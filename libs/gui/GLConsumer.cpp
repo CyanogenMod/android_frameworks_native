@@ -188,12 +188,16 @@ status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item) {
     return NO_ERROR;
 }
 
-status_t GLConsumer::releaseBufferLocked(int buf, EGLDisplay display,
-       EGLSyncKHR eglFence) {
-    status_t err = ConsumerBase::releaseBufferLocked(buf, display, eglFence);
-
+status_t GLConsumer::releaseBufferLocked(int buf,
+        sp<GraphicBuffer> graphicBuffer,
+        EGLDisplay display, EGLSyncKHR eglFence) {
+    // release the buffer if it hasn't already been discarded by the
+    // BufferQueue. This can happen, for example, when the producer of this
+    // buffer has reallocated the original buffer slot after this buffer
+    // was acquired.
+    status_t err = ConsumerBase::releaseBufferLocked(
+            buf, graphicBuffer, display, eglFence);
     mEglSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
-
     return err;
 }
 
@@ -237,7 +241,10 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
     if (err != NO_ERROR) {
         // Release the buffer we just acquired.  It's not safe to
         // release the old buffer, so instead we just drop the new frame.
-        releaseBufferLocked(buf, mEglDisplay, EGL_NO_SYNC_KHR);
+        // As we are still under lock since acquireBuffer, it is safe to
+        // release by slot.
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
         return err;
     }
 
@@ -248,7 +255,8 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
 
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t status = releaseBufferLocked(mCurrentTexture, mEglDisplay,
+        status_t status = releaseBufferLocked(
+                mCurrentTexture, mCurrentTextureBuf, mEglDisplay,
                 mEglSlots[mCurrentTexture].mEglFence);
         if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
             ST_LOGE("releaseAndUpdate: failed to release buffer: %s (%d)",
@@ -334,7 +342,8 @@ status_t GLConsumer::checkAndUpdateEglStateLocked() {
 void GLConsumer::setReleaseFence(const sp<Fence>& fence) {
     if (fence->isValid() &&
             mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t err = addReleaseFence(mCurrentTexture, fence);
+        status_t err = addReleaseFence(mCurrentTexture,
+                mCurrentTextureBuf, fence);
         if (err != OK) {
             ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
                     strerror(-err), err);
@@ -503,7 +512,8 @@ status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
                 return UNKNOWN_ERROR;
             }
             sp<Fence> fence(new Fence(fenceFd));
-            status_t err = addReleaseFenceLocked(mCurrentTexture, fence);
+            status_t err = addReleaseFenceLocked(mCurrentTexture,
+                    mCurrentTextureBuf, fence);
             if (err != OK) {
                 ST_LOGE("syncForReleaseLocked: error adding release fence: "
                         "%s (%d)", strerror(-err), err);
