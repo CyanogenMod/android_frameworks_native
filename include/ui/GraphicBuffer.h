@@ -92,6 +92,9 @@ public:
 
     status_t lock(uint32_t usage, void** vaddr);
     status_t lock(uint32_t usage, const Rect& rect, void** vaddr);
+    // For HAL_PIXEL_FORMAT_YCbCr_420_888
+    status_t lockYCbCr(uint32_t usage, android_ycbcr *ycbcr);
+    status_t lockYCbCr(uint32_t usage, const Rect& rect, android_ycbcr *ycbcr);
     status_t unlock();
 
     ANativeWindowBuffer* getNativeBuffer() const;

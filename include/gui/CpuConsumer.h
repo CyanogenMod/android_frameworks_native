@@ -53,6 +53,14 @@ class CpuConsumer : public ConsumerBase
         uint32_t    scalingMode;
         int64_t     timestamp;
         uint64_t    frameNumber;
+        // Values below are only valid when using
+        // HAL_PIXEL_FORMAT_YCbCr_420_888, in which case LockedBuffer::data
+        // contains the Y channel, and stride is the Y channel stride. For other
+        // formats, these will all be 0.
+        uint8_t    *dataCb;
+        uint8_t    *dataCr;
+        uint32_t    chromaStride;
+        uint32_t    chromaStep;
     };
 
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies

@@ -84,6 +84,20 @@ status_t GraphicBufferMapper::lock(buffer_handle_t handle,
     return err;
 }
 
+status_t GraphicBufferMapper::lockYCbCr(buffer_handle_t handle,
+        int usage, const Rect& bounds, android_ycbcr *ycbcr)
+{
+    ATRACE_CALL();
+    status_t err;
+
+    err = mAllocMod->lock_ycbcr(mAllocMod, handle, usage,
+            bounds.left, bounds.top, bounds.width(), bounds.height(),
+            ycbcr);
+
+    ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
+    return err;
+}
+
 status_t GraphicBufferMapper::unlock(buffer_handle_t handle)
 {
     ATRACE_CALL();
