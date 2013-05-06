@@ -178,12 +178,10 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         }
 
         // here we're guaranteed that the client doesn't have dequeued buffers
-        // and will release all of its buffer references.
-        //
-        // XXX: Should this use drainQueueAndFreeBuffersLocked instead?
+        // and will release all of its buffer references.  We don't clear the
+        // queue, however, so currently queued buffers still get displayed.
         freeAllBuffersLocked();
         mOverrideMaxBufferCount = bufferCount;
-        mBufferHasBeenQueued = false;
         mDequeueCondition.broadcast();
         listener = mConsumerListener;
     } // scope for lock
@@ -801,9 +799,8 @@ void BufferQueue::freeBufferLocked(int slot) {
 }
 
 void BufferQueue::freeAllBuffersLocked() {
-    ALOGW_IF(!mQueue.isEmpty(),
-            "freeAllBuffersLocked called but mQueue is not empty");
-    mQueue.clear();
+    ALOGD_IF(!mQueue.isEmpty(),
+            "freeAllBuffersLocked called with non-empty mQueue");
     mBufferHasBeenQueued = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
         freeBufferLocked(i);
@@ -1026,18 +1023,6 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     return NO_ERROR;
 }
 
-void BufferQueue::freeAllBuffersExceptHeadLocked() {
-    // only called if mQueue is not empty
-    Fifo::iterator front(mQueue.begin());
-    mBufferHasBeenQueued = false;
-    for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
-        const BufferSlot &slot = mSlots[i];
-        if (slot.mGraphicBuffer == NULL ||
-            slot.mGraphicBuffer->handle != front->mGraphicBuffer->handle)
-            freeBufferLocked(i);
-    }
-}
-
 status_t BufferQueue::drainQueueLocked() {
     while (mSynchronousMode && mQueue.size() > 1) {
         mDequeueCondition.wait(mMutex);
@@ -1056,11 +1041,7 @@ status_t BufferQueue::drainQueueLocked() {
 status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
     status_t err = drainQueueLocked();
     if (err == NO_ERROR) {
-        if (mQueue.empty()) {
-            freeAllBuffersLocked();
-        } else {
-            freeAllBuffersExceptHeadLocked();
-        }
+        freeAllBuffersLocked();
     }
     return err;
 }

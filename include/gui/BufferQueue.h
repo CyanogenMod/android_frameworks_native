@@ -373,10 +373,6 @@ private:
     // all slots.
     void freeAllBuffersLocked();
 
-    // freeAllBuffersExceptHeadLocked frees the GraphicBuffer and sync
-    // resources for all slots except the head of mQueue.
-    void freeAllBuffersExceptHeadLocked();
-
     // drainQueueLocked waits for the buffer queue to empty if we're in
     // synchronous mode, or returns immediately otherwise. It returns NO_INIT
     // if the BufferQueue is abandoned (consumer disconnected) or disconnected
