@@ -24,7 +24,8 @@
 int64_t stat_size(struct stat *s)
 {
     int64_t blksize = s->st_blksize;
-    int64_t size = s->st_size;
+    // count actual blocks used instead of nominal file size
+    int64_t size = s->st_blocks * 512;
 
     if (blksize) {
         /* round up to filesystem block size */
