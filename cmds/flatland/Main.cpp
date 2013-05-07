@@ -56,7 +56,7 @@ struct BenchmarkDesc {
 
 static const BenchmarkDesc benchmarks[] = {
     { "16:10 Single Static Window",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Window
                 0, staticGradient, opaque,
@@ -92,7 +92,7 @@ static const BenchmarkDesc benchmarks[] = {
     },
 
     { "16:10 App -> Home Transition",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Wallpaper
                 0, staticGradient, opaque,
@@ -144,7 +144,7 @@ static const BenchmarkDesc benchmarks[] = {
     },
 
     { "16:10 SurfaceView -> Home Transition",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Wallpaper
                 0, staticGradient, opaque,
