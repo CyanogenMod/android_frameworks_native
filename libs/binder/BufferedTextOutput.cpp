@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include <utils/BufferedTextOutput.h>
+#include <binder/BufferedTextOutput.h>
+#include <binder/Debug.h>
 
 #include <utils/Atomic.h>
-#include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/RefBase.h>
 #include <utils/Vector.h>
 #include <cutils/threads.h>
 
-#include <private/utils/Static.h>
+#include <private/binder/Static.h>
 
 #include <stdio.h>
 #include <stdlib.h>

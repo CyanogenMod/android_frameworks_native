@@ -22,12 +22,13 @@
 #include <binder/IPCThreadState.h>
 #include <binder/Binder.h>
 #include <binder/BpBinder.h>
-#include <utils/Debug.h>
 #include <binder/ProcessState.h>
+#include <binder/TextOutput.h>
+
+#include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/String8.h>
 #include <utils/String16.h>
-#include <utils/TextOutput.h>
 #include <utils/misc.h>
 #include <utils/Flattenable.h>
 #include <cutils/ashmem.h>

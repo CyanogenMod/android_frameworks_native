@@ -9,7 +9,7 @@
 #include <binder/Parcel.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
-#include <utils/TextOutput.h>
+#include <binder/TextOutput.h>
 #include <utils/Vector.h>
 
 #include <getopt.h>

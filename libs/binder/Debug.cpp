@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <utils/Debug.h>
+#include <binder/Debug.h>
 
 #include <utils/misc.h>
 
@@ -65,20 +65,6 @@ static char* appendhexnum(uint32_t val, char* out)
 {
     for( int32_t i=28; i>=0; i-=4 ) {
         *out++ = makehexdigit( val>>i );
-    }
-    *out = 0;
-    return out;
-}
-
-static inline char makeupperhexdigit(uint32_t val)
-{
-    return "0123456789ABCDEF"[val&0xF];
-}
-
-static char* appendupperhexnum(uint32_t val, char* out)
-{
-    for( int32_t i=28; i>=0; i-=4 ) {
-        *out++ = makeupperhexdigit( val>>i );
     }
     *out = 0;
     return out;

@@ -20,10 +20,11 @@
 
 #include <binder/Binder.h>
 #include <binder/BpBinder.h>
+#include <binder/TextOutput.h>
+
 #include <cutils/sched_policy.h>
 #include <utils/Debug.h>
 #include <utils/Log.h>
-#include <utils/TextOutput.h>
 #include <utils/threads.h>
 
 #include <private/binder/binder_module.h>
