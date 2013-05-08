@@ -81,6 +81,7 @@ static const TracingCategory k_categories[] = {
     { "camera",     "Camera",           ATRACE_TAG_CAMERA, { } },
     { "hal",        "Hardware Modules", ATRACE_TAG_HAL, { } },
     { "res",        "Resource Loading", ATRACE_TAG_RESOURCES, { } },
+    { "dalvik",     "Dalvik VM",        ATRACE_TAG_DALVIK, { } },
     { "sched",      "CPU Scheduling",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
