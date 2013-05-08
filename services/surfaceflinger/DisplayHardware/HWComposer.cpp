@@ -50,6 +50,10 @@
 
 namespace android {
 
+// This is not a real HWC version. It's used for in-development features that
+// haven't been committed to a specific real HWC version.
+#define HWC_DEVICE_API_VERSION_1_EXP HARDWARE_DEVICE_API_VERSION_2(1, 0xFF, HWC_HEADER_VERSION)
+
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
 
 #define NUM_PHYSICAL_DISPLAYS HWC_NUM_DISPLAY_TYPES
@@ -152,8 +156,8 @@ HWComposer::HWComposer(
 
         // the number of displays we actually have depends on the
         // hw composer version
-        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
-            // 1.2 adds support for virtual displays
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
+            // 1.?? adds support for virtual displays
             mNumDisplays = MAX_DISPLAYS;
         } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // 1.1 adds support for multiple displays
@@ -581,7 +585,7 @@ status_t HWComposer::prepare() {
         }
         mLists[i] = disp.list;
         if (mLists[i]) {
-            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_2)) {
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
                 mLists[i]->outbuf = NULL;
                 mLists[i]->outbufAcquireFenceFd = -1;
             } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
