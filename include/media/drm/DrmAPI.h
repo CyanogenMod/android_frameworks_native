@@ -80,10 +80,12 @@ namespace android {
 
         // Drm keys can be for offline content or for online streaming.
         // Offline keys are persisted on the device and may be used when the device
-        // is disconnected from the network.
+        // is disconnected from the network.  The Release type is used to request
+        // that offline keys be no longer restricted to offline use.
         enum KeyType {
             kKeyType_Offline,
-            kKeyType_Streaming
+            kKeyType_Streaming,
+            kKeyType_Release
         };
 
         DrmPlugin() {}
@@ -101,35 +103,55 @@ namespace android {
         // is used to obtain an opaque key request blob that is delivered to the
         // license server.
         //
+        // The scope parameter may be a sessionId or a keySetId, depending on the
+        // specified keyType.  When the keyType is kKeyType_Offline or
+        // kKeyType_Streaming, scope should be set to the sessionId the keys will be
+        // provided to.  When the keyType is kKeyType_Release, scope should be set to
+        // the keySetId of the keys being released.  Releasing keys from a device
+        // invalidates them for all sessions.
+        //
         // The init data passed to getKeyRequest is container-specific and its
         // meaning is interpreted based on the mime type provided in the mimeType
         // parameter to getKeyRequest.  It could contain, for example, the content
         // ID, key ID or other data obtained from the content metadata that is required
-        // in generating the key request.
+        // in generating the key request.  Init may be null when keyType is
+        // kKeyType_Release.
         //
-        // keyType specifes if the keys are to be used for streaming or offline content
+        // mimeType identifies the mime type of the content
+        //
+        // keyType specifies if the keys are to be used for streaming or offline content
         //
         // optionalParameters are included in the key request message to allow a
         // client application to provide additional message parameters to the server.
         //
         // If successful, the opaque key request blob is returned to the caller.
         virtual status_t
-            getKeyRequest(Vector<uint8_t> const &sessionId,
+            getKeyRequest(Vector<uint8_t> const &scope,
                           Vector<uint8_t> const &initData,
                           String8 const &mimeType, KeyType keyType,
                           KeyedVector<String8, String8> const &optionalParameters,
                           Vector<uint8_t> &request, String8 &defaultUrl) = 0;
 
+        //
         // After a key response is received by the app, it is provided to the
-        // Drm plugin using provideKeyResponse.  Returns the id of the key set
-        // in keySetId.  The keySetId can be used by removeKeys or restoreKeys
-        // when the keys are used for offline content.
-        virtual status_t provideKeyResponse(Vector<uint8_t> const &sessionId,
+        // Drm plugin using provideKeyResponse.
+        //
+        // scope may be a sessionId or a keySetId depending on the type of the
+        // response.  Scope should be set to the sessionId when the response is
+        // for either streaming or offline key requests.  Scope should be set to the
+        // keySetId when the response is for a release request.
+        //
+        // When the response is for an offline key request, a keySetId is returned
+        // in the keySetId vector parameter that can be used to later restore the
+        // keys to a new session with the method restoreKeys. When the response is
+        // for a streaming or release request, no keySetId is returned.
+        //
+        virtual status_t provideKeyResponse(Vector<uint8_t> const &scope,
                                             Vector<uint8_t> const &response,
                                             Vector<uint8_t> &keySetId) = 0;
 
-        // Remove the persisted keys associated with an offline license for a session.
-        virtual status_t removeKeys(Vector<uint8_t> const &keySetId) = 0;
+        // Remove the current keys from a session
+        virtual status_t removeKeys(Vector<uint8_t> const &sessionId) = 0;
 
         // Restore persisted offline keys into a new session.  keySetId identifies
         // the keys to load, obtained from a prior call to provideKeyResponse().
