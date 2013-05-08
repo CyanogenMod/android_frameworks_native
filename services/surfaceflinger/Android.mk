@@ -14,7 +14,6 @@ LOCAL_SRC_FILES:= \
     SurfaceFlingerConsumer.cpp \
     SurfaceTextureLayer.cpp \
     Transform.cpp \
-    DisplayHardware/BufferQueueInterposer.cpp \
     DisplayHardware/FramebufferSurface.cpp \
     DisplayHardware/HWComposer.cpp \
     DisplayHardware/PowerHAL.cpp \
