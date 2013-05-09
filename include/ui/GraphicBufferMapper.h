@@ -45,6 +45,9 @@ public:
     status_t lock(buffer_handle_t handle,
             int usage, const Rect& bounds, void** vaddr);
 
+    status_t lockYCbCr(buffer_handle_t handle,
+            int usage, const Rect& bounds, android_ycbcr *ycbcr);
+
     status_t unlock(buffer_handle_t handle);
     
     // dumps information about the mapping of this handle
