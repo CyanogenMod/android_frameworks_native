@@ -89,16 +89,34 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     }
 
     void *bufferPointer = NULL;
-    err = mSlots[buf].mGraphicBuffer->lock(
-        GraphicBuffer::USAGE_SW_READ_OFTEN,
-        b.mCrop,
-        &bufferPointer);
+    android_ycbcr ycbcr = android_ycbcr();
 
-    if (bufferPointer != NULL && err != OK) {
-        CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)", strerror(-err),
-                err);
-        return err;
+    if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
+            HAL_PIXEL_FORMAT_YCbCr_420_888) {
+        err = mSlots[buf].mGraphicBuffer->lockYCbCr(
+            GraphicBuffer::USAGE_SW_READ_OFTEN,
+            b.mCrop,
+            &ycbcr);
+
+        if (err != OK) {
+            CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
+        bufferPointer = ycbcr.y;
+    } else {
+        err = mSlots[buf].mGraphicBuffer->lock(
+            GraphicBuffer::USAGE_SW_READ_OFTEN,
+            b.mCrop,
+            &bufferPointer);
+
+        if (err != OK) {
+            CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
     }
+
     size_t lockedIdx = 0;
     for (; lockedIdx < mMaxLockedBuffers; lockedIdx++) {
         if (mAcquiredBuffers[lockedIdx].mSlot ==
@@ -118,13 +136,20 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     nativeBuffer->width  = mSlots[buf].mGraphicBuffer->getWidth();
     nativeBuffer->height = mSlots[buf].mGraphicBuffer->getHeight();
     nativeBuffer->format = mSlots[buf].mGraphicBuffer->getPixelFormat();
-    nativeBuffer->stride = mSlots[buf].mGraphicBuffer->getStride();
+    nativeBuffer->stride = (ycbcr.y != NULL) ?
+            ycbcr.ystride :
+            mSlots[buf].mGraphicBuffer->getStride();
 
     nativeBuffer->crop        = b.mCrop;
     nativeBuffer->transform   = b.mTransform;
     nativeBuffer->scalingMode = b.mScalingMode;
     nativeBuffer->timestamp   = b.mTimestamp;
     nativeBuffer->frameNumber = b.mFrameNumber;
+
+    nativeBuffer->dataCb       = reinterpret_cast<uint8_t*>(ycbcr.cb);
+    nativeBuffer->dataCr       = reinterpret_cast<uint8_t*>(ycbcr.cr);
+    nativeBuffer->chromaStride = ycbcr.cstride;
+    nativeBuffer->chromaStep   = ycbcr.chroma_step;
 
     mCurrentLockedBuffers++;
 
