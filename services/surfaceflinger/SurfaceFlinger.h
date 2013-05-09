@@ -79,11 +79,11 @@ class SurfaceFlinger : public BinderService<SurfaceFlinger>,
                        private HWComposer::EventHandler
 {
 public:
-    static char const* getServiceName() {
+    static char const* getServiceName() ANDROID_API {
         return "SurfaceFlinger";
     }
 
-    SurfaceFlinger();
+    SurfaceFlinger() ANDROID_API;
 
     enum {
         EVENT_VSYNC = HWC_EVENT_VSYNC

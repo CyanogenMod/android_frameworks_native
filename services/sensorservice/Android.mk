@@ -12,10 +12,11 @@ LOCAL_SRC_FILES:= \
     SensorDevice.cpp \
     SensorFusion.cpp \
     SensorInterface.cpp \
-    SensorService.cpp \
-
+    SensorService.cpp
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SensorService\"
+
+LOCAL_CFLAGS += -fvisibility=hidden
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
@@ -26,8 +27,6 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libui \
 	libgui
-
-
 
 LOCAL_MODULE:= libsensorservice
 

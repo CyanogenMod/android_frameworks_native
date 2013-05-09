@@ -42,19 +42,20 @@ public:
     }
 
     static void publishAndJoinThreadPool(bool allowIsolated = false) {
-        sp<IServiceManager> sm(defaultServiceManager());
-        sm->addService(
-                String16(SERVICE::getServiceName()),
-                new SERVICE(), allowIsolated);
-        ProcessState::self()->startThreadPool();
-        ProcessState::self()->giveThreadPoolName();
-        IPCThreadState::self()->joinThreadPool();
+        publish(allowIsolated);
+        joinThreadPool();
     }
 
     static void instantiate() { publish(); }
 
-    static status_t shutdown() {
-        return NO_ERROR;
+    static status_t shutdown() { return NO_ERROR; }
+
+private:
+    static void joinThreadPool() {
+        sp<ProcessState> ps(ProcessState::self());
+        ps->startThreadPool();
+        ps->giveThreadPoolName();
+        IPCThreadState::self()->joinThreadPool();
     }
 };
 

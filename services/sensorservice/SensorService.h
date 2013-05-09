@@ -50,12 +50,13 @@ class SensorService :
         public BnSensorServer,
         protected Thread
 {
-   friend class BinderService<SensorService>;
+    friend class BinderService<SensorService>;
 
-   static const nsecs_t MINIMUM_EVENTS_PERIOD =   1000000; // 1000 Hz
-   static const char* WAKE_LOCK_NAME;
+    static const nsecs_t MINIMUM_EVENTS_PERIOD =   1000000; // 1000 Hz
+    static const char* WAKE_LOCK_NAME;
 
-            SensorService();
+    static char const* getServiceName() ANDROID_API { return "sensorservice"; }
+    SensorService() ANDROID_API;
     virtual ~SensorService();
 
     virtual void onFirstRef();
@@ -116,9 +117,9 @@ class SensorService :
     void registerSensor(SensorInterface* sensor);
     void registerVirtualSensor(SensorInterface* sensor);
     status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
-        int handle);
+            int handle);
     void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
-        sensors_event_t const* buffer, const int count);
+            sensors_event_t const* buffer, const int count);
 
     // constants
     Vector<Sensor> mSensorList;
@@ -138,8 +139,6 @@ class SensorService :
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;
 
 public:
-    static char const* getServiceName() { return "sensorservice"; }
-
     void cleanupConnection(SensorEventConnection* connection);
     status_t enable(const sp<SensorEventConnection>& connection, int handle);
     status_t disable(const sp<SensorEventConnection>& connection, int handle);
