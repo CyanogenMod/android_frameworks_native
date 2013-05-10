@@ -20,11 +20,11 @@
 namespace android {
 
 static inline int32_t min(int32_t a, int32_t b) {
-    return (a<b) ? a : b;
+    return (a < b) ? a : b;
 }
 
 static inline int32_t max(int32_t a, int32_t b) {
-    return (a>b) ? a : b;
+    return (a > b) ? a : b;
 }
 
 void Rect::makeInvalid() {
@@ -34,18 +34,17 @@ void Rect::makeInvalid() {
     bottom = -1;
 }
 
-bool Rect::operator < (const Rect& rhs) const
-{
-    if (top<rhs.top) {
+bool Rect::operator <(const Rect& rhs) const {
+    if (top < rhs.top) {
         return true;
     } else if (top == rhs.top) {
         if (left < rhs.left) {
             return true;
         } else if (left == rhs.left) {
-            if (bottom<rhs.bottom) {
+            if (bottom < rhs.bottom) {
                 return true;
             } else if (bottom == rhs.bottom) {
-                if (right<rhs.right) {
+                if (right < rhs.right) {
                     return true;
                 }
             }
@@ -54,8 +53,7 @@ bool Rect::operator < (const Rect& rhs) const
     return false;
 }
 
-Rect& Rect::offsetTo(int32_t x, int32_t y)
-{
+Rect& Rect::offsetTo(int32_t x, int32_t y) {
     right -= left - x;
     bottom -= top - y;
     left = x;
@@ -63,45 +61,41 @@ Rect& Rect::offsetTo(int32_t x, int32_t y)
     return *this;
 }
 
-Rect& Rect::offsetBy(int32_t x, int32_t y)
-{
+Rect& Rect::offsetBy(int32_t x, int32_t y) {
     left += x;
-    top  += y;
-    right+= x;
-    bottom+=y;
+    top += y;
+    right += x;
+    bottom += y;
     return *this;
 }
 
-const Rect Rect::operator + (const Point& rhs) const
-{
-    const Rect result(left+rhs.x, top+rhs.y, right+rhs.x, bottom+rhs.y);
+const Rect Rect::operator +(const Point& rhs) const {
+    const Rect result(left + rhs.x, top + rhs.y, right + rhs.x, bottom + rhs.y);
     return result;
 }
 
-const Rect Rect::operator - (const Point& rhs) const
-{
-    const Rect result(left-rhs.x, top-rhs.y, right-rhs.x, bottom-rhs.y);
+const Rect Rect::operator -(const Point& rhs) const {
+    const Rect result(left - rhs.x, top - rhs.y, right - rhs.x, bottom - rhs.y);
     return result;
 }
 
-bool Rect::intersect(const Rect& with, Rect* result) const
-{
-    result->left    = max(left, with.left);
-    result->top     = max(top, with.top);
-    result->right   = min(right, with.right);
-    result->bottom  = min(bottom, with.bottom);
+bool Rect::intersect(const Rect& with, Rect* result) const {
+    result->left = max(left, with.left);
+    result->top = max(top, with.top);
+    result->right = min(right, with.right);
+    result->bottom = min(bottom, with.bottom);
     return !(result->isEmpty());
 }
 
 Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) const {
     Rect result(*this);
     if (xform & HAL_TRANSFORM_FLIP_H) {
-        result = Rect(width - result.right, result.top,
-                width - result.left, result.bottom);
+        result = Rect(width - result.right, result.top, width - result.left,
+                result.bottom);
     }
     if (xform & HAL_TRANSFORM_FLIP_V) {
-        result = Rect(result.left, height - result.bottom,
-                result.right, height - result.top);
+        result = Rect(result.left, height - result.bottom, result.right,
+                height - result.top);
     }
     if (xform & HAL_TRANSFORM_ROT_90) {
         int left = height - result.bottom;

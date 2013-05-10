@@ -697,7 +697,7 @@ void Region::translate(Region& reg, int dx, int dy)
         size_t count = reg.mStorage.size();
         Rect* rects = reg.mStorage.editArray();
         while (count) {
-            rects->translate(dx, dy);
+            rects->offsetBy(dx, dy);
             rects++;
             count--;
         }

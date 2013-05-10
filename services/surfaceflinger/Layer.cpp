@@ -276,6 +276,8 @@ Rect Layer::computeBounds() const {
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
+    // subtract the transparent region and snap to the bounds
+    win = Region(win).subtract(s.activeTransparentRegion).getBounds();
     return win;
 }
 
@@ -666,6 +668,8 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) 
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
+    // subtract the transparent region and snap to the bounds
+    win = Region(win).subtract(s.activeTransparentRegion).getBounds();
     if (mesh) {
         tr.transform(mesh->mVertices[0], win.left,  win.top);
         tr.transform(mesh->mVertices[1], win.left,  win.bottom);

@@ -416,7 +416,7 @@ void DisplayDevice::setProjection(int orientation,
 
     mScissor = mGlobalTransform.transform(viewport);
     if (mScissor.isEmpty()) {
-        mScissor.set(getBounds());
+        mScissor = getBounds();
     }
 
     mOrientation = orientation;
