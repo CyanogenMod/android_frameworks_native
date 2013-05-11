@@ -270,6 +270,16 @@ uint32_t Layer::getContentTransform() const {
     return mCurrentTransform;
 }
 
+static Rect reduce(const Rect& win, const Region& exclude) {
+    if (CC_LIKELY(exclude.isEmpty())) {
+        return win;
+    }
+    if (exclude.isRect()) {
+        return win.reduce(exclude.getBounds());
+    }
+    return Region(win).subtract(exclude).getBounds();
+}
+
 Rect Layer::computeBounds() const {
     const Layer::State& s(drawingState());
     Rect win(s.active.w, s.active.h);
@@ -277,8 +287,7 @@ Rect Layer::computeBounds() const {
         win.intersect(s.active.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
-    win = Region(win).subtract(s.activeTransparentRegion).getBounds();
-    return win;
+    return reduce(win, s.activeTransparentRegion);
 }
 
 Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
@@ -311,6 +320,9 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // paranoia: make sure the window-crop is constrained in the
     // window's bounds
     activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
+
+    // subtract the transparent region and snap to the bounds
+    activeCrop = reduce(activeCrop, s.activeTransparentRegion);
 
     if (!activeCrop.isEmpty()) {
         // Transform the window crop to match the buffer coordinate system,
@@ -669,7 +681,7 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) 
         win.intersect(s.active.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
-    win = Region(win).subtract(s.activeTransparentRegion).getBounds();
+    win = reduce(win, s.activeTransparentRegion);
     if (mesh) {
         tr.transform(mesh->mVertices[0], win.left,  win.top);
         tr.transform(mesh->mVertices[1], win.left,  win.bottom);

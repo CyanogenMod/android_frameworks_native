@@ -160,6 +160,10 @@ public:
     // the input.
     Rect transform(uint32_t xform, int32_t width, int32_t height) const;
 
+    // this calculates (Region(*this) - exclude).bounds() efficiently
+    Rect reduce(const Rect& exclude) const;
+
+
     // for backward compatibility
     inline int32_t width() const { return getWidth(); }
     inline int32_t height() const { return getHeight(); }

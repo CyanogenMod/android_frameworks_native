@@ -107,4 +107,35 @@ Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) const {
     return result;
 }
 
+Rect Rect::reduce(const Rect& exclude) const {
+    Rect result;
+
+    uint32_t mask = 0;
+    mask |= (exclude.left   > left)   ? 1 : 0;
+    mask |= (exclude.top    > top)    ? 2 : 0;
+    mask |= (exclude.right  < right)  ? 4 : 0;
+    mask |= (exclude.bottom < bottom) ? 8 : 0;
+
+    if (mask == 0) {
+        // crop entirely covers us
+        result.clear();
+    } else {
+        result = *this;
+        if (!(mask & (mask - 1))) {
+            // power-of-2, i.e.: just one bit is set
+            if (mask & 1) {
+                result.right = exclude.left;
+            } else if (mask & 2) {
+                result.bottom = exclude.top;
+            } else if (mask & 4) {
+                result.left = exclude.right;
+            } else if (mask & 8) {
+                result.top = exclude.bottom;
+            }
+        }
+    }
+
+    return result;
+}
+
 }; // namespace android
