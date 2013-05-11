@@ -69,7 +69,7 @@ status_t CorrectedGyroSensor::setDelay(void* ident, int handle, int64_t ns) {
 Sensor CorrectedGyroSensor::getSensor() const {
     sensor_t hwSensor;
     hwSensor.name       = "Corrected Gyroscope Sensor";
-    hwSensor.vendor     = "Google Inc.";
+    hwSensor.vendor     = "AOSP";
     hwSensor.version    = 1;
     hwSensor.handle     = '_cgy';
     hwSensor.type       = SENSOR_TYPE_GYROSCOPE;

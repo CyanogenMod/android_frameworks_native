@@ -77,7 +77,7 @@ status_t GravitySensor::setDelay(void* ident, int handle, int64_t ns) {
 Sensor GravitySensor::getSensor() const {
     sensor_t hwSensor;
     hwSensor.name       = "Gravity Sensor";
-    hwSensor.vendor     = "Google Inc.";
+    hwSensor.vendor     = "AOSP";
     hwSensor.version    = 3;
     hwSensor.handle     = '_grv';
     hwSensor.type       = SENSOR_TYPE_GRAVITY;

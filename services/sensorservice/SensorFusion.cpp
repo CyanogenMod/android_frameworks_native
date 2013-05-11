@@ -28,6 +28,7 @@ SensorFusion::SensorFusion()
       mEnabled(false), mGyroTime(0)
 {
     sensor_t const* list;
+    Sensor uncalibratedGyro;
     ssize_t count = mSensorDevice.getSensorList(&list);
     if (count > 0) {
         for (size_t i=0 ; i<size_t(count) ; i++) {
@@ -39,18 +40,27 @@ SensorFusion::SensorFusion()
             }
             if (list[i].type == SENSOR_TYPE_GYROSCOPE) {
                 mGyro = Sensor(list + i);
-                // 200 Hz for gyro events is a good compromise between precision
-                // and power/cpu usage.
-                mGyroRate = 200;
-                mTargetDelayNs = 1000000000LL/mGyroRate;
+            }
+            if (list[i].type == SENSOR_TYPE_GYROSCOPE_UNCALIBRATED) {
+                uncalibratedGyro = Sensor(list + i);
             }
         }
+
+        // Use the uncalibrated gyroscope for sensor fusion when available
+        if (uncalibratedGyro.getType() == SENSOR_TYPE_GYROSCOPE_UNCALIBRATED) {
+            mGyro = uncalibratedGyro;
+        }
+
+        // 200 Hz for gyro events is a good compromise between precision
+        // and power/cpu usage.
+        mGyroRate = 200;
+        mTargetDelayNs = 1000000000LL/mGyroRate;
         mFusion.init();
     }
 }
 
 void SensorFusion::process(const sensors_event_t& event) {
-    if (event.type == SENSOR_TYPE_GYROSCOPE) {
+    if (event.type == mGyro.getType()) {
         if (mGyroTime != 0) {
             const float dT = (event.timestamp - mGyroTime) / 1000000000.0f;
             const float freq = 1 / dT;
