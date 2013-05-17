@@ -821,7 +821,7 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
                 return UNKNOWN_ERROR;
             }
         } else {
-            status_t err = mCurrentFence->waitForever(1000,
+            status_t err = mCurrentFence->waitForever(
                     "GLConsumer::doGLFenceWaitLocked");
             if (err != NO_ERROR) {
                 ST_LOGE("doGLFenceWait: error waiting for fence: %d", err);

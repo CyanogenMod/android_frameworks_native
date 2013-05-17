@@ -113,7 +113,7 @@ int Surface::hook_dequeueBuffer_DEPRECATED(ANativeWindow* window,
     int fenceFd = -1;
     int result = c->dequeueBuffer(&buf, &fenceFd);
     sp<Fence> fence(new Fence(fenceFd));
-    int waitResult = fence->waitForever(1000, "dequeueBuffer_DEPRECATED");
+    int waitResult = fence->waitForever("dequeueBuffer_DEPRECATED");
     if (waitResult != OK) {
         ALOGE("dequeueBuffer_DEPRECATED: Fence::wait returned an error: %d",
                 waitResult);
@@ -734,7 +734,7 @@ status_t Surface::lock(
         sp<GraphicBuffer> backBuffer(GraphicBuffer::getSelf(out));
         sp<Fence> fence(new Fence(fenceFd));
 
-        err = fence->waitForever(1000, "Surface::lock");
+        err = fence->waitForever("Surface::lock");
         if (err != OK) {
             ALOGE("Fence::wait failed (%s)", strerror(-err));
             cancelBuffer(out, fenceFd);
