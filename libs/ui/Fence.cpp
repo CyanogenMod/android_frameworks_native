@@ -54,11 +54,12 @@ status_t Fence::wait(unsigned int timeout) {
     return err < 0 ? -errno : status_t(NO_ERROR);
 }
 
-status_t Fence::waitForever(unsigned int warningTimeout, const char* logname) {
+status_t Fence::waitForever(const char* logname) {
     ATRACE_CALL();
     if (mFenceFd == -1) {
         return NO_ERROR;
     }
+    unsigned int warningTimeout = 3000;
     int err = sync_wait(mFenceFd, warningTimeout);
     if (err < 0 && errno == ETIME) {
         ALOGE("%s: fence %d didn't signal in %u ms", logname, mFenceFd,

@@ -70,9 +70,10 @@ public:
     // waitForever is a convenience function for waiting forever for a fence to
     // signal (just like wait(TIMEOUT_NEVER)), but issuing an error to the
     // system log and fence state to the kernel log if the wait lasts longer
-    // than warningTimeout. The logname argument should be a string identifying
+    // than a warning timeout.
+    // The logname argument should be a string identifying
     // the caller and will be included in the log message.
-    status_t waitForever(unsigned int warningTimeout, const char* logname);
+    status_t waitForever(const char* logname);
 
     // merge combines two Fence objects, creating a new Fence object that
     // becomes signaled when both f1 and f2 are signaled (even if f1 or f2 is
