@@ -62,7 +62,7 @@ Sensor LinearAccelerationSensor::getSensor() const {
     Sensor gsensor(mGravitySensor.getSensor());
     sensor_t hwSensor;
     hwSensor.name       = "Linear Acceleration Sensor";
-    hwSensor.vendor     = "Google Inc.";
+    hwSensor.vendor     = "AOSP";
     hwSensor.version    = gsensor.getVersion();
     hwSensor.handle     = '_lin';
     hwSensor.type       = SENSOR_TYPE_LINEAR_ACCELERATION;

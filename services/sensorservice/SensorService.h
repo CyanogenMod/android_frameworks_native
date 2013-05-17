@@ -114,8 +114,8 @@ class SensorService :
     int getSensorType(int handle) const;
     void recordLastValue(sensors_event_t const * buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
-    void registerSensor(SensorInterface* sensor);
-    void registerVirtualSensor(SensorInterface* sensor);
+    Sensor registerSensor(SensorInterface* sensor);
+    Sensor registerVirtualSensor(SensorInterface* sensor);
     status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
             int handle);
     void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
