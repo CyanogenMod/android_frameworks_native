@@ -2571,6 +2571,86 @@ void SurfaceFlinger::repaintEverything() {
 // Capture screen into an IGraphiBufferProducer
 // ---------------------------------------------------------------------------
 
+/* The code below is here to handle b/8734824
+ *
+ * We create a IGraphicBufferProducer wrapper that forwards all calls
+ * to the calling binder thread, where they are executed. This allows
+ * the calling thread to be reused (on the other side) and not
+ * depend on having "enough" binder threads to handle the requests.
+ *
+ */
+
+class GraphicProducerWrapper : public BBinder, public MessageHandler {
+    sp<IGraphicBufferProducer> impl;
+    sp<Looper> looper;
+    status_t result;
+    bool exitPending;
+    bool exitRequested;
+    mutable Barrier barrier;
+    volatile int32_t memoryBarrier;
+    uint32_t code;
+    Parcel const* data;
+    Parcel* reply;
+
+    enum {
+        MSG_API_CALL,
+        MSG_EXIT
+    };
+
+    /*
+     * this is called by our "fake" BpGraphicBufferProducer. We package the
+     * data and reply Parcel and forward them to the calling thread.
+     */
+    virtual status_t transact(uint32_t code,
+            const Parcel& data, Parcel* reply, uint32_t flags) {
+        this->code = code;
+        this->data = &data;
+        this->reply = reply;
+        android_atomic_acquire_store(0, &memoryBarrier);
+        if (exitPending) {
+            // if we've exited, we run the message synchronously right here
+            handleMessage(Message(MSG_API_CALL));
+        } else {
+            barrier.close();
+            looper->sendMessage(this, Message(MSG_API_CALL));
+            barrier.wait();
+        }
+        return NO_ERROR;
+    }
+
+    /*
+     * here we run on the binder calling thread. All we've got to do is
+     * call the real BpGraphicBufferProducer.
+     */
+    virtual void handleMessage(const Message& message) {
+        android_atomic_release_load(&memoryBarrier);
+        if (message.what == MSG_API_CALL) {
+            impl->asBinder()->transact(code, data[0], reply);
+            barrier.open();
+        } else if (message.what == MSG_EXIT) {
+            exitRequested = true;
+        }
+    }
+
+public:
+    GraphicProducerWrapper(const sp<IGraphicBufferProducer>& impl) :
+        impl(impl), looper(new Looper(true)), result(NO_ERROR),
+        exitPending(false), exitRequested(false) {
+    }
+
+    status_t waitForResponse() {
+        do {
+            looper->pollOnce(-1);
+        } while (!exitRequested);
+        return result;
+    }
+
+    void exit(status_t result) {
+        exitPending = true;
+        looper->sendMessage(this, Message(MSG_EXIT));
+    }
+};
+
 status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         const sp<IGraphicBufferProducer>& producer,
         uint32_t reqWidth, uint32_t reqHeight,
@@ -2583,24 +2663,25 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     if (CC_UNLIKELY(producer == 0))
         return BAD_VALUE;
 
+
     class MessageCaptureScreen : public MessageBase {
         SurfaceFlinger* flinger;
         sp<IBinder> display;
         sp<IGraphicBufferProducer> producer;
         uint32_t reqWidth, reqHeight;
         uint32_t minLayerZ,maxLayerZ;
-        bool isCpuConsumer;
+        bool useReadPixels;
         status_t result;
     public:
         MessageCaptureScreen(SurfaceFlinger* flinger,
                 const sp<IBinder>& display,
                 const sp<IGraphicBufferProducer>& producer,
                 uint32_t reqWidth, uint32_t reqHeight,
-                uint32_t minLayerZ, uint32_t maxLayerZ, bool isCpuConsumer)
+                uint32_t minLayerZ, uint32_t maxLayerZ, bool useReadPixels)
             : flinger(flinger), display(display), producer(producer),
               reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
-              isCpuConsumer(isCpuConsumer),
+              useReadPixels(useReadPixels),
               result(PERMISSION_DENIED)
         {
         }
@@ -2610,26 +2691,6 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
-
-            bool useReadPixels = false;
-            if (isCpuConsumer) {
-                bool formatSupportedBytBitmap =
-                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBA_8888) ||
-                        (flinger->mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBX_8888);
-                if (formatSupportedBytBitmap == false) {
-                    // the pixel format we have is not compatible with
-                    // Bitmap.java, which is the likely client of this API,
-                    // so we just revert to glReadPixels() in that case.
-                    useReadPixels = true;
-                }
-                if (flinger->mGpuToCpuSupported == false) {
-                    // When we know the GL->CPU path works, we can call
-                    // captureScreenImplLocked() directly, instead of using the
-                    // glReadPixels() workaround.
-                    useReadPixels = true;
-                }
-            }
-
             if (!useReadPixels) {
                 result = flinger->captureScreenImplLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
@@ -2637,6 +2698,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
                 result = flinger->captureScreenImplCpuConsumerLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             }
+            static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
             return true;
         }
     };
@@ -2648,12 +2710,40 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     // scheduled at this time, this will end-up being a no-op as well.
     mEventQueue.invalidateTransactionNow();
 
+    bool useReadPixels = false;
+    if (isCpuConsumer) {
+        bool formatSupportedBytBitmap =
+                (mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBA_8888) ||
+                (mEGLNativeVisualId == HAL_PIXEL_FORMAT_RGBX_8888);
+        if (formatSupportedBytBitmap == false) {
+            // the pixel format we have is not compatible with
+            // Bitmap.java, which is the likely client of this API,
+            // so we just revert to glReadPixels() in that case.
+            useReadPixels = true;
+        }
+        if (mGpuToCpuSupported == false) {
+            // When we know the GL->CPU path works, we can call
+            // captureScreenImplLocked() directly, instead of using the
+            // glReadPixels() workaround.
+            useReadPixels = true;
+        }
+    }
+
+    // this creates a "fake" BBinder which will serve as a "fake" remote
+    // binder to receive the marshaled calls and forward them to the
+    // real remote (a BpGraphicBufferProducer)
+    sp<GraphicProducerWrapper> wrapper = new GraphicProducerWrapper(producer);
+
+    // the asInterface() call below creates our "fake" BpGraphicBufferProducer
+    // which does the marshaling work forwards to our "fake remote" above.
     sp<MessageBase> msg = new MessageCaptureScreen(this,
-            display, producer, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-            isCpuConsumer);
-    status_t res = postMessageSync(msg);
+            display, IGraphicBufferProducer::asInterface( wrapper ),
+            reqWidth, reqHeight, minLayerZ, maxLayerZ,
+            useReadPixels);
+
+    status_t res = postMessageAsync(msg);
     if (res == NO_ERROR) {
-        res = static_cast<MessageCaptureScreen*>( msg.get() )->getResult();
+        res = wrapper->waitForResponse();
     }
     return res;
 }
