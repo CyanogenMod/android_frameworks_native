@@ -19,6 +19,7 @@
 #define HDCP_API_H_
 
 #include <utils/Errors.h>
+#include <system/window.h>
 
 namespace android {
 
@@ -90,6 +91,20 @@ struct HDCPModule {
         return INVALID_OPERATION;
     }
 
+    // Encrypt data according to the HDCP spec. "size" bytes of data starting
+    // at location "offset" are available in "buffer" (buffer handle). "size"
+    // may not be a multiple of 128 bits (16 bytes). An equal number of
+    // encrypted bytes should be written to the buffer at "outData" (virtual
+    // address). This operation is to be synchronous, i.e. this call does not
+    // return until outData contains size bytes of encrypted data.
+    // streamCTR will be assigned by the caller (to 0 for the first PES stream,
+    // 1 for the second and so on)
+    // inputCTR _will_be_maintained_by_the_callee_ for each PES stream.
+    virtual status_t encryptNative(
+            buffer_handle_t buffer, size_t offset, size_t size,
+            uint32_t streamCTR, uint64_t *outInputCTR, void *outData) {
+        return INVALID_OPERATION;
+    }
     // DECRYPTION only:
     // Decrypt data according to the HDCP spec.
     // "size" bytes of encrypted data are available at "inData"
