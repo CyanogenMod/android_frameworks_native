@@ -72,7 +72,7 @@ static const extention_map_t sExtentionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglDestroyImageKHR },
     { "eglGetRenderBufferANDROID",
         (__eglMustCastToProperFunctionPointerType)&eglGetRenderBufferANDROID },
-#ifdef STE_HARDWARE
+#ifndef STE_HARDWARE
     { "eglGetSystemTimeFrequencyNV",
             (__eglMustCastToProperFunctionPointerType)&eglGetSystemTimeFrequencyNV },
     { "eglGetSystemTimeNV",
