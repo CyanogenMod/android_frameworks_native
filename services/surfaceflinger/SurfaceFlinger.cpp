@@ -414,6 +414,22 @@ EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config)
     return ctxt;
 }
 
+static GlesVersion parseGlesVersion(const char* str) {
+    int major, minor;
+    if (sscanf(str, "OpenGL ES-CM %d.%d", &major, &minor) != 2) {
+        ALOGW("Unable to parse GL_VERSION string: \"%s\"", str);
+        return GLES_VERSION_1_0;
+    }
+
+    if (major == 1 && minor == 0) return GLES_VERSION_1_0;
+    if (major == 1 && minor >= 1) return GLES_VERSION_1_1;
+    if (major == 2 && minor >= 0) return GLES_VERSION_2_0;
+    if (major == 3 && minor >= 0) return GLES_VERSION_3_0;
+
+    ALOGW("Unrecognized OpenGL ES version: %d.%d", major, minor);
+    return GLES_VERSION_1_0;
+}
+
 void SurfaceFlinger::initializeGL(EGLDisplay display) {
     GLExtensions& extensions(GLExtensions::getInstance());
     extensions.initWithGLStrings(
@@ -424,6 +440,8 @@ void SurfaceFlinger::initializeGL(EGLDisplay display) {
             eglQueryString(display, EGL_VENDOR),
             eglQueryString(display, EGL_VERSION),
             eglQueryString(display, EGL_EXTENSIONS));
+
+    mGlesVersion = parseGlesVersion(extensions.getVersion());
 
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
