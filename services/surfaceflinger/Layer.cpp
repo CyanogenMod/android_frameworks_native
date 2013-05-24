@@ -559,31 +559,88 @@ void Layer::clearWithOpenGL(
     clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
+static void setupOpenGL10(bool premultipliedAlpha, bool opaque, int alpha) {
+    // OpenGL ES 1.0 doesn't support texture combiners.
+    // This path doesn't properly handle opaque layers that have non-opaque
+    // alpha values. The alpha channel will be copied into the framebuffer or
+    // screenshot, so if the framebuffer or screenshot is blended on top of
+    // something else,  whatever is below the window will incorrectly show
+    // through.
+    if (CC_UNLIKELY(alpha < 0xFF)) {
+        GLfloat floatAlpha = alpha * (1.0f / 255.0f);
+        if (premultipliedAlpha) {
+            glColor4f(floatAlpha, floatAlpha, floatAlpha, floatAlpha);
+        } else {
+            glColor4f(1.0f, 1.0f, 1.0f, floatAlpha);
+        }
+        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    } else {
+        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    }
+}
+
+static void setupOpenGL11(bool premultipliedAlpha, bool opaque, int alpha) {
+    GLenum combineRGB;
+    GLenum combineAlpha;
+    GLenum src0Alpha;
+    GLfloat envColor[4];
+
+    if (CC_UNLIKELY(alpha < 0xFF)) {
+        // Cv = premultiplied ? Cs*alpha : Cs
+        // Av = !opaque       ? alpha*As : 1.0
+        combineRGB   = premultipliedAlpha ? GL_MODULATE : GL_REPLACE;
+        combineAlpha = !opaque            ? GL_MODULATE : GL_REPLACE;
+        src0Alpha    = GL_CONSTANT;
+        envColor[0]  = alpha * (1.0f / 255.0f);
+    } else {
+        // Cv = Cs
+        // Av = opaque ? 1.0 : As
+        combineRGB   = GL_REPLACE;
+        combineAlpha = GL_REPLACE;
+        src0Alpha    = opaque ? GL_CONSTANT : GL_TEXTURE;
+        envColor[0]  = 1.0f;
+    }
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, combineRGB);
+    glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
+    glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
+    if (combineRGB == GL_MODULATE) {
+        glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
+        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
+    }
+    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, combineAlpha);
+    glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, src0Alpha);
+    glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+    if (combineAlpha == GL_MODULATE) {
+        glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+    }
+    if (combineRGB == GL_MODULATE || src0Alpha == GL_CONSTANT) {
+        envColor[1] = envColor[0];
+        envColor[2] = envColor[0];
+        envColor[3] = envColor[0];
+        glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, envColor);
+    }
+}
+
 void Layer::drawWithOpenGL(
         const sp<const DisplayDevice>& hw, const Region& clip) const {
     const uint32_t fbHeight = hw->getHeight();
     const State& s(drawingState());
 
-    GLenum src = mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA;
-    if (CC_UNLIKELY(s.alpha < 0xFF)) {
-        const GLfloat alpha = s.alpha * (1.0f/255.0f);
-        if (mPremultipliedAlpha) {
-            glColor4f(alpha, alpha, alpha, alpha);
-        } else {
-            glColor4f(1, 1, 1, alpha);
-        }
-        glEnable(GL_BLEND);
-        glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    if (mFlinger->getGlesVersion() == GLES_VERSION_1_0) {
+        setupOpenGL10(mPremultipliedAlpha, isOpaque(), s.alpha);
     } else {
-        glColor4f(1, 1, 1, 1);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        if (!isOpaque()) {
-            glEnable(GL_BLEND);
-            glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
-        } else {
-            glDisable(GL_BLEND);
-        }
+        setupOpenGL11(mPremultipliedAlpha, isOpaque(), s.alpha);
+    }
+
+    if (s.alpha < 0xFF || !isOpaque()) {
+        glEnable(GL_BLEND);
+        glBlendFunc(mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA,
+                    GL_ONE_MINUS_SRC_ALPHA);
+    } else {
+        glDisable(GL_BLEND);
     }
 
     LayerMesh mesh;

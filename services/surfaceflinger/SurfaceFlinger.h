@@ -72,6 +72,13 @@ enum {
     eTransactionMask          = 0x07
 };
 
+enum GlesVersion {
+    GLES_VERSION_1_0    = 0x10000,
+    GLES_VERSION_1_1    = 0x10001,
+    GLES_VERSION_2_0    = 0x20000,
+    GLES_VERSION_3_0    = 0x30000,
+};
+
 class SurfaceFlinger : public BinderService<SurfaceFlinger>,
                        public BnSurfaceComposer,
                        private IBinder::DeathRecipient,
@@ -120,6 +127,11 @@ public:
     // for debugging only
     // TODO: this should be made accessible only to HWComposer
     const Vector< sp<Layer> >& getLayerSortedByZForHwcDisplay(int id);
+
+    // return the version of the OpenGL ES composition context
+    GlesVersion getGlesVersion() const {
+        return mGlesVersion;
+    }
 
 private:
     friend class Client;
@@ -421,6 +433,7 @@ private:
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
     EGLint mEGLNativeVisualId;
+    GlesVersion mGlesVersion;
     sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members
