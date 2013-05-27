@@ -160,7 +160,12 @@ void DisplayHardware::init(uint32_t dpy)
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
     mDpiX = mNativeWindow->xdpi;
     mDpiY = mNativeWindow->ydpi;
+#ifndef REFRESH_RATE
     mRefreshRate = fbDev->fps;
+#else
+    mRefreshRate = REFRESH_RATE;
+#endif
+    mRefreshPeriod = nsecs_t(1e9 / mRefreshRate);
 
     if (mDpiX == 0 || mDpiY == 0) {
         ALOGE("invalid screen resolution from fb HAL (xdpi=%f, ydpi=%f), "
@@ -200,20 +205,6 @@ void DisplayHardware::init(uint32_t dpy)
         mDpiX = mDpiY = mDensity = Density::getEmuDensity();
         mDensity /= 160.0f;
     }
-
-
-
-    /* FIXME: this is a temporary HACK until we are able to report the refresh rate
-     * properly from the HAL. The WindowManagerService now relies on this value.
-     */
-#ifndef REFRESH_RATE
-    mRefreshRate = fbDev->fps;
-#else
-    mRefreshRate = REFRESH_RATE;
-#warning "refresh rate set via makefile to REFRESH_RATE"
-#endif
-
-    mRefreshPeriod = nsecs_t(1e9 / mRefreshRate);
 
     EGLint w, h, dummy;
     EGLint numConfigs=0;
