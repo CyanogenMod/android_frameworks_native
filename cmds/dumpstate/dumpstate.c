@@ -314,7 +314,13 @@ static void usage() {
 		);
 }
 
+static void sigpipe_handler(int n) {
+    (void)n;
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char *argv[]) {
+    struct sigaction sigact;
     int do_add_date = 0;
     int do_compress = 0;
     int do_vibrate = 1;
@@ -334,7 +340,9 @@ int main(int argc, char *argv[]) {
     }
     ALOGI("begin\n");
 
-    signal(SIGPIPE, SIG_IGN);
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = sigpipe_handler;
+    sigaction(SIGPIPE, &sigact, NULL);
 
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
