@@ -220,22 +220,6 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     // initial covariance: Var{ x(t0) }
     // TODO: initialize P correctly
     P = 0;
-
-    // it is unclear how to set the initial covariance. It does affect
-    // how quickly the fusion converges. Experimentally it would take
-    // about 10 seconds at 200 Hz to estimate the gyro-drift with an
-    // initial covariance of 0, and about a second with an initial covariance
-    // of about 1 deg/s.
-    const float covv = 0;
-    const float covu = 0.5f * (float(M_PI) / 180);
-    mat33_t& Pv = P[0][0];
-    Pv[0][0] = covv;
-    Pv[1][1] = covv;
-    Pv[2][2] = covv;
-    mat33_t& Pu = P[1][1];
-    Pu[0][0] = covu;
-    Pu[1][1] = covu;
-    Pu[2][2] = covu;
 }
 
 bool Fusion::hasEstimate() const {
