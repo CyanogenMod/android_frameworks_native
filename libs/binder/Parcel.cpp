@@ -1473,6 +1473,8 @@ status_t Parcel::continueWrite(size_t desired)
         if (objectsSize) {
             objects = (size_t*)malloc(objectsSize*sizeof(size_t));
             if (!objects) {
+                free(data);
+
                 mError = NO_MEMORY;
                 return NO_MEMORY;
             }
@@ -1553,7 +1555,7 @@ status_t Parcel::continueWrite(size_t desired)
             mError = NO_MEMORY;
             return NO_MEMORY;
         }
-        
+
         if(!(mDataCapacity == 0 && mObjects == NULL
              && mObjectsCapacity == 0)) {
             ALOGE("continueWrite: %d/%p/%d/%d", mDataCapacity, mObjects, mObjectsCapacity, desired);
