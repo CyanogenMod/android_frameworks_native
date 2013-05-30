@@ -53,8 +53,8 @@ SensorFusion::SensorFusion()
 
         // 200 Hz for gyro events is a good compromise between precision
         // and power/cpu usage.
-        mGyroRate = 200;
-        mTargetDelayNs = 1000000000LL/mGyroRate;
+        mEstimatedGyroRate = 200;
+        mTargetDelayNs = 1000000000LL/mEstimatedGyroRate;
         mFusion.init();
     }
 }
@@ -63,14 +63,15 @@ void SensorFusion::process(const sensors_event_t& event) {
     if (event.type == mGyro.getType()) {
         if (mGyroTime != 0) {
             const float dT = (event.timestamp - mGyroTime) / 1000000000.0f;
+            mFusion.handleGyro(vec3_t(event.data), dT);
+            // here we estimate the gyro rate (useful for debugging)
             const float freq = 1 / dT;
             if (freq >= 100 && freq<1000) { // filter values obviously wrong
                 const float alpha = 1 / (1 + dT); // 1s time-constant
-                mGyroRate = freq + (mGyroRate - freq)*alpha;
+                mEstimatedGyroRate = freq + (mEstimatedGyroRate - freq)*alpha;
             }
         }
         mGyroTime = event.timestamp;
-        mFusion.handleGyro(vec3_t(event.data), 1.0f/mGyroRate);
     } else if (event.type == SENSOR_TYPE_MAGNETIC_FIELD) {
         const vec3_t mag(event.data);
         mFusion.handleMag(mag);
@@ -142,7 +143,7 @@ void SensorFusion::dump(String8& result, char* buffer, size_t SIZE) {
             "b=< %g, %g, %g >\n",
             mEnabled ? "enabled" : "disabled",
             mClients.size(),
-            mGyroRate,
+            mEstimatedGyroRate,
             fusion.getAttitude().x,
             fusion.getAttitude().y,
             fusion.getAttitude().z,
