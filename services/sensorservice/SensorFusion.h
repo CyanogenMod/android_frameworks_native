@@ -44,7 +44,7 @@ class SensorFusion : public Singleton<SensorFusion> {
     Sensor mGyro;
     Fusion mFusion;
     bool mEnabled;
-    float mGyroRate;
+    float mEstimatedGyroRate;
     nsecs_t mTargetDelayNs;
     nsecs_t mGyroTime;
     vec4_t mAttitude;
@@ -60,7 +60,7 @@ public:
     mat33_t getRotationMatrix() const { return mFusion.getRotationMatrix(); }
     vec4_t getAttitude() const { return mAttitude; }
     vec3_t getGyroBias() const { return mFusion.getBias(); }
-    float getEstimatedRate() const { return mGyroRate; }
+    float getEstimatedRate() const { return mEstimatedGyroRate; }
 
     status_t activate(void* ident, bool enabled);
     status_t setDelay(void* ident, int64_t ns);
