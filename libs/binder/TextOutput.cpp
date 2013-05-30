@@ -18,6 +18,9 @@
 
 #include <binder/Debug.h>
 
+#include <utils/String8.h>
+#include <utils/String16.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,6 +119,18 @@ TextOutput& operator<<(TextOutput& to, const void* val)
     char buf[16];
     sprintf(buf, "%p", val);
     to.print(buf, strlen(buf));
+    return to;
+}
+
+TextOutput& operator<<(TextOutput& to, const String8& val)
+{
+    to << val.string();
+    return to;
+}
+
+TextOutput& operator<<(TextOutput& to, const String16& val)
+{
+    to << String8(val).string();
     return to;
 }
 
