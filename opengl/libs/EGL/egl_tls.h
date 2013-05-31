@@ -30,8 +30,9 @@ namespace android {
 class DbgContext;
 
 class egl_tls_t {
+    enum { TLS_KEY_NOT_INITIALIZED = -1 };
     static pthread_key_t sKey;
-    static pthread_mutex_t sLockKey;
+    static pthread_once_t sOnceKey;
 
     EGLint      error;
     EGLContext  ctx;
