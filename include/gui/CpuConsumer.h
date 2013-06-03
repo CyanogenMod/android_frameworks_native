@@ -25,7 +25,6 @@
 #include <utils/Vector.h>
 #include <utils/threads.h>
 
-#define ANDROID_GRAPHICS_CPUCONSUMER_JNI_ID "mCpuConsumer"
 
 namespace android {
 
