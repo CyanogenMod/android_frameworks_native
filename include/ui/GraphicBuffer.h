@@ -101,6 +101,9 @@ public:
     status_t lockYCbCr(uint32_t usage, const Rect& rect, android_ycbcr *ycbcr);
     status_t unlock();
 
+    status_t perform(buffer_handle_t handle, int operation,
+                     uint32_t w, uint32_t h, PixelFormat format);
+
     ANativeWindowBuffer* getNativeBuffer() const;
 
     void setIndex(int index);

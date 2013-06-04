@@ -120,6 +120,7 @@ private:
     int dispatchSetBuffersSize(va_list args);
     int dispatchLock(va_list args);
     int dispatchUnlockAndPost(va_list args);
+    int dispatchUpdateBuffersGeometry(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
@@ -143,6 +144,7 @@ protected:
     virtual int setCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
     virtual int setBuffersSize(int size);
+    virtual int updateBuffersGeometry(int w, int h, int f);
 
 public:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);

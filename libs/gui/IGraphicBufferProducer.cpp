@@ -41,6 +41,7 @@ enum {
     SET_BUFFERS_SIZE,
     CONNECT,
     DISCONNECT,
+    UPDATE_BUFFERS_GEOMETRY,
 };
 
 
@@ -192,6 +193,21 @@ public:
         return result;
     }
 
+    virtual status_t updateBuffersGeometry(int w, int h, int f) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(w);
+        data.writeInt32(h);
+        data.writeInt32(f);
+        status_t result = remote()->transact(UPDATE_BUFFERS_GEOMETRY,
+                                              data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
+
 };
 
 IMPLEMENT_META_INTERFACE(GraphicBufferProducer, "android.gui.IGraphicBufferProducer");
@@ -294,6 +310,15 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int api = data.readInt32();
             status_t res = disconnect(api);
+            reply->writeInt32(res);
+            return NO_ERROR;
+        } break;
+        case UPDATE_BUFFERS_GEOMETRY: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            int w = data.readInt32();
+            int h = data.readInt32();
+            int f = data.readInt32();
+            status_t res = updateBuffersGeometry(w, h, f);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;

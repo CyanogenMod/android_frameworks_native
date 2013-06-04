@@ -399,6 +399,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_API_DISCONNECT:
         res = dispatchDisconnect(args);
         break;
+    case NATIVE_WINDOW_UPDATE_BUFFERS_GEOMETRY:
+        res = dispatchUpdateBuffersGeometry(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -489,6 +492,12 @@ int Surface::dispatchUnlockAndPost(va_list args) {
     return unlockAndPost();
 }
 
+int Surface::dispatchUpdateBuffersGeometry(va_list args) {
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    int f = va_arg(args, int);
+    return updateBuffersGeometry(w, h, f);
+}
 
 int Surface::connect(int api) {
     ATRACE_CALL();
@@ -671,6 +680,22 @@ int Surface::setBuffersTimestamp(int64_t timestamp)
     Mutex::Autolock lock(mMutex);
     mTimestamp = timestamp;
     return NO_ERROR;
+}
+
+int Surface::updateBuffersGeometry(int w, int h, int f)
+{
+    ATRACE_CALL();
+    ALOGV("SurfaceTextureClient::updateBuffersGeometry");
+
+    if (w<0 || h<0 || f<0)
+        return BAD_VALUE;
+
+    if ((w && !h) || (!w && h))
+        return BAD_VALUE;
+
+    Mutex::Autolock lock(mMutex);
+    status_t err = mGraphicBufferProducer->updateBuffersGeometry(w, h, f);
+    return err;
 }
 
 void Surface::freeAllBuffers() {
