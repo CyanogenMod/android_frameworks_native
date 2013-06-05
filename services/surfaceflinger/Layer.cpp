@@ -165,7 +165,7 @@ void Layer::onRemoved() {
 // set-up
 // ---------------------------------------------------------------------------
 
-String8 Layer::getName() const {
+const String8& Layer::getName() const {
     return mName;
 }
 
@@ -281,7 +281,7 @@ static Rect reduce(const Rect& win, const Region& exclude) {
 }
 
 Rect Layer::computeBounds() const {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
@@ -305,7 +305,7 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
 
     // the active.crop is the area of the window that gets cropped, but not
     // scaled in any ways.
-    const State& s(drawingState());
+    const State& s(getDrawingState());
 
     // apply the projection's clipping to the window crop in
     // layerstack space, and convert-back to layer space.
@@ -372,7 +372,7 @@ void Layer::setGeometry(
     }
 
     // this gives us only the "orientation" component of the transform
-    const State& s(drawingState());
+    const State& s(getDrawingState());
     if (!isOpaque() || s.alpha != 0xFF) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
@@ -627,7 +627,7 @@ static void setupOpenGL11(bool premultipliedAlpha, bool opaque, int alpha) {
 void Layer::drawWithOpenGL(
         const sp<const DisplayDevice>& hw, const Region& clip) const {
     const uint32_t fbHeight = hw->getHeight();
-    const State& s(drawingState());
+    const State& s(getDrawingState());
 
     if (mFlinger->getGlesVersion() == GLES_VERSION_1_0) {
         setupOpenGL10(mPremultipliedAlpha, isOpaque(), s.alpha);
@@ -730,7 +730,7 @@ bool Layer::getOpacityForFormat(uint32_t format)
 
 void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const
 {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     const Transform tr(hw->getTransform() * s.transform);
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
@@ -805,11 +805,11 @@ void Layer::setVisibleNonTransparentRegion(const Region&
 uint32_t Layer::doTransaction(uint32_t flags) {
     ATRACE_CALL();
 
-    const Layer::State& front(drawingState());
-    const Layer::State& temp(currentState());
+    const Layer::State& s(getDrawingState());
+    const Layer::State& c(getCurrentState());
 
-    const bool sizeChanged = (temp.requested.w != front.requested.w) ||
-                             (temp.requested.h != front.requested.h);
+    const bool sizeChanged = (c.requested.w != s.requested.w) ||
+                             (c.requested.h != s.requested.h);
 
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
@@ -819,46 +819,46 @@ uint32_t Layer::doTransaction(uint32_t flags) {
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n"
                 "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                this, (const char*) getName(), mCurrentTransform, mCurrentScalingMode,
-                temp.active.w, temp.active.h,
-                temp.active.crop.left,
-                temp.active.crop.top,
-                temp.active.crop.right,
-                temp.active.crop.bottom,
-                temp.active.crop.getWidth(),
-                temp.active.crop.getHeight(),
-                temp.requested.w, temp.requested.h,
-                temp.requested.crop.left,
-                temp.requested.crop.top,
-                temp.requested.crop.right,
-                temp.requested.crop.bottom,
-                temp.requested.crop.getWidth(),
-                temp.requested.crop.getHeight(),
-                front.active.w, front.active.h,
-                front.active.crop.left,
-                front.active.crop.top,
-                front.active.crop.right,
-                front.active.crop.bottom,
-                front.active.crop.getWidth(),
-                front.active.crop.getHeight(),
-                front.requested.w, front.requested.h,
-                front.requested.crop.left,
-                front.requested.crop.top,
-                front.requested.crop.right,
-                front.requested.crop.bottom,
-                front.requested.crop.getWidth(),
-                front.requested.crop.getHeight());
+                this, getName().string(), mCurrentTransform, mCurrentScalingMode,
+                c.active.w, c.active.h,
+                c.active.crop.left,
+                c.active.crop.top,
+                c.active.crop.right,
+                c.active.crop.bottom,
+                c.active.crop.getWidth(),
+                c.active.crop.getHeight(),
+                c.requested.w, c.requested.h,
+                c.requested.crop.left,
+                c.requested.crop.top,
+                c.requested.crop.right,
+                c.requested.crop.bottom,
+                c.requested.crop.getWidth(),
+                c.requested.crop.getHeight(),
+                s.active.w, s.active.h,
+                s.active.crop.left,
+                s.active.crop.top,
+                s.active.crop.right,
+                s.active.crop.bottom,
+                s.active.crop.getWidth(),
+                s.active.crop.getHeight(),
+                s.requested.w, s.requested.h,
+                s.requested.crop.left,
+                s.requested.crop.top,
+                s.requested.crop.right,
+                s.requested.crop.bottom,
+                s.requested.crop.getWidth(),
+                s.requested.crop.getHeight());
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
         mSurfaceFlingerConsumer->setDefaultBufferSize(
-                temp.requested.w, temp.requested.h);
+                c.requested.w, c.requested.h);
     }
 
     if (!isFixedSize()) {
 
-        const bool resizePending = (temp.requested.w != temp.active.w) ||
-                                   (temp.requested.h != temp.active.h);
+        const bool resizePending = (c.requested.w != c.active.w) ||
+                                   (c.requested.h != c.active.h);
 
         if (resizePending) {
             // don't let Layer::doTransaction update the drawing state
@@ -878,23 +878,23 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     // this is used by Layer, which special cases resizes.
     if (flags & eDontUpdateGeometryState)  {
     } else {
-        Layer::State& editTemp(currentState());
-        editTemp.active = temp.requested;
+        Layer::State& editCurrentState(getCurrentState());
+        editCurrentState.active = c.requested;
     }
 
-    if (front.active != temp.active) {
+    if (s.active != c.active) {
         // invalidate and recompute the visible regions if needed
         flags |= Layer::eVisibleRegion;
     }
 
-    if (temp.sequence != front.sequence) {
+    if (c.sequence != s.sequence) {
         // invalidate and recompute the visible regions if needed
         flags |= eVisibleRegion;
         this->contentDirty = true;
 
         // we may use linear filtering, if the matrix scales us
-        const uint8_t type = temp.transform.getType();
-        mNeedsFiltering = (!temp.transform.preserveRects() ||
+        const uint8_t type = c.transform.getType();
+        mNeedsFiltering = (!c.transform.preserveRects() ||
                 (type >= Transform::SCALE));
     }
 
@@ -1159,7 +1159,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         };
 
 
-        Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
+        Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions);
 
         if (mSurfaceFlingerConsumer->updateTexImage(&r) != NO_ERROR) {
             // something happened!
@@ -1213,11 +1213,11 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         // FIXME: postedRegion should be dirty & bounds
-        const Layer::State& front(drawingState());
-        Region dirtyRegion(Rect(front.active.w, front.active.h));
+        const Layer::State& s(getDrawingState());
+        Region dirtyRegion(Rect(s.active.w, s.active.h));
 
         // transform the dirty region to window-manager space
-        outDirtyRegion = (front.transform.transform(dirtyRegion));
+        outDirtyRegion = (s.transform.transform(dirtyRegion));
     }
     return outDirtyRegion;
 }
@@ -1254,7 +1254,7 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
 
 void Layer::dump(String8& result, Colorizer& colorizer) const
 {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
 
     colorizer.colorize(result, Colorizer::GREEN);
     result.appendFormat(

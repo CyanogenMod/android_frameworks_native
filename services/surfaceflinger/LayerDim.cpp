@@ -43,7 +43,7 @@ LayerDim::~LayerDim() {
 
 void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
-    const State& s(drawingState());
+    const State& s(getDrawingState());
     if (s.alpha>0) {
         const GLfloat alpha = s.alpha/255.0f;
         const uint32_t fbHeight = hw->getHeight();
@@ -71,7 +71,7 @@ void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) con
 }
 
 bool LayerDim::isVisible() const {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     return !(s.flags & layer_state_t::eLayerHidden) && s.alpha;
 }
 

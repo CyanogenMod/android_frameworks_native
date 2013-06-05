@@ -856,10 +856,10 @@ void SurfaceFlinger::doDebugFlashRegions()
 void SurfaceFlinger::preComposition()
 {
     bool needExtraInvalidate = false;
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const size_t count = currentLayers.size();
+    const LayerVector& layers(mDrawingState.layersSortedByZ);
+    const size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        if (currentLayers[i]->onPreComposition()) {
+        if (layers[i]->onPreComposition()) {
             needExtraInvalidate = true;
         }
     }
@@ -870,10 +870,10 @@ void SurfaceFlinger::preComposition()
 
 void SurfaceFlinger::postComposition()
 {
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const size_t count = currentLayers.size();
+    const LayerVector& layers(mDrawingState.layersSortedByZ);
+    const size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        currentLayers[i]->onPostComposition();
+        layers[i]->onPostComposition();
     }
 
     if (mAnimCompositionPending) {
@@ -900,7 +900,7 @@ void SurfaceFlinger::rebuildLayerStacks() {
         mVisibleRegionsDirty = false;
         invalidateHwcGeometry();
 
-        const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+        const LayerVector& layers(mDrawingState.layersSortedByZ);
         for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
             Region opaqueRegion;
             Region dirtyRegion;
@@ -909,13 +909,13 @@ void SurfaceFlinger::rebuildLayerStacks() {
             const Transform& tr(hw->getTransform());
             const Rect bounds(hw->getBounds());
             if (hw->canDraw()) {
-                SurfaceFlinger::computeVisibleRegions(currentLayers,
+                SurfaceFlinger::computeVisibleRegions(layers,
                         hw->getLayerStack(), dirtyRegion, opaqueRegion);
 
-                const size_t count = currentLayers.size();
+                const size_t count = layers.size();
                 for (size_t i=0 ; i<count ; i++) {
-                    const sp<Layer>& layer(currentLayers[i]);
-                    const Layer::State& s(layer->drawingState());
+                    const sp<Layer>& layer(layers[i]);
+                    const Layer::State& s(layer->getDrawingState());
                     if (s.layerStack == hw->getLayerStack()) {
                         Region drawRegion(tr.transform(
                                 layer->visibleNonTransparentRegion));
@@ -1257,7 +1257,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // layerStack first (so we don't have to traverse the list
             // of displays for every layer).
             const sp<Layer>& layer(currentLayers[i]);
-            uint32_t layerStack = layer->drawingState().layerStack;
+            uint32_t layerStack = layer->getDrawingState().layerStack;
             if (i==0 || currentlayerStack != layerStack) {
                 currentlayerStack = layerStack;
                 // figure out if this layerstack is mirrored
@@ -1294,8 +1294,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
      * Perform our own transaction if needed
      */
 
-    const LayerVector& previousLayers(mDrawingState.layersSortedByZ);
-    if (currentLayers.size() > previousLayers.size()) {
+    const LayerVector& layers(mDrawingState.layersSortedByZ);
+    if (currentLayers.size() > layers.size()) {
         // layers have been added
         mVisibleRegionsDirty = true;
     }
@@ -1305,15 +1305,15 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
     if (mLayersRemoved) {
         mLayersRemoved = false;
         mVisibleRegionsDirty = true;
-        const size_t count = previousLayers.size();
+        const size_t count = layers.size();
         for (size_t i=0 ; i<count ; i++) {
-            const sp<Layer>& layer(previousLayers[i]);
+            const sp<Layer>& layer(layers[i]);
             if (currentLayers.indexOf(layer) < 0) {
                 // this layer is not visible anymore
                 // TODO: we could traverse the tree from front to back and
                 //       compute the actual visible region
                 // TODO: we could cache the transformed region
-                const Layer::State& s(layer->drawingState());
+                const Layer::State& s(layer->getDrawingState());
                 Region visibleReg = s.transform.transform(
                         Region(Rect(s.active.w, s.active.h)));
                 invalidateLayerStack(s.layerStack, visibleReg);
@@ -1361,7 +1361,7 @@ void SurfaceFlinger::computeVisibleRegions(
         const sp<Layer>& layer = currentLayers[i];
 
         // start with the whole surface at its current location
-        const Layer::State& s(layer->drawingState());
+        const Layer::State& s(layer->getDrawingState());
 
         // only consider the layers on the given layer stack
         if (s.layerStack != layerStack)
@@ -1498,12 +1498,12 @@ void SurfaceFlinger::handlePageFlip()
     Region dirtyRegion;
 
     bool visibleRegions = false;
-    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
-    const size_t count = currentLayers.size();
+    const LayerVector& layers(mDrawingState.layersSortedByZ);
+    const size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        const sp<Layer>& layer(currentLayers[i]);
+        const sp<Layer>& layer(layers[i]);
         const Region dirty(layer->latchBuffer(visibleRegions));
-        const Layer::State& s(layer->drawingState());
+        const Layer::State& s(layer->getDrawingState());
         invalidateLayerStack(s.layerStack, dirty);
     }
 
@@ -2705,7 +2705,7 @@ void SurfaceFlinger::renderScreenImplLocked(
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; ++i) {
         const sp<Layer>& layer(layers[i]);
-        const Layer::State& state(layer->drawingState());
+        const Layer::State& state(layer->getDrawingState());
         if (state.layerStack == hw->getLayerStack()) {
             if (state.z >= minLayerZ && state.z <= maxLayerZ) {
                 if (layer->isVisible()) {
@@ -2872,13 +2872,13 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
     const sp<Layer>& l(*reinterpret_cast<const sp<Layer>*>(lhs));
     const sp<Layer>& r(*reinterpret_cast<const sp<Layer>*>(rhs));
 
-    uint32_t ls = l->currentState().layerStack;
-    uint32_t rs = r->currentState().layerStack;
+    uint32_t ls = l->getCurrentState().layerStack;
+    uint32_t rs = r->getCurrentState().layerStack;
     if (ls != rs)
         return ls - rs;
 
-    uint32_t lz = l->currentState().z;
-    uint32_t rz = r->currentState().z;
+    uint32_t lz = l->getCurrentState().z;
+    uint32_t rz = r->getCurrentState().z;
     if (lz != rz)
         return lz - rz;
 
