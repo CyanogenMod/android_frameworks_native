@@ -55,6 +55,18 @@ void CpuConsumer::setName(const String8& name) {
     mBufferQueue->setConsumerName(name);
 }
 
+status_t CpuConsumer::setDefaultBufferSize(uint32_t width, uint32_t height)
+{
+    Mutex::Autolock _l(mMutex);
+    return mBufferQueue->setDefaultBufferSize(width, height);
+}
+
+status_t CpuConsumer::setDefaultBufferFormat(uint32_t defaultFormat)
+{
+    Mutex::Autolock _l(mMutex);
+    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+}
+
 status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     status_t err;
 
