@@ -24,6 +24,7 @@
 
 #include <EGL/egl.h>
 #include <GLES/gl.h>
+#include <GLES/glext.h>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -61,7 +62,6 @@
 #include "DdmConnection.h"
 #include "DisplayDevice.h"
 #include "EventThread.h"
-#include "GLExtensions.h"
 #include "Layer.h"
 #include "LayerDim.h"
 #include "SurfaceFlinger.h"
@@ -69,6 +69,8 @@
 #include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/VirtualDisplaySurface.h"
+
+#include "RenderEngine/RenderEngine.h"
 
 #define DISPLAY_COUNT       1
 
@@ -91,6 +93,7 @@ SurfaceFlinger::SurfaceFlinger()
         mAnimTransactionPending(false),
         mLayersRemoved(false),
         mRepaintEverything(0),
+        mRenderEngine(NULL),
         mBootTime(systemTime()),
         mVisibleRegionsDirty(false),
         mHwWorkListDirty(false),
@@ -349,7 +352,9 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     status_t err;
 
     EGLAttributeVector attribs;
-    attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT;
+    // TODO: enable ES2
+    //attribs[EGL_RENDERABLE_TYPE]            = EGL_OPENGL_ES_BIT | EGL_OPENGL_ES2_BIT;
+    attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
     attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
     attribs[EGL_FRAMEBUFFER_TARGET_ANDROID] = EGL_TRUE;
     attribs[EGL_RED_SIZE]                   = 8;
@@ -360,25 +365,12 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
     if (!err)
         goto success;
 
-    // maybe we failed because of EGL_FRAMEBUFFER_TARGET_ANDROID
-    ALOGW("no suitable EGLConfig found, trying without EGL_FRAMEBUFFER_TARGET_ANDROID");
+    // this didn't work, probably because we're on the emulator...
+    // try a simplified query
+    ALOGW("no suitable EGLConfig found, trying a simpler query");
+    attribs.remove(EGL_RENDERABLE_TYPE);
     attribs.remove(EGL_FRAMEBUFFER_TARGET_ANDROID);
-    err = selectConfigForAttribute(display, attribs,
-            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
-    if (!err)
-        goto success;
-
-    // maybe we failed because of EGL_RECORDABLE_ANDROID
-    ALOGW("no suitable EGLConfig found, trying without EGL_RECORDABLE_ANDROID");
     attribs.remove(EGL_RECORDABLE_ANDROID);
-    err = selectConfigForAttribute(display, attribs,
-            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
-    if (!err)
-        goto success;
-
-    // allow less than 24-bit color; the non-gpu-accelerated emulator only
-    // supports 16-bit color
-    ALOGW("no suitable EGLConfig found, trying with 16-bit color allowed");
     attribs.remove(EGL_RED_SIZE);
     attribs.remove(EGL_GREEN_SIZE);
     attribs.remove(EGL_BLUE_SIZE);
@@ -388,8 +380,7 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
         goto success;
 
     // this EGL is too lame for Android
-    ALOGE("no suitable EGLConfig found, giving up");
-
+    LOG_ALWAYS_FATAL("no suitable EGLConfig found, giving up");
     return 0;
 
 success:
@@ -398,97 +389,6 @@ success:
     return config;
 }
 
-EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config) {
-    // Also create our EGLContext
-    EGLint contextAttributes[] = {
-#ifdef EGL_IMG_context_priority
-#ifdef HAS_CONTEXT_PRIORITY
-#warning "using EGL_IMG_context_priority"
-            EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
-#endif
-#endif
-            EGL_NONE, EGL_NONE
-    };
-    EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
-    ALOGE_IF(ctxt==EGL_NO_CONTEXT, "EGLContext creation failed");
-    return ctxt;
-}
-
-static GlesVersion parseGlesVersion(const char* str) {
-    int major, minor;
-    if (sscanf(str, "OpenGL ES-CM %d.%d", &major, &minor) != 2) {
-        ALOGW("Unable to parse GL_VERSION string: \"%s\"", str);
-        return GLES_VERSION_1_0;
-    }
-
-    if (major == 1 && minor == 0) return GLES_VERSION_1_0;
-    if (major == 1 && minor >= 1) return GLES_VERSION_1_1;
-    if (major == 2 && minor >= 0) return GLES_VERSION_2_0;
-    if (major == 3 && minor >= 0) return GLES_VERSION_3_0;
-
-    ALOGW("Unrecognized OpenGL ES version: %d.%d", major, minor);
-    return GLES_VERSION_1_0;
-}
-
-void SurfaceFlinger::initializeGL(EGLDisplay display) {
-    GLExtensions& extensions(GLExtensions::getInstance());
-    extensions.initWithGLStrings(
-            glGetString(GL_VENDOR),
-            glGetString(GL_RENDERER),
-            glGetString(GL_VERSION),
-            glGetString(GL_EXTENSIONS),
-            eglQueryString(display, EGL_VENDOR),
-            eglQueryString(display, EGL_VERSION),
-            eglQueryString(display, EGL_EXTENSIONS));
-
-    mGlesVersion = parseGlesVersion(extensions.getVersion());
-
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
-    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glShadeModel(GL_FLAT);
-    glDisable(GL_DITHER);
-    glDisable(GL_CULL_FACE);
-
-    struct pack565 {
-        inline uint16_t operator() (int r, int g, int b) const {
-            return (r<<11)|(g<<5)|b;
-        }
-    } pack565;
-
-    const uint16_t protTexData[] = { pack565(0x03, 0x03, 0x03) };
-    glGenTextures(1, &mProtectedTexName);
-    glBindTexture(GL_TEXTURE_2D, mProtectedTexName);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0,
-            GL_RGB, GL_UNSIGNED_SHORT_5_6_5, protTexData);
-
-    // print some debugging info
-    EGLint r,g,b,a;
-    eglGetConfigAttrib(display, mEGLConfig, EGL_RED_SIZE,   &r);
-    eglGetConfigAttrib(display, mEGLConfig, EGL_GREEN_SIZE, &g);
-    eglGetConfigAttrib(display, mEGLConfig, EGL_BLUE_SIZE,  &b);
-    eglGetConfigAttrib(display, mEGLConfig, EGL_ALPHA_SIZE, &a);
-    ALOGI("EGL informations:");
-    ALOGI("vendor    : %s", extensions.getEglVendor());
-    ALOGI("version   : %s", extensions.getEglVersion());
-    ALOGI("extensions: %s", extensions.getEglExtension());
-    ALOGI("Client API: %s", eglQueryString(display, EGL_CLIENT_APIS)?:"Not Supported");
-    ALOGI("EGLSurface: %d-%d-%d-%d, config=%p", r, g, b, a, mEGLConfig);
-    ALOGI("OpenGL ES informations:");
-    ALOGI("vendor    : %s", extensions.getVendor());
-    ALOGI("renderer  : %s", extensions.getRenderer());
-    ALOGI("version   : %s", extensions.getVersion());
-    ALOGI("extensions: %s", extensions.getExtension());
-    ALOGI("GL_MAX_TEXTURE_SIZE = %d", mMaxTextureSize);
-    ALOGI("GL_MAX_VIEWPORT_DIMS = %d x %d", mMaxViewportDims[0], mMaxViewportDims[1]);
-}
 
 status_t SurfaceFlinger::readyToRun()
 {
@@ -506,10 +406,27 @@ status_t SurfaceFlinger::readyToRun()
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this));
 
-    // initialize the config and context
-    EGLint format = mHwc->getVisualID();
-    mEGLConfig  = selectEGLConfig(mEGLDisplay, format);
-    mEGLContext = createGLContext(mEGLDisplay, mEGLConfig);
+    // initialize the config and context (can't fail)
+    mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID());
+
+    // print some debugging info
+    EGLint r,g,b,a;
+    eglGetConfigAttrib(mEGLDisplay, mEGLConfig, EGL_RED_SIZE,   &r);
+    eglGetConfigAttrib(mEGLDisplay, mEGLConfig, EGL_GREEN_SIZE, &g);
+    eglGetConfigAttrib(mEGLDisplay, mEGLConfig, EGL_BLUE_SIZE,  &b);
+    eglGetConfigAttrib(mEGLDisplay, mEGLConfig, EGL_ALPHA_SIZE, &a);
+    ALOGI("EGL informations:");
+    ALOGI("vendor    : %s", eglQueryString(mEGLDisplay, EGL_VENDOR));
+    ALOGI("version   : %s", eglQueryString(mEGLDisplay, EGL_VERSION));
+    ALOGI("extensions: %s", eglQueryString(mEGLDisplay, EGL_EXTENSIONS));
+    ALOGI("Client API: %s", eglQueryString(mEGLDisplay, EGL_CLIENT_APIS)?:"Not Supported");
+    ALOGI("EGLSurface: %d-%d-%d-%d, config=%p", r, g, b, a, mEGLConfig);
+
+    // get a RenderEngine for the given display / config (can't fail)
+    mRenderEngine = RenderEngine::create(mEGLDisplay, mEGLConfig);
+
+    // retrieve the EGL context that was selected/created
+    mEGLContext = mRenderEngine->getEGLContext();
 
     // figure out which format we got
     eglGetConfigAttrib(mEGLDisplay, mEGLConfig,
@@ -543,24 +460,12 @@ status_t SurfaceFlinger::readyToRun()
         }
     }
 
-    //  we need a GL context current in a few places, when initializing
-    //  OpenGL ES (see below), or creating a layer,
-    //  or when a texture is (asynchronously) destroyed, and for that
-    //  we need a valid surface, so it's convenient to use the main display
-    //  for that.
-    sp<const DisplayDevice> hw(getDefaultDisplayDevice());
-
-    //  initialize OpenGL ES
-    DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
-    initializeGL(mEGLDisplay);
-
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
-
 
     // We're now ready to accept clients...
     mReadyToRunBarrier.open();
@@ -585,13 +490,12 @@ void SurfaceFlinger::startBootAnim() {
     property_set("ctl.start", "bootanim");
 }
 
-uint32_t SurfaceFlinger::getMaxTextureSize() const {
-    return mMaxTextureSize;
+size_t SurfaceFlinger::getMaxTextureSize() const {
+    return mRenderEngine->getMaxTextureSize();
 }
 
-uint32_t SurfaceFlinger::getMaxViewportDims() const {
-    return mMaxViewportDims[0] < mMaxViewportDims[1] ?
-            mMaxViewportDims[0] : mMaxViewportDims[1];
+size_t SurfaceFlinger::getMaxViewportDims() const {
+    return mRenderEngine->getMaxViewportDims();
 }
 
 // ----------------------------------------------------------------------------
@@ -1023,8 +927,7 @@ void SurfaceFlinger::postFramebuffer()
             // EGL spec says:
             //   "surface must be bound to the calling thread's current context,
             //    for the current rendering API."
-            DisplayDevice::makeCurrent(mEGLDisplay,
-                    getDefaultDisplayDevice(), mEGLContext);
+            getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext);
         }
         hwc.commit();
     }
@@ -1131,7 +1034,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // be sure that nothing associated with this display
                         // is current.
                         const sp<const DisplayDevice> defaultDisplay(getDefaultDisplayDevice());
-                        DisplayDevice::makeCurrent(mEGLDisplay, defaultDisplay, mEGLContext);
+                        defaultDisplay->makeCurrent(mEGLDisplay, mEGLContext);
                         sp<DisplayDevice> hw(getDisplayDevice(draw.keyAt(i)));
                         if (hw != NULL)
                             hw->disconnect(getHwComposer());
@@ -1562,7 +1465,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 
     const bool hasGlesComposition = hwc.hasGlesComposition(id) || (cur==end);
     if (hasGlesComposition) {
-        if (!DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext)) {
+        if (!hw->makeCurrent(mEGLDisplay, mEGLContext)) {
             ALOGW("DisplayDevice::makeCurrent failed. Aborting surface composition for display %s",
                   hw->getDisplayName().string());
             return;
@@ -2383,7 +2286,6 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
 
     HWComposer& hwc(getHwComposer());
     sp<const DisplayDevice> hw(getDefaultDisplayDevice());
-    const GLExtensions& extensions(GLExtensions::getInstance());
 
     colorizer.bold(result);
     result.appendFormat("EGL implementation : %s\n",
@@ -2392,13 +2294,7 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     result.appendFormat("%s\n",
             eglQueryStringImplementationANDROID(mEGLDisplay, EGL_EXTENSIONS));
 
-    colorizer.bold(result);
-    result.appendFormat("GLES: %s, %s, %s\n",
-            extensions.getVendor(),
-            extensions.getRenderer(),
-            extensions.getVersion());
-    colorizer.reset(result);
-    result.appendFormat("%s\n", extensions.getExtension());
+    mRenderEngine->dump(result);
 
     hw->undefinedRegion.dump(result, "undefinedRegion");
     result.appendFormat("  orientation=%d, canDraw=%d\n",
@@ -2731,10 +2627,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 {
     ATRACE_CALL();
 
-    if (!GLExtensions::getInstance().haveFramebufferObject()) {
-        return INVALID_OPERATION;
-    }
-
     // get screen geometry
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
@@ -2793,7 +2685,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         glGenFramebuffersOES(1, &name);
                         glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
                         glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-                                GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
+                                GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
                     } else {
                         // since we're going to use glReadPixels() anyways,
                         // use an intermediate renderbuffer instead
@@ -2851,7 +2743,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
     }
 
-    DisplayDevice::setViewportAndProjection(hw);
+    hw->setViewportAndProjection();
 
     return result;
 }

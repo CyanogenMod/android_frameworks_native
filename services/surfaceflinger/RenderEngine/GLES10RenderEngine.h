@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 The Android Open Source Project
+ * Copyright 2013 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,35 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_LAYER_DIM_H
-#define ANDROID_LAYER_DIM_H
+
+#ifndef SF_GLES10RENDERENGINE_H_
+#define SF_GLES10RENDERENGINE_H_
 
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "Layer.h"
+#include "GLES11RenderEngine.h"
 
 // ---------------------------------------------------------------------------
-
 namespace android {
+// ---------------------------------------------------------------------------
 
-class LayerDim : public Layer
-{
-public:    
-                LayerDim(SurfaceFlinger* flinger, const sp<Client>& client,
-                        const String8& name, uint32_t w, uint32_t h, uint32_t flags);
-        virtual ~LayerDim();
-
-    virtual const char* getTypeId() const { return "LayerDim"; }
-    virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
-    virtual bool isOpaque() const         { return false; }
-    virtual bool isSecure() const         { return false; }
-    virtual bool isFixedSize() const      { return true; }
-    virtual bool isVisible() const;
+class GLES10RenderEngine : public GLES11RenderEngine {
+    virtual ~GLES10RenderEngine();
+protected:
+    virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha);
 };
 
 // ---------------------------------------------------------------------------
-
 }; // namespace android
+// ---------------------------------------------------------------------------
 
-#endif // ANDROID_LAYER_DIM_H
+#endif /* SF_GLES10RENDERENGINE_H_ */

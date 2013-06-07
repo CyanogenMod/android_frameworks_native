@@ -26,10 +26,7 @@ namespace android {
 ANDROID_SINGLETON_STATIC_INSTANCE( GLExtensions )
 
 GLExtensions::GLExtensions()
-    : mHaveTextureExternal(false),
-      mHaveNpot(false),
-      mHaveDirectTexture(false),
-      mHaveFramebufferObject(false)
+    : mHaveFramebufferObject(false)
 {
 }
 
@@ -37,18 +34,12 @@ void GLExtensions::initWithGLStrings(
         GLubyte const* vendor,
         GLubyte const* renderer,
         GLubyte const* version,
-        GLubyte const* extensions,
-        char const* egl_vendor,
-        char const* egl_version,
-        char const* egl_extensions)
+        GLubyte const* extensions)
 {
     mVendor     = (char const*)vendor;
     mRenderer   = (char const*)renderer;
     mVersion    = (char const*)version;
     mExtensions = (char const*)extensions;
-    mEglVendor     = egl_vendor;
-    mEglVersion    = egl_version;
-    mEglExtensions = egl_extensions;
 
     char const* curr = (char const*)extensions;
     char const* head = curr;
@@ -60,39 +51,6 @@ void GLExtensions::initWithGLStrings(
         }
         curr = head+1;
     } while (head);
-
-    curr = egl_extensions;
-    head = curr;
-    do {
-        head = strchr(curr, ' ');
-        String8 s(curr, head ? head-curr : strlen(curr));
-        if (s.length()) {
-            mExtensionList.add(s);
-        }
-        curr = head+1;
-    } while (head);
-
-#ifdef EGL_ANDROID_image_native_buffer
-    if (hasExtension("GL_OES_EGL_image") &&
-        (hasExtension("EGL_KHR_image_base") || hasExtension("EGL_KHR_image")) &&
-        hasExtension("EGL_ANDROID_image_native_buffer"))
-    {
-        mHaveDirectTexture = true;
-    }
-#else
-#error "EGL_ANDROID_image_native_buffer not supported"
-#endif
-
-    if (hasExtension("GL_ARB_texture_non_power_of_two")) {
-        mHaveNpot = true;
-    }
-
-    if (hasExtension("GL_OES_EGL_image_external")) {
-        mHaveTextureExternal = true;
-    } else if (strstr(mRenderer.string(), "Adreno")) {
-        // hack for Adreno 200
-        mHaveTextureExternal = true;
-    }
 
     if (hasExtension("GL_OES_framebuffer_object")) {
         mHaveFramebufferObject = true;
@@ -120,19 +78,6 @@ char const* GLExtensions::getVersion() const {
 char const* GLExtensions::getExtension() const {
     return mExtensions.string();
 }
-
-char const* GLExtensions::getEglVendor() const {
-    return mEglVendor.string();
-}
-
-char const* GLExtensions::getEglVersion() const {
-    return mEglVersion.string();
-}
-
-char const* GLExtensions::getEglExtension() const {
-    return mEglExtensions.string();
-}
-
 
 // ---------------------------------------------------------------------------
 }; // namespace android
