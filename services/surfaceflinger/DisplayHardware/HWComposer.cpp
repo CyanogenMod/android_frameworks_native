@@ -161,7 +161,7 @@ HWComposer::HWComposer(
             mNumDisplays = MAX_DISPLAYS;
         } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // 1.1 adds support for multiple displays
-            mNumDisplays = NUM_PHYSICAL_DISPLAYS;
+            mNumDisplays = MAX_DISPLAYS;
         } else {
             mNumDisplays = 1;
         }
