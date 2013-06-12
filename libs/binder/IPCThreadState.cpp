@@ -466,6 +466,10 @@ void IPCThreadState::joinThreadPool(bool isMain)
 
 
             result = executeCommand(cmd);
+        } else if (result != TIMED_OUT && result != -ECONNREFUSED && result != -EBADF) {
+            ALOGE("talkWithDriver(fd=%d) returned unexpected error %d, aborting",
+                  mProcess->mDriverFD, result);
+            abort();
         }
         
         // After executing the command, ensure that the thread is returned to the
