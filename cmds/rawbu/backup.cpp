@@ -639,6 +639,12 @@ static void show_help(const char *cmd)
     fprintf(stderr, "options include:\n"
                     "  -h              Show this help text.\n"
                     "  -a              Backup all files.\n");
+    fprintf(stderr, "\n backup-file-path Defaults to /sdcard/backup.dat .\n"
+                    "                  On devices that emulate the sdcard, you will need to\n"
+                    "                  explicitly specify the directory it is mapped to,\n"
+                    "                  to avoid recursive backup or deletion of the backup file\n"
+                    "                  during restore.\n\n"
+                    "                  Eg. /data/media/0/backup.dat\n");
     fprintf(stderr, "\nThe %s command allows you to perform low-level\n"
                     "backup and restore of the /data partition.  This is\n"
                     "where all user data is kept, allowing for a fairly\n"
