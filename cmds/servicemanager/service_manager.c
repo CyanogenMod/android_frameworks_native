@@ -48,6 +48,7 @@ static struct {
     { AID_MEDIA, "common_time.clock" },
     { AID_MEDIA, "common_time.config" },
     { AID_KEYSTORE, "android.security.keystore" },
+    { AID_MEDIA, "listen.service" }
 };
 
 void *svcmgr_handle;
