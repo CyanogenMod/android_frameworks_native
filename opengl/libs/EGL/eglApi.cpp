@@ -849,9 +849,7 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
             }
 
             if (found) {
-#if USE_FAST_TLS_KEY
                 addr = gExtensionForwarders[slot];
-#endif
                 sGLExtentionMap.add(name, addr);
                 sGLExtentionSlot++;
             }

@@ -230,9 +230,6 @@ static int gl_no_context() {
 
 static void early_egl_init(void)
 {
-#if !USE_FAST_TLS_KEY
-    pthread_key_create(&gGLWrapperKey, NULL);
-#endif
 #if EGL_TRACE
     pthread_key_create(&gGLTraceKey, NULL);
     initEglTraceLevel();
@@ -341,41 +338,10 @@ void gl_noop() {
 
 // ----------------------------------------------------------------------------
 
-#if USE_FAST_TLS_KEY
-
-// We have a dedicated TLS slot in bionic
-static inline gl_hooks_t const * volatile * get_tls_hooks() {
-    volatile void *tls_base = __get_tls();
-    gl_hooks_t const * volatile * tls_hooks =
-            reinterpret_cast<gl_hooks_t const * volatile *>(tls_base);
-    return tls_hooks;
-}
-
 void setGlThreadSpecific(gl_hooks_t const *value) {
     gl_hooks_t const * volatile * tls_hooks = get_tls_hooks();
     tls_hooks[TLS_SLOT_OPENGL_API] = value;
 }
-
-gl_hooks_t const* getGlThreadSpecific() {
-    gl_hooks_t const * volatile * tls_hooks = get_tls_hooks();
-    gl_hooks_t const* hooks = tls_hooks[TLS_SLOT_OPENGL_API];
-    if (hooks) return hooks;
-    return &gHooksNoContext;
-}
-
-#else
-
-void setGlThreadSpecific(gl_hooks_t const *value) {
-    pthread_setspecific(gGLWrapperKey, value);
-}
-
-gl_hooks_t const* getGlThreadSpecific() {
-    gl_hooks_t const* hooks =  static_cast<gl_hooks_t*>(pthread_getspecific(gGLWrapperKey));
-    if (hooks) return hooks;
-    return &gHooksNoContext;
-}
-
-#endif
 
 // ----------------------------------------------------------------------------
 // GL / EGL hooks
