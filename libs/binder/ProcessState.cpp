@@ -194,6 +194,33 @@ sp<IBinder> ProcessState::getStrongProxyForHandle(int32_t handle)
         // in getWeakProxyForHandle() for more info about this.
         IBinder* b = e->binder;
         if (b == NULL || !e->refs->attemptIncWeak(this)) {
+            if (handle == 0) {
+                // Special case for context manager...
+                // The context manager is the only object for which we create
+                // a BpBinder proxy without already holding a reference.
+                // Perform a dummy transaction to ensure the context manager
+                // is registered before we create the first local reference
+                // to it (which will occur when creating the BpBinder).
+                // If a local reference is created for the BpBinder when the
+                // context manager is not present, the driver will fail to
+                // provide a reference to the context manager, but the
+                // driver API does not return status.
+                //
+                // Note that this is not race-free if the context manager
+                // dies while this code runs.
+                //
+                // TODO: add a driver API to wait for context manager, or
+                // stop special casing handle 0 for context manager and add
+                // a driver API to get a handle to the context manager with
+                // proper reference counting.
+
+                Parcel data;
+                status_t status = IPCThreadState::self()->transact(
+                        0, IBinder::PING_TRANSACTION, data, NULL, 0);
+                if (status == DEAD_OBJECT)
+                   return NULL;
+            }
+
             b = new BpBinder(handle); 
             e->binder = b;
             if (b) e->refs = b->getWeakRefs();
