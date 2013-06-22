@@ -135,7 +135,12 @@ public:
     RenderEngine& getRenderEngine() const {
         return *mRenderEngine;
     }
-
+#ifdef QCOM_BSP
+    // Extended Mode - No video on primary and it will be shown full
+    // screen on External
+    static bool sExtendedMode;
+    static bool isExtendedMode() { return sExtendedMode; };
+#endif
 private:
     friend class Client;
     friend class DisplayEventConnection;

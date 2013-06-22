@@ -56,6 +56,31 @@ namespace android {
 
 // ---------------------------------------------------------------------------
 
+/* Calculates the aspect ratio for external display based on the video w/h */
+static Rect getAspectRatio(const sp<const DisplayDevice>& hw,
+                           const int& srcWidth, const int& srcHeight) {
+    Rect outRect;
+    int fbWidth  = hw->getWidth();
+    int fbHeight = hw->getHeight();
+    int x , y = 0;
+    int w = fbWidth, h = fbHeight;
+    if (srcWidth * fbHeight > fbWidth * srcHeight) {
+        h = fbWidth * srcHeight / srcWidth;
+        w = fbWidth;
+    } else if (srcWidth * fbHeight < fbWidth * srcHeight) {
+        w = fbHeight * srcWidth / srcHeight;
+        h = fbHeight;
+    }
+    x = (fbWidth - w) / 2;
+    y = (fbHeight - h) / 2;
+    outRect.left = x;
+    outRect.top = y;
+    outRect.right = x + w;
+    outRect.bottom = y + h;
+
+    return outRect;
+}
+
 int32_t Layer::sSequence = 1;
 
 Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
@@ -473,12 +498,20 @@ void Layer::setGeometry(
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
 #ifdef QCOM_BSP
-    // set dest_rect to frame buffer width and height, if external_only flag
-    // for the layer is enabled.
+    // set dest_rect to display width and height, if external_only flag
+    // for the layer is enabled or if its yuvLayer in extended mode.
+    uint32_t x = 0, y = 0;
+    uint32_t w = hw->getWidth();
+    uint32_t h = hw->getHeight();
+    bool extendedMode = SurfaceFlinger::isExtendedMode();
     if(isExtOnly()) {
-        uint32_t w = hw->getWidth();
-        uint32_t h = hw->getHeight();
-        layer.setFrame(Rect(w,h));
+        // Position: fullscreen for ext_only
+        Rect r(0, 0, w, h);
+        layer.setFrame(r);
+    } else if(hw->getDisplayType() > 0 && (extendedMode && isYuvLayer())) {
+        // Need to position the video full screen on external with aspect ratio
+        Rect r = getAspectRatio(hw, s.active.w, s.active.h);
+        layer.setFrame(r);
     }
 #endif
     layer.setCrop(computeCrop(hw));
@@ -1499,6 +1532,20 @@ bool Layer::isSecureDisplay() const
     return false;
 }
 
+// returns true, if the activeBuffer is Yuv
+bool Layer::isYuvLayer() const {
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if(activeBuffer != 0) {
+        ANativeWindowBuffer* buffer = activeBuffer->getNativeBuffer();
+        if(buffer) {
+            private_handle_t* hnd = static_cast<private_handle_t*>
+                (const_cast<native_handle_t*>(buffer->handle));
+            //if BUFFER_TYPE_VIDEO, its YUV
+            return (hnd && (hnd->bufferType == BUFFER_TYPE_VIDEO));
+        }
+    }
+    return false;
+}
 #endif
 
 // ---------------------------------------------------------------------------

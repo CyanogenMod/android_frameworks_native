@@ -130,6 +130,10 @@ const String16 sReadFramebuffer("android.permission.READ_FRAME_BUFFER");
 const String16 sDump("android.permission.DUMP");
 
 // ---------------------------------------------------------------------------
+// Initialize extendedMode to false
+#ifdef QCOM_BSP
+bool SurfaceFlinger::sExtendedMode = false;
+#endif
 
 SurfaceFlinger::SurfaceFlinger()
     :   BnSurfaceComposer(),
@@ -829,6 +833,13 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
         } else {
             mCurrentState.displays.removeItem(mBuiltinDisplays[type]);
             mBuiltinDisplays[type].clear();
+#ifdef QCOM_BSP
+            // if extended_mode is set, and set mVisibleRegionsDirty
+            // as we need to rebuildLayerStack
+            if(isExtendedMode()) {
+                mVisibleRegionsDirty = true;
+            }
+#endif
         }
         setTransactionFlags(eDisplayTransactionNeeded);
 
@@ -1015,6 +1026,11 @@ void SurfaceFlinger::postComposition()
 }
 
 void SurfaceFlinger::rebuildLayerStacks() {
+#ifdef QCOM_BSP
+    char prop[PROPERTY_VALUE_MAX];
+    property_get("sys.extended_mode", prop, "0");
+    sExtendedMode = atoi(prop) ? true : false;
+#endif
     // rebuild the visible layer list per screen
     if (CC_UNLIKELY(mVisibleRegionsDirty)) {
         ATRACE_CALL();
@@ -1770,9 +1786,11 @@ void SurfaceFlinger::computeVisibleRegions(size_t dpy,
                 indexLOI = i;
             break;
         }
-
-        if (dpy && layer->isExtOnly()) {
-            bIgnoreLayers = true;
+        // iterate through the layer list to find ext_only layers or yuv
+        // layer(extended_mode) and store the index
+        if ((dpy && (layer->isExtOnly() ||
+                     (isExtendedMode() && layer->isYuvLayer())))) {
+            bIgnoreLayers= true;
             indexLOI = i;
         }
     }
@@ -1785,14 +1803,17 @@ void SurfaceFlinger::computeVisibleRegions(size_t dpy,
         const Layer::State& s(layer->getDrawingState());
 
 #ifdef QCOM_BSP
-        // Only add the layer marked as "external_only" to external list and
-        // only remove the layer marked as "external_only" from primary list
+        // Only add the layer marked as "external_only" or yuvLayer
+        // (extended_mode) to external list and
+        // only remove the layer marked as "external_only" or yuvLayer in
+        // extended_mode from primary list
         // and do not add the layer marked as "internal_only" to external list
         // Add secure UI layers to primary and remove other layers from internal
         //and external list
-        if((bIgnoreLayers && indexLOI != (int)i) ||
+        if(((bIgnoreLayers && indexLOI != (int)i) ||
            (!dpy && layer->isExtOnly()) ||
-           (dpy && layer->isIntOnly())) {
+                     (!dpy && isExtendedMode() && layer->isYuvLayer()))||
+                     (dpy && layer->isIntOnly())) {
             // Ignore all other layers except the layers marked as ext_only
             // by setting visible non transparent region empty.
             Region visibleNonTransRegion;
@@ -3489,7 +3510,17 @@ void SurfaceFlinger::renderScreenImplLocked(
                     continue;
                 }
 #endif
+#ifdef QCOM_BSP
+                int dispType = hw->getDisplayType();
+                // Dont let ext_only and extended_mode to be captured
+                // If not, we would see incorrect image during rotatoin
+                // on primary
+                if (layer->isVisible() &&
+                    not (!dispType && (layer->isExtOnly() ||
+                         (isExtendedMode() && layer->isYuvLayer())))) {
+#else
                 if (layer->isVisible()) {
+#endif
                     if (filtering) layer->setFiltering(true);
                     if(!layer->isProtected())
                            layer->draw(hw, useIdentityTransform);
