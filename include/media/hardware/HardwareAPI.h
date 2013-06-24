@@ -19,6 +19,7 @@
 #define HARDWARE_API_H_
 
 #include <OMXPluginBase.h>
+#include <MetadataBufferType.h>
 #include <system/window.h>
 #include <utils/RefBase.h>
 
@@ -71,6 +72,13 @@ struct StoreMetaDataInBuffersParams {
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
     OMX_BOOL bStoreMetaData;
+};
+
+// Meta data buffer layout used to transport output frames to the decoder for
+// dynamic buffer handling.
+struct VideoDecoderOutputMetaData {
+  MetadataBufferType eType;
+  buffer_handle_t pHandle;
 };
 
 // A pointer to this struct is passed to OMX_SetParameter when the extension
