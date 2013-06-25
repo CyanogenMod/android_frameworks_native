@@ -439,8 +439,11 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
 
     egl_connection_t* cnx = NULL;
     const egl_display_ptr dp = validate_display_connection(dpy, cnx);
-    if (dpy) {
+    if (dp) {
         if (share_list != EGL_NO_CONTEXT) {
+            if (!ContextRef(dp.get(), share_list).get()) {
+                return setError(EGL_BAD_CONTEXT, EGL_NO_CONTEXT);
+            }
             egl_context_t* const c = get_context(share_list);
             share_list = c->context;
         }
@@ -524,7 +527,7 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
     // validate the context (if not EGL_NO_CONTEXT)
     if ((ctx != EGL_NO_CONTEXT) && !_c.get()) {
         // EGL_NO_CONTEXT is valid
-        return EGL_FALSE;
+        return setError(EGL_BAD_CONTEXT, EGL_FALSE);
     }
 
     // these are the underlying implementation's object
@@ -545,12 +548,12 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
         impl_ctx = c->context;
     } else {
         // no context given, use the implementation of the current context
+        if (draw != EGL_NO_SURFACE || read != EGL_NO_SURFACE) {
+            // calling eglMakeCurrent( ..., !=0, !=0, EGL_NO_CONTEXT);
+            return setError(EGL_BAD_MATCH, EGL_FALSE);
+        }
         if (cur_c == NULL) {
             // no current context
-            if (draw != EGL_NO_SURFACE || read != EGL_NO_SURFACE) {
-                // calling eglMakeCurrent( ..., !=0, !=0, EGL_NO_CONTEXT);
-                return setError(EGL_BAD_MATCH, EGL_FALSE);
-            }
             // not an error, there is just no current context.
             return EGL_TRUE;
         }
@@ -558,12 +561,14 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
 
     // retrieve the underlying implementation's draw EGLSurface
     if (draw != EGL_NO_SURFACE) {
+        if (!_d.get()) return setError(EGL_BAD_SURFACE, EGL_FALSE);
         d = get_surface(draw);
         impl_draw = d->surface;
     }
 
     // retrieve the underlying implementation's read EGLSurface
     if (read != EGL_NO_SURFACE) {
+        if (!_r.get()) return setError(EGL_BAD_SURFACE, EGL_FALSE);
         r = get_surface(read);
         impl_read = r->surface;
     }
