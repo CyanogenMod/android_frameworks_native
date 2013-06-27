@@ -107,23 +107,25 @@ status_t SensorEventQueue::wake() const
 }
 
 status_t SensorEventQueue::enableSensor(Sensor const* sensor) const {
-    return mSensorEventConnection->enableDisable(sensor->getHandle(), true);
+    return mSensorEventConnection->enableDisable(sensor->getHandle(), true, 0, 0, false);
 }
 
 status_t SensorEventQueue::disableSensor(Sensor const* sensor) const {
-    return mSensorEventConnection->enableDisable(sensor->getHandle(), false);
+    return mSensorEventConnection->enableDisable(sensor->getHandle(), false, 0, 0, false);
 }
 
-status_t SensorEventQueue::enableSensor(int32_t handle, int32_t us) const {
-    status_t err = mSensorEventConnection->enableDisable(handle, true);
-    if (err == NO_ERROR) {
-        mSensorEventConnection->setEventRate(handle, us2ns(us));
-    }
-    return err;
+status_t SensorEventQueue::enableSensor(int32_t handle, int32_t samplingPeriodUs,
+                                        int maxBatchReportLatencyUs, int reservedFlags) const {
+    return mSensorEventConnection->enableDisable(handle, true, us2ns(samplingPeriodUs),
+                                                 us2ns(maxBatchReportLatencyUs), reservedFlags);
+}
+
+status_t SensorEventQueue::flushSensor(int32_t handle) const {
+    return mSensorEventConnection->flushSensor(handle);
 }
 
 status_t SensorEventQueue::disableSensor(int32_t handle) const {
-    return mSensorEventConnection->enableDisable(handle, false);
+    return mSensorEventConnection->enableDisable(handle, false, 0, 0, false);
 }
 
 status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const {
