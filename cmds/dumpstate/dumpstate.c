@@ -278,6 +278,15 @@ static void dumpstate() {
     run_command("DUMPSYS", 60, "dumpsys", NULL);
 
     printf("========================================================\n");
+    printf("== Checkins\n");
+    printf("========================================================\n");
+
+    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "--checkin", NULL);
+    run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
+    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "--checkin", NULL);
+    run_command("CHECKIN USAGESTATS", 30, "dumpsys", "usagestats", "--c", NULL);
+
+    printf("========================================================\n");
     printf("== Running Application Activities\n");
     printf("========================================================\n");
 
