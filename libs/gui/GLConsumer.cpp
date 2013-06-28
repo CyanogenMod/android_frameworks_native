@@ -139,7 +139,7 @@ status_t GLConsumer::updateTexImage() {
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item);
+    err = acquireBufferLocked(&item, 0);
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             // We always bind the texture even if we don't update its contents.
@@ -165,8 +165,9 @@ status_t GLConsumer::updateTexImage() {
     return bindTextureImageLocked();
 }
 
-status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item) {
-    status_t err = ConsumerBase::acquireBufferLocked(item);
+status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
+        nsecs_t presentWhen) {
+    status_t err = ConsumerBase::acquireBufferLocked(item, presentWhen);
     if (err != NO_ERROR) {
         return err;
     }

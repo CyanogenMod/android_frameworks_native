@@ -1051,11 +1051,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         const bool oldOpacity = isOpaque();
         sp<GraphicBuffer> oldActiveBuffer = mActiveBuffer;
 
-        // signal another event if we have more frames pending
-        if (android_atomic_dec(&mQueuedFrames) > 1) {
-            mFlinger->signalLayerUpdate();
-        }
-
         struct Reject : public SurfaceFlingerConsumer::BufferRejecter {
             Layer::State& front;
             Layer::State& current;
@@ -1161,7 +1156,21 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions);
 
-        if (mSurfaceFlingerConsumer->updateTexImage(&r) != NO_ERROR) {
+        status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r);
+        if (updateResult == BufferQueue::PRESENT_LATER) {
+            // Producer doesn't want buffer to be displayed yet.  Signal a
+            // layer update so we check again at the next opportunity.
+            mFlinger->signalLayerUpdate();
+            return outDirtyRegion;
+        }
+
+        // Decrement the queued-frames count.  Signal another event if we
+        // have more frames pending.
+        if (android_atomic_dec(&mQueuedFrames) > 1) {
+            mFlinger->signalLayerUpdate();
+        }
+
+        if (updateResult != NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
             return outDirtyRegion;

@@ -47,14 +47,15 @@ void BufferItemConsumer::setName(const String8& name) {
     mBufferQueue->setConsumerName(name);
 }
 
-status_t BufferItemConsumer::acquireBuffer(BufferItem *item, bool waitForFence) {
+status_t BufferItemConsumer::acquireBuffer(BufferItem *item,
+        nsecs_t presentWhen, bool waitForFence) {
     status_t err;
 
     if (!item) return BAD_VALUE;
 
     Mutex::Autolock _l(mMutex);
 
-    err = acquireBufferLocked(item);
+    err = acquireBufferLocked(item, presentWhen);
     if (err != OK) {
         if (err != NO_BUFFER_AVAILABLE) {
             BI_LOGE("Error acquiring buffer: %s (%d)", strerror(err), err);

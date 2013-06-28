@@ -80,7 +80,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
                     GRALLOC_USAGE_SW_READ_OFTEN));
         ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
         ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
-        ASSERT_EQ(OK, mBQ->acquireBuffer(&item));
+        ASSERT_EQ(OK, mBQ->acquireBuffer(&item, 0));
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
@@ -90,7 +90,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
 
     // Acquire the third buffer, which should fail.
-    ASSERT_EQ(INVALID_OPERATION, mBQ->acquireBuffer(&item));
+    ASSERT_EQ(INVALID_OPERATION, mBQ->acquireBuffer(&item, 0));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {

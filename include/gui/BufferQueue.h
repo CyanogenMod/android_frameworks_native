@@ -39,7 +39,7 @@ public:
     enum { NUM_BUFFER_SLOTS = 32 };
     enum { NO_CONNECTED_API = 0 };
     enum { INVALID_BUFFER_SLOT = -1 };
-    enum { STALE_BUFFER_SLOT = 1, NO_BUFFER_AVAILABLE };
+    enum { STALE_BUFFER_SLOT = 1, NO_BUFFER_AVAILABLE, PRESENT_LATER };
 
     // When in async mode we reserve two slots in order to guarantee that the
     // producer and consumer can run asynchronously.
@@ -284,7 +284,13 @@ public:
     // acquired then the BufferItem::mGraphicBuffer field of buffer is set to
     // NULL and it is assumed that the consumer still holds a reference to the
     // buffer.
-    status_t acquireBuffer(BufferItem *buffer);
+    //
+    // If presentWhen is nonzero, it indicates the time when the buffer will
+    // be displayed on screen.  If the buffer's timestamp is farther in the
+    // future, the buffer won't be acquired, and PRESENT_LATER will be
+    // returned.  The presentation time is in nanoseconds, and the time base
+    // is CLOCK_MONOTONIC.
+    status_t acquireBuffer(BufferItem *buffer, nsecs_t presentWhen);
 
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
