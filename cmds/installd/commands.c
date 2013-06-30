@@ -656,7 +656,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
     struct stat apk_stat, dex_stat;
     char out_path[PKG_PATH_MAX];
     char dexopt_flags[PROPERTY_VALUE_MAX];
-    char dalvik_vm_lib[PROPERTY_VALUE_MAX];
+    char persist_sys_dalvik_vm_lib[PROPERTY_VALUE_MAX];
     char *end;
     int res, zip_fd=-1, out_fd=-1;
 
@@ -668,9 +668,8 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
     property_get("dalvik.vm.dexopt-flags", dexopt_flags, "");
     ALOGV("dalvik.vm.dexopt_flags=%s\n", dexopt_flags);
 
-    /* The command to run depend ones the value of dalvik.vm.lib */
-    property_get("dalvik.vm.lib", dalvik_vm_lib, "libdvm.so");
-    ALOGV("dalvik.vm.lib=%s\n", dalvik_vm_lib);
+    /* The command to run depend ones the value of persist.sys.dalvik.vm.lib */
+    property_get("persist.sys.dalvik.vm.lib", persist_sys_dalvik_vm_lib, "libdvm.so");
 
     /* Before anything else: is there a .odex file?  If so, we have
      * precompiled the apk and there is nothing to do here.
@@ -739,12 +738,12 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
             exit(67);
         }
 
-        if (strncmp(dalvik_vm_lib, "libdvm", 6) == 0) {
+        if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
             run_dexopt(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
-        } else if (strncmp(dalvik_vm_lib, "libart", 6) == 0) {
+        } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
             run_dex2oat(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
         } else {
-            exit(69);   /* Unexpected dalvik.vm.lib value */
+            exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
         }
         exit(68);   /* only get here on exec failure */
     } else {
