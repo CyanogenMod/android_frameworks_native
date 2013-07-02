@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifneq ($(TARGET_BUILD_PDK),true)
+
 LOCAL_PATH:= $(call my-dir)
 
 # libinput is partially built for the host (used by build time keymap validation tool)
@@ -83,3 +85,5 @@ include $(BUILD_SHARED_LIBRARY)
 ifeq (,$(ONE_SHOT_MAKEFILE))
 include $(call first-makefiles-under,$(LOCAL_PATH))
 endif
+
+endif #!PDK
