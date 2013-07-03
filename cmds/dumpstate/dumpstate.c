@@ -282,8 +282,10 @@ static void dumpstate() {
     printf("========================================================\n");
 
     run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "--checkin", NULL);
+    run_command("CHECKIN MEMINFO", 30, "dumpsys", "meminfo", "--checkin", NULL);
     run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
-    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "--checkin", NULL);
+    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "-c",
+            "--include-committed", NULL);
     run_command("CHECKIN USAGESTATS", 30, "dumpsys", "usagestats", "--c", NULL);
 
     printf("========================================================\n");
