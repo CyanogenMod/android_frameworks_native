@@ -187,47 +187,77 @@ static const String16 sDump("android.permission.DUMP");
 
 status_t SensorService::dump(int fd, const Vector<String16>& args)
 {
-    const size_t SIZE = 1024;
-    char buffer[SIZE];
     String8 result;
     if (!PermissionCache::checkCallingPermission(sDump)) {
-        snprintf(buffer, SIZE, "Permission Denial: "
+        result.appendFormat("Permission Denial: "
                 "can't dump SurfaceFlinger from pid=%d, uid=%d\n",
                 IPCThreadState::self()->getCallingPid(),
                 IPCThreadState::self()->getCallingUid());
-        result.append(buffer);
     } else {
         Mutex::Autolock _l(mLock);
-        snprintf(buffer, SIZE, "Sensor List:\n");
-        result.append(buffer);
+        result.append("Sensor List:\n");
         for (size_t i=0 ; i<mSensorList.size() ; i++) {
             const Sensor& s(mSensorList[i]);
             const sensors_event_t& e(mLastEventSeen.valueFor(s.getHandle()));
-            snprintf(buffer, SIZE,
-                    "%-48s| %-32s | 0x%08x | maxRate=%7.2fHz | "
-                    "last=<%5.1f,%5.1f,%5.1f>\n",
+            result.appendFormat(
+                    "%-48s| %-32s | 0x%08x | ",
                     s.getName().string(),
                     s.getVendor().string(),
-                    s.getHandle(),
-                    s.getMinDelay() ? (1000000.0f / s.getMinDelay()) : 0.0f,
-                    e.data[0], e.data[1], e.data[2]);
-            result.append(buffer);
-        }
-        SensorFusion::getInstance().dump(result, buffer, SIZE);
-        SensorDevice::getInstance().dump(result, buffer, SIZE);
+                    s.getHandle());
 
-        snprintf(buffer, SIZE, "%d active connections\n",
-                mActiveConnections.size());
-        result.append(buffer);
-        snprintf(buffer, SIZE, "Active sensors:\n");
-        result.append(buffer);
+            if (s.getMinDelay() > 0) {
+                result.appendFormat(
+                    "maxRate=%7.2fHz | ", 1e6f / s.getMinDelay());
+            } else {
+                result.append(s.getMinDelay() == 0
+                        ? "on-demand         | "
+                        : "one-shot          | ");
+            }
+
+            switch (s.getType()) {
+                case SENSOR_TYPE_ROTATION_VECTOR:
+                case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
+                    break;
+                case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4], e.data[5]);
+                    break;
+                case SENSOR_TYPE_GAME_ROTATION_VECTOR:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3]);
+                    break;
+                case SENSOR_TYPE_SIGNIFICANT_MOTION:
+                case SENSOR_TYPE_STEP_DETECTOR:
+                    result.appendFormat( "last=<%f>\n", e.data[0]);
+                    break;
+                case SENSOR_TYPE_STEP_COUNTER:
+                    result.appendFormat( "last=<%llu>\n", e.u64.step_counter);
+                    break;
+                default:
+                    // default to 3 values
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2]);
+                    break;
+            }
+        }
+        SensorFusion::getInstance().dump(result);
+        SensorDevice::getInstance().dump(result);
+
+        result.appendFormat("%d active connections\n", mActiveConnections.size());
+        result.append("Active sensors:\n");
         for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
             int handle = mActiveSensors.keyAt(i);
-            snprintf(buffer, SIZE, "%s (handle=0x%08x, connections=%d)\n",
+            result.appendFormat("%s (handle=0x%08x, connections=%d)\n",
                     getSensorName(handle).string(),
                     handle,
                     mActiveSensors.valueAt(i)->getNumConnections());
-            result.append(buffer);
         }
     }
     write(fd, result.string(), result.size());

@@ -68,7 +68,7 @@ public:
     float getPowerUsage() const;
     int32_t getMinDelay() const;
 
-    void dump(String8& result, char* buffer, size_t SIZE);
+    void dump(String8& result);
 };
 
 

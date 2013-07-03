@@ -114,15 +114,20 @@ typedef struct ASensorEvent {
     int32_t reserved0;
     int64_t timestamp;
     union {
-        float           data[16];
-        ASensorVector   vector;
-        ASensorVector   acceleration;
-        ASensorVector   magnetic;
-        float           temperature;
-        float           distance;
-        float           light;
-        float           pressure;
-        float           step_counter;
+        union {
+            float           data[16];
+            ASensorVector   vector;
+            ASensorVector   acceleration;
+            ASensorVector   magnetic;
+            float           temperature;
+            float           distance;
+            float           light;
+            float           pressure;
+        };
+        union {
+            uint64_t        data[8];
+            uint64_t        step_counter;
+        } u64;
     };
     int32_t reserved1[4];
 } ASensorEvent;

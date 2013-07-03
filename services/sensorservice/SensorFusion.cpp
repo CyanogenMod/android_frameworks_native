@@ -136,9 +136,9 @@ int32_t SensorFusion::getMinDelay() const {
     return mAcc.getMinDelay();
 }
 
-void SensorFusion::dump(String8& result, char* buffer, size_t SIZE) {
+void SensorFusion::dump(String8& result) {
     const Fusion& fusion(mFusion);
-    snprintf(buffer, SIZE, "9-axis fusion %s (%d clients), gyro-rate=%7.2fHz, "
+    result.appendFormat("9-axis fusion %s (%d clients), gyro-rate=%7.2fHz, "
             "q=< %g, %g, %g, %g > (%g), "
             "b=< %g, %g, %g >\n",
             mEnabled ? "enabled" : "disabled",
@@ -152,7 +152,6 @@ void SensorFusion::dump(String8& result, char* buffer, size_t SIZE) {
             fusion.getBias().x,
             fusion.getBias().y,
             fusion.getBias().z);
-    result.append(buffer);
 }
 
 // ---------------------------------------------------------------------------

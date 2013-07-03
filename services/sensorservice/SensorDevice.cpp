@@ -65,30 +65,26 @@ SensorDevice::SensorDevice()
     }
 }
 
-void SensorDevice::dump(String8& result, char* buffer, size_t SIZE)
+void SensorDevice::dump(String8& result)
 {
     if (!mSensorModule) return;
     sensor_t const* list;
     ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
 
-    snprintf(buffer, SIZE, "%d h/w sensors:\n", int(count));
-    result.append(buffer);
+    result.appendFormat("%d h/w sensors:\n", int(count));
 
     Mutex::Autolock _l(mLock);
     for (size_t i=0 ; i<size_t(count) ; i++) {
         const Info& info = mActivationCount.valueFor(list[i].handle);
-        snprintf(buffer, SIZE, "handle=0x%08x, active-count=%d, rates(ms)={ ",
+        result.appendFormat("handle=0x%08x, active-count=%d, rates(ms)={ ",
                 list[i].handle,
                 info.rates.size());
-        result.append(buffer);
         for (size_t j=0 ; j<info.rates.size() ; j++) {
-            snprintf(buffer, SIZE, "%4.1f%s",
+            result.appendFormat("%4.1f%s",
                     info.rates.valueAt(j) / 1e6f,
                     j<info.rates.size()-1 ? ", " : "");
-            result.append(buffer);
         }
-        snprintf(buffer, SIZE, " }, selected=%4.1f ms\n",  info.delay / 1e6f);
-        result.append(buffer);
+        result.appendFormat(" }, selected=%4.1f ms\n",  info.delay / 1e6f);
     }
 }
 
