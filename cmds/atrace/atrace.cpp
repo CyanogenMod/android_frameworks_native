@@ -103,6 +103,9 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_complete/enable" },
     } },
+    { "mmc",        "eMMC commands",    0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/mmc/enable" },
+    } },
     { "load",       "CPU Load",         0, {
         { REQ,      "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable" },
     } },
