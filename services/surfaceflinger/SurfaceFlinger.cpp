@@ -72,6 +72,12 @@
 
 #define DISPLAY_COUNT       1
 
+/*
+ * DEBUG_SCREENSHOTS: set to true to check that screenshots are not all
+ * black pixels.
+ */
+#define DEBUG_SCREENSHOTS   false
+
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 namespace android {
@@ -2822,6 +2828,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                             if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
                                 glReadPixels(0, 0, buffer->stride, reqHeight,
                                         GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
+                                checkScreenshot(buf, vaddr, hw, minLayerZ, maxLayerZ);
                                 buf->unlock();
                             }
                         }
@@ -2854,6 +2861,35 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     DisplayDevice::setViewportAndProjection(hw);
 
     return result;
+}
+
+void SurfaceFlinger::checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
+        const sp<const DisplayDevice>& hw,
+        uint32_t minLayerZ, uint32_t maxLayerZ) {
+    if (DEBUG_SCREENSHOTS) {
+        for (ssize_t y=0 ; y<buf->height ; y++) {
+            uint32_t const * p = (uint32_t const *)vaddr + y*buf->stride;
+            for (ssize_t x=0 ; x<buf->width ; x++) {
+                if (p[x] != 0xFF000000) return;
+            }
+        }
+        ALOGE("*** we just took a black screenshot ***\n"
+                "requested minz=%d, maxz=%d, layerStack=%d",
+                minLayerZ, maxLayerZ, hw->getLayerStack());
+        const LayerVector& layers( mDrawingState.layersSortedByZ );
+        const size_t count = layers.size();
+        for (size_t i=0 ; i<count ; ++i) {
+            const sp<Layer>& layer(layers[i]);
+            const Layer::State& state(layer->getDrawingState());
+            const bool visible = (state.layerStack == hw->getLayerStack())
+                                && (state.z >= minLayerZ && state.z <= maxLayerZ)
+                                && (layer->isVisible());
+            ALOGE("%c index=%d, name=%s, layerStack=%d, z=%d, visible=%d, flags=%x, alpha=%x",
+                    visible ? '+' : '-',
+                            i, layer->getName().string(), state.layerStack, state.z,
+                            layer->isVisible(), state.flags, state.alpha);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

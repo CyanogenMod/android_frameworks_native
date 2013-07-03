@@ -400,6 +400,9 @@ private:
         String8& result) const;
     bool startDdmConnection();
     static void appendSfConfigString(String8& result);
+    void checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
+            const sp<const DisplayDevice>& hw,
+            uint32_t minLayerZ, uint32_t maxLayerZ);
 
     /* ------------------------------------------------------------------------
      * Attributes
