@@ -45,7 +45,7 @@ void Tracer::init() {
                 "/sys/kernel/debug/tracing/trace_marker";
         sTraceFD = open(traceFileName, O_WRONLY);
         if (sTraceFD == -1) {
-            ALOGE("error opening trace file: %s (%d)", strerror(errno), errno);
+            ALOGW("error opening trace file: %s (%d)", strerror(errno), errno);
             sEnabledTags = 0;   // no tracing can occur
         } else {
             loadSystemProperty();
