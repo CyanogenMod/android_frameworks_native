@@ -175,6 +175,12 @@ Loader::~Loader()
     GLTrace_stop();
 }
 
+static void* load_wrapper(const char* path) {
+    void* so = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    ALOGE_IF(!so, "dlopen(\"%s\") failed: %s", path, dlerror());
+    return so;
+}
+
 void* Loader::open(egl_connection_t* cnx)
 {
     void* dso;
@@ -200,7 +206,12 @@ void* Loader::open(egl_connection_t* cnx)
     LOG_FATAL_IF(!index && !hnd,
             "couldn't find the default OpenGL ES implementation "
             "for default display");
-    
+
+    cnx->libGles2 = load_wrapper("system/lib/libGLESv2.so");
+    cnx->libGles1 = load_wrapper("system/lib/libGLESv1_CM.so");
+    LOG_ALWAYS_FATAL_IF(!cnx->libGles2 || !cnx->libGles1,
+            "couldn't load system OpenGL ES wrapper libraries");
+
     return (void*)hnd;
 }
 
