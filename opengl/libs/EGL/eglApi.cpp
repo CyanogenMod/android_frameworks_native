@@ -16,6 +16,7 @@
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
+#include <dlfcn.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -772,6 +773,20 @@ EGLint eglGetError(void)
     return err;
 }
 
+static __eglMustCastToProperFunctionPointerType findBuiltinGLWrapper(
+        const char* procname) {
+    const egl_connection_t* cnx = &gEGLImpl;
+    void* proc = NULL;
+
+    proc = dlsym(cnx->libGles2, procname);
+    if (proc) return (__eglMustCastToProperFunctionPointerType)proc;
+
+    proc = dlsym(cnx->libGles1, procname);
+    if (proc) return (__eglMustCastToProperFunctionPointerType)proc;
+
+    return NULL;
+}
+
 __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
 {
     // eglGetProcAddress() could be the very first function called
@@ -793,6 +808,8 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
     addr = findProcAddress(procname, sExtensionMap, NELEM(sExtensionMap));
     if (addr) return addr;
 
+    addr = findBuiltinGLWrapper(procname);
+    if (addr) return addr;
 
     // this protects accesses to sGLExtentionMap and sGLExtentionSlot
     pthread_mutex_lock(&sExtensionMapMutex);
