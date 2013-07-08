@@ -21,7 +21,7 @@
 #include <sys/types.h>
 
 #include <EGL/egl.h>
-#include <GLES/gl.h>
+#include <GLES/gl.h>        // needed for GLuint
 
 #include <cutils/compiler.h>
 
@@ -62,6 +62,7 @@ class IGraphicBufferAlloc;
 class Layer;
 class LayerDim;
 class Surface;
+class RenderEngine;
 
 // ---------------------------------------------------------------------------
 
@@ -70,13 +71,6 @@ enum {
     eTraversalNeeded          = 0x02,
     eDisplayTransactionNeeded = 0x04,
     eTransactionMask          = 0x07
-};
-
-enum GlesVersion {
-    GLES_VERSION_1_0    = 0x10000,
-    GLES_VERSION_1_1    = 0x10001,
-    GLES_VERSION_2_0    = 0x20000,
-    GLES_VERSION_3_0    = 0x30000,
 };
 
 class SurfaceFlinger : public BinderService<SurfaceFlinger>,
@@ -128,9 +122,8 @@ public:
     // TODO: this should be made accessible only to HWComposer
     const Vector< sp<Layer> >& getLayerSortedByZForHwcDisplay(int id);
 
-    // return the version of the OpenGL ES composition context
-    GlesVersion getGlesVersion() const {
-        return mGlesVersion;
+    RenderEngine& getRenderEngine() const {
+        return *mRenderEngine;
     }
 
 private:
@@ -319,10 +312,8 @@ private:
     static status_t selectConfigForAttribute(EGLDisplay dpy,
         EGLint const* attrs, EGLint attribute, EGLint value, EGLConfig* outConfig);
     static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
-    static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
-    void initializeGL(EGLDisplay display);
-    uint32_t getMaxTextureSize() const;
-    uint32_t getMaxViewportDims() const;
+    size_t getMaxTextureSize() const;
+    size_t getMaxViewportDims() const;
 
     /* ------------------------------------------------------------------------
      * Display and layer stack management
@@ -378,9 +369,6 @@ private:
     void postFramebuffer();
     void drawWormhole(const sp<const DisplayDevice>& hw,
             const Region& region) const;
-    GLuint getProtectedTexName() const {
-        return mProtectedTexName;
-    }
 
     /* ------------------------------------------------------------------------
      * Display management
@@ -426,17 +414,14 @@ private:
 
     // constant members (no synchronization needed for access)
     HWComposer* mHwc;
-    GLuint mProtectedTexName;
+    RenderEngine* mRenderEngine;
     nsecs_t mBootTime;
     bool mGpuToCpuSupported;
     sp<EventThread> mEventThread;
-    GLint mMaxViewportDims[2];
-    GLint mMaxTextureSize;
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
     EGLint mEGLNativeVisualId;
-    GlesVersion mGlesVersion;
     sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members

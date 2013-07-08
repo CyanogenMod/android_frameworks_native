@@ -22,8 +22,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 
 #include <utils/RefBase.h>
 #include <utils/String8.h>
@@ -55,7 +53,6 @@ class Colorizer;
 class DisplayDevice;
 class GraphicBuffer;
 class SurfaceFlinger;
-class GLExtensions;
 
 // ---------------------------------------------------------------------------
 
@@ -113,14 +110,15 @@ public:
 
     class LayerMesh {
         friend class Layer;
-        GLfloat mVertices[4][2];
+        typedef GLfloat float2[2];
+        float2 mVertices[4];
         size_t mNumVertices;
     public:
         LayerMesh() :
                 mNumVertices(4) {
         }
-        GLfloat const* getVertices() const {
-            return &mVertices[0][0];
+        float2 const* getVertices() const {
+            return mVertices;
         }
         size_t getVertexCount() const {
             return mNumVertices;
@@ -355,7 +353,6 @@ private:
     String8 mName;
     mutable bool mDebug;
     PixelFormat mFormat;
-    const GLExtensions& mGLExtensions;
     bool mOpaqueLayer;
 
     // these are protected by an external lock

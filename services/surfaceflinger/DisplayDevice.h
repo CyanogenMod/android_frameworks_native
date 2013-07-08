@@ -133,10 +133,8 @@ public:
     void setDisplayName(const String8& displayName);
     const String8& getDisplayName() const { return mDisplayName; }
 
-    static EGLBoolean makeCurrent(EGLDisplay dpy,
-            const sp<const DisplayDevice>& hw, EGLContext ctx);
-
-    static void setViewportAndProjection(const sp<const DisplayDevice>& hw);
+    EGLBoolean makeCurrent(EGLDisplay dpy, EGLContext ctx) const;
+    void setViewportAndProjection() const;
 
     /* ------------------------------------------------------------------------
      * blank / unblank management

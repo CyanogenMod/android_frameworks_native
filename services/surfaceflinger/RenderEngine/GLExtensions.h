@@ -36,18 +36,12 @@ class GLExtensions : public Singleton<GLExtensions>
 {
     friend class Singleton<GLExtensions>;
 
-    bool mHaveTextureExternal   : 1;
-    bool mHaveNpot              : 1;
-    bool mHaveDirectTexture     : 1;
     bool mHaveFramebufferObject : 1;
 
     String8 mVendor;
     String8 mRenderer;
     String8 mVersion;
     String8 mExtensions;
-    String8 mEglVendor;
-    String8 mEglVersion;
-    String8 mEglExtensions;
     SortedVector<String8> mExtensionList;
 
     GLExtensions(const GLExtensions&);
@@ -57,15 +51,6 @@ protected:
     GLExtensions();
 
 public:
-    inline bool haveTextureExternal() const {
-        return mHaveTextureExternal;
-    }
-    inline bool haveNpot() const {
-        return mHaveNpot;
-    }
-    inline bool haveDirectTexture() const {
-        return mHaveDirectTexture;
-    }
 
     inline bool haveFramebufferObject() const {
         return mHaveFramebufferObject;
@@ -75,19 +60,12 @@ public:
             GLubyte const* vendor,
             GLubyte const* renderer,
             GLubyte const* version,
-            GLubyte const* extensions,
-            char const* egl_vendor,
-            char const* egl_version,
-            char const* egl_extensions);
+            GLubyte const* extensions);
 
     char const* getVendor() const;
     char const* getRenderer() const;
     char const* getVersion() const;
     char const* getExtension() const;
-
-    char const* getEglVendor() const;
-    char const* getEglVersion() const;
-    char const* getEglExtension() const;
 
     bool hasExtension(char const* extension) const;
 };

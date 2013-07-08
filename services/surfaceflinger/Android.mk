@@ -6,7 +6,6 @@ LOCAL_SRC_FILES:= \
     DisplayDevice.cpp \
     EventThread.cpp \
     FrameTracker.cpp \
-    GLExtensions.cpp \
     Layer.cpp \
     LayerDim.cpp \
     MessageQueue.cpp \
@@ -19,7 +18,12 @@ LOCAL_SRC_FILES:= \
     DisplayHardware/PowerHAL.cpp \
     DisplayHardware/VirtualDisplaySurface.cpp \
     EventLog/EventLogTags.logtags \
-    EventLog/EventLog.cpp
+    EventLog/EventLog.cpp \
+    RenderEngine/GLExtensions.cpp \
+    RenderEngine/RenderEngine.cpp \
+    RenderEngine/GLES10RenderEngine.cpp \
+    RenderEngine/GLES11RenderEngine.cpp
+
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES

@@ -29,37 +29,19 @@
 
 #include <gui/Surface.h>
 
-#include <GLES/gl.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
 #include <hardware/gralloc.h>
 
 #include "DisplayHardware/DisplaySurface.h"
 #include "DisplayHardware/HWComposer.h"
+#include "RenderEngine/RenderEngine.h"
 
 #include "clz.h"
 #include "DisplayDevice.h"
-#include "GLExtensions.h"
 #include "SurfaceFlinger.h"
 #include "Layer.h"
 
 // ----------------------------------------------------------------------------
 using namespace android;
-// ----------------------------------------------------------------------------
-
-static __attribute__((noinline))
-void checkGLErrors()
-{
-    do {
-        // there could be more than one error flag
-        GLenum error = glGetError();
-        if (error == GL_NO_ERROR)
-            break;
-        ALOGE("GL error 0x%04x", int(error));
-    } while(true);
-}
-
 // ----------------------------------------------------------------------------
 
 /*
@@ -189,7 +171,7 @@ status_t DisplayDevice::compositionComplete() const {
 
 void DisplayDevice::flip(const Region& dirty) const
 {
-    checkGLErrors();
+    mFlinger->getRenderEngine().checkErrors();
 
     EGLDisplay dpy = mDisplay;
     EGLSurface surface = mSurface;
@@ -246,28 +228,22 @@ uint32_t DisplayDevice::getFlags() const
     return mFlags;
 }
 
-EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy,
-        const sp<const DisplayDevice>& hw, EGLContext ctx) {
+EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy, EGLContext ctx) const {
     EGLBoolean result = EGL_TRUE;
     EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
-    if (sur != hw->mSurface) {
-        result = eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
+    if (sur != mSurface) {
+        result = eglMakeCurrent(dpy, mSurface, mSurface, ctx);
         if (result == EGL_TRUE) {
-            setViewportAndProjection(hw);
+            setViewportAndProjection();
         }
     }
     return result;
 }
 
-void DisplayDevice::setViewportAndProjection(const sp<const DisplayDevice>& hw) {
-    GLsizei w = hw->mDisplayWidth;
-    GLsizei h = hw->mDisplayHeight;
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    // put the origin in the left-bottom corner
-    glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
-    glMatrixMode(GL_MODELVIEW);
+void DisplayDevice::setViewportAndProjection() const {
+    size_t w = mDisplayWidth;
+    size_t h = mDisplayHeight;
+    mFlinger->getRenderEngine().setViewportAndProjection(w, h);
 }
 
 // ----------------------------------------------------------------------------

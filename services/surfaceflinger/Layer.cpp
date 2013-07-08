@@ -38,12 +38,13 @@
 #include "clz.h"
 #include "Colorizer.h"
 #include "DisplayDevice.h"
-#include "GLExtensions.h"
 #include "Layer.h"
 #include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
 
 #include "DisplayHardware/HWComposer.h"
+
+#include "RenderEngine/RenderEngine.h"
 
 #define DEBUG_RESIZE    0
 
@@ -63,7 +64,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mName("unnamed"),
         mDebug(false),
         mFormat(PIXEL_FORMAT_NONE),
-        mGLExtensions(GLExtensions::getInstance()),
         mOpaqueLayer(true),
         mTransactionFlags(0),
         mQueuedFrames(0),
@@ -235,15 +235,6 @@ sp<IBinder> Layer::getHandle() {
 sp<BufferQueue> Layer::getBufferQueue() const {
     return mSurfaceFlingerConsumer->getBufferQueue();
 }
-
-//virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
-//    sp<IGraphicBufferProducer> res;
-//    sp<const Layer> that( mOwner.promote() );
-//    if (that != NULL) {
-//        res = that->mSurfaceFlingerConsumer->getBufferQueue();
-//    }
-//    return res;
-//}
 
 // ---------------------------------------------------------------------------
 // h/w composer set-up
@@ -499,6 +490,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
+    RenderEngine& engine(mFlinger->getRenderEngine());
+
     if (!blackOutLayer) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
@@ -509,49 +502,24 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         mSurfaceFlingerConsumer->getTransformMatrix(textureMatrix);
 
         // Set things up for texturing.
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
-        GLenum filter = GL_NEAREST;
-        if (useFiltering) {
-            filter = GL_LINEAR;
-        }
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
-        glMatrixMode(GL_TEXTURE);
-        glLoadMatrixf(textureMatrix);
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_2D);
-        glEnable(GL_TEXTURE_EXTERNAL_OES);
+        engine.setupLayerTexturing(mTextureName, useFiltering, textureMatrix);
     } else {
-        glBindTexture(GL_TEXTURE_2D, mFlinger->getProtectedTexName());
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
-        glEnable(GL_TEXTURE_2D);
+        engine.setupLayerBlackedOut();
     }
-
     drawWithOpenGL(hw, clip);
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+    engine.disableTexturing();
 }
 
 
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
         GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
 {
-    const uint32_t fbHeight = hw->getHeight();
-    glColor4f(red,green,blue,alpha);
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-
     LayerMesh mesh;
     computeGeometry(hw, &mesh);
 
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+    mFlinger->getRenderEngine().clearWithColor(
+        mesh.getVertices(), mesh.getVertexCount(),
+        red, green, blue, alpha);
 }
 
 void Layer::clearWithOpenGL(
@@ -559,101 +527,13 @@ void Layer::clearWithOpenGL(
     clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
-static void setupOpenGL10(bool premultipliedAlpha, bool opaque, int alpha) {
-    // OpenGL ES 1.0 doesn't support texture combiners.
-    // This path doesn't properly handle opaque layers that have non-opaque
-    // alpha values. The alpha channel will be copied into the framebuffer or
-    // screenshot, so if the framebuffer or screenshot is blended on top of
-    // something else,  whatever is below the window will incorrectly show
-    // through.
-    if (CC_UNLIKELY(alpha < 0xFF)) {
-        GLfloat floatAlpha = alpha * (1.0f / 255.0f);
-        if (premultipliedAlpha) {
-            glColor4f(floatAlpha, floatAlpha, floatAlpha, floatAlpha);
-        } else {
-            glColor4f(1.0f, 1.0f, 1.0f, floatAlpha);
-        }
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    } else {
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    }
-}
-
-static void setupOpenGL11(bool premultipliedAlpha, bool opaque, int alpha) {
-    GLenum combineRGB;
-    GLenum combineAlpha;
-    GLenum src0Alpha;
-    GLfloat envColor[4];
-
-    if (CC_UNLIKELY(alpha < 0xFF)) {
-        // Cv = premultiplied ? Cs*alpha : Cs
-        // Av = !opaque       ? alpha*As : 1.0
-        combineRGB   = premultipliedAlpha ? GL_MODULATE : GL_REPLACE;
-        combineAlpha = !opaque            ? GL_MODULATE : GL_REPLACE;
-        src0Alpha    = GL_CONSTANT;
-        envColor[0]  = alpha * (1.0f / 255.0f);
-    } else {
-        // Cv = Cs
-        // Av = opaque ? 1.0 : As
-        combineRGB   = GL_REPLACE;
-        combineAlpha = GL_REPLACE;
-        src0Alpha    = opaque ? GL_CONSTANT : GL_TEXTURE;
-        envColor[0]  = 1.0f;
-    }
-
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, combineRGB);
-    glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
-    glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
-    if (combineRGB == GL_MODULATE) {
-        glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
-        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
-    }
-    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, combineAlpha);
-    glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, src0Alpha);
-    glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
-    if (combineAlpha == GL_MODULATE) {
-        glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
-    }
-    if (combineRGB == GL_MODULATE || src0Alpha == GL_CONSTANT) {
-        envColor[1] = envColor[0];
-        envColor[2] = envColor[0];
-        envColor[3] = envColor[0];
-        glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, envColor);
-    }
-}
-
 void Layer::drawWithOpenGL(
         const sp<const DisplayDevice>& hw, const Region& clip) const {
     const uint32_t fbHeight = hw->getHeight();
     const State& s(getDrawingState());
 
-    if (mFlinger->getGlesVersion() == GLES_VERSION_1_0) {
-        setupOpenGL10(mPremultipliedAlpha, isOpaque(), s.alpha);
-    } else {
-        setupOpenGL11(mPremultipliedAlpha, isOpaque(), s.alpha);
-    }
-
-    if (s.alpha < 0xFF || !isOpaque()) {
-        glEnable(GL_BLEND);
-        glBlendFunc(mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA,
-                    GL_ONE_MINUS_SRC_ALPHA);
-    } else {
-        glDisable(GL_BLEND);
-    }
-
     LayerMesh mesh;
     computeGeometry(hw, &mesh);
-
-    // TODO: we probably want to generate the texture coords with the mesh
-    // here we assume that we only have 4 vertices
-
-    struct TexCoords {
-        GLfloat u;
-        GLfloat v;
-    };
-
 
     /*
      * NOTE: the way we compute the texture coordinates here produces
@@ -676,26 +556,25 @@ void Layer::drawWithOpenGL(
     GLfloat right  = GLfloat(win.right)  / GLfloat(s.active.w);
     GLfloat bottom = GLfloat(win.bottom) / GLfloat(s.active.h);
 
-    TexCoords texCoords[4];
-    texCoords[0].u = left;
-    texCoords[0].v = top;
-    texCoords[1].u = left;
-    texCoords[1].v = bottom;
-    texCoords[2].u = right;
-    texCoords[2].v = bottom;
-    texCoords[3].u = right;
-    texCoords[3].v = top;
+    // TODO: we probably want to generate the texture coords with the mesh
+    // here we assume that we only have 4 vertices
+    float texCoords[4][2];
+    texCoords[0][0] = left;
+    texCoords[0][1] = top;
+    texCoords[1][0] = left;
+    texCoords[1][1] = bottom;
+    texCoords[2][0] = right;
+    texCoords[2][1] = bottom;
+    texCoords[3][0] = right;
+    texCoords[3][1] = top;
     for (int i = 0; i < 4; i++) {
-        texCoords[i].v = 1.0f - texCoords[i].v;
+        texCoords[i][1] = 1.0f - texCoords[i][1];
     }
 
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
-
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisable(GL_BLEND);
+    RenderEngine& engine(mFlinger->getRenderEngine());
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
+    engine.drawMesh2D(mesh.getVertices(), texCoords, mesh.getVertexCount());
+    engine.disableBlending();
 }
 
 void Layer::setFiltering(bool filtering) {
@@ -1208,9 +1087,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         if (oldOpacity != isOpaque()) {
             recomputeVisibleRegions = true;
         }
-
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         // FIXME: postedRegion should be dirty & bounds
         const Layer::State& s(getDrawingState());
