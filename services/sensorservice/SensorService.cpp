@@ -240,7 +240,8 @@ void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& c
     status_t err = NO_ERROR;
     for (int i=0 ; i<count ; i++) {
         int handle = buffer[i].sensor;
-        if (getSensorType(handle) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+        int type = buffer[i].type;
+        if (type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
             if (connection->hasSensor(handle)) {
                 sensor = mSensorMap.valueFor(handle);
                 err = sensor ?sensor->resetStateWithoutActuatingHardware(connection.get(), handle)
@@ -279,7 +280,7 @@ bool SensorService::threadLoop()
         // Todo(): add a flag to the sensors definitions to indicate
         // the sensors which can wake up the AP
         for (int i = 0; i < count; i++) {
-            if (getSensorType(buffer[i].sensor) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+            if (buffer[i].type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
                  acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
                  wakeLockAcquired = true;
                  break;
@@ -331,7 +332,7 @@ bool SensorService::threadLoop()
         // handle backward compatibility for RotationVector sensor
         if (halVersion < SENSORS_DEVICE_API_VERSION_1_0) {
             for (int i = 0; i < count; i++) {
-                if (getSensorType(buffer[i].sensor) == SENSOR_TYPE_ROTATION_VECTOR) {
+                if (buffer[i].type == SENSOR_TYPE_ROTATION_VECTOR) {
                     // All the 4 components of the quaternion should be available
                     // No heading accuracy. Set it to -1
                     buffer[i].data[4] = -1;
@@ -418,18 +419,6 @@ String8 SensorService::getSensorName(int handle) const {
     String8 result("unknown");
     return result;
 }
-
-int SensorService::getSensorType(int handle) const {
-    size_t count = mUserSensorList.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const Sensor& sensor(mUserSensorList[i]);
-        if (sensor.getHandle() == handle) {
-            return sensor.getType();
-        }
-    }
-    return -1;
-}
-
 
 Vector<Sensor> SensorService::getSensorList()
 {
