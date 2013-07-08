@@ -122,6 +122,7 @@ typedef struct ASensorEvent {
         float           distance;
         float           light;
         float           pressure;
+        float           step_counter;
     };
     int32_t reserved1[4];
 } ASensorEvent;
