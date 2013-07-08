@@ -74,6 +74,7 @@ bool KeyEvent::hasDefaultAction(int32_t keyCode) {
         case AKEYCODE_MUTE:
         case AKEYCODE_BRIGHTNESS_DOWN:
         case AKEYCODE_BRIGHTNESS_UP:
+        case AKEYCODE_MEDIA_AUDIO_TRACK:
             return true;
     }
     
@@ -112,6 +113,7 @@ bool KeyEvent::isSystemKey(int32_t keyCode) {
         case AKEYCODE_SEARCH:
         case AKEYCODE_BRIGHTNESS_DOWN:
         case AKEYCODE_BRIGHTNESS_UP:
+        case AKEYCODE_MEDIA_AUDIO_TRACK:
             return true;
     }
     
