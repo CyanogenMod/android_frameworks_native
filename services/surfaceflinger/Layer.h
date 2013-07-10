@@ -43,6 +43,7 @@
 #include "Transform.h"
 
 #include "DisplayHardware/HWComposer.h"
+#include "DisplayHardware/FloatRect.h"
 
 namespace android {
 
@@ -279,12 +280,6 @@ public:
      */
     Rect getContentCrop() const;
 
-    /*
-     * returns the transform bits (90 rotation / h-flip / v-flip) of the
-     * layer's content
-     */
-    uint32_t getContentTransform() const;
-
     // -----------------------------------------------------------------------
 
     void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const;
@@ -334,7 +329,7 @@ private:
     bool needsFiltering(const sp<const DisplayDevice>& hw) const;
 
     uint32_t getEffectiveUsage(uint32_t usage) const;
-    Rect computeCrop(const sp<const DisplayDevice>& hw) const;
+    FloatRect computeCrop(const sp<const DisplayDevice>& hw) const;
     bool isCropped() const;
     static bool getOpacityForFormat(uint32_t format);
 

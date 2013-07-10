@@ -257,10 +257,6 @@ Rect Layer::getContentCrop() const {
     return crop;
 }
 
-uint32_t Layer::getContentTransform() const {
-    return mCurrentTransform;
-}
-
 static Rect reduce(const Rect& win, const Region& exclude) {
     if (CC_LIKELY(exclude.isEmpty())) {
         return win;
@@ -281,18 +277,10 @@ Rect Layer::computeBounds() const {
     return reduce(win, s.activeTransparentRegion);
 }
 
-Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
-    /*
-     * The way we compute the crop (aka. texture coordinates when we have a
-     * Layer) produces a different output from the GL code in
-     * drawWithOpenGL() due to HWC being limited to integers. The difference
-     * can be large if getContentTransform() contains a large scale factor.
-     * See comments in drawWithOpenGL() for more details.
-     */
-
+FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // the content crop is the area of the content that gets scaled to the
     // layer's size.
-    Rect crop(getContentCrop());
+    FloatRect crop(getContentCrop());
 
     // the active.crop is the area of the window that gets cropped, but not
     // scaled in any ways.
@@ -300,10 +288,10 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
 
     // apply the projection's clipping to the window crop in
     // layerstack space, and convert-back to layer space.
-    // if there are no window scaling (or content scaling) involved,
-    // this operation will map to full pixels in the buffer.
-    // NOTE: should we revert to GL composition if a scaling is involved
-    // since it cannot be represented in the HWC API?
+    // if there are no window scaling involved, this operation will map to full
+    // pixels in the buffer.
+    // FIXME: the 3 lines below can produce slightly incorrect clipping when we have
+    // a viewport clipping and a window transform. we should use floating point to fix this.
     Rect activeCrop(s.transform.transform(s.active.crop));
     activeCrop.intersect(hw->getViewport(), &activeCrop);
     activeCrop = s.transform.inverse().transform(activeCrop);
@@ -319,7 +307,7 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         // Transform the window crop to match the buffer coordinate system,
         // which means using the inverse of the current transform set on the
         // SurfaceFlingerConsumer.
-        uint32_t invTransform = getContentTransform();
+        uint32_t invTransform = mCurrentTransform;
         int winWidth = s.active.w;
         int winHeight = s.active.h;
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
@@ -331,15 +319,14 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         const Rect winCrop = activeCrop.transform(
                 invTransform, s.active.w, s.active.h);
 
-        // the code below essentially performs a scaled intersection
-        // of crop and winCrop
-        float xScale = float(crop.width()) / float(winWidth);
-        float yScale = float(crop.height()) / float(winHeight);
+        // below, crop is intersected with winCrop expressed in crop's coordinate space
+        float xScale = crop.getWidth()  / float(winWidth);
+        float yScale = crop.getHeight() / float(winHeight);
 
-        int insetL = int(ceilf( winCrop.left                * xScale));
-        int insetT = int(ceilf( winCrop.top                 * yScale));
-        int insetR = int(ceilf((winWidth  - winCrop.right ) * xScale));
-        int insetB = int(ceilf((winHeight - winCrop.bottom) * yScale));
+        float insetL = winCrop.left                 * xScale;
+        float insetT = winCrop.top                  * yScale;
+        float insetR = (winWidth  - winCrop.right ) * xScale;
+        float insetB = (winHeight - winCrop.bottom) * yScale;
 
         crop.left   += insetL;
         crop.top    += insetT;
