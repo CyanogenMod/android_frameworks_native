@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <math.h>
 
 #include <utils/CallStack.h>
 #include <utils/Errors.h>
@@ -880,10 +881,25 @@ public:
         getLayer()->transform = transform;
     }
     virtual void setFrame(const Rect& frame) {
-        reinterpret_cast<Rect&>(getLayer()->displayFrame) = frame;
+        getLayer()->displayFrame = reinterpret_cast<hwc_rect_t const&>(frame);
     }
-    virtual void setCrop(const Rect& crop) {
-        reinterpret_cast<Rect&>(getLayer()->sourceCrop) = crop;
+    virtual void setCrop(const FloatRect& crop) {
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
+            getLayer()->sourceCropf = reinterpret_cast<hwc_frect_t const&>(crop);
+        } else {
+            /*
+             * Since h/w composer didn't support a flot crop rect before version 1.3,
+             * using integer coordinates instead produces a different output from the GL code in
+             * Layer::drawWithOpenGL(). The difference can be large if the buffer crop to
+             * window size ratio is large and a window crop is defined
+             * (i.e.: if we scale the buffer a lot and we also crop it with a window crop).
+             */
+            hwc_rect_t& r = getLayer()->sourceCrop;
+            r.left  = int(ceilf(crop.left));
+            r.top   = int(ceilf(crop.top));
+            r.right = int(floorf(crop.right));
+            r.bottom= int(floorf(crop.bottom));
+        }
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
         // Region::getSharedBuffer creates a reference to the underlying
