@@ -53,38 +53,39 @@ int create_pkg_path_in_dir(char path[PKG_PATH_MAX],
 
 /**
  * Create the package path name for a given package name with a postfix for
- * a certain persona. Returns 0 on success, and -1 on failure.
+ * a certain userid. Returns 0 on success, and -1 on failure.
  */
 int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *pkgname,
                     const char *postfix,
-                    uid_t persona)
+                    userid_t userid)
 {
-    size_t uid_len;
-    char* persona_prefix;
-    if (persona == 0) {
-        persona_prefix = PRIMARY_USER_PREFIX;
-        uid_len = 0;
+    size_t userid_len;
+    char* userid_prefix;
+    if (userid == 0) {
+        userid_prefix = PRIMARY_USER_PREFIX;
+        userid_len = 0;
     } else {
-        persona_prefix = SECONDARY_USER_PREFIX;
-        uid_len = snprintf(NULL, 0, "%d", persona);
+        userid_prefix = SECONDARY_USER_PREFIX;
+        userid_len = snprintf(NULL, 0, "%d", userid);
     }
 
-    const size_t prefix_len = android_data_dir.len + strlen(persona_prefix) + uid_len + 1 /*slash*/;
+    const size_t prefix_len = android_data_dir.len + strlen(userid_prefix)
+            + userid_len + 1 /*slash*/;
     char prefix[prefix_len + 1];
 
     char *dst = prefix;
     size_t dst_size = sizeof(prefix);
 
     if (append_and_increment(&dst, android_data_dir.path, &dst_size) < 0
-            || append_and_increment(&dst, persona_prefix, &dst_size) < 0) {
+            || append_and_increment(&dst, userid_prefix, &dst_size) < 0) {
         ALOGE("Error building prefix for APK path");
         return -1;
     }
 
-    if (persona != 0) {
-        int ret = snprintf(dst, dst_size, "%d/", persona);
-        if (ret < 0 || (size_t) ret != uid_len + 1) {
+    if (userid != 0) {
+        int ret = snprintf(dst, dst_size, "%d/", userid);
+        if (ret < 0 || (size_t) ret != userid_len + 1) {
             ALOGW("Error appending UID to APK path");
             return -1;
         }
@@ -98,39 +99,39 @@ int create_pkg_path(char path[PKG_PATH_MAX],
 }
 
 /**
- * Create the path name for user data for a certain persona.
+ * Create the path name for user data for a certain userid.
  * Returns 0 on success, and -1 on failure.
  */
-int create_persona_path(char path[PKG_PATH_MAX],
-                    uid_t persona)
+int create_user_path(char path[PKG_PATH_MAX],
+                    userid_t userid)
 {
-    size_t uid_len;
-    char* persona_prefix;
-    if (persona == 0) {
-        persona_prefix = PRIMARY_USER_PREFIX;
-        uid_len = 0;
+    size_t userid_len;
+    char* userid_prefix;
+    if (userid == 0) {
+        userid_prefix = PRIMARY_USER_PREFIX;
+        userid_len = 0;
     } else {
-        persona_prefix = SECONDARY_USER_PREFIX;
-        uid_len = snprintf(NULL, 0, "%d/", persona);
+        userid_prefix = SECONDARY_USER_PREFIX;
+        userid_len = snprintf(NULL, 0, "%d/", userid);
     }
 
     char *dst = path;
     size_t dst_size = PKG_PATH_MAX;
 
     if (append_and_increment(&dst, android_data_dir.path, &dst_size) < 0
-            || append_and_increment(&dst, persona_prefix, &dst_size) < 0) {
+            || append_and_increment(&dst, userid_prefix, &dst_size) < 0) {
         ALOGE("Error building prefix for user path");
         return -1;
     }
 
-    if (persona != 0) {
-        if (dst_size < uid_len + 1) {
+    if (userid != 0) {
+        if (dst_size < userid_len + 1) {
             ALOGE("Error building user path");
             return -1;
         }
-        int ret = snprintf(dst, dst_size, "%d/", persona);
-        if (ret < 0 || (size_t) ret != uid_len) {
-            ALOGE("Error appending persona id to path");
+        int ret = snprintf(dst, dst_size, "%d/", userid);
+        if (ret < 0 || (size_t) ret != userid_len) {
+            ALOGE("Error appending userid to path");
             return -1;
         }
     }
@@ -138,10 +139,10 @@ int create_persona_path(char path[PKG_PATH_MAX],
 }
 
 /**
- * Create the path name for media for a certain persona.
+ * Create the path name for media for a certain userid.
  * Returns 0 on success, and -1 on failure.
  */
-int create_persona_media_path(char path[PATH_MAX], userid_t userid) {
+int create_user_media_path(char path[PATH_MAX], userid_t userid) {
     if (snprintf(path, PATH_MAX, "%s%d", android_media_dir.path, userid) > PATH_MAX) {
         return -1;
     }
@@ -151,7 +152,7 @@ int create_persona_media_path(char path[PATH_MAX], userid_t userid) {
 int create_move_path(char path[PKG_PATH_MAX],
     const char* pkgname,
     const char* leaf,
-    uid_t persona)
+    userid_t userid)
 {
     if ((android_data_dir.len + strlen(PRIMARY_USER_PREFIX) + strlen(pkgname) + strlen(leaf) + 1)
             >= PKG_PATH_MAX) {
@@ -997,7 +998,7 @@ int ensure_media_user_dirs(userid_t userid) {
     char path[PATH_MAX];
 
     // Ensure /data/media/<userid> exists
-    create_persona_media_path(media_user_path, userid);
+    create_user_media_path(media_user_path, userid);
     if (fs_prepare_dir(media_user_path, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
         return -1;
     }

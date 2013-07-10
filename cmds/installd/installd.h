@@ -78,9 +78,6 @@
 #define PKG_NAME_MAX  128   /* largest allowed package name */
 #define PKG_PATH_MAX  256   /* max size of any path we use */
 
-#define PER_USER_RANGE ((uid_t)100000)   /* range of uids per user
-                                            uid = persona * PER_USER_RANGE + appid */
-
 /* data structures */
 
 typedef struct {
@@ -138,17 +135,17 @@ int create_pkg_path_in_dir(char path[PKG_PATH_MAX],
 int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *pkgname,
                     const char *postfix,
-                    uid_t persona);
+                    userid_t userid);
 
-int create_persona_path(char path[PKG_PATH_MAX],
-                    uid_t persona);
+int create_user_path(char path[PKG_PATH_MAX],
+                    userid_t userid);
 
-int create_persona_media_path(char path[PKG_PATH_MAX], userid_t userid);
+int create_user_media_path(char path[PKG_PATH_MAX], userid_t userid);
 
 int create_move_path(char path[PKG_PATH_MAX],
                      const char* pkgname,
                      const char* leaf,
-                     uid_t persona);
+                     userid_t userid);
 
 int is_valid_package_name(const char* pkgname);
 
@@ -193,17 +190,17 @@ int ensure_media_user_dirs(userid_t userid);
 /* commands.c */
 
 int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo);
-int uninstall(const char *pkgname, uid_t persona);
+int uninstall(const char *pkgname, userid_t userid);
 int renamepkg(const char *oldpkgname, const char *newpkgname);
 int fix_uid(const char *pkgname, uid_t uid, gid_t gid);
-int delete_user_data(const char *pkgname, uid_t persona);
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona);
-int delete_persona(uid_t persona);
-int delete_cache(const char *pkgname, uid_t persona);
+int delete_user_data(const char *pkgname, userid_t userid);
+int make_user_data(const char *pkgname, uid_t uid, userid_t userid);
+int delete_user(userid_t userid);
+int delete_cache(const char *pkgname, userid_t userid);
 int move_dex(const char *src, const char *dst);
 int rm_dex(const char *path);
 int protect(char *pkgname, gid_t gid);
-int get_size(const char *pkgname, int persona, const char *apkpath, const char *libdirpath,
+int get_size(const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
              const char *fwdlock_apkpath, const char *asecpath, int64_t *codesize,
              int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
 int free_cache(int64_t free_size);
