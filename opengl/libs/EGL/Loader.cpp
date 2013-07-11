@@ -1,16 +1,16 @@
-/* 
+/*
  ** Copyright 2007, The Android Open Source Project
  **
- ** Licensed under the Apache License, Version 2.0 (the "License"); 
- ** you may not use this file except in compliance with the License. 
- ** You may obtain a copy of the License at 
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
  **
- **     http://www.apache.org/licenses/LICENSE-2.0 
+ **     http://www.apache.org/licenses/LICENSE-2.0
  **
- ** Unless required by applicable law or agreed to in writing, software 
- ** distributed under the License is distributed on an "AS IS" BASIS, 
- ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- ** See the License for the specific language governing permissions and 
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
 
@@ -56,9 +56,9 @@ namespace android {
  *
  * For backward compatibility and to facilitate the transition to
  * this new naming scheme, the loader will additionally look for:
- * 
+ *
  *      /{vendor|system}/lib/egl/lib{GLES | [EGL|GLESv1_CM|GLESv2]}_*.so
- * 
+ *
  */
 
 ANDROID_SINGLETON_STATIC_INSTANCE( Loader )
@@ -116,14 +116,14 @@ static char const * getProcessCmdline() {
 
 // ----------------------------------------------------------------------------
 
-Loader::driver_t::driver_t(void* gles) 
+Loader::driver_t::driver_t(void* gles)
 {
     dso[0] = gles;
     for (size_t i=1 ; i<NELEM(dso) ; i++)
         dso[i] = 0;
 }
 
-Loader::driver_t::~driver_t() 
+Loader::driver_t::~driver_t()
 {
     for (size_t i=0 ; i<NELEM(dso) ; i++) {
         if (dso[i]) {
@@ -161,11 +161,17 @@ Loader::~Loader() {
     GLTrace_stop();
 }
 
+static void* load_wrapper(const char* path) {
+    void* so = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    ALOGE_IF(!so, "dlopen(\"%s\") failed: %s", path, dlerror());
+    return so;
+}
+
 void* Loader::open(egl_connection_t* cnx)
 {
     void* dso;
     driver_t* hnd = 0;
-    
+
     dso = load_driver("GLES", cnx, EGL | GLESv1_CM | GLESv2);
     if (dso) {
         hnd = new driver_t(dso);
@@ -180,7 +186,12 @@ void* Loader::open(egl_connection_t* cnx)
     }
 
     LOG_ALWAYS_FATAL_IF(!hnd, "couldn't find an OpenGL ES implementation");
-    
+
+    cnx->libGles2 = load_wrapper("/system/lib/libGLESv2.so");
+    cnx->libGles1 = load_wrapper("/system/lib/libGLESv1_CM.so");
+    LOG_ALWAYS_FATAL_IF(!cnx->libGles2 || !cnx->libGles1,
+            "couldn't load system OpenGL ES wrapper libraries");
+
     return (void*)hnd;
 }
 
@@ -191,16 +202,16 @@ status_t Loader::close(void* driver)
     return NO_ERROR;
 }
 
-void Loader::init_api(void* dso, 
-        char const * const * api, 
-        __eglMustCastToProperFunctionPointerType* curr, 
-        getProcAddressType getProcAddress) 
+void Loader::init_api(void* dso,
+        char const * const * api,
+        __eglMustCastToProperFunctionPointerType* curr,
+        getProcAddressType getProcAddress)
 {
     const ssize_t SIZE = 256;
     char scrap[SIZE];
     while (*api) {
         char const * name = *api;
-        __eglMustCastToProperFunctionPointerType f = 
+        __eglMustCastToProperFunctionPointerType f =
             (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
         if (f == NULL) {
             // couldn't find the entry-point, use eglGetProcAddress()
@@ -360,7 +371,7 @@ void *Loader::load_driver(const char* kind,
     if (mask & EGL) {
         getProcAddress = (getProcAddressType)dlsym(dso, "eglGetProcAddress");
 
-        ALOGE_IF(!getProcAddress, 
+        ALOGE_IF(!getProcAddress,
                 "can't find eglGetProcAddress() in %s", driver_absolute_path);
 
 #ifdef SYSTEMUI_PBSIZE_HACK
@@ -398,7 +409,7 @@ void *Loader::load_driver(const char* kind,
         char const * const * api = egl_names;
         while (*api) {
             char const * name = *api;
-            __eglMustCastToProperFunctionPointerType f = 
+            __eglMustCastToProperFunctionPointerType f =
                 (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
             if (f == NULL) {
                 // couldn't find the entry-point, use eglGetProcAddress()
@@ -411,7 +422,7 @@ void *Loader::load_driver(const char* kind,
             api++;
         }
     }
-    
+
     if (mask & GLESv1_CM) {
         init_api(dso, gl_names,
             (__eglMustCastToProperFunctionPointerType*)
@@ -425,7 +436,7 @@ void *Loader::load_driver(const char* kind,
                 &cnx->hooks[egl_connection_t::GLESv2_INDEX]->gl,
             getProcAddress);
     }
-    
+
     return dso;
 }
 
