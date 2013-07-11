@@ -63,7 +63,7 @@ public:
     };
 
     enum {
-        MAX_DISPLAYS = HWC_NUM_DISPLAY_TYPES + 1
+        MAX_DISPLAYS = HWC_NUM_DISPLAY_TYPES
     };
 
     HWComposer(
