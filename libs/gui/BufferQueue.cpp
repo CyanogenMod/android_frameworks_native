@@ -807,7 +807,7 @@ void BufferQueue::freeAllBuffersLocked() {
     }
 }
 
-status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
+status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) {
     ATRACE_CALL();
     Mutex::Autolock _l(mMutex);
 
@@ -830,37 +830,67 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer) {
     // check if queue is empty
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    if (!mQueue.empty()) {
-        Fifo::iterator front(mQueue.begin());
-        int buf = front->mBuf;
-        *buffer = *front;
-        ATRACE_BUFFER_INDEX(buf);
-
-        ST_LOGV("acquireBuffer: acquiring { slot=%d/%llu, buffer=%p }",
-                front->mBuf, front->mFrameNumber,
-                front->mGraphicBuffer->handle);
-        // if front buffer still being tracked update slot state
-        if (stillTracking(front)) {
-            mSlots[buf].mAcquireCalled = true;
-            mSlots[buf].mNeedsCleanupOnRelease = false;
-            mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
-            mSlots[buf].mFence = Fence::NO_FENCE;
-        }
-
-        // If the buffer has previously been acquired by the consumer, set
-        // mGraphicBuffer to NULL to avoid unnecessarily remapping this
-        // buffer on the consumer side.
-        if (buffer->mAcquireCalled) {
-            buffer->mGraphicBuffer = NULL;
-        }
-
-        mQueue.erase(front);
-        mDequeueCondition.broadcast();
-
-        ATRACE_INT(mConsumerName.string(), mQueue.size());
-    } else {
+    if (mQueue.empty()) {
         return NO_BUFFER_AVAILABLE;
     }
+
+    Fifo::iterator front(mQueue.begin());
+    int buf = front->mBuf;
+
+    // Compare the buffer's desired presentation time to the predicted
+    // actual display time.
+    //
+    // The "presentWhen" argument indicates when the buffer is expected
+    // to be presented on-screen.  If the buffer's desired-present time
+    // is earlier (less) than presentWhen, meaning it'll be displayed
+    // on time or possibly late, we acquire and return it.  If we don't want
+    // to display it until after the presentWhen time, we return PRESENT_LATER
+    // without acquiring it.
+    //
+    // To be safe, we don't refuse to acquire the buffer if presentWhen is
+    // more than one second in the future beyond the desired present time
+    // (i.e. we'd be holding the buffer for a really long time).
+    const int MAX_FUTURE_NSEC = 1000000000ULL;
+    nsecs_t desiredPresent = front->mTimestamp;
+    if (presentWhen != 0 && desiredPresent > presentWhen &&
+            desiredPresent - presentWhen < MAX_FUTURE_NSEC)
+    {
+        ALOGV("pts defer: des=%lld when=%lld (%lld) now=%lld",
+                desiredPresent, presentWhen, desiredPresent - presentWhen,
+                systemTime(CLOCK_MONOTONIC));
+        return PRESENT_LATER;
+    }
+    if (presentWhen != 0) {
+        ALOGV("pts accept: %p[%d] sig=%lld des=%lld when=%lld (%lld)",
+                mSlots, buf, mSlots[buf].mFence->getSignalTime(),
+                desiredPresent, presentWhen, desiredPresent - presentWhen);
+    }
+
+    *buffer = *front;
+    ATRACE_BUFFER_INDEX(buf);
+
+    ST_LOGV("acquireBuffer: acquiring { slot=%d/%llu, buffer=%p }",
+            front->mBuf, front->mFrameNumber,
+            front->mGraphicBuffer->handle);
+    // if front buffer still being tracked update slot state
+    if (stillTracking(front)) {
+        mSlots[buf].mAcquireCalled = true;
+        mSlots[buf].mNeedsCleanupOnRelease = false;
+        mSlots[buf].mBufferState = BufferSlot::ACQUIRED;
+        mSlots[buf].mFence = Fence::NO_FENCE;
+    }
+
+    // If the buffer has previously been acquired by the consumer, set
+    // mGraphicBuffer to NULL to avoid unnecessarily remapping this
+    // buffer on the consumer side.
+    if (buffer->mAcquireCalled) {
+        buffer->mGraphicBuffer = NULL;
+    }
+
+    mQueue.erase(front);
+    mDequeueCondition.broadcast();
+
+    ATRACE_INT(mConsumerName.string(), mQueue.size());
 
     return NO_ERROR;
 }

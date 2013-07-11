@@ -51,6 +51,9 @@ public:
 
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
+
+private:
+    nsecs_t computeExpectedPresent();
 };
 
 // ----------------------------------------------------------------------------

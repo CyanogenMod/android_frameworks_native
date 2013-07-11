@@ -79,7 +79,7 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
     Mutex::Autolock _l(mMutex);
 
-    err = acquireBufferLocked(&b);
+    err = acquireBufferLocked(&b, 0);
     if (err != OK) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             return BAD_VALUE;

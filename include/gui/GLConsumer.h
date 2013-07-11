@@ -237,7 +237,8 @@ protected:
 
     // acquireBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase behavior.
-    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item);
+    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item,
+        nsecs_t presentWhen);
 
     // releaseBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase.

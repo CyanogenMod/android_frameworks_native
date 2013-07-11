@@ -83,7 +83,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     Mutex::Autolock lock(mMutex);
 
     BufferQueue::BufferItem item;
-    status_t err = acquireBufferLocked(&item);
+    status_t err = acquireBufferLocked(&item, 0);
     if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
         outBuffer = mCurrentBuffer;
         return NO_ERROR;

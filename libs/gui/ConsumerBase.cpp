@@ -182,8 +182,9 @@ void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
     }
 }
 
-status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item) {
-    status_t err = mBufferQueue->acquireBuffer(item);
+status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item,
+        nsecs_t presentWhen) {
+    status_t err = mBufferQueue->acquireBuffer(item, presentWhen);
     if (err != NO_ERROR) {
         return err;
     }
