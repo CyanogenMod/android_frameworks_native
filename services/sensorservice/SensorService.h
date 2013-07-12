@@ -115,8 +115,10 @@ class SensorService :
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
     Sensor registerVirtualSensor(SensorInterface* sensor);
-    status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
-            int handle);
+    status_t cleanupWithoutDisable(
+            const sp<SensorEventConnection>& connection, int handle);
+    status_t cleanupWithoutDisableLocked(
+            const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
             sensors_event_t const* buffer, const int count);
 
