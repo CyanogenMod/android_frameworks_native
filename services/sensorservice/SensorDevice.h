@@ -56,7 +56,7 @@ public:
     ssize_t poll(sensors_event_t* buffer, size_t count);
     status_t activate(void* ident, int handle, int enabled);
     status_t setDelay(void* ident, int handle, int64_t ns);
-    status_t resetStateWithoutActuatingHardware(void *ident, int handle);
+    void autoDisable(void *ident, int handle);
     void dump(String8& result, char* buffer, size_t SIZE);
 };
 
