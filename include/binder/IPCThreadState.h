@@ -39,8 +39,8 @@ public:
             
             status_t            clearLastError();
 
-            int                 getCallingPid();
-            int                 getCallingUid();
+            int                 getCallingPid() const;
+            int                 getCallingUid() const;
 
             void                setStrictModePolicy(int32_t policy);
             int32_t             getStrictModePolicy() const;

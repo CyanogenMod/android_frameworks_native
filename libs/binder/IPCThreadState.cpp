@@ -362,12 +362,12 @@ status_t IPCThreadState::clearLastError()
     return err;
 }
 
-int IPCThreadState::getCallingPid()
+int IPCThreadState::getCallingPid() const
 {
     return mCallingPid;
 }
 
-int IPCThreadState::getCallingUid()
+int IPCThreadState::getCallingUid() const
 {
     return mCallingUid;
 }
