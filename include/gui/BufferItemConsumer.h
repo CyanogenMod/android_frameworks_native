@@ -29,6 +29,8 @@
 
 namespace android {
 
+class BufferQueue;
+
 /**
  * BufferItemConsumer is a BufferQueue consumer endpoint that allows clients
  * access to the whole BufferItem entry from BufferQueue. Multiple buffers may
@@ -49,7 +51,7 @@ class BufferItemConsumer: public ConsumerBase
     // the consumer usage flags passed to the graphics allocator. The
     // bufferCount parameter specifies how many buffers can be locked for user
     // access at the same time.
-    BufferItemConsumer(uint32_t consumerUsage,
+    BufferItemConsumer(const sp<BufferQueue>& bq, uint32_t consumerUsage,
             int bufferCount = BufferQueue::MIN_UNDEQUEUED_BUFFERS,
             bool synchronousMode = false);
 

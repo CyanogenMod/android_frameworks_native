@@ -110,8 +110,8 @@ void Layer::onFirstRef()
 {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
     sp<BufferQueue> bq = new SurfaceTextureLayer(mFlinger);
-    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mTextureName, true,
-            GL_TEXTURE_EXTERNAL_OES, false, bq);
+    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(bq, mTextureName,
+            GL_TEXTURE_EXTERNAL_OES, false);
 
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setFrameAvailableListener(this);

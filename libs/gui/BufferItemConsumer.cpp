@@ -29,9 +29,9 @@
 
 namespace android {
 
-BufferItemConsumer::BufferItemConsumer(uint32_t consumerUsage,
-        int bufferCount, bool synchronousMode) :
-    ConsumerBase(new BufferQueue(true) )
+BufferItemConsumer::BufferItemConsumer(const sp<BufferQueue>& bq,
+        uint32_t consumerUsage, int bufferCount, bool synchronousMode) :
+    ConsumerBase(bq)
 {
     mBufferQueue->setConsumerUsageBits(consumerUsage);
     mBufferQueue->setSynchronousMode(synchronousMode);
