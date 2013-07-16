@@ -85,6 +85,9 @@ public:
     // purely to allow a GLConsumer to be transferred from one consumer
     // context to another. If such a transfer is not needed there is no
     // requirement that either of these methods be called.
+    GLConsumer(const sp<BufferQueue>& bq,
+            GLuint tex, GLenum texTarget = GL_TEXTURE_EXTERNAL_OES,
+            bool useFenceSync = true);
     GLConsumer(GLuint tex, bool allowSynchronousMode = true,
             GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
             const sp<BufferQueue> &bufferQueue = 0);

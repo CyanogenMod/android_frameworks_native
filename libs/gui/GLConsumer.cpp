@@ -78,6 +78,13 @@ static float mtxRot90[16] = {
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
 
+GLConsumer::GLConsumer(const sp<BufferQueue>& bq, GLuint tex,
+        GLenum texTarget, bool useFenceSync) :
+    ConsumerBase(bq),
+    mUseFenceSync(useFenceSync),
+    mTexTarget(texTarget) {}
+
+
 GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
         GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
     ConsumerBase(bufferQueue == 0 ? new BufferQueue(allowSynchronousMode) : bufferQueue),
