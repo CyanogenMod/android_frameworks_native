@@ -17,7 +17,6 @@
 #include <math.h>
 
 #include <binder/Parcel.h>
-#include <core/SkMatrix.h>
 #include <gtest/gtest.h>
 #include <input/Input.h>
 
@@ -519,6 +518,20 @@ TEST_F(MotionEventTest, Parcel) {
     ASSERT_NO_FATAL_FAILURE(assertEqualsEventWithHistory(&outEvent));
 }
 
+static void setRotationMatrix(float matrix[9], float angle) {
+    float sin = sinf(angle);
+    float cos = cosf(angle);
+    matrix[0] = cos;
+    matrix[1] = -sin;
+    matrix[2] = 0;
+    matrix[3] = sin;
+    matrix[4] = cos;
+    matrix[5] = 0;
+    matrix[6] = 0;
+    matrix[7] = 0;
+    matrix[8] = 1.0f;
+}
+
 TEST_F(MotionEventTest, Transform) {
     // Generate some points on a circle.
     // Each point 'i' is a point on a circle of radius ROTATION centered at (3,2) at an angle
@@ -561,9 +574,9 @@ TEST_F(MotionEventTest, Transform) {
     ASSERT_NEAR(originalRawY, event.getRawY(0), 0.001);
 
     // Apply a rotation about the origin by ROTATION degrees clockwise.
-    SkMatrix matrix;
-    matrix.setRotate(ROTATION);
-    event.transform(&matrix);
+    float matrix[9];
+    setRotationMatrix(matrix, ROTATION * PI_180);
+    event.transform(matrix);
 
     // Check the points.
     for (size_t i = 0; i < pointerCount; i++) {
