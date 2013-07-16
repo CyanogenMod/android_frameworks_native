@@ -302,7 +302,7 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         // slot and fence as we just queued.
         Mutex::Autolock lock(mMutex);
         BufferQueue::BufferItem item;
-        result = acquireBufferLocked(&item);
+        result = acquireBufferLocked(&item, 0);
         if (result != NO_ERROR)
             return result;
         VDS_LOGW_IF(item.mBuf != sslot,
