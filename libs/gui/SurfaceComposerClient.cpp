@@ -633,7 +633,8 @@ ScreenshotClient::~ScreenshotClient() {
 
 sp<CpuConsumer> ScreenshotClient::getCpuConsumer() const {
     if (mCpuConsumer == NULL) {
-        mCpuConsumer = new CpuConsumer(1);
+        sp<BufferQueue> bq = new BufferQueue();
+        mCpuConsumer = new CpuConsumer(bq, 1);
         mCpuConsumer->setName(String8("ScreenshotClient"));
     }
     return mCpuConsumer;

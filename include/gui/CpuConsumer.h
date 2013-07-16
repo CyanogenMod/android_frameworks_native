@@ -28,6 +28,8 @@
 
 namespace android {
 
+class BufferQueue;
+
 /**
  * CpuConsumer is a BufferQueue consumer endpoint that allows direct CPU
  * access to the underlying gralloc buffers provided by BufferQueue. Multiple
@@ -64,7 +66,8 @@ class CpuConsumer : public ConsumerBase
 
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies
     // how many buffers can be locked for user access at the same time.
-    CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode = true);
+    CpuConsumer(const sp<BufferQueue>& bq,
+            uint32_t maxLockedBuffers, bool synchronousMode = true);
 
     virtual ~CpuConsumer();
 

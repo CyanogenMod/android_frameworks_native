@@ -385,7 +385,8 @@ protected:
 
     virtual void SetUp() {
         GLTest::SetUp();
-        mGlConsumer = new GLConsumer(TEX_ID);
+        sp<BufferQueue> bq = new BufferQueue();
+        mGlConsumer = new GLConsumer(bq, TEX_ID);
         mSurface = new Surface(mGlConsumer->getBufferQueue());
         mANW = mSurface.get();
 
@@ -479,7 +480,8 @@ protected:
 
     virtual void SetUp() {
         GLTest::SetUp();
-        mST = new GLConsumer(TEX_ID);
+        sp<BufferQueue> bq = new BufferQueue();
+        mST = new GLConsumer(bq, TEX_ID);
         mSTC = new Surface(mST->getBufferQueue());
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);

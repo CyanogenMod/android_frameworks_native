@@ -30,8 +30,9 @@
 
 namespace android {
 
-CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode) :
-    ConsumerBase(new BufferQueue(true) ),
+CpuConsumer::CpuConsumer(const sp<BufferQueue>& bq,
+        uint32_t maxLockedBuffers, bool synchronousMode) :
+    ConsumerBase(bq),
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
