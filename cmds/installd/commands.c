@@ -108,11 +108,11 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
     return 0;
 }
 
-int uninstall(const char *pkgname, uid_t persona)
+int uninstall(const char *pkgname, userid_t userid)
 {
     char pkgdir[PKG_PATH_MAX];
 
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, persona))
+    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
         return -1;
 
     /* delete contents AND directory, no exceptions */
@@ -173,18 +173,18 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
     return 0;
 }
 
-int delete_user_data(const char *pkgname, uid_t persona)
+int delete_user_data(const char *pkgname, userid_t userid)
 {
     char pkgdir[PKG_PATH_MAX];
 
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, persona))
+    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
         return -1;
 
     /* delete contents, excluding "lib", but not the directory itself */
     return delete_dir_contents(pkgdir, 0, "lib");
 }
 
-int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
+int make_user_data(const char *pkgname, uid_t uid, userid_t userid)
 {
     char pkgdir[PKG_PATH_MAX];
     char applibdir[PKG_PATH_MAX];
@@ -192,10 +192,10 @@ int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
     struct stat libStat;
 
     // Create the data dir for the package
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, persona)) {
+    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid)) {
         return -1;
     }
-    if (create_pkg_path(libsymlink, pkgname, PKG_LIB_POSTFIX, persona)) {
+    if (create_pkg_path(libsymlink, pkgname, PKG_LIB_POSTFIX, userid)) {
         ALOGE("cannot create package lib symlink origin path\n");
         return -1;
     }
@@ -262,10 +262,10 @@ int make_user_data(const char *pkgname, uid_t uid, uid_t persona)
     return 0;
 }
 
-int delete_persona(uid_t persona)
+int delete_user(userid_t userid)
 {
     char data_path[PKG_PATH_MAX];
-    if (create_persona_path(data_path, persona)) {
+    if (create_user_path(data_path, userid)) {
         return -1;
     }
     if (delete_dir_contents(data_path, 1, NULL)) {
@@ -273,7 +273,7 @@ int delete_persona(uid_t persona)
     }
 
     char media_path[PATH_MAX];
-    if (create_persona_media_path(media_path, (userid_t) persona) == -1) {
+    if (create_user_media_path(media_path, userid) == -1) {
         return -1;
     }
     if (delete_dir_contents(media_path, 1, NULL) == -1) {
@@ -283,11 +283,11 @@ int delete_persona(uid_t persona)
     return 0;
 }
 
-int delete_cache(const char *pkgname, uid_t persona)
+int delete_cache(const char *pkgname, userid_t userid)
 {
     char cachedir[PKG_PATH_MAX];
 
-    if (create_pkg_path(cachedir, pkgname, CACHE_DIR_POSTFIX, persona))
+    if (create_pkg_path(cachedir, pkgname, CACHE_DIR_POSTFIX, userid))
         return -1;
 
         /* delete contents, not the directory, no exceptions */
@@ -319,7 +319,7 @@ int free_cache(int64_t free_size)
     cache = start_cache_collection();
 
     // Collect cache files for primary user.
-    if (create_persona_path(tmpdir, 0) == 0) {
+    if (create_user_path(tmpdir, 0) == 0) {
         //ALOGI("adding cache files from %s\n", tmpdir);
         add_cache_files(cache, tmpdir, "cache");
     }
@@ -420,7 +420,7 @@ int rm_dex(const char *path)
     }
 }
 
-int get_size(const char *pkgname, int persona, const char *apkpath,
+int get_size(const char *pkgname, userid_t userid, const char *apkpath,
              const char *libdirpath, const char *fwdlock_apkpath, const char *asecpath,
              int64_t *_codesize, int64_t *_datasize, int64_t *_cachesize,
              int64_t* _asecsize)
@@ -477,7 +477,7 @@ int get_size(const char *pkgname, int persona, const char *apkpath,
         }
     }
 
-    if (create_pkg_path(path, pkgname, PKG_DIR_POSTFIX, persona)) {
+    if (create_pkg_path(path, pkgname, PKG_DIR_POSTFIX, userid)) {
         goto done;
     }
 
