@@ -72,6 +72,10 @@ sp<IGraphicBufferProducer> FramebufferSurface::getIGraphicBufferProducer() const
     return getBufferQueue();
 }
 
+status_t FramebufferSurface::prepareFrame(CompositionType compositionType) {
+    return NO_ERROR;
+}
+
 status_t FramebufferSurface::advanceFrame() {
     // Once we remove FB HAL support, we can call nextBuffer() from here
     // instead of using onFrameAvailable(). No real benefit, except it'll be

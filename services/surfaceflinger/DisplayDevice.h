@@ -119,6 +119,8 @@ public:
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
     const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
 
+    status_t prepareFrame(const HWComposer& hwc) const;
+
     void swapBuffers(HWComposer& hwc) const;
     status_t compositionComplete() const;
 

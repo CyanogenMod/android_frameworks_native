@@ -16,9 +16,6 @@
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
-// Uncomment this to remove support for HWC_DEVICE_API_VERSION_0_3 and older
-#define HWC_REMOVE_DEPRECATED_VERSIONS 1
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,9 +48,9 @@
 
 namespace android {
 
-// This is not a real HWC version. It's used for in-development features that
-// haven't been committed to a specific real HWC version.
-#define HWC_DEVICE_API_VERSION_1_EXP HARDWARE_DEVICE_API_VERSION_2(1, 0xFF, HWC_HEADER_VERSION)
+#ifndef HWC_DEVICE_API_VERSION_1_3
+#define HWC_DEVICE_API_VERSION_1_3 HARDWARE_DEVICE_API_VERSION_2(1, 3, HWC_HEADER_VERSION)
+#endif
 
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
 
@@ -157,8 +154,8 @@ HWComposer::HWComposer(
 
         // the number of displays we actually have depends on the
         // hw composer version
-        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
-            // 1.?? adds support for virtual displays
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
+            // 1.3 adds support for virtual displays
             mNumDisplays = MAX_DISPLAYS;
         } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // 1.1 adds support for multiple displays
@@ -583,7 +580,7 @@ status_t HWComposer::prepare() {
         }
         mLists[i] = disp.list;
         if (mLists[i]) {
-            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_EXP)) {
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
                 mLists[i]->outbuf = NULL;
                 mLists[i]->outbufAcquireFenceFd = -1;
             } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {

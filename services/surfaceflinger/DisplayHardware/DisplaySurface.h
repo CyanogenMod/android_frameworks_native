@@ -32,6 +32,18 @@ class DisplaySurface : public virtual RefBase {
 public:
     virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const = 0;
 
+    // prepareFrame is called after the composition configuration is known but
+    // before composition takes place. The DisplaySurface can use the
+    // composition type to decide how to manage the flow of buffers between
+    // GLES and HWC for this frame.
+    enum CompositionType {
+        COMPOSITION_UNKNOWN = 0,
+        COMPOSITION_GLES    = 1,
+        COMPOSITION_HWC     = 2,
+        COMPOSITION_MIXED   = COMPOSITION_GLES | COMPOSITION_HWC
+    };
+    virtual status_t prepareFrame(CompositionType compositionType) = 0;
+
     // Should be called when composition rendering is complete for a frame (but
     // eglSwapBuffers hasn't necessarily been called). Required by certain
     // older drivers for synchronization.

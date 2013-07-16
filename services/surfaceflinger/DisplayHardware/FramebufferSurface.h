@@ -41,6 +41,7 @@ public:
 
     virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
 
+    virtual status_t prepareFrame(CompositionType compositionType);
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
