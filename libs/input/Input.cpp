@@ -24,10 +24,6 @@
 
 #ifdef HAVE_ANDROID_OS
 #include <binder/Parcel.h>
-
-#include "SkPoint.h"
-#include "SkMatrix.h"
-#include "SkScalar.h"
 #endif
 
 namespace android {
@@ -421,17 +417,30 @@ void MotionEvent::scale(float scaleFactor) {
     }
 }
 
-#ifdef HAVE_ANDROID_OS
-static inline float transformAngle(const SkMatrix* matrix, float angleRadians) {
+static void transformPoint(const float matrix[9], float x, float y, float *outX, float *outY) {
+    // Apply perspective transform like Skia.
+    float newX = matrix[0] * x + matrix[1] * y + matrix[2];
+    float newY = matrix[3] * x + matrix[4] * y + matrix[5];
+    float newZ = matrix[6] * x + matrix[7] * y + matrix[8];
+    if (newZ) {
+        newZ = 1.0f / newZ;
+    }
+    *outX = newX * newZ;
+    *outY = newY * newZ;
+}
+
+static float transformAngle(const float matrix[9], float angleRadians,
+        float originX, float originY) {
     // Construct and transform a vector oriented at the specified clockwise angle from vertical.
     // Coordinate system: down is increasing Y, right is increasing X.
-    SkPoint vector;
-    vector.fX = SkFloatToScalar(sinf(angleRadians));
-    vector.fY = SkFloatToScalar(-cosf(angleRadians));
-    matrix->mapVectors(& vector, 1);
+    float x = sinf(angleRadians);
+    float y = -cosf(angleRadians);
+    transformPoint(matrix, x, y, &x, &y);
+    x -= originX;
+    y -= originY;
 
     // Derive the transformed vector's clockwise angle from vertical.
-    float result = atan2f(SkScalarToFloat(vector.fX), SkScalarToFloat(-vector.fY));
+    float result = atan2f(x, -y);
     if (result < - M_PI_2) {
         result += M_PI;
     } else if (result > M_PI_2) {
@@ -440,25 +449,24 @@ static inline float transformAngle(const SkMatrix* matrix, float angleRadians) {
     return result;
 }
 
-void MotionEvent::transform(const SkMatrix* matrix) {
-    float oldXOffset = mXOffset;
-    float oldYOffset = mYOffset;
-
+void MotionEvent::transform(const float matrix[9]) {
     // The tricky part of this implementation is to preserve the value of
     // rawX and rawY.  So we apply the transformation to the first point
-    // then derive an appropriate new X/Y offset that will preserve rawX and rawY.
-    SkPoint point;
+    // then derive an appropriate new X/Y offset that will preserve rawX
+     // and rawY for that point.
+    float oldXOffset = mXOffset;
+    float oldYOffset = mYOffset;
+    float newX, newY;
     float rawX = getRawX(0);
     float rawY = getRawY(0);
-    matrix->mapXY(SkFloatToScalar(rawX + oldXOffset), SkFloatToScalar(rawY + oldYOffset),
-            & point);
-    float newX = SkScalarToFloat(point.fX);
-    float newY = SkScalarToFloat(point.fY);
-    float newXOffset = newX - rawX;
-    float newYOffset = newY - rawY;
+    transformPoint(matrix, rawX + oldXOffset, rawY + oldYOffset, &newX, &newY);
+    mXOffset = newX - rawX;
+    mYOffset = newY - rawY;
 
-    mXOffset = newXOffset;
-    mYOffset = newYOffset;
+    // Determine how the origin is transformed by the matrix so that we
+    // can transform orientation vectors.
+    float originX, originY;
+    transformPoint(matrix, 0, 0, &originX, &originY);
 
     // Apply the transformation to all samples.
     size_t numSamples = mSamplePointerCoords.size();
@@ -466,15 +474,17 @@ void MotionEvent::transform(const SkMatrix* matrix) {
         PointerCoords& c = mSamplePointerCoords.editItemAt(i);
         float x = c.getAxisValue(AMOTION_EVENT_AXIS_X) + oldXOffset;
         float y = c.getAxisValue(AMOTION_EVENT_AXIS_Y) + oldYOffset;
-        matrix->mapXY(SkFloatToScalar(x), SkFloatToScalar(y), &point);
-        c.setAxisValue(AMOTION_EVENT_AXIS_X, SkScalarToFloat(point.fX) - newXOffset);
-        c.setAxisValue(AMOTION_EVENT_AXIS_Y, SkScalarToFloat(point.fY) - newYOffset);
+        transformPoint(matrix, x, y, &x, &y);
+        c.setAxisValue(AMOTION_EVENT_AXIS_X, x - mXOffset);
+        c.setAxisValue(AMOTION_EVENT_AXIS_Y, y - mYOffset);
 
         float orientation = c.getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION);
-        c.setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION, transformAngle(matrix, orientation));
+        c.setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION,
+                transformAngle(matrix, orientation, originX, originY));
     }
 }
 
+#ifdef HAVE_ANDROID_OS
 status_t MotionEvent::readFromParcel(Parcel* parcel) {
     size_t pointerCount = parcel->readInt32();
     size_t sampleCount = parcel->readInt32();

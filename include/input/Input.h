@@ -529,9 +529,28 @@ public:
 
     void scale(float scaleFactor);
 
-#ifdef HAVE_ANDROID_OS
-    void transform(const SkMatrix* matrix);
+    // Apply 3x3 perspective matrix transformation.
+    // Matrix is in row-major form and compatible with SkMatrix.
+    void transform(const float matrix[9]);
 
+#ifdef SkMatrix_DEFINED
+    // Helper for interoperating with Skia matrices since Skia isn't part of the PDK.
+    inline void transform(const SkMatrix* matrix) {
+        float m[9];
+        m[0] = SkScalarToFloat(matrix->get(SkMatrix::kMScaleX));
+        m[1] = SkScalarToFloat(matrix->get(SkMatrix::kMSkewX));
+        m[2] = SkScalarToFloat(matrix->get(SkMatrix::kMTransX));
+        m[3] = SkScalarToFloat(matrix->get(SkMatrix::kMSkewY));
+        m[4] = SkScalarToFloat(matrix->get(SkMatrix::kMScaleY));
+        m[5] = SkScalarToFloat(matrix->get(SkMatrix::kMTransY));
+        m[6] = SkScalarToFloat(matrix->get(SkMatrix::kMPersp0));
+        m[7] = SkScalarToFloat(matrix->get(SkMatrix::kMPersp1));
+        m[8] = SkScalarToFloat(matrix->get(SkMatrix::kMPersp2));
+        transform(m);
+    }
+#endif
+
+#ifdef HAVE_ANDROID_OS
     status_t readFromParcel(Parcel* parcel);
     status_t writeToParcel(Parcel* parcel) const;
 #endif
