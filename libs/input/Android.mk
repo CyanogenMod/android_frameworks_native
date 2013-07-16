@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(TARGET_BUILD_PDK),true)
-
 LOCAL_PATH:= $(call my-dir)
 
 # libinput is partially built for the host (used by build time keymap validation tool)
@@ -62,14 +60,7 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libcutils \
 	libutils \
-	libbinder \
-	libskia \
-	libz
-
-LOCAL_C_INCLUDES := \
-    external/skia/include/core \
-    external/icu4c/common \
-	external/zlib
+	libbinder
 
 LOCAL_MODULE:= libinput
 
@@ -86,5 +77,3 @@ include $(BUILD_SHARED_LIBRARY)
 ifeq (,$(ONE_SHOT_MAKEFILE))
 include $(call first-makefiles-under,$(LOCAL_PATH))
 endif
-
-endif #!PDK
