@@ -14,8 +14,7 @@ shared_libraries := \
     libutils \
     libbinder \
     libui \
-    libstlport \
-    libskia
+    libstlport
 
 static_libraries := \
     libgtest \
