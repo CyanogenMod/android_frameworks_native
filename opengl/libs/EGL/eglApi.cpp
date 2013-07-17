@@ -295,7 +295,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
         if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) != OK) {
             ALOGE("EGLNativeWindowType %p already connected to another API",
                     window);
-            return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
+            return setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
 
         // set the native window's buffers format to match this config
