@@ -964,6 +964,11 @@ void SurfaceFlinger::postFramebuffer()
 
     mLastSwapBufferTime = systemTime() - now;
     mDebugInSwapBuffers = 0;
+
+    uint32_t flipCount = getDefaultDisplayDevice()->getPageFlipCount();
+    if (flipCount % LOG_FRAME_STATS_PERIOD == 0) {
+        logFrameStats();
+    }
 }
 
 void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
@@ -1972,6 +1977,10 @@ void SurfaceFlinger::onInitializeDisplays() {
     displays.add(d);
     setTransactionState(state, displays, 0);
     onScreenAcquired(getDefaultDisplayDevice());
+
+    const nsecs_t period =
+            getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+    mAnimFrameTracker.setDisplayRefreshPeriod(period);
 }
 
 void SurfaceFlinger::initializeDisplays() {
@@ -2203,6 +2212,19 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
     }
 
     mAnimFrameTracker.clear();
+}
+
+// This should only be called from the main thread.  Otherwise it would need
+// the lock and should use mCurrentState rather than mDrawingState.
+void SurfaceFlinger::logFrameStats() {
+    const LayerVector& drawingLayers = mDrawingState.layersSortedByZ;
+    const size_t count = drawingLayers.size();
+    for (size_t i=0 ; i<count ; i++) {
+        const sp<Layer>& layer(drawingLayers[i]);
+        layer->logFrameStats();
+    }
+
+    mAnimFrameTracker.logAndResetStats(String8("<win-anim>"));
 }
 
 /*static*/ void SurfaceFlinger::appendSfConfigString(String8& result)

@@ -43,6 +43,8 @@ public:
     // frame time history.
     enum { NUM_FRAME_RECORDS = 128 };
 
+    enum { NUM_FRAME_BUCKETS = 7 };
+
     FrameTracker();
 
     // setDesiredPresentTime sets the time at which the current frame
@@ -68,11 +70,20 @@ public:
     // at which the current frame became visible to the user.
     void setActualPresentFence(const sp<Fence>& fence);
 
+    // setDisplayRefreshPeriod sets the display refresh period in nanoseconds.
+    // This is used to compute frame presentation duration statistics relative
+    // to this period.
+    void setDisplayRefreshPeriod(nsecs_t displayPeriod);
+
     // advanceFrame advances the frame tracker to the next frame.
     void advanceFrame();
 
     // clear resets all the tracked frame data to zero.
     void clear();
+
+    // logAndResetStats dumps the current statistics to the binary event log
+    // and then resets the accumulated statistics to their initial values.
+    void logAndResetStats(const String8& name);
 
     // dump appends the current frame display time history to the result string.
     void dump(String8& result) const;
@@ -99,6 +110,21 @@ private:
     // change.  This allows it to be called from the dump method.
     void processFencesLocked() const;
 
+    // updateStatsLocked updates the running statistics that are gathered
+    // about the frame times.
+    void updateStatsLocked(size_t newFrameIdx) const;
+
+    // resetFrameCounteresLocked sets all elements of the mNumFrames array to
+    // 0.
+    void resetFrameCountersLocked();
+
+    // logStatsLocked dumps the current statistics to the binary event log.
+    void logStatsLocked(const String8& name) const;
+
+    // isFrameValidLocked returns true if the data for the given frame index is
+    // valid and has all arrived (i.e. there are no oustanding fences).
+    bool isFrameValidLocked(size_t idx) const;
+
     // mFrameRecords is the circular buffer storing the tracked data for each
     // frame.
     FrameRecord mFrameRecords[NUM_FRAME_RECORDS];
@@ -114,6 +140,17 @@ private:
     // The number of fences is tracked so that the run time of processFences
     // doesn't grow with NUM_FRAME_RECORDS.
     int mNumFences;
+
+    // mNumFrames keeps a count of the number of frames with a duration in a
+    // particular range of vsync periods.  Element n of the array stores the
+    // number of frames with duration in the half-inclusive range
+    // [2^n, 2^(n+1)).  The last element of the array contains the count for
+    // all frames with duration greater than 2^(NUM_FRAME_BUCKETS-1).
+    int32_t mNumFrames[NUM_FRAME_BUCKETS];
+
+    // mDisplayPeriod is the display refresh period of the display for which
+    // this FrameTracker is gathering information.
+    nsecs_t mDisplayPeriod;
 
     // mMutex is used to protect access to all member variables.
     mutable Mutex mMutex;

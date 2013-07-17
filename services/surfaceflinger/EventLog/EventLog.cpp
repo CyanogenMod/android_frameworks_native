@@ -31,17 +31,22 @@ ANDROID_SINGLETON_STATIC_INSTANCE(EventLog)
 EventLog::EventLog() {
 }
 
-void EventLog::doLogJank(const String8& window, int32_t value) {
-    EventLog::TagBuffer buffer(LOGTAG_SF_JANK);
-    buffer.startList(2);
+void EventLog::doLogFrameDurations(const String8& window,
+        const int32_t* durations, size_t numDurations) {
+    EventLog::TagBuffer buffer(LOGTAG_SF_FRAME_DUR);
+    buffer.startList(1 + numDurations);
     buffer.writeString8(window);
-    buffer.writeInt32(value);
+    for (size_t i = 0; i < numDurations; i++) {
+        buffer.writeInt32(durations[i]);
+    }
     buffer.endList();
     buffer.log();
 }
 
-void EventLog::logJank(const String8& window, int32_t value) {
-    EventLog::getInstance().doLogJank(window, value);
+void EventLog::logFrameDurations(const String8& window,
+        const int32_t* durations, size_t numDurations) {
+    EventLog::getInstance().doLogFrameDurations(window, durations,
+            numDurations);
 }
 
 // ---------------------------------------------------------------------------

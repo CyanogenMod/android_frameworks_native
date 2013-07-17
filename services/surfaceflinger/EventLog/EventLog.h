@@ -30,7 +30,8 @@ class String8;
 class EventLog : public Singleton<EventLog> {
 
 public:
-    static void logJank(const String8& window, int32_t value);
+    static void logFrameDurations(const String8& window,
+            const int32_t* durations, size_t numDurations);
 
 protected:
     EventLog();
@@ -72,8 +73,9 @@ private:
     EventLog(const EventLog&);
     EventLog& operator =(const EventLog&);
 
-    enum { LOGTAG_SF_JANK = 60100 };
-    void doLogJank(const String8& window, int32_t value);
+    enum { LOGTAG_SF_FRAME_DUR = 60100 };
+    void doLogFrameDurations(const String8& window, const int32_t* durations,
+            size_t numDurations);
 };
 
 // ---------------------------------------------------------------------------

@@ -132,6 +132,10 @@ private:
     friend class Layer;
     friend class SurfaceTextureLayer;
 
+    // This value is specified in number of frames.  Log frame stats at most
+    // every half hour.
+    enum { LOG_FRAME_STATS_PERIOD =  30*60*60 };
+
     // We're reference counted, never destroy SurfaceFlinger directly
     virtual ~SurfaceFlinger();
 
@@ -391,6 +395,8 @@ private:
     void checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
             const sp<const DisplayDevice>& hw,
             uint32_t minLayerZ, uint32_t maxLayerZ);
+
+    void logFrameStats();
 
     /* ------------------------------------------------------------------------
      * Attributes
