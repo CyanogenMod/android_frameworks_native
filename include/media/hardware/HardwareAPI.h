@@ -38,9 +38,13 @@ namespace android {
 //
 // When Android native buffer use has been enabled for a given port, the video
 // color format for the port is to be interpreted as an Android pixel format
-// rather than an OMX color format.  The node should then expect to receive
-// UseAndroidNativeBuffer calls (via OMX_SetParameter) rather than UseBuffer
-// calls for that port.
+// rather than an OMX color format.  Enabling Android native buffers may also
+// change how the component receives the native buffers.  If store-metadata-mode
+// is enabled on the port, the component will receive the buffers as specified
+// in the section below. Otherwise, unless the node supports the
+// 'OMX.google.android.index.useAndroidNativeBuffer2' extension, it should
+// expect to receive UseAndroidNativeBuffer calls (via OMX_SetParameter) rather
+// than UseBuffer calls for that port.
 struct EnableAndroidNativeBuffersParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -62,11 +66,15 @@ struct EnableAndroidNativeBuffersParams {
 //
 // Currently, this is specifically used to pass meta data from video source
 // (camera component, for instance) to video encoder to avoid memcpying of
-// input video frame data. To do this, bStoreMetaDta is set to OMX_TRUE.
+// input video frame data. To do this, bStoreMetaData is set to OMX_TRUE.
 // If bStoreMetaData is set to false, real YUV frame data will be stored
 // in the buffers. In addition, if no OMX_SetParameter() call is made
 // with the corresponding extension index, real YUV data is stored
 // in the buffers.
+//
+// For video decoder output port, the metadata buffer layout is defined below.
+//
+// Metadata buffers are registered with the component using UseBuffer calls.
 struct StoreMetaDataInBuffersParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
