@@ -171,13 +171,6 @@ public:
     // 'what' tokens allowed are that of android_natives.h
     virtual int query(int what, int* value) = 0;
 
-    // setSynchronousMode set whether dequeueBuffer is synchronous or
-    // asynchronous. In synchronous mode, dequeueBuffer blocks until
-    // a buffer is available, the currently bound buffer can be dequeued and
-    // queued buffers will be retired in order.
-    // The default mode is asynchronous.
-    virtual status_t setSynchronousMode(bool enabled) = 0;
-
     // connect attempts to connect a client API to the IGraphicBufferProducer.
     // This must be called before any other IGraphicBufferProducer methods are
     // called except for getAllocator.
@@ -188,7 +181,7 @@ public:
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
     // respectively.
-    virtual status_t connect(int api, QueueBufferOutput* output) = 0;
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
 
     // disconnect attempts to disconnect a client API from the
     // IGraphicBufferProducer.  Calling this method will cause any subsequent

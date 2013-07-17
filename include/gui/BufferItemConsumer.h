@@ -51,9 +51,11 @@ class BufferItemConsumer: public ConsumerBase
     // the consumer usage flags passed to the graphics allocator. The
     // bufferCount parameter specifies how many buffers can be locked for user
     // access at the same time.
+    // controlledByApp tells whether this consumer is controlled by the
+    // application.
     BufferItemConsumer(const sp<BufferQueue>& bq, uint32_t consumerUsage,
             int bufferCount = BufferQueue::MIN_UNDEQUEUED_BUFFERS,
-            bool synchronousMode = false);
+            bool controlledByApp = false);
 
     virtual ~BufferItemConsumer();
 

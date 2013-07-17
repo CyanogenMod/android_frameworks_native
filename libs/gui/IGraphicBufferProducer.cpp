@@ -37,7 +37,6 @@ enum {
     QUEUE_BUFFER,
     CANCEL_BUFFER,
     QUERY,
-    SET_SYNCHRONOUS_MODE,
     CONNECT,
     DISCONNECT,
 };
@@ -142,22 +141,11 @@ public:
         return result;
     }
 
-    virtual status_t setSynchronousMode(bool enabled) {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(enabled);
-        status_t result = remote()->transact(SET_SYNCHRONOUS_MODE, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        result = reply.readInt32();
-        return result;
-    }
-
-    virtual status_t connect(int api, QueueBufferOutput* output) {
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(api);
+        data.writeInt32(producerControlledByApp);
         status_t result = remote()->transact(CONNECT, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -252,20 +240,14 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
-        case SET_SYNCHRONOUS_MODE: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool enabled = data.readInt32();
-            status_t res = setSynchronousMode(enabled);
-            reply->writeInt32(res);
-            return NO_ERROR;
-        } break;
         case CONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int api = data.readInt32();
+            bool producerControlledByApp = data.readInt32();
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
-            status_t res = connect(api, output);
+            status_t res = connect(api, producerControlledByApp, output);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;

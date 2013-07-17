@@ -63,15 +63,15 @@ static const char* scalingModeName(int scalingMode) {
     }
 }
 
-BufferQueue::BufferQueue(bool allowSynchronousMode,
-        const sp<IGraphicBufferAlloc>& allocator) :
+BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultWidth(1),
     mDefaultHeight(1),
     mMaxAcquiredBufferCount(1),
     mDefaultMaxBufferCount(2),
     mOverrideMaxBufferCount(0),
-    mSynchronousMode(false),
-    mAllowSynchronousMode(allowSynchronousMode),
+    mConsumerControlledByApp(false),
+    mDequeueBufferCannotBlock(false),
+    mSynchronousMode(true),
     mConnectedApi(NO_CONNECTED_API),
     mAbandoned(false),
     mFrameCounter(0),
@@ -107,11 +107,6 @@ status_t BufferQueue::setDefaultMaxBufferCountLocked(int count) {
     mDequeueCondition.broadcast();
 
     return NO_ERROR;
-}
-
-bool BufferQueue::isSynchronousMode() const {
-    Mutex::Autolock lock(mMutex);
-    return mSynchronousMode;
 }
 
 void BufferQueue::setConsumerName(const String8& name) {
@@ -348,6 +343,10 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
             // the max buffer count to change.
             tryAgain = found == INVALID_BUFFER_SLOT;
             if (tryAgain) {
+                if (mDequeueBufferCannotBlock) {
+                    ST_LOGE("dequeueBuffer: would block! returning an error instead.");
+                    return WOULD_BLOCK;
+                }
                 mDequeueCondition.wait(mMutex);
             }
         }
@@ -439,38 +438,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
             mSlots[*outBuf].mGraphicBuffer->handle, returnFlags);
 
     return returnFlags;
-}
-
-status_t BufferQueue::setSynchronousMode(bool enabled) {
-    ATRACE_CALL();
-    ST_LOGV("setSynchronousMode: enabled=%d", enabled);
-    Mutex::Autolock lock(mMutex);
-
-    if (mAbandoned) {
-        ST_LOGE("setSynchronousMode: BufferQueue has been abandoned!");
-        return NO_INIT;
-    }
-
-    status_t err = OK;
-    if (!mAllowSynchronousMode && enabled)
-        return err;
-
-    if (!enabled) {
-        // going to asynchronous mode, drain the queue
-        err = drainQueueLocked();
-        if (err != NO_ERROR)
-            return err;
-    }
-
-    if (mSynchronousMode != enabled) {
-        // - if we're going to asynchronous mode, the queue is guaranteed to be
-        // empty here
-        // - if the client set the number of buffers, we're guaranteed that
-        // we have at least 3 (because we don't allow less)
-        mSynchronousMode = enabled;
-        mDequeueCondition.broadcast();
-    }
-    return err;
 }
 
 status_t BufferQueue::queueBuffer(int buf,
@@ -630,7 +597,7 @@ void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
     mDequeueCondition.broadcast();
 }
 
-status_t BufferQueue::connect(int api, QueueBufferOutput* output) {
+status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBufferOutput* output) {
     ATRACE_CALL();
     ST_LOGV("connect: api=%d", api);
     Mutex::Autolock lock(mMutex);
@@ -667,6 +634,8 @@ status_t BufferQueue::connect(int api, QueueBufferOutput* output) {
     }
 
     mBufferHasBeenQueued = false;
+    mDequeueBufferCannotBlock = mConsumerControlledByApp && producerControlledByApp;
+    mSynchronousMode = !mDequeueBufferCannotBlock;
 
     return err;
 }
@@ -950,7 +919,8 @@ status_t BufferQueue::releaseBuffer(
     return NO_ERROR;
 }
 
-status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListener) {
+status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListener,
+        bool controlledByApp) {
     ST_LOGV("consumerConnect");
     Mutex::Autolock lock(mMutex);
 
@@ -964,6 +934,7 @@ status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListen
     }
 
     mConsumerListener = consumerListener;
+    mConsumerControlledByApp = controlledByApp;
 
     return NO_ERROR;
 }

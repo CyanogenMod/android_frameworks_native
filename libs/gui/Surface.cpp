@@ -37,7 +37,8 @@
 namespace android {
 
 Surface::Surface(
-        const sp<IGraphicBufferProducer>& bufferProducer)
+        const sp<IGraphicBufferProducer>& bufferProducer,
+        bool controlledByApp)
     : mGraphicBufferProducer(bufferProducer)
 {
     // Initialize the ANativeWindow function pointers.
@@ -71,6 +72,7 @@ Surface::Surface(
     mTransformHint = 0;
     mConsumerRunningBehind = false;
     mConnectedToCpu = false;
+    mProducerControlledByApp = true;
 }
 
 Surface::~Surface() {
@@ -168,7 +170,9 @@ int Surface::setSwapInterval(int interval) {
     if (interval > maxSwapInterval)
         interval = maxSwapInterval;
 
-    status_t res = mGraphicBufferProducer->setSynchronousMode(interval ? true : false);
+    // FIXME: re-implement swap-interval
+    //status_t res = mGraphicBufferProducer->setSynchronousMode(interval ? true : false);
+    status_t res = NO_ERROR;
 
     return res;
 }
@@ -486,7 +490,7 @@ int Surface::connect(int api) {
     ALOGV("Surface::connect");
     Mutex::Autolock lock(mMutex);
     IGraphicBufferProducer::QueueBufferOutput output;
-    int err = mGraphicBufferProducer->connect(api, &output);
+    int err = mGraphicBufferProducer->connect(api, mProducerControlledByApp, &output);
     if (err == NO_ERROR) {
         uint32_t numPendingBuffers = 0;
         output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,

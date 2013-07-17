@@ -31,15 +31,14 @@
 namespace android {
 
 CpuConsumer::CpuConsumer(const sp<BufferQueue>& bq,
-        uint32_t maxLockedBuffers, bool synchronousMode) :
-    ConsumerBase(bq),
+        uint32_t maxLockedBuffers, bool controlledByApp) :
+    ConsumerBase(bq, controlledByApp),
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
     // Create tracking entries for locked buffers
     mAcquiredBuffers.insertAt(0, maxLockedBuffers);
 
-    mBufferQueue->setSynchronousMode(synchronousMode);
     mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
     mBufferQueue->setMaxAcquiredBufferCount(maxLockedBuffers);
 }

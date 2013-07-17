@@ -87,7 +87,7 @@ public:
     // requirement that either of these methods be called.
     GLConsumer(const sp<BufferQueue>& bq,
             GLuint tex, GLenum texTarget = GL_TEXTURE_EXTERNAL_OES,
-            bool useFenceSync = true);
+            bool useFenceSync = true, bool isControlledByApp = false);
 
     // updateTexImage acquires the most recently queued buffer, and sets the
     // image contents of the target texture to it.
@@ -177,10 +177,6 @@ public:
     // current texture buffer.
     status_t doGLFenceWait() const;
 
-    // isSynchronousMode returns whether the GLConsumer is currently in
-    // synchronous mode.
-    bool isSynchronousMode() const;
-
     // set the name of the GLConsumer that will be used to identify it in
     // log messages.
     void setName(const String8& name);
@@ -190,7 +186,6 @@ public:
     status_t setDefaultBufferFormat(uint32_t defaultFormat);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
-    virtual status_t setSynchronousMode(bool enabled);
 
     // getBufferQueue returns the BufferQueue object to which this
     // GLConsumer is connected.

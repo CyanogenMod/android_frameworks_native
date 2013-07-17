@@ -79,8 +79,8 @@ static void mtxMul(float out[16], const float a[16], const float b[16]);
 
 
 GLConsumer::GLConsumer(const sp<BufferQueue>& bq, GLuint tex,
-        GLenum texTarget, bool useFenceSync) :
-    ConsumerBase(bq),
+        GLenum texTarget, bool useFenceSync, bool isControlledByApp) :
+    ConsumerBase(bq, isControlledByApp),
     mCurrentTransform(0),
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mCurrentFence(Fence::NO_FENCE),
@@ -844,11 +844,6 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
     return NO_ERROR;
 }
 
-bool GLConsumer::isSynchronousMode() const {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->isSynchronousMode();
-}
-
 void GLConsumer::freeBufferLocked(int slotIndex) {
     ST_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     if (slotIndex == mCurrentTexture) {
@@ -889,13 +884,6 @@ status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
 status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
     return mBufferQueue->setTransformHint(hint);
-}
-
-// Used for refactoring BufferQueue from GLConsumer
-// Should not be in final interface once users of GLConsumer are clean up.
-status_t GLConsumer::setSynchronousMode(bool enabled) {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setSynchronousMode(enabled);
 }
 
 void GLConsumer::dumpLocked(String8& result, const char* prefix) const

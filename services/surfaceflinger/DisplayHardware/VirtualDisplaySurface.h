@@ -101,8 +101,7 @@ private:
             const QueueBufferInput& input, QueueBufferOutput* output);
     virtual void cancelBuffer(int pslot, const sp<Fence>& fence);
     virtual int query(int what, int* value);
-    virtual status_t setSynchronousMode(bool enabled);
-    virtual status_t connect(int api, QueueBufferOutput* output);
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
 
     //

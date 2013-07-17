@@ -62,9 +62,9 @@ struct DummyConsumer : public BufferQueue::ConsumerListener {
 
 TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
     IGraphicBufferProducer::QueueBufferOutput qbo;
-    mBQ->connect(NATIVE_WINDOW_API_CPU, &qbo);
+    mBQ->connect(NATIVE_WINDOW_API_CPU, false, &qbo);
     mBQ->setBufferCount(4);
 
     int slot;
@@ -95,7 +95,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
 
     ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
     ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
@@ -106,7 +106,7 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
 
     ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
     ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));

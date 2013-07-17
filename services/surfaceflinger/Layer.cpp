@@ -115,7 +115,6 @@ void Layer::onFirstRef()
 
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setFrameAvailableListener(this);
-    mSurfaceFlingerConsumer->setSynchronousMode(true);
     mSurfaceFlingerConsumer->setName(mName);
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING

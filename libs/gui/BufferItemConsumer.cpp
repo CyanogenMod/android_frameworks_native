@@ -30,11 +30,10 @@
 namespace android {
 
 BufferItemConsumer::BufferItemConsumer(const sp<BufferQueue>& bq,
-        uint32_t consumerUsage, int bufferCount, bool synchronousMode) :
-    ConsumerBase(bq)
+        uint32_t consumerUsage, int bufferCount, bool controlledByApp) :
+    ConsumerBase(bq, controlledByApp)
 {
     mBufferQueue->setConsumerUsageBits(consumerUsage);
-    mBufferQueue->setSynchronousMode(synchronousMode);
     mBufferQueue->setMaxAcquiredBufferCount(bufferCount);
 }
 

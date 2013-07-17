@@ -51,7 +51,7 @@ static int32_t createProcessUniqueId() {
     return android_atomic_inc(&globalCounter);
 }
 
-ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue) :
+ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue, bool controlledByApp) :
         mAbandoned(false),
         mBufferQueue(bufferQueue) {
     // Choose a name using the PID and a process-unique ID.
@@ -66,7 +66,7 @@ ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue) :
     listener = static_cast<BufferQueue::ConsumerListener*>(this);
     proxy = new BufferQueue::ProxyConsumerListener(listener);
 
-    status_t err = mBufferQueue->consumerConnect(proxy);
+    status_t err = mBufferQueue->consumerConnect(proxy, controlledByApp);
     if (err != NO_ERROR) {
         CB_LOGE("ConsumerBase: error connecting to BufferQueue: %s (%d)",
                 strerror(-err), err);

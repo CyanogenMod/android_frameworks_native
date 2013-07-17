@@ -97,11 +97,9 @@ public:
 
 
     // BufferQueue manages a pool of gralloc memory slots to be used by
-    // producers and consumers. allowSynchronousMode specifies whether or not
-    // synchronous mode can be enabled by the producer. allocator is used to
-    // allocate all the needed gralloc buffers.
-    BufferQueue(bool allowSynchronousMode = true,
-            const sp<IGraphicBufferAlloc>& allocator = NULL);
+    // producers and consumers. allocator is used to allocate all the
+    // needed gralloc buffers.
+    BufferQueue(const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueue();
 
     // Query native window attributes.  The "what" values are enumerated in
@@ -197,15 +195,6 @@ public:
     // will usually be the one obtained from dequeueBuffer.
     virtual void cancelBuffer(int buf, const sp<Fence>& fence);
 
-    // setSynchronousMode sets whether dequeueBuffer is synchronous or
-    // asynchronous. In synchronous mode, dequeueBuffer blocks until
-    // a buffer is available, the currently bound buffer can be dequeued and
-    // queued buffers will be acquired in order.  In asynchronous mode,
-    // a queued buffer may be replaced by a subsequently queued buffer.
-    //
-    // The default mode is asynchronous.
-    virtual status_t setSynchronousMode(bool enabled);
-
     // connect attempts to connect a producer API to the BufferQueue.  This
     // must be called before any other IGraphicBufferProducer methods are
     // called except for getAllocator.  A consumer must already be connected.
@@ -215,7 +204,7 @@ public:
     // it's still connected to a producer).
     //
     // APIs are enumerated in window.h (e.g. NATIVE_WINDOW_API_CPU).
-    virtual status_t connect(int api, QueueBufferOutput* output);
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output);
 
     // disconnect attempts to disconnect a producer API from the BufferQueue.
     // Calling this method will cause any subsequent calls to other
@@ -312,9 +301,11 @@ public:
     // consumer may be connected, and when that consumer disconnects the
     // BufferQueue is placed into the "abandoned" state, causing most
     // interactions with the BufferQueue by the producer to fail.
+    // controlledByApp indicates whether the consumer is controlled by
+    // the application.
     //
     // consumer may not be NULL.
-    status_t consumerConnect(const sp<ConsumerListener>& consumer);
+    status_t consumerConnect(const sp<ConsumerListener>& consumer, bool controlledByApp);
 
     // consumerDisconnect disconnects a consumer from the BufferQueue. All
     // buffers will be freed and the BufferQueue is placed in the "abandoned"
@@ -346,10 +337,6 @@ public:
     // be acquired by the consumer at one time (default 1).  This call will
     // fail if a producer is connected to the BufferQueue.
     status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers);
-
-    // isSynchronousMode returns whether the BufferQueue is currently in
-    // synchronous mode.
-    bool isSynchronousMode() const;
 
     // setConsumerName sets the name used in logging
     void setConsumerName(const String8& name);
@@ -568,12 +555,17 @@ private:
     // to NULL and is written by consumerConnect and consumerDisconnect.
     sp<ConsumerListener> mConsumerListener;
 
+    // mConsumerControlledByApp whether the connected consumer is controlled by the
+    // application.
+    bool mConsumerControlledByApp;
+
+    // mDequeueBufferCannotBlock whether dequeueBuffer() isn't allowed to block.
+    // this flag is set durring connect() when both consumer and producer are controlled
+    // by the application.
+    bool mDequeueBufferCannotBlock;
+
     // mSynchronousMode whether we're in synchronous mode or not
     bool mSynchronousMode;
-
-    // mAllowSynchronousMode whether we allow synchronous mode or not.  Set
-    // when the BufferQueue is created (by the consumer).
-    const bool mAllowSynchronousMode;
 
     // mConnectedApi indicates the producer API that is currently connected
     // to this BufferQueue.  It defaults to NO_CONNECTED_API (= 0), and gets

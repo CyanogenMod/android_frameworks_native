@@ -944,7 +944,6 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
     enum { texHeight = 16 };
     enum { numFrames = 1024 };
 
-    ASSERT_EQ(NO_ERROR, mST->setSynchronousMode(true));
     ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
     ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
             texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
@@ -1211,10 +1210,8 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
         sp<ANativeWindow> mANW;
     };
 
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
     sp<DisconnectWaiter> dw(new DisconnectWaiter());
-    mST->getBufferQueue()->consumerConnect(dw);
+    mST->getBufferQueue()->consumerConnect(dw, false);
 
 
     sp<Thread> pt(new ProducerThread(mANW));
@@ -1237,8 +1234,6 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
 // when it is disconnected and reconnected.  Otherwise it will
 // attempt to release a buffer that it does not owned
 TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
     ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
             NATIVE_WINDOW_API_EGL));
 
@@ -1258,8 +1253,6 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
     ASSERT_EQ(OK, native_window_api_connect(mANW.get(),
             NATIVE_WINDOW_API_EGL));
 
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
     EXPECT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &anb));
     EXPECT_EQ(OK, mANW->queueBuffer(mANW.get(), anb, -1));
 
@@ -1272,8 +1265,6 @@ TEST_F(SurfaceTextureGLTest, DisconnectClearsCurrentTexture) {
 }
 
 TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
     ASSERT_EQ(OK, native_window_set_scaling_mode(mANW.get(),
         NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW));
 
@@ -1306,8 +1297,6 @@ TEST_F(SurfaceTextureGLTest, ScaleToWindowMode) {
 // the image such that it has the same aspect ratio as the
 // default buffer size
 TEST_F(SurfaceTextureGLTest, CroppedScalingMode) {
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
-
     ASSERT_EQ(OK, native_window_set_scaling_mode(mANW.get(),
         NATIVE_WINDOW_SCALING_MODE_SCALE_CROP));
 
@@ -1417,7 +1406,6 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
         Mutex mMutex;
     };
 
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
 
     sp<Thread> pt(new ProducerThread(mANW));
@@ -1808,32 +1796,6 @@ TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentAfterConsumerDeathUnrefsBuffers) 
             EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
     EXPECT_EQ(1, buffer->getStrongCount());
-}
-
-
-TEST_F(SurfaceTextureGLToGLTest, EglSurfaceDefaultsToSynchronousMode) {
-    // This test requires 3 buffers to run on a single thread.
-    mST->setDefaultMaxBufferCount(3);
-
-    ASSERT_TRUE(mST->isSynchronousMode());
-
-    for (int i = 0; i < 10; i++) {
-        // Produce a frame
-        EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
-                mProducerEglSurface, mProducerEglContext));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        glClear(GL_COLOR_BUFFER_BIT);
-        EXPECT_TRUE(eglSwapBuffers(mEglDisplay, mProducerEglSurface));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-
-        // Consume a frame
-        EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
-                mEglContext));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        ASSERT_EQ(NO_ERROR, mST->updateTexImage());
-    }
-
-    ASSERT_TRUE(mST->isSynchronousMode());
 }
 
 TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
@@ -2285,7 +2247,6 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
         }
     };
 
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
 
     runProducerThread(new PT());
@@ -2826,7 +2787,6 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         UpdateTexImageSucceedsForBufferConsumedBeforeDetach) {
-    ASSERT_EQ(NO_ERROR, mST->setSynchronousMode(true));
     ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
 
     // produce two frames and consume them both on the primary context

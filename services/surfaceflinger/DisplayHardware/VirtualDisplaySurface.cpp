@@ -41,7 +41,7 @@ static const char* dbgCompositionTypeStr(DisplaySurface::CompositionType type) {
 
 VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
         const sp<IGraphicBufferProducer>& sink, const String8& name)
-:   ConsumerBase(new BufferQueue(true)),
+:   ConsumerBase(new BufferQueue()),
     mHwc(hwc),
     mDisplayId(dispId),
     mDisplayName(name),
@@ -345,13 +345,10 @@ int VirtualDisplaySurface::query(int what, int* value) {
     return mSource[SOURCE_SINK]->query(what, value);
 }
 
-status_t VirtualDisplaySurface::setSynchronousMode(bool enabled) {
-    return mSource[SOURCE_SINK]->setSynchronousMode(enabled);
-}
-
-status_t VirtualDisplaySurface::connect(int api, QueueBufferOutput* output) {
+status_t VirtualDisplaySurface::connect(int api, bool producerControlledByApp,
+        QueueBufferOutput* output) {
     QueueBufferOutput qbo;
-    status_t result = mSource[SOURCE_SINK]->connect(api, &qbo);
+    status_t result = mSource[SOURCE_SINK]->connect(api, producerControlledByApp, &qbo);
     if (result == NO_ERROR) {
         updateQueueBufferOutput(qbo);
         *output = mQueueBufferOutput;
