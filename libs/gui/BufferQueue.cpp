@@ -71,7 +71,6 @@ BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     mOverrideMaxBufferCount(0),
     mConsumerControlledByApp(false),
     mDequeueBufferCannotBlock(false),
-    mSynchronousMode(true),
     mConnectedApi(NO_CONNECTED_API),
     mAbandoned(false),
     mFrameCounter(0),
@@ -210,7 +209,7 @@ int BufferQueue::query(int what, int* outValue)
         value = mDefaultBufferFormat;
         break;
     case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
-        value = getMinUndequeuedBufferCountLocked();
+        value = mMinUndequeuedBufferCount;
         break;
     case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND:
         value = (mQueue.size() >= 2);
@@ -329,7 +328,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
                 // make sure the client is not trying to dequeue more buffers
                 // than allowed.
                 const int newUndequeuedCount = maxBufferCount - (dequeuedCount+1);
-                const int minUndequeuedCount = getMinUndequeuedBufferCountLocked();
+                const int minUndequeuedCount = mMinUndequeuedBufferCount;
                 if (newUndequeuedCount < minUndequeuedCount) {
                     ST_LOGE("dequeueBuffer: min undequeued buffer count (%d) "
                             "exceeded (dequeued=%d undequeudCount=%d)",
@@ -524,31 +523,27 @@ status_t BufferQueue::queueBuffer(int buf,
         item.mFrameNumber = mFrameCounter;
         item.mBuf = buf;
         item.mFence = fence;
+        item.mDequeueBufferCannotBlock = mDequeueBufferCannotBlock;
 
-        if (mSynchronousMode) {
-            // In synchronous mode we queue all buffers in a FIFO.
+        if (mQueue.empty()) {
+            // when the queue is empty, we can ignore "mDequeueBufferCannotBlock", and
+            // simply queue this buffer.
             mQueue.push_back(item);
-
-            // Synchronous mode always signals that an additional frame should
-            // be consumed.
             listener = mConsumerListener;
         } else {
-            // In asynchronous mode we only keep the most recent buffer.
-            if (mQueue.empty()) {
-                mQueue.push_back(item);
-
-                // Asynchronous mode only signals that a frame should be
-                // consumed if no previous frame was pending. If a frame were
-                // pending then the consumer would have already been notified.
-                listener = mConsumerListener;
-            } else {
-                Fifo::iterator front(mQueue.begin());
+            // when the queue is not empty, we need to look at the front buffer
+            // state and see if we need to replace it.
+            Fifo::iterator front(mQueue.begin());
+            if (front->mDequeueBufferCannotBlock) {
                 // buffer slot currently queued is marked free if still tracked
                 if (stillTracking(front)) {
                     mSlots[front->mBuf].mBufferState = BufferSlot::FREE;
                 }
-                // and we record the new buffer index in the queued list
+                // and we record the new buffer in the queued list
                 *front = item;
+            } else {
+                mQueue.push_back(item);
+                listener = mConsumerListener;
             }
         }
 
@@ -635,7 +630,8 @@ status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBuffer
 
     mBufferHasBeenQueued = false;
     mDequeueBufferCannotBlock = mConsumerControlledByApp && producerControlledByApp;
-    mSynchronousMode = !mDequeueBufferCannotBlock;
+    mMinUndequeuedBufferCount = mDequeueBufferCannotBlock ?
+            mMaxAcquiredBufferCount+1 : mMaxAcquiredBufferCount;
 
     return err;
 }
@@ -662,7 +658,7 @@ status_t BufferQueue::disconnect(int api) {
             case NATIVE_WINDOW_API_MEDIA:
             case NATIVE_WINDOW_API_CAMERA:
                 if (mConnectedApi == api) {
-                    drainQueueAndFreeBuffersLocked();
+                    freeAllBuffersLocked();
                     mConnectedApi = NO_CONNECTED_API;
                     mDequeueCondition.broadcast();
                     listener = mConsumerListener;
@@ -711,9 +707,9 @@ void BufferQueue::dump(String8& result, const char* prefix) const {
     int maxBufferCount = getMaxBufferCountLocked();
 
     result.appendFormat(
-            "%s-BufferQueue maxBufferCount=%d, mSynchronousMode=%d, default-size=[%dx%d], "
+            "%s-BufferQueue maxBufferCount=%d, mDequeueBufferCannotBlock=%d, default-size=[%dx%d], "
             "default-format=%d, transform-hint=%02x, FIFO(%d)={%s}\n",
-            prefix, maxBufferCount, mSynchronousMode, mDefaultWidth,
+            prefix, maxBufferCount, mDequeueBufferCannotBlock, mDefaultWidth,
             mDefaultHeight, mDefaultBufferFormat, mTransformHint,
             fifoSize, fifo.string());
 
@@ -768,8 +764,6 @@ void BufferQueue::freeBufferLocked(int slot) {
 }
 
 void BufferQueue::freeAllBuffersLocked() {
-    ALOGD_IF(!mQueue.isEmpty(),
-            "freeAllBuffersLocked called with non-empty mQueue");
     mBufferHasBeenQueued = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
         freeBufferLocked(i);
@@ -1024,36 +1018,8 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::drainQueueLocked() {
-    while (mSynchronousMode && mQueue.size() > 1) {
-        mDequeueCondition.wait(mMutex);
-        if (mAbandoned) {
-            ST_LOGE("drainQueueLocked: BufferQueue has been abandoned!");
-            return NO_INIT;
-        }
-        if (mConnectedApi == NO_CONNECTED_API) {
-            ST_LOGE("drainQueueLocked: BufferQueue is not connected!");
-            return NO_INIT;
-        }
-    }
-    return NO_ERROR;
-}
-
-status_t BufferQueue::drainQueueAndFreeBuffersLocked() {
-    status_t err = drainQueueLocked();
-    if (err == NO_ERROR) {
-        freeAllBuffersLocked();
-    }
-    return err;
-}
-
 int BufferQueue::getMinMaxBufferCountLocked() const {
-    return getMinUndequeuedBufferCountLocked() + 1;
-}
-
-int BufferQueue::getMinUndequeuedBufferCountLocked() const {
-    return mSynchronousMode ? mMaxAcquiredBufferCount :
-            mMaxAcquiredBufferCount + 1;
+    return mMinUndequeuedBufferCount + 1;
 }
 
 int BufferQueue::getMaxBufferCountLocked() const {

@@ -223,13 +223,13 @@ public:
     // public facing structure for BufferSlot
     struct BufferItem {
 
-        BufferItem()
-         :
+        BufferItem() :
            mTransform(0),
            mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
            mTimestamp(0),
            mFrameNumber(0),
            mBuf(INVALID_BUFFER_SLOT),
+           mDequeueBufferCannotBlock(false),
            mAcquireCalled(false) {
              mCrop.makeInvalid();
         }
@@ -259,6 +259,13 @@ public:
 
         // mFence is a fence that will signal when the buffer is idle.
         sp<Fence> mFence;
+
+        // mDequeueBufferCannotBlock whether this buffer was queued with the
+        // property that it can be replaced by a new buffer for the purpose of
+        // making sure dequeueBuffer() won't block.
+        // i.e.: was the BufferQueue in "mDequeueBufferCannotBlock" when this buffer
+        // was queued.
+        bool mDequeueBufferCannotBlock;
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;
@@ -366,17 +373,6 @@ private:
     // all slots.
     void freeAllBuffersLocked();
 
-    // drainQueueLocked waits for the buffer queue to empty if we're in
-    // synchronous mode, or returns immediately otherwise. It returns NO_INIT
-    // if the BufferQueue is abandoned (consumer disconnected) or disconnected
-    // (producer disconnected) during the call.
-    status_t drainQueueLocked();
-
-    // drainQueueAndFreeBuffersLocked drains the buffer queue if we're in
-    // synchronous mode and free all buffers. In asynchronous mode, all buffers
-    // are freed except the currently queued buffer (if it exists).
-    status_t drainQueueAndFreeBuffersLocked();
-
     // setDefaultMaxBufferCountLocked sets the maximum number of buffer slots
     // that will be used if the producer does not override the buffer slot
     // count.  The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
@@ -387,15 +383,11 @@ private:
     // given the current BufferQueue state.
     int getMinMaxBufferCountLocked() const;
 
-    // getMinUndequeuedBufferCountLocked returns the minimum number of buffers
-    // that must remain in a state other than DEQUEUED.
-    int getMinUndequeuedBufferCountLocked() const;
-
     // getMaxBufferCountLocked returns the maximum number of buffers that can
     // be allocated at once.  This value depends upon the following member
     // variables:
     //
-    //      mSynchronousMode
+    //      mDequeueBufferCannotBlock
     //      mMaxAcquiredBufferCount
     //      mDefaultMaxBufferCount
     //      mOverrideMaxBufferCount
@@ -524,6 +516,11 @@ private:
     // in dequeueBuffer() if a width and height of zero is specified.
     uint32_t mDefaultHeight;
 
+    // mMinUndequeuedBufferCount holds the minimum number of buffers
+    // that must remain in a state other than DEQUEUED.
+    // This value cannot change while connected.
+    int mMinUndequeuedBufferCount;
+
     // mMaxAcquiredBufferCount is the number of buffers that the consumer may
     // acquire at one time.  It defaults to 1 and can be changed by the
     // consumer via the setMaxAcquiredBufferCount method, but this may only be
@@ -563,9 +560,6 @@ private:
     // this flag is set durring connect() when both consumer and producer are controlled
     // by the application.
     bool mDequeueBufferCannotBlock;
-
-    // mSynchronousMode whether we're in synchronous mode or not
-    bool mSynchronousMode;
 
     // mConnectedApi indicates the producer API that is currently connected
     // to this BufferQueue.  It defaults to NO_CONNECTED_API (= 0), and gets

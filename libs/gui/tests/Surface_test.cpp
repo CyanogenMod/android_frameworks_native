@@ -83,9 +83,7 @@ TEST_F(SurfaceTest, QueuesToWindowComposerIsTrueWhenPurgatorized) {
 }
 
 // This test probably doesn't belong here.
-// DISABLED because it hangs when disconnecting because of draining the queue.
-// will be fixed in a subsequent BQ change
-TEST_F(SurfaceTest, DISABLED_ScreenshotsOfProtectedBuffersSucceed) {
+TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     sp<ANativeWindow> anw(mSurface);
 
     // Verify the screenshot works with no protected buffers.
