@@ -95,7 +95,7 @@ private:
     //
     virtual status_t requestBuffer(int pslot, sp<GraphicBuffer>* outBuf);
     virtual status_t setBufferCount(int bufferCount);
-    virtual status_t dequeueBuffer(int* pslot, sp<Fence>* fence,
+    virtual status_t dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage);
     virtual status_t queueBuffer(int pslot,
             const QueueBufferInput& input, QueueBufferOutput* output);
@@ -109,7 +109,7 @@ private:
     //
     static Source fbSourceForCompositionType(CompositionType type);
     status_t dequeueBuffer(Source source, uint32_t format,
-            int* sslot, sp<Fence>* fence);
+            int* sslot, sp<Fence>* fence, bool async);
     void updateQueueBufferOutput(const QueueBufferOutput& qbo);
     void resetPerFrameState();
 

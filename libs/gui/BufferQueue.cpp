@@ -30,6 +30,7 @@
 
 #include <utils/Log.h>
 #include <utils/Trace.h>
+#include <utils/CallStack.h>
 
 // Macros for including the BufferQueue name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
@@ -150,21 +151,21 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
         }
 
         // Error out if the user has dequeued buffers
-        int maxBufferCount = getMaxBufferCountLocked();
-        for (int i=0 ; i<maxBufferCount; i++) {
+        for (int i=0 ; i<NUM_BUFFER_SLOTS; i++) {
             if (mSlots[i].mBufferState == BufferSlot::DEQUEUED) {
                 ST_LOGE("setBufferCount: client owns some buffers");
                 return -EINVAL;
             }
         }
 
-        const int minBufferSlots = getMinMaxBufferCountLocked();
         if (bufferCount == 0) {
             mOverrideMaxBufferCount = 0;
             mDequeueCondition.broadcast();
             return NO_ERROR;
         }
 
+        // fine to assume async to false before we're setting the buffer count
+        const int minBufferSlots = getMinMaxBufferCountLocked(false);
         if (bufferCount < minBufferSlots) {
             ST_LOGE("setBufferCount: requested buffer count (%d) is less than "
                     "minimum (%d)", bufferCount, minBufferSlots);
@@ -209,7 +210,7 @@ int BufferQueue::query(int what, int* outValue)
         value = mDefaultBufferFormat;
         break;
     case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
-        value = mMinUndequeuedBufferCount;
+        value = getMinUndequeuedBufferCount(false);
         break;
     case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND:
         value = (mQueue.size() >= 2);
@@ -229,15 +230,11 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
         ST_LOGE("requestBuffer: BufferQueue has been abandoned!");
         return NO_INIT;
     }
-    int maxBufferCount = getMaxBufferCountLocked();
-    if (slot < 0 || maxBufferCount <= slot) {
+    if (slot < 0 || slot >= NUM_BUFFER_SLOTS) {
         ST_LOGE("requestBuffer: slot index out of range [0, %d]: %d",
-                maxBufferCount, slot);
+                NUM_BUFFER_SLOTS, slot);
         return BAD_VALUE;
     } else if (mSlots[slot].mBufferState != BufferSlot::DEQUEUED) {
-        // XXX: I vaguely recall there was some reason this can be valid, but
-        // for the life of me I can't recall under what circumstances that's
-        // the case.
         ST_LOGE("requestBuffer: slot %d is not owned by the client (state=%d)",
                 slot, mSlots[slot].mBufferState);
         return BAD_VALUE;
@@ -247,7 +244,7 @@ status_t BufferQueue::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
+status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async,
         uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
     ATRACE_CALL();
     ST_LOGV("dequeueBuffer: w=%d h=%d fmt=%#x usage=%#x", w, h, format, usage);
@@ -279,7 +276,16 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
                 return NO_INIT;
             }
 
-            const int maxBufferCount = getMaxBufferCountLocked();
+            const int maxBufferCount = getMaxBufferCountLocked(async);
+            if (async && mOverrideMaxBufferCount) {
+                // FIXME: some drivers are manually setting the buffer-count (which they
+                // shouldn't), so we do this extra test here to handle that case.
+                // This is TEMPORARY, until we get this fixed.
+                if (mOverrideMaxBufferCount < maxBufferCount) {
+                    ST_LOGE("dequeueBuffer: async mode is invalid with buffercount override");
+                    return BAD_VALUE;
+                }
+            }
 
             // Free up any buffers that are in slots beyond the max buffer
             // count.
@@ -328,7 +334,7 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence,
                 // make sure the client is not trying to dequeue more buffers
                 // than allowed.
                 const int newUndequeuedCount = maxBufferCount - (dequeuedCount+1);
-                const int minUndequeuedCount = mMinUndequeuedBufferCount;
+                const int minUndequeuedCount = getMinUndequeuedBufferCount(async);
                 if (newUndequeuedCount < minUndequeuedCount) {
                     ST_LOGE("dequeueBuffer: min undequeued buffer count (%d) "
                             "exceeded (dequeued=%d undequeudCount=%d)",
@@ -448,9 +454,10 @@ status_t BufferQueue::queueBuffer(int buf,
     uint32_t transform;
     int scalingMode;
     int64_t timestamp;
+    bool async;
     sp<Fence> fence;
 
-    input.deflate(&timestamp, &crop, &scalingMode, &transform, &fence);
+    input.deflate(&timestamp, &crop, &scalingMode, &transform, &async, &fence);
 
     if (fence == NULL) {
         ST_LOGE("queueBuffer: fence is NULL");
@@ -477,7 +484,17 @@ status_t BufferQueue::queueBuffer(int buf,
             ST_LOGE("queueBuffer: BufferQueue has been abandoned!");
             return NO_INIT;
         }
-        int maxBufferCount = getMaxBufferCountLocked();
+
+        const int maxBufferCount = getMaxBufferCountLocked(async);
+        if (async && mOverrideMaxBufferCount) {
+            // FIXME: some drivers are manually setting the buffer-count (which they
+            // shouldn't), so we do this extra test here to handle that case.
+            // This is TEMPORARY, until we get this fixed.
+            if (mOverrideMaxBufferCount < maxBufferCount) {
+                ST_LOGE("queueBuffer: async mode is invalid with buffercount override");
+                return BAD_VALUE;
+            }
+        }
         if (buf < 0 || buf >= maxBufferCount) {
             ST_LOGE("queueBuffer: slot index out of range [0, %d]: %d",
                     maxBufferCount, buf);
@@ -523,7 +540,7 @@ status_t BufferQueue::queueBuffer(int buf,
         item.mFrameNumber = mFrameCounter;
         item.mBuf = buf;
         item.mFence = fence;
-        item.mDequeueBufferCannotBlock = mDequeueBufferCannotBlock;
+        item.mIsDroppable = mDequeueBufferCannotBlock || async;
 
         if (mQueue.empty()) {
             // when the queue is empty, we can ignore "mDequeueBufferCannotBlock", and
@@ -534,7 +551,7 @@ status_t BufferQueue::queueBuffer(int buf,
             // when the queue is not empty, we need to look at the front buffer
             // state and see if we need to replace it.
             Fifo::iterator front(mQueue.begin());
-            if (front->mDequeueBufferCannotBlock) {
+            if (front->mIsDroppable) {
                 // buffer slot currently queued is marked free if still tracked
                 if (stillTracking(front)) {
                     mSlots[front->mBuf].mBufferState = BufferSlot::FREE;
@@ -573,10 +590,9 @@ void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
         return;
     }
 
-    int maxBufferCount = getMaxBufferCountLocked();
-    if (buf < 0 || buf >= maxBufferCount) {
+    if (buf < 0 || buf >= NUM_BUFFER_SLOTS) {
         ST_LOGE("cancelBuffer: slot index out of range [0, %d]: %d",
-                maxBufferCount, buf);
+                NUM_BUFFER_SLOTS, buf);
         return;
     } else if (mSlots[buf].mBufferState != BufferSlot::DEQUEUED) {
         ST_LOGE("cancelBuffer: slot %d is not owned by the client (state=%d)",
@@ -630,8 +646,6 @@ status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBuffer
 
     mBufferHasBeenQueued = false;
     mDequeueBufferCannotBlock = mConsumerControlledByApp && producerControlledByApp;
-    mMinUndequeuedBufferCount = mDequeueBufferCannotBlock ?
-            mMaxAcquiredBufferCount+1 : mMaxAcquiredBufferCount;
 
     return err;
 }
@@ -704,12 +718,11 @@ void BufferQueue::dump(String8& result, const char* prefix) const {
         fifoSize++;
     }
 
-    int maxBufferCount = getMaxBufferCountLocked();
 
     result.appendFormat(
-            "%s-BufferQueue maxBufferCount=%d, mDequeueBufferCannotBlock=%d, default-size=[%dx%d], "
+            "%s-BufferQueue mMaxAcquiredBufferCount=%d, mDequeueBufferCannotBlock=%d, default-size=[%dx%d], "
             "default-format=%d, transform-hint=%02x, FIFO(%d)={%s}\n",
-            prefix, maxBufferCount, mDequeueBufferCannotBlock, mDefaultWidth,
+            prefix, mMaxAcquiredBufferCount, mDequeueBufferCannotBlock, mDefaultWidth,
             mDefaultHeight, mDefaultBufferFormat, mTransformHint,
             fifoSize, fifo.string());
 
@@ -725,16 +738,25 @@ void BufferQueue::dump(String8& result, const char* prefix) const {
         }
     } stateName;
 
+    // just trim the free buffers to not spam the dump
+    int maxBufferCount = 0;
+    for (int i=NUM_BUFFER_SLOTS-1 ; i>=0 ; i--) {
+        const BufferSlot& slot(mSlots[i]);
+        if ((slot.mBufferState != BufferSlot::FREE) || (slot.mGraphicBuffer != NULL)) {
+            maxBufferCount = i+1;
+            break;
+        }
+    }
+
     for (int i=0 ; i<maxBufferCount ; i++) {
         const BufferSlot& slot(mSlots[i]);
+        const sp<GraphicBuffer>& buf(slot.mGraphicBuffer);
         result.appendFormat(
             "%s%s[%02d:%p] state=%-8s",
-                prefix, (slot.mBufferState == BufferSlot::ACQUIRED)?">":" ", i,
-                slot.mGraphicBuffer.get(),
+                prefix, (slot.mBufferState == BufferSlot::ACQUIRED)?">":" ", i, buf.get(),
                 stateName(slot.mBufferState)
         );
 
-        const sp<GraphicBuffer>& buf(slot.mGraphicBuffer);
         if (buf != NULL) {
             result.appendFormat(
                     ", %p [%4ux%4u:%4u,%3X]",
@@ -1018,12 +1040,17 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     return NO_ERROR;
 }
 
-int BufferQueue::getMinMaxBufferCountLocked() const {
-    return mMinUndequeuedBufferCount + 1;
+int BufferQueue::getMinUndequeuedBufferCount(bool async) const {
+    return (mDequeueBufferCannotBlock || async) ?
+                mMaxAcquiredBufferCount+1 : mMaxAcquiredBufferCount;
 }
 
-int BufferQueue::getMaxBufferCountLocked() const {
-    int minMaxBufferCount = getMinMaxBufferCountLocked();
+int BufferQueue::getMinMaxBufferCountLocked(bool async) const {
+    return getMinUndequeuedBufferCount(async) + 1;
+}
+
+int BufferQueue::getMaxBufferCountLocked(bool async) const {
+    int minMaxBufferCount = getMinMaxBufferCountLocked(async);
 
     int maxBufferCount = mDefaultMaxBufferCount;
     if (maxBufferCount < minMaxBufferCount) {

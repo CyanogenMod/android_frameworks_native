@@ -71,12 +71,12 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<Fence> fence;
     sp<GraphicBuffer> buf;
     IGraphicBufferProducer::QueueBufferInput qbi(0, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     BufferQueue::BufferItem item;
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-                mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
+                mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                     GRALLOC_USAGE_SW_READ_OFTEN));
         ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
         ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
@@ -84,7 +84,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
+            mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                 GRALLOC_USAGE_SW_READ_OFTEN));
     ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
     ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));

@@ -235,6 +235,10 @@ private:
     // by the application
     bool mProducerControlledByApp;
 
+    // mSwapIntervalZero set if we should drop buffers at queue() time to
+    // achieve an asynchronous swap interval
+    bool mSwapIntervalZero;
+
     // mConsumerRunningBehind whether the consumer is running more than
     // one buffer behind the producer.
     mutable bool mConsumerRunningBehind;

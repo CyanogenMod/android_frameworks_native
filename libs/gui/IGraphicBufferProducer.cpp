@@ -80,10 +80,11 @@ public:
         return result;
     }
 
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(async);
         data.writeInt32(w);
         data.writeInt32(h);
         data.writeInt32(format);
@@ -197,13 +198,14 @@ status_t BnGraphicBufferProducer::onTransact(
         } break;
         case DEQUEUE_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool async      = data.readInt32();
             uint32_t w      = data.readInt32();
             uint32_t h      = data.readInt32();
             uint32_t format = data.readInt32();
             uint32_t usage  = data.readInt32();
             int buf;
             sp<Fence> fence;
-            int result = dequeueBuffer(&buf, &fence, w, h, format, usage);
+            int result = dequeueBuffer(&buf, &fence, async, w, h, format, usage);
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {
@@ -274,6 +276,7 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const
          + sizeof(crop)
          + sizeof(scalingMode)
          + sizeof(transform)
+         + sizeof(async)
          + fence->getFlattenedSize();
 }
 
@@ -291,6 +294,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::flatten(void* buffer, size_t 
     memcpy(p, &crop,        sizeof(crop));        p += sizeof(crop);
     memcpy(p, &scalingMode, sizeof(scalingMode)); p += sizeof(scalingMode);
     memcpy(p, &transform,   sizeof(transform));   p += sizeof(transform);
+    memcpy(p, &async,       sizeof(async));       p += sizeof(async);
     err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
     return err;
 }
@@ -304,6 +308,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(void const* buffer,
     memcpy(&crop,        p, sizeof(crop));        p += sizeof(crop);
     memcpy(&scalingMode, p, sizeof(scalingMode)); p += sizeof(scalingMode);
     memcpy(&transform,   p, sizeof(transform));   p += sizeof(transform);
+    memcpy(&async,       p, sizeof(async));       p += sizeof(async);
     fence = new Fence();
     err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
     return err;

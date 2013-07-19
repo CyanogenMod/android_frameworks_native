@@ -126,7 +126,7 @@ status_t VirtualDisplaySurface::advanceFrame() {
         mQueueBufferOutput.deflate(&mSinkBufferWidth, &mSinkBufferHeight,
                 &transformHint, &numPendingBuffers);
         int sslot;
-        result = dequeueBuffer(SOURCE_SINK, 0, &sslot, &outFence);
+        result = dequeueBuffer(SOURCE_SINK, 0, &sslot, &outFence, false);
         if (result < 0)
             return result;
         mOutputProducerSlot = mapSource2ProducerSlot(SOURCE_SINK, sslot);
@@ -196,7 +196,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
         status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
                 QueueBufferInput(systemTime(),
                     Rect(mSinkBufferWidth, mSinkBufferHeight),
-                    NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, outFence),
+                    NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, outFence),
                 &qbo);
         if (result == NO_ERROR) {
             updateQueueBufferOutput(qbo);
@@ -224,8 +224,8 @@ status_t VirtualDisplaySurface::setBufferCount(int bufferCount) {
 }
 
 status_t VirtualDisplaySurface::dequeueBuffer(Source source,
-        uint32_t format, int* sslot, sp<Fence>* fence) {
-    status_t result = mSource[source]->dequeueBuffer(sslot, fence,
+        uint32_t format, int* sslot, sp<Fence>* fence, bool async) {
+    status_t result = mSource[source]->dequeueBuffer(sslot, fence, async,
             mSinkBufferWidth, mSinkBufferHeight, format, mProducerUsage);
     if (result < 0)
         return result;
@@ -257,7 +257,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(Source source,
     return result;
 }
 
-status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence,
+status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
         uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
     VDS_LOGW_IF(mDbgState != DBG_STATE_PREPARED,
             "Unexpected dequeueBuffer() in %s state", dbgStateStr());
@@ -273,7 +273,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence,
     }
 
     int sslot;
-    status_t result = dequeueBuffer(source, format, &sslot, fence);
+    status_t result = dequeueBuffer(source, format, &sslot, fence, async);
     if (result >= 0) {
         *pslot = mapSource2ProducerSlot(source, sslot);
     }
@@ -321,8 +321,9 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         Rect crop;
         int scalingMode;
         uint32_t transform;
+        bool async;
         input.deflate(&timestamp, &crop, &scalingMode, &transform,
-                &mFbFence);
+                &async, &mFbFence);
 
         mFbProducerSlot = pslot;
     }

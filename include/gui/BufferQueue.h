@@ -167,7 +167,7 @@ public:
     //
     // In both cases, the producer will need to call requestBuffer to get a
     // GraphicBuffer handle for the returned slot.
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
             uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
 
     // queueBuffer returns a filled buffer to the BufferQueue.
@@ -229,7 +229,7 @@ public:
            mTimestamp(0),
            mFrameNumber(0),
            mBuf(INVALID_BUFFER_SLOT),
-           mDequeueBufferCannotBlock(false),
+           mIsDroppable(false),
            mAcquireCalled(false) {
              mCrop.makeInvalid();
         }
@@ -260,12 +260,12 @@ public:
         // mFence is a fence that will signal when the buffer is idle.
         sp<Fence> mFence;
 
-        // mDequeueBufferCannotBlock whether this buffer was queued with the
+        // mIsDroppable whether this buffer was queued with the
         // property that it can be replaced by a new buffer for the purpose of
         // making sure dequeueBuffer() won't block.
         // i.e.: was the BufferQueue in "mDequeueBufferCannotBlock" when this buffer
         // was queued.
-        bool mDequeueBufferCannotBlock;
+        bool mIsDroppable;
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;
@@ -379,9 +379,15 @@ private:
     // The initial default is 2.
     status_t setDefaultMaxBufferCountLocked(int count);
 
+    // getMinUndequeuedBufferCount returns the minimum number of buffers
+    // that must remain in a state other than DEQUEUED.
+    // The async parameter tells whether we're in asynchronous mode.
+    int getMinUndequeuedBufferCount(bool async) const;
+
     // getMinBufferCountLocked returns the minimum number of buffers allowed
     // given the current BufferQueue state.
-    int getMinMaxBufferCountLocked() const;
+    // The async parameter tells whether we're in asynchronous mode.
+    int getMinMaxBufferCountLocked(bool async) const;
 
     // getMaxBufferCountLocked returns the maximum number of buffers that can
     // be allocated at once.  This value depends upon the following member
@@ -391,10 +397,11 @@ private:
     //      mMaxAcquiredBufferCount
     //      mDefaultMaxBufferCount
     //      mOverrideMaxBufferCount
+    //      async parameter
     //
     // Any time one of these member variables is changed while a producer is
     // connected, mDequeueCondition must be broadcast.
-    int getMaxBufferCountLocked() const;
+    int getMaxBufferCountLocked(bool async) const;
 
     // stillTracking returns true iff the buffer item is still being tracked
     // in one of the slots.
@@ -515,11 +522,6 @@ private:
     // mDefaultHeight holds the default height of allocated buffers. It is used
     // in dequeueBuffer() if a width and height of zero is specified.
     uint32_t mDefaultHeight;
-
-    // mMinUndequeuedBufferCount holds the minimum number of buffers
-    // that must remain in a state other than DEQUEUED.
-    // This value cannot change while connected.
-    int mMinUndequeuedBufferCount;
 
     // mMaxAcquiredBufferCount is the number of buffers that the consumer may
     // acquire at one time.  It defaults to 1 and can be changed by the

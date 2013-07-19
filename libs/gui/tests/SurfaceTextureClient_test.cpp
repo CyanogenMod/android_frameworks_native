@@ -361,7 +361,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureTooManyUpdateTexImage) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeSlowRetire) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 4));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[1]));
@@ -382,7 +381,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeSlowRetire) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeFastRetire) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 4));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[1]));
@@ -403,7 +401,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeFastRetire) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeDQQR) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
 
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
@@ -429,7 +426,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeDQQR) {
 TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeDequeueCurrent) {
     android_native_buffer_t* buf[3];
     android_native_buffer_t* firstBuf;
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &firstBuf));
     ASSERT_EQ(OK, mANW->queueBuffer(mANW.get(), firstBuf, -1));
@@ -449,7 +445,6 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeDequeueCurrent) 
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeMinUndequeued) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
 
     // We should be able to dequeue all the buffers before we've queued mANWy.
@@ -528,7 +523,6 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeWaitRetire) {
     };
 
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
     // dequeue/queue/update so we have a current buffer
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));

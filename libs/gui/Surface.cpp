@@ -73,6 +73,7 @@ Surface::Surface(
     mConsumerRunningBehind = false;
     mConnectedToCpu = false;
     mProducerControlledByApp = true;
+    mSwapIntervalZero = false;
 }
 
 Surface::~Surface() {
@@ -162,7 +163,6 @@ int Surface::setSwapInterval(int interval) {
     // EGL specification states:
     //  interval is silently clamped to minimum and maximum implementation
     //  dependent values before being stored.
-    // Although we don't have to, we apply the same logic here.
 
     if (interval < minSwapInterval)
         interval = minSwapInterval;
@@ -170,11 +170,9 @@ int Surface::setSwapInterval(int interval) {
     if (interval > maxSwapInterval)
         interval = maxSwapInterval;
 
-    // FIXME: re-implement swap-interval
-    //status_t res = mGraphicBufferProducer->setSynchronousMode(interval ? true : false);
-    status_t res = NO_ERROR;
+    mSwapIntervalZero = (interval == 0);
 
-    return res;
+    return NO_ERROR;
 }
 
 int Surface::dequeueBuffer(android_native_buffer_t** buffer,
@@ -186,7 +184,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
     int reqW = mReqWidth ? mReqWidth : mUserWidth;
     int reqH = mReqHeight ? mReqHeight : mUserHeight;
     sp<Fence> fence;
-    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
+    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence, mSwapIntervalZero,
             reqW, reqH, mReqFormat, mReqUsage);
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d)"
@@ -282,7 +280,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, crop, mScalingMode,
-            mTransform, fence);
+            mTransform, mSwapIntervalZero, fence);
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
