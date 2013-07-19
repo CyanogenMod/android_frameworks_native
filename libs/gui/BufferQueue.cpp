@@ -555,6 +555,9 @@ status_t BufferQueue::queueBuffer(int buf,
                 // buffer slot currently queued is marked free if still tracked
                 if (stillTracking(front)) {
                     mSlots[front->mBuf].mBufferState = BufferSlot::FREE;
+                    // reset the frame number of the freed buffer so that it is the first in
+                    // line to be dequeued again.
+                    mSlots[front->mBuf].mFrameNumber = 0;
                 }
                 // and we record the new buffer in the queued list
                 *front = item;
