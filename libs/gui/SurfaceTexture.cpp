@@ -120,6 +120,10 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
     mUseFenceSync(false),
 #endif
     mTexTarget(texTarget),
+#ifdef STE_HARDWARE
+    mNextBlitSlot(0),
+    mNeedsConversion(false),
+#endif
     mEglDisplay(EGL_NO_DISPLAY),
     mEglContext(EGL_NO_CONTEXT),
     mAbandoned(false),
@@ -128,6 +132,13 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
 {
     // Choose a name using the PID and a process-unique ID.
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
+#ifdef STE_HARDWARE
+    sp<ISurfaceComposer> composer(ComposerService::getComposerService());
+    mGraphicBufferAlloc = composer->createGraphicBufferAlloc();
+    if (mGraphicBufferAlloc == 0) {
+        ST_LOGE("createGraphicBufferAlloc() failed in SurfaceTexture()");
+    }
+#endif
     ST_LOGV("SurfaceTexture");
     if (bufferQueue == 0) {
         ST_LOGV("Creating a new BufferQueue");
@@ -139,6 +150,21 @@ SurfaceTexture::SurfaceTexture(GLuint tex, bool allowSynchronousMode,
 
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
+
+#ifdef STE_HARDWARE
+
+    for (int i = 0; i < NUM_BLIT_BUFFER_SLOTS; i++) {
+        mBlitSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
+        mBlitSlots[i].mEglDisplay = EGL_NO_DISPLAY;
+    }
+
+    hw_module_t const* module;
+    mBlitEngine = 0;
+    if (hw_get_module(COPYBIT_HARDWARE_MODULE_ID, &module) == 0) {
+        copybit_open(module, &mBlitEngine);
+    }
+    ALOGE_IF(!mBlitEngine, "\nCannot open copybit mBlitEngine=%p", mBlitEngine);
+#endif
 
     // Note that we can't create an sp<...>(this) in a ctor that will not keep a
     // reference once the ctor ends, as that would cause the refcount of 'this'
@@ -163,6 +189,11 @@ SurfaceTexture::~SurfaceTexture() {
     ST_LOGV("~SurfaceTexture");
 
     abandon();
+#ifdef STE_HARDWARE
+    if (mBlitEngine) {
+        copybit_close(mBlitEngine);
+    }
+#endif
 }
 
 status_t SurfaceTexture::setBufferCountServer(int bufferCount) {
@@ -180,10 +211,19 @@ status_t SurfaceTexture::setDefaultBufferSize(uint32_t w, uint32_t h)
 }
 
 status_t SurfaceTexture::updateTexImage() {
+#ifndef STE_HARDWARE
     return SurfaceTexture::updateTexImage(NULL);
+#else
+    return SurfaceTexture::updateTexImage(NULL, false);
+#define STE_DEFERDBG 0
+#endif
 }
 
+#ifndef STE_HARDWARE
 status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
+#else
+status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter, bool deferConversion) {
+#endif
     ATRACE_CALL();
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
@@ -246,6 +286,7 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
             return NO_ERROR;
         }
 
+#ifndef STE_HARDWARE
         // Update the GL texture object. We may have to do this even when
         // item.mGraphicBuffer == NULL, if we destroyed the EGLImage when
         // detaching from a context but the buffer has not been re-allocated.
@@ -271,6 +312,102 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
                 }
             }
         }
+#else
+        EGLImageKHR image;
+        EGLDisplay dpy = eglGetCurrentDisplay();
+        if (conversionIsNeeded(mEGLSlots[buf].mGraphicBuffer)) {
+            mNeedsConversion = deferConversion;
+            // If color conversion is needed we can't use the graphic buffers
+            // located in mSlots for the textures (wrong color format). Instead
+            // color convert it into a buffer in mBlitSlots and use that instead.
+            image = mBlitSlots[mNextBlitSlot].mEglImage;
+
+            // If there exists an image already, make sure that
+            // the dimensions match the current source buffer.
+            // Otherwise, destroy the buffer and let a new one be allocated.
+            if (image != EGL_NO_IMAGE_KHR &&
+                    mEGLSlots[buf].mGraphicBuffer != NULL &&
+                    mBlitSlots[mNextBlitSlot].mGraphicBuffer != NULL) {
+                sp<GraphicBuffer> &srcBuf = mEGLSlots[buf].mGraphicBuffer;
+                sp<GraphicBuffer> &bltBuf =
+                    mBlitSlots[mNextBlitSlot].mGraphicBuffer;
+                if (srcBuf->getWidth() != bltBuf->getWidth() ||
+                        srcBuf->getHeight() != bltBuf->getHeight()) {
+                    eglDestroyImageKHR(mBlitSlots[mNextBlitSlot].mEglDisplay,
+                        image);
+                    mBlitSlots[mNextBlitSlot].mEglImage = EGL_NO_IMAGE_KHR;
+                    mBlitSlots[mNextBlitSlot].mGraphicBuffer = NULL;
+                    image = EGL_NO_IMAGE_KHR;
+                }
+            }
+            if (image == EGL_NO_IMAGE_KHR) {
+                sp<GraphicBuffer> &srcBuf = mEGLSlots[buf].mGraphicBuffer;
+                status_t res = 0;
+
+                sp<GraphicBuffer> blitBuffer(
+                        mGraphicBufferAlloc->createGraphicBuffer(
+                                srcBuf->getWidth(), srcBuf->getHeight(),
+                                PIXEL_FORMAT_RGBA_8888, srcBuf->getUsage(),
+                                &res));
+                if (blitBuffer == 0) {
+                    ST_LOGE("updateTexImage: SurfaceComposer::createGraphicBuffer failed");
+                    return NO_MEMORY;
+                }
+                if (res != NO_ERROR) {
+                    ST_LOGW("updateTexImage: SurfaceComposer::createGraphicBuffer error=%#04x", res);
+                }
+                mBlitSlots[mNextBlitSlot].mGraphicBuffer = blitBuffer;
+
+                EGLDisplay dpy = eglGetCurrentDisplay();
+                image = createImage(dpy, blitBuffer);
+                mBlitSlots[mNextBlitSlot].mEglImage = image;
+                mBlitSlots[mNextBlitSlot].mEglDisplay = dpy;
+            }
+
+            if (deferConversion) {
+                item.mGraphicBuffer = mEGLSlots[buf].mGraphicBuffer;
+                mConversionSrcSlot = buf;
+                mConversionBltSlot = mNextBlitSlot;
+                // At this point item.mGraphicBuffer and image do not point
+                // at matching buffers. This is intentional as this
+                // surface might end up being taken care of by HWComposer,
+                // which needs access to the original buffer.
+                // GL however, is fed an EGLImage that is created from
+                // a conversion buffer. It will have its
+                // content updated once the surface is actually drawn
+                // in Layer::onDraw()
+            } else {
+                if (convert(mEGLSlots[buf].mGraphicBuffer,
+                        mBlitSlots[mNextBlitSlot].mGraphicBuffer) != OK) {
+                    ALOGE("updateTexImage: convert failed");
+                    return UNKNOWN_ERROR;
+                }
+                item.mGraphicBuffer = mBlitSlots[mNextBlitSlot].mGraphicBuffer;
+            }
+            // mBlitSlots contains several buffers (NUM_BLIT_BUFFER_SLOTS),
+            // advance (potentially wrap) the index
+            mNextBlitSlot = (mNextBlitSlot + 1) % NUM_BLIT_BUFFER_SLOTS;
+        } else {
+            mNeedsConversion = false;
+            image = mEGLSlots[buf].mEglImage ;
+            item.mGraphicBuffer = mEGLSlots[buf].mGraphicBuffer;
+            if (image == EGL_NO_IMAGE_KHR) {
+                EGLDisplay dpy = eglGetCurrentDisplay();
+                if (item.mGraphicBuffer == 0) {
+                    ST_LOGE("buffer at slot %d is null", buf);
+                    return BAD_VALUE;
+                }
+                image = createImage(dpy, item.mGraphicBuffer);
+                mEGLSlots[buf].mEglImage = image;
+                mEglDisplay = dpy;
+                if (image == EGL_NO_IMAGE_KHR) {
+                    // NOTE: if dpy was invalid, createImage() is guaranteed to
+                    // fail. so we'd end up here.
+                    return -EINVAL;
+                }
+            }
+        }
+#endif
 
         if (err == NO_ERROR) {
             GLint error;
@@ -278,10 +415,14 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
                 ST_LOGW("updateTexImage: clearing GL error: %#04x", error);
             }
 
+#ifndef STE_HARDWARE
             if(gpuSupportedFormat) {
+#endif
                 glBindTexture(mTexTarget, mTexName);
                 glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+#ifndef STE_HARDWARE
             }
+#endif
             while ((error = glGetError()) != GL_NO_ERROR) {
                 ST_LOGE("updateTexImage: error binding external texture image %p "
                         "(slot %d): %#04x", image, buf, error);
@@ -322,7 +463,11 @@ status_t SurfaceTexture::updateTexImage(BufferRejecter* rejecter) {
 
         // Update the SurfaceTexture state.
         mCurrentTexture = buf;
+#ifndef STE_HARDWARE
         mCurrentTextureBuf = mEGLSlots[buf].mGraphicBuffer;
+#else
+        mCurrentTextureBuf = item.mGraphicBuffer;
+#endif
         mCurrentCrop = item.mCrop;
         mCurrentTransform = item.mTransform;
         mCurrentScalingMode = item.mScalingMode;
@@ -758,6 +903,16 @@ void SurfaceTexture::abandon() {
         for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
             freeBufferLocked(i);
         }
+#ifdef STE_HARDWARE
+    for (int i = 0; i < NUM_BLIT_BUFFER_SLOTS; i++) {
+        mBlitSlots[i].mGraphicBuffer = 0;
+        if (mBlitSlots[i].mEglImage != EGL_NO_IMAGE_KHR) {
+            eglDestroyImageKHR(mBlitSlots[i].mEglDisplay, mBlitSlots[i].mEglImage);
+            mBlitSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
+            mBlitSlots[i].mEglDisplay = EGL_NO_DISPLAY;
+        }
+    }
+#endif
 
         // disconnect from the BufferQueue
         mBufferQueue->consumerDisconnect();
@@ -860,6 +1015,84 @@ void SurfaceTexture::dump(String8& result, const char* prefix,
         mBufferQueue->dump(result, prefix, buffer, SIZE);
     }
 }
+
+#ifdef STE_HARDWARE
+bool SurfaceTexture::conversionIsNeeded(const sp<GraphicBuffer>& graphicBuffer) {
+    int fmt = graphicBuffer->getPixelFormat();
+    return (fmt == PIXEL_FORMAT_YCBCR42XMBN) || (fmt == PIXEL_FORMAT_YCbCr_420_P);
+}
+
+status_t SurfaceTexture::convert() {
+    if (!mNeedsConversion)
+        return NO_ERROR;
+
+    if (mConversionBltSlot < 0 ||
+            mConversionBltSlot >= NUM_BLIT_BUFFER_SLOTS ||
+            mConversionSrcSlot < 0 ||
+            mConversionSrcSlot >= BufferQueue::NUM_BUFFER_SLOTS) {
+        ALOGE_IF(STE_DEFERDBG, "%s: Incorrect setup for deferred "
+            "texture conversion:\n"
+            "mConversionSrcSlot=%d mConversionBltSlot=%d", __FUNCTION__,
+            mConversionSrcSlot, mConversionBltSlot);
+        return BAD_VALUE;
+    }
+
+    if (mEGLSlots[mConversionSrcSlot].mGraphicBuffer == NULL) {
+        ALOGI_IF(STE_DEFERDBG, "%s: NULL source for deferred texture conversion.",
+            __FUNCTION__);
+        return OK;
+    }
+
+    if (mBlitSlots[mConversionBltSlot].mGraphicBuffer == NULL) {
+        ALOGI_IF(STE_DEFERDBG, "%s: NULL destination for deferred "
+            "texture conversion.", __FUNCTION__);
+        return OK;
+    }
+
+    return convert(mEGLSlots[mConversionSrcSlot].mGraphicBuffer,
+        mBlitSlots[mConversionBltSlot].mGraphicBuffer);
+}
+
+status_t SurfaceTexture::convert(sp<GraphicBuffer> &srcBuf, sp<GraphicBuffer> &dstBuf) {
+    copybit_image_t dstImg;
+    dstImg.w = dstBuf->getWidth();
+    dstImg.h = dstBuf->getHeight();
+    dstImg.format = dstBuf->getPixelFormat();
+    dstImg.handle = (native_handle_t*) dstBuf->getNativeBuffer()->handle;
+
+    copybit_image_t srcImg;
+    srcImg.w = srcBuf->getWidth();
+    srcImg.h = srcBuf->getHeight();
+    srcImg.format = srcBuf->getPixelFormat();
+    srcImg.base = NULL;
+    srcImg.handle = (native_handle_t*) srcBuf->getNativeBuffer()->handle;
+
+    copybit_rect_t dstCrop;
+    dstCrop.l = 0;
+    dstCrop.t = 0;
+    dstCrop.r = dstBuf->getWidth();
+    dstCrop.b = dstBuf->getHeight();
+
+    copybit_rect_t srcCrop;
+    srcCrop.l = 0;
+    srcCrop.t = 0;
+    srcCrop.r = srcBuf->getWidth();
+    srcCrop.b = srcBuf->getHeight();
+
+    region_iterator clip(Region(Rect(dstCrop.r, dstCrop.b)));
+    mBlitEngine->set_parameter(mBlitEngine, COPYBIT_TRANSFORM, 0);
+    mBlitEngine->set_parameter(mBlitEngine, COPYBIT_PLANE_ALPHA, 0xFF);
+    mBlitEngine->set_parameter(mBlitEngine, COPYBIT_DITHER, COPYBIT_ENABLE);
+
+    int err = mBlitEngine->stretch(
+            mBlitEngine, &dstImg, &srcImg, &dstCrop, &srcCrop, &clip);
+    if (err != 0) {
+        ALOGE("\nError: Blit stretch operation failed (err:%d)\n", err);
+        return UNKNOWN_ERROR;
+    }
+    return OK;
+}
+#endif
 
 static void mtxMul(float out[16], const float a[16], const float b[16]) {
     out[0] = a[0]*b[0] + a[4]*b[1] + a[8]*b[2] + a[12]*b[3];

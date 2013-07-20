@@ -31,6 +31,11 @@
 #include <utils/Vector.h>
 #include <utils/threads.h>
 
+#ifdef STE_HARDWARE
+#include <hardware/copybit.h>
+#include <gui/IGraphicBufferAlloc.h>
+#endif
+
 #define ANDROID_GRAPHICS_SURFACETEXTURE_JNI_ID "mSurfaceTexture"
 
 namespace android {
@@ -42,6 +47,9 @@ class String8;
 class SurfaceTexture : public virtual RefBase,
         protected BufferQueue::ConsumerListener {
 public:
+#ifdef STE_HARDWARE
+    enum { NUM_BLIT_BUFFER_SLOTS = 2 };
+#endif
     struct FrameAvailableListener : public virtual RefBase {
         // onFrameAvailable() is called each time an additional frame becomes
         // available for consumption. This means that frames that are queued
@@ -90,6 +98,13 @@ public:
     // This call may only be made while the OpenGL ES context to which the
     // target texture belongs is bound to the calling thread.
     status_t updateTexImage();
+
+#ifdef STE_HARDWARE
+    // convert() performs the deferred texture conversion as scheduled
+    // by updateTexImage(bool deferConversion).
+    // The method returns immediately if no conversion is necessary.
+    status_t convert();
+#endif
 
     // setBufferCountServer set the buffer count. If the client has requested
     // a buffer count using setBufferCount, the server-buffer count will
@@ -248,11 +263,26 @@ private:
         virtual ~BufferRejecter() { }
     };
     friend class Layer;
+#ifndef STE_HARDWARE
     status_t updateTexImage(BufferRejecter* rejecter);
+#else
+    // A surface that uses a non-native format requires conversion of
+    // its buffers. This conversion can be deferred until the layer
+    // based on this surface is drawn.
+    status_t updateTexImage(BufferRejecter* rejecter, bool deferConversion);
+#endif
 
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
             const sp<GraphicBuffer>& graphicBuffer);
+
+#ifdef STE_HARDWARE
+    // returns TRUE if buffer needs color format conversion
+    bool conversionIsNeeded(const sp<GraphicBuffer>& graphicBuffer);
+
+    // converts buffer to a suitable color format
+    status_t convert(sp<GraphicBuffer> &srcBuf, sp<GraphicBuffer> &dstBuf);
+#endif
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
@@ -349,6 +379,15 @@ private:
         // to EGL_NO_SYNC_KHR when the buffer is created and (optionally, based
         // on a compile-time option) set to a new sync object in updateTexImage.
         EGLSyncKHR mFence;
+
+#ifdef STE_HARDWARE
+    // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
+    // associated.  It is intialized to EGL_NO_DISPLAY and gets set to the
+    // current display when updateTexImage is called for the first time and when
+    // attachToContext is called.
+    EGLDisplay mEglDisplay;
+#endif
+
     };
 
     // mEglDisplay is the EGLDisplay with which this SurfaceTexture is currently
@@ -356,6 +395,40 @@ private:
     // current display when updateTexImage is called for the first time and when
     // attachToContext is called.
     EGLDisplay mEglDisplay;
+
+#ifdef STE_HARDWARE
+    // mBlitEngine is the handle to the copybit device which will be used in
+    // case color transform is needed before the EGL image is created.
+    copybit_device_t* mBlitEngine;
+
+    // mBlitSlots contains several buffers which will
+    // be rendered alternately in case color transform is needed (instead
+    // of rendering the buffers in mSlots).
+    EGLSlot mBlitSlots[NUM_BLIT_BUFFER_SLOTS];
+
+    // mGraphicBufferAlloc is the connection to SurfaceFlinger that is used to
+    // allocate new GraphicBuffer objects.
+    sp<IGraphicBufferAlloc> mGraphicBufferAlloc;
+
+    // mNextBlitSlot is the index of the blitter buffer (in mBlitSlots) which
+    // will be used in the next color transform.
+    int mNextBlitSlot;
+
+    // mConversionSrcSlot designates the slot where source buffer
+    // for the last deferred updateTexImage is located.
+    int mConversionSrcSlot;
+
+    // mConversionBltSlot designates the slot where destination buffer
+    // for the last deferred updateTexImage is located.
+    int mConversionBltSlot;
+
+    // mNeedsConversion indicates that a format conversion is necessary
+    // before the layer based on this surface is drawn.
+    // This flag is set whenever updateTexImage() with deferred conversion
+    // is called. It is cleared once the layer is drawn,
+    // or when updateTexImage() w/o deferred conversion is called.
+    bool mNeedsConversion;
+#endif
 
     // mEglContext is the OpenGL ES context with which this SurfaceTexture is
     // currently associated.  It is initialized to EGL_NO_CONTEXT and gets set
