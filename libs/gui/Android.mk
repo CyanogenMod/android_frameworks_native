@@ -8,7 +8,6 @@ LOCAL_SRC_FILES:= \
 	ConsumerBase.cpp \
 	CpuConsumer.cpp \
 	DisplayEventReceiver.cpp \
-	DummyConsumer.cpp \
 	GLConsumer.cpp \
 	GraphicBufferAlloc.cpp \
 	GuiConfig.cpp \

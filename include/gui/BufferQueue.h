@@ -97,11 +97,9 @@ public:
 
 
     // BufferQueue manages a pool of gralloc memory slots to be used by
-    // producers and consumers. allowSynchronousMode specifies whether or not
-    // synchronous mode can be enabled by the producer. allocator is used to
-    // allocate all the needed gralloc buffers.
-    BufferQueue(bool allowSynchronousMode = true,
-            const sp<IGraphicBufferAlloc>& allocator = NULL);
+    // producers and consumers. allocator is used to allocate all the
+    // needed gralloc buffers.
+    BufferQueue(const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueue();
 
     // Query native window attributes.  The "what" values are enumerated in
@@ -169,7 +167,7 @@ public:
     //
     // In both cases, the producer will need to call requestBuffer to get a
     // GraphicBuffer handle for the returned slot.
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
             uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
 
     // queueBuffer returns a filled buffer to the BufferQueue.
@@ -197,15 +195,6 @@ public:
     // will usually be the one obtained from dequeueBuffer.
     virtual void cancelBuffer(int buf, const sp<Fence>& fence);
 
-    // setSynchronousMode sets whether dequeueBuffer is synchronous or
-    // asynchronous. In synchronous mode, dequeueBuffer blocks until
-    // a buffer is available, the currently bound buffer can be dequeued and
-    // queued buffers will be acquired in order.  In asynchronous mode,
-    // a queued buffer may be replaced by a subsequently queued buffer.
-    //
-    // The default mode is asynchronous.
-    virtual status_t setSynchronousMode(bool enabled);
-
     // connect attempts to connect a producer API to the BufferQueue.  This
     // must be called before any other IGraphicBufferProducer methods are
     // called except for getAllocator.  A consumer must already be connected.
@@ -215,7 +204,7 @@ public:
     // it's still connected to a producer).
     //
     // APIs are enumerated in window.h (e.g. NATIVE_WINDOW_API_CPU).
-    virtual status_t connect(int api, QueueBufferOutput* output);
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output);
 
     // disconnect attempts to disconnect a producer API from the BufferQueue.
     // Calling this method will cause any subsequent calls to other
@@ -234,13 +223,13 @@ public:
     // public facing structure for BufferSlot
     struct BufferItem {
 
-        BufferItem()
-         :
+        BufferItem() :
            mTransform(0),
            mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
            mTimestamp(0),
            mFrameNumber(0),
            mBuf(INVALID_BUFFER_SLOT),
+           mIsDroppable(false),
            mAcquireCalled(false) {
              mCrop.makeInvalid();
         }
@@ -270,6 +259,13 @@ public:
 
         // mFence is a fence that will signal when the buffer is idle.
         sp<Fence> mFence;
+
+        // mIsDroppable whether this buffer was queued with the
+        // property that it can be replaced by a new buffer for the purpose of
+        // making sure dequeueBuffer() won't block.
+        // i.e.: was the BufferQueue in "mDequeueBufferCannotBlock" when this buffer
+        // was queued.
+        bool mIsDroppable;
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;
@@ -312,9 +308,11 @@ public:
     // consumer may be connected, and when that consumer disconnects the
     // BufferQueue is placed into the "abandoned" state, causing most
     // interactions with the BufferQueue by the producer to fail.
+    // controlledByApp indicates whether the consumer is controlled by
+    // the application.
     //
     // consumer may not be NULL.
-    status_t consumerConnect(const sp<ConsumerListener>& consumer);
+    status_t consumerConnect(const sp<ConsumerListener>& consumer, bool controlledByApp);
 
     // consumerDisconnect disconnects a consumer from the BufferQueue. All
     // buffers will be freed and the BufferQueue is placed in the "abandoned"
@@ -347,10 +345,6 @@ public:
     // fail if a producer is connected to the BufferQueue.
     status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers);
 
-    // isSynchronousMode returns whether the BufferQueue is currently in
-    // synchronous mode.
-    bool isSynchronousMode() const;
-
     // setConsumerName sets the name used in logging
     void setConsumerName(const String8& name);
 
@@ -379,43 +373,35 @@ private:
     // all slots.
     void freeAllBuffersLocked();
 
-    // drainQueueLocked waits for the buffer queue to empty if we're in
-    // synchronous mode, or returns immediately otherwise. It returns NO_INIT
-    // if the BufferQueue is abandoned (consumer disconnected) or disconnected
-    // (producer disconnected) during the call.
-    status_t drainQueueLocked();
-
-    // drainQueueAndFreeBuffersLocked drains the buffer queue if we're in
-    // synchronous mode and free all buffers. In asynchronous mode, all buffers
-    // are freed except the currently queued buffer (if it exists).
-    status_t drainQueueAndFreeBuffersLocked();
-
     // setDefaultMaxBufferCountLocked sets the maximum number of buffer slots
     // that will be used if the producer does not override the buffer slot
     // count.  The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
     // The initial default is 2.
     status_t setDefaultMaxBufferCountLocked(int count);
 
+    // getMinUndequeuedBufferCount returns the minimum number of buffers
+    // that must remain in a state other than DEQUEUED.
+    // The async parameter tells whether we're in asynchronous mode.
+    int getMinUndequeuedBufferCount(bool async) const;
+
     // getMinBufferCountLocked returns the minimum number of buffers allowed
     // given the current BufferQueue state.
-    int getMinMaxBufferCountLocked() const;
-
-    // getMinUndequeuedBufferCountLocked returns the minimum number of buffers
-    // that must remain in a state other than DEQUEUED.
-    int getMinUndequeuedBufferCountLocked() const;
+    // The async parameter tells whether we're in asynchronous mode.
+    int getMinMaxBufferCountLocked(bool async) const;
 
     // getMaxBufferCountLocked returns the maximum number of buffers that can
     // be allocated at once.  This value depends upon the following member
     // variables:
     //
-    //      mSynchronousMode
+    //      mDequeueBufferCannotBlock
     //      mMaxAcquiredBufferCount
     //      mDefaultMaxBufferCount
     //      mOverrideMaxBufferCount
+    //      async parameter
     //
     // Any time one of these member variables is changed while a producer is
     // connected, mDequeueCondition must be broadcast.
-    int getMaxBufferCountLocked() const;
+    int getMaxBufferCountLocked(bool async) const;
 
     // stillTracking returns true iff the buffer item is still being tracked
     // in one of the slots.
@@ -568,12 +554,14 @@ private:
     // to NULL and is written by consumerConnect and consumerDisconnect.
     sp<ConsumerListener> mConsumerListener;
 
-    // mSynchronousMode whether we're in synchronous mode or not
-    bool mSynchronousMode;
+    // mConsumerControlledByApp whether the connected consumer is controlled by the
+    // application.
+    bool mConsumerControlledByApp;
 
-    // mAllowSynchronousMode whether we allow synchronous mode or not.  Set
-    // when the BufferQueue is created (by the consumer).
-    const bool mAllowSynchronousMode;
+    // mDequeueBufferCannotBlock whether dequeueBuffer() isn't allowed to block.
+    // this flag is set durring connect() when both consumer and producer are controlled
+    // by the application.
+    bool mDequeueBufferCannotBlock;
 
     // mConnectedApi indicates the producer API that is currently connected
     // to this BufferQueue.  It defaults to NO_CONNECTED_API (= 0), and gets

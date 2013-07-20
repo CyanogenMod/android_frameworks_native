@@ -62,21 +62,21 @@ struct DummyConsumer : public BufferQueue::ConsumerListener {
 
 TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
     IGraphicBufferProducer::QueueBufferOutput qbo;
-    mBQ->connect(NATIVE_WINDOW_API_CPU, &qbo);
+    mBQ->connect(NATIVE_WINDOW_API_CPU, false, &qbo);
     mBQ->setBufferCount(4);
 
     int slot;
     sp<Fence> fence;
     sp<GraphicBuffer> buf;
     IGraphicBufferProducer::QueueBufferInput qbi(0, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     BufferQueue::BufferItem item;
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-                mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
+                mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                     GRALLOC_USAGE_SW_READ_OFTEN));
         ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
         ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
@@ -84,7 +84,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mBQ->dequeueBuffer(&slot, &fence, 1, 1, 0,
+            mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                 GRALLOC_USAGE_SW_READ_OFTEN));
     ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
     ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
@@ -95,7 +95,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
 
     ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
     ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
@@ -106,7 +106,7 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc);
+    mBQ->consumerConnect(dc, false);
 
     ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
     ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));

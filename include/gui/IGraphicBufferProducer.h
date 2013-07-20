@@ -84,7 +84,10 @@ public:
     // the buffer. The contents of the buffer must not be overwritten until the
     // fence signals. If the fence is NULL, the buffer may be written
     // immediately.
-    virtual status_t dequeueBuffer(int *slot, sp<Fence>* fence,
+    //
+    // The async parameter sets whether we're in asynchrnous mode for this
+    // deququeBuffer() call.
+    virtual status_t dequeueBuffer(int *slot, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) = 0;
 
     // queueBuffer indicates that the client has finished filling in the
@@ -96,6 +99,8 @@ public:
     // must be monotonically increasing. Its other properties (zero point, etc)
     // are client-dependent, and should be documented by the client.
     //
+    // The async parameter sets whether we're queuing a buffer in asynchronous mode.
+    //
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
     // respectively.
@@ -103,17 +108,18 @@ public:
     struct QueueBufferInput : public Flattenable {
         inline QueueBufferInput(const Parcel& parcel);
         inline QueueBufferInput(int64_t timestamp,
-                const Rect& crop, int scalingMode, uint32_t transform,
-                sp<Fence> fence)
+                const Rect& crop, int scalingMode, uint32_t transform, bool async,
+                const sp<Fence>& fence)
         : timestamp(timestamp), crop(crop), scalingMode(scalingMode),
-          transform(transform), fence(fence) { }
+          transform(transform), async(async), fence(fence) { }
         inline void deflate(int64_t* outTimestamp, Rect* outCrop,
-                int* outScalingMode, uint32_t* outTransform,
+                int* outScalingMode, uint32_t* outTransform, bool* outAsync,
                 sp<Fence>* outFence) const {
             *outTimestamp = timestamp;
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
+            *outAsync = bool(async);
             *outFence = fence;
         }
 
@@ -130,6 +136,7 @@ public:
         Rect crop;
         int scalingMode;
         uint32_t transform;
+        int async;
         sp<Fence> fence;
     };
 
@@ -171,13 +178,6 @@ public:
     // 'what' tokens allowed are that of android_natives.h
     virtual int query(int what, int* value) = 0;
 
-    // setSynchronousMode set whether dequeueBuffer is synchronous or
-    // asynchronous. In synchronous mode, dequeueBuffer blocks until
-    // a buffer is available, the currently bound buffer can be dequeued and
-    // queued buffers will be retired in order.
-    // The default mode is asynchronous.
-    virtual status_t setSynchronousMode(bool enabled) = 0;
-
     // connect attempts to connect a client API to the IGraphicBufferProducer.
     // This must be called before any other IGraphicBufferProducer methods are
     // called except for getAllocator.
@@ -188,7 +188,7 @@ public:
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
     // respectively.
-    virtual status_t connect(int api, QueueBufferOutput* output) = 0;
+    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
 
     // disconnect attempts to disconnect a client API from the
     // IGraphicBufferProducer.  Calling this method will cause any subsequent

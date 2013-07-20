@@ -87,7 +87,9 @@ protected:
 
     // ConsumerBase constructs a new ConsumerBase object to consume image
     // buffers from the given BufferQueue.
-    ConsumerBase(const sp<BufferQueue> &bufferQueue);
+    // The controlledByApp flag indicates that this consumer is under the application's
+    // control.
+    ConsumerBase(const sp<BufferQueue> &bufferQueue, bool controlledByApp = false);
 
     // onLastStrongRef gets called by RefBase just before the dtor of the most
     // derived class.  It is used to clean up the buffers so that ConsumerBase

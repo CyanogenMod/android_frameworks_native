@@ -51,7 +51,7 @@ namespace android {
  */
 
 FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
-    ConsumerBase(new BufferQueue(true, new GraphicBufferAlloc())),
+    ConsumerBase(new BufferQueue(new GraphicBufferAlloc())),
     mDisplayType(disp),
     mCurrentBufferSlot(-1),
     mCurrentBuffer(0),
@@ -64,7 +64,6 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
                                        GRALLOC_USAGE_HW_COMPOSER);
     mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(disp));
     mBufferQueue->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
-    mBufferQueue->setSynchronousMode(true);
     mBufferQueue->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
