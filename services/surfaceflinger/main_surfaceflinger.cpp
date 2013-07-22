@@ -15,7 +15,7 @@
  */
 
 #include <binder/BinderService.h>
-#include <SurfaceFlinger.h>
+#include "SurfaceFlinger.h"
 
 using namespace android;
 

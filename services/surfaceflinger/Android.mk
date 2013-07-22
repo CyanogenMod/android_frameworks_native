@@ -65,6 +65,22 @@ LOCAL_MODULE:= libsurfaceflinger
 include $(BUILD_SHARED_LIBRARY)
 
 ###############################################################
+# build surfaceflinger's executable
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES:= \
+	main_surfaceflinger.cpp 
+
+LOCAL_SHARED_LIBRARIES := \
+	libsurfaceflinger \
+	libbinder \
+	libutils
+
+LOCAL_MODULE:= surfaceflinger
+
+include $(BUILD_EXECUTABLE)
+
+###############################################################
 # uses jni which may not be available in PDK
 ifneq ($(wildcard libnativehelper/include),)
 include $(CLEAR_VARS)
