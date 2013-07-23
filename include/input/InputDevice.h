@@ -67,10 +67,11 @@ public:
         float resolution;
     };
 
-    void initialize(int32_t id, int32_t generation, const InputDeviceIdentifier& identifier,
-            const String8& alias, bool isExternal);
+    void initialize(int32_t id, int32_t generation, int32_t controllerNumber,
+            const InputDeviceIdentifier& identifier, const String8& alias, bool isExternal);
 
     inline int32_t getId() const { return mId; }
+    inline int32_t getControllerNumber() const { return mControllerNumber; }
     inline int32_t getGeneration() const { return mGeneration; }
     inline const InputDeviceIdentifier& getIdentifier() const { return mIdentifier; }
     inline const String8& getAlias() const { return mAlias; }
@@ -111,6 +112,7 @@ public:
 private:
     int32_t mId;
     int32_t mGeneration;
+    int32_t mControllerNumber;
     InputDeviceIdentifier mIdentifier;
     String8 mAlias;
     bool mIsExternal;
