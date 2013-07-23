@@ -19,7 +19,7 @@
 
 #include <binder/TextOutput.h>
 #include <utils/threads.h>
-#include <cutils/uio.h>
+#include <sys/uio.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
