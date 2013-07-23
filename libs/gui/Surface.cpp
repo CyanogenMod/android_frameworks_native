@@ -216,7 +216,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
         }
     }
 
-    if (fence->isValid()) {
+    if ((fence != NULL) && fence->isValid()) {
         *fenceFd = fence->dup();
         if (*fenceFd == -1) {
             ALOGE("dequeueBuffer: error duping fence: %d", errno);
