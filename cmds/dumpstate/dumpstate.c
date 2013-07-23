@@ -33,7 +33,7 @@
 #include "private/android_filesystem_config.h"
 
 #define LOG_TAG "dumpstate"
-#include <utils/Log.h>
+#include <cutils/log.h>
 
 #include "dumpstate.h"
 
