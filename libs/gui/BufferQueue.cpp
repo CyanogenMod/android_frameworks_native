@@ -843,13 +843,13 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) {
     if (presentWhen != 0 && desiredPresent > presentWhen &&
             desiredPresent - presentWhen < MAX_FUTURE_NSEC)
     {
-        ALOGV("pts defer: des=%lld when=%lld (%lld) now=%lld",
+        ST_LOGV("pts defer: des=%lld when=%lld (%lld) now=%lld",
                 desiredPresent, presentWhen, desiredPresent - presentWhen,
                 systemTime(CLOCK_MONOTONIC));
         return PRESENT_LATER;
     }
     if (presentWhen != 0) {
-        ALOGV("pts accept: %p[%d] sig=%lld des=%lld when=%lld (%lld)",
+        ST_LOGV("pts accept: %p[%d] sig=%lld des=%lld when=%lld (%lld)",
                 mSlots, buf, mSlots[buf].mFence->getSignalTime(),
                 desiredPresent, presentWhen, desiredPresent - presentWhen);
     }
@@ -889,35 +889,31 @@ status_t BufferQueue::releaseBuffer(
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(buf);
 
-    Mutex::Autolock _l(mMutex);
-
     if (buf == INVALID_BUFFER_SLOT || fence == NULL) {
         return BAD_VALUE;
     }
 
-    // Check if this buffer slot is on the queue
-    bool slotQueued = false;
-    Fifo::iterator front(mQueue.begin());
-    while (front != mQueue.end() && !slotQueued) {
-        if (front->mBuf == buf)
-            slotQueued = true;
-        front++;
-    }
+    Mutex::Autolock _l(mMutex);
 
     // If the frame number has changed because buffer has been reallocated,
     // we can ignore this releaseBuffer for the old buffer.
     if (frameNumber != mSlots[buf].mFrameNumber) {
-        // This should only occur if new buffer is still in the queue
-        ALOGE_IF(!slotQueued,
-                "received old buffer(#%lld) after new buffer(#%lld) on same "
-                "slot #%d already acquired", frameNumber,
-                mSlots[buf].mFrameNumber, buf);
         return STALE_BUFFER_SLOT;
     }
-    // this should never happen
-    ALOGE_IF(slotQueued,
-            "received new buffer(#%lld) on slot #%d that has not yet been "
-            "acquired", frameNumber, buf);
+
+
+    // Internal state consistency checks:
+    // Make sure this buffers hasn't been queued while we were owning it (acquired)
+    Fifo::iterator front(mQueue.begin());
+    Fifo::const_iterator const end(mQueue.end());
+    while (front != end) {
+        if (front->mBuf == buf) {
+            LOG_ALWAYS_FATAL("[%s] received new buffer(#%lld) on slot #%d that has not yet been "
+                    "acquired", mConsumerName.string(), frameNumber, buf);
+            break; // never reached
+        }
+        front++;
+    }
 
     // The buffer can now only be released if its in the acquired state
     if (mSlots[buf].mBufferState == BufferSlot::ACQUIRED) {
@@ -1007,8 +1003,7 @@ status_t BufferQueue::getReleasedBuffers(uint32_t* slotMask) {
     return NO_ERROR;
 }
 
-status_t BufferQueue::setDefaultBufferSize(uint32_t w, uint32_t h)
-{
+status_t BufferQueue::setDefaultBufferSize(uint32_t w, uint32_t h) {
     ST_LOGV("setDefaultBufferSize: w=%d, h=%d", w, h);
     if (!w || !h) {
         ST_LOGE("setDefaultBufferSize: dimensions cannot be 0 (w=%d, h=%d)",
