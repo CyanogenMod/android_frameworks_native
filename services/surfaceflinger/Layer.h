@@ -298,6 +298,7 @@ public:
     void dump(String8& result, Colorizer& colorizer) const;
     void dumpStats(String8& result) const;
     void clearStats();
+    void logFrameStats();
 
 protected:
     // constant

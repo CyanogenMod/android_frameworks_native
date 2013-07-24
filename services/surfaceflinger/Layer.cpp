@@ -104,6 +104,10 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     // drawing state & current state are identical
     mDrawingState = mCurrentState;
+
+    nsecs_t displayPeriod =
+            flinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+    mFrameTracker.setDisplayRefreshPeriod(displayPeriod);
 }
 
 void Layer::onFirstRef()
@@ -134,6 +138,7 @@ Layer::~Layer() {
         c->detachLayer(this);
     }
     mFlinger->deleteTextureAsync(mTextureName);
+    mFrameTracker.logAndResetStats(mName);
 }
 
 // ---------------------------------------------------------------------------
@@ -1177,6 +1182,10 @@ void Layer::dumpStats(String8& result) const {
 
 void Layer::clearStats() {
     mFrameTracker.clear();
+}
+
+void Layer::logFrameStats() {
+    mFrameTracker.logAndResetStats(mName);
 }
 
 // ---------------------------------------------------------------------------
