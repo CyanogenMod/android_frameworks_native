@@ -76,7 +76,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     }
 
     // Release the previous buffer.
-    err = releaseAndUpdateLocked(item);
+    err = updateAndReleaseLocked(item);
     if (err != NO_ERROR) {
         return err;
     }

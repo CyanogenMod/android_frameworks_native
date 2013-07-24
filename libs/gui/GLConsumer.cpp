@@ -25,6 +25,7 @@
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <cutils/compiler.h>
 
 #include <hardware/hardware.h>
 
@@ -48,6 +49,12 @@ namespace android {
 #define ST_LOGI(x, ...) ALOGI("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGW(x, ...) ALOGW("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGE(x, ...) ALOGE("[%s] "x, mName.string(), ##__VA_ARGS__)
+
+static const struct {
+    size_t width, height;
+    char const* bits;
+} kDebugData = { 11, 8,
+    "__X_____X_____X___X_____XXXXXXX___XX_XXX_XX_XXXXXXXXXXXX_XXXXXXX_XX_X_____X_X___XX_XX___" };
 
 // Transform matrices
 static float mtxIdentity[16] = {
@@ -154,7 +161,7 @@ status_t GLConsumer::updateTexImage() {
     }
 
     // Release the previous buffer.
-    err = releaseAndUpdateLocked(item);
+    err = updateAndReleaseLocked(item);
     if (err != NO_ERROR) {
         // We always bind the texture.
         glBindTexture(mTexTarget, mTexName);
@@ -163,6 +170,80 @@ status_t GLConsumer::updateTexImage() {
 
     // Bind the new buffer to the GL texture, and wait until it's ready.
     return bindTextureImageLocked();
+}
+
+
+status_t GLConsumer::releaseTexImage() {
+    ATRACE_CALL();
+    ST_LOGV("releaseTexImage");
+    Mutex::Autolock lock(mMutex);
+
+    if (mAbandoned) {
+        ST_LOGE("releaseTexImage: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
+
+    // Make sure the EGL state is the same as in previous calls.
+    status_t err = checkAndUpdateEglStateLocked();
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // Update the GLConsumer state.
+    int buf = mCurrentTexture;
+    if (buf != BufferQueue::INVALID_BUFFER_SLOT) {
+
+        ST_LOGV("releaseTexImage:(slot=%d", buf);
+
+        // Do whatever sync ops we need to do before releasing the slot.
+        err = syncForReleaseLocked(mEglDisplay);
+        if (err != NO_ERROR) {
+            ST_LOGE("syncForReleaseLocked failed (slot=%d), err=%d", buf, err);
+            return err;
+        }
+
+        err = releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
+        if (err < NO_ERROR) {
+            ST_LOGE("releaseTexImage: failed to release buffer: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
+
+        if (CC_UNLIKELY(mReleasedTexImageBuffer == NULL)) {
+            // The first time, create the debug texture in case the application
+            // continues to use it.
+            sp<GraphicBuffer> buffer = new GraphicBuffer(11, 8, PIXEL_FORMAT_RGBA_8888,
+                    GraphicBuffer::USAGE_SW_WRITE_RARELY);
+            uint32_t* bits;
+            buffer->lock(GraphicBuffer::USAGE_SW_WRITE_RARELY, reinterpret_cast<void**>(&bits));
+            size_t w = buffer->getStride();
+            size_t h = buffer->getHeight();
+            memset(bits, 0, w*h*4);
+            for (size_t y=0 ; y<kDebugData.height ; y++) {
+                for (size_t x=0 ; x<kDebugData.width ; x++) {
+                    bits[x] = (kDebugData.bits[y*11+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
+                }
+                bits += w;
+            }
+            buffer->unlock();
+            mReleasedTexImageBuffer = buffer;
+        }
+
+        mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
+        mCurrentTextureBuf = mReleasedTexImageBuffer;
+        mCurrentCrop.makeInvalid();
+        mCurrentTransform = 0;
+        mCurrentScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
+        mCurrentTimestamp = 0;
+        mCurrentFence = Fence::NO_FENCE;
+
+        // bind a dummy texture
+        glBindTexture(mTexTarget, mTexName);
+        bindUnslottedBufferLocked(mEglDisplay);
+    }
+
+    return NO_ERROR;
 }
 
 status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
@@ -202,12 +283,12 @@ status_t GLConsumer::releaseBufferLocked(int buf,
     return err;
 }
 
-status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
+status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
 {
     status_t err = NO_ERROR;
 
     if (!mAttached) {
-        ST_LOGE("releaseAndUpdate: GLConsumer is not attached to an OpenGL "
+        ST_LOGE("updateAndRelease: GLConsumer is not attached to an OpenGL "
                 "ES context");
         return INVALID_OPERATION;
     }
@@ -230,7 +311,7 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
     if (mEglSlots[buf].mEglImage == EGL_NO_IMAGE_KHR) {
         EGLImageKHR image = createImage(mEglDisplay, mSlots[buf].mGraphicBuffer);
         if (image == EGL_NO_IMAGE_KHR) {
-            ST_LOGW("releaseAndUpdate: unable to createImage on display=%p slot=%d",
+            ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
                   mEglDisplay, buf);
             return UNKNOWN_ERROR;
         }
@@ -249,7 +330,7 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
         return err;
     }
 
-    ST_LOGV("releaseAndUpdate: (slot=%d buf=%p) -> (slot=%d buf=%p)",
+    ST_LOGV("updateAndRelease: (slot=%d buf=%p) -> (slot=%d buf=%p)",
             mCurrentTexture,
             mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
             buf, mSlots[buf].mGraphicBuffer->handle);
@@ -259,8 +340,8 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
         status_t status = releaseBufferLocked(
                 mCurrentTexture, mCurrentTextureBuf, mEglDisplay,
                 mEglSlots[mCurrentTexture].mEglFence);
-        if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
-            ST_LOGE("releaseAndUpdate: failed to release buffer: %s (%d)",
+        if (status < NO_ERROR) {
+            ST_LOGE("updateAndRelease: failed to release buffer: %s (%d)",
                    strerror(-status), status);
             err = status;
             // keep going, with error raised [?]

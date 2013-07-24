@@ -340,6 +340,13 @@ public:
     // The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
     status_t setDefaultMaxBufferCount(int bufferCount);
 
+    // disableAsyncBuffer disables the extra buffer used in async mode
+    // (when both producer and consumer have set their "isControlledByApp"
+    // flag) and has dequeueBuffer() return WOULD_BLOCK instead.
+    //
+    // This can only be called before consumerConnect().
+    status_t disableAsyncBuffer();
+
     // setMaxAcquiredBufferCount sets the maximum number of buffers that can
     // be acquired by the consumer at one time (default 1).  This call will
     // fail if a producer is connected to the BufferQueue.
@@ -363,6 +370,7 @@ public:
     // The values are enumerated in window.h, e.g.
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
     status_t setTransformHint(uint32_t hint);
+
 
 private:
     // freeBufferLocked frees the GraphicBuffer and sync resources for the
@@ -559,9 +567,13 @@ private:
     bool mConsumerControlledByApp;
 
     // mDequeueBufferCannotBlock whether dequeueBuffer() isn't allowed to block.
-    // this flag is set durring connect() when both consumer and producer are controlled
+    // this flag is set during connect() when both consumer and producer are controlled
     // by the application.
     bool mDequeueBufferCannotBlock;
+
+    // mUseAsyncBuffer whether an extra buffer is used in async mode to prevent
+    // dequeueBuffer() from ever blocking.
+    bool mUseAsyncBuffer;
 
     // mConnectedApi indicates the producer API that is currently connected
     // to this BufferQueue.  It defaults to NO_CONNECTED_API (= 0), and gets

@@ -98,6 +98,13 @@ public:
     // This calls doGLFenceWait to ensure proper synchronization.
     status_t updateTexImage();
 
+    // releaseTexImage releases the texture acquired in updateTexImage().
+    // This is intended to be used in single buffer mode.
+    //
+    // This call may only be made while the OpenGL ES context to which the
+    // target texture belongs is bound to the calling thread.
+    status_t releaseTexImage();
+
     // setReleaseFence stores a fence that will signal when the current buffer
     // is no longer being read. This fence will be returned to the producer
     // when the current buffer is released by updateTexImage(). Multiple
@@ -251,7 +258,7 @@ protected:
     // This releases the buffer in the slot referenced by mCurrentTexture,
     // then updates state to refer to the BufferItem, which must be a
     // newly-acquired buffer.
-    status_t releaseAndUpdateLocked(const BufferQueue::BufferItem& item);
+    status_t updateAndReleaseLocked(const BufferQueue::BufferItem& item);
 
     // Binds mTexName and the current buffer to mTexTarget.  Uses
     // mCurrentTexture if it's set, mCurrentTextureBuf if not.  If the
@@ -416,6 +423,10 @@ private:
     // It is set to false by detachFromContext, and then set to true again by
     // attachToContext.
     bool mAttached;
+
+    // mReleasedTexImageBuffer is a dummy buffer used when in single buffer
+    // mode and releaseTexImage() has been called
+    sp<GraphicBuffer> mReleasedTexImageBuffer;
 };
 
 // ----------------------------------------------------------------------------

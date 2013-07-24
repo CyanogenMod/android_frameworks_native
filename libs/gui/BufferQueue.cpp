@@ -72,6 +72,7 @@ BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     mOverrideMaxBufferCount(0),
     mConsumerControlledByApp(false),
     mDequeueBufferCannotBlock(false),
+    mUseAsyncBuffer(true),
     mConnectedApi(NO_CONNECTED_API),
     mAbandoned(false),
     mFrameCounter(0),
@@ -100,7 +101,8 @@ BufferQueue::~BufferQueue() {
 }
 
 status_t BufferQueue::setDefaultMaxBufferCountLocked(int count) {
-    if (count < 2 || count > NUM_BUFFER_SLOTS)
+    const int minBufferCount = mUseAsyncBuffer ? 2 : 1;
+    if (count < minBufferCount || count > NUM_BUFFER_SLOTS)
         return BAD_VALUE;
 
     mDefaultMaxBufferCount = count;
@@ -1033,6 +1035,17 @@ status_t BufferQueue::setDefaultMaxBufferCount(int bufferCount) {
     return setDefaultMaxBufferCountLocked(bufferCount);
 }
 
+status_t BufferQueue::disableAsyncBuffer() {
+    ATRACE_CALL();
+    Mutex::Autolock lock(mMutex);
+    if (mConsumerListener != NULL) {
+        ST_LOGE("disableAsyncBuffer: consumer already connected!");
+        return INVALID_OPERATION;
+    }
+    mUseAsyncBuffer = false;
+    return NO_ERROR;
+}
+
 status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
@@ -1049,8 +1062,17 @@ status_t BufferQueue::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
 }
 
 int BufferQueue::getMinUndequeuedBufferCount(bool async) const {
-    return (mDequeueBufferCannotBlock || async) ?
-                mMaxAcquiredBufferCount+1 : mMaxAcquiredBufferCount;
+    // if dequeueBuffer is allowed to error out, we don't have to
+    // add an extra buffer.
+    if (!mUseAsyncBuffer)
+        return mMaxAcquiredBufferCount;
+
+    // we're in async mode, or we want to prevent the app to
+    // deadlock itself, we throw-in an extra buffer to guarantee it.
+    if (mDequeueBufferCannotBlock || async)
+        return mMaxAcquiredBufferCount+1;
+
+    return mMaxAcquiredBufferCount;
 }
 
 int BufferQueue::getMinMaxBufferCountLocked(bool async) const {
