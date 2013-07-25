@@ -268,7 +268,6 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
         usage |= mConsumerUsageBits;
 
         int found = -1;
-        int dequeuedCount = 0;
         bool tryAgain = true;
         while (tryAgain) {
             if (mAbandoned) {
@@ -299,23 +298,28 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
 
             // look for a free buffer to give to the client
             found = INVALID_BUFFER_SLOT;
-            dequeuedCount = 0;
+            int dequeuedCount = 0;
+            int acquiredCount = 0;
             for (int i = 0; i < maxBufferCount; i++) {
                 const int state = mSlots[i].mBufferState;
-                if (state == BufferSlot::DEQUEUED) {
-                    dequeuedCount++;
-                }
-
-                if (state == BufferSlot::FREE) {
-                    /* We return the oldest of the free buffers to avoid
-                     * stalling the producer if possible.  This is because
-                     * the consumer may still have pending reads of the
-                     * buffers in flight.
-                     */
-                    if ((found < 0) ||
-                            mSlots[i].mFrameNumber < mSlots[found].mFrameNumber) {
-                        found = i;
-                    }
+                switch (state) {
+                    case BufferSlot::DEQUEUED:
+                        dequeuedCount++;
+                        break;
+                    case BufferSlot::ACQUIRED:
+                        acquiredCount++;
+                        break;
+                    case BufferSlot::FREE:
+                        /* We return the oldest of the free buffers to avoid
+                         * stalling the producer if possible.  This is because
+                         * the consumer may still have pending reads of the
+                         * buffers in flight.
+                         */
+                        if ((found < 0) ||
+                                mSlots[i].mFrameNumber < mSlots[found].mFrameNumber) {
+                            found = i;
+                        }
+                        break;
                 }
             }
 
@@ -348,7 +352,13 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
             // the max buffer count to change.
             tryAgain = found == INVALID_BUFFER_SLOT;
             if (tryAgain) {
-                if (mDequeueBufferCannotBlock) {
+                // return an error if we're in "cannot block" mode (producer and consumer
+                // are controlled by the application) -- however, the consumer is allowed
+                // to acquire briefly an extra buffer (which could cause us to have to wait here)
+                // and that's okay because we know the wait will be brief (it happens
+                // if we dequeue a buffer while the consumer has acquired one but not released
+                // the old one yet -- for e.g.: see GLConsumer::updateTexImage()).
+                if (mDequeueBufferCannotBlock && (acquiredCount <= mMaxAcquiredBufferCount)) {
                     ST_LOGE("dequeueBuffer: would block! returning an error instead.");
                     return WOULD_BLOCK;
                 }
