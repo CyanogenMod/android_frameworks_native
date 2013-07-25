@@ -843,23 +843,19 @@ status_t HWComposer::commit() {
                 mLists[0]->dpy = eglGetCurrentDisplay();
                 mLists[0]->sur = eglGetCurrentSurface(EGL_DRAW);
             }
-            err = hwcSet(mHwc, mLists[0]->dpy, mLists[0]->sur, mNumDisplays,
-                    const_cast<hwc_display_contents_1_t**>(mLists));
+            for (size_t i=VIRTUAL_DISPLAY_ID_BASE; i<mNumDisplays; i++) {
+                DisplayData& disp(mDisplayData[i]);
+                if (disp.outbufHandle) {
+                    mLists[i]->outbuf = disp.outbufHandle;
+                    mLists[i]->outbufAcquireFenceFd =
+                        disp.outbufAcquireFence->dup();
+                }
+            }
+            err = mHwc->set(mHwc, mNumDisplays, mLists);
         } else {
             err = hwcSet(mHwc, eglGetCurrentDisplay(), eglGetCurrentSurface(EGL_DRAW), mNumDisplays,
                     const_cast<hwc_display_contents_1_t**>(mLists));
         }
-
-        for (size_t i=VIRTUAL_DISPLAY_ID_BASE; i<mNumDisplays; i++) {
-            DisplayData& disp(mDisplayData[i]);
-            if (disp.outbufHandle) {
-                mLists[i]->outbuf = disp.outbufHandle;
-                mLists[i]->outbufAcquireFenceFd =
-                        disp.outbufAcquireFence->dup();
-            }
-        }
-
-        err = mHwc->set(mHwc, mNumDisplays, mLists);
 
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
@@ -1021,13 +1017,21 @@ public:
         // not supported on VERSION_03
         return -1;
     }
+    virtual sp<Fence> getAndResetReleaseFence() {
+        // not supported on VERSION_03
+        return Fence::NO_FENCE;
+    }
+    virtual void setPlaneAlpha(uint8_t alpha) {
+        if (alpha < 0xFF) {
+            getLayer()->flags |= HWC_SKIP_LAYER;
+        }
+    }
     virtual void setAcquireFenceFd(int fenceFd) {
         if (fenceFd != -1) {
             ALOGE("HWC 0.x can't handle acquire fences");
             close(fenceFd);
         }
     }
-
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
         getLayer()->hints = 0;
@@ -1054,8 +1058,8 @@ public:
     virtual void setFrame(const Rect& frame) {
         reinterpret_cast<Rect&>(getLayer()->displayFrame) = frame;
     }
-    virtual void setCrop(const Rect& crop) {
-        reinterpret_cast<Rect&>(getLayer()->sourceCrop) = crop;
+    virtual void setCrop(const FloatRect& crop) {
+        reinterpret_cast<FloatRect&>(getLayer()->sourceCrop) = crop;
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
         // Region::getSharedBuffer creates a reference to the underlying
@@ -1329,6 +1333,7 @@ void HWComposer::dump(String8& result) const {
     }
     if (mHwc) {
         const size_t SIZE = 4096;
+        char buffer[SIZE];
         hwcDump(mHwc, buffer, SIZE);
         result.append(buffer);
     }
