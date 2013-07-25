@@ -1020,13 +1020,21 @@ public:
         // not supported on VERSION_03
         return -1;
     }
+    virtual sp<Fence> getAndResetReleaseFence() {
+        // not supported on VERSION_03
+        return Fence::NO_FENCE;
+    }
+    virtual void setPlaneAlpha(uint8_t alpha) {
+        if (alpha < 0xFF) {
+            getLayer()->flags |= HWC_SKIP_LAYER;
+        }
+    }
     virtual void setAcquireFenceFd(int fenceFd) {
         if (fenceFd != -1) {
             ALOGE("HWC 0.x can't handle acquire fences");
             close(fenceFd);
         }
     }
-
     virtual void setDefaultState() {
         getLayer()->compositionType = HWC_FRAMEBUFFER;
         getLayer()->hints = 0;
