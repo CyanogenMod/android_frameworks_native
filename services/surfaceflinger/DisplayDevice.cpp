@@ -95,6 +95,7 @@ DisplayDevice::DisplayDevice(
       mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
+    mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
 #ifndef BOARD_EGL_NEEDS_LEGACY_FB
     ANativeWindow* const window = mNativeWindow.get();
 #else

@@ -858,8 +858,6 @@ status_t HWComposer::commit() {
             }
         }
 
-        err = mHwc->set(mHwc, mNumDisplays, mLists);
-
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
             disp.lastDisplayFence = disp.lastRetireFence;
