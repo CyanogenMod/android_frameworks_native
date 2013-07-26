@@ -104,7 +104,11 @@ private:
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
     Vector< DisplayEventReceiver::Event > mPendingEvents;
+#ifdef QCOM_HARDWARE
     DisplayEventReceiver::Event mVSyncEvent[HWC_NUM_DISPLAY_TYPES];
+#else
+    DisplayEventReceiver::Event mVSyncEvent[HWC_DISPLAY_TYPES_SUPPORTED];
+#endif
     bool mUseSoftwareVSync;
 
     // for debugging

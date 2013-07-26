@@ -63,7 +63,11 @@ public:
     };
 
     enum {
+#ifdef QCOM_HARDWARE
         MAX_DISPLAYS = HWC_NUM_DISPLAY_TYPES
+#else
+        MAX_DISPLAYS = HWC_NUM_DISPLAY_TYPES + 1
+#endif
     };
 
     HWComposer(

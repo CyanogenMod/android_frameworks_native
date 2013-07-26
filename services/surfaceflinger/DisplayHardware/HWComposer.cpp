@@ -295,7 +295,11 @@ HWComposer::HWComposer(
                 mNumDisplays = MAX_DISPLAYS;
             } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
                 // 1.1 adds support for multiple displays
+#ifdef QCOM_HARDWARE
                 mNumDisplays = MAX_DISPLAYS;
+#else
+                mNumDisplays = NUM_PHYSICAL_DISPLAYS;
+#endif
             } else {
                 mNumDisplays = 1;
             }

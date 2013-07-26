@@ -236,10 +236,11 @@ private:
     void handleTransaction(uint32_t transactionFlags);
     void handleTransactionLocked(uint32_t transactionFlags);
 
+#ifdef QCOM_HARDWARE
     // Read virtual display properties
     void setVirtualDisplayData( int32_t hwcDisplayId,
                                 const sp<IGraphicBufferProducer>& sink);
-
+#endif
     /* handlePageFilp: this is were we latch a new buffer
      * if available and compute the dirty region.
      */

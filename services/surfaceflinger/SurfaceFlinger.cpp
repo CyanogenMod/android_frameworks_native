@@ -922,12 +922,18 @@ void SurfaceFlinger::rebuildLayerStacks() {
                 for (size_t i=0 ; i<count ; i++) {
                     const sp<Layer>& layer(currentLayers[i]);
                     const Layer::State& s(layer->drawingState());
-                    Region drawRegion(tr.transform(
-                            layer->visibleNonTransparentRegion));
-                    drawRegion.andSelf(bounds);
-                    if (!drawRegion.isEmpty()) {
-                        layersSortedByZ.add(layer);
+#ifndef QCOM_HARDWARE
+                    if (s.layerStack == hw->getLayerStack()) {
+#endif
+                        Region drawRegion(tr.transform(
+                                layer->visibleNonTransparentRegion));
+                        drawRegion.andSelf(bounds);
+                        if (!drawRegion.isEmpty()) {
+                            layersSortedByZ.add(layer);
+                        }
+#ifndef QCOM_HARDWARE
                     }
+#endif
                 }
             }
             hw->setVisibleLayersSortedByZ(layersSortedByZ);
@@ -1079,6 +1085,7 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
     // here the transaction has been committed
 }
 
+#ifdef QCOM_HARDWARE
 void SurfaceFlinger::setVirtualDisplayData(
     int32_t hwcDisplayId,
     const sp<IGraphicBufferProducer>& sink)
@@ -1098,6 +1105,7 @@ void SurfaceFlinger::setVirtualDisplayData(
 
     mHwc->setVirtualDisplayProperties(hwcDisplayId, w, h, format);
 }
+#endif
 
 void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 {
@@ -1217,6 +1225,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                     *mHwc, hwcDisplayId, state.surface,
                                     state.displayName);
                             } else {
+#ifdef QCOM_HARDWARE
                                 //Read virtual display properties and create a
                                 //rendering surface for it inorder to be handled
                                 //by hwc.
@@ -1224,6 +1233,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                                                  state.surface);
                                 dispSurface = new FramebufferSurface(*mHwc,
                                                                     state.type);
+#endif
                             }
                         }
                     } else {
@@ -1427,11 +1437,13 @@ void SurfaceFlinger::computeVisibleRegions(size_t dpy,
         // Override layers created using presentation class by the layers having
         // ext_only flag enabled
         if(s.layerStack != layerStack && !bIgnoreLayers) {
+#ifdef QCOM_HARDWARE
             // set the visible region as empty since we have removed the
             // layerstack check in rebuildLayerStack() function.
             Region visibleNonTransRegion;
             visibleNonTransRegion.set(Rect(0,0));
             layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+#endif
             continue;
         }
         /*
