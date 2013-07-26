@@ -46,8 +46,6 @@ const struct hwcTestGraphicFormat {
     {HAL_PIXEL_FORMAT_RGB_888,   "RGB888",   1, 1},
     {HAL_PIXEL_FORMAT_RGB_565,   "RGB565",   1, 1},
     {HAL_PIXEL_FORMAT_BGRA_8888, "BGRA8888", 1, 1},
-    {HAL_PIXEL_FORMAT_RGBA_5551, "RGBA5551", 1, 1},
-    {HAL_PIXEL_FORMAT_RGBA_4444, "RGBA4444", 1, 1},
     {HAL_PIXEL_FORMAT_YV12,      "YV12",     2, 2},
 };
 

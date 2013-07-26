@@ -656,8 +656,6 @@ void GLConsumer::computeCurrentTransformMatrixLocked() {
                 case PIXEL_FORMAT_RGB_888:
                 case PIXEL_FORMAT_RGB_565:
                 case PIXEL_FORMAT_BGRA_8888:
-                case PIXEL_FORMAT_RGBA_5551:
-                case PIXEL_FORMAT_RGBA_4444:
                     // We know there's no subsampling of any channels, so we
                     // only need to shrink by a half a pixel.
                     shrinkAmount = 0.5;

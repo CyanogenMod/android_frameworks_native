@@ -23,42 +23,32 @@ namespace android {
 
 ssize_t bytesPerPixel(PixelFormat format) {
     switch (format) {
-        case HAL_PIXEL_FORMAT_RGBA_8888:
-        case HAL_PIXEL_FORMAT_RGBX_8888:
-        case HAL_PIXEL_FORMAT_BGRA_8888:
+        case PIXEL_FORMAT_RGBA_8888:
+        case PIXEL_FORMAT_RGBX_8888:
+        case PIXEL_FORMAT_BGRA_8888:
             return 4;
-        case HAL_PIXEL_FORMAT_RGB_888:
+        case PIXEL_FORMAT_RGB_888:
             return 3;
-        case HAL_PIXEL_FORMAT_RGB_565:
-        case HAL_PIXEL_FORMAT_RGBA_5551:
-        case HAL_PIXEL_FORMAT_RGBA_4444:
+        case PIXEL_FORMAT_RGB_565:
+        case PIXEL_FORMAT_RGBA_5551:
+        case PIXEL_FORMAT_RGBA_4444:
             return 2;
-        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-        case HAL_PIXEL_FORMAT_YCbCr_422_I:
-        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-        case HAL_PIXEL_FORMAT_YV12:
-            return 1;
     }
     return BAD_VALUE;
 }
 
 ssize_t bitsPerPixel(PixelFormat format) {
     switch (format) {
-        case HAL_PIXEL_FORMAT_RGBA_8888:
-        case HAL_PIXEL_FORMAT_RGBX_8888:
-        case HAL_PIXEL_FORMAT_BGRA_8888:
+        case PIXEL_FORMAT_RGBA_8888:
+        case PIXEL_FORMAT_RGBX_8888:
+        case PIXEL_FORMAT_BGRA_8888:
             return 32;
-        case HAL_PIXEL_FORMAT_RGB_888:
+        case PIXEL_FORMAT_RGB_888:
             return 24;
-        case HAL_PIXEL_FORMAT_RGB_565:
-        case HAL_PIXEL_FORMAT_RGBA_5551:
-        case HAL_PIXEL_FORMAT_RGBA_4444:
-        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case PIXEL_FORMAT_RGB_565:
+        case PIXEL_FORMAT_RGBA_5551:
+        case PIXEL_FORMAT_RGBA_4444:
             return 16;
-        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-        case HAL_PIXEL_FORMAT_YV12:
-            return 12;
     }
     return BAD_VALUE;
 }
