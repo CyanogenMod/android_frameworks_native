@@ -566,7 +566,6 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
         // TODO: this needs to go away (currently needed only by webkit)
         sp<const DisplayDevice> hw(getDefaultDisplayDevice());
         info->orientation = hw->getOrientation();
-        getPixelFormatInfo(hw->getFormat(), &info->pixelFormatInfo);
     } else {
         // TODO: where should this value come from?
         static const int TV_DENSITY = 213;
