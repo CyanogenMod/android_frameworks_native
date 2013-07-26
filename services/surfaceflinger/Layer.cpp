@@ -584,10 +584,10 @@ bool Layer::getOpacityForFormat(uint32_t format) {
         case HAL_PIXEL_FORMAT_BGRA_8888:
         case HAL_PIXEL_FORMAT_RGBA_5551:
         case HAL_PIXEL_FORMAT_RGBA_4444:
-            return true;
+            return false;
     }
     // in all other case, we have no blending (also for unknown formats)
-    return false;
+    return true;
 }
 
 // ----------------------------------------------------------------------------
