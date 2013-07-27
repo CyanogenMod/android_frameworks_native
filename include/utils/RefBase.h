@@ -53,6 +53,15 @@ inline bool operator _op_ (const U* o) const {                  \
 
 // ---------------------------------------------------------------------------
 
+/* START JB MR1 COMPAT */
+class ReferenceConverterBase {
+public:
+    virtual size_t getReferenceTypeSize() const = 0;
+    virtual void* getReferenceBase(void const*) const = 0;
+    inline virtual ~ReferenceConverterBase() { }
+};
+/* END JB MR1 COMPAT */
+
 class ReferenceRenamer {
 protected:
     // destructor is purposedly not virtual so we avoid code overhead from
