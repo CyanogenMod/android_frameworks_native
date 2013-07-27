@@ -656,8 +656,6 @@ TEST_F(SurfaceTextureClientTest, QueryFormatAfterSettingWorks) {
         HAL_PIXEL_FORMAT_RGB_888,
         HAL_PIXEL_FORMAT_RGB_565,
         HAL_PIXEL_FORMAT_BGRA_8888,
-        HAL_PIXEL_FORMAT_RGBA_5551,
-        HAL_PIXEL_FORMAT_RGBA_4444,
         HAL_PIXEL_FORMAT_YV12,
     };
 
