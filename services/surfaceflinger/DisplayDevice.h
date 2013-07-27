@@ -59,7 +59,10 @@ public:
 #ifdef QCOM_HARDWARE
         DISPLAY_VIRTUAL     = HWC_DISPLAY_VIRTUAL,
 #endif
-        NUM_DISPLAY_TYPES   = HWC_NUM_DISPLAY_TYPES
+        NUM_DISPLAY_TYPES   = HWC_NUM_DISPLAY_TYPES,
+#ifndef QCOM_HARDWARE
+        DISPLAY_VIRTUAL     = HWC_NUM_DISPLAY_TYPES,
+#endif
     };
 
     enum {
