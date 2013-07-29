@@ -185,7 +185,7 @@ int delete_user_data(const char *pkgname, userid_t userid)
     return delete_dir_contents(pkgdir, 0, "lib");
 }
 
-int make_user_data(const char *pkgname, uid_t uid, userid_t userid)
+int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
 {
     char pkgdir[PKG_PATH_MAX];
     char applibdir[PKG_PATH_MAX];
@@ -246,7 +246,7 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid)
         return -1;
     }
 
-    if (selinux_android_setfilecon(pkgdir, pkgname, uid) < 0) {
+    if (selinux_android_setfilecon2(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(libsymlink);
         unlink(pkgdir);
