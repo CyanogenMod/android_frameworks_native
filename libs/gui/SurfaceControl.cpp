@@ -104,6 +104,14 @@ status_t SurfaceControl::setPosition(float x, float y) {
     if (err < 0) return err;
     return mClient->setPosition(mHandle, x, y);
 }
+
+#ifdef ADD_LEGACY_SET_POSITION_SYMBOL
+extern "C" int _ZN7android14SurfaceControl11setPositionEff(float x, float y);
+extern "C" int _ZN7android14SurfaceControl11setPositionEii(int32_t x, int32_t y) {
+    return _ZN7android14SurfaceControl11setPositionEff((float)x, (float)y);
+}
+#endif
+
 status_t SurfaceControl::setSize(uint32_t w, uint32_t h) {
     status_t err = validate();
     if (err < 0) return err;
