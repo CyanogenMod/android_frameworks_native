@@ -2605,6 +2605,7 @@ public:
     }
 
     void exit(status_t result) {
+        this->result = result;
         exitPending = true;
         looper->sendMessage(this, Message(MSG_EXIT));
     }
