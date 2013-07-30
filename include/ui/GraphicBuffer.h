@@ -39,8 +39,9 @@ class GraphicBufferMapper;
 
 class GraphicBuffer
     : public ANativeObjectBase< ANativeWindowBuffer, GraphicBuffer, RefBase >,
-      public Flattenable
+      public Flattenable<GraphicBuffer>
 {
+    friend class Flattenable<GraphicBuffer>;
 public:
 
     enum {
@@ -106,7 +107,7 @@ public:
     static void dumpAllocationsToSystemLog();
 
 private:
-    virtual ~GraphicBuffer();
+    ~GraphicBuffer();
 
     enum {
         ownNone   = 0,
@@ -136,13 +137,11 @@ private:
 
     void free_handle();
 
-    // Flattenable interface
+    // Flattenable protocol
     size_t getFlattenedSize() const;
     size_t getFdCount() const;
-    status_t flatten(void* buffer, size_t size,
-            int fds[], size_t count) const;
-    status_t unflatten(void const* buffer, size_t size,
-            int fds[], size_t count);
+    status_t flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const;
+    status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
 
 
     GraphicBufferMapper& mBufferMapper;

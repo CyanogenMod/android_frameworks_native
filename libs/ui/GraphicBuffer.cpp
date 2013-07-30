@@ -209,9 +209,7 @@ size_t GraphicBuffer::getFdCount() const {
     return handle ? handle->numFds : 0;
 }
 
-status_t GraphicBuffer::flatten(void* buffer, size_t size,
-        int fds[], size_t count) const
-{
+status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const {
     size_t sizeNeeded = GraphicBuffer::getFlattenedSize();
     if (size < sizeNeeded) return NO_MEMORY;
 
@@ -236,12 +234,16 @@ status_t GraphicBuffer::flatten(void* buffer, size_t size,
         memcpy(&buf[8], h->data + h->numFds, h->numInts*sizeof(int));
     }
 
+    buffer = reinterpret_cast<void*>(static_cast<int*>(buffer) + sizeNeeded);
+    size -= sizeNeeded;
+    fds += handle->numFds;
+    count -= handle->numFds;
+
     return NO_ERROR;
 }
 
-status_t GraphicBuffer::unflatten(void const* buffer, size_t size,
-        int fds[], size_t count)
-{
+status_t GraphicBuffer::unflatten(
+        void const*& buffer, size_t& size, int const*& fds, size_t& count) {
     if (size < 8*sizeof(int)) return NO_MEMORY;
 
     int const* buf = static_cast<int const*>(buffer);
@@ -286,6 +288,11 @@ status_t GraphicBuffer::unflatten(void const* buffer, size_t size,
             return err;
         }
     }
+
+    buffer = reinterpret_cast<void const*>(static_cast<int const*>(buffer) + sizeNeeded);
+    size -= sizeNeeded;
+    fds += numFds;
+    count -= numFds;
 
     return NO_ERROR;
 }

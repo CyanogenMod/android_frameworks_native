@@ -105,7 +105,8 @@ public:
     // and height of the window and current transform applied to buffers,
     // respectively.
 
-    struct QueueBufferInput : public Flattenable {
+    struct QueueBufferInput : public Flattenable<QueueBufferInput> {
+        friend class Flattenable<QueueBufferInput>;
         inline QueueBufferInput(const Parcel& parcel);
         inline QueueBufferInput(int64_t timestamp,
                 const Rect& crop, int scalingMode, uint32_t transform, bool async,
@@ -123,13 +124,11 @@ public:
             *outFence = fence;
         }
 
-        // Flattenable interface
-        virtual size_t getFlattenedSize() const;
-        virtual size_t getFdCount() const;
-        virtual status_t flatten(void* buffer, size_t size,
-                int fds[], size_t count) const;
-        virtual status_t unflatten(void const* buffer, size_t size,
-                int fds[], size_t count);
+        // Flattenable protocol
+        size_t getFlattenedSize() const;
+        size_t getFdCount() const;
+        status_t flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const;
+        status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
 
     private:
         int64_t timestamp;

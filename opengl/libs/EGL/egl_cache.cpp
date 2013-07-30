@@ -253,8 +253,7 @@ void egl_cache_t::saveBlobCacheLocked() {
             return;
         }
 
-        status_t err = mBlobCache->flatten(buf + headerSize, cacheSize, NULL,
-                0);
+        status_t err = mBlobCache->flatten(buf + headerSize, cacheSize);
         if (err != OK) {
             ALOGE("error writing cache contents: %s (%d)", strerror(-err),
                     -err);
@@ -335,8 +334,7 @@ void egl_cache_t::loadBlobCacheLocked() {
             return;
         }
 
-        status_t err = mBlobCache->unflatten(buf + headerSize, cacheSize, NULL,
-                0);
+        status_t err = mBlobCache->unflatten(buf + headerSize, cacheSize);
         if (err != OK) {
             ALOGE("error reading cache contents: %s (%d)", strerror(-err),
                     -err);

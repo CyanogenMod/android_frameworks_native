@@ -27,8 +27,8 @@
 // ---------------------------------------------------------------------------
 namespace android {
 
+template <typename T> class Flattenable;
 template <typename T> class LightFlattenable;
-class Flattenable;
 class IBinder;
 class IPCThreadState;
 class ProcessState;
@@ -37,8 +37,7 @@ class TextOutput;
 
 struct flat_binder_object;  // defined in support_p/binder_module.h
 
-class Parcel
-{
+class Parcel {
 public:
     class ReadableBlob;
     class WritableBlob;
@@ -102,7 +101,9 @@ public:
     status_t            writeString16(const char16_t* str, size_t len);
     status_t            writeStrongBinder(const sp<IBinder>& val);
     status_t            writeWeakBinder(const wp<IBinder>& val);
-    status_t            write(const Flattenable& val);
+
+    template<typename T>
+    status_t            write(const Flattenable<T>& val);
 
     template<typename T>
     status_t            write(const LightFlattenable<T>& val);
@@ -157,7 +158,9 @@ public:
     const char16_t*     readString16Inplace(size_t* outLen) const;
     sp<IBinder>         readStrongBinder() const;
     wp<IBinder>         readWeakBinder() const;
-    status_t            read(Flattenable& val) const;
+
+    template<typename T>
+    status_t            read(Flattenable<T>& val) const;
 
     template<typename T>
     status_t            read(LightFlattenable<T>& val) const;
@@ -260,6 +263,39 @@ private:
         size_t mSize;
     };
 
+    class FlattenableHelperInterface {
+    protected:
+        ~FlattenableHelperInterface() { }
+    public:
+        virtual size_t getFlattenedSize() const = 0;
+        virtual size_t getFdCount() const = 0;
+        virtual status_t flatten(void* buffer, size_t size, int* fds, size_t count) const = 0;
+        virtual status_t unflatten(void const* buffer, size_t size, int const* fds, size_t count) = 0;
+    };
+
+    template<typename T>
+    class FlattenableHelper : public FlattenableHelperInterface {
+        friend class Parcel;
+        const Flattenable<T>& val;
+        explicit FlattenableHelper(const Flattenable<T>& val) : val(val) { }
+
+    public:
+        virtual size_t getFlattenedSize() const {
+            return val.getFlattenedSize();
+        }
+        virtual size_t getFdCount() const {
+            return val.getFdCount();
+        }
+        virtual status_t flatten(void* buffer, size_t size, int* fds, size_t count) const {
+            return val.flatten(buffer, size, fds, count);
+        }
+        virtual status_t unflatten(void const* buffer, size_t size, int const* fds, size_t count) {
+            return const_cast<Flattenable<T>&>(val).unflatten(buffer, size, fds, count);
+        }
+    };
+    status_t write(const FlattenableHelperInterface& val);
+    status_t read(FlattenableHelperInterface& val) const;
+
 public:
     class ReadableBlob : public Blob {
         friend class Parcel;
@@ -277,8 +313,14 @@ public:
 // ---------------------------------------------------------------------------
 
 template<typename T>
+status_t Parcel::write(const Flattenable<T>& val) {
+    const FlattenableHelper<T> helper(val);
+    return write(helper);
+}
+
+template<typename T>
 status_t Parcel::write(const LightFlattenable<T>& val) {
-    size_t size(val.getSize());
+    size_t size(val.getFlattenedSize());
     if (!val.isFixedSize()) {
         status_t err = writeInt32(size);
         if (err != NO_ERROR) {
@@ -287,17 +329,24 @@ status_t Parcel::write(const LightFlattenable<T>& val) {
     }
     if (size) {
         void* buffer = writeInplace(size);
-        return buffer == NULL ? NO_MEMORY :
-                val.flatten(buffer);
+        if (buffer == NULL)
+            return NO_MEMORY;
+        return val.flatten(buffer, size);
     }
     return NO_ERROR;
+}
+
+template<typename T>
+status_t Parcel::read(Flattenable<T>& val) const {
+    FlattenableHelper<T> helper(val);
+    return read(helper);
 }
 
 template<typename T>
 status_t Parcel::read(LightFlattenable<T>& val) const {
     size_t size;
     if (val.isFixedSize()) {
-        size = val.getSize();
+        size = val.getFlattenedSize();
     } else {
         int32_t s;
         status_t err = readInt32(&s);

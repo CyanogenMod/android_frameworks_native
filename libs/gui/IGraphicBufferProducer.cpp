@@ -270,8 +270,7 @@ IGraphicBufferProducer::QueueBufferInput::QueueBufferInput(const Parcel& parcel)
     parcel.read(*this);
 }
 
-size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const
-{
+size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
     return sizeof(timestamp)
          + sizeof(crop)
          + sizeof(scalingMode)
@@ -280,38 +279,46 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const
          + fence->getFlattenedSize();
 }
 
-size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const
-{
+size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const {
     return fence->getFdCount();
 }
 
-status_t IGraphicBufferProducer::QueueBufferInput::flatten(void* buffer, size_t size,
-        int fds[], size_t count) const
+status_t IGraphicBufferProducer::QueueBufferInput::flatten(
+        void*& buffer, size_t& size, int*& fds, size_t& count) const
 {
-    status_t err = NO_ERROR;
-    char* p = (char*)buffer;
-    memcpy(p, &timestamp,   sizeof(timestamp));   p += sizeof(timestamp);
-    memcpy(p, &crop,        sizeof(crop));        p += sizeof(crop);
-    memcpy(p, &scalingMode, sizeof(scalingMode)); p += sizeof(scalingMode);
-    memcpy(p, &transform,   sizeof(transform));   p += sizeof(transform);
-    memcpy(p, &async,       sizeof(async));       p += sizeof(async);
-    err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
-    return err;
+    if (size < getFlattenedSize()) {
+        return NO_MEMORY;
+    }
+    FlattenableUtils::write(buffer, size, timestamp);
+    FlattenableUtils::write(buffer, size, crop);
+    FlattenableUtils::write(buffer, size, scalingMode);
+    FlattenableUtils::write(buffer, size, transform);
+    FlattenableUtils::write(buffer, size, async);
+    return fence->flatten(buffer, size, fds, count);
 }
 
-status_t IGraphicBufferProducer::QueueBufferInput::unflatten(void const* buffer,
-        size_t size, int fds[], size_t count)
+status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
+        void const*& buffer, size_t& size, int const*& fds, size_t& count)
 {
-    status_t err = NO_ERROR;
-    const char* p = (const char*)buffer;
-    memcpy(&timestamp,   p, sizeof(timestamp));   p += sizeof(timestamp);
-    memcpy(&crop,        p, sizeof(crop));        p += sizeof(crop);
-    memcpy(&scalingMode, p, sizeof(scalingMode)); p += sizeof(scalingMode);
-    memcpy(&transform,   p, sizeof(transform));   p += sizeof(transform);
-    memcpy(&async,       p, sizeof(async));       p += sizeof(async);
+    size_t minNeeded =
+              sizeof(timestamp)
+            + sizeof(crop)
+            + sizeof(scalingMode)
+            + sizeof(transform)
+            + sizeof(async);
+
+    if (size < minNeeded) {
+        return NO_MEMORY;
+    }
+
+    FlattenableUtils::read(buffer, size, timestamp);
+    FlattenableUtils::read(buffer, size, crop);
+    FlattenableUtils::read(buffer, size, scalingMode);
+    FlattenableUtils::read(buffer, size, transform);
+    FlattenableUtils::read(buffer, size, async);
+
     fence = new Fence();
-    err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
-    return err;
+    return fence->unflatten(buffer, size, fds, count);
 }
 
 }; // namespace android
