@@ -252,6 +252,10 @@ private:
 
     // must be accessed from lock/unlock thread only
     Region mDirtyRegion;
+
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+    bool                        mDequeuedOnce;
+#endif
 };
 
 }; // namespace android
