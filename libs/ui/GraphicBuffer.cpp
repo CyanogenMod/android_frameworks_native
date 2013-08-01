@@ -36,8 +36,7 @@ namespace android {
 
 GraphicBuffer::GraphicBuffer()
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR), mIndex(-1)
-{
+      mInitCheck(NO_ERROR) {
     width  = 
     height = 
     stride = 
@@ -49,7 +48,7 @@ GraphicBuffer::GraphicBuffer()
 GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h, 
         PixelFormat reqFormat, uint32_t reqUsage)
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR), mIndex(-1)
+      mInitCheck(NO_ERROR)
 {
     width  = 
     height = 
@@ -65,7 +64,7 @@ GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h,
         uint32_t inStride, native_handle_t* inHandle, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR), mIndex(-1)
+      mInitCheck(NO_ERROR)
 {
     width  = w;
     height = h;
@@ -78,7 +77,7 @@ GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h,
 GraphicBuffer::GraphicBuffer(ANativeWindowBuffer* buffer, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR), mIndex(-1), mWrappedBuffer(buffer)
+      mInitCheck(NO_ERROR), mWrappedBuffer(buffer)
 {
     width  = buffer->width;
     height = buffer->height;
@@ -295,15 +294,6 @@ status_t GraphicBuffer::unflatten(
     count -= numFds;
 
     return NO_ERROR;
-}
-
-
-void GraphicBuffer::setIndex(int index) {
-    mIndex = index;
-}
-
-int GraphicBuffer::getIndex() const {
-    return mIndex;
 }
 
 // ---------------------------------------------------------------------------
