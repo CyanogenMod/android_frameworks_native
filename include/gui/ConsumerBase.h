@@ -24,6 +24,7 @@
 #include <utils/String8.h>
 #include <utils/Vector.h>
 #include <utils/threads.h>
+#include <gui/IConsumerListener.h>
 
 namespace android {
 // ----------------------------------------------------------------------------
@@ -34,7 +35,7 @@ class String8;
 // handles common tasks like management of the connection to the BufferQueue
 // and the buffer pool.
 class ConsumerBase : public virtual RefBase,
-        protected BufferQueue::ConsumerListener {
+        protected ConsumerListener {
 public:
     struct FrameAvailableListener : public virtual RefBase {
         // onFrameAvailable() is called each time an additional frame becomes
