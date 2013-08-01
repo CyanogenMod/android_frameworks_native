@@ -523,8 +523,12 @@ status_t HWComposer::queryDisplayProperties(int disp) {
 
 status_t HWComposer::setVirtualDisplayProperties(int32_t id,
         uint32_t w, uint32_t h, uint32_t format) {
-    if (id < VIRTUAL_DISPLAY_ID_BASE || id >= int32_t(mNumDisplays) ||
-            !mAllocatedDisplayIDs.hasBit(id)) {
+#ifndef QCOM_HARDWARE
+    if (id < VIRTUAL_DISPLAY_ID_BASE) {
+        return BAD_INDEX;
+    }
+#endif
+    if (id >= int32_t(mNumDisplays) || !mAllocatedDisplayIDs.hasBit(id)) {
         return BAD_INDEX;
     }
     mDisplayData[id].width = w;
