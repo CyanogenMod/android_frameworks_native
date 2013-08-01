@@ -175,8 +175,7 @@ int Surface::setSwapInterval(int interval) {
     return NO_ERROR;
 }
 
-int Surface::dequeueBuffer(android_native_buffer_t** buffer,
-        int* fenceFd) {
+int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     ATRACE_CALL();
     ALOGV("Surface::dequeueBuffer");
     Mutex::Autolock lock(mMutex);
@@ -193,6 +192,10 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
         return result;
     }
     sp<GraphicBuffer>& gbuf(mSlots[buf].buffer);
+
+    // this should never happen
+    ALOGE_IF(fence == NULL, "Surface::dequeueBuffer: received null Fence! buf=%d", buf);
+
     if (result & IGraphicBufferProducer::RELEASE_ALL_BUFFERS) {
         freeAllBuffers();
     }
@@ -200,8 +203,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
     if ((result & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) || gbuf == 0) {
         result = mGraphicBufferProducer->requestBuffer(buf, &gbuf);
         if (result != NO_ERROR) {
-            ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d",
-                    result);
+            ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d", result);
             return result;
         }
     }

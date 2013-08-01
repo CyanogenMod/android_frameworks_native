@@ -653,7 +653,7 @@ status_t ScreenshotClient::update(const sp<IBinder>& display,
         mHaveBuffer = false;
     }
 
-    status_t err = s->captureScreen(display,cpuConsumer->getBufferQueue(),
+    status_t err = s->captureScreen(display, cpuConsumer->getBufferQueue(),
             reqWidth, reqHeight, minLayerZ, maxLayerZ, true);
 
     if (err == NO_ERROR) {

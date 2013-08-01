@@ -94,13 +94,10 @@ public:
             return result;
         }
         *buf = reply.readInt32();
-        bool fenceWasWritten = reply.readInt32();
-        if (fenceWasWritten) {
-            // If the fence was written by the callee, then overwrite the
-            // caller's fence here.  If it wasn't written then don't touch the
-            // caller's fence.
+        bool nonNull = reply.readInt32();
+        if (nonNull) {
             *fence = new Fence();
-            reply.read(*(fence->get()));
+            reply.read(**fence);
         }
         result = reply.readInt32();
         return result;
@@ -209,7 +206,7 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {
-                reply->write(*fence.get());
+                reply->write(*fence);
             }
             reply->writeInt32(result);
             return NO_ERROR;

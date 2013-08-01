@@ -406,6 +406,13 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
             returnFlags |= IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION;
         }
 
+
+        if (CC_UNLIKELY(mSlots[buf].mFence == NULL)) {
+            ST_LOGE("dequeueBuffer: about to return a NULL fence from mSlot. "
+                    "buf=%d, w=%d, h=%d, format=%d",
+                    buf, buffer->width, buffer->height, buffer->format);
+        }
+
         dpy = mSlots[buf].mEglDisplay;
         eglFence = mSlots[buf].mEglFence;
         *outFence = mSlots[buf].mFence;
@@ -416,11 +423,9 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
     if (returnFlags & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) {
         status_t error;
         sp<GraphicBuffer> graphicBuffer(
-                mGraphicBufferAlloc->createGraphicBuffer(
-                        w, h, format, usage, &error));
+                mGraphicBufferAlloc->createGraphicBuffer(w, h, format, usage, &error));
         if (graphicBuffer == 0) {
-            ST_LOGE("dequeueBuffer: SurfaceComposer::createGraphicBuffer "
-                    "failed");
+            ST_LOGE("dequeueBuffer: SurfaceComposer::createGraphicBuffer failed");
             return error;
         }
 
