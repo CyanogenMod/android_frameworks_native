@@ -499,11 +499,6 @@ void EGLAPI eglBeginFrame(EGLDisplay dpy, EGLSurface surface) {
         setError(EGL_BAD_SURFACE, EGL_FALSE);
         return;
     }
-
-    int64_t timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
-
-    egl_surface_t const * const s = get_surface(surface);
-    native_window_set_buffers_timestamp(s->win.get(), timestamp);
 }
 
 // ----------------------------------------------------------------------------
