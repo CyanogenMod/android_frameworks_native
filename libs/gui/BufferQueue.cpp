@@ -861,7 +861,7 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t expectedPresent)
         //
         // NOTE: code assumes monotonic time values from the system clock are
         // positive.
-        while (mQueue.size() > 1) {
+        while (false && mQueue.size() > 1) {
             // If entry[1] is timely, drop entry[0] (and repeat).  We apply
             // an additional criteria here: we only drop the earlier buffer if
             // our desiredPresent falls within +/- 1 second of the expected
