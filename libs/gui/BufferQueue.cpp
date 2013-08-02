@@ -812,7 +812,7 @@ void BufferQueue::freeAllBuffersLocked() {
     }
 }
 
-status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) {
+status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t expectedPresent) {
     ATRACE_CALL();
     Mutex::Autolock _l(mMutex);
 
@@ -840,37 +840,77 @@ status_t BufferQueue::acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) {
     }
 
     Fifo::iterator front(mQueue.begin());
-    int buf = front->mBuf;
 
-    // Compare the buffer's desired presentation time to the predicted
-    // actual display time.
-    //
-    // The "presentWhen" argument indicates when the buffer is expected
-    // to be presented on-screen.  If the buffer's desired-present time
-    // is earlier (less) than presentWhen, meaning it'll be displayed
-    // on time or possibly late, we acquire and return it.  If we don't want
-    // to display it until after the presentWhen time, we return PRESENT_LATER
-    // without acquiring it.
-    //
-    // To be safe, we don't refuse to acquire the buffer if presentWhen is
-    // more than one second in the future beyond the desired present time
-    // (i.e. we'd be holding the buffer for a really long time).
-    const int MAX_FUTURE_NSEC = 1000000000ULL;
-    nsecs_t desiredPresent = front->mTimestamp;
-    if (presentWhen != 0 && desiredPresent > presentWhen &&
-            desiredPresent - presentWhen < MAX_FUTURE_NSEC)
-    {
-        ST_LOGV("pts defer: des=%lld when=%lld (%lld) now=%lld",
-                desiredPresent, presentWhen, desiredPresent - presentWhen,
+    // If expectedPresent is specified, we may not want to return a buffer yet.
+    // If it's specified and there's more than one buffer queued, we may
+    // want to drop a buffer.
+    if (expectedPresent != 0) {
+        const int MAX_REASONABLE_NSEC = 1000000000ULL;  // 1 second
+
+        // The "expectedPresent" argument indicates when the buffer is expected
+        // to be presented on-screen.  If the buffer's desired-present time
+        // is earlier (less) than expectedPresent, meaning it'll be displayed
+        // on time or possibly late if we show it ASAP, we acquire and return
+        // it.  If we don't want to display it until after the expectedPresent
+        // time, we return PRESENT_LATER without acquiring it.
+        //
+        // To be safe, we don't defer acquisition if expectedPresent is
+        // more than one second in the future beyond the desired present time
+        // (i.e. we'd be holding the buffer for a long time).
+        //
+        // NOTE: code assumes monotonic time values from the system clock are
+        // positive.
+        while (mQueue.size() > 1) {
+            // If entry[1] is timely, drop entry[0] (and repeat).  We apply
+            // an additional criteria here: we only drop the earlier buffer if
+            // our desiredPresent falls within +/- 1 second of the expected
+            // present.  Otherwise, bogus desiredPresent times (e.g. 0 or
+            // a small relative timestamp), which normally mean "ignore the
+            // timestamp and acquire immediately", would cause us to drop
+            // frames.
+            //
+            // We may want to add an additional criteria: don't drop the
+            // earlier buffer if entry[1]'s fence hasn't signaled yet.
+            //
+            // (Vector front is [0], back is [size()-1])
+            const BufferItem& bi(mQueue[1]);
+            nsecs_t desiredPresent = bi.mTimestamp;
+            if (desiredPresent < expectedPresent - MAX_REASONABLE_NSEC ||
+                    desiredPresent > expectedPresent) {
+                // This buffer is set to display in the near future, or
+                // desiredPresent is garbage.  Either way we don't want to
+                // drop the previous buffer just to get this on screen sooner.
+                ST_LOGV("pts nodrop: des=%lld expect=%lld (%lld) now=%lld",
+                        desiredPresent, expectedPresent, desiredPresent - expectedPresent,
+                        systemTime(CLOCK_MONOTONIC));
+                break;
+            }
+            ST_LOGV("pts drop: queue1des=%lld expect=%lld size=%d",
+                    desiredPresent, expectedPresent, mQueue.size());
+            if (stillTracking(front)) {
+                // front buffer is still in mSlots, so mark the slot as free
+                mSlots[front->mBuf].mBufferState = BufferSlot::FREE;
+            }
+            mQueue.erase(front);
+            front = mQueue.begin();
+        }
+
+        // See if the front buffer is due.
+        nsecs_t desiredPresent = front->mTimestamp;
+        if (desiredPresent > expectedPresent &&
+                desiredPresent < expectedPresent + MAX_REASONABLE_NSEC) {
+            ST_LOGV("pts defer: des=%lld expect=%lld (%lld) now=%lld",
+                    desiredPresent, expectedPresent, desiredPresent - expectedPresent,
+                    systemTime(CLOCK_MONOTONIC));
+            return PRESENT_LATER;
+        }
+
+        ST_LOGV("pts accept: des=%lld expect=%lld (%lld) now=%lld",
+                desiredPresent, expectedPresent, desiredPresent - expectedPresent,
                 systemTime(CLOCK_MONOTONIC));
-        return PRESENT_LATER;
-    }
-    if (presentWhen != 0) {
-        ST_LOGV("pts accept: %p[%d] sig=%lld des=%lld when=%lld (%lld)",
-                mSlots, buf, mSlots[buf].mFence->getSignalTime(),
-                desiredPresent, presentWhen, desiredPresent - presentWhen);
     }
 
+    int buf = front->mBuf;
     *buffer = *front;
     ATRACE_BUFFER_INDEX(buf);
 
