@@ -55,7 +55,7 @@ protected:
     sp<BufferQueue> mBQ;
 };
 
-struct DummyConsumer : public BufferQueue::ConsumerListener {
+struct DummyConsumer : public BnConsumerListener {
     virtual void onFrameAvailable() {}
     virtual void onBuffersReleased() {}
 };

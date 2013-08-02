@@ -628,7 +628,7 @@ protected:
     // no way to forward the events.  This DisconnectWaiter will not let the
     // disconnect finish until finishDisconnect() is called.  It will
     // also block until a disconnect is called
-    class DisconnectWaiter : public BufferQueue::ConsumerListener {
+    class DisconnectWaiter : public BnConsumerListener {
     public:
         DisconnectWaiter () :
             mWaitForDisconnect(false),

@@ -48,7 +48,8 @@ SurfaceTextureLayer::~SurfaceTextureLayer() {
             return true;
         }
     };
-    flinger->postMessageAsync( new MessageCleanUpList(flinger, this) );
+    flinger->postMessageAsync(
+            new MessageCleanUpList(flinger, static_cast<BnGraphicBufferProducer*>(this)) );
 }
 
 // ---------------------------------------------------------------------------

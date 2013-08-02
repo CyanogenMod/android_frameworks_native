@@ -61,10 +61,8 @@ ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue, bool controlledBy
     // reference once the ctor ends, as that would cause the refcount of 'this'
     // dropping to 0 at the end of the ctor.  Since all we need is a wp<...>
     // that's what we create.
-    wp<BufferQueue::ConsumerListener> listener;
-    sp<BufferQueue::ConsumerListener> proxy;
-    listener = static_cast<BufferQueue::ConsumerListener*>(this);
-    proxy = new BufferQueue::ProxyConsumerListener(listener);
+    wp<ConsumerListener> listener = static_cast<ConsumerListener*>(this);
+    sp<IConsumerListener> proxy = new BufferQueue::ProxyConsumerListener(listener);
 
     status_t err = mBufferQueue->consumerConnect(proxy, controlledByApp);
     if (err != NO_ERROR) {

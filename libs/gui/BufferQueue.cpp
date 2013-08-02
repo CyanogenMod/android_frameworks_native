@@ -25,6 +25,7 @@
 #include <EGL/eglext.h>
 
 #include <gui/BufferQueue.h>
+#include <gui/IConsumerListener.h>
 #include <gui/ISurfaceComposer.h>
 #include <private/gui/ComposerService.h>
 
@@ -138,7 +139,7 @@ status_t BufferQueue::setTransformHint(uint32_t hint) {
 status_t BufferQueue::setBufferCount(int bufferCount) {
     ST_LOGV("setBufferCount: count=%d", bufferCount);
 
-    sp<ConsumerListener> listener;
+    sp<IConsumerListener> listener;
     {
         Mutex::Autolock lock(mMutex);
 
@@ -492,7 +493,7 @@ status_t BufferQueue::queueBuffer(int buf,
             return -EINVAL;
     }
 
-    sp<ConsumerListener> listener;
+    sp<IConsumerListener> listener;
 
     { // scope for the lock
         Mutex::Autolock lock(mMutex);
@@ -675,7 +676,7 @@ status_t BufferQueue::disconnect(int api) {
     ST_LOGV("disconnect: api=%d", api);
 
     int err = NO_ERROR;
-    sp<ConsumerListener> listener;
+    sp<IConsumerListener> listener;
 
     { // Scope for the lock
         Mutex::Autolock lock(mMutex);
@@ -991,7 +992,7 @@ status_t BufferQueue::releaseBuffer(
     return NO_ERROR;
 }
 
-status_t BufferQueue::consumerConnect(const sp<ConsumerListener>& consumerListener,
+status_t BufferQueue::consumerConnect(const sp<IConsumerListener>& consumerListener,
         bool controlledByApp) {
     ST_LOGV("consumerConnect");
     Mutex::Autolock lock(mMutex);
@@ -1167,20 +1168,20 @@ bool BufferQueue::stillTracking(const BufferItem *item) const {
 }
 
 BufferQueue::ProxyConsumerListener::ProxyConsumerListener(
-        const wp<BufferQueue::ConsumerListener>& consumerListener):
+        const wp<ConsumerListener>& consumerListener):
         mConsumerListener(consumerListener) {}
 
 BufferQueue::ProxyConsumerListener::~ProxyConsumerListener() {}
 
 void BufferQueue::ProxyConsumerListener::onFrameAvailable() {
-    sp<BufferQueue::ConsumerListener> listener(mConsumerListener.promote());
+    sp<ConsumerListener> listener(mConsumerListener.promote());
     if (listener != NULL) {
         listener->onFrameAvailable();
     }
 }
 
 void BufferQueue::ProxyConsumerListener::onBuffersReleased() {
-    sp<BufferQueue::ConsumerListener> listener(mConsumerListener.promote());
+    sp<ConsumerListener> listener(mConsumerListener.promote());
     if (listener != NULL) {
         listener->onBuffersReleased();
     }
