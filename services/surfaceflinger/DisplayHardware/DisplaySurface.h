@@ -30,8 +30,6 @@ class String8;
 
 class DisplaySurface : public virtual RefBase {
 public:
-    virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const = 0;
-
     // prepareFrame is called after the composition configuration is known but
     // before composition takes place. The DisplaySurface can use the
     // composition type to decide how to manage the flow of buffers between

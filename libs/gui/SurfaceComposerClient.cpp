@@ -633,8 +633,8 @@ ScreenshotClient::~ScreenshotClient() {
 
 sp<CpuConsumer> ScreenshotClient::getCpuConsumer() const {
     if (mCpuConsumer == NULL) {
-        sp<BufferQueue> bq = new BufferQueue();
-        mCpuConsumer = new CpuConsumer(bq, 1);
+        mBufferQueue = new BufferQueue();
+        mCpuConsumer = new CpuConsumer(mBufferQueue, 1);
         mCpuConsumer->setName(String8("ScreenshotClient"));
     }
     return mCpuConsumer;
@@ -653,7 +653,7 @@ status_t ScreenshotClient::update(const sp<IBinder>& display,
         mHaveBuffer = false;
     }
 
-    status_t err = s->captureScreen(display, cpuConsumer->getBufferQueue(),
+    status_t err = s->captureScreen(display, mBufferQueue,
             reqWidth, reqHeight, minLayerZ, maxLayerZ, true);
 
     if (err == NO_ERROR) {

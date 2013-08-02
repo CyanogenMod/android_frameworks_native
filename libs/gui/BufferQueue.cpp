@@ -720,10 +720,6 @@ status_t BufferQueue::disconnect(int api) {
     return err;
 }
 
-void BufferQueue::dump(String8& result) const {
-    BufferQueue::dump(result, "");
-}
-
 void BufferQueue::dump(String8& result, const char* prefix) const {
     Mutex::Autolock _l(mMutex);
 

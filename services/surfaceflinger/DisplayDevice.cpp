@@ -56,6 +56,7 @@ DisplayDevice::DisplayDevice(
         bool isSecure,
         const wp<IBinder>& displayToken,
         const sp<DisplaySurface>& displaySurface,
+        const sp<IGraphicBufferProducer>& producer,
         EGLConfig config)
     : mFlinger(flinger),
       mType(type), mHwcDisplayId(hwcId),
@@ -73,7 +74,7 @@ DisplayDevice::DisplayDevice(
       mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
-    mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
+    mNativeWindow = new Surface(producer);
     ANativeWindow* const window = mNativeWindow.get();
 
     int format;

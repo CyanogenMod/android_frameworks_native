@@ -186,7 +186,8 @@ enum {
     SET_CONSUMER_NAME,
     SET_DEFAULT_BUFFER_FORMAT,
     SET_CONSUMER_USAGE_BITS,
-    SET_TRANSFORM_HINT
+    SET_TRANSFORM_HINT,
+    DUMP,
 };
 
 
@@ -344,6 +345,15 @@ public:
         }
         return reply.readInt32();
     }
+
+    virtual void dump(String8& result, const char* prefix) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        data.writeString8(result);
+        data.writeString8(String8(prefix ? prefix : ""));
+        remote()->transact(DUMP, data, &reply);
+        reply.readString8();
+    }
 };
 
 IMPLEMENT_META_INTERFACE(GraphicBufferConsumer, "android.gui.IGraphicBufferConsumer");
@@ -452,6 +462,14 @@ status_t BnGraphicBufferConsumer::onTransact(
             reply->writeInt32(result);
             return NO_ERROR;
         } break;
+        case DUMP: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            String8 result = data.readString8();
+            String8 prefix = data.readString8();
+            static_cast<IGraphicBufferConsumer*>(this)->dump(result, prefix);
+            reply->writeString8(result);
+            return NO_ERROR;
+        }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

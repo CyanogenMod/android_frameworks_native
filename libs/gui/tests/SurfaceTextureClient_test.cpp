@@ -42,7 +42,7 @@ protected:
 
         sp<BufferQueue> bq = new BufferQueue();
         mST = new GLConsumer(bq, 123);
-        mSTC = new Surface(mST->getBufferQueue());
+        mSTC = new Surface(bq);
         mANW = mSTC;
 
         // We need a valid GL context so we can test updateTexImage()
@@ -710,7 +710,7 @@ protected:
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
             sp<BufferQueue> bq = new BufferQueue();
             sp<GLConsumer> st(new GLConsumer(bq, i));
-            sp<Surface> stc(new Surface(st->getBufferQueue()));
+            sp<Surface> stc(new Surface(bq));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);
             ASSERT_EQ(EGL_SUCCESS, eglGetError());

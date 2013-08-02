@@ -188,6 +188,9 @@ public:
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
     virtual status_t setTransformHint(uint32_t hint) = 0;
 
+    // dump state into a string
+    virtual void dump(String8& result, const char* prefix) const = 0;
+
 public:
     DECLARE_META_INTERFACE(GraphicBufferConsumer);
 };

@@ -76,6 +76,7 @@ public:
             bool isSecure,
             const wp<IBinder>& displayToken,
             const sp<DisplaySurface>& displaySurface,
+            const sp<IGraphicBufferProducer>& producer,
             EGLConfig config);
 
     ~DisplayDevice();

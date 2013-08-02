@@ -85,7 +85,7 @@ static float mtxRot90[16] = {
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
 
-GLConsumer::GLConsumer(const sp<BufferQueue>& bq, GLuint tex,
+GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, GLuint tex,
         GLenum texTarget, bool useFenceSync, bool isControlledByApp) :
     ConsumerBase(bq, isControlledByApp),
     mCurrentTransform(0),
@@ -108,12 +108,12 @@ GLConsumer::GLConsumer(const sp<BufferQueue>& bq, GLuint tex,
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
 
-    mBufferQueue->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
+    mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
 status_t GLConsumer::setDefaultMaxBufferCount(int bufferCount) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setDefaultMaxBufferCount(bufferCount);
+    return mConsumer->setDefaultMaxBufferCount(bufferCount);
 }
 
 
@@ -122,7 +122,7 @@ status_t GLConsumer::setDefaultBufferSize(uint32_t w, uint32_t h)
     Mutex::Autolock lock(mMutex);
     mDefaultWidth = w;
     mDefaultHeight = h;
-    return mBufferQueue->setDefaultBufferSize(w, h);
+    return mConsumer->setDefaultBufferSize(w, h);
 }
 
 status_t GLConsumer::updateTexImage() {
@@ -946,23 +946,23 @@ void GLConsumer::abandonLocked() {
 void GLConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
-    mBufferQueue->setConsumerName(name);
+    mConsumer->setConsumerName(name);
 }
 
 status_t GLConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+    return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
     usage |= DEFAULT_USAGE_FLAGS;
-    return mBufferQueue->setConsumerUsageBits(usage);
+    return mConsumer->setConsumerUsageBits(usage);
 }
 
 status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setTransformHint(hint);
+    return mConsumer->setTransformHint(hint);
 }
 
 void GLConsumer::dumpLocked(String8& result, const char* prefix) const

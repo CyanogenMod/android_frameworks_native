@@ -78,10 +78,6 @@ public:
     BufferQueue(const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueue();
 
-    // dump our state in a String
-    virtual void dump(String8& result) const;
-    virtual void dump(String8& result, const char* prefix) const;
-
     /*
      * IGraphicBufferProducer interface
      */
@@ -301,6 +297,9 @@ public:
     // The values are enumerated in window.h, e.g.
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
     virtual status_t setTransformHint(uint32_t hint);
+
+    // dump our state in a String
+    virtual void dump(String8& result, const char* prefix) const;
 
 
 private:

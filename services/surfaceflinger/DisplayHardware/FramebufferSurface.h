@@ -37,9 +37,7 @@ class HWComposer;
 class FramebufferSurface : public ConsumerBase,
                            public DisplaySurface {
 public:
-    FramebufferSurface(HWComposer& hwc, int disp);
-
-    virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
+    FramebufferSurface(HWComposer& hwc, int disp, const sp<IGraphicBufferConsumer>& consumer);
 
     virtual status_t prepareFrame(CompositionType compositionType);
     virtual status_t compositionComplete();

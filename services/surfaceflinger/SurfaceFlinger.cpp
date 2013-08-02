@@ -451,9 +451,11 @@ status_t SurfaceFlinger::readyToRun()
             createBuiltinDisplayLocked(type);
             wp<IBinder> token = mBuiltinDisplays[i];
 
+            sp<BufferQueue> bq = new BufferQueue(new GraphicBufferAlloc());
+            sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i, bq);
             sp<DisplayDevice> hw = new DisplayDevice(this,
                     type, allocateHwcDisplayId(type), isSecure, token,
-                    new FramebufferSurface(*mHwc, i),
+                    fbs, bq,
                     mEGLConfig);
             if (i > DisplayDevice::DISPLAY_PRIMARY) {
                 // FIXME: currently we don't get blank/unblank requests
@@ -1101,16 +1103,29 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     const DisplayDeviceState& state(curr[i]);
 
                     sp<DisplaySurface> dispSurface;
+                    sp<IGraphicBufferProducer> producer;
+                    sp<BufferQueue> bq = new BufferQueue(new GraphicBufferAlloc());
+
                     int32_t hwcDisplayId = -1;
                     if (state.isVirtualDisplay()) {
                         // Virtual displays without a surface are dormant:
                         // they have external state (layer stack, projection,
                         // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
+
                             hwcDisplayId = allocateHwcDisplayId(state.type);
-                            dispSurface = new VirtualDisplaySurface(
-                                    *mHwc, hwcDisplayId, state.surface,
+                            sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(
+                                    *mHwc, hwcDisplayId, state.surface, bq,
                                     state.displayName);
+
+                            dispSurface = vds;
+                            if (hwcDisplayId >= 0) {
+                                producer = vds;
+                            } else {
+                                // There won't be any interaction with HWC for this virtual display,
+                                // so the GLES driver can pass buffers directly to the sink.
+                                producer = state.surface;
+                            }
                         }
                     } else {
                         ALOGE_IF(state.surface!=NULL,
@@ -1120,14 +1135,15 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         hwcDisplayId = allocateHwcDisplayId(state.type);
                         // for supported (by hwc) displays we provide our
                         // own rendering surface
-                        dispSurface = new FramebufferSurface(*mHwc, state.type);
+                        dispSurface = new FramebufferSurface(*mHwc, state.type, bq);
+                        producer = bq;
                     }
 
                     const wp<IBinder>& display(curr.keyAt(i));
                     if (dispSurface != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
                                 state.type, hwcDisplayId, state.isSecure,
-                                display, dispSurface, mEGLConfig);
+                                display, dispSurface, producer, mEGLConfig);
                         hw->setLayerStack(state.layerStack);
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);

@@ -66,7 +66,7 @@ class CpuConsumer : public ConsumerBase
 
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies
     // how many buffers can be locked for user access at the same time.
-    CpuConsumer(const sp<BufferQueue>& bq,
+    CpuConsumer(const sp<IGraphicBufferConsumer>& bq,
             uint32_t maxLockedBuffers, bool controlledByApp = false);
 
     virtual ~CpuConsumer();
@@ -103,8 +103,6 @@ class CpuConsumer : public ConsumerBase
     // be released by calling unlockBuffer to ensure new buffers can be acquired by
     // lockNextBuffer.
     status_t unlockBuffer(const LockedBuffer &nativeBuffer);
-
-    sp<IGraphicBufferProducer> getProducerInterface() const { return getBufferQueue(); }
 
   private:
     // Maximum number of buffers that can be locked at a time

@@ -51,9 +51,9 @@ static int32_t createProcessUniqueId() {
     return android_atomic_inc(&globalCounter);
 }
 
-ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue, bool controlledByApp) :
+ConsumerBase::ConsumerBase(const sp<IGraphicBufferConsumer>& bufferQueue, bool controlledByApp) :
         mAbandoned(false),
-        mBufferQueue(bufferQueue) {
+        mConsumer(bufferQueue) {
     // Choose a name using the PID and a process-unique ID.
     mName = String8::format("unnamed-%d-%d", getpid(), createProcessUniqueId());
 
@@ -64,12 +64,12 @@ ConsumerBase::ConsumerBase(const sp<BufferQueue>& bufferQueue, bool controlledBy
     wp<ConsumerListener> listener = static_cast<ConsumerListener*>(this);
     sp<IConsumerListener> proxy = new BufferQueue::ProxyConsumerListener(listener);
 
-    status_t err = mBufferQueue->consumerConnect(proxy, controlledByApp);
+    status_t err = mConsumer->consumerConnect(proxy, controlledByApp);
     if (err != NO_ERROR) {
         CB_LOGE("ConsumerBase: error connecting to BufferQueue: %s (%d)",
                 strerror(-err), err);
     } else {
-        mBufferQueue->setConsumerName(mName);
+        mConsumer->setConsumerName(mName);
     }
 }
 
@@ -94,12 +94,6 @@ void ConsumerBase::freeBufferLocked(int slotIndex) {
     mSlots[slotIndex].mGraphicBuffer = 0;
     mSlots[slotIndex].mFence = Fence::NO_FENCE;
     mSlots[slotIndex].mFrameNumber = 0;
-}
-
-// Used for refactoring, should not be in final interface
-sp<BufferQueue> ConsumerBase::getBufferQueue() const {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue;
 }
 
 void ConsumerBase::onFrameAvailable() {
@@ -128,7 +122,7 @@ void ConsumerBase::onBuffersReleased() {
     }
 
     uint32_t mask = 0;
-    mBufferQueue->getReleasedBuffers(&mask);
+    mConsumer->getReleasedBuffers(&mask);
     for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         if (mask & (1 << i)) {
             freeBufferLocked(i);
@@ -152,8 +146,8 @@ void ConsumerBase::abandonLocked() {
         freeBufferLocked(i);
     }
     // disconnect from the BufferQueue
-    mBufferQueue->consumerDisconnect();
-    mBufferQueue.clear();
+    mConsumer->consumerDisconnect();
+    mConsumer.clear();
 }
 
 void ConsumerBase::setFrameAvailableListener(
@@ -176,13 +170,13 @@ void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
     result.appendFormat("%smAbandoned=%d\n", prefix, int(mAbandoned));
 
     if (!mAbandoned) {
-        mBufferQueue->dump(result, prefix);
+        mConsumer->dump(result, prefix);
     }
 }
 
 status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item,
         nsecs_t presentWhen) {
-    status_t err = mBufferQueue->acquireBuffer(item, presentWhen);
+    status_t err = mConsumer->acquireBuffer(item, presentWhen);
     if (err != NO_ERROR) {
         return err;
     }
@@ -247,7 +241,7 @@ status_t ConsumerBase::releaseBufferLocked(
 
     CB_LOGV("releaseBufferLocked: slot=%d/%llu",
             slot, mSlots[slot].mFrameNumber);
-    status_t err = mBufferQueue->releaseBuffer(slot, mSlots[slot].mFrameNumber,
+    status_t err = mConsumer->releaseBuffer(slot, mSlots[slot].mFrameNumber,
             display, eglFence, mSlots[slot].mFence);
     if (err == BufferQueue::STALE_BUFFER_SLOT) {
         freeBufferLocked(slot);

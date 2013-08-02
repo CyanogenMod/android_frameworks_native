@@ -154,7 +154,7 @@ public:
     Rect computeBounds() const;
 
     sp<IBinder> getHandle();
-    sp<BufferQueue> getBufferQueue() const;
+    sp<IGraphicBufferProducer> getBufferQueue() const;
     const String8& getName() const;
 
     // -----------------------------------------------------------------------
@@ -344,6 +344,7 @@ private:
 
     // constants
     sp<SurfaceFlingerConsumer> mSurfaceFlingerConsumer;
+    sp<BufferQueue> mBufferQueue;
     GLuint mTextureName;
     bool mPremultipliedAlpha;
     String8 mName;

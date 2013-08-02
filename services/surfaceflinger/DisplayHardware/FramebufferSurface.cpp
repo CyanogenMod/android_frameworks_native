@@ -50,25 +50,22 @@ namespace android {
  *
  */
 
-FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
-    ConsumerBase(new BufferQueue(new GraphicBufferAlloc())),
+FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp,
+        const sp<IGraphicBufferConsumer>& consumer) :
+    ConsumerBase(consumer),
     mDisplayType(disp),
     mCurrentBufferSlot(-1),
     mCurrentBuffer(0),
     mHwc(hwc)
 {
     mName = "FramebufferSurface";
-    mBufferQueue->setConsumerName(mName);
-    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
+    mConsumer->setConsumerName(mName);
+    mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
                                        GRALLOC_USAGE_HW_RENDER |
                                        GRALLOC_USAGE_HW_COMPOSER);
-    mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(disp));
-    mBufferQueue->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
-    mBufferQueue->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
-}
-
-sp<IGraphicBufferProducer> FramebufferSurface::getIGraphicBufferProducer() const {
-    return getBufferQueue();
+    mConsumer->setDefaultBufferFormat(mHwc.getFormat(disp));
+    mConsumer->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
+    mConsumer->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
 status_t FramebufferSurface::prepareFrame(CompositionType compositionType) {

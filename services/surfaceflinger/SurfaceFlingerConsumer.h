@@ -36,7 +36,7 @@ public:
     class BufferRejecter {
         friend class SurfaceFlingerConsumer;
         virtual bool reject(const sp<GraphicBuffer>& buf,
-                const BufferQueue::BufferItem& item) = 0;
+                const IGraphicBufferConsumer::BufferItem& item) = 0;
 
     protected:
         virtual ~BufferRejecter() { }

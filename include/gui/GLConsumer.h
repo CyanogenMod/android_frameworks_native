@@ -32,10 +32,6 @@
 #include <utils/Vector.h>
 #include <utils/threads.h>
 
-#define ANDROID_GRAPHICS_SURFACETEXTURE_JNI_ID "mSurfaceTexture"
-#define ANDROID_GRAPHICS_FRAMEAVAILABLELISTENER_JNI_ID \
-                                         "mFrameAvailableListener"
-
 namespace android {
 // ----------------------------------------------------------------------------
 
@@ -85,7 +81,7 @@ public:
     // purely to allow a GLConsumer to be transferred from one consumer
     // context to another. If such a transfer is not needed there is no
     // requirement that either of these methods be called.
-    GLConsumer(const sp<BufferQueue>& bq,
+    GLConsumer(const sp<IGraphicBufferConsumer>& bq,
             GLuint tex, GLenum texTarget = GL_TEXTURE_EXTERNAL_OES,
             bool useFenceSync = true, bool isControlledByApp = false);
 
@@ -193,12 +189,6 @@ public:
     status_t setDefaultBufferFormat(uint32_t defaultFormat);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
-
-    // getBufferQueue returns the BufferQueue object to which this
-    // GLConsumer is connected.
-    sp<BufferQueue> getBufferQueue() const {
-        return mBufferQueue;
-    }
 
     // detachFromContext detaches the GLConsumer from the calling thread's
     // current OpenGL ES context.  This context must be the same as the context

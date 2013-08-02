@@ -387,7 +387,7 @@ protected:
         GLTest::SetUp();
         sp<BufferQueue> bq = new BufferQueue();
         mGlConsumer = new GLConsumer(bq, TEX_ID);
-        mSurface = new Surface(mGlConsumer->getBufferQueue());
+        mSurface = new Surface(bq);
         mANW = mSurface.get();
 
     }
@@ -481,8 +481,9 @@ protected:
     virtual void SetUp() {
         GLTest::SetUp();
         sp<BufferQueue> bq = new BufferQueue();
+        mBQ = bq;
         mST = new GLConsumer(bq, TEX_ID);
-        mSTC = new Surface(mST->getBufferQueue());
+        mSTC = new Surface(bq);
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);
         ASSERT_NO_FATAL_FAILURE(mTextureRenderer->SetUp());
@@ -672,6 +673,7 @@ protected:
         Condition mFrameCondition;
     };
 
+    sp<BufferQueue> mBQ;
     sp<GLConsumer> mST;
     sp<Surface> mSTC;
     sp<ANativeWindow> mANW;
@@ -1211,7 +1213,7 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
     };
 
     sp<DisconnectWaiter> dw(new DisconnectWaiter());
-    mST->getBufferQueue()->consumerConnect(dw, false);
+    mBQ->consumerConnect(dw, false);
 
 
     sp<Thread> pt(new ProducerThread(mANW));

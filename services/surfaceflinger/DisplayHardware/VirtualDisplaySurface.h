@@ -68,17 +68,17 @@ class HWComposer;
  * is released and the output buffer is queued to the sink.
  */
 class VirtualDisplaySurface : public DisplaySurface,
-                              private BnGraphicBufferProducer,
+                              public BnGraphicBufferProducer,
                               private ConsumerBase {
 public:
     VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
             const sp<IGraphicBufferProducer>& sink,
+            const sp<BufferQueue>& bq,
             const String8& name);
 
     //
     // DisplaySurface interface
     //
-    virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
     virtual status_t prepareFrame(CompositionType compositionType);
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();

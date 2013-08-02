@@ -70,7 +70,7 @@ protected:
         mCC = new CpuConsumer(bq, params.maxLockedBuffers);
         String8 name("CpuConsumer_Under_Test");
         mCC->setName(name);
-        mSTC = new Surface(mCC->getProducerInterface());
+        mSTC = new Surface(bq);
         mANW = mSTC;
     }
 
