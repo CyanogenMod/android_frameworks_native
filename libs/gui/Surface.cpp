@@ -261,7 +261,9 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     Mutex::Autolock lock(mMutex);
     int64_t timestamp;
     if (mTimestamp == NATIVE_WINDOW_TIMESTAMP_AUTO) {
-        timestamp = 0;
+        timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+        ALOGV("Surface::queueBuffer making up timestamp: %.2f ms",
+            timestamp / 1000000.f);
     } else {
         timestamp = mTimestamp;
     }
