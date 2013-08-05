@@ -20,6 +20,7 @@
 #include <gui/ISurfaceComposer.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
+#include <gui/BufferItemConsumer.h>
 #include <utils/String8.h>
 
 #include <private/gui/ComposerService.h>
@@ -130,6 +131,23 @@ TEST_F(SurfaceTest, ConcreteTypeIsSurface) {
     int err = anw->query(anw.get(), NATIVE_WINDOW_CONCRETE_TYPE, &result);
     EXPECT_EQ(NO_ERROR, err);
     EXPECT_EQ(NATIVE_WINDOW_SURFACE, result);
+}
+
+TEST_F(SurfaceTest, QueryConsumerUsage) {
+    const int TEST_USAGE_FLAGS =
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_HW_RENDER;
+    sp<BufferQueue> bq = new BufferQueue();
+    sp<BufferItemConsumer> c = new BufferItemConsumer(bq,
+            TEST_USAGE_FLAGS);
+    sp<Surface> s = new Surface(c->getProducerInterface());
+
+    sp<ANativeWindow> anw(s);
+
+    int flags = -1;
+    int err = anw->query(anw.get(), NATIVE_WINDOW_CONSUMER_USAGE_BITS, &flags);
+
+    ASSERT_EQ(NO_ERROR, err);
+    ASSERT_EQ(TEST_USAGE_FLAGS, flags);
 }
 
 }
