@@ -102,6 +102,28 @@ public:
         remote()->transact(BnSurfaceComposer::BOOT_FINISHED, data, &reply);
     }
 
+#ifdef USE_MHEAP_SCREENSHOT
+    virtual status_t captureScreen(
+            const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+            uint32_t* width, uint32_t* height,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
+        data.writeInt32(reqWidth);
+        data.writeInt32(reqHeight);
+        data.writeInt32(minLayerZ);
+        data.writeInt32(maxLayerZ);
+        remote()->transact(BnSurfaceComposer::CAPTURE_SCREEN_DEPRECATED, data, &reply);
+        *heap = interface_cast<IMemoryHeap>(reply.readStrongBinder());
+        *width = reply.readInt32();
+        *height = reply.readInt32();
+        return reply.readInt32();
+    }
+#endif
+
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
@@ -278,6 +300,25 @@ status_t BnSurfaceComposer::onTransact(
             bootFinished();
             return NO_ERROR;
         }
+#ifdef USE_MHEAP_SCREENSHOT
+        case CAPTURE_SCREEN_DEPRECATED: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = data.readStrongBinder();
+            uint32_t reqWidth = data.readInt32();
+            uint32_t reqHeight = data.readInt32();
+            uint32_t minLayerZ = data.readInt32();
+            uint32_t maxLayerZ = data.readInt32();
+            sp<IMemoryHeap> heap;
+            uint32_t w, h;
+            status_t res = captureScreen(display, &heap, &w, &h,
+                    reqWidth, reqHeight, minLayerZ, maxLayerZ);
+            reply->writeStrongBinder(heap->asBinder());
+            reply->writeInt32(w);
+            reply->writeInt32(h);
+            reply->writeInt32(res);
+            return NO_ERROR;
+        }
+#endif
         case CAPTURE_SCREEN: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             sp<IBinder> display = data.readStrongBinder();
