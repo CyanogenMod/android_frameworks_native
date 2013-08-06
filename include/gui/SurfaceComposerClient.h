@@ -40,6 +40,9 @@ namespace android {
 
 class DisplayInfo;
 class Composer;
+#ifdef USE_MHEAP_SCREENSHOT
+class IMemoryHeap;
+#endif
 class ISurfaceComposerClient;
 class IGraphicBufferProducer;
 class Region;
@@ -188,6 +191,9 @@ public:
             bool useIdentityTransform);
 
 private:
+#ifdef USE_MHEAP_SCREENSHOT
+    sp<IMemoryHeap> mHeap;
+#endif
     mutable sp<CpuConsumer> mCpuConsumer;
     mutable sp<IGraphicBufferProducer> mProducer;
     CpuConsumer::LockedBuffer mBuffer;

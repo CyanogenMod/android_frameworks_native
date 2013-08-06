@@ -52,6 +52,10 @@ ifeq ($(TARGET_USES_QCOM_BSP),true)
     LOCAL_CFLAGS += -DQCOM_BSP
 endif
 
+ifeq ($(BOARD_USE_MHEAP_SCREENSHOT),true)
+    LOCAL_CFLAGS += -DUSE_MHEAP_SCREENSHOT
+endif
+
 LOCAL_MODULE:= libgui
 
 ifeq ($(TARGET_BOARD_PLATFORM), tegra)
