@@ -93,7 +93,7 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     sp<ISurfaceComposer> sf(ComposerService::getComposerService());
     sp<IBinder> display(sf->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
     ASSERT_EQ(NO_ERROR, sf->captureScreen(display, bq,
-            64, 64, 0, 0x7fffffff, true));
+            64, 64, 0, 0x7fffffff));
 
     // Set the PROTECTED usage bit and verify that the screenshot fails.  Note
     // that we need to dequeue a buffer in order for it to actually get
