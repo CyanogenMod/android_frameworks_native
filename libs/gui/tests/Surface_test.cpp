@@ -139,7 +139,7 @@ TEST_F(SurfaceTest, QueryConsumerUsage) {
     sp<BufferQueue> bq = new BufferQueue();
     sp<BufferItemConsumer> c = new BufferItemConsumer(bq,
             TEST_USAGE_FLAGS);
-    sp<Surface> s = new Surface(c->getProducerInterface());
+    sp<Surface> s = new Surface(bq);
 
     sp<ANativeWindow> anw(s);
 
