@@ -214,6 +214,13 @@ private:
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform, ISurfaceComposer::Rotation rotation,
             bool isCpuConsumer);
+#ifdef USE_MHEAP_SCREENSHOT
+    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+            uint32_t* width, uint32_t* height,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useIdentityTransform, ISurfaceComposer::Rotation rotation);
+#endif
     virtual status_t getDisplayStats(const sp<IBinder>& display,
             DisplayStatInfo* stats);
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
@@ -350,6 +357,15 @@ private:
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform, Transform::orientation_flags rotation,
             bool useReadPixels);
+
+#ifdef USE_MHEAP_SCREENSHOT
+    status_t captureScreenImplCpuConsumerLocked(
+            const sp<const DisplayDevice>& hw,
+            sp<IMemoryHeap>* heap, uint32_t* width, uint32_t* height,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useIdentityTransform, Transform::orientation_flags rotation);
+#endif
 
     /* ------------------------------------------------------------------------
      * EGL
