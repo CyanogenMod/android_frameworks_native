@@ -194,7 +194,7 @@ private:
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ, bool isCpuConsumer);
+            uint32_t minLayerZ, uint32_t maxLayerZ);
     // called when screen needs to turn off
     virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
@@ -307,8 +307,7 @@ private:
             const sp<const DisplayDevice>& hw,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ,
-            bool useReadPixels);
+            uint32_t minLayerZ, uint32_t maxLayerZ);
 
     /* ------------------------------------------------------------------------
      * EGL

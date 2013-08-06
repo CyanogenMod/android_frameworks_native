@@ -2631,8 +2631,7 @@ public:
 status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         const sp<IGraphicBufferProducer>& producer,
         uint32_t reqWidth, uint32_t reqHeight,
-        uint32_t minLayerZ, uint32_t maxLayerZ,
-        bool useReadPixels) {
+        uint32_t minLayerZ, uint32_t maxLayerZ) {
 
     if (CC_UNLIKELY(display == 0))
         return BAD_VALUE;
@@ -2646,18 +2645,16 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         sp<IGraphicBufferProducer> producer;
         uint32_t reqWidth, reqHeight;
         uint32_t minLayerZ,maxLayerZ;
-        bool useReadPixels;
         status_t result;
     public:
         MessageCaptureScreen(SurfaceFlinger* flinger,
                 const sp<IBinder>& display,
                 const sp<IGraphicBufferProducer>& producer,
                 uint32_t reqWidth, uint32_t reqHeight,
-                uint32_t minLayerZ, uint32_t maxLayerZ, bool useReadPixels)
+                uint32_t minLayerZ, uint32_t maxLayerZ)
             : flinger(flinger), display(display), producer(producer),
               reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
-              useReadPixels(useReadPixels),
               result(PERMISSION_DENIED)
         {
         }
@@ -2667,10 +2664,8 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
-            bool useReadPixels = this->useReadPixels && !flinger->mGpuToCpuSupported;
             result = flinger->captureScreenImplLocked(hw,
-                    producer, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-                    useReadPixels);
+                    producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
             return true;
         }
@@ -2692,8 +2687,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     // which does the marshaling work forwards to our "fake remote" above.
     sp<MessageBase> msg = new MessageCaptureScreen(this,
             display, IGraphicBufferProducer::asInterface( wrapper ),
-            reqWidth, reqHeight, minLayerZ, maxLayerZ,
-            useReadPixels);
+            reqWidth, reqHeight, minLayerZ, maxLayerZ);
 
     status_t res = postMessageAsync(msg);
     if (res == NO_ERROR) {
@@ -2761,8 +2755,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<const DisplayDevice>& hw,
         const sp<IGraphicBufferProducer>& producer,
         uint32_t reqWidth, uint32_t reqHeight,
-        uint32_t minLayerZ, uint32_t maxLayerZ,
-        bool useReadPixels)
+        uint32_t minLayerZ, uint32_t maxLayerZ)
 {
     ATRACE_CALL();
 
@@ -2792,10 +2785,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
     status_t result = NO_ERROR;
     if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) == NO_ERROR) {
-        uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-        if (!useReadPixels) {
-            usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
-        }
+        uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN |
+                        GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
 
         int err = 0;
         err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
@@ -2815,28 +2806,16 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         EGL_NATIVE_BUFFER_ANDROID, buffer, NULL);
                 if (image != EGL_NO_IMAGE_KHR) {
                     GLuint tname, name;
-                    if (!useReadPixels) {
-                        // turn our EGLImage into a texture
-                        glGenTextures(1, &tname);
-                        glBindTexture(GL_TEXTURE_2D, tname);
-                        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-                        // create a Framebuffer Object to render into
-                        glGenFramebuffersOES(1, &name);
-                        glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-                        glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-                                GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
-                    } else {
-                        // since we're going to use glReadPixels() anyways,
-                        // use an intermediate renderbuffer instead
-                        glGenRenderbuffersOES(1, &tname);
-                        glBindRenderbufferOES(GL_RENDERBUFFER_OES, tname);
-                        glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_RGBA8_OES, reqWidth, reqHeight);
-                        // create a FBO to render into
-                        glGenFramebuffersOES(1, &name);
-                        glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-                        glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES,
-                                GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, tname);
-                    }
+
+                    // turn our EGLImage into a texture
+                    glGenTextures(1, &tname);
+                    glBindTexture(GL_TEXTURE_2D, tname);
+                    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+                    // create a Framebuffer Object to render into
+                    glGenFramebuffersOES(1, &name);
+                    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+                    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
+                            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
 
                     GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
                     if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
@@ -2846,17 +2825,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         // dependent on the context's EGLConfig.
                         renderScreenImplLocked(hw, reqWidth, reqHeight,
                                 minLayerZ, maxLayerZ, true);
-
-                        if (useReadPixels) {
-                            sp<GraphicBuffer> buf = static_cast<GraphicBuffer*>(buffer);
-                            void* vaddr;
-                            if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
-                                glReadPixels(0, 0, buffer->stride, reqHeight,
-                                        GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
-                                checkScreenshot(buf, vaddr, hw, minLayerZ, maxLayerZ);
-                                buf->unlock();
-                            }
-                        }
                     } else {
                         ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES error while taking screenshot");
                         result = INVALID_OPERATION;
@@ -2865,11 +2833,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                     // back to main framebuffer
                     glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
                     glDeleteFramebuffersOES(1, &name);
-                    if (!useReadPixels) {
-                        glDeleteTextures(1, &tname);
-                    } else {
-                        glDeleteRenderbuffersOES(1, &tname);
-                    }
+                    glDeleteTextures(1, &tname);
+
                     // destroy our image
                     eglDestroyImageKHR(mEGLDisplay, image);
                 } else {
