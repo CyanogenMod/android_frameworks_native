@@ -122,7 +122,7 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
         ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf, -1));
     }
     ASSERT_EQ(NO_ERROR, sf->captureScreen(display, bq,
-            64, 64, 0, 0x7fffffff, true));
+            64, 64, 0, 0x7fffffff));
 }
 
 TEST_F(SurfaceTest, ConcreteTypeIsSurface) {
