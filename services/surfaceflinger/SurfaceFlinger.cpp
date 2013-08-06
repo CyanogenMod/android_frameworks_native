@@ -2576,6 +2576,9 @@ status_t SurfaceFlinger::onTransact(
             const int pid = ipc->getCallingPid();
             const int uid = ipc->getCallingUid();
             if ((uid != AID_GRAPHICS) &&
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+                 (uid != AID_SYSTEM) &&
+#endif
                     !PermissionCache::checkPermission(sAccessSurfaceFlinger, pid, uid)) {
                 ALOGE("Permission Denial: "
                         "can't access SurfaceFlinger pid=%d, uid=%d", pid, uid);
@@ -2584,6 +2587,9 @@ status_t SurfaceFlinger::onTransact(
             break;
         }
         case CAPTURE_SCREEN:
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+        case CAPTURE_SCREEN_DEPRECATED:
+#endif
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();
@@ -2799,8 +2805,13 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
                 result = flinger->captureScreenImplLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
             } else {
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+                // Should never get here
+                return BAD_VALUE;
+#else
                 result = flinger->captureScreenImplCpuConsumerLocked(hw,
                         producer, reqWidth, reqHeight, minLayerZ, maxLayerZ);
+#endif
             }
             static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
             return true;
@@ -2972,10 +2983,13 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     return NO_ERROR;
 }
 
-
 status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
         const sp<const DisplayDevice>& hw,
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+        sp<IMemoryHeap>* heap, uint32_t* w, uint32_t* h,
+#else
         const sp<IGraphicBufferProducer>& producer,
+#endif
         uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ)
 {
@@ -3029,6 +3043,25 @@ status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
         // have to wrap it with a CPU->CPU path, which is what
         // glReadPixels essentially is.
 
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+        size_t size = reqWidth * reqHeight * 4;
+        // allocate shared memory large enough to hold the
+        // screen capture
+        sp<MemoryHeapBase> base(
+                new MemoryHeapBase(size, 0, "screen-capture") );
+        void *vaddr = base->getBase();
+        glReadPixels(0, 0, reqWidth, reqHeight,
+                GL_RGBA, GL_UNSIGNED_BYTE, vaddr);
+        if (glGetError() == GL_NO_ERROR) {
+            *heap = base;
+            *w = reqWidth;
+            *h = reqHeight;
+            result = NO_ERROR;
+        } else {
+            result = INVALID_OPERATION;
+
+        }
+#else
         sp<Surface> sur = new Surface(producer);
         ANativeWindow* window = sur.get();
 
@@ -3054,6 +3087,7 @@ status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
             }
             native_window_api_disconnect(window, NATIVE_WINDOW_API_CPU);
         }
+#endif
 
     } else {
         ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES while taking screenshot");
@@ -3069,6 +3103,65 @@ status_t SurfaceFlinger::captureScreenImplCpuConsumerLocked(
 
     return result;
 }
+
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
+        sp<IMemoryHeap>* heap,
+        uint32_t* outWidth, uint32_t* outHeight,
+        uint32_t reqWidth, uint32_t reqHeight,
+        uint32_t minLayerZ, uint32_t maxLayerZ)
+{
+    if (CC_UNLIKELY(display == 0))
+        return BAD_VALUE;
+
+    class MessageCaptureScreen : public MessageBase {
+        SurfaceFlinger* flinger;
+        sp<IBinder> display;
+        sp<IMemoryHeap>* heap;
+        uint32_t* outWidth;
+        uint32_t* outHeight;
+        uint32_t reqWidth;
+        uint32_t reqHeight;
+        uint32_t minLayerZ;
+        uint32_t maxLayerZ;
+        status_t result;
+    public:
+        MessageCaptureScreen(SurfaceFlinger* flinger,
+                const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+                uint32_t* outWidth, uint32_t* outHeight,
+                uint32_t reqWidth, uint32_t reqHeight,
+                uint32_t minLayerZ, uint32_t maxLayerZ)
+            : flinger(flinger), display(display), heap(heap),
+              outWidth(outWidth), outHeight(outHeight),
+              reqWidth(reqWidth), reqHeight(reqHeight),
+              minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
+              result(PERMISSION_DENIED)
+        {
+        }
+        status_t getResult() const {
+            return result;
+        }
+        virtual bool handler() {
+            Mutex::Autolock _l(flinger->mStateLock);
+            sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
+            result = flinger->captureScreenImplCpuConsumerLocked(hw, heap,
+                    outWidth, outHeight,
+                    reqWidth, reqHeight, minLayerZ, maxLayerZ);
+            return true;
+        }
+    };
+
+    sp<MessageBase> msg = new MessageCaptureScreen(this, display, heap,
+            outWidth, outHeight, reqWidth, reqHeight, minLayerZ, maxLayerZ);
+    status_t res = postMessageSync(msg);
+    if (res == NO_ERROR) {
+        res = static_cast<MessageCaptureScreen*>( msg.get() )->getResult();
+    }
+    return res;
+}
+
+#endif
+
 
 // ---------------------------------------------------------------------------
 

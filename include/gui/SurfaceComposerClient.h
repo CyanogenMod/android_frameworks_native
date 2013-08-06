@@ -39,6 +39,9 @@ namespace android {
 
 class DisplayInfo;
 class Composer;
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+class IMemoryHeap;
+#endif
 class ISurfaceComposerClient;
 class IGraphicBufferProducer;
 class Region;
@@ -176,6 +179,9 @@ public:
             uint32_t minLayerZ, uint32_t maxLayerZ);
 
 private:
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+    sp<IMemoryHeap> mHeap;
+#endif
     mutable sp<CpuConsumer> mCpuConsumer;
     CpuConsumer::LockedBuffer mBuffer;
     bool mHaveBuffer;

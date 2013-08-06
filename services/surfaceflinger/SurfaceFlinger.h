@@ -190,6 +190,11 @@ private:
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ, bool isCpuConsumer);
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+        uint32_t* width, uint32_t* height, uint32_t reqWidth,
+        uint32_t reqHeight, uint32_t minLayerZ, uint32_t maxLayerZ);
+#endif
     // called when screen needs to turn off
     virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
@@ -311,7 +316,11 @@ private:
 
     status_t captureScreenImplCpuConsumerLocked(
             const sp<const DisplayDevice>& hw,
+#ifdef BOARD_EGL_NEEDS_LEGACY_FB
+            sp<IMemoryHeap>* heap, uint32_t* width, uint32_t* height,
+#else
             const sp<IGraphicBufferProducer>& producer,
+#endif
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ);
 
