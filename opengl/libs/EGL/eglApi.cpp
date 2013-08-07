@@ -59,16 +59,24 @@ struct extention_map_t {
 };
 
 /*
- * This is the list of EGL extensions exposed to applications,
- * some of them are mandatory because used by the ANDROID system.
+ * This is the list of EGL extensions exposed to applications.
  *
- * Mandatory extensions are required per the CDD and not explicitly
- * checked during EGL initialization. the system *assumes* these extensions
- * are present. the system may not function properly if some mandatory
- * extensions are missing.
+ * Some of them (gBuiltinExtensionString) are implemented entirely in this EGL
+ * wrapper and are always available.
  *
- * NOTE: gExtensionString MUST have a single space as the last character.
+ * The rest (gExtensionString) depend on support in the EGL driver, and are
+ * only available if the driver supports them. However, some of these must be
+ * supported because they are used by the Android system itself; these are
+ * listd as mandatory below and are required by the CDD. The system *assumes*
+ * the mandatory extensions are present and may not function properly if some
+ * are missing.
+ *
+ * NOTE: Both strings MUST have a single space as the last character.
  */
+extern char const * const gBuiltinExtensionString =
+        "EGL_KHR_get_all_proc_addresses "
+        "EGL_ANDROID_presentation_time "
+        ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
         "EGL_KHR_image_base "                   // mandatory
@@ -84,7 +92,6 @@ extern char const * const gExtensionString  =
         "EGL_NV_system_time "
         "EGL_ANDROID_image_native_buffer "      // mandatory
         "EGL_KHR_wait_sync "                    // strongly recommended
-        "EGL_ANDROID_presentation_time "
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
