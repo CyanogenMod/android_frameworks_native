@@ -170,7 +170,6 @@ private:
 
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;
-    EGLContext      mContext;
     int             mDisplayWidth;
     int             mDisplayHeight;
     PixelFormat     mFormat;
