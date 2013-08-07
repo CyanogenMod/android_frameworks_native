@@ -53,8 +53,10 @@ namespace android {
 static const struct {
     size_t width, height;
     char const* bits;
-} kDebugData = { 11, 8,
-    "__X_____X_____X___X_____XXXXXXX___XX_XXX_XX_XXXXXXXXXXXX_XXXXXXX_XX_X_____X_X___XX_XX___" };
+} kDebugData = { 15, 12,
+    "___________________________________XX_XX_______X_X_____X_X____X_XXXXXXX_X____XXXXXXXXXXX__"
+    "___XX_XXX_XX_______XXXXXXX_________X___X_________X_____X__________________________________"
+};
 
 // Transform matrices
 static float mtxIdentity[16] = {
@@ -213,7 +215,8 @@ status_t GLConsumer::releaseTexImage() {
         if (CC_UNLIKELY(mReleasedTexImageBuffer == NULL)) {
             // The first time, create the debug texture in case the application
             // continues to use it.
-            sp<GraphicBuffer> buffer = new GraphicBuffer(11, 8, PIXEL_FORMAT_RGBA_8888,
+            sp<GraphicBuffer> buffer = new GraphicBuffer(
+                    kDebugData.width, kDebugData.height, PIXEL_FORMAT_RGBA_8888,
                     GraphicBuffer::USAGE_SW_WRITE_RARELY);
             uint32_t* bits;
             buffer->lock(GraphicBuffer::USAGE_SW_WRITE_RARELY, reinterpret_cast<void**>(&bits));
@@ -222,7 +225,7 @@ status_t GLConsumer::releaseTexImage() {
             memset(bits, 0, w*h*4);
             for (size_t y=0 ; y<kDebugData.height ; y++) {
                 for (size_t x=0 ; x<kDebugData.width ; x++) {
-                    bits[x] = (kDebugData.bits[y*11+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
+                    bits[x] = (kDebugData.bits[y*kDebugData.width+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
                 }
                 bits += w;
             }
