@@ -205,6 +205,25 @@ sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName,
     return token;
 }
 
+void SurfaceFlinger::destroyDisplay(const sp<IBinder>& display) {
+    Mutex::Autolock _l(mStateLock);
+
+    ssize_t idx = mCurrentState.displays.indexOfKey(display);
+    if (idx < 0) {
+        ALOGW("destroyDisplay: invalid display token");
+        return;
+    }
+
+    const DisplayDeviceState& info(mCurrentState.displays.valueAt(idx));
+    if (!info.isVirtualDisplay()) {
+        ALOGE("destroyDisplay called for non-virtual display");
+        return;
+    }
+
+    mCurrentState.displays.removeItemsAt(idx);
+    setTransactionFlags(eDisplayTransactionNeeded);
+}
+
 void SurfaceFlinger::createBuiltinDisplayLocked(DisplayDevice::DisplayType type) {
     ALOGW_IF(mBuiltinDisplays[type],
             "Overwriting display token for display type %d", type);

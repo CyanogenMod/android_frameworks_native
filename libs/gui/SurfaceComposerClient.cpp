@@ -135,6 +135,7 @@ class Composer : public Singleton<Composer>
 
 public:
     sp<IBinder> createDisplay(const String8& displayName, bool secure);
+    void destroyDisplay(const sp<IBinder>& display);
     sp<IBinder> getBuiltInDisplay(int32_t id);
 
     status_t setPosition(const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
@@ -186,6 +187,10 @@ ANDROID_SINGLETON_STATIC_INSTANCE(Composer);
 sp<IBinder> Composer::createDisplay(const String8& displayName, bool secure) {
     return ComposerService::getComposerService()->createDisplay(displayName,
             secure);
+}
+
+void Composer::destroyDisplay(const sp<IBinder>& display) {
+    return ComposerService::getComposerService()->destroyDisplay(display);
 }
 
 sp<IBinder> Composer::getBuiltInDisplay(int32_t id) {
@@ -488,6 +493,10 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
 sp<IBinder> SurfaceComposerClient::createDisplay(const String8& displayName,
         bool secure) {
     return Composer::getInstance().createDisplay(displayName, secure);
+}
+
+void SurfaceComposerClient::destroyDisplay(const sp<IBinder>& display) {
+    Composer::getInstance().destroyDisplay(display);
 }
 
 sp<IBinder> SurfaceComposerClient::getBuiltInDisplay(int32_t id) {
