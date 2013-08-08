@@ -27,10 +27,8 @@ namespace android {
  */
 class SurfaceFlingerConsumer : public GLConsumer {
 public:
-    SurfaceFlingerConsumer(const sp<BufferQueue>& bq, GLuint tex,
-            GLenum texTarget = GL_TEXTURE_EXTERNAL_OES,
-            bool useFenceSync = true)
-        : GLConsumer(bq, tex, texTarget, useFenceSync)
+    SurfaceFlingerConsumer(const sp<BufferQueue>& bq, uint32_t tex)
+        : GLConsumer(bq, tex, GLConsumer::TEXTURE_EXTERNAL, false)
     {}
 
     class BufferRejecter {

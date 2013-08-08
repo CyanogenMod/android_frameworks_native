@@ -80,7 +80,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mClientRef(client)
 {
     mCurrentCrop.makeInvalid();
-    glGenTextures(1, &mTextureName);
+    mFlinger->getRenderEngine().genTextures(1, &mTextureName);
 
     uint32_t layerFlags = 0;
     if (flags & ISurfaceComposerClient::eHidden)
@@ -110,13 +110,10 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mFrameTracker.setDisplayRefreshPeriod(displayPeriod);
 }
 
-void Layer::onFirstRef()
-{
+void Layer::onFirstRef() {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
     mBufferQueue = new SurfaceTextureLayer(mFlinger);
-    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mBufferQueue, mTextureName,
-            GL_TEXTURE_EXTERNAL_OES, false);
-
+    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mBufferQueue, mTextureName);
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setFrameAvailableListener(this);
     mSurfaceFlingerConsumer->setName(mName);
@@ -495,14 +492,11 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
 
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
-        GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
+        float red, float green, float blue, float alpha) const
 {
-    LayerMesh mesh;
-    computeGeometry(hw, &mesh);
-
-    mFlinger->getRenderEngine().clearWithColor(
-        mesh.getVertices(), mesh.getVertexCount(),
-        red, green, blue, alpha);
+    Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2);
+    computeGeometry(hw, mesh);
+    mFlinger->getRenderEngine().fillWithColor(mesh, red, green, blue, alpha);
 }
 
 void Layer::clearWithOpenGL(
@@ -515,8 +509,8 @@ void Layer::drawWithOpenGL(
     const uint32_t fbHeight = hw->getHeight();
     const State& s(getDrawingState());
 
-    LayerMesh mesh;
-    computeGeometry(hw, &mesh);
+    Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2, 2);
+    computeGeometry(hw, mesh);
 
     /*
      * NOTE: the way we compute the texture coordinates here produces
@@ -534,29 +528,27 @@ void Layer::drawWithOpenGL(
      */
     const Rect win(computeBounds());
 
-    GLfloat left   = GLfloat(win.left)   / GLfloat(s.active.w);
-    GLfloat top    = GLfloat(win.top)    / GLfloat(s.active.h);
-    GLfloat right  = GLfloat(win.right)  / GLfloat(s.active.w);
-    GLfloat bottom = GLfloat(win.bottom) / GLfloat(s.active.h);
+    float left   = float(win.left)   / float(s.active.w);
+    float top    = float(win.top)    / float(s.active.h);
+    float right  = float(win.right)  / float(s.active.w);
+    float bottom = float(win.bottom) / float(s.active.h);
 
     // TODO: we probably want to generate the texture coords with the mesh
     // here we assume that we only have 4 vertices
-    float texCoords[4][2];
-    texCoords[0][0] = left;
-    texCoords[0][1] = top;
-    texCoords[1][0] = left;
-    texCoords[1][1] = bottom;
-    texCoords[2][0] = right;
-    texCoords[2][1] = bottom;
-    texCoords[3][0] = right;
-    texCoords[3][1] = top;
-    for (int i = 0; i < 4; i++) {
-        texCoords[i][1] = 1.0f - texCoords[i][1];
-    }
+    size_t stride = mesh.getStride();
+    float* base = mesh.getTexCoords();
+    base[stride*0 + 0] = left;
+    base[stride*0 + 1] = 1.0f - top;
+    base[stride*1 + 0] = left;
+    base[stride*1 + 1] = 1.0f - bottom;
+    base[stride*2 + 0] = right;
+    base[stride*2 + 1] = 1.0f - bottom;
+    base[stride*3 + 0] = right;
+    base[stride*3 + 1] = 1.0f - top;
 
     RenderEngine& engine(mFlinger->getRenderEngine());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
-    engine.drawMesh2D(mesh.getVertices(), texCoords, mesh.getVertexCount());
+    engine.drawMesh(mesh);
     engine.disableBlending();
 }
 
@@ -592,7 +584,7 @@ bool Layer::getOpacityForFormat(uint32_t format) {
 // local state
 // ----------------------------------------------------------------------------
 
-void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const
+void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const
 {
     const Layer::State& s(getDrawingState());
     const Transform tr(hw->getTransform() * s.transform);
@@ -603,14 +595,13 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) 
     }
     // subtract the transparent region and snap to the bounds
     win = reduce(win, s.activeTransparentRegion);
-    if (mesh) {
-        tr.transform(mesh->mVertices[0], win.left,  win.top);
-        tr.transform(mesh->mVertices[1], win.left,  win.bottom);
-        tr.transform(mesh->mVertices[2], win.right, win.bottom);
-        tr.transform(mesh->mVertices[3], win.right, win.top);
-        for (size_t i=0 ; i<4 ; i++) {
-            mesh->mVertices[i][1] = hw_h - mesh->mVertices[i][1];
-        }
+
+    tr.transform(mesh[0], win.left,  win.top);
+    tr.transform(mesh[1], win.left,  win.bottom);
+    tr.transform(mesh[2], win.right, win.bottom);
+    tr.transform(mesh[3], win.right, win.top);
+    for (size_t i=0 ; i<4 ; i++) {
+        mesh[i][1] = hw_h - mesh[i][1];
     }
 }
 
@@ -1195,6 +1186,12 @@ Layer::LayerCleaner::~LayerCleaner() {
 }
 
 // ---------------------------------------------------------------------------
-
-
 }; // namespace android
+
+#if defined(__gl_h_)
+#error "don't include gl/gl.h in this file"
+#endif
+
+#if defined(__gl2_h_)
+#error "don't include gl2/gl2.h in this file"
+#endif

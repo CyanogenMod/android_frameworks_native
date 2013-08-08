@@ -89,8 +89,8 @@ static void mtxMul(float out[16], const float a[16], const float b[16]);
 Mutex GLConsumer::sStaticInitLock;
 sp<GraphicBuffer> GLConsumer::sReleasedTexImageBuffer;
 
-GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, GLuint tex,
-        GLenum texTarget, bool useFenceSync, bool isControlledByApp) :
+GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
+        uint32_t texTarget, bool useFenceSync, bool isControlledByApp) :
     ConsumerBase(bq, isControlledByApp),
     mCurrentTransform(0),
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
@@ -523,7 +523,7 @@ status_t GLConsumer::detachFromContext() {
     return OK;
 }
 
-status_t GLConsumer::attachToContext(GLuint tex) {
+status_t GLConsumer::attachToContext(uint32_t tex) {
     ATRACE_CALL();
     ST_LOGV("attachToContext");
     Mutex::Autolock lock(mMutex);
@@ -554,7 +554,7 @@ status_t GLConsumer::attachToContext(GLuint tex) {
 
     // We need to bind the texture regardless of whether there's a current
     // buffer.
-    glBindTexture(mTexTarget, tex);
+    glBindTexture(mTexTarget, GLuint(tex));
 
     if (mCurrentTextureBuf != NULL) {
         // The EGLImageKHR that was associated with the slot was destroyed when
@@ -689,7 +689,7 @@ bool GLConsumer::isExternalFormat(uint32_t format)
     return false;
 }
 
-GLenum GLConsumer::getCurrentTextureTarget() const {
+uint32_t GLConsumer::getCurrentTextureTarget() const {
     return mTexTarget;
 }
 

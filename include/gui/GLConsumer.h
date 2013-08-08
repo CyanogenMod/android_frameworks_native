@@ -19,8 +19,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
 #include <gui/IGraphicBufferProducer.h>
 #include <gui/BufferQueue.h>
@@ -54,6 +52,8 @@ class String8;
  * This class was previously called SurfaceTexture.
  */
 class GLConsumer : public ConsumerBase {
+protected:
+    enum { TEXTURE_EXTERNAL = 0x8D65 }; // GL_TEXTURE_EXTERNAL_OES
 public:
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
 
@@ -82,7 +82,7 @@ public:
     // context to another. If such a transfer is not needed there is no
     // requirement that either of these methods be called.
     GLConsumer(const sp<IGraphicBufferConsumer>& bq,
-            GLuint tex, GLenum texTarget = GL_TEXTURE_EXTERNAL_OES,
+            uint32_t tex, uint32_t texureTarget = TEXTURE_EXTERNAL,
             bool useFenceSync = true, bool isControlledByApp = false);
 
     // updateTexImage acquires the most recently queued buffer, and sets the
@@ -160,7 +160,7 @@ public:
 
     // getCurrentTextureTarget returns the texture target of the current
     // texture as returned by updateTexImage().
-    GLenum getCurrentTextureTarget() const;
+    uint32_t getCurrentTextureTarget() const;
 
     // getCurrentCrop returns the cropping rectangle of the current buffer.
     Rect getCurrentCrop() const;
@@ -215,7 +215,7 @@ public:
     // call to attachToContext will result in this texture object being bound to
     // the texture target and populated with the image contents that were
     // current at the time of the last call to detachFromContext.
-    status_t attachToContext(GLuint tex);
+    status_t attachToContext(uint32_t tex);
 
 protected:
 
@@ -347,7 +347,7 @@ private:
     // mTexName is the name of the OpenGL texture to which streamed images will
     // be bound when updateTexImage is called. It is set at construction time
     // and can be changed with a call to attachToContext.
-    GLuint mTexName;
+    uint32_t mTexName;
 
     // mUseFenceSync indicates whether creation of the EGL_KHR_fence_sync
     // extension should be used to prevent buffers from being dequeued before
@@ -362,7 +362,7 @@ private:
     // glCopyTexSubImage to read from the texture.  This is a hack to work
     // around a GL driver limitation on the number of FBO attachments, which the
     // browser's tile cache exceeds.
-    const GLenum mTexTarget;
+    const uint32_t mTexTarget;
 
     // EGLSlot contains the information and object references that
     // GLConsumer maintains about a BufferQueue buffer slot.

@@ -18,7 +18,6 @@
 #define ANDROID_GUI_SURFACE_H
 
 #include <gui/IGraphicBufferProducer.h>
-#include <gui/GLConsumer.h>
 #include <gui/BufferQueue.h>
 
 #include <ui/ANativeObjectBase.h>
