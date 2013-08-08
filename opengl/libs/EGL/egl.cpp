@@ -331,6 +331,11 @@ EGLBoolean egl_init_drivers() {
 
 void gl_unimplemented() {
     ALOGE("called unimplemented OpenGL ES API");
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.egl.callstack", value, "0");
+    if (atoi(value)) {
+        CallStack stack(LOG_TAG);
+    }
 }
 
 void gl_noop() {

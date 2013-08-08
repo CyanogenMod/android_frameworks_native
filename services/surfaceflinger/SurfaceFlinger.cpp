@@ -487,6 +487,10 @@ status_t SurfaceFlinger::readyToRun()
         }
     }
 
+    // make the GLContext current so that we can create textures when creating Layers
+    // (which may happens before we render something)
+    getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext);
+
     // start the EventThread
     mEventThread = new EventThread(this);
     mEventQueue.setEventThread(mEventThread);
