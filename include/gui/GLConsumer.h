@@ -259,7 +259,9 @@ protected:
     // to mEglDisplay and mEglContext.  If the fields have been previously
     // set, the values must match; if not, the fields are set to the current
     // values.
-    status_t checkAndUpdateEglStateLocked();
+    // The contextCheck argument is used to ensure that a GL context is
+    // properly set; when set to false, the check is not performed.
+    status_t checkAndUpdateEglStateLocked(bool contextCheck = false);
 
 private:
     // createImage creates a new EGLImage from a GraphicBuffer.

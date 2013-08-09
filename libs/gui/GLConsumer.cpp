@@ -188,26 +188,36 @@ status_t GLConsumer::releaseTexImage() {
     }
 
     // Make sure the EGL state is the same as in previous calls.
-    status_t err = checkAndUpdateEglStateLocked();
-    if (err != NO_ERROR) {
-        return err;
+    status_t err = NO_ERROR;
+
+    if (mAttached) {
+        err = checkAndUpdateEglStateLocked(true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    } else {
+        // if we're detached, no need to validate EGL's state -- we won't use it.
     }
 
     // Update the GLConsumer state.
     int buf = mCurrentTexture;
     if (buf != BufferQueue::INVALID_BUFFER_SLOT) {
 
-        ST_LOGV("releaseTexImage:(slot=%d", buf);
+        ST_LOGV("releaseTexImage: (slot=%d, mAttached=%d)", buf, mAttached);
 
-        // Do whatever sync ops we need to do before releasing the slot.
-        err = syncForReleaseLocked(mEglDisplay);
-        if (err != NO_ERROR) {
-            ST_LOGE("syncForReleaseLocked failed (slot=%d), err=%d", buf, err);
-            return err;
+        if (mAttached) {
+            // Do whatever sync ops we need to do before releasing the slot.
+            err = syncForReleaseLocked(mEglDisplay);
+            if (err != NO_ERROR) {
+                ST_LOGE("syncForReleaseLocked failed (slot=%d), err=%d", buf, err);
+                return err;
+            }
+        } else {
+            // if we're detached, we just use the fence that was created in detachFromContext()
+            // so... basically, nothing more to do here.
         }
 
-        err = releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
-                mEglDisplay, EGL_NO_SYNC_KHR);
+        err = releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer, mEglDisplay, EGL_NO_SYNC_KHR);
         if (err < NO_ERROR) {
             ST_LOGE("releaseTexImage: failed to release buffer: %s (%d)",
                     strerror(-err), err);
@@ -222,9 +232,14 @@ status_t GLConsumer::releaseTexImage() {
         mCurrentTimestamp = 0;
         mCurrentFence = Fence::NO_FENCE;
 
-        // bind a dummy texture
-        glBindTexture(mTexTarget, mTexName);
-        bindUnslottedBufferLocked(mEglDisplay);
+        if (mAttached) {
+            // bind a dummy texture
+            glBindTexture(mTexTarget, mTexName);
+            bindUnslottedBufferLocked(mEglDisplay);
+        } else {
+            // detached, don't touch the texture (and we may not even have an
+            // EGLDisplay here.
+        }
     }
 
     return NO_ERROR;
@@ -409,18 +424,27 @@ status_t GLConsumer::bindTextureImageLocked() {
 
 }
 
-status_t GLConsumer::checkAndUpdateEglStateLocked() {
+status_t GLConsumer::checkAndUpdateEglStateLocked(bool contextCheck) {
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
 
-    if ((mEglDisplay != dpy && mEglDisplay != EGL_NO_DISPLAY) ||
-            dpy == EGL_NO_DISPLAY) {
+    if (!contextCheck) {
+        // if this is the first time we're called, mEglDisplay/mEglContext have
+        // never been set, so don't error out (below).
+        if (mEglDisplay == EGL_NO_DISPLAY) {
+            mEglDisplay = dpy;
+        }
+        if (mEglContext == EGL_NO_DISPLAY) {
+            mEglContext = ctx;
+        }
+    }
+
+    if (mEglDisplay != dpy || dpy == EGL_NO_DISPLAY) {
         ST_LOGE("checkAndUpdateEglState: invalid current EGLDisplay");
         return INVALID_OPERATION;
     }
 
-    if ((mEglContext != ctx && mEglContext != EGL_NO_CONTEXT) ||
-            ctx == EGL_NO_CONTEXT) {
+    if (mEglContext != ctx || ctx == EGL_NO_CONTEXT) {
         ST_LOGE("checkAndUpdateEglState: invalid current EGLContext");
         return INVALID_OPERATION;
     }
