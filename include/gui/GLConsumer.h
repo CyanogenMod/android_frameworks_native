@@ -297,6 +297,9 @@ private:
     // binding the buffer without touching the EglSlots.
     status_t bindUnslottedBufferLocked(EGLDisplay dpy);
 
+    // returns a graphic buffer used when the texture image has been released
+    static sp<GraphicBuffer> getDebugTexImageBuffer();
+
     // The default consumer usage flags that GLConsumer always sets on its
     // BufferQueue instance; these will be OR:d with any additional flags passed
     // from the GLConsumer user. In particular, GLConsumer will always
@@ -414,9 +417,12 @@ private:
     // attachToContext.
     bool mAttached;
 
+    // protects static initialization
+    static Mutex sStaticInitLock;
+
     // mReleasedTexImageBuffer is a dummy buffer used when in single buffer
     // mode and releaseTexImage() has been called
-    sp<GraphicBuffer> mReleasedTexImageBuffer;
+    static sp<GraphicBuffer> sReleasedTexImageBuffer;
 };
 
 // ----------------------------------------------------------------------------

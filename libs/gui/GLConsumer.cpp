@@ -86,6 +86,8 @@ static float mtxRot90[16] = {
 
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
+Mutex GLConsumer::sStaticInitLock;
+sp<GraphicBuffer> GLConsumer::sReleasedTexImageBuffer;
 
 GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, GLuint tex,
         GLenum texTarget, bool useFenceSync, bool isControlledByApp) :
@@ -212,29 +214,8 @@ status_t GLConsumer::releaseTexImage() {
             return err;
         }
 
-        if (CC_UNLIKELY(mReleasedTexImageBuffer == NULL)) {
-            // The first time, create the debug texture in case the application
-            // continues to use it.
-            sp<GraphicBuffer> buffer = new GraphicBuffer(
-                    kDebugData.width, kDebugData.height, PIXEL_FORMAT_RGBA_8888,
-                    GraphicBuffer::USAGE_SW_WRITE_RARELY);
-            uint32_t* bits;
-            buffer->lock(GraphicBuffer::USAGE_SW_WRITE_RARELY, reinterpret_cast<void**>(&bits));
-            size_t w = buffer->getStride();
-            size_t h = buffer->getHeight();
-            memset(bits, 0, w*h*4);
-            for (size_t y=0 ; y<kDebugData.height ; y++) {
-                for (size_t x=0 ; x<kDebugData.width ; x++) {
-                    bits[x] = (kDebugData.bits[y*kDebugData.width+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
-                }
-                bits += w;
-            }
-            buffer->unlock();
-            mReleasedTexImageBuffer = buffer;
-        }
-
         mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
-        mCurrentTextureBuf = mReleasedTexImageBuffer;
+        mCurrentTextureBuf = getDebugTexImageBuffer();
         mCurrentCrop.makeInvalid();
         mCurrentTransform = 0;
         mCurrentScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
@@ -247,6 +228,31 @@ status_t GLConsumer::releaseTexImage() {
     }
 
     return NO_ERROR;
+}
+
+sp<GraphicBuffer> GLConsumer::getDebugTexImageBuffer() {
+    Mutex::Autolock _l(sStaticInitLock);
+    if (CC_UNLIKELY(sReleasedTexImageBuffer == NULL)) {
+        // The first time, create the debug texture in case the application
+        // continues to use it.
+        sp<GraphicBuffer> buffer = new GraphicBuffer(
+                kDebugData.width, kDebugData.height, PIXEL_FORMAT_RGBA_8888,
+                GraphicBuffer::USAGE_SW_WRITE_RARELY);
+        uint32_t* bits;
+        buffer->lock(GraphicBuffer::USAGE_SW_WRITE_RARELY, reinterpret_cast<void**>(&bits));
+        size_t w = buffer->getStride();
+        size_t h = buffer->getHeight();
+        memset(bits, 0, w*h*4);
+        for (size_t y=0 ; y<kDebugData.height ; y++) {
+            for (size_t x=0 ; x<kDebugData.width ; x++) {
+                bits[x] = (kDebugData.bits[y*kDebugData.width+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
+            }
+            bits += w;
+        }
+        buffer->unlock();
+        sReleasedTexImageBuffer = buffer;
+    }
+    return sReleasedTexImageBuffer;
 }
 
 status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
