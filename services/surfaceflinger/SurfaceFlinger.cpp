@@ -1066,6 +1066,12 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
 {
     ATRACE_CALL();
 
+    // here we keep a copy of the drawing state (that is the state that's
+    // going to be overwritten by handleTransactionLocked()) outside of
+    // mStateLock so that the side-effects of the State assignment
+    // don't happen with mStateLock held (which can cause deadlocks).
+    State drawingState(mDrawingState);
+
     Mutex::Autolock _l(mStateLock);
     const nsecs_t now = systemTime();
     mDebugInTransaction = now;
