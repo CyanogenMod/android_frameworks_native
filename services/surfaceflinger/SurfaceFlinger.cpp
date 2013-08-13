@@ -2662,6 +2662,18 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     if (CC_UNLIKELY(producer == 0))
         return BAD_VALUE;
 
+    // if we have secure windows on this display, never allow the screen capture
+    // unless the producer interface is local (i.e.: we can take a screenshot for
+    // ourselves).
+    if (!producer->asBinder()->localBinder()) {
+        Mutex::Autolock _l(mStateLock);
+        sp<const DisplayDevice> hw(getDisplayDevice(display));
+        if (hw->getSecureLayerVisible()) {
+            ALOGW("FB is protected: PERMISSION_DENIED");
+            return PERMISSION_DENIED;
+        }
+    }
+
     class MessageCaptureScreen : public MessageBase {
         SurfaceFlinger* flinger;
         sp<IBinder> display;
@@ -2785,12 +2797,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     // get screen geometry
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
-
-    // if we have secure windows on this display, never allow the screen capture
-    if (hw->getSecureLayerVisible()) {
-        ALOGW("FB is protected: PERMISSION_DENIED");
-        return PERMISSION_DENIED;
-    }
 
     if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
         ALOGE("size mismatch (%d, %d) > (%d, %d)",
