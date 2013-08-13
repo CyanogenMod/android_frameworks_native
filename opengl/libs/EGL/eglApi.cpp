@@ -552,12 +552,6 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
                 GLTrace_eglCreateContext(version, c);
 #endif
             return c;
-        } else {
-            EGLint error = eglGetError();
-            ALOGE_IF(error == EGL_SUCCESS,
-                    "eglCreateContext(%p, %p, %p, %p) returned EGL_NO_CONTEXT "
-                    "but no EGL error!",
-                    dpy, config, share_list, attrib_list);
         }
     }
     return EGL_NO_CONTEXT;
