@@ -8,7 +8,7 @@
 #include <linux/fb.h>
 
 #include <zlib.h>
-#include <libpng/png.h>
+#include <png.h>
 
 #include "private/android_filesystem_config.h"
 
