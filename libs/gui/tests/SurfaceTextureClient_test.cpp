@@ -18,7 +18,10 @@
 //#define LOG_NDEBUG 0
 
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
+
 #include <gtest/gtest.h>
+#include <gui/GLConsumer.h>
 #include <gui/Surface.h>
 #include <system/graphics.h>
 #include <utils/Log.h>
