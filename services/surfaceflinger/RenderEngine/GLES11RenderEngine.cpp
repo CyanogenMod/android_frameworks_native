@@ -192,7 +192,7 @@ void GLES11RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float
     glVertexPointer(mesh.getVertexSize(),
             GL_FLOAT,
             mesh.getByteStride(),
-            mesh.getVertices());
+            mesh.getPositions());
 
     glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 }
@@ -209,7 +209,7 @@ void GLES11RenderEngine::drawMesh(const Mesh& mesh) {
     glVertexPointer(mesh.getVertexSize(),
             GL_FLOAT,
             mesh.getByteStride(),
-            mesh.getVertices());
+            mesh.getPositions());
 
     glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 

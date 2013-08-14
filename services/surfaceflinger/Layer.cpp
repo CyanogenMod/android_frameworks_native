@@ -74,6 +74,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mFrameLatencyNeeded(false),
         mFiltering(false),
         mNeedsFiltering(false),
+        mMesh(Mesh::TRIANGLE_FAN, 4, 2, 2),
         mSecure(false),
         mProtectedByApp(false),
         mHasSurface(false),
@@ -494,9 +495,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
         float red, float green, float blue, float alpha) const
 {
-    Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2);
-    computeGeometry(hw, mesh);
-    mFlinger->getRenderEngine().fillWithColor(mesh, red, green, blue, alpha);
+    computeGeometry(hw, mMesh);
+    mFlinger->getRenderEngine().fillWithColor(mMesh, red, green, blue, alpha);
 }
 
 void Layer::clearWithOpenGL(
@@ -509,8 +509,7 @@ void Layer::drawWithOpenGL(
     const uint32_t fbHeight = hw->getHeight();
     const State& s(getDrawingState());
 
-    Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2, 2);
-    computeGeometry(hw, mesh);
+    computeGeometry(hw, mMesh);
 
     /*
      * NOTE: the way we compute the texture coordinates here produces
@@ -535,20 +534,19 @@ void Layer::drawWithOpenGL(
 
     // TODO: we probably want to generate the texture coords with the mesh
     // here we assume that we only have 4 vertices
-    size_t stride = mesh.getStride();
-    float* base = mesh.getTexCoords();
-    base[stride*0 + 0] = left;
-    base[stride*0 + 1] = 1.0f - top;
-    base[stride*1 + 0] = left;
-    base[stride*1 + 1] = 1.0f - bottom;
-    base[stride*2 + 0] = right;
-    base[stride*2 + 1] = 1.0f - bottom;
-    base[stride*3 + 0] = right;
-    base[stride*3 + 1] = 1.0f - top;
+    Mesh::VertexArray texCoords(mMesh.getTexCoordArray());
+    texCoords[0].s = left;
+    texCoords[0].t = 1.0f - top;
+    texCoords[1].s = left;
+    texCoords[1].t = 1.0f - bottom;
+    texCoords[2].s = right;
+    texCoords[2].t = 1.0f - bottom;
+    texCoords[3].s = right;
+    texCoords[3].t = 1.0f - top;
 
     RenderEngine& engine(mFlinger->getRenderEngine());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
-    engine.drawMesh(mesh);
+    engine.drawMesh(mMesh);
     engine.disableBlending();
 }
 
@@ -596,12 +594,13 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const
     // subtract the transparent region and snap to the bounds
     win = reduce(win, s.activeTransparentRegion);
 
-    tr.transform(mesh[0], win.left,  win.top);
-    tr.transform(mesh[1], win.left,  win.bottom);
-    tr.transform(mesh[2], win.right, win.bottom);
-    tr.transform(mesh[3], win.right, win.top);
+    Mesh::VertexArray position(mesh.getPositionArray());
+    tr.transform(position[0], win.left,  win.top);
+    tr.transform(position[1], win.left,  win.bottom);
+    tr.transform(position[2], win.right, win.bottom);
+    tr.transform(position[3], win.right, win.top);
     for (size_t i=0 ; i<4 ; i++) {
-        mesh[i][1] = hw_h - mesh[i][1];
+        position[i].y = hw_h - position[i].y;
     }
 }
 
