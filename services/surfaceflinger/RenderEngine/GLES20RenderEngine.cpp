@@ -168,7 +168,7 @@ void GLES20RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float
             mesh.getVertexSize(),
             GL_FLOAT, GL_FALSE,
             mesh.getByteStride(),
-            mesh.getVertices());
+            mesh.getPositions());
 
     glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 }
@@ -190,7 +190,7 @@ void GLES20RenderEngine::drawMesh(const Mesh& mesh) {
             mesh.getVertexSize(),
             GL_FLOAT, GL_FALSE,
             mesh.getByteStride(),
-            mesh.getVertices());
+            mesh.getPositions());
 
     glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 
