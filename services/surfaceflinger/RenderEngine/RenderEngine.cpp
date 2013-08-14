@@ -149,19 +149,20 @@ void RenderEngine::fillRegionWithColor(const Region& region, uint32_t height,
     size_t c;
     Rect const* r = region.getArray(&c);
     Mesh mesh(Mesh::TRIANGLES, c*6, 2);
+    Mesh::VertexArray position(mesh.getPositionArray());
     for (size_t i=0 ; i<c ; i++, r++) {
-        mesh[i*6 + 0][0] = r->left;
-        mesh[i*6 + 0][1] = height - r->top;
-        mesh[i*6 + 1][0] = r->left;
-        mesh[i*6 + 1][1] = height - r->bottom;
-        mesh[i*6 + 2][0] = r->right;
-        mesh[i*6 + 2][1] = height - r->bottom;
-        mesh[i*6 + 3][0] = r->left;
-        mesh[i*6 + 3][1] = height - r->top;
-        mesh[i*6 + 4][0] = r->right;
-        mesh[i*6 + 4][1] = height - r->bottom;
-        mesh[i*6 + 5][0] = r->right;
-        mesh[i*6 + 5][1] = height - r->top;
+        position[i*6 + 0].x = r->left;
+        position[i*6 + 0].y = height - r->top;
+        position[i*6 + 1].x = r->left;
+        position[i*6 + 1].y = height - r->bottom;
+        position[i*6 + 2].x = r->right;
+        position[i*6 + 2].y = height - r->bottom;
+        position[i*6 + 3].x = r->left;
+        position[i*6 + 3].y = height - r->top;
+        position[i*6 + 4].x = r->right;
+        position[i*6 + 4].y = height - r->bottom;
+        position[i*6 + 5].x = r->right;
+        position[i*6 + 5].y = height - r->top;
     }
     fillWithColor(mesh, red, green, blue, alpha);
 }

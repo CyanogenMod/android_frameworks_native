@@ -30,23 +30,15 @@ Mesh::~Mesh() {
     delete [] mVertices;
 }
 
-float const* Mesh::operator[](size_t index) const {
-    return &mVertices[index * mStride];
-}
-
-float* Mesh::operator[](size_t index) {
-    return &mVertices[index * mStride];
-}
-
 Mesh::Primitive Mesh::getPrimitive() const {
     return mPrimitive;
 }
 
 
-float const* Mesh::getVertices() const {
+float const* Mesh::getPositions() const {
     return mVertices;
 }
-float* Mesh::getVertices() {
+float* Mesh::getPositions() {
     return mVertices;
 }
 
