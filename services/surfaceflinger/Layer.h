@@ -357,6 +357,8 @@ private:
     bool mFiltering;
     // Whether filtering is needed b/c of the drawingstate
     bool mNeedsFiltering;
+    // The mesh used to draw the layer in GLES composition mode
+    mutable Mesh mMesh;
 
     // page-flip thread (currently main thread)
     bool mSecure; // no screenshots

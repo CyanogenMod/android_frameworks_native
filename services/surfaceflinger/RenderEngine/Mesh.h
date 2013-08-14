@@ -24,34 +24,72 @@ namespace android {
 class Mesh {
 public:
     enum Primitive {
-        TRIANGLES       = 0x0004,
-        TRIANGLE_STRIP  = 0x0005,
-        TRIANGLE_FAN    = 0x0006
+        TRIANGLES       = 0x0004,       // GL_TRIANGLES
+        TRIANGLE_STRIP  = 0x0005,       // GL_TRIANGLE_STRIP
+        TRIANGLE_FAN    = 0x0006        // GL_TRIANGLE_FAN
     };
 
     Mesh(Primitive primitive, size_t vertexCount, size_t vertexSize, size_t texCoordsSize = 0);
     ~Mesh();
 
-    float const* operator[](size_t index) const;
-    float* operator[](size_t index);
+    /*
+     * VertexArray handles the stride automatically. It also provides
+     * a convenient way to set position and texture coordinates by using
+     * the usual x,y,z,w or s,t,r,q names.
+     */
+    class VertexArray {
+        friend class Mesh;
+        float* mData;
+        size_t mStride;
+        VertexArray(float* data, size_t stride) : mData(data), mStride(stride) { }
+    public:
+        struct vertexData {
+            operator float*() { return reinterpret_cast<float*>(this); }
+            union {
+                struct { float x, y, z, w; };
+                struct { float s, t, r, q; };
+            };
+        };
+        vertexData& operator[](size_t index) {
+            return *reinterpret_cast<vertexData*>(&mData[index*mStride]); }
 
+        vertexData const& operator[](size_t index) const {
+            return *reinterpret_cast<vertexData const*>(&mData[index*mStride]); }
+    };
+
+    VertexArray getPositionArray() { return VertexArray(getPositions(), mStride); }
+    VertexArray getTexCoordArray() { return VertexArray(getTexCoords(), mStride); }
 
     Primitive getPrimitive() const;
 
-    float const* getVertices() const;
-    float* getVertices();
+    // returns a pointer to the vertices positions
+    float const* getPositions() const;
 
+    // returns a pointer to the vertices  texture coordinates
     float const* getTexCoords() const;
-    float* getTexCoords();
 
+    // number of vertices in this mesh
     size_t getVertexCount() const;
+
+    // dimension of vertices
     size_t getVertexSize() const;
+
+    // dimension of texture coordinates
     size_t getTexCoordsSize() const;
 
+    // return stride in bytes
     size_t getByteStride() const;
+
+    // return stride in floats
     size_t getStride() const;
 
 private:
+    Mesh(const Mesh&);
+    Mesh& operator = (const Mesh&);
+    Mesh const& operator = (const Mesh&) const;
+
+    float* getPositions();
+    float* getTexCoords();
     float* mVertices;
     size_t mVertexCount;
     size_t mVertexSize;
