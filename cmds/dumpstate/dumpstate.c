@@ -244,14 +244,12 @@ static void dumpstate() {
     dump_file("BINDER STATS", "/sys/kernel/debug/binder/stats");
     dump_file("BINDER STATE", "/sys/kernel/debug/binder/state");
 
-#ifdef BOARD_HAS_DUMPSTATE
     printf("========================================================\n");
     printf("== Board\n");
     printf("========================================================\n");
 
     dumpstate_board();
     printf("\n");
-#endif
 
     /* Migrate the ril_dumpstate to a dumpstate_board()? */
     char ril_dumpstate_timeout[PROPERTY_VALUE_MAX] = {0};
