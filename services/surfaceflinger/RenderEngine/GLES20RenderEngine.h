@@ -15,15 +15,17 @@
  */
 
 
-#ifndef SF_GLES11RENDERENGINE_H_
-#define SF_GLES11RENDERENGINE_H_
+#ifndef SF_GLES20RENDERENGINE_H_
+#define SF_GLES20RENDERENGINE_H_
 
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <GLES/gl.h>
+#include <GLES2/gl2.h>
 
 #include "RenderEngine.h"
+#include "ProgramCache.h"
+#include "Description.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -32,16 +34,18 @@ namespace android {
 class String8;
 class Mesh;
 
-class GLES11RenderEngine : public RenderEngine {
+class GLES20RenderEngine : public RenderEngine {
     GLuint mProtectedTexName;
     GLint mMaxViewportDims[2];
     GLint mMaxTextureSize;
 
+    Description mState;
+
 public:
-    GLES11RenderEngine();
+    GLES20RenderEngine();
 
 protected:
-    virtual ~GLES11RenderEngine();
+    virtual ~GLES20RenderEngine();
 
     virtual void dump(String8& result);
     virtual void setViewportAndProjection(size_t vpw, size_t vph, size_t w, size_t h, bool yswap);
@@ -52,7 +56,7 @@ protected:
     virtual void disableTexturing();
     virtual void disableBlending();
 
-    virtual void fillWithColor(const Mesh& mesh, float r, float g, float b, float a) ;
+    virtual void fillWithColor(const Mesh& mesh, float r, float g, float b, float a);
     virtual void drawMesh(const Mesh& mesh);
 
     virtual size_t getMaxTextureSize() const;
@@ -63,4 +67,4 @@ protected:
 }; // namespace android
 // ---------------------------------------------------------------------------
 
-#endif /* SF_GLES11RENDERENGINE_H_ */
+#endif /* SF_GLES20RENDERENGINE_H_ */

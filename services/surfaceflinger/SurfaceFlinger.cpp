@@ -23,8 +23,6 @@
 #include <dlfcn.h>
 
 #include <EGL/egl.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -71,6 +69,7 @@
 #include "DisplayHardware/VirtualDisplaySurface.h"
 
 #include "RenderEngine/RenderEngine.h"
+
 
 #define DISPLAY_COUNT       1
 
@@ -268,19 +267,20 @@ void SurfaceFlinger::bootFinished()
     property_set("service.bootanim.exit", "1");
 }
 
-void SurfaceFlinger::deleteTextureAsync(GLuint texture) {
+void SurfaceFlinger::deleteTextureAsync(uint32_t texture) {
     class MessageDestroyGLTexture : public MessageBase {
-        GLuint texture;
+        RenderEngine& engine;
+        uint32_t texture;
     public:
-        MessageDestroyGLTexture(GLuint texture)
-            : texture(texture) {
+        MessageDestroyGLTexture(RenderEngine& engine, uint32_t texture)
+            : engine(engine), texture(texture) {
         }
         virtual bool handler() {
-            glDeleteTextures(1, &texture);
+            engine.deleteTextures(1, &texture);
             return true;
         }
     };
-    postMessageAsync(new MessageDestroyGLTexture(texture));
+    postMessageAsync(new MessageDestroyGLTexture(getRenderEngine(), texture));
 }
 
 status_t SurfaceFlinger::selectConfigForAttribute(
@@ -750,24 +750,10 @@ void SurfaceFlinger::doDebugFlashRegions()
                 doComposeSurfaces(hw, Region(hw->bounds()));
 
                 // and draw the dirty region
-                glDisable(GL_TEXTURE_EXTERNAL_OES);
-                glDisable(GL_TEXTURE_2D);
-                glDisable(GL_BLEND);
-                glColor4f(1, 0, 1, 1);
                 const int32_t height = hw->getHeight();
-                Region::const_iterator it = dirtyRegion.begin();
-                Region::const_iterator const end = dirtyRegion.end();
-                while (it != end) {
-                    const Rect& r = *it++;
-                    GLfloat vertices[][2] = {
-                            { (GLfloat) r.left,  (GLfloat) (height - r.top) },
-                            { (GLfloat) r.left,  (GLfloat) (height - r.bottom) },
-                            { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
-                            { (GLfloat) r.right, (GLfloat) (height - r.top) }
-                    };
-                    glVertexPointer(2, GL_FLOAT, 0, vertices);
-                    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-                }
+                RenderEngine& engine(getRenderEngine());
+                engine.fillRegionWithColor(dirtyRegion, height, 1, 0, 1, 1);
+
                 hw->compositionComplete();
                 hw->swapBuffers(getHwComposer());
             }
@@ -1512,6 +1498,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
 
 void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
+    RenderEngine& engine(getRenderEngine());
     const int32_t id = hw->getHwcDisplayId();
     HWComposer& hwc(getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin(id);
@@ -1525,20 +1512,15 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             return;
         }
 
-        // set the frame buffer
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
         // Never touch the framebuffer if we don't have any framebuffer layers
         const bool hasHwcComposition = hwc.hasHwcComposition(id);
         if (hasHwcComposition) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
             // remove where there are opaque FB layers. however, on some
-            // GPUs doing a "clean slate" glClear might be more efficient.
+            // GPUs doing a "clean slate" clear might be more efficient.
             // We'll revisit later if needed.
-            glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
+            engine.clearWithColor(0, 0, 0, 0);
         } else {
             // we start with the whole screen area
             const Region bounds(hw->getBounds());
@@ -1571,11 +1553,11 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                 // scissor doesn't match the screen's dimensions, so we
                 // need to clear everything outside of it and enable
                 // the GL scissor so we don't draw anything where we shouldn't
-                const GLint height = hw->getHeight();
-                glScissor(scissor.left, height - scissor.bottom,
-                        scissor.getWidth(), scissor.getHeight());
+
                 // enable scissor for this frame
-                glEnable(GL_SCISSOR_TEST);
+                const uint32_t height = hw->getHeight();
+                engine.setScissor(scissor.left, height - scissor.bottom,
+                        scissor.getWidth(), scissor.getHeight());
             }
         }
     }
@@ -1632,31 +1614,13 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
     }
 
     // disable scissor at the end of the frame
-    glDisable(GL_SCISSOR_TEST);
+    engine.disableScissor();
 }
 
-void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
-        const Region& region) const
-{
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-    glColor4f(0,0,0,0);
-
+void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw, const Region& region) const {
     const int32_t height = hw->getHeight();
-    Region::const_iterator it = region.begin();
-    Region::const_iterator const end = region.end();
-    while (it != end) {
-        const Rect& r = *it++;
-        GLfloat vertices[][2] = {
-                { (GLfloat) r.left,  (GLfloat) (height - r.top) },
-                { (GLfloat) r.left,  (GLfloat) (height - r.bottom) },
-                { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
-                { (GLfloat) r.right, (GLfloat) (height - r.top) }
-        };
-        glVertexPointer(2, GL_FLOAT, 0, vertices);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    }
+    RenderEngine& engine(getRenderEngine());
+    engine.fillRegionWithColor(region, height, 0, 0, 0, 0);
 }
 
 void SurfaceFlinger::addClientLayer(const sp<Client>& client,
@@ -1673,8 +1637,7 @@ void SurfaceFlinger::addClientLayer(const sp<Client>& client,
     mGraphicBufferProducerList.add(gbc->asBinder());
 }
 
-status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer)
-{
+status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer) {
     Mutex::Autolock _l(mStateLock);
     ssize_t index = mCurrentState.layersSortedByZ.remove(layer);
     if (index >= 0) {
@@ -1686,18 +1649,15 @@ status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer)
     return status_t(index);
 }
 
-uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t flags)
-{
+uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t flags) {
     return android_atomic_release_load(&mTransactionFlags);
 }
 
-uint32_t SurfaceFlinger::getTransactionFlags(uint32_t flags)
-{
+uint32_t SurfaceFlinger::getTransactionFlags(uint32_t flags) {
     return android_atomic_and(~flags, &mTransactionFlags) & flags;
 }
 
-uint32_t SurfaceFlinger::setTransactionFlags(uint32_t flags)
-{
+uint32_t SurfaceFlinger::setTransactionFlags(uint32_t flags) {
     uint32_t old = android_atomic_or(flags, &mTransactionFlags);
     if ((old & flags)==0) { // wake the server up
         signalTransaction();
@@ -2739,31 +2699,22 @@ void SurfaceFlinger::renderScreenImplLocked(
         bool yswap)
 {
     ATRACE_CALL();
+    RenderEngine& engine(getRenderEngine());
 
     // get screen geometry
     const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
-
     const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
 
     // make sure to clear all GL error flags
-    while ( glGetError() != GL_NO_ERROR ) ;
+    engine.checkErrors();
 
     // set-up our viewport
-    glViewport(0, 0, reqWidth, reqHeight);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    if (yswap)  glOrthof(0, hw_w, hw_h, 0, 0, 1);
-    else        glOrthof(0, hw_w, 0, hw_h, 0, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+    engine.setViewportAndProjection(reqWidth, reqHeight, hw_w, hw_h, yswap);
+    engine.disableTexturing();
 
     // redraw the screen entirely...
-    glDisable(GL_SCISSOR_TEST);
-    glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+    engine.clearWithColor(0, 0, 0, 1);
 
     const LayerVector& layers( mDrawingState.layersSortedByZ );
     const size_t count = layers.size();
@@ -2834,20 +2785,10 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                 EGLImageKHR image = eglCreateImageKHR(mEGLDisplay, EGL_NO_CONTEXT,
                         EGL_NATIVE_BUFFER_ANDROID, buffer, NULL);
                 if (image != EGL_NO_IMAGE_KHR) {
-                    GLuint tname, name;
-
-                    // turn our EGLImage into a texture
-                    glGenTextures(1, &tname);
-                    glBindTexture(GL_TEXTURE_2D, tname);
-                    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-                    // create a Framebuffer Object to render into
-                    glGenFramebuffersOES(1, &name);
-                    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-                    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-                            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
-
-                    GLenum status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
-                    if (status == GL_FRAMEBUFFER_COMPLETE_OES) {
+                    // this binds the given EGLImage as a framebuffer for the
+                    // duration of this scope.
+                    RenderEngine::BindImageAsFramebuffer imageBond(getRenderEngine(), image);
+                    if (imageBond.getStatus() == NO_ERROR) {
                         // this will in fact render into our dequeued buffer
                         // via an FBO, which means we didn't have to create
                         // an EGLSurface and therefore we're not
@@ -2858,12 +2799,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES error while taking screenshot");
                         result = INVALID_OPERATION;
                     }
-
-                    // back to main framebuffer
-                    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-                    glDeleteFramebuffersOES(1, &name);
-                    glDeleteTextures(1, &tname);
-
                     // destroy our image
                     eglDestroyImageKHR(mEGLDisplay, image);
                 } else {
@@ -2955,3 +2890,12 @@ SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(DisplayDevice::DisplayTyp
 // ---------------------------------------------------------------------------
 
 }; // namespace android
+
+
+#if defined(__gl_h_)
+#error "don't include gl/gl.h in this file"
+#endif
+
+#if defined(__gl2_h_)
+#error "don't include gl2/gl2.h in this file"
+#endif

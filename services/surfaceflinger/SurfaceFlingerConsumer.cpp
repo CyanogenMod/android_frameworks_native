@@ -53,8 +53,6 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     err = acquireBufferLocked(&item, computeExpectedPresent());
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
-            // This variant of updateTexImage does not guarantee that the
-            // texture is bound, so no need to call glBindTexture.
             err = NO_ERROR;
         } else if (err == BufferQueue::PRESENT_LATER) {
             // return the error, without logging

@@ -19,10 +19,15 @@ LOCAL_SRC_FILES:= \
     DisplayHardware/VirtualDisplaySurface.cpp \
     EventLog/EventLogTags.logtags \
     EventLog/EventLog.cpp \
+    RenderEngine/Description.cpp \
+    RenderEngine/Mesh.cpp \
+    RenderEngine/Program.cpp \
+    RenderEngine/ProgramCache.cpp \
     RenderEngine/GLExtensions.cpp \
     RenderEngine/RenderEngine.cpp \
     RenderEngine/GLES10RenderEngine.cpp \
-    RenderEngine/GLES11RenderEngine.cpp
+    RenderEngine/GLES11RenderEngine.cpp \
+    RenderEngine/GLES20RenderEngine.cpp
 
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
@@ -56,6 +61,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	libEGL \
 	libGLESv1_CM \
+	libGLESv2 \
 	libbinder \
 	libui \
 	libgui

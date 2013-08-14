@@ -15,11 +15,15 @@
  */
 
 #include <cutils/log.h>
+#include <ui/Rect.h>
+#include <ui/Region.h>
 
 #include "RenderEngine.h"
 #include "GLES10RenderEngine.h"
 #include "GLES11RenderEngine.h"
+#include "GLES20RenderEngine.h"
 #include "GLExtensions.h"
+#include "Mesh.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -28,7 +32,7 @@ namespace android {
 RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
     // Also create our EGLContext
     EGLint contextAttributes[] = {
-//            EGL_CONTEXT_CLIENT_VERSION, 2,
+            EGL_CONTEXT_CLIENT_VERSION, 2,      // MUST be first
 #ifdef EGL_IMG_context_priority
 #ifdef HAS_CONTEXT_PRIORITY
 #warning "using EGL_IMG_context_priority"
@@ -79,7 +83,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
         break;
     case GLES_VERSION_2_0:
     case GLES_VERSION_3_0:
-        //engine = new GLES20RenderEngine();
+        engine = new GLES20RenderEngine();
         break;
     }
     engine->setEGLContext(ctxt);
@@ -138,6 +142,85 @@ RenderEngine::GlesVersion RenderEngine::parseGlesVersion(const char* str) {
 
     ALOGW("Unrecognized OpenGL ES version: %d.%d", major, minor);
     return GLES_VERSION_1_0;
+}
+
+void RenderEngine::fillRegionWithColor(const Region& region, uint32_t height,
+        float red, float green, float blue, float alpha) {
+    size_t c;
+    Rect const* r = region.getArray(&c);
+    Mesh mesh(Mesh::TRIANGLES, c*6, 2);
+    for (size_t i=0 ; i<c ; i++, r++) {
+        mesh[i*6 + 0][0] = r->left;
+        mesh[i*6 + 0][1] = height - r->top;
+        mesh[i*6 + 1][0] = r->left;
+        mesh[i*6 + 1][1] = height - r->bottom;
+        mesh[i*6 + 2][0] = r->right;
+        mesh[i*6 + 2][1] = height - r->bottom;
+        mesh[i*6 + 3][0] = r->left;
+        mesh[i*6 + 3][1] = height - r->top;
+        mesh[i*6 + 4][0] = r->right;
+        mesh[i*6 + 4][1] = height - r->bottom;
+        mesh[i*6 + 5][0] = r->right;
+        mesh[i*6 + 5][1] = height - r->top;
+    }
+    fillWithColor(mesh, red, green, blue, alpha);
+}
+
+void RenderEngine::clearWithColor(float red, float green, float blue, float alpha) {
+    glClearColor(red, green, blue, alpha);
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void RenderEngine::setScissor(
+        uint32_t left, uint32_t bottom, uint32_t right, uint32_t top) {
+    glScissor(left, bottom, right, top);
+    glEnable(GL_SCISSOR_TEST);
+}
+
+void RenderEngine::disableScissor() {
+    glDisable(GL_SCISSOR_TEST);
+}
+
+void RenderEngine::genTextures(size_t count, uint32_t* names) {
+    glGenTextures(count, names);
+}
+
+void RenderEngine::deleteTextures(size_t count, uint32_t const* names) {
+    glDeleteTextures(count, names);
+}
+
+// ---------------------------------------------------------------------------
+
+RenderEngine::BindImageAsFramebuffer::BindImageAsFramebuffer(
+        RenderEngine& engine, EGLImageKHR image) : mEngine(engine)
+{
+    GLuint tname, name;
+    // turn our EGLImage into a texture
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+    // create a Framebuffer Object to render into
+    glGenFramebuffersOES(1, &name);
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
+            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
+    mStatus = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+    ALOGE_IF(mStatus != GL_FRAMEBUFFER_COMPLETE_OES,
+            "glCheckFramebufferStatusOES error %d", mStatus);
+    mTexName = tname;
+    mFbName = name;
+}
+
+RenderEngine::BindImageAsFramebuffer::~BindImageAsFramebuffer() {
+    // back to main framebuffer
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
+    glDeleteFramebuffersOES(1, &mFbName);
+    glDeleteTextures(1, &mTexName);
+
+}
+
+status_t RenderEngine::BindImageAsFramebuffer::getStatus() const {
+    return mStatus == GL_FRAMEBUFFER_COMPLETE_OES ? NO_ERROR : BAD_VALUE;
 }
 
 // ---------------------------------------------------------------------------
