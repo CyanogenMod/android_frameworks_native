@@ -21,6 +21,7 @@
 
 #include "GLES11RenderEngine.h"
 #include "GLExtensions.h"
+#include "Mesh.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -69,12 +70,14 @@ size_t GLES11RenderEngine::getMaxViewportDims() const {
             mMaxViewportDims[0] : mMaxViewportDims[1];
 }
 
-void GLES11RenderEngine::setViewportAndProjection(size_t w, size_t h) {
-    glViewport(0, 0, w, h);
+void GLES11RenderEngine::setViewportAndProjection(
+        size_t vpw, size_t vph, size_t w, size_t h, bool yswap) {
+    glViewport(0, 0, vpw, vph);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     // put the origin in the left-bottom corner
-    glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
+    if (yswap)  glOrthof(0, w, h, 0, 0, 1);
+    else        glOrthof(0, w, 0, h, 0, 1);
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -87,7 +90,7 @@ void GLES11RenderEngine::setupLayerBlending(
 
     if (CC_UNLIKELY(alpha < 0xFF)) {
         // Cv = premultiplied ? Cs*alpha : Cs
-        // Av = !opaque       ? alpha*As : 1.0
+        // Av = !opaque       ? As*alpha : As
         combineRGB   = premultipliedAlpha ? GL_MODULATE : GL_REPLACE;
         combineAlpha = !opaque            ? GL_MODULATE : GL_REPLACE;
         src0Alpha    = GL_CONSTANT;
@@ -180,25 +183,37 @@ void GLES11RenderEngine::disableBlending() {
     glDisable(GL_BLEND);
 }
 
-void GLES11RenderEngine::clearWithColor(const float vertices[][2] , size_t count,
-    float red, float green, float blue, float alpha) {
-    glColor4f(red, green, blue, alpha);
+void GLES11RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float b, float a) {
+    glColor4f(r, g, b, a);
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-    glVertexPointer(2, GL_FLOAT, 0, vertices);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, count);
+
+    glVertexPointer(mesh.getVertexSize(),
+            GL_FLOAT,
+            mesh.getByteStride(),
+            mesh.getVertices());
+
+    glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 }
 
-void GLES11RenderEngine::drawMesh2D(
-    const float vertices[][2], const float texCoords[][2], size_t count) {
-    if (texCoords) {
+void GLES11RenderEngine::drawMesh(const Mesh& mesh) {
+    if (mesh.getTexCoordsSize()) {
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+        glTexCoordPointer(mesh.getTexCoordsSize(),
+                GL_FLOAT,
+                mesh.getByteStride(),
+                mesh.getTexCoords());
     }
-    glVertexPointer(2, GL_FLOAT, 0, vertices);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, count);
-    if (texCoords) {
+
+    glVertexPointer(mesh.getVertexSize(),
+            GL_FLOAT,
+            mesh.getByteStride(),
+            mesh.getVertices());
+
+    glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
+
+    if (mesh.getTexCoordsSize()) {
         glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     }
 }

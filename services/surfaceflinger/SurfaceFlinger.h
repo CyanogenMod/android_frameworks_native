@@ -21,7 +21,10 @@
 #include <sys/types.h>
 
 #include <EGL/egl.h>
-#include <GLES/gl.h>        // needed for GLuint
+
+/*
+ * NOTE: Make sure this file doesn't include  anything from <gl/ > or <gl2/ >
+ */
 
 #include <cutils/compiler.h>
 
@@ -91,12 +94,10 @@ public:
     };
 
     // post an asynchronous message to the main thread
-    status_t postMessageAsync(const sp<MessageBase>& msg, nsecs_t reltime = 0,
-        uint32_t flags = 0);
+    status_t postMessageAsync(const sp<MessageBase>& msg, nsecs_t reltime = 0, uint32_t flags = 0);
 
     // post a synchronous message to the main thread
-    status_t postMessageSync(const sp<MessageBase>& msg, nsecs_t reltime = 0,
-        uint32_t flags = 0);
+    status_t postMessageSync(const sp<MessageBase>& msg, nsecs_t reltime = 0, uint32_t flags = 0);
 
     // force full composition on all displays
     void repaintEverything();
@@ -107,7 +108,7 @@ public:
     }
 
     // utility function to delete a texture on the main thread
-    void deleteTextureAsync(GLuint texture);
+    void deleteTextureAsync(uint32_t texture);
 
     // enable/disable h/w composer event
     // TODO: this should be made accessible only to EventThread
@@ -254,8 +255,7 @@ private:
     uint32_t peekTransactionFlags(uint32_t flags);
     uint32_t setTransactionFlags(uint32_t flags);
     void commitTransaction();
-    uint32_t setClientStateLocked(const sp<Client>& client,
-        const layer_state_t& s);
+    uint32_t setClientStateLocked(const sp<Client>& client, const layer_state_t& s);
     uint32_t setDisplayStateLocked(const DisplayState& s);
 
     /* ------------------------------------------------------------------------
@@ -365,14 +365,11 @@ private:
     void setUpHWComposer();
     void doComposition();
     void doDebugFlashRegions();
-    void doDisplayComposition(const sp<const DisplayDevice>& hw,
-            const Region& dirtyRegion);
-    void doComposeSurfaces(const sp<const DisplayDevice>& hw,
-            const Region& dirty);
+    void doDisplayComposition(const sp<const DisplayDevice>& hw, const Region& dirtyRegion);
+    void doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty);
 
     void postFramebuffer();
-    void drawWormhole(const sp<const DisplayDevice>& hw,
-            const Region& region) const;
+    void drawWormhole(const sp<const DisplayDevice>& hw, const Region& region) const;
 
     /* ------------------------------------------------------------------------
      * Display management
@@ -382,14 +379,10 @@ private:
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
      */
-    void listLayersLocked(const Vector<String16>& args, size_t& index,
-        String8& result) const;
-    void dumpStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result) const;
-    void clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result);
-    void dumpAllLocked(const Vector<String16>& args, size_t& index,
-        String8& result) const;
+    void listLayersLocked(const Vector<String16>& args, size_t& index, String8& result) const;
+    void dumpStatsLocked(const Vector<String16>& args, size_t& index, String8& result) const;
+    void clearStatsLocked(const Vector<String16>& args, size_t& index, String8& result);
+    void dumpAllLocked(const Vector<String16>& args, size_t& index, String8& result) const;
     bool startDdmConnection();
     static void appendSfConfigString(String8& result);
     void checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
