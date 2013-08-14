@@ -22,12 +22,16 @@
 #include <sys/types.h>
 
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
 
 class String8;
+class Rect;
+class Region;
+class Mesh;
 
 class RenderEngine {
     enum GlesVersion {
@@ -48,10 +52,31 @@ protected:
 public:
     static RenderEngine* create(EGLDisplay display, EGLConfig config);
 
-    virtual void checkErrors() const;
+    // helpers
+    void clearWithColor(float red, float green, float blue, float alpha);
+    void fillRegionWithColor(const Region& region, uint32_t height,
+            float red, float green, float blue, float alpha);
 
+    // common to all GL versions
+    void setScissor(uint32_t left, uint32_t bottom, uint32_t right, uint32_t top);
+    void disableScissor();
+    void genTextures(size_t count, uint32_t* names);
+    void deleteTextures(size_t count, uint32_t const* names);
+
+    class BindImageAsFramebuffer {
+        RenderEngine& mEngine;
+        unsigned int mTexName, mFbName;
+        unsigned int mStatus;
+    public:
+        BindImageAsFramebuffer(RenderEngine& engine, EGLImageKHR image);
+        ~BindImageAsFramebuffer();
+        int getStatus() const;
+    };
+
+    // set-up
+    virtual void checkErrors() const;
     virtual void dump(String8& result) = 0;
-    virtual void setViewportAndProjection(size_t w, size_t h) = 0;
+    virtual void setViewportAndProjection(size_t vpw, size_t vph, size_t w, size_t h, bool yswap) = 0;
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;
     virtual void setupLayerTexturing(size_t textureName, bool useFiltering, const float* textureMatrix) = 0;
@@ -60,13 +85,15 @@ public:
     virtual void disableTexturing() = 0;
     virtual void disableBlending() = 0;
 
-    virtual void clearWithColor(const float vertices[][2], size_t count,
-        float red, float green, float blue, float alpha) = 0;
+    // drawing
+    virtual void fillWithColor(const Mesh& mesh, float r, float g, float b, float a) = 0;
+    virtual void drawMesh(const Mesh& mesh) = 0;
 
-    virtual void drawMesh2D(const float vertices[][2], const float texCoords[][2], size_t count) = 0;
-
+    // queries
     virtual size_t getMaxTextureSize() const = 0;
     virtual size_t getMaxViewportDims() const = 0;
+
+
 
     EGLContext getEGLContext() const;
 };

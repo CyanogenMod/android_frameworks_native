@@ -1,0 +1,99 @@
+/*
+ * Copyright 2013 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <stdint.h>
+#include <string.h>
+
+#include <utils/TypeHelpers.h>
+
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
+#include "Description.h"
+
+namespace android {
+
+Description::Description() :
+    mUniformsDirty(true) {
+    mPlaneAlpha = 1.0f;
+    mPremultipliedAlpha = true;
+    mOpaque = true;
+    mTextureTarget = GL_TEXTURE_EXTERNAL_OES;
+
+    const GLfloat m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+    memset(mColor, 0, sizeof(mColor));
+    memcpy(mProjectionMatrix, m, sizeof(mProjectionMatrix));
+    memcpy(mTextureMatrix, m, sizeof(mTextureMatrix));
+}
+
+Description::~Description() {
+}
+
+void Description::setPlaneAlpha(GLclampf planeAlpha) {
+    if (planeAlpha != mPlaneAlpha) {
+        mUniformsDirty = true;
+        mPlaneAlpha = planeAlpha;
+    }
+}
+
+void Description::setPremultipliedAlpha(bool premultipliedAlpha) {
+    if (premultipliedAlpha != mPremultipliedAlpha) {
+        mPremultipliedAlpha = premultipliedAlpha;
+    }
+}
+
+void Description::setOpaque(bool opaque) {
+    if (opaque != mOpaque) {
+        mOpaque = opaque;
+    }
+}
+
+void Description::setTextureName(GLenum target, GLuint tname) {
+    if (target != mTextureTarget) {
+        mTextureTarget = target;
+    }
+    if (tname != mTextureName) {
+        mTextureName = tname;
+        mUniformsDirty = true;
+    }
+}
+
+void Description::disableTexture() {
+    if (mTextureTarget != 0) {
+        mTextureTarget = 0;
+    }
+    mTextureName = 0;
+}
+
+void Description::setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) {
+    mColor[0] = red;
+    mColor[1] = green;
+    mColor[2] = blue;
+    mColor[3] = alpha;
+    mUniformsDirty = true;
+}
+
+void Description::setProjectionMatrix(GLfloat const* mtx) {
+    memcpy(mProjectionMatrix, mtx, sizeof(mProjectionMatrix));
+    mUniformsDirty = true;
+}
+
+void Description::setTextureMatrix(GLfloat const* mtx) {
+    memcpy(mTextureMatrix, mtx, sizeof(mTextureMatrix));
+    mUniformsDirty = true;
+}
+
+} /* namespace android */

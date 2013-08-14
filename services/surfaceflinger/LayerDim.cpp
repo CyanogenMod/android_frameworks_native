@@ -43,11 +43,11 @@ void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) con
 {
     const State& s(getDrawingState());
     if (s.alpha>0) {
-        LayerMesh mesh;
-        computeGeometry(hw, &mesh);
+        Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2);
+        computeGeometry(hw, mesh);
         RenderEngine& engine(mFlinger->getRenderEngine());
         engine.setupDimLayerBlending(s.alpha);
-        engine.drawMesh2D(mesh.getVertices(), NULL, mesh.getVertexCount());
+        engine.drawMesh(mesh);
         engine.disableBlending();
     }
 }

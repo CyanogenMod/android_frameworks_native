@@ -44,6 +44,7 @@
 
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/FloatRect.h"
+#include "RenderEngine/Mesh.h"
 
 namespace android {
 
@@ -109,23 +110,6 @@ public:
         Region requestedTransparentRegion;
     };
 
-    class LayerMesh {
-        friend class Layer;
-        typedef GLfloat float2[2];
-        float2 mVertices[4];
-        size_t mNumVertices;
-    public:
-        LayerMesh() :
-                mNumVertices(4) {
-        }
-        float2 const* getVertices() const {
-            return mVertices;
-        }
-        size_t getVertexCount() const {
-            return mNumVertices;
-        }
-    };
-
     // -----------------------------------------------------------------------
 
     Layer(SurfaceFlinger* flinger, const sp<Client>& client,
@@ -150,7 +134,7 @@ public:
     uint32_t getTransactionFlags(uint32_t flags);
     uint32_t setTransactionFlags(uint32_t flags);
 
-    void computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const;
+    void computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const;
     Rect computeBounds() const;
 
     sp<IBinder> getHandle();
@@ -336,7 +320,7 @@ private:
 
     // drawing
     void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
-            GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
+            float r, float g, float b, float alpha) const;
     void drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const;
 
 
@@ -345,7 +329,7 @@ private:
     // constants
     sp<SurfaceFlingerConsumer> mSurfaceFlingerConsumer;
     sp<BufferQueue> mBufferQueue;
-    GLuint mTextureName;
+    uint32_t mTextureName;
     bool mPremultipliedAlpha;
     String8 mName;
     mutable bool mDebug;
