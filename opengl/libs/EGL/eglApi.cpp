@@ -82,6 +82,7 @@ extern char const * const gExtensionString  =
         "EGL_KHR_image_base "                   // mandatory
         "EGL_KHR_image_pixmap "
         "EGL_KHR_lock_surface "
+        "EGL_KHR_gl_colorspace "
         "EGL_KHR_gl_texture_2D_image "
         "EGL_KHR_gl_texture_cubemap_image "
         "EGL_KHR_gl_renderbuffer_image "
@@ -365,6 +366,33 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig config,
 // surfaces
 // ----------------------------------------------------------------------------
 
+// The EGL_KHR_gl_colorspace spec hasn't been published yet, so these haven't
+// been added to the Khronos egl.h.
+#define EGL_GL_COLORSPACE_KHR           EGL_VG_COLORSPACE
+#define EGL_GL_COLORSPACE_SRGB_KHR      EGL_VG_COLORSPACE_sRGB
+#define EGL_GL_COLORSPACE_LINEAR_KHR    EGL_VG_COLORSPACE_LINEAR
+
+// Turn linear formats into corresponding sRGB formats when colorspace is
+// EGL_GL_COLORSPACE_SRGB_KHR, or turn sRGB formats into corresponding linear
+// formats when colorspace is EGL_GL_COLORSPACE_LINEAR_KHR. In any cases where
+// the modification isn't possible, the original format is returned.
+static int modifyFormatColorspace(int fmt, EGLint colorspace) {
+    if (colorspace == EGL_GL_COLORSPACE_LINEAR_KHR) {
+        switch (fmt) {
+            case HAL_PIXEL_FORMAT_sRGB_A_8888: return HAL_PIXEL_FORMAT_RGBA_8888;
+            case HAL_PIXEL_FORMAT_sRGB_888:    return HAL_PIXEL_FORMAT_RGB_888;
+        }
+    } else if (colorspace == EGL_GL_COLORSPACE_SRGB_KHR) {
+        switch (fmt) {
+            case HAL_PIXEL_FORMAT_RGBA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
+            case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
+            case HAL_PIXEL_FORMAT_BGRA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
+            case HAL_PIXEL_FORMAT_RGB_888:   return HAL_PIXEL_FORMAT_sRGB_888;
+        }
+    }
+    return fmt;
+}
+
 EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
                                     NativeWindowType window,
                                     const EGLint *attrib_list)
@@ -375,7 +403,6 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
     egl_display_ptr dp = validate_display_connection(dpy, cnx);
     if (dp) {
         EGLDisplay iDpy = dp->disp.dpy;
-        EGLint format;
 
         if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) != OK) {
             ALOGE("EGLNativeWindowType %p already connected to another API",
@@ -383,17 +410,34 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
             return setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
 
-        // set the native window's buffers format to match this config
-        if (cnx->egl.eglGetConfigAttrib(iDpy,
-                config, EGL_NATIVE_VISUAL_ID, &format)) {
-            if (format != 0) {
-                int err = native_window_set_buffers_format(window, format);
-                if (err != 0) {
-                    ALOGE("error setting native window pixel format: %s (%d)",
-                            strerror(-err), err);
-                    native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
-                    return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
+        // Set the native window's buffers format to match this config.
+        // Whether to use sRGB gamma is not part of the EGLconfig, but is part
+        // of our native format. So if sRGB gamma is requested, we have to
+        // modify the EGLconfig's format before setting the native window's
+        // format.
+        EGLint format;
+        if (!cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_NATIVE_VISUAL_ID,
+                &format)) {
+            ALOGE("eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: %#x",
+                    eglGetError());
+            format = 0;
+        }
+        if (attrib_list) {
+            for (const EGLint* attr = attrib_list; *attr != EGL_NONE;
+                    attr += 2) {
+                if (*attr == EGL_GL_COLORSPACE_KHR &&
+                        dp->haveExtension("EGL_KHR_gl_colorspace")) {
+                    format = modifyFormatColorspace(format, *(attr+1));
                 }
+            }
+        }
+        if (format != 0) {
+            int err = native_window_set_buffers_format(window, format);
+            if (err != 0) {
+                ALOGE("error setting native window pixel format: %s (%d)",
+                        strerror(-err), err);
+                native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
+                return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
             }
         }
 
