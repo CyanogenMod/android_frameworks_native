@@ -41,6 +41,10 @@ class GLES20RenderEngine : public RenderEngine {
 
     Description mState;
 
+    virtual void bindImageAsFramebuffer(EGLImageKHR image,
+            uint32_t* texName, uint32_t* fbName, uint32_t* status);
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName);
+
 public:
     GLES20RenderEngine();
 

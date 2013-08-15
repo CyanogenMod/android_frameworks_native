@@ -17,6 +17,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #include <utils/String8.h>
 #include <utils/Trace.h>
@@ -24,7 +25,6 @@
 #include <cutils/compiler.h>
 
 #include "GLES20RenderEngine.h"
-#include "GLExtensions.h"
 #include "Program.h"
 #include "ProgramCache.h"
 #include "Description.h"
@@ -157,6 +157,32 @@ void GLES20RenderEngine::disableBlending() {
     glDisable(GL_BLEND);
 }
 
+
+void GLES20RenderEngine::bindImageAsFramebuffer(EGLImageKHR image,
+        uint32_t* texName, uint32_t* fbName, uint32_t* status) {
+    GLuint tname, name;
+    // turn our EGLImage into a texture
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+
+    // create a Framebuffer Object to render into
+    glGenFramebuffers(1, &name);
+    glBindFramebuffer(GL_FRAMEBUFFER, name);
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
+
+    *status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    *texName = tname;
+    *fbName = name;
+}
+
+void GLES20RenderEngine::unbindFramebuffer(uint32_t texName, uint32_t fbName) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbName);
+    glDeleteTextures(1, &texName);
+}
+
 void GLES20RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float b, float a) {
     mState.setColor(r, g, b, a);
     disableTexturing();
@@ -200,14 +226,13 @@ void GLES20RenderEngine::drawMesh(const Mesh& mesh) {
 }
 
 void GLES20RenderEngine::dump(String8& result) {
-    const GLExtensions& extensions(GLExtensions::getInstance());
-    result.appendFormat("GLES: %s, %s, %s\n",
-            extensions.getVendor(),
-            extensions.getRenderer(),
-            extensions.getVersion());
-    result.appendFormat("%s\n", extensions.getExtension());
+    RenderEngine::dump(result);
 }
 
 // ---------------------------------------------------------------------------
 }; // namespace android
 // ---------------------------------------------------------------------------
+
+#if defined(__gl_h_)
+#error "don't include gl/gl.h in this file"
+#endif
