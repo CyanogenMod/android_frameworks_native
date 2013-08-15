@@ -43,6 +43,8 @@ class Formatter {
     friend Formatter& indent(Formatter& f);
     friend Formatter& dedent(Formatter& f);
 public:
+    Formatter() : mIndent(0) {}
+
     String8 getString() const {
         return mString;
     }
