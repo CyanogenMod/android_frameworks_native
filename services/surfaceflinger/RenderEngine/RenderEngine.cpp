@@ -42,7 +42,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
             EGL_NONE, EGL_NONE
     };
 
-    EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
+    EGLContext ctxt = EGL_NO_CONTEXT; // eglCreateContext(display, config, NULL, contextAttributes);
     if (ctxt == EGL_NO_CONTEXT) {
         // maybe ES 2.x is not supported
         ALOGW("can't create an ES 2.x context, trying 1.x");
