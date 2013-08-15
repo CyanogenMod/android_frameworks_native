@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 #include <ui/DisplayInfo.h>
 #include <gui/SurfaceComposerClient.h>
 
