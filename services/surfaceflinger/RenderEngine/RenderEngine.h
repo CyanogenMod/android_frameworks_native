@@ -45,12 +45,18 @@ class RenderEngine {
     EGLContext mEGLContext;
     void setEGLContext(EGLContext ctxt);
 
+    virtual void bindImageAsFramebuffer(EGLImageKHR image, uint32_t* texName, uint32_t* fbName, uint32_t* status) = 0;
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName) = 0;
+
 protected:
     RenderEngine();
     virtual ~RenderEngine() = 0;
 
 public:
     static RenderEngine* create(EGLDisplay display, EGLConfig config);
+
+    // dump the extension strings. always call the base class.
+    virtual void dump(String8& result);
 
     // helpers
     void clearWithColor(float red, float green, float blue, float alpha);
@@ -65,8 +71,8 @@ public:
 
     class BindImageAsFramebuffer {
         RenderEngine& mEngine;
-        unsigned int mTexName, mFbName;
-        unsigned int mStatus;
+        uint32_t mTexName, mFbName;
+        uint32_t mStatus;
     public:
         BindImageAsFramebuffer(RenderEngine& engine, EGLImageKHR image);
         ~BindImageAsFramebuffer();
@@ -75,7 +81,6 @@ public:
 
     // set-up
     virtual void checkErrors() const;
-    virtual void dump(String8& result) = 0;
     virtual void setViewportAndProjection(size_t vpw, size_t vph, size_t w, size_t h, bool yswap) = 0;
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;

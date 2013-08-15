@@ -15,12 +15,12 @@
  */
 
 #include <GLES/gl.h>
+#include <GLES/glext.h>
 
 #include <utils/String8.h>
 #include <cutils/compiler.h>
 
 #include "GLES11RenderEngine.h"
-#include "GLExtensions.h"
 #include "Mesh.h"
 
 // ---------------------------------------------------------------------------
@@ -183,6 +183,31 @@ void GLES11RenderEngine::disableBlending() {
     glDisable(GL_BLEND);
 }
 
+void GLES11RenderEngine::bindImageAsFramebuffer(EGLImageKHR image,
+        uint32_t* texName, uint32_t* fbName, uint32_t* status) {
+    GLuint tname, name;
+    // turn our EGLImage into a texture
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+
+    // create a Framebuffer Object to render into
+    glGenFramebuffersOES(1, &name);
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
+    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
+            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
+
+    *status = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+    *texName = tname;
+    *fbName = name;
+}
+
+void GLES11RenderEngine::unbindFramebuffer(uint32_t texName, uint32_t fbName) {
+    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
+    glDeleteFramebuffersOES(1, &fbName);
+    glDeleteTextures(1, &texName);
+}
+
 void GLES11RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float b, float a) {
     glColor4f(r, g, b, a);
     glDisable(GL_TEXTURE_EXTERNAL_OES);
@@ -219,14 +244,13 @@ void GLES11RenderEngine::drawMesh(const Mesh& mesh) {
 }
 
 void GLES11RenderEngine::dump(String8& result) {
-    const GLExtensions& extensions(GLExtensions::getInstance());
-    result.appendFormat("GLES: %s, %s, %s\n",
-            extensions.getVendor(),
-            extensions.getRenderer(),
-            extensions.getVersion());
-    result.appendFormat("%s\n", extensions.getExtension());
+    RenderEngine::dump(result);
 }
 
 // ---------------------------------------------------------------------------
 }; // namespace android
 // ---------------------------------------------------------------------------
+
+#if defined(__gl2_h_)
+#error "don't include gl2/gl2.h in this file"
+#endif
