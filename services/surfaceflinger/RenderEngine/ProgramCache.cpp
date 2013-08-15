@@ -122,6 +122,10 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
     if (needs.getTextureTarget() == Key::TEXTURE_EXT) {
         fs << "#extension GL_OES_EGL_image_external : require";
     }
+
+    // default precision is required-ish in fragment shaders
+    fs << "precision mediump float;";
+
     if (needs.getTextureTarget() == Key::TEXTURE_EXT) {
         fs << "uniform samplerExternalOES sampler;"
            << "varying vec2 outTexCoords;";
