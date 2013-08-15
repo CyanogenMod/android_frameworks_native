@@ -140,28 +140,16 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
     } else {
         fs << "gl_FragColor = color;";
     }
+    if (needs.isOpaque()) {
+        fs << "gl_FragColor.a = 1.0;";
+    }
     if (needs.hasPlaneAlpha()) {
         // modulate the alpha value with planeAlpha
         if (needs.isPremultiplied()) {
             // ... and the color too if we're premultiplied
-            if (needs.isOpaque()) {
-                // ... we're opaque, only premultiply the color component
-                fs << "gl_FragColor.rgb *= alphaPlane;"
-                   << "gl_FragColor.a = alphaPlane;";
-            } else {
-                fs << "gl_FragColor *= alphaPlane;";
-            }
+            fs << "gl_FragColor *= alphaPlane;";
         } else {
-            // not premultiplied
-            if (needs.isOpaque()) {
-                fs << "gl_FragColor.a = alphaPlane;";
-            } else {
-                fs << "gl_FragColor.a *= alphaPlane;";
-            }
-        }
-    } else {
-        if (needs.isOpaque()) {
-            fs << "gl_FragColor.a = 1.0;";
+            fs << "gl_FragColor.a *= alphaPlane;";
         }
     }
     fs << dedent << "}";
