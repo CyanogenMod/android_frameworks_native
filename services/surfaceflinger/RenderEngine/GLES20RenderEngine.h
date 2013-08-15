@@ -33,6 +33,7 @@ namespace android {
 
 class String8;
 class Mesh;
+class Texture;
 
 class GLES20RenderEngine : public RenderEngine {
     GLuint mProtectedTexName;
@@ -55,7 +56,7 @@ protected:
     virtual void setViewportAndProjection(size_t vpw, size_t vph, size_t w, size_t h, bool yswap);
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha);
     virtual void setupDimLayerBlending(int alpha);
-    virtual void setupLayerTexturing(size_t textureName, bool useFiltering, const float* textureMatrix);
+    virtual void setupLayerTexturing(const Texture& texture);
     virtual void setupLayerBlackedOut();
     virtual void disableTexturing();
     virtual void disableBlending();

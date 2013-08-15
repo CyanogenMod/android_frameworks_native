@@ -22,6 +22,7 @@
 
 #include "GLES11RenderEngine.h"
 #include "Mesh.h"
+#include "Texture.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -147,19 +148,19 @@ void GLES11RenderEngine::setupDimLayerBlending(int alpha) {
     glColor4f(0, 0, 0, alpha/255.0f);
 }
 
-void GLES11RenderEngine::setupLayerTexturing(size_t textureName,
-    bool useFiltering, const float* textureMatrix) {
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureName);
+void GLES11RenderEngine::setupLayerTexturing(const Texture& texture) {
+    GLuint target = texture.getTextureTarget();
+    glBindTexture(target, texture.getTextureName());
     GLenum filter = GL_NEAREST;
-    if (useFiltering) {
+    if (texture.getFiltering()) {
         filter = GL_LINEAR;
     }
-    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
-    glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameterx(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterx(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameterx(target, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameterx(target, GL_TEXTURE_MIN_FILTER, filter);
     glMatrixMode(GL_TEXTURE);
-    glLoadMatrixf(textureMatrix);
+    glLoadMatrixf(texture.getMatrix());
     glMatrixMode(GL_MODELVIEW);
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_TEXTURE_EXTERNAL_OES);

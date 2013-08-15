@@ -29,6 +29,7 @@
 #include "ProgramCache.h"
 #include "Description.h"
 #include "Mesh.h"
+#include "Texture.h"
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -126,27 +127,26 @@ void GLES20RenderEngine::setupDimLayerBlending(int alpha) {
     disableTexturing();
 }
 
-void GLES20RenderEngine::setupLayerTexturing(size_t textureName,
-    bool useFiltering, const float* textureMatrix) {
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureName);
+void GLES20RenderEngine::setupLayerTexturing(const Texture& texture) {
+    GLuint target = texture.getTextureTarget();
+    glBindTexture(target, texture.getTextureName());
     GLenum filter = GL_NEAREST;
-    if (useFiltering) {
+    if (texture.getFiltering()) {
         filter = GL_LINEAR;
     }
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, filter);
 
-    mState.setTextureName(GL_TEXTURE_EXTERNAL_OES, textureName);
-    mState.setTextureMatrix(textureMatrix);
+    mState.setTexture(texture);
 }
 
 void GLES20RenderEngine::setupLayerBlackedOut() {
-    const GLfloat m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
     glBindTexture(GL_TEXTURE_2D, mProtectedTexName);
-    mState.setTextureName(GL_TEXTURE_2D, mProtectedTexName);
-    mState.setTextureMatrix(m);
+    Texture texture(Texture::TEXTURE_2D, mProtectedTexName);
+    texture.setDimensions(1, 1); // FIXME: we should get that from somewhere
+    mState.setTexture(texture);
 }
 
 void GLES20RenderEngine::disableTexturing() {

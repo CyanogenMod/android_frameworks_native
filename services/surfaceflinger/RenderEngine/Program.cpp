@@ -129,7 +129,7 @@ void Program::setUniforms(const Description& desc) {
 
     if (mSamplerLoc >= 0) {
         glUniform1i(mSamplerLoc, 0);
-        glUniformMatrix4fv(mTextureMatrixLoc, 1, GL_FALSE, desc.mTextureMatrix);
+        glUniformMatrix4fv(mTextureMatrixLoc, 1, GL_FALSE, desc.mTexture.getMatrix());
     }
     if (mAlphaPlaneLoc >= 0) {
         glUniform1f(mAlphaPlaneLoc, desc.mPlaneAlpha);

@@ -87,8 +87,9 @@ ProgramCache::~ProgramCache() {
 ProgramCache::Key ProgramCache::computeKey(const Description& description) {
     Key needs;
     needs.set(Key::TEXTURE_MASK,
-            (description.mTextureTarget == GL_TEXTURE_EXTERNAL_OES) ? Key::TEXTURE_EXT :
-            (description.mTextureTarget == GL_TEXTURE_2D)           ? Key::TEXTURE_2D :
+            !description.mTextureEnabled ? Key::TEXTURE_OFF :
+            description.mTexture.getTextureTarget() == GL_TEXTURE_EXTERNAL_OES ? Key::TEXTURE_EXT :
+            description.mTexture.getTextureTarget() == GL_TEXTURE_2D           ? Key::TEXTURE_2D :
             Key::TEXTURE_OFF)
     .set(Key::PLANE_ALPHA_MASK,
             (description.mPlaneAlpha < 1) ? Key::PLANE_ALPHA_LT_ONE : Key::PLANE_ALPHA_EQ_ONE)
