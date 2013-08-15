@@ -43,6 +43,12 @@ enum {
     BATTERY_HEALTH_COLD = 7, // equals BatteryManager.BATTERY_HEALTH_COLD constant
 };
 
+// must be kept in sync with definitions in BatteryProperty.java
+enum {
+    BATTERY_PROP_CHARGE_COUNTER = 1, // equals BatteryProperty.BATTERY_PROP_CHARGE_COUNTER constant
+    BATTERY_PROP_CURRENT_NOW = 2, // equals BatteryProperty.BATTERY_PROP_CURRENT_NOW constant
+};
+
 struct BatteryProperties {
     bool chargerAcOnline;
     bool chargerUsbOnline;
@@ -56,6 +62,13 @@ struct BatteryProperties {
     int batteryChargeCounter;
     int batteryTemperature;
     String8 batteryTechnology;
+
+    status_t writeToParcel(Parcel* parcel) const;
+    status_t readFromParcel(Parcel* parcel);
+};
+
+struct BatteryProperty {
+    int valueInt;
 
     status_t writeToParcel(Parcel* parcel) const;
     status_t readFromParcel(Parcel* parcel);

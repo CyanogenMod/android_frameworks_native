@@ -3,6 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
 	BatteryProperties.cpp \
+	BatteryProperty.cpp \
 	IBatteryPropertiesListener.cpp \
 	IBatteryPropertiesRegistrar.cpp
 
