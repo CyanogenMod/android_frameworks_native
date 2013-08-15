@@ -44,6 +44,16 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 
 // ----------------------------------------------------------------------------
 
+static bool findExtension(const char* exts, const char* name, size_t nameLen) {
+    if (exts) {
+        const char* match = strstr(exts, name);
+        if (match && (match[nameLen] == '\0' || match[nameLen] == ' ')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
 egl_display_t::egl_display_t() :
@@ -196,14 +206,9 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
             if (len) {
                 // NOTE: we could avoid the copy if we had strnstr.
                 const String8 ext(start, len);
-                // now look for this extension
-                if (disp.queryString.extensions) {
-                    // if we find it, add this extension string to our list
-                    // (and don't forget the space)
-                    const char* match = strstr(disp.queryString.extensions, ext.string());
-                    if (match && (match[len] == ' ' || match[len] == 0)) {
-                        mExtensionString.append(start, len+1);
-                    }
+                if (findExtension(disp.queryString.extensions, ext.string(),
+                        len)) {
+                    mExtensionString.append(start, len+1);
                 }
             }
             // process the next extension string, and skip the space.
@@ -365,6 +370,13 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
     }
 
     return result;
+}
+
+bool egl_display_t::haveExtension(const char* name, size_t nameLen) const {
+    if (!nameLen) {
+        nameLen = strlen(name);
+    }
+    return findExtension(mExtensionString.string(), name, nameLen);
 }
 
 // ----------------------------------------------------------------------------
