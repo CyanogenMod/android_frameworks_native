@@ -380,14 +380,14 @@ static int modifyFormatColorspace(int fmt, EGLint colorspace) {
     if (colorspace == EGL_GL_COLORSPACE_LINEAR_KHR) {
         switch (fmt) {
             case HAL_PIXEL_FORMAT_sRGB_A_8888: return HAL_PIXEL_FORMAT_RGBA_8888;
-            case HAL_PIXEL_FORMAT_sRGB_888:    return HAL_PIXEL_FORMAT_RGB_888;
+            case HAL_PIXEL_FORMAT_sRGB_X_8888: return HAL_PIXEL_FORMAT_RGBX_8888;
         }
     } else if (colorspace == EGL_GL_COLORSPACE_SRGB_KHR) {
         switch (fmt) {
             case HAL_PIXEL_FORMAT_RGBA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
-            case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
+            case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_X_8888;
+            // TODO: this should go away once drivers stop using BGRA EGLConfigs
             case HAL_PIXEL_FORMAT_BGRA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
-            case HAL_PIXEL_FORMAT_RGB_888:   return HAL_PIXEL_FORMAT_sRGB_888;
         }
     }
     return fmt;
