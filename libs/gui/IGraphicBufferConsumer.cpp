@@ -43,6 +43,7 @@ IGraphicBufferConsumer::BufferItem::BufferItem() :
     mTransform(0),
     mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mTimestamp(0),
+    mIsAutoTimestamp(false),
     mFrameNumber(0),
     mBuf(INVALID_BUFFER_SLOT),
     mIsDroppable(false),
@@ -55,6 +56,7 @@ size_t IGraphicBufferConsumer::BufferItem::getPodSize() const {
             sizeof(mTransform) +
             sizeof(mScalingMode) +
             sizeof(mTimestamp) +
+            sizeof(mIsAutoTimestamp) +
             sizeof(mFrameNumber) +
             sizeof(mBuf) +
             sizeof(mIsDroppable) +
@@ -123,6 +125,7 @@ status_t IGraphicBufferConsumer::BufferItem::flatten(
     FlattenableUtils::write(buffer, size, mTransform);
     FlattenableUtils::write(buffer, size, mScalingMode);
     FlattenableUtils::write(buffer, size, mTimestamp);
+    FlattenableUtils::write(buffer, size, mIsAutoTimestamp);
     FlattenableUtils::write(buffer, size, mFrameNumber);
     FlattenableUtils::write(buffer, size, mBuf);
     FlattenableUtils::write(buffer, size, mIsDroppable);
@@ -163,6 +166,7 @@ status_t IGraphicBufferConsumer::BufferItem::unflatten(
     FlattenableUtils::read(buffer, size, mTransform);
     FlattenableUtils::read(buffer, size, mScalingMode);
     FlattenableUtils::read(buffer, size, mTimestamp);
+    FlattenableUtils::read(buffer, size, mIsAutoTimestamp);
     FlattenableUtils::read(buffer, size, mFrameNumber);
     FlattenableUtils::read(buffer, size, mBuf);
     FlattenableUtils::read(buffer, size, mIsDroppable);

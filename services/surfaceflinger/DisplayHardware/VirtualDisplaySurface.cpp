@@ -185,7 +185,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
         sp<Fence> outFence = mHwc.getLastRetireFence(mDisplayId);
         VDS_LOGV("onFrameCommitted: queue sink sslot=%d", sslot);
         status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
-                QueueBufferInput(systemTime(),
+                QueueBufferInput(systemTime(), false,
                     Rect(mSinkBufferWidth, mSinkBufferHeight),
                     NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, outFence),
                 &qbo);
@@ -309,12 +309,13 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
 
         // Extract the GLES release fence for HWC to acquire
         int64_t timestamp;
+        bool isAutoTimestamp;
         Rect crop;
         int scalingMode;
         uint32_t transform;
         bool async;
-        input.deflate(&timestamp, &crop, &scalingMode, &transform,
-                &async, &mFbFence);
+        input.deflate(&timestamp, &isAutoTimestamp, &crop, &scalingMode,
+                &transform, &async, &mFbFence);
 
         mFbProducerSlot = pslot;
     }

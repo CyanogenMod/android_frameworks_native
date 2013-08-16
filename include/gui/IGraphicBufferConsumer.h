@@ -72,6 +72,10 @@ public:
         // to set by queueBuffer each time this slot is queued.
         int64_t mTimestamp;
 
+        // mIsAutoTimestamp indicates whether mTimestamp was generated
+        // automatically when the buffer was queued.
+        bool mIsAutoTimestamp;
+
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
 
