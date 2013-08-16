@@ -72,7 +72,9 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
     if (!nativeBuffer) return BAD_VALUE;
     if (mCurrentLockedBuffers == mMaxLockedBuffers) {
-        return INVALID_OPERATION;
+        CC_LOGW("Max buffers have been locked (%d), cannot lock anymore.",
+                mMaxLockedBuffers);
+        return NOT_ENOUGH_DATA;
     }
 
     BufferQueue::BufferItem b;
