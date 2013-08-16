@@ -90,7 +90,7 @@ class CpuConsumer : public ConsumerBase
     // Gets the next graphics buffer from the producer and locks it for CPU use,
     // filling out the passed-in locked buffer structure with the native pointer
     // and metadata. Returns BAD_VALUE if no new buffer is available, and
-    // INVALID_OPERATION if the maximum number of buffers is already locked.
+    // NOT_ENOUGH_DATA if the maximum number of buffers is already locked.
     //
     // Only a fixed number of buffers can be locked at a time, determined by the
     // construction-time maxLockedBuffers parameter. If INVALID_OPERATION is
