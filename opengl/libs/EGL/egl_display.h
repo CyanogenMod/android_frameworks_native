@@ -99,6 +99,8 @@ public:
     char const * getClientApiString() const { return mClientApiString.string(); }
     char const * getExtensionString() const { return mExtensionString.string(); }
 
+    bool haveExtension(const char* name, size_t nameLen = 0) const;
+
     inline uint32_t getRefsCount() const { return refs; }
 
     struct strings_t {
