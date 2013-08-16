@@ -234,7 +234,7 @@ void SurfaceFlinger::createBuiltinDisplayLocked(DisplayDevice::DisplayType type)
 }
 
 sp<IBinder> SurfaceFlinger::getBuiltInDisplay(int32_t id) {
-    if (uint32_t(id) >= DisplayDevice::NUM_DISPLAY_TYPES) {
+    if (uint32_t(id) >= DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         ALOGE("getDefaultDisplay: id=%d is not a valid default display id", id);
         return NULL;
     }
@@ -461,7 +461,7 @@ status_t SurfaceFlinger::readyToRun()
             "couldn't create EGLContext");
 
     // initialize our non-virtual displays
-    for (size_t i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
+    for (size_t i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         DisplayDevice::DisplayType type((DisplayDevice::DisplayType)i);
         // set-up the displays that are already connected
         if (mHwc->isConnected(i) || type==DisplayDevice::DISPLAY_PRIMARY) {
@@ -511,7 +511,7 @@ status_t SurfaceFlinger::readyToRun()
 }
 
 int32_t SurfaceFlinger::allocateHwcDisplayId(DisplayDevice::DisplayType type) {
-    return (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) ?
+    return (uint32_t(type) < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) ?
             type : mHwc->allocateDisplayId();
 }
 
@@ -540,7 +540,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
 
 status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info) {
     int32_t type = NAME_NOT_FOUND;
-    for (int i=0 ; i<DisplayDevice::NUM_DISPLAY_TYPES ; i++) {
+    for (int i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         if (display == mBuiltinDisplays[i]) {
             type = i;
             break;
@@ -661,7 +661,7 @@ void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
         ALOGW("WARNING: EventThread not started, ignoring vsync");
         return;
     }
-    if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
+    if (uint32_t(type) < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         // we should only receive DisplayDevice::DisplayType from the vsync callback
         mEventThread->onVSyncReceived(type, timestamp);
     }
@@ -676,7 +676,7 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
         return;
     }
 
-    if (uint32_t(type) < DisplayDevice::NUM_DISPLAY_TYPES) {
+    if (uint32_t(type) < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         Mutex::Autolock _l(mStateLock);
         if (connected) {
             createBuiltinDisplayLocked((DisplayDevice::DisplayType)type);
@@ -1064,7 +1064,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         sp<DisplayDevice> hw(getDisplayDevice(draw.keyAt(i)));
                         if (hw != NULL)
                             hw->disconnect(getHwComposer());
-                        if (draw[i].type < DisplayDevice::NUM_DISPLAY_TYPES)
+                        if (draw[i].type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES)
                             mEventThread->onHotplugReceived(draw[i].type, false);
                         mDisplays.removeItem(draw.keyAt(i));
                     } else {
@@ -2006,7 +2006,7 @@ void SurfaceFlinger::onScreenAcquired(const sp<const DisplayDevice>& hw) {
 
     hw->acquireScreen();
     int32_t type = hw->getDisplayType();
-    if (type < DisplayDevice::NUM_DISPLAY_TYPES) {
+    if (type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         // built-in display, tell the HWC
         getHwComposer().acquire(type);
 
@@ -2028,7 +2028,7 @@ void SurfaceFlinger::onScreenReleased(const sp<const DisplayDevice>& hw) {
 
     hw->releaseScreen();
     int32_t type = hw->getDisplayType();
-    if (type < DisplayDevice::NUM_DISPLAY_TYPES) {
+    if (type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         if (type == DisplayDevice::DISPLAY_PRIMARY) {
             // FIXME: eventthread only knows about the main display right now
             mEventThread->onScreenReleased();
@@ -2052,7 +2052,7 @@ void SurfaceFlinger::unblank(const sp<IBinder>& display) {
             const sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
             if (hw == NULL) {
                 ALOGE("Attempt to unblank null display %p", mDisplay.get());
-            } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+            } else if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
                 ALOGW("Attempt to unblank virtual display");
             } else {
                 mFlinger.onScreenAcquired(hw);
@@ -2075,7 +2075,7 @@ void SurfaceFlinger::blank(const sp<IBinder>& display) {
             const sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
             if (hw == NULL) {
                 ALOGE("Attempt to blank null display %p", mDisplay.get());
-            } else if (hw->getDisplayType() >= DisplayDevice::NUM_DISPLAY_TYPES) {
+            } else if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
                 ALOGW("Attempt to blank virtual display");
             } else {
                 mFlinger.onScreenReleased(hw);
