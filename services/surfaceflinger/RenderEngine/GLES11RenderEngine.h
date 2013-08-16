@@ -37,6 +37,10 @@ class GLES11RenderEngine : public RenderEngine {
     GLint mMaxViewportDims[2];
     GLint mMaxTextureSize;
 
+    virtual void bindImageAsFramebuffer(EGLImageKHR image,
+            uint32_t* texName, uint32_t* fbName, uint32_t* status);
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName);
+
 public:
     GLES11RenderEngine();
 

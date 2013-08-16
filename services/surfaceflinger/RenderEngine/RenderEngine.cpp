@@ -42,7 +42,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
             EGL_NONE, EGL_NONE
     };
 
-    EGLContext ctxt = EGL_NO_CONTEXT; // eglCreateContext(display, config, NULL, contextAttributes);
+    EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
     if (ctxt == EGL_NO_CONTEXT) {
         // maybe ES 2.x is not supported
         ALOGW("can't create an ES 2.x context, trying 1.x");
@@ -190,34 +190,29 @@ void RenderEngine::deleteTextures(size_t count, uint32_t const* names) {
     glDeleteTextures(count, names);
 }
 
+void RenderEngine::dump(String8& result) {
+    const GLExtensions& extensions(GLExtensions::getInstance());
+    result.appendFormat("GLES: %s, %s, %s\n",
+            extensions.getVendor(),
+            extensions.getRenderer(),
+            extensions.getVersion());
+    result.appendFormat("%s\n", extensions.getExtension());
+}
+
 // ---------------------------------------------------------------------------
 
 RenderEngine::BindImageAsFramebuffer::BindImageAsFramebuffer(
         RenderEngine& engine, EGLImageKHR image) : mEngine(engine)
 {
-    GLuint tname, name;
-    // turn our EGLImage into a texture
-    glGenTextures(1, &tname);
-    glBindTexture(GL_TEXTURE_2D, tname);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-    // create a Framebuffer Object to render into
-    glGenFramebuffersOES(1, &name);
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, name);
-    glFramebufferTexture2DOES(GL_FRAMEBUFFER_OES,
-            GL_COLOR_ATTACHMENT0_OES, GL_TEXTURE_2D, tname, 0);
-    mStatus = glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES);
+    mEngine.bindImageAsFramebuffer(image, &mTexName, &mFbName, &mStatus);
+
     ALOGE_IF(mStatus != GL_FRAMEBUFFER_COMPLETE_OES,
             "glCheckFramebufferStatusOES error %d", mStatus);
-    mTexName = tname;
-    mFbName = name;
 }
 
 RenderEngine::BindImageAsFramebuffer::~BindImageAsFramebuffer() {
     // back to main framebuffer
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, 0);
-    glDeleteFramebuffersOES(1, &mFbName);
-    glDeleteTextures(1, &mTexName);
-
+    mEngine.unbindFramebuffer(mTexName, mFbName);
 }
 
 status_t RenderEngine::BindImageAsFramebuffer::getStatus() const {
