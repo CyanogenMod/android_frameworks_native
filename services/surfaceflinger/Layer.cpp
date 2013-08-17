@@ -82,6 +82,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
+    mTexture.init(Texture::TEXTURE_EXTERNAL, mTextureName);
 
     uint32_t layerFlags = 0;
     if (flags & ISurfaceComposerClient::eHidden)
@@ -483,7 +484,11 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         mSurfaceFlingerConsumer->getTransformMatrix(textureMatrix);
 
         // Set things up for texturing.
-        engine.setupLayerTexturing(mTextureName, useFiltering, textureMatrix);
+        mTexture.setDimensions(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
+        mTexture.setFiltering(useFiltering);
+        mTexture.setMatrix(textureMatrix);
+
+        engine.setupLayerTexturing(mTexture);
     } else {
         engine.setupLayerBlackedOut();
     }
