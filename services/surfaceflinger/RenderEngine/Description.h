@@ -15,6 +15,7 @@
  */
 
 #include <GLES2/gl2.h>
+#include "Texture.h"
 
 #ifndef SF_RENDER_ENGINE_DESCRIPTION_H_
 #define SF_RENDER_ENGINE_DESCRIPTION_H_
@@ -40,17 +41,15 @@ class Description {
     bool mPremultipliedAlpha;
     // whether this layer is marked as opaque
     bool mOpaque;
-    // texture target, TEXTURE_2D or TEXTURE_EXTERNAL
-    GLenum mTextureTarget;
 
-    // name of the texture
-    GLuint mTextureName;
+    // Texture this layer uses
+    Texture mTexture;
+    bool mTextureEnabled;
+
     // color used when texturing is disabled
     GLclampf mColor[4];
     // projection matrix
     GLfloat mProjectionMatrix[16];
-    // texture matrix
-    GLfloat mTextureMatrix[16];
 
 public:
     Description();
@@ -59,11 +58,10 @@ public:
     void setPlaneAlpha(GLclampf planeAlpha);
     void setPremultipliedAlpha(bool premultipliedAlpha);
     void setOpaque(bool opaque);
-    void setTextureName(GLenum target, GLuint tname);
+    void setTexture(const Texture& texture);
     void disableTexture();
     void setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     void setProjectionMatrix(GLfloat const* mtx);
-    void setTextureMatrix(GLfloat const* mtx);
 
 private:
     bool mUniformsDirty;

@@ -25,6 +25,7 @@ LOCAL_SRC_FILES:= \
     RenderEngine/ProgramCache.cpp \
     RenderEngine/GLExtensions.cpp \
     RenderEngine/RenderEngine.cpp \
+    RenderEngine/Texture.cpp \
     RenderEngine/GLES10RenderEngine.cpp \
     RenderEngine/GLES11RenderEngine.cpp \
     RenderEngine/GLES20RenderEngine.cpp
