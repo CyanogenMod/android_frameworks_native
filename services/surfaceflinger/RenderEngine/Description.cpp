@@ -31,12 +31,11 @@ Description::Description() :
     mPlaneAlpha = 1.0f;
     mPremultipliedAlpha = true;
     mOpaque = true;
-    mTextureTarget = GL_TEXTURE_EXTERNAL_OES;
+    mTextureEnabled = false;
 
     const GLfloat m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
     memset(mColor, 0, sizeof(mColor));
     memcpy(mProjectionMatrix, m, sizeof(mProjectionMatrix));
-    memcpy(mTextureMatrix, m, sizeof(mTextureMatrix));
 }
 
 Description::~Description() {
@@ -61,21 +60,14 @@ void Description::setOpaque(bool opaque) {
     }
 }
 
-void Description::setTextureName(GLenum target, GLuint tname) {
-    if (target != mTextureTarget) {
-        mTextureTarget = target;
-    }
-    if (tname != mTextureName) {
-        mTextureName = tname;
-        mUniformsDirty = true;
-    }
+void Description::setTexture(const Texture& texture) {
+    mTexture = texture;
+    mTextureEnabled = true;
+    mUniformsDirty = true;
 }
 
 void Description::disableTexture() {
-    if (mTextureTarget != 0) {
-        mTextureTarget = 0;
-    }
-    mTextureName = 0;
+    mTextureEnabled = false;
 }
 
 void Description::setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) {
@@ -88,11 +80,6 @@ void Description::setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf
 
 void Description::setProjectionMatrix(GLfloat const* mtx) {
     memcpy(mProjectionMatrix, mtx, sizeof(mProjectionMatrix));
-    mUniformsDirty = true;
-}
-
-void Description::setTextureMatrix(GLfloat const* mtx) {
-    memcpy(mTextureMatrix, mtx, sizeof(mTextureMatrix));
     mUniformsDirty = true;
 }
 

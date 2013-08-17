@@ -45,6 +45,7 @@
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/FloatRect.h"
 #include "RenderEngine/Mesh.h"
+#include "RenderEngine/Texture.h"
 
 namespace android {
 
@@ -359,6 +360,8 @@ private:
     bool mNeedsFiltering;
     // The mesh used to draw the layer in GLES composition mode
     mutable Mesh mMesh;
+    // The mesh used to draw the layer in GLES composition mode
+    mutable Texture mTexture;
 
     // page-flip thread (currently main thread)
     bool mSecure; // no screenshots

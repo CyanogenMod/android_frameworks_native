@@ -32,6 +32,7 @@ class String8;
 class Rect;
 class Region;
 class Mesh;
+class Texture;
 
 class RenderEngine {
     enum GlesVersion {
@@ -84,7 +85,7 @@ public:
     virtual void setViewportAndProjection(size_t vpw, size_t vph, size_t w, size_t h, bool yswap) = 0;
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;
-    virtual void setupLayerTexturing(size_t textureName, bool useFiltering, const float* textureMatrix) = 0;
+    virtual void setupLayerTexturing(const Texture& texture) = 0;
     virtual void setupLayerBlackedOut() = 0;
 
     virtual void disableTexturing() = 0;
