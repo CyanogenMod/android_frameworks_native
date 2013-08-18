@@ -41,7 +41,7 @@ EventThread::EventThread(const sp<SurfaceFlinger>& flinger)
       mUseSoftwareVSync(false),
       mDebugVsyncEnabled(false) {
 
-    for (int32_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+    for (int32_t i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         mVSyncEvent[i].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
         mVSyncEvent[i].header.id = 0;
         mVSyncEvent[i].header.timestamp = 0;
@@ -112,11 +112,11 @@ void EventThread::onScreenAcquired() {
 
 
 void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
-    ALOGE_IF(type >= HWC_NUM_DISPLAY_TYPES,
+    ALOGE_IF(type >= DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES,
             "received vsync event for an invalid display (id=%d)", type);
 
     Mutex::Autolock _l(mLock);
-    if (type < HWC_NUM_DISPLAY_TYPES) {
+    if (type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         mVSyncEvent[type].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
         mVSyncEvent[type].header.id = type;
         mVSyncEvent[type].header.timestamp = timestamp;
@@ -126,11 +126,11 @@ void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
 }
 
 void EventThread::onHotplugReceived(int type, bool connected) {
-    ALOGE_IF(type >= HWC_NUM_DISPLAY_TYPES,
+    ALOGE_IF(type >= DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES,
             "received hotplug event for an invalid display (id=%d)", type);
 
     Mutex::Autolock _l(mLock);
-    if (type < HWC_NUM_DISPLAY_TYPES) {
+    if (type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         DisplayEventReceiver::Event event;
         event.header.type = DisplayEventReceiver::DISPLAY_EVENT_HOTPLUG;
         event.header.id = type;
@@ -184,7 +184,7 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
 
         size_t vsyncCount = 0;
         nsecs_t timestamp = 0;
-        for (int32_t i=0 ; i<HWC_NUM_DISPLAY_TYPES ; i++) {
+        for (int32_t i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
             timestamp = mVSyncEvent[i].header.timestamp;
             if (timestamp) {
                 // we have a vsync event to dispatch
@@ -285,7 +285,7 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
                     // FIXME: how do we decide which display id the fake
                     // vsync came from ?
                     mVSyncEvent[0].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
-                    mVSyncEvent[0].header.id = HWC_DISPLAY_PRIMARY;
+                    mVSyncEvent[0].header.id = DisplayDevice::DISPLAY_PRIMARY;
                     mVSyncEvent[0].header.timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     mVSyncEvent[0].vsync.count++;
                 }
@@ -308,14 +308,16 @@ Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
 void EventThread::enableVSyncLocked() {
     if (!mUseSoftwareVSync) {
         // never enable h/w VSYNC when screen is off
-        mFlinger->eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        mFlinger->eventControl(DisplayDevice::DISPLAY_PRIMARY,
+                SurfaceFlinger::EVENT_VSYNC, true);
         mPowerHAL.vsyncHint(true);
     }
     mDebugVsyncEnabled = true;
 }
 
 void EventThread::disableVSyncLocked() {
-    mFlinger->eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
+    mFlinger->eventControl(DisplayDevice::DISPLAY_PRIMARY,
+            SurfaceFlinger::EVENT_VSYNC, false);
     mPowerHAL.vsyncHint(false);
     mDebugVsyncEnabled = false;
 }
@@ -328,7 +330,7 @@ void EventThread::dump(String8& result) const {
             mUseSoftwareVSync?"enabled":"disabled");
     result.appendFormat("  numListeners=%u,\n  events-delivered: %u\n",
             mDisplayEventConnections.size(),
-            mVSyncEvent[HWC_DISPLAY_PRIMARY].vsync.count);
+            mVSyncEvent[DisplayDevice::DISPLAY_PRIMARY].vsync.count);
     for (size_t i=0 ; i<mDisplayEventConnections.size() ; i++) {
         sp<Connection> connection =
                 mDisplayEventConnections.itemAt(i).promote();

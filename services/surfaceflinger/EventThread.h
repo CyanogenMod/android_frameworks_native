@@ -23,12 +23,11 @@
 #include <gui/DisplayEventReceiver.h>
 #include <gui/IDisplayEventConnection.h>
 
-#include <hardware/hwcomposer_defs.h>
-
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <utils/SortedVector.h>
 
+#include "DisplayDevice.h"
 #include "DisplayHardware/PowerHAL.h"
 
 // ---------------------------------------------------------------------------
@@ -104,7 +103,7 @@ private:
     // protected by mLock
     SortedVector< wp<Connection> > mDisplayEventConnections;
     Vector< DisplayEventReceiver::Event > mPendingEvents;
-    DisplayEventReceiver::Event mVSyncEvent[HWC_NUM_DISPLAY_TYPES];
+    DisplayEventReceiver::Event mVSyncEvent[DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES];
     bool mUseSoftwareVSync;
 
     // for debugging

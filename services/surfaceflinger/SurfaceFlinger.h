@@ -421,7 +421,7 @@ private:
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
     EGLint mEGLNativeVisualId;
-    sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_DISPLAY_TYPES];
+    sp<IBinder> mBuiltinDisplays[DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES];
 
     // Can only accessed from the main thread, these members
     // don't need synchronization
