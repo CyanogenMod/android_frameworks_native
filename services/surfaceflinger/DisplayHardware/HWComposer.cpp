@@ -48,14 +48,7 @@
 
 namespace android {
 
-#ifndef HWC_DEVICE_API_VERSION_1_3
-#define HWC_DEVICE_API_VERSION_1_3 HARDWARE_DEVICE_API_VERSION_2(1, 3, HWC_HEADER_VERSION)
-#endif
-
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
-
-#define NUM_PHYSICAL_DISPLAYS HWC_NUM_DISPLAY_TYPES
-#define VIRTUAL_DISPLAY_ID_BASE HWC_NUM_DISPLAY_TYPES
 
 static uint32_t hwcApiVersion(const hwc_composer_device_1_t* hwc) {
     uint32_t hwcVersion = hwc->common.version;
@@ -96,7 +89,7 @@ HWComposer::HWComposer(
       mEventHandler(handler),
       mVSyncCount(0), mDebugForceFakeVSync(false)
 {
-    for (size_t i =0 ; i<MAX_DISPLAYS ; i++) {
+    for (size_t i =0 ; i<MAX_HWC_DISPLAYS ; i++) {
         mLists[i] = 0;
     }
 
@@ -127,7 +120,7 @@ HWComposer::HWComposer(
     }
 
     // these display IDs are always reserved
-    for (size_t i=0 ; i<NUM_PHYSICAL_DISPLAYS ; i++) {
+    for (size_t i=0 ; i<NUM_BUILTIN_DISPLAYS ; i++) {
         mAllocatedDisplayIDs.markBit(i);
     }
 
@@ -156,10 +149,10 @@ HWComposer::HWComposer(
         // hw composer version
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
             // 1.3 adds support for virtual displays
-            mNumDisplays = MAX_DISPLAYS;
+            mNumDisplays = MAX_HWC_DISPLAYS;
         } else if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // 1.1 adds support for multiple displays
-            mNumDisplays = NUM_PHYSICAL_DISPLAYS;
+            mNumDisplays = NUM_BUILTIN_DISPLAYS;
         } else {
             mNumDisplays = 1;
         }
@@ -187,7 +180,7 @@ HWComposer::HWComposer(
         }
     } else if (mHwc) {
         // here we're guaranteed to have at least HWC 1.1
-        for (size_t i =0 ; i<NUM_PHYSICAL_DISPLAYS ; i++) {
+        for (size_t i =0 ; i<NUM_BUILTIN_DISPLAYS ; i++) {
             queryDisplayProperties(i);
         }
     }
@@ -400,7 +393,7 @@ int32_t HWComposer::allocateDisplayId() {
 }
 
 status_t HWComposer::freeDisplayId(int32_t id) {
-    if (id < NUM_PHYSICAL_DISPLAYS) {
+    if (id < NUM_BUILTIN_DISPLAYS) {
         // cannot free the reserved IDs
         return BAD_VALUE;
     }
