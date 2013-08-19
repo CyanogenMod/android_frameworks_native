@@ -108,15 +108,17 @@ public:
     struct QueueBufferInput : public Flattenable<QueueBufferInput> {
         friend class Flattenable<QueueBufferInput>;
         inline QueueBufferInput(const Parcel& parcel);
-        inline QueueBufferInput(int64_t timestamp,
+        inline QueueBufferInput(int64_t timestamp, bool isAutoTimestamp,
                 const Rect& crop, int scalingMode, uint32_t transform, bool async,
                 const sp<Fence>& fence)
-        : timestamp(timestamp), crop(crop), scalingMode(scalingMode),
-          transform(transform), async(async), fence(fence) { }
-        inline void deflate(int64_t* outTimestamp, Rect* outCrop,
-                int* outScalingMode, uint32_t* outTransform, bool* outAsync,
-                sp<Fence>* outFence) const {
+        : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp), crop(crop),
+          scalingMode(scalingMode), transform(transform), async(async),
+          fence(fence) { }
+        inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
+                Rect* outCrop, int* outScalingMode, uint32_t* outTransform,
+                bool* outAsync, sp<Fence>* outFence) const {
             *outTimestamp = timestamp;
+            *outIsAutoTimestamp = bool(isAutoTimestamp);
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
@@ -132,6 +134,7 @@ public:
 
     private:
         int64_t timestamp;
+        int isAutoTimestamp;
         Rect crop;
         int scalingMode;
         uint32_t transform;

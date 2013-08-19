@@ -269,6 +269,7 @@ IGraphicBufferProducer::QueueBufferInput::QueueBufferInput(const Parcel& parcel)
 
 size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
     return sizeof(timestamp)
+         + sizeof(isAutoTimestamp)
          + sizeof(crop)
          + sizeof(scalingMode)
          + sizeof(transform)
@@ -287,6 +288,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::flatten(
         return NO_MEMORY;
     }
     FlattenableUtils::write(buffer, size, timestamp);
+    FlattenableUtils::write(buffer, size, isAutoTimestamp);
     FlattenableUtils::write(buffer, size, crop);
     FlattenableUtils::write(buffer, size, scalingMode);
     FlattenableUtils::write(buffer, size, transform);
@@ -299,6 +301,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
 {
     size_t minNeeded =
               sizeof(timestamp)
+            + sizeof(isAutoTimestamp)
             + sizeof(crop)
             + sizeof(scalingMode)
             + sizeof(transform)
@@ -309,6 +312,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
     }
 
     FlattenableUtils::read(buffer, size, timestamp);
+    FlattenableUtils::read(buffer, size, isAutoTimestamp);
     FlattenableUtils::read(buffer, size, crop);
     FlattenableUtils::read(buffer, size, scalingMode);
     FlattenableUtils::read(buffer, size, transform);

@@ -262,8 +262,10 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     ALOGV("Surface::queueBuffer");
     Mutex::Autolock lock(mMutex);
     int64_t timestamp;
+    bool isAutoTimestamp = false;
     if (mTimestamp == NATIVE_WINDOW_TIMESTAMP_AUTO) {
         timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+        isAutoTimestamp = true;
         ALOGV("Surface::queueBuffer making up timestamp: %.2f ms",
             timestamp / 1000000.f);
     } else {
@@ -281,8 +283,8 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
-    IGraphicBufferProducer::QueueBufferInput input(timestamp, crop, mScalingMode,
-            mTransform, mSwapIntervalZero, fence);
+    IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
+            crop, mScalingMode, mTransform, mSwapIntervalZero, fence);
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
