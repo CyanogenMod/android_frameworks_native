@@ -26,6 +26,7 @@
 #include <EGL/eglext.h>
 
 #include <utils/Mutex.h>
+#include <utils/String8.h>
 #include <utils/Timers.h>
 
 #include <hardware/hwcomposer_defs.h>

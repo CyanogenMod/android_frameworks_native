@@ -75,11 +75,14 @@ include $(BUILD_SHARED_LIBRARY)
 # build surfaceflinger's executable
 include $(CLEAR_VARS)
 
+LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
+
 LOCAL_SRC_FILES:= \
 	main_surfaceflinger.cpp 
 
 LOCAL_SHARED_LIBRARIES := \
 	libsurfaceflinger \
+	liblog \
 	libbinder \
 	libutils
 

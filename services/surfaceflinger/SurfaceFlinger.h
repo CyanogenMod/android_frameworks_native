@@ -35,7 +35,6 @@
 #include <utils/SortedVector.h>
 #include <utils/threads.h>
 
-#include <binder/BinderService.h>
 #include <binder/IMemory.h>
 
 #include <ui/PixelFormat.h>
@@ -76,10 +75,8 @@ enum {
     eTransactionMask          = 0x07
 };
 
-class SurfaceFlinger : public BinderService<SurfaceFlinger>,
-                       public BnSurfaceComposer,
+class SurfaceFlinger : public BnSurfaceComposer,
                        private IBinder::DeathRecipient,
-                       private Thread,
                        private HWComposer::EventHandler
 {
 public:
@@ -88,6 +85,12 @@ public:
     }
 
     SurfaceFlinger() ANDROID_API;
+
+    // must be called before clients can connect
+    void init() ANDROID_API;
+
+    // starts SurfaceFlinger main loop in the current thread
+    void run() ANDROID_API;
 
     enum {
         EVENT_VSYNC = HWC_EVENT_VSYNC
@@ -209,10 +212,8 @@ private:
     virtual void binderDied(const wp<IBinder>& who);
 
     /* ------------------------------------------------------------------------
-     * Thread interface
+     * RefBase interface
      */
-    virtual bool threadLoop();
-    virtual status_t readyToRun();
     virtual void onFirstRef();
 
     /* ------------------------------------------------------------------------
@@ -447,7 +448,6 @@ private:
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
-    mutable Barrier mReadyToRunBarrier;
     FrameTracker mAnimFrameTracker;
 
     // protected by mDestroyedLayerLock;
