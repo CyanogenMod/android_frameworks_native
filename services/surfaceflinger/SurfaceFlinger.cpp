@@ -22,6 +22,10 @@
 #include <math.h>
 #include <dlfcn.h>
 
+#if defined(HAVE_PTHREADS)
+#include <sys/resource.h>
+#endif
+
 #include <EGL/egl.h>
 
 #include <cutils/log.h>
@@ -70,7 +74,6 @@
 
 #include "RenderEngine/RenderEngine.h"
 
-
 #define DISPLAY_COUNT       1
 
 /*
@@ -92,7 +95,7 @@ const String16 sDump("android.permission.DUMP");
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::SurfaceFlinger()
-    :   BnSurfaceComposer(), Thread(false),
+    :   BnSurfaceComposer(),
         mTransactionFlags(0),
         mTransactionPending(false),
         mAnimTransactionPending(false),
@@ -139,13 +142,7 @@ SurfaceFlinger::SurfaceFlinger()
 void SurfaceFlinger::onFirstRef()
 {
     mEventQueue.init(this);
-
-    run("SurfaceFlinger", PRIORITY_URGENT_DISPLAY);
-
-    // Wait for the main thread to be done with its initialization
-    mReadyToRunBarrier.wait();
 }
-
 
 SurfaceFlinger::~SurfaceFlinger()
 {
@@ -414,9 +411,8 @@ success:
     return config;
 }
 
+void SurfaceFlinger::init() {
 
-status_t SurfaceFlinger::readyToRun()
-{
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
@@ -498,16 +494,11 @@ status_t SurfaceFlinger::readyToRun()
     // initialize our drawing state
     mDrawingState = mCurrentState;
 
-    // We're now ready to accept clients...
-    mReadyToRunBarrier.open();
-
     // set initial conditions (e.g. unblank default device)
     initializeDisplays();
 
     // start boot animation
     startBootAnim();
-
-    return NO_ERROR;
 }
 
 int32_t SurfaceFlinger::allocateHwcDisplayId(DisplayDevice::DisplayType type) {
@@ -648,9 +639,13 @@ status_t SurfaceFlinger::postMessageSync(const sp<MessageBase>& msg,
     return res;
 }
 
-bool SurfaceFlinger::threadLoop() {
-    waitForEvent();
-    return true;
+void SurfaceFlinger::run() {
+#if defined(HAVE_PTHREADS)
+    setpriority(PRIO_PROCESS, 0, PRIORITY_URGENT_DISPLAY);
+#endif
+    do {
+        waitForEvent();
+    } while (true);
 }
 
 void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
