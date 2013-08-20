@@ -855,6 +855,10 @@ void SurfaceFlinger::rebuildLayerStacks() {
 }
 
 void SurfaceFlinger::setUpHWComposer() {
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        mDisplays[dpy]->beginFrame();
+    }
+
     HWComposer& hwc(getHwComposer());
     if (hwc.initCheck() == NO_ERROR) {
         // build the h/w work list
