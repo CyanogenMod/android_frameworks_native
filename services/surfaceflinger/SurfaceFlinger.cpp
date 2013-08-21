@@ -2769,6 +2769,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
         int err = 0;
         err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
+        err |= native_window_set_scaling_mode(window, NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
         err |= native_window_set_buffers_format(window, HAL_PIXEL_FORMAT_RGBA_8888);
         err |= native_window_set_usage(window, usage);
 
