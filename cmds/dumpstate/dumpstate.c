@@ -187,7 +187,7 @@ static void dumpstate() {
     run_command("IP6TABLE RAW", 10, SU_PATH, "root", "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
 
     run_command("WIFI NETWORKS", 20,
-            SU_PATH, "root", "wpa_cli", "list_networks", NULL);
+            SU_PATH, "root", "wpa_cli", "IFNAME=wlan0", "list_networks", NULL);
 
 #ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI INTERNAL COUNTERS", 20,
