@@ -30,6 +30,11 @@ class String8;
 
 class DisplaySurface : public virtual RefBase {
 public:
+    // beginFrame is called at the beginning of the composition loop, before
+    // the configuration is known. The DisplaySurface should do anything it
+    // needs to do to enable HWComposer to decide how to compose the frame.
+    virtual status_t beginFrame() = 0;
+
     // prepareFrame is called after the composition configuration is known but
     // before composition takes place. The DisplaySurface can use the
     // composition type to decide how to manage the flow of buffers between
