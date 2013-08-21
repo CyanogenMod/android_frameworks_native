@@ -987,9 +987,9 @@ void HWComposer::dump(String8& result) const {
                         disp.list->numHwLayers, disp.list->flags);
 
                 result.append(
-                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |       source crop         |           frame           name \n"
-                        "------------+----------+----------+----------+----+-------+----------+---------------------------+--------------------------------\n");
-                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____,_____,_____,_____] | [_____,_____,_____,_____]
+                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |          source crop            |           frame           name \n"
+                        "------------+----------+----------+----------+----+-------+----------+---------------------------------+--------------------------------\n");
+                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____._,_____._,_____._,_____._] | [_____,_____,_____,_____]
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
                     int32_t format = -1;
@@ -1020,13 +1020,23 @@ void HWComposer::dump(String8& result) const {
                     if (type >= NELEM(compositionTypeName))
                         type = NELEM(compositionTypeName) - 1;
 
-                    result.appendFormat(
-                            " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] %s\n",
-                                    compositionTypeName[type],
-                                    intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
-                                    l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
-                                    l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
-                                    name.string());
+                    if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
+                        result.appendFormat(
+                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7.1f,%7.1f,%7.1f,%7.1f] | [%5d,%5d,%5d,%5d] %s\n",
+                                        compositionTypeName[type],
+                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
+                                        l.sourceCropf.left, l.sourceCropf.top, l.sourceCropf.right, l.sourceCropf.bottom,
+                                        l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+                                        name.string());
+                    } else {
+                        result.appendFormat(
+                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7d,%7d,%7d,%7d] | [%5d,%5d,%5d,%5d] %s\n",
+                                        compositionTypeName[type],
+                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
+                                        l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
+                                        l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+                                        name.string());
+                    }
                 }
             }
         }
