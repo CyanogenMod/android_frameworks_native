@@ -287,7 +287,13 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // pixels in the buffer.
     // FIXME: the 3 lines below can produce slightly incorrect clipping when we have
     // a viewport clipping and a window transform. we should use floating point to fix this.
-    Rect activeCrop(s.transform.transform(s.active.crop));
+
+    Rect activeCrop(s.active.w, s.active.h);
+    if (!s.active.crop.isEmpty()) {
+        activeCrop = s.active.crop;
+    }
+
+    activeCrop = s.transform.transform(activeCrop);
     activeCrop.intersect(hw->getViewport(), &activeCrop);
     activeCrop = s.transform.inverse().transform(activeCrop);
 
