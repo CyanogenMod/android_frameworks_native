@@ -218,13 +218,15 @@ status_t DisplayDevice::prepareFrame(const HWComposer& hwc) const {
 }
 
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
-    // We need to call eglSwapBuffers() unless:
-    // (a) there was no GLES composition this frame, or
-    // (b) we're using a legacy HWC with no framebuffer target support (in
-    //     which case HWComposer::commit() handles things).
+    // We need to call eglSwapBuffers() if:
+    //  (1) we don't have a hardware composer, or
+    //  (2) we did GLES composition this frame, and either
+    //    (a) we have framebuffer target support (not present on legacy
+    //        devices, where HWComposer::commit() handles things); or
+    //    (b) this is a virtual display
     if (hwc.initCheck() != NO_ERROR ||
             (hwc.hasGlesComposition(mHwcDisplayId) &&
-             hwc.supportsFramebufferTarget())) {
+             (hwc.supportsFramebufferTarget() || mType >= DISPLAY_VIRTUAL))) {
         EGLBoolean success = eglSwapBuffers(mDisplay, mSurface);
         if (!success) {
             EGLint error = eglGetError();
