@@ -991,6 +991,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     if (front.active.w != bufWidth ||
                         front.active.h != bufHeight) {
                         // reject this buffer
+                        //ALOGD("rejecting buffer: bufWidth=%d, bufHeight=%d, front.active.{w=%d, h=%d}",
+                        //        bufWidth, bufHeight, front.active.w, front.active.h);
                         return true;
                     }
                 }
