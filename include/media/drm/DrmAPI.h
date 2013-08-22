@@ -60,6 +60,11 @@ namespace android {
         // given crypto scheme, which is specified by a UUID.
         virtual bool isCryptoSchemeSupported(const uint8_t uuid[16]) = 0;
 
+        // DrmFactory::isContentTypeSupported can be called to determine
+        // if the plugin factory is able to construct plugins that support a
+        // given media container format specified by mimeType
+        virtual bool isContentTypeSupported(const String8 &mimeType) = 0;
+
         // Construct a DrmPlugin for the crypto scheme specified by UUID.
         virtual status_t createDrmPlugin(
                 const uint8_t uuid[16], DrmPlugin **plugin) = 0;
