@@ -342,14 +342,14 @@ private:
 
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
-    size_t                          mVSyncCount;
+    size_t                          mVSyncCounts[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
     BitSet32                        mAllocatedDisplayIDs;
 
     // protected by mLock
     mutable Mutex mLock;
-    mutable nsecs_t mLastHwVSync;
+    mutable nsecs_t mLastHwVSync[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     // thread-safe
     mutable Mutex mEventControlLock;
