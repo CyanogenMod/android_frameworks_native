@@ -72,7 +72,7 @@ Surface::Surface(
     mTransformHint = 0;
     mConsumerRunningBehind = false;
     mConnectedToCpu = false;
-    mProducerControlledByApp = true;
+    mProducerControlledByApp = controlledByApp;
     mSwapIntervalZero = false;
 }
 
