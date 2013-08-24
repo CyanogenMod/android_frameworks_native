@@ -386,8 +386,6 @@ static int modifyFormatColorspace(int fmt, EGLint colorspace) {
         switch (fmt) {
             case HAL_PIXEL_FORMAT_RGBA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
             case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_X_8888;
-            // TODO: this should go away once drivers stop using BGRA EGLConfigs
-            case HAL_PIXEL_FORMAT_BGRA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
         }
     }
     return fmt;
@@ -410,24 +408,39 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
             return setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
 
-        // Set the native window's buffers format to match this config.
+        // Set the native window's buffers format to match what this config requests.
         // Whether to use sRGB gamma is not part of the EGLconfig, but is part
         // of our native format. So if sRGB gamma is requested, we have to
         // modify the EGLconfig's format before setting the native window's
         // format.
-        EGLint format;
-        if (!cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_NATIVE_VISUAL_ID,
-                &format)) {
-            ALOGE("eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: %#x",
-                    eglGetError());
-            format = 0;
+
+        // by default, just pick RGBA_8888
+        EGLint format = HAL_PIXEL_FORMAT_RGBA_8888;
+
+        EGLint a = 0;
+        cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_ALPHA_SIZE, &a);
+        if (a > 0) {
+            // alpha-channel requested, there's really only one suitable format
+            format = HAL_PIXEL_FORMAT_RGBA_8888;
+        } else {
+            EGLint r, g, b;
+            r = g = b = 0;
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_RED_SIZE,   &r);
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_GREEN_SIZE, &g);
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_BLUE_SIZE,  &b);
+            EGLint colorDepth = r + g + b;
+            if (colorDepth <= 16) {
+                format = HAL_PIXEL_FORMAT_RGB_565;
+            } else {
+                format = HAL_PIXEL_FORMAT_RGBX_8888;
+            }
         }
-        if (attrib_list) {
-            for (const EGLint* attr = attrib_list; *attr != EGL_NONE;
-                    attr += 2) {
-                if (*attr == EGL_GL_COLORSPACE_KHR &&
-                        dp->haveExtension("EGL_KHR_gl_colorspace")) {
-                    format = modifyFormatColorspace(format, *(attr+1));
+
+        // now select a corresponding sRGB format if needed
+        if (attrib_list && dp->haveExtension("EGL_KHR_gl_colorspace")) {
+            for (const EGLint* attr = attrib_list; *attr != EGL_NONE; attr += 2) {
+                if (*attr == EGL_GL_COLORSPACE_KHR) {
+                    format = modifyFormatColorspace(format, attr[1]);
                 }
             }
         }
