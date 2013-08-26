@@ -116,7 +116,11 @@ void GLES20RenderEngine::setupLayerBlending(
 }
 
 void GLES20RenderEngine::setupDimLayerBlending(int alpha) {
-    mState.setPlaneAlpha(alpha / 255.0f);
+    mState.setPlaneAlpha(1.0f);
+    mState.setPremultipliedAlpha(true);
+    mState.setOpaque(false);
+    mState.setColor(0, 0, 0, alpha/255.0f);
+    mState.disableTexture();
 
     if (alpha == 0xFF) {
         glDisable(GL_BLEND);
@@ -124,7 +128,6 @@ void GLES20RenderEngine::setupDimLayerBlending(int alpha) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     }
-    disableTexturing();
 }
 
 void GLES20RenderEngine::setupLayerTexturing(const Texture& texture) {
