@@ -87,10 +87,15 @@ HWComposer::HWComposer(
       mFbDev(0), mHwc(0), mNumDisplays(1),
       mCBContext(new cb_context),
       mEventHandler(handler),
-      mVSyncCount(0), mDebugForceFakeVSync(false)
+      mDebugForceFakeVSync(false)
 {
     for (size_t i =0 ; i<MAX_HWC_DISPLAYS ; i++) {
         mLists[i] = 0;
+    }
+
+    for (size_t i=0 ; i<HWC_NUM_PHYSICAL_DISPLAY_TYPES ; i++) {
+        mLastHwVSync[i] = 0;
+        mVSyncCounts[i] = 0;
     }
 
     char value[PROPERTY_VALUE_MAX];
@@ -278,10 +283,15 @@ void HWComposer::invalidate() {
 }
 
 void HWComposer::vsync(int disp, int64_t timestamp) {
-    ATRACE_INT("VSYNC", ++mVSyncCount&1);
-    mEventHandler.onVSyncReceived(disp, timestamp);
-    Mutex::Autolock _l(mLock);
-    mLastHwVSync = timestamp;
+    if (uint32_t(disp) < HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
+        char tag[16];
+        snprintf(tag, sizeof(tag), "VSYNC_%1u", disp);
+        ATRACE_INT(tag, ++mVSyncCounts[disp] & 1);
+
+        mEventHandler.onVSyncReceived(disp, timestamp);
+        Mutex::Autolock _l(mLock);
+        mLastHwVSync[disp] = timestamp;
+    }
 }
 
 void HWComposer::hotplug(int disp, int connected) {
@@ -415,7 +425,7 @@ nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
     // the refresh period and whatever closest timestamp we have.
     Mutex::Autolock _l(mLock);
     nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    return now - ((now - mLastHwVSync) %  mDisplayData[disp].refresh);
+    return now - ((now - mLastHwVSync[disp]) %  mDisplayData[disp].refresh);
 }
 
 sp<Fence> HWComposer::getDisplayFence(int disp) const {
