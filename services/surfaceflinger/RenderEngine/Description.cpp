@@ -33,9 +33,7 @@ Description::Description() :
     mOpaque = true;
     mTextureEnabled = false;
 
-    const GLfloat m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
     memset(mColor, 0, sizeof(mColor));
-    memcpy(mProjectionMatrix, m, sizeof(mProjectionMatrix));
 }
 
 Description::~Description() {
@@ -78,8 +76,8 @@ void Description::setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf
     mUniformsDirty = true;
 }
 
-void Description::setProjectionMatrix(GLfloat const* mtx) {
-    memcpy(mProjectionMatrix, mtx, sizeof(mProjectionMatrix));
+void Description::setProjectionMatrix(const mat4& mtx) {
+    mProjectionMatrix = mtx;
     mUniformsDirty = true;
 }
 

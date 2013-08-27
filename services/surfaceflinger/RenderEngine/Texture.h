@@ -15,6 +15,7 @@
  */
 
 #include <stdint.h>
+#include <ui/mat4.h>
 
 #ifndef SF_RENDER_ENGINE_TEXTURE_H
 #define SF_RENDER_ENGINE_TEXTURE_H
@@ -27,7 +28,7 @@ class Texture {
     size_t mWidth;
     size_t mHeight;
     bool mFiltering;
-    float mTextureMatrix[16];
+    mat4 mTextureMatrix;
 
 public:
     enum Target { TEXTURE_2D = 0x0DE1, TEXTURE_EXTERNAL = 0x8D65 };
@@ -45,7 +46,7 @@ public:
     uint32_t getTextureName() const;
     uint32_t getTextureTarget() const;
 
-    float const* getMatrix() const;
+    const mat4& getMatrix() const;
     bool getFiltering() const;
     size_t getWidth() const;
     size_t getHeight() const;
