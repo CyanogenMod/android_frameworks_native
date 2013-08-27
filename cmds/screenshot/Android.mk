@@ -7,6 +7,6 @@ LOCAL_MODULE := screenshot
 
 LOCAL_SHARED_LIBRARIES := libcutils libz liblog
 LOCAL_STATIC_LIBRARIES := libpng
-LOCAL_C_INCLUDES += external/zlib
+LOCAL_C_INCLUDES += external/zlib external/libpng
 
 include $(BUILD_EXECUTABLE)
