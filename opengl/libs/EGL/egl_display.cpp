@@ -150,21 +150,6 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     cnx->major = -1;
     cnx->minor = -1;
     if (cnx->dso) {
-
-#if defined(ADRENO130)
-#warning "Adreno-130 eglInitialize() workaround"
-        /*
-         * The ADRENO 130 driver returns a different EGLDisplay each time
-         * eglGetDisplay() is called, but also makes the EGLDisplay invalid
-         * after eglTerminate() has been called, so that eglInitialize()
-         * cannot be called again. Therefore, we need to make sure to call
-         * eglGetDisplay() before calling eglInitialize();
-         */
-        if (i == IMPL_HARDWARE) {
-            disp[i].dpy = cnx->egl.eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        }
-#endif
-
         EGLDisplay idpy = disp.dpy;
         if (cnx->egl.eglInitialize(idpy, &cnx->major, &cnx->minor)) {
             //ALOGD("initialized dpy=%p, ver=%d.%d, cnx=%p",
