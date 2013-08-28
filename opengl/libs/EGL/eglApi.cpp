@@ -413,7 +413,25 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
         // of our native format. So if sRGB gamma is requested, we have to
         // modify the EGLconfig's format before setting the native window's
         // format.
-
+#if WORKAROUND_BUG_10194508
+#warning "WORKAROUND_10194508 enabled"
+        EGLint format;
+        if (!cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_NATIVE_VISUAL_ID,
+                &format)) {
+            ALOGE("eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: %#x",
+                    eglGetError());
+            format = 0;
+        }
+        if (attrib_list) {
+            for (const EGLint* attr = attrib_list; *attr != EGL_NONE;
+                    attr += 2) {
+                if (*attr == EGL_GL_COLORSPACE_KHR &&
+                        dp->haveExtension("EGL_KHR_gl_colorspace")) {
+                    format = modifyFormatColorspace(format, *(attr+1));
+                }
+            }
+        }
+#else
         // by default, just pick RGBA_8888
         EGLint format = HAL_PIXEL_FORMAT_RGBA_8888;
 
@@ -444,6 +462,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
                 }
             }
         }
+#endif
         if (format != 0) {
             int err = native_window_set_buffers_format(window, format);
             if (err != 0) {
