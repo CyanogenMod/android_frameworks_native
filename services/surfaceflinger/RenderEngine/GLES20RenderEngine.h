@@ -58,10 +58,10 @@ protected:
     virtual void setupDimLayerBlending(int alpha);
     virtual void setupLayerTexturing(const Texture& texture);
     virtual void setupLayerBlackedOut();
+    virtual void setupFillWithColor(float r, float g, float b, float a);
     virtual void disableTexturing();
     virtual void disableBlending();
 
-    virtual void fillWithColor(const Mesh& mesh, float r, float g, float b, float a);
     virtual void drawMesh(const Mesh& mesh);
 
     virtual size_t getMaxTextureSize() const;

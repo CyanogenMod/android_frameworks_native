@@ -164,7 +164,8 @@ void RenderEngine::fillRegionWithColor(const Region& region, uint32_t height,
         position[i*6 + 5].x = r->right;
         position[i*6 + 5].y = height - r->top;
     }
-    fillWithColor(mesh, red, green, blue, alpha);
+    setupFillWithColor(red, green, blue, alpha);
+    drawMesh(mesh);
 }
 
 void RenderEngine::clearWithColor(float red, float green, float blue, float alpha) {
