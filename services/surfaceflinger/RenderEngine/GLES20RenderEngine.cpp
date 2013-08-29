@@ -186,20 +186,13 @@ void GLES20RenderEngine::unbindFramebuffer(uint32_t texName, uint32_t fbName) {
     glDeleteTextures(1, &texName);
 }
 
-void GLES20RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float b, float a) {
+void GLES20RenderEngine::setupFillWithColor(float r, float g, float b, float a) {
+    mState.setPlaneAlpha(1.0f);
+    mState.setPremultipliedAlpha(true);
+    mState.setOpaque(false);
     mState.setColor(r, g, b, a);
-    disableTexturing();
+    mState.disableTexture();
     glDisable(GL_BLEND);
-
-    ProgramCache::getInstance().useProgram(mState);
-
-    glVertexAttribPointer(Program::position,
-            mesh.getVertexSize(),
-            GL_FLOAT, GL_FALSE,
-            mesh.getByteStride(),
-            mesh.getPositions());
-
-    glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 }
 
 void GLES20RenderEngine::drawMesh(const Mesh& mesh) {
