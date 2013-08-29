@@ -271,9 +271,9 @@ EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy, EGLContext ctx) const {
         if (result == EGL_TRUE) {
             if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
                 eglSwapInterval(dpy, 0);
-            setViewportAndProjection();
         }
     }
+    setViewportAndProjection();
     return result;
 }
 
