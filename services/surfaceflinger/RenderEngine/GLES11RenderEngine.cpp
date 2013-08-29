@@ -209,18 +209,11 @@ void GLES11RenderEngine::unbindFramebuffer(uint32_t texName, uint32_t fbName) {
     glDeleteTextures(1, &texName);
 }
 
-void GLES11RenderEngine::fillWithColor(const Mesh& mesh, float r, float g, float b, float a) {
+void GLES11RenderEngine::setupFillWithColor(float r, float g, float b, float a) {
     glColor4f(r, g, b, a);
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-
-    glVertexPointer(mesh.getVertexSize(),
-            GL_FLOAT,
-            mesh.getByteStride(),
-            mesh.getPositions());
-
-    glDrawArrays(mesh.getPrimitive(), 0, mesh.getVertexCount());
 }
 
 void GLES11RenderEngine::drawMesh(const Mesh& mesh) {

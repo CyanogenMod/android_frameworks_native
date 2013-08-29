@@ -87,12 +87,12 @@ public:
     virtual void setupDimLayerBlending(int alpha) = 0;
     virtual void setupLayerTexturing(const Texture& texture) = 0;
     virtual void setupLayerBlackedOut() = 0;
+    virtual void setupFillWithColor(float r, float g, float b, float a) = 0;
 
     virtual void disableTexturing() = 0;
     virtual void disableBlending() = 0;
 
     // drawing
-    virtual void fillWithColor(const Mesh& mesh, float r, float g, float b, float a) = 0;
     virtual void drawMesh(const Mesh& mesh) = 0;
 
     // queries

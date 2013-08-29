@@ -506,8 +506,10 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
         float red, float green, float blue, float alpha) const
 {
+    RenderEngine& engine(mFlinger->getRenderEngine());
     computeGeometry(hw, mMesh);
-    mFlinger->getRenderEngine().fillWithColor(mMesh, red, green, blue, alpha);
+    engine.setupFillWithColor(red, green, blue, alpha);
+    engine.drawMesh(mMesh);
 }
 
 void Layer::clearWithOpenGL(
