@@ -73,7 +73,7 @@ static const BenchmarkDesc benchmarks[] = {
         },
     },
 
-    { "3:2 Single Static Window",
+    { "4:3 Single Static Window",
         2048, 1536, { 1536 },
         {
             {   // Window
@@ -117,7 +117,7 @@ static const BenchmarkDesc benchmarks[] = {
         },
     },
 
-    { "3:2 App -> Home Transition",
+    { "4:3 App -> Home Transition",
         2048, 1536, { 1536 },
         {
             {   // Wallpaper
@@ -173,7 +173,7 @@ static const BenchmarkDesc benchmarks[] = {
         },
     },
 
-    { "3:2 SurfaceView -> Home Transition",
+    { "4:3 SurfaceView -> Home Transition",
         2048, 1536, { 1536 },
         {
             {   // Wallpaper
