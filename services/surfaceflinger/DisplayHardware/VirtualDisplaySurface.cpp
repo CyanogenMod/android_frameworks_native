@@ -175,9 +175,12 @@ void VirtualDisplaySurface::onFrameCommitted() {
         sp<Fence> outFence = mHwc.getLastRetireFence(mDisplayId);
         VDS_LOGV("onFrameCommitted: queue sink sslot=%d", sslot);
         status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
-                QueueBufferInput(systemTime(), false,
+                QueueBufferInput(
+                    systemTime(), false /* isAutoTimestamp */,
                     Rect(mSinkBufferWidth, mSinkBufferHeight),
-                    NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, outFence),
+                    NATIVE_WINDOW_SCALING_MODE_FREEZE, 0 /* transform */,
+                    true /* async*/,
+                    outFence),
                 &qbo);
         if (result == NO_ERROR) {
             updateQueueBufferOutput(qbo);
@@ -205,7 +208,10 @@ status_t VirtualDisplaySurface::setBufferCount(int bufferCount) {
 }
 
 status_t VirtualDisplaySurface::dequeueBuffer(Source source,
-        uint32_t format, int* sslot, sp<Fence>* fence, bool async) {
+        uint32_t format, int* sslot, sp<Fence>* fence) {
+    // Don't let a slow consumer block us
+    bool async = (source == SOURCE_SINK);
+
     status_t result = mSource[source]->dequeueBuffer(sslot, fence, async,
             mSinkBufferWidth, mSinkBufferHeight, format, mProducerUsage);
     if (result < 0)
@@ -244,6 +250,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
             "Unexpected dequeueBuffer() in %s state", dbgStateStr());
     mDbgState = DBG_STATE_GLES;
 
+    VDS_LOGW_IF(!async, "EGL called dequeueBuffer with !async despite eglSwapInterval(0)");
     VDS_LOGV("dequeueBuffer %dx%d fmt=%d usage=%#x", w, h, format, usage);
 
     status_t result = NO_ERROR;
@@ -275,7 +282,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
         *fence = mOutputFence;
     } else {
         int sslot;
-        result = dequeueBuffer(source, format, &sslot, fence, async);
+        result = dequeueBuffer(source, format, &sslot, fence);
         if (result >= 0) {
             *pslot = mapSource2ProducerSlot(source, sslot);
         }
@@ -391,7 +398,7 @@ status_t VirtualDisplaySurface::refreshOutputBuffer() {
     }
 
     int sslot;
-    status_t result = dequeueBuffer(SOURCE_SINK, 0, &sslot, &mOutputFence, false);
+    status_t result = dequeueBuffer(SOURCE_SINK, 0, &sslot, &mOutputFence);
     if (result < 0)
         return result;
     mOutputProducerSlot = mapSource2ProducerSlot(SOURCE_SINK, sslot);

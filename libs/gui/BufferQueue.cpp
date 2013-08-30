@@ -637,7 +637,8 @@ void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
 
 status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBufferOutput* output) {
     ATRACE_CALL();
-    ST_LOGV("connect: api=%d", api);
+    ST_LOGV("connect: api=%d producerControlledByApp=%s", api,
+            producerControlledByApp ? "true" : "false");
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
@@ -1001,7 +1002,8 @@ status_t BufferQueue::releaseBuffer(
 
 status_t BufferQueue::consumerConnect(const sp<IConsumerListener>& consumerListener,
         bool controlledByApp) {
-    ST_LOGV("consumerConnect");
+    ST_LOGV("consumerConnect controlledByApp=%s",
+            controlledByApp ? "true" : "false");
     Mutex::Autolock lock(mMutex);
 
     if (mAbandoned) {
