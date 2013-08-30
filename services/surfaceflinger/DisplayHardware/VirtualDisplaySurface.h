@@ -110,7 +110,7 @@ private:
     //
     static Source fbSourceForCompositionType(CompositionType type);
     status_t dequeueBuffer(Source source, uint32_t format,
-            int* sslot, sp<Fence>* fence, bool async);
+            int* sslot, sp<Fence>* fence);
     void updateQueueBufferOutput(const QueueBufferOutput& qbo);
     void resetPerFrameState();
     status_t refreshOutputBuffer();
