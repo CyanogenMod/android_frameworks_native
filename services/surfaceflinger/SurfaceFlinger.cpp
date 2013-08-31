@@ -1457,17 +1457,24 @@ void SurfaceFlinger::computeVisibleRegions(size_t dpy,
 
     outDirtyRegion.clear();
     bool bIgnoreLayers = false;
-    int extOnlyLayerIndex = -1;
+    int indexLOI = -1;
     size_t i = currentLayers.size();
 #ifdef QCOM_BSP
     while (i--) {
         const sp<Layer>& layer = currentLayers[i];
         // iterate through the layer list to find ext_only layers and store
         // the index
-        if ((dpy && layer->isExtOnly())) {
+        if (layer->isSecureDisplay()) {
             bIgnoreLayers = true;
-            extOnlyLayerIndex = i;
+            indexLOI = -1;
+            if(!dpy)
+                indexLOI = i;
             break;
+        }
+
+        if (dpy && layer->isExtOnly()) {
+            bIgnoreLayers = true;
+            indexLOI = i;
         }
     }
     i = currentLayers.size();
@@ -1481,7 +1488,9 @@ void SurfaceFlinger::computeVisibleRegions(size_t dpy,
         // Only add the layer marked as "external_only" to external list and
         // only remove the layer marked as "external_only" from primary list
         // and do not add the layer marked as "internal_only" to external list
-        if((bIgnoreLayers && extOnlyLayerIndex != (int)i) ||
+        // Add secure UI layers to primary and remove other layers from internal
+        //and external list
+        if((bIgnoreLayers && indexLOI != (int)i) ||
            (!dpy && layer->isExtOnly()) ||
            (dpy && layer->isIntOnly())) {
             // Ignore all other layers except the layers marked as ext_only
@@ -2963,6 +2972,12 @@ void SurfaceFlinger::renderScreenImplLocked(
         const Layer::State& state(layer->drawingState());
         if (state.layerStack == hw->getLayerStack()) {
             if (state.z >= minLayerZ && state.z <= maxLayerZ) {
+#ifdef QCOM_BSP
+                // dont render the secure Display Layer
+                if(layer->isSecureDisplay()) {
+                    continue;
+                }
+#endif
                 if (layer->isVisible()) {
                     if (filtering) layer->setFiltering(true);
                     layer->draw(hw);
