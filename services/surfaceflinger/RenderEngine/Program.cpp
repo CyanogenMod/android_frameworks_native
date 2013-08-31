@@ -129,7 +129,7 @@ void Program::setUniforms(const Description& desc) {
 
     if (mSamplerLoc >= 0) {
         glUniform1i(mSamplerLoc, 0);
-        glUniformMatrix4fv(mTextureMatrixLoc, 1, GL_FALSE, desc.mTexture.getMatrix());
+        glUniformMatrix4fv(mTextureMatrixLoc, 1, GL_FALSE, desc.mTexture.getMatrix().asArray());
     }
     if (mAlphaPlaneLoc >= 0) {
         glUniform1f(mAlphaPlaneLoc, desc.mPlaneAlpha);
@@ -138,7 +138,7 @@ void Program::setUniforms(const Description& desc) {
         glUniform4fv(mColorLoc, 1, desc.mColor);
     }
     // these uniforms are always present
-    glUniformMatrix4fv(mProjectionMatrixLoc, 1, GL_FALSE, desc.mProjectionMatrix);
+    glUniformMatrix4fv(mProjectionMatrixLoc, 1, GL_FALSE, desc.mProjectionMatrix.asArray());
 }
 
 } /* namespace android */

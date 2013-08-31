@@ -4,9 +4,12 @@ include $(CLEAR_VARS)
 
 # Build the unit tests.
 test_src_files := \
-    Region_test.cpp
+    Region_test.cpp \
+    vec_test.cpp \
+    mat_test.cpp
 
 shared_libraries := \
+    libutils \
     libui
 
 static_libraries := \

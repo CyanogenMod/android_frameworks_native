@@ -49,7 +49,7 @@ class Description {
     // color used when texturing is disabled
     GLclampf mColor[4];
     // projection matrix
-    GLfloat mProjectionMatrix[16];
+    mat4 mProjectionMatrix;
 
 public:
     Description();
@@ -61,7 +61,7 @@ public:
     void setTexture(const Texture& texture);
     void disableTexture();
     void setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-    void setProjectionMatrix(GLfloat const* mtx);
+    void setProjectionMatrix(const mat4& mtx);
 
 private:
     bool mUniformsDirty;

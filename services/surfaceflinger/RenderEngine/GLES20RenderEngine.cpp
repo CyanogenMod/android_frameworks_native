@@ -76,25 +76,9 @@ size_t GLES20RenderEngine::getMaxViewportDims() const {
 
 void GLES20RenderEngine::setViewportAndProjection(
         size_t vpw, size_t vph, size_t w, size_t h, bool yswap) {
-
-    struct ortho {
-        inline void operator() (GLfloat *m,
-                GLfloat left, GLfloat right, GLfloat bottom, GLfloat top,
-                GLfloat near, GLfloat far) const {
-            memset(m, 0, 16*sizeof(GLfloat));
-            m[ 0] = 2.0f / (right - left);
-            m[ 5] = 2.0f / (top   - bottom);
-            m[10] =-2.0f / (far   - near);
-            m[15] = 1.0f;
-            m[12] = -(right + left) / (right - left);
-            m[13] = -(top + bottom) / (top - bottom);
-            m[14] = -(far + near) / (far - near);
-        }
-    } ortho;
-
-    GLfloat m[16];
-    if (yswap)  ortho(m, 0, w, h, 0, 0, 1);
-    else        ortho(m, 0, w, 0, h, 0, 1);
+    mat4 m;
+    if (yswap)  m = mat4::ortho(0, w, h, 0, 0, 1);
+    else        m = mat4::ortho(0, w, 0, h, 0, 1);
 
     glViewport(0, 0, vpw, vph);
     mState.setProjectionMatrix(m);
