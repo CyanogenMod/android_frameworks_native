@@ -160,7 +160,7 @@ void GLES11RenderEngine::setupLayerTexturing(const Texture& texture) {
     glTexParameterx(target, GL_TEXTURE_MAG_FILTER, filter);
     glTexParameterx(target, GL_TEXTURE_MIN_FILTER, filter);
     glMatrixMode(GL_TEXTURE);
-    glLoadMatrixf(texture.getMatrix());
+    glLoadMatrixf(texture.getMatrix().asArray());
     glMatrixMode(GL_MODELVIEW);
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_TEXTURE_EXTERNAL_OES);

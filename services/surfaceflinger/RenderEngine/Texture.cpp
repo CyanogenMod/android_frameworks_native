@@ -23,15 +23,11 @@ namespace android {
 Texture::Texture() :
     mTextureName(0), mTextureTarget(TEXTURE_2D),
     mWidth(0), mHeight(0), mFiltering(false) {
-    const float m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
-    memcpy(mTextureMatrix, m, sizeof(mTextureMatrix));
 }
 
 Texture::Texture(Target textureTarget, uint32_t textureName) :
             mTextureName(textureName), mTextureTarget(textureTarget),
             mWidth(0), mHeight(0), mFiltering(false) {
-    const float m[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
-    memcpy(mTextureMatrix, m, sizeof(mTextureMatrix));
 }
 
 void Texture::init(Target textureTarget, uint32_t textureName) {
@@ -44,7 +40,7 @@ Texture::~Texture() {
 
 
 void Texture::setMatrix(float const* matrix) {
-    memcpy(mTextureMatrix, matrix, sizeof(mTextureMatrix));
+    mTextureMatrix = mat4(matrix);
 }
 
 void Texture::setFiltering(bool enabled) {
@@ -64,7 +60,7 @@ uint32_t Texture::getTextureTarget() const {
     return mTextureTarget;
 }
 
-float const* Texture::getMatrix() const {
+const mat4& Texture::getMatrix() const {
     return mTextureMatrix;
 }
 
