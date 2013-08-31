@@ -1292,6 +1292,18 @@ bool Layer::isIntOnly() const
     }
     return false;
 }
+
+bool Layer::isSecureDisplay() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_SECURE_DISPLAY)
+            return true;
+    }
+    return false;
+}
+
 #endif
 // ---------------------------------------------------------------------------
 }; // namespace android

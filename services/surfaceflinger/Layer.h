@@ -266,6 +266,7 @@ public:
 #ifdef QCOM_BSP
     virtual bool isExtOnly() const;
     virtual bool isIntOnly() const;
+    virtual bool isSecureDisplay() const;
 #endif
 
     /*
