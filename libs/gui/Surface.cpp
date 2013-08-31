@@ -832,6 +832,7 @@ status_t Surface::lock(
 #ifdef QCOM_BSP
         setUsage(mReqUsage & GRALLOC_USAGE_PRIVATE_EXTERNAL_ONLY |
                 mReqUsage & GRALLOC_USAGE_PRIVATE_INTERNAL_ONLY |
+                mReqUsage & GRALLOC_USAGE_PRIVATE_SECURE_DISPLAY |
                     GRALLOC_USAGE_SW_READ_OFTEN |
                     GRALLOC_USAGE_SW_WRITE_OFTEN);
 #else
