@@ -57,16 +57,16 @@ struct Impersonator {
 };
 
 /*
- * TVecArithmeticOperators implements basic arithmetic and basic compound assignments
+ * TVec{Add|Product}Operators implements basic arithmetic and basic compound assignments
  * operators on a vector of type BASE<T>.
  *
  * BASE only needs to implement operator[] and size().
- * By simply inheriting from TVecArithmeticOperators<BASE, T> BASE will automatically
+ * By simply inheriting from TVec{Add|Product}Operators<BASE, T> BASE will automatically
  * get all the functionality here.
  */
 
 template <template<typename T> class BASE, typename T>
-class TVecArithmeticOperators {
+class TVecAddOperators {
 public:
     /* compound assignment from a another vector of the same size but different
      * element type.
@@ -84,22 +84,6 @@ public:
         BASE<T>& rhs = static_cast<BASE<T>&>(*this);
         for (size_t i=0 ; i<BASE<T>::size() ; i++) {
             rhs[i] -= v[i];
-        }
-        return rhs;
-    }
-    template <typename OTHER>
-    BASE<T>& operator *= (const BASE<OTHER>& v) {
-        BASE<T>& rhs = static_cast<BASE<T>&>(*this);
-        for (size_t i=0 ; i<BASE<T>::size() ; i++) {
-            rhs[i] *= v[i];
-        }
-        return rhs;
-    }
-    template <typename OTHER>
-    BASE<T>& operator /= (const BASE<OTHER>& v) {
-        BASE<T>& rhs = static_cast<BASE<T>&>(*this);
-        for (size_t i=0 ; i<BASE<T>::size() ; i++) {
-            rhs[i] /= v[i];
         }
         return rhs;
     }
@@ -123,6 +107,73 @@ public:
         }
         return rhs;
     }
+
+    /*
+     * NOTE: the functions below ARE NOT member methods. They are friend functions
+     * with they definition inlined with their declaration. This makes these
+     * template functions available to the compiler when (and only when) this class
+     * is instantiated, at which point they're only templated on the 2nd parameter
+     * (the first one, BASE<T> being known).
+     */
+
+    /* The operators below handle operation between vectors of the same side
+     * but of a different element type.
+     */
+    template<typename RT>
+    friend inline
+    BASE<T> PURE operator +(const BASE<T>& lv, const BASE<RT>& rv) {
+        return BASE<T>(lv) += rv;
+    }
+    template<typename RT>
+    friend inline
+    BASE<T> PURE operator -(const BASE<T>& lv, const BASE<RT>& rv) {
+        return BASE<T>(lv) -= rv;
+    }
+
+    /* The operators below (which are not templates once this class is instanced,
+     * i.e.: BASE<T> is known) can be used for implicit conversion on both sides.
+     * These handle operations like "vector * scalar" and "scalar * vector" by
+     * letting the compiler implicitly convert a scalar to a vector (assuming
+     * the BASE<T> allows it).
+     */
+    friend inline
+    BASE<T> PURE operator +(const BASE<T>& lv, const BASE<T>& rv) {
+        return BASE<T>(lv) += rv;
+    }
+    friend inline
+    BASE<T> PURE operator -(const BASE<T>& lv, const BASE<T>& rv) {
+        return BASE<T>(lv) -= rv;
+    }
+};
+
+template <template<typename T> class BASE, typename T>
+class TVecProductOperators {
+public:
+    /* compound assignment from a another vector of the same size but different
+     * element type.
+     */
+    template <typename OTHER>
+    BASE<T>& operator *= (const BASE<OTHER>& v) {
+        BASE<T>& rhs = static_cast<BASE<T>&>(*this);
+        for (size_t i=0 ; i<BASE<T>::size() ; i++) {
+            rhs[i] *= v[i];
+        }
+        return rhs;
+    }
+    template <typename OTHER>
+    BASE<T>& operator /= (const BASE<OTHER>& v) {
+        BASE<T>& rhs = static_cast<BASE<T>&>(*this);
+        for (size_t i=0 ; i<BASE<T>::size() ; i++) {
+            rhs[i] /= v[i];
+        }
+        return rhs;
+    }
+
+    /* compound assignment from a another vector of the same type.
+     * These operators can be used for implicit conversion and  handle operations
+     * like "vector *= scalar" by letting the compiler implicitly convert a scalar
+     * to a vector (assuming the BASE<T> allows it).
+     */
     BASE<T>& operator *= (const BASE<T>& v) {
         BASE<T>& rhs = static_cast<BASE<T>&>(*this);
         for (size_t i=0 ; i<BASE<T>::size() ; i++) {
@@ -151,16 +202,6 @@ public:
      */
     template<typename RT>
     friend inline
-    BASE<T> PURE operator +(const BASE<T>& lv, const BASE<RT>& rv) {
-        return BASE<T>(lv) += rv;
-    }
-    template<typename RT>
-    friend inline
-    BASE<T> PURE operator -(const BASE<T>& lv, const BASE<RT>& rv) {
-        return BASE<T>(lv) -= rv;
-    }
-    template<typename RT>
-    friend inline
     BASE<T> PURE operator *(const BASE<T>& lv, const BASE<RT>& rv) {
         return BASE<T>(lv) *= rv;
     }
@@ -176,14 +217,6 @@ public:
      * letting the compiler implicitly convert a scalar to a vector (assuming
      * the BASE<T> allows it).
      */
-    friend inline
-    BASE<T> PURE operator +(const BASE<T>& lv, const BASE<T>& rv) {
-        return BASE<T>(lv) += rv;
-    }
-    friend inline
-    BASE<T> PURE operator -(const BASE<T>& lv, const BASE<T>& rv) {
-        return BASE<T>(lv) -= rv;
-    }
     friend inline
     BASE<T> PURE operator *(const BASE<T>& lv, const BASE<T>& rv) {
         return BASE<T>(lv) *= rv;
