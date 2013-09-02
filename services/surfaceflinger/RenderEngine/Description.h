@@ -51,6 +51,9 @@ class Description {
     // projection matrix
     mat4 mProjectionMatrix;
 
+    bool mColorMatrixEnabled;
+    mat4 mColorMatrix;
+
 public:
     Description();
     ~Description();
@@ -62,6 +65,7 @@ public:
     void disableTexture();
     void setColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     void setProjectionMatrix(const mat4& mtx);
+    void setColorMatrix(const mat4& mtx);
 
 private:
     bool mUniformsDirty;

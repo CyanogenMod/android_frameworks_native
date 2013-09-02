@@ -29,9 +29,10 @@ namespace android {
 Description::Description() :
     mUniformsDirty(true) {
     mPlaneAlpha = 1.0f;
-    mPremultipliedAlpha = true;
+    mPremultipliedAlpha = false;
     mOpaque = true;
     mTextureEnabled = false;
+    mColorMatrixEnabled = false;
 
     memset(mColor, 0, sizeof(mColor));
 }
@@ -80,5 +81,12 @@ void Description::setProjectionMatrix(const mat4& mtx) {
     mProjectionMatrix = mtx;
     mUniformsDirty = true;
 }
+
+void Description::setColorMatrix(const mat4& mtx) {
+    const mat4 identity;
+    mColorMatrix = mtx;
+    mColorMatrixEnabled = (mtx != identity);
+}
+
 
 } /* namespace android */

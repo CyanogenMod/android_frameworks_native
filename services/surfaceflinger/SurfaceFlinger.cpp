@@ -68,7 +68,10 @@
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/VirtualDisplaySurface.h"
 
+#include "Effects/Daltonizer.h"
+
 #include "RenderEngine/RenderEngine.h"
+#include <cutils/compiler.h>
 
 #define DISPLAY_COUNT       1
 
@@ -110,7 +113,8 @@ SurfaceFlinger::SurfaceFlinger()
         mLastSwapBufferTime(0),
         mDebugInTransaction(0),
         mLastTransactionTime(0),
-        mBootFinished(false)
+        mBootFinished(false),
+        mDaltonize(false)
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -865,7 +869,7 @@ void SurfaceFlinger::setUpHWComposer() {
                         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
                             const sp<Layer>& layer(currentLayers[i]);
                             layer->setGeometry(hw, *cur);
-                            if (mDebugDisableHWC || mDebugRegion) {
+                            if (mDebugDisableHWC || mDebugRegion || mDaltonize) {
                                 cur->setSkip(true);
                             }
                         }
@@ -1479,7 +1483,14 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         }
     }
 
-    doComposeSurfaces(hw, dirtyRegion);
+    if (CC_LIKELY(!mDaltonize)) {
+        doComposeSurfaces(hw, dirtyRegion);
+    } else {
+        RenderEngine& engine(getRenderEngine());
+        engine.beginGroup(mDaltonizer());
+        doComposeSurfaces(hw, dirtyRegion);
+        engine.endGroup();
+    }
 
     // update the swap region and clear the dirty region
     hw->swapRegion.orSelf(dirtyRegion);
@@ -2360,7 +2371,7 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     colorizer.reset(result);
     result.appendFormat("  h/w composer %s and %s\n",
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
-                    (mDebugDisableHWC || mDebugRegion) ? "disabled" : "enabled");
+                    (mDebugDisableHWC || mDebugRegion || mDaltonize) ? "disabled" : "enabled");
     hwc.dump(result);
 
     /*
@@ -2505,6 +2516,24 @@ status_t SurfaceFlinger::onTransact(
                 Mutex::Autolock _l(mStateLock);
                 sp<const DisplayDevice> hw(getDefaultDisplayDevice());
                 reply->writeInt32(hw->getPageFlipCount());
+                return NO_ERROR;
+            }
+            case 1014: {
+                // daltonize
+                n = data.readInt32();
+                switch (n % 10) {
+                    case 1: mDaltonizer.setType(Daltonizer::protanomaly);   break;
+                    case 2: mDaltonizer.setType(Daltonizer::deuteranomaly); break;
+                    case 3: mDaltonizer.setType(Daltonizer::tritanomaly);   break;
+                }
+                if (n >= 10) {
+                    mDaltonizer.setMode(Daltonizer::correction);
+                } else {
+                    mDaltonizer.setMode(Daltonizer::simulation);
+                }
+                mDaltonize = n > 0;
+                invalidateHwcGeometry();
+                repaintEverything();
             }
             return NO_ERROR;
         }

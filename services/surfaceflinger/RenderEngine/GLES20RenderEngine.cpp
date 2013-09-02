@@ -35,7 +35,8 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-GLES20RenderEngine::GLES20RenderEngine() {
+GLES20RenderEngine::GLES20RenderEngine() :
+        mVpWidth(0), mVpHeight(0) {
 
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
@@ -58,6 +59,8 @@ GLES20RenderEngine::GLES20RenderEngine() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0,
             GL_RGB, GL_UNSIGNED_SHORT_5_6_5, protTexData);
+
+    //mColorBlindnessCorrection = M;
 }
 
 GLES20RenderEngine::~GLES20RenderEngine() {
@@ -82,6 +85,8 @@ void GLES20RenderEngine::setViewportAndProjection(
 
     glViewport(0, 0, vpw, vph);
     mState.setProjectionMatrix(m);
+    mVpWidth = vpw;
+    mVpHeight = vph;
 }
 
 void GLES20RenderEngine::setupLayerBlending(
@@ -156,8 +161,7 @@ void GLES20RenderEngine::bindImageAsFramebuffer(EGLImageKHR image,
     // create a Framebuffer Object to render into
     glGenFramebuffers(1, &name);
     glBindFramebuffer(GL_FRAMEBUFFER, name);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
 
     *status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     *texName = tname;
@@ -203,6 +207,78 @@ void GLES20RenderEngine::drawMesh(const Mesh& mesh) {
     if (mesh.getTexCoordsSize()) {
         glDisableVertexAttribArray(Program::texCoords);
     }
+}
+
+void GLES20RenderEngine::beginGroup(const mat4& colorTransform) {
+
+    GLuint tname, name;
+    // create the texture
+    glGenTextures(1, &tname);
+    glBindTexture(GL_TEXTURE_2D, tname);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mVpWidth, mVpHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+    // create a Framebuffer Object to render into
+    glGenFramebuffers(1, &name);
+    glBindFramebuffer(GL_FRAMEBUFFER, name);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tname, 0);
+
+    Group group;
+    group.texture = tname;
+    group.fbo = name;
+    group.width = mVpWidth;
+    group.height = mVpHeight;
+    group.colorTransform = colorTransform;
+
+    mGroupStack.push(group);
+}
+
+void GLES20RenderEngine::endGroup() {
+
+    const Group group(mGroupStack.top());
+    mGroupStack.pop();
+
+    // activate the previous render target
+    GLuint fbo = 0;
+    if (!mGroupStack.isEmpty()) {
+        fbo = mGroupStack.top().fbo;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // set our state
+    Texture texture(Texture::TEXTURE_2D, group.texture);
+    texture.setDimensions(group.width, group.height);
+    glBindTexture(GL_TEXTURE_2D, group.texture);
+
+    mState.setPlaneAlpha(1.0f);
+    mState.setPremultipliedAlpha(true);
+    mState.setOpaque(false);
+    mState.setTexture(texture);
+    mState.setColorMatrix(group.colorTransform);
+    glDisable(GL_BLEND);
+
+    Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2, 2);
+    Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
+    Mesh::VertexArray<vec2> texCoord(mesh.getTexCoordArray<vec2>());
+    position[0] = vec2(0, 0);
+    position[1] = vec2(group.width, 0);
+    position[2] = vec2(group.width, group.height);
+    position[3] = vec2(0, group.height);
+    texCoord[0] = vec2(0, 0);
+    texCoord[1] = vec2(1, 0);
+    texCoord[2] = vec2(1, 1);
+    texCoord[3] = vec2(0, 1);
+    drawMesh(mesh);
+
+    // reset color matrix
+    mState.setColorMatrix(mat4());
+
+    // free our fbo and texture
+    glDeleteFramebuffers(1, &group.fbo);
+    glDeleteTextures(1, &group.texture);
 }
 
 void GLES20RenderEngine::dump(String8& result) {

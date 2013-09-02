@@ -17,6 +17,7 @@ LOCAL_SRC_FILES:= \
     DisplayHardware/HWComposer.cpp \
     DisplayHardware/PowerHAL.cpp \
     DisplayHardware/VirtualDisplaySurface.cpp \
+    Effects/Daltonizer.cpp \
     EventLog/EventLogTags.logtags \
     EventLog/EventLog.cpp \
     RenderEngine/Description.cpp \
