@@ -33,7 +33,11 @@ namespace android {
 
 template <typename T>
 class tmat44 :  public TVecUnaryOperators<tmat44, T>,
-                public TVecComparisonOperators<tmat44, T>
+                public TVecComparisonOperators<tmat44, T>,
+                public TVecAddOperators<tmat44, T>,
+                public TMatProductOperators<tmat44, T>,
+                public TMatSquareFunctions<tmat44, T>,
+                public TMatDebug<tmat44, T>
 {
 public:
     enum no_init { NO_INIT };
@@ -108,6 +112,17 @@ public:
     template <typename A, typename B, typename C, typename D>
     tmat44(const tvec4<A>& v0, const tvec4<B>& v1, const tvec4<C>& v2, const tvec4<D>& v3);
 
+    // construct from 16 scalars
+    template <
+        typename A, typename B, typename C, typename D,
+        typename E, typename F, typename G, typename H,
+        typename I, typename J, typename K, typename L,
+        typename M, typename N, typename O, typename P>
+    tmat44( A m00, B m01, C m02, D m03,
+            E m10, F m11, G m12, H m13,
+            I m20, J m21, K m22, L m23,
+            M m30, N m31, O m32, P m33);
+
     // construct from a C array
     template <typename U>
     explicit tmat44(U const* rawArray);
@@ -131,33 +146,6 @@ public:
 
     template <typename A, typename B>
     static tmat44 rotate(A radian, const tvec3<B>& about);
-
-
-    /*
-     * Compound assignment arithmetic operators
-     */
-
-    // add another matrix of the same size
-    template <typename U>
-    tmat44& operator += (const tmat44<U>& v);
-
-    // subtract another matrix of the same size
-    template <typename U>
-    tmat44& operator -= (const tmat44<U>& v);
-
-    // multiply by a scalar
-    template <typename U>
-    tmat44& operator *= (U v);
-
-    // divide by a scalar
-    template <typename U>
-    tmat44& operator /= (U v);
-
-    /*
-     * debugging
-     */
-
-    String8 asString() const;
 };
 
 // ----------------------------------------------------------------------------------------
@@ -193,6 +181,23 @@ tmat44<T>::tmat44(const tvec4<U>& v) {
     mValue[1] = col_type(0,v.y,0,0);
     mValue[2] = col_type(0,0,v.z,0);
     mValue[3] = col_type(0,0,0,v.w);
+}
+
+// construct from 16 scalars
+template<typename T>
+template <
+    typename A, typename B, typename C, typename D,
+    typename E, typename F, typename G, typename H,
+    typename I, typename J, typename K, typename L,
+    typename M, typename N, typename O, typename P>
+tmat44<T>::tmat44(  A m00, B m01, C m02, D m03,
+                    E m10, F m11, G m12, H m13,
+                    I m20, J m21, K m22, L m23,
+                    M m30, N m31, O m32, P m33) {
+    mValue[0] = col_type(m00, m01, m02, m03);
+    mValue[1] = col_type(m10, m11, m12, m13);
+    mValue[2] = col_type(m20, m21, m22, m23);
+    mValue[3] = col_type(m30, m31, m32, m33);
 }
 
 template <typename T>
@@ -320,42 +325,6 @@ tmat44<T> tmat44<T>::rotate(A radian, const tvec3<B>& about) {
 }
 
 // ----------------------------------------------------------------------------------------
-// Compound assignment arithmetic operators
-// ----------------------------------------------------------------------------------------
-
-template <typename T>
-template <typename U>
-tmat44<T>& tmat44<T>::operator += (const tmat44<U>& v) {
-    for (size_t r=0 ; r<row_size() ; r++)
-        mValue[r] += v[r];
-    return *this;
-}
-
-template <typename T>
-template <typename U>
-tmat44<T>& tmat44<T>::operator -= (const tmat44<U>& v) {
-    for (size_t r=0 ; r<row_size() ; r++)
-        mValue[r] -= v[r];
-    return *this;
-}
-
-template <typename T>
-template <typename U>
-tmat44<T>& tmat44<T>::operator *= (U v) {
-    for (size_t r=0 ; r<row_size() ; r++)
-        mValue[r] *= v;
-    return *this;
-}
-
-template <typename T>
-template <typename U>
-tmat44<T>& tmat44<T>::operator /= (U v) {
-    for (size_t r=0 ; r<row_size() ; r++)
-        mValue[r] /= v;
-    return *this;
-}
-
-// ----------------------------------------------------------------------------------------
 // Arithmetic operators outside of class
 // ----------------------------------------------------------------------------------------
 
@@ -366,24 +335,6 @@ tmat44<T>& tmat44<T>::operator /= (U v) {
  * Also note that the order of the arguments in the inner loop is important since
  * it determines the output type (only relevant when T != U).
  */
-
-// matrix + matrix, result is a matrix of the same type than the lhs matrix
-template <typename T, typename U>
-tmat44<T> PURE operator +(const tmat44<T>& lhs, const tmat44<U>& rhs) {
-    tmat44<T> result(tmat44<T>::NO_INIT);
-    for (size_t r=0 ; r<tmat44<T>::row_size() ; r++)
-        result[r] = lhs[r] + rhs[r];
-    return result;
-}
-
-// matrix - matrix, result is a matrix of the same type than the lhs matrix
-template <typename T, typename U>
-tmat44<T> PURE operator -(const tmat44<T>& lhs, const tmat44<U>& rhs) {
-    tmat44<T> result(tmat44<T>::NO_INIT);
-    for (size_t r=0 ; r<tmat44<T>::row_size() ; r++)
-        result[r] = lhs[r] - rhs[r];
-    return result;
-}
 
 // matrix * vector, result is a vector of the same type than the input vector
 template <typename T, typename U>
@@ -421,44 +372,14 @@ tmat44<T> PURE operator *(U rv, const tmat44<T>& lv) {
     return result;
 }
 
-// matrix * matrix, result is a matrix of the same type than the lhs matrix
-template <typename T, typename U>
-tmat44<T> PURE operator *(const tmat44<T>& lhs, const tmat44<U>& rhs) {
-    return matrix::multiply< tmat44<T> >(lhs, rhs);
-}
-
-// ----------------------------------------------------------------------------------------
-// Functions
 // ----------------------------------------------------------------------------------------
 
-// inverse a matrix
-template <typename T>
-tmat44<T> PURE inverse(const tmat44<T>& m) {
-    return matrix::inverse(m);
-}
-
-template <typename T>
-tmat44<T> PURE transpose(const tmat44<T>& m) {
-    return matrix::transpose(m);
-}
-
-template <typename T>
-T PURE trace(const tmat44<T>& m) {
-    return matrix::trace(m);
-}
-
-template <typename T>
-tvec4<T> PURE diag(const tmat44<T>& m) {
+/* FIXME: this should go into TMatSquareFunctions<> but for some reason
+ * BASE<T>::col_type is not accessible from there (???)
+ */
+template<typename T>
+typename tmat44<T>::col_type PURE diag(const tmat44<T>& m) {
     return matrix::diag(m);
-}
-
-// ----------------------------------------------------------------------------------------
-// Debugging
-// ----------------------------------------------------------------------------------------
-
-template <typename T>
-String8 tmat44<T>::asString() const {
-    return matrix::asString(*this);
 }
 
 // ----------------------------------------------------------------------------------------
