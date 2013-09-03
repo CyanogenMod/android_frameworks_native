@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <math.h>
 #include <utils/Debug.h>
 #include <utils/String8.h>
 
@@ -170,6 +171,83 @@ String8 asString(const MATRIX& m) {
 }
 
 }; // namespace matrix
+
+// -------------------------------------------------------------------------------------
+
+/*
+ * TMatProductOperators implements basic arithmetic and basic compound assignments
+ * operators on a vector of type BASE<T>.
+ *
+ * BASE only needs to implement operator[] and size().
+ * By simply inheriting from TMatProductOperators<BASE, T> BASE will automatically
+ * get all the functionality here.
+ */
+
+template <template<typename T> class BASE, typename T>
+class TMatProductOperators {
+public:
+    // multiply by a scalar
+    BASE<T>& operator *= (T v) {
+        BASE<T>& lhs(static_cast< BASE<T>& >(*this));
+        for (size_t r=0 ; r<lhs.row_size() ; r++) {
+            lhs[r] *= v;
+        }
+        return lhs;
+    }
+
+    // divide by a scalar
+    BASE<T>& operator /= (T v) {
+        BASE<T>& lhs(static_cast< BASE<T>& >(*this));
+        for (size_t r=0 ; r<lhs.row_size() ; r++) {
+            lhs[r] /= v;
+        }
+        return lhs;
+    }
+
+    // matrix * matrix, result is a matrix of the same type than the lhs matrix
+    template<typename U>
+    friend BASE<T> PURE operator *(const BASE<T>& lhs, const BASE<U>& rhs) {
+        return matrix::multiply<BASE<T> >(lhs, rhs);
+    }
+};
+
+
+/*
+ * TMatSquareFunctions implements functions on a matrix of type BASE<T>.
+ *
+ * BASE only needs to implement:
+ *  - operator[]
+ *  - col_type
+ *  - row_type
+ *  - COL_SIZE
+ *  - ROW_SIZE
+ *
+ * By simply inheriting from TMatSquareFunctions<BASE, T> BASE will automatically
+ * get all the functionality here.
+ */
+
+template<template<typename U> class BASE, typename T>
+class TMatSquareFunctions {
+public:
+    /*
+     * NOTE: the functions below ARE NOT member methods. They are friend functions
+     * with they definition inlined with their declaration. This makes these
+     * template functions available to the compiler when (and only when) this class
+     * is instantiated, at which point they're only templated on the 2nd parameter
+     * (the first one, BASE<T> being known).
+     */
+    friend BASE<T> PURE inverse(const BASE<T>& m)   { return matrix::inverse(m); }
+    friend BASE<T> PURE transpose(const BASE<T>& m) { return matrix::transpose(m); }
+    friend T       PURE trace(const BASE<T>& m)     { return matrix::trace(m); }
+};
+
+template <template<typename T> class BASE, typename T>
+class TMatDebug {
+public:
+    String8 asString() const {
+        return matrix::asString(*this);
+    }
+};
 
 // -------------------------------------------------------------------------------------
 }; // namespace android

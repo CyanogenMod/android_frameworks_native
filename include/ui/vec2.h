@@ -27,7 +27,8 @@ namespace android {
 // -------------------------------------------------------------------------------------
 
 template <typename T>
-class tvec2 :   public TVecArithmeticOperators<tvec2, T>,
+class tvec2 :   public TVecProductOperators<tvec2, T>,
+                public TVecAddOperators<tvec2, T>,
                 public TVecUnaryOperators<tvec2, T>,
                 public TVecComparisonOperators<tvec2, T>,
                 public TVecFunctions<tvec2, T>
@@ -73,6 +74,11 @@ public:
 
     template<typename A>
     explicit tvec2(const tvec2<A>& v) : x(v.x), y(v.y) { }
+
+    template<typename A>
+    tvec2(const Impersonator< tvec2<A> >& v)
+        : x(((const tvec2<A>&)v).x),
+          y(((const tvec2<A>&)v).y) { }
 };
 
 // ----------------------------------------------------------------------------------------
