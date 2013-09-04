@@ -68,8 +68,10 @@ public:
     status_t setEventRate(Sensor const* sensor, nsecs_t ns) const;
 
     // these are here only to support SensorManager.java
-    status_t enableSensor(int32_t handle, int32_t us) const;
+    status_t enableSensor(int32_t handle, int32_t samplingPeriodUs, int maxBatchReportLatencyUs,
+                          int reservedFlags) const;
     status_t disableSensor(int32_t handle) const;
+    status_t flushSensor(int32_t handle) const;
 
 private:
     sp<Looper> getLooper() const;

@@ -52,7 +52,6 @@ class SensorService :
 {
     friend class BinderService<SensorService>;
 
-    static const nsecs_t MINIMUM_EVENTS_PERIOD =   1000000; // 1000 Hz
     static const char* WAKE_LOCK_NAME;
 
     static char const* getServiceName() ANDROID_API { return "sensorservice"; }
@@ -74,8 +73,10 @@ class SensorService :
         virtual ~SensorEventConnection();
         virtual void onFirstRef();
         virtual sp<BitTube> getSensorChannel() const;
-        virtual status_t enableDisable(int handle, bool enabled);
-        virtual status_t setEventRate(int handle, nsecs_t ns);
+        virtual status_t enableDisable(int handle, bool enabled, nsecs_t samplingPeriodNs,
+                                       nsecs_t maxBatchReportLatencyNs, int reservedFlags);
+        virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
+        virtual status_t flushSensor(int handle);
 
         sp<SensorService> const mService;
         sp<BitTube> const mChannel;
@@ -141,9 +142,11 @@ class SensorService :
 
 public:
     void cleanupConnection(SensorEventConnection* connection);
-    status_t enable(const sp<SensorEventConnection>& connection, int handle);
+    status_t enable(const sp<SensorEventConnection>& connection, int handle,
+                    nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags);
     status_t disable(const sp<SensorEventConnection>& connection, int handle);
     status_t setEventRate(const sp<SensorEventConnection>& connection, int handle, nsecs_t ns);
+    status_t flushSensor(const sp<SensorEventConnection>& connection, int handle);
 };
 
 // ---------------------------------------------------------------------------

@@ -213,6 +213,11 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                         ? "on-demand         | "
                         : "one-shot          | ");
             }
+            if (s.getFifoMaxEventCount() > 0) {
+                result.appendFormat("getFifoMaxEventCount=%d events | ", s.getFifoMaxEventCount());
+            } else {
+                result.append("no batching support | ");
+            }
 
             switch (s.getType()) {
                 case SENSOR_TYPE_ROTATION_VECTOR:
@@ -384,7 +389,6 @@ bool SensorService::threadLoop()
 
         // We have read the data, upper layers should hold the wakelock.
         if (wakeLockAcquired) release_wake_lock(WAKE_LOCK_NAME);
-
     } while (count >= 0 || Thread::exitPending());
 
     ALOGW("Exiting SensorService::threadLoop => aborting...");
@@ -502,7 +506,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
-        int handle)
+        int handle, nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags)
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
@@ -511,7 +515,6 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     if (sensor == NULL) {
         return BAD_VALUE;
     }
-
     Mutex::Autolock _l(mLock);
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec == 0) {
@@ -548,10 +551,24 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             handle, connection.get());
     }
 
-    // we are setup, now enable the sensor.
-    status_t err = sensor->activate(connection.get(), true);
+    nsecs_t minDelayNs = sensor->getSensor().getMinDelayNs();
+    if (samplingPeriodNs < minDelayNs) {
+        samplingPeriodNs = minDelayNs;
+    }
+
+    ALOGD_IF(DEBUG_CONNECTIONS, "Calling batch handle==%d flags=%d rate=%lld timeout== %lld",
+             handle, reservedFlags, samplingPeriodNs, maxBatchReportLatencyNs);
+
+    status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
+                                 maxBatchReportLatencyNs);
+
+    if (err == NO_ERROR) {
+        ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
+        err = sensor->activate(connection.get(), true);
+    }
+
     if (err != NO_ERROR) {
-        // enable has failed, reset our state.
+        // batch/activate has failed, reset our state.
         cleanupWithoutDisableLocked(connection, handle);
     }
     return err;
@@ -618,12 +635,18 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
         ns = minDelayNs;
     }
 
-    if (ns < MINIMUM_EVENTS_PERIOD)
-        ns = MINIMUM_EVENTS_PERIOD;
-
     return sensor->setDelay(connection.get(), handle, ns);
 }
 
+status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
+                                    int handle) {
+  if (mInitCheck != NO_ERROR) return mInitCheck;
+  SensorInterface* sensor = mSensorMap.valueFor(handle);
+   if (sensor == NULL) {
+       return BAD_VALUE;
+  }
+  return sensor->flush(connection.get(), handle);
+}
 // ---------------------------------------------------------------------------
 
 SensorService::SensorRecord::SensorRecord(
@@ -707,11 +730,21 @@ status_t SensorService::SensorEventConnection::sendEvents(
         Mutex::Autolock _l(mConnectionLock);
         size_t i=0;
         while (i<numEvents) {
-            const int32_t curr = buffer[i].sensor;
-            if (mSensorInfo.indexOf(curr) >= 0) {
+            int32_t curr = buffer[i].sensor;
+            if (buffer[i].type == SENSOR_TYPE_META_DATA) {
+                ALOGD_IF(DEBUG_CONNECTIONS, "flush complete event sensor==%d ",
+                         buffer[i].meta_data.sensor);
+                // Setting curr to the correct sensor to ensure the sensor events per connection are
+                // filtered correctly. buffer[i].sensor is zero for meta_data events.
+                curr = buffer[i].meta_data.sensor;
+            }
+            if (mSensorInfo.indexOf(curr) >= 0)  {
                 do {
-                    scratch[count++] = buffer[i++];
-                } while ((i<numEvents) && (buffer[i].sensor == curr));
+                    scratch[count] = buffer[i];
+                    ++count; ++i;
+                } while ((i<numEvents) && ((buffer[i].sensor == curr) ||
+                         (buffer[i].type == SENSOR_TYPE_META_DATA  &&
+                          buffer[i].meta_data.sensor == curr)));
             } else {
                 i++;
             }
@@ -740,11 +773,13 @@ sp<BitTube> SensorService::SensorEventConnection::getSensorChannel() const
 }
 
 status_t SensorService::SensorEventConnection::enableDisable(
-        int handle, bool enabled)
+        int handle, bool enabled, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs,
+        int reservedFlags)
 {
     status_t err;
     if (enabled) {
-        err = mService->enable(this, handle);
+        err = mService->enable(this, handle, samplingPeriodNs, maxBatchReportLatencyNs,
+                               reservedFlags);
     } else {
         err = mService->disable(this, handle);
     }
@@ -752,11 +787,14 @@ status_t SensorService::SensorEventConnection::enableDisable(
 }
 
 status_t SensorService::SensorEventConnection::setEventRate(
-        int handle, nsecs_t ns)
+        int handle, nsecs_t samplingPeriodNs)
 {
-    return mService->setEventRate(this, handle, ns);
+    return mService->setEventRate(this, handle, samplingPeriodNs);
 }
 
+status_t  SensorService::SensorEventConnection::flushSensor(int handle) {
+    return mService->flushSensor(this, handle);
+}
 // ---------------------------------------------------------------------------
 }; // namespace android
 
