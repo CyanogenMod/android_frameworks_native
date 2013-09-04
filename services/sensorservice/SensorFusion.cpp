@@ -102,6 +102,15 @@ status_t SensorFusion::activate(void* ident, bool enabled) {
         }
     }
 
+    if (enabled) {
+        ALOGD("SensorFusion calling batch ident=%p ", ident);
+        // Activating a sensor in continuous mode is equivalent to calling batch with the default
+        // period and timeout equal to ZERO, followed by a call to activate.
+        mSensorDevice.batch(ident, mAcc.getHandle(), 0, DEFAULT_EVENTS_PERIOD, 0);
+        mSensorDevice.batch(ident, mMag.getHandle(), 0, DEFAULT_EVENTS_PERIOD, 0);
+        mSensorDevice.batch(ident, mGyro.getHandle(), 0, DEFAULT_EVENTS_PERIOD, 0);
+    }
+
     mSensorDevice.activate(ident, mAcc.getHandle(), enabled);
     mSensorDevice.activate(ident, mMag.getHandle(), enabled);
     mSensorDevice.activate(ident, mGyro.getHandle(), enabled);

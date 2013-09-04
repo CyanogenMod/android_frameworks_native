@@ -32,11 +32,11 @@ namespace android {
 Sensor::Sensor()
     : mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
-      mPower(0), mMinDelay(0)
+      mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0)
 {
 }
 
-Sensor::Sensor(struct sensor_t const* hwSensor)
+Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
 {
     mName = hwSensor->name;
     mVendor = hwSensor->vendor;
@@ -48,6 +48,15 @@ Sensor::Sensor(struct sensor_t const* hwSensor)
     mResolution = hwSensor->resolution;
     mPower = hwSensor->power;
     mMinDelay = hwSensor->minDelay;
+    // Set fifo event count zero for older devices which do not support batching. Fused
+    // sensors also have their fifo counts set to zero.
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_1) {
+        mFifoReservedEventCount = hwSensor->fifoReservedEventCount;
+        mFifoMaxEventCount = hwSensor->fifoMaxEventCount;
+    } else {
+        mFifoReservedEventCount = 0;
+        mFifoMaxEventCount = 0;
+    }
 }
 
 Sensor::~Sensor()
@@ -98,12 +107,20 @@ int32_t Sensor::getVersion() const {
     return mVersion;
 }
 
+int32_t Sensor::getFifoReservedEventCount() const {
+    return mFifoReservedEventCount;
+}
+
+int32_t Sensor::getFifoMaxEventCount() const {
+    return mFifoMaxEventCount;
+}
+
 size_t Sensor::getFlattenedSize() const
 {
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t);
+            sizeof(int32_t) * 3;
 
     size_t variableSize =
             sizeof(int32_t) + FlattenableUtils::align<4>(mName.length()) +
@@ -133,6 +150,8 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mResolution);
     FlattenableUtils::write(buffer, size, mPower);
     FlattenableUtils::write(buffer, size, mMinDelay);
+    FlattenableUtils::write(buffer, size, mFifoReservedEventCount);
+    FlattenableUtils::write(buffer, size, mFifoMaxEventCount);
     return NO_ERROR;
 }
 
@@ -163,7 +182,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t);
+            sizeof(int32_t) * 3;
 
     if (size < fixedSize) {
         return NO_MEMORY;
@@ -177,6 +196,8 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     FlattenableUtils::read(buffer, size, mResolution);
     FlattenableUtils::read(buffer, size, mPower);
     FlattenableUtils::read(buffer, size, mMinDelay);
+    FlattenableUtils::read(buffer, size, mFifoReservedEventCount);
+    FlattenableUtils::read(buffer, size, mFifoMaxEventCount);
     return NO_ERROR;
 }
 

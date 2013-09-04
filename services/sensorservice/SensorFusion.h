@@ -37,6 +37,7 @@ class SensorDevice;
 
 class SensorFusion : public Singleton<SensorFusion> {
     friend class Singleton<SensorFusion>;
+    static const nsecs_t DEFAULT_EVENTS_PERIOD = 200000000;  //  5 Hz
 
     SensorDevice& mSensorDevice;
     Sensor mAcc;
