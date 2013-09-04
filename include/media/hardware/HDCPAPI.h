@@ -57,6 +57,19 @@ struct HDCPModule {
         HDCP_SESSION_ESTABLISHED,
     };
 
+    // HDCPModule capability bit masks
+    enum {
+        // HDCP_CAPS_ENCRYPT: mandatory, meaning the HDCP module can encrypt
+        // from an input byte-array buffer to an output byte-array buffer
+        HDCP_CAPS_ENCRYPT = (1 << 0),
+        // HDCP_CAPS_ENCRYPT_NATIVE: the HDCP module supports encryption from
+        // a native buffer to an output byte-array buffer. The format of the
+        // input native buffer is specific to vendor's encoder implementation.
+        // It is the same format as that used by the encoder when
+        // "storeMetaDataInBuffers" extension is enabled on its output port.
+        HDCP_CAPS_ENCRYPT_NATIVE = (1 << 1),
+    };
+
     // Module can call the notification function to signal completion/failure
     // of asynchronous operations (such as initialization) or out of band
     // events.
