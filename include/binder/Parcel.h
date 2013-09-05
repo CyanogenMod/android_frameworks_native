@@ -124,6 +124,11 @@ public:
     // will be closed once the parcel is destroyed.
     status_t            writeDupFileDescriptor(int fd);
 
+    // Writes a raw fd and optional comm channel fd to the parcel as a ParcelFileDescriptor.
+    // A dup's of the fds are made, which will be closed once the parcel is destroyed.
+    // Null values are passed as -1.
+    status_t            writeParcelFileDescriptor(int fd, int commChannel = -1);
+
     // Writes a blob to the parcel.
     // If the blob is small, then it is stored in-place, otherwise it is
     // transferred by way of an anonymous shared memory region.
@@ -182,6 +187,11 @@ public:
     // Retrieve a file descriptor from the parcel.  This returns the raw fd
     // in the parcel, which you do not own -- use dup() to get your own copy.
     int                 readFileDescriptor() const;
+
+    // Reads a ParcelFileDescriptor from the parcel.  Returns the raw fd as
+    // the result, and the optional comm channel fd in outCommChannel.
+    // Null values are returned as -1.
+    int                 readParcelFileDescriptor(int& outCommChannel) const;
 
     // Reads a blob from the parcel.
     // The caller should call release() on the blob after reading its contents.
