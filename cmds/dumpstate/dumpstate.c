@@ -280,7 +280,7 @@ static void dumpstate() {
     printf("== Checkins\n");
     printf("========================================================\n");
 
-    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "--checkin", NULL);
+    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "-c", NULL);
     run_command("CHECKIN MEMINFO", 30, "dumpsys", "meminfo", "--checkin", NULL);
     run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
     run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "-c", NULL);
