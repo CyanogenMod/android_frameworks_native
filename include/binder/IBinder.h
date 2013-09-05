@@ -81,14 +81,6 @@ public:
                                         Parcel* reply,
                                         uint32_t flags = 0) = 0;
 
-    /**
-     * This method allows you to add data that is transported through
-     * IPC along with your IBinder pointer.  When implementing a Binder
-     * object, override it to write your desired data in to @a outData.
-     * You can then call getConstantData() on your IBinder to retrieve
-     * that data, from any process.  You MUST return the number of bytes
-     * written in to the parcel (including padding).
-     */
     class DeathRecipient : public virtual RefBase
     {
     public:
