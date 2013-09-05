@@ -47,6 +47,7 @@ enum {
 enum {
     BATTERY_PROP_CHARGE_COUNTER = 1, // equals BatteryProperty.BATTERY_PROP_CHARGE_COUNTER constant
     BATTERY_PROP_CURRENT_NOW = 2, // equals BatteryProperty.BATTERY_PROP_CURRENT_NOW constant
+    BATTERY_PROP_CURRENT_AVG = 3, // equals BatteryProperty.BATTERY_PROP_CURRENT_AVG constant
 };
 
 struct BatteryProperties {
