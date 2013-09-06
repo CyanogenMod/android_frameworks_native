@@ -38,6 +38,9 @@
 // ---------------------------------------------------------------------------
 
 #define DEBUG_CONNECTIONS   false
+// Max size is 1 MB which is enough to accept a batch of about 10k events.
+#define MAX_SOCKET_BUFFER_SIZE_BATCHED 1024 * 1024
+#define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -77,14 +80,27 @@ class SensorService :
                                        nsecs_t maxBatchReportLatencyNs, int reservedFlags);
         virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
         virtual status_t flushSensor(int handle);
+        // Count the number of flush complete events which are about to be dropped in the buffer.
+        // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
+        // sent separately before the next batch of events.
+        void countFlushCompleteEvents(sensors_event_t* scratch, int numEventsDropped);
 
         sp<SensorService> const mService;
-        sp<BitTube> const mChannel;
+        sp<BitTube> mChannel;
         uid_t mUid;
         mutable Mutex mConnectionLock;
 
-        // protected by SensorService::mLock
-        SortedVector<int> mSensorInfo;
+        struct FlushInfo {
+            // The number of flush complete events dropped for this sensor is stored here.
+            // They are sent separately before the next batch of events.
+            int mPendingFlushEventsToSend;
+            // Every activate is preceded by a flush. Only after the first flush complete is
+            // received, the events for the sensor are sent on that *connection*.
+            bool mFirstFlushPending;
+            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false) {}
+        };
+        // protected by SensorService::mLock. Key for this vector is the sensor handle.
+        KeyedVector<int, FlushInfo> mSensorInfo;
 
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
@@ -95,6 +111,9 @@ class SensorService :
         bool hasAnySensor() const;
         bool addSensor(int32_t handle);
         bool removeSensor(int32_t handle);
+        void setFirstFlushPending(int32_t handle, bool value);
+        void incrementPendingFlushCount(int32_t handle);
+        void dump(String8& result);
 
         uid_t getUid() const { return mUid; }
     };
@@ -130,6 +149,7 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;
     status_t mInitCheck;
+    size_t mSocketBufferSize;
 
     // protected by mLock
     mutable Mutex mLock;
