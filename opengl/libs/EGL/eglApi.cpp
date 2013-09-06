@@ -745,7 +745,8 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
         }
     } else {
         // this will ALOGE the error
-        result = setError(c->cnx->egl.eglGetError(), EGL_FALSE);
+        egl_connection_t* const cnx = &gEGLImpl;
+        result = setError(cnx->egl.eglGetError(), EGL_FALSE);
     }
     return result;
 }
