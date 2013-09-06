@@ -83,8 +83,8 @@ Transform Transform::operator * (const Transform& rhs) const
     return r;
 }
 
-float const* Transform::operator [] (int i) const {
-    return mMatrix[i].v;
+const vec3& Transform::operator [] (size_t i) const {
+    return mMatrix[i];
 }
 
 bool Transform::transformed() const {
@@ -173,7 +173,7 @@ status_t Transform::set(uint32_t flags, float w, float h)
     return NO_ERROR;
 }
 
-Transform::vec2 Transform::transform(const vec2& v) const {
+vec2 Transform::transform(const vec2& v) const {
     vec2 r;
     const mat33& M(mMatrix);
     r[0] = M[0][0]*v[0] + M[1][0]*v[1] + M[2][0];
@@ -181,7 +181,7 @@ Transform::vec2 Transform::transform(const vec2& v) const {
     return r;
 }
 
-Transform::vec3 Transform::transform(const vec3& v) const {
+vec3 Transform::transform(const vec3& v) const {
     vec3 r;
     const mat33& M(mMatrix);
     r[0] = M[0][0]*v[0] + M[1][0]*v[1] + M[2][0]*v[2];
@@ -190,12 +190,9 @@ Transform::vec3 Transform::transform(const vec3& v) const {
     return r;
 }
 
-void Transform::transform(float* point, int x, int y) const
+vec2 Transform::transform(int x, int y) const
 {
-    vec2 v(x, y);
-    v = transform(v);
-    point[0] = v[0];
-    point[1] = v[1];
+    return transform(vec2(x,y));
 }
 
 Rect Transform::makeBounds(int w, int h) const

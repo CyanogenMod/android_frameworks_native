@@ -52,6 +52,7 @@
 #include "MessageQueue.h"
 
 #include "DisplayHardware/HWComposer.h"
+#include "Effects/Daltonizer.h"
 
 namespace android {
 
@@ -458,7 +459,8 @@ private:
      * Feature prototyping
      */
 
-    sp<IBinder> mExtDisplayToken;
+    Daltonizer mDaltonizer;
+    bool mDaltonize;
 };
 
 // ---------------------------------------------------------------------------

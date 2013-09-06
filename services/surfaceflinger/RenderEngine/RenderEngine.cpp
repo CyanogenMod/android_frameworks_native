@@ -149,7 +149,7 @@ void RenderEngine::fillRegionWithColor(const Region& region, uint32_t height,
     size_t c;
     Rect const* r = region.getArray(&c);
     Mesh mesh(Mesh::TRIANGLES, c*6, 2);
-    Mesh::VertexArray position(mesh.getPositionArray());
+    Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
     for (size_t i=0 ; i<c ; i++, r++) {
         position[i*6 + 0].x = r->left;
         position[i*6 + 0].y = height - r->top;

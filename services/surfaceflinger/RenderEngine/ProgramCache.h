@@ -65,6 +65,10 @@ public:
             TEXTURE_EXT             =       0x00000008,
             TEXTURE_2D              =       0x00000010,
             TEXTURE_MASK            =       0x00000018,
+
+            COLOR_MATRIX_OFF        =       0x00000000,
+            COLOR_MATRIX_ON         =       0x00000020,
+            COLOR_MATRIX_MASK       =       0x00000020,
         };
 
         inline Key() : mKey(0) { }
@@ -89,6 +93,9 @@ public:
         }
         inline bool hasPlaneAlpha() const {
             return (mKey & PLANE_ALPHA_MASK) == PLANE_ALPHA_LT_ONE;
+        }
+        inline bool hasColorMatrix() const {
+            return (mKey & COLOR_MATRIX_MASK) == COLOR_MATRIX_ON;
         }
 
         // this is the definition of a friend function -- not a method of class Needs

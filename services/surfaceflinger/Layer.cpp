@@ -547,15 +547,11 @@ void Layer::drawWithOpenGL(
 
     // TODO: we probably want to generate the texture coords with the mesh
     // here we assume that we only have 4 vertices
-    Mesh::VertexArray texCoords(mMesh.getTexCoordArray());
-    texCoords[0].s = left;
-    texCoords[0].t = 1.0f - top;
-    texCoords[1].s = left;
-    texCoords[1].t = 1.0f - bottom;
-    texCoords[2].s = right;
-    texCoords[2].t = 1.0f - bottom;
-    texCoords[3].s = right;
-    texCoords[3].t = 1.0f - top;
+    Mesh::VertexArray<vec2> texCoords(mMesh.getTexCoordArray<vec2>());
+    texCoords[0] = vec2(left, 1.0f - top);
+    texCoords[1] = vec2(left, 1.0f - bottom);
+    texCoords[2] = vec2(right, 1.0f - bottom);
+    texCoords[3] = vec2(right, 1.0f - top);
 
     RenderEngine& engine(mFlinger->getRenderEngine());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
@@ -608,11 +604,11 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const
     // subtract the transparent region and snap to the bounds
     win = reduce(win, s.activeTransparentRegion);
 
-    Mesh::VertexArray position(mesh.getPositionArray());
-    tr.transform(position[0], win.left,  win.top);
-    tr.transform(position[1], win.left,  win.bottom);
-    tr.transform(position[2], win.right, win.bottom);
-    tr.transform(position[3], win.right, win.top);
+    Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
+    position[0] = tr.transform(win.left,  win.top);
+    position[1] = tr.transform(win.left,  win.bottom);
+    position[2] = tr.transform(win.right, win.bottom);
+    position[3] = tr.transform(win.right, win.top);
     for (size_t i=0 ; i<4 ; i++) {
         position[i].y = hw_h - position[i].y;
     }

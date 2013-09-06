@@ -23,6 +23,7 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <ui/mat4.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -94,6 +95,12 @@ public:
 
     // drawing
     virtual void drawMesh(const Mesh& mesh) = 0;
+
+    // grouping
+    // creates a color-transform group, everything drawn in the group will be
+    // transformed by the given color transform when endGroup() is called.
+    virtual void beginGroup(const mat4& colorTransform) = 0;
+    virtual void endGroup() = 0;
 
     // queries
     virtual size_t getMaxTextureSize() const = 0;
