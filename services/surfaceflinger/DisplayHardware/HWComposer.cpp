@@ -644,7 +644,8 @@ void HWComposer::eventControl(int disp, int event, int enabled) {
             break;
         case EVENT_ORIENTATION:
             // Orientation event
-            err = mHwc->eventControl(mHwc, disp, event, enabled);
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_0))
+              err = mHwc->eventControl(mHwc, disp, event, enabled);
             break;
         default:
             ALOGW("eventControl got unexpected event %d (disp=%d en=%d)",
