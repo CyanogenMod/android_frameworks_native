@@ -39,8 +39,19 @@ class GLES20RenderEngine : public RenderEngine {
     GLuint mProtectedTexName;
     GLint mMaxViewportDims[2];
     GLint mMaxTextureSize;
+    GLuint mVpWidth;
+    GLuint mVpHeight;
+
+    struct Group {
+        GLuint texture;
+        GLuint fbo;
+        GLuint width;
+        GLuint height;
+        mat4 colorTransform;
+    };
 
     Description mState;
+    Vector<Group> mGroupStack;
 
     virtual void bindImageAsFramebuffer(EGLImageKHR image,
             uint32_t* texName, uint32_t* fbName, uint32_t* status);
@@ -63,6 +74,9 @@ protected:
     virtual void disableBlending();
 
     virtual void drawMesh(const Mesh& mesh);
+
+    virtual void beginGroup(const mat4& colorTransform);
+    virtual void endGroup();
 
     virtual size_t getMaxTextureSize() const;
     virtual size_t getMaxViewportDims() const;

@@ -33,32 +33,28 @@ public:
     ~Mesh();
 
     /*
-     * VertexArray handles the stride automatically. It also provides
-     * a convenient way to set position and texture coordinates by using
-     * the usual x,y,z,w or s,t,r,q names.
+     * VertexArray handles the stride automatically.
      */
+    template <typename TYPE>
     class VertexArray {
         friend class Mesh;
         float* mData;
         size_t mStride;
         VertexArray(float* data, size_t stride) : mData(data), mStride(stride) { }
     public:
-        struct vertexData {
-            operator float*() { return reinterpret_cast<float*>(this); }
-            union {
-                struct { float x, y, z, w; };
-                struct { float s, t, r, q; };
-            };
-        };
-        vertexData& operator[](size_t index) {
-            return *reinterpret_cast<vertexData*>(&mData[index*mStride]); }
-
-        vertexData const& operator[](size_t index) const {
-            return *reinterpret_cast<vertexData const*>(&mData[index*mStride]); }
+        TYPE& operator[](size_t index) {
+            return *reinterpret_cast<TYPE*>(&mData[index*mStride]);
+        }
+        TYPE const& operator[](size_t index) const {
+            return *reinterpret_cast<TYPE const*>(&mData[index*mStride]);
+        }
     };
 
-    VertexArray getPositionArray() { return VertexArray(getPositions(), mStride); }
-    VertexArray getTexCoordArray() { return VertexArray(getTexCoords(), mStride); }
+    template <typename TYPE>
+    VertexArray<TYPE> getPositionArray() { return VertexArray<TYPE>(getPositions(), mStride); }
+
+    template <typename TYPE>
+    VertexArray<TYPE> getTexCoordArray() { return VertexArray<TYPE>(getTexCoords(), mStride); }
 
     Primitive getPrimitive() const;
 
