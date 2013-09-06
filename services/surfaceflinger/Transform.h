@@ -22,6 +22,8 @@
 
 #include <ui/Point.h>
 #include <ui/Rect.h>
+#include <ui/vec2.h>
+#include <ui/vec3.h>
 
 #include <hardware/hardware.h>
 
@@ -63,7 +65,7 @@ public:
             uint32_t    getType() const;
             uint32_t    getOrientation() const;
 
-            float const* operator [] (int i) const;  // returns column i
+            const vec3& operator [] (size_t i) const;  // returns column i
             float   tx() const;
             float   ty() const;
 
@@ -75,7 +77,7 @@ public:
 
             // transform data
             Rect    makeBounds(int w, int h) const;
-            void    transform(float* point, int x, int y) const;
+            vec2    transform(int x, int y) const;
             Region  transform(const Region& reg) const;
             Rect    transform(const Rect& bounds) const;
             Transform operator * (const Transform& rhs) const;
@@ -86,24 +88,6 @@ public:
             void dump(const char* name) const;
 
 private:
-    struct vec3 {
-        float v[3];
-        inline vec3() { }
-        inline vec3(float a, float b, float c) {
-            v[0] = a; v[1] = b; v[2] = c;
-        }
-        inline float operator [] (int i) const { return v[i]; }
-        inline float& operator [] (int i) { return v[i]; }
-    };
-    struct vec2 {
-        float v[2];
-        inline vec2() { }
-        inline vec2(float a, float b) {
-            v[0] = a; v[1] = b;
-        }
-        inline float operator [] (int i) const { return v[i]; }
-        inline float& operator [] (int i) { return v[i]; }
-    };
     struct mat33 {
         vec3 v[3];
         inline const vec3& operator [] (int i) const { return v[i]; }

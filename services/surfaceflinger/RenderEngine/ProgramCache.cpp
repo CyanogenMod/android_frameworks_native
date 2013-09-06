@@ -96,7 +96,9 @@ ProgramCache::Key ProgramCache::computeKey(const Description& description) {
     .set(Key::BLEND_MASK,
             description.mPremultipliedAlpha ? Key::BLEND_PREMULT : Key::BLEND_NORMAL)
     .set(Key::OPACITY_MASK,
-            description.mOpaque ? Key::OPACITY_OPAQUE : Key::OPACITY_TRANSLUCENT);
+            description.mOpaque ? Key::OPACITY_OPAQUE : Key::OPACITY_TRANSLUCENT)
+    .set(Key::COLOR_MATRIX_MASK,
+            description.mColorMatrixEnabled ? Key::COLOR_MATRIX_ON :  Key::COLOR_MATRIX_OFF);
     return needs;
 }
 
@@ -139,6 +141,9 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
     if (needs.hasPlaneAlpha()) {
         fs << "uniform float alphaPlane;";
     }
+    if (needs.hasColorMatrix()) {
+        fs << "uniform mat4 colorMatrix;";
+    }
     fs << "void main(void) {" << indent;
     if (needs.isTexturing()) {
         fs << "gl_FragColor = texture2D(sampler, outTexCoords);";
@@ -157,6 +162,21 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
             fs << "gl_FragColor.a *= alphaPlane;";
         }
     }
+
+    if (needs.hasColorMatrix()) {
+        if (!needs.isOpaque() && needs.isPremultiplied()) {
+            // un-premultiply if needed before linearization
+            fs << "gl_FragColor.rgb = gl_FragColor.rgb/gl_FragColor.a;";
+        }
+        fs << "gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(2.2));";
+        fs << "gl_FragColor     = colorMatrix*gl_FragColor;";
+        fs << "gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1.0 / 2.2));";
+        if (!needs.isOpaque() && needs.isPremultiplied()) {
+            // and re-premultiply if needed after gamma correction
+            fs << "gl_FragColor.rgb = gl_FragColor.rgb*gl_FragColor.a;";
+        }
+    }
+
     fs << dedent << "}";
     return fs.getString();
 }

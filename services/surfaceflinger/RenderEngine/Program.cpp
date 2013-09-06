@@ -58,6 +58,7 @@ Program::Program(const ProgramCache::Key& needs, const char* vertex, const char*
         mFragmentShader = fragmentId;
         mInitialized = true;
 
+        mColorMatrixLoc = glGetUniformLocation(programId, "colorMatrix");
         mProjectionMatrixLoc = glGetUniformLocation(programId, "projection");
         mTextureMatrixLoc = glGetUniformLocation(programId, "texture");
         mSamplerLoc = glGetUniformLocation(programId, "sampler");
@@ -136,6 +137,9 @@ void Program::setUniforms(const Description& desc) {
     }
     if (mColorLoc >= 0) {
         glUniform4fv(mColorLoc, 1, desc.mColor);
+    }
+    if (mColorMatrixLoc >= 0) {
+        glUniformMatrix4fv(mColorMatrixLoc, 1, GL_FALSE, desc.mColorMatrix.asArray());
     }
     // these uniforms are always present
     glUniformMatrix4fv(mProjectionMatrixLoc, 1, GL_FALSE, desc.mProjectionMatrix.asArray());

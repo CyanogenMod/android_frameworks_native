@@ -70,6 +70,9 @@ private:
     /* location of the projection matrix uniform */
     GLint mProjectionMatrixLoc;
 
+    /* location of the color matrix uniform */
+    GLint mColorMatrixLoc;
+
     /* location of the texture matrix uniform */
     GLint mTextureMatrixLoc;
 
