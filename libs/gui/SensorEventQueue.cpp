@@ -35,12 +35,12 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 SensorEventQueue::SensorEventQueue(const sp<ISensorEventConnection>& connection)
-    : mSensorEventConnection(connection)
-{
+    : mSensorEventConnection(connection), mRecBuffer(NULL), mAvailable(0), mConsumed(0) {
+    mRecBuffer = new ASensorEvent[MAX_RECEIVE_BUFFER_EVENT_COUNT];
 }
 
-SensorEventQueue::~SensorEventQueue()
-{
+SensorEventQueue::~SensorEventQueue() {
+    delete [] mRecBuffer;
 }
 
 void SensorEventQueue::onFirstRef()
@@ -59,9 +59,21 @@ ssize_t SensorEventQueue::write(const sp<BitTube>& tube,
     return BitTube::sendObjects(tube, events, numEvents);
 }
 
-ssize_t SensorEventQueue::read(ASensorEvent* events, size_t numEvents)
-{
-    return BitTube::recvObjects(mSensorChannel, events, numEvents);
+ssize_t SensorEventQueue::read(ASensorEvent* events, size_t numEvents) {
+    if (mAvailable == 0) {
+        ssize_t err = BitTube::recvObjects(mSensorChannel,
+                mRecBuffer, MAX_RECEIVE_BUFFER_EVENT_COUNT);
+        if (err < 0) {
+            return err;
+        }
+        mAvailable = err;
+        mConsumed = 0;
+    }
+    size_t count = numEvents < mAvailable ? numEvents : mAvailable;
+    memcpy(events, mRecBuffer + mConsumed, count*sizeof(ASensorEvent));
+    mAvailable -= count;
+    mConsumed += count;
+    return count;
 }
 
 sp<Looper> SensorEventQueue::getLooper() const

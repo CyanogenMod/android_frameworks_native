@@ -292,8 +292,12 @@ bool SensorService::threadLoop()
 {
     ALOGD("nuSensorService thread starting...");
 
-    const size_t numEventMax = 16;
-    const size_t minBufferSize = numEventMax + numEventMax * mVirtualSensorList.size();
+    // each virtual sensor could generate an event per "real" event, that's why we need
+    // to size numEventMax much smaller than MAX_RECEIVE_BUFFER_EVENT_COUNT.
+    // in practice, this is too aggressive, but guaranteed to be enough.
+    const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
+    const size_t numEventMax = minBufferSize / (1 + mVirtualSensorList.size());
+
     sensors_event_t buffer[minBufferSize];
     sensors_event_t scratch[minBufferSize];
     SensorDevice& device(SensorDevice::getInstance());

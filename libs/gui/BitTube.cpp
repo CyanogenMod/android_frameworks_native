@@ -32,39 +32,26 @@ namespace android {
 
 // Socket buffer size.  The default is typically about 128KB, which is much larger than
 // we really need.  So we make it smaller.
-static const size_t SOCKET_BUFFER_SIZE = 4 * 1024;
+static const size_t DEFAULT_SOCKET_BUFFER_SIZE = 4 * 1024;
 
 
 BitTube::BitTube()
     : mSendFd(-1), mReceiveFd(-1)
 {
-    int sockets[2];
-    if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sockets) == 0) {
-        int size = SOCKET_BUFFER_SIZE;
-        setsockopt(sockets[0], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
-        setsockopt(sockets[0], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-        setsockopt(sockets[1], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
-        setsockopt(sockets[1], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-        fcntl(sockets[0], F_SETFL, O_NONBLOCK);
-        fcntl(sockets[1], F_SETFL, O_NONBLOCK);
-        mReceiveFd = sockets[0];
-        mSendFd = sockets[1];
-    } else {
-        mReceiveFd = -errno;
-        ALOGE("BitTube: pipe creation failed (%s)", strerror(-mReceiveFd));
-    }
+    init(DEFAULT_SOCKET_BUFFER_SIZE, DEFAULT_SOCKET_BUFFER_SIZE);
+}
+
+BitTube::BitTube(size_t bufsize)
+    : mSendFd(-1), mReceiveFd(-1)
+{
+    init(bufsize, bufsize);
 }
 
 BitTube::BitTube(const Parcel& data)
     : mSendFd(-1), mReceiveFd(-1)
 {
     mReceiveFd = dup(data.readFileDescriptor());
-    if (mReceiveFd >= 0) {
-        int size = SOCKET_BUFFER_SIZE;
-        setsockopt(mReceiveFd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
-        setsockopt(mReceiveFd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-        fcntl(mReceiveFd, F_SETFL, O_NONBLOCK);
-    } else {
+    if (mReceiveFd < 0) {
         mReceiveFd = -errno;
         ALOGE("BitTube(Parcel): can't dup filedescriptor (%s)",
                 strerror(-mReceiveFd));
@@ -78,6 +65,25 @@ BitTube::~BitTube()
 
     if (mReceiveFd >= 0)
         close(mReceiveFd);
+}
+
+void BitTube::init(size_t rcvbuf, size_t sndbuf) {
+    int sockets[2];
+    if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sockets) == 0) {
+        size_t size = DEFAULT_SOCKET_BUFFER_SIZE;
+        setsockopt(sockets[0], SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+        setsockopt(sockets[1], SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+        // sine we don't use the "return channel", we keep it small...
+        setsockopt(sockets[0], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+        setsockopt(sockets[1], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+        fcntl(sockets[0], F_SETFL, O_NONBLOCK);
+        fcntl(sockets[1], F_SETFL, O_NONBLOCK);
+        mReceiveFd = sockets[0];
+        mSendFd = sockets[1];
+    } else {
+        mReceiveFd = -errno;
+        ALOGE("BitTube: pipe creation failed (%s)", strerror(-mReceiveFd));
+    }
 }
 
 status_t BitTube::initCheck() const
@@ -98,10 +104,10 @@ ssize_t BitTube::write(void const* vaddr, size_t size)
     ssize_t err, len;
     do {
         len = ::send(mSendFd, vaddr, size, MSG_DONTWAIT | MSG_NOSIGNAL);
+        // cannot return less than size, since we're using SOCK_SEQPACKET
         err = len < 0 ? errno : 0;
     } while (err == EINTR);
     return err == 0 ? len : -err;
-
 }
 
 ssize_t BitTube::read(void* vaddr, size_t size)
@@ -134,39 +140,31 @@ status_t BitTube::writeToParcel(Parcel* reply) const
 ssize_t BitTube::sendObjects(const sp<BitTube>& tube,
         void const* events, size_t count, size_t objSize)
 {
-    ssize_t numObjects = 0;
-    for (size_t i=0 ; i<count ; i++) {
-        const char* vaddr = reinterpret_cast<const char*>(events) + objSize * i;
-        ssize_t size = tube->write(vaddr, objSize);
-        if (size < 0) {
-            // error occurred
-            return size;
-        } else if (size == 0) {
-            // no more space
-            break;
-        }
-        numObjects++;
-    }
-    return numObjects;
+    const char* vaddr = reinterpret_cast<const char*>(events);
+    ssize_t size = tube->write(vaddr, count*objSize);
+
+    // should never happen because of SOCK_SEQPACKET
+    LOG_ALWAYS_FATAL_IF((size >= 0) && (size % objSize),
+            "BitTube::sendObjects(count=%d, size=%d), res=%d (partial events were sent!)",
+            count, objSize, size);
+
+    //ALOGE_IF(size<0, "error %d sending %d events", size, count);
+    return size < 0 ? size : size / objSize;
 }
 
 ssize_t BitTube::recvObjects(const sp<BitTube>& tube,
         void* events, size_t count, size_t objSize)
 {
-    ssize_t numObjects = 0;
-    for (size_t i=0 ; i<count ; i++) {
-        char* vaddr = reinterpret_cast<char*>(events) + objSize * i;
-        ssize_t size = tube->read(vaddr, objSize);
-        if (size < 0) {
-            // error occurred
-            return size;
-        } else if (size == 0) {
-            // no more messages
-            break;
-        }
-        numObjects++;
-    }
-    return numObjects;
+    char* vaddr = reinterpret_cast<char*>(events);
+    ssize_t size = tube->read(vaddr, count*objSize);
+
+    // should never happen because of SOCK_SEQPACKET
+    LOG_ALWAYS_FATAL_IF((size >= 0) && (size % objSize),
+            "BitTube::recvObjects(count=%d, size=%d), res=%d (partial events were received!)",
+            count, objSize, size);
+
+    //ALOGE_IF(size<0, "error %d receiving %d events", size, count);
+    return size < 0 ? size : size / objSize;
 }
 
 // ----------------------------------------------------------------------------
