@@ -41,7 +41,6 @@ enum {
     DISCONNECT,
 };
 
-
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
 {
 public:
@@ -139,9 +138,11 @@ public:
         return result;
     }
 
-    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output) {
+    virtual status_t connect(const sp<IBinder>& token,
+            int api, bool producerControlledByApp, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeStrongBinder(token);
         data.writeInt32(api);
         data.writeInt32(producerControlledByApp);
         status_t result = remote()->transact(CONNECT, data, &reply);
@@ -241,12 +242,13 @@ status_t BnGraphicBufferProducer::onTransact(
         } break;
         case CONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            sp<IBinder> token = data.readStrongBinder();
             int api = data.readInt32();
             bool producerControlledByApp = data.readInt32();
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
-            status_t res = connect(api, producerControlledByApp, output);
+            status_t res = connect(token, api, producerControlledByApp, output);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
