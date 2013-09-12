@@ -19,7 +19,7 @@
 
 #include <utils/BasicHashtable.h>
 #include <utils/GenerationCache.h>
-#include <utils/UniquePtr.h>
+#include <UniquePtr.h>
 
 namespace android {
 
