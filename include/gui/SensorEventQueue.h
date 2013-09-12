@@ -49,6 +49,9 @@ class Looper;
 class SensorEventQueue : public ASensorEventQueue, public RefBase
 {
 public:
+
+    enum { MAX_RECEIVE_BUFFER_EVENT_COUNT = 256 };
+
             SensorEventQueue(const sp<ISensorEventConnection>& connection);
     virtual ~SensorEventQueue();
     virtual void onFirstRef();
@@ -79,6 +82,9 @@ private:
     sp<BitTube> mSensorChannel;
     mutable Mutex mLock;
     mutable sp<Looper> mLooper;
+    ASensorEvent* mRecBuffer;
+    size_t mAvailable;
+    size_t mConsumed;
 };
 
 // ----------------------------------------------------------------------------
