@@ -35,7 +35,6 @@
 #include <GLES2/gl2ext.h>
 
 #include <ui/FramebufferNativeWindow.h>
-#include <utils/UniquePtr.h>
 #include <android/native_window.h>
 
 namespace android {
