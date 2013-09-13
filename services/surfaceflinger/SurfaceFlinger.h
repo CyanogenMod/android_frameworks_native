@@ -38,6 +38,7 @@
 #include <binder/IMemory.h>
 
 #include <ui/PixelFormat.h>
+#include <ui/mat4.h>
 
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
@@ -461,6 +462,9 @@ private:
 
     Daltonizer mDaltonizer;
     bool mDaltonize;
+
+    mat4 mColorMatrix;
+    bool mHasColorMatrix;
 };
 
 // ---------------------------------------------------------------------------

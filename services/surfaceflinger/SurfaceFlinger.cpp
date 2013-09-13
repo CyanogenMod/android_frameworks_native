@@ -114,7 +114,8 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
-        mDaltonize(false)
+        mDaltonize(false),
+        mHasColorMatrix(false)
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -869,7 +870,7 @@ void SurfaceFlinger::setUpHWComposer() {
                         for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
                             const sp<Layer>& layer(currentLayers[i]);
                             layer->setGeometry(hw, *cur);
-                            if (mDebugDisableHWC || mDebugRegion || mDaltonize) {
+                            if (mDebugDisableHWC || mDebugRegion || mDaltonize || mHasColorMatrix) {
                                 cur->setSkip(true);
                             }
                         }
@@ -1483,11 +1484,17 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         }
     }
 
-    if (CC_LIKELY(!mDaltonize)) {
+    if (CC_LIKELY(!mDaltonize && !mHasColorMatrix)) {
         doComposeSurfaces(hw, dirtyRegion);
     } else {
         RenderEngine& engine(getRenderEngine());
-        engine.beginGroup(mDaltonizer());
+        mat4 colorMatrix = mColorMatrix;
+        if (mDaltonize) {
+            // preserve last row of color matrix
+            colorMatrix = colorMatrix * mDaltonizer();
+            colorMatrix[3] = mColorMatrix[3];
+        }
+        engine.beginGroup(colorMatrix);
         doComposeSurfaces(hw, dirtyRegion);
         engine.endGroup();
     }
@@ -2371,7 +2378,8 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     colorizer.reset(result);
     result.appendFormat("  h/w composer %s and %s\n",
             hwc.initCheck()==NO_ERROR ? "present" : "not present",
-                    (mDebugDisableHWC || mDebugRegion || mDaltonize) ? "disabled" : "enabled");
+                    (mDebugDisableHWC || mDebugRegion || mDaltonize
+                            || mHasColorMatrix) ? "disabled" : "enabled");
     hwc.dump(result);
 
     /*
@@ -2534,8 +2542,33 @@ status_t SurfaceFlinger::onTransact(
                 mDaltonize = n > 0;
                 invalidateHwcGeometry();
                 repaintEverything();
+                return NO_ERROR;
             }
-            return NO_ERROR;
+            case 1015: {
+                // apply a color matrix
+                n = data.readInt32();
+                mHasColorMatrix = n ? 1 : 0;
+                if (n) {
+                    // color matrix is sent as mat3 matrix followed by vec3
+                    // offset, then packed into a mat4 where the last row is
+                    // the offset and extra values are 0
+                    for (size_t i = 0 ; i < 3 ; i++) {
+                        for (size_t j = 0; j < 3; j++) {
+                            mColorMatrix[i][j] = data.readFloat();
+                        }
+                        mColorMatrix[i][3] = 0;
+                    }
+                    for (size_t i = 0; i < 3; i++) {
+                        mColorMatrix[3][i] = data.readFloat();
+                    }
+                    mColorMatrix[3][3] = 0;
+                } else {
+                    mColorMatrix = mat4();
+                }
+                invalidateHwcGeometry();
+                repaintEverything();
+                return NO_ERROR;
+            }
         }
     }
     return err;
