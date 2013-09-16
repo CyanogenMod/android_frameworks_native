@@ -73,7 +73,7 @@ DisplayDevice::DisplayDevice(
       mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
-    mNativeWindow = new Surface(producer);
+    mNativeWindow = new Surface(producer, false);
     ANativeWindow* const window = mNativeWindow.get();
 
     int format;
