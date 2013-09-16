@@ -76,10 +76,10 @@ public:
 
     /* triggers screen on and waits for it to complete */
     static void unblankDisplay(const sp<IBinder>& display);
-
-#if defined(TOROPLUS_RADIO)
+    // TODO: Remove me.  Do not use.
+    // This is a compatibility shim for one product whose drivers are depending on
+    // this legacy function (when they shouldn't).
     static status_t getDisplayInfo(int32_t displayId, DisplayInfo* info);
-#endif
 
 #if defined(ICS_CAMERA_BLOB) || defined(MR0_CAMERA_BLOB)
     static ssize_t getDisplayWidth(int32_t displayId);
