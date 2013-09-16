@@ -67,11 +67,11 @@ bool GravitySensor::process(sensors_event_t* outEvent,
 }
 
 status_t GravitySensor::activate(void* ident, bool enabled) {
-    return mSensorFusion.activate(this, enabled);
+    return mSensorFusion.activate(ident, enabled);
 }
 
 status_t GravitySensor::setDelay(void* ident, int handle, int64_t ns) {
-    return mSensorFusion.setDelay(this, ns);
+    return mSensorFusion.setDelay(ident, ns);
 }
 
 Sensor GravitySensor::getSensor() const {

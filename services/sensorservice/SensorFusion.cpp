@@ -103,7 +103,7 @@ status_t SensorFusion::activate(void* ident, bool enabled) {
     }
 
     if (enabled) {
-        ALOGD("SensorFusion calling batch ident=%p ", ident);
+        ALOGD_IF(DEBUG_CONNECTIONS, "SensorFusion calling batch ident=%p ", ident);
         // Activating a sensor in continuous mode is equivalent to calling batch with the default
         // period and timeout equal to ZERO, followed by a call to activate.
         mSensorDevice.batch(ident, mAcc.getHandle(), 0, DEFAULT_EVENTS_PERIOD, 0);
