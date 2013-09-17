@@ -57,13 +57,13 @@ bool CorrectedGyroSensor::process(sensors_event_t* outEvent,
 }
 
 status_t CorrectedGyroSensor::activate(void* ident, bool enabled) {
-    mSensorDevice.activate(this, mGyro.getHandle(), enabled);
-    return mSensorFusion.activate(this, enabled);
+    mSensorDevice.activate(ident, mGyro.getHandle(), enabled);
+    return mSensorFusion.activate(ident, enabled);
 }
 
 status_t CorrectedGyroSensor::setDelay(void* ident, int handle, int64_t ns) {
-    mSensorDevice.setDelay(this, mGyro.getHandle(), ns);
-    return mSensorFusion.setDelay(this, ns);
+    mSensorDevice.setDelay(ident, mGyro.getHandle(), ns);
+    return mSensorFusion.setDelay(ident, ns);
 }
 
 Sensor CorrectedGyroSensor::getSensor() const {
