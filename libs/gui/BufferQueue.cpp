@@ -635,7 +635,9 @@ void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
     mDequeueCondition.broadcast();
 }
 
-status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBufferOutput* output) {
+
+status_t BufferQueue::connect(const sp<IBinder>& token,
+        int api, bool producerControlledByApp, QueueBufferOutput* output) {
     ATRACE_CALL();
     ST_LOGV("connect: api=%d producerControlledByApp=%s", api,
             producerControlledByApp ? "true" : "false");
@@ -663,8 +665,14 @@ status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBuffer
                 err = -EINVAL;
             } else {
                 mConnectedApi = api;
-                output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint,
-                        mQueue.size());
+                output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint, mQueue.size());
+
+                // set-up a death notification so that we can disconnect automatically
+                // when/if the remote producer dies.
+                // This will fail with INVALID_OPERATION if the "token" is local to our process.
+                if (token->linkToDeath(static_cast<IBinder::DeathRecipient*>(this)) == NO_ERROR) {
+                    mConnectedProducerToken = token;
+                }
             }
             break;
         default:
@@ -676,6 +684,16 @@ status_t BufferQueue::connect(int api, bool producerControlledByApp, QueueBuffer
     mDequeueBufferCannotBlock = mConsumerControlledByApp && producerControlledByApp;
 
     return err;
+}
+
+void BufferQueue::binderDied(const wp<IBinder>& who) {
+    // If we're here, it means that a producer we were connected to died.
+    // We're GUARANTEED that we still are connected to it because it has no other way
+    // to get disconnected -- or -- we wouldn't be here because we're removing this
+    // callback upon disconnect. Therefore, it's okay to read mConnectedApi without
+    // synchronization here.
+    int api = mConnectedApi;
+    this->disconnect(api);
 }
 
 status_t BufferQueue::disconnect(int api) {
@@ -701,6 +719,14 @@ status_t BufferQueue::disconnect(int api) {
             case NATIVE_WINDOW_API_CAMERA:
                 if (mConnectedApi == api) {
                     freeAllBuffersLocked();
+                    // remove our death notification callback if we have one
+                    sp<IBinder> token = mConnectedProducerToken;
+                    if (token != NULL) {
+                        // this can fail if we're here because of the death notification
+                        // either way, we just ignore.
+                        token->unlinkToDeath(static_cast<IBinder::DeathRecipient*>(this));
+                    }
+                    mConnectedProducerToken = NULL;
                     mConnectedApi = NO_CONNECTED_API;
                     mDequeueCondition.broadcast();
                     listener = mConsumerListener;
