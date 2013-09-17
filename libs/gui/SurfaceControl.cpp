@@ -46,13 +46,13 @@ namespace android {
 // ============================================================================
 
 SurfaceControl::SurfaceControl(
-        const sp<SurfaceComposerClient>& client, 
+        const sp<SurfaceComposerClient>& client,
         const sp<IBinder>& handle,
         const sp<IGraphicBufferProducer>& gbp)
     : mClient(client), mHandle(handle), mGraphicBufferProducer(gbp)
 {
 }
-        
+
 SurfaceControl::~SurfaceControl()
 {
     destroy();
@@ -71,7 +71,7 @@ void SurfaceControl::destroy()
     IPCThreadState::self()->flushCommands();
 }
 
-void SurfaceControl::clear() 
+void SurfaceControl::clear()
 {
     // here, the window manager tells us explicitly that we should destroy
     // the surface's resource. Soon after this call, it will also release
@@ -83,7 +83,7 @@ void SurfaceControl::clear()
 }
 
 bool SurfaceControl::isSameSurface(
-        const sp<SurfaceControl>& lhs, const sp<SurfaceControl>& rhs) 
+        const sp<SurfaceControl>& lhs, const sp<SurfaceControl>& rhs)
 {
     if (lhs == 0 || rhs == 0)
         return false;
@@ -181,7 +181,9 @@ sp<Surface> SurfaceControl::getSurface() const
 {
     Mutex::Autolock _l(mLock);
     if (mSurfaceData == 0) {
-        mSurfaceData = new Surface(mGraphicBufferProducer);
+        // This surface is always consumed by SurfaceFlinger, so the
+        // producerControlledByApp value doesn't matter; using false.
+        mSurfaceData = new Surface(mGraphicBufferProducer, false);
     }
     return mSurfaceData;
 }
