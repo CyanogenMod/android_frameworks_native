@@ -53,11 +53,11 @@ bool RotationVectorSensor::process(sensors_event_t* outEvent,
 }
 
 status_t RotationVectorSensor::activate(void* ident, bool enabled) {
-    return mSensorFusion.activate(this, enabled);
+    return mSensorFusion.activate(ident, enabled);
 }
 
 status_t RotationVectorSensor::setDelay(void* ident, int handle, int64_t ns) {
-    return mSensorFusion.setDelay(this, ns);
+    return mSensorFusion.setDelay(ident, ns);
 }
 
 Sensor RotationVectorSensor::getSensor() const {
@@ -102,11 +102,11 @@ bool GyroDriftSensor::process(sensors_event_t* outEvent,
 }
 
 status_t GyroDriftSensor::activate(void* ident, bool enabled) {
-    return mSensorFusion.activate(this, enabled);
+    return mSensorFusion.activate(ident, enabled);
 }
 
 status_t GyroDriftSensor::setDelay(void* ident, int handle, int64_t ns) {
-    return mSensorFusion.setDelay(this, ns);
+    return mSensorFusion.setDelay(ident, ns);
 }
 
 Sensor GyroDriftSensor::getSensor() const {
