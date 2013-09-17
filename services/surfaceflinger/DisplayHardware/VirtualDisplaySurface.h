@@ -102,7 +102,8 @@ private:
             const QueueBufferInput& input, QueueBufferOutput* output);
     virtual void cancelBuffer(int pslot, const sp<Fence>& fence);
     virtual int query(int what, int* value);
-    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output);
+    virtual status_t connect(const sp<IBinder>& token,
+            int api, bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
 
     //

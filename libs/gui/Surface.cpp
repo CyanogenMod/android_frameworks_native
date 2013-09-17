@@ -490,9 +490,10 @@ int Surface::dispatchUnlockAndPost(va_list args) {
 int Surface::connect(int api) {
     ATRACE_CALL();
     ALOGV("Surface::connect");
+    static sp<BBinder> sLife = new BBinder();
     Mutex::Autolock lock(mMutex);
     IGraphicBufferProducer::QueueBufferOutput output;
-    int err = mGraphicBufferProducer->connect(api, mProducerControlledByApp, &output);
+    int err = mGraphicBufferProducer->connect(sLife, api, mProducerControlledByApp, &output);
     if (err == NO_ERROR) {
         uint32_t numPendingBuffers = 0;
         output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
@@ -504,6 +505,7 @@ int Surface::connect(int api) {
     }
     return err;
 }
+
 
 int Surface::disconnect(int api) {
     ATRACE_CALL();
