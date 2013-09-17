@@ -358,10 +358,11 @@ int VirtualDisplaySurface::query(int what, int* value) {
     return mSource[SOURCE_SINK]->query(what, value);
 }
 
-status_t VirtualDisplaySurface::connect(int api, bool producerControlledByApp,
+status_t VirtualDisplaySurface::connect(const sp<IBinder>& token,
+        int api, bool producerControlledByApp,
         QueueBufferOutput* output) {
     QueueBufferOutput qbo;
-    status_t result = mSource[SOURCE_SINK]->connect(api, producerControlledByApp, &qbo);
+    status_t result = mSource[SOURCE_SINK]->connect(token, api, producerControlledByApp, &qbo);
     if (result == NO_ERROR) {
         updateQueueBufferOutput(qbo);
         *output = mQueueBufferOutput;

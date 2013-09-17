@@ -189,8 +189,11 @@ public:
     //
     // outWidth, outHeight and outTransform are filled with the default width
     // and height of the window and current transform applied to buffers,
-    // respectively.
-    virtual status_t connect(int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
+    // respectively. The token needs to be any binder object that lives in the
+    // producer process -- it is solely used for obtaining a death notification
+    // when the producer is killed.
+    virtual status_t connect(const sp<IBinder>& token,
+            int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
 
     // disconnect attempts to disconnect a client API from the
     // IGraphicBufferProducer.  Calling this method will cause any subsequent
