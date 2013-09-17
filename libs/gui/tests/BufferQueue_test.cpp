@@ -64,7 +64,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<DummyConsumer> dc(new DummyConsumer);
     mBQ->consumerConnect(dc, false);
     IGraphicBufferProducer::QueueBufferOutput qbo;
-    mBQ->connect(NATIVE_WINDOW_API_CPU, false, &qbo);
+    mBQ->connect(NULL, NATIVE_WINDOW_API_CPU, false, &qbo);
     mBQ->setBufferCount(4);
 
     int slot;
