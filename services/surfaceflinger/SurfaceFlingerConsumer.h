@@ -40,6 +40,8 @@ public:
         virtual ~BufferRejecter() { }
     };
 
+    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item, nsecs_t presentWhen);
+
     // This version of updateTexImage() takes a functor that may be used to
     // reject the newly acquired buffer.  Unlike the GLConsumer version,
     // this does not guarantee that the buffer has been bound to the GL
@@ -49,8 +51,16 @@ public:
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
 
+    // must be called from SF main thread
+    bool getTransformToDisplayInverse() const;
+
 private:
     nsecs_t computeExpectedPresent();
+
+    // Indicates this buffer must be transformed by the inverse transform of the screen
+    // it is displayed onto. This is applied after GLConsumer::mCurrentTransform.
+    // This must be set/read from SurfaceFlinger's main thread.
+    bool mTransformToDisplayInverse;
 };
 
 // ----------------------------------------------------------------------------

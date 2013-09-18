@@ -91,6 +91,10 @@ public:
 
         // Indicates whether this buffer has been seen by a consumer yet
         bool mAcquireCalled;
+
+        // Indicates this buffer must be transformed by the inverse transform of the screen
+        // it is displayed onto. This is applied after mTransform.
+        bool mTransformToDisplayInverse;
     };
 
 
