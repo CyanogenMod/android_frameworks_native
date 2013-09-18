@@ -99,6 +99,19 @@ status_t SurfaceFlingerConsumer::bindTextureImage()
     return bindTextureImageLocked();
 }
 
+status_t SurfaceFlingerConsumer::acquireBufferLocked(
+        BufferQueue::BufferItem *item, nsecs_t presentWhen) {
+    status_t result = GLConsumer::acquireBufferLocked(item, presentWhen);
+    if (result == NO_ERROR) {
+        mTransformToDisplayInverse = item->mTransformToDisplayInverse;
+    }
+    return result;
+}
+
+bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
+    return mTransformToDisplayInverse;
+}
+
 // We need to determine the time when a buffer acquired now will be
 // displayed.  This can be calculated:
 //   time when previous buffer's actual-present fence was signaled
