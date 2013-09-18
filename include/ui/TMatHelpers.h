@@ -245,7 +245,7 @@ template <template<typename T> class BASE, typename T>
 class TMatDebug {
 public:
     String8 asString() const {
-        return matrix::asString(*this);
+        return matrix::asString( static_cast< const BASE<T>& >(*this) );
     }
 };
 

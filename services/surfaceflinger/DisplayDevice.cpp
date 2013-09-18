@@ -344,6 +344,25 @@ void DisplayDevice::setLayerStack(uint32_t stack) {
 
 // ----------------------------------------------------------------------------
 
+uint32_t DisplayDevice::getOrientationTransform() const {
+    uint32_t transform = 0;
+    switch (mOrientation) {
+        case DisplayState::eOrientationDefault:
+            transform = Transform::ROT_0;
+            break;
+        case DisplayState::eOrientation90:
+            transform = Transform::ROT_90;
+            break;
+        case DisplayState::eOrientation180:
+            transform = Transform::ROT_180;
+            break;
+        case DisplayState::eOrientation270:
+            transform = Transform::ROT_270;
+            break;
+    }
+    return transform;
+}
+
 status_t DisplayDevice::orientationToTransfrom(
         int orientation, int w, int h, Transform* tr)
 {

@@ -111,6 +111,7 @@ public:
     void                    setProjection(int orientation, const Rect& viewport, const Rect& frame);
 
     int                     getOrientation() const { return mOrientation; }
+    uint32_t                getOrientationTransform() const;
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Rect              getViewport() const { return mViewport; }
     const Rect              getFrame() const { return mFrame; }

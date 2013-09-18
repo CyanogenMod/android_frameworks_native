@@ -376,7 +376,21 @@ void Layer::setGeometry(
      */
 
     const Transform bufferOrientation(mCurrentTransform);
-    const Transform transform(tr * s.transform * bufferOrientation);
+    Transform transform(tr * s.transform * bufferOrientation);
+
+    if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+        /*
+         * the code below applies the display's inverse transform to the buffer
+         */
+        uint32_t invTransform = hw->getOrientationTransform();
+        // calculate the inverse transform
+        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+        }
+        // and apply to the current transform
+        transform = transform * Transform(invTransform);
+    }
 
     // this gives us only the "orientation" component of the transform
     const uint32_t orientation = transform.getOrientation();
@@ -489,6 +503,34 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         mSurfaceFlingerConsumer->setFilteringEnabled(useFiltering);
         mSurfaceFlingerConsumer->getTransformMatrix(textureMatrix);
 
+        if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+
+            /*
+             * the code below applies the display's inverse transform to the texture transform
+             */
+
+            // create a 4x4 transform matrix from the display transform flags
+            const mat4 flipH(-1,0,0,0,  0,1,0,0, 0,0,1,0, 1,0,0,1);
+            const mat4 flipV( 1,0,0,0, 0,-1,0,0, 0,0,1,0, 0,1,0,1);
+            const mat4 rot90( 0,1,0,0, -1,0,0,0, 0,0,1,0, 1,0,0,1);
+
+            mat4 tr;
+            uint32_t transform = hw->getOrientationTransform();
+            if (transform & NATIVE_WINDOW_TRANSFORM_ROT_90)
+                tr = tr * rot90;
+            if (transform & NATIVE_WINDOW_TRANSFORM_FLIP_H)
+                tr = tr * flipH;
+            if (transform & NATIVE_WINDOW_TRANSFORM_FLIP_V)
+                tr = tr * flipV;
+
+            // calculate the inverse
+            tr = inverse(tr);
+
+            // and finally apply it to the original texture matrix
+            const mat4 texTransform(mat4(static_cast<const float*>(textureMatrix)) * tr);
+            memcpy(textureMatrix, texTransform.asArray(), sizeof(textureMatrix));
+        }
+
         // Set things up for texturing.
         mTexture.setDimensions(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
         mTexture.setFiltering(useFiltering);
@@ -533,7 +575,7 @@ void Layer::drawWithOpenGL(
      *
      * The GL code below is more logical (imho), and the difference with
      * HWC is due to a limitation of the HWC API to integers -- a question
-     * is suspend is wether we should ignore this problem or revert to
+     * is suspend is whether we should ignore this problem or revert to
      * GL composition when a buffer scaling is applied (maybe with some
      * minimal value)? Or, we could make GL behave like HWC -- but this feel
      * like more of a hack.
