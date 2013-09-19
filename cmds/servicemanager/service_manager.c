@@ -33,6 +33,7 @@ static struct {
     { AID_MEDIA, "media.camera" },
     { AID_MEDIA, "media.audio_policy" },
     { AID_AUDIO, "audio" },
+    { AID_INPUT, "input" },
     { AID_DRM,   "drm.drmManager" },
     { AID_NFC,   "nfc" },
     { AID_BLUETOOTH, "bluetooth" },
