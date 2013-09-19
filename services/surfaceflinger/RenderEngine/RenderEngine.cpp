@@ -30,9 +30,25 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
+    EGLint renderableType = 0;
+    EGLint contextClientVersion = 0;
+
+    // query the renderable type, setting the EGL_CONTEXT_CLIENT_VERSION accordingly
+    if (!eglGetConfigAttrib(display, config, EGL_RENDERABLE_TYPE, &renderableType)) {
+        LOG_ALWAYS_FATAL("can't query EGLConfig RENDERABLE_TYPE");
+    }
+
+    if (renderableType & EGL_OPENGL_ES2_BIT) {
+        contextClientVersion = 2;
+    } else if (renderableType & EGL_OPENGL_ES_BIT) {
+        contextClientVersion = 1;
+    } else {
+        LOG_ALWAYS_FATAL("no supported EGL_RENDERABLE_TYPEs");
+    }
+
     // Also create our EGLContext
     EGLint contextAttributes[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,      // MUST be first
+            EGL_CONTEXT_CLIENT_VERSION, contextClientVersion,      // MUST be first
 #ifdef EGL_IMG_context_priority
 #ifdef HAS_CONTEXT_PRIORITY
 #warning "using EGL_IMG_context_priority"
@@ -41,13 +57,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
 #endif
             EGL_NONE, EGL_NONE
     };
-
     EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
-    if (ctxt == EGL_NO_CONTEXT) {
-        // maybe ES 2.x is not supported
-        ALOGW("can't create an ES 2.x context, trying 1.x");
-        ctxt = eglCreateContext(display, config, NULL, contextAttributes + 2);
-    }
 
     // if can't create a GL context, we can only abort.
     LOG_ALWAYS_FATAL_IF(ctxt==EGL_NO_CONTEXT, "EGLContext creation failed");

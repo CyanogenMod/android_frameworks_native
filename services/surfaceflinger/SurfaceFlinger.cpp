@@ -366,43 +366,40 @@ public:
     operator EGLint const* () const { return &mList.keyAt(0).v; }
 };
 
-EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId) {
+EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId,
+    EGLint renderableType) {
     // select our EGLConfig. It must support EGL_RECORDABLE_ANDROID if
     // it is to be used with WIFI displays
     EGLConfig config;
     EGLint dummy;
     status_t err;
+    EGLint wantedAttribute;
+    EGLint wantedAttributeValue;
 
     EGLAttributeVector attribs;
-    // TODO: enable ES2
-    //attribs[EGL_RENDERABLE_TYPE]            = EGL_OPENGL_ES_BIT | EGL_OPENGL_ES2_BIT;
-    attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
-    attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
-    attribs[EGL_FRAMEBUFFER_TARGET_ANDROID] = EGL_TRUE;
-    attribs[EGL_RED_SIZE]                   = 8;
-    attribs[EGL_GREEN_SIZE]                 = 8;
-    attribs[EGL_BLUE_SIZE]                  = 8;
+    if (renderableType) {
+        attribs[EGL_RENDERABLE_TYPE]            = renderableType;
+        attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
+        attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT|EGL_PBUFFER_BIT;
+        attribs[EGL_FRAMEBUFFER_TARGET_ANDROID] = EGL_TRUE;
+        attribs[EGL_RED_SIZE]                   = 8;
+        attribs[EGL_GREEN_SIZE]                 = 8;
+        attribs[EGL_BLUE_SIZE]                  = 8;
+        wantedAttribute                         = EGL_NONE;
+        wantedAttributeValue                    = EGL_NONE;
 
-    err = selectConfigForAttribute(display, attribs, EGL_NONE, EGL_NONE, &config);
+    } else {
+        // if no renderable type specified, fallback to a simplified query
+        attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
+        wantedAttribute                         = EGL_NATIVE_VISUAL_ID;
+        wantedAttributeValue                    = nativeVisualId;
+    }
+
+    err = selectConfigForAttribute(display, attribs, wantedAttribute,
+        wantedAttributeValue, &config);
     if (!err)
         goto success;
 
-    // this didn't work, probably because we're on the emulator...
-    // try a simplified query
-    ALOGW("no suitable EGLConfig found, trying a simpler query");
-    attribs.remove(EGL_RENDERABLE_TYPE);
-    attribs.remove(EGL_FRAMEBUFFER_TARGET_ANDROID);
-    attribs.remove(EGL_RECORDABLE_ANDROID);
-    attribs.remove(EGL_RED_SIZE);
-    attribs.remove(EGL_GREEN_SIZE);
-    attribs.remove(EGL_BLUE_SIZE);
-    err = selectConfigForAttribute(display, attribs,
-            EGL_NATIVE_VISUAL_ID, nativeVisualId, &config);
-    if (!err)
-        goto success;
-
-    // this EGL is too lame for Android
-    LOG_ALWAYS_FATAL("no suitable EGLConfig found, giving up");
     return 0;
 
 success:
@@ -427,8 +424,25 @@ void SurfaceFlinger::init() {
     mHwc = new HWComposer(this,
             *static_cast<HWComposer::EventHandler *>(this));
 
-    // initialize the config and context (can't fail)
-    mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID());
+    // First try to get an ES2 config
+    mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), EGL_OPENGL_ES2_BIT);
+
+    if (!mEGLConfig) {
+        // If ES2 fails, try ES1
+        mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), EGL_OPENGL_ES_BIT);
+    }
+
+    if (!mEGLConfig) {
+        // still didn't work, probably because we're on the emulator...
+        // try a simplified query
+        ALOGW("no suitable EGLConfig found, trying a simpler query");
+        mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), 0);
+    }
+
+    if (!mEGLConfig) {
+        // this EGL is too lame for android
+        LOG_ALWAYS_FATAL("no suitable EGLConfig found, giving up");
+    }
 
     // print some debugging info
     EGLint r,g,b,a;
