@@ -141,6 +141,13 @@ public:
     // documented by the source.
     int64_t getTimestamp();
 
+    // getFrameNumber retrieves the frame number associated with the texture
+    // image set by the most recent call to updateTexImage.
+    //
+    // The frame number is an incrementing counter set to 0 at the creation of
+    // the BufferQueue associated with this consumer.
+    int64_t getFrameNumber();
+
     // setDefaultBufferSize is used to set the size of buffers returned by
     // requestBuffers when a with and height of zero is requested.
     // A call to setDefaultBufferSize() may trigger requestBuffers() to
@@ -336,6 +343,10 @@ private:
     // mCurrentTimestamp is the timestamp for the current texture. It
     // gets set each time updateTexImage is called.
     int64_t mCurrentTimestamp;
+
+    // mCurrentFrameNumber is the frame counter for the current texture.
+    // It gets set each time updateTexImage is called.
+    int64_t mCurrentFrameNumber;
 
     uint32_t mDefaultWidth, mDefaultHeight;
 
