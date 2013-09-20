@@ -389,7 +389,7 @@ private:
     void dumpAllLocked(const Vector<String16>& args, size_t& index, String8& result) const;
     bool startDdmConnection();
     static void appendSfConfigString(String8& result);
-    void checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
+    void checkScreenshot(size_t w, size_t s, size_t h, void const* vaddr,
             const sp<const DisplayDevice>& hw,
             uint32_t minLayerZ, uint32_t maxLayerZ);
 
