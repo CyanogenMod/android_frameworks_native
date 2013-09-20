@@ -96,6 +96,7 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mCurrentFence(Fence::NO_FENCE),
     mCurrentTimestamp(0),
+    mCurrentFrameNumber(0),
     mDefaultWidth(1),
     mDefaultHeight(1),
     mFilteringEnabled(true),
@@ -380,6 +381,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
     mCurrentScalingMode = item.mScalingMode;
     mCurrentTimestamp = item.mTimestamp;
     mCurrentFence = item.mFence;
+    mCurrentFrameNumber = item.mFrameNumber;
 
     computeCurrentTransformMatrixLocked();
 
@@ -817,6 +819,12 @@ nsecs_t GLConsumer::getTimestamp() {
     ST_LOGV("getTimestamp");
     Mutex::Autolock lock(mMutex);
     return mCurrentTimestamp;
+}
+
+nsecs_t GLConsumer::getFrameNumber() {
+    ST_LOGV("getFrameNumber");
+    Mutex::Autolock lock(mMutex);
+    return mCurrentFrameNumber;
 }
 
 EGLImageKHR GLConsumer::createImage(EGLDisplay dpy,
