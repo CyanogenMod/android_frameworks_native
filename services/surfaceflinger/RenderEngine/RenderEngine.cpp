@@ -201,6 +201,10 @@ void RenderEngine::deleteTextures(size_t count, uint32_t const* names) {
     glDeleteTextures(count, names);
 }
 
+void RenderEngine::readPixels(size_t l, size_t b, size_t w, size_t h, uint32_t* pixels) {
+    glReadPixels(l, b, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+}
+
 void RenderEngine::dump(String8& result) {
     const GLExtensions& extensions(GLExtensions::getInstance());
     result.appendFormat("GLES: %s, %s, %s\n",
