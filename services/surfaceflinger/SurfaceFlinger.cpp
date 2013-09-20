@@ -2832,6 +2832,15 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         // dependent on the context's EGLConfig.
                         renderScreenImplLocked(hw, reqWidth, reqHeight,
                                 minLayerZ, maxLayerZ, true);
+
+                        if (DEBUG_SCREENSHOTS) {
+                            uint32_t* pixels = new uint32_t[reqWidth*reqHeight];
+                            getRenderEngine().readPixels(0, 0, reqWidth, reqHeight, pixels);
+                            checkScreenshot(reqWidth, reqHeight, reqWidth, pixels,
+                                    hw, minLayerZ, maxLayerZ);
+                            delete [] pixels;
+                        }
+
                     } else {
                         ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES error while taking screenshot");
                         result = INVALID_OPERATION;
@@ -2852,13 +2861,12 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     return result;
 }
 
-void SurfaceFlinger::checkScreenshot(const sp<GraphicBuffer>& buf, void const* vaddr,
-        const sp<const DisplayDevice>& hw,
-        uint32_t minLayerZ, uint32_t maxLayerZ) {
+void SurfaceFlinger::checkScreenshot(size_t w, size_t s, size_t h, void const* vaddr,
+        const sp<const DisplayDevice>& hw, uint32_t minLayerZ, uint32_t maxLayerZ) {
     if (DEBUG_SCREENSHOTS) {
-        for (ssize_t y=0 ; y<buf->height ; y++) {
-            uint32_t const * p = (uint32_t const *)vaddr + y*buf->stride;
-            for (ssize_t x=0 ; x<buf->width ; x++) {
+        for (size_t y=0 ; y<h ; y++) {
+            uint32_t const * p = (uint32_t const *)vaddr + y*s;
+            for (size_t x=0 ; x<w ; x++) {
                 if (p[x] != 0xFF000000) return;
             }
         }
