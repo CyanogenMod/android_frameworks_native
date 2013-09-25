@@ -21,6 +21,7 @@ sources := \
     Debug.cpp \
     IAppOpsCallback.cpp \
     IAppOpsService.cpp \
+    IBatteryStats.cpp \
     IInterface.cpp \
     IMemory.cpp \
     IPCThreadState.cpp \

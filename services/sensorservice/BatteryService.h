@@ -17,22 +17,18 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <binder/IBatteryStats.h>
 #include <utils/Singleton.h>
 
 namespace android {
 // ---------------------------------------------------------------------------
 
 class BatteryService : public Singleton<BatteryService> {
-    static const int TRANSACTION_noteStartSensor = IBinder::FIRST_CALL_TRANSACTION + 3;
-    static const int TRANSACTION_noteStopSensor = IBinder::FIRST_CALL_TRANSACTION + 4;
-    static const String16 DESCRIPTOR;
 
     friend class Singleton<BatteryService>;
-    sp<IBinder> mBatteryStatService;
+    sp<IBatteryStats> mBatteryStatService;
 
     BatteryService();
-    status_t noteStartSensor(int uid, int handle);
-    status_t noteStopSensor(int uid, int handle);
 
     void enableSensorImpl(uid_t uid, int handle);
     void disableSensorImpl(uid_t uid, int handle);

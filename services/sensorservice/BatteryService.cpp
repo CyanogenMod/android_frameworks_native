@@ -34,30 +34,8 @@ BatteryService::BatteryService() {
     const sp<IServiceManager> sm(defaultServiceManager());
     if (sm != NULL) {
         const String16 name("batterystats");
-        mBatteryStatService = sm->getService(name);
+        mBatteryStatService = interface_cast<IBatteryStats>(sm->getService(name));
     }
-}
-
-status_t BatteryService::noteStartSensor(int uid, int handle) {
-    Parcel data, reply;
-    data.writeInterfaceToken(DESCRIPTOR);
-    data.writeInt32(uid);
-    data.writeInt32(handle);
-    status_t err = mBatteryStatService->transact(
-            TRANSACTION_noteStartSensor, data, &reply, 0);
-    err = reply.readExceptionCode();
-    return err;
-}
-
-status_t BatteryService::noteStopSensor(int uid, int handle) {
-    Parcel data, reply;
-    data.writeInterfaceToken(DESCRIPTOR);
-    data.writeInt32(uid);
-    data.writeInt32(handle);
-    status_t err = mBatteryStatService->transact(
-            TRANSACTION_noteStopSensor, data, &reply, 0);
-    err = reply.readExceptionCode();
-    return err;
 }
 
 bool BatteryService::addSensor(uid_t uid, int handle) {
@@ -86,7 +64,7 @@ void BatteryService::enableSensorImpl(uid_t uid, int handle) {
     if (mBatteryStatService != 0) {
         if (addSensor(uid, handle)) {
             int64_t identity = IPCThreadState::self()->clearCallingIdentity();
-            noteStartSensor(uid, handle);
+            mBatteryStatService->noteStartSensor(uid, handle);
             IPCThreadState::self()->restoreCallingIdentity(identity);
         }
     }
@@ -95,7 +73,7 @@ void BatteryService::disableSensorImpl(uid_t uid, int handle) {
     if (mBatteryStatService != 0) {
         if (removeSensor(uid, handle)) {
             int64_t identity = IPCThreadState::self()->clearCallingIdentity();
-            noteStopSensor(uid, handle);
+            mBatteryStatService->noteStopSensor(uid, handle);
             IPCThreadState::self()->restoreCallingIdentity(identity);
         }
     }
@@ -108,7 +86,7 @@ void BatteryService::cleanupImpl(uid_t uid) {
         for (ssize_t i=0 ; i<mActivations.size() ; i++) {
             const Info& info(mActivations[i]);
             if (info.uid == uid) {
-                noteStopSensor(info.uid, info.handle);
+                mBatteryStatService->noteStopSensor(info.uid, info.handle);
                 mActivations.removeAt(i);
                 i--;
             }
@@ -116,8 +94,6 @@ void BatteryService::cleanupImpl(uid_t uid) {
         IPCThreadState::self()->restoreCallingIdentity(identity);
     }
 }
-
-const String16 BatteryService::DESCRIPTOR("com.android.internal.app.IBatteryStats");
 
 ANDROID_SINGLETON_STATIC_INSTANCE(BatteryService)
 
