@@ -32,7 +32,7 @@
 #include <binder/Parcel.h>
 #include <utils/CallStack.h>
 
-#ifdef USE_V4L2_ION
+#ifdef USE_MEMORY_HEAP_ION
 #include "ion.h"
 #endif
 
@@ -303,7 +303,7 @@ void BpMemoryHeap::assertReallyMapped() const
         ALOGE_IF(err, "binder=%p transaction failed fd=%d, size=%ld, err=%d (%s)",
                 asBinder().get(), parcel_fd, size, err, strerror(-err));
 
-#ifdef USE_V4L2_ION
+#ifdef USE_MEMORY_HEAP_ION
         int ion_client = -1;
         if (flags & USE_ION_FD) {
             ion_client = ion_client_create();
@@ -324,7 +324,7 @@ void BpMemoryHeap::assertReallyMapped() const
         if (mHeapId == -1) {
             mRealHeap = true;
 
-#ifdef USE_V4L2_ION
+#ifdef USE_MEMORY_HEAP_ION
         if (flags & USE_ION_FD) {
             if (ion_client < 0)
                 mBase = MAP_FAILED;
@@ -344,7 +344,7 @@ void BpMemoryHeap::assertReallyMapped() const
                 android_atomic_write(fd, &mHeapId);
             }
         }
-#ifdef USE_V4L2_ION
+#ifdef USE_MEMORY_HEAP_ION
         if (ion_client < 0)
             ion_client = -1;
         else
