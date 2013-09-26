@@ -963,6 +963,12 @@ void SurfaceFlinger::postFramebuffer()
         hwc.commit();
     }
 
+    // make the default display current because the VirtualDisplayDevice code cannot
+    // deal with dequeueBuffer() being called outside of the composition loop; however
+    // the code below can call glFlush() which is allowed (and does in some case) call
+    // dequeueBuffer().
+    getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext);
+
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         sp<const DisplayDevice> hw(mDisplays[dpy]);
         const Vector< sp<Layer> >& currentLayers(hw->getVisibleLayersSortedByZ());
