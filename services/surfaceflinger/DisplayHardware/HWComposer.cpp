@@ -524,7 +524,14 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             disp.framebufferTarget->handle = disp.fbTargetHandle;
             disp.framebufferTarget->transform = 0;
             disp.framebufferTarget->blending = HWC_BLENDING_PREMULT;
-            disp.framebufferTarget->sourceCrop = r;
+            if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
+                disp.framebufferTarget->sourceCropf.left = 0;
+                disp.framebufferTarget->sourceCropf.top = 0;
+                disp.framebufferTarget->sourceCropf.right = disp.width;
+                disp.framebufferTarget->sourceCropf.bottom = disp.height;
+            } else {
+                disp.framebufferTarget->sourceCrop = r;
+            }
             disp.framebufferTarget->displayFrame = r;
             disp.framebufferTarget->visibleRegionScreen.numRects = 1;
             disp.framebufferTarget->visibleRegionScreen.rects =
