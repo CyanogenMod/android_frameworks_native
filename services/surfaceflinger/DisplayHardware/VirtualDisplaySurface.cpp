@@ -258,6 +258,17 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
     Source source = fbSourceForCompositionType(mCompositionType);
 
     if (source == SOURCE_SINK) {
+
+        if (mOutputProducerSlot < 0) {
+            // Last chance bailout if something bad happened earlier. For example,
+            // in a GLES configuration, if the sink disappears then dequeueBuffer
+            // will fail, the GLES driver won't queue a buffer, but SurfaceFlinger
+            // will soldier on. So we end up here without a buffer. There should
+            // be lots of scary messages in the log just before this.
+            VDS_LOGE("dequeueBuffer: no buffer, bailing out");
+            return NO_MEMORY;
+        }
+
         // We already dequeued the output buffer. If the GLES driver wants
         // something incompatible, we have to cancel and get a new one. This
         // will mean that HWC will see a different output buffer between
