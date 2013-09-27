@@ -1210,6 +1210,26 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
     // here the transaction has been committed
 }
 
+void SurfaceFlinger::setVirtualDisplayData(
+    int32_t hwcDisplayId,
+    const sp<IGraphicBufferProducer>& sink)
+{
+    sp<ANativeWindow> mNativeWindow = new Surface(sink);
+    ANativeWindow* const window = mNativeWindow.get();
+
+    int format;
+    window->query(window, NATIVE_WINDOW_FORMAT, &format);
+
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    surface = eglCreateWindowSurface(display, mRenderEngine->getEGLConfig(), window, NULL);
+    eglQuerySurface(display, surface, EGL_WIDTH,  &w);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &h);
+
+    mHwc->setVirtualDisplayProperties(hwcDisplayId, w, h, format);
+}
+
 void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 {
     const LayerVector& currentLayers(mCurrentState.layersSortedByZ);
@@ -1328,13 +1348,32 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
 
+                            char value[PROPERTY_VALUE_MAX];
                             hwcDisplayId = allocateHwcDisplayId(state.type);
-                            sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(
-                                    *mHwc, hwcDisplayId, state.surface,
-                                    bqProducer, bqConsumer, state.displayName);
-
-                            dispSurface = vds;
-                            producer = vds;
+                            property_get("persist.sys.wfd.virtual", value, "0");
+                            int wfdVirtual = atoi(value);
+                            if(!wfdVirtual) {
+                                sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(
+                                        *mHwc, hwcDisplayId, state.surface,
+                                        bqProducer, bqConsumer, state.displayName);
+                                if (hwcDisplayId >= 0) {
+                                   producer = vds;
+                                } else {
+                                  // There won't be any interaction with HWC for this virtual display,
+                                  // so the GLES driver can pass buffers directly to the sink.
+                                  producer = state.surface;
+                                }
+                            } else {
+                                //Read virtual display properties and create a
+                                //rendering surface for it inorder to be handled
+                                //by hwc.
+                                setVirtualDisplayData(hwcDisplayId,
+                                                                 state.surface);
+                                dispSurface = new FramebufferSurface(*mHwc,
+                                                                    state.type,
+                                                                    bqConsumer);
+                                producer = bqProducer;
+                            }
                         }
                     } else {
                         ALOGE_IF(state.surface!=NULL,
@@ -1350,7 +1389,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     }
 
                     const wp<IBinder>& display(curr.keyAt(i));
-                    if (dispSurface != NULL) {
+                    if (dispSurface != NULL && producer != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
                                 state.type, hwcDisplayId,
                                 mHwc->getFormat(hwcDisplayId), state.isSecure,
