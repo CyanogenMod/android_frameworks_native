@@ -1073,6 +1073,7 @@ public class JniCodeEmitter {
                 String decl = type.getDeclaration();
                 needsExit = true;
                 out.println(indent + "if (!" + cname + ") {");
+                out.println(indent + indent + "_exception = 1;");
                 out.println(indent + indent +
                             "_exceptionType = \"java/lang/IllegalArgumentException\";");
                 out.println(indent + indent +
