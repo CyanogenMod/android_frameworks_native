@@ -61,8 +61,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libgui
 
 ifeq ($(TARGET_USES_QCOM_BSP), true)
-ifeq ($(TARGET_QCOM_DISPLAY_VARIANT),caf)
-    LOCAL_C_INCLUDES += hardware/qcom/display-caf/libgralloc
+ifneq ($(TARGET_QCOM_DISPLAY_VARIANT),)
+    LOCAL_C_INCLUDES += hardware/qcom/display-$(TARGET_QCOM_DISPLAY_VARIANT)/libgralloc
 else
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
 endif
