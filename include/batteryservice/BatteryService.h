@@ -68,6 +68,11 @@ struct BatteryProperties {
     status_t readFromParcel(Parcel* parcel);
 };
 
+struct BatteryExtraProperties {
+    int batteryCurrentNow;
+    int batteryChargeCounter;
+};
+
 struct BatteryProperty {
     int valueInt;
 
