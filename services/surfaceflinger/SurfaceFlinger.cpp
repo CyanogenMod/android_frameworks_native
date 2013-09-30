@@ -1527,7 +1527,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
     HWComposer::LayerListIterator cur = hwc.begin(id);
     const HWComposer::LayerListIterator end = hwc.end(id);
 
-    const bool hasGlesComposition = hwc.hasGlesComposition(id) || (cur==end);
+    bool hasGlesComposition = hwc.hasGlesComposition(id);
     if (hasGlesComposition) {
         if (!hw->makeCurrent(mEGLDisplay, mEGLContext)) {
             ALOGW("DisplayDevice::makeCurrent failed. Aborting surface composition for display %s",
