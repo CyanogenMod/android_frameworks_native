@@ -317,8 +317,8 @@ private:
      */
     static status_t selectConfigForAttribute(EGLDisplay dpy,
         EGLint const* attrs, EGLint attribute, EGLint value, EGLConfig* outConfig);
-    static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId,
-		EGLint renderableType);
+    static status_t selectEGLConfig(EGLDisplay disp, EGLint visualId,
+        EGLint renderableType, EGLConfig* config);
     size_t getMaxTextureSize() const;
     size_t getMaxViewportDims() const;
 
