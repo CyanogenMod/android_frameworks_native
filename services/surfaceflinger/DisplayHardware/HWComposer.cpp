@@ -610,6 +610,10 @@ status_t HWComposer::prepare() {
         // here we're just making sure that "skip" layers are set
         // to HWC_FRAMEBUFFER and we're also counting how many layers
         // we have of each type.
+        //
+        // If there are no window layers, we treat the display has having FB
+        // composition, because SurfaceFlinger will use GLES to draw the
+        // wormhole region.
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             DisplayData& disp(mDisplayData[i]);
             disp.hasFbComp = false;
@@ -631,6 +635,11 @@ status_t HWComposer::prepare() {
                         disp.hasOvComp = true;
                     }
                 }
+                if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
+                    disp.hasFbComp = true;
+                }
+            } else {
+                disp.hasFbComp = true;
             }
         }
     }
