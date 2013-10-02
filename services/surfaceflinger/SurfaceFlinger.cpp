@@ -1597,9 +1597,10 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             if (!clip.isEmpty()) {
                 switch (cur->getCompositionType()) {
                     case HWC_OVERLAY: {
+                        const Layer::State& state(layer->getDrawingState());
                         if ((cur->getHints() & HWC_HINT_CLEAR_FB)
                                 && i
-                                && layer->isOpaque()
+                                && layer->isOpaque() && (state.alpha == 0xFF)
                                 && hasGlesComposition) {
                             // never clear the very first layer since we're
                             // guaranteed the FB is already cleared
