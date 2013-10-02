@@ -367,12 +367,10 @@ public:
     operator EGLint const* () const { return &mList.keyAt(0).v; }
 };
 
-EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId,
-    EGLint renderableType) {
+status_t SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisualId,
+    EGLint renderableType, EGLConfig* config) {
     // select our EGLConfig. It must support EGL_RECORDABLE_ANDROID if
     // it is to be used with WIFI displays
-    EGLConfig config;
-    EGLint dummy;
     status_t err;
     EGLint wantedAttribute;
     EGLint wantedAttributeValue;
@@ -391,22 +389,18 @@ EGLConfig SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisua
 
     } else {
         // if no renderable type specified, fallback to a simplified query
-        attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
         wantedAttribute                         = EGL_NATIVE_VISUAL_ID;
         wantedAttributeValue                    = nativeVisualId;
     }
 
     err = selectConfigForAttribute(display, attribs, wantedAttribute,
-        wantedAttributeValue, &config);
-    if (!err)
-        goto success;
-
-    return 0;
-
-success:
-    if (eglGetConfigAttrib(display, config, EGL_CONFIG_CAVEAT, &dummy))
-        ALOGW_IF(dummy == EGL_SLOW_CONFIG, "EGL_SLOW_CONFIG selected!");
-    return config;
+        wantedAttributeValue, config);
+    if (err == NO_ERROR) {
+        EGLint caveat;
+        if (eglGetConfigAttrib(display, *config, EGL_CONFIG_CAVEAT, &caveat))
+            ALOGW_IF(caveat == EGL_SLOW_CONFIG, "EGL_SLOW_CONFIG selected!");
+    }
+    return err;
 }
 
 void SurfaceFlinger::init() {
@@ -414,6 +408,7 @@ void SurfaceFlinger::init() {
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
+    status_t err;
     Mutex::Autolock _l(mStateLock);
 
     // initialize EGL for the default display
@@ -426,21 +421,23 @@ void SurfaceFlinger::init() {
             *static_cast<HWComposer::EventHandler *>(this));
 
     // First try to get an ES2 config
-    mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), EGL_OPENGL_ES2_BIT);
+    err = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), EGL_OPENGL_ES2_BIT,
+            &mEGLConfig);
 
-    if (!mEGLConfig) {
+    if (err != NO_ERROR) {
         // If ES2 fails, try ES1
-        mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), EGL_OPENGL_ES_BIT);
+        err = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(),
+                EGL_OPENGL_ES_BIT, &mEGLConfig);
     }
 
-    if (!mEGLConfig) {
+    if (err != NO_ERROR) {
         // still didn't work, probably because we're on the emulator...
         // try a simplified query
         ALOGW("no suitable EGLConfig found, trying a simpler query");
-        mEGLConfig = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), 0);
+        err = selectEGLConfig(mEGLDisplay, mHwc->getVisualID(), 0, &mEGLConfig);
     }
 
-    if (!mEGLConfig) {
+    if (err != NO_ERROR) {
         // this EGL is too lame for android
         LOG_ALWAYS_FATAL("no suitable EGLConfig found, giving up");
     }
