@@ -99,6 +99,7 @@ extern char const * const gExtensionString  =
         "EGL_NV_system_time "
         "EGL_ANDROID_image_native_buffer "      // mandatory
         "EGL_KHR_wait_sync "                    // strongly recommended
+        "EGL_ANDROID_recordable "               // mandatory
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
@@ -106,8 +107,7 @@ extern char const * const gExtensionString  =
 //      "EGL_IMG_hibernate_process "            // optional
 //      "EGL_ANDROID_native_fence_sync "        // strongly recommended
 //      "EGL_ANDROID_framebuffer_target "       // mandatory for HWC 1.1
-//      "EGL_ANDROID_recordable "               // mandatory
-
+//      "EGL_ANDROID_image_crop "               // optional
 
 /*
  * EGL Extensions entry-points exposed to 3rd party applications
