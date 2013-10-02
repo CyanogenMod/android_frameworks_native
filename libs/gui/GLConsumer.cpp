@@ -41,6 +41,9 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+#define CROP_EXT_STR "EGL_ANDROID_image_crop"
+
 namespace android {
 
 // Macros for including the GLConsumer name in log messages
@@ -88,6 +91,30 @@ static void mtxMul(float out[16], const float a[16], const float b[16]);
 
 Mutex GLConsumer::sStaticInitLock;
 sp<GraphicBuffer> GLConsumer::sReleasedTexImageBuffer;
+
+static bool hasEglAndroidImageCropImpl() {
+    EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    const char* exts = eglQueryStringImplementationANDROID(dpy, EGL_EXTENSIONS);
+    size_t cropExtLen = strlen(CROP_EXT_STR);
+    size_t extsLen = strlen(exts);
+    bool equal = !strcmp(CROP_EXT_STR, exts);
+    bool atStart = !strncmp(CROP_EXT_STR " ", exts, cropExtLen+1);
+    bool atEnd = (cropExtLen+1) < extsLen &&
+            !strcmp(" " CROP_EXT_STR, exts + extsLen - (cropExtLen+1));
+    bool inMiddle = strstr(exts, " " CROP_EXT_STR " ");
+    return equal || atStart || atEnd || inMiddle;
+}
+
+static bool hasEglAndroidImageCrop() {
+    // Only compute whether the extension is present once the first time this
+    // function is called.
+    static bool hasIt = hasEglAndroidImageCropImpl();
+    return hasIt;
+}
+
+static bool isEglImageCroppable(const Rect& crop) {
+    return hasEglAndroidImageCrop() && (crop.left == 0 && crop.top == 0);
+}
 
 GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
         uint32_t texTarget, bool useFenceSync, bool isControlledByApp) :
@@ -279,17 +306,28 @@ status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
     }
 
     int slot = item->mBuf;
-    if (item->mGraphicBuffer != NULL) {
-        // This buffer has not been acquired before, so we must assume
-        // that any EGLImage in mEglSlots is stale.
-        if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
-            if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
-                ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
-                      slot);
-                // keep going
-            }
-            mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
+    bool destroyEglImage = false;
+
+    if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
+        if (item->mGraphicBuffer != NULL) {
+            // This buffer has not been acquired before, so we must assume
+            // that any EGLImage in mEglSlots is stale.
+            destroyEglImage = true;
+        } else if (mEglSlots[slot].mCropRect != item->mCrop) {
+            // We've already seen this buffer before, but it now has a
+            // different crop rect, so we'll need to recreate the EGLImage if
+            // we're using the EGL_ANDROID_image_crop extension.
+            destroyEglImage = hasEglAndroidImageCrop();
         }
+    }
+
+    if (destroyEglImage) {
+        if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
+            ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
+                  slot);
+            // keep going
+        }
+        mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
     }
 
     return NO_ERROR;
@@ -334,13 +372,15 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
     // EGLImage when detaching from a context but the buffer has not been
     // re-allocated.
     if (mEglSlots[buf].mEglImage == EGL_NO_IMAGE_KHR) {
-        EGLImageKHR image = createImage(mEglDisplay, mSlots[buf].mGraphicBuffer);
+        EGLImageKHR image = createImage(mEglDisplay,
+                mSlots[buf].mGraphicBuffer, item.mCrop);
         if (image == EGL_NO_IMAGE_KHR) {
             ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
                   mEglDisplay, buf);
             return UNKNOWN_ERROR;
         }
         mEglSlots[buf].mEglImage = image;
+        mEglSlots[buf].mCropRect = item.mCrop;
     }
 
     // Do whatever sync ops we need to do before releasing the old slot.
@@ -581,7 +621,8 @@ status_t GLConsumer::bindUnslottedBufferLocked(EGLDisplay dpy) {
             mCurrentTexture, mCurrentTextureBuf.get());
 
     // Create a temporary EGLImageKHR.
-    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf);
+    Rect crop;
+    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf, mCurrentCrop);
     if (image == EGL_NO_IMAGE_KHR) {
         return UNKNOWN_ERROR;
     }
@@ -753,60 +794,66 @@ void GLConsumer::computeCurrentTransformMatrixLocked() {
         ST_LOGD("computeCurrentTransformMatrixLocked: mCurrentTextureBuf is NULL");
     }
 
-    Rect cropRect = mCurrentCrop;
-    float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
-    float bufferWidth = buf->getWidth();
-    float bufferHeight = buf->getHeight();
-    if (!cropRect.isEmpty()) {
-        float shrinkAmount = 0.0f;
-        if (mFilteringEnabled) {
-            // In order to prevent bilinear sampling beyond the edge of the
-            // crop rectangle we may need to shrink it by 2 texels in each
-            // dimension.  Normally this would just need to take 1/2 a texel
-            // off each end, but because the chroma channels of YUV420 images
-            // are subsampled we may need to shrink the crop region by a whole
-            // texel on each side.
-            switch (buf->getPixelFormat()) {
-                case PIXEL_FORMAT_RGBA_8888:
-                case PIXEL_FORMAT_RGBX_8888:
-                case PIXEL_FORMAT_RGB_888:
-                case PIXEL_FORMAT_RGB_565:
-                case PIXEL_FORMAT_BGRA_8888:
-                    // We know there's no subsampling of any channels, so we
-                    // only need to shrink by a half a pixel.
-                    shrinkAmount = 0.5;
-                    break;
+    float mtxBeforeFlipV[16];
+    if (!isEglImageCroppable(mCurrentCrop)) {
+        Rect cropRect = mCurrentCrop;
+        float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
+        float bufferWidth = buf->getWidth();
+        float bufferHeight = buf->getHeight();
+        if (!cropRect.isEmpty()) {
+            float shrinkAmount = 0.0f;
+            if (mFilteringEnabled) {
+                // In order to prevent bilinear sampling beyond the edge of the
+                // crop rectangle we may need to shrink it by 2 texels in each
+                // dimension.  Normally this would just need to take 1/2 a texel
+                // off each end, but because the chroma channels of YUV420 images
+                // are subsampled we may need to shrink the crop region by a whole
+                // texel on each side.
+                switch (buf->getPixelFormat()) {
+                    case PIXEL_FORMAT_RGBA_8888:
+                    case PIXEL_FORMAT_RGBX_8888:
+                    case PIXEL_FORMAT_RGB_888:
+                    case PIXEL_FORMAT_RGB_565:
+                    case PIXEL_FORMAT_BGRA_8888:
+                        // We know there's no subsampling of any channels, so we
+                        // only need to shrink by a half a pixel.
+                        shrinkAmount = 0.5;
+                        break;
 
-                default:
-                    // If we don't recognize the format, we must assume the
-                    // worst case (that we care about), which is YUV420.
-                    shrinkAmount = 1.0;
-                    break;
+                    default:
+                        // If we don't recognize the format, we must assume the
+                        // worst case (that we care about), which is YUV420.
+                        shrinkAmount = 1.0;
+                        break;
+                }
+            }
+
+            // Only shrink the dimensions that are not the size of the buffer.
+            if (cropRect.width() < bufferWidth) {
+                tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
+                sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
+                        bufferWidth;
+            }
+            if (cropRect.height() < bufferHeight) {
+                ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
+                        bufferHeight;
+                sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
+                        bufferHeight;
             }
         }
+        float crop[16] = {
+            sx, 0, 0, 0,
+            0, sy, 0, 0,
+            0, 0, 1, 0,
+            tx, ty, 0, 1,
+        };
 
-        // Only shrink the dimensions that are not the size of the buffer.
-        if (cropRect.width() < bufferWidth) {
-            tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
-            sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
-                    bufferWidth;
-        }
-        if (cropRect.height() < bufferHeight) {
-            ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
-                    bufferHeight;
-            sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
-                    bufferHeight;
+        mtxMul(mtxBeforeFlipV, crop, xform);
+    } else {
+        for (int i = 0; i < 16; i++) {
+            mtxBeforeFlipV[i] = xform[i];
         }
     }
-    float crop[16] = {
-        sx, 0, 0, 0,
-        0, sy, 0, 0,
-        0, 0, 1, 0,
-        tx, ty, 0, 1,
-    };
-
-    float mtxBeforeFlipV[16];
-    mtxMul(mtxBeforeFlipV, crop, xform);
 
     // SurfaceFlinger expects the top of its window textures to be at a Y
     // coordinate of 0, so GLConsumer must behave the same way.  We don't
@@ -828,12 +875,26 @@ nsecs_t GLConsumer::getFrameNumber() {
 }
 
 EGLImageKHR GLConsumer::createImage(EGLDisplay dpy,
-        const sp<GraphicBuffer>& graphicBuffer) {
+        const sp<GraphicBuffer>& graphicBuffer, const Rect& crop) {
     EGLClientBuffer cbuf = (EGLClientBuffer)graphicBuffer->getNativeBuffer();
     EGLint attrs[] = {
-        EGL_IMAGE_PRESERVED_KHR,    EGL_TRUE,
+        EGL_IMAGE_PRESERVED_KHR,        EGL_TRUE,
+        EGL_IMAGE_CROP_LEFT_ANDROID,    crop.left,
+        EGL_IMAGE_CROP_TOP_ANDROID,     crop.top,
+        EGL_IMAGE_CROP_RIGHT_ANDROID,   crop.right,
+        EGL_IMAGE_CROP_BOTTOM_ANDROID,  crop.bottom,
         EGL_NONE,
     };
+    if (!crop.isValid()) {
+        // No crop rect to set, so terminate the attrib array before the crop.
+        attrs[2] = EGL_NONE;
+    } else if (!isEglImageCroppable(crop)) {
+        // The crop rect is not at the origin, so we can't set the crop on the
+        // EGLImage because that's not allowed by the EGL_ANDROID_image_crop
+        // extension.  In the future we can add a layered extension that
+        // removes this restriction if there is hardware that can support it.
+        attrs[2] = EGL_NONE;
+    }
     EGLImageKHR image = eglCreateImageKHR(dpy, EGL_NO_CONTEXT,
             EGL_NATIVE_BUFFER_ANDROID, cbuf, attrs);
     if (image == EGL_NO_IMAGE_KHR) {

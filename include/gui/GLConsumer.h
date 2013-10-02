@@ -273,7 +273,7 @@ protected:
 private:
     // createImage creates a new EGLImage from a GraphicBuffer.
     EGLImageKHR createImage(EGLDisplay dpy,
-            const sp<GraphicBuffer>& graphicBuffer);
+            const sp<GraphicBuffer>& graphicBuffer, const Rect& crop);
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
@@ -385,6 +385,10 @@ private:
 
         // mEglImage is the EGLImage created from mGraphicBuffer.
         EGLImageKHR mEglImage;
+
+        // mCropRect is the crop rectangle passed to EGL when mEglImage was
+        // created.
+        Rect mCropRect;
 
         // mFence is the EGL sync object that must signal before the buffer
         // associated with this buffer slot may be dequeued. It is initialized
