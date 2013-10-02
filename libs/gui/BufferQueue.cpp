@@ -667,11 +667,15 @@ status_t BufferQueue::connect(const sp<IBinder>& token,
                 mConnectedApi = api;
                 output->inflate(mDefaultWidth, mDefaultHeight, mTransformHint, mQueue.size());
 
-                // set-up a death notification so that we can disconnect automatically
-                // when/if the remote producer dies.
-                // This will fail with INVALID_OPERATION if the "token" is local to our process.
-                if (token->linkToDeath(static_cast<IBinder::DeathRecipient*>(this)) == NO_ERROR) {
-                    mConnectedProducerToken = token;
+                // set-up a death notification so that we can disconnect
+                // automatically when/if the remote producer dies.
+                if (token != NULL && token->remoteBinder() != NULL) {
+                    status_t err = token->linkToDeath(static_cast<IBinder::DeathRecipient*>(this));
+                    if (err == NO_ERROR) {
+                        mConnectedProducerToken = token;
+                    } else {
+                        ALOGE("linkToDeath failed: %s (%d)", strerror(-err), err);
+                    }
                 }
             }
             break;
