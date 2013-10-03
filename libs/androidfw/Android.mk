@@ -58,8 +58,6 @@ LOCAL_STATIC_LIBRARIES := liblog
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 
-ifeq ($(ANDROID_BUILD_EMBEDDED),true)
-
 # For the device
 # =====================================================
 
@@ -93,5 +91,3 @@ include $(BUILD_SHARED_LIBRARY)
 ifeq (,$(ONE_SHOT_MAKEFILE))
 include $(call first-makefiles-under,$(LOCAL_PATH))
 endif
-
-endif # ($(ANDROID_BUILD_EMBEDDED),true)
