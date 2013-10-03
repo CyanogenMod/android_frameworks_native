@@ -30,7 +30,8 @@ namespace android {
 // must be kept in sync with IPowerManager.aidl
 enum {
     ACQUIRE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION,
-    RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 1,
+    ACQUIRE_WAKE_LOCK_UID = IBinder::FIRST_CALL_TRANSACTION + 1,
+    RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 2,
 };
 
 class BpPowerManager : public BpInterface<IPowerManager>
@@ -53,6 +54,20 @@ public:
         data.writeString16(packageName);
         data.writeInt32(0); // no WorkSource
         return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply);
+    }
+
+    virtual status_t acquireWakeLockWithUid(int flags, const sp<IBinder>& lock, const String16& tag,
+            const String16& packageName, int uid)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
+
+        data.writeStrongBinder(lock);
+        data.writeInt32(flags);
+        data.writeString16(tag);
+        data.writeString16(packageName);
+        data.writeInt32(uid); // uid to blame for the work
+        return remote()->transact(ACQUIRE_WAKE_LOCK_UID, data, &reply);
     }
 
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags)
