@@ -1507,9 +1507,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         RenderEngine& engine(getRenderEngine());
         mat4 colorMatrix = mColorMatrix;
         if (mDaltonize) {
-            // preserve last row of color matrix
             colorMatrix = colorMatrix * mDaltonizer();
-            colorMatrix[3] = mColorMatrix[3];
         }
         engine.beginGroup(colorMatrix);
         doComposeSurfaces(hw, dirtyRegion);
@@ -2570,16 +2568,11 @@ status_t SurfaceFlinger::onTransact(
                     // color matrix is sent as mat3 matrix followed by vec3
                     // offset, then packed into a mat4 where the last row is
                     // the offset and extra values are 0
-                    for (size_t i = 0 ; i < 3 ; i++) {
-                        for (size_t j = 0; j < 3; j++) {
-                            mColorMatrix[i][j] = data.readFloat();
-                        }
-                        mColorMatrix[i][3] = 0;
+                    for (size_t i = 0 ; i < 4; i++) {
+                      for (size_t j = 0; j < 4; j++) {
+                          mColorMatrix[i][j] = data.readFloat();
+                      }
                     }
-                    for (size_t i = 0; i < 3; i++) {
-                        mColorMatrix[3][i] = data.readFloat();
-                    }
-                    mColorMatrix[3][3] = 0;
                 } else {
                     mColorMatrix = mat4();
                 }
