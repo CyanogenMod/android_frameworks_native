@@ -89,6 +89,31 @@ struct VideoDecoderOutputMetaData {
   buffer_handle_t pHandle;
 };
 
+// A pointer to this struct is passed to OMX_SetParameter() when the extension
+// index "OMX.google.android.index.prepareForAdaptivePlayback" is given.
+//
+// This method is used to signal a video decoder, that the user has requested
+// seamless resolution change support (if bEnable is set to OMX_TRUE).
+// nMaxFrameWidth and nMaxFrameHeight are the dimensions of the largest
+// anticipated frames in the video.  If bEnable is OMX_FALSE, no resolution
+// change is expected, and the nMaxFrameWidth/Height fields are unused.
+//
+// If the decoder supports dynamic output buffers, it may ignore this
+// request.  Otherwise, it shall request resources in such a way so that it
+// avoids full port-reconfiguration (due to output port-definition change)
+// during resolution changes.
+//
+// DO NOT USE THIS STRUCTURE AS IT WILL BE REMOVED.  INSTEAD, IMPLEMENT
+// METADATA SUPPORT FOR VIDEO DECODERS.
+struct PrepareForAdaptivePlaybackParams {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bEnable;
+    OMX_U32 nMaxFrameWidth;
+    OMX_U32 nMaxFrameHeight;
+};
+
 // A pointer to this struct is passed to OMX_SetParameter when the extension
 // index for the 'OMX.google.android.index.useAndroidNativeBuffer' extension is
 // given.  This call will only be performed if a prior call was made with the
