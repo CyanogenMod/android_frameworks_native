@@ -22,6 +22,8 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
+static bool sForceHwcCopy = FORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS;
+
 #define VDS_LOGE(msg, ...) ALOGE("[%s] "msg, \
         mDisplayName.string(), ##__VA_ARGS__)
 #define VDS_LOGW_IF(cond, msg, ...) ALOGW_IF(cond, "[%s] "msg, \
@@ -96,6 +98,18 @@ status_t VirtualDisplaySurface::prepareFrame(CompositionType compositionType) {
     mDbgState = DBG_STATE_PREPARED;
 
     mCompositionType = compositionType;
+    if (sForceHwcCopy && mCompositionType == COMPOSITION_GLES) {
+        // Some hardware can do RGB->YUV conversion more efficiently in hardware
+        // controlled by HWC than in hardware controlled by the video encoder.
+        // Forcing GLES-composed frames to go through an extra copy by the HWC
+        // allows the format conversion to happen there, rather than passing RGB
+        // directly to the consumer.
+        //
+        // On the other hand, when the consumer prefers RGB or can consume RGB
+        // inexpensively, this forces an unnecessary copy.
+        mCompositionType = COMPOSITION_MIXED;
+    }
+
     if (mCompositionType != mDbgLastCompositionType) {
         VDS_LOGV("prepareFrame: composition type changed to %s",
                 dbgCompositionTypeStr(mCompositionType));
