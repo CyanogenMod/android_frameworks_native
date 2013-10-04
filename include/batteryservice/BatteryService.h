@@ -59,8 +59,6 @@ struct BatteryProperties {
     bool batteryPresent;
     int batteryLevel;
     int batteryVoltage;
-    int batteryCurrentNow;
-    int batteryChargeCounter;
     int batteryTemperature;
     String8 batteryTechnology;
 
