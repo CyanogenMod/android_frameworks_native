@@ -39,7 +39,7 @@ public:
     virtual status_t enableDisable(int handle, bool enabled, nsecs_t samplingPeriodNs,
                                    nsecs_t maxBatchReportLatencyNs, int reservedFlags) = 0;
     virtual status_t setEventRate(int handle, nsecs_t ns) = 0;
-    virtual status_t flushSensor(int handle) = 0;
+    virtual status_t flush() = 0;
 };
 
 // ----------------------------------------------------------------------------
