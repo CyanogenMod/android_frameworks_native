@@ -59,6 +59,7 @@
 #include "Colorizer.h"
 #include "DdmConnection.h"
 #include "DisplayDevice.h"
+#include "DispSync.h"
 #include "EventThread.h"
 #include "Layer.h"
 #include "LayerDim.h"
@@ -84,6 +85,37 @@
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 namespace android {
+
+// This works around the lack of support for the sync framework on some
+// devices.
+#ifdef RUNNING_WITHOUT_SYNC_FRAMEWORK
+static const bool runningWithoutSyncFramework = true;
+#else
+static const bool runningWithoutSyncFramework = false;
+#endif
+
+// This is the phase offset in nanoseconds of the software vsync event
+// relative to the vsync event reported by HWComposer.  The software vsync
+// event is when SurfaceFlinger and Choreographer-based applications run each
+// frame.
+//
+// This phase offset allows adjustment of the minimum latency from application
+// wake-up (by Choregographer) time to the time at which the resulting window
+// image is displayed.  This value may be either positive (after the HW vsync)
+// or negative (before the HW vsync).  Setting it to 0 will result in a
+// minimum latency of two vsync periods because the app and SurfaceFlinger
+// will run just after the HW vsync.  Setting it to a positive number will
+// result in the minimum latency being:
+//
+//     (2 * VSYNC_PERIOD - (vsyncPhaseOffsetNs % VSYNC_PERIOD))
+//
+// Note that reducing this latency makes it more likely for the applications
+// to not have their window content image ready in time.  When this happens
+// the latency will end up being an additional vsync period, and animations
+// will hiccup.  Therefore, this latency should be tuned somewhat
+// conservatively (or at least with awareness of the trade-off being made).
+static const int64_t vsyncPhaseOffsetNs = VSYNC_EVENT_PHASE_OFFSET_NS;
+
 // ---------------------------------------------------------------------------
 
 const String16 sHardwareTest("android.permission.HARDWARE_TEST");
@@ -114,6 +146,7 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
+        mPrimaryHWVsyncEnabled(false),
         mDaltonize(false)
 {
     ALOGI("SurfaceFlinger is starting");
@@ -402,8 +435,63 @@ status_t SurfaceFlinger::selectEGLConfig(EGLDisplay display, EGLint nativeVisual
     return err;
 }
 
-void SurfaceFlinger::init() {
+class DispSyncSource : public VSyncSource, private DispSync::Callback {
+public:
+    DispSyncSource(DispSync* dispSync) : mValue(0), mDispSync(dispSync) {}
 
+    virtual ~DispSyncSource() {}
+
+    virtual void setVSyncEnabled(bool enable) {
+        // Do NOT lock the mutex here so as to avoid any mutex ordering issues
+        // with locking it in the onDispSyncEvent callback.
+        if (enable) {
+            status_t err = mDispSync->addEventListener(vsyncPhaseOffsetNs,
+                    static_cast<DispSync::Callback*>(this));
+            if (err != NO_ERROR) {
+                ALOGE("error registering vsync callback: %s (%d)",
+                        strerror(-err), err);
+            }
+            ATRACE_INT("VsyncOn", 1);
+        } else {
+            status_t err = mDispSync->removeEventListener(
+                    static_cast<DispSync::Callback*>(this));
+            if (err != NO_ERROR) {
+                ALOGE("error unregistering vsync callback: %s (%d)",
+                        strerror(-err), err);
+            }
+            ATRACE_INT("VsyncOn", 0);
+        }
+    }
+
+    virtual void setCallback(const sp<VSyncSource::Callback>& callback) {
+        Mutex::Autolock lock(mMutex);
+        mCallback = callback;
+    }
+
+private:
+    virtual void onDispSyncEvent(nsecs_t when) {
+        sp<VSyncSource::Callback> callback;
+        {
+            Mutex::Autolock lock(mMutex);
+            callback = mCallback;
+
+            mValue = (mValue + 1) % 2;
+            ATRACE_INT("VSYNC", mValue);
+        }
+
+        if (callback != NULL) {
+            callback->onVSyncEvent(when);
+        }
+    }
+
+    int mValue;
+
+    DispSync* mDispSync;
+    sp<VSyncSource::Callback> mCallback;
+    Mutex mMutex;
+};
+
+void SurfaceFlinger::init() {
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
@@ -499,8 +587,14 @@ void SurfaceFlinger::init() {
     getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext);
 
     // start the EventThread
-    mEventThread = new EventThread(this);
+    sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync);
+    mEventThread = new EventThread(vsyncSrc);
     mEventQueue.setEventThread(mEventThread);
+
+    // set a fake vsync period if there is no HWComposer
+    if (mHwc->initCheck() != NO_ERROR) {
+        mPrimaryDispSync.setPeriod(16666667);
+    }
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
@@ -656,17 +750,49 @@ void SurfaceFlinger::run() {
     } while (true);
 }
 
-void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
-    if (mEventThread == NULL) {
-        // This is a temporary workaround for b/7145521.  A non-null pointer
-        // does not mean EventThread has finished initializing, so this
-        // is not a correct fix.
-        ALOGW("WARNING: EventThread not started, ignoring vsync");
-        return;
+void SurfaceFlinger::enableHardwareVsync() {
+    Mutex::Autolock _l(mHWVsyncLock);
+    if (!mPrimaryHWVsyncEnabled) {
+        mPrimaryDispSync.beginResync();
+        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        mPrimaryHWVsyncEnabled = true;
     }
-    if (uint32_t(type) < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
-        // we should only receive DisplayDevice::DisplayType from the vsync callback
-        mEventThread->onVSyncReceived(type, timestamp);
+}
+
+void SurfaceFlinger::resyncToHardwareVsync() {
+    Mutex::Autolock _l(mHWVsyncLock);
+
+    const nsecs_t period =
+            getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+
+    mPrimaryDispSync.reset();
+    mPrimaryDispSync.setPeriod(period);
+
+    if (!mPrimaryHWVsyncEnabled) {
+        mPrimaryDispSync.beginResync();
+        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        mPrimaryHWVsyncEnabled = true;
+    }
+}
+
+void SurfaceFlinger::disableHardwareVsync() {
+    Mutex::Autolock _l(mHWVsyncLock);
+    if (mPrimaryHWVsyncEnabled) {
+        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
+        mPrimaryDispSync.endResync();
+        mPrimaryHWVsyncEnabled = false;
+    }
+}
+
+void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
+    if (type == 0) {
+        bool needsHwVsync = mPrimaryDispSync.addResyncSample(timestamp);
+
+        if (needsHwVsync) {
+            enableHardwareVsync();
+        } else {
+            disableHardwareVsync();
+        }
     }
 }
 
@@ -694,6 +820,7 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
 }
 
 void SurfaceFlinger::eventControl(int disp, int event, int enabled) {
+    ATRACE_CALL();
     getHwComposer().eventControl(disp, event, enabled);
 }
 
@@ -799,11 +926,27 @@ void SurfaceFlinger::postComposition()
         layers[i]->onPostComposition();
     }
 
+    const HWComposer& hwc = getHwComposer();
+    sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
+
+    if (presentFence->isValid()) {
+        if (mPrimaryDispSync.addPresentFence(presentFence)) {
+            enableHardwareVsync();
+        } else {
+            disableHardwareVsync();
+        }
+    }
+
+    if (runningWithoutSyncFramework) {
+        const sp<const DisplayDevice> hw(getDefaultDisplayDevice());
+        if (hw->isScreenAcquired()) {
+            enableHardwareVsync();
+        }
+    }
+
     if (mAnimCompositionPending) {
         mAnimCompositionPending = false;
 
-        const HWComposer& hwc = getHwComposer();
-        sp<Fence> presentFence = hwc.getDisplayFence(HWC_DISPLAY_PRIMARY);
         if (presentFence->isValid()) {
             mAnimFrameTracker.setActualPresentFence(presentFence);
         } else {
@@ -2034,6 +2177,8 @@ void SurfaceFlinger::onScreenAcquired(const sp<const DisplayDevice>& hw) {
         if (type == DisplayDevice::DISPLAY_PRIMARY) {
             // FIXME: eventthread only knows about the main display right now
             mEventThread->onScreenAcquired();
+
+            resyncToHardwareVsync();
         }
     }
     mVisibleRegionsDirty = true;

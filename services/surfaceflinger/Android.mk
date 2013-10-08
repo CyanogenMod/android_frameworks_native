@@ -4,6 +4,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= \
     Client.cpp \
     DisplayDevice.cpp \
+    DispSync.cpp \
     EventThread.cpp \
     FrameTracker.cpp \
     Layer.cpp \
@@ -51,6 +52,23 @@ endif
 
 ifneq ($(NUM_FRAMEBUFFER_SURFACE_BUFFERS),)
   LOCAL_CFLAGS += -DNUM_FRAMEBUFFER_SURFACE_BUFFERS=$(NUM_FRAMEBUFFER_SURFACE_BUFFERS)
+endif
+
+ifeq ($(TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK),true)
+    LOCAL_CFLAGS += -DRUNNING_WITHOUT_SYNC_FRAMEWORK
+endif
+
+# See build/target/board/generic/BoardConfig.mk for a description of this setting.
+ifneq ($(VSYNC_EVENT_PHASE_OFFSET_NS),)
+    LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=$(VSYNC_EVENT_PHASE_OFFSET_NS)
+else
+    LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=0
+endif
+
+ifneq ($(PRESENT_TIME_OFFSET_FROM_VSYNC_NS),)
+    LOCAL_CFLAGS += -DPRESENT_TIME_OFFSET_FROM_VSYNC_NS=$(PRESENT_TIME_OFFSET_FROM_VSYNC_NS)
+else
+    LOCAL_CFLAGS += -DPRESENT_TIME_OFFSET_FROM_VSYNC_NS=0
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden
