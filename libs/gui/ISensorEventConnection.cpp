@@ -77,10 +77,9 @@ public:
         return reply.readInt32();
     }
 
-    virtual status_t flushSensor(int handle) {
+    virtual status_t flush() {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorEventConnection::getInterfaceDescriptor());
-        data.writeInt32(handle);
         remote()->transact(FLUSH_SENSOR, data, &reply);
         return reply.readInt32();
     }
@@ -122,8 +121,7 @@ status_t BnSensorEventConnection::onTransact(
         } break;
         case FLUSH_SENSOR: {
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
-            int handle = data.readInt32();
-            status_t result = flushSensor(handle);
+            status_t result = flush();
             reply->writeInt32(result);
             return NO_ERROR;
         } break;

@@ -79,7 +79,7 @@ class SensorService :
         virtual status_t enableDisable(int handle, bool enabled, nsecs_t samplingPeriodNs,
                                        nsecs_t maxBatchReportLatencyNs, int reservedFlags);
         virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
-        virtual status_t flushSensor(int handle);
+        virtual status_t flush();
         // Count the number of flush complete events which are about to be dropped in the buffer.
         // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
         // sent separately before the next batch of events.
