@@ -39,7 +39,21 @@ class String8;
 
 // ---------------------------------------------------------------------------
 
-class EventThread : public Thread {
+
+class VSyncSource : public virtual RefBase {
+public:
+    class Callback: public virtual RefBase {
+    public:
+        virtual ~Callback() {}
+        virtual void onVSyncEvent(nsecs_t when) = 0;
+    };
+
+    virtual ~VSyncSource() {}
+    virtual void setVSyncEnabled(bool enable) = 0;
+    virtual void setCallback(const sp<Callback>& callback) = 0;
+};
+
+class EventThread : public Thread, private VSyncSource::Callback {
     class Connection : public BnDisplayEventConnection {
     public:
         Connection(const sp<EventThread>& eventThread);
@@ -62,7 +76,7 @@ class EventThread : public Thread {
 
 public:
 
-    EventThread(const sp<SurfaceFlinger>& flinger);
+    EventThread(const sp<VSyncSource>& src);
 
     sp<Connection> createEventConnection() const;
     status_t registerDisplayEventConnection(const sp<Connection>& connection);
@@ -76,8 +90,7 @@ public:
     // called after the screen is turned on from main thread
     void onScreenAcquired();
 
-    // called when receiving a vsync event
-    void onVSyncReceived(int type, nsecs_t timestamp);
+    // called when receiving a hotplug event
     void onHotplugReceived(int type, bool connected);
 
     Vector< sp<EventThread::Connection> > waitForEvent(
@@ -89,12 +102,14 @@ private:
     virtual bool        threadLoop();
     virtual void        onFirstRef();
 
+    virtual void onVSyncEvent(nsecs_t timestamp);
+
     void removeDisplayEventConnection(const wp<Connection>& connection);
     void enableVSyncLocked();
     void disableVSyncLocked();
 
     // constants
-    sp<SurfaceFlinger> mFlinger;
+    sp<VSyncSource> mVSyncSource;
     PowerHAL mPowerHAL;
 
     mutable Mutex mLock;
@@ -105,6 +120,7 @@ private:
     Vector< DisplayEventReceiver::Event > mPendingEvents;
     DisplayEventReceiver::Event mVSyncEvent[DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES];
     bool mUseSoftwareVSync;
+    bool mVsyncEnabled;
 
     // for debugging
     bool mDebugVsyncEnabled;

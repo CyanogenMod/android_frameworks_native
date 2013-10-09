@@ -49,6 +49,7 @@
 
 #include "Barrier.h"
 #include "DisplayDevice.h"
+#include "DispSync.h"
 #include "FrameTracker.h"
 #include "MessageQueue.h"
 
@@ -379,6 +380,12 @@ private:
      * Display management
      */
 
+    /* ------------------------------------------------------------------------
+     * VSync
+     */
+     void enableHardwareVsync();
+     void disableHardwareVsync();
+     void resyncToHardwareVsync();
 
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
@@ -452,10 +459,15 @@ private:
     // these are thread safe
     mutable MessageQueue mEventQueue;
     FrameTracker mAnimFrameTracker;
+    DispSync mPrimaryDispSync;
 
     // protected by mDestroyedLayerLock;
     mutable Mutex mDestroyedLayerLock;
     Vector<Layer const *> mDestroyedLayers;
+
+    // protected by mHWVsyncLock
+    Mutex mHWVsyncLock;
+    bool mPrimaryHWVsyncEnabled;
 
     /* ------------------------------------------------------------------------
      * Feature prototyping

@@ -284,7 +284,7 @@ void HWComposer::invalidate() {
 void HWComposer::vsync(int disp, int64_t timestamp) {
     if (uint32_t(disp) < HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
         char tag[16];
-        snprintf(tag, sizeof(tag), "VSYNC_%1u", disp);
+        snprintf(tag, sizeof(tag), "HW_VSYNC_%1u", disp);
         ATRACE_INT(tag, ++mVSyncCounts[disp] & 1);
 
         mEventHandler.onVSyncReceived(disp, timestamp);
