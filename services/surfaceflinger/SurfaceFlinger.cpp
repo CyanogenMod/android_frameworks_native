@@ -2982,6 +2982,27 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         renderScreenImplLocked(hw, reqWidth, reqHeight,
                                 minLayerZ, maxLayerZ, true);
 
+                        // Create a sync point and wait on it, so we know the buffer is
+                        // ready before we pass it along.  We can't trivially call glFlush(),
+                        // so we use a wait flag instead.
+                        // TODO: pass a sync fd to queueBuffer() and let the consumer wait.
+                        EGLSyncKHR sync = eglCreateSyncKHR(mEGLDisplay, EGL_SYNC_FENCE_KHR, NULL);
+                        if (sync != EGL_NO_SYNC_KHR) {
+                            EGLint result = eglClientWaitSyncKHR(mEGLDisplay, sync,
+                                    EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, 2000000000 /*2 sec*/);
+                            EGLint eglErr = eglGetError();
+                            eglDestroySyncKHR(mEGLDisplay, sync);
+                            if (result == EGL_TIMEOUT_EXPIRED_KHR) {
+                                ALOGW("captureScreen: fence wait timed out");
+                            } else {
+                                ALOGW_IF(eglErr != EGL_SUCCESS,
+                                        "captureScreen: error waiting on EGL fence: %#x", eglErr);
+                            }
+                        } else {
+                            ALOGW("captureScreen: error creating EGL fence: %#x", eglGetError());
+                            // not fatal
+                        }
+
                         if (DEBUG_SCREENSHOTS) {
                             uint32_t* pixels = new uint32_t[reqWidth*reqHeight];
                             getRenderEngine().readPixels(0, 0, reqWidth, reqHeight, pixels);
