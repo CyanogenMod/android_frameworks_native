@@ -110,7 +110,7 @@ public:
                 }
 
                 nextEventTime = computeNextEventTimeLocked(now);
-                targetTime = nextEventTime - mWakeupLatency;
+                targetTime = nextEventTime;
 
                 bool isWakeup = false;
 
@@ -228,7 +228,7 @@ private:
             nsecs_t t = computeListenerNextEventTimeLocked(mEventListeners[i],
                     ref);
 
-            if (t - mWakeupLatency < now) {
+            if (t < now) {
                 CallbackInvocation ci;
                 ci.mCallback = mEventListeners[i].mCallback;
                 ci.mEventTime = t;
