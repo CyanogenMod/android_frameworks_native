@@ -397,6 +397,7 @@ void DispSync::setPeriod(nsecs_t period) {
     Mutex::Autolock lock(mMutex);
     mPeriod = period;
     mPhase = 0;
+    mThread->updateModel(mPeriod, mPhase);
 }
 
 void DispSync::updateModelLocked() {
