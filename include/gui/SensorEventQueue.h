@@ -74,7 +74,7 @@ public:
     status_t enableSensor(int32_t handle, int32_t samplingPeriodUs, int maxBatchReportLatencyUs,
                           int reservedFlags) const;
     status_t disableSensor(int32_t handle) const;
-    status_t flushSensor(int32_t handle) const;
+    status_t flush() const;
 
 private:
     sp<Looper> getLooper() const;

@@ -679,8 +679,12 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
                                     int handle) {
   if (mInitCheck != NO_ERROR) return mInitCheck;
   SensorInterface* sensor = mSensorMap.valueFor(handle);
-   if (sensor == NULL) {
-       return BAD_VALUE;
+  if (sensor == NULL) {
+      return BAD_VALUE;
+  }
+  if (sensor->getSensor().getType() == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+      ALOGE("flush called on Significant Motion sensor");
+      return INVALID_OPERATION;
   }
   SensorDevice& dev(SensorDevice::getInstance());
 
@@ -934,8 +938,18 @@ status_t SensorService::SensorEventConnection::setEventRate(
     return mService->setEventRate(this, handle, samplingPeriodNs);
 }
 
-status_t  SensorService::SensorEventConnection::flushSensor(int handle) {
-    return mService->flushSensor(this, handle);
+status_t  SensorService::SensorEventConnection::flush() {
+    Mutex::Autolock _l(mConnectionLock);
+    status_t err(NO_ERROR);
+    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const int handle = mSensorInfo.keyAt(i);
+        status_t err_flush = mService->flushSensor(this, handle);
+        if (err_flush != NO_ERROR) {
+            ALOGE("Flush error handle=%d %s", handle, strerror(-err_flush));
+        }
+        err = (err_flush != NO_ERROR) ? err_flush : err;
+    }
+    return err;
 }
 
 // ---------------------------------------------------------------------------
