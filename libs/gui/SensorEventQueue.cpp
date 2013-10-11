@@ -132,8 +132,8 @@ status_t SensorEventQueue::enableSensor(int32_t handle, int32_t samplingPeriodUs
                                                  us2ns(maxBatchReportLatencyUs), reservedFlags);
 }
 
-status_t SensorEventQueue::flushSensor(int32_t handle) const {
-    return mSensorEventConnection->flushSensor(handle);
+status_t SensorEventQueue::flush() const {
+    return mSensorEventConnection->flush();
 }
 
 status_t SensorEventQueue::disableSensor(int32_t handle) const {
