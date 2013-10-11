@@ -50,7 +50,7 @@ GLES20RenderEngine::GLES20RenderEngine() :
         }
     } pack565;
 
-    const uint16_t protTexData[] = { pack565(0x03, 0x03, 0x03) };
+    const uint16_t protTexData[] = { 0 };
     glGenTextures(1, &mProtectedTexName);
     glBindTexture(GL_TEXTURE_2D, mProtectedTexName);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
