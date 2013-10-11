@@ -376,13 +376,13 @@ InputConsumer::~InputConsumer() {
 
 bool InputConsumer::isTouchResamplingEnabled() {
     char value[PROPERTY_VALUE_MAX];
-    int length = property_get("debug.inputconsumer.resample", value, NULL);
+    int length = property_get("ro.input.noresample", value, NULL);
     if (length > 0) {
-        if (!strcmp("0", value)) {
+        if (!strcmp("1", value)) {
             return false;
         }
-        if (strcmp("1", value)) {
-            ALOGD("Unrecognized property value for 'debug.inputconsumer.resample'.  "
+        if (strcmp("0", value)) {
+            ALOGD("Unrecognized property value for 'ro.input.noresample'.  "
                     "Use '1' or '0'.");
         }
     }
@@ -511,7 +511,7 @@ status_t InputConsumer::consumeBatch(InputEventFactoryInterface* factory,
     status_t result;
     for (size_t i = mBatches.size(); i-- > 0; ) {
         Batch& batch = mBatches.editItemAt(i);
-        if (frameTime < 0) {
+        if (frameTime < 0 || !mResampleTouch) {
             result = consumeSamples(factory, batch, batch.samples.size(),
                     outSeq, outEvent);
             mBatches.removeAt(i);
