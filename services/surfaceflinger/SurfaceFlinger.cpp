@@ -147,6 +147,7 @@ SurfaceFlinger::SurfaceFlinger()
         mLastTransactionTime(0),
         mBootFinished(false),
         mPrimaryHWVsyncEnabled(false),
+        mHWVsyncAvailable(false),
         mDaltonize(false)
 {
     ALOGI("SurfaceFlinger is starting");
@@ -752,15 +753,22 @@ void SurfaceFlinger::run() {
 
 void SurfaceFlinger::enableHardwareVsync() {
     Mutex::Autolock _l(mHWVsyncLock);
-    if (!mPrimaryHWVsyncEnabled) {
+    if (!mPrimaryHWVsyncEnabled && mHWVsyncAvailable) {
         mPrimaryDispSync.beginResync();
         eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
         mPrimaryHWVsyncEnabled = true;
     }
 }
 
-void SurfaceFlinger::resyncToHardwareVsync() {
+void SurfaceFlinger::resyncToHardwareVsync(bool makeAvailable) {
     Mutex::Autolock _l(mHWVsyncLock);
+
+    if (makeAvailable) {
+        mHWVsyncAvailable = true;
+    } else if (!mHWVsyncAvailable) {
+        ALOGE("resyncToHardwareVsync called when HW vsync unavailable");
+        return;
+    }
 
     const nsecs_t period =
             getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
@@ -775,12 +783,15 @@ void SurfaceFlinger::resyncToHardwareVsync() {
     }
 }
 
-void SurfaceFlinger::disableHardwareVsync() {
+void SurfaceFlinger::disableHardwareVsync(bool makeUnavailable) {
     Mutex::Autolock _l(mHWVsyncLock);
     if (mPrimaryHWVsyncEnabled) {
         eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
         mPrimaryDispSync.endResync();
         mPrimaryHWVsyncEnabled = false;
+    }
+    if (makeUnavailable) {
+        mHWVsyncAvailable = false;
     }
 }
 
@@ -791,7 +802,7 @@ void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
         if (needsHwVsync) {
             enableHardwareVsync();
         } else {
-            disableHardwareVsync();
+            disableHardwareVsync(false);
         }
     }
 }
@@ -933,7 +944,7 @@ void SurfaceFlinger::postComposition()
         if (mPrimaryDispSync.addPresentFence(presentFence)) {
             enableHardwareVsync();
         } else {
-            disableHardwareVsync();
+            disableHardwareVsync(false);
         }
     }
 
@@ -2178,7 +2189,7 @@ void SurfaceFlinger::onScreenAcquired(const sp<const DisplayDevice>& hw) {
             // FIXME: eventthread only knows about the main display right now
             mEventThread->onScreenAcquired();
 
-            resyncToHardwareVsync();
+            resyncToHardwareVsync(true);
         }
     }
     mVisibleRegionsDirty = true;
@@ -2196,6 +2207,8 @@ void SurfaceFlinger::onScreenReleased(const sp<const DisplayDevice>& hw) {
     int32_t type = hw->getDisplayType();
     if (type < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         if (type == DisplayDevice::DISPLAY_PRIMARY) {
+            disableHardwareVsync(true); // also cancels any in-progress resync
+
             // FIXME: eventthread only knows about the main display right now
             mEventThread->onScreenReleased();
         }
