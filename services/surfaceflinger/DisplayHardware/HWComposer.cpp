@@ -283,13 +283,27 @@ void HWComposer::invalidate() {
 
 void HWComposer::vsync(int disp, int64_t timestamp) {
     if (uint32_t(disp) < HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
+        {
+            Mutex::Autolock _l(mLock);
+
+            // There have been reports of HWCs that signal several vsync events
+            // with the same timestamp when turning the display off and on. This
+            // is a bug in the HWC implementation, but filter the extra events
+            // out here so they don't cause havoc downstream.
+            if (timestamp == mLastHwVSync[disp]) {
+                ALOGW("Ignoring duplicate VSYNC event from HWC (t=%lld)",
+                        timestamp);
+                return;
+            }
+
+            mLastHwVSync[disp] = timestamp;
+        }
+
         char tag[16];
         snprintf(tag, sizeof(tag), "HW_VSYNC_%1u", disp);
         ATRACE_INT(tag, ++mVSyncCounts[disp] & 1);
 
         mEventHandler.onVSyncReceived(disp, timestamp);
-        Mutex::Autolock _l(mLock);
-        mLastHwVSync[disp] = timestamp;
     }
 }
 
