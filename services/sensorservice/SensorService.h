@@ -83,7 +83,7 @@ class SensorService :
         // Count the number of flush complete events which are about to be dropped in the buffer.
         // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
         // sent separately before the next batch of events.
-        void countFlushCompleteEvents(sensors_event_t* scratch, int numEventsDropped);
+        void countFlushCompleteEventsLocked(sensors_event_t* scratch, int numEventsDropped);
 
         sp<SensorService> const mService;
         sp<BitTube> mChannel;
@@ -112,7 +112,6 @@ class SensorService :
         bool addSensor(int32_t handle);
         bool removeSensor(int32_t handle);
         void setFirstFlushPending(int32_t handle, bool value);
-        void incrementPendingFlushCount(int32_t handle);
         void dump(String8& result);
 
         uid_t getUid() const { return mUid; }

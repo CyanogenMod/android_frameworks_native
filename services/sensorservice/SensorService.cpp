@@ -686,21 +686,6 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
       ALOGE("flush called on Significant Motion sensor");
       return INVALID_OPERATION;
   }
-  SensorDevice& dev(SensorDevice::getInstance());
-
-  if (dev.getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_1) {
-      // For older devices increment pending flush count, which will send a trivial flush complete
-      // event for all the connections which are registered for updates on this sensor.
-      const SortedVector< wp<SensorEventConnection> > activeConnections(
-                                      getActiveConnections());
-      for (size_t i=0 ; i<activeConnections.size() ; i++) {
-          sp<SensorEventConnection> connection(activeConnections[i].promote());
-          if (connection != 0) {
-              connection->incrementPendingFlushCount(handle);
-          }
-      }
-      return NO_ERROR;
-  }
   return sensor->flush(connection.get(), handle);
 }
 // ---------------------------------------------------------------------------
@@ -805,15 +790,6 @@ void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
     }
 }
 
-void SensorService::SensorEventConnection::incrementPendingFlushCount(int32_t handle) {
-    Mutex::Autolock _l(mConnectionLock);
-    ssize_t index = mSensorInfo.indexOfKey(handle);
-    if (index >= 0) {
-        FlushInfo& flushInfo = mSensorInfo.editValueAt(index);
-        flushInfo.mPendingFlushEventsToSend++;
-    }
-}
-
 status_t SensorService::SensorEventConnection::sendEvents(
         sensors_event_t const* buffer, size_t numEvents,
         sensors_event_t* scratch)
@@ -872,7 +848,7 @@ status_t SensorService::SensorEventConnection::sendEvents(
                 ssize_t size = SensorEventQueue::write(mChannel, &flushCompleteEvent, 1);
                 if (size < 0) {
                     // ALOGW("dropping %d events on the floor", count);
-                    countFlushCompleteEvents(scratch, count);
+                    countFlushCompleteEventsLocked(scratch, count);
                     return size;
                 }
                 ALOGD_IF(DEBUG_CONNECTIONS, "sent dropped flush complete event==%d ",
@@ -889,17 +865,17 @@ status_t SensorService::SensorEventConnection::sendEvents(
         // the destination doesn't accept events anymore, it's probably
         // full. For now, we just drop the events on the floor.
         // ALOGW("dropping %d events on the floor", count);
-        countFlushCompleteEvents(scratch, count);
+        Mutex::Autolock _l(mConnectionLock);
+        countFlushCompleteEventsLocked(scratch, count);
         return size;
     }
 
     return size < 0 ? status_t(size) : status_t(NO_ERROR);
 }
 
-void SensorService::SensorEventConnection::countFlushCompleteEvents(
+void SensorService::SensorEventConnection::countFlushCompleteEventsLocked(
                 sensors_event_t* scratch, const int numEventsDropped) {
     ALOGD_IF(DEBUG_CONNECTIONS, "dropping %d events ", numEventsDropped);
-    Mutex::Autolock _l(mConnectionLock);
     // Count flushComplete events in the events that are about to the dropped. These will be sent
     // separately before the next batch of events.
     for (int j = 0; j < numEventsDropped; ++j) {
@@ -939,15 +915,25 @@ status_t SensorService::SensorEventConnection::setEventRate(
 }
 
 status_t  SensorService::SensorEventConnection::flush() {
+    SensorDevice& dev(SensorDevice::getInstance());
+    const int halVersion = dev.getHalDeviceVersion();
     Mutex::Autolock _l(mConnectionLock);
     status_t err(NO_ERROR);
+    // Loop through all sensors for this connection and call flush on each of them.
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const int handle = mSensorInfo.keyAt(i);
-        status_t err_flush = mService->flushSensor(this, handle);
-        if (err_flush != NO_ERROR) {
-            ALOGE("Flush error handle=%d %s", handle, strerror(-err_flush));
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1) {
+            // For older devices just increment pending flush count which will send a trivial
+            // flush complete event.
+            FlushInfo& flushInfo = mSensorInfo.editValueFor(handle);
+            flushInfo.mPendingFlushEventsToSend++;
+        } else {
+            status_t err_flush = mService->flushSensor(this, handle);
+            if (err_flush != NO_ERROR) {
+                ALOGE("Flush error handle=%d %s", handle, strerror(-err_flush));
+            }
+            err = (err_flush != NO_ERROR) ? err_flush : err;
         }
-        err = (err_flush != NO_ERROR) ? err_flush : err;
     }
     return err;
 }
