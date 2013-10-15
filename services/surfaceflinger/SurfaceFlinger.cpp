@@ -60,6 +60,7 @@
 #include "DdmConnection.h"
 #include "DisplayDevice.h"
 #include "DispSync.h"
+#include "EventControlThread.h"
 #include "EventThread.h"
 #include "Layer.h"
 #include "LayerDim.h"
@@ -592,6 +593,9 @@ void SurfaceFlinger::init() {
     mEventThread = new EventThread(vsyncSrc);
     mEventQueue.setEventThread(mEventThread);
 
+    mEventControlThread = new EventControlThread(this);
+    mEventControlThread->run("EventControl", PRIORITY_URGENT_DISPLAY);
+
     // set a fake vsync period if there is no HWComposer
     if (mHwc->initCheck() != NO_ERROR) {
         mPrimaryDispSync.setPeriod(16666667);
@@ -755,7 +759,8 @@ void SurfaceFlinger::enableHardwareVsync() {
     Mutex::Autolock _l(mHWVsyncLock);
     if (!mPrimaryHWVsyncEnabled && mHWVsyncAvailable) {
         mPrimaryDispSync.beginResync();
-        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        //eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        mEventControlThread->setVsyncEnabled(true);
         mPrimaryHWVsyncEnabled = true;
     }
 }
@@ -778,7 +783,8 @@ void SurfaceFlinger::resyncToHardwareVsync(bool makeAvailable) {
 
     if (!mPrimaryHWVsyncEnabled) {
         mPrimaryDispSync.beginResync();
-        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        //eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, true);
+        mEventControlThread->setVsyncEnabled(true);
         mPrimaryHWVsyncEnabled = true;
     }
 }
@@ -786,7 +792,8 @@ void SurfaceFlinger::resyncToHardwareVsync(bool makeAvailable) {
 void SurfaceFlinger::disableHardwareVsync(bool makeUnavailable) {
     Mutex::Autolock _l(mHWVsyncLock);
     if (mPrimaryHWVsyncEnabled) {
-        eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
+        //eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC, false);
+        mEventControlThread->setVsyncEnabled(false);
         mPrimaryDispSync.endResync();
         mPrimaryHWVsyncEnabled = false;
     }
@@ -796,14 +803,19 @@ void SurfaceFlinger::disableHardwareVsync(bool makeUnavailable) {
 }
 
 void SurfaceFlinger::onVSyncReceived(int type, nsecs_t timestamp) {
-    if (type == 0) {
-        bool needsHwVsync = mPrimaryDispSync.addResyncSample(timestamp);
+    bool needsHwVsync = false;
 
-        if (needsHwVsync) {
-            enableHardwareVsync();
-        } else {
-            disableHardwareVsync(false);
+    { // Scope for the lock
+        Mutex::Autolock _l(mHWVsyncLock);
+        if (type == 0 && mPrimaryHWVsyncEnabled) {
+            needsHwVsync = mPrimaryDispSync.addResyncSample(timestamp);
         }
+    }
+
+    if (needsHwVsync) {
+        enableHardwareVsync();
+    } else {
+        disableHardwareVsync(false);
     }
 }
 
