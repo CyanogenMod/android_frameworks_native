@@ -35,6 +35,7 @@ public:
     virtual status_t acquireWakeLockWithUid(int flags, const sp<IBinder>& lock, const String16& tag,
             const String16& packageName, int uid) = 0;
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags) = 0;
+    virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids) = 0;
 };
 
 // ----------------------------------------------------------------------------
