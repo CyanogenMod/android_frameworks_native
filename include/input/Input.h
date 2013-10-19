@@ -90,6 +90,9 @@ enum {
     ALED_CONTROLLER_4 = 0x13,
 };
 
+/* Maximum number of controller LEDs we support */
+#define MAX_CONTROLLER_LEDS 4
+
 /*
  * SystemUiVisibility constants from View.
  */
