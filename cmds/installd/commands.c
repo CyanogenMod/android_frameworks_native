@@ -561,12 +561,14 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
     }
 
     const char *cache_path = DALVIK_CACHE_PREFIX;
+#ifdef ALLOW_DEXROOT_ON_CACHE
     if (!strncmp(src, "/system", 7)) {
         property_get("dalvik.vm.dexopt-data-only", dexopt_data_only, "");
         if (strcmp(dexopt_data_only, "1") != 0) {
             cache_path = DALVIK_SYSTEM_CACHE_PREFIX;
         }
     }
+#endif
 
     dstlen = srclen + strlen(cache_path) + 
         strlen(DALVIK_CACHE_POSTFIX) + 1;
