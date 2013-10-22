@@ -511,14 +511,17 @@ status_t InputConsumer::consumeBatch(InputEventFactoryInterface* factory,
     status_t result;
     for (size_t i = mBatches.size(); i-- > 0; ) {
         Batch& batch = mBatches.editItemAt(i);
-        if (frameTime < 0 || !mResampleTouch) {
+        if (frameTime < 0) {
             result = consumeSamples(factory, batch, batch.samples.size(),
                     outSeq, outEvent);
             mBatches.removeAt(i);
             return result;
         }
 
-        nsecs_t sampleTime = frameTime - RESAMPLE_LATENCY;
+        nsecs_t sampleTime = frameTime;
+        if (mResampleTouch) {
+            sampleTime -= RESAMPLE_LATENCY;
+        }
         ssize_t split = findSampleNoLaterThan(batch, sampleTime);
         if (split < 0) {
             continue;
@@ -532,7 +535,7 @@ status_t InputConsumer::consumeBatch(InputEventFactoryInterface* factory,
         } else {
             next = &batch.samples.itemAt(0);
         }
-        if (!result) {
+        if (!result && mResampleTouch) {
             resampleTouchState(sampleTime, static_cast<MotionEvent*>(*outEvent), next);
         }
         return result;
