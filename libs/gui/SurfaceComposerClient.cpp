@@ -677,6 +677,12 @@ ssize_t SurfaceComposerClient::getDisplayOrientation(int32_t displayId) {
 
 // ----------------------------------------------------------------------------
 
+#ifndef FORCE_SCREENSHOT_CPU_PATH
+#define SS_CPU_CONSUMER false
+#else
+#define SS_CPU_CONSUMER true
+#endif
+
 status_t ScreenshotClient::capture(
         const sp<IBinder>& display,
         const sp<IGraphicBufferProducer>& producer,
@@ -694,7 +700,7 @@ status_t ScreenshotClient::capture(
 #endif
     return s->captureScreen(display, producer,
             reqWidth, reqHeight, minLayerZ, maxLayerZ,
-            false);
+            SS_CPU_CONSUMER);
 }
 
 ScreenshotClient::ScreenshotClient()
