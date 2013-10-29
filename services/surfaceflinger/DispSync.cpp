@@ -164,7 +164,14 @@ public:
         EventListener listener;
         listener.mPhase = phase;
         listener.mCallback = callback;
-        listener.mLastEventTime = systemTime(SYSTEM_TIME_MONOTONIC);
+
+        // We want to allow the firstmost future event to fire without
+        // allowing any past events to fire.  Because
+        // computeListenerNextEventTimeLocked filters out events within a half
+        // a period of the last event time, we need to initialize the last
+        // event time to a half a period in the past.
+        listener.mLastEventTime = systemTime(SYSTEM_TIME_MONOTONIC) - mPeriod / 2;
+
         mEventListeners.push(listener);
 
         mCond.signal();
