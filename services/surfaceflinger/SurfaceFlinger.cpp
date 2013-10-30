@@ -1381,12 +1381,13 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                             property_get("persist.sys.wfd.virtual", value, "0");
                             int wfdVirtual = atoi(value);
                             if(!wfdVirtual) {
-                                sp<VirtualDisplaySurface> dispSurface =
+                                sp<VirtualDisplaySurface> vds =
                                               new VirtualDisplaySurface(
                                     *mHwc, hwcDisplayId, state.surface, bq,
                                     state.displayName);
+                                dispSurface = vds;
                                 if (hwcDisplayId >= 0) {
-                                   producer = dispSurface;
+                                   producer = vds;
                                 } else {
                                   // There won't be any interaction with HWC for this virtual display,
                                   // so the GLES driver can pass buffers directly to the sink.
