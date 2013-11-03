@@ -55,6 +55,10 @@
 #include "DisplayHardware/HWComposer.h"
 #include "Effects/Daltonizer.h"
 
+#ifdef SAMSUNG_HDMI_SUPPORT
+#include "SecHdmiClient.h"
+#endif
+
 namespace android {
 
 // ---------------------------------------------------------------------------
@@ -478,6 +482,9 @@ private:
 
     Daltonizer mDaltonizer;
     bool mDaltonize;
+#if defined(SAMSUNG_HDMI_SUPPORT) && defined(SAMSUNG_EXYNOS5250)
+    SecHdmiClient *                         mHdmiClient;
+#endif
 };
 
 }; // namespace android
