@@ -109,7 +109,7 @@ status_t GraphicBufferMapper::unlock(buffer_handle_t handle)
     return err;
 }
 
-#ifdef EXYNOS4210_ENHANCEMENTS
+#ifdef EXYNOS4_ENHANCEMENTS
 status_t GraphicBufferMapper::getphys(buffer_handle_t handle, void** paddr)
 {
     status_t err;
