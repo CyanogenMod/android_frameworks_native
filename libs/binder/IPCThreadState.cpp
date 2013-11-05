@@ -663,7 +663,7 @@ status_t IPCThreadState::requestDeathNotification(int32_t handle, BpBinder* prox
 {
     mOut.writeInt32(BC_REQUEST_DEATH_NOTIFICATION);
     mOut.writeInt32((int32_t)handle);
-    mOut.writeInt32((int32_t)proxy);
+    mOut.writePointer((uintptr_t)proxy);
     return NO_ERROR;
 }
 
@@ -671,7 +671,7 @@ status_t IPCThreadState::clearDeathNotification(int32_t handle, BpBinder* proxy)
 {
     mOut.writeInt32(BC_CLEAR_DEATH_NOTIFICATION);
     mOut.writeInt32((int32_t)handle);
-    mOut.writeInt32((int32_t)proxy);
+    mOut.writePointer((uintptr_t)proxy);
     return NO_ERROR;
 }
 
@@ -950,8 +950,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_ACQUIRE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         ALOG_ASSERT(refs->refBase() == obj,
                    "BR_ACQUIRE: object %p does not match cookie %p (expected %p)",
                    refs, obj, refs->refBase());
@@ -961,13 +961,13 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             obj->printRefs();
         }
         mOut.writeInt32(BC_ACQUIRE_DONE);
-        mOut.writeInt32((int32_t)refs);
-        mOut.writeInt32((int32_t)obj);
+        mOut.writePointer((uintptr_t)refs);
+        mOut.writePointer((uintptr_t)obj);
         break;
         
     case BR_RELEASE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         ALOG_ASSERT(refs->refBase() == obj,
                    "BR_RELEASE: object %p does not match cookie %p (expected %p)",
                    refs, obj, refs->refBase());
@@ -979,17 +979,17 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_INCREFS:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         refs->incWeak(mProcess.get());
         mOut.writeInt32(BC_INCREFS_DONE);
-        mOut.writeInt32((int32_t)refs);
-        mOut.writeInt32((int32_t)obj);
+        mOut.writePointer((uintptr_t)refs);
+        mOut.writePointer((uintptr_t)obj);
         break;
         
     case BR_DECREFS:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         // NOTE: This assertion is not valid, because the object may no
         // longer exist (thus the (BBinder*)cast above resulting in a different
         // memory address).
@@ -1000,8 +1000,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_ATTEMPT_ACQUIRE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
          
         {
             const bool success = refs->attemptIncStrong(mProcess.get());
@@ -1103,15 +1103,15 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
     
     case BR_DEAD_BINDER:
         {
-            BpBinder *proxy = (BpBinder*)mIn.readInt32();
+            BpBinder *proxy = (BpBinder*)mIn.readPointer();
             proxy->sendObituary();
             mOut.writeInt32(BC_DEAD_BINDER_DONE);
-            mOut.writeInt32((int32_t)proxy);
+            mOut.writePointer((uintptr_t)proxy);
         } break;
         
     case BR_CLEAR_DEATH_NOTIFICATION_DONE:
         {
-            BpBinder *proxy = (BpBinder*)mIn.readInt32();
+            BpBinder *proxy = (BpBinder*)mIn.readPointer();
             proxy->getWeakRefs()->decWeak(proxy);
         } break;
         
@@ -1166,7 +1166,7 @@ void IPCThreadState::freeBuffer(Parcel* parcel, const uint8_t* data, size_t data
     if (parcel != NULL) parcel->closeFileDescriptors();
     IPCThreadState* state = self();
     state->mOut.writeInt32(BC_FREE_BUFFER);
-    state->mOut.writeInt32((int32_t)data);
+    state->mOut.writePointer((uintptr_t)data);
 }
 
 }; // namespace android

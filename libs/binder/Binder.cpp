@@ -142,8 +142,13 @@ void BBinder::attachObject(
 
     if (!e) {
         e = new Extras;
+#ifdef __LP64__
+        if (android_atomic_release_cas64(0, reinterpret_cast<int64_t>(e),
+                reinterpret_cast<volatile int64_t*>(&mExtras)) != 0) {
+#else
         if (android_atomic_cmpxchg(0, reinterpret_cast<int32_t>(e),
                 reinterpret_cast<volatile int32_t*>(&mExtras)) != 0) {
+#endif
             delete e;
             e = mExtras;
         }

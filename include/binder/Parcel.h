@@ -38,6 +38,7 @@ class TextOutput;
 struct flat_binder_object;  // defined in support_p/binder_module.h
 
 class Parcel {
+    friend class IPCThreadState;
 public:
     class ReadableBlob;
     class WritableBlob;
@@ -218,6 +219,9 @@ private:
     status_t            growData(size_t len);
     status_t            restartWrite(size_t desired);
     status_t            continueWrite(size_t desired);
+    status_t            writePointer(uintptr_t val);
+    status_t            readPointer(uintptr_t *pArg) const;
+    uintptr_t           readPointer() const;
     void                freeDataNoInit();
     void                initState();
     void                scanForFds() const;

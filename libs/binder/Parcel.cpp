@@ -633,6 +633,11 @@ status_t Parcel::writeInt64(int64_t val)
     return writeAligned(val);
 }
 
+status_t Parcel::writePointer(uintptr_t val)
+{
+    return writeAligned(val);
+}
+
 status_t Parcel::writeFloat(float val)
 {
     return writeAligned(val);
@@ -977,6 +982,17 @@ int64_t Parcel::readInt64() const
 {
     return readAligned<int64_t>();
 }
+
+status_t Parcel::readPointer(uintptr_t *pArg) const
+{
+    return readAligned(pArg);
+}
+
+uintptr_t Parcel::readPointer() const
+{
+    return readAligned<uintptr_t>();
+}
+
 
 status_t Parcel::readFloat(float *pArg) const
 {
