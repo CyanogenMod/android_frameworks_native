@@ -132,6 +132,7 @@ private:
     const int32_t mDisplayId;
     const String8 mDisplayName;
     sp<IGraphicBufferProducer> mSource[2]; // indexed by SOURCE_*
+    uint32_t mDefaultOutputFormat;
 
     //
     // Inter-frame state
