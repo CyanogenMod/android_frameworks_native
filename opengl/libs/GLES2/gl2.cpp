@@ -127,7 +127,7 @@ const GLubyte * glGetString(GLenum name)
     const GLubyte * ret = egl_get_string_for_current_context(name);
     if (ret == NULL) {
         gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
-        ret = _c->glGetString(name);
+        if(_c) ret = _c->glGetString(name);
     }
     return ret;
 }
