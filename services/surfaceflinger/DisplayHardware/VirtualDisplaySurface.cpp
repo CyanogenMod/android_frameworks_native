@@ -53,7 +53,8 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
         const sp<IGraphicBufferProducer>& sink,
         const sp<IGraphicBufferProducer>& bqProducer,
         const sp<IGraphicBufferConsumer>& bqConsumer,
-        const String8& name)
+        const String8& name,
+        bool secure)
 :   ConsumerBase(bqConsumer),
     mHwc(hwc),
     mDisplayId(NO_MEMORY),
@@ -63,7 +64,8 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
     mDbgState(DBG_STATE_IDLE),
     mDbgLastCompositionType(COMPOSITION_UNKNOWN),
     mMustRecompose(false),
-    mForceHwcCopy(false)
+    mForceHwcCopy(false),
+    mSecure(false)
 {
     mSource[SOURCE_SINK] = sink;
     mSource[SOURCE_SCRATCH] = bqProducer;
@@ -90,6 +92,11 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
     {
         mDefaultOutputFormat = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
         mForceHwcCopy = true;
+        //Set secure flag only if the session requires HW protection, currently
+        //there is no other way to distinguish different security protection levels
+        //This allows Level-3 sessions(eg.simulated displayes) to get
+        //buffers from IOMMU heap and not MM (secure) heap.
+        mSecure = secure;
     }
 
     // XXX: With this debug property we can allow screenrecord to be composed
@@ -114,6 +121,7 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
     VDS_LOGV("creation: sinkFormat: 0x%x sinkUsage: 0x%x mForceHwcCopy: %d",
             mOutputFormat, sinkUsage, mForceHwcCopy);
 
+    setOutputUsage();
     resetPerFrameState();
 
     ConsumerBase::mName = String8::format("VDS: %s", mDisplayName.string());
@@ -124,6 +132,22 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
 }
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {
+}
+
+// helper to update the output usage when the display is secure
+void VirtualDisplaySurface::setOutputUsage() {
+    mOutputUsage = GRALLOC_USAGE_HW_COMPOSER;
+    if (mSecure) {
+        //TODO: Currently, the framework can only say whether the display
+        //and its subsequent session are secure or not. However, there is
+        //no mechanism to distinguish the different levels of security.
+        //The current solution assumes WV L3 protection.
+        mOutputUsage |= GRALLOC_USAGE_PROTECTED;
+#ifdef QCOM_BSP
+        mOutputUsage |= GRALLOC_USAGE_PRIVATE_MM_HEAP |
+                        GRALLOC_USAGE_PRIVATE_UNCACHED;
+#endif
+    }
 }
 
 status_t VirtualDisplaySurface::beginFrame(bool mustRecompose) {
@@ -180,7 +204,7 @@ status_t VirtualDisplaySurface::prepareFrame(CompositionType compositionType) {
         // format/usage and get a new buffer when the GLES driver calls
         // dequeueBuffer().
         mOutputFormat = mDefaultOutputFormat;
-        mOutputUsage = GRALLOC_USAGE_HW_COMPOSER;
+        setOutputUsage();
         refreshOutputBuffer();
     }
 
