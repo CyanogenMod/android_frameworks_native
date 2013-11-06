@@ -1333,7 +1333,8 @@ void SurfaceFlinger::configureVirtualDisplay(int32_t &hwcDisplayId,
         if(!wfdVirtual) {
             // This is for non-wfd virtual display scenarios(e.g. SSD/SR/CTS)
             sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(*mHwc,
-                    hwcDisplayId, state.surface, bq, state.displayName);
+                    hwcDisplayId, state.surface, bq, state.displayName,
+                    state.isSecure);
             dispSurface = vds;
             // There won't be any interaction with HWC for this virtual display.
             // so the GLES driver can pass buffers directly to the sink.
@@ -1352,7 +1353,8 @@ void SurfaceFlinger::configureVirtualDisplay(int32_t &hwcDisplayId,
                 // WFD virtual display instance gets valid hwcDisplayId and
                 // SSD/SR will get invalid hwcDisplayId
                 sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(*mHwc,
-                        hwcDisplayId, state.surface, bq, state.displayName);
+                        hwcDisplayId, state.surface, bq, state.displayName,
+                        state.isSecure);
                 dispSurface = vds;
                 // There won't be any interaction with HWC for this virtual
                 // display, so the GLES driver can pass buffers directly to the
@@ -1368,7 +1370,8 @@ void SurfaceFlinger::configureVirtualDisplay(int32_t &hwcDisplayId,
         // mForceHwcCopy (which is based on Usage Flags)
 
         sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(*mHwc,
-                hwcDisplayId, state.surface, bq, state.displayName);
+                hwcDisplayId, state.surface, bq, state.displayName,
+                state.isSecure);
         dispSurface = vds;
         if (hwcDisplayId >= 0) {
             producer = vds;
