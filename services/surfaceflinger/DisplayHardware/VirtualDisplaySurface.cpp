@@ -53,7 +53,6 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mHwc(hwc),
     mDisplayId(dispId),
     mDisplayName(name),
-    mOutputFormat(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED),
     mOutputUsage(GRALLOC_USAGE_HW_COMPOSER),
     mProducerSlotSource(0),
     mDbgState(DBG_STATE_IDLE),
@@ -65,8 +64,23 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     resetPerFrameState();
 
     int sinkWidth, sinkHeight;
-    mSource[SOURCE_SINK]->query(NATIVE_WINDOW_WIDTH, &sinkWidth);
-    mSource[SOURCE_SINK]->query(NATIVE_WINDOW_HEIGHT, &sinkHeight);
+    sink->query(NATIVE_WINDOW_WIDTH, &sinkWidth);
+    sink->query(NATIVE_WINDOW_HEIGHT, &sinkHeight);
+
+    // Pick the buffer format to request from the sink when not rendering to it
+    // with GLES. If the consumer needs CPU access, use the default format
+    // set by the consumer. Otherwise allow gralloc to decide the format based
+    // on usage bits.
+    int sinkUsage;
+    sink->query(NATIVE_WINDOW_CONSUMER_USAGE_BITS, &sinkUsage);
+    if (sinkUsage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
+        int sinkFormat;
+        sink->query(NATIVE_WINDOW_FORMAT, &sinkFormat);
+        mDefaultOutputFormat = sinkFormat;
+    } else {
+        mDefaultOutputFormat = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+    }
+    mOutputFormat = mDefaultOutputFormat;
 
     ConsumerBase::mName = String8::format("VDS: %s", mDisplayName.string());
     mConsumer->setConsumerName(ConsumerBase::mName);
@@ -121,7 +135,7 @@ status_t VirtualDisplaySurface::prepareFrame(CompositionType compositionType) {
     }
 
     if (mCompositionType != COMPOSITION_GLES &&
-            (mOutputFormat != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED ||
+            (mOutputFormat != mDefaultOutputFormat ||
              mOutputUsage != GRALLOC_USAGE_HW_COMPOSER)) {
         // We must have just switched from GLES-only to MIXED or HWC
         // composition. Stop using the format and usage requested by the GLES
@@ -133,7 +147,7 @@ status_t VirtualDisplaySurface::prepareFrame(CompositionType compositionType) {
         // If we just switched *to* GLES-only mode, we'll change the
         // format/usage and get a new buffer when the GLES driver calls
         // dequeueBuffer().
-        mOutputFormat = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+        mOutputFormat = mDefaultOutputFormat;
         mOutputUsage = GRALLOC_USAGE_HW_COMPOSER;
         refreshOutputBuffer();
     }
@@ -277,8 +291,10 @@ status_t VirtualDisplaySurface::dequeueBuffer(Source source,
     }
     if (result & BUFFER_NEEDS_REALLOCATION) {
         mSource[source]->requestBuffer(*sslot, &mProducerBuffers[pslot]);
-        VDS_LOGV("dequeueBuffer(%s): buffers[%d]=%p",
-                dbgSourceStr(source), pslot, mProducerBuffers[pslot].get());
+        VDS_LOGV("dequeueBuffer(%s): buffers[%d]=%p fmt=%d usage=%#x",
+                dbgSourceStr(source), pslot, mProducerBuffers[pslot].get(),
+                mProducerBuffers[pslot]->getPixelFormat(),
+                mProducerBuffers[pslot]->getUsage());
     }
 
     return result;
