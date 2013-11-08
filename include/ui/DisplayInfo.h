@@ -36,6 +36,10 @@ struct DisplayInfo {
     bool secure;
     nsecs_t appVsyncOffset;
     nsecs_t presentationDeadline;
+#ifdef HAVE_PIXEL_FORMAT_INFO
+    // needed only by old blobs
+    PixelFormatInfo pixelFormatInfo;
+#endif
 };
 
 /* Display orientations as defined in Surface.java and ISurfaceComposer.h. */
