@@ -34,6 +34,10 @@ struct DisplayInfo {
     uint8_t orientation;
     bool secure;
     uint8_t reserved[2];
+#ifdef HAVE_PIXEL_FORMAT_INFO
+    // TODO: this needs to go away (currently needed only by webkit)
+    PixelFormatInfo pixelFormatInfo;
+#endif
 };
 
 /* Display orientations as defined in Surface.java and ISurfaceComposer.h. */
