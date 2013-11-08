@@ -368,6 +368,16 @@ int Surface::query(int what, int* value) const {
                 }
                 return err;
             }
+            case NATIVE_WINDOW_CONSUMER_USAGE_BITS: {
+                status_t err = NO_ERROR;
+                err = mGraphicBufferProducer->query(what, value);
+                if(err == NO_ERROR) {
+                    *value |= mReqUsage;
+                    return NO_ERROR;
+                } else {
+                    return err;
+                }
+            }
         }
     }
     return mGraphicBufferProducer->query(what, value);
