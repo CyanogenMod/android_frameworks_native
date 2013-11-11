@@ -1038,21 +1038,20 @@ void SurfaceFlinger::rebuildLayerStacks() {
             const sp<DisplayDevice>& hw(mDisplays[dpy]);
             const Transform& tr(hw->getTransform());
             const Rect bounds(hw->getBounds());
+            int dpyId = hw->getHwcDisplayId();
             if (hw->canDraw()) {
-                SurfaceFlinger::computeVisibleRegions(layers,
+                SurfaceFlinger::computeVisibleRegions(dpyId, layers,
                         hw->getLayerStack(), dirtyRegion, opaqueRegion);
 
                 const size_t count = layers.size();
                 for (size_t i=0 ; i<count ; i++) {
                     const sp<Layer>& layer(layers[i]);
                     const Layer::State& s(layer->getDrawingState());
-                    if (s.layerStack == hw->getLayerStack()) {
-                        Region drawRegion(tr.transform(
-                                layer->visibleNonTransparentRegion));
-                        drawRegion.andSelf(bounds);
-                        if (!drawRegion.isEmpty()) {
-                            layersSortedByZ.add(layer);
-                        }
+                    Region drawRegion(tr.transform(
+                            layer->visibleNonTransparentRegion));
+                    drawRegion.andSelf(bounds);
+                    if (!drawRegion.isEmpty()) {
+                        layersSortedByZ.add(layer);
                     }
                 }
             }
@@ -1101,6 +1100,26 @@ void SurfaceFlinger::setUpHWComposer() {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
             const int32_t id = hw->getHwcDisplayId();
             if (id >= 0) {
+                // Get the layers in the current drawying state
+                const LayerVector& layers(mDrawingState.layersSortedByZ);
+                bool freezeSurfacePresent = false;
+                const size_t layerCount = layers.size();
+                char value[PROPERTY_VALUE_MAX];
+                property_get("sys.disable_ext_animation", value, "0");
+                if(atoi(value)) {
+                    for (size_t i = 0 ; i < layerCount ; ++i) {
+                        static int screenShotLen = strlen("ScreenshotSurface");
+                        const sp<Layer>& layer(layers[i]);
+                        if(!strncmp(layer->getName(), "ScreenshotSurface",
+                                    screenShotLen)) {
+                            // Screenshot layer is present, and animation in
+                            // progress
+                            freezeSurfacePresent = true;
+                            break;
+                        }
+                    }
+                }
+
                 const Vector< sp<Layer> >& currentLayers(
                     hw->getVisibleLayersSortedByZ());
                 const size_t count = currentLayers.size();
@@ -1113,6 +1132,26 @@ void SurfaceFlinger::setUpHWComposer() {
                      */
                     const sp<Layer>& layer(currentLayers[i]);
                     layer->setPerFrameData(hw, *cur);
+                    if(freezeSurfacePresent) {
+                        // if freezeSurfacePresent, set ANIMATING flag
+                        cur->setAnimating(true);
+                    } else {
+                        const KeyedVector<wp<IBinder>, DisplayDeviceState>&
+                                                draw(mDrawingState.displays);
+                        size_t dc = draw.size();
+                        for (size_t i=0 ; i<dc ; i++) {
+                            if (draw[i].isMainDisplay()) {
+                                HWComposer& hwc(getHwComposer());
+                                if (hwc.initCheck() == NO_ERROR)
+                                    // Pass the current orientation to HWC
+                                    // which will be used to block animation
+                                    // on external
+                                    hwc.eventControl(HWC_DISPLAY_PRIMARY,
+                                            SurfaceFlinger::EVENT_ORIENTATION,
+                                            uint32_t(draw[i].orientation));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1230,6 +1269,26 @@ void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
     // here the transaction has been committed
 }
 
+void SurfaceFlinger::setVirtualDisplayData(
+    int32_t hwcDisplayId,
+    const sp<IGraphicBufferProducer>& sink)
+{
+    sp<ANativeWindow> mNativeWindow = new Surface(sink);
+    ANativeWindow* const window = mNativeWindow.get();
+
+    int format;
+    window->query(window, NATIVE_WINDOW_FORMAT, &format);
+
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    surface = eglCreateWindowSurface(display, mEGLConfig, window, NULL);
+    eglQuerySurface(display, surface, EGL_WIDTH,  &w);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &h);
+
+    mHwc->setVirtualDisplayProperties(hwcDisplayId, w, h, format);
+}
+
 void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 {
     const LayerVector& currentLayers(mCurrentState.layersSortedByZ);
@@ -1342,18 +1401,32 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
 
+                            char value[PROPERTY_VALUE_MAX];
                             hwcDisplayId = allocateHwcDisplayId(state.type);
-                            sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(
+                            property_get("persist.sys.wfd.virtual", value, "0");
+                            int wfdVirtual = atoi(value);
+                            if(!wfdVirtual) {
+                                sp<VirtualDisplaySurface> vds =
+                                              new VirtualDisplaySurface(
                                     *mHwc, hwcDisplayId, state.surface, bq,
                                     state.displayName);
-
-                            dispSurface = vds;
-                            if (hwcDisplayId >= 0) {
-                                producer = vds;
+                                dispSurface = vds;
+                                if (hwcDisplayId >= 0) {
+                                   producer = vds;
+                                } else {
+                                  // There won't be any interaction with HWC for this virtual display,
+                                  // so the GLES driver can pass buffers directly to the sink.
+                                  producer = state.surface;
+                                }
                             } else {
-                                // There won't be any interaction with HWC for this virtual display,
-                                // so the GLES driver can pass buffers directly to the sink.
-                                producer = state.surface;
+                                //Read virtual display properties and create a
+                                //rendering surface for it inorder to be handled
+                                //by hwc.
+                                setVirtualDisplayData(hwcDisplayId,
+                                                                 state.surface);
+                                dispSurface = new FramebufferSurface(*mHwc,
+                                                                    state.type, bq);
+                                producer = bq;
                             }
                         }
                     } else {
@@ -1369,7 +1442,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     }
 
                     const wp<IBinder>& display(curr.keyAt(i));
-                    if (dispSurface != NULL) {
+                    if (dispSurface != NULL && producer != NULL) {
                         sp<DisplayDevice> hw = new DisplayDevice(this,
                                 state.type, hwcDisplayId, state.isSecure,
                                 display, dispSurface, producer, mEGLConfig);
@@ -1507,7 +1580,7 @@ void SurfaceFlinger::commitTransaction()
     mTransactionCV.broadcast();
 }
 
-void SurfaceFlinger::computeVisibleRegions(
+void SurfaceFlinger::computeVisibleRegions(size_t dpy,
         const LayerVector& currentLayers, uint32_t layerStack,
         Region& outDirtyRegion, Region& outOpaqueRegion)
 {
@@ -1518,18 +1591,54 @@ void SurfaceFlinger::computeVisibleRegions(
     Region dirty;
 
     outDirtyRegion.clear();
-
+    bool bIgnoreLayers = false;
+    int extOnlyLayerIndex = -1;
     size_t i = currentLayers.size();
+#ifdef QCOM_BSP
+    while (i--) {
+        const sp<Layer>& layer = currentLayers[i];
+        // iterate through the layer list to find ext_only layers and store
+        // the index
+        if ((dpy && layer->isExtOnly())) {
+            bIgnoreLayers = true;
+            extOnlyLayerIndex = i;
+            break;
+        }
+    }
+    i = currentLayers.size();
+#endif
     while (i--) {
         const sp<Layer>& layer = currentLayers[i];
 
         // start with the whole surface at its current location
         const Layer::State& s(layer->getDrawingState());
 
-        // only consider the layers on the given layer stack
-        if (s.layerStack != layerStack)
+#ifdef QCOM_BSP
+        // Only add the layer marked as "external_only" to external list and
+        // only remove the layer marked as "external_only" from primary list
+        // and do not add the layer marked as "internal_only" to external list
+        if((bIgnoreLayers && extOnlyLayerIndex != (int)i) ||
+           (!dpy && layer->isExtOnly()) ||
+           (dpy && layer->isIntOnly())) {
+            // Ignore all other layers except the layers marked as ext_only
+            // by setting visible non transparent region empty.
+            Region visibleNonTransRegion;
+            visibleNonTransRegion.set(Rect(0,0));
+            layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
             continue;
-
+        }
+#endif
+        // only consider the layers on the given later stack
+        // Override layers created using presentation class by the layers having
+        // ext_only flag enabled
+        if(s.layerStack != layerStack && !bIgnoreLayers) {
+            // set the visible region as empty since we have removed the
+            // layerstack check in rebuildLayerStack() function.
+            Region visibleNonTransRegion;
+            visibleNonTransRegion.set(Rect(0,0));
+            layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+            continue;
+        }
         /*
          * opaqueRegion: area of a surface that is fully opaque.
          */
