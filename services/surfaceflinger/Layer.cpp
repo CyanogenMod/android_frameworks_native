@@ -45,6 +45,9 @@
 #include "DisplayHardware/HWComposer.h"
 
 #include "RenderEngine/RenderEngine.h"
+#ifdef QCOM_BSP
+#include <gralloc_priv.h>
+#endif
 
 #define DEBUG_RESIZE    0
 
@@ -364,6 +367,15 @@ void Layer::setGeometry(
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
+#ifdef QCOM_BSP
+    // set dest_rect to frame buffer width and height, if external_only flag
+    // for the layer is enabled.
+    if(isExtOnly()) {
+        uint32_t w = hw->getWidth();
+        uint32_t h = hw->getHeight();
+        layer.setFrame(Rect(w,h));
+    }
+#endif
     layer.setCrop(computeCrop(hw));
     layer.setPlaneAlpha(s.alpha);
 
@@ -490,11 +502,22 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         // is probably going to have something visibly wrong.
     }
 
+    bool canAllowGPU = false;
+#ifdef QCOM_BSP
+    if(isProtected()) {
+        char property[PROPERTY_VALUE_MAX];
+        if ((property_get("persist.gralloc.cp.level3", property, NULL) > 0) &&
+                (atoi(property) == 1)) {
+            canAllowGPU = true;
+        }
+    }
+#endif
+
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
     RenderEngine& engine(mFlinger->getRenderEngine());
 
-    if (!blackOutLayer) {
+    if (!blackOutLayer || (canAllowGPU)) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
 
@@ -1238,6 +1261,29 @@ Layer::LayerCleaner::~LayerCleaner() {
     mFlinger->onLayerDestroyed(mLayer);
 }
 
+#ifdef QCOM_BSP
+bool Layer::isExtOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_EXTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+
+bool Layer::isIntOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_INTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+#endif
 // ---------------------------------------------------------------------------
 }; // namespace android
 

@@ -98,6 +98,11 @@ ifeq ($(BOARD_USES_SAMSUNG_HDMI),true)
         LOCAL_C_INCLUDES += hardware/samsung/$(TARGET_BOARD_PLATFORM)/include
 endif
 
+ifeq ($(TARGET_USES_QCOM_BSP), true)
+    LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
+    LOCAL_CFLAGS += -DQCOM_BSP
+endif
+
 LOCAL_MODULE:= libsurfaceflinger
 
 include $(BUILD_SHARED_LIBRARY)
