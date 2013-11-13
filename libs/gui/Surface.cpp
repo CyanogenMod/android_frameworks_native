@@ -251,7 +251,7 @@ int Surface::getSlotFromBufferLocked(
     return BAD_VALUE;
 }
 
-int Surface::lockBuffer_DEPRECATED(android_native_buffer_t* buffer) {
+int Surface::lockBuffer_DEPRECATED(android_native_buffer_t* buffer __attribute__((unused))) {
     ALOGV("Surface::lockBuffer");
     Mutex::Autolock lock(mMutex);
     return OK;
@@ -482,7 +482,7 @@ int Surface::dispatchLock(va_list args) {
     return lock(outBuffer, inOutDirtyBounds);
 }
 
-int Surface::dispatchUnlockAndPost(va_list args) {
+int Surface::dispatchUnlockAndPost(va_list args __attribute__((unused))) {
     return unlockAndPost();
 }
 

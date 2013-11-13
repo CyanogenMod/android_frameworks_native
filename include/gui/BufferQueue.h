@@ -42,10 +42,16 @@ class BufferQueue : public BnGraphicBufferProducer,
                     private IBinder::DeathRecipient {
 public:
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
+    // BufferQueue will keep track of at most this value of buffers.
+    // Attempts at runtime to increase the number of buffers past this will fail.
     enum { NUM_BUFFER_SLOTS = 32 };
-    enum { NO_CONNECTED_API = 0 };
-    enum { INVALID_BUFFER_SLOT = -1 };
-    enum { STALE_BUFFER_SLOT = 1, NO_BUFFER_AVAILABLE, PRESENT_LATER };
+    // Used as a placeholder slot# when the value isn't pointing to an existing buffer.
+    enum { INVALID_BUFFER_SLOT = IGraphicBufferConsumer::BufferItem::INVALID_BUFFER_SLOT };
+    // Alias to <IGraphicBufferConsumer.h> -- please scope from there in future code!
+    enum {
+        NO_BUFFER_AVAILABLE = IGraphicBufferConsumer::NO_BUFFER_AVAILABLE,
+        PRESENT_LATER = IGraphicBufferConsumer::PRESENT_LATER,
+    };
 
     // When in async mode we reserve two slots in order to guarantee that the
     // producer and consumer can run asynchronously.
@@ -74,7 +80,6 @@ public:
         // the raison d'etre of ProxyConsumerListener.
         wp<ConsumerListener> mConsumerListener;
     };
-
 
     // BufferQueue manages a pool of gralloc memory slots to be used by
     // producers and consumers. allocator is used to allocate all the
@@ -212,7 +217,7 @@ public:
      */
 
     // acquireBuffer attempts to acquire ownership of the next pending buffer in
-    // the BufferQueue.  If no buffer is pending then it returns -EINVAL.  If a
+    // the BufferQueue.  If no buffer is pending then it returns NO_BUFFER_AVAILABLE. If a
     // buffer is successfully acquired, the information about the buffer is
     // returned in BufferItem.  If the buffer returned had previously been
     // acquired then the BufferItem::mGraphicBuffer field of buffer is set to
@@ -224,7 +229,7 @@ public:
     // future, the buffer won't be acquired, and PRESENT_LATER will be
     // returned.  The presentation time is in nanoseconds, and the time base
     // is CLOCK_MONOTONIC.
-    virtual status_t acquireBuffer(BufferItem *buffer, nsecs_t presentWhen);
+    virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen);
 
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
@@ -312,8 +317,13 @@ public:
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
 
-
 private:
+    // The default API number used to indicate no producer client is connected.
+    enum { NO_CONNECTED_API = 0 };
+
+    // Aliases for using enums from <IGraphicBufferConsumer.h>
+    enum { STALE_BUFFER_SLOT = IGraphicBufferConsumer::STALE_BUFFER_SLOT };
+
     // freeBufferLocked frees the GraphicBuffer and sync resources for the
     // given slot.
     void freeBufferLocked(int index);

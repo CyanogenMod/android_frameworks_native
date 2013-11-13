@@ -85,7 +85,7 @@ ConsumerBase::~ConsumerBase() {
         "consumer is not abandoned!", mName.string());
 }
 
-void ConsumerBase::onLastStrongRef(const void* id) {
+void ConsumerBase::onLastStrongRef(const void* id __attribute__((unused))) {
     abandon();
 }
 
@@ -243,7 +243,7 @@ status_t ConsumerBase::releaseBufferLocked(
             slot, mSlots[slot].mFrameNumber);
     status_t err = mConsumer->releaseBuffer(slot, mSlots[slot].mFrameNumber,
             display, eglFence, mSlots[slot].mFence);
-    if (err == BufferQueue::STALE_BUFFER_SLOT) {
+    if (err == IGraphicBufferConsumer::STALE_BUFFER_SLOT) {
         freeBufferLocked(slot);
     }
 

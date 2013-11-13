@@ -223,7 +223,7 @@ public:
     }
 
     virtual status_t releaseBuffer(int buf, uint64_t frameNumber,
-            EGLDisplay display, EGLSyncKHR fence,
+            EGLDisplay display __attribute__((unused)), EGLSyncKHR fence __attribute__((unused)),
             const sp<Fence>& releaseFence) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());

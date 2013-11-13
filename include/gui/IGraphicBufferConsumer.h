@@ -48,6 +48,7 @@ public:
         status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
 
     public:
+        // The default value of mBuf, used to indicate this doesn't correspond to a slot.
         enum { INVALID_BUFFER_SLOT = -1 };
         BufferItem();
 
@@ -63,13 +64,17 @@ public:
         Rect mCrop;
 
         // mTransform is the current transform flags for this buffer slot.
+        // refer to NATIVE_WINDOW_TRANSFORM_* in <window.h>
         uint32_t mTransform;
 
         // mScalingMode is the current scaling mode for this buffer slot.
+        // refer to NATIVE_WINDOW_SCALING_* in <window.h>
         uint32_t mScalingMode;
 
         // mTimestamp is the current timestamp for this buffer slot. This gets
-        // to set by queueBuffer each time this slot is queued.
+        // to set by queueBuffer each time this slot is queued. This value
+        // is guaranteed to be monotonically increasing for each newly
+        // acquired buffer.
         int64_t mTimestamp;
 
         // mIsAutoTimestamp indicates whether mTimestamp was generated
@@ -79,7 +84,7 @@ public:
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
 
-        // mBuf is the slot index of this buffer
+        // mBuf is the slot index of this buffer (default INVALID_BUFFER_SLOT).
         int mBuf;
 
         // mIsDroppable whether this buffer was queued with the
@@ -97,21 +102,42 @@ public:
         bool mTransformToDisplayInverse;
     };
 
+    enum {
+        // Returned by releaseBuffer, after which the consumer must
+        // free any references to the just-released buffer that it might have.
+        STALE_BUFFER_SLOT = 1,
+        // Returned by dequeueBuffer if there are no pending buffers available.
+        NO_BUFFER_AVAILABLE,
+        // Returned by dequeueBuffer if it's too early for the buffer to be acquired.
+        PRESENT_LATER,
+    };
 
     // acquireBuffer attempts to acquire ownership of the next pending buffer in
-    // the BufferQueue.  If no buffer is pending then it returns -EINVAL.  If a
-    // buffer is successfully acquired, the information about the buffer is
-    // returned in BufferItem.  If the buffer returned had previously been
+    // the BufferQueue.  If no buffer is pending then it returns
+    // NO_BUFFER_AVAILABLE.  If a buffer is successfully acquired, the
+    // information about the buffer is returned in BufferItem.
+    //
+    // If the buffer returned had previously been
     // acquired then the BufferItem::mGraphicBuffer field of buffer is set to
     // NULL and it is assumed that the consumer still holds a reference to the
     // buffer.
     //
-    // If presentWhen is nonzero, it indicates the time when the buffer will
+    // If presentWhen is non-zero, it indicates the time when the buffer will
     // be displayed on screen.  If the buffer's timestamp is farther in the
     // future, the buffer won't be acquired, and PRESENT_LATER will be
     // returned.  The presentation time is in nanoseconds, and the time base
     // is CLOCK_MONOTONIC.
-    virtual status_t acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) = 0;
+    //
+    // Return of NO_ERROR means the operation completed as normal.
+    //
+    // Return of a positive value means the operation could not be completed
+    //    at this time, but the user should try again later:
+    // * NO_BUFFER_AVAILABLE - no buffer is pending (nothing queued by producer)
+    // * PRESENT_LATER - the buffer's timestamp is farther in the future
+    //
+    // Return of a negative value means an error has occurred:
+    // * INVALID_OPERATION - too many buffers have been acquired
+    virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) = 0;
 
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
@@ -125,6 +151,18 @@ public:
     //
     // Note that the dependencies on EGL will be removed once we switch to using
     // the Android HW Sync HAL.
+    //
+    // Return of NO_ERROR means the operation completed as normal.
+    //
+    // Return of a positive value means the operation could not be completed
+    //    at this time, but the user should try again later:
+    // * STALE_BUFFER_SLOT - see above (second paragraph)
+    //
+    // Return of a negative value means an error has occurred:
+    // * BAD_VALUE - one of the following could've happened:
+    //               * the buffer slot was invalid
+    //               * the fence was NULL
+    //               * the buffer slot specified is not in the acquired state
     virtual status_t releaseBuffer(int buf, uint64_t frameNumber,
             EGLDisplay display, EGLSyncKHR fence,
             const sp<Fence>& releaseFence) = 0;
@@ -137,24 +175,38 @@ public:
     // the application.
     //
     // consumer may not be NULL.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned
+    // * BAD_VALUE - a NULL consumer was provided
     virtual status_t consumerConnect(const sp<IConsumerListener>& consumer, bool controlledByApp) = 0;
 
     // consumerDisconnect disconnects a consumer from the BufferQueue. All
     // buffers will be freed and the BufferQueue is placed in the "abandoned"
     // state, causing most interactions with the BufferQueue by the producer to
     // fail.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - no consumer is currently connected
     virtual status_t consumerDisconnect() = 0;
 
-    // getReleasedBuffers sets the value pointed to by slotMask to a bit mask
-    // indicating which buffer slots have been released by the BufferQueue
-    // but have not yet been released by the consumer.
+    // getReleasedBuffers sets the value pointed to by slotMask to a bit set.
+    // Each bit index with a 1 corresponds to a released buffer slot with that
+    // index value.  In particular, a released buffer is one that has
+    // been released by the BufferQueue but have not yet been released by the consumer.
     //
     // This should be called from the onBuffersReleased() callback.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
     virtual status_t getReleasedBuffers(uint32_t* slotMask) = 0;
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // dequeueBuffer when a width and height of zero is requested.  Default
     // is 1x1.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - either w or h was zero
     virtual status_t setDefaultBufferSize(uint32_t w, uint32_t h) = 0;
 
     // setDefaultMaxBufferCount sets the default value for the maximum buffer
@@ -163,6 +215,9 @@ public:
     // take effect if the producer sets the count back to zero.
     //
     // The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - bufferCount was out of range (see above).
     virtual status_t setDefaultMaxBufferCount(int bufferCount) = 0;
 
     // disableAsyncBuffer disables the extra buffer used in async mode
@@ -170,11 +225,20 @@ public:
     // flag) and has dequeueBuffer() return WOULD_BLOCK instead.
     //
     // This can only be called before consumerConnect().
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * INVALID_OPERATION - attempting to call this after consumerConnect.
     virtual status_t disableAsyncBuffer() = 0;
 
     // setMaxAcquiredBufferCount sets the maximum number of buffers that can
     // be acquired by the consumer at one time (default 1).  This call will
     // fail if a producer is connected to the BufferQueue.
+    //
+    // maxAcquiredBuffers must be (inclusive) between 1 and MAX_MAX_ACQUIRED_BUFFERS.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - maxAcquiredBuffers was out of range (see above).
+    // * INVALID_OPERATION - attempting to call this after a producer connected.
     virtual status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers) = 0;
 
     // setConsumerName sets the name used in logging
@@ -184,16 +248,22 @@ public:
     // GraphicBuffers of a defaultFormat if no format is specified
     // in dequeueBuffer.  Formats are enumerated in graphics.h; the
     // initial default is HAL_PIXEL_FORMAT_RGBA_8888.
+    //
+    // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setDefaultBufferFormat(uint32_t defaultFormat) = 0;
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are
     // enumerated in gralloc.h, e.g. GRALLOC_USAGE_HW_RENDER; the default is 0.
+    //
+    // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setConsumerUsageBits(uint32_t usage) = 0;
 
     // setTransformHint bakes in rotation to buffers so overlays can be used.
     // The values are enumerated in window.h, e.g.
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
+    //
+    // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setTransformHint(uint32_t hint) = 0;
 
     // dump state into a string

@@ -703,7 +703,7 @@ retry:
     return err;
 }
 
-void BufferQueue::binderDied(const wp<IBinder>& who) {
+void BufferQueue::binderDied(const wp<IBinder>& who __attribute__((unused))) {
     // If we're here, it means that a producer we were connected to died.
     // We're GUARANTEED that we still are connected to it because it has no other way
     // to get disconnected -- or -- we wouldn't be here because we're removing this
