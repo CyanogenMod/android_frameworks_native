@@ -362,6 +362,10 @@ status_t IPCThreadState::clearLastError()
     return err;
 }
 
+extern "C" int _ZN7android14IPCThreadState13getCallingPidEv(IPCThreadState *state) {
+    return state->getCallingPid();
+}
+
 int IPCThreadState::getCallingPid() const
 {
     return mCallingPid;
