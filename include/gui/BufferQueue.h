@@ -41,7 +41,6 @@ class BufferQueue : public BnGraphicBufferProducer,
                     public BnGraphicBufferConsumer,
                     private IBinder::DeathRecipient {
 public:
-    enum { MIN_UNDEQUEUED_BUFFERS = 2 };
     // BufferQueue will keep track of at most this value of buffers.
     // Attempts at runtime to increase the number of buffers past this will fail.
     enum { NUM_BUFFER_SLOTS = 32 };

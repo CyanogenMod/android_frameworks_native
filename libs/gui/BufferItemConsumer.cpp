@@ -33,6 +33,13 @@ BufferItemConsumer::BufferItemConsumer(const sp<BufferQueue>& bq,
         uint32_t consumerUsage, int bufferCount, bool controlledByApp) :
     ConsumerBase(bq, controlledByApp)
 {
+    if (bufferCount == MIN_UNDEQUEUED_BUFFERS) {
+        status_t res;
+        res = bq->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, &bufferCount);
+        LOG_ALWAYS_FATAL_IF(res != OK || bufferCount < 0,
+                            "Failed to query min buffer count");
+    }
+
     mConsumer->setConsumerUsageBits(consumerUsage);
     mConsumer->setMaxAcquiredBufferCount(bufferCount);
 }
