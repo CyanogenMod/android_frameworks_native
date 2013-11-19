@@ -195,6 +195,11 @@ int BufferQueue::query(int what, int* outValue)
     ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
 
+    if (outValue == NULL) {
+        ST_LOGE("query: outValue was NULL");
+        return BAD_VALUE;
+    }
+
     if (mAbandoned) {
         ST_LOGE("query: BufferQueue has been abandoned!");
         return NO_INIT;
@@ -654,10 +659,15 @@ retry:
         return NO_INIT;
     }
 
+    if (output == NULL) {
+        ST_LOGE("connect: output was NULL");
+        return BAD_VALUE;
+    }
+
     if (mConnectedApi != NO_CONNECTED_API) {
         ST_LOGE("connect: already connected (cur=%d, req=%d)",
                 mConnectedApi, api);
-        return -EINVAL;
+        return BAD_VALUE;
     }
 
     // If we disconnect and reconnect quickly, we can be in a state where our slots are
@@ -693,7 +703,7 @@ retry:
             }
             break;
         default:
-            err = -EINVAL;
+            err = BAD_VALUE;
             break;
     }
 

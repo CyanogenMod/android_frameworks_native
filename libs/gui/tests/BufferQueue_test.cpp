@@ -52,6 +52,12 @@ protected:
                 testInfo->name());
     }
 
+    void GetMinUndequeuedBufferCount(int* bufferCount) {
+        ASSERT_NE((void*)NULL, bufferCount);
+        ASSERT_EQ(OK, mBQ->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, bufferCount));
+        ASSERT_LE(0, *bufferCount); // non-negative
+    }
+
     sp<BufferQueue> mBQ;
 };
 
@@ -97,20 +103,28 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
     sp<DummyConsumer> dc(new DummyConsumer);
     mBQ->consumerConnect(dc, false);
 
-    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
-    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
-    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(
+    int minBufferCount;
+    ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
+    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(minBufferCount - 1));
+
+    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
+    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
+    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS+1));
-    ASSERT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(100));
+    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(100));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
     mBQ->consumerConnect(dc, false);
 
-    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
-    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));
-    ASSERT_EQ(OK, mBQ->setMaxAcquiredBufferCount(
+    int minBufferCount;
+    ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
+
+    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
+    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));
+    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(minBufferCount));
+    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS));
 }
 

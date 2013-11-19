@@ -9,6 +9,7 @@ LOCAL_MODULE_TAGS := tests
 LOCAL_SRC_FILES := \
     BufferQueue_test.cpp \
     CpuConsumer_test.cpp \
+    IGraphicBufferProducer_test.cpp \
     SurfaceTextureClient_test.cpp \
     SurfaceTexture_test.cpp \
     Surface_test.cpp \

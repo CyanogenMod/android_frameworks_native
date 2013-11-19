@@ -84,9 +84,13 @@ public:
     // This function should not be called when there are any dequeued buffer
     // slots, doing so will result in a BAD_VALUE error returned.
     //
-    // The buffer count should be at most NUM_BUFFER_SLOTS, but at least
-    // the minimum undequeued buffer count (inclusive). The minimum value
-    // can be obtained by calling query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS);
+    // The buffer count should be at most NUM_BUFFER_SLOTS (inclusive), but at least
+    // the minimum undequeued buffer count (exclusive). The minimum value
+    // can be obtained by calling query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS).
+    // In particular the range is (minUndequeudBuffers, NUM_BUFFER_SLOTS].
+    //
+    // The buffer count may also be set to 0 (the default), to indicate that
+    // the producer does not wish to set a value.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
@@ -315,6 +319,7 @@ public:
     // * BAD_VALUE - one of the following has occurred:
     //             * the producer is already connected
     //             * api was out of range (see above).
+    //             * output was NULL.
     // * DEAD_OBJECT - the token is hosted by an already-dead process
     //
     // Additional negative errors may be returned by the internals, they

@@ -107,7 +107,7 @@ public:
     //
     // This will fail if the producer has dequeued any buffers, or if
     // bufferCount is invalid.  bufferCount must generally be a value
-    // between the minimum undequeued buffer count and NUM_BUFFER_SLOTS
+    // between the minimum undequeued buffer count (exclusive) and NUM_BUFFER_SLOTS
     // (inclusive).  It may also be set to zero (the default) to indicate
     // that the producer does not wish to set a value.  The minimum value
     // can be obtained by calling query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
