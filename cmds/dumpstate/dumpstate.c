@@ -43,6 +43,8 @@ static const char *dump_traces_path = NULL;
 
 static char screenshot_path[PATH_MAX] = "";
 
+#define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
     time_t now = time(NULL);
@@ -161,8 +163,14 @@ static void dumpstate() {
     dump_file("NETWORK ROUTES", "/proc/net/route");
     dump_file("NETWORK ROUTES IPV6", "/proc/net/ipv6_route");
 
-    /* TODO: Make last_kmsg CAP_SYSLOG protected. b/5555691 */
-    dump_file("LAST KMSG", "/proc/last_kmsg");
+    if (!stat(PSTORE_LAST_KMSG, &st)) {
+        /* Also TODO: Make console-ramoops CAP_SYSLOG protected. */
+        dump_file("LAST KMSG", PSTORE_LAST_KMSG);
+    } else {
+        /* TODO: Make last_kmsg CAP_SYSLOG protected. b/5555691 */
+        dump_file("LAST KMSG", "/proc/last_kmsg");
+    }
+
     dump_file("LAST PANIC CONSOLE", "/data/dontpanic/apanic_console");
     dump_file("LAST PANIC THREADS", "/data/dontpanic/apanic_threads");
 
@@ -321,7 +329,7 @@ static void usage() {
             "  -e: play sound file instead of vibrate, at end of job\n"
             "  -q: disable vibrate\n"
             "  -B: send broadcast when finished (requires -o and -p)\n"
-		);
+                );
 }
 
 static void sigpipe_handler(int n) {
