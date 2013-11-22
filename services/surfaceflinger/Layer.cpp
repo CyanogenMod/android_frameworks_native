@@ -36,13 +36,15 @@
 #include <gui/Surface.h>
 
 #include "clz.h"
+#include "Colorizer.h"
 #include "DisplayDevice.h"
-#include "GLExtensions.h"
 #include "Layer.h"
 #include "SurfaceFlinger.h"
 #include "SurfaceTextureLayer.h"
 
 #include "DisplayHardware/HWComposer.h"
+
+#include "RenderEngine/RenderEngine.h"
 
 #define DEBUG_RESIZE    0
 
@@ -62,7 +64,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mName("unnamed"),
         mDebug(false),
         mFormat(PIXEL_FORMAT_NONE),
-        mGLExtensions(GLExtensions::getInstance()),
         mOpaqueLayer(true),
         mTransactionFlags(0),
         mQueuedFrames(0),
@@ -73,13 +74,15 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mFrameLatencyNeeded(false),
         mFiltering(false),
         mNeedsFiltering(false),
+        mMesh(Mesh::TRIANGLE_FAN, 4, 2, 2),
         mSecure(false),
         mProtectedByApp(false),
         mHasSurface(false),
         mClientRef(client)
 {
     mCurrentCrop.makeInvalid();
-    glGenTextures(1, &mTextureName);
+    mFlinger->getRenderEngine().genTextures(1, &mTextureName);
+    mTexture.init(Texture::TEXTURE_EXTERNAL, mTextureName);
 
     uint32_t layerFlags = 0;
     if (flags & ISurfaceComposerClient::eHidden)
@@ -103,18 +106,18 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     // drawing state & current state are identical
     mDrawingState = mCurrentState;
+
+    nsecs_t displayPeriod =
+            flinger->getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+    mFrameTracker.setDisplayRefreshPeriod(displayPeriod);
 }
 
-void Layer::onFirstRef()
-{
+void Layer::onFirstRef() {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
-    sp<BufferQueue> bq = new SurfaceTextureLayer(mFlinger);
-    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mTextureName, true,
-            GL_TEXTURE_EXTERNAL_OES, false, bq);
-
+    mBufferQueue = new SurfaceTextureLayer(mFlinger);
+    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mBufferQueue, mTextureName);
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setFrameAvailableListener(this);
-    mSurfaceFlingerConsumer->setSynchronousMode(true);
     mSurfaceFlingerConsumer->setName(mName);
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
@@ -134,6 +137,7 @@ Layer::~Layer() {
         c->detachLayer(this);
     }
     mFlinger->deleteTextureAsync(mTextureName);
+    mFrameTracker.logAndResetStats(mName);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,21 +168,13 @@ void Layer::onRemoved() {
 // set-up
 // ---------------------------------------------------------------------------
 
-String8 Layer::getName() const {
+const String8& Layer::getName() const {
     return mName;
 }
 
 status_t Layer::setBuffers( uint32_t w, uint32_t h,
                             PixelFormat format, uint32_t flags)
 {
-    // this surfaces pixel format
-    PixelFormatInfo info;
-    status_t err = getPixelFormatInfo(format, &info);
-    if (err) {
-        ALOGE("unsupported pixelformat %d", format);
-        return err;
-    }
-
     uint32_t const maxSurfaceDims = min(
             mFlinger->getMaxTextureSize(), mFlinger->getMaxViewportDims());
 
@@ -231,18 +227,9 @@ sp<IBinder> Layer::getHandle() {
     return new Handle(mFlinger, this);
 }
 
-sp<BufferQueue> Layer::getBufferQueue() const {
-    return mSurfaceFlingerConsumer->getBufferQueue();
+sp<IGraphicBufferProducer> Layer::getBufferQueue() const {
+    return mBufferQueue;
 }
-
-//virtual sp<IGraphicBufferProducer> getSurfaceTexture() const {
-//    sp<IGraphicBufferProducer> res;
-//    sp<const Layer> that( mOwner.promote() );
-//    if (that != NULL) {
-//        res = that->mSurfaceFlingerConsumer->getBufferQueue();
-//    }
-//    return res;
-//}
 
 // ---------------------------------------------------------------------------
 // h/w composer set-up
@@ -265,43 +252,48 @@ Rect Layer::getContentCrop() const {
     return crop;
 }
 
-uint32_t Layer::getContentTransform() const {
-    return mCurrentTransform;
+static Rect reduce(const Rect& win, const Region& exclude) {
+    if (CC_LIKELY(exclude.isEmpty())) {
+        return win;
+    }
+    if (exclude.isRect()) {
+        return win.reduce(exclude.getBounds());
+    }
+    return Region(win).subtract(exclude).getBounds();
 }
 
 Rect Layer::computeBounds() const {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
-    return win;
+    // subtract the transparent region and snap to the bounds
+    return reduce(win, s.activeTransparentRegion);
 }
 
-Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
-    /*
-     * The way we compute the crop (aka. texture coordinates when we have a
-     * Layer) produces a different output from the GL code in
-     * drawWithOpenGL() due to HWC being limited to integers. The difference
-     * can be large if getContentTransform() contains a large scale factor.
-     * See comments in drawWithOpenGL() for more details.
-     */
-
+FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // the content crop is the area of the content that gets scaled to the
     // layer's size.
-    Rect crop(getContentCrop());
+    FloatRect crop(getContentCrop());
 
     // the active.crop is the area of the window that gets cropped, but not
     // scaled in any ways.
-    const State& s(drawingState());
+    const State& s(getDrawingState());
 
     // apply the projection's clipping to the window crop in
     // layerstack space, and convert-back to layer space.
-    // if there are no window scaling (or content scaling) involved,
-    // this operation will map to full pixels in the buffer.
-    // NOTE: should we revert to GL composition if a scaling is involved
-    // since it cannot be represented in the HWC API?
-    Rect activeCrop(s.transform.transform(s.active.crop));
+    // if there are no window scaling involved, this operation will map to full
+    // pixels in the buffer.
+    // FIXME: the 3 lines below can produce slightly incorrect clipping when we have
+    // a viewport clipping and a window transform. we should use floating point to fix this.
+
+    Rect activeCrop(s.active.w, s.active.h);
+    if (!s.active.crop.isEmpty()) {
+        activeCrop = s.active.crop;
+    }
+
+    activeCrop = s.transform.transform(activeCrop);
     activeCrop.intersect(hw->getViewport(), &activeCrop);
     activeCrop = s.transform.inverse().transform(activeCrop);
 
@@ -309,11 +301,14 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // window's bounds
     activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
 
+    // subtract the transparent region and snap to the bounds
+    activeCrop = reduce(activeCrop, s.activeTransparentRegion);
+
     if (!activeCrop.isEmpty()) {
         // Transform the window crop to match the buffer coordinate system,
         // which means using the inverse of the current transform set on the
         // SurfaceFlingerConsumer.
-        uint32_t invTransform = getContentTransform();
+        uint32_t invTransform = mCurrentTransform;
         int winWidth = s.active.w;
         int winHeight = s.active.h;
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
@@ -325,15 +320,14 @@ Rect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         const Rect winCrop = activeCrop.transform(
                 invTransform, s.active.w, s.active.h);
 
-        // the code below essentially performs a scaled intersection
-        // of crop and winCrop
-        float xScale = float(crop.width()) / float(winWidth);
-        float yScale = float(crop.height()) / float(winHeight);
+        // below, crop is intersected with winCrop expressed in crop's coordinate space
+        float xScale = crop.getWidth()  / float(winWidth);
+        float yScale = crop.getHeight() / float(winHeight);
 
-        int insetL = int(ceilf( winCrop.left                * xScale));
-        int insetT = int(ceilf( winCrop.top                 * yScale));
-        int insetR = int(ceilf((winWidth  - winCrop.right ) * xScale));
-        int insetB = int(ceilf((winHeight - winCrop.bottom) * yScale));
+        float insetL = winCrop.left                 * xScale;
+        float insetT = winCrop.top                  * yScale;
+        float insetR = (winWidth  - winCrop.right ) * xScale;
+        float insetB = (winHeight - winCrop.bottom) * yScale;
 
         crop.left   += insetL;
         crop.top    += insetT;
@@ -357,7 +351,7 @@ void Layer::setGeometry(
     }
 
     // this gives us only the "orientation" component of the transform
-    const State& s(drawingState());
+    const State& s(getDrawingState());
     if (!isOpaque() || s.alpha != 0xFF) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
@@ -382,7 +376,21 @@ void Layer::setGeometry(
      */
 
     const Transform bufferOrientation(mCurrentTransform);
-    const Transform transform(tr * s.transform * bufferOrientation);
+    Transform transform(tr * s.transform * bufferOrientation);
+
+    if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+        /*
+         * the code below applies the display's inverse transform to the buffer
+         */
+        uint32_t invTransform = hw->getOrientationTransform();
+        // calculate the inverse transform
+        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+        }
+        // and apply to the current transform
+        transform = transform * Transform(invTransform);
+    }
 
     // this gives us only the "orientation" component of the transform
     const uint32_t orientation = transform.getOrientation();
@@ -484,6 +492,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
+    RenderEngine& engine(mFlinger->getRenderEngine());
+
     if (!blackOutLayer) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
@@ -493,50 +503,55 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         mSurfaceFlingerConsumer->setFilteringEnabled(useFiltering);
         mSurfaceFlingerConsumer->getTransformMatrix(textureMatrix);
 
-        // Set things up for texturing.
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
-        GLenum filter = GL_NEAREST;
-        if (useFiltering) {
-            filter = GL_LINEAR;
+        if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+
+            /*
+             * the code below applies the display's inverse transform to the texture transform
+             */
+
+            // create a 4x4 transform matrix from the display transform flags
+            const mat4 flipH(-1,0,0,0,  0,1,0,0, 0,0,1,0, 1,0,0,1);
+            const mat4 flipV( 1,0,0,0, 0,-1,0,0, 0,0,1,0, 0,1,0,1);
+            const mat4 rot90( 0,1,0,0, -1,0,0,0, 0,0,1,0, 1,0,0,1);
+
+            mat4 tr;
+            uint32_t transform = hw->getOrientationTransform();
+            if (transform & NATIVE_WINDOW_TRANSFORM_ROT_90)
+                tr = tr * rot90;
+            if (transform & NATIVE_WINDOW_TRANSFORM_FLIP_H)
+                tr = tr * flipH;
+            if (transform & NATIVE_WINDOW_TRANSFORM_FLIP_V)
+                tr = tr * flipV;
+
+            // calculate the inverse
+            tr = inverse(tr);
+
+            // and finally apply it to the original texture matrix
+            const mat4 texTransform(mat4(static_cast<const float*>(textureMatrix)) * tr);
+            memcpy(textureMatrix, texTransform.asArray(), sizeof(textureMatrix));
         }
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
-        glMatrixMode(GL_TEXTURE);
-        glLoadMatrixf(textureMatrix);
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_2D);
-        glEnable(GL_TEXTURE_EXTERNAL_OES);
+
+        // Set things up for texturing.
+        mTexture.setDimensions(mActiveBuffer->getWidth(), mActiveBuffer->getHeight());
+        mTexture.setFiltering(useFiltering);
+        mTexture.setMatrix(textureMatrix);
+
+        engine.setupLayerTexturing(mTexture);
     } else {
-        glBindTexture(GL_TEXTURE_2D, mFlinger->getProtectedTexName());
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
-        glEnable(GL_TEXTURE_2D);
+        engine.setupLayerBlackedOut();
     }
-
     drawWithOpenGL(hw, clip);
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+    engine.disableTexturing();
 }
 
 
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
-        GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
+        float red, float green, float blue, float alpha) const
 {
-    const uint32_t fbHeight = hw->getHeight();
-    glColor4f(red,green,blue,alpha);
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-
-    LayerMesh mesh;
-    computeGeometry(hw, &mesh);
-
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+    RenderEngine& engine(mFlinger->getRenderEngine());
+    computeGeometry(hw, mMesh);
+    engine.setupFillWithColor(red, green, blue, alpha);
+    engine.drawMesh(mMesh);
 }
 
 void Layer::clearWithOpenGL(
@@ -547,41 +562,9 @@ void Layer::clearWithOpenGL(
 void Layer::drawWithOpenGL(
         const sp<const DisplayDevice>& hw, const Region& clip) const {
     const uint32_t fbHeight = hw->getHeight();
-    const State& s(drawingState());
+    const State& s(getDrawingState());
 
-    GLenum src = mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA;
-    if (CC_UNLIKELY(s.alpha < 0xFF)) {
-        const GLfloat alpha = s.alpha * (1.0f/255.0f);
-        if (mPremultipliedAlpha) {
-            glColor4f(alpha, alpha, alpha, alpha);
-        } else {
-            glColor4f(1, 1, 1, alpha);
-        }
-        glEnable(GL_BLEND);
-        glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    } else {
-        glColor4f(1, 1, 1, 1);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        if (!isOpaque()) {
-            glEnable(GL_BLEND);
-            glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
-        } else {
-            glDisable(GL_BLEND);
-        }
-    }
-
-    LayerMesh mesh;
-    computeGeometry(hw, &mesh);
-
-    // TODO: we probably want to generate the texture coords with the mesh
-    // here we assume that we only have 4 vertices
-
-    struct TexCoords {
-        GLfloat u;
-        GLfloat v;
-    };
-
+    computeGeometry(hw, mMesh);
 
     /*
      * NOTE: the way we compute the texture coordinates here produces
@@ -592,38 +575,30 @@ void Layer::drawWithOpenGL(
      *
      * The GL code below is more logical (imho), and the difference with
      * HWC is due to a limitation of the HWC API to integers -- a question
-     * is suspend is wether we should ignore this problem or revert to
+     * is suspend is whether we should ignore this problem or revert to
      * GL composition when a buffer scaling is applied (maybe with some
      * minimal value)? Or, we could make GL behave like HWC -- but this feel
      * like more of a hack.
      */
     const Rect win(computeBounds());
 
-    GLfloat left   = GLfloat(win.left)   / GLfloat(s.active.w);
-    GLfloat top    = GLfloat(win.top)    / GLfloat(s.active.h);
-    GLfloat right  = GLfloat(win.right)  / GLfloat(s.active.w);
-    GLfloat bottom = GLfloat(win.bottom) / GLfloat(s.active.h);
+    float left   = float(win.left)   / float(s.active.w);
+    float top    = float(win.top)    / float(s.active.h);
+    float right  = float(win.right)  / float(s.active.w);
+    float bottom = float(win.bottom) / float(s.active.h);
 
-    TexCoords texCoords[4];
-    texCoords[0].u = left;
-    texCoords[0].v = top;
-    texCoords[1].u = left;
-    texCoords[1].v = bottom;
-    texCoords[2].u = right;
-    texCoords[2].v = bottom;
-    texCoords[3].u = right;
-    texCoords[3].v = top;
-    for (int i = 0; i < 4; i++) {
-        texCoords[i].v = 1.0f - texCoords[i].v;
-    }
+    // TODO: we probably want to generate the texture coords with the mesh
+    // here we assume that we only have 4 vertices
+    Mesh::VertexArray<vec2> texCoords(mMesh.getTexCoordArray<vec2>());
+    texCoords[0] = vec2(left, 1.0f - top);
+    texCoords[1] = vec2(left, 1.0f - bottom);
+    texCoords[2] = vec2(right, 1.0f - bottom);
+    texCoords[3] = vec2(right, 1.0f - top);
 
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
-
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisable(GL_BLEND);
+    RenderEngine& engine(mFlinger->getRenderEngine());
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
+    engine.drawMesh(mMesh);
+    engine.disableBlending();
 }
 
 void Layer::setFiltering(bool filtering) {
@@ -641,38 +616,43 @@ bool Layer::getFiltering() const {
 // hardware.h, instead of using hard-coded values here.
 #define HARDWARE_IS_DEVICE_FORMAT(f) ((f) >= 0x100 && (f) <= 0x1FF)
 
-bool Layer::getOpacityForFormat(uint32_t format)
-{
+bool Layer::getOpacityForFormat(uint32_t format) {
     if (HARDWARE_IS_DEVICE_FORMAT(format)) {
         return true;
     }
-    PixelFormatInfo info;
-    status_t err = getPixelFormatInfo(PixelFormat(format), &info);
-    // in case of error (unknown format), we assume no blending
-    return (err || info.h_alpha <= info.l_alpha);
+    switch (format) {
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_BGRA_8888:
+        case HAL_PIXEL_FORMAT_sRGB_A_8888:
+            return false;
+    }
+    // in all other case, we have no blending (also for unknown formats)
+    return true;
 }
 
 // ----------------------------------------------------------------------------
 // local state
 // ----------------------------------------------------------------------------
 
-void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const
+void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const
 {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     const Transform tr(hw->getTransform() * s.transform);
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
-    if (mesh) {
-        tr.transform(mesh->mVertices[0], win.left,  win.top);
-        tr.transform(mesh->mVertices[1], win.left,  win.bottom);
-        tr.transform(mesh->mVertices[2], win.right, win.bottom);
-        tr.transform(mesh->mVertices[3], win.right, win.top);
-        for (size_t i=0 ; i<4 ; i++) {
-            mesh->mVertices[i][1] = hw_h - mesh->mVertices[i][1];
-        }
+    // subtract the transparent region and snap to the bounds
+    win = reduce(win, s.activeTransparentRegion);
+
+    Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
+    position[0] = tr.transform(win.left,  win.top);
+    position[1] = tr.transform(win.left,  win.bottom);
+    position[2] = tr.transform(win.right, win.bottom);
+    position[3] = tr.transform(win.right, win.top);
+    for (size_t i=0 ; i<4 ; i++) {
+        position[i].y = hw_h - position[i].y;
     }
 }
 
@@ -731,11 +711,11 @@ void Layer::setVisibleNonTransparentRegion(const Region&
 uint32_t Layer::doTransaction(uint32_t flags) {
     ATRACE_CALL();
 
-    const Layer::State& front(drawingState());
-    const Layer::State& temp(currentState());
+    const Layer::State& s(getDrawingState());
+    const Layer::State& c(getCurrentState());
 
-    const bool sizeChanged = (temp.requested.w != front.requested.w) ||
-                             (temp.requested.h != front.requested.h);
+    const bool sizeChanged = (c.requested.w != s.requested.w) ||
+                             (c.requested.h != s.requested.h);
 
     if (sizeChanged) {
         // the size changed, we need to ask our client to request a new buffer
@@ -745,46 +725,46 @@ uint32_t Layer::doTransaction(uint32_t flags) {
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n"
                 "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                 "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
-                this, (const char*) getName(), mCurrentTransform, mCurrentScalingMode,
-                temp.active.w, temp.active.h,
-                temp.active.crop.left,
-                temp.active.crop.top,
-                temp.active.crop.right,
-                temp.active.crop.bottom,
-                temp.active.crop.getWidth(),
-                temp.active.crop.getHeight(),
-                temp.requested.w, temp.requested.h,
-                temp.requested.crop.left,
-                temp.requested.crop.top,
-                temp.requested.crop.right,
-                temp.requested.crop.bottom,
-                temp.requested.crop.getWidth(),
-                temp.requested.crop.getHeight(),
-                front.active.w, front.active.h,
-                front.active.crop.left,
-                front.active.crop.top,
-                front.active.crop.right,
-                front.active.crop.bottom,
-                front.active.crop.getWidth(),
-                front.active.crop.getHeight(),
-                front.requested.w, front.requested.h,
-                front.requested.crop.left,
-                front.requested.crop.top,
-                front.requested.crop.right,
-                front.requested.crop.bottom,
-                front.requested.crop.getWidth(),
-                front.requested.crop.getHeight());
+                this, getName().string(), mCurrentTransform, mCurrentScalingMode,
+                c.active.w, c.active.h,
+                c.active.crop.left,
+                c.active.crop.top,
+                c.active.crop.right,
+                c.active.crop.bottom,
+                c.active.crop.getWidth(),
+                c.active.crop.getHeight(),
+                c.requested.w, c.requested.h,
+                c.requested.crop.left,
+                c.requested.crop.top,
+                c.requested.crop.right,
+                c.requested.crop.bottom,
+                c.requested.crop.getWidth(),
+                c.requested.crop.getHeight(),
+                s.active.w, s.active.h,
+                s.active.crop.left,
+                s.active.crop.top,
+                s.active.crop.right,
+                s.active.crop.bottom,
+                s.active.crop.getWidth(),
+                s.active.crop.getHeight(),
+                s.requested.w, s.requested.h,
+                s.requested.crop.left,
+                s.requested.crop.top,
+                s.requested.crop.right,
+                s.requested.crop.bottom,
+                s.requested.crop.getWidth(),
+                s.requested.crop.getHeight());
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
         mSurfaceFlingerConsumer->setDefaultBufferSize(
-                temp.requested.w, temp.requested.h);
+                c.requested.w, c.requested.h);
     }
 
     if (!isFixedSize()) {
 
-        const bool resizePending = (temp.requested.w != temp.active.w) ||
-                                   (temp.requested.h != temp.active.h);
+        const bool resizePending = (c.requested.w != c.active.w) ||
+                                   (c.requested.h != c.active.h);
 
         if (resizePending) {
             // don't let Layer::doTransaction update the drawing state
@@ -804,23 +784,23 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     // this is used by Layer, which special cases resizes.
     if (flags & eDontUpdateGeometryState)  {
     } else {
-        Layer::State& editTemp(currentState());
-        editTemp.active = temp.requested;
+        Layer::State& editCurrentState(getCurrentState());
+        editCurrentState.active = c.requested;
     }
 
-    if (front.active != temp.active) {
+    if (s.active != c.active) {
         // invalidate and recompute the visible regions if needed
         flags |= Layer::eVisibleRegion;
     }
 
-    if (temp.sequence != front.sequence) {
+    if (c.sequence != s.sequence) {
         // invalidate and recompute the visible regions if needed
         flags |= eVisibleRegion;
         this->contentDirty = true;
 
         // we may use linear filtering, if the matrix scales us
-        const uint8_t type = temp.transform.getType();
-        mNeedsFiltering = (!temp.transform.preserveRects() ||
+        const uint8_t type = c.transform.getType();
+        mNeedsFiltering = (!c.transform.preserveRects() ||
                 (type >= Transform::SCALE));
     }
 
@@ -977,11 +957,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         const bool oldOpacity = isOpaque();
         sp<GraphicBuffer> oldActiveBuffer = mActiveBuffer;
 
-        // signal another event if we have more frames pending
-        if (android_atomic_dec(&mQueuedFrames) > 1) {
-            mFlinger->signalLayerUpdate();
-        }
-
         struct Reject : public SurfaceFlingerConsumer::BufferRejecter {
             Layer::State& front;
             Layer::State& current;
@@ -993,7 +968,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
-                    const BufferQueue::BufferItem& item) {
+                    const IGraphicBufferConsumer::BufferItem& item) {
                 if (buf == NULL) {
                     return false;
                 }
@@ -1056,6 +1031,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     if (front.active.w != bufWidth ||
                         front.active.h != bufHeight) {
                         // reject this buffer
+                        //ALOGD("rejecting buffer: bufWidth=%d, bufHeight=%d, front.active.{w=%d, h=%d}",
+                        //        bufWidth, bufHeight, front.active.w, front.active.h);
                         return true;
                     }
                 }
@@ -1085,9 +1062,23 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         };
 
 
-        Reject r(mDrawingState, currentState(), recomputeVisibleRegions);
+        Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions);
 
-        if (mSurfaceFlingerConsumer->updateTexImage(&r) != NO_ERROR) {
+        status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r);
+        if (updateResult == BufferQueue::PRESENT_LATER) {
+            // Producer doesn't want buffer to be displayed yet.  Signal a
+            // layer update so we check again at the next opportunity.
+            mFlinger->signalLayerUpdate();
+            return outDirtyRegion;
+        }
+
+        // Decrement the queued-frames count.  Signal another event if we
+        // have more frames pending.
+        if (android_atomic_dec(&mQueuedFrames) > 1) {
+            mFlinger->signalLayerUpdate();
+        }
+
+        if (updateResult != NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
             return outDirtyRegion;
@@ -1135,15 +1126,12 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             recomputeVisibleRegions = true;
         }
 
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
         // FIXME: postedRegion should be dirty & bounds
-        const Layer::State& front(drawingState());
-        Region dirtyRegion(Rect(front.active.w, front.active.h));
+        const Layer::State& s(getDrawingState());
+        Region dirtyRegion(Rect(s.active.w, s.active.h));
 
         // transform the dirty region to window-manager space
-        outDirtyRegion = (front.transform.transform(dirtyRegion));
+        outDirtyRegion = (s.transform.transform(dirtyRegion));
     }
     return outDirtyRegion;
 }
@@ -1178,21 +1166,21 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
 // debugging
 // ----------------------------------------------------------------------------
 
-void Layer::dump(String8& result, char* buffer, size_t SIZE) const
+void Layer::dump(String8& result, Colorizer& colorizer) const
 {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
 
-    snprintf(buffer, SIZE,
+    colorizer.colorize(result, Colorizer::GREEN);
+    result.appendFormat(
             "+ %s %p (%s)\n",
             getTypeId(), this, getName().string());
-    result.append(buffer);
+    colorizer.reset(result);
 
     s.activeTransparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
     sp<Client> client(mClientRef.promote());
 
-    snprintf(buffer, SIZE,
-            "      "
+    result.appendFormat(            "      "
             "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, invalidate=%1d, "
             "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
@@ -1205,7 +1193,6 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
             s.transform[0][0], s.transform[0][1],
             s.transform[1][0], s.transform[1][1],
             client.get());
-    result.append(buffer);
 
     sp<const GraphicBuffer> buf0(mActiveBuffer);
     uint32_t w0=0, h0=0, s0=0, f0=0;
@@ -1215,31 +1202,28 @@ void Layer::dump(String8& result, char* buffer, size_t SIZE) const
         s0 = buf0->getStride();
         f0 = buf0->format;
     }
-    snprintf(buffer, SIZE,
+    result.appendFormat(
             "      "
             "format=%2d, activeBuffer=[%4ux%4u:%4u,%3X],"
             " queued-frames=%d, mRefreshPending=%d\n",
             mFormat, w0, h0, s0,f0,
             mQueuedFrames, mRefreshPending);
 
-    result.append(buffer);
-
     if (mSurfaceFlingerConsumer != 0) {
-        mSurfaceFlingerConsumer->dump(result, "            ", buffer, SIZE);
+        mSurfaceFlingerConsumer->dump(result, "            ");
     }
 }
 
-
-void Layer::shortDump(String8& result, char* scratch, size_t size) const {
-    Layer::dump(result, scratch, size);
-}
-
-void Layer::dumpStats(String8& result, char* buffer, size_t SIZE) const {
+void Layer::dumpStats(String8& result) const {
     mFrameTracker.dump(result);
 }
 
 void Layer::clearStats() {
     mFrameTracker.clear();
+}
+
+void Layer::logFrameStats() {
+    mFrameTracker.logAndResetStats(mName);
 }
 
 // ---------------------------------------------------------------------------
@@ -1255,6 +1239,12 @@ Layer::LayerCleaner::~LayerCleaner() {
 }
 
 // ---------------------------------------------------------------------------
-
-
 }; // namespace android
+
+#if defined(__gl_h_)
+#error "don't include gl/gl.h in this file"
+#endif
+
+#if defined(__gl2_h_)
+#error "don't include gl2/gl2.h in this file"
+#endif

@@ -52,7 +52,6 @@ class Loader : public Singleton<Loader>
         void* dso[3];
     };
     
-    String8 mDriverTag;
     getProcAddressType getProcAddress;
     
 public:
@@ -63,7 +62,7 @@ public:
     
 private:
     Loader();
-    void *load_driver(const char* kind, const char *tag, egl_connection_t* cnx, uint32_t mask);
+    void *load_driver(const char* kind, egl_connection_t* cnx, uint32_t mask);
 
     static __attribute__((noinline))
     void init_api(void* dso, 

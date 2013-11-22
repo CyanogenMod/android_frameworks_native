@@ -27,21 +27,20 @@ namespace android {
  */
 class SurfaceFlingerConsumer : public GLConsumer {
 public:
-    SurfaceFlingerConsumer(GLuint tex, bool allowSynchronousMode = true,
-            GLenum texTarget = GL_TEXTURE_EXTERNAL_OES, bool useFenceSync = true,
-            const sp<BufferQueue> &bufferQueue = 0)
-        : GLConsumer(tex, allowSynchronousMode, texTarget, useFenceSync,
-            bufferQueue)
+    SurfaceFlingerConsumer(const sp<BufferQueue>& bq, uint32_t tex)
+        : GLConsumer(bq, tex, GLConsumer::TEXTURE_EXTERNAL, false)
     {}
 
     class BufferRejecter {
         friend class SurfaceFlingerConsumer;
         virtual bool reject(const sp<GraphicBuffer>& buf,
-                const BufferQueue::BufferItem& item) = 0;
+                const IGraphicBufferConsumer::BufferItem& item) = 0;
 
     protected:
         virtual ~BufferRejecter() { }
     };
+
+    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item, nsecs_t presentWhen);
 
     // This version of updateTexImage() takes a functor that may be used to
     // reject the newly acquired buffer.  Unlike the GLConsumer version,
@@ -51,6 +50,17 @@ public:
 
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
+
+    // must be called from SF main thread
+    bool getTransformToDisplayInverse() const;
+
+private:
+    nsecs_t computeExpectedPresent();
+
+    // Indicates this buffer must be transformed by the inverse transform of the screen
+    // it is displayed onto. This is applied after GLConsumer::mCurrentTransform.
+    // This must be set/read from SurfaceFlinger's main thread.
+    bool mTransformToDisplayInverse;
 };
 
 // ----------------------------------------------------------------------------

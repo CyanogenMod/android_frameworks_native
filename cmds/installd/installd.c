@@ -83,7 +83,7 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     int64_t asecsize = 0;
     int res = 0;
 
-        /* pkgdir, persona, apkpath */
+        /* pkgdir, userid, apkpath */
     res = get_size(arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
             &codesize, &datasize, &cachesize, &asecsize);
 
@@ -109,7 +109,7 @@ static int do_mk_user_data(char **arg, char reply[REPLY_MAX])
 
 static int do_rm_user(char **arg, char reply[REPLY_MAX])
 {
-    return delete_persona(atoi(arg[0])); /* userid */
+    return delete_user(atoi(arg[0])); /* userid */
 }
 
 static int do_movefiles(char **arg, char reply[REPLY_MAX])
@@ -199,7 +199,7 @@ static int execute(int s, char cmd[BUFFER_MAX])
     unsigned short count;
     int ret = -1;
 
-//    ALOGI("execute('%s')\n", cmd);
+    // ALOGI("execute('%s')\n", cmd);
 
         /* default reply is "" */
     reply[0] = 0;
@@ -241,7 +241,7 @@ done:
     if (n > BUFFER_MAX) n = BUFFER_MAX;
     count = n;
 
-//    ALOGI("reply: '%s'\n", cmd);
+    // ALOGI("reply: '%s'\n", cmd);
     if (writex(s, &count, sizeof(count))) return -1;
     if (writex(s, cmd, count)) return -1;
     return 0;

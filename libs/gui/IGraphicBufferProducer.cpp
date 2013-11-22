@@ -37,11 +37,9 @@ enum {
     QUEUE_BUFFER,
     CANCEL_BUFFER,
     QUERY,
-    SET_SYNCHRONOUS_MODE,
     CONNECT,
     DISCONNECT,
 };
-
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
 {
@@ -85,10 +83,11 @@ public:
         return result;
     }
 
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence,
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(async);
         data.writeInt32(w);
         data.writeInt32(h);
         data.writeInt32(format);
@@ -98,13 +97,10 @@ public:
             return result;
         }
         *buf = reply.readInt32();
-        bool fenceWasWritten = reply.readInt32();
-        if (fenceWasWritten) {
-            // If the fence was written by the callee, then overwrite the
-            // caller's fence here.  If it wasn't written then don't touch the
-            // caller's fence.
+        bool nonNull = reply.readInt32();
+        if (nonNull) {
             *fence = new Fence();
-            reply.read(*(fence->get()));
+            reply.read(**fence);
         }
         result = reply.readInt32();
         return result;
@@ -146,22 +142,13 @@ public:
         return result;
     }
 
-    virtual status_t setSynchronousMode(bool enabled) {
+    virtual status_t connect(const sp<IBinder>& token,
+            int api, bool producerControlledByApp, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(enabled);
-        status_t result = remote()->transact(SET_SYNCHRONOUS_MODE, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        result = reply.readInt32();
-        return result;
-    }
-
-    virtual status_t connect(int api, QueueBufferOutput* output) {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeStrongBinder(token);
         data.writeInt32(api);
+        data.writeInt32(producerControlledByApp);
         status_t result = remote()->transact(CONNECT, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -213,17 +200,18 @@ status_t BnGraphicBufferProducer::onTransact(
         } break;
         case DEQUEUE_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool async      = data.readInt32();
             uint32_t w      = data.readInt32();
             uint32_t h      = data.readInt32();
             uint32_t format = data.readInt32();
             uint32_t usage  = data.readInt32();
             int buf;
             sp<Fence> fence;
-            int result = dequeueBuffer(&buf, &fence, w, h, format, usage);
+            int result = dequeueBuffer(&buf, &fence, async, w, h, format, usage);
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {
-                reply->write(*fence.get());
+                reply->write(*fence);
             }
             reply->writeInt32(result);
             return NO_ERROR;
@@ -256,20 +244,15 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
-        case SET_SYNCHRONOUS_MODE: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool enabled = data.readInt32();
-            status_t res = setSynchronousMode(enabled);
-            reply->writeInt32(res);
-            return NO_ERROR;
-        } break;
         case CONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            sp<IBinder> token = data.readStrongBinder();
             int api = data.readInt32();
+            bool producerControlledByApp = data.readInt32();
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
-            status_t res = connect(api, output);
+            status_t res = connect(token, api, producerControlledByApp, output);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
@@ -290,45 +273,59 @@ IGraphicBufferProducer::QueueBufferInput::QueueBufferInput(const Parcel& parcel)
     parcel.read(*this);
 }
 
-size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const
-{
+size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
     return sizeof(timestamp)
+         + sizeof(isAutoTimestamp)
          + sizeof(crop)
          + sizeof(scalingMode)
          + sizeof(transform)
+         + sizeof(async)
          + fence->getFlattenedSize();
 }
 
-size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const
-{
+size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const {
     return fence->getFdCount();
 }
 
-status_t IGraphicBufferProducer::QueueBufferInput::flatten(void* buffer, size_t size,
-        int fds[], size_t count) const
+status_t IGraphicBufferProducer::QueueBufferInput::flatten(
+        void*& buffer, size_t& size, int*& fds, size_t& count) const
 {
-    status_t err = NO_ERROR;
-    char* p = (char*)buffer;
-    memcpy(p, &timestamp,   sizeof(timestamp));   p += sizeof(timestamp);
-    memcpy(p, &crop,        sizeof(crop));        p += sizeof(crop);
-    memcpy(p, &scalingMode, sizeof(scalingMode)); p += sizeof(scalingMode);
-    memcpy(p, &transform,   sizeof(transform));   p += sizeof(transform);
-    err = fence->flatten(p, size - (p - (char*)buffer), fds, count);
-    return err;
+    if (size < getFlattenedSize()) {
+        return NO_MEMORY;
+    }
+    FlattenableUtils::write(buffer, size, timestamp);
+    FlattenableUtils::write(buffer, size, isAutoTimestamp);
+    FlattenableUtils::write(buffer, size, crop);
+    FlattenableUtils::write(buffer, size, scalingMode);
+    FlattenableUtils::write(buffer, size, transform);
+    FlattenableUtils::write(buffer, size, async);
+    return fence->flatten(buffer, size, fds, count);
 }
 
-status_t IGraphicBufferProducer::QueueBufferInput::unflatten(void const* buffer,
-        size_t size, int fds[], size_t count)
+status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
+        void const*& buffer, size_t& size, int const*& fds, size_t& count)
 {
-    status_t err = NO_ERROR;
-    const char* p = (const char*)buffer;
-    memcpy(&timestamp,   p, sizeof(timestamp));   p += sizeof(timestamp);
-    memcpy(&crop,        p, sizeof(crop));        p += sizeof(crop);
-    memcpy(&scalingMode, p, sizeof(scalingMode)); p += sizeof(scalingMode);
-    memcpy(&transform,   p, sizeof(transform));   p += sizeof(transform);
+    size_t minNeeded =
+              sizeof(timestamp)
+            + sizeof(isAutoTimestamp)
+            + sizeof(crop)
+            + sizeof(scalingMode)
+            + sizeof(transform)
+            + sizeof(async);
+
+    if (size < minNeeded) {
+        return NO_MEMORY;
+    }
+
+    FlattenableUtils::read(buffer, size, timestamp);
+    FlattenableUtils::read(buffer, size, isAutoTimestamp);
+    FlattenableUtils::read(buffer, size, crop);
+    FlattenableUtils::read(buffer, size, scalingMode);
+    FlattenableUtils::read(buffer, size, transform);
+    FlattenableUtils::read(buffer, size, async);
+
     fence = new Fence();
-    err = fence->unflatten(p, size - (p - (const char*)buffer), fds, count);
-    return err;
+    return fence->unflatten(buffer, size, fds, count);
 }
 
 }; // namespace android

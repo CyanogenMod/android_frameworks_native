@@ -19,30 +19,76 @@
 
 #include <private/binder/Static.h>
 
+#include <binder/BufferedTextOutput.h>
 #include <binder/IPCThreadState.h>
 #include <utils/Log.h>
 
 namespace android {
+
+// ------------ Text output streams
+
+Vector<int32_t> gTextBuffers;
+
+class LogTextOutput : public BufferedTextOutput
+{
+public:
+    LogTextOutput() : BufferedTextOutput(MULTITHREADED) { }
+    virtual ~LogTextOutput() { };
+
+protected:
+    virtual status_t writeLines(const struct iovec& vec, size_t N)
+    {
+        //android_writevLog(&vec, N);       <-- this is now a no-op
+        if (N != 1) ALOGI("WARNING: writeLines N=%zu\n", N);
+        ALOGI("%.*s", (int)vec.iov_len, (const char*) vec.iov_base);
+        return NO_ERROR;
+    }
+};
+
+class FdTextOutput : public BufferedTextOutput
+{
+public:
+    FdTextOutput(int fd) : BufferedTextOutput(MULTITHREADED), mFD(fd) { }
+    virtual ~FdTextOutput() { };
+
+protected:
+    virtual status_t writeLines(const struct iovec& vec, size_t N)
+    {
+        writev(mFD, &vec, N);
+        return NO_ERROR;
+    }
+
+private:
+    int mFD;
+};
+
+static LogTextOutput gLogTextOutput;
+static FdTextOutput gStdoutTextOutput(STDOUT_FILENO);
+static FdTextOutput gStderrTextOutput(STDERR_FILENO);
+
+TextOutput& alog(gLogTextOutput);
+TextOutput& aout(gStdoutTextOutput);
+TextOutput& aerr(gStderrTextOutput);
 
 // ------------ ProcessState.cpp
 
 Mutex gProcessMutex;
 sp<ProcessState> gProcess;
 
-class LibUtilsIPCtStatics
+class LibBinderIPCtStatics
 {
 public:
-    LibUtilsIPCtStatics()
+    LibBinderIPCtStatics()
     {
     }
     
-    ~LibUtilsIPCtStatics()
+    ~LibBinderIPCtStatics()
     {
         IPCThreadState::shutdown();
     }
 };
 
-static LibUtilsIPCtStatics gIPCStatics;
+static LibBinderIPCtStatics gIPCStatics;
 
 // ------------ ServiceManager.cpp
 

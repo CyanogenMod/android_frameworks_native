@@ -50,12 +50,12 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item);
+    err = acquireBufferLocked(&item, computeExpectedPresent());
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
-            // This variant of updateTexImage does not guarantee that the
-            // texture is bound, so no need to call glBindTexture.
             err = NO_ERROR;
+        } else if (err == BufferQueue::PRESENT_LATER) {
+            // return the error, without logging
         } else {
             ALOGE("updateTexImage: acquire failed: %s (%d)",
                 strerror(-err), err);
@@ -69,12 +69,12 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     // reject buffers which have the wrong size
     int buf = item.mBuf;
     if (rejecter && rejecter->reject(mSlots[buf].mGraphicBuffer, item)) {
-        releaseBufferLocked(buf, EGL_NO_SYNC_KHR);
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer, EGL_NO_SYNC_KHR);
         return NO_ERROR;
     }
 
     // Release the previous buffer.
-    err = releaseAndUpdateLocked(item);
+    err = updateAndReleaseLocked(item);
     if (err != NO_ERROR) {
         return err;
     }
@@ -97,6 +97,61 @@ status_t SurfaceFlingerConsumer::bindTextureImage()
     Mutex::Autolock lock(mMutex);
 
     return bindTextureImageLocked();
+}
+
+status_t SurfaceFlingerConsumer::acquireBufferLocked(
+        BufferQueue::BufferItem *item, nsecs_t presentWhen) {
+    status_t result = GLConsumer::acquireBufferLocked(item, presentWhen);
+    if (result == NO_ERROR) {
+        mTransformToDisplayInverse = item->mTransformToDisplayInverse;
+    }
+    return result;
+}
+
+bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
+    return mTransformToDisplayInverse;
+}
+
+// We need to determine the time when a buffer acquired now will be
+// displayed.  This can be calculated:
+//   time when previous buffer's actual-present fence was signaled
+//    + current display refresh rate * HWC latency
+//    + a little extra padding
+//
+// Buffer producers are expected to set their desired presentation time
+// based on choreographer time stamps, which (coming from vsync events)
+// will be slightly later then the actual-present timing.  If we get a
+// desired-present time that is unintentionally a hair after the next
+// vsync, we'll hold the frame when we really want to display it.  We
+// want to use an expected-presentation time that is slightly late to
+// avoid this sort of edge case.
+nsecs_t SurfaceFlingerConsumer::computeExpectedPresent()
+{
+    // Don't yet have an easy way to get actual buffer flip time for
+    // the specific display, so use the current time.  This is typically
+    // 1.3ms past the vsync event time.
+    const nsecs_t prevVsync = systemTime(CLOCK_MONOTONIC);
+
+    // Given a SurfaceFlinger reference, and information about what display
+    // we're destined for, we could query the HWC for the refresh rate.  This
+    // could change over time, e.g. we could switch to 24fps for a movie.
+    // For now, assume 60fps.
+    //const nsecs_t vsyncPeriod =
+    //        getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
+    const nsecs_t vsyncPeriod = 16700000;
+
+    // The HWC doesn't currently have a way to report additional latency.
+    // Assume that whatever we submit now will appear on the next flip,
+    // i.e. 1 frame of latency w.r.t. the previous flip.
+    const uint32_t hwcLatency = 1;
+
+    // A little extra padding to compensate for slack between actual vsync
+    // time and vsync event receipt.  Currently not needed since we're
+    // using "now" instead of a vsync time.
+    const nsecs_t extraPadding = 0;
+
+    // Total it up.
+    return prevVsync + hwcLatency * vsyncPeriod + extraPadding;
 }
 
 // ---------------------------------------------------------------------------

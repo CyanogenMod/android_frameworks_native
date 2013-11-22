@@ -29,13 +29,12 @@
 
 namespace android {
 
-BufferItemConsumer::BufferItemConsumer(uint32_t consumerUsage,
-        int bufferCount, bool synchronousMode) :
-    ConsumerBase(new BufferQueue(true) )
+BufferItemConsumer::BufferItemConsumer(const sp<BufferQueue>& bq,
+        uint32_t consumerUsage, int bufferCount, bool controlledByApp) :
+    ConsumerBase(bq, controlledByApp)
 {
-    mBufferQueue->setConsumerUsageBits(consumerUsage);
-    mBufferQueue->setSynchronousMode(synchronousMode);
-    mBufferQueue->setMaxAcquiredBufferCount(bufferCount);
+    mConsumer->setConsumerUsageBits(consumerUsage);
+    mConsumer->setMaxAcquiredBufferCount(bufferCount);
 }
 
 BufferItemConsumer::~BufferItemConsumer() {
@@ -44,17 +43,18 @@ BufferItemConsumer::~BufferItemConsumer() {
 void BufferItemConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
-    mBufferQueue->setConsumerName(name);
+    mConsumer->setConsumerName(name);
 }
 
-status_t BufferItemConsumer::acquireBuffer(BufferItem *item, bool waitForFence) {
+status_t BufferItemConsumer::acquireBuffer(BufferItem *item,
+        nsecs_t presentWhen, bool waitForFence) {
     status_t err;
 
     if (!item) return BAD_VALUE;
 
     Mutex::Autolock _l(mMutex);
 
-    err = acquireBufferLocked(item);
+    err = acquireBufferLocked(item, presentWhen);
     if (err != OK) {
         if (err != NO_BUFFER_AVAILABLE) {
             BI_LOGE("Error acquiring buffer: %s (%d)", strerror(err), err);
@@ -82,9 +82,9 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
 
     Mutex::Autolock _l(mMutex);
 
-    err = addReleaseFenceLocked(item.mBuf, releaseFence);
+    err = addReleaseFenceLocked(item.mBuf, item.mGraphicBuffer, releaseFence);
 
-    err = releaseBufferLocked(item.mBuf, EGL_NO_DISPLAY,
+    err = releaseBufferLocked(item.mBuf, item.mGraphicBuffer, EGL_NO_DISPLAY,
             EGL_NO_SYNC_KHR);
     if (err != OK) {
         BI_LOGE("Failed to release buffer: %s (%d)",
@@ -95,12 +95,12 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
 
 status_t BufferItemConsumer::setDefaultBufferSize(uint32_t w, uint32_t h) {
     Mutex::Autolock _l(mMutex);
-    return mBufferQueue->setDefaultBufferSize(w, h);
+    return mConsumer->setDefaultBufferSize(w, h);
 }
 
 status_t BufferItemConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
     Mutex::Autolock _l(mMutex);
-    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+    return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 } // namespace android

@@ -39,8 +39,8 @@ public:
             
             status_t            clearLastError();
 
-            int                 getCallingPid();
-            int                 getCallingUid();
+            int                 getCallingPid() const;
+            int                 getCallingUid() const;
 
             void                setStrictModePolicy(int32_t policy);
             int32_t             getStrictModePolicy() const;
@@ -51,6 +51,8 @@ public:
             int64_t             clearCallingIdentity();
             void                restoreCallingIdentity(int64_t token);
             
+            int                 setupPolling(int* fd);
+            status_t            handlePolledCommands();
             void                flushCommands();
 
             void                joinThreadPool(bool isMain = true);
@@ -96,7 +98,9 @@ private:
                                                      uint32_t code,
                                                      const Parcel& data,
                                                      status_t* statusBuffer);
+            status_t            getAndExecuteCommand();
             status_t            executeCommand(int32_t command);
+            void                processPendingDerefs();
             
             void                clearCaller();
             

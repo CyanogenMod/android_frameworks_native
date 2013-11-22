@@ -106,6 +106,30 @@ typedef struct ASensorVector {
     uint8_t reserved[3];
 } ASensorVector;
 
+typedef struct AMetaDataEvent {
+    int32_t what;
+    int32_t sensor;
+} AMetaDataEvent;
+
+typedef struct AUncalibratedEvent {
+  union {
+    float uncalib[3];
+    struct {
+      float x_uncalib;
+      float y_uncalib;
+      float z_uncalib;
+    };
+  };
+  union {
+    float bias[3];
+    struct {
+      float x_bias;
+      float y_bias;
+      float z_bias;
+    };
+  };
+} AUncalibratedEvent;
+
 /* NOTE: Must match hardware/sensors.h */
 typedef struct ASensorEvent {
     int32_t version; /* sizeof(struct ASensorEvent) */
@@ -114,18 +138,27 @@ typedef struct ASensorEvent {
     int32_t reserved0;
     int64_t timestamp;
     union {
-        float           data[16];
-        ASensorVector   vector;
-        ASensorVector   acceleration;
-        ASensorVector   magnetic;
-        float           temperature;
-        float           distance;
-        float           light;
-        float           pressure;
+        union {
+            float           data[16];
+            ASensorVector   vector;
+            ASensorVector   acceleration;
+            ASensorVector   magnetic;
+            float           temperature;
+            float           distance;
+            float           light;
+            float           pressure;
+            float           relative_humidity;
+            AUncalibratedEvent uncalibrated_gyro;
+            AUncalibratedEvent uncalibrated_magnetic;
+            AMetaDataEvent meta_data;
+        };
+        union {
+            uint64_t        data[8];
+            uint64_t        step_counter;
+        } u64;
     };
     int32_t reserved1[4];
 } ASensorEvent;
-
 
 struct ASensorManager;
 typedef struct ASensorManager ASensorManager;

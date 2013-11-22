@@ -50,26 +50,30 @@ namespace android {
  *
  */
 
-FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp) :
-    ConsumerBase(new BufferQueue(true, new GraphicBufferAlloc())),
+FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp,
+        const sp<IGraphicBufferConsumer>& consumer) :
+    ConsumerBase(consumer),
     mDisplayType(disp),
     mCurrentBufferSlot(-1),
     mCurrentBuffer(0),
     mHwc(hwc)
 {
     mName = "FramebufferSurface";
-    mBufferQueue->setConsumerName(mName);
-    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
+    mConsumer->setConsumerName(mName);
+    mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_FB |
                                        GRALLOC_USAGE_HW_RENDER |
                                        GRALLOC_USAGE_HW_COMPOSER);
-    mBufferQueue->setDefaultBufferFormat(mHwc.getFormat(disp));
-    mBufferQueue->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
-    mBufferQueue->setSynchronousMode(true);
-    mBufferQueue->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
+    mConsumer->setDefaultBufferFormat(mHwc.getFormat(disp));
+    mConsumer->setDefaultBufferSize(mHwc.getWidth(disp),  mHwc.getHeight(disp));
+    mConsumer->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
-sp<IGraphicBufferProducer> FramebufferSurface::getIGraphicBufferProducer() const {
-    return getBufferQueue();
+status_t FramebufferSurface::beginFrame() {
+    return NO_ERROR;
+}
+
+status_t FramebufferSurface::prepareFrame(CompositionType compositionType) {
+    return NO_ERROR;
 }
 
 status_t FramebufferSurface::advanceFrame() {
@@ -83,7 +87,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     Mutex::Autolock lock(mMutex);
 
     BufferQueue::BufferItem item;
-    status_t err = acquireBufferLocked(&item);
+    status_t err = acquireBufferLocked(&item, 0);
     if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
         outBuffer = mCurrentBuffer;
         return NO_ERROR;
@@ -103,9 +107,9 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT &&
         item.mBuf != mCurrentBufferSlot) {
         // Release the previous buffer.
-        err = releaseBufferLocked(mCurrentBufferSlot, EGL_NO_DISPLAY,
-                EGL_NO_SYNC_KHR);
-        if (err != NO_ERROR && err != BufferQueue::STALE_BUFFER_SLOT) {
+        err = releaseBufferLocked(mCurrentBufferSlot, mCurrentBuffer,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+        if (err < NO_ERROR) {
             ALOGE("error releasing buffer: %s (%d)", strerror(-err), err);
             return err;
         }
@@ -144,7 +148,8 @@ void FramebufferSurface::onFrameCommitted() {
     sp<Fence> fence = mHwc.getAndResetReleaseFence(mDisplayType);
     if (fence->isValid() &&
             mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t err = addReleaseFence(mCurrentBufferSlot, fence);
+        status_t err = addReleaseFence(mCurrentBufferSlot,
+                mCurrentBuffer, fence);
         ALOGE_IF(err, "setReleaseFenceFd: failed to add the fence: %s (%d)",
                 strerror(-err), err);
     }
@@ -175,11 +180,10 @@ void FramebufferSurface::dump(String8& result) const {
     ConsumerBase::dump(result);
 }
 
-void FramebufferSurface::dumpLocked(String8& result, const char* prefix,
-            char* buffer, size_t SIZE) const
+void FramebufferSurface::dumpLocked(String8& result, const char* prefix) const
 {
     mHwc.fbDump(result);
-    ConsumerBase::dumpLocked(result, prefix, buffer, SIZE);
+    ConsumerBase::dumpLocked(result, prefix);
 }
 
 // ----------------------------------------------------------------------------

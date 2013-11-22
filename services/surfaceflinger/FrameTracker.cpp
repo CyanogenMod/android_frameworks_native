@@ -17,17 +17,22 @@
 // This is needed for stdint.h to define INT64_MAX in C++
 #define __STDC_LIMIT_MACROS
 
+#include <cutils/log.h>
+
 #include <ui/Fence.h>
 
 #include <utils/String8.h>
 
 #include "FrameTracker.h"
+#include "EventLog/EventLog.h"
 
 namespace android {
 
 FrameTracker::FrameTracker() :
         mOffset(0),
-        mNumFences(0) {
+        mNumFences(0),
+        mDisplayPeriod(0) {
+    resetFrameCountersLocked();
 }
 
 void FrameTracker::setDesiredPresentTime(nsecs_t presentTime) {
@@ -57,8 +62,18 @@ void FrameTracker::setActualPresentFence(const sp<Fence>& readyFence) {
     mNumFences++;
 }
 
+void FrameTracker::setDisplayRefreshPeriod(nsecs_t displayPeriod) {
+    Mutex::Autolock lock(mMutex);
+    mDisplayPeriod = displayPeriod;
+}
+
 void FrameTracker::advanceFrame() {
     Mutex::Autolock lock(mMutex);
+
+    // Update the statistic to include the frame we just finished.
+    updateStatsLocked(mOffset);
+
+    // Advance to the next frame.
     mOffset = (mOffset+1) % NUM_FRAME_RECORDS;
     mFrameRecords[mOffset].desiredPresentTime = INT64_MAX;
     mFrameRecords[mOffset].frameReadyTime = INT64_MAX;
@@ -98,12 +113,19 @@ void FrameTracker::clear() {
     mFrameRecords[mOffset].actualPresentTime = INT64_MAX;
 }
 
+void FrameTracker::logAndResetStats(const String8& name) {
+    Mutex::Autolock lock(mMutex);
+    logStatsLocked(name);
+    resetFrameCountersLocked();
+}
+
 void FrameTracker::processFencesLocked() const {
     FrameRecord* records = const_cast<FrameRecord*>(mFrameRecords);
     int& numFences = const_cast<int&>(mNumFences);
 
     for (int i = 1; i < NUM_FRAME_RECORDS && numFences > 0; i++) {
         size_t idx = (mOffset+NUM_FRAME_RECORDS-i) % NUM_FRAME_RECORDS;
+        bool updated = false;
 
         const sp<Fence>& rfence = records[idx].frameReadyFence;
         if (rfence != NULL) {
@@ -111,6 +133,7 @@ void FrameTracker::processFencesLocked() const {
             if (records[idx].frameReadyTime < INT64_MAX) {
                 records[idx].frameReadyFence = NULL;
                 numFences--;
+                updated = true;
             }
         }
 
@@ -120,9 +143,65 @@ void FrameTracker::processFencesLocked() const {
             if (records[idx].actualPresentTime < INT64_MAX) {
                 records[idx].actualPresentFence = NULL;
                 numFences--;
+                updated = true;
             }
         }
+
+        if (updated) {
+            updateStatsLocked(idx);
+        }
     }
+}
+
+void FrameTracker::updateStatsLocked(size_t newFrameIdx) const {
+    int* numFrames = const_cast<int*>(mNumFrames);
+
+    if (mDisplayPeriod > 0 && isFrameValidLocked(newFrameIdx)) {
+        size_t prevFrameIdx = (newFrameIdx+NUM_FRAME_RECORDS-1) %
+                NUM_FRAME_RECORDS;
+
+        if (isFrameValidLocked(prevFrameIdx)) {
+            nsecs_t newPresentTime =
+                    mFrameRecords[newFrameIdx].actualPresentTime;
+            nsecs_t prevPresentTime =
+                    mFrameRecords[prevFrameIdx].actualPresentTime;
+
+            nsecs_t duration = newPresentTime - prevPresentTime;
+            int numPeriods = int((duration + mDisplayPeriod/2) /
+                    mDisplayPeriod);
+
+            for (int i = 0; i < NUM_FRAME_BUCKETS-1; i++) {
+                int nextBucket = 1 << (i+1);
+                if (numPeriods < nextBucket) {
+                    numFrames[i]++;
+                    return;
+                }
+            }
+
+            // The last duration bucket is a catch-all.
+            numFrames[NUM_FRAME_BUCKETS-1]++;
+        }
+    }
+}
+
+void FrameTracker::resetFrameCountersLocked() {
+    for (int i = 0; i < NUM_FRAME_BUCKETS; i++) {
+        mNumFrames[i] = 0;
+    }
+}
+
+void FrameTracker::logStatsLocked(const String8& name) const {
+    for (int i = 0; i < NUM_FRAME_BUCKETS; i++) {
+        if (mNumFrames[i] > 0) {
+            EventLog::logFrameDurations(name, mNumFrames, NUM_FRAME_BUCKETS);
+            return;
+        }
+    }
+}
+
+bool FrameTracker::isFrameValidLocked(size_t idx) const {
+    return mFrameRecords[idx].actualPresentTime > 0 &&
+            mFrameRecords[idx].actualPresentTime < INT64_MAX;
 }
 
 void FrameTracker::dump(String8& result) const {

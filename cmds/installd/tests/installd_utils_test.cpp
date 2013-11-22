@@ -340,7 +340,7 @@ TEST_F(UtilsTest, CreatePkgPathInDir_ProtectedDir) {
 TEST_F(UtilsTest, CreatePersonaPath_Primary) {
     char path[PKG_PATH_MAX];
 
-    EXPECT_EQ(0, create_persona_path(path, 0))
+    EXPECT_EQ(0, create_user_path(path, 0))
             << "Should successfully build primary user path.";
 
     EXPECT_STREQ("/data/data/", path)
@@ -350,7 +350,7 @@ TEST_F(UtilsTest, CreatePersonaPath_Primary) {
 TEST_F(UtilsTest, CreatePersonaPath_Secondary) {
     char path[PKG_PATH_MAX];
 
-    EXPECT_EQ(0, create_persona_path(path, 1))
+    EXPECT_EQ(0, create_user_path(path, 1))
             << "Should successfully build primary user path.";
 
     EXPECT_STREQ("/data/user/1/", path)

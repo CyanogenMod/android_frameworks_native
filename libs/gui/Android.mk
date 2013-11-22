@@ -2,13 +2,14 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
+	IGraphicBufferConsumer.cpp \
+	IConsumerListener.cpp \
 	BitTube.cpp \
 	BufferItemConsumer.cpp \
 	BufferQueue.cpp \
 	ConsumerBase.cpp \
 	CpuConsumer.cpp \
 	DisplayEventReceiver.cpp \
-	DummyConsumer.cpp \
 	GLConsumer.cpp \
 	GraphicBufferAlloc.cpp \
 	GuiConfig.cpp \

@@ -18,7 +18,10 @@
 //#define LOG_NDEBUG 0
 
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
+
 #include <gtest/gtest.h>
+#include <gui/GLConsumer.h>
 #include <gui/Surface.h>
 #include <system/graphics.h>
 #include <utils/Log.h>
@@ -40,8 +43,9 @@ protected:
         ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
                 testInfo->name());
 
-        mST = new GLConsumer(123);
-        mSTC = new Surface(mST->getBufferQueue());
+        sp<BufferQueue> bq = new BufferQueue();
+        mST = new GLConsumer(bq, 123);
+        mSTC = new Surface(bq);
         mANW = mSTC;
 
         // We need a valid GL context so we can test updateTexImage()
@@ -337,7 +341,7 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSetDefaultSizeVsGeometry) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureTooManyUpdateTexImage) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(false));
+    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 0));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 4));
 
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
@@ -345,7 +349,7 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureTooManyUpdateTexImage) {
     EXPECT_EQ(OK, mST->updateTexImage());
     EXPECT_EQ(OK, mST->updateTexImage());
 
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
+    ASSERT_EQ(OK, mANW->setSwapInterval(mANW.get(), 1));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
 
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
@@ -360,7 +364,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureTooManyUpdateTexImage) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeSlowRetire) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 4));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[1]));
@@ -381,7 +384,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeSlowRetire) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeFastRetire) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 4));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[1]));
@@ -402,7 +404,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeFastRetire) {
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeDQQR) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
 
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
@@ -428,7 +429,6 @@ TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeDQQR) {
 TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeDequeueCurrent) {
     android_native_buffer_t* buf[3];
     android_native_buffer_t* firstBuf;
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &firstBuf));
     ASSERT_EQ(OK, mANW->queueBuffer(mANW.get(), firstBuf, -1));
@@ -448,7 +448,6 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeDequeueCurrent) 
 
 TEST_F(SurfaceTextureClientTest, SurfaceTextureSyncModeMinUndequeued) {
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
 
     // We should be able to dequeue all the buffers before we've queued mANWy.
@@ -527,7 +526,6 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeWaitRetire) {
     };
 
     android_native_buffer_t* buf[3];
-    ASSERT_EQ(OK, mST->setSynchronousMode(true));
     ASSERT_EQ(OK, native_window_set_buffer_count(mANW.get(), 3));
     // dequeue/queue/update so we have a current buffer
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
@@ -661,8 +659,6 @@ TEST_F(SurfaceTextureClientTest, QueryFormatAfterSettingWorks) {
         HAL_PIXEL_FORMAT_RGB_888,
         HAL_PIXEL_FORMAT_RGB_565,
         HAL_PIXEL_FORMAT_BGRA_8888,
-        HAL_PIXEL_FORMAT_RGBA_5551,
-        HAL_PIXEL_FORMAT_RGBA_4444,
         HAL_PIXEL_FORMAT_YV12,
     };
 
@@ -715,8 +711,9 @@ protected:
         ASSERT_NE(EGL_NO_CONTEXT, mEglContext);
 
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
-            sp<GLConsumer> st(new GLConsumer(i));
-            sp<Surface> stc(new Surface(st->getBufferQueue()));
+            sp<BufferQueue> bq = new BufferQueue();
+            sp<GLConsumer> st(new GLConsumer(bq, i));
+            sp<Surface> stc(new Surface(bq));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);
             ASSERT_EQ(EGL_SUCCESS, eglGetError());

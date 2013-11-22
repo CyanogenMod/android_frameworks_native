@@ -37,7 +37,8 @@
 namespace android {
 
 Surface::Surface(
-        const sp<IGraphicBufferProducer>& bufferProducer)
+        const sp<IGraphicBufferProducer>& bufferProducer,
+        bool controlledByApp)
     : mGraphicBufferProducer(bufferProducer)
 {
     // Initialize the ANativeWindow function pointers.
@@ -71,6 +72,8 @@ Surface::Surface(
     mTransformHint = 0;
     mConsumerRunningBehind = false;
     mConnectedToCpu = false;
+    mProducerControlledByApp = controlledByApp;
+    mSwapIntervalZero = false;
 }
 
 Surface::~Surface() {
@@ -160,7 +163,6 @@ int Surface::setSwapInterval(int interval) {
     // EGL specification states:
     //  interval is silently clamped to minimum and maximum implementation
     //  dependent values before being stored.
-    // Although we don't have to, we apply the same logic here.
 
     if (interval < minSwapInterval)
         interval = minSwapInterval;
@@ -168,13 +170,12 @@ int Surface::setSwapInterval(int interval) {
     if (interval > maxSwapInterval)
         interval = maxSwapInterval;
 
-    status_t res = mGraphicBufferProducer->setSynchronousMode(interval ? true : false);
+    mSwapIntervalZero = (interval == 0);
 
-    return res;
+    return NO_ERROR;
 }
 
-int Surface::dequeueBuffer(android_native_buffer_t** buffer,
-        int* fenceFd) {
+int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     ATRACE_CALL();
     ALOGV("Surface::dequeueBuffer");
     Mutex::Autolock lock(mMutex);
@@ -182,7 +183,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
     int reqW = mReqWidth ? mReqWidth : mUserWidth;
     int reqH = mReqHeight ? mReqHeight : mUserHeight;
     sp<Fence> fence;
-    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
+    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence, mSwapIntervalZero,
             reqW, reqH, mReqFormat, mReqUsage);
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d)"
@@ -191,6 +192,10 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
         return result;
     }
     sp<GraphicBuffer>& gbuf(mSlots[buf].buffer);
+
+    // this should never happen
+    ALOGE_IF(fence == NULL, "Surface::dequeueBuffer: received null Fence! buf=%d", buf);
+
     if (result & IGraphicBufferProducer::RELEASE_ALL_BUFFERS) {
         freeAllBuffers();
     }
@@ -198,8 +203,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer,
     if ((result & IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION) || gbuf == 0) {
         result = mGraphicBufferProducer->requestBuffer(buf, &gbuf);
         if (result != NO_ERROR) {
-            ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d",
-                    result);
+            ALOGE("dequeueBuffer: IGraphicBufferProducer::requestBuffer failed: %d", result);
             return result;
         }
     }
@@ -258,10 +262,12 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     ALOGV("Surface::queueBuffer");
     Mutex::Autolock lock(mMutex);
     int64_t timestamp;
+    bool isAutoTimestamp = false;
     if (mTimestamp == NATIVE_WINDOW_TIMESTAMP_AUTO) {
         timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+        isAutoTimestamp = true;
         ALOGV("Surface::queueBuffer making up timestamp: %.2f ms",
-             timestamp / 1000000.f);
+            timestamp / 1000000.f);
     } else {
         timestamp = mTimestamp;
     }
@@ -277,8 +283,8 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
-    IGraphicBufferProducer::QueueBufferInput input(timestamp, crop, mScalingMode,
-            mTransform, fence);
+    IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
+            crop, mScalingMode, mTransform, mSwapIntervalZero, fence);
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -484,9 +490,10 @@ int Surface::dispatchUnlockAndPost(va_list args) {
 int Surface::connect(int api) {
     ATRACE_CALL();
     ALOGV("Surface::connect");
+    static sp<BBinder> sLife = new BBinder();
     Mutex::Autolock lock(mMutex);
     IGraphicBufferProducer::QueueBufferOutput output;
-    int err = mGraphicBufferProducer->connect(api, &output);
+    int err = mGraphicBufferProducer->connect(sLife, api, mProducerControlledByApp, &output);
     if (err == NO_ERROR) {
         uint32_t numPendingBuffers = 0;
         output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
@@ -498,6 +505,7 @@ int Surface::connect(int api) {
     }
     return err;
 }
+
 
 int Surface::disconnect(int api) {
     ATRACE_CALL();

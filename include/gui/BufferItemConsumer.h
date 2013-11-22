@@ -29,6 +29,8 @@
 
 namespace android {
 
+class BufferQueue;
+
 /**
  * BufferItemConsumer is a BufferQueue consumer endpoint that allows clients
  * access to the whole BufferItem entry from BufferQueue. Multiple buffers may
@@ -49,9 +51,11 @@ class BufferItemConsumer: public ConsumerBase
     // the consumer usage flags passed to the graphics allocator. The
     // bufferCount parameter specifies how many buffers can be locked for user
     // access at the same time.
-    BufferItemConsumer(uint32_t consumerUsage,
+    // controlledByApp tells whether this consumer is controlled by the
+    // application.
+    BufferItemConsumer(const sp<BufferQueue>& bq, uint32_t consumerUsage,
             int bufferCount = BufferQueue::MIN_UNDEQUEUED_BUFFERS,
-            bool synchronousMode = false);
+            bool controlledByApp = false);
 
     virtual ~BufferItemConsumer();
 
@@ -71,7 +75,8 @@ class BufferItemConsumer: public ConsumerBase
     //
     // If waitForFence is true, and the acquired BufferItem has a valid fence object,
     // acquireBuffer will wait on the fence with no timeout before returning.
-    status_t acquireBuffer(BufferItem *item, bool waitForFence = true);
+    status_t acquireBuffer(BufferItem *item, nsecs_t presentWhen,
+        bool waitForFence = true);
 
     // Returns an acquired buffer to the queue, allowing it to be reused. Since
     // only a fixed number of buffers may be acquired at a time, old buffers
@@ -81,8 +86,6 @@ class BufferItemConsumer: public ConsumerBase
     // all of its references to the BufferItem itself.
     status_t releaseBuffer(const BufferItem &item,
             const sp<Fence>& releaseFence = Fence::NO_FENCE);
-
-    sp<IGraphicBufferProducer> getProducerInterface() const { return getBufferQueue(); }
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // requestBuffers when a with and height of zero is requested.

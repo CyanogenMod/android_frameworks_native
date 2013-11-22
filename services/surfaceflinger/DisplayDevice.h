@@ -26,6 +26,7 @@
 #include <EGL/eglext.h>
 
 #include <utils/Mutex.h>
+#include <utils/String8.h>
 #include <utils/Timers.h>
 
 #include <hardware/hwcomposer_defs.h>
@@ -38,6 +39,7 @@ namespace android {
 
 class DisplayInfo;
 class DisplaySurface;
+class IGraphicBufferProducer;
 class Layer;
 class SurfaceFlinger;
 class HWComposer;
@@ -56,8 +58,8 @@ public:
         DISPLAY_ID_INVALID = -1,
         DISPLAY_PRIMARY     = HWC_DISPLAY_PRIMARY,
         DISPLAY_EXTERNAL    = HWC_DISPLAY_EXTERNAL,
-        NUM_DISPLAY_TYPES   = HWC_NUM_DISPLAY_TYPES,
-        DISPLAY_VIRTUAL     = HWC_NUM_DISPLAY_TYPES
+        DISPLAY_VIRTUAL     = HWC_DISPLAY_VIRTUAL,
+        NUM_BUILTIN_DISPLAY_TYPES = HWC_NUM_PHYSICAL_DISPLAY_TYPES,
     };
 
     enum {
@@ -76,6 +78,7 @@ public:
             bool isSecure,
             const wp<IBinder>& displayToken,
             const sp<DisplaySurface>& displaySurface,
+            const sp<IGraphicBufferProducer>& producer,
             EGLConfig config);
 
     ~DisplayDevice();
@@ -108,6 +111,7 @@ public:
     void                    setProjection(int orientation, const Rect& viewport, const Rect& frame);
 
     int                     getOrientation() const { return mOrientation; }
+    uint32_t                getOrientationTransform() const;
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Rect              getViewport() const { return mViewport; }
     const Rect              getFrame() const { return mFrame; }
@@ -118,6 +122,9 @@ public:
     int32_t                 getDisplayType() const { return mType; }
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
     const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
+
+    status_t beginFrame() const;
+    status_t prepareFrame(const HWComposer& hwc) const;
 
     void swapBuffers(HWComposer& hwc) const;
     status_t compositionComplete() const;
@@ -133,10 +140,8 @@ public:
     void setDisplayName(const String8& displayName);
     const String8& getDisplayName() const { return mDisplayName; }
 
-    static EGLBoolean makeCurrent(EGLDisplay dpy,
-            const sp<const DisplayDevice>& hw, EGLContext ctx);
-
-    static void setViewportAndProjection(const sp<const DisplayDevice>& hw);
+    EGLBoolean makeCurrent(EGLDisplay dpy, EGLContext ctx) const;
+    void setViewportAndProjection() const;
 
     /* ------------------------------------------------------------------------
      * blank / unblank management
@@ -153,7 +158,7 @@ public:
      * Debugging
      */
     uint32_t getPageFlipCount() const;
-    void dump(String8& result, char* buffer, size_t SIZE) const;
+    void dump(String8& result) const;
 
 private:
     /*
@@ -170,7 +175,6 @@ private:
 
     EGLDisplay      mDisplay;
     EGLSurface      mSurface;
-    EGLContext      mContext;
     int             mDisplayWidth;
     int             mDisplayHeight;
     PixelFormat     mFormat;

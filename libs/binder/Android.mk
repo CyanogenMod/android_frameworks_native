@@ -17,6 +17,8 @@ sources := \
     AppOpsManager.cpp \
     Binder.cpp \
     BpBinder.cpp \
+    BufferedTextOutput.cpp \
+    Debug.cpp \
     IAppOpsCallback.cpp \
     IAppOpsService.cpp \
     IInterface.cpp \
@@ -30,7 +32,8 @@ sources := \
     Parcel.cpp \
     PermissionCache.cpp \
     ProcessState.cpp \
-    Static.cpp
+    Static.cpp \
+    TextOutput.cpp \
 
 LOCAL_PATH:= $(call my-dir)
 
@@ -44,5 +47,6 @@ include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
+LOCAL_STATIC_LIBRARIES += libutils
 LOCAL_SRC_FILES := $(sources)
 include $(BUILD_STATIC_LIBRARY)

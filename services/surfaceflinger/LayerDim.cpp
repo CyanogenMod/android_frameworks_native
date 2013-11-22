@@ -18,9 +18,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <GLES/gl.h>
-#include <GLES/glext.h>
-
 #include <utils/Errors.h>
 #include <utils/Log.h>
 
@@ -29,6 +26,7 @@
 #include "LayerDim.h"
 #include "SurfaceFlinger.h"
 #include "DisplayDevice.h"
+#include "RenderEngine/RenderEngine.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -43,35 +41,19 @@ LayerDim::~LayerDim() {
 
 void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
-    const State& s(drawingState());
+    const State& s(getDrawingState());
     if (s.alpha>0) {
-        const GLfloat alpha = s.alpha/255.0f;
-        const uint32_t fbHeight = hw->getHeight();
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
-        glDisable(GL_TEXTURE_2D);
-
-        if (s.alpha == 0xFF) {
-            glDisable(GL_BLEND);
-        } else {
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        }
-
-        glColor4f(0, 0, 0, alpha);
-
-        LayerMesh mesh;
-        computeGeometry(hw, &mesh);
-
-        glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
-
-        glDisable(GL_BLEND);
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+        Mesh mesh(Mesh::TRIANGLE_FAN, 4, 2);
+        computeGeometry(hw, mesh);
+        RenderEngine& engine(mFlinger->getRenderEngine());
+        engine.setupDimLayerBlending(s.alpha);
+        engine.drawMesh(mesh);
+        engine.disableBlending();
     }
 }
 
 bool LayerDim::isVisible() const {
-    const Layer::State& s(drawingState());
+    const Layer::State& s(getDrawingState());
     return !(s.flags & layer_state_t::eLayerHidden) && s.alpha;
 }
 

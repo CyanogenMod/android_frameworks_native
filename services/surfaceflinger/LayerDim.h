@@ -20,9 +20,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
 #include "Layer.h"
 
 // ---------------------------------------------------------------------------
@@ -36,13 +33,10 @@ public:
                         const String8& name, uint32_t w, uint32_t h, uint32_t flags);
         virtual ~LayerDim();
 
+    virtual const char* getTypeId() const { return "LayerDim"; }
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
     virtual bool isOpaque() const         { return false; }
     virtual bool isSecure() const         { return false; }
-    virtual bool isProtectedByApp() const { return false; }
-    virtual bool isProtectedByDRM() const { return false; }
-    virtual const char* getTypeId() const { return "LayerDim"; }
-
     virtual bool isFixedSize() const      { return true; }
     virtual bool isVisible() const;
 };

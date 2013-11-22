@@ -560,8 +560,6 @@ uint32_t hwcTestColor2Pixel(uint32_t format, ColorFract color, float alpha)
         {HAL_PIXEL_FORMAT_RGB_888,   false, 3,  0, 8,  8, 8, 16, 8,  0, 0},
         {HAL_PIXEL_FORMAT_RGB_565,   true,  2,  0, 5,  5, 6, 11, 5,  0, 0},
         {HAL_PIXEL_FORMAT_BGRA_8888, false, 4, 16, 8,  8, 8,  0, 8, 24, 8},
-        {HAL_PIXEL_FORMAT_RGBA_5551, true , 2,  0, 5,  5, 5, 10, 5, 15, 1},
-        {HAL_PIXEL_FORMAT_RGBA_4444, false, 2, 12, 4,  0, 4,  4, 4,  8, 4},
         {HAL_PIXEL_FORMAT_YV12,      true,  3, 16, 8,  8, 8,  0, 8,  0, 0},  
     };
 
@@ -614,8 +612,6 @@ void hwcTestSetPixel(GraphicBuffer *gBuf, unsigned char *buf,
         {HAL_PIXEL_FORMAT_RGB_888,    3},
         {HAL_PIXEL_FORMAT_RGB_565,    2},
         {HAL_PIXEL_FORMAT_BGRA_8888,  4},
-        {HAL_PIXEL_FORMAT_RGBA_5551,  2},
-        {HAL_PIXEL_FORMAT_RGBA_4444,  2},
     };
 
     if (gBuf->getPixelFormat() == HAL_PIXEL_FORMAT_YV12) {
@@ -813,10 +809,6 @@ void hwcTestColorConvert(uint32_t fromFormat, uint32_t toFormat,
          0, 0, 31, 31, 0, 0, 63, 63, 0, 0, 31, 31},
         {HAL_PIXEL_FORMAT_BGRA_8888, true,  false,
          0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255},
-        {HAL_PIXEL_FORMAT_RGBA_5551, true,  false,
-         0, 0, 31, 31, 0, 0, 31, 31, 0, 0, 31, 31},
-        {HAL_PIXEL_FORMAT_RGBA_4444, true,  false,
-         0, 0, 15, 15, 0, 0, 15, 15, 0, 0, 15, 15},
         {HAL_PIXEL_FORMAT_YV12,      false, true,
          0, 16, 235, 255, 0, 16, 240, 255, 0, 16, 240, 255},
     };

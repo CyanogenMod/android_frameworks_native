@@ -25,6 +25,7 @@
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <cutils/compiler.h>
 
 #include <hardware/hardware.h>
 
@@ -40,6 +41,9 @@
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+#define CROP_EXT_STR "EGL_ANDROID_image_crop"
+
 namespace android {
 
 // Macros for including the GLConsumer name in log messages
@@ -48,6 +52,14 @@ namespace android {
 #define ST_LOGI(x, ...) ALOGI("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGW(x, ...) ALOGW("[%s] "x, mName.string(), ##__VA_ARGS__)
 #define ST_LOGE(x, ...) ALOGE("[%s] "x, mName.string(), ##__VA_ARGS__)
+
+static const struct {
+    size_t width, height;
+    char const* bits;
+} kDebugData = { 15, 12,
+    "___________________________________XX_XX_______X_X_____X_X____X_XXXXXXX_X____XXXXXXXXXXX__"
+    "___XX_XXX_XX_______XXXXXXX_________X___X_________X_____X__________________________________"
+};
 
 // Transform matrices
 static float mtxIdentity[16] = {
@@ -77,21 +89,41 @@ static float mtxRot90[16] = {
 
 static void mtxMul(float out[16], const float a[16], const float b[16]);
 
+Mutex GLConsumer::sStaticInitLock;
+sp<GraphicBuffer> GLConsumer::sReleasedTexImageBuffer;
 
-GLConsumer::GLConsumer(const sp<BufferQueue>& bq, GLuint tex,
-        GLenum texTarget, bool useFenceSync) :
-    ConsumerBase(bq),
-    mUseFenceSync(useFenceSync),
-    mTexTarget(texTarget) {}
+static bool hasEglAndroidImageCropImpl() {
+    EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    const char* exts = eglQueryStringImplementationANDROID(dpy, EGL_EXTENSIONS);
+    size_t cropExtLen = strlen(CROP_EXT_STR);
+    size_t extsLen = strlen(exts);
+    bool equal = !strcmp(CROP_EXT_STR, exts);
+    bool atStart = !strncmp(CROP_EXT_STR " ", exts, cropExtLen+1);
+    bool atEnd = (cropExtLen+1) < extsLen &&
+            !strcmp(" " CROP_EXT_STR, exts + extsLen - (cropExtLen+1));
+    bool inMiddle = strstr(exts, " " CROP_EXT_STR " ");
+    return equal || atStart || atEnd || inMiddle;
+}
 
+static bool hasEglAndroidImageCrop() {
+    // Only compute whether the extension is present once the first time this
+    // function is called.
+    static bool hasIt = hasEglAndroidImageCropImpl();
+    return hasIt;
+}
 
-GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
-        GLenum texTarget, bool useFenceSync, const sp<BufferQueue> &bufferQueue) :
-    ConsumerBase(bufferQueue == 0 ? new BufferQueue(allowSynchronousMode) : bufferQueue),
+static bool isEglImageCroppable(const Rect& crop) {
+    return hasEglAndroidImageCrop() && (crop.left == 0 && crop.top == 0);
+}
+
+GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
+        uint32_t texTarget, bool useFenceSync, bool isControlledByApp) :
+    ConsumerBase(bq, isControlledByApp),
     mCurrentTransform(0),
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mCurrentFence(Fence::NO_FENCE),
     mCurrentTimestamp(0),
+    mCurrentFrameNumber(0),
     mDefaultWidth(1),
     mDefaultHeight(1),
     mFilteringEnabled(true),
@@ -108,12 +140,12 @@ GLConsumer::GLConsumer(GLuint tex, bool allowSynchronousMode,
     memcpy(mCurrentTransformMatrix, mtxIdentity,
             sizeof(mCurrentTransformMatrix));
 
-    mBufferQueue->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
+    mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
 status_t GLConsumer::setDefaultMaxBufferCount(int bufferCount) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setDefaultMaxBufferCount(bufferCount);
+    return mConsumer->setDefaultMaxBufferCount(bufferCount);
 }
 
 
@@ -122,7 +154,7 @@ status_t GLConsumer::setDefaultBufferSize(uint32_t w, uint32_t h)
     Mutex::Autolock lock(mMutex);
     mDefaultWidth = w;
     mDefaultHeight = h;
-    return mBufferQueue->setDefaultBufferSize(w, h);
+    return mConsumer->setDefaultBufferSize(w, h);
 }
 
 status_t GLConsumer::updateTexImage() {
@@ -146,7 +178,7 @@ status_t GLConsumer::updateTexImage() {
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item);
+    err = acquireBufferLocked(&item, 0);
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             // We always bind the texture even if we don't update its contents.
@@ -161,7 +193,7 @@ status_t GLConsumer::updateTexImage() {
     }
 
     // Release the previous buffer.
-    err = releaseAndUpdateLocked(item);
+    err = updateAndReleaseLocked(item);
     if (err != NO_ERROR) {
         // We always bind the texture.
         glBindTexture(mTexTarget, mTexName);
@@ -172,44 +204,154 @@ status_t GLConsumer::updateTexImage() {
     return bindTextureImageLocked();
 }
 
-status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item) {
-    status_t err = ConsumerBase::acquireBufferLocked(item);
-    if (err != NO_ERROR) {
-        return err;
+
+status_t GLConsumer::releaseTexImage() {
+    ATRACE_CALL();
+    ST_LOGV("releaseTexImage");
+    Mutex::Autolock lock(mMutex);
+
+    if (mAbandoned) {
+        ST_LOGE("releaseTexImage: GLConsumer is abandoned!");
+        return NO_INIT;
     }
 
-    int slot = item->mBuf;
-    if (item->mGraphicBuffer != NULL) {
-        // This buffer has not been acquired before, so we must assume
-        // that any EGLImage in mEglSlots is stale.
-        if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
-            if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
-                ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
-                      slot);
-                // keep going
+    // Make sure the EGL state is the same as in previous calls.
+    status_t err = NO_ERROR;
+
+    if (mAttached) {
+        err = checkAndUpdateEglStateLocked(true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    } else {
+        // if we're detached, no need to validate EGL's state -- we won't use it.
+    }
+
+    // Update the GLConsumer state.
+    int buf = mCurrentTexture;
+    if (buf != BufferQueue::INVALID_BUFFER_SLOT) {
+
+        ST_LOGV("releaseTexImage: (slot=%d, mAttached=%d)", buf, mAttached);
+
+        if (mAttached) {
+            // Do whatever sync ops we need to do before releasing the slot.
+            err = syncForReleaseLocked(mEglDisplay);
+            if (err != NO_ERROR) {
+                ST_LOGE("syncForReleaseLocked failed (slot=%d), err=%d", buf, err);
+                return err;
             }
-            mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
+        } else {
+            // if we're detached, we just use the fence that was created in detachFromContext()
+            // so... basically, nothing more to do here.
+        }
+
+        err = releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer, mEglDisplay, EGL_NO_SYNC_KHR);
+        if (err < NO_ERROR) {
+            ST_LOGE("releaseTexImage: failed to release buffer: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
+
+        mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
+        mCurrentTextureBuf = getDebugTexImageBuffer();
+        mCurrentCrop.makeInvalid();
+        mCurrentTransform = 0;
+        mCurrentScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
+        mCurrentTimestamp = 0;
+        mCurrentFence = Fence::NO_FENCE;
+
+        if (mAttached) {
+            // bind a dummy texture
+            glBindTexture(mTexTarget, mTexName);
+            bindUnslottedBufferLocked(mEglDisplay);
+        } else {
+            // detached, don't touch the texture (and we may not even have an
+            // EGLDisplay here.
         }
     }
 
     return NO_ERROR;
 }
 
-status_t GLConsumer::releaseBufferLocked(int buf, EGLDisplay display,
-       EGLSyncKHR eglFence) {
-    status_t err = ConsumerBase::releaseBufferLocked(buf, display, eglFence);
+sp<GraphicBuffer> GLConsumer::getDebugTexImageBuffer() {
+    Mutex::Autolock _l(sStaticInitLock);
+    if (CC_UNLIKELY(sReleasedTexImageBuffer == NULL)) {
+        // The first time, create the debug texture in case the application
+        // continues to use it.
+        sp<GraphicBuffer> buffer = new GraphicBuffer(
+                kDebugData.width, kDebugData.height, PIXEL_FORMAT_RGBA_8888,
+                GraphicBuffer::USAGE_SW_WRITE_RARELY);
+        uint32_t* bits;
+        buffer->lock(GraphicBuffer::USAGE_SW_WRITE_RARELY, reinterpret_cast<void**>(&bits));
+        size_t w = buffer->getStride();
+        size_t h = buffer->getHeight();
+        memset(bits, 0, w*h*4);
+        for (size_t y=0 ; y<kDebugData.height ; y++) {
+            for (size_t x=0 ; x<kDebugData.width ; x++) {
+                bits[x] = (kDebugData.bits[y*kDebugData.width+x] == 'X') ? 0xFF000000 : 0xFFFFFFFF;
+            }
+            bits += w;
+        }
+        buffer->unlock();
+        sReleasedTexImageBuffer = buffer;
+    }
+    return sReleasedTexImageBuffer;
+}
 
+status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
+        nsecs_t presentWhen) {
+    status_t err = ConsumerBase::acquireBufferLocked(item, presentWhen);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    int slot = item->mBuf;
+    bool destroyEglImage = false;
+
+    if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
+        if (item->mGraphicBuffer != NULL) {
+            // This buffer has not been acquired before, so we must assume
+            // that any EGLImage in mEglSlots is stale.
+            destroyEglImage = true;
+        } else if (mEglSlots[slot].mCropRect != item->mCrop) {
+            // We've already seen this buffer before, but it now has a
+            // different crop rect, so we'll need to recreate the EGLImage if
+            // we're using the EGL_ANDROID_image_crop extension.
+            destroyEglImage = hasEglAndroidImageCrop();
+        }
+    }
+
+    if (destroyEglImage) {
+        if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
+            ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
+                  slot);
+            // keep going
+        }
+        mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
+    }
+
+    return NO_ERROR;
+}
+
+status_t GLConsumer::releaseBufferLocked(int buf,
+        sp<GraphicBuffer> graphicBuffer,
+        EGLDisplay display, EGLSyncKHR eglFence) {
+    // release the buffer if it hasn't already been discarded by the
+    // BufferQueue. This can happen, for example, when the producer of this
+    // buffer has reallocated the original buffer slot after this buffer
+    // was acquired.
+    status_t err = ConsumerBase::releaseBufferLocked(
+            buf, graphicBuffer, display, eglFence);
     mEglSlots[buf].mEglFence = EGL_NO_SYNC_KHR;
-
     return err;
 }
 
-status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
+status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
 {
     status_t err = NO_ERROR;
 
     if (!mAttached) {
-        ST_LOGE("releaseAndUpdate: GLConsumer is not attached to an OpenGL "
+        ST_LOGE("updateAndRelease: GLConsumer is not attached to an OpenGL "
                 "ES context");
         return INVALID_OPERATION;
     }
@@ -230,13 +372,15 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
     // EGLImage when detaching from a context but the buffer has not been
     // re-allocated.
     if (mEglSlots[buf].mEglImage == EGL_NO_IMAGE_KHR) {
-        EGLImageKHR image = createImage(mEglDisplay, mSlots[buf].mGraphicBuffer);
+        EGLImageKHR image = createImage(mEglDisplay,
+                mSlots[buf].mGraphicBuffer, item.mCrop);
         if (image == EGL_NO_IMAGE_KHR) {
-            ST_LOGW("releaseAndUpdate: unable to createImage on display=%p slot=%d",
+            ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
                   mEglDisplay, buf);
             return UNKNOWN_ERROR;
         }
         mEglSlots[buf].mEglImage = image;
+        mEglSlots[buf].mCropRect = item.mCrop;
     }
 
     // Do whatever sync ops we need to do before releasing the old slot.
@@ -244,21 +388,25 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
     if (err != NO_ERROR) {
         // Release the buffer we just acquired.  It's not safe to
         // release the old buffer, so instead we just drop the new frame.
-        releaseBufferLocked(buf, mEglDisplay, EGL_NO_SYNC_KHR);
+        // As we are still under lock since acquireBuffer, it is safe to
+        // release by slot.
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
         return err;
     }
 
-    ST_LOGV("releaseAndUpdate: (slot=%d buf=%p) -> (slot=%d buf=%p)",
+    ST_LOGV("updateAndRelease: (slot=%d buf=%p) -> (slot=%d buf=%p)",
             mCurrentTexture,
             mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
             buf, mSlots[buf].mGraphicBuffer->handle);
 
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t status = releaseBufferLocked(mCurrentTexture, mEglDisplay,
+        status_t status = releaseBufferLocked(
+                mCurrentTexture, mCurrentTextureBuf, mEglDisplay,
                 mEglSlots[mCurrentTexture].mEglFence);
-        if (status != NO_ERROR && status != BufferQueue::STALE_BUFFER_SLOT) {
-            ST_LOGE("releaseAndUpdate: failed to release buffer: %s (%d)",
+        if (status < NO_ERROR) {
+            ST_LOGE("updateAndRelease: failed to release buffer: %s (%d)",
                    strerror(-status), status);
             err = status;
             // keep going, with error raised [?]
@@ -273,6 +421,7 @@ status_t GLConsumer::releaseAndUpdateLocked(const BufferQueue::BufferItem& item)
     mCurrentScalingMode = item.mScalingMode;
     mCurrentTimestamp = item.mTimestamp;
     mCurrentFence = item.mFence;
+    mCurrentFrameNumber = item.mFrameNumber;
 
     computeCurrentTransformMatrixLocked();
 
@@ -317,18 +466,27 @@ status_t GLConsumer::bindTextureImageLocked() {
 
 }
 
-status_t GLConsumer::checkAndUpdateEglStateLocked() {
+status_t GLConsumer::checkAndUpdateEglStateLocked(bool contextCheck) {
     EGLDisplay dpy = eglGetCurrentDisplay();
     EGLContext ctx = eglGetCurrentContext();
 
-    if ((mEglDisplay != dpy && mEglDisplay != EGL_NO_DISPLAY) ||
-            dpy == EGL_NO_DISPLAY) {
+    if (!contextCheck) {
+        // if this is the first time we're called, mEglDisplay/mEglContext have
+        // never been set, so don't error out (below).
+        if (mEglDisplay == EGL_NO_DISPLAY) {
+            mEglDisplay = dpy;
+        }
+        if (mEglContext == EGL_NO_DISPLAY) {
+            mEglContext = ctx;
+        }
+    }
+
+    if (mEglDisplay != dpy || dpy == EGL_NO_DISPLAY) {
         ST_LOGE("checkAndUpdateEglState: invalid current EGLDisplay");
         return INVALID_OPERATION;
     }
 
-    if ((mEglContext != ctx && mEglContext != EGL_NO_CONTEXT) ||
-            ctx == EGL_NO_CONTEXT) {
+    if (mEglContext != ctx || ctx == EGL_NO_CONTEXT) {
         ST_LOGE("checkAndUpdateEglState: invalid current EGLContext");
         return INVALID_OPERATION;
     }
@@ -341,7 +499,8 @@ status_t GLConsumer::checkAndUpdateEglStateLocked() {
 void GLConsumer::setReleaseFence(const sp<Fence>& fence) {
     if (fence->isValid() &&
             mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t err = addReleaseFence(mCurrentTexture, fence);
+        status_t err = addReleaseFence(mCurrentTexture,
+                mCurrentTextureBuf, fence);
         if (err != OK) {
             ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
                     strerror(-err), err);
@@ -406,7 +565,7 @@ status_t GLConsumer::detachFromContext() {
     return OK;
 }
 
-status_t GLConsumer::attachToContext(GLuint tex) {
+status_t GLConsumer::attachToContext(uint32_t tex) {
     ATRACE_CALL();
     ST_LOGV("attachToContext");
     Mutex::Autolock lock(mMutex);
@@ -437,7 +596,7 @@ status_t GLConsumer::attachToContext(GLuint tex) {
 
     // We need to bind the texture regardless of whether there's a current
     // buffer.
-    glBindTexture(mTexTarget, tex);
+    glBindTexture(mTexTarget, GLuint(tex));
 
     if (mCurrentTextureBuf != NULL) {
         // The EGLImageKHR that was associated with the slot was destroyed when
@@ -462,7 +621,8 @@ status_t GLConsumer::bindUnslottedBufferLocked(EGLDisplay dpy) {
             mCurrentTexture, mCurrentTextureBuf.get());
 
     // Create a temporary EGLImageKHR.
-    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf);
+    Rect crop;
+    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf, mCurrentCrop);
     if (image == EGL_NO_IMAGE_KHR) {
         return UNKNOWN_ERROR;
     }
@@ -510,7 +670,8 @@ status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
                 return UNKNOWN_ERROR;
             }
             sp<Fence> fence(new Fence(fenceFd));
-            status_t err = addReleaseFenceLocked(mCurrentTexture, fence);
+            status_t err = addReleaseFenceLocked(mCurrentTexture,
+                    mCurrentTextureBuf, fence);
             if (err != OK) {
                 ST_LOGE("syncForReleaseLocked: error adding release fence: "
                         "%s (%d)", strerror(-err), err);
@@ -571,7 +732,7 @@ bool GLConsumer::isExternalFormat(uint32_t format)
     return false;
 }
 
-GLenum GLConsumer::getCurrentTextureTarget() const {
+uint32_t GLConsumer::getCurrentTextureTarget() const {
     return mTexTarget;
 }
 
@@ -633,62 +794,66 @@ void GLConsumer::computeCurrentTransformMatrixLocked() {
         ST_LOGD("computeCurrentTransformMatrixLocked: mCurrentTextureBuf is NULL");
     }
 
-    Rect cropRect = mCurrentCrop;
-    float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
-    float bufferWidth = buf->getWidth();
-    float bufferHeight = buf->getHeight();
-    if (!cropRect.isEmpty()) {
-        float shrinkAmount = 0.0f;
-        if (mFilteringEnabled) {
-            // In order to prevent bilinear sampling beyond the edge of the
-            // crop rectangle we may need to shrink it by 2 texels in each
-            // dimension.  Normally this would just need to take 1/2 a texel
-            // off each end, but because the chroma channels of YUV420 images
-            // are subsampled we may need to shrink the crop region by a whole
-            // texel on each side.
-            switch (buf->getPixelFormat()) {
-                case PIXEL_FORMAT_RGBA_8888:
-                case PIXEL_FORMAT_RGBX_8888:
-                case PIXEL_FORMAT_RGB_888:
-                case PIXEL_FORMAT_RGB_565:
-                case PIXEL_FORMAT_BGRA_8888:
-                case PIXEL_FORMAT_RGBA_5551:
-                case PIXEL_FORMAT_RGBA_4444:
-                    // We know there's no subsampling of any channels, so we
-                    // only need to shrink by a half a pixel.
-                    shrinkAmount = 0.5;
-                    break;
+    float mtxBeforeFlipV[16];
+    if (!isEglImageCroppable(mCurrentCrop)) {
+        Rect cropRect = mCurrentCrop;
+        float tx = 0.0f, ty = 0.0f, sx = 1.0f, sy = 1.0f;
+        float bufferWidth = buf->getWidth();
+        float bufferHeight = buf->getHeight();
+        if (!cropRect.isEmpty()) {
+            float shrinkAmount = 0.0f;
+            if (mFilteringEnabled) {
+                // In order to prevent bilinear sampling beyond the edge of the
+                // crop rectangle we may need to shrink it by 2 texels in each
+                // dimension.  Normally this would just need to take 1/2 a texel
+                // off each end, but because the chroma channels of YUV420 images
+                // are subsampled we may need to shrink the crop region by a whole
+                // texel on each side.
+                switch (buf->getPixelFormat()) {
+                    case PIXEL_FORMAT_RGBA_8888:
+                    case PIXEL_FORMAT_RGBX_8888:
+                    case PIXEL_FORMAT_RGB_888:
+                    case PIXEL_FORMAT_RGB_565:
+                    case PIXEL_FORMAT_BGRA_8888:
+                        // We know there's no subsampling of any channels, so we
+                        // only need to shrink by a half a pixel.
+                        shrinkAmount = 0.5;
+                        break;
 
-                default:
-                    // If we don't recognize the format, we must assume the
-                    // worst case (that we care about), which is YUV420.
-                    shrinkAmount = 1.0;
-                    break;
+                    default:
+                        // If we don't recognize the format, we must assume the
+                        // worst case (that we care about), which is YUV420.
+                        shrinkAmount = 1.0;
+                        break;
+                }
+            }
+
+            // Only shrink the dimensions that are not the size of the buffer.
+            if (cropRect.width() < bufferWidth) {
+                tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
+                sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
+                        bufferWidth;
+            }
+            if (cropRect.height() < bufferHeight) {
+                ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
+                        bufferHeight;
+                sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
+                        bufferHeight;
             }
         }
+        float crop[16] = {
+            sx, 0, 0, 0,
+            0, sy, 0, 0,
+            0, 0, 1, 0,
+            tx, ty, 0, 1,
+        };
 
-        // Only shrink the dimensions that are not the size of the buffer.
-        if (cropRect.width() < bufferWidth) {
-            tx = (float(cropRect.left) + shrinkAmount) / bufferWidth;
-            sx = (float(cropRect.width()) - (2.0f * shrinkAmount)) /
-                    bufferWidth;
-        }
-        if (cropRect.height() < bufferHeight) {
-            ty = (float(bufferHeight - cropRect.bottom) + shrinkAmount) /
-                    bufferHeight;
-            sy = (float(cropRect.height()) - (2.0f * shrinkAmount)) /
-                    bufferHeight;
+        mtxMul(mtxBeforeFlipV, crop, xform);
+    } else {
+        for (int i = 0; i < 16; i++) {
+            mtxBeforeFlipV[i] = xform[i];
         }
     }
-    float crop[16] = {
-        sx, 0, 0, 0,
-        0, sy, 0, 0,
-        0, 0, 1, 0,
-        tx, ty, 0, 1,
-    };
-
-    float mtxBeforeFlipV[16];
-    mtxMul(mtxBeforeFlipV, crop, xform);
 
     // SurfaceFlinger expects the top of its window textures to be at a Y
     // coordinate of 0, so GLConsumer must behave the same way.  We don't
@@ -703,13 +868,33 @@ nsecs_t GLConsumer::getTimestamp() {
     return mCurrentTimestamp;
 }
 
+nsecs_t GLConsumer::getFrameNumber() {
+    ST_LOGV("getFrameNumber");
+    Mutex::Autolock lock(mMutex);
+    return mCurrentFrameNumber;
+}
+
 EGLImageKHR GLConsumer::createImage(EGLDisplay dpy,
-        const sp<GraphicBuffer>& graphicBuffer) {
+        const sp<GraphicBuffer>& graphicBuffer, const Rect& crop) {
     EGLClientBuffer cbuf = (EGLClientBuffer)graphicBuffer->getNativeBuffer();
     EGLint attrs[] = {
-        EGL_IMAGE_PRESERVED_KHR,    EGL_TRUE,
+        EGL_IMAGE_PRESERVED_KHR,        EGL_TRUE,
+        EGL_IMAGE_CROP_LEFT_ANDROID,    crop.left,
+        EGL_IMAGE_CROP_TOP_ANDROID,     crop.top,
+        EGL_IMAGE_CROP_RIGHT_ANDROID,   crop.right,
+        EGL_IMAGE_CROP_BOTTOM_ANDROID,  crop.bottom,
         EGL_NONE,
     };
+    if (!crop.isValid()) {
+        // No crop rect to set, so terminate the attrib array before the crop.
+        attrs[2] = EGL_NONE;
+    } else if (!isEglImageCroppable(crop)) {
+        // The crop rect is not at the origin, so we can't set the crop on the
+        // EGLImage because that's not allowed by the EGL_ANDROID_image_crop
+        // extension.  In the future we can add a layered extension that
+        // removes this restriction if there is hardware that can support it.
+        attrs[2] = EGL_NONE;
+    }
     EGLImageKHR image = eglCreateImageKHR(dpy, EGL_NO_CONTEXT,
             EGL_NATIVE_BUFFER_ANDROID, cbuf, attrs);
     if (image == EGL_NO_IMAGE_KHR) {
@@ -840,11 +1025,6 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
     return NO_ERROR;
 }
 
-bool GLConsumer::isSynchronousMode() const {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->isSynchronousMode();
-}
-
 void GLConsumer::freeBufferLocked(int slotIndex) {
     ST_LOGV("freeBufferLocked: slotIndex=%d", slotIndex);
     if (slotIndex == mCurrentTexture) {
@@ -868,44 +1048,35 @@ void GLConsumer::abandonLocked() {
 void GLConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
-    mBufferQueue->setConsumerName(name);
+    mConsumer->setConsumerName(name);
 }
 
 status_t GLConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setDefaultBufferFormat(defaultFormat);
+    return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
     usage |= DEFAULT_USAGE_FLAGS;
-    return mBufferQueue->setConsumerUsageBits(usage);
+    return mConsumer->setConsumerUsageBits(usage);
 }
 
 status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setTransformHint(hint);
+    return mConsumer->setTransformHint(hint);
 }
 
-// Used for refactoring BufferQueue from GLConsumer
-// Should not be in final interface once users of GLConsumer are clean up.
-status_t GLConsumer::setSynchronousMode(bool enabled) {
-    Mutex::Autolock lock(mMutex);
-    return mBufferQueue->setSynchronousMode(enabled);
-}
-
-void GLConsumer::dumpLocked(String8& result, const char* prefix,
-        char* buffer, size_t size) const
+void GLConsumer::dumpLocked(String8& result, const char* prefix) const
 {
-    snprintf(buffer, size,
+    result.appendFormat(
        "%smTexName=%d mCurrentTexture=%d\n"
        "%smCurrentCrop=[%d,%d,%d,%d] mCurrentTransform=%#x\n",
        prefix, mTexName, mCurrentTexture, prefix, mCurrentCrop.left,
        mCurrentCrop.top, mCurrentCrop.right, mCurrentCrop.bottom,
        mCurrentTransform);
-    result.append(buffer);
 
-    ConsumerBase::dumpLocked(result, prefix, buffer, size);
+    ConsumerBase::dumpLocked(result, prefix);
 }
 
 static void mtxMul(float out[16], const float a[16], const float b[16]) {

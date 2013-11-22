@@ -82,6 +82,7 @@ static const TracingCategory k_categories[] = {
     { "hal",        "Hardware Modules", ATRACE_TAG_HAL, { } },
     { "res",        "Resource Loading", ATRACE_TAG_RESOURCES, { } },
     { "dalvik",     "Dalvik VM",        ATRACE_TAG_DALVIK, { } },
+    { "rs",         "RenderScript",     ATRACE_TAG_RS, { } },
     { "sched",      "CPU Scheduling",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
@@ -101,6 +102,9 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_exit/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_complete/enable" },
+    } },
+    { "mmc",        "eMMC commands",    0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/mmc/enable" },
     } },
     { "load",       "CPU Load",         0, {
         { REQ,      "/sys/kernel/debug/tracing/events/cpufreq_interactive/enable" },

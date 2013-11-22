@@ -33,7 +33,7 @@
 #include "private/android_filesystem_config.h"
 
 #define LOG_TAG "dumpstate"
-#include <utils/Log.h>
+#include <cutils/log.h>
 
 #include "dumpstate.h"
 
@@ -95,6 +95,7 @@ static void dumpstate() {
 
     run_command("PROCESSES", 10, "ps", "-P", NULL);
     run_command("PROCESSES AND THREADS", 10, "ps", "-t", "-p", "-P", NULL);
+    run_command("PROCESSES (SELINUX LABELS)", 10, "ps", "-Z", NULL);
     run_command("LIBRANK", 10, "librank", NULL);
 
     do_dmesg();
@@ -186,7 +187,7 @@ static void dumpstate() {
     run_command("IP6TABLE RAW", 10, SU_PATH, "root", "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
 
     run_command("WIFI NETWORKS", 20,
-            SU_PATH, "root", "wpa_cli", "list_networks", NULL);
+            SU_PATH, "root", "wpa_cli", "IFNAME=wlan0", "list_networks", NULL);
 
 #ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI INTERNAL COUNTERS", 20,
@@ -243,14 +244,12 @@ static void dumpstate() {
     dump_file("BINDER STATS", "/sys/kernel/debug/binder/stats");
     dump_file("BINDER STATE", "/sys/kernel/debug/binder/state");
 
-#ifdef BOARD_HAS_DUMPSTATE
     printf("========================================================\n");
     printf("== Board\n");
     printf("========================================================\n");
 
     dumpstate_board();
     printf("\n");
-#endif
 
     /* Migrate the ril_dumpstate to a dumpstate_board()? */
     char ril_dumpstate_timeout[PROPERTY_VALUE_MAX] = {0};
@@ -276,6 +275,16 @@ static void dumpstate() {
        to increase its timeout.  we really need to do the timeouts in
        dumpsys itself... */
     run_command("DUMPSYS", 60, "dumpsys", NULL);
+
+    printf("========================================================\n");
+    printf("== Checkins\n");
+    printf("========================================================\n");
+
+    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "-c", NULL);
+    run_command("CHECKIN MEMINFO", 30, "dumpsys", "meminfo", "--checkin", NULL);
+    run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
+    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "-c", NULL);
+    run_command("CHECKIN USAGESTATS", 30, "dumpsys", "usagestats", "-c", NULL);
 
     printf("========================================================\n");
     printf("== Running Application Activities\n");

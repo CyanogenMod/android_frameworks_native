@@ -61,67 +61,14 @@ enum {
     PIXEL_FORMAT_RGB_888     = HAL_PIXEL_FORMAT_RGB_888,    // 3x8-bit RGB
     PIXEL_FORMAT_RGB_565     = HAL_PIXEL_FORMAT_RGB_565,    // 16-bit RGB
     PIXEL_FORMAT_BGRA_8888   = HAL_PIXEL_FORMAT_BGRA_8888,  // 4x8-bit BGRA
-    PIXEL_FORMAT_RGBA_5551   = HAL_PIXEL_FORMAT_RGBA_5551,  // 16-bit ARGB
-    PIXEL_FORMAT_RGBA_4444   = HAL_PIXEL_FORMAT_RGBA_4444,  // 16-bit ARGB
-    PIXEL_FORMAT_A_8         = 8,                           // 8-bit A
+    PIXEL_FORMAT_RGBA_5551   = 6,                           // 16-bit ARGB
+    PIXEL_FORMAT_RGBA_4444   = 7,                           // 16-bit ARGB
 };
 
 typedef int32_t PixelFormat;
 
-struct PixelFormatInfo {
-    enum {
-        INDEX_ALPHA   = 0,
-        INDEX_RED     = 1,
-        INDEX_GREEN   = 2,
-        INDEX_BLUE    = 3
-    };
-
-    enum { // components
-        ALPHA   = 1,
-        RGB     = 2,
-        RGBA    = 3,
-        L       = 4,
-        LA      = 5,
-        OTHER   = 0xFF
-    };
-
-    struct szinfo {
-        uint8_t h;
-        uint8_t l;
-    };
-
-    inline PixelFormatInfo() : version(sizeof(PixelFormatInfo)) { }
-    size_t getScanlineSize(unsigned int width) const;
-    size_t getSize(size_t ci) const {
-        return (ci <= 3) ? (cinfo[ci].h - cinfo[ci].l) : 0;
-    }
-    size_t      version;
-    PixelFormat format;
-    size_t      bytesPerPixel;
-    size_t      bitsPerPixel;
-    union {
-        szinfo      cinfo[4];
-        struct {
-            uint8_t     h_alpha;
-            uint8_t     l_alpha;
-            uint8_t     h_red;
-            uint8_t     l_red;
-            uint8_t     h_green;
-            uint8_t     l_green;
-            uint8_t     h_blue;
-            uint8_t     l_blue;
-        };
-    };
-    uint8_t     components;
-    uint8_t     reserved0[3];
-    uint32_t    reserved1;
-};
-
-// Consider caching the results of these functions are they're not
-// guaranteed to be fast.
-ssize_t     bytesPerPixel(PixelFormat format);
-ssize_t     bitsPerPixel(PixelFormat format);
-status_t    getPixelFormatInfo(PixelFormat format, PixelFormatInfo* info);
+ssize_t bytesPerPixel(PixelFormat format);
+ssize_t bitsPerPixel(PixelFormat format);
 
 }; // namespace android
 

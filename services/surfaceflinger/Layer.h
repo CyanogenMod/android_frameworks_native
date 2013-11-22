@@ -22,8 +22,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 
 #include <utils/RefBase.h>
 #include <utils/String8.h>
@@ -45,16 +43,19 @@
 #include "Transform.h"
 
 #include "DisplayHardware/HWComposer.h"
+#include "DisplayHardware/FloatRect.h"
+#include "RenderEngine/Mesh.h"
+#include "RenderEngine/Texture.h"
 
 namespace android {
 
 // ---------------------------------------------------------------------------
 
 class Client;
+class Colorizer;
 class DisplayDevice;
 class GraphicBuffer;
 class SurfaceFlinger;
-class GLExtensions;
 
 // ---------------------------------------------------------------------------
 
@@ -110,26 +111,11 @@ public:
         Region requestedTransparentRegion;
     };
 
-    class LayerMesh {
-        friend class Layer;
-        GLfloat mVertices[4][2];
-        size_t mNumVertices;
-    public:
-        LayerMesh() :
-                mNumVertices(4) {
-        }
-        GLfloat const* getVertices() const {
-            return &mVertices[0][0];
-        }
-        size_t getVertexCount() const {
-            return mNumVertices;
-        }
-    };
-
     // -----------------------------------------------------------------------
 
     Layer(SurfaceFlinger* flinger, const sp<Client>& client,
             const String8& name, uint32_t w, uint32_t h, uint32_t flags);
+
     virtual ~Layer();
 
     // the this layer's size and format
@@ -146,98 +132,20 @@ public:
     bool setCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
 
-    void commitTransaction();
-
     uint32_t getTransactionFlags(uint32_t flags);
     uint32_t setTransactionFlags(uint32_t flags);
 
-    void computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const;
+    void computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const;
     Rect computeBounds() const;
 
     sp<IBinder> getHandle();
-    sp<BufferQueue> getBufferQueue() const;
-    String8 getName() const;
+    sp<IGraphicBufferProducer> getBufferQueue() const;
+    const String8& getName() const;
 
     // -----------------------------------------------------------------------
+    // Virtuals
 
     virtual const char* getTypeId() const { return "Layer"; }
-
-    virtual void setGeometry(const sp<const DisplayDevice>& hw,
-            HWComposer::HWCLayerInterface& layer);
-    virtual void setPerFrameData(const sp<const DisplayDevice>& hw,
-            HWComposer::HWCLayerInterface& layer);
-    virtual void setAcquireFence(const sp<const DisplayDevice>& hw,
-            HWComposer::HWCLayerInterface& layer);
-
-    /*
-     * called after page-flip
-     */
-    virtual void onLayerDisplayed(const sp<const DisplayDevice>& hw,
-            HWComposer::HWCLayerInterface* layer);
-
-    /*
-     * called before composition.
-     * returns true if the layer has pending updates.
-     */
-    virtual bool onPreComposition();
-
-    /*
-     *  called after composition.
-     */
-    virtual void onPostComposition();
-
-    /*
-     * draw - performs some global clipping optimizations
-     * and calls onDraw().
-     * Typically this method is not overridden, instead implement onDraw()
-     * to perform the actual drawing.
-     */
-    virtual void draw(const sp<const DisplayDevice>& hw, const Region& clip) const;
-    virtual void draw(const sp<const DisplayDevice>& hw);
-
-    /*
-     * onDraw - draws the surface.
-     */
-    virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
-
-    /*
-     * needsLinearFiltering - true if this surface's state requires filtering
-     */
-    virtual bool needsFiltering(const sp<const DisplayDevice>& hw) const;
-
-    /*
-     * doTransaction - process the transaction. This is a good place to figure
-     * out which attributes of the surface have changed.
-     */
-    virtual uint32_t doTransaction(uint32_t transactionFlags);
-
-    /*
-     * setVisibleRegion - called to set the new visible region. This gives
-     * a chance to update the new visible region or record the fact it changed.
-     */
-    virtual void setVisibleRegion(const Region& visibleRegion);
-
-    /*
-     * setCoveredRegion - called when the covered region changes. The covered
-     * region corresponds to any area of the surface that is covered
-     * (transparently or not) by another surface.
-     */
-    virtual void setCoveredRegion(const Region& coveredRegion);
-
-    /*
-     * setVisibleNonTransparentRegion - called when the visible and
-     * non-transparent region changes.
-     */
-    virtual void setVisibleNonTransparentRegion(const Region&
-            visibleNonTransparentRegion);
-
-    /*
-     * latchBuffer - called each time the screen is redrawn and returns whether
-     * the visible regions need to be recomputed (this is a fairly heavy
-     * operation, so this should be set only if needed). Typically this is used
-     * to figure out if the content or size of a surface has changed.
-     */
-    virtual Region latchBuffer(bool& recomputeVisibleRegions);
 
     /*
      * isOpaque - true if this surface is opaque
@@ -266,28 +174,96 @@ public:
      */
     virtual bool isFixedSize() const;
 
+protected:
+    /*
+     * onDraw - draws the surface.
+     */
+    virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const;
+
+public:
+    // -----------------------------------------------------------------------
+
+    void setGeometry(const sp<const DisplayDevice>& hw,
+            HWComposer::HWCLayerInterface& layer);
+    void setPerFrameData(const sp<const DisplayDevice>& hw,
+            HWComposer::HWCLayerInterface& layer);
+    void setAcquireFence(const sp<const DisplayDevice>& hw,
+            HWComposer::HWCLayerInterface& layer);
+
+    /*
+     * called after page-flip
+     */
+    void onLayerDisplayed(const sp<const DisplayDevice>& hw,
+            HWComposer::HWCLayerInterface* layer);
+
+    /*
+     * called before composition.
+     * returns true if the layer has pending updates.
+     */
+    bool onPreComposition();
+
+    /*
+     *  called after composition.
+     */
+    void onPostComposition();
+
+    /*
+     * draw - performs some global clipping optimizations
+     * and calls onDraw().
+     */
+    void draw(const sp<const DisplayDevice>& hw, const Region& clip) const;
+    void draw(const sp<const DisplayDevice>& hw);
+
+    /*
+     * doTransaction - process the transaction. This is a good place to figure
+     * out which attributes of the surface have changed.
+     */
+    uint32_t doTransaction(uint32_t transactionFlags);
+
+    /*
+     * setVisibleRegion - called to set the new visible region. This gives
+     * a chance to update the new visible region or record the fact it changed.
+     */
+    void setVisibleRegion(const Region& visibleRegion);
+
+    /*
+     * setCoveredRegion - called when the covered region changes. The covered
+     * region corresponds to any area of the surface that is covered
+     * (transparently or not) by another surface.
+     */
+    void setCoveredRegion(const Region& coveredRegion);
+
+    /*
+     * setVisibleNonTransparentRegion - called when the visible and
+     * non-transparent region changes.
+     */
+    void setVisibleNonTransparentRegion(const Region&
+            visibleNonTransparentRegion);
+
+    /*
+     * latchBuffer - called each time the screen is redrawn and returns whether
+     * the visible regions need to be recomputed (this is a fairly heavy
+     * operation, so this should be set only if needed). Typically this is used
+     * to figure out if the content or size of a surface has changed.
+     */
+    Region latchBuffer(bool& recomputeVisibleRegions);
+
     /*
      * called with the state lock when the surface is removed from the
      * current list
      */
-    virtual void onRemoved();
+    void onRemoved();
 
 
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
-    virtual void updateTransformHint(const sp<const DisplayDevice>& hw) const;
+    void updateTransformHint(const sp<const DisplayDevice>& hw) const;
 
     /*
      * returns the rectangle that crops the content of the layer and scales it
      * to the layer's size.
      */
-    virtual Rect getContentCrop() const;
-
-    /*
-     * returns the transform bits (90 rotation / h-flip / v-flip) of the
-     * layer's content
-     */
-    virtual uint32_t getContentTransform() const;
+    Rect getContentCrop() const;
 
     // -----------------------------------------------------------------------
 
@@ -298,16 +274,16 @@ public:
     // only for debugging
     inline const sp<GraphicBuffer>& getActiveBuffer() const { return mActiveBuffer; }
 
-    inline  const State&    drawingState() const    { return mDrawingState; }
-    inline  const State&    currentState() const    { return mCurrentState; }
-    inline  State&          currentState()          { return mCurrentState; }
+    inline  const State&    getDrawingState() const { return mDrawingState; }
+    inline  const State&    getCurrentState() const { return mCurrentState; }
+    inline  State&          getCurrentState()       { return mCurrentState; }
 
 
     /* always call base class first */
-    virtual void dump(String8& result, char* scratch, size_t size) const;
-    virtual void shortDump(String8& result, char* scratch, size_t size) const;
-    virtual void dumpStats(String8& result, char* buffer, size_t SIZE) const;
-    virtual void clearStats();
+    void dump(String8& result, Colorizer& colorizer) const;
+    void dumpStats(String8& result) const;
+    void clearStats();
+    void logFrameStats();
 
 protected:
     // constant
@@ -333,15 +309,19 @@ private:
     // Interface implementation for SurfaceFlingerConsumer::FrameAvailableListener
     virtual void onFrameAvailable();
 
+    void commitTransaction();
+
+    // needsLinearFiltering - true if this surface's state requires filtering
+    bool needsFiltering(const sp<const DisplayDevice>& hw) const;
 
     uint32_t getEffectiveUsage(uint32_t usage) const;
-    Rect computeCrop(const sp<const DisplayDevice>& hw) const;
+    FloatRect computeCrop(const sp<const DisplayDevice>& hw) const;
     bool isCropped() const;
     static bool getOpacityForFormat(uint32_t format);
 
     // drawing
     void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
-            GLclampf r, GLclampf g, GLclampf b, GLclampf alpha) const;
+            float r, float g, float b, float alpha) const;
     void drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const;
 
 
@@ -349,12 +329,12 @@ private:
 
     // constants
     sp<SurfaceFlingerConsumer> mSurfaceFlingerConsumer;
-    GLuint mTextureName;
+    sp<BufferQueue> mBufferQueue;
+    uint32_t mTextureName;
     bool mPremultipliedAlpha;
     String8 mName;
     mutable bool mDebug;
     PixelFormat mFormat;
-    const GLExtensions& mGLExtensions;
     bool mOpaqueLayer;
 
     // these are protected by an external lock
@@ -378,6 +358,10 @@ private:
     bool mFiltering;
     // Whether filtering is needed b/c of the drawingstate
     bool mNeedsFiltering;
+    // The mesh used to draw the layer in GLES composition mode
+    mutable Mesh mMesh;
+    // The mesh used to draw the layer in GLES composition mode
+    mutable Texture mTexture;
 
     // page-flip thread (currently main thread)
     bool mSecure; // no screenshots

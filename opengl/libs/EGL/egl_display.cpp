@@ -1,16 +1,16 @@
-/* 
+/*
  ** Copyright 2007, The Android Open Source Project
  **
- ** Licensed under the Apache License, Version 2.0 (the "License"); 
- ** you may not use this file except in compliance with the License. 
- ** You may obtain a copy of the License at 
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
  **
- **     http://www.apache.org/licenses/LICENSE-2.0 
+ **     http://www.apache.org/licenses/LICENSE-2.0
  **
- ** Unless required by applicable law or agreed to in writing, software 
- ** distributed under the License is distributed on an "AS IS" BASIS, 
- ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- ** See the License for the specific language governing permissions and 
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
 
@@ -35,6 +35,7 @@ static char const * const sVendorString     = "Android";
 static char const * const sVersionString    = "1.4 Android META-EGL";
 static char const * const sClientApiString  = "OpenGL_ES";
 
+extern char const * const gBuiltinExtensionString;
 extern char const * const gExtensionString;
 
 extern void initEglTraceLevel();
@@ -42,6 +43,16 @@ extern void initEglDebugLevel();
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 
 // ----------------------------------------------------------------------------
+
+static bool findExtension(const char* exts, const char* name, size_t nameLen) {
+    if (exts) {
+        const char* match = strstr(exts, name);
+        if (match && (match[nameLen] == '\0' || match[nameLen] == ' ')) {
+            return true;
+        }
+    }
+    return false;
+}
 
 egl_display_t egl_display_t::sDisplay[NUM_DISPLAYS];
 
@@ -139,21 +150,6 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     cnx->major = -1;
     cnx->minor = -1;
     if (cnx->dso) {
-
-#if defined(ADRENO130)
-#warning "Adreno-130 eglInitialize() workaround"
-        /*
-         * The ADRENO 130 driver returns a different EGLDisplay each time
-         * eglGetDisplay() is called, but also makes the EGLDisplay invalid
-         * after eglTerminate() has been called, so that eglInitialize()
-         * cannot be called again. Therefore, we need to make sure to call
-         * eglGetDisplay() before calling eglInitialize();
-         */
-        if (i == IMPL_HARDWARE) {
-            disp[i].dpy = cnx->egl.eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        }
-#endif
-
         EGLDisplay idpy = disp.dpy;
         if (cnx->egl.eglInitialize(idpy, &cnx->major, &cnx->minor)) {
             //ALOGD("initialized dpy=%p, ver=%d.%d, cnx=%p",
@@ -183,7 +179,7 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
     mVersionString.setTo(sVersionString);
     mClientApiString.setTo(sClientApiString);
 
-    // we only add extensions that exist in the implementation
+    mExtensionString.setTo(gBuiltinExtensionString);
     char const* start = gExtensionString;
     char const* end;
     do {
@@ -195,14 +191,9 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
             if (len) {
                 // NOTE: we could avoid the copy if we had strnstr.
                 const String8 ext(start, len);
-                // now look for this extension
-                if (disp.queryString.extensions) {
-                    // if we find it, add this extension string to our list
-                    // (and don't forget the space)
-                    const char* match = strstr(disp.queryString.extensions, ext.string());
-                    if (match && (match[len] == ' ' || match[len] == 0)) {
-                        mExtensionString.append(start, len+1);
-                    }
+                if (findExtension(disp.queryString.extensions, ext.string(),
+                        len)) {
+                    mExtensionString.append(start, len+1);
                 }
             }
             // process the next extension string, and skip the space.
@@ -364,6 +355,13 @@ EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
     }
 
     return result;
+}
+
+bool egl_display_t::haveExtension(const char* name, size_t nameLen) const {
+    if (!nameLen) {
+        nameLen = strlen(name);
+    }
+    return findExtension(mExtensionString.string(), name, nameLen);
 }
 
 // ----------------------------------------------------------------------------

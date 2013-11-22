@@ -61,9 +61,11 @@ public:
         return reply.readInt32();
     }
 
-    virtual int32_t startOperation(int32_t code, int32_t uid, const String16& packageName) {
+    virtual int32_t startOperation(const sp<IBinder>& token, int32_t code, int32_t uid,
+                const String16& packageName) {
         Parcel data, reply;
         data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
+        data.writeStrongBinder(token);
         data.writeInt32(code);
         data.writeInt32(uid);
         data.writeString16(packageName);
@@ -73,9 +75,11 @@ public:
         return reply.readInt32();
     }
 
-    virtual void finishOperation(int32_t code, int32_t uid, const String16& packageName) {
+    virtual void finishOperation(const sp<IBinder>& token, int32_t code, int32_t uid,
+            const String16& packageName) {
         Parcel data, reply;
         data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
+        data.writeStrongBinder(token);
         data.writeInt32(code);
         data.writeInt32(uid);
         data.writeString16(packageName);
@@ -97,6 +101,16 @@ public:
         data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
         data.writeStrongBinder(callback->asBinder());
         remote()->transact(STOP_WATCHING_MODE_TRANSACTION, data, &reply);
+    }
+
+    virtual sp<IBinder> getToken(const sp<IBinder>& clientToken) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
+        data.writeStrongBinder(clientToken);
+        remote()->transact(GET_TOKEN_TRANSACTION, data, &reply);
+        // fail on exception
+        if (reply.readExceptionCode() != 0) return NULL;
+        return reply.readStrongBinder();
     }
 };
 
@@ -131,20 +145,22 @@ status_t BnAppOpsService::onTransact(
         } break;
         case START_OPERATION_TRANSACTION: {
             CHECK_INTERFACE(IAppOpsService, data, reply);
+            sp<IBinder> token = data.readStrongBinder();
             int32_t code = data.readInt32();
             int32_t uid = data.readInt32();
             String16 packageName = data.readString16();
-            int32_t res = startOperation(code, uid, packageName);
+            int32_t res = startOperation(token, code, uid, packageName);
             reply->writeNoException();
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
         case FINISH_OPERATION_TRANSACTION: {
             CHECK_INTERFACE(IAppOpsService, data, reply);
+            sp<IBinder> token = data.readStrongBinder();
             int32_t code = data.readInt32();
             int32_t uid = data.readInt32();
             String16 packageName = data.readString16();
-            finishOperation(code, uid, packageName);
+            finishOperation(token, code, uid, packageName);
             reply->writeNoException();
             return NO_ERROR;
         } break;
@@ -162,6 +178,14 @@ status_t BnAppOpsService::onTransact(
             sp<IAppOpsCallback> callback = interface_cast<IAppOpsCallback>(data.readStrongBinder());
             stopWatchingMode(callback);
             reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case GET_TOKEN_TRANSACTION: {
+            CHECK_INTERFACE(IAppOpsService, data, reply);
+            sp<IBinder> clientToken = data.readStrongBinder();
+            sp<IBinder> token = getToken(clientToken);
+            reply->writeNoException();
+            reply->writeStrongBinder(token);
             return NO_ERROR;
         } break;
         default:

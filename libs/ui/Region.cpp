@@ -697,7 +697,7 @@ void Region::translate(Region& reg, int dx, int dy)
         size_t count = reg.mStorage.size();
         Rect* rects = reg.mStorage.editArray();
         while (count) {
-            rects->translate(dx, dy);
+            rects->offsetBy(dx, dy);
             rects++;
             count--;
         }
@@ -715,14 +715,17 @@ void Region::translate(Region& dst, const Region& reg, int dx, int dy)
 
 // ----------------------------------------------------------------------------
 
-size_t Region::getSize() const {
+size_t Region::getFlattenedSize() const {
     return mStorage.size() * sizeof(Rect);
 }
 
-status_t Region::flatten(void* buffer) const {
+status_t Region::flatten(void* buffer, size_t size) const {
 #if VALIDATE_REGIONS
     validate(*this, "Region::flatten");
 #endif
+    if (size < mStorage.size() * sizeof(Rect)) {
+        return NO_MEMORY;
+    }
     Rect* rects = reinterpret_cast<Rect*>(buffer);
     memcpy(rects, mStorage.array(), mStorage.size() * sizeof(Rect));
     return NO_ERROR;

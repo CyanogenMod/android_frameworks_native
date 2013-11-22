@@ -32,11 +32,14 @@ public:
 
     virtual int32_t checkOperation(int32_t code, int32_t uid, const String16& packageName) = 0;
     virtual int32_t noteOperation(int32_t code, int32_t uid, const String16& packageName) = 0;
-    virtual int32_t startOperation(int32_t code, int32_t uid, const String16& packageName) = 0;
-    virtual void finishOperation(int32_t code, int32_t uid, const String16& packageName) = 0;
+    virtual int32_t startOperation(const sp<IBinder>& token, int32_t code, int32_t uid,
+            const String16& packageName) = 0;
+    virtual void finishOperation(const sp<IBinder>& token, int32_t code, int32_t uid,
+            const String16& packageName) = 0;
     virtual void startWatchingMode(int32_t op, const String16& packageName,
             const sp<IAppOpsCallback>& callback) = 0;
     virtual void stopWatchingMode(const sp<IAppOpsCallback>& callback) = 0;
+    virtual sp<IBinder> getToken(const sp<IBinder>& clientToken) = 0;
 
     enum {
         CHECK_OPERATION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION,
@@ -44,7 +47,8 @@ public:
         START_OPERATION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+2,
         FINISH_OPERATION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+3,
         START_WATCHING_MODE_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+4,
-        STOP_WATCHING_MODE_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+5
+        STOP_WATCHING_MODE_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+5,
+        GET_TOKEN_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION+6,
     };
 
     enum {

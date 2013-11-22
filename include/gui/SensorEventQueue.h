@@ -49,6 +49,9 @@ class Looper;
 class SensorEventQueue : public ASensorEventQueue, public RefBase
 {
 public:
+
+    enum { MAX_RECEIVE_BUFFER_EVENT_COUNT = 256 };
+
             SensorEventQueue(const sp<ISensorEventConnection>& connection);
     virtual ~SensorEventQueue();
     virtual void onFirstRef();
@@ -68,8 +71,10 @@ public:
     status_t setEventRate(Sensor const* sensor, nsecs_t ns) const;
 
     // these are here only to support SensorManager.java
-    status_t enableSensor(int32_t handle, int32_t us) const;
+    status_t enableSensor(int32_t handle, int32_t samplingPeriodUs, int maxBatchReportLatencyUs,
+                          int reservedFlags) const;
     status_t disableSensor(int32_t handle) const;
+    status_t flush() const;
 
 private:
     sp<Looper> getLooper() const;
@@ -77,6 +82,9 @@ private:
     sp<BitTube> mSensorChannel;
     mutable Mutex mLock;
     mutable sp<Looper> mLooper;
+    ASensorEvent* mRecBuffer;
+    size_t mAvailable;
+    size_t mConsumed;
 };
 
 // ----------------------------------------------------------------------------

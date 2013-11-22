@@ -127,37 +127,49 @@ nsecs_t Fence::getSignalTime() const {
 }
 
 size_t Fence::getFlattenedSize() const {
-    return 0;
+    return 1;
 }
 
 size_t Fence::getFdCount() const {
     return isValid() ? 1 : 0;
 }
 
-status_t Fence::flatten(void* buffer, size_t size, int fds[],
-        size_t count) const {
-    if (size != getFlattenedSize() || count != getFdCount()) {
-        return BAD_VALUE;
+status_t Fence::flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const {
+    if (size < getFlattenedSize() || count < getFdCount()) {
+        return NO_MEMORY;
     }
-
+    FlattenableUtils::write(buffer, size, getFdCount());
     if (isValid()) {
-        fds[0] = mFenceFd;
+        *fds++ = mFenceFd;
+        count--;
     }
     return NO_ERROR;
 }
 
-status_t Fence::unflatten(void const* buffer, size_t size, int fds[],
-        size_t count) {
-    if (size != 0 || (count != 0 && count != 1)) {
-        return BAD_VALUE;
-    }
+status_t Fence::unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count) {
     if (mFenceFd != -1) {
         // Don't unflatten if we already have a valid fd.
         return INVALID_OPERATION;
     }
 
-    if (count == 1) {
-        mFenceFd = fds[0];
+    if (size < 1) {
+        return NO_MEMORY;
+    }
+
+    size_t numFds;
+    FlattenableUtils::read(buffer, size, numFds);
+
+    if (numFds > 1) {
+        return BAD_VALUE;
+    }
+
+    if (count < numFds) {
+        return NO_MEMORY;
+    }
+
+    if (numFds) {
+        mFenceFd = *fds++;
+        count--;
     }
 
     return NO_ERROR;

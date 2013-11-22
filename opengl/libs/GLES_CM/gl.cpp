@@ -31,9 +31,6 @@
 
 using namespace android;
 
-// set this to 1 for crude GL debugging
-#define CHECK_FOR_GL_ERRORS     0
-
 // ----------------------------------------------------------------------------
 // extensions for the framework
 // ----------------------------------------------------------------------------
@@ -95,13 +92,11 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
 #undef CALL_GL_API
 #undef CALL_GL_API_RETURN
 
-#if USE_FAST_TLS_KEY && !CHECK_FOR_GL_ERRORS
-
-  #if defined(__arm__)
+#if defined(__arm__) && !USE_SLOW_BINDING
 
     #define GET_TLS(reg) "mrc p15, 0, " #reg ", c13, c0, 3 \n"
 
-    #define API_ENTRY(_api) __attribute__((naked)) _api
+    #define API_ENTRY(_api) __attribute__((noinline)) _api
 
     #define CALL_GL_API(_api, ...)                              \
          asm volatile(                                          \
@@ -109,15 +104,13 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
             "ldr   r12, [r12, %[tls]] \n"                       \
             "cmp   r12, #0            \n"                       \
             "ldrne pc,  [r12, %[api]] \n"                       \
-            "mov   r0, #0             \n"                       \
-            "bx    lr                 \n"                       \
             :                                                   \
             : [tls] "J"(TLS_SLOT_OPENGL_API*4),                 \
               [api] "J"(__builtin_offsetof(gl_hooks_t, gl._api))    \
             :                                                   \
             );
 
-  #elif defined(__mips__)
+#elif defined(__mips__) && !USE_SLOW_BINDING
 
     #define API_ENTRY(_api) __attribute__((noinline)) _api
 
@@ -149,42 +142,19 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
             :                                                    \
             );
 
-  #else
-    #error Unsupported architecture
-  #endif
-
-    #define CALL_GL_API_RETURN(_api, ...) \
-        CALL_GL_API(_api, __VA_ARGS__) \
-        return 0; // placate gcc's warnings. never reached.
-
 #else
-
-    #if CHECK_FOR_GL_ERRORS
-    
-        #define CHECK_GL_ERRORS(_api) \
-            do { GLint err = glGetError(); \
-                ALOGE_IF(err != GL_NO_ERROR, "%s failed (0x%04X)", #_api, err); \
-            } while(false);
-
-    #else
-
-        #define CHECK_GL_ERRORS(_api) do { } while(false);
-
-    #endif
-
 
     #define API_ENTRY(_api) _api
 
-    #define CALL_GL_API(_api, ...)                                      \
-        gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-        _c->_api(__VA_ARGS__);                                          \
-        CHECK_GL_ERRORS(_api)
-
-    #define CALL_GL_API_RETURN(_api, ...)                               \
-        gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl; \
-        return _c->_api(__VA_ARGS__)
+    #define CALL_GL_API(_api, ...)                                       \
+        gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;  \
+        if (_c) return _c->_api(__VA_ARGS__);
 
 #endif
+
+#define CALL_GL_API_RETURN(_api, ...) \
+    CALL_GL_API(_api, __VA_ARGS__) \
+    return 0;
 
 
 extern "C" {
@@ -202,11 +172,11 @@ extern "C" {
 
 extern "C" const GLubyte * __glGetString(GLenum name);
 
-const GLubyte * glGetString(GLenum name)
-{
+const GLubyte * glGetString(GLenum name) {
     const GLubyte * ret = egl_get_string_for_current_context(name);
     if (ret == NULL) {
-        ret = __glGetString(name);
+        gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
+        ret = _c->glGetString(name);
     }
     return ret;
 }

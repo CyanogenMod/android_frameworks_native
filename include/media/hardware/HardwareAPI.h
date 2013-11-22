@@ -18,7 +18,8 @@
 
 #define HARDWARE_API_H_
 
-#include <OMXPluginBase.h>
+#include <media/hardware/OMXPluginBase.h>
+#include <media/hardware/MetadataBufferType.h>
 #include <system/window.h>
 #include <utils/RefBase.h>
 
@@ -37,9 +38,13 @@ namespace android {
 //
 // When Android native buffer use has been enabled for a given port, the video
 // color format for the port is to be interpreted as an Android pixel format
-// rather than an OMX color format.  The node should then expect to receive
-// UseAndroidNativeBuffer calls (via OMX_SetParameter) rather than UseBuffer
-// calls for that port.
+// rather than an OMX color format.  Enabling Android native buffers may also
+// change how the component receives the native buffers.  If store-metadata-mode
+// is enabled on the port, the component will receive the buffers as specified
+// in the section below. Otherwise, unless the node supports the
+// 'OMX.google.android.index.useAndroidNativeBuffer2' extension, it should
+// expect to receive UseAndroidNativeBuffer calls (via OMX_SetParameter) rather
+// than UseBuffer calls for that port.
 struct EnableAndroidNativeBuffersParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -61,16 +66,52 @@ struct EnableAndroidNativeBuffersParams {
 //
 // Currently, this is specifically used to pass meta data from video source
 // (camera component, for instance) to video encoder to avoid memcpying of
-// input video frame data. To do this, bStoreMetaDta is set to OMX_TRUE.
+// input video frame data. To do this, bStoreMetaData is set to OMX_TRUE.
 // If bStoreMetaData is set to false, real YUV frame data will be stored
 // in the buffers. In addition, if no OMX_SetParameter() call is made
 // with the corresponding extension index, real YUV data is stored
 // in the buffers.
+//
+// For video decoder output port, the metadata buffer layout is defined below.
+//
+// Metadata buffers are registered with the component using UseBuffer calls.
 struct StoreMetaDataInBuffersParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
     OMX_BOOL bStoreMetaData;
+};
+
+// Meta data buffer layout used to transport output frames to the decoder for
+// dynamic buffer handling.
+struct VideoDecoderOutputMetaData {
+  MetadataBufferType eType;
+  buffer_handle_t pHandle;
+};
+
+// A pointer to this struct is passed to OMX_SetParameter() when the extension
+// index "OMX.google.android.index.prepareForAdaptivePlayback" is given.
+//
+// This method is used to signal a video decoder, that the user has requested
+// seamless resolution change support (if bEnable is set to OMX_TRUE).
+// nMaxFrameWidth and nMaxFrameHeight are the dimensions of the largest
+// anticipated frames in the video.  If bEnable is OMX_FALSE, no resolution
+// change is expected, and the nMaxFrameWidth/Height fields are unused.
+//
+// If the decoder supports dynamic output buffers, it may ignore this
+// request.  Otherwise, it shall request resources in such a way so that it
+// avoids full port-reconfiguration (due to output port-definition change)
+// during resolution changes.
+//
+// DO NOT USE THIS STRUCTURE AS IT WILL BE REMOVED.  INSTEAD, IMPLEMENT
+// METADATA SUPPORT FOR VIDEO DECODERS.
+struct PrepareForAdaptivePlaybackParams {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bEnable;
+    OMX_U32 nMaxFrameWidth;
+    OMX_U32 nMaxFrameHeight;
 };
 
 // A pointer to this struct is passed to OMX_SetParameter when the extension

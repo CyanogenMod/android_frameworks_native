@@ -38,10 +38,6 @@ class SurfaceTextureLayer : public BufferQueue {
 public:
     SurfaceTextureLayer(const sp<SurfaceFlinger>& flinger);
     virtual ~SurfaceTextureLayer();
-
-    // After calling the superclass connect(), set or clear synchronous
-    // mode appropriately for the specified API.
-    virtual status_t connect(int api, QueueBufferOutput* output);
 };
 
 // ---------------------------------------------------------------------------

@@ -37,10 +37,10 @@ class HWComposer;
 class FramebufferSurface : public ConsumerBase,
                            public DisplaySurface {
 public:
-    FramebufferSurface(HWComposer& hwc, int disp);
+    FramebufferSurface(HWComposer& hwc, int disp, const sp<IGraphicBufferConsumer>& consumer);
 
-    virtual sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
-
+    virtual status_t beginFrame();
+    virtual status_t prepareFrame(CompositionType compositionType);
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
@@ -55,8 +55,7 @@ private:
     virtual void onFrameAvailable();
     virtual void freeBufferLocked(int slotIndex);
 
-    virtual void dumpLocked(String8& result, const char* prefix,
-            char* buffer, size_t SIZE) const;
+    virtual void dumpLocked(String8& result, const char* prefix) const;
 
     // nextBuffer waits for and then latches the next buffer from the
     // BufferQueue and releases the previously latched buffer to the

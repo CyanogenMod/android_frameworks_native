@@ -38,6 +38,9 @@
 // ---------------------------------------------------------------------------
 
 #define DEBUG_CONNECTIONS   false
+// Max size is 1 MB which is enough to accept a batch of about 10k events.
+#define MAX_SOCKET_BUFFER_SIZE_BATCHED 1024 * 1024
+#define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -50,12 +53,12 @@ class SensorService :
         public BnSensorServer,
         protected Thread
 {
-   friend class BinderService<SensorService>;
+    friend class BinderService<SensorService>;
 
-   static const nsecs_t MINIMUM_EVENTS_PERIOD =   1000000; // 1000 Hz
-   static const char* WAKE_LOCK_NAME;
+    static const char* WAKE_LOCK_NAME;
 
-            SensorService();
+    static char const* getServiceName() ANDROID_API { return "sensorservice"; }
+    SensorService() ANDROID_API;
     virtual ~SensorService();
 
     virtual void onFirstRef();
@@ -73,16 +76,31 @@ class SensorService :
         virtual ~SensorEventConnection();
         virtual void onFirstRef();
         virtual sp<BitTube> getSensorChannel() const;
-        virtual status_t enableDisable(int handle, bool enabled);
-        virtual status_t setEventRate(int handle, nsecs_t ns);
+        virtual status_t enableDisable(int handle, bool enabled, nsecs_t samplingPeriodNs,
+                                       nsecs_t maxBatchReportLatencyNs, int reservedFlags);
+        virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
+        virtual status_t flush();
+        // Count the number of flush complete events which are about to be dropped in the buffer.
+        // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
+        // sent separately before the next batch of events.
+        void countFlushCompleteEventsLocked(sensors_event_t* scratch, int numEventsDropped);
 
         sp<SensorService> const mService;
-        sp<BitTube> const mChannel;
+        sp<BitTube> mChannel;
         uid_t mUid;
         mutable Mutex mConnectionLock;
 
-        // protected by SensorService::mLock
-        SortedVector<int> mSensorInfo;
+        struct FlushInfo {
+            // The number of flush complete events dropped for this sensor is stored here.
+            // They are sent separately before the next batch of events.
+            int mPendingFlushEventsToSend;
+            // Every activate is preceded by a flush. Only after the first flush complete is
+            // received, the events for the sensor are sent on that *connection*.
+            bool mFirstFlushPending;
+            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false) {}
+        };
+        // protected by SensorService::mLock. Key for this vector is the sensor handle.
+        KeyedVector<int, FlushInfo> mSensorInfo;
 
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
@@ -93,6 +111,8 @@ class SensorService :
         bool hasAnySensor() const;
         bool addSensor(int32_t handle);
         bool removeSensor(int32_t handle);
+        void setFirstFlushPending(int32_t handle, bool value);
+        void dump(String8& result);
 
         uid_t getUid() const { return mUid; }
     };
@@ -110,17 +130,16 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> getActiveVirtualSensors() const;
 
     String8 getSensorName(int handle) const;
-    int getSensorType(int handle) const;
     void recordLastValue(sensors_event_t const * buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
-    void registerSensor(SensorInterface* sensor);
-    void registerVirtualSensor(SensorInterface* sensor);
+    Sensor registerSensor(SensorInterface* sensor);
+    Sensor registerVirtualSensor(SensorInterface* sensor);
     status_t cleanupWithoutDisable(
             const sp<SensorEventConnection>& connection, int handle);
     status_t cleanupWithoutDisableLocked(
             const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
-        sensors_event_t const* buffer, const int count);
+            sensors_event_t const* buffer, const int count);
 
     // constants
     Vector<Sensor> mSensorList;
@@ -129,6 +148,7 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;
     status_t mInitCheck;
+    size_t mSocketBufferSize;
 
     // protected by mLock
     mutable Mutex mLock;
@@ -140,12 +160,12 @@ class SensorService :
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;
 
 public:
-    static char const* getServiceName() { return "sensorservice"; }
-
     void cleanupConnection(SensorEventConnection* connection);
-    status_t enable(const sp<SensorEventConnection>& connection, int handle);
+    status_t enable(const sp<SensorEventConnection>& connection, int handle,
+                    nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags);
     status_t disable(const sp<SensorEventConnection>& connection, int handle);
     status_t setEventRate(const sp<SensorEventConnection>& connection, int handle, nsecs_t ns);
+    status_t flushSensor(const sp<SensorEventConnection>& connection, int handle);
 };
 
 // ---------------------------------------------------------------------------

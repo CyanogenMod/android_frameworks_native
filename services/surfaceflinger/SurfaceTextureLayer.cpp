@@ -28,7 +28,7 @@ namespace android {
 
 
 SurfaceTextureLayer::SurfaceTextureLayer(const sp<SurfaceFlinger>& flinger)
-    : BufferQueue(true), flinger(flinger) {
+    : BufferQueue(), flinger(flinger) {
 }
 
 SurfaceTextureLayer::~SurfaceTextureLayer() {
@@ -48,34 +48,8 @@ SurfaceTextureLayer::~SurfaceTextureLayer() {
             return true;
         }
     };
-    flinger->postMessageAsync( new MessageCleanUpList(flinger, this) );
-}
-
-status_t SurfaceTextureLayer::connect(int api, QueueBufferOutput* output) {
-    status_t err = BufferQueue::connect(api, output);
-    if (err == NO_ERROR) {
-        switch(api) {
-            case NATIVE_WINDOW_API_MEDIA:
-            case NATIVE_WINDOW_API_CAMERA:
-                // Camera preview and videos are rate-limited on the producer
-                // side.  If enabled for this build, we use async mode to always
-                // show the most recent frame at the cost of requiring an
-                // additional buffer.
-#ifndef NEVER_DEFAULT_TO_ASYNC_MODE
-                err = setSynchronousMode(false);
-                break;
-#endif
-                // fall through to set synchronous mode when not defaulting to
-                // async mode.
-            default:
-                err = setSynchronousMode(true);
-                break;
-        }
-        if (err != NO_ERROR) {
-            disconnect(api);
-        }
-    }
-    return err;
+    flinger->postMessageAsync(
+            new MessageCleanUpList(flinger, static_cast<BnGraphicBufferProducer*>(this)) );
 }
 
 // ---------------------------------------------------------------------------

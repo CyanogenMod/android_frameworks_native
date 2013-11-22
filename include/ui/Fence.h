@@ -36,7 +36,7 @@ namespace android {
 // ===========================================================================
 
 class Fence
-    : public LightRefBase<Fence>, public Flattenable
+    : public LightRefBase<Fence>, public Flattenable<Fence>
 {
 public:
     static const sp<Fence> NO_FENCE;
@@ -96,15 +96,13 @@ public:
     // Flattenable interface
     size_t getFlattenedSize() const;
     size_t getFdCount() const;
-    status_t flatten(void* buffer, size_t size,
-            int fds[], size_t count) const;
-    status_t unflatten(void const* buffer, size_t size,
-            int fds[], size_t count);
+    status_t flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const;
+    status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
 
 private:
     // Only allow instantiation using ref counting.
     friend class LightRefBase<Fence>;
-    virtual ~Fence();
+    ~Fence();
 
     // Disallow copying
     Fence(const Fence& rhs);

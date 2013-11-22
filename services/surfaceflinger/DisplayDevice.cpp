@@ -29,37 +29,19 @@
 
 #include <gui/Surface.h>
 
-#include <GLES/gl.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
 #include <hardware/gralloc.h>
 
 #include "DisplayHardware/DisplaySurface.h"
 #include "DisplayHardware/HWComposer.h"
+#include "RenderEngine/RenderEngine.h"
 
 #include "clz.h"
 #include "DisplayDevice.h"
-#include "GLExtensions.h"
 #include "SurfaceFlinger.h"
 #include "Layer.h"
 
 // ----------------------------------------------------------------------------
 using namespace android;
-// ----------------------------------------------------------------------------
-
-static __attribute__((noinline))
-void checkGLErrors()
-{
-    do {
-        // there could be more than one error flag
-        GLenum error = glGetError();
-        if (error == GL_NO_ERROR)
-            break;
-        ALOGE("GL error 0x%04x", int(error));
-    } while(true);
-}
-
 // ----------------------------------------------------------------------------
 
 /*
@@ -74,6 +56,7 @@ DisplayDevice::DisplayDevice(
         bool isSecure,
         const wp<IBinder>& displayToken,
         const sp<DisplaySurface>& displaySurface,
+        const sp<IGraphicBufferProducer>& producer,
         EGLConfig config)
     : mFlinger(flinger),
       mType(type), mHwcDisplayId(hwcId),
@@ -81,7 +64,6 @@ DisplayDevice::DisplayDevice(
       mDisplaySurface(displaySurface),
       mDisplay(EGL_NO_DISPLAY),
       mSurface(EGL_NO_SURFACE),
-      mContext(EGL_NO_CONTEXT),
       mDisplayWidth(), mDisplayHeight(), mFormat(),
       mFlags(),
       mPageFlipCount(),
@@ -91,11 +73,21 @@ DisplayDevice::DisplayDevice(
       mLayerStack(NO_LAYER_STACK),
       mOrientation()
 {
-    mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
+    mNativeWindow = new Surface(producer, false);
     ANativeWindow* const window = mNativeWindow.get();
 
     int format;
     window->query(window, NATIVE_WINDOW_FORMAT, &format);
+
+    // Make sure that composition can never be stalled by a virtual display
+    // consumer that isn't processing buffers fast enough. We have to do this
+    // in two places:
+    // * Here, in case the display is composed entirely by HWC.
+    // * In makeCurrent(), using eglSwapInterval. Some EGL drivers set the
+    //   window's swap interval in eglMakeCurrent, so they'll override the
+    //   interval we set here.
+    if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
+        window->setSwapInterval(window, 0);
 
     /*
      * Create our display's surface
@@ -189,7 +181,7 @@ status_t DisplayDevice::compositionComplete() const {
 
 void DisplayDevice::flip(const Region& dirty) const
 {
-    checkGLErrors();
+    mFlinger->getRenderEngine().checkErrors();
 
     EGLDisplay dpy = mDisplay;
     EGLSurface surface = mSurface;
@@ -206,14 +198,39 @@ void DisplayDevice::flip(const Region& dirty) const
     mPageFlipCount++;
 }
 
+status_t DisplayDevice::beginFrame() const {
+    return mDisplaySurface->beginFrame();
+}
+
+status_t DisplayDevice::prepareFrame(const HWComposer& hwc) const {
+    DisplaySurface::CompositionType compositionType;
+    bool haveGles = hwc.hasGlesComposition(mHwcDisplayId);
+    bool haveHwc = hwc.hasHwcComposition(mHwcDisplayId);
+    if (haveGles && haveHwc) {
+        compositionType = DisplaySurface::COMPOSITION_MIXED;
+    } else if (haveGles) {
+        compositionType = DisplaySurface::COMPOSITION_GLES;
+    } else if (haveHwc) {
+        compositionType = DisplaySurface::COMPOSITION_HWC;
+    } else {
+        // Nothing to do -- when turning the screen off we get a frame like
+        // this. Call it a HWC frame since we won't be doing any GLES work but
+        // will do a prepare/set cycle.
+        compositionType = DisplaySurface::COMPOSITION_HWC;
+    }
+    return mDisplaySurface->prepareFrame(compositionType);
+}
+
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
-    // We need to call eglSwapBuffers() unless:
-    // (a) there was no GLES composition this frame, or
-    // (b) we're using a legacy HWC with no framebuffer target support (in
-    //     which case HWComposer::commit() handles things).
+    // We need to call eglSwapBuffers() if:
+    //  (1) we don't have a hardware composer, or
+    //  (2) we did GLES composition this frame, and either
+    //    (a) we have framebuffer target support (not present on legacy
+    //        devices, where HWComposer::commit() handles things); or
+    //    (b) this is a virtual display
     if (hwc.initCheck() != NO_ERROR ||
             (hwc.hasGlesComposition(mHwcDisplayId) &&
-             hwc.supportsFramebufferTarget())) {
+             (hwc.supportsFramebufferTarget() || mType >= DISPLAY_VIRTUAL))) {
         EGLBoolean success = eglSwapBuffers(mDisplay, mSurface);
         if (!success) {
             EGLint error = eglGetError();
@@ -246,28 +263,24 @@ uint32_t DisplayDevice::getFlags() const
     return mFlags;
 }
 
-EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy,
-        const sp<const DisplayDevice>& hw, EGLContext ctx) {
+EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy, EGLContext ctx) const {
     EGLBoolean result = EGL_TRUE;
     EGLSurface sur = eglGetCurrentSurface(EGL_DRAW);
-    if (sur != hw->mSurface) {
-        result = eglMakeCurrent(dpy, hw->mSurface, hw->mSurface, ctx);
+    if (sur != mSurface) {
+        result = eglMakeCurrent(dpy, mSurface, mSurface, ctx);
         if (result == EGL_TRUE) {
-            setViewportAndProjection(hw);
+            if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
+                eglSwapInterval(dpy, 0);
         }
     }
+    setViewportAndProjection();
     return result;
 }
 
-void DisplayDevice::setViewportAndProjection(const sp<const DisplayDevice>& hw) {
-    GLsizei w = hw->mDisplayWidth;
-    GLsizei h = hw->mDisplayHeight;
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    // put the origin in the left-bottom corner
-    glOrthof(0, w, 0, h, 0, 1); // l=0, r=w ; b=0, t=h
-    glMatrixMode(GL_MODELVIEW);
+void DisplayDevice::setViewportAndProjection() const {
+    size_t w = mDisplayWidth;
+    size_t h = mDisplayHeight;
+    mFlinger->getRenderEngine().setViewportAndProjection(w, h, w, h, false);
 }
 
 // ----------------------------------------------------------------------------
@@ -330,6 +343,25 @@ void DisplayDevice::setLayerStack(uint32_t stack) {
 }
 
 // ----------------------------------------------------------------------------
+
+uint32_t DisplayDevice::getOrientationTransform() const {
+    uint32_t transform = 0;
+    switch (mOrientation) {
+        case DisplayState::eOrientationDefault:
+            transform = Transform::ROT_0;
+            break;
+        case DisplayState::eOrientation90:
+            transform = Transform::ROT_90;
+            break;
+        case DisplayState::eOrientation180:
+            transform = Transform::ROT_180;
+            break;
+        case DisplayState::eOrientation270:
+            transform = Transform::ROT_270;
+            break;
+    }
+    return transform;
+}
 
 status_t DisplayDevice::orientationToTransfrom(
         int orientation, int w, int h, Transform* tr)
@@ -416,7 +448,7 @@ void DisplayDevice::setProjection(int orientation,
 
     mScissor = mGlobalTransform.transform(viewport);
     if (mScissor.isEmpty()) {
-        mScissor.set(getBounds());
+        mScissor = getBounds();
     }
 
     mOrientation = orientation;
@@ -424,9 +456,9 @@ void DisplayDevice::setProjection(int orientation,
     mFrame = frame;
 }
 
-void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
+void DisplayDevice::dump(String8& result) const {
     const Transform& tr(mGlobalTransform);
-    snprintf(buffer, SIZE,
+    result.appendFormat(
         "+ DisplayDevice: %s\n"
         "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
         "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%u\n"
@@ -442,8 +474,6 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         tr[0][0], tr[1][0], tr[2][0],
         tr[0][1], tr[1][1], tr[2][1],
         tr[0][2], tr[1][2], tr[2][2]);
-
-    result.append(buffer);
 
     String8 surfaceDump;
     mDisplaySurface->dump(surfaceDump);

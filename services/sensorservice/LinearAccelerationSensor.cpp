@@ -51,18 +51,18 @@ bool LinearAccelerationSensor::process(sensors_event_t* outEvent,
 }
 
 status_t LinearAccelerationSensor::activate(void* ident, bool enabled) {
-    return mGravitySensor.activate(this, enabled);
+    return mGravitySensor.activate(ident, enabled);
 }
 
 status_t LinearAccelerationSensor::setDelay(void* ident, int handle, int64_t ns) {
-    return mGravitySensor.setDelay(this, handle, ns);
+    return mGravitySensor.setDelay(ident, handle, ns);
 }
 
 Sensor LinearAccelerationSensor::getSensor() const {
     Sensor gsensor(mGravitySensor.getSensor());
     sensor_t hwSensor;
     hwSensor.name       = "Linear Acceleration Sensor";
-    hwSensor.vendor     = "Google Inc.";
+    hwSensor.vendor     = "AOSP";
     hwSensor.version    = gsensor.getVersion();
     hwSensor.handle     = '_lin';
     hwSensor.type       = SENSOR_TYPE_LINEAR_ACCELERATION;

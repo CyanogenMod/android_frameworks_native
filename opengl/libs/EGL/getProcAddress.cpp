@@ -34,9 +34,7 @@ namespace android {
 #undef GL_EXTENSION_LIST
 #undef GET_TLS
 
-#if USE_FAST_TLS_KEY
-
-    #if defined(__arm__)
+#if defined(__arm__)
 
     #define GET_TLS(reg) "mrc p15, 0, " #reg ", c13, c0, 3 \n"
 
@@ -58,7 +56,7 @@ namespace android {
             :                                                   \
             );
 
-    #elif defined(__mips__)
+#elif defined(__mips__)
 
         #define API_ENTRY(_api) __attribute__((noinline)) _api
 
@@ -88,27 +86,21 @@ namespace android {
                                           ext.extensions[_api]))    \
                 :                                                   \
             );
+#endif
 
-    #else
-        #error Unsupported architecture
-    #endif
-
+#if defined(CALL_GL_EXTENSION_API)
     #define GL_EXTENSION_NAME(_n)   __glExtFwd##_n
 
     #define GL_EXTENSION(_n)                         \
         void API_ENTRY(GL_EXTENSION_NAME(_n))() {    \
             CALL_GL_EXTENSION_API(_n);               \
         }
-
-
 #else
+        #define GL_EXTENSION_NAME(_n) NULL
 
-    #define GL_EXTENSION_NAME(_n) NULL
+        #define GL_EXTENSION(_n)
 
-    #define GL_EXTENSION(_n)
-
-    #warning "eglGetProcAddress() partially supported"
-
+        #warning "eglGetProcAddress() partially supported"
 #endif
 
 

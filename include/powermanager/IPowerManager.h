@@ -30,7 +30,10 @@ class IPowerManager : public IInterface
 public:
     DECLARE_META_INTERFACE(PowerManager);
 
-    virtual status_t acquireWakeLock(int flags, const sp<IBinder>& lock, const String16& tag) = 0;
+    virtual status_t acquireWakeLock(int flags, const sp<IBinder>& lock, const String16& tag,
+            const String16& packageName) = 0;
+    virtual status_t acquireWakeLockWithUid(int flags, const sp<IBinder>& lock, const String16& tag,
+            const String16& packageName, int uid) = 0;
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags) = 0;
 };
 

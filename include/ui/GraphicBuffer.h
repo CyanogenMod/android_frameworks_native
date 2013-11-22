@@ -39,8 +39,9 @@ class GraphicBufferMapper;
 
 class GraphicBuffer
     : public ANativeObjectBase< ANativeWindowBuffer, GraphicBuffer, RefBase >,
-      public Flattenable
+      public Flattenable<GraphicBuffer>
 {
+    friend class Flattenable<GraphicBuffer>;
 public:
 
     enum {
@@ -98,15 +99,18 @@ public:
     status_t unlock();
 
     ANativeWindowBuffer* getNativeBuffer() const;
-    
-    void setIndex(int index);
-    int getIndex() const;
 
     // for debugging
     static void dumpAllocationsToSystemLog();
 
+    // Flattenable protocol
+    size_t getFlattenedSize() const;
+    size_t getFdCount() const;
+    status_t flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const;
+    status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
+
 private:
-    virtual ~GraphicBuffer();
+    ~GraphicBuffer();
 
     enum {
         ownNone   = 0,
@@ -136,18 +140,8 @@ private:
 
     void free_handle();
 
-    // Flattenable interface
-    size_t getFlattenedSize() const;
-    size_t getFdCount() const;
-    status_t flatten(void* buffer, size_t size,
-            int fds[], size_t count) const;
-    status_t unflatten(void const* buffer, size_t size,
-            int fds[], size_t count);
-
-
     GraphicBufferMapper& mBufferMapper;
     ssize_t mInitCheck;
-    int mIndex;
 
     // If we're wrapping another buffer then this reference will make sure it
     // doesn't get freed.

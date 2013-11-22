@@ -49,6 +49,10 @@
 
 using namespace android;
 
+// This extension has not been ratified yet, so can't be shipped.
+// Implementation is incomplete and untested.
+#define ENABLE_EGL_KHR_GL_COLORSPACE 0
+
 // ----------------------------------------------------------------------------
 
 namespace android {
@@ -59,21 +63,32 @@ struct extention_map_t {
 };
 
 /*
- * This is the list of EGL extensions exposed to applications,
- * some of them are mandatory because used by the ANDROID system.
+ * This is the list of EGL extensions exposed to applications.
  *
- * Mandatory extensions are required per the CDD and not explicitly
- * checked during EGL initialization. the system *assumes* these extensions
- * are present. the system may not function properly if some mandatory
- * extensions are missing.
+ * Some of them (gBuiltinExtensionString) are implemented entirely in this EGL
+ * wrapper and are always available.
  *
- * NOTE: gExtensionString MUST have a single space as the last character.
+ * The rest (gExtensionString) depend on support in the EGL driver, and are
+ * only available if the driver supports them. However, some of these must be
+ * supported because they are used by the Android system itself; these are
+ * listd as mandatory below and are required by the CDD. The system *assumes*
+ * the mandatory extensions are present and may not function properly if some
+ * are missing.
+ *
+ * NOTE: Both strings MUST have a single space as the last character.
  */
+extern char const * const gBuiltinExtensionString =
+        "EGL_KHR_get_all_proc_addresses "
+        "EGL_ANDROID_presentation_time "
+        ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
         "EGL_KHR_image_base "                   // mandatory
         "EGL_KHR_image_pixmap "
         "EGL_KHR_lock_surface "
+#if (ENABLE_EGL_KHR_GL_COLORSPACE != 0)
+        "EGL_KHR_gl_colorspace "
+#endif
         "EGL_KHR_gl_texture_2D_image "
         "EGL_KHR_gl_texture_cubemap_image "
         "EGL_KHR_gl_renderbuffer_image "
@@ -84,7 +99,7 @@ extern char const * const gExtensionString  =
         "EGL_NV_system_time "
         "EGL_ANDROID_image_native_buffer "      // mandatory
         "EGL_KHR_wait_sync "                    // strongly recommended
-        "EGL_ANDROID_presentation_time "
+        "EGL_ANDROID_recordable "               // mandatory
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
@@ -92,8 +107,7 @@ extern char const * const gExtensionString  =
 //      "EGL_IMG_hibernate_process "            // optional
 //      "EGL_ANDROID_native_fence_sync "        // strongly recommended
 //      "EGL_ANDROID_framebuffer_target "       // mandatory for HWC 1.1
-//      "EGL_ANDROID_recordable "               // mandatory
-
+//      "EGL_ANDROID_image_crop "               // optional
 
 /*
  * EGL Extensions entry-points exposed to 3rd party applications
@@ -358,6 +372,31 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig config,
 // surfaces
 // ----------------------------------------------------------------------------
 
+// The EGL_KHR_gl_colorspace spec hasn't been ratified yet, so these haven't
+// been added to the Khronos egl.h.
+#define EGL_GL_COLORSPACE_KHR           EGL_VG_COLORSPACE
+#define EGL_GL_COLORSPACE_SRGB_KHR      EGL_VG_COLORSPACE_sRGB
+#define EGL_GL_COLORSPACE_LINEAR_KHR    EGL_VG_COLORSPACE_LINEAR
+
+// Turn linear formats into corresponding sRGB formats when colorspace is
+// EGL_GL_COLORSPACE_SRGB_KHR, or turn sRGB formats into corresponding linear
+// formats when colorspace is EGL_GL_COLORSPACE_LINEAR_KHR. In any cases where
+// the modification isn't possible, the original format is returned.
+static int modifyFormatColorspace(int fmt, EGLint colorspace) {
+    if (colorspace == EGL_GL_COLORSPACE_LINEAR_KHR) {
+        switch (fmt) {
+            case HAL_PIXEL_FORMAT_sRGB_A_8888: return HAL_PIXEL_FORMAT_RGBA_8888;
+            case HAL_PIXEL_FORMAT_sRGB_X_8888: return HAL_PIXEL_FORMAT_RGBX_8888;
+        }
+    } else if (colorspace == EGL_GL_COLORSPACE_SRGB_KHR) {
+        switch (fmt) {
+            case HAL_PIXEL_FORMAT_RGBA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
+            case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_X_8888;
+        }
+    }
+    return fmt;
+}
+
 EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
                                     NativeWindowType window,
                                     const EGLint *attrib_list)
@@ -368,7 +407,6 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
     egl_display_ptr dp = validate_display_connection(dpy, cnx);
     if (dp) {
         EGLDisplay iDpy = dp->disp.dpy;
-        EGLint format;
 
         if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) != OK) {
             ALOGE("EGLNativeWindowType %p already connected to another API",
@@ -376,17 +414,88 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
             return setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
 
-        // set the native window's buffers format to match this config
-        if (cnx->egl.eglGetConfigAttrib(iDpy,
-                config, EGL_NATIVE_VISUAL_ID, &format)) {
-            if (format != 0) {
-                int err = native_window_set_buffers_format(window, format);
-                if (err != 0) {
-                    ALOGE("error setting native window pixel format: %s (%d)",
-                            strerror(-err), err);
-                    native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
-                    return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
+        // Set the native window's buffers format to match what this config requests.
+        // Whether to use sRGB gamma is not part of the EGLconfig, but is part
+        // of our native format. So if sRGB gamma is requested, we have to
+        // modify the EGLconfig's format before setting the native window's
+        // format.
+#if WORKAROUND_BUG_10194508
+#warning "WORKAROUND_10194508 enabled"
+        EGLint format;
+        if (!cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_NATIVE_VISUAL_ID,
+                &format)) {
+            ALOGE("eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: %#x",
+                    eglGetError());
+            format = 0;
+        }
+        if (attrib_list) {
+            for (const EGLint* attr = attrib_list; *attr != EGL_NONE;
+                    attr += 2) {
+                if (*attr == EGL_GL_COLORSPACE_KHR &&
+                        dp->haveExtension("EGL_KHR_gl_colorspace")) {
+                    if (ENABLE_EGL_KHR_GL_COLORSPACE) {
+                        format = modifyFormatColorspace(format, *(attr+1));
+                    } else {
+                        // Normally we'd pass through unhandled attributes to
+                        // the driver. But in case the driver implements this
+                        // extension but we're disabling it, we want to prevent
+                        // it getting through -- support will be broken without
+                        // our help.
+                        ALOGE("sRGB window surfaces not supported");
+                        return setError(EGL_BAD_ATTRIBUTE, EGL_NO_SURFACE);
+                    }
                 }
+            }
+        }
+#else
+        // by default, just pick RGBA_8888
+        EGLint format = HAL_PIXEL_FORMAT_RGBA_8888;
+
+        EGLint a = 0;
+        cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_ALPHA_SIZE, &a);
+        if (a > 0) {
+            // alpha-channel requested, there's really only one suitable format
+            format = HAL_PIXEL_FORMAT_RGBA_8888;
+        } else {
+            EGLint r, g, b;
+            r = g = b = 0;
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_RED_SIZE,   &r);
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_GREEN_SIZE, &g);
+            cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_BLUE_SIZE,  &b);
+            EGLint colorDepth = r + g + b;
+            if (colorDepth <= 16) {
+                format = HAL_PIXEL_FORMAT_RGB_565;
+            } else {
+                format = HAL_PIXEL_FORMAT_RGBX_8888;
+            }
+        }
+
+        // now select a corresponding sRGB format if needed
+        if (attrib_list && dp->haveExtension("EGL_KHR_gl_colorspace")) {
+            for (const EGLint* attr = attrib_list; *attr != EGL_NONE; attr += 2) {
+                if (*attr == EGL_GL_COLORSPACE_KHR) {
+                    if (ENABLE_EGL_KHR_GL_COLORSPACE) {
+                        format = modifyFormatColorspace(format, *(attr+1));
+                    } else {
+                        // Normally we'd pass through unhandled attributes to
+                        // the driver. But in case the driver implements this
+                        // extension but we're disabling it, we want to prevent
+                        // it getting through -- support will be broken without
+                        // our help.
+                        ALOGE("sRGB window surfaces not supported");
+                        return setError(EGL_BAD_ATTRIBUTE, EGL_NO_SURFACE);
+                    }
+                }
+            }
+        }
+#endif
+        if (format != 0) {
+            int err = native_window_set_buffers_format(window, format);
+            if (err != 0) {
+                ALOGE("error setting native window pixel format: %s (%d)",
+                        strerror(-err), err);
+                native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
+                return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
             }
         }
 
@@ -499,11 +608,6 @@ void EGLAPI eglBeginFrame(EGLDisplay dpy, EGLSurface surface) {
         setError(EGL_BAD_SURFACE, EGL_FALSE);
         return;
     }
-
-    int64_t timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
-
-    egl_surface_t const * const s = get_surface(surface);
-    native_window_set_buffers_timestamp(s->win.get(), timestamp);
 }
 
 // ----------------------------------------------------------------------------
@@ -550,12 +654,6 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
                 GLTrace_eglCreateContext(version, c);
 #endif
             return c;
-        } else {
-            EGLint error = eglGetError();
-            ALOGE_IF(error == EGL_SUCCESS,
-                    "eglCreateContext(%p, %p, %p, %p) returned EGL_NO_CONTEXT "
-                    "but no EGL error!",
-                    dpy, config, share_list, attrib_list);
         }
     }
     return EGL_NO_CONTEXT;
@@ -673,7 +771,8 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
         }
     } else {
         // this will ALOGE the error
-        result = setError(c->cnx->egl.eglGetError(), EGL_FALSE);
+        egl_connection_t* const cnx = &gEGLImpl;
+        result = setError(cnx->egl.eglGetError(), EGL_FALSE);
     }
     return result;
 }
@@ -866,9 +965,7 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
             }
 
             if (found) {
-#if USE_FAST_TLS_KEY
                 addr = gExtensionForwarders[slot];
-#endif
                 sGLExtentionMap.add(name, addr);
                 sGLExtentionSlot++;
             }
@@ -1199,6 +1296,11 @@ EGLBoolean eglReleaseThread(void)
 {
     clearError();
 
+#if EGL_TRACE
+    if (getEGLDebugLevel() > 0)
+        GLTrace_eglReleaseThread();
+#endif
+
     // If there is context bound to the thread, release it
     egl_display_t::loseCurrent(get_context(getContext()));
 
@@ -1206,12 +1308,7 @@ EGLBoolean eglReleaseThread(void)
     if (cnx->dso && cnx->egl.eglReleaseThread) {
         cnx->egl.eglReleaseThread();
     }
-
     egl_tls_t::clearTLS();
-#if EGL_TRACE
-    if (getEGLDebugLevel() > 0)
-        GLTrace_eglReleaseThread();
-#endif
     return EGL_TRUE;
 }
 

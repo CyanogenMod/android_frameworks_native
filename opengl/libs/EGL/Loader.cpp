@@ -1,16 +1,16 @@
-/* 
+/*
  ** Copyright 2007, The Android Open Source Project
  **
- ** Licensed under the Apache License, Version 2.0 (the "License"); 
- ** you may not use this file except in compliance with the License. 
- ** You may obtain a copy of the License at 
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
  **
- **     http://www.apache.org/licenses/LICENSE-2.0 
+ **     http://www.apache.org/licenses/LICENSE-2.0
  **
- ** Unless required by applicable law or agreed to in writing, software 
- ** distributed under the License is distributed on an "AS IS" BASIS, 
- ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- ** See the License for the specific language governing permissions and 
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
 
@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <dlfcn.h>
 #include <limits.h>
+#include <dirent.h>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -38,10 +39,26 @@ namespace android {
 
 
 /*
- * EGL drivers are called
- * 
- * /system/lib/egl/lib{[EGL|GLESv1_CM|GLESv2] | GLES}_$TAG.so 
- * 
+ * EGL userspace drivers must be provided either:
+ * - as a single library:
+ *      /vendor/lib/egl/libGLES.so
+ *
+ * - as separate libraries:
+ *      /vendor/lib/egl/libEGL.so
+ *      /vendor/lib/egl/libGLESv1_CM.so
+ *      /vendor/lib/egl/libGLESv2.so
+ *
+ * The software renderer for the emulator must be provided as a single
+ * library at:
+ *
+ *      /system/lib/egl/libGLES_android.so
+ *
+ *
+ * For backward compatibility and to facilitate the transition to
+ * this new naming scheme, the loader will additionally look for:
+ *
+ *      /{vendor|system}/lib/egl/lib{GLES | [EGL|GLESv1_CM|GLESv2]}_*.so
+ *
  */
 
 ANDROID_SINGLETON_STATIC_INSTANCE( Loader )
@@ -99,14 +116,14 @@ static char const * getProcessCmdline() {
 
 // ----------------------------------------------------------------------------
 
-Loader::driver_t::driver_t(void* gles) 
+Loader::driver_t::driver_t(void* gles)
 {
     dso[0] = gles;
     for (size_t i=1 ; i<NELEM(dso) ; i++)
         dso[i] = 0;
 }
 
-Loader::driver_t::~driver_t() 
+Loader::driver_t::~driver_t()
 {
     for (size_t i=0 ; i<NELEM(dso) ; i++) {
         if (dso[i]) {
@@ -137,41 +154,10 @@ status_t Loader::driver_t::set(void* hnd, int32_t api)
 // ----------------------------------------------------------------------------
 
 Loader::Loader()
-{
-    char line[256];
-    char tag[256];
-
-    /* Special case for GLES emulation */
-    if (checkGlesEmulationStatus() == 0) {
-        ALOGD("Emulator without GPU support detected. "
-              "Fallback to software renderer.");
-        mDriverTag.setTo("android");
-        return;
-    }
-
-    /* Otherwise, use egl.cfg */
-    FILE* cfg = fopen("/system/lib/egl/egl.cfg", "r");
-    if (cfg == NULL) {
-        // default config
-        ALOGD("egl.cfg not found, using default config");
-        mDriverTag.setTo("android");
-    } else {
-        while (fgets(line, 256, cfg)) {
-            int dpy, impl;
-            if (sscanf(line, "%u %u %s", &dpy, &impl, tag) == 3) {
-                //ALOGD(">>> %u %u %s", dpy, impl, tag);
-                // We only load the h/w accelerated implementation
-                if (tag != String8("android")) {
-                    mDriverTag = tag;
-                }
-            }
-        }
-        fclose(cfg);
-    }
+    : getProcAddress(NULL) {
 }
 
-Loader::~Loader()
-{
+Loader::~Loader() {
     GLTrace_stop();
 }
 
@@ -185,30 +171,24 @@ void* Loader::open(egl_connection_t* cnx)
 {
     void* dso;
     driver_t* hnd = 0;
-    
-    char const* tag = mDriverTag.string();
-    if (tag) {
-        dso = load_driver("GLES", tag, cnx, EGL | GLESv1_CM | GLESv2);
+
+    dso = load_driver("GLES", cnx, EGL | GLESv1_CM | GLESv2);
+    if (dso) {
+        hnd = new driver_t(dso);
+    } else {
+        // Always load EGL first
+        dso = load_driver("EGL", cnx, EGL);
         if (dso) {
             hnd = new driver_t(dso);
-        } else {
-            // Always load EGL first
-            dso = load_driver("EGL", tag, cnx, EGL);
-            if (dso) {
-                hnd = new driver_t(dso);
-                // TODO: make this more automated
-                hnd->set( load_driver("GLESv1_CM", tag, cnx, GLESv1_CM), GLESv1_CM );
-                hnd->set( load_driver("GLESv2",    tag, cnx, GLESv2),    GLESv2 );
-            }
+            hnd->set( load_driver("GLESv1_CM", cnx, GLESv1_CM), GLESv1_CM );
+            hnd->set( load_driver("GLESv2",    cnx, GLESv2),    GLESv2 );
         }
     }
 
-    LOG_FATAL_IF(!index && !hnd,
-            "couldn't find the default OpenGL ES implementation "
-            "for default display");
+    LOG_ALWAYS_FATAL_IF(!hnd, "couldn't find an OpenGL ES implementation");
 
-    cnx->libGles2 = load_wrapper("system/lib/libGLESv2.so");
-    cnx->libGles1 = load_wrapper("system/lib/libGLESv1_CM.so");
+    cnx->libGles2 = load_wrapper("/system/lib/libGLESv2.so");
+    cnx->libGles1 = load_wrapper("/system/lib/libGLESv1_CM.so");
     LOG_ALWAYS_FATAL_IF(!cnx->libGles2 || !cnx->libGles1,
             "couldn't load system OpenGL ES wrapper libraries");
 
@@ -222,16 +202,16 @@ status_t Loader::close(void* driver)
     return NO_ERROR;
 }
 
-void Loader::init_api(void* dso, 
-        char const * const * api, 
-        __eglMustCastToProperFunctionPointerType* curr, 
-        getProcAddressType getProcAddress) 
+void Loader::init_api(void* dso,
+        char const * const * api,
+        __eglMustCastToProperFunctionPointerType* curr,
+        getProcAddressType getProcAddress)
 {
     const ssize_t SIZE = 256;
     char scrap[SIZE];
     while (*api) {
         char const * name = *api;
-        __eglMustCastToProperFunctionPointerType f = 
+        __eglMustCastToProperFunctionPointerType f =
             (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
         if (f == NULL) {
             // couldn't find the entry-point, use eglGetProcAddress()
@@ -278,21 +258,106 @@ void Loader::init_api(void* dso,
     }
 }
 
-void *Loader::load_driver(const char* kind, const char *tag,
+void *Loader::load_driver(const char* kind,
         egl_connection_t* cnx, uint32_t mask)
 {
-    char driver_absolute_path[PATH_MAX];
-    const char* const search1 = "/vendor/lib/egl/lib%s_%s.so";
-    const char* const search2 = "/system/lib/egl/lib%s_%s.so";
+    class MatchFile {
+    public:
+        static String8 find(const char* kind) {
+            String8 result;
+            String8 pattern;
+            pattern.appendFormat("lib%s", kind);
+            const char* const searchPaths[] = {
+                    "/vendor/lib/egl",
+                    "/system/lib/egl"
+            };
 
-    snprintf(driver_absolute_path, PATH_MAX, search1, kind, tag);
-    if (access(driver_absolute_path, R_OK)) {
-        snprintf(driver_absolute_path, PATH_MAX, search2, kind, tag);
-        if (access(driver_absolute_path, R_OK)) {
-            // this happens often, we don't want to log an error
-            return 0;
+            // first, we search for the exact name of the GLES userspace
+            // driver in both locations.
+            // i.e.:
+            //      libGLES.so, or:
+            //      libEGL.so, libGLESv1_CM.so, libGLESv2.so
+
+            for (size_t i=0 ; i<NELEM(searchPaths) ; i++) {
+                if (find(result, pattern, searchPaths[i], true)) {
+                    return result;
+                }
+            }
+
+            // for compatibility with the old "egl.cfg" naming convention
+            // we look for files that match:
+            //      libGLES_*.so, or:
+            //      libEGL_*.so, libGLESv1_CM_*.so, libGLESv2_*.so
+
+            pattern.append("_");
+            for (size_t i=0 ; i<NELEM(searchPaths) ; i++) {
+                if (find(result, pattern, searchPaths[i], false)) {
+                    return result;
+                }
+            }
+
+            // we didn't find the driver. gah.
+            result.clear();
+            return result;
         }
+
+    private:
+        static bool find(String8& result,
+                const String8& pattern, const char* const search, bool exact) {
+
+            // in the emulator case, we just return the hardcoded name
+            // of the software renderer.
+            if (checkGlesEmulationStatus() == 0) {
+                ALOGD("Emulator without GPU support detected. "
+                      "Fallback to software renderer.");
+                result.setTo("/system/lib/egl/libGLES_android.so");
+                return true;
+            }
+
+            if (exact) {
+                String8 absolutePath;
+                absolutePath.appendFormat("%s/%s.so", search, pattern.string());
+                if (!access(absolutePath.string(), R_OK)) {
+                    result = absolutePath;
+                    return true;
+                }
+                return false;
+            }
+
+            DIR* d = opendir(search);
+            if (d != NULL) {
+                struct dirent cur;
+                struct dirent* e;
+                while (readdir_r(d, &cur, &e) == 0 && e) {
+                    if (e->d_type == DT_DIR) {
+                        continue;
+                    }
+                    if (!strcmp(e->d_name, "libGLES_android.so")) {
+                        // always skip the software renderer
+                        continue;
+                    }
+                    if (strstr(e->d_name, pattern.string()) == e->d_name) {
+                        if (!strcmp(e->d_name + strlen(e->d_name) - 3, ".so")) {
+                            result.clear();
+                            result.appendFormat("%s/%s", search, e->d_name);
+                            closedir(d);
+                            return true;
+                        }
+                    }
+                }
+                closedir(d);
+            }
+            return false;
+        }
+    };
+
+
+    String8 absolutePath = MatchFile::find(kind);
+    if (absolutePath.isEmpty()) {
+        // this happens often, we don't want to log an error
+        return 0;
     }
+    const char* const driver_absolute_path = absolutePath.string();
 
     void* dso = dlopen(driver_absolute_path, RTLD_NOW | RTLD_LOCAL);
     if (dso == 0) {
@@ -306,37 +371,8 @@ void *Loader::load_driver(const char* kind, const char *tag,
     if (mask & EGL) {
         getProcAddress = (getProcAddressType)dlsym(dso, "eglGetProcAddress");
 
-        ALOGE_IF(!getProcAddress, 
+        ALOGE_IF(!getProcAddress,
                 "can't find eglGetProcAddress() in %s", driver_absolute_path);
-
-#ifdef SYSTEMUI_PBSIZE_HACK
-#warning "SYSTEMUI_PBSIZE_HACK enabled"
-        /*
-         * TODO: replace SYSTEMUI_PBSIZE_HACK by something less hackish
-         *
-         * Here we adjust the PB size from its default value to 512KB which
-         * is the minimum acceptable for the systemui process.
-         * We do this on low-end devices only because it allows us to enable
-         * h/w acceleration in the systemui process while keeping the
-         * memory usage down.
-         *
-         * Obviously, this is the wrong place and wrong way to make this
-         * adjustment, but at the time of this writing this was the safest
-         * solution.
-         */
-        const char *cmdline = getProcessCmdline();
-        if (strstr(cmdline, "systemui")) {
-            void *imgegl = dlopen("/vendor/lib/libIMGegl.so", RTLD_LAZY);
-            if (imgegl) {
-                unsigned int *PVRDefaultPBS =
-                        (unsigned int *)dlsym(imgegl, "PVRDefaultPBS");
-                if (PVRDefaultPBS) {
-                    ALOGD("setting default PBS to 512KB, was %d KB", *PVRDefaultPBS / 1024);
-                    *PVRDefaultPBS = 512*1024;
-                }
-            }
-        }
-#endif
 
         egl_t* egl = &cnx->egl;
         __eglMustCastToProperFunctionPointerType* curr =
@@ -344,7 +380,7 @@ void *Loader::load_driver(const char* kind, const char *tag,
         char const * const * api = egl_names;
         while (*api) {
             char const * name = *api;
-            __eglMustCastToProperFunctionPointerType f = 
+            __eglMustCastToProperFunctionPointerType f =
                 (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
             if (f == NULL) {
                 // couldn't find the entry-point, use eglGetProcAddress()
@@ -357,7 +393,7 @@ void *Loader::load_driver(const char* kind, const char *tag,
             api++;
         }
     }
-    
+
     if (mask & GLESv1_CM) {
         init_api(dso, gl_names,
             (__eglMustCastToProperFunctionPointerType*)
@@ -371,7 +407,7 @@ void *Loader::load_driver(const char* kind, const char *tag,
                 &cnx->hooks[egl_connection_t::GLESv2_INDEX]->gl,
             getProcAddress);
     }
-    
+
     return dso;
 }
 

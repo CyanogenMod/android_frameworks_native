@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 #include <ui/DisplayInfo.h>
 #include <gui/SurfaceComposerClient.h>
 
@@ -198,9 +201,9 @@ bool GLHelper::getShaderProgram(const char* name, GLuint* outPgm) {
 
 bool GLHelper::createNamedSurfaceTexture(GLuint name, uint32_t w, uint32_t h,
         sp<GLConsumer>* glConsumer, EGLSurface* surface) {
-    sp<BufferQueue> bq = new BufferQueue(true, mGraphicBufferAlloc);
-    sp<GLConsumer> glc = new GLConsumer(name, true,
-            GL_TEXTURE_EXTERNAL_OES, false, bq);
+    sp<BufferQueue> bq = new BufferQueue(mGraphicBufferAlloc);
+    sp<GLConsumer> glc = new GLConsumer(bq, name,
+            GL_TEXTURE_EXTERNAL_OES, false);
     glc->setDefaultBufferSize(w, h);
     glc->setDefaultMaxBufferCount(3);
     glc->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);

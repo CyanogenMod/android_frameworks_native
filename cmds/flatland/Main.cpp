@@ -56,7 +56,7 @@ struct BenchmarkDesc {
 
 static const BenchmarkDesc benchmarks[] = {
     { "16:10 Single Static Window",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Window
                 0, staticGradient, opaque,
@@ -73,8 +73,26 @@ static const BenchmarkDesc benchmarks[] = {
         },
     },
 
+    { "3:2 Single Static Window",
+        2048, 1536, { 1536 },
+        {
+            {   // Window
+                0, staticGradient, opaque,
+                0,    50,     2048,   1440,
+            },
+            {   // Status bar
+                0, staticGradient, opaque,
+                0,    0,      2048,   50,
+            },
+            {   // Navigation bar
+                0, staticGradient, opaque,
+                0,    1440,   2048,   96,
+            },
+        },
+    },
+
     { "16:10 App -> Home Transition",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Wallpaper
                 0, staticGradient, opaque,
@@ -99,8 +117,34 @@ static const BenchmarkDesc benchmarks[] = {
         },
     },
 
+    { "3:2 App -> Home Transition",
+        2048, 1536, { 1536 },
+        {
+            {   // Wallpaper
+                0, staticGradient, opaque,
+                0,    50,     2048,   1440,
+            },
+            {   // Launcher
+                0, staticGradient, blend,
+                0,    50,     2048,   1440,
+            },
+            {   // Outgoing activity
+                0, staticGradient, blendShrink,
+                20,    70,     2048,   1400,
+            },
+            {   // Status bar
+                0, staticGradient, opaque,
+                0,    0,      2048,   50,
+            },
+            {   // Navigation bar
+                0, staticGradient, opaque,
+                0,    1440,   2048,   96,
+            },
+        },
+    },
+
     { "16:10 SurfaceView -> Home Transition",
-        2560, 1600, { 800, 1600, 2400 },
+        2560, 1600, { 800, 1200, 1600, 2400 },
         {
             {   // Wallpaper
                 0, staticGradient, opaque,
@@ -125,6 +169,36 @@ static const BenchmarkDesc benchmarks[] = {
             {   // Navigation bar
                 0, staticGradient, opaque,
                 0,    1504,   2560,   96,
+            },
+        },
+    },
+
+    { "3:2 SurfaceView -> Home Transition",
+        2048, 1536, { 1536 },
+        {
+            {   // Wallpaper
+                0, staticGradient, opaque,
+                0,    50,     2048,   1440,
+            },
+            {   // Launcher
+                0, staticGradient, blend,
+                0,    50,     2048,   1440,
+            },
+            {   // Outgoing SurfaceView
+                0, staticGradient, blendShrink,
+                20,    70,     2048,   1400,
+            },
+            {   // Outgoing activity
+                0, staticGradient, blendShrink,
+                20,    70,     2048,   1400,
+            },
+            {   // Status bar
+                0, staticGradient, opaque,
+                0,    0,      2048,   50,
+            },
+            {   // Navigation bar
+                0, staticGradient, opaque,
+                0,    1440,   2048,   96,
             },
         },
     },

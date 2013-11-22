@@ -18,7 +18,6 @@
 #define ANDROID_GUI_SURFACE_H
 
 #include <gui/IGraphicBufferProducer.h>
-#include <gui/GLConsumer.h>
 #include <gui/BufferQueue.h>
 
 #include <ui/ANativeObjectBase.h>
@@ -61,8 +60,11 @@ public:
      * However, once a Surface is connected, it'll prevent other Surfaces
      * referring to the same IGraphicBufferProducer to become connected and
      * therefore prevent them to be used as actual producers of buffers.
+     *
+     * the controlledByApp flag indicates that this Surface (producer) is
+     * controlled by the application. This flag is used at connect time.
      */
-    Surface(const sp<IGraphicBufferProducer>& bufferProducer);
+    Surface(const sp<IGraphicBufferProducer>& bufferProducer, bool controlledByApp = false);
 
     /* getIGraphicBufferProducer() returns the IGraphicBufferProducer this
      * Surface was created with. Usually it's an error to use the
@@ -227,6 +229,14 @@ private:
     // mTransformHint is the transform probably applied to buffers of this
     // window. this is only a hint, actual transform may differ.
     uint32_t mTransformHint;
+
+    // mProducerControlledByApp whether this buffer producer is controlled
+    // by the application
+    bool mProducerControlledByApp;
+
+    // mSwapIntervalZero set if we should drop buffers at queue() time to
+    // achieve an asynchronous swap interval
+    bool mSwapIntervalZero;
 
     // mConsumerRunningBehind whether the consumer is running more than
     // one buffer behind the producer.

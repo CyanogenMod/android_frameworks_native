@@ -15,6 +15,7 @@
  */
 
 #include <binder/AppOpsManager.h>
+#include <binder/Binder.h>
 #include <binder/IServiceManager.h>
 
 #include <utils/SystemClock.h>
@@ -22,6 +23,17 @@
 namespace android {
 
 static String16 _appops("appops");
+static pthread_mutex_t gTokenMutex = PTHREAD_MUTEX_INITIALIZER;
+static sp<IBinder> gToken;
+
+static const sp<IBinder>& getToken(const sp<IAppOpsService>& service) {
+    pthread_mutex_lock(&gTokenMutex);
+    if (gToken == NULL) {
+        gToken = service->getToken(new BBinder());
+    }
+    pthread_mutex_unlock(&gTokenMutex);
+    return gToken;
+}
 
 AppOpsManager::AppOpsManager()
 {
@@ -66,13 +78,14 @@ int32_t AppOpsManager::noteOp(int32_t op, int32_t uid, const String16& callingPa
 
 int32_t AppOpsManager::startOp(int32_t op, int32_t uid, const String16& callingPackage) {
     sp<IAppOpsService> service = getService();
-    return service != NULL ? service->startOperation(op, uid, callingPackage) : MODE_IGNORED;
+    return service != NULL ? service->startOperation(getToken(service), op, uid, callingPackage)
+            : MODE_IGNORED;
 }
 
 void AppOpsManager::finishOp(int32_t op, int32_t uid, const String16& callingPackage) {
     sp<IAppOpsService> service = getService();
     if (service != NULL) {
-        service->finishOperation(op, uid, callingPackage);
+        service->finishOperation(getToken(service), op, uid, callingPackage);
     }
 }
 

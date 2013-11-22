@@ -33,7 +33,7 @@ namespace android {
 BatteryService::BatteryService() {
     const sp<IServiceManager> sm(defaultServiceManager());
     if (sm != NULL) {
-        const String16 name("batteryinfo");
+        const String16 name("batterystats");
         mBatteryStatService = sm->getService(name);
     }
 }

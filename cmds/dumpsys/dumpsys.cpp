@@ -9,7 +9,7 @@
 #include <binder/Parcel.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
-#include <utils/TextOutput.h>
+#include <binder/TextOutput.h>
 #include <utils/Vector.h>
 
 #include <getopt.h>
@@ -39,7 +39,11 @@ int main(int argc, char* const argv[])
 
     Vector<String16> services;
     Vector<String16> args;
-    if (argc == 1) {
+    bool showListOnly = false;
+    if ((argc == 2) && (strcmp(argv[1], "-l") == 0)) {
+        showListOnly = true;
+    }
+    if ((argc == 1) || showListOnly) {
         services = sm->listServices();
         services.sort(sort_func);
         args.add(String16("-a"));
@@ -62,6 +66,10 @@ int main(int argc, char* const argv[])
                 aout << "  " << services[i] << endl;
             }
         }
+    }
+
+    if (showListOnly) {
+        return 0;
     }
 
     for (size_t i=0; i<N; i++) {

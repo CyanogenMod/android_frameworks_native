@@ -30,17 +30,17 @@
 
 namespace android {
 
-CpuConsumer::CpuConsumer(uint32_t maxLockedBuffers, bool synchronousMode) :
-    ConsumerBase(new BufferQueue(true) ),
+CpuConsumer::CpuConsumer(const sp<IGraphicBufferConsumer>& bq,
+        uint32_t maxLockedBuffers, bool controlledByApp) :
+    ConsumerBase(bq, controlledByApp),
     mMaxLockedBuffers(maxLockedBuffers),
     mCurrentLockedBuffers(0)
 {
     // Create tracking entries for locked buffers
     mAcquiredBuffers.insertAt(0, maxLockedBuffers);
 
-    mBufferQueue->setSynchronousMode(synchronousMode);
-    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
-    mBufferQueue->setMaxAcquiredBufferCount(maxLockedBuffers);
+    mConsumer->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
+    mConsumer->setMaxAcquiredBufferCount(maxLockedBuffers);
 }
 
 CpuConsumer::~CpuConsumer() {
@@ -52,7 +52,19 @@ CpuConsumer::~CpuConsumer() {
 void CpuConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
     mName = name;
-    mBufferQueue->setConsumerName(name);
+    mConsumer->setConsumerName(name);
+}
+
+status_t CpuConsumer::setDefaultBufferSize(uint32_t width, uint32_t height)
+{
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferSize(width, height);
+}
+
+status_t CpuConsumer::setDefaultBufferFormat(uint32_t defaultFormat)
+{
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
@@ -60,14 +72,16 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
     if (!nativeBuffer) return BAD_VALUE;
     if (mCurrentLockedBuffers == mMaxLockedBuffers) {
-        return INVALID_OPERATION;
+        CC_LOGW("Max buffers have been locked (%d), cannot lock anymore.",
+                mMaxLockedBuffers);
+        return NOT_ENOUGH_DATA;
     }
 
     BufferQueue::BufferItem b;
 
     Mutex::Autolock _l(mMutex);
 
-    err = acquireBufferLocked(&b);
+    err = acquireBufferLocked(&b, 0);
     if (err != OK) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             return BAD_VALUE;
@@ -189,7 +203,9 @@ status_t CpuConsumer::releaseAcquiredBufferLocked(int lockedIdx) {
     // disconnected after this buffer was acquired.
     if (CC_LIKELY(mAcquiredBuffers[lockedIdx].mGraphicBuffer ==
             mSlots[buf].mGraphicBuffer)) {
-        releaseBufferLocked(buf, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+        releaseBufferLocked(
+                buf, mAcquiredBuffers[lockedIdx].mGraphicBuffer,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
     }
 
     AcquiredBuffer &ab = mAcquiredBuffers.editItemAt(lockedIdx);

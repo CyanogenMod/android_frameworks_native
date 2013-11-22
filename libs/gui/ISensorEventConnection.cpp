@@ -33,7 +33,8 @@ namespace android {
 enum {
     GET_SENSOR_CHANNEL = IBinder::FIRST_CALL_TRANSACTION,
     ENABLE_DISABLE,
-    SET_EVENT_RATE
+    SET_EVENT_RATE,
+    FLUSH_SENSOR
 };
 
 class BpSensorEventConnection : public BpInterface<ISensorEventConnection>
@@ -52,12 +53,16 @@ public:
         return new BitTube(reply);
     }
 
-    virtual status_t enableDisable(int handle, bool enabled)
+    virtual status_t enableDisable(int handle, bool enabled, nsecs_t samplingPeriodNs,
+                                   nsecs_t maxBatchReportLatencyNs, int reservedFlags)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorEventConnection::getInterfaceDescriptor());
         data.writeInt32(handle);
         data.writeInt32(enabled);
+        data.writeInt64(samplingPeriodNs);
+        data.writeInt64(maxBatchReportLatencyNs);
+        data.writeInt32(reservedFlags);
         remote()->transact(ENABLE_DISABLE, data, &reply);
         return reply.readInt32();
     }
@@ -69,6 +74,13 @@ public:
         data.writeInt32(handle);
         data.writeInt64(ns);
         remote()->transact(SET_EVENT_RATE, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual status_t flush() {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISensorEventConnection::getInterfaceDescriptor());
+        remote()->transact(FLUSH_SENSOR, data, &reply);
         return reply.readInt32();
     }
 };
@@ -91,7 +103,11 @@ status_t BnSensorEventConnection::onTransact(
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
             int handle = data.readInt32();
             int enabled = data.readInt32();
-            status_t result = enableDisable(handle, enabled);
+            nsecs_t samplingPeriodNs = data.readInt64();
+            nsecs_t maxBatchReportLatencyNs = data.readInt64();
+            int reservedFlags = data.readInt32();
+            status_t result = enableDisable(handle, enabled, samplingPeriodNs,
+                                            maxBatchReportLatencyNs, reservedFlags);
             reply->writeInt32(result);
             return NO_ERROR;
         } break;
@@ -100,6 +116,12 @@ status_t BnSensorEventConnection::onTransact(
             int handle = data.readInt32();
             int ns = data.readInt64();
             status_t result = setEventRate(handle, ns);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case FLUSH_SENSOR: {
+            CHECK_INTERFACE(ISensorEventConnection, data, reply);
+            status_t result = flush();
             reply->writeInt32(result);
             return NO_ERROR;
         } break;

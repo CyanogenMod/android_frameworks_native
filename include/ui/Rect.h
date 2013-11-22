@@ -35,14 +35,25 @@ public:
 
     inline Rect() {
     }
+
     inline Rect(int32_t w, int32_t h) {
-        left = top = 0; right = w; bottom = h;
+        left = top = 0;
+        right = w;
+        bottom = h;
     }
+
     inline Rect(int32_t l, int32_t t, int32_t r, int32_t b) {
-        left = l; top = t; right = r; bottom = b;
+        left = l;
+        top = t;
+        right = r;
+        bottom = b;
     }
+
     inline Rect(const Point& lt, const Point& rb) {
-        left = lt.x; top = lt.y; right = rb.x; bottom = rb.y;
+        left = lt.x;
+        top = lt.y;
+        right = rb.x;
+        bottom = rb.y;
     }
 
     void makeInvalid();
@@ -53,43 +64,36 @@ public:
 
     // a valid rectangle has a non negative width and height
     inline bool isValid() const {
-        return (width()>=0) && (height()>=0);
+        return (getWidth() >= 0) && (getHeight() >= 0);
     }
 
     // an empty rect has a zero width or height, or is invalid
     inline bool isEmpty() const {
-        return (width()<=0) || (height()<=0);
-    }
-
-    inline void set(const Rect& rhs) {
-        operator = (rhs);
+        return (getWidth() <= 0) || (getHeight() <= 0);
     }
 
     // rectangle's width
     inline int32_t getWidth() const {
-        return right-left;
+        return right - left;
     }
-    
+
     // rectangle's height
     inline int32_t getHeight() const {
-        return bottom-top;
+        return bottom - top;
     }
 
     inline Rect getBounds() const {
-        return Rect(right-left, bottom-top);
+        return Rect(right - left, bottom - top);
     }
-
-    inline int32_t width() const { return getWidth(); }
-    inline int32_t height() const { return getHeight(); }
 
     void setLeftTop(const Point& lt) {
         left = lt.x;
-        top  = lt.y;
+        top = lt.y;
     }
 
     void setRightBottom(const Point& rb) {
         right = rb.x;
-        bottom  = rb.y;
+        bottom = rb.y;
     }
     
     // the following 4 functions return the 4 corners of the rect as Point
@@ -120,6 +124,16 @@ public:
     // vectors.
     bool operator < (const Rect& rhs) const;
 
+    const Rect operator + (const Point& rhs) const;
+    const Rect operator - (const Point& rhs) const;
+
+    Rect& operator += (const Point& rhs) {
+        return offsetBy(rhs.x, rhs.y);
+    }
+    Rect& operator -= (const Point& rhs) {
+        return offsetBy(-rhs.x, -rhs.y);
+    }
+
     Rect& offsetToOrigin() {
         right -= left;
         bottom -= top;
@@ -132,22 +146,11 @@ public:
     Rect& offsetBy(const Point& dp) {
         return offsetBy(dp.x, dp.y);
     }
-    Rect& operator += (const Point& rhs) {
-        return offsetBy(rhs.x, rhs.y);
-    }
-    Rect& operator -= (const Point& rhs) {
-        return offsetBy(-rhs.x, -rhs.y);
-    }
-    const Rect operator + (const Point& rhs) const;
-    const Rect operator - (const Point& rhs) const;
 
-    void translate(int32_t dx, int32_t dy) { // legacy, don't use.
-        offsetBy(dx, dy);
-    }
+    Rect& offsetTo(int32_t x, int32_t y);
+    Rect& offsetBy(int32_t x, int32_t y);
 
-    Rect&   offsetTo(int32_t x, int32_t y);
-    Rect&   offsetBy(int32_t x, int32_t y);
-    bool    intersect(const Rect& with, Rect* result) const;
+    bool intersect(const Rect& with, Rect* result) const;
 
     // Create a new Rect by transforming this one using a graphics HAL
     // transform.  This rectangle is defined in a coordinate space starting at
@@ -156,6 +159,15 @@ public:
     // (height, width).  Otherwise the output rectangle is in the same space as
     // the input.
     Rect transform(uint32_t xform, int32_t width, int32_t height) const;
+
+    // this calculates (Region(*this) - exclude).bounds() efficiently
+    Rect reduce(const Rect& exclude) const;
+
+
+    // for backward compatibility
+    inline int32_t width() const { return getWidth(); }
+    inline int32_t height() const { return getHeight(); }
+    inline void set(const Rect& rhs) { operator = (rhs); }
 };
 
 ANDROID_BASIC_TYPES_TRAITS(Rect)

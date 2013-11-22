@@ -93,6 +93,7 @@ void SensorService::onFirstRef()
                         orientationIndex = i;
                         break;
                     case SENSOR_TYPE_GYROSCOPE:
+                    case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
                         hasGyro = true;
                         break;
                     case SENSOR_TYPE_GRAVITY:
@@ -108,53 +109,58 @@ void SensorService::onFirstRef()
             // registered)
             const SensorFusion& fusion(SensorFusion::getInstance());
 
-            if (hasGyro) {
-                // Always instantiate Android's virtual sensors. Since they are
-                // instantiated behind sensors from the HAL, they won't
-                // interfere with applications, unless they looks specifically
-                // for them (by name).
-
-                registerVirtualSensor( new RotationVectorSensor() );
-                registerVirtualSensor( new GravitySensor(list, count) );
-                registerVirtualSensor( new LinearAccelerationSensor(list, count) );
-
-                // these are optional
-                registerVirtualSensor( new OrientationSensor() );
-                registerVirtualSensor( new CorrectedGyroSensor(list, count) );
-            }
-
             // build the sensor list returned to users
             mUserSensorList = mSensorList;
 
             if (hasGyro) {
+                Sensor aSensor;
+
+                // Add Android virtual sensors if they're not already
+                // available in the HAL
+
+                aSensor = registerVirtualSensor( new RotationVectorSensor() );
+                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
+                    mUserSensorList.add(aSensor);
+                }
+
+                aSensor = registerVirtualSensor( new GravitySensor(list, count) );
+                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_GRAVITY)) {
+                    mUserSensorList.add(aSensor);
+                }
+
+                aSensor = registerVirtualSensor( new LinearAccelerationSensor(list, count) );
+                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_LINEAR_ACCELERATION)) {
+                    mUserSensorList.add(aSensor);
+                }
+
+                aSensor = registerVirtualSensor( new OrientationSensor() );
+                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
+                    // if we are doing our own rotation-vector, also add
+                    // the orientation sensor and remove the HAL provided one.
+                    mUserSensorList.replaceAt(aSensor, orientationIndex);
+                }
+
                 // virtual debugging sensors are not added to mUserSensorList
+                registerVirtualSensor( new CorrectedGyroSensor(list, count) );
                 registerVirtualSensor( new GyroDriftSensor() );
             }
 
-            if (hasGyro &&
-                    (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR))) {
-                // if we have the fancy sensor fusion, and it's not provided by the
-                // HAL, use our own (fused) orientation sensor by removing the
-                // HAL supplied one form the user list.
-                if (orientationIndex >= 0) {
-                    mUserSensorList.removeItemsAt(orientationIndex);
+            // debugging sensor list
+            mUserSensorListDebug = mSensorList;
+
+            mSocketBufferSize = SOCKET_BUFFER_SIZE_NON_BATCHED;
+            FILE *fp = fopen("/proc/sys/net/core/wmem_max", "r");
+            char line[128];
+            if (fp != NULL && fgets(line, sizeof(line), fp) != NULL) {
+                line[sizeof(line) - 1] = '\0';
+                sscanf(line, "%u", &mSocketBufferSize);
+                if (mSocketBufferSize > MAX_SOCKET_BUFFER_SIZE_BATCHED) {
+                    mSocketBufferSize = MAX_SOCKET_BUFFER_SIZE_BATCHED;
                 }
             }
-
-            // debugging sensor list
-            for (size_t i=0 ; i<mSensorList.size() ; i++) {
-                switch (mSensorList[i].getType()) {
-                    case SENSOR_TYPE_GRAVITY:
-                    case SENSOR_TYPE_LINEAR_ACCELERATION:
-                    case SENSOR_TYPE_ROTATION_VECTOR:
-                        if (strstr(mSensorList[i].getVendor().string(), "Google")) {
-                            mUserSensorListDebug.add(mSensorList[i]);
-                        }
-                        break;
-                    default:
-                        mUserSensorListDebug.add(mSensorList[i]);
-                        break;
-                }
+            ALOGD("Max socket buffer size %u", mSocketBufferSize);
+            if (fp) {
+                fclose(fp);
             }
 
             run("SensorService", PRIORITY_URGENT_DISPLAY);
@@ -163,7 +169,7 @@ void SensorService::onFirstRef()
     }
 }
 
-void SensorService::registerSensor(SensorInterface* s)
+Sensor SensorService::registerSensor(SensorInterface* s)
 {
     sensors_event_t event;
     memset(&event, 0, sizeof(event));
@@ -175,12 +181,15 @@ void SensorService::registerSensor(SensorInterface* s)
     mSensorMap.add(sensor.getHandle(), s);
     // create an entry in the mLastEventSeen array
     mLastEventSeen.add(sensor.getHandle(), event);
+
+    return sensor;
 }
 
-void SensorService::registerVirtualSensor(SensorInterface* s)
+Sensor SensorService::registerVirtualSensor(SensorInterface* s)
 {
-    registerSensor(s);
+    Sensor sensor = registerSensor(s);
     mVirtualSensorList.add( s );
+    return sensor;
 }
 
 SensorService::~SensorService()
@@ -193,47 +202,92 @@ static const String16 sDump("android.permission.DUMP");
 
 status_t SensorService::dump(int fd, const Vector<String16>& args)
 {
-    const size_t SIZE = 1024;
-    char buffer[SIZE];
     String8 result;
     if (!PermissionCache::checkCallingPermission(sDump)) {
-        snprintf(buffer, SIZE, "Permission Denial: "
+        result.appendFormat("Permission Denial: "
                 "can't dump SurfaceFlinger from pid=%d, uid=%d\n",
                 IPCThreadState::self()->getCallingPid(),
                 IPCThreadState::self()->getCallingUid());
-        result.append(buffer);
     } else {
         Mutex::Autolock _l(mLock);
-        snprintf(buffer, SIZE, "Sensor List:\n");
-        result.append(buffer);
+        result.append("Sensor List:\n");
         for (size_t i=0 ; i<mSensorList.size() ; i++) {
             const Sensor& s(mSensorList[i]);
             const sensors_event_t& e(mLastEventSeen.valueFor(s.getHandle()));
-            snprintf(buffer, SIZE,
-                    "%-48s| %-32s | 0x%08x | maxRate=%7.2fHz | "
-                    "last=<%5.1f,%5.1f,%5.1f>\n",
+            result.appendFormat(
+                    "%-48s| %-32s | 0x%08x | ",
                     s.getName().string(),
                     s.getVendor().string(),
-                    s.getHandle(),
-                    s.getMinDelay() ? (1000000.0f / s.getMinDelay()) : 0.0f,
-                    e.data[0], e.data[1], e.data[2]);
-            result.append(buffer);
-        }
-        SensorFusion::getInstance().dump(result, buffer, SIZE);
-        SensorDevice::getInstance().dump(result, buffer, SIZE);
+                    s.getHandle());
 
-        snprintf(buffer, SIZE, "%d active connections\n",
-                mActiveConnections.size());
-        result.append(buffer);
-        snprintf(buffer, SIZE, "Active sensors:\n");
-        result.append(buffer);
+            if (s.getMinDelay() > 0) {
+                result.appendFormat(
+                    "maxRate=%7.2fHz | ", 1e6f / s.getMinDelay());
+            } else {
+                result.append(s.getMinDelay() == 0
+                        ? "on-demand         | "
+                        : "one-shot          | ");
+            }
+            if (s.getFifoMaxEventCount() > 0) {
+                result.appendFormat("getFifoMaxEventCount=%d events | ", s.getFifoMaxEventCount());
+            } else {
+                result.append("no batching support | ");
+            }
+
+            switch (s.getType()) {
+                case SENSOR_TYPE_ROTATION_VECTOR:
+                case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
+                    break;
+                case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4], e.data[5]);
+                    break;
+                case SENSOR_TYPE_GAME_ROTATION_VECTOR:
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2], e.data[3]);
+                    break;
+                case SENSOR_TYPE_SIGNIFICANT_MOTION:
+                case SENSOR_TYPE_STEP_DETECTOR:
+                    result.appendFormat( "last=<%f>\n", e.data[0]);
+                    break;
+                case SENSOR_TYPE_STEP_COUNTER:
+                    result.appendFormat( "last=<%llu>\n", e.u64.step_counter);
+                    break;
+                default:
+                    // default to 3 values
+                    result.appendFormat(
+                            "last=<%5.1f,%5.1f,%5.1f>\n",
+                            e.data[0], e.data[1], e.data[2]);
+                    break;
+            }
+        }
+        SensorFusion::getInstance().dump(result);
+        SensorDevice::getInstance().dump(result);
+
+        result.append("Active sensors:\n");
         for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
             int handle = mActiveSensors.keyAt(i);
-            snprintf(buffer, SIZE, "%s (handle=0x%08x, connections=%d)\n",
+            result.appendFormat("%s (handle=0x%08x, connections=%d)\n",
                     getSensorName(handle).string(),
                     handle,
                     mActiveSensors.valueAt(i)->getNumConnections());
-            result.append(buffer);
+        }
+
+        result.appendFormat("%u Max Socket Buffer size\n", mSocketBufferSize);
+        result.appendFormat("%d active connections\n", mActiveConnections.size());
+
+        for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
+            sp<SensorEventConnection> connection(mActiveConnections[i].promote());
+            if (connection != 0) {
+                result.appendFormat("Connection Number: %d \n", i);
+                connection->dump(result);
+            }
         }
     }
     write(fd, result.string(), result.size());
@@ -246,7 +300,8 @@ void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& c
     status_t err = NO_ERROR;
     for (int i=0 ; i<count ; i++) {
         int handle = buffer[i].sensor;
-        if (getSensorType(handle) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+        int type = buffer[i].type;
+        if (type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
             if (connection->hasSensor(handle)) {
                 sensor = mSensorMap.valueFor(handle);
                 if (sensor != NULL) {
@@ -262,8 +317,12 @@ bool SensorService::threadLoop()
 {
     ALOGD("nuSensorService thread starting...");
 
-    const size_t numEventMax = 16;
-    const size_t minBufferSize = numEventMax + numEventMax * mVirtualSensorList.size();
+    // each virtual sensor could generate an event per "real" event, that's why we need
+    // to size numEventMax much smaller than MAX_RECEIVE_BUFFER_EVENT_COUNT.
+    // in practice, this is too aggressive, but guaranteed to be enough.
+    const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
+    const size_t numEventMax = minBufferSize / (1 + mVirtualSensorList.size());
+
     sensors_event_t buffer[minBufferSize];
     sensors_event_t scratch[minBufferSize];
     SensorDevice& device(SensorDevice::getInstance());
@@ -283,7 +342,7 @@ bool SensorService::threadLoop()
         // Todo(): add a flag to the sensors definitions to indicate
         // the sensors which can wake up the AP
         for (int i = 0; i < count; i++) {
-            if (getSensorType(buffer[i].sensor) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+            if (buffer[i].type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
                  acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
                  wakeLockAcquired = true;
                  break;
@@ -335,7 +394,7 @@ bool SensorService::threadLoop()
         // handle backward compatibility for RotationVector sensor
         if (halVersion < SENSORS_DEVICE_API_VERSION_1_0) {
             for (int i = 0; i < count; i++) {
-                if (getSensorType(buffer[i].sensor) == SENSOR_TYPE_ROTATION_VECTOR) {
+                if (buffer[i].type == SENSOR_TYPE_ROTATION_VECTOR) {
                     // All the 4 components of the quaternion should be available
                     // No heading accuracy. Set it to -1
                     buffer[i].data[4] = -1;
@@ -359,7 +418,6 @@ bool SensorService::threadLoop()
 
         // We have read the data, upper layers should hold the wakelock.
         if (wakeLockAcquired) release_wake_lock(WAKE_LOCK_NAME);
-
     } while (count >= 0 || Thread::exitPending());
 
     ALOGW("Exiting SensorService::threadLoop => aborting...");
@@ -371,7 +429,6 @@ void SensorService::recordLastValue(
         sensors_event_t const * buffer, size_t count)
 {
     Mutex::Autolock _l(mLock);
-
     // record the last event for each sensor
     int32_t prev = buffer[0].sensor;
     for (size_t i=1 ; i<count ; i++) {
@@ -422,18 +479,6 @@ String8 SensorService::getSensorName(int handle) const {
     String8 result("unknown");
     return result;
 }
-
-int SensorService::getSensorType(int handle) const {
-    size_t count = mUserSensorList.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const Sensor& sensor(mUserSensorList[i]);
-        if (sensor.getHandle() == handle) {
-            return sensor.getType();
-        }
-    }
-    return -1;
-}
-
 
 Vector<Sensor> SensorService::getSensorList()
 {
@@ -489,7 +534,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
-        int handle)
+        int handle, nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags)
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
@@ -498,7 +543,6 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     if (sensor == NULL) {
         return BAD_VALUE;
     }
-
     Mutex::Autolock _l(mLock);
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec == 0) {
@@ -535,10 +579,33 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             handle, connection.get());
     }
 
-    // we are setup, now enable the sensor.
-    status_t err = sensor->activate(connection.get(), true);
+    nsecs_t minDelayNs = sensor->getSensor().getMinDelayNs();
+    if (samplingPeriodNs < minDelayNs) {
+        samplingPeriodNs = minDelayNs;
+    }
+
+    ALOGD_IF(DEBUG_CONNECTIONS, "Calling batch handle==%d flags=%d rate=%lld timeout== %lld",
+             handle, reservedFlags, samplingPeriodNs, maxBatchReportLatencyNs);
+
+    status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
+                                 maxBatchReportLatencyNs);
+    if (err == NO_ERROR) {
+        connection->setFirstFlushPending(handle, true);
+        status_t err_flush = sensor->flush(connection.get(), handle);
+        // Flush may return error if the sensor is not activated or the underlying h/w sensor does
+        // not support flush.
+        if (err_flush != NO_ERROR) {
+            connection->setFirstFlushPending(handle, false);
+        }
+    }
+
+    if (err == NO_ERROR) {
+        ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
+        err = sensor->activate(connection.get(), true);
+    }
+
     if (err != NO_ERROR) {
-        // enable has failed, reset our state.
+        // batch/activate has failed, reset our state.
         cleanupWithoutDisableLocked(connection, handle);
     }
     return err;
@@ -605,12 +672,22 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
         ns = minDelayNs;
     }
 
-    if (ns < MINIMUM_EVENTS_PERIOD)
-        ns = MINIMUM_EVENTS_PERIOD;
-
     return sensor->setDelay(connection.get(), handle, ns);
 }
 
+status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
+                                    int handle) {
+  if (mInitCheck != NO_ERROR) return mInitCheck;
+  SensorInterface* sensor = mSensorMap.valueFor(handle);
+  if (sensor == NULL) {
+      return BAD_VALUE;
+  }
+  if (sensor->getSensor().getType() == SENSOR_TYPE_SIGNIFICANT_MOTION) {
+      ALOGE("flush called on Significant Motion sensor");
+      return INVALID_OPERATION;
+  }
+  return sensor->flush(connection.get(), handle);
+}
 // ---------------------------------------------------------------------------
 
 SensorService::SensorRecord::SensorRecord(
@@ -643,8 +720,15 @@ bool SensorService::SensorRecord::removeConnection(
 
 SensorService::SensorEventConnection::SensorEventConnection(
         const sp<SensorService>& service, uid_t uid)
-    : mService(service), mChannel(new BitTube()), mUid(uid)
+    : mService(service), mUid(uid)
 {
+    const SensorDevice& device(SensorDevice::getInstance());
+    if (device.getHalDeviceVersion() >= SENSORS_DEVICE_API_VERSION_1_1) {
+        // Increase socket buffer size to 1MB for batching capabilities.
+        mChannel = new BitTube(service->mSocketBufferSize);
+    } else {
+        mChannel = new BitTube(SOCKET_BUFFER_SIZE_NON_BATCHED);
+    }
 }
 
 SensorService::SensorEventConnection::~SensorEventConnection()
@@ -657,10 +741,22 @@ void SensorService::SensorEventConnection::onFirstRef()
 {
 }
 
+void SensorService::SensorEventConnection::dump(String8& result) {
+    Mutex::Autolock _l(mConnectionLock);
+    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
+        result.appendFormat("\t %s | status: %s | pending flush events %d\n",
+                            mService->getSensorName(mSensorInfo.keyAt(i)).string(),
+                            flushInfo.mFirstFlushPending ? "First flush pending" :
+                                                           "active",
+                            flushInfo.mPendingFlushEventsToSend);
+    }
+}
+
 bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
     Mutex::Autolock _l(mConnectionLock);
-    if (mSensorInfo.indexOf(handle) < 0) {
-        mSensorInfo.add(handle);
+    if (mSensorInfo.indexOfKey(handle) < 0) {
+        mSensorInfo.add(handle, FlushInfo());
         return true;
     }
     return false;
@@ -668,7 +764,7 @@ bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
 
 bool SensorService::SensorEventConnection::removeSensor(int32_t handle) {
     Mutex::Autolock _l(mConnectionLock);
-    if (mSensorInfo.remove(handle) >= 0) {
+    if (mSensorInfo.removeItem(handle) >= 0) {
         return true;
     }
     return false;
@@ -676,12 +772,22 @@ bool SensorService::SensorEventConnection::removeSensor(int32_t handle) {
 
 bool SensorService::SensorEventConnection::hasSensor(int32_t handle) const {
     Mutex::Autolock _l(mConnectionLock);
-    return mSensorInfo.indexOf(handle) >= 0;
+    return mSensorInfo.indexOfKey(handle) >= 0;
 }
 
 bool SensorService::SensorEventConnection::hasAnySensor() const {
     Mutex::Autolock _l(mConnectionLock);
     return mSensorInfo.size() ? true : false;
+}
+
+void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
+                                bool value) {
+    Mutex::Autolock _l(mConnectionLock);
+    ssize_t index = mSensorInfo.indexOfKey(handle);
+    if (index >= 0) {
+        FlushInfo& flushInfo = mSensorInfo.editValueAt(index);
+        flushInfo.mFirstFlushPending = value;
+    }
 }
 
 status_t SensorService::SensorEventConnection::sendEvents(
@@ -690,15 +796,34 @@ status_t SensorService::SensorEventConnection::sendEvents(
 {
     // filter out events not for this connection
     size_t count = 0;
+
     if (scratch) {
         Mutex::Autolock _l(mConnectionLock);
         size_t i=0;
         while (i<numEvents) {
-            const int32_t curr = buffer[i].sensor;
-            if (mSensorInfo.indexOf(curr) >= 0) {
+            int32_t curr = buffer[i].sensor;
+            if (buffer[i].type == SENSOR_TYPE_META_DATA) {
+                ALOGD_IF(DEBUG_CONNECTIONS, "flush complete event sensor==%d ",
+                         buffer[i].meta_data.sensor);
+                // Setting curr to the correct sensor to ensure the sensor events per connection are
+                // filtered correctly. buffer[i].sensor is zero for meta_data events.
+                curr = buffer[i].meta_data.sensor;
+            }
+            ssize_t index = mSensorInfo.indexOfKey(curr);
+            if (index >= 0 && mSensorInfo[index].mFirstFlushPending == true &&
+                buffer[i].type == SENSOR_TYPE_META_DATA) {
+                // This is the first flush before activate is called. Events can now be sent for
+                // this sensor on this connection.
+                ALOGD_IF(DEBUG_CONNECTIONS, "First flush event for sensor==%d ",
+                         buffer[i].meta_data.sensor);
+                mSensorInfo.editValueAt(index).mFirstFlushPending = false;
+            }
+            if (index >= 0 && mSensorInfo[index].mFirstFlushPending == false)  {
                 do {
                     scratch[count++] = buffer[i++];
-                } while ((i<numEvents) && (buffer[i].sensor == curr));
+                } while ((i<numEvents) && ((buffer[i].sensor == curr) ||
+                         (buffer[i].type == SENSOR_TYPE_META_DATA  &&
+                          buffer[i].meta_data.sensor == curr)));
             } else {
                 i++;
             }
@@ -708,17 +833,60 @@ status_t SensorService::SensorEventConnection::sendEvents(
         count = numEvents;
     }
 
+    // Send pending flush events (if any) before sending events from the cache.
+    {
+        ASensorEvent flushCompleteEvent;
+        flushCompleteEvent.type = SENSOR_TYPE_META_DATA;
+        flushCompleteEvent.sensor = 0;
+        Mutex::Autolock _l(mConnectionLock);
+        // Loop through all the sensors for this connection and check if there are any pending
+        // flush complete events to be sent.
+        for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+            FlushInfo& flushInfo = mSensorInfo.editValueAt(i);
+            while (flushInfo.mPendingFlushEventsToSend > 0) {
+                flushCompleteEvent.meta_data.sensor = mSensorInfo.keyAt(i);
+                ssize_t size = SensorEventQueue::write(mChannel, &flushCompleteEvent, 1);
+                if (size < 0) {
+                    // ALOGW("dropping %d events on the floor", count);
+                    countFlushCompleteEventsLocked(scratch, count);
+                    return size;
+                }
+                ALOGD_IF(DEBUG_CONNECTIONS, "sent dropped flush complete event==%d ",
+                         flushCompleteEvent.meta_data.sensor);
+                flushInfo.mPendingFlushEventsToSend--;
+            }
+        }
+    }
+
     // NOTE: ASensorEvent and sensors_event_t are the same type
     ssize_t size = SensorEventQueue::write(mChannel,
             reinterpret_cast<ASensorEvent const*>(scratch), count);
     if (size == -EAGAIN) {
         // the destination doesn't accept events anymore, it's probably
         // full. For now, we just drop the events on the floor.
-        //ALOGW("dropping %d events on the floor", count);
+        // ALOGW("dropping %d events on the floor", count);
+        Mutex::Autolock _l(mConnectionLock);
+        countFlushCompleteEventsLocked(scratch, count);
         return size;
     }
 
     return size < 0 ? status_t(size) : status_t(NO_ERROR);
+}
+
+void SensorService::SensorEventConnection::countFlushCompleteEventsLocked(
+                sensors_event_t* scratch, const int numEventsDropped) {
+    ALOGD_IF(DEBUG_CONNECTIONS, "dropping %d events ", numEventsDropped);
+    // Count flushComplete events in the events that are about to the dropped. These will be sent
+    // separately before the next batch of events.
+    for (int j = 0; j < numEventsDropped; ++j) {
+        if (scratch[j].type == SENSOR_TYPE_META_DATA) {
+            FlushInfo& flushInfo = mSensorInfo.editValueFor(scratch[j].meta_data.sensor);
+            flushInfo.mPendingFlushEventsToSend++;
+            ALOGD_IF(DEBUG_CONNECTIONS, "increment pendingFlushCount %d",
+                     flushInfo.mPendingFlushEventsToSend);
+        }
+    }
+    return;
 }
 
 sp<BitTube> SensorService::SensorEventConnection::getSensorChannel() const
@@ -727,11 +895,13 @@ sp<BitTube> SensorService::SensorEventConnection::getSensorChannel() const
 }
 
 status_t SensorService::SensorEventConnection::enableDisable(
-        int handle, bool enabled)
+        int handle, bool enabled, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs,
+        int reservedFlags)
 {
     status_t err;
     if (enabled) {
-        err = mService->enable(this, handle);
+        err = mService->enable(this, handle, samplingPeriodNs, maxBatchReportLatencyNs,
+                               reservedFlags);
     } else {
         err = mService->disable(this, handle);
     }
@@ -739,9 +909,33 @@ status_t SensorService::SensorEventConnection::enableDisable(
 }
 
 status_t SensorService::SensorEventConnection::setEventRate(
-        int handle, nsecs_t ns)
+        int handle, nsecs_t samplingPeriodNs)
 {
-    return mService->setEventRate(this, handle, ns);
+    return mService->setEventRate(this, handle, samplingPeriodNs);
+}
+
+status_t  SensorService::SensorEventConnection::flush() {
+    SensorDevice& dev(SensorDevice::getInstance());
+    const int halVersion = dev.getHalDeviceVersion();
+    Mutex::Autolock _l(mConnectionLock);
+    status_t err(NO_ERROR);
+    // Loop through all sensors for this connection and call flush on each of them.
+    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const int handle = mSensorInfo.keyAt(i);
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1) {
+            // For older devices just increment pending flush count which will send a trivial
+            // flush complete event.
+            FlushInfo& flushInfo = mSensorInfo.editValueFor(handle);
+            flushInfo.mPendingFlushEventsToSend++;
+        } else {
+            status_t err_flush = mService->flushSensor(this, handle);
+            if (err_flush != NO_ERROR) {
+                ALOGE("Flush error handle=%d %s", handle, strerror(-err_flush));
+            }
+            err = (err_flush != NO_ERROR) ? err_flush : err;
+        }
+    }
+    return err;
 }
 
 // ---------------------------------------------------------------------------
