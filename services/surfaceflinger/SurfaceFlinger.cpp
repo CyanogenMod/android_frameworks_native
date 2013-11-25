@@ -193,6 +193,8 @@ SurfaceFlinger::SurfaceFlinger()
 #endif
 #endif
 
+    property_get("debug.sf.swaprect", value, "1");
+    mSwapRectEnable = atoi(value) ? true:false ;
 }
 
 void SurfaceFlinger::onFirstRef()
@@ -1171,6 +1173,8 @@ void SurfaceFlinger::setUpHWComposer() {
             sp<const DisplayDevice> hw(mDisplays[dpy]);
             hw->prepareFrame(hwc);
         }
+        // set up for swaprect
+        setupSwapRect();
     }
 }
 
@@ -2721,6 +2725,12 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
             inTransactionDuration/1000.0);
 
     /*
+     * SWAPRECT state
+     */
+    result.appendFormat( "SWAPRECT state: %s\n",
+            mSwapRectEnable? "enabled":"disabled");
+
+    /*
      * VSYNC state
      */
     mEventThread->dump(result);
@@ -3397,6 +3407,58 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     return res;
 }
 #endif
+
+void SurfaceFlinger::setupSwapRect()
+{
+    /*
+    * Initialize hwc swaprect to false. It's set to true once we decide
+    * we're going to use Swaprect
+    */
+    HWComposer& hwc(getHwComposer());
+    const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
+    size_t count = currentLayers.size();
+
+    if (mSwapRectEnable && hwc.hasHwcComposition(HWC_DISPLAY_PRIMARY)) {
+        int  totalDirtyRects = 0;
+        Region consolidateVisibleRegion;
+        Rect swapDirtyRect(Rect(0,0,0,0));
+        /* This dirtyLayerIdx is also used to check if we're not going to use
+         * swaprect after iterating all layers
+         */
+        sp<const DisplayDevice> hw(mDisplays[HWC_DISPLAY_PRIMARY]);
+        int dirtyLayerIdx = -1;
+        for (size_t i=0 ; i<count ; i++) {
+           // even if one layer is not OK with SwapRect , dont enable it.
+            Rect dirtyRect(Rect(0,0,0,0));
+            if (!currentLayers[i]->visibleRegion.isEmpty()) {
+                 if (!currentLayers[i]->canUseSwapRect(
+                           consolidateVisibleRegion, dirtyRect,hw)) {
+                      return;
+                 }
+            }
+            if (!dirtyRect.isEmpty()) {
+                /*
+                 * Don't use SwapRect if there are more than one dirtyRects
+                 * TODO: should be removed once handling multiple dirtyRects
+                 * is added
+                 */
+                if (++totalDirtyRects > 1) return;
+                swapDirtyRect.set(dirtyRect);
+                dirtyLayerIdx = i;
+            }
+        }
+
+        //If SwapRect is enabled, dirtyLayerIdx would be set to the layer's idx
+        if(dirtyLayerIdx != -1)  {
+            /*
+            * Create dirty layer work list to be used by HWComposer instead of
+            * visible layer work list
+            */
+            hwc.setSwapRect(swapDirtyRect);
+            invalidateHwcGeometry();
+        }
+   }
+}
 
 // ---------------------------------------------------------------------------
 

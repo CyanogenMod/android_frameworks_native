@@ -247,6 +247,11 @@ void VirtualDisplaySurface::onFrameCommitted() {
 void VirtualDisplaySurface::dump(String8& result) const {
 }
 
+status_t VirtualDisplaySurface:: updateDirtyRegion(int bufferidx, int l,
+                                                     int t, int r, int b) {
+   return 0;
+}
+
 status_t VirtualDisplaySurface::requestBuffer(int pslot,
         sp<GraphicBuffer>* outBuf) {
     VDS_LOGW_IF(mDbgState != DBG_STATE_GLES,

@@ -199,6 +199,9 @@ public:
     // dump state into a string
     virtual void dump(String8& result, const char* prefix) const = 0;
 
+    // swap rect APIs to set/get dirty rect for associated layer buffer.
+    virtual status_t setCurrentDirtyRegion(int bufferidx) = 0;
+    virtual status_t getCurrentDirtyRegion(Rect&  dirtyRect) =0;
 public:
     DECLARE_META_INTERFACE(GraphicBufferConsumer);
 };

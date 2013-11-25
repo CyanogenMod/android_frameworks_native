@@ -171,6 +171,8 @@ public:
 
     // getCurrentCrop returns the cropping rectangle of the current buffer.
     Rect getCurrentCrop() const;
+    // getDirtyRegion gives the dirty rect to associated buffer for a layer.
+    void getDirtyRegion(Rect& dirtyRect);
 
     // getCurrentTransform returns the transform of the current buffer.
     uint32_t getCurrentTransform() const;

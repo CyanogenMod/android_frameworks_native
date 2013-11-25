@@ -1320,6 +1320,43 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, numLayers);
 }
 
+
+void HWComposer::setSwapRect(Rect dirtyRect)
+{
+    DisplayData& disp(mDisplayData[0]);
+
+    for (size_t i=0 ; i<disp.list->numHwLayers-1 ; i++) {
+         hwc_layer_1_t &l = disp.list->hwLayers[i];
+         Rect temp;
+         Rect dCrop;
+         dCrop.left =l.displayFrame.left;
+         dCrop.top =l.displayFrame.top;
+         dCrop.right =l.displayFrame.right;
+         dCrop.bottom =l.displayFrame.bottom;
+
+         if((dCrop).intersect(dirtyRect,&temp)) {
+               l.sourceCropf.left   = dirtyRect.left;
+               l.sourceCropf.top    = dirtyRect.top;
+               l.sourceCropf.right  = dirtyRect.right;
+               l.sourceCropf.bottom = dirtyRect.bottom;
+
+               l.displayFrame.left   = dirtyRect.left;
+               l.displayFrame.top    = dirtyRect.top;
+               l.displayFrame.right  = dirtyRect.right;
+               l.displayFrame.bottom = dirtyRect.bottom;
+          } else {
+               l.sourceCropf.left   = 0;
+               l.sourceCropf.top    = 0;
+               l.sourceCropf.right  = 0;
+               l.sourceCrop.bottom = 0;
+               l.displayFrame.left   = 0;
+               l.displayFrame.top    = 0;
+               l.displayFrame.right  = 0;
+               l.displayFrame.bottom = 0;
+          }
+     }
+}
+
 void HWComposer::dump(String8& result) const {
     if (mHwc) {
         result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));

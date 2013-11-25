@@ -108,6 +108,8 @@ public:
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(int32_t id, size_t numLayers);
 
+    void setSwapRect(Rect);
+
     bool supportsFramebufferTarget() const;
 
     // does this display have layers handled by HWC
