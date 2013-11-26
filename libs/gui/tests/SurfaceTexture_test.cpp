@@ -17,7 +17,8 @@
 #define LOG_TAG "SurfaceTexture_test"
 //#define LOG_NDEBUG 0
 
-#include <gtest/gtest.h>
+#include "GLTest.h"
+
 #include <gui/GLConsumer.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/String8.h>
@@ -25,11 +26,8 @@
 
 #include <gui/ISurfaceComposer.h>
 #include <gui/Surface.h>
-#include <gui/SurfaceComposerClient.h>
 
-#include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
 #include <GLES/glext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -39,345 +37,6 @@
 #include <android/native_window.h>
 
 namespace android {
-
-class GLTest : public ::testing::Test {
-protected:
-
-    GLTest():
-            mEglDisplay(EGL_NO_DISPLAY),
-            mEglSurface(EGL_NO_SURFACE),
-            mEglContext(EGL_NO_CONTEXT) {
-    }
-
-    virtual void SetUp() {
-        const ::testing::TestInfo* const testInfo =
-            ::testing::UnitTest::GetInstance()->current_test_info();
-        ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
-                testInfo->name());
-
-        mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        ASSERT_NE(EGL_NO_DISPLAY, mEglDisplay);
-
-        EGLint majorVersion;
-        EGLint minorVersion;
-        EXPECT_TRUE(eglInitialize(mEglDisplay, &majorVersion, &minorVersion));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        RecordProperty("EglVersionMajor", majorVersion);
-        RecordProperty("EglVersionMajor", minorVersion);
-
-        EGLint numConfigs = 0;
-        EXPECT_TRUE(eglChooseConfig(mEglDisplay, getConfigAttribs(), &mGlConfig,
-                1, &numConfigs));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-
-        char* displaySecsEnv = getenv("GLTEST_DISPLAY_SECS");
-        if (displaySecsEnv != NULL) {
-            mDisplaySecs = atoi(displaySecsEnv);
-            if (mDisplaySecs < 0) {
-                mDisplaySecs = 0;
-            }
-        } else {
-            mDisplaySecs = 0;
-        }
-
-        if (mDisplaySecs > 0) {
-            mComposerClient = new SurfaceComposerClient;
-            ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
-
-            mSurfaceControl = mComposerClient->createSurface(
-                    String8("Test Surface"),
-                    getSurfaceWidth(), getSurfaceHeight(),
-                    PIXEL_FORMAT_RGB_888, 0);
-
-            ASSERT_TRUE(mSurfaceControl != NULL);
-            ASSERT_TRUE(mSurfaceControl->isValid());
-
-            SurfaceComposerClient::openGlobalTransaction();
-            ASSERT_EQ(NO_ERROR, mSurfaceControl->setLayer(0x7FFFFFFF));
-            ASSERT_EQ(NO_ERROR, mSurfaceControl->show());
-            SurfaceComposerClient::closeGlobalTransaction();
-
-            sp<ANativeWindow> window = mSurfaceControl->getSurface();
-            mEglSurface = eglCreateWindowSurface(mEglDisplay, mGlConfig,
-                    window.get(), NULL);
-        } else {
-            EGLint pbufferAttribs[] = {
-                EGL_WIDTH, getSurfaceWidth(),
-                EGL_HEIGHT, getSurfaceHeight(),
-                EGL_NONE };
-
-            mEglSurface = eglCreatePbufferSurface(mEglDisplay, mGlConfig,
-                    pbufferAttribs);
-        }
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        ASSERT_NE(EGL_NO_SURFACE, mEglSurface);
-
-        mEglContext = eglCreateContext(mEglDisplay, mGlConfig, EGL_NO_CONTEXT,
-                getContextAttribs());
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        ASSERT_NE(EGL_NO_CONTEXT, mEglContext);
-
-        EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
-                mEglContext));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-
-        EGLint w, h;
-        EXPECT_TRUE(eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, &w));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        EXPECT_TRUE(eglQuerySurface(mEglDisplay, mEglSurface, EGL_HEIGHT, &h));
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-        RecordProperty("EglSurfaceWidth", w);
-        RecordProperty("EglSurfaceHeight", h);
-
-        glViewport(0, 0, w, h);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-    }
-
-    virtual void TearDown() {
-        // Display the result
-        if (mDisplaySecs > 0 && mEglSurface != EGL_NO_SURFACE) {
-            eglSwapBuffers(mEglDisplay, mEglSurface);
-            sleep(mDisplaySecs);
-        }
-
-        if (mComposerClient != NULL) {
-            mComposerClient->dispose();
-        }
-        if (mEglContext != EGL_NO_CONTEXT) {
-            eglDestroyContext(mEglDisplay, mEglContext);
-        }
-        if (mEglSurface != EGL_NO_SURFACE) {
-            eglDestroySurface(mEglDisplay, mEglSurface);
-        }
-        if (mEglDisplay != EGL_NO_DISPLAY) {
-            eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                    EGL_NO_CONTEXT);
-            eglTerminate(mEglDisplay);
-        }
-        ASSERT_EQ(EGL_SUCCESS, eglGetError());
-
-        const ::testing::TestInfo* const testInfo =
-            ::testing::UnitTest::GetInstance()->current_test_info();
-        ALOGV("End test:   %s.%s", testInfo->test_case_name(),
-                testInfo->name());
-    }
-
-    virtual EGLint const* getConfigAttribs() {
-        static EGLint sDefaultConfigAttribs[] = {
-            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_RED_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_BLUE_SIZE, 8,
-            EGL_ALPHA_SIZE, 8,
-            EGL_DEPTH_SIZE, 16,
-            EGL_STENCIL_SIZE, 8,
-            EGL_NONE };
-
-        return sDefaultConfigAttribs;
-    }
-
-    virtual EGLint const* getContextAttribs() {
-        static EGLint sDefaultContextAttribs[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL_NONE };
-
-        return sDefaultContextAttribs;
-    }
-
-    virtual EGLint getSurfaceWidth() {
-        return 512;
-    }
-
-    virtual EGLint getSurfaceHeight() {
-        return 512;
-    }
-
-    ::testing::AssertionResult checkPixel(int x, int y, int r,
-            int g, int b, int a, int tolerance=2) {
-        GLubyte pixel[4];
-        String8 msg;
-        glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-        GLenum err = glGetError();
-        if (err != GL_NO_ERROR) {
-            msg += String8::format("error reading pixel: %#x", err);
-            while ((err = glGetError()) != GL_NO_ERROR) {
-                msg += String8::format(", %#x", err);
-            }
-            return ::testing::AssertionFailure(
-                    ::testing::Message(msg.string()));
-        }
-        if (r >= 0 && abs(r - int(pixel[0])) > tolerance) {
-            msg += String8::format("r(%d isn't %d)", pixel[0], r);
-        }
-        if (g >= 0 && abs(g - int(pixel[1])) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("g(%d isn't %d)", pixel[1], g);
-        }
-        if (b >= 0 && abs(b - int(pixel[2])) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("b(%d isn't %d)", pixel[2], b);
-        }
-        if (a >= 0 && abs(a - int(pixel[3])) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("a(%d isn't %d)", pixel[3], a);
-        }
-        if (!msg.isEmpty()) {
-            return ::testing::AssertionFailure(
-                    ::testing::Message(msg.string()));
-        } else {
-            return ::testing::AssertionSuccess();
-        }
-    }
-
-    ::testing::AssertionResult assertRectEq(const Rect &r1,
-        const Rect &r2, int tolerance=1) {
-
-        String8 msg;
-
-        if (abs(r1.left - r2.left) > tolerance) {
-            msg += String8::format("left(%d isn't %d)", r1.left, r2.left);
-        }
-        if (abs(r1.top - r2.top) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("top(%d isn't %d)", r1.top, r2.top);
-        }
-        if (abs(r1.right - r2.right) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("right(%d isn't %d)", r1.right, r2.right);
-        }
-        if (abs(r1.bottom - r2.bottom) > tolerance) {
-            if (!msg.isEmpty()) {
-                msg += " ";
-            }
-            msg += String8::format("bottom(%d isn't %d)", r1.bottom, r2.bottom);
-        }
-        if (!msg.isEmpty()) {
-            msg += String8::format(" R1: [%d %d %d %d] R2: [%d %d %d %d]",
-                r1.left, r1.top, r1.right, r1.bottom,
-                r2.left, r2.top, r2.right, r2.bottom);
-            fprintf(stderr, "assertRectEq: %s\n", msg.string());
-            return ::testing::AssertionFailure(
-                    ::testing::Message(msg.string()));
-        } else {
-            return ::testing::AssertionSuccess();
-        }
-    }
-
-    int mDisplaySecs;
-    sp<SurfaceComposerClient> mComposerClient;
-    sp<SurfaceControl> mSurfaceControl;
-
-    EGLDisplay mEglDisplay;
-    EGLSurface mEglSurface;
-    EGLContext mEglContext;
-    EGLConfig  mGlConfig;
-};
-
-static void loadShader(GLenum shaderType, const char* pSource,
-        GLuint* outShader) {
-    GLuint shader = glCreateShader(shaderType);
-    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-    if (shader) {
-        glShaderSource(shader, 1, &pSource, NULL);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glCompileShader(shader);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        GLint compiled = 0;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        if (!compiled) {
-            GLint infoLen = 0;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
-            ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-            if (infoLen) {
-                char* buf = (char*) malloc(infoLen);
-                if (buf) {
-                    glGetShaderInfoLog(shader, infoLen, NULL, buf);
-                    printf("Shader compile log:\n%s\n", buf);
-                    free(buf);
-                    FAIL();
-                }
-            } else {
-                char* buf = (char*) malloc(0x1000);
-                if (buf) {
-                    glGetShaderInfoLog(shader, 0x1000, NULL, buf);
-                    printf("Shader compile log:\n%s\n", buf);
-                    free(buf);
-                    FAIL();
-                }
-            }
-            glDeleteShader(shader);
-            shader = 0;
-        }
-    }
-    ASSERT_TRUE(shader != 0);
-    *outShader = shader;
-}
-
-static void createProgram(const char* pVertexSource,
-        const char* pFragmentSource, GLuint* outPgm) {
-    GLuint vertexShader, fragmentShader;
-    {
-        SCOPED_TRACE("compiling vertex shader");
-        ASSERT_NO_FATAL_FAILURE(loadShader(GL_VERTEX_SHADER, pVertexSource,
-                &vertexShader));
-    }
-    {
-        SCOPED_TRACE("compiling fragment shader");
-        ASSERT_NO_FATAL_FAILURE(loadShader(GL_FRAGMENT_SHADER, pFragmentSource,
-                &fragmentShader));
-    }
-
-    GLuint program = glCreateProgram();
-    ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-    if (program) {
-        glAttachShader(program, vertexShader);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glAttachShader(program, fragmentShader);
-        ASSERT_EQ(GLenum(GL_NO_ERROR), glGetError());
-        glLinkProgram(program);
-        GLint linkStatus = GL_FALSE;
-        glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
-        if (linkStatus != GL_TRUE) {
-            GLint bufLength = 0;
-            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &bufLength);
-            if (bufLength) {
-                char* buf = (char*) malloc(bufLength);
-                if (buf) {
-                    glGetProgramInfoLog(program, bufLength, NULL, buf);
-                    printf("Program link log:\n%s\n", buf);
-                    free(buf);
-                    FAIL();
-                }
-            }
-            glDeleteProgram(program);
-            program = 0;
-        }
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    ASSERT_TRUE(program != 0);
-    *outPgm = program;
-}
-
-static int abs(int value) {
-    return value > 0 ? value : -value;
-}
-
-
-// XXX: Code above this point should live elsewhere
 
 class MultiTextureConsumerTest : public GLTest {
 protected:
@@ -492,6 +151,7 @@ protected:
     }
 
     virtual void TearDown() {
+        mTextureRenderer.clear();
         mANW.clear();
         mSTC.clear();
         mST.clear();
@@ -750,11 +410,11 @@ void fillRGBA8Buffer(uint8_t* buf, int w, int h, int stride) {
     }
 }
 
-void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride, uint8_t r,
-        uint8_t g, uint8_t b, uint8_t a) {
+void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride,
+        uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     const size_t PIXEL_SIZE = 4;
     for (int y = 0; y < h; y++) {
-        for (int x = 0; x < h; x++) {
+        for (int x = 0; x < w; x++) {
             off_t offset = (y * stride + x) * PIXEL_SIZE;
             buf[offset + 0] = r;
             buf[offset + 1] = g;
