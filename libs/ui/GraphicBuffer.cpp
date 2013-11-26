@@ -260,12 +260,12 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
         native_handle_t const* const h = handle;
         memcpy(fds,     h->data,             h->numFds*sizeof(int));
         memcpy(&buf[8], h->data + h->numFds, h->numInts*sizeof(int));
+        fds += handle->numFds;
+        count -= handle->numFds;
     }
 
     buffer = reinterpret_cast<void*>(static_cast<int*>(buffer) + sizeNeeded);
     size -= sizeNeeded;
-    fds += handle->numFds;
-    count -= handle->numFds;
 
     return NO_ERROR;
 }
