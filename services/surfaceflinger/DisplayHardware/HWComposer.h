@@ -108,6 +108,7 @@ public:
     // create a work list for numLayers layer. sets HWC_GEOMETRY_CHANGED.
     status_t createWorkList(int32_t id, size_t numLayers);
 
+    void setSwapRectOn(bool);
     void setSwapRect(Rect);
 
     bool supportsFramebufferTarget() const;
@@ -343,7 +344,7 @@ private:
     struct hwc_display_contents_1*  mLists[MAX_HWC_DISPLAYS];
     DisplayData                     mDisplayData[MAX_HWC_DISPLAYS];
     size_t                          mNumDisplays;
-
+    bool                            mSwapRectOn;
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
     size_t                          mVSyncCounts[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
