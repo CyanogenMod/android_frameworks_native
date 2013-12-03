@@ -45,8 +45,10 @@ enum {
 
 struct BatteryProperties {
     bool chargerAcOnline;
+    bool chargerDockAcOnline;
     bool chargerUsbOnline;
     bool chargerWirelessOnline;
+
     int batteryStatus;
     int batteryHealth;
     bool batteryPresent;
@@ -56,6 +58,17 @@ struct BatteryProperties {
     int batteryChargeCounter;
     int batteryTemperature;
     String8 batteryTechnology;
+
+    bool dockBatterySupported;
+    int dockBatteryStatus;
+    int dockBatteryHealth;
+    bool dockBatteryPresent;
+    int dockBatteryLevel;
+    int dockBatteryVoltage;
+    int dockBatteryCurrentNow;
+    int dockBatteryChargeCounter;
+    int dockBatteryTemperature;
+    String8 dockBatteryTechnology;
 
     status_t writeToParcel(Parcel* parcel) const;
     status_t readFromParcel(Parcel* parcel);
