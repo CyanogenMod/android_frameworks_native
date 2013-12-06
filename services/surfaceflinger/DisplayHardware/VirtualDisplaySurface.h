@@ -111,7 +111,7 @@ private:
     // Utility methods
     //
     static Source fbSourceForCompositionType(CompositionType type);
-    status_t dequeueBuffer(Source source, uint32_t format,
+    status_t dequeueBuffer(Source source, uint32_t format, uint32_t usage,
             int* sslot, sp<Fence>* fence);
     void updateQueueBufferOutput(const QueueBufferOutput& qbo);
     void resetPerFrameState();
@@ -133,15 +133,18 @@ private:
     const int32_t mDisplayId;
     const String8 mDisplayName;
     sp<IGraphicBufferProducer> mSource[2]; // indexed by SOURCE_*
+    uint32_t mDefaultOutputFormat;
 
     //
     // Inter-frame state
     //
 
-    // To avoid buffer reallocations, we track the buffer usage requested by
-    // the GLES driver in dequeueBuffer so we can use the same flags on
-    // HWC-only frames.
-    uint32_t mProducerUsage;
+    // To avoid buffer reallocations, we track the buffer usage and format
+    // we used on the previous frame and use it again on the new frame. If
+    // the composition type changes or the GLES driver starts requesting
+    // different usage/format, we'll get a new buffer.
+    uint32_t mOutputFormat;
+    uint32_t mOutputUsage;
 
     // Since we present a single producer interface to the GLES driver, but
     // are internally muxing between the sink and scratch producers, we have
