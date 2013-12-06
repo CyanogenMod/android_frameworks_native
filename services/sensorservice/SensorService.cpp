@@ -480,6 +480,11 @@ String8 SensorService::getSensorName(int handle) const {
     return result;
 }
 
+bool SensorService::isVirtualSensor(int handle) const {
+    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    return sensor->isVirtual();
+}
+
 Vector<Sensor> SensorService::getSensorList()
 {
     char value[PROPERTY_VALUE_MAX];
@@ -858,6 +863,11 @@ status_t SensorService::SensorEventConnection::sendEvents(
         }
     }
 
+    // Early return if there are no events for this connection.
+    if (count == 0) {
+        return status_t(NO_ERROR);
+    }
+
     // NOTE: ASensorEvent and sensors_event_t are the same type
     ssize_t size = SensorEventQueue::write(mChannel,
             reinterpret_cast<ASensorEvent const*>(scratch), count);
@@ -922,7 +932,7 @@ status_t  SensorService::SensorEventConnection::flush() {
     // Loop through all sensors for this connection and call flush on each of them.
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const int handle = mSensorInfo.keyAt(i);
-        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1) {
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1 || mService->isVirtualSensor(handle)) {
             // For older devices just increment pending flush count which will send a trivial
             // flush complete event.
             FlushInfo& flushInfo = mSensorInfo.editValueFor(handle);

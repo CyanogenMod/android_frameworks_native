@@ -435,7 +435,7 @@ EGLAPI gl_hooks_t gHooksSystrace = {
     if (error) {                                                          \
         CallStack s;                                                      \
         s.update();                                                       \
-        s.dump("glGetError:" #_api);                                      \
+        s.log("glGetError:" #_api);                                       \
     }                                                                     \
 
 #define TRACE_GL_VOID(_api, _args, _argList, ...)                         \
