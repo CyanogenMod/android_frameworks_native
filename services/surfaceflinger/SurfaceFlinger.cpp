@@ -3132,10 +3132,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
     status_t result = NO_ERROR;
     if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) == NO_ERROR) {
-        uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-        if (!useReadPixels) {
-            usage |= GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
-        }
+        uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN |
+                        GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
 
         int err = 0;
         err = native_window_set_buffers_dimensions(window, reqWidth, reqHeight);
