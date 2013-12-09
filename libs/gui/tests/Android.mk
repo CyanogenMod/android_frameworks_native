@@ -9,11 +9,18 @@ LOCAL_MODULE_TAGS := tests
 LOCAL_SRC_FILES := \
     BufferQueue_test.cpp \
     CpuConsumer_test.cpp \
+    FillBuffer.cpp \
     GLTest.cpp \
     IGraphicBufferProducer_test.cpp \
+    MultiTextureConsumer_test.cpp \
     SurfaceTextureClient_test.cpp \
-    SurfaceTexture_test.cpp \
+    SurfaceTextureFBO_test.cpp \
+    SurfaceTextureGLThreadToGL_test.cpp \
+    SurfaceTextureGLToGL_test.cpp \
+    SurfaceTextureGL_test.cpp \
+    SurfaceTextureMultiContextGL_test.cpp \
     Surface_test.cpp \
+    TextureRenderer.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libEGL \
