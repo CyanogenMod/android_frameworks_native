@@ -11,8 +11,8 @@ namespace {
 \n\
 SYNOPSIS \n\
       idmap --help \n\
-      idmap --fd target overlay fd \n\
-      idmap --path target overlay idmap \n\
+      idmap --fd target overlay fd redirections \n\
+      idmap --path target overlay idmap redirections \n\
       idmap --scan dir-to-scan target-to-look-for target dir-to-hold-idmaps \n\
       idmap --inspect idmap \n\
 \n\
@@ -114,7 +114,7 @@ NOTES \n\
     }
 
     int maybe_create_fd(const char *target_apk_path, const char *overlay_apk_path,
-            const char *idmap_str)
+            const char *idmap_str, const char *redirections)
     {
         // anyone (not just root or system) may do --fd -- the file has
         // already been opened by someone else on our behalf
@@ -136,11 +136,11 @@ NOTES \n\
             return -1;
         }
 
-        return idmap_create_fd(target_apk_path, overlay_apk_path, idmap_fd);
+        return idmap_create_fd(target_apk_path, overlay_apk_path, redirections, idmap_fd);
     }
 
     int maybe_create_path(const char *target_apk_path, const char *overlay_apk_path,
-            const char *idmap_path)
+            const char *idmap_path, const char *redirections)
     {
         if (!verify_root_or_system()) {
             fprintf(stderr, "error: permission denied: not user root or user system\n");
@@ -157,7 +157,7 @@ NOTES \n\
             return -1;
         }
 
-        return idmap_create_path(target_apk_path, overlay_apk_path, idmap_path);
+        return idmap_create_path(target_apk_path, overlay_apk_path, redirections, idmap_path);
     }
 
     int maybe_scan(const char *overlay_dir, const char *target_package_name,
@@ -216,12 +216,12 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (argc == 5 && !strcmp(argv[1], "--fd")) {
-        return maybe_create_fd(argv[2], argv[3], argv[4]);
+    if (argc == 6 && !strcmp(argv[1], "--fd")) {
+        return maybe_create_fd(argv[2], argv[3], argv[4], argv[5]);
     }
 
-    if (argc == 5 && !strcmp(argv[1], "--path")) {
-        return maybe_create_path(argv[2], argv[3], argv[4]);
+    if (argc == 6 && !strcmp(argv[1], "--path")) {
+        return maybe_create_path(argv[2], argv[3], argv[4], argv[5]);
     }
 
     if (argc == 6 && !strcmp(argv[1], "--scan")) {

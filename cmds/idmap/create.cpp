@@ -147,26 +147,35 @@ fail:
     }
 
     int create_idmap(const char *target_apk_path, const char *overlay_apk_path,
-            uint32_t **data, size_t *size)
+            Vector<String8>& targets, Vector<String8>& overlays, uint32_t **data, size_t *size)
     {
         uint32_t target_crc, overlay_crc;
-        if (get_zip_entry_crc(target_apk_path, AssetManager::RESOURCES_FILENAME,
-				&target_crc) == -1) {
+        time_t target_mtime, overlay_mtime;
+
+        // In the original implementation, crc of the res tables are generated
+        // theme apks however do not need a restable, everything is in assets/
+        // instead timestamps are used
+        target_crc = 0;
+        overlay_crc = 0;
+
+        struct stat statbuf;
+        if (stat(target_apk_path, &statbuf) != NO_ERROR) {
             return -1;
         }
-        if (get_zip_entry_crc(overlay_apk_path, AssetManager::RESOURCES_FILENAME,
-				&overlay_crc) == -1) {
+        target_mtime = statbuf.st_mtime;
+        if (stat(overlay_apk_path, &statbuf) != NO_ERROR) {
             return -1;
         }
+        overlay_mtime = statbuf.st_mtime;
 
         AssetManager am;
         bool b = am.createIdmap(target_apk_path, overlay_apk_path, target_crc, overlay_crc,
-                data, size);
+                target_mtime, overlay_mtime, targets, overlays, data, size);
         return b ? 0 : -1;
     }
 
     int create_and_write_idmap(const char *target_apk_path, const char *overlay_apk_path,
-            int fd, bool check_if_stale)
+            const char *redirections, int fd, bool check_if_stale)
     {
         if (check_if_stale) {
             if (!is_idmap_stale_fd(target_apk_path, overlay_apk_path, fd)) {
@@ -175,10 +184,25 @@ fail:
             }
         }
 
+        Vector<String8> targets;
+        Vector<String8> overlays;
+        if (redirections && strlen(redirections)) {
+            FILE *fp = fopen(redirections, "r");
+            char target[280];
+            char overlay[280];
+            if (fp) {
+                while (!feof(fp)) {
+                    fscanf(fp, "%279s %279s\n", target, overlay);
+                    targets.push(String8(target));
+                    overlays.push(String8(overlay));
+                }
+            }
+        }
+
         uint32_t *data = NULL;
         size_t size;
 
-        if (create_idmap(target_apk_path, overlay_apk_path, &data, &size) == -1) {
+        if (create_idmap(target_apk_path, overlay_apk_path, targets, overlays, &data, &size) == -1) {
             return -1;
         }
 
@@ -193,7 +217,7 @@ fail:
 }
 
 int idmap_create_path(const char *target_apk_path, const char *overlay_apk_path,
-        const char *idmap_path)
+        const char *redirections, const char *idmap_path)
 {
     if (!is_idmap_stale_path(target_apk_path, overlay_apk_path, idmap_path)) {
         // already up to date -- nothing to do
@@ -205,7 +229,7 @@ int idmap_create_path(const char *target_apk_path, const char *overlay_apk_path,
         return EXIT_FAILURE;
     }
 
-    int r = create_and_write_idmap(target_apk_path, overlay_apk_path, fd, false);
+    int r = create_and_write_idmap(target_apk_path, overlay_apk_path, redirections, fd, false);
     close(fd);
     if (r != 0) {
         unlink(idmap_path);
@@ -213,8 +237,9 @@ int idmap_create_path(const char *target_apk_path, const char *overlay_apk_path,
     return r == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-int idmap_create_fd(const char *target_apk_path, const char *overlay_apk_path, int fd)
+int idmap_create_fd(const char *target_apk_path, const char *overlay_apk_path,
+        const char *redirections, int fd)
 {
-    return create_and_write_idmap(target_apk_path, overlay_apk_path, fd, true) == 0 ?
+    return create_and_write_idmap(target_apk_path, overlay_apk_path, redirections, fd, true) == 0 ?
         EXIT_SUCCESS : EXIT_FAILURE;
 }

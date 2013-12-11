@@ -1139,7 +1139,7 @@ int restorecon_data()
     return ret;
 }
 
-static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd)
+static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd, const char *redirectionsPath)
 {
     static const char *IDMAP_BIN = "/system/bin/idmap";
     static const size_t MAX_INT_LEN = 32;
@@ -1147,35 +1147,44 @@ static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap
 
     snprintf(idmap_str, sizeof(idmap_str), "%d", idmap_fd);
 
-    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str, (char*)NULL);
+    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str, redirectionsPath, (char*)NULL);
     ALOGE("execl(%s) failed: %s\n", IDMAP_BIN, strerror(errno));
 }
 
-// Transform string /a/b/c.apk to (prefix)/a@b@c.apk@(suffix)
-// eg /a/b/c.apk to /data/resource-cache/a@b@c.apk@idmap
+/* Prints to idmap_path (prefix)/(flat_target)@(flat_overerlay)@(suffix)
+ * Note: "Flat" is a string with '/' changed to @
+ * Example input:
+ *   prefix: /data/resource-cache/
+ *   suffix: idmap
+ *   overlay_path: /data/app/com.theme.apk
+ *   target_path:  /data/app/com.target.apk
+ * Example output:
+ *   idmap_path: /data/resource-cache/data@app@com.target.apk@data@app@theme.apk@idmap
+ */
 static int flatten_path(const char *prefix, const char *suffix,
-        const char *overlay_path, char *idmap_path, size_t N)
+        const char *overlay_path, const char *target_path, char *idmap_path, size_t N)
 {
-    if (overlay_path == NULL || idmap_path == NULL) {
+    if (overlay_path == NULL || idmap_path == NULL || target_path == NULL) {
         return -1;
     }
+
+    const size_t len_target_path = strlen(target_path);
+    if (len_target_path < 2 || *target_path != '/') {
+       return -1;
+    }
+
     const size_t len_overlay_path = strlen(overlay_path);
     // will access overlay_path + 1 further below; requires absolute path
     if (len_overlay_path < 2 || *overlay_path != '/') {
         return -1;
     }
     const size_t len_idmap_root = strlen(prefix);
-    const size_t len_suffix = strlen(suffix);
-    if (SIZE_MAX - len_idmap_root < len_overlay_path ||
-            SIZE_MAX - (len_idmap_root + len_overlay_path) < len_suffix) {
-        // additions below would cause overflow
-        return -1;
-    }
-    if (N < len_idmap_root + len_overlay_path + len_suffix) {
-        return -1;
-    }
+
     memset(idmap_path, 0, N);
-    snprintf(idmap_path, N, "%s%s%s", prefix, overlay_path + 1, suffix);
+    int len = snprintf(idmap_path, N, "%s%s%s%s", prefix, target_path + 1, overlay_path, suffix);
+    if (len < 0 || (size_t)len >= N) {
+        return -1; // error or truncated
+    }
     char *ch = idmap_path + len_idmap_root;
     while (*ch != '\0') {
         if (*ch == '/') {
@@ -1186,14 +1195,14 @@ static int flatten_path(const char *prefix, const char *suffix,
     return 0;
 }
 
-int idmap(const char *target_apk, const char *overlay_apk, uid_t uid)
+int idmap(const char *target_apk, const char *overlay_apk, uid_t uid, const char *redirections)
 {
     ALOGV("idmap target_apk=%s overlay_apk=%s uid=%d\n", target_apk, overlay_apk, uid);
 
     int idmap_fd = -1;
     char idmap_path[PATH_MAX];
 
-    if (flatten_path(IDMAP_PREFIX, IDMAP_SUFFIX, overlay_apk,
+    if (flatten_path(IDMAP_PREFIX, IDMAP_SUFFIX, overlay_apk, target_apk,
                 idmap_path, sizeof(idmap_path)) == -1) {
         ALOGE("idmap cannot generate idmap path for overlay %s\n", overlay_apk);
         goto fail;
@@ -1231,7 +1240,7 @@ int idmap(const char *target_apk, const char *overlay_apk, uid_t uid)
             exit(1);
         }
 
-        run_idmap(target_apk, overlay_apk, idmap_fd);
+        run_idmap(target_apk, overlay_apk, idmap_fd, redirections);
         exit(1); /* only if exec call to idmap failed */
     } else {
         int status = wait_child(pid);
@@ -1247,6 +1256,124 @@ fail:
     if (idmap_fd >= 0) {
         close(idmap_fd);
         unlink(idmap_path);
+    }
+    return -1;
+}
+
+static void run_aapt(const char *source_apk, const char *internal_path, int restable_fd, int resapk_fd, int pkgId)
+{
+    static const char *AAPT_BIN = "/system/bin/aapt";
+    static const char *MANIFEST = "/data/app/AndroidManifest.xml";
+    static const char *FRAMEWORK_RES = "/system/framework/framework-res.apk";
+
+    static const size_t MAX_INT_LEN = 32;
+    char restable_str[MAX_INT_LEN];
+    char resapk_str[MAX_INT_LEN];
+    char pkgId_str[MAX_INT_LEN];
+
+    snprintf(restable_str, sizeof(restable_str), "%d", restable_fd);
+    snprintf(resapk_str, sizeof(resapk_str), "%d", resapk_fd);
+    snprintf(pkgId_str, sizeof(pkgId_str), "%d", pkgId);
+
+    execl(AAPT_BIN, AAPT_BIN, "package",
+                              "-M", MANIFEST,
+                              "-S", source_apk,
+                              "-X", internal_path,
+                              "-R", restable_str,
+                              "-I", FRAMEWORK_RES,
+                              "-r", resapk_str,
+                              "-x", pkgId_str,
+                              (char*)NULL);
+    ALOGE("execl(%s) failed: %s\n", AAPT_BIN, strerror(errno));
+}
+
+int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid, int pkgId)
+{
+    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d\n",
+             source_apk, internal_path, out_restable, uid, pkgId);
+    int restable_fd = -1;
+    int resapk_fd = -1;
+    char restable_path[PATH_MAX];
+    char resapk_path[PATH_MAX];
+
+    // get file descriptor for resources.arsc
+    snprintf(restable_path, PATH_MAX, "%s/resources.arsc", out_restable);
+    unlink(restable_path);
+    restable_fd = open(restable_path, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (restable_fd < 0) {
+        ALOGE("aapt cannot open '%s' for output: %s\n", restable_path, strerror(errno));
+        goto fail;
+    }
+    if (fchown(restable_fd, AID_SYSTEM, uid) < 0) {
+        ALOGE("aapt cannot chown '%s'\n", restable_path);
+        goto fail;
+    }
+    if (fchmod(restable_fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) < 0) {
+        ALOGE("aapt cannot chmod '%s'\n", restable_path);
+        goto fail;
+    }
+
+    // get file descriptor for resources.apk
+    snprintf(resapk_path, PATH_MAX, "%s/resources.apk", out_restable);
+    unlink(resapk_path);
+    resapk_fd = open(resapk_path, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (resapk_fd < 0) {
+        ALOGE("aapt cannot open '%s' for output: %s\n", resapk_path, strerror(errno));
+        goto fail;
+    }
+    if (fchown(resapk_fd, AID_SYSTEM, uid) < 0) {
+        ALOGE("aapt cannot chown '%s'\n", resapk_path);
+        goto fail;
+    }
+    if (fchmod(resapk_fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) < 0) {
+        ALOGE("aapt cannot chmod '%s'\n", resapk_path);
+        goto fail;
+    }
+
+    pid_t pid;
+    pid = fork();
+    if (pid == 0) {
+        /* child -- drop privileges before continuing */
+        if (setgid(uid) != 0) {
+            ALOGE("setgid(%d) failed during aapt\n", uid);
+            exit(1);
+        }
+        if (setuid(uid) != 0) {
+            ALOGE("setuid(%d) failed during aapt\n", uid);
+            exit(1);
+        }
+
+        if (flock(restable_fd, LOCK_EX | LOCK_NB) != 0) {
+            ALOGE("flock(%s) failed during aapt: %s\n", out_restable, strerror(errno));
+            exit(1);
+        }
+
+        if (flock(resapk_fd, LOCK_EX | LOCK_NB) != 0) {
+            ALOGE("flock(%s) failed during aapt: %s\n", out_restable, strerror(errno));
+            exit(1);
+        }
+
+        run_aapt(source_apk, internal_path, restable_fd, resapk_fd, pkgId);
+        exit(1); /* only if exec call to idmap failed */
+    } else {
+        int status = wait_child(pid);
+        if (status != 0) {
+            ALOGE("aapt failed, status=0x%04x\n", status);
+            goto fail;
+        }
+    }
+
+    close(restable_fd);
+    close(resapk_fd);
+    return 0;
+fail:
+    if (restable_fd >= 0) {
+        close(restable_fd);
+        unlink(restable_path);
+    }
+    if (resapk_fd >= 0) {
+        close(resapk_fd);
+        unlink(resapk_path);
     }
     return -1;
 }

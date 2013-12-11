@@ -180,6 +180,12 @@ namespace {
         NEXT(buf, i, o);
         print("", "overlay crc", i, o, "");
 
+        NEXT(buf, i, o);
+        print("", "base mtime", i, o, "");
+
+        NEXT(buf, i, o);
+        print("", "overlay mtime", i, o, "");
+
         if (buf.nextPath(path, &o, &e) < 0) {
             // printe done from IdmapBuffer::nextPath
             return -1;
