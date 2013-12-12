@@ -1068,24 +1068,29 @@ void SurfaceFlinger::setUpHWComposer() {
             if (id >= 0) {
                 // Get the layers in the current drawying state
                 const LayerVector& layers(mDrawingState.layersSortedByZ);
+#ifdef QCOM_BSP
                 bool freezeSurfacePresent = false;
                 const size_t layerCount = layers.size();
                 char value[PROPERTY_VALUE_MAX];
                 property_get("sys.disable_ext_animation", value, "0");
-                if(atoi(value)) {
+                if(atoi(value) && (id != HWC_DISPLAY_PRIMARY)) {
                     for (size_t i = 0 ; i < layerCount ; ++i) {
                         static int screenShotLen = strlen("ScreenshotSurface");
                         const sp<Layer>& layer(layers[i]);
-                        if(!strncmp(layer->getName(), "ScreenshotSurface",
+                        const Layer::State& s(layer->getDrawingState());
+                        // check the layers associated with external display
+                        if(s.layerStack == hw->getLayerStack()) {
+                            if(!strncmp(layer->getName(), "ScreenshotSurface",
                                     screenShotLen)) {
-                            // Screenshot layer is present, and animation in
-                            // progress
-                            freezeSurfacePresent = true;
-                            break;
+                                // Screenshot layer is present, and animation in
+                                // progress
+                                freezeSurfacePresent = true;
+                                break;
+                            }
                         }
                     }
                 }
-
+#endif
                 const Vector< sp<Layer> >& currentLayers(
                     hw->getVisibleLayersSortedByZ());
                 const size_t count = currentLayers.size();
@@ -1098,6 +1103,7 @@ void SurfaceFlinger::setUpHWComposer() {
                      */
                     const sp<Layer>& layer(currentLayers[i]);
                     layer->setPerFrameData(hw, *cur);
+#ifdef QCOM_BSP
                     if(freezeSurfacePresent) {
                         // if freezeSurfacePresent, set ANIMATING flag
                         cur->setAnimating(true);
@@ -1107,17 +1113,14 @@ void SurfaceFlinger::setUpHWComposer() {
                         size_t dc = draw.size();
                         for (size_t i=0 ; i<dc ; i++) {
                             if (draw[i].isMainDisplay()) {
-                                HWComposer& hwc(getHwComposer());
-                                if (hwc.initCheck() == NO_ERROR)
-                                    // Pass the current orientation to HWC
-                                    // which will be used to block animation
-                                    // on external
-                                    hwc.eventControl(HWC_DISPLAY_PRIMARY,
-                                            SurfaceFlinger::EVENT_ORIENTATION,
-                                            uint32_t(draw[i].orientation));
+                                 // Pass the current orientation to HWC
+                                 hwc.eventControl(HWC_DISPLAY_PRIMARY,
+                                         SurfaceFlinger::EVENT_ORIENTATION,
+                                         uint32_t(draw[i].orientation));
                             }
                         }
                     }
+#endif
                 }
             }
         }
@@ -2118,6 +2121,24 @@ void SurfaceFlinger::setTransactionState(
         uint32_t flags)
 {
     ATRACE_CALL();
+    size_t count = displays.size();
+#ifdef QCOM_BSP
+    for (size_t i=0 ; i<count ; i++) {
+        const DisplayState& s(displays[i]);
+        if(s.token != mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]) {
+            const uint32_t what = s.what;
+            // Invalidate and Delay the binder thread by 50 ms on
+            // eDisplayProjectionChanged to trigger a draw cycle so that
+            // it can fix one incorrect frame on the External, when we disable
+            // external animation
+            if (what & DisplayState::eDisplayProjectionChanged) {
+                invalidateHwcGeometry();
+                repaintEverything();
+                usleep(50000);
+            }
+        }
+    }
+#endif
     Mutex::Autolock _l(mStateLock);
     uint32_t transactionFlags = 0;
 
@@ -2137,7 +2158,6 @@ void SurfaceFlinger::setTransactionState(
         }
     }
 
-    size_t count = displays.size();
     for (size_t i=0 ; i<count ; i++) {
         const DisplayState& s(displays[i]);
         transactionFlags |= setDisplayStateLocked(s);
