@@ -205,6 +205,14 @@ void RenderEngine::readPixels(size_t l, size_t b, size_t w, size_t h, uint32_t* 
     glReadPixels(l, b, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
+void RenderEngine::setDither(bool dither) {
+    if (dither) {
+        glEnable(GL_DITHER);
+    } else {
+        glDisable(GL_DITHER);
+    }
+}
+
 void RenderEngine::dump(String8& result) {
     const GLExtensions& extensions(GLExtensions::getInstance());
     result.appendFormat("GLES: %s, %s, %s\n",

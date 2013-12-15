@@ -122,6 +122,7 @@ status_t getPixelFormatInfo(PixelFormat format, PixelFormatInfo* info);
 
 ssize_t bytesPerPixel(PixelFormat format);
 ssize_t bitsPerPixel(PixelFormat format);
+unsigned int minColorDepth(PixelFormat format);
 
 }; // namespace android
 

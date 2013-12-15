@@ -160,6 +160,22 @@ ssize_t bitsPerPixel(PixelFormat format) {
     return BAD_VALUE;
 }
 
+unsigned int minColorDepth(PixelFormat format) {
+    switch (format) {
+        case PIXEL_FORMAT_RGBA_8888:
+        case PIXEL_FORMAT_RGBX_8888:
+        case PIXEL_FORMAT_BGRA_8888:
+        case PIXEL_FORMAT_RGB_888:
+            return 8;
+        case PIXEL_FORMAT_RGB_565:
+        case PIXEL_FORMAT_RGBA_5551:
+            return 5;
+        case PIXEL_FORMAT_RGBA_4444:
+            return 4;
+    }
+    return BAD_VALUE;
+}
+
 // ----------------------------------------------------------------------------
 }; // namespace android
 // ----------------------------------------------------------------------------
