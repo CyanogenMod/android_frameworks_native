@@ -128,14 +128,8 @@ status_t SensorEventQueue::disableSensor(Sensor const* sensor) const {
 
 status_t SensorEventQueue::enableSensor(int32_t handle, int32_t samplingPeriodUs,
                                         int maxBatchReportLatencyUs, int reservedFlags) const {
-    status_t err = mSensorEventConnection->enableDisable(handle, true, us2ns(samplingPeriodUs),
+    return mSensorEventConnection->enableDisable(handle, true, us2ns(samplingPeriodUs),
                                                  us2ns(maxBatchReportLatencyUs), reservedFlags);
-    #ifdef SENSORS_SETRATE_ON_ENABLE
-    if (err == NO_ERROR) {
-        mSensorEventConnection->setEventRate(handle, us2ns(samplingPeriodUs));
-    }
-    #endif
-    return err;
 }
 
 status_t SensorEventQueue::flush() const {
