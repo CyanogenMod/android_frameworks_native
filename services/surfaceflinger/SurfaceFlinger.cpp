@@ -1847,8 +1847,12 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 
             // screen is already cleared here
             if (!region.isEmpty()) {
-                // can happen with SurfaceView
-                drawWormhole(hw, region);
+                if (cur != end) {
+                    if (cur->getCompositionType() != HWC_BLIT)
+                        // can happen with SurfaceView
+                        drawWormhole(hw, region);
+                } else
+                    drawWormhole(hw, region);
             }
         }
 
