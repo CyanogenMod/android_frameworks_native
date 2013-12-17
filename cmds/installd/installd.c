@@ -447,6 +447,10 @@ int initialize_directories() {
             goto fail;
         }
 
+        if (selinux_android_restorecon(android_media_dir.path)) {
+            goto fail;
+        }
+
         // /data/media/0
         char owner_media_dir[PATH_MAX];
         snprintf(owner_media_dir, PATH_MAX, "%s0", android_media_dir.path);
