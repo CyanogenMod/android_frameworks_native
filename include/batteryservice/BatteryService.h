@@ -45,7 +45,6 @@ enum {
 
 struct BatteryProperties {
     bool chargerAcOnline;
-    bool chargerDockAcOnline;
     bool chargerUsbOnline;
     bool chargerWirelessOnline;
 
@@ -59,6 +58,7 @@ struct BatteryProperties {
     int batteryTemperature;
     String8 batteryTechnology;
 
+    bool chargerDockAcOnline;
     bool dockBatterySupported;
     int dockBatteryStatus;
     int dockBatteryHealth;
