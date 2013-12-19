@@ -46,6 +46,11 @@ struct InputDeviceIdentifier {
     // Ideally, the way this value is computed should not change between Android releases
     // because that would invalidate persistent settings that rely on it.
     String8 descriptor;
+
+    // A value added to uniquely identify a device in the absence of a unique id. This
+    // is intended to be a minimum way to distinguish from other active devices and may
+    // reuse values that are not associated with an input anymore.
+    uint16_t nonce;
 };
 
 /*
