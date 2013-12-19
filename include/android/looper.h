@@ -253,4 +253,4 @@ int ALooper_removeFd(ALooper* looper, int fd);
 };
 #endif
 
-#endif // ANDROID_NATIVE_WINDOW_H
+#endif // ANDROID_LOOPER_H
