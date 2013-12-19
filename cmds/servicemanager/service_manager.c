@@ -135,8 +135,8 @@ uint16_t svcmgr_id[] = {
 uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid)
 {
     struct svcinfo *si;
-    si = find_svc(s, len);
 
+    si = find_svc(s, len);
     //ALOGI("check_service('%s') handle = %x\n", str8(s), si ? si->handle : 0);
     if (si && si->handle) {
         if (!si->allow_isolated) {
@@ -158,6 +158,7 @@ int do_add_service(struct binder_state *bs,
                    uint32_t handle, uid_t uid, int allow_isolated)
 {
     struct svcinfo *si;
+
     //ALOGI("add_service('%s',%x,%s) uid=%d\n", str8(s), handle,
     //        allow_isolated ? "allow_isolated" : "!allow_isolated", uid);
 
@@ -213,8 +214,8 @@ int svcmgr_handler(struct binder_state *bs,
     uint32_t strict_policy;
     int allow_isolated;
 
-//    ALOGI("target=%p code=%d pid=%d uid=%d\n",
-//         txn->target, txn->code, txn->sender_pid, txn->sender_euid);
+    //ALOGI("target=%x code=%d pid=%d uid=%d\n",
+    //  txn->target.handle, txn->code, txn->sender_pid, txn->sender_euid);
 
     if (txn->target.handle != svcmgr_handle)
         return -1;
@@ -250,7 +251,7 @@ int svcmgr_handler(struct binder_state *bs,
         break;
 
     case SVC_MGR_LIST_SERVICES: {
-        unsigned n = bio_get_uint32(msg);
+        uint32_t n = bio_get_uint32(msg);
 
         si = svclist;
         while ((n-- > 0) && si)

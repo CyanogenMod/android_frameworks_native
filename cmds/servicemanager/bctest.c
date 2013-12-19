@@ -33,7 +33,7 @@ uint32_t svcmgr_lookup(struct binder_state *bs, uint32_t target, const char *nam
 
 int svcmgr_publish(struct binder_state *bs, uint32_t target, const char *name, void *ptr)
 {
-    unsigned status;
+    int status;
     unsigned iodata[512/4];
     struct binder_io msg, reply;
 

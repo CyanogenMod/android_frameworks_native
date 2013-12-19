@@ -148,9 +148,10 @@ int binder_write(struct binder_state *bs, void *data, size_t len)
 {
     struct binder_write_read bwr;
     int res;
+
     bwr.write_size = len;
     bwr.write_consumed = 0;
-    bwr.write_buffer = (unsigned) data;
+    bwr.write_buffer = (uintptr_t) data;
     bwr.read_size = 0;
     bwr.read_consumed = 0;
     bwr.read_buffer = 0;
@@ -169,13 +170,13 @@ void binder_send_reply(struct binder_state *bs,
 {
     struct {
         uint32_t cmd_free;
-        void *buffer;
+        uintptr_t buffer;
         uint32_t cmd_reply;
         struct binder_transaction_data txn;
     } __attribute__((packed)) data;
 
     data.cmd_free = BC_FREE_BUFFER;
-    data.buffer = buffer_to_free;
+    data.buffer = (uintptr_t) buffer_to_free;
     data.cmd_reply = BC_REPLY;
     data.txn.target.ptr = 0;
     data.txn.cookie = 0;
@@ -197,13 +198,14 @@ void binder_send_reply(struct binder_state *bs,
 }
 
 int binder_parse(struct binder_state *bs, struct binder_io *bio,
-                 uint32_t *ptr, uint32_t size, binder_handler func)
+                 uintptr_t ptr, size_t size, binder_handler func)
 {
     int r = 1;
-    uint32_t *end = ptr + (size / 4);
+    uintptr_t end = ptr + (uintptr_t) size;
 
     while (ptr < end) {
-        uint32_t cmd = *ptr++;
+        uint32_t cmd = *(uint32_t *) ptr;
+        ptr += sizeof(uint32_t);
 #if TRACE
         fprintf(stderr,"%s:\n", cmd_name(cmd));
 #endif
@@ -217,13 +219,13 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
         case BR_RELEASE:
         case BR_DECREFS:
 #if TRACE
-            fprintf(stderr,"  %08x %08x\n", ptr[0], ptr[1]);
+            fprintf(stderr,"  %p, %p\n", ptr, (ptr + sizeof(void *)));
 #endif
-            ptr += 2;
+            ptr += sizeof(struct binder_ptr_cookie);
             break;
         case BR_TRANSACTION: {
             struct binder_transaction_data *txn = (struct binder_transaction_data *) ptr;
-            if ((end - ptr) * sizeof(uint32_t) < sizeof(*txn)) {
+            if ((end - ptr) < sizeof(*txn)) {
                 ALOGE("parse: txn too small!\n");
                 return -1;
             }
@@ -239,12 +241,12 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
                 res = func(bs, txn, &msg, &reply);
                 binder_send_reply(bs, &reply, txn->data.ptr.buffer, res);
             }
-            ptr += sizeof(*txn) / sizeof(uint32_t);
+            ptr += sizeof(*txn);
             break;
         }
         case BR_REPLY: {
             struct binder_transaction_data *txn = (struct binder_transaction_data *) ptr;
-            if ((end - ptr) * sizeof(uint32_t) < sizeof(*txn)) {
+            if ((end - ptr) < sizeof(*txn)) {
                 ALOGE("parse: reply too small!\n");
                 return -1;
             }
@@ -253,14 +255,15 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
                 bio_init_from_txn(bio, txn);
                 bio = 0;
             } else {
-                    /* todo FREE BUFFER */
+                /* todo FREE BUFFER */
             }
-            ptr += (sizeof(*txn) / sizeof(uint32_t));
+            ptr += sizeof(*txn);
             r = 0;
             break;
         }
         case BR_DEAD_BINDER: {
-            struct binder_death *death = (void*) *ptr++;
+            struct binder_death *death = (struct binder_death *) *(intptr_t *)ptr;
+            ptr += sizeof(void *);
             death->func(bs, death->ptr);
             break;
         }
@@ -297,13 +300,16 @@ void binder_release(struct binder_state *bs, uint32_t target)
 
 void binder_link_to_death(struct binder_state *bs, uint32_t target, struct binder_death *death)
 {
-    uint32_t cmd[3];
-    cmd[0] = BC_REQUEST_DEATH_NOTIFICATION;
-    cmd[1] = (uint32_t) target;
-    cmd[2] = (uint32_t) death;
-    binder_write(bs, cmd, sizeof(cmd));
-}
+    struct {
+        uint32_t cmd;
+        struct binder_handle_cookie payload;
+    } __attribute__((packed)) data;
 
+    data.cmd = BC_REQUEST_DEATH_NOTIFICATION;
+    data.payload.handle = target;
+    data.payload.cookie = (uintptr_t) death;
+    binder_write(bs, &data, sizeof(data));
+}
 
 int binder_call(struct binder_state *bs,
                 struct binder_io *msg, struct binder_io *reply,
@@ -314,7 +320,7 @@ int binder_call(struct binder_state *bs,
     struct {
         uint32_t cmd;
         struct binder_transaction_data txn;
-    } writebuf;
+    } __attribute__((packed)) writebuf;
     unsigned readbuf[32];
 
     if (msg->flags & BIO_F_OVERFLOW) {
@@ -333,13 +339,13 @@ int binder_call(struct binder_state *bs,
 
     bwr.write_size = sizeof(writebuf);
     bwr.write_consumed = 0;
-    bwr.write_buffer = (unsigned) &writebuf;
+    bwr.write_buffer = (uintptr_t) &writebuf;
 
     hexdump(msg->data0, msg->data - msg->data0);
     for (;;) {
         bwr.read_size = sizeof(readbuf);
         bwr.read_consumed = 0;
-        bwr.read_buffer = (unsigned) readbuf;
+        bwr.read_buffer = (uintptr_t) readbuf;
 
         res = ioctl(bs->fd, BINDER_WRITE_READ, &bwr);
 
@@ -348,7 +354,7 @@ int binder_call(struct binder_state *bs,
             goto fail;
         }
 
-        res = binder_parse(bs, reply, readbuf, bwr.read_consumed, 0);
+        res = binder_parse(bs, reply, (uintptr_t) readbuf, bwr.read_consumed, 0);
         if (res == 0) return 0;
         if (res < 0) goto fail;
     }
@@ -363,19 +369,19 @@ void binder_loop(struct binder_state *bs, binder_handler func)
 {
     int res;
     struct binder_write_read bwr;
-    unsigned readbuf[32];
+    uint32_t readbuf[32];
 
     bwr.write_size = 0;
     bwr.write_consumed = 0;
     bwr.write_buffer = 0;
 
     readbuf[0] = BC_ENTER_LOOPER;
-    binder_write(bs, readbuf, sizeof(unsigned));
+    binder_write(bs, readbuf, sizeof(uint32_t));
 
     for (;;) {
         bwr.read_size = sizeof(readbuf);
         bwr.read_consumed = 0;
-        bwr.read_buffer = (unsigned) readbuf;
+        bwr.read_buffer = (uintptr_t) readbuf;
 
         res = ioctl(bs->fd, BINDER_WRITE_READ, &bwr);
 
@@ -384,7 +390,7 @@ void binder_loop(struct binder_state *bs, binder_handler func)
             break;
         }
 
-        res = binder_parse(bs, 0, readbuf, bwr.read_consumed, func);
+        res = binder_parse(bs, 0, (uintptr_t) readbuf, bwr.read_consumed, func);
         if (res == 0) {
             ALOGE("binder_loop: unexpected reply?!\n");
             break;
@@ -401,7 +407,7 @@ void bio_init_from_txn(struct binder_io *bio, struct binder_transaction_data *tx
     bio->data = bio->data0 = txn->data.ptr.buffer;
     bio->offs = bio->offs0 = txn->data.ptr.offsets;
     bio->data_avail = txn->data_size;
-    bio->offs_avail = txn->offsets_size / 4;
+    bio->offs_avail = txn->offsets_size / sizeof(size_t);
     bio->flags = BIO_F_SHARED;
 }
 
@@ -424,7 +430,7 @@ void bio_init(struct binder_io *bio, void *data,
     bio->flags = 0;
 }
 
-static void *bio_alloc(struct binder_io *bio, uint32_t size)
+static void *bio_alloc(struct binder_io *bio, size_t size)
 {
     size = (size + 3) & (~3);
     if (size > bio->data_avail) {
@@ -442,11 +448,15 @@ void binder_done(struct binder_state *bs,
                  struct binder_io *msg,
                  struct binder_io *reply)
 {
+    struct {
+        uint32_t cmd;
+        uintptr_t buffer;
+    } __attribute__((packed)) data;
+
     if (reply->flags & BIO_F_SHARED) {
-        uint32_t cmd[2];
-        cmd[0] = BC_FREE_BUFFER;
-        cmd[1] = (uint32_t) reply->data0;
-        binder_write(bs, cmd, sizeof(cmd));
+        data.cmd = BC_FREE_BUFFER;
+        data.buffer = (uintptr_t) reply->data0;
+        binder_write(bs, &data, sizeof(data));
         reply->flags = 0;
     }
 }
@@ -599,7 +609,7 @@ static struct flat_binder_object *_bio_get_obj(struct binder_io *bio)
     size_t n;
     size_t off = bio->data - bio->data0;
 
-        /* TODO: be smarter about this? */
+    /* TODO: be smarter about this? */
     for (n = 0; n < bio->offs_avail; n++) {
         if (bio->offs[n] == off)
             return bio_get(bio, sizeof(struct flat_binder_object));
