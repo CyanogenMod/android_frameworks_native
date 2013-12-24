@@ -29,7 +29,9 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
+RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
+    EGLConfig config = chooseEglConfig(display, hwcFormat);
+
     EGLint renderableType = 0;
     EGLint contextClientVersion = 0;
 
@@ -96,7 +98,7 @@ RenderEngine* RenderEngine::create(EGLDisplay display, EGLConfig config) {
         engine = new GLES20RenderEngine();
         break;
     }
-    engine->setEGLContext(ctxt);
+    engine->setEGLHandles(config, ctxt);
 
     ALOGI("OpenGL ES informations:");
     ALOGI("vendor    : %s", extensions.getVendor());
@@ -118,8 +120,13 @@ RenderEngine::RenderEngine() : mEGLContext(EGL_NO_CONTEXT) {
 RenderEngine::~RenderEngine() {
 }
 
-void RenderEngine::setEGLContext(EGLContext ctxt) {
+void RenderEngine::setEGLHandles(EGLConfig config, EGLContext ctxt) {
+    mEGLConfig = config;
     mEGLContext = ctxt;
+}
+
+EGLContext RenderEngine::getEGLConfig() const {
+    return mEGLConfig;
 }
 
 EGLContext RenderEngine::getEGLContext() const {
@@ -232,6 +239,164 @@ RenderEngine::BindImageAsFramebuffer::~BindImageAsFramebuffer() {
 
 status_t RenderEngine::BindImageAsFramebuffer::getStatus() const {
     return mStatus == GL_FRAMEBUFFER_COMPLETE_OES ? NO_ERROR : BAD_VALUE;
+}
+
+// ---------------------------------------------------------------------------
+
+static status_t selectConfigForAttribute(EGLDisplay dpy, EGLint const* attrs,
+        EGLint attribute, EGLint wanted, EGLConfig* outConfig) {
+    EGLConfig config = NULL;
+    EGLint numConfigs = -1, n = 0;
+    eglGetConfigs(dpy, NULL, 0, &numConfigs);
+    EGLConfig* const configs = new EGLConfig[numConfigs];
+    eglChooseConfig(dpy, attrs, configs, numConfigs, &n);
+
+    if (n) {
+        if (attribute != EGL_NONE) {
+            for (int i=0 ; i<n ; i++) {
+                EGLint value = 0;
+                eglGetConfigAttrib(dpy, configs[i], attribute, &value);
+                if (wanted == value) {
+                    *outConfig = configs[i];
+                    delete [] configs;
+                    return NO_ERROR;
+                }
+            }
+        } else {
+            // just pick the first one
+            *outConfig = configs[0];
+            delete [] configs;
+            return NO_ERROR;
+        }
+    }
+    delete [] configs;
+    return NAME_NOT_FOUND;
+}
+
+class EGLAttributeVector {
+    struct Attribute;
+    class Adder;
+    friend class Adder;
+    KeyedVector<Attribute, EGLint> mList;
+    struct Attribute {
+        Attribute() {};
+        Attribute(EGLint v) : v(v) { }
+        EGLint v;
+        bool operator < (const Attribute& other) const {
+            // this places EGL_NONE at the end
+            EGLint lhs(v);
+            EGLint rhs(other.v);
+            if (lhs == EGL_NONE) lhs = 0x7FFFFFFF;
+            if (rhs == EGL_NONE) rhs = 0x7FFFFFFF;
+            return lhs < rhs;
+        }
+    };
+    class Adder {
+        friend class EGLAttributeVector;
+        EGLAttributeVector& v;
+        EGLint attribute;
+        Adder(EGLAttributeVector& v, EGLint attribute)
+            : v(v), attribute(attribute) {
+        }
+    public:
+        void operator = (EGLint value) {
+            if (attribute != EGL_NONE) {
+                v.mList.add(attribute, value);
+            }
+        }
+        operator EGLint () const { return v.mList[attribute]; }
+    };
+public:
+    EGLAttributeVector() {
+        mList.add(EGL_NONE, EGL_NONE);
+    }
+    void remove(EGLint attribute) {
+        if (attribute != EGL_NONE) {
+            mList.removeItem(attribute);
+        }
+    }
+    Adder operator [] (EGLint attribute) {
+        return Adder(*this, attribute);
+    }
+    EGLint operator [] (EGLint attribute) const {
+       return mList[attribute];
+    }
+    // cast-operator to (EGLint const*)
+    operator EGLint const* () const { return &mList.keyAt(0).v; }
+};
+
+
+static status_t selectEGLConfig(EGLDisplay display, EGLint format,
+    EGLint renderableType, EGLConfig* config) {
+    // select our EGLConfig. It must support EGL_RECORDABLE_ANDROID if
+    // it is to be used with WIFI displays
+    status_t err;
+    EGLint wantedAttribute;
+    EGLint wantedAttributeValue;
+
+    EGLAttributeVector attribs;
+    if (renderableType) {
+        attribs[EGL_RENDERABLE_TYPE]            = renderableType;
+        attribs[EGL_RECORDABLE_ANDROID]         = EGL_TRUE;
+        attribs[EGL_SURFACE_TYPE]               = EGL_WINDOW_BIT|EGL_PBUFFER_BIT;
+        attribs[EGL_FRAMEBUFFER_TARGET_ANDROID] = EGL_TRUE;
+        attribs[EGL_RED_SIZE]                   = 8;
+        attribs[EGL_GREEN_SIZE]                 = 8;
+        attribs[EGL_BLUE_SIZE]                  = 8;
+        wantedAttribute                         = EGL_NONE;
+        wantedAttributeValue                    = EGL_NONE;
+    } else {
+        // if no renderable type specified, fallback to a simplified query
+        wantedAttribute                         = EGL_NATIVE_VISUAL_ID;
+        wantedAttributeValue                    = format;
+    }
+
+    err = selectConfigForAttribute(display, attribs,
+            wantedAttribute, wantedAttributeValue, config);
+    if (err == NO_ERROR) {
+        EGLint caveat;
+        if (eglGetConfigAttrib(display, *config, EGL_CONFIG_CAVEAT, &caveat))
+            ALOGW_IF(caveat == EGL_SLOW_CONFIG, "EGL_SLOW_CONFIG selected!");
+    }
+
+    return err;
+}
+
+EGLConfig RenderEngine::chooseEglConfig(EGLDisplay display, int format) {
+    status_t err;
+    EGLConfig config;
+
+    // First try to get an ES2 config
+    err = selectEGLConfig(display, format, EGL_OPENGL_ES2_BIT, &config);
+    if (err != NO_ERROR) {
+        // If ES2 fails, try ES1
+        err = selectEGLConfig(display, format, EGL_OPENGL_ES_BIT, &config);
+        if (err != NO_ERROR) {
+            // still didn't work, probably because we're on the emulator...
+            // try a simplified query
+            ALOGW("no suitable EGLConfig found, trying a simpler query");
+            err = selectEGLConfig(display, format, 0, &config);
+            if (err != NO_ERROR) {
+                // this EGL is too lame for android
+                LOG_ALWAYS_FATAL("no suitable EGLConfig found, giving up");
+            }
+        }
+    }
+
+    // print some debugging info
+    EGLint r,g,b,a;
+    eglGetConfigAttrib(display, config, EGL_RED_SIZE,   &r);
+    eglGetConfigAttrib(display, config, EGL_GREEN_SIZE, &g);
+    eglGetConfigAttrib(display, config, EGL_BLUE_SIZE,  &b);
+    eglGetConfigAttrib(display, config, EGL_ALPHA_SIZE, &a);
+    ALOGI("EGL information:");
+    ALOGI("vendor    : %s", eglQueryString(display, EGL_VENDOR));
+    ALOGI("version   : %s", eglQueryString(display, EGL_VERSION));
+    ALOGI("extensions: %s", eglQueryString(display, EGL_EXTENSIONS));
+    ALOGI("Client API: %s", eglQueryString(display, EGL_CLIENT_APIS)?:"Not Supported");
+    ALOGI("EGLSurface: %d-%d-%d-%d, config=%p", r, g, b, a, config);
+
+    return config;
 }
 
 // ---------------------------------------------------------------------------
