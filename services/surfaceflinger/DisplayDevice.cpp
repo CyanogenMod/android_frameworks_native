@@ -416,7 +416,15 @@ void DisplayDevice::setProjection(int orientation,
     if (!frame.isValid()) {
         // the destination frame can be invalid if it has never been set,
         // in that case we assume the whole display frame.
-        frame = Rect(w, h);
+        char value[PROPERTY_VALUE_MAX];
+        property_get("ro.sf.hwrotation", value, "0");
+        int additionalRot = atoi(value);
+
+        if (additionalRot == 90 || additionalRot == 270) {
+            frame = Rect(h, w);
+        } else {
+            frame = Rect(w, h);
+        }
     }
 
     if (viewport.isEmpty()) {
