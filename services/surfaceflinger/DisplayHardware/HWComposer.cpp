@@ -773,10 +773,20 @@ status_t HWComposer::prepare() {
                         if (l.compositionType == HWC_FRAMEBUFFER) {
                             disp.hasFbComp = true;
                         }
+                        // If the composition type is BLIT, we set this to
+                        // trigger a FLIP
+                        if(l.compositionType == HWC_BLIT) {
+                            disp.hasFbComp = true;
+                        }
                         if (l.compositionType == HWC_OVERLAY) {
                             disp.hasOvComp = true;
                         }
                     }
+                    if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
+                        disp.hasFbComp = true;
+                    }
+                } else {
+                    disp.hasFbComp = true;
                 }
             }
         } else {
@@ -797,24 +807,12 @@ status_t HWComposer::prepare() {
                     if (l.compositionType == HWC_FRAMEBUFFER) {
                         disp.hasFbComp = true;
                     }
-                    // If the composition type is BLIT, we set this to
-                    // trigger a FLIP
-                    if(l.compositionType == HWC_BLIT) {
-                        disp.hasFbComp = true;
-                    }
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
                     }
                 }
-                if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
-                    disp.hasFbComp = true;
-                }
-            } else {
-                disp.hasFbComp = true;
             }
-
         }
-
     }
     return (status_t)err;
 }
@@ -1077,7 +1075,18 @@ public:
         reinterpret_cast<Rect&>(getLayer()->displayFrame) = frame;
     }
     virtual void setCrop(const FloatRect& crop) {
-        reinterpret_cast<FloatRect&>(getLayer()->sourceCrop) = crop;
+        /*
+         * Since h/w composer didn't support a flot crop rect before version 1.3,
+         * using integer coordinates instead produces a different output from the GL code in
+         * Layer::drawWithOpenGL(). The difference can be large if the buffer crop to
+         * window size ratio is large and a window crop is defined
+         * (i.e.: if we scale the buffer a lot and we also crop it with a window crop).
+         */
+        hwc_rect_t& r = getLayer()->sourceCrop;
+        r.left  = int(ceilf(crop.left));
+        r.top   = int(ceilf(crop.top));
+        r.right = int(floorf(crop.right));
+        r.bottom= int(floorf(crop.bottom));
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
         // Region::getSharedBuffer creates a reference to the underlying
