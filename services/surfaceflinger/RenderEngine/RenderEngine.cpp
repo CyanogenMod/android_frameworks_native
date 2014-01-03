@@ -25,21 +25,51 @@
 #include "GLExtensions.h"
 #include "Mesh.h"
 
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
 
-RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
-    EGLConfig config = chooseEglConfig(display, hwcFormat);
+static bool findExtension(const char* exts, const char* name) {
+    if (!exts)
+        return false;
+    size_t len = strlen(name);
 
-    EGLint renderableType = 0;
-    EGLint contextClientVersion = 0;
-
-    // query the renderable type, setting the EGL_CONTEXT_CLIENT_VERSION accordingly
-    if (!eglGetConfigAttrib(display, config, EGL_RENDERABLE_TYPE, &renderableType)) {
-        LOG_ALWAYS_FATAL("can't query EGLConfig RENDERABLE_TYPE");
+    const char* pos = exts;
+    while ((pos = strstr(pos, name)) != NULL) {
+        if (pos[len] == '\0' || pos[len] == ' ')
+            return true;
+        pos += len;
     }
 
+    return false;
+}
+
+RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
+    // EGL_ANDROIDX_no_config_context is an experimental extension with no
+    // written specification. It will be replaced by something more formal.
+    // SurfaceFlinger is using it to allow a single EGLContext to render to
+    // both a 16-bit primary display framebuffer and a 32-bit virtual display
+    // framebuffer.
+    //
+    // The code assumes that ES2 or later is available if this extension is
+    // supported.
+    EGLConfig config = EGL_NO_CONFIG;
+    if (!findExtension(
+            eglQueryStringImplementationANDROID(display, EGL_EXTENSIONS),
+            "EGL_ANDROIDX_no_config_context")) {
+        config = chooseEglConfig(display, hwcFormat);
+    }
+
+    EGLint renderableType = 0;
+    if (config == EGL_NO_CONFIG) {
+        renderableType = EGL_OPENGL_ES2_BIT;
+    } else if (!eglGetConfigAttrib(display, config,
+            EGL_RENDERABLE_TYPE, &renderableType)) {
+        LOG_ALWAYS_FATAL("can't query EGLConfig RENDERABLE_TYPE");
+    }
+    EGLint contextClientVersion = 0;
     if (renderableType & EGL_OPENGL_ES2_BIT) {
         contextClientVersion = 2;
     } else if (renderableType & EGL_OPENGL_ES_BIT) {
@@ -68,8 +98,12 @@ RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
     // now figure out what version of GL did we actually get
     // NOTE: a dummy surface is not needed if KHR_create_context is supported
 
+    EGLConfig dummyConfig = config;
+    if (dummyConfig == EGL_NO_CONFIG) {
+        dummyConfig = chooseEglConfig(display, hwcFormat);
+    }
     EGLint attribs[] = { EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE, EGL_NONE };
-    EGLSurface dummy = eglCreatePbufferSurface(display, config, attribs);
+    EGLSurface dummy = eglCreatePbufferSurface(display, dummyConfig, attribs);
     LOG_ALWAYS_FATAL_IF(dummy==EGL_NO_SURFACE, "can't create dummy pbuffer");
     EGLBoolean success = eglMakeCurrent(display, dummy, dummy, ctxt);
     LOG_ALWAYS_FATAL_IF(!success, "can't make dummy pbuffer current");
