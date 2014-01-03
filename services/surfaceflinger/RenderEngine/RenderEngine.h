@@ -44,8 +44,9 @@ class RenderEngine {
     };
     static GlesVersion parseGlesVersion(const char* str);
 
+    EGLConfig mEGLConfig;
     EGLContext mEGLContext;
-    void setEGLContext(EGLContext ctxt);
+    void setEGLHandles(EGLConfig config, EGLContext ctxt);
 
     virtual void bindImageAsFramebuffer(EGLImageKHR image, uint32_t* texName, uint32_t* fbName, uint32_t* status) = 0;
     virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName) = 0;
@@ -55,7 +56,9 @@ protected:
     virtual ~RenderEngine() = 0;
 
 public:
-    static RenderEngine* create(EGLDisplay display, EGLConfig config);
+    static RenderEngine* create(EGLDisplay display, int hwcFormat);
+
+    static EGLConfig chooseEglConfig(EGLDisplay display, int format);
 
     // dump the extension strings. always call the base class.
     virtual void dump(String8& result);
@@ -107,6 +110,7 @@ public:
     virtual size_t getMaxTextureSize() const = 0;
     virtual size_t getMaxViewportDims() const = 0;
 
+    EGLConfig getEGLConfig() const;
     EGLContext getEGLContext() const;
 };
 
