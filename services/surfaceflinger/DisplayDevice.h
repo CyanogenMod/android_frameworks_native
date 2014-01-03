@@ -75,6 +75,7 @@ public:
             const sp<SurfaceFlinger>& flinger,
             DisplayType type,
             int32_t hwcId,  // negative for non-HWC-composited displays
+            int format,
             bool isSecure,
             const wp<IBinder>& displayToken,
             const sp<DisplaySurface>& displaySurface,
