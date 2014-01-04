@@ -739,9 +739,7 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
         info->orientation = 0;
     }
 
-    char value[PROPERTY_VALUE_MAX];
-    property_get("ro.sf.hwrotation", value, "0");
-    int additionalRot = atoi(value) / 90;
+    int additionalRot = mDisplays[0]->getHardwareOrientation() / 90;
     if ((type == DisplayDevice::DISPLAY_PRIMARY) && (additionalRot & DisplayState::eOrientationSwapMask)) {
         info->h = hwc.getWidth(type);
         info->w = hwc.getHeight(type);
