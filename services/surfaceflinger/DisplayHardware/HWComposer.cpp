@@ -1035,8 +1035,38 @@ public:
         // not supported on VERSION_03
         return Fence::NO_FENCE;
     }
+    bool isStatusBar(hwc_layer_t* layer) {
+        /* Getting the display details into the iterator is more trouble than
+         * it's worth, so do a rough approximation */
+
+        // Aligned to the top-left corner and less than 60px tall
+        if (layer->displayFrame.top == 0 &&
+            layer->displayFrame.left == 0 && layer->displayFrame.bottom < 60) {
+            return true;
+        }
+        // Landscape:
+        // Aligned to the top, right-cropped at less than 60px
+        if (layer->displayFrame.top == 0 &&
+            layer->sourceCrop.right < 60) {
+            return true;
+        }
+        // Upside-down:
+        // Left-aligned, bottom-cropped at less than 60, and the projected frame matches the crop height
+        if (layer->displayFrame.left == 0 && layer->sourceCrop.bottom < 60 &&
+            layer->displayFrame.bottom - layer->displayFrame.top == layer->sourceCrop.bottom) {
+            return true;
+        }
+        return false;
+    }
+
     virtual void setPlaneAlpha(uint8_t alpha) {
-        if (alpha < 0xFF) {
+        bool forceSkip = false;
+        // PREMULT on the statusbar layer will artifact miserably on VERSION_03
+        // due to the translucency, so skip compositing
+        if (getLayer()->blending == HWC_BLENDING_PREMULT && isStatusBar(getLayer())) {
+            forceSkip = true;
+        }
+        if (alpha < 0xFF || forceSkip) {
             getLayer()->flags |= HWC_SKIP_LAYER;
         }
     }
