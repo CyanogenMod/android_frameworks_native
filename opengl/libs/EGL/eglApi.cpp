@@ -408,9 +408,11 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
     if (dp) {
         EGLDisplay iDpy = dp->disp.dpy;
 
-        if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) != OK) {
-            ALOGE("EGLNativeWindowType %p already connected to another API",
-                    window);
+        int result = native_window_api_connect(window, NATIVE_WINDOW_API_EGL);
+        if (result != OK) {
+            ALOGE("eglCreateWindowSurface: native_window_api_connect (win=%p) "
+                    "failed (%#x) (already connected to another API?)",
+                    window, result);
             return setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
 
