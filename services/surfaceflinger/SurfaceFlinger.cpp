@@ -3135,7 +3135,8 @@ void SurfaceFlinger::renderScreenImplLocked(
 #endif
                 if (layer->isVisible()) {
                     if (filtering) layer->setFiltering(true);
-                    layer->draw(hw);
+                    if(!layer->isProtected())
+                           layer->draw(hw);
                     if (filtering) layer->setFiltering(false);
                 }
             }

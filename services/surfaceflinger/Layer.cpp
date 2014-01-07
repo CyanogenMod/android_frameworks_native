@@ -516,7 +516,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         char property[PROPERTY_VALUE_MAX];
         if ((property_get("persist.gralloc.cp.level3", property, NULL) > 0) &&
                 (atoi(property) == 1)) {
-            canAllowGPU = true;
+            if(hw->getDisplayType() == HWC_DISPLAY_PRIMARY)
+             canAllowGPU = true;
         }
     }
 #endif
