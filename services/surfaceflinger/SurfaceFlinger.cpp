@@ -3313,7 +3313,8 @@ void SurfaceFlinger::renderScreenImplLocked(
             if (state.z >= minLayerZ && state.z <= maxLayerZ) {
                 if (layer->isVisible()) {
                     if (filtering) layer->setFiltering(true);
-                    layer->draw(hw, useIdentityTransform);
+                    if(!layer->isProtected())
+                           layer->draw(hw, useIdentityTransform);
                     if (filtering) layer->setFiltering(false);
                 }
             }
