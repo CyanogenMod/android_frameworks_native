@@ -56,13 +56,15 @@ enum {
 
     // real pixel formats supported for rendering -----------------------------
 
-    PIXEL_FORMAT_RGBA_8888   = HAL_PIXEL_FORMAT_RGBA_8888,  // 4x8-bit RGBA
-    PIXEL_FORMAT_RGBX_8888   = HAL_PIXEL_FORMAT_RGBX_8888,  // 4x8-bit RGB0
-    PIXEL_FORMAT_RGB_888     = HAL_PIXEL_FORMAT_RGB_888,    // 3x8-bit RGB
-    PIXEL_FORMAT_RGB_565     = HAL_PIXEL_FORMAT_RGB_565,    // 16-bit RGB
-    PIXEL_FORMAT_BGRA_8888   = HAL_PIXEL_FORMAT_BGRA_8888,  // 4x8-bit BGRA
-    PIXEL_FORMAT_RGBA_5551   = 6,                           // 16-bit ARGB
-    PIXEL_FORMAT_RGBA_4444   = 7,                           // 16-bit ARGB
+    PIXEL_FORMAT_RGBA_8888   = HAL_PIXEL_FORMAT_RGBA_8888,   // 4x8-bit RGBA
+    PIXEL_FORMAT_RGBX_8888   = HAL_PIXEL_FORMAT_RGBX_8888,   // 4x8-bit RGB0
+    PIXEL_FORMAT_RGB_888     = HAL_PIXEL_FORMAT_RGB_888,     // 3x8-bit RGB
+    PIXEL_FORMAT_RGB_565     = HAL_PIXEL_FORMAT_RGB_565,     // 16-bit RGB
+    PIXEL_FORMAT_BGRA_8888   = HAL_PIXEL_FORMAT_BGRA_8888,   // 4x8-bit BGRA
+    PIXEL_FORMAT_RGBA_5551   = 6,                            // 16-bit ARGB
+    PIXEL_FORMAT_RGBA_4444   = 7,                            // 16-bit ARGB
+    PIXEL_FORMAT_sRGB_A_8888 = HAL_PIXEL_FORMAT_sRGB_A_8888, // 4x8-bit sRGB + A
+    PIXEL_FORMAT_sRGB_X_8888 = HAL_PIXEL_FORMAT_sRGB_X_8888, // 4x8-bit sRGB, no A
 };
 
 typedef int32_t PixelFormat;
