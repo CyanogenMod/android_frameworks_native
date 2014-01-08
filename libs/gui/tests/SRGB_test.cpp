@@ -39,7 +39,7 @@ protected:
     enum {
         DISPLAY_WIDTH = 512,
         DISPLAY_HEIGHT = 512,
-        PIXEL_SIZE = 4, // bytes
+        PIXEL_SIZE = 4, // bytes or components
         DISPLAY_SIZE = DISPLAY_WIDTH * DISPLAY_HEIGHT * PIXEL_SIZE,
         ALPHA_VALUE = 223, // should be in [0, 255]
         TOLERANCE = 1,
@@ -68,13 +68,13 @@ protected:
     }
 
     virtual void SetUp() {
-        sp<BufferQueue> bufferQueue = new BufferQueue();
-        ASSERT_EQ(NO_ERROR, bufferQueue->setDefaultBufferSize(
+        mBufferQueue = new BufferQueue();
+        ASSERT_EQ(NO_ERROR, mBufferQueue->setDefaultBufferSize(
                 DISPLAY_WIDTH, DISPLAY_HEIGHT));
-        mCpuConsumer = new CpuConsumer(bufferQueue, 1);
+        mCpuConsumer = new CpuConsumer(mBufferQueue, 1);
         String8 name("CpuConsumer_for_SRGBTest");
         mCpuConsumer->setName(name);
-        mInputSurface = new Surface(bufferQueue);
+        mInputSurface = new Surface(mBufferQueue);
 
         ASSERT_NO_FATAL_FAILURE(createEGLSurface(mInputSurface.get()));
         ASSERT_NO_FATAL_FAILURE(createDebugSurface());
@@ -82,7 +82,7 @@ protected:
 
     virtual void TearDown() {
         ASSERT_NO_FATAL_FAILURE(copyToDebugSurface());
-        mCpuConsumer->unlockBuffer(mLockedBuffer);
+        ASSERT_EQ(NO_ERROR, mCpuConsumer->unlockBuffer(mLockedBuffer));
     }
 
     static float linearToSRGB(float l) {
@@ -91,6 +91,19 @@ protected:
         } else {
             return 1.055f * pow(l, (1 / 2.4f)) - 0.055f;
         }
+    }
+
+    static float srgbToLinear(float s) {
+        if (s <= 0.04045) {
+            return s / 12.92f;
+        } else {
+            return pow(((s + 0.055f) / 1.055f), 2.4f);
+        }
+    }
+
+    static uint8_t srgbToLinear(uint8_t u) {
+        float f = u / 255.0f;
+        return static_cast<uint8_t>(srgbToLinear(f) * 255.0f + 0.5f);
     }
 
     void fillTexture(bool writeAsSRGB) {
@@ -122,12 +135,93 @@ protected:
         delete[] textureData;
     }
 
+    void initShaders() {
+        static const char vertexSource[] =
+            "attribute vec4 vPosition;\n"
+            "varying vec2 texCoords;\n"
+            "void main() {\n"
+            "  texCoords = 0.5 * (vPosition.xy + vec2(1.0, 1.0));\n"
+            "  gl_Position = vPosition;\n"
+            "}\n";
+
+        static const char fragmentSource[] =
+            "precision mediump float;\n"
+            "uniform sampler2D texSampler;\n"
+            "varying vec2 texCoords;\n"
+            "void main() {\n"
+            "  gl_FragColor = texture2D(texSampler, texCoords);\n"
+            "}\n";
+
+        GLuint program;
+        {
+            SCOPED_TRACE("Creating shader program");
+            ASSERT_NO_FATAL_FAILURE(GLTest::createProgram(
+                    vertexSource, fragmentSource, &program));
+        }
+
+        GLint positionHandle = glGetAttribLocation(program, "vPosition");
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        ASSERT_NE(-1, positionHandle);
+
+        GLint samplerHandle = glGetUniformLocation(program, "texSampler");
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        ASSERT_NE(-1, samplerHandle);
+
+        static const GLfloat vertices[] = {
+            -1.0f, 1.0f,
+            -1.0f, -1.0f,
+            1.0f, -1.0f,
+            1.0f, 1.0f,
+        };
+
+        glVertexAttribPointer(positionHandle, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glEnableVertexAttribArray(positionHandle);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+
+        glUseProgram(program);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glUniform1i(samplerHandle, 0);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+
+        GLuint textureHandle;
+        glGenTextures(1, &textureHandle);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glBindTexture(GL_TEXTURE_2D, textureHandle);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+    }
+
+    void drawTexture(bool asSRGB, GLint x, GLint y, GLsizei width,
+            GLsizei height) {
+        ASSERT_NO_FATAL_FAILURE(fillTexture(asSRGB));
+        glViewport(x, y, width, height);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        ASSERT_EQ(GL_NO_ERROR, glGetError());
+    }
+
+    void checkLockedBuffer(PixelFormat format) {
+        ASSERT_EQ(mLockedBuffer.format, format);
+        ASSERT_EQ(mLockedBuffer.width, DISPLAY_WIDTH);
+        ASSERT_EQ(mLockedBuffer.height, DISPLAY_HEIGHT);
+    }
+
     static bool withinTolerance(int a, int b) {
         int diff = a - b;
         return diff >= 0 ? diff <= TOLERANCE : -diff <= TOLERANCE;
     }
 
     // Primary producer and consumer
+    sp<BufferQueue> mBufferQueue;
     sp<Surface> mInputSurface;
     sp<CpuConsumer> mCpuConsumer;
     CpuConsumer::LockedBuffer mLockedBuffer;
@@ -206,14 +300,13 @@ private:
         ARect inOutDirtyBounds;
         mOutputSurface = mSurfaceControl->getSurface();
         mOutputSurface->lock(&outBuffer, &inOutDirtyBounds);
+        uint8_t* bytePointer = reinterpret_cast<uint8_t*>(outBuffer.bits);
         for (int y = 0; y < outBuffer.height; ++y) {
-            int rowOffset = y * outBuffer.stride;
+            int rowOffset = y * outBuffer.stride; // pixels
             for (int x = 0; x < outBuffer.width; ++x) {
-                int colOffset = rowOffset + x;
-                for (int c = 0; c < 4; ++c) {
-                    int offset = colOffset * PIXEL_SIZE + c;
-                    uint8_t* bytePointer =
-                            reinterpret_cast<uint8_t*>(outBuffer.bits);
+                int colOffset = (rowOffset + x) * PIXEL_SIZE; // bytes
+                for (int c = 0; c < PIXEL_SIZE; ++c) {
+                    int offset = colOffset + c;
                     bytePointer[offset] = ((c + 1) * 56) - 1;
                 }
             }
@@ -230,10 +323,33 @@ private:
         ANativeWindow_Buffer outBuffer;
         ARect outBufferBounds;
         mOutputSurface->lock(&outBuffer, &outBufferBounds);
+        ASSERT_EQ(mLockedBuffer.width, outBuffer.width);
         ASSERT_EQ(mLockedBuffer.height, outBuffer.height);
         ASSERT_EQ(mLockedBuffer.stride, outBuffer.stride);
-        ASSERT_EQ(mLockedBuffer.format, outBuffer.format);
-        memcpy(outBuffer.bits, mLockedBuffer.data, bufferSize);
+
+        if (mLockedBuffer.format == outBuffer.format) {
+            memcpy(outBuffer.bits, mLockedBuffer.data, bufferSize);
+        } else {
+            ASSERT_EQ(mLockedBuffer.format, PIXEL_FORMAT_sRGB_A_8888);
+            ASSERT_EQ(outBuffer.format, PIXEL_FORMAT_RGBA_8888);
+            uint8_t* outPointer = reinterpret_cast<uint8_t*>(outBuffer.bits);
+            for (int y = 0; y < outBuffer.height; ++y) {
+                int rowOffset = y * outBuffer.stride; // pixels
+                for (int x = 0; x < outBuffer.width; ++x) {
+                    int colOffset = (rowOffset + x) * PIXEL_SIZE; // bytes
+
+                    // RGB are converted
+                    for (int c = 0; c < (PIXEL_SIZE - 1); ++c) {
+                        outPointer[colOffset + c] = srgbToLinear(
+                                mLockedBuffer.data[colOffset + c]);
+                    }
+
+                    // Alpha isn't converted
+                    outPointer[colOffset + 3] =
+                            mLockedBuffer.data[colOffset + 3];
+                }
+            }
+        }
         mOutputSurface->unlockAndPost();
 
         int sleepSeconds = atoi(getenv(SHOW_DEBUG_STRING));
@@ -244,100 +360,113 @@ private:
 const char SRGBTest::SHOW_DEBUG_STRING[] = "DEBUG_OUTPUT_SECONDS";
 
 TEST_F(SRGBTest, GLRenderFromSRGBTexture) {
-    static const char vertexSource[] =
-        "attribute vec4 vPosition;\n"
-        "varying vec2 texCoords;\n"
-        "void main() {\n"
-        "  texCoords = 0.5 * (vPosition.xy + vec2(1.0, 1.0));\n"
-        "  gl_Position = vPosition;\n"
-        "}\n";
-
-    static const char fragmentSource[] =
-        "precision mediump float;\n"
-        "uniform sampler2D texSampler;\n"
-        "varying vec2 texCoords;\n"
-        "void main() {\n"
-        "  gl_FragColor = texture2D(texSampler, texCoords);\n"
-        "}\n";
-
-    GLuint program;
-    {
-        SCOPED_TRACE("Creating shader program");
-        ASSERT_NO_FATAL_FAILURE(GLTest::createProgram(
-                vertexSource, fragmentSource, &program));
-    }
-
-    GLint positionHandle = glGetAttribLocation(program, "vPosition");
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    ASSERT_NE(-1, positionHandle);
-
-    GLint samplerHandle = glGetUniformLocation(program, "texSampler");
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    ASSERT_NE(-1, samplerHandle);
-
-    static const GLfloat vertices[] = {
-        -1.0f, 1.0f,
-        -1.0f, -1.0f,
-        1.0f, -1.0f,
-        1.0f, 1.0f,
-    };
-
-    glVertexAttribPointer(positionHandle, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glEnableVertexAttribArray(positionHandle);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-
-    glUseProgram(program);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glUniform1i(samplerHandle, 0);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-
-    GLuint textureHandle;
-    glGenTextures(1, &textureHandle);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glBindTexture(GL_TEXTURE_2D, textureHandle);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
+    ASSERT_NO_FATAL_FAILURE(initShaders());
 
     // The RGB texture is displayed in the top half
-    ASSERT_NO_FATAL_FAILURE(fillTexture(false));
-    glViewport(0, DISPLAY_HEIGHT / 2, DISPLAY_WIDTH, DISPLAY_HEIGHT / 2);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
+    ASSERT_NO_FATAL_FAILURE(drawTexture(false, 0, DISPLAY_HEIGHT / 2,
+            DISPLAY_WIDTH, DISPLAY_HEIGHT / 2));
 
     // The SRGB texture is displayed in the bottom half
-    ASSERT_NO_FATAL_FAILURE(fillTexture(true));
-    glViewport(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT / 2);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    ASSERT_EQ(GL_NO_ERROR, glGetError());
+    ASSERT_NO_FATAL_FAILURE(drawTexture(true, 0, 0,
+            DISPLAY_WIDTH, DISPLAY_HEIGHT / 2));
 
     eglSwapBuffers(mEglDisplay, mEglSurface);
     ASSERT_EQ(EGL_SUCCESS, eglGetError());
 
+    // Lock
     ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
-    ASSERT_EQ(mLockedBuffer.format, PIXEL_FORMAT_RGBA_8888);
-    ASSERT_EQ(mLockedBuffer.width, DISPLAY_WIDTH);
-    ASSERT_EQ(mLockedBuffer.height, DISPLAY_HEIGHT);
+    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_RGBA_8888));
+
+    // Compare a pixel in the middle of each texture
     int midSRGBOffset = (DISPLAY_HEIGHT / 4) * mLockedBuffer.stride *
             PIXEL_SIZE;
     int midRGBOffset = midSRGBOffset * 3;
     midRGBOffset += (DISPLAY_WIDTH / 2) * PIXEL_SIZE;
     midSRGBOffset += (DISPLAY_WIDTH / 2) * PIXEL_SIZE;
-    for (int c = 0; c < 4; ++c) {
-        ASSERT_PRED2(withinTolerance,
-                static_cast<int>(mLockedBuffer.data[midRGBOffset]),
-                static_cast<int>(mLockedBuffer.data[midSRGBOffset]));
+    for (int c = 0; c < PIXEL_SIZE; ++c) {
+        int expectedValue = mLockedBuffer.data[midRGBOffset + c];
+        int actualValue = mLockedBuffer.data[midSRGBOffset + c];
+        ASSERT_PRED2(withinTolerance, expectedValue, actualValue);
     }
+
+    // mLockedBuffer is unlocked in TearDown so we can copy data from it to
+    // the debug surface if necessary
+}
+
+TEST_F(SRGBTest, RenderToSRGBSurface) {
+    ASSERT_NO_FATAL_FAILURE(initShaders());
+
+    // By default, the first buffer we write into will be RGB
+
+    // Render an RGB texture across the whole surface
+    ASSERT_NO_FATAL_FAILURE(drawTexture(false, 0, 0,
+            DISPLAY_WIDTH, DISPLAY_HEIGHT));
+    eglSwapBuffers(mEglDisplay, mEglSurface);
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Lock
+    ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
+    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_RGBA_8888));
+
+    // Save the values of the middle pixel for later comparison against SRGB
+    uint8_t values[PIXEL_SIZE] = {};
+    int middleOffset = (DISPLAY_HEIGHT / 2) * mLockedBuffer.stride *
+            PIXEL_SIZE;
+    middleOffset += (DISPLAY_WIDTH / 2) * PIXEL_SIZE;
+    for (int c = 0; c < PIXEL_SIZE; ++c) {
+        values[c] = mLockedBuffer.data[middleOffset + c];
+    }
+
+    // Unlock
+    ASSERT_EQ(NO_ERROR, mCpuConsumer->unlockBuffer(mLockedBuffer));
+
+    // Switch to SRGB window surface
+#define EGL_GL_COLORSPACE_KHR      EGL_VG_COLORSPACE
+#define EGL_GL_COLORSPACE_SRGB_KHR EGL_VG_COLORSPACE_sRGB
+
+    static const int srgbAttribs[] = {
+        EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_SRGB_KHR,
+        EGL_NONE,
+    };
+
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE,
+            mEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    EXPECT_TRUE(eglDestroySurface(mEglDisplay, mEglSurface));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglConfig,
+            mInputSurface.get(), srgbAttribs);
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    ASSERT_NE(EGL_NO_SURFACE, mEglSurface);
+
+    EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Render the texture again
+    ASSERT_NO_FATAL_FAILURE(drawTexture(false, 0, 0,
+            DISPLAY_WIDTH, DISPLAY_HEIGHT));
+    eglSwapBuffers(mEglDisplay, mEglSurface);
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Lock
+    ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
+
+    // Make sure we actually got the SRGB buffer on the consumer side
+    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_sRGB_A_8888));
+
+    // Verify that the stored value is the same, accounting for RGB/SRGB
+    for (int c = 0; c < PIXEL_SIZE; ++c) {
+        // The alpha value should be equivalent before linear->SRGB
+        float rgbAsSRGB = (c == 3) ? values[c] / 255.0f :
+                linearToSRGB(values[c] / 255.0f);
+        int expectedValue = rgbAsSRGB * 255.0f + 0.5f;
+        int actualValue = mLockedBuffer.data[middleOffset + c];
+        ASSERT_PRED2(withinTolerance, expectedValue, actualValue);
+    }
+
     // mLockedBuffer is unlocked in TearDown so we can copy data from it to
     // the debug surface if necessary
 }
