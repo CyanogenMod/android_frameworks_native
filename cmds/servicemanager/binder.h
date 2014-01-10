@@ -12,12 +12,12 @@ struct binder_state;
 struct binder_io
 {
     char *data;            /* pointer to read/write from */
-    uint32_t *offs;        /* array of offsets */
-    uint32_t data_avail;   /* bytes available in data buffer */
-    uint32_t offs_avail;   /* entries available in offsets array */
+    size_t *offs;          /* array of offsets */
+    size_t data_avail;     /* bytes available in data buffer */
+    size_t offs_avail;     /* entries available in offsets array */
 
     char *data0;           /* start of data buffer */
-    uint32_t *offs0;       /* start of offsets buffer */
+    size_t *offs0;         /* start of offsets buffer */
     uint32_t flags;
     uint32_t unused;
 };
@@ -25,7 +25,7 @@ struct binder_io
 struct binder_death {
     void (*func)(struct binder_state *bs, void *ptr);
     void *ptr;
-};    
+};
 
 /* the one magic object */
 #define BINDER_SERVICE_MANAGER ((void*) 0)
@@ -44,7 +44,7 @@ typedef int (*binder_handler)(struct binder_state *bs,
                               struct binder_io *msg,
                               struct binder_io *reply);
 
-struct binder_state *binder_open(unsigned mapsize);
+struct binder_state *binder_open(size_t mapsize);
 void binder_close(struct binder_state *bs);
 
 /* initiate a blocking binder call
@@ -77,9 +77,7 @@ int binder_become_context_manager(struct binder_state *bs);
  * offset entries to reserve from the buffer
  */
 void bio_init(struct binder_io *bio, void *data,
-           uint32_t maxdata, uint32_t maxobjects);
-
-void bio_destroy(struct binder_io *bio);
+           size_t maxdata, size_t maxobjects);
 
 void bio_put_obj(struct binder_io *bio, void *ptr);
 void bio_put_ref(struct binder_io *bio, void *ptr);
@@ -88,8 +86,7 @@ void bio_put_string16(struct binder_io *bio, const uint16_t *str);
 void bio_put_string16_x(struct binder_io *bio, const char *_str);
 
 uint32_t bio_get_uint32(struct binder_io *bio);
-uint16_t *bio_get_string16(struct binder_io *bio, uint32_t *sz);
-void *bio_get_obj(struct binder_io *bio);
+uint16_t *bio_get_string16(struct binder_io *bio, size_t *sz);
 void *bio_get_ref(struct binder_io *bio);
 
 #endif

@@ -24,7 +24,7 @@
  * uid can register media.*, etc)
  */
 static struct {
-    unsigned uid;
+    uid_t uid;
     const char *name;
 } allowed[] = {
     { AID_MEDIA, "media.audio_flinger" },
@@ -52,7 +52,7 @@ static struct {
 
 void *svcmgr_handle;
 
-const char *str8(uint16_t *x)
+const char *str8(const uint16_t *x)
 {
     static char buf[128];
     unsigned max = 127;
@@ -67,7 +67,7 @@ const char *str8(uint16_t *x)
     return buf;
 }
 
-int str16eq(uint16_t *a, const char *b)
+int str16eq(const uint16_t *a, const char *b)
 {
     while (*a && *b)
         if (*a++ != *b++) return 0;
@@ -76,10 +76,10 @@ int str16eq(uint16_t *a, const char *b)
     return 1;
 }
 
-int svc_can_register(unsigned uid, uint16_t *name)
+int svc_can_register(uid_t uid, const uint16_t *name)
 {
-    unsigned n;
-    
+    size_t n;
+
     if ((uid == 0) || (uid == AID_SYSTEM))
         return 1;
 
@@ -90,19 +90,19 @@ int svc_can_register(unsigned uid, uint16_t *name)
     return 0;
 }
 
-struct svcinfo 
+struct svcinfo
 {
     struct svcinfo *next;
     void *ptr;
     struct binder_death death;
     int allow_isolated;
-    unsigned len;
+    size_t len;
     uint16_t name[0];
 };
 
-struct svcinfo *svclist = 0;
+struct svcinfo *svclist = NULL;
 
-struct svcinfo *find_svc(uint16_t *s16, unsigned len)
+struct svcinfo *find_svc(const uint16_t *s16, size_t len)
 {
     struct svcinfo *si;
 
@@ -112,26 +112,27 @@ struct svcinfo *find_svc(uint16_t *s16, unsigned len)
             return si;
         }
     }
-    return 0;
+    return NULL;
 }
 
 void svcinfo_death(struct binder_state *bs, void *ptr)
 {
-    struct svcinfo *si = ptr;
+    struct svcinfo *si = (struct svcinfo* ) ptr;
+
     ALOGI("service '%s' died\n", str8(si->name));
     if (si->ptr) {
         binder_release(bs, si->ptr);
         si->ptr = 0;
-    }   
+    }
 }
 
-uint16_t svcmgr_id[] = { 
+uint16_t svcmgr_id[] = {
     'a','n','d','r','o','i','d','.','o','s','.',
-    'I','S','e','r','v','i','c','e','M','a','n','a','g','e','r' 
+    'I','S','e','r','v','i','c','e','M','a','n','a','g','e','r'
 };
-  
 
-void *do_find_service(struct binder_state *bs, uint16_t *s, unsigned len, unsigned uid)
+
+void *do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid)
 {
     struct svcinfo *si;
     si = find_svc(s, len);
@@ -141,7 +142,7 @@ void *do_find_service(struct binder_state *bs, uint16_t *s, unsigned len, unsign
         if (!si->allow_isolated) {
             // If this service doesn't allow access from isolated processes,
             // then check the uid to see if it is isolated.
-            unsigned appid = uid % AID_USER;
+            uid_t appid = uid % AID_USER;
             if (appid >= AID_ISOLATED_START && appid <= AID_ISOLATED_END) {
                 return 0;
             }
@@ -153,8 +154,8 @@ void *do_find_service(struct binder_state *bs, uint16_t *s, unsigned len, unsign
 }
 
 int do_add_service(struct binder_state *bs,
-                   uint16_t *s, unsigned len,
-                   void *ptr, unsigned uid, int allow_isolated)
+                   const uint16_t *s, size_t len,
+                   void *ptr, uid_t uid, int allow_isolated)
 {
     struct svcinfo *si;
     //ALOGI("add_service('%s',%p,%s) uid=%d\n", str8(s), ptr,
@@ -188,7 +189,7 @@ int do_add_service(struct binder_state *bs,
         si->len = len;
         memcpy(si->name, s, (len + 1) * sizeof(uint16_t));
         si->name[len] = '\0';
-        si->death.func = svcinfo_death;
+        si->death.func = (void*) svcinfo_death;
         si->death.ptr = si;
         si->allow_isolated = allow_isolated;
         si->next = svclist;
@@ -207,7 +208,7 @@ int svcmgr_handler(struct binder_state *bs,
 {
     struct svcinfo *si;
     uint16_t *s;
-    unsigned len;
+    size_t len;
     void *ptr;
     uint32_t strict_policy;
     int allow_isolated;
@@ -272,7 +273,6 @@ int svcmgr_handler(struct binder_state *bs,
 int main(int argc, char **argv)
 {
     struct binder_state *bs;
-    void *svcmgr = BINDER_SERVICE_MANAGER;
 
     bs = binder_open(128*1024);
     if (!bs) {
@@ -285,7 +285,8 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    svcmgr_handle = svcmgr;
+    svcmgr_handle = BINDER_SERVICE_MANAGER;
     binder_loop(bs, svcmgr_handler);
+
     return 0;
 }
