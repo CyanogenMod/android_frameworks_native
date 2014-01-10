@@ -816,6 +816,9 @@ status_t HWComposer::prepare() {
                     // trigger a FLIP
                     if(l.compositionType == HWC_BLIT) {
                         disp.hasFbComp = true;
+                     // Setting disp.hasBlitComp to true to identify
+                     // blit cases. This is used in features like swaprect.
+                        disp.hasBlitComp = true;
                     }
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
@@ -837,6 +840,12 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return true;
     return mDisplayData[id].hasFbComp;
+}
+
+bool HWComposer::hasBlitComposition(int32_t id) const {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+         return false;
+    return mDisplayData[id].hasBlitComp;
 }
 
 sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {

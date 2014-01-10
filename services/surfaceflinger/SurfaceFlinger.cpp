@@ -3430,8 +3430,11 @@ void SurfaceFlinger::setupSwapRect()
     qdutils::cb_swap_rect::getInstance().setSwapRectFeature_on(false);
 #endif
     hwc.setSwapRectOn(false);
-
-    if (mSwapRectEnable && hwc.hasHwcComposition(HWC_DISPLAY_PRIMARY)) {
+    /*
+     * swap rect is enabled if swaprect property is set
+     * and it is blit composition
+     */
+    if (mSwapRectEnable && hwc.hasBlitComposition(HWC_DISPLAY_PRIMARY)) {
         int  totalDirtyRects = 0;
         Region consolidateVisibleRegion;
         Rect swapDirtyRect(Rect(0,0,0,0));
