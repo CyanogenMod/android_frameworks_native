@@ -9,30 +9,6 @@
 
 struct binder_state;
 
-struct binder_object
-{
-    uint32_t type;
-    uint32_t flags;
-    void *pointer;
-    void *cookie;
-};
-
-struct binder_txn
-{
-    void *target;
-    void *cookie;
-    uint32_t code;
-    uint32_t flags;
-
-    uint32_t sender_pid;
-    uint32_t sender_euid;
-
-    uint32_t data_size;
-    uint32_t offs_size;
-    void *data;
-    void *offs;
-};
-
 struct binder_io
 {
     char *data;            /* pointer to read/write from */
@@ -64,7 +40,7 @@ enum {
 };
 
 typedef int (*binder_handler)(struct binder_state *bs,
-                              struct binder_txn *txn,
+                              struct binder_transaction_data *txn,
                               struct binder_io *msg,
                               struct binder_io *reply);
 

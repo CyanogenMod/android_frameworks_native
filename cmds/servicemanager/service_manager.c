@@ -201,7 +201,7 @@ int do_add_service(struct binder_state *bs,
 }
 
 int svcmgr_handler(struct binder_state *bs,
-                   struct binder_txn *txn,
+                   struct binder_transaction_data *txn,
                    struct binder_io *msg,
                    struct binder_io *reply)
 {
@@ -215,7 +215,7 @@ int svcmgr_handler(struct binder_state *bs,
 //    ALOGI("target=%p code=%d pid=%d uid=%d\n",
 //         txn->target, txn->code, txn->sender_pid, txn->sender_euid);
 
-    if (txn->target != svcmgr_handle)
+    if (txn->target.handle != svcmgr_handle)
         return -1;
 
     // Equivalent to Parcel::enforceInterface(), reading the RPC
