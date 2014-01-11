@@ -594,8 +594,10 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
 
     status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
                                  maxBatchReportLatencyNs);
+
+    const SensorDevice& device(SensorDevice::getInstance());
+
     if (err == NO_ERROR) {
-        const SensorDevice& device(SensorDevice::getInstance());
         if (device.getHalDeviceVersion() >= SENSORS_DEVICE_API_VERSION_1_1) {
             connection->setFirstFlushPending(handle, true);
             status_t err_flush = sensor->flush(connection.get(), handle);
@@ -604,15 +606,17 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             if (err_flush != NO_ERROR) {
                 connection->setFirstFlushPending(handle, false);
             }
-        } else {
-            // Pre-1.1 sensor HALs had no flush method, and relied on setDelay at init
-            sensor->setDelay(connection.get(), handle, samplingPeriodNs);
         }
     }
 
     if (err == NO_ERROR) {
         ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
         err = sensor->activate(connection.get(), true);
+    }
+
+    if (device.getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_1) {
+        // Pre-1.1 sensor HALs had no flush method, and relied on setDelay at init
+        sensor->setDelay(connection.get(), handle, samplingPeriodNs);
     }
 
     if (err != NO_ERROR) {
