@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     property_set("ctl.start", "dumpstate");
 
     /* socket will not be available until service starts */
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 20; i++) {
         s = socket_local_client("dumpstate",
                              ANDROID_SOCKET_NAMESPACE_RESERVED,
                              SOCK_STREAM);
