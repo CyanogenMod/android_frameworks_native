@@ -515,11 +515,12 @@ sp<SurfaceControl> SurfaceComposerClient::createSurface(
         sp<IGraphicBufferProducer> gbp;
         status_t err = mClient->createSurface(name, w, h, format, flags,
                 &handle, &gbp);
-        ALOGE_IF(err, "SurfaceComposerClient::createSurface error %s", strerror(-err));
+        ALOGE_IF(err, "SurfaceComposerClient::createSurface(%s) error %s", name.string(), strerror(-err));
         if (err == NO_ERROR) {
             sur = new SurfaceControl(this, handle, gbp);
         }
-    }
+    } else
+        ALOGE("SurfaceComposerClient::createSurface(%s) error. Status = %s", name.string(), strerror(-mStatus));
     return sur;
 }
 
