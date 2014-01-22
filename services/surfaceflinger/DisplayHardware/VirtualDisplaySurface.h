@@ -72,7 +72,7 @@ class VirtualDisplaySurface : public DisplaySurface,
                               public BnGraphicBufferProducer,
                               private ConsumerBase {
 public:
-    VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
+    VirtualDisplaySurface(HWComposer& hwc, int32_t &hwcDisplayId,
             const sp<IGraphicBufferProducer>& sink,
             const sp<IGraphicBufferProducer>& bqProducer,
             const sp<IGraphicBufferConsumer>& bqConsumer,
@@ -139,7 +139,6 @@ private:
     // Immutable after construction
     //
     HWComposer& mHwc;
-    const int32_t mDisplayId;
     const String8 mDisplayName;
     sp<IGraphicBufferProducer> mSource[2]; // indexed by SOURCE_*
     uint32_t mDefaultOutputFormat;
@@ -147,6 +146,12 @@ private:
     // Force copy flag. Used to determine if we are forcing composition
     // through HWC.
     bool mForceHwcCopy;
+
+    // The display ID is now determined when VDS is initialized. This
+    // is done because VDS has all the requisite information to make
+    // a call on whether the display is to be composed/copied by HWC
+    // or not.
+    int32_t mDisplayId;
 
     //
     // Inter-frame state
