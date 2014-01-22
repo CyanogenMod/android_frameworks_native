@@ -136,6 +136,10 @@ private:
     sp<IGraphicBufferProducer> mSource[2]; // indexed by SOURCE_*
     uint32_t mDefaultOutputFormat;
 
+    // Force copy flag. Used to determine if we are forcing composition
+    // through HWC.
+    bool mForceHwcCopy;
+
     //
     // Inter-frame state
     //
