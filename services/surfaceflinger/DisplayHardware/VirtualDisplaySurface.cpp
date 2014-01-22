@@ -42,13 +42,14 @@ static const char* dbgCompositionTypeStr(DisplaySurface::CompositionType type) {
     }
 }
 
-VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
+VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
+        int32_t &hwcDisplayId,
         const sp<IGraphicBufferProducer>& sink,
         const sp<BufferQueue>& bq,
         const String8& name)
 :   ConsumerBase(bq),
     mHwc(hwc),
-    mDisplayId(dispId),
+    mDisplayId(NO_MEMORY),
     mDisplayName(name),
     mOutputUsage(GRALLOC_USAGE_HW_COMPOSER),
     mProducerSlotSource(0),
@@ -89,6 +90,14 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
         !strncasecmp(value, "true", strlen("true")))) {
         mForceHwcCopy = true;
     }
+
+    // Once the mForceHwcCopy flag is set, we can freely allocate an HWC
+    // display ID.
+    if (mForceHwcCopy &&  mHwc.isVDSEnabled())
+        mDisplayId =  mHwc.allocateDisplayId();
+
+    hwcDisplayId = mDisplayId; //update display id for device creation in SF
+
     mOutputFormat = mDefaultOutputFormat;
     // TODO: need to add the below logs as part of dumpsys output
     VDS_LOGV("creation: sinkFormat: 0x%x sinkUsage: 0x%x mForceHwcCopy: %d",
