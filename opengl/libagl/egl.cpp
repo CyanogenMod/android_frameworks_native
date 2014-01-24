@@ -78,20 +78,20 @@ static T setError(GLint error, T returnValue) {
             pthread_key_create(&gEGLErrorKey, NULL);
         pthread_mutex_unlock(&gErrorKeyMutex);
     }
-    pthread_setspecific(gEGLErrorKey, (void*)error);
+    pthread_setspecific(gEGLErrorKey, (void*)(uintptr_t)error);
     return returnValue;
 }
 
 static GLint getError() {
     if (ggl_unlikely(gEGLErrorKey == -1))
         return EGL_SUCCESS;
-    GLint error = (GLint)pthread_getspecific(gEGLErrorKey);
+    GLint error = (GLint)(uintptr_t)pthread_getspecific(gEGLErrorKey);
     if (error == 0) {
         // The TLS key has been created by another thread, but the value for
         // this thread has not been initialized.
         return EGL_SUCCESS;
     }
-    pthread_setspecific(gEGLErrorKey, (void*)EGL_SUCCESS);
+    pthread_setspecific(gEGLErrorKey, (void*)(uintptr_t)EGL_SUCCESS);
     return error;
 }
 
@@ -1201,7 +1201,7 @@ static EGLBoolean getConfigAttrib(EGLDisplay dpy, EGLConfig config,
         EGLint attribute, EGLint *value)
 {
     size_t numConfigs =  NELEM(gConfigs);
-    int index = (int)config;
+    int index = (int)(uintptr_t)config;
     if (uint32_t(index) >= numConfigs)
         return setError(EGL_BAD_CONFIG, EGL_FALSE);
 
@@ -1448,7 +1448,7 @@ EGLBoolean eglGetConfigs(   EGLDisplay dpy,
     }
     GLint i;
     for (i=0 ; i<numConfigs && i<config_size ; i++) {
-        *configs++ = (EGLConfig)i;
+        *configs++ = (EGLConfig)(uintptr_t)i;
     }
     *num_config = i;
     return EGL_TRUE;
@@ -1519,7 +1519,7 @@ EGLBoolean eglChooseConfig( EGLDisplay dpy, const EGLint *attrib_list,
         if (configs) {
             for (int i=0 ; config_size && i<numConfigs ; i++) {
                 if (possibleMatch & (1<<i)) {
-                    *configs++ = (EGLConfig)i;
+                    *configs++ = (EGLConfig)(uintptr_t)i;
                     config_size--;
                     n++;
                 }
