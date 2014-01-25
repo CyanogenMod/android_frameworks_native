@@ -147,7 +147,11 @@ struct vertex_t {
 
     vec4_t          color;
     vec4_t          texture[GGL_TEXTURE_UNIT_COUNT];
+#ifdef __LP64__
+    uint32_t        reserved1[2];
+#else
     uint32_t        reserved1[4];
+#endif
 
     inline void clear() {
         flags = index = locked = mru = 0;
@@ -578,10 +582,10 @@ private:
 #ifdef HAVE_ANDROID_OS
     // We have a dedicated TLS slot in bionic
     inline void setGlThreadSpecific(ogles_context_t *value) {
-        ((uint32_t *)__get_tls())[TLS_SLOT_OPENGL] = (uint32_t)value;
+        __get_tls()[TLS_SLOT_OPENGL] = value;
     }
     inline ogles_context_t* getGlThreadSpecific() {
-        return (ogles_context_t *)(((unsigned *)__get_tls())[TLS_SLOT_OPENGL]);
+        return static_cast<ogles_context_t*>(__get_tls()[TLS_SLOT_OPENGL]);
     }
 #else
     extern pthread_key_t gGLKey;
