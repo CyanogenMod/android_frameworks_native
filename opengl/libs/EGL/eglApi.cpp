@@ -204,7 +204,7 @@ EGLDisplay eglGetDisplay(EGLNativeDisplayType display)
 {
     clearError();
 
-    uint32_t index = uint32_t(display);
+    uintptr_t index = reinterpret_cast<uintptr_t>(display);
     if (index >= NUM_DISPLAYS) {
         return setError(EGL_BAD_PARAMETER, EGL_NO_DISPLAY);
     }
