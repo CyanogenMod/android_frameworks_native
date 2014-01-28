@@ -173,6 +173,10 @@ public:
         return mInputDevices;
     }
 
+    TouchAffineTransformation getTouchAffineTransformation(const String8& inputDeviceDescriptor) {
+        return TouchAffineTransformation();
+    }
+
 private:
     virtual void getReaderConfiguration(InputReaderConfiguration* outConfig) {
         *outConfig = mConfig;
