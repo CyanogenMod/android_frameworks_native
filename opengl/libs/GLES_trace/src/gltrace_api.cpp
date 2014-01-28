@@ -113,8 +113,8 @@ void GLTrace_glBindAttribLocation(GLuint program, GLuint index, const GLchar* na
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -478,8 +478,8 @@ void GLTrace_glBufferData(GLenum target, GLsizeiptr size, const GLvoid* data, GL
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // copy argument usage
     GLMessage_DataType *arg_usage = glmsg.add_args();
@@ -531,8 +531,8 @@ void GLTrace_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, co
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -842,8 +842,8 @@ void GLTrace_glCompressedTexImage2D(GLenum target, GLint level, GLenum internalf
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -919,8 +919,8 @@ void GLTrace_glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1188,8 +1188,8 @@ void GLTrace_glDeleteBuffers(GLsizei n, const GLuint* buffers) {
     // copy argument buffers
     GLMessage_DataType *arg_buffers = glmsg.add_args();
     arg_buffers->set_isarray(false);
-    arg_buffers->set_type(GLMessage::DataType::INT);
-    arg_buffers->add_intvalue((int)buffers);
+    arg_buffers->set_type(GLMessage::DataType::INT64);
+    arg_buffers->add_int64value((uintptr_t)buffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1223,8 +1223,8 @@ void GLTrace_glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
     // copy argument framebuffers
     GLMessage_DataType *arg_framebuffers = glmsg.add_args();
     arg_framebuffers->set_isarray(false);
-    arg_framebuffers->set_type(GLMessage::DataType::INT);
-    arg_framebuffers->add_intvalue((int)framebuffers);
+    arg_framebuffers->set_type(GLMessage::DataType::INT64);
+    arg_framebuffers->add_int64value((uintptr_t)framebuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1286,8 +1286,8 @@ void GLTrace_glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
     // copy argument renderbuffers
     GLMessage_DataType *arg_renderbuffers = glmsg.add_args();
     arg_renderbuffers->set_isarray(false);
-    arg_renderbuffers->set_type(GLMessage::DataType::INT);
-    arg_renderbuffers->add_intvalue((int)renderbuffers);
+    arg_renderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_renderbuffers->add_int64value((uintptr_t)renderbuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1349,8 +1349,8 @@ void GLTrace_glDeleteTextures(GLsizei n, const GLuint* textures) {
     // copy argument textures
     GLMessage_DataType *arg_textures = glmsg.add_args();
     arg_textures->set_isarray(false);
-    arg_textures->set_type(GLMessage::DataType::INT);
-    arg_textures->add_intvalue((int)textures);
+    arg_textures->set_type(GLMessage::DataType::INT64);
+    arg_textures->add_int64value((uintptr_t)textures);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1616,8 +1616,8 @@ void GLTrace_glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoi
     // copy argument indices
     GLMessage_DataType *arg_indices = glmsg.add_args();
     arg_indices->set_isarray(false);
-    arg_indices->set_type(GLMessage::DataType::INT);
-    arg_indices->add_intvalue((int)indices);
+    arg_indices->set_type(GLMessage::DataType::INT64);
+    arg_indices->add_int64value((uintptr_t)indices);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1877,8 +1877,8 @@ void GLTrace_glGenBuffers(GLsizei n, GLuint* buffers) {
     // copy argument buffers
     GLMessage_DataType *arg_buffers = glmsg.add_args();
     arg_buffers->set_isarray(false);
-    arg_buffers->set_type(GLMessage::DataType::INT);
-    arg_buffers->add_intvalue((int)buffers);
+    arg_buffers->set_type(GLMessage::DataType::INT64);
+    arg_buffers->add_int64value((uintptr_t)buffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1940,8 +1940,8 @@ void GLTrace_glGenFramebuffers(GLsizei n, GLuint* framebuffers) {
     // copy argument framebuffers
     GLMessage_DataType *arg_framebuffers = glmsg.add_args();
     arg_framebuffers->set_isarray(false);
-    arg_framebuffers->set_type(GLMessage::DataType::INT);
-    arg_framebuffers->add_intvalue((int)framebuffers);
+    arg_framebuffers->set_type(GLMessage::DataType::INT64);
+    arg_framebuffers->add_int64value((uintptr_t)framebuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -1975,8 +1975,8 @@ void GLTrace_glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
     // copy argument renderbuffers
     GLMessage_DataType *arg_renderbuffers = glmsg.add_args();
     arg_renderbuffers->set_isarray(false);
-    arg_renderbuffers->set_type(GLMessage::DataType::INT);
-    arg_renderbuffers->add_intvalue((int)renderbuffers);
+    arg_renderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_renderbuffers->add_int64value((uintptr_t)renderbuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2010,8 +2010,8 @@ void GLTrace_glGenTextures(GLsizei n, GLuint* textures) {
     // copy argument textures
     GLMessage_DataType *arg_textures = glmsg.add_args();
     arg_textures->set_isarray(false);
-    arg_textures->set_type(GLMessage::DataType::INT);
-    arg_textures->add_intvalue((int)textures);
+    arg_textures->set_type(GLMessage::DataType::INT64);
+    arg_textures->add_int64value((uintptr_t)textures);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2057,26 +2057,26 @@ void GLTrace_glGetActiveAttrib(GLuint program, GLuint index, GLsizei bufsize, GL
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument size
     GLMessage_DataType *arg_size = glmsg.add_args();
     arg_size->set_isarray(false);
-    arg_size->set_type(GLMessage::DataType::INT);
-    arg_size->add_intvalue((int)size);
+    arg_size->set_type(GLMessage::DataType::INT64);
+    arg_size->add_int64value((uintptr_t)size);
 
     // copy argument type
     GLMessage_DataType *arg_type = glmsg.add_args();
     arg_type->set_isarray(false);
-    arg_type->set_type(GLMessage::DataType::INT);
-    arg_type->add_intvalue((int)type);
+    arg_type->set_type(GLMessage::DataType::INT64);
+    arg_type->add_int64value((uintptr_t)type);
 
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2125,26 +2125,26 @@ void GLTrace_glGetActiveUniform(GLuint program, GLuint index, GLsizei bufsize, G
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument size
     GLMessage_DataType *arg_size = glmsg.add_args();
     arg_size->set_isarray(false);
-    arg_size->set_type(GLMessage::DataType::INT);
-    arg_size->add_intvalue((int)size);
+    arg_size->set_type(GLMessage::DataType::INT64);
+    arg_size->add_int64value((uintptr_t)size);
 
     // copy argument type
     GLMessage_DataType *arg_type = glmsg.add_args();
     arg_type->set_isarray(false);
-    arg_type->set_type(GLMessage::DataType::INT);
-    arg_type->add_intvalue((int)type);
+    arg_type->set_type(GLMessage::DataType::INT64);
+    arg_type->add_int64value((uintptr_t)type);
 
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2187,14 +2187,14 @@ void GLTrace_glGetAttachedShaders(GLuint program, GLsizei maxcount, GLsizei* cou
     // copy argument count
     GLMessage_DataType *arg_count = glmsg.add_args();
     arg_count->set_isarray(false);
-    arg_count->set_type(GLMessage::DataType::INT);
-    arg_count->add_intvalue((int)count);
+    arg_count->set_type(GLMessage::DataType::INT64);
+    arg_count->add_int64value((uintptr_t)count);
 
     // copy argument shaders
     GLMessage_DataType *arg_shaders = glmsg.add_args();
     arg_shaders->set_isarray(false);
-    arg_shaders->set_type(GLMessage::DataType::INT);
-    arg_shaders->add_intvalue((int)shaders);
+    arg_shaders->set_type(GLMessage::DataType::INT64);
+    arg_shaders->add_int64value((uintptr_t)shaders);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2229,8 +2229,8 @@ GLint GLTrace_glGetAttribLocation(GLuint program, const GLchar* name) {
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2272,8 +2272,8 @@ void GLTrace_glGetBooleanv(GLenum pname, GLboolean* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2313,8 +2313,8 @@ void GLTrace_glGetBufferParameteriv(GLenum target, GLenum pname, GLint* params) 
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2378,8 +2378,8 @@ void GLTrace_glGetFloatv(GLenum pname, GLfloat* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2425,8 +2425,8 @@ void GLTrace_glGetFramebufferAttachmentParameteriv(GLenum target, GLenum attachm
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2460,8 +2460,8 @@ void GLTrace_glGetIntegerv(GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2501,8 +2501,8 @@ void GLTrace_glGetProgramiv(GLuint program, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2542,14 +2542,14 @@ void GLTrace_glGetProgramInfoLog(GLuint program, GLsizei bufsize, GLsizei* lengt
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument infolog
     GLMessage_DataType *arg_infolog = glmsg.add_args();
     arg_infolog->set_isarray(false);
-    arg_infolog->set_type(GLMessage::DataType::INT);
-    arg_infolog->add_intvalue((int)infolog);
+    arg_infolog->set_type(GLMessage::DataType::INT64);
+    arg_infolog->add_int64value((uintptr_t)infolog);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2590,8 +2590,8 @@ void GLTrace_glGetRenderbufferParameteriv(GLenum target, GLenum pname, GLint* pa
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2631,8 +2631,8 @@ void GLTrace_glGetShaderiv(GLuint shader, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2672,14 +2672,14 @@ void GLTrace_glGetShaderInfoLog(GLuint shader, GLsizei bufsize, GLsizei* length,
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument infolog
     GLMessage_DataType *arg_infolog = glmsg.add_args();
     arg_infolog->set_isarray(false);
-    arg_infolog->set_type(GLMessage::DataType::INT);
-    arg_infolog->add_intvalue((int)infolog);
+    arg_infolog->set_type(GLMessage::DataType::INT64);
+    arg_infolog->add_int64value((uintptr_t)infolog);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2720,14 +2720,14 @@ void GLTrace_glGetShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype,
     // copy argument range
     GLMessage_DataType *arg_range = glmsg.add_args();
     arg_range->set_isarray(false);
-    arg_range->set_type(GLMessage::DataType::INT);
-    arg_range->add_intvalue((int)range);
+    arg_range->set_type(GLMessage::DataType::INT64);
+    arg_range->add_int64value((uintptr_t)range);
 
     // copy argument precision
     GLMessage_DataType *arg_precision = glmsg.add_args();
     arg_precision->set_isarray(false);
-    arg_precision->set_type(GLMessage::DataType::INT);
-    arg_precision->add_intvalue((int)precision);
+    arg_precision->set_type(GLMessage::DataType::INT64);
+    arg_precision->add_int64value((uintptr_t)precision);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2768,14 +2768,14 @@ void GLTrace_glGetShaderSource(GLuint shader, GLsizei bufsize, GLsizei* length, 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument source
     GLMessage_DataType *arg_source = glmsg.add_args();
     arg_source->set_isarray(false);
-    arg_source->set_type(GLMessage::DataType::INT);
-    arg_source->add_intvalue((int)source);
+    arg_source->set_type(GLMessage::DataType::INT64);
+    arg_source->add_int64value((uintptr_t)source);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2817,8 +2817,8 @@ const GLubyte* GLTrace_glGetString(GLenum name) {
     // set return value
     GLMessage_DataType *rt = glmsg.mutable_returnvalue();
     rt->set_isarray(false);
-    rt->set_type(GLMessage::DataType::INT);
-    rt->add_intvalue((int)retValue);
+    rt->set_type(GLMessage::DataType::INT64);
+    rt->add_int64value((uintptr_t)retValue);
 
     void *pointerArgs[] = {
         (void *) retValue,
@@ -2853,8 +2853,8 @@ void GLTrace_glGetTexParameterfv(GLenum target, GLenum pname, GLfloat* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2894,8 +2894,8 @@ void GLTrace_glGetTexParameteriv(GLenum target, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2935,8 +2935,8 @@ void GLTrace_glGetUniformfv(GLuint program, GLint location, GLfloat* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2976,8 +2976,8 @@ void GLTrace_glGetUniformiv(GLuint program, GLint location, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3011,8 +3011,8 @@ GLint GLTrace_glGetUniformLocation(GLuint program, const GLchar* name) {
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3060,8 +3060,8 @@ void GLTrace_glGetVertexAttribfv(GLuint index, GLenum pname, GLfloat* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3101,8 +3101,8 @@ void GLTrace_glGetVertexAttribiv(GLuint index, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3142,8 +3142,8 @@ void GLTrace_glGetVertexAttribPointerv(GLuint index, GLenum pname, GLvoid** poin
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3617,8 +3617,8 @@ void GLTrace_glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenu
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -3800,8 +3800,8 @@ void GLTrace_glShaderBinary(GLsizei n, const GLuint* shaders, GLenum binaryforma
     // copy argument shaders
     GLMessage_DataType *arg_shaders = glmsg.add_args();
     arg_shaders->set_isarray(false);
-    arg_shaders->set_type(GLMessage::DataType::INT);
-    arg_shaders->add_intvalue((int)shaders);
+    arg_shaders->set_type(GLMessage::DataType::INT64);
+    arg_shaders->add_int64value((uintptr_t)shaders);
 
     // copy argument binaryformat
     GLMessage_DataType *arg_binaryformat = glmsg.add_args();
@@ -3812,8 +3812,8 @@ void GLTrace_glShaderBinary(GLsizei n, const GLuint* shaders, GLenum binaryforma
     // copy argument binary
     GLMessage_DataType *arg_binary = glmsg.add_args();
     arg_binary->set_isarray(false);
-    arg_binary->set_type(GLMessage::DataType::INT);
-    arg_binary->add_intvalue((int)binary);
+    arg_binary->set_type(GLMessage::DataType::INT64);
+    arg_binary->add_int64value((uintptr_t)binary);
 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
@@ -3860,14 +3860,14 @@ void GLTrace_glShaderSource(GLuint shader, GLsizei count, const GLchar* const* s
     // copy argument string
     GLMessage_DataType *arg_string = glmsg.add_args();
     arg_string->set_isarray(false);
-    arg_string->set_type(GLMessage::DataType::INT);
-    arg_string->add_intvalue((int)string);
+    arg_string->set_type(GLMessage::DataType::INT64);
+    arg_string->add_int64value((uintptr_t)string);
 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4178,8 +4178,8 @@ void GLTrace_glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsi
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4259,8 +4259,8 @@ void GLTrace_glTexParameterfv(GLenum target, GLenum pname, const GLfloat* params
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4340,8 +4340,8 @@ void GLTrace_glTexParameteriv(GLenum target, GLenum pname, const GLint* params) 
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4417,8 +4417,8 @@ void GLTrace_glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yo
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4492,8 +4492,8 @@ void GLTrace_glUniform1fv(GLint location, GLsizei count, const GLfloat* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4567,8 +4567,8 @@ void GLTrace_glUniform1iv(GLint location, GLsizei count, const GLint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4648,8 +4648,8 @@ void GLTrace_glUniform2fv(GLint location, GLsizei count, const GLfloat* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4729,8 +4729,8 @@ void GLTrace_glUniform2iv(GLint location, GLsizei count, const GLint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4816,8 +4816,8 @@ void GLTrace_glUniform3fv(GLint location, GLsizei count, const GLfloat* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4903,8 +4903,8 @@ void GLTrace_glUniform3iv(GLint location, GLsizei count, const GLint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -4996,8 +4996,8 @@ void GLTrace_glUniform4fv(GLint location, GLsizei count, const GLfloat* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5089,8 +5089,8 @@ void GLTrace_glUniform4iv(GLint location, GLsizei count, const GLint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5136,8 +5136,8 @@ void GLTrace_glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpo
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5183,8 +5183,8 @@ void GLTrace_glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpo
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5230,8 +5230,8 @@ void GLTrace_glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpo
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5355,8 +5355,8 @@ void GLTrace_glVertexAttrib1fv(GLuint indx, const GLfloat* values) {
     // copy argument values
     GLMessage_DataType *arg_values = glmsg.add_args();
     arg_values->set_isarray(false);
-    arg_values->set_type(GLMessage::DataType::INT);
-    arg_values->add_intvalue((int)values);
+    arg_values->set_type(GLMessage::DataType::INT64);
+    arg_values->add_int64value((uintptr_t)values);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5430,8 +5430,8 @@ void GLTrace_glVertexAttrib2fv(GLuint indx, const GLfloat* values) {
     // copy argument values
     GLMessage_DataType *arg_values = glmsg.add_args();
     arg_values->set_isarray(false);
-    arg_values->set_type(GLMessage::DataType::INT);
-    arg_values->add_intvalue((int)values);
+    arg_values->set_type(GLMessage::DataType::INT64);
+    arg_values->add_int64value((uintptr_t)values);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5511,8 +5511,8 @@ void GLTrace_glVertexAttrib3fv(GLuint indx, const GLfloat* values) {
     // copy argument values
     GLMessage_DataType *arg_values = glmsg.add_args();
     arg_values->set_isarray(false);
-    arg_values->set_type(GLMessage::DataType::INT);
-    arg_values->add_intvalue((int)values);
+    arg_values->set_type(GLMessage::DataType::INT64);
+    arg_values->add_int64value((uintptr_t)values);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5598,8 +5598,8 @@ void GLTrace_glVertexAttrib4fv(GLuint indx, const GLfloat* values) {
     // copy argument values
     GLMessage_DataType *arg_values = glmsg.add_args();
     arg_values->set_isarray(false);
-    arg_values->set_type(GLMessage::DataType::INT);
-    arg_values->add_intvalue((int)values);
+    arg_values->set_type(GLMessage::DataType::INT64);
+    arg_values->add_int64value((uintptr_t)values);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5657,8 +5657,8 @@ void GLTrace_glVertexAttribPointer(GLuint indx, GLint size, GLenum type, GLboole
     // copy argument ptr
     GLMessage_DataType *arg_ptr = glmsg.add_args();
     arg_ptr->set_isarray(false);
-    arg_ptr->set_type(GLMessage::DataType::INT);
-    arg_ptr->add_intvalue((int)ptr);
+    arg_ptr->set_type(GLMessage::DataType::INT64);
+    arg_ptr->add_int64value((uintptr_t)ptr);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5790,8 +5790,8 @@ void GLTrace_glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei 
     // copy argument indices
     GLMessage_DataType *arg_indices = glmsg.add_args();
     arg_indices->set_isarray(false);
-    arg_indices->set_type(GLMessage::DataType::INT);
-    arg_indices->add_intvalue((int)indices);
+    arg_indices->set_type(GLMessage::DataType::INT64);
+    arg_indices->add_int64value((uintptr_t)indices);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5873,8 +5873,8 @@ void GLTrace_glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsi
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -5962,8 +5962,8 @@ void GLTrace_glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yo
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6115,8 +6115,8 @@ void GLTrace_glCompressedTexImage3D(GLenum target, GLint level, GLenum internalf
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6204,8 +6204,8 @@ void GLTrace_glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6239,8 +6239,8 @@ void GLTrace_glGenQueries(GLsizei n, GLuint* ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6274,8 +6274,8 @@ void GLTrace_glDeleteQueries(GLsizei n, const GLuint* ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6413,8 +6413,8 @@ void GLTrace_glGetQueryiv(GLenum target, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6454,8 +6454,8 @@ void GLTrace_glGetQueryObjectuiv(GLuint id, GLenum pname, GLuint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6531,8 +6531,8 @@ void GLTrace_glGetBufferPointerv(GLenum target, GLenum pname, GLvoid** params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6566,8 +6566,8 @@ void GLTrace_glDrawBuffers(GLsizei n, const GLenum* bufs) {
     // copy argument bufs
     GLMessage_DataType *arg_bufs = glmsg.add_args();
     arg_bufs->set_isarray(false);
-    arg_bufs->set_type(GLMessage::DataType::INT);
-    arg_bufs->add_intvalue((int)bufs);
+    arg_bufs->set_type(GLMessage::DataType::INT64);
+    arg_bufs->add_int64value((uintptr_t)bufs);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6613,8 +6613,8 @@ void GLTrace_glUniformMatrix2x3fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6660,8 +6660,8 @@ void GLTrace_glUniformMatrix3x2fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6707,8 +6707,8 @@ void GLTrace_glUniformMatrix2x4fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6754,8 +6754,8 @@ void GLTrace_glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6801,8 +6801,8 @@ void GLTrace_glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -6848,8 +6848,8 @@ void GLTrace_glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean trans
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7094,8 +7094,8 @@ GLvoid* GLTrace_glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr leng
     // set return value
     GLMessage_DataType *rt = glmsg.mutable_returnvalue();
     rt->set_isarray(false);
-    rt->set_type(GLMessage::DataType::INT);
-    rt->add_intvalue((int)retValue);
+    rt->set_type(GLMessage::DataType::INT64);
+    rt->add_int64value((uintptr_t)retValue);
 
     void *pointerArgs[] = {
         (void *) retValue,
@@ -7192,8 +7192,8 @@ void GLTrace_glDeleteVertexArrays(GLsizei n, const GLuint* arrays) {
     // copy argument arrays
     GLMessage_DataType *arg_arrays = glmsg.add_args();
     arg_arrays->set_isarray(false);
-    arg_arrays->set_type(GLMessage::DataType::INT);
-    arg_arrays->add_intvalue((int)arrays);
+    arg_arrays->set_type(GLMessage::DataType::INT64);
+    arg_arrays->add_int64value((uintptr_t)arrays);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7227,8 +7227,8 @@ void GLTrace_glGenVertexArrays(GLsizei n, GLuint* arrays) {
     // copy argument arrays
     GLMessage_DataType *arg_arrays = glmsg.add_args();
     arg_arrays->set_isarray(false);
-    arg_arrays->set_type(GLMessage::DataType::INT);
-    arg_arrays->add_intvalue((int)arrays);
+    arg_arrays->set_type(GLMessage::DataType::INT64);
+    arg_arrays->add_int64value((uintptr_t)arrays);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7304,8 +7304,8 @@ void GLTrace_glGetIntegeri_v(GLenum target, GLuint index, GLint* data) {
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7487,8 +7487,8 @@ void GLTrace_glTransformFeedbackVaryings(GLuint program, GLsizei count, const GL
     // copy argument varyings
     GLMessage_DataType *arg_varyings = glmsg.add_args();
     arg_varyings->set_isarray(false);
-    arg_varyings->set_type(GLMessage::DataType::INT);
-    arg_varyings->add_intvalue((int)varyings);
+    arg_varyings->set_type(GLMessage::DataType::INT64);
+    arg_varyings->add_int64value((uintptr_t)varyings);
 
     // copy argument bufferMode
     GLMessage_DataType *arg_bufferMode = glmsg.add_args();
@@ -7540,26 +7540,26 @@ void GLTrace_glGetTransformFeedbackVarying(GLuint program, GLuint index, GLsizei
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument size
     GLMessage_DataType *arg_size = glmsg.add_args();
     arg_size->set_isarray(false);
-    arg_size->set_type(GLMessage::DataType::INT);
-    arg_size->add_intvalue((int)size);
+    arg_size->set_type(GLMessage::DataType::INT64);
+    arg_size->add_int64value((uintptr_t)size);
 
     // copy argument type
     GLMessage_DataType *arg_type = glmsg.add_args();
     arg_type->set_isarray(false);
-    arg_type->set_type(GLMessage::DataType::INT);
-    arg_type->add_intvalue((int)type);
+    arg_type->set_type(GLMessage::DataType::INT64);
+    arg_type->add_int64value((uintptr_t)type);
 
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7614,8 +7614,8 @@ void GLTrace_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsiz
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7655,8 +7655,8 @@ void GLTrace_glGetVertexAttribIiv(GLuint index, GLenum pname, GLint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7696,8 +7696,8 @@ void GLTrace_glGetVertexAttribIuiv(GLuint index, GLenum pname, GLuint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7835,8 +7835,8 @@ void GLTrace_glVertexAttribI4iv(GLuint index, const GLint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7870,8 +7870,8 @@ void GLTrace_glVertexAttribI4uiv(GLuint index, const GLuint* v) {
     // copy argument v
     GLMessage_DataType *arg_v = glmsg.add_args();
     arg_v->set_isarray(false);
-    arg_v->set_type(GLMessage::DataType::INT);
-    arg_v->add_intvalue((int)v);
+    arg_v->set_type(GLMessage::DataType::INT64);
+    arg_v->add_int64value((uintptr_t)v);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7911,8 +7911,8 @@ void GLTrace_glGetUniformuiv(GLuint program, GLint location, GLuint* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -7946,8 +7946,8 @@ GLint GLTrace_glGetFragDataLocation(GLuint program, const GLchar *name) {
     // copy argument name
     GLMessage_DataType *arg_name = glmsg.add_args();
     arg_name->set_isarray(false);
-    arg_name->set_type(GLMessage::DataType::INT);
-    arg_name->add_intvalue((int)name);
+    arg_name->set_type(GLMessage::DataType::INT64);
+    arg_name->add_int64value((uintptr_t)name);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8167,8 +8167,8 @@ void GLTrace_glUniform1uiv(GLint location, GLsizei count, const GLuint* value) {
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8208,8 +8208,8 @@ void GLTrace_glUniform2uiv(GLint location, GLsizei count, const GLuint* value) {
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8249,8 +8249,8 @@ void GLTrace_glUniform3uiv(GLint location, GLsizei count, const GLuint* value) {
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8290,8 +8290,8 @@ void GLTrace_glUniform4uiv(GLint location, GLsizei count, const GLuint* value) {
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8331,8 +8331,8 @@ void GLTrace_glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint* value
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8372,8 +8372,8 @@ void GLTrace_glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint* val
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8413,8 +8413,8 @@ void GLTrace_glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat* val
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8507,8 +8507,8 @@ const GLubyte* GLTrace_glGetStringi(GLenum name, GLuint index) {
     // set return value
     GLMessage_DataType *rt = glmsg.mutable_returnvalue();
     rt->set_isarray(false);
-    rt->set_type(GLMessage::DataType::INT);
-    rt->add_intvalue((int)retValue);
+    rt->set_type(GLMessage::DataType::INT64);
+    rt->add_int64value((uintptr_t)retValue);
 
     void *pointerArgs[] = {
         (void *) retValue,
@@ -8595,14 +8595,14 @@ void GLTrace_glGetUniformIndices(GLuint program, GLsizei uniformCount, const GLc
     // copy argument uniformNames
     GLMessage_DataType *arg_uniformNames = glmsg.add_args();
     arg_uniformNames->set_isarray(false);
-    arg_uniformNames->set_type(GLMessage::DataType::INT);
-    arg_uniformNames->add_intvalue((int)uniformNames);
+    arg_uniformNames->set_type(GLMessage::DataType::INT64);
+    arg_uniformNames->add_int64value((uintptr_t)uniformNames);
 
     // copy argument uniformIndices
     GLMessage_DataType *arg_uniformIndices = glmsg.add_args();
     arg_uniformIndices->set_isarray(false);
-    arg_uniformIndices->set_type(GLMessage::DataType::INT);
-    arg_uniformIndices->add_intvalue((int)uniformIndices);
+    arg_uniformIndices->set_type(GLMessage::DataType::INT64);
+    arg_uniformIndices->add_int64value((uintptr_t)uniformIndices);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8643,8 +8643,8 @@ void GLTrace_glGetActiveUniformsiv(GLuint program, GLsizei uniformCount, const G
     // copy argument uniformIndices
     GLMessage_DataType *arg_uniformIndices = glmsg.add_args();
     arg_uniformIndices->set_isarray(false);
-    arg_uniformIndices->set_type(GLMessage::DataType::INT);
-    arg_uniformIndices->add_intvalue((int)uniformIndices);
+    arg_uniformIndices->set_type(GLMessage::DataType::INT64);
+    arg_uniformIndices->add_int64value((uintptr_t)uniformIndices);
 
     // copy argument pname
     GLMessage_DataType *arg_pname = glmsg.add_args();
@@ -8655,8 +8655,8 @@ void GLTrace_glGetActiveUniformsiv(GLuint program, GLsizei uniformCount, const G
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8691,8 +8691,8 @@ GLuint GLTrace_glGetUniformBlockIndex(GLuint program, const GLchar* uniformBlock
     // copy argument uniformBlockName
     GLMessage_DataType *arg_uniformBlockName = glmsg.add_args();
     arg_uniformBlockName->set_isarray(false);
-    arg_uniformBlockName->set_type(GLMessage::DataType::INT);
-    arg_uniformBlockName->add_intvalue((int)uniformBlockName);
+    arg_uniformBlockName->set_type(GLMessage::DataType::INT64);
+    arg_uniformBlockName->add_int64value((uintptr_t)uniformBlockName);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8746,8 +8746,8 @@ void GLTrace_glGetActiveUniformBlockiv(GLuint program, GLuint uniformBlockIndex,
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8793,14 +8793,14 @@ void GLTrace_glGetActiveUniformBlockName(GLuint program, GLuint uniformBlockInde
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument uniformBlockName
     GLMessage_DataType *arg_uniformBlockName = glmsg.add_args();
     arg_uniformBlockName->set_isarray(false);
-    arg_uniformBlockName->set_type(GLMessage::DataType::INT);
-    arg_uniformBlockName->add_intvalue((int)uniformBlockName);
+    arg_uniformBlockName->set_type(GLMessage::DataType::INT64);
+    arg_uniformBlockName->add_int64value((uintptr_t)uniformBlockName);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -8933,8 +8933,8 @@ void GLTrace_glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, co
     // copy argument indices
     GLMessage_DataType *arg_indices = glmsg.add_args();
     arg_indices->set_isarray(false);
-    arg_indices->set_type(GLMessage::DataType::INT);
-    arg_indices->add_intvalue((int)indices);
+    arg_indices->set_type(GLMessage::DataType::INT64);
+    arg_indices->add_int64value((uintptr_t)indices);
 
     // copy argument instanceCount
     GLMessage_DataType *arg_instanceCount = glmsg.add_args();
@@ -8987,8 +8987,8 @@ GLsync GLTrace_glFenceSync(GLenum condition, GLbitfield flags) {
     // set return value
     GLMessage_DataType *rt = glmsg.mutable_returnvalue();
     rt->set_isarray(false);
-    rt->set_type(GLMessage::DataType::INT);
-    rt->add_intvalue((int)retValue);
+    rt->set_type(GLMessage::DataType::INT64);
+    rt->add_int64value((uintptr_t)retValue);
 
     void *pointerArgs[] = {
         (void *) retValue,
@@ -9011,8 +9011,8 @@ GLboolean GLTrace_glIsSync(GLsync sync) {
     // copy argument sync
     GLMessage_DataType *arg_sync = glmsg.add_args();
     arg_sync->set_isarray(false);
-    arg_sync->set_type(GLMessage::DataType::INT);
-    arg_sync->add_intvalue((int)sync);
+    arg_sync->set_type(GLMessage::DataType::INT64);
+    arg_sync->add_int64value((uintptr_t)sync);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9048,8 +9048,8 @@ void GLTrace_glDeleteSync(GLsync sync) {
     // copy argument sync
     GLMessage_DataType *arg_sync = glmsg.add_args();
     arg_sync->set_isarray(false);
-    arg_sync->set_type(GLMessage::DataType::INT);
-    arg_sync->add_intvalue((int)sync);
+    arg_sync->set_type(GLMessage::DataType::INT64);
+    arg_sync->add_int64value((uintptr_t)sync);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9077,8 +9077,8 @@ GLenum GLTrace_glClientWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeout)
     // copy argument sync
     GLMessage_DataType *arg_sync = glmsg.add_args();
     arg_sync->set_isarray(false);
-    arg_sync->set_type(GLMessage::DataType::INT);
-    arg_sync->add_intvalue((int)sync);
+    arg_sync->set_type(GLMessage::DataType::INT64);
+    arg_sync->add_int64value((uintptr_t)sync);
 
     // copy argument flags
     GLMessage_DataType *arg_flags = glmsg.add_args();
@@ -9126,8 +9126,8 @@ void GLTrace_glWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeout) {
     // copy argument sync
     GLMessage_DataType *arg_sync = glmsg.add_args();
     arg_sync->set_isarray(false);
-    arg_sync->set_type(GLMessage::DataType::INT);
-    arg_sync->add_intvalue((int)sync);
+    arg_sync->set_type(GLMessage::DataType::INT64);
+    arg_sync->add_int64value((uintptr_t)sync);
 
     // copy argument flags
     GLMessage_DataType *arg_flags = glmsg.add_args();
@@ -9173,8 +9173,8 @@ void GLTrace_glGetInteger64v(GLenum pname, GLint64* params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9202,8 +9202,8 @@ void GLTrace_glGetSynciv(GLsync sync, GLenum pname, GLsizei bufSize, GLsizei* le
     // copy argument sync
     GLMessage_DataType *arg_sync = glmsg.add_args();
     arg_sync->set_isarray(false);
-    arg_sync->set_type(GLMessage::DataType::INT);
-    arg_sync->add_intvalue((int)sync);
+    arg_sync->set_type(GLMessage::DataType::INT64);
+    arg_sync->add_int64value((uintptr_t)sync);
 
     // copy argument pname
     GLMessage_DataType *arg_pname = glmsg.add_args();
@@ -9220,14 +9220,14 @@ void GLTrace_glGetSynciv(GLsync sync, GLenum pname, GLsizei bufSize, GLsizei* le
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument values
     GLMessage_DataType *arg_values = glmsg.add_args();
     arg_values->set_isarray(false);
-    arg_values->set_type(GLMessage::DataType::INT);
-    arg_values->add_intvalue((int)values);
+    arg_values->set_type(GLMessage::DataType::INT64);
+    arg_values->add_int64value((uintptr_t)values);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9269,8 +9269,8 @@ void GLTrace_glGetInteger64i_v(GLenum target, GLuint index, GLint64* data) {
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9310,8 +9310,8 @@ void GLTrace_glGetBufferParameteri64v(GLenum target, GLenum pname, GLint64* para
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9345,8 +9345,8 @@ void GLTrace_glGenSamplers(GLsizei count, GLuint* samplers) {
     // copy argument samplers
     GLMessage_DataType *arg_samplers = glmsg.add_args();
     arg_samplers->set_isarray(false);
-    arg_samplers->set_type(GLMessage::DataType::INT);
-    arg_samplers->add_intvalue((int)samplers);
+    arg_samplers->set_type(GLMessage::DataType::INT64);
+    arg_samplers->add_int64value((uintptr_t)samplers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9380,8 +9380,8 @@ void GLTrace_glDeleteSamplers(GLsizei count, const GLuint* samplers) {
     // copy argument samplers
     GLMessage_DataType *arg_samplers = glmsg.add_args();
     arg_samplers->set_isarray(false);
-    arg_samplers->set_type(GLMessage::DataType::INT);
-    arg_samplers->add_intvalue((int)samplers);
+    arg_samplers->set_type(GLMessage::DataType::INT64);
+    arg_samplers->add_int64value((uintptr_t)samplers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9531,8 +9531,8 @@ void GLTrace_glSamplerParameteriv(GLuint sampler, GLenum pname, const GLint* par
     // copy argument param
     GLMessage_DataType *arg_param = glmsg.add_args();
     arg_param->set_isarray(false);
-    arg_param->set_type(GLMessage::DataType::INT);
-    arg_param->add_intvalue((int)param);
+    arg_param->set_type(GLMessage::DataType::INT64);
+    arg_param->add_int64value((uintptr_t)param);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9612,8 +9612,8 @@ void GLTrace_glSamplerParameterfv(GLuint sampler, GLenum pname, const GLfloat* p
     // copy argument param
     GLMessage_DataType *arg_param = glmsg.add_args();
     arg_param->set_isarray(false);
-    arg_param->set_type(GLMessage::DataType::INT);
-    arg_param->add_intvalue((int)param);
+    arg_param->set_type(GLMessage::DataType::INT64);
+    arg_param->add_int64value((uintptr_t)param);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9653,8 +9653,8 @@ void GLTrace_glGetSamplerParameteriv(GLuint sampler, GLenum pname, GLint* params
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9694,8 +9694,8 @@ void GLTrace_glGetSamplerParameterfv(GLuint sampler, GLenum pname, GLfloat* para
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9797,8 +9797,8 @@ void GLTrace_glDeleteTransformFeedbacks(GLsizei n, const GLuint* ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9832,8 +9832,8 @@ void GLTrace_glGenTransformFeedbacks(GLsizei n, GLuint* ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -9953,20 +9953,20 @@ void GLTrace_glGetProgramBinary(GLuint program, GLsizei bufSize, GLsizei* length
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument binaryFormat
     GLMessage_DataType *arg_binaryFormat = glmsg.add_args();
     arg_binaryFormat->set_isarray(false);
-    arg_binaryFormat->set_type(GLMessage::DataType::INT);
-    arg_binaryFormat->add_intvalue((int)binaryFormat);
+    arg_binaryFormat->set_type(GLMessage::DataType::INT64);
+    arg_binaryFormat->add_int64value((uintptr_t)binaryFormat);
 
     // copy argument binary
     GLMessage_DataType *arg_binary = glmsg.add_args();
     arg_binary->set_isarray(false);
-    arg_binary->set_type(GLMessage::DataType::INT);
-    arg_binary->add_intvalue((int)binary);
+    arg_binary->set_type(GLMessage::DataType::INT64);
+    arg_binary->add_int64value((uintptr_t)binary);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10008,8 +10008,8 @@ void GLTrace_glProgramBinary(GLuint program, GLenum binaryFormat, const GLvoid* 
     // copy argument binary
     GLMessage_DataType *arg_binary = glmsg.add_args();
     arg_binary->set_isarray(false);
-    arg_binary->set_type(GLMessage::DataType::INT);
-    arg_binary->add_intvalue((int)binary);
+    arg_binary->set_type(GLMessage::DataType::INT64);
+    arg_binary->add_int64value((uintptr_t)binary);
 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
@@ -10095,8 +10095,8 @@ void GLTrace_glInvalidateFramebuffer(GLenum target, GLsizei numAttachments, cons
     // copy argument attachments
     GLMessage_DataType *arg_attachments = glmsg.add_args();
     arg_attachments->set_isarray(false);
-    arg_attachments->set_type(GLMessage::DataType::INT);
-    arg_attachments->add_intvalue((int)attachments);
+    arg_attachments->set_type(GLMessage::DataType::INT64);
+    arg_attachments->add_int64value((uintptr_t)attachments);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10136,8 +10136,8 @@ void GLTrace_glInvalidateSubFramebuffer(GLenum target, GLsizei numAttachments, c
     // copy argument attachments
     GLMessage_DataType *arg_attachments = glmsg.add_args();
     arg_attachments->set_isarray(false);
-    arg_attachments->set_type(GLMessage::DataType::INT);
-    arg_attachments->add_intvalue((int)attachments);
+    arg_attachments->set_type(GLMessage::DataType::INT64);
+    arg_attachments->add_int64value((uintptr_t)attachments);
 
     // copy argument x
     GLMessage_DataType *arg_x = glmsg.add_args();
@@ -10323,8 +10323,8 @@ void GLTrace_glGetInternalformativ(GLenum target, GLenum internalformat, GLenum 
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10361,8 +10361,8 @@ void GLTrace_glEGLImageTargetTexture2DOES(GLenum target, GLeglImageOES image) {
     // copy argument image
     GLMessage_DataType *arg_image = glmsg.add_args();
     arg_image->set_isarray(false);
-    arg_image->set_type(GLMessage::DataType::INT);
-    arg_image->add_intvalue((int)image);
+    arg_image->set_type(GLMessage::DataType::INT64);
+    arg_image->add_int64value((uintptr_t)image);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10396,8 +10396,8 @@ void GLTrace_glEGLImageTargetRenderbufferStorageOES(GLenum target, GLeglImageOES
     // copy argument image
     GLMessage_DataType *arg_image = glmsg.add_args();
     arg_image->set_isarray(false);
-    arg_image->set_type(GLMessage::DataType::INT);
-    arg_image->add_intvalue((int)image);
+    arg_image->set_type(GLMessage::DataType::INT64);
+    arg_image->add_int64value((uintptr_t)image);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10437,20 +10437,20 @@ void GLTrace_glGetProgramBinaryOES(GLuint program, GLsizei bufSize, GLsizei *len
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument binaryFormat
     GLMessage_DataType *arg_binaryFormat = glmsg.add_args();
     arg_binaryFormat->set_isarray(false);
-    arg_binaryFormat->set_type(GLMessage::DataType::INT);
-    arg_binaryFormat->add_intvalue((int)binaryFormat);
+    arg_binaryFormat->set_type(GLMessage::DataType::INT64);
+    arg_binaryFormat->add_int64value((uintptr_t)binaryFormat);
 
     // copy argument binary
     GLMessage_DataType *arg_binary = glmsg.add_args();
     arg_binary->set_isarray(false);
-    arg_binary->set_type(GLMessage::DataType::INT);
-    arg_binary->add_intvalue((int)binary);
+    arg_binary->set_type(GLMessage::DataType::INT64);
+    arg_binary->add_int64value((uintptr_t)binary);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10492,8 +10492,8 @@ void GLTrace_glProgramBinaryOES(GLuint program, GLenum binaryFormat, const GLvoi
     // copy argument binary
     GLMessage_DataType *arg_binary = glmsg.add_args();
     arg_binary->set_isarray(false);
-    arg_binary->set_type(GLMessage::DataType::INT);
-    arg_binary->add_intvalue((int)binary);
+    arg_binary->set_type(GLMessage::DataType::INT64);
+    arg_binary->add_int64value((uintptr_t)binary);
 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
@@ -10546,8 +10546,8 @@ void* GLTrace_glMapBufferOES(GLenum target, GLenum access) {
     // set return value
     GLMessage_DataType *rt = glmsg.mutable_returnvalue();
     rt->set_isarray(false);
-    rt->set_type(GLMessage::DataType::INT);
-    rt->add_intvalue((int)retValue);
+    rt->set_type(GLMessage::DataType::INT64);
+    rt->add_int64value((uintptr_t)retValue);
 
     void *pointerArgs[] = {
         (void *) retValue,
@@ -10618,8 +10618,8 @@ void GLTrace_glGetBufferPointervOES(GLenum target, GLenum pname, GLvoid** params
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10701,8 +10701,8 @@ void GLTrace_glTexImage3DOES(GLenum target, GLint level, GLenum internalformat, 
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10790,8 +10790,8 @@ void GLTrace_glTexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint
     // copy argument pixels
     GLMessage_DataType *arg_pixels = glmsg.add_args();
     arg_pixels->set_isarray(false);
-    arg_pixels->set_type(GLMessage::DataType::INT);
-    arg_pixels->add_intvalue((int)pixels);
+    arg_pixels->set_type(GLMessage::DataType::INT64);
+    arg_pixels->add_int64value((uintptr_t)pixels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -10943,8 +10943,8 @@ void GLTrace_glCompressedTexImage3DOES(GLenum target, GLint level, GLenum intern
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11032,8 +11032,8 @@ void GLTrace_glCompressedTexSubImage3DOES(GLenum target, GLint level, GLint xoff
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11153,8 +11153,8 @@ void GLTrace_glDeleteVertexArraysOES(GLsizei n, const GLuint *arrays) {
     // copy argument arrays
     GLMessage_DataType *arg_arrays = glmsg.add_args();
     arg_arrays->set_isarray(false);
-    arg_arrays->set_type(GLMessage::DataType::INT);
-    arg_arrays->add_intvalue((int)arrays);
+    arg_arrays->set_type(GLMessage::DataType::INT64);
+    arg_arrays->add_int64value((uintptr_t)arrays);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11188,8 +11188,8 @@ void GLTrace_glGenVertexArraysOES(GLsizei n, GLuint *arrays) {
     // copy argument arrays
     GLMessage_DataType *arg_arrays = glmsg.add_args();
     arg_arrays->set_isarray(false);
-    arg_arrays->set_type(GLMessage::DataType::INT);
-    arg_arrays->add_intvalue((int)arrays);
+    arg_arrays->set_type(GLMessage::DataType::INT64);
+    arg_arrays->add_int64value((uintptr_t)arrays);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11253,8 +11253,8 @@ void GLTrace_glGetPerfMonitorGroupsAMD(GLint *numGroups, GLsizei groupsSize, GLu
     // copy argument numGroups
     GLMessage_DataType *arg_numGroups = glmsg.add_args();
     arg_numGroups->set_isarray(false);
-    arg_numGroups->set_type(GLMessage::DataType::INT);
-    arg_numGroups->add_intvalue((int)numGroups);
+    arg_numGroups->set_type(GLMessage::DataType::INT64);
+    arg_numGroups->add_int64value((uintptr_t)numGroups);
 
     // copy argument groupsSize
     GLMessage_DataType *arg_groupsSize = glmsg.add_args();
@@ -11265,8 +11265,8 @@ void GLTrace_glGetPerfMonitorGroupsAMD(GLint *numGroups, GLsizei groupsSize, GLu
     // copy argument groups
     GLMessage_DataType *arg_groups = glmsg.add_args();
     arg_groups->set_isarray(false);
-    arg_groups->set_type(GLMessage::DataType::INT);
-    arg_groups->add_intvalue((int)groups);
+    arg_groups->set_type(GLMessage::DataType::INT64);
+    arg_groups->add_int64value((uintptr_t)groups);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11301,14 +11301,14 @@ void GLTrace_glGetPerfMonitorCountersAMD(GLuint group, GLint *numCounters, GLint
     // copy argument numCounters
     GLMessage_DataType *arg_numCounters = glmsg.add_args();
     arg_numCounters->set_isarray(false);
-    arg_numCounters->set_type(GLMessage::DataType::INT);
-    arg_numCounters->add_intvalue((int)numCounters);
+    arg_numCounters->set_type(GLMessage::DataType::INT64);
+    arg_numCounters->add_int64value((uintptr_t)numCounters);
 
     // copy argument maxActiveCounters
     GLMessage_DataType *arg_maxActiveCounters = glmsg.add_args();
     arg_maxActiveCounters->set_isarray(false);
-    arg_maxActiveCounters->set_type(GLMessage::DataType::INT);
-    arg_maxActiveCounters->add_intvalue((int)maxActiveCounters);
+    arg_maxActiveCounters->set_type(GLMessage::DataType::INT64);
+    arg_maxActiveCounters->add_int64value((uintptr_t)maxActiveCounters);
 
     // copy argument counterSize
     GLMessage_DataType *arg_counterSize = glmsg.add_args();
@@ -11319,8 +11319,8 @@ void GLTrace_glGetPerfMonitorCountersAMD(GLuint group, GLint *numCounters, GLint
     // copy argument counters
     GLMessage_DataType *arg_counters = glmsg.add_args();
     arg_counters->set_isarray(false);
-    arg_counters->set_type(GLMessage::DataType::INT);
-    arg_counters->add_intvalue((int)counters);
+    arg_counters->set_type(GLMessage::DataType::INT64);
+    arg_counters->add_int64value((uintptr_t)counters);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11362,14 +11362,14 @@ void GLTrace_glGetPerfMonitorGroupStringAMD(GLuint group, GLsizei bufSize, GLsiz
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument groupString
     GLMessage_DataType *arg_groupString = glmsg.add_args();
     arg_groupString->set_isarray(false);
-    arg_groupString->set_type(GLMessage::DataType::INT);
-    arg_groupString->add_intvalue((int)groupString);
+    arg_groupString->set_type(GLMessage::DataType::INT64);
+    arg_groupString->add_int64value((uintptr_t)groupString);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11416,14 +11416,14 @@ void GLTrace_glGetPerfMonitorCounterStringAMD(GLuint group, GLuint counter, GLsi
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument counterString
     GLMessage_DataType *arg_counterString = glmsg.add_args();
     arg_counterString->set_isarray(false);
-    arg_counterString->set_type(GLMessage::DataType::INT);
-    arg_counterString->add_intvalue((int)counterString);
+    arg_counterString->set_type(GLMessage::DataType::INT64);
+    arg_counterString->add_int64value((uintptr_t)counterString);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11470,8 +11470,8 @@ void GLTrace_glGetPerfMonitorCounterInfoAMD(GLuint group, GLuint counter, GLenum
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11505,8 +11505,8 @@ void GLTrace_glGenPerfMonitorsAMD(GLsizei n, GLuint *monitors) {
     // copy argument monitors
     GLMessage_DataType *arg_monitors = glmsg.add_args();
     arg_monitors->set_isarray(false);
-    arg_monitors->set_type(GLMessage::DataType::INT);
-    arg_monitors->add_intvalue((int)monitors);
+    arg_monitors->set_type(GLMessage::DataType::INT64);
+    arg_monitors->add_int64value((uintptr_t)monitors);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11540,8 +11540,8 @@ void GLTrace_glDeletePerfMonitorsAMD(GLsizei n, GLuint *monitors) {
     // copy argument monitors
     GLMessage_DataType *arg_monitors = glmsg.add_args();
     arg_monitors->set_isarray(false);
-    arg_monitors->set_type(GLMessage::DataType::INT);
-    arg_monitors->add_intvalue((int)monitors);
+    arg_monitors->set_type(GLMessage::DataType::INT64);
+    arg_monitors->add_int64value((uintptr_t)monitors);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11593,8 +11593,8 @@ void GLTrace_glSelectPerfMonitorCountersAMD(GLuint monitor, GLboolean enable, GL
     // copy argument countersList
     GLMessage_DataType *arg_countersList = glmsg.add_args();
     arg_countersList->set_isarray(false);
-    arg_countersList->set_type(GLMessage::DataType::INT);
-    arg_countersList->add_intvalue((int)countersList);
+    arg_countersList->set_type(GLMessage::DataType::INT64);
+    arg_countersList->add_int64value((uintptr_t)countersList);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11696,14 +11696,14 @@ void GLTrace_glGetPerfMonitorCounterDataAMD(GLuint monitor, GLenum pname, GLsize
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // copy argument bytesWritten
     GLMessage_DataType *arg_bytesWritten = glmsg.add_args();
     arg_bytesWritten->set_isarray(false);
-    arg_bytesWritten->set_type(GLMessage::DataType::INT);
-    arg_bytesWritten->add_intvalue((int)bytesWritten);
+    arg_bytesWritten->set_type(GLMessage::DataType::INT64);
+    arg_bytesWritten->add_int64value((uintptr_t)bytesWritten);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -11958,8 +11958,8 @@ void GLTrace_glLabelObjectEXT(GLenum type, GLuint object, GLsizei length, const 
     // copy argument label
     GLMessage_DataType *arg_label = glmsg.add_args();
     arg_label->set_isarray(false);
-    arg_label->set_type(GLMessage::DataType::INT);
-    arg_label->add_intvalue((int)label);
+    arg_label->set_type(GLMessage::DataType::INT64);
+    arg_label->add_int64value((uintptr_t)label);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12005,14 +12005,14 @@ void GLTrace_glGetObjectLabelEXT(GLenum type, GLuint object, GLsizei bufSize, GL
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument label
     GLMessage_DataType *arg_label = glmsg.add_args();
     arg_label->set_isarray(false);
-    arg_label->set_type(GLMessage::DataType::INT);
-    arg_label->add_intvalue((int)label);
+    arg_label->set_type(GLMessage::DataType::INT64);
+    arg_label->add_int64value((uintptr_t)label);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12047,8 +12047,8 @@ void GLTrace_glInsertEventMarkerEXT(GLsizei length, const GLchar *marker) {
     // copy argument marker
     GLMessage_DataType *arg_marker = glmsg.add_args();
     arg_marker->set_isarray(false);
-    arg_marker->set_type(GLMessage::DataType::INT);
-    arg_marker->add_intvalue((int)marker);
+    arg_marker->set_type(GLMessage::DataType::INT64);
+    arg_marker->add_int64value((uintptr_t)marker);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12082,8 +12082,8 @@ void GLTrace_glPushGroupMarkerEXT(GLsizei length, const GLchar *marker) {
     // copy argument marker
     GLMessage_DataType *arg_marker = glmsg.add_args();
     arg_marker->set_isarray(false);
-    arg_marker->set_type(GLMessage::DataType::INT);
-    arg_marker->add_intvalue((int)marker);
+    arg_marker->set_type(GLMessage::DataType::INT64);
+    arg_marker->add_int64value((uintptr_t)marker);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12145,8 +12145,8 @@ void GLTrace_glDiscardFramebufferEXT(GLenum target, GLsizei numAttachments, cons
     // copy argument attachments
     GLMessage_DataType *arg_attachments = glmsg.add_args();
     arg_attachments->set_isarray(false);
-    arg_attachments->set_type(GLMessage::DataType::INT);
-    arg_attachments->add_intvalue((int)attachments);
+    arg_attachments->set_type(GLMessage::DataType::INT64);
+    arg_attachments->add_int64value((uintptr_t)attachments);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12290,14 +12290,14 @@ void GLTrace_glMultiDrawArraysEXT(GLenum mode, GLint *first, GLsizei *count, GLs
     // copy argument first
     GLMessage_DataType *arg_first = glmsg.add_args();
     arg_first->set_isarray(false);
-    arg_first->set_type(GLMessage::DataType::INT);
-    arg_first->add_intvalue((int)first);
+    arg_first->set_type(GLMessage::DataType::INT64);
+    arg_first->add_int64value((uintptr_t)first);
 
     // copy argument count
     GLMessage_DataType *arg_count = glmsg.add_args();
     arg_count->set_isarray(false);
-    arg_count->set_type(GLMessage::DataType::INT);
-    arg_count->add_intvalue((int)count);
+    arg_count->set_type(GLMessage::DataType::INT64);
+    arg_count->add_int64value((uintptr_t)count);
 
     // copy argument primcount
     GLMessage_DataType *arg_primcount = glmsg.add_args();
@@ -12338,8 +12338,8 @@ void GLTrace_glMultiDrawElementsEXT(GLenum mode, const GLsizei *count, GLenum ty
     // copy argument count
     GLMessage_DataType *arg_count = glmsg.add_args();
     arg_count->set_isarray(false);
-    arg_count->set_type(GLMessage::DataType::INT);
-    arg_count->add_intvalue((int)count);
+    arg_count->set_type(GLMessage::DataType::INT64);
+    arg_count->add_int64value((uintptr_t)count);
 
     // copy argument type
     GLMessage_DataType *arg_type = glmsg.add_args();
@@ -12350,8 +12350,8 @@ void GLTrace_glMultiDrawElementsEXT(GLenum mode, const GLsizei *count, GLenum ty
     // copy argument indices
     GLMessage_DataType *arg_indices = glmsg.add_args();
     arg_indices->set_isarray(false);
-    arg_indices->set_type(GLMessage::DataType::INT);
-    arg_indices->add_intvalue((int)indices);
+    arg_indices->set_type(GLMessage::DataType::INT64);
+    arg_indices->add_int64value((uintptr_t)indices);
 
     // copy argument primcount
     GLMessage_DataType *arg_primcount = glmsg.add_args();
@@ -12392,8 +12392,8 @@ void GLTrace_glGenQueriesEXT(GLsizei n, GLuint *ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12427,8 +12427,8 @@ void GLTrace_glDeleteQueriesEXT(GLsizei n, const GLuint *ids) {
     // copy argument ids
     GLMessage_DataType *arg_ids = glmsg.add_args();
     arg_ids->set_isarray(false);
-    arg_ids->set_type(GLMessage::DataType::INT);
-    arg_ids->add_intvalue((int)ids);
+    arg_ids->set_type(GLMessage::DataType::INT64);
+    arg_ids->add_int64value((uintptr_t)ids);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12566,8 +12566,8 @@ void GLTrace_glGetQueryivEXT(GLenum target, GLenum pname, GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12607,8 +12607,8 @@ void GLTrace_glGetQueryObjectuivEXT(GLuint id, GLenum pname, GLuint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12708,8 +12708,8 @@ void GLTrace_glReadnPixelsEXT(GLint x, GLint y, GLsizei width, GLsizei height, G
     // copy argument data
     GLMessage_DataType *arg_data = glmsg.add_args();
     arg_data->set_isarray(false);
-    arg_data->set_type(GLMessage::DataType::INT);
-    arg_data->add_intvalue((int)data);
+    arg_data->set_type(GLMessage::DataType::INT64);
+    arg_data->add_int64value((uintptr_t)data);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12755,8 +12755,8 @@ void GLTrace_glGetnUniformfvEXT(GLuint program, GLint location, GLsizei bufSize,
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12802,8 +12802,8 @@ void GLTrace_glGetnUniformivEXT(GLuint program, GLint location, GLsizei bufSize,
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12917,8 +12917,8 @@ GLuint GLTrace_glCreateShaderProgramvEXT(GLenum type, GLsizei count, const GLcha
     // copy argument strings
     GLMessage_DataType *arg_strings = glmsg.add_args();
     arg_strings->set_isarray(false);
-    arg_strings->set_type(GLMessage::DataType::INT);
-    arg_strings->add_intvalue((int)strings);
+    arg_strings->set_type(GLMessage::DataType::INT64);
+    arg_strings->add_int64value((uintptr_t)strings);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -12988,8 +12988,8 @@ void GLTrace_glDeleteProgramPipelinesEXT(GLsizei n, const GLuint *pipelines) {
     // copy argument pipelines
     GLMessage_DataType *arg_pipelines = glmsg.add_args();
     arg_pipelines->set_isarray(false);
-    arg_pipelines->set_type(GLMessage::DataType::INT);
-    arg_pipelines->add_intvalue((int)pipelines);
+    arg_pipelines->set_type(GLMessage::DataType::INT64);
+    arg_pipelines->add_int64value((uintptr_t)pipelines);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13023,8 +13023,8 @@ void GLTrace_glGenProgramPipelinesEXT(GLsizei n, GLuint *pipelines) {
     // copy argument pipelines
     GLMessage_DataType *arg_pipelines = glmsg.add_args();
     arg_pipelines->set_isarray(false);
-    arg_pipelines->set_type(GLMessage::DataType::INT);
-    arg_pipelines->add_intvalue((int)pipelines);
+    arg_pipelines->set_type(GLMessage::DataType::INT64);
+    arg_pipelines->add_int64value((uintptr_t)pipelines);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13140,8 +13140,8 @@ void GLTrace_glGetProgramPipelineivEXT(GLuint pipeline, GLenum pname, GLint *par
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13579,8 +13579,8 @@ void GLTrace_glProgramUniform1ivEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13626,8 +13626,8 @@ void GLTrace_glProgramUniform2ivEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13673,8 +13673,8 @@ void GLTrace_glProgramUniform3ivEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13720,8 +13720,8 @@ void GLTrace_glProgramUniform4ivEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13767,8 +13767,8 @@ void GLTrace_glProgramUniform1fvEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13814,8 +13814,8 @@ void GLTrace_glProgramUniform2fvEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13861,8 +13861,8 @@ void GLTrace_glProgramUniform3fvEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13908,8 +13908,8 @@ void GLTrace_glProgramUniform4fvEXT(GLuint program, GLint location, GLsizei coun
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -13961,8 +13961,8 @@ void GLTrace_glProgramUniformMatrix2fvEXT(GLuint program, GLint location, GLsize
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14014,8 +14014,8 @@ void GLTrace_glProgramUniformMatrix3fvEXT(GLuint program, GLint location, GLsize
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14067,8 +14067,8 @@ void GLTrace_glProgramUniformMatrix4fvEXT(GLuint program, GLint location, GLsize
     // copy argument value
     GLMessage_DataType *arg_value = glmsg.add_args();
     arg_value->set_isarray(false);
-    arg_value->set_type(GLMessage::DataType::INT);
-    arg_value->add_intvalue((int)value);
+    arg_value->set_type(GLMessage::DataType::INT64);
+    arg_value->add_int64value((uintptr_t)value);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14136,14 +14136,14 @@ void GLTrace_glGetProgramPipelineInfoLogEXT(GLuint pipeline, GLsizei bufSize, GL
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument infoLog
     GLMessage_DataType *arg_infoLog = glmsg.add_args();
     arg_infoLog->set_isarray(false);
-    arg_infoLog->set_type(GLMessage::DataType::INT);
-    arg_infoLog->add_intvalue((int)infoLog);
+    arg_infoLog->set_type(GLMessage::DataType::INT64);
+    arg_infoLog->add_int64value((uintptr_t)infoLog);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14674,8 +14674,8 @@ void GLTrace_glDrawBuffersNV(GLsizei n, const GLenum *bufs) {
     // copy argument bufs
     GLMessage_DataType *arg_bufs = glmsg.add_args();
     arg_bufs->set_isarray(false);
-    arg_bufs->set_type(GLMessage::DataType::INT);
-    arg_bufs->add_intvalue((int)bufs);
+    arg_bufs->set_type(GLMessage::DataType::INT64);
+    arg_bufs->add_int64value((uintptr_t)bufs);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14709,8 +14709,8 @@ void GLTrace_glDeleteFencesNV(GLsizei n, const GLuint *fences) {
     // copy argument fences
     GLMessage_DataType *arg_fences = glmsg.add_args();
     arg_fences->set_isarray(false);
-    arg_fences->set_type(GLMessage::DataType::INT);
-    arg_fences->add_intvalue((int)fences);
+    arg_fences->set_type(GLMessage::DataType::INT64);
+    arg_fences->add_int64value((uintptr_t)fences);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14744,8 +14744,8 @@ void GLTrace_glGenFencesNV(GLsizei n, GLuint *fences) {
     // copy argument fences
     GLMessage_DataType *arg_fences = glmsg.add_args();
     arg_fences->set_isarray(false);
-    arg_fences->set_type(GLMessage::DataType::INT);
-    arg_fences->add_intvalue((int)fences);
+    arg_fences->set_type(GLMessage::DataType::INT64);
+    arg_fences->add_int64value((uintptr_t)fences);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -14857,8 +14857,8 @@ void GLTrace_glGetFenceivNV(GLuint fence, GLenum pname, GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15010,8 +15010,8 @@ void GLTrace_glGetDriverControlsQCOM(GLint *num, GLsizei size, GLuint *driverCon
     // copy argument num
     GLMessage_DataType *arg_num = glmsg.add_args();
     arg_num->set_isarray(false);
-    arg_num->set_type(GLMessage::DataType::INT);
-    arg_num->add_intvalue((int)num);
+    arg_num->set_type(GLMessage::DataType::INT64);
+    arg_num->add_int64value((uintptr_t)num);
 
     // copy argument size
     GLMessage_DataType *arg_size = glmsg.add_args();
@@ -15022,8 +15022,8 @@ void GLTrace_glGetDriverControlsQCOM(GLint *num, GLsizei size, GLuint *driverCon
     // copy argument driverControls
     GLMessage_DataType *arg_driverControls = glmsg.add_args();
     arg_driverControls->set_isarray(false);
-    arg_driverControls->set_type(GLMessage::DataType::INT);
-    arg_driverControls->add_intvalue((int)driverControls);
+    arg_driverControls->set_type(GLMessage::DataType::INT64);
+    arg_driverControls->add_int64value((uintptr_t)driverControls);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15064,14 +15064,14 @@ void GLTrace_glGetDriverControlStringQCOM(GLuint driverControl, GLsizei bufSize,
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // copy argument driverControlString
     GLMessage_DataType *arg_driverControlString = glmsg.add_args();
     arg_driverControlString->set_isarray(false);
-    arg_driverControlString->set_type(GLMessage::DataType::INT);
-    arg_driverControlString->add_intvalue((int)driverControlString);
+    arg_driverControlString->set_type(GLMessage::DataType::INT64);
+    arg_driverControlString->add_int64value((uintptr_t)driverControlString);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15156,8 +15156,8 @@ void GLTrace_glExtGetTexturesQCOM(GLuint *textures, GLint maxTextures, GLint *nu
     // copy argument textures
     GLMessage_DataType *arg_textures = glmsg.add_args();
     arg_textures->set_isarray(false);
-    arg_textures->set_type(GLMessage::DataType::INT);
-    arg_textures->add_intvalue((int)textures);
+    arg_textures->set_type(GLMessage::DataType::INT64);
+    arg_textures->add_int64value((uintptr_t)textures);
 
     // copy argument maxTextures
     GLMessage_DataType *arg_maxTextures = glmsg.add_args();
@@ -15168,8 +15168,8 @@ void GLTrace_glExtGetTexturesQCOM(GLuint *textures, GLint maxTextures, GLint *nu
     // copy argument numTextures
     GLMessage_DataType *arg_numTextures = glmsg.add_args();
     arg_numTextures->set_isarray(false);
-    arg_numTextures->set_type(GLMessage::DataType::INT);
-    arg_numTextures->add_intvalue((int)numTextures);
+    arg_numTextures->set_type(GLMessage::DataType::INT64);
+    arg_numTextures->add_int64value((uintptr_t)numTextures);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15198,8 +15198,8 @@ void GLTrace_glExtGetBuffersQCOM(GLuint *buffers, GLint maxBuffers, GLint *numBu
     // copy argument buffers
     GLMessage_DataType *arg_buffers = glmsg.add_args();
     arg_buffers->set_isarray(false);
-    arg_buffers->set_type(GLMessage::DataType::INT);
-    arg_buffers->add_intvalue((int)buffers);
+    arg_buffers->set_type(GLMessage::DataType::INT64);
+    arg_buffers->add_int64value((uintptr_t)buffers);
 
     // copy argument maxBuffers
     GLMessage_DataType *arg_maxBuffers = glmsg.add_args();
@@ -15210,8 +15210,8 @@ void GLTrace_glExtGetBuffersQCOM(GLuint *buffers, GLint maxBuffers, GLint *numBu
     // copy argument numBuffers
     GLMessage_DataType *arg_numBuffers = glmsg.add_args();
     arg_numBuffers->set_isarray(false);
-    arg_numBuffers->set_type(GLMessage::DataType::INT);
-    arg_numBuffers->add_intvalue((int)numBuffers);
+    arg_numBuffers->set_type(GLMessage::DataType::INT64);
+    arg_numBuffers->add_int64value((uintptr_t)numBuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15240,8 +15240,8 @@ void GLTrace_glExtGetRenderbuffersQCOM(GLuint *renderbuffers, GLint maxRenderbuf
     // copy argument renderbuffers
     GLMessage_DataType *arg_renderbuffers = glmsg.add_args();
     arg_renderbuffers->set_isarray(false);
-    arg_renderbuffers->set_type(GLMessage::DataType::INT);
-    arg_renderbuffers->add_intvalue((int)renderbuffers);
+    arg_renderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_renderbuffers->add_int64value((uintptr_t)renderbuffers);
 
     // copy argument maxRenderbuffers
     GLMessage_DataType *arg_maxRenderbuffers = glmsg.add_args();
@@ -15252,8 +15252,8 @@ void GLTrace_glExtGetRenderbuffersQCOM(GLuint *renderbuffers, GLint maxRenderbuf
     // copy argument numRenderbuffers
     GLMessage_DataType *arg_numRenderbuffers = glmsg.add_args();
     arg_numRenderbuffers->set_isarray(false);
-    arg_numRenderbuffers->set_type(GLMessage::DataType::INT);
-    arg_numRenderbuffers->add_intvalue((int)numRenderbuffers);
+    arg_numRenderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_numRenderbuffers->add_int64value((uintptr_t)numRenderbuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15282,8 +15282,8 @@ void GLTrace_glExtGetFramebuffersQCOM(GLuint *framebuffers, GLint maxFramebuffer
     // copy argument framebuffers
     GLMessage_DataType *arg_framebuffers = glmsg.add_args();
     arg_framebuffers->set_isarray(false);
-    arg_framebuffers->set_type(GLMessage::DataType::INT);
-    arg_framebuffers->add_intvalue((int)framebuffers);
+    arg_framebuffers->set_type(GLMessage::DataType::INT64);
+    arg_framebuffers->add_int64value((uintptr_t)framebuffers);
 
     // copy argument maxFramebuffers
     GLMessage_DataType *arg_maxFramebuffers = glmsg.add_args();
@@ -15294,8 +15294,8 @@ void GLTrace_glExtGetFramebuffersQCOM(GLuint *framebuffers, GLint maxFramebuffer
     // copy argument numFramebuffers
     GLMessage_DataType *arg_numFramebuffers = glmsg.add_args();
     arg_numFramebuffers->set_isarray(false);
-    arg_numFramebuffers->set_type(GLMessage::DataType::INT);
-    arg_numFramebuffers->add_intvalue((int)numFramebuffers);
+    arg_numFramebuffers->set_type(GLMessage::DataType::INT64);
+    arg_numFramebuffers->add_int64value((uintptr_t)numFramebuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15348,8 +15348,8 @@ void GLTrace_glExtGetTexLevelParameterivQCOM(GLuint texture, GLenum face, GLint 
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15477,8 +15477,8 @@ void GLTrace_glExtGetTexSubImageQCOM(GLenum target, GLint level, GLint xoffset, 
     // copy argument texels
     GLMessage_DataType *arg_texels = glmsg.add_args();
     arg_texels->set_isarray(false);
-    arg_texels->set_type(GLMessage::DataType::INT);
-    arg_texels->add_intvalue((int)texels);
+    arg_texels->set_type(GLMessage::DataType::INT64);
+    arg_texels->add_int64value((uintptr_t)texels);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15512,8 +15512,8 @@ void GLTrace_glExtGetBufferPointervQCOM(GLenum target, GLvoid **params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15541,8 +15541,8 @@ void GLTrace_glExtGetShadersQCOM(GLuint *shaders, GLint maxShaders, GLint *numSh
     // copy argument shaders
     GLMessage_DataType *arg_shaders = glmsg.add_args();
     arg_shaders->set_isarray(false);
-    arg_shaders->set_type(GLMessage::DataType::INT);
-    arg_shaders->add_intvalue((int)shaders);
+    arg_shaders->set_type(GLMessage::DataType::INT64);
+    arg_shaders->add_int64value((uintptr_t)shaders);
 
     // copy argument maxShaders
     GLMessage_DataType *arg_maxShaders = glmsg.add_args();
@@ -15553,8 +15553,8 @@ void GLTrace_glExtGetShadersQCOM(GLuint *shaders, GLint maxShaders, GLint *numSh
     // copy argument numShaders
     GLMessage_DataType *arg_numShaders = glmsg.add_args();
     arg_numShaders->set_isarray(false);
-    arg_numShaders->set_type(GLMessage::DataType::INT);
-    arg_numShaders->add_intvalue((int)numShaders);
+    arg_numShaders->set_type(GLMessage::DataType::INT64);
+    arg_numShaders->add_int64value((uintptr_t)numShaders);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15583,8 +15583,8 @@ void GLTrace_glExtGetProgramsQCOM(GLuint *programs, GLint maxPrograms, GLint *nu
     // copy argument programs
     GLMessage_DataType *arg_programs = glmsg.add_args();
     arg_programs->set_isarray(false);
-    arg_programs->set_type(GLMessage::DataType::INT);
-    arg_programs->add_intvalue((int)programs);
+    arg_programs->set_type(GLMessage::DataType::INT64);
+    arg_programs->add_int64value((uintptr_t)programs);
 
     // copy argument maxPrograms
     GLMessage_DataType *arg_maxPrograms = glmsg.add_args();
@@ -15595,8 +15595,8 @@ void GLTrace_glExtGetProgramsQCOM(GLuint *programs, GLint maxPrograms, GLint *nu
     // copy argument numPrograms
     GLMessage_DataType *arg_numPrograms = glmsg.add_args();
     arg_numPrograms->set_isarray(false);
-    arg_numPrograms->set_type(GLMessage::DataType::INT);
-    arg_numPrograms->add_intvalue((int)numPrograms);
+    arg_numPrograms->set_type(GLMessage::DataType::INT64);
+    arg_numPrograms->add_int64value((uintptr_t)numPrograms);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15673,14 +15673,14 @@ void GLTrace_glExtGetProgramBinarySourceQCOM(GLuint program, GLenum shadertype, 
     // copy argument source
     GLMessage_DataType *arg_source = glmsg.add_args();
     arg_source->set_isarray(false);
-    arg_source->set_type(GLMessage::DataType::INT);
-    arg_source->add_intvalue((int)source);
+    arg_source->set_type(GLMessage::DataType::INT64);
+    arg_source->add_int64value((uintptr_t)source);
 
     // copy argument length
     GLMessage_DataType *arg_length = glmsg.add_args();
     arg_length->set_isarray(false);
-    arg_length->set_type(GLMessage::DataType::INT);
-    arg_length->add_intvalue((int)length);
+    arg_length->set_type(GLMessage::DataType::INT64);
+    arg_length->add_int64value((uintptr_t)length);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15832,8 +15832,8 @@ void GLTrace_glClipPlanef(GLenum plane, const GLfloat *equation) {
     // copy argument equation
     GLMessage_DataType *arg_equation = glmsg.add_args();
     arg_equation->set_isarray(false);
-    arg_equation->set_type(GLMessage::DataType::INT);
-    arg_equation->add_intvalue((int)equation);
+    arg_equation->set_type(GLMessage::DataType::INT64);
+    arg_equation->add_int64value((uintptr_t)equation);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -15947,8 +15947,8 @@ void GLTrace_glFogfv(GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16040,8 +16040,8 @@ void GLTrace_glGetClipPlanef(GLenum pname, GLfloat eqn[4]) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16081,8 +16081,8 @@ void GLTrace_glGetLightfv(GLenum light, GLenum pname, GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16122,8 +16122,8 @@ void GLTrace_glGetMaterialfv(GLenum face, GLenum pname, GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16163,8 +16163,8 @@ void GLTrace_glGetTexEnvfv(GLenum env, GLenum pname, GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16232,8 +16232,8 @@ void GLTrace_glLightModelfv(GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16313,8 +16313,8 @@ void GLTrace_glLightfv(GLenum light, GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16342,8 +16342,8 @@ void GLTrace_glLoadMatrixf(const GLfloat *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16423,8 +16423,8 @@ void GLTrace_glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16452,8 +16452,8 @@ void GLTrace_glMultMatrixf(const GLfloat *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16671,8 +16671,8 @@ void GLTrace_glPointParameterfv(GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -16866,8 +16866,8 @@ void GLTrace_glTexEnvfv(GLenum target, GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17077,8 +17077,8 @@ void GLTrace_glClipPlanex(GLenum plane, const GLfixed *equation) {
     // copy argument equation
     GLMessage_DataType *arg_equation = glmsg.add_args();
     arg_equation->set_isarray(false);
-    arg_equation->set_type(GLMessage::DataType::INT);
-    arg_equation->add_intvalue((int)equation);
+    arg_equation->set_type(GLMessage::DataType::INT64);
+    arg_equation->add_int64value((uintptr_t)equation);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17216,8 +17216,8 @@ void GLTrace_glColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoi
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17375,8 +17375,8 @@ void GLTrace_glFogxv(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17468,8 +17468,8 @@ void GLTrace_glGetClipPlanex(GLenum pname, GLfixed eqn[4]) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17503,8 +17503,8 @@ void GLTrace_glGetFixedv(GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17544,8 +17544,8 @@ void GLTrace_glGetLightxv(GLenum light, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17585,8 +17585,8 @@ void GLTrace_glGetMaterialxv(GLenum face, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17620,8 +17620,8 @@ void GLTrace_glGetPointerv(GLenum pname, GLvoid **params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17661,8 +17661,8 @@ void GLTrace_glGetTexEnviv(GLenum env, GLenum pname, GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17702,8 +17702,8 @@ void GLTrace_glGetTexEnvxv(GLenum env, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17743,8 +17743,8 @@ void GLTrace_glGetTexParameterxv(GLenum target, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17812,8 +17812,8 @@ void GLTrace_glLightModelxv(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17893,8 +17893,8 @@ void GLTrace_glLightxv(GLenum light, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -17972,8 +17972,8 @@ void GLTrace_glLoadMatrixx(const GLfixed *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18081,8 +18081,8 @@ void GLTrace_glMaterialxv(GLenum face, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18138,8 +18138,8 @@ void GLTrace_glMultMatrixx(const GLfixed *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18271,8 +18271,8 @@ void GLTrace_glNormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18398,8 +18398,8 @@ void GLTrace_glPointParameterxv(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18699,8 +18699,8 @@ void GLTrace_glTexCoordPointer(GLint size, GLenum type, GLsizei stride, const GL
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18820,8 +18820,8 @@ void GLTrace_glTexEnviv(GLenum target, GLenum pname, const GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18861,8 +18861,8 @@ void GLTrace_glTexEnvxv(GLenum target, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -18942,8 +18942,8 @@ void GLTrace_glTexParameterxv(GLenum target, GLenum pname, const GLfixed *params
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19029,8 +19029,8 @@ void GLTrace_glVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvo
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19070,8 +19070,8 @@ void GLTrace_glPointSizePointerOES(GLenum type, GLsizei stride, const GLvoid *po
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19366,8 +19366,8 @@ void GLTrace_glDrawTexsvOES(const GLshort *coords) {
     // copy argument coords
     GLMessage_DataType *arg_coords = glmsg.add_args();
     arg_coords->set_isarray(false);
-    arg_coords->set_type(GLMessage::DataType::INT);
-    arg_coords->add_intvalue((int)coords);
+    arg_coords->set_type(GLMessage::DataType::INT64);
+    arg_coords->add_int64value((uintptr_t)coords);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19395,8 +19395,8 @@ void GLTrace_glDrawTexivOES(const GLint *coords) {
     // copy argument coords
     GLMessage_DataType *arg_coords = glmsg.add_args();
     arg_coords->set_isarray(false);
-    arg_coords->set_type(GLMessage::DataType::INT);
-    arg_coords->add_intvalue((int)coords);
+    arg_coords->set_type(GLMessage::DataType::INT64);
+    arg_coords->add_int64value((uintptr_t)coords);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19424,8 +19424,8 @@ void GLTrace_glDrawTexxvOES(const GLfixed *coords) {
     // copy argument coords
     GLMessage_DataType *arg_coords = glmsg.add_args();
     arg_coords->set_isarray(false);
-    arg_coords->set_type(GLMessage::DataType::INT);
-    arg_coords->add_intvalue((int)coords);
+    arg_coords->set_type(GLMessage::DataType::INT64);
+    arg_coords->add_int64value((uintptr_t)coords);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19505,8 +19505,8 @@ void GLTrace_glDrawTexfvOES(const GLfloat *coords) {
     // copy argument coords
     GLMessage_DataType *arg_coords = glmsg.add_args();
     arg_coords->set_isarray(false);
-    arg_coords->set_type(GLMessage::DataType::INT);
-    arg_coords->add_intvalue((int)coords);
+    arg_coords->set_type(GLMessage::DataType::INT64);
+    arg_coords->add_int64value((uintptr_t)coords);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19648,8 +19648,8 @@ void GLTrace_glClipPlanexOES(GLenum plane, const GLfixed *equation) {
     // copy argument equation
     GLMessage_DataType *arg_equation = glmsg.add_args();
     arg_equation->set_isarray(false);
-    arg_equation->set_type(GLMessage::DataType::INT);
-    arg_equation->add_intvalue((int)equation);
+    arg_equation->set_type(GLMessage::DataType::INT64);
+    arg_equation->add_int64value((uintptr_t)equation);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19797,8 +19797,8 @@ void GLTrace_glFogxvOES(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19890,8 +19890,8 @@ void GLTrace_glGetClipPlanexOES(GLenum pname, GLfixed eqn[4]) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19925,8 +19925,8 @@ void GLTrace_glGetFixedvOES(GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -19966,8 +19966,8 @@ void GLTrace_glGetLightxvOES(GLenum light, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20007,8 +20007,8 @@ void GLTrace_glGetMaterialxvOES(GLenum face, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20048,8 +20048,8 @@ void GLTrace_glGetTexEnvxvOES(GLenum env, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20089,8 +20089,8 @@ void GLTrace_glGetTexParameterxvOES(GLenum target, GLenum pname, GLfixed *params
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20158,8 +20158,8 @@ void GLTrace_glLightModelxvOES(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20239,8 +20239,8 @@ void GLTrace_glLightxvOES(GLenum light, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20296,8 +20296,8 @@ void GLTrace_glLoadMatrixxOES(const GLfixed *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20377,8 +20377,8 @@ void GLTrace_glMaterialxvOES(GLenum face, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20406,8 +20406,8 @@ void GLTrace_glMultMatrixxOES(const GLfixed *m) {
     // copy argument m
     GLMessage_DataType *arg_m = glmsg.add_args();
     arg_m->set_isarray(false);
-    arg_m->set_type(GLMessage::DataType::INT);
-    arg_m->add_intvalue((int)m);
+    arg_m->set_type(GLMessage::DataType::INT64);
+    arg_m->add_int64value((uintptr_t)m);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20625,8 +20625,8 @@ void GLTrace_glPointParameterxvOES(GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20888,8 +20888,8 @@ void GLTrace_glTexEnvxvOES(GLenum target, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -20969,8 +20969,8 @@ void GLTrace_glTexParameterxvOES(GLenum target, GLenum pname, const GLfixed *par
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21114,8 +21114,8 @@ void GLTrace_glDeleteRenderbuffersOES(GLsizei n, const GLuint* renderbuffers) {
     // copy argument renderbuffers
     GLMessage_DataType *arg_renderbuffers = glmsg.add_args();
     arg_renderbuffers->set_isarray(false);
-    arg_renderbuffers->set_type(GLMessage::DataType::INT);
-    arg_renderbuffers->add_intvalue((int)renderbuffers);
+    arg_renderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_renderbuffers->add_int64value((uintptr_t)renderbuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21149,8 +21149,8 @@ void GLTrace_glGenRenderbuffersOES(GLsizei n, GLuint* renderbuffers) {
     // copy argument renderbuffers
     GLMessage_DataType *arg_renderbuffers = glmsg.add_args();
     arg_renderbuffers->set_isarray(false);
-    arg_renderbuffers->set_type(GLMessage::DataType::INT);
-    arg_renderbuffers->add_intvalue((int)renderbuffers);
+    arg_renderbuffers->set_type(GLMessage::DataType::INT64);
+    arg_renderbuffers->add_int64value((uintptr_t)renderbuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21236,8 +21236,8 @@ void GLTrace_glGetRenderbufferParameterivOES(GLenum target, GLenum pname, GLint*
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21341,8 +21341,8 @@ void GLTrace_glDeleteFramebuffersOES(GLsizei n, const GLuint* framebuffers) {
     // copy argument framebuffers
     GLMessage_DataType *arg_framebuffers = glmsg.add_args();
     arg_framebuffers->set_isarray(false);
-    arg_framebuffers->set_type(GLMessage::DataType::INT);
-    arg_framebuffers->add_intvalue((int)framebuffers);
+    arg_framebuffers->set_type(GLMessage::DataType::INT64);
+    arg_framebuffers->add_int64value((uintptr_t)framebuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21376,8 +21376,8 @@ void GLTrace_glGenFramebuffersOES(GLsizei n, GLuint* framebuffers) {
     // copy argument framebuffers
     GLMessage_DataType *arg_framebuffers = glmsg.add_args();
     arg_framebuffers->set_isarray(false);
-    arg_framebuffers->set_type(GLMessage::DataType::INT);
-    arg_framebuffers->add_intvalue((int)framebuffers);
+    arg_framebuffers->set_type(GLMessage::DataType::INT64);
+    arg_framebuffers->add_int64value((uintptr_t)framebuffers);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21557,8 +21557,8 @@ void GLTrace_glGetFramebufferAttachmentParameterivOES(GLenum target, GLenum atta
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21682,8 +21682,8 @@ void GLTrace_glMatrixIndexPointerOES(GLint size, GLenum type, GLsizei stride, co
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21729,8 +21729,8 @@ void GLTrace_glWeightPointerOES(GLint size, GLenum type, GLsizei stride, const G
     // copy argument pointer
     GLMessage_DataType *arg_pointer = glmsg.add_args();
     arg_pointer->set_isarray(false);
-    arg_pointer->set_type(GLMessage::DataType::INT);
-    arg_pointer->add_intvalue((int)pointer);
+    arg_pointer->set_type(GLMessage::DataType::INT64);
+    arg_pointer->add_int64value((uintptr_t)pointer);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21758,14 +21758,14 @@ GLbitfield GLTrace_glQueryMatrixxOES(GLfixed mantissa[16], GLint exponent[16]) {
     // copy argument mantissa
     GLMessage_DataType *arg_mantissa = glmsg.add_args();
     arg_mantissa->set_isarray(false);
-    arg_mantissa->set_type(GLMessage::DataType::INT);
-    arg_mantissa->add_intvalue((int)mantissa);
+    arg_mantissa->set_type(GLMessage::DataType::INT64);
+    arg_mantissa->add_int64value((uintptr_t)mantissa);
 
     // copy argument exponent
     GLMessage_DataType *arg_exponent = glmsg.add_args();
     arg_exponent->set_isarray(false);
-    arg_exponent->set_type(GLMessage::DataType::INT);
-    arg_exponent->add_intvalue((int)exponent);
+    arg_exponent->set_type(GLMessage::DataType::INT64);
+    arg_exponent->add_int64value((uintptr_t)exponent);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21958,8 +21958,8 @@ void GLTrace_glClipPlanefOES(GLenum plane, const GLfloat *equation) {
     // copy argument equation
     GLMessage_DataType *arg_equation = glmsg.add_args();
     arg_equation->set_isarray(false);
-    arg_equation->set_type(GLMessage::DataType::INT);
-    arg_equation->add_intvalue((int)equation);
+    arg_equation->set_type(GLMessage::DataType::INT64);
+    arg_equation->add_int64value((uintptr_t)equation);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -21993,8 +21993,8 @@ void GLTrace_glGetClipPlanefOES(GLenum pname, GLfloat eqn[4]) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22102,8 +22102,8 @@ void GLTrace_glTexGenfvOES(GLenum coord, GLenum pname, const GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22183,8 +22183,8 @@ void GLTrace_glTexGenivOES(GLenum coord, GLenum pname, const GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22264,8 +22264,8 @@ void GLTrace_glTexGenxvOES(GLenum coord, GLenum pname, const GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22305,8 +22305,8 @@ void GLTrace_glGetTexGenfvOES(GLenum coord, GLenum pname, GLfloat *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22346,8 +22346,8 @@ void GLTrace_glGetTexGenivOES(GLenum coord, GLenum pname, GLint *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22387,8 +22387,8 @@ void GLTrace_glGetTexGenxvOES(GLenum coord, GLenum pname, GLfixed *params) {
     // copy argument params
     GLMessage_DataType *arg_params = glmsg.add_args();
     arg_params->set_isarray(false);
-    arg_params->set_type(GLMessage::DataType::INT);
-    arg_params->add_intvalue((int)params);
+    arg_params->set_type(GLMessage::DataType::INT64);
+    arg_params->add_int64value((uintptr_t)params);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22422,8 +22422,8 @@ void GLTrace_glClipPlanefIMG(GLenum p, const GLfloat *eqn) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -22457,8 +22457,8 @@ void GLTrace_glClipPlanexIMG(GLenum p, const GLfixed *eqn) {
     // copy argument eqn
     GLMessage_DataType *arg_eqn = glmsg.add_args();
     arg_eqn->set_isarray(false);
-    arg_eqn->set_type(GLMessage::DataType::INT);
-    arg_eqn->add_intvalue((int)eqn);
+    arg_eqn->set_type(GLMessage::DataType::INT64);
+    arg_eqn->add_int64value((uintptr_t)eqn);
 
     // call function
     nsecs_t wallStartTime = systemTime(SYSTEM_TIME_MONOTONIC);

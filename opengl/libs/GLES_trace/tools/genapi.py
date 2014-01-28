@@ -25,9 +25,9 @@
 #   To generate C++ files, this script uses the 'pyratemp' template
 #   module. The only reason to use pyratemp is that it is extremly
 #   simple to install:
-#   $ wget http://www.simple-is-better.org/template/pyratemp-current/pyratemp.py
-#   Put the file in the GLES_trace/tools folder, or update PYTHONPATH
-#   to point to wherever it was downloaded.
+#   $ wget http://www.simple-is-better.org/template/pyratemp-0.3.2.tgz
+#   Extract and put the pyratemp.py file in the GLES_trace/tools folder,
+#   or update PYTHONPATH to point to wherever it was downloaded.
 #
 # USAGE
 #   $ cd GLES_trace       - run the program from GLES2_trace folder
@@ -44,16 +44,18 @@ class DataType:
         self.name = name
 
     def __str__(self):
-        if self.name == "pointer":  # pointers map to the INT DataType
-            return "INT"
+        if self.name == "pointer":  # pointers map to the INT64 DataType
+            return "INT64"
         return self.name.upper()
 
     def getProtobufCall(self):
         if self.name == "void":
             raise ValueError("Attempt to set void value")
         elif self.name == "char" or self.name == "byte" \
-                or self.name == "pointer" or self.name == "enum":
+                or self.name == "enum":
             return "add_intvalue((int)"
+        elif self.name == "pointer":
+            return "add_int64value((uintptr_t)"
         elif self.name == "int":
             return "add_intvalue("
         elif self.name == "float":
