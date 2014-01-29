@@ -1,6 +1,7 @@
 /* Copyright 2008 The Android Open Source Project
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -41,18 +42,18 @@ void hexdump(void *_data, size_t len)
 void binder_dump_txn(struct binder_transaction_data *txn)
 {
     struct flat_binder_object *obj;
-    size_t *offs = txn->data.ptr.offsets;
-    size_t count = txn->offsets_size / sizeof(size_t);
+    binder_size_t *offs = (binder_size_t *)(uintptr_t)txn->data.ptr.offsets;
+    size_t count = txn->offsets_size / sizeof(binder_size_t);
 
-    fprintf(stderr,"  target %p  cookie %p  code %08x  flags %08x\n",
-            txn->target.ptr, txn->cookie, txn->code, txn->flags);
-    fprintf(stderr,"  pid %8d  uid %8d  data %zu  offs %zu\n",
-            txn->sender_pid, txn->sender_euid, txn->data_size, txn->offsets_size);
-    hexdump(txn->data.ptr.buffer, txn->data_size);
+    fprintf(stderr,"  target %016"PRIx64"  cookie %016"PRIx64"  code %08x  flags %08x\n",
+            (uint64_t)txn->target.ptr, (uint64_t)txn->cookie, txn->code, txn->flags);
+    fprintf(stderr,"  pid %8d  uid %8d  data %"PRIu64"  offs %"PRIu64"\n",
+            txn->sender_pid, txn->sender_euid, (uint64_t)txn->data_size, (uint64_t)txn->offsets_size);
+    hexdump((void *)(uintptr_t)txn->data.ptr.buffer, txn->data_size);
     while (count--) {
-        obj = (struct flat_binder_object *) (((char*) txn->data.ptr.buffer) + *offs++);
-        fprintf(stderr,"  - type %08x  flags %08x  ptr %p  cookie %p\n",
-                obj->type, obj->flags, obj->binder, obj->cookie);
+        obj = (struct flat_binder_object *) (((char*)(uintptr_t)txn->data.ptr.buffer) + *offs++);
+        fprintf(stderr,"  - type %08x  flags %08x  ptr %016"PRIx64"  cookie %016"PRIx64"\n",
+                obj->type, obj->flags, (uint64_t)obj->binder, (uint64_t)obj->cookie);
     }
 }
 
@@ -165,18 +166,18 @@ int binder_write(struct binder_state *bs, void *data, size_t len)
 
 void binder_send_reply(struct binder_state *bs,
                        struct binder_io *reply,
-                       const void *buffer_to_free,
+                       binder_uintptr_t buffer_to_free,
                        int status)
 {
     struct {
         uint32_t cmd_free;
-        uintptr_t buffer;
+        binder_uintptr_t buffer;
         uint32_t cmd_reply;
         struct binder_transaction_data txn;
     } __attribute__((packed)) data;
 
     data.cmd_free = BC_FREE_BUFFER;
-    data.buffer = (uintptr_t) buffer_to_free;
+    data.buffer = buffer_to_free;
     data.cmd_reply = BC_REPLY;
     data.txn.target.ptr = 0;
     data.txn.cookie = 0;
@@ -185,14 +186,14 @@ void binder_send_reply(struct binder_state *bs,
         data.txn.flags = TF_STATUS_CODE;
         data.txn.data_size = sizeof(int);
         data.txn.offsets_size = 0;
-        data.txn.data.ptr.buffer = &status;
+        data.txn.data.ptr.buffer = (uintptr_t)&status;
         data.txn.data.ptr.offsets = 0;
     } else {
         data.txn.flags = 0;
         data.txn.data_size = reply->data - reply->data0;
         data.txn.offsets_size = ((char*) reply->offs) - ((char*) reply->offs0);
-        data.txn.data.ptr.buffer = reply->data0;
-        data.txn.data.ptr.offsets = reply->offs0;
+        data.txn.data.ptr.buffer = (uintptr_t)reply->data0;
+        data.txn.data.ptr.offsets = (uintptr_t)reply->offs0;
     }
     binder_write(bs, &data, sizeof(data));
 }
@@ -219,7 +220,7 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
         case BR_RELEASE:
         case BR_DECREFS:
 #if TRACE
-            fprintf(stderr,"  %p, %p\n", ptr, (ptr + sizeof(void *)));
+            fprintf(stderr,"  %p, %p\n", (void *)ptr, (void *)(ptr + sizeof(void *)));
 #endif
             ptr += sizeof(struct binder_ptr_cookie);
             break;
@@ -262,8 +263,8 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
             break;
         }
         case BR_DEAD_BINDER: {
-            struct binder_death *death = (struct binder_death *) *(intptr_t *)ptr;
-            ptr += sizeof(void *);
+            struct binder_death *death = (struct binder_death *)(uintptr_t) *(binder_uintptr_t *)ptr;
+            ptr += sizeof(binder_uintptr_t);
             death->func(bs, death->ptr);
             break;
         }
@@ -334,8 +335,8 @@ int binder_call(struct binder_state *bs,
     writebuf.txn.flags = 0;
     writebuf.txn.data_size = msg->data - msg->data0;
     writebuf.txn.offsets_size = ((char*) msg->offs) - ((char*) msg->offs0);
-    writebuf.txn.data.ptr.buffer = msg->data0;
-    writebuf.txn.data.ptr.offsets = msg->offs0;
+    writebuf.txn.data.ptr.buffer = (uintptr_t)msg->data0;
+    writebuf.txn.data.ptr.offsets = (uintptr_t)msg->offs0;
 
     bwr.write_size = sizeof(writebuf);
     bwr.write_consumed = 0;
@@ -404,8 +405,8 @@ void binder_loop(struct binder_state *bs, binder_handler func)
 
 void bio_init_from_txn(struct binder_io *bio, struct binder_transaction_data *txn)
 {
-    bio->data = bio->data0 = txn->data.ptr.buffer;
-    bio->offs = bio->offs0 = txn->data.ptr.offsets;
+    bio->data = bio->data0 = (char *)(intptr_t)txn->data.ptr.buffer;
+    bio->offs = bio->offs0 = (binder_size_t *)(intptr_t)txn->data.ptr.offsets;
     bio->data_avail = txn->data_size;
     bio->offs_avail = txn->offsets_size / sizeof(size_t);
     bio->flags = BIO_F_SHARED;
@@ -494,7 +495,7 @@ void bio_put_obj(struct binder_io *bio, void *ptr)
 
     obj->flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
     obj->type = BINDER_TYPE_BINDER;
-    obj->binder = ptr;
+    obj->binder = (uintptr_t)ptr;
     obj->cookie = 0;
 }
 
