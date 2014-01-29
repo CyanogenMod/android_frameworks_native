@@ -3,6 +3,10 @@ LOCAL_PATH:= $(call my-dir)
 svc_c_flags =	\
 	-Wall -Wextra \
 
+ifneq ($(TARGET_USES_64_BIT_BINDER),true)
+svc_c_flags += -DBINDER_IPC_32BIT=1
+endif
+
 include $(CLEAR_VARS)
 LOCAL_SHARED_LIBRARIES := liblog
 LOCAL_SRC_FILES := bctest.c binder.c
