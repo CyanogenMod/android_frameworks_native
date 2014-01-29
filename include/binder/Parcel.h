@@ -23,6 +23,7 @@
 #include <utils/String16.h>
 #include <utils/Vector.h>
 #include <utils/Flattenable.h>
+#include <linux/binder.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -34,8 +35,6 @@ class IPCThreadState;
 class ProcessState;
 class String8;
 class TextOutput;
-
-struct flat_binder_object;  // defined in support_p/binder_module.h
 
 class Parcel {
     friend class IPCThreadState;
@@ -82,7 +81,10 @@ public:
 
     void                freeData();
 
-    const size_t*       objects() const;
+private:
+    const binder_size_t* objects() const;
+
+public:
     size_t              objectsCount() const;
     
     status_t            errorCheck() const;
@@ -194,19 +196,21 @@ public:
     // Explicitly close all file descriptors in the parcel.
     void                closeFileDescriptors();
     
+private:
     typedef void        (*release_func)(Parcel* parcel,
                                         const uint8_t* data, size_t dataSize,
-                                        const size_t* objects, size_t objectsSize,
+                                        const binder_size_t* objects, size_t objectsSize,
                                         void* cookie);
                         
-    const uint8_t*      ipcData() const;
+    uintptr_t           ipcData() const;
     size_t              ipcDataSize() const;
-    const size_t*       ipcObjects() const;
+    uintptr_t           ipcObjects() const;
     size_t              ipcObjectsCount() const;
     void                ipcSetDataReference(const uint8_t* data, size_t dataSize,
-                                            const size_t* objects, size_t objectsCount,
+                                            const binder_size_t* objects, size_t objectsCount,
                                             release_func relFunc, void* relCookie);
     
+public:
     void                print(TextOutput& to, uint32_t flags = 0) const;
 
 private:
@@ -239,7 +243,7 @@ private:
     size_t              mDataSize;
     size_t              mDataCapacity;
     mutable size_t      mDataPos;
-    size_t*             mObjects;
+    binder_size_t*      mObjects;
     size_t              mObjectsSize;
     size_t              mObjectsCapacity;
     mutable size_t      mNextObjectHint;
