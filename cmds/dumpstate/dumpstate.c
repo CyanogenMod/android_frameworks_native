@@ -174,9 +174,7 @@ static void dumpstate() {
     dump_file("LAST PANIC CONSOLE", "/data/dontpanic/apanic_console");
     dump_file("LAST PANIC THREADS", "/data/dontpanic/apanic_threads");
 
-    run_command("SYSTEM SETTINGS", 20, SU_PATH, "root", "sqlite3",
-            "/data/data/com.android.providers.settings/databases/settings.db",
-            "pragma user_version; select * from system; select * from secure; select * from global;", NULL);
+    for_each_userid(do_dump_settings, NULL);
 
     /* The following have a tendency to get wedged when wifi drivers/fw goes belly-up. */
     run_command("NETWORK INTERFACES", 10, SU_PATH, "root", "netcfg", NULL);
