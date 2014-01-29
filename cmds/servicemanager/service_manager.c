@@ -220,6 +220,9 @@ int svcmgr_handler(struct binder_state *bs,
     if (txn->target.handle != svcmgr_handle)
         return -1;
 
+    if (txn->code == PING_TRANSACTION)
+        return 0;
+
     // Equivalent to Parcel::enforceInterface(), reading the RPC
     // header with the strict mode policy mask and the interface name.
     // Note that we ignore the strict_policy and don't propagate it
