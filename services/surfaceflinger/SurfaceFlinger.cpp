@@ -1380,7 +1380,7 @@ void SurfaceFlinger::computeVisibleRegions(
 
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(layer->isVisible())) {
-            const bool translucent = !layer->isOpaque();
+            const bool translucent = !layer->isOpaque(s);
             Rect bounds(s.transform.transform(layer->computeBounds()));
             visibleRegion.set(bounds);
             if (!visibleRegion.isEmpty()) {
@@ -1629,7 +1629,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                         const Layer::State& state(layer->getDrawingState());
                         if ((cur->getHints() & HWC_HINT_CLEAR_FB)
                                 && i
-                                && layer->isOpaque() && (state.alpha == 0xFF)
+                                && layer->isOpaque(state) && (state.alpha == 0xFF)
                                 && hasGlesComposition) {
                             // never clear the very first layer since we're
                             // guaranteed the FB is already cleared
@@ -1873,7 +1873,9 @@ uint32_t SurfaceFlinger::setClientStateLocked(
             if (layer->setTransparentRegionHint(s.transparentRegion))
                 flags |= eTraversalNeeded;
         }
-        if (what & layer_state_t::eVisibilityChanged) {
+        if ((what & layer_state_t::eVisibilityChanged) ||
+                (what & layer_state_t::eOpacityChanged)) {
+            // TODO: should we just use an eFlagsChanged for this?
             if (layer->setFlags(s.flags, s.mask))
                 flags |= eTraversalNeeded;
         }

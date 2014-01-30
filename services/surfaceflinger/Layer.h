@@ -149,8 +149,12 @@ public:
 
     /*
      * isOpaque - true if this surface is opaque
+     *
+     * This takes into account the buffer format (i.e. whether or not the
+     * pixel format includes an alpha channel) and the "opaque" flag set
+     * on the layer.  It does not examine the current plane alpha value.
      */
-    virtual bool isOpaque() const;
+    virtual bool isOpaque(const Layer::State& s) const;
 
     /*
      * isSecure - true if this surface is secure, that is if it prevents
@@ -335,7 +339,6 @@ private:
     String8 mName;
     mutable bool mDebug;
     PixelFormat mFormat;
-    bool mOpaqueLayer;
 
     // these are protected by an external lock
     State mCurrentState;
