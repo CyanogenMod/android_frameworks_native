@@ -1,16 +1,16 @@
 /*
 ** Copyright 2008, The Android Open Source Project
 **
-** Licensed under the Apache License, Version 2.0 (the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-** Unless required by applicable law or agreed to in writing, software 
-** distributed under the License is distributed on an "AS IS" BASIS, 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-** See the License for the specific language governing permissions and 
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
@@ -114,6 +114,8 @@ int uninstall(const char *pkgname, userid_t userid)
 
     if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
         return -1;
+
+    remove_profile_file(pkgname);
 
     /* delete contents AND directory, no exceptions */
     return delete_dir_contents(pkgdir, 1, NULL);
@@ -557,9 +559,9 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
         return -1;
     }
 
-    dstlen = srclen + strlen(DALVIK_CACHE_PREFIX) + 
+    dstlen = srclen + strlen(DALVIK_CACHE_PREFIX) +
         strlen(DALVIK_CACHE_POSTFIX) + 1;
-    
+
     if (dstlen > PKG_PATH_MAX) {
         return -1;
     }
@@ -568,7 +570,7 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
             DALVIK_CACHE_PREFIX,
             src + 1, /* skip the leading / */
             DALVIK_CACHE_POSTFIX);
-    
+
     for(tmp = path + strlen(DALVIK_CACHE_PREFIX); *tmp; tmp++) {
         if (*tmp == '/') {
             *tmp = '@';
@@ -601,7 +603,7 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name)
+    const char* output_file_name, const char *pkgname)
 {
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, "");
@@ -613,17 +615,25 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char zip_location_arg[strlen("--zip-location=") + PKG_PATH_MAX];
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
     char oat_location_arg[strlen("--oat-name=") + PKG_PATH_MAX];
+    char profile_file[strlen("--profile-file=") + PKG_PATH_MAX];
 
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
     sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
     sprintf(oat_location_arg, "--oat-location=%s", output_file_name);
+    if (strcmp(pkgname, "*") != 0) {
+        snprintf(profile_file, sizeof(profile_file), "--profile-file=%s/%s",
+                 DALVIK_CACHE_PREFIX "profiles", pkgname);
+    } else {
+        strcpy(profile_file, "--no-profile-file");
+    }
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
     execl(DEX2OAT_BIN, DEX2OAT_BIN,
           zip_fd_arg, zip_location_arg,
           oat_fd_arg, oat_location_arg,
           strlen(dex2oat_flags) > 0 ? dex2oat_flags : NULL,
+          profile_file,
           (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
 }
@@ -654,7 +664,8 @@ static int wait_child(pid_t pid)
     }
 }
 
-int dexopt(const char *apk_path, uid_t uid, int is_public)
+int dexopt(const char *apk_path, uid_t uid, int is_public,
+           const char *pkgname)
 {
     struct utimbuf ut;
     struct stat apk_stat, dex_stat;
@@ -708,6 +719,12 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
         goto fail;
     }
 
+    // Create profile file if there is a package name present.
+    if (strcmp(pkgname, "*") != 0) {
+        create_profile_file(pkgname, uid);
+    }
+
+
     ALOGV("DexInv: --- BEGIN '%s' ---\n", apk_path);
 
     pid_t pid;
@@ -740,7 +757,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
         if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
             run_dexopt(zip_fd, out_fd, apk_path, out_path);
         } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
-            run_dex2oat(zip_fd, out_fd, apk_path, out_path);
+            run_dex2oat(zip_fd, out_fd, apk_path, out_path, pkgname);
         } else {
             exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
         }
@@ -804,12 +821,12 @@ int movefileordir(char* srcpath, char* dstpath, int dstbasepos,
 
     int srcend = strlen(srcpath);
     int dstend = strlen(dstpath);
-    
+
     if (lstat(srcpath, statbuf) < 0) {
         ALOGW("Unable to stat %s: %s\n", srcpath, strerror(errno));
         return 1;
     }
-    
+
     if ((statbuf->st_mode&S_IFDIR) == 0) {
         mkinnerdirs(dstpath, dstbasepos, S_IRWXU|S_IRWXG|S_IXOTH,
                 dstuid, dstgid, statbuf);
@@ -835,7 +852,7 @@ int movefileordir(char* srcpath, char* dstpath, int dstbasepos,
     }
 
     res = 0;
-    
+
     while ((de = readdir(d))) {
         const char *name = de->d_name;
             /* always skip "." and ".." */
@@ -843,32 +860,32 @@ int movefileordir(char* srcpath, char* dstpath, int dstbasepos,
             if (name[1] == 0) continue;
             if ((name[1] == '.') && (name[2] == 0)) continue;
         }
-        
+
         if ((srcend+strlen(name)) >= (PKG_PATH_MAX-2)) {
             ALOGW("Source path too long; skipping: %s/%s\n", srcpath, name);
             continue;
         }
-        
+
         if ((dstend+strlen(name)) >= (PKG_PATH_MAX-2)) {
             ALOGW("Destination path too long; skipping: %s/%s\n", dstpath, name);
             continue;
         }
-        
+
         srcpath[srcend] = dstpath[dstend] = '/';
         strcpy(srcpath+srcend+1, name);
         strcpy(dstpath+dstend+1, name);
-        
+
         if (movefileordir(srcpath, dstpath, dstbasepos, dstuid, dstgid, statbuf) != 0) {
             res = 1;
         }
-        
+
         // Note: we will be leaving empty directories behind in srcpath,
         // but that is okay, the package manager will be erasing all of the
         // data associated with .apks that disappear.
-        
+
         srcpath[srcend] = dstpath[dstend] = 0;
     }
-    
+
     closedir(d);
     return res;
 }
@@ -910,7 +927,7 @@ int movefiles()
                         UPDATE_COMMANDS_DIR_PREFIX, name);
                 continue;
             }
-            
+
             bufp = 0;
             bufe = 0;
             buf[PKG_PATH_MAX] = 0;
