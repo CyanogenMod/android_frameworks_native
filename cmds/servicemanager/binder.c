@@ -279,27 +279,27 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
     return r;
 }
 
-void binder_acquire(struct binder_state *bs, void *ptr)
+void binder_acquire(struct binder_state *bs, uint32_t target)
 {
     uint32_t cmd[2];
     cmd[0] = BC_ACQUIRE;
-    cmd[1] = (uint32_t) ptr;
+    cmd[1] = target;
     binder_write(bs, cmd, sizeof(cmd));
 }
 
-void binder_release(struct binder_state *bs, void *ptr)
+void binder_release(struct binder_state *bs, uint32_t target)
 {
     uint32_t cmd[2];
     cmd[0] = BC_RELEASE;
-    cmd[1] = (uint32_t) ptr;
+    cmd[1] = target;
     binder_write(bs, cmd, sizeof(cmd));
 }
 
-void binder_link_to_death(struct binder_state *bs, void *ptr, struct binder_death *death)
+void binder_link_to_death(struct binder_state *bs, uint32_t target, struct binder_death *death)
 {
     uint32_t cmd[3];
     cmd[0] = BC_REQUEST_DEATH_NOTIFICATION;
-    cmd[1] = (uint32_t) ptr;
+    cmd[1] = (uint32_t) target;
     cmd[2] = (uint32_t) death;
     binder_write(bs, cmd, sizeof(cmd));
 }
@@ -307,7 +307,7 @@ void binder_link_to_death(struct binder_state *bs, void *ptr, struct binder_deat
 
 int binder_call(struct binder_state *bs,
                 struct binder_io *msg, struct binder_io *reply,
-                void *target, uint32_t code)
+                uint32_t target, uint32_t code)
 {
     int res;
     struct binder_write_read bwr;
@@ -488,11 +488,11 @@ void bio_put_obj(struct binder_io *bio, void *ptr)
     obj->cookie = 0;
 }
 
-void bio_put_ref(struct binder_io *bio, void *ptr)
+void bio_put_ref(struct binder_io *bio, uint32_t handle)
 {
     struct flat_binder_object *obj;
 
-    if (ptr)
+    if (handle)
         obj = bio_alloc_obj(bio);
     else
         obj = bio_alloc(bio, sizeof(*obj));
@@ -502,7 +502,7 @@ void bio_put_ref(struct binder_io *bio, void *ptr)
 
     obj->flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
     obj->type = BINDER_TYPE_HANDLE;
-    obj->handle = ptr;
+    obj->handle = handle;
     obj->cookie = 0;
 }
 
@@ -610,7 +610,7 @@ static struct flat_binder_object *_bio_get_obj(struct binder_io *bio)
     return NULL;
 }
 
-void *bio_get_ref(struct binder_io *bio)
+uint32_t bio_get_ref(struct binder_io *bio)
 {
     struct flat_binder_object *obj;
 

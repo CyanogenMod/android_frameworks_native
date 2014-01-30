@@ -50,7 +50,7 @@ static struct {
     { AID_KEYSTORE, "android.security.keystore" },
 };
 
-void *svcmgr_handle;
+uint32_t svcmgr_handle;
 
 const char *str8(const uint16_t *x)
 {
@@ -93,7 +93,7 @@ int svc_can_register(uid_t uid, const uint16_t *name)
 struct svcinfo
 {
     struct svcinfo *next;
-    void *ptr;
+    uint32_t handle;
     struct binder_death death;
     int allow_isolated;
     size_t len;
@@ -120,9 +120,9 @@ void svcinfo_death(struct binder_state *bs, void *ptr)
     struct svcinfo *si = (struct svcinfo* ) ptr;
 
     ALOGI("service '%s' died\n", str8(si->name));
-    if (si->ptr) {
-        binder_release(bs, si->ptr);
-        si->ptr = 0;
+    if (si->handle) {
+        binder_release(bs, si->handle);
+        si->handle = 0;
     }
 }
 
@@ -132,13 +132,13 @@ uint16_t svcmgr_id[] = {
 };
 
 
-void *do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid)
+uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid)
 {
     struct svcinfo *si;
     si = find_svc(s, len);
 
-//    ALOGI("check_service('%s') ptr = %p\n", str8(s), si ? si->ptr : 0);
-    if (si && si->ptr) {
+    //ALOGI("check_service('%s') handle = %x\n", str8(s), si ? si->handle : 0);
+    if (si && si->handle) {
         if (!si->allow_isolated) {
             // If this service doesn't allow access from isolated processes,
             // then check the uid to see if it is isolated.
@@ -147,7 +147,7 @@ void *do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, ui
                 return 0;
             }
         }
-        return si->ptr;
+        return si->handle;
     } else {
         return 0;
     }
@@ -155,37 +155,37 @@ void *do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, ui
 
 int do_add_service(struct binder_state *bs,
                    const uint16_t *s, size_t len,
-                   void *ptr, uid_t uid, int allow_isolated)
+                   uint32_t handle, uid_t uid, int allow_isolated)
 {
     struct svcinfo *si;
-    //ALOGI("add_service('%s',%p,%s) uid=%d\n", str8(s), ptr,
+    //ALOGI("add_service('%s',%x,%s) uid=%d\n", str8(s), handle,
     //        allow_isolated ? "allow_isolated" : "!allow_isolated", uid);
 
-    if (!ptr || (len == 0) || (len > 127))
+    if (!handle || (len == 0) || (len > 127))
         return -1;
 
     if (!svc_can_register(uid, s)) {
-        ALOGE("add_service('%s',%p) uid=%d - PERMISSION DENIED\n",
-             str8(s), ptr, uid);
+        ALOGE("add_service('%s',%x) uid=%d - PERMISSION DENIED\n",
+             str8(s), handle, uid);
         return -1;
     }
 
     si = find_svc(s, len);
     if (si) {
-        if (si->ptr) {
-            ALOGE("add_service('%s',%p) uid=%d - ALREADY REGISTERED, OVERRIDE\n",
-                 str8(s), ptr, uid);
+        if (si->handle) {
+            ALOGE("add_service('%s',%x) uid=%d - ALREADY REGISTERED, OVERRIDE\n",
+                 str8(s), handle, uid);
             svcinfo_death(bs, si);
         }
-        si->ptr = ptr;
+        si->handle = handle;
     } else {
         si = malloc(sizeof(*si) + (len + 1) * sizeof(uint16_t));
         if (!si) {
-            ALOGE("add_service('%s',%p) uid=%d - OUT OF MEMORY\n",
-                 str8(s), ptr, uid);
+            ALOGE("add_service('%s',%x) uid=%d - OUT OF MEMORY\n",
+                 str8(s), handle, uid);
             return -1;
         }
-        si->ptr = ptr;
+        si->handle = handle;
         si->len = len;
         memcpy(si->name, s, (len + 1) * sizeof(uint16_t));
         si->name[len] = '\0';
@@ -196,8 +196,8 @@ int do_add_service(struct binder_state *bs,
         svclist = si;
     }
 
-    binder_acquire(bs, ptr);
-    binder_link_to_death(bs, ptr, &si->death);
+    binder_acquire(bs, handle);
+    binder_link_to_death(bs, handle, &si->death);
     return 0;
 }
 
@@ -209,7 +209,7 @@ int svcmgr_handler(struct binder_state *bs,
     struct svcinfo *si;
     uint16_t *s;
     size_t len;
-    void *ptr;
+    uint32_t handle;
     uint32_t strict_policy;
     int allow_isolated;
 
@@ -235,17 +235,17 @@ int svcmgr_handler(struct binder_state *bs,
     case SVC_MGR_GET_SERVICE:
     case SVC_MGR_CHECK_SERVICE:
         s = bio_get_string16(msg, &len);
-        ptr = do_find_service(bs, s, len, txn->sender_euid);
-        if (!ptr)
+        handle = do_find_service(bs, s, len, txn->sender_euid);
+        if (!handle)
             break;
-        bio_put_ref(reply, ptr);
+        bio_put_ref(reply, handle);
         return 0;
 
     case SVC_MGR_ADD_SERVICE:
         s = bio_get_string16(msg, &len);
-        ptr = bio_get_ref(msg);
+        handle = bio_get_ref(msg);
         allow_isolated = bio_get_uint32(msg) ? 1 : 0;
-        if (do_add_service(bs, s, len, ptr, txn->sender_euid, allow_isolated))
+        if (do_add_service(bs, s, len, handle, txn->sender_euid, allow_isolated))
             return -1;
         break;
 

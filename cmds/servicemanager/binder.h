@@ -27,8 +27,8 @@ struct binder_death {
     void *ptr;
 };
 
-/* the one magic object */
-#define BINDER_SERVICE_MANAGER ((void*) 0)
+/* the one magic handle */
+#define BINDER_SERVICE_MANAGER  0U
 
 #define SVC_MGR_NAME "android.os.IServiceManager"
 
@@ -52,7 +52,7 @@ void binder_close(struct binder_state *bs);
  */
 int binder_call(struct binder_state *bs,
                 struct binder_io *msg, struct binder_io *reply,
-                void *target, uint32_t code);
+                uint32_t target, uint32_t code);
 
 /* release any state associate with the binder_io
  * - call once any necessary data has been extracted from the
@@ -63,10 +63,10 @@ void binder_done(struct binder_state *bs,
                  struct binder_io *msg, struct binder_io *reply);
 
 /* manipulate strong references */
-void binder_acquire(struct binder_state *bs, void *ptr);
-void binder_release(struct binder_state *bs, void *ptr);
+void binder_acquire(struct binder_state *bs, uint32_t target);
+void binder_release(struct binder_state *bs, uint32_t target);
 
-void binder_link_to_death(struct binder_state *bs, void *ptr, struct binder_death *death);
+void binder_link_to_death(struct binder_state *bs, uint32_t target, struct binder_death *death);
 
 void binder_loop(struct binder_state *bs, binder_handler func);
 
@@ -80,13 +80,13 @@ void bio_init(struct binder_io *bio, void *data,
            size_t maxdata, size_t maxobjects);
 
 void bio_put_obj(struct binder_io *bio, void *ptr);
-void bio_put_ref(struct binder_io *bio, void *ptr);
+void bio_put_ref(struct binder_io *bio, uint32_t handle);
 void bio_put_uint32(struct binder_io *bio, uint32_t n);
 void bio_put_string16(struct binder_io *bio, const uint16_t *str);
 void bio_put_string16_x(struct binder_io *bio, const char *_str);
 
 uint32_t bio_get_uint32(struct binder_io *bio);
 uint16_t *bio_get_string16(struct binder_io *bio, size_t *sz);
-void *bio_get_ref(struct binder_io *bio);
+uint32_t bio_get_ref(struct binder_io *bio);
 
 #endif

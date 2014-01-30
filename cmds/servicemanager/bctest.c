@@ -7,9 +7,9 @@
 
 #include "binder.h"
 
-void *svcmgr_lookup(struct binder_state *bs, void *target, const char *name)
+uint32_t svcmgr_lookup(struct binder_state *bs, uint32_t target, const char *name)
 {
-    void *ptr;
+    uint32_t handle;
     unsigned iodata[512/4];
     struct binder_io msg, reply;
 
@@ -21,17 +21,17 @@ void *svcmgr_lookup(struct binder_state *bs, void *target, const char *name)
     if (binder_call(bs, &msg, &reply, target, SVC_MGR_CHECK_SERVICE))
         return 0;
 
-    ptr = bio_get_ref(&reply);
+    handle = bio_get_ref(&reply);
 
-    if (ptr)
-        binder_acquire(bs, ptr);
+    if (handle)
+        binder_acquire(bs, handle);
 
     binder_done(bs, &msg, &reply);
 
-    return ptr;
+    return handle;
 }
 
-int svcmgr_publish(struct binder_state *bs, void *target, const char *name, void *ptr)
+int svcmgr_publish(struct binder_state *bs, uint32_t target, const char *name, void *ptr)
 {
     unsigned status;
     unsigned iodata[512/4];
@@ -59,7 +59,8 @@ int main(int argc, char **argv)
 {
     int fd;
     struct binder_state *bs;
-    void *svcmgr = BINDER_SERVICE_MANAGER;
+    uint32_t svcmgr = BINDER_SERVICE_MANAGER;
+    uint32_t handle;
 
     bs = binder_open(128*1024);
     if (!bs) {
@@ -71,21 +72,20 @@ int main(int argc, char **argv)
     argv++;
     while (argc > 0) {
         if (!strcmp(argv[0],"alt")) {
-            void *ptr = svcmgr_lookup(bs, svcmgr, "alt_svc_mgr");
-            if (!ptr) {
+            handle = svcmgr_lookup(bs, svcmgr, "alt_svc_mgr");
+            if (!handle) {
                 fprintf(stderr,"cannot find alt_svc_mgr\n");
                 return -1;
             }
-            svcmgr = ptr;
-            fprintf(stderr,"svcmgr is via %p\n", ptr);
+            svcmgr = handle;
+            fprintf(stderr,"svcmgr is via %x\n", handle);
         } else if (!strcmp(argv[0],"lookup")) {
-            void *ptr;
             if (argc < 2) {
                 fprintf(stderr,"argument required\n");
                 return -1;
             }
-            ptr = svcmgr_lookup(bs, svcmgr, argv[1]);
-            fprintf(stderr,"lookup(%s) = %p\n", argv[1], ptr);
+            handle = svcmgr_lookup(bs, svcmgr, argv[1]);
+            fprintf(stderr,"lookup(%s) = %x\n", argv[1], handle);
             argc--;
             argv++;
         } else if (!strcmp(argv[0],"publish")) {
