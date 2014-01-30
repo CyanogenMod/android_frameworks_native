@@ -82,6 +82,7 @@ protected:
 
     virtual void TearDown() {
         ASSERT_NO_FATAL_FAILURE(copyToDebugSurface());
+        ASSERT_TRUE(mLockedBuffer.data != NULL);
         ASSERT_EQ(NO_ERROR, mCpuConsumer->unlockBuffer(mLockedBuffer));
     }
 
@@ -258,6 +259,7 @@ private:
         EXPECT_TRUE(eglChooseConfig(mEglDisplay, configAttribs, &mEglConfig, 1,
                 &numConfigs));
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
+        ASSERT_GT(numConfigs, 0);
 
         static const EGLint contextAttribs[] = {
             EGL_CONTEXT_CLIENT_VERSION, 3,
