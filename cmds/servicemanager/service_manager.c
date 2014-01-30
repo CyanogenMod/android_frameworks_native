@@ -275,6 +275,10 @@ int main(int argc, char **argv)
     void *svcmgr = BINDER_SERVICE_MANAGER;
 
     bs = binder_open(128*1024);
+    if (!bs) {
+        ALOGE("failed to open binder driver\n");
+        return -1;
+    }
 
     if (binder_become_context_manager(bs)) {
         ALOGE("cannot become context manager (%s)\n", strerror(errno));

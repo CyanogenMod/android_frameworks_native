@@ -94,6 +94,7 @@ struct binder_state
 struct binder_state *binder_open(unsigned mapsize)
 {
     struct binder_state *bs;
+    struct binder_version vers;
 
     bs = malloc(sizeof(*bs));
     if (!bs) {
@@ -108,6 +109,12 @@ struct binder_state *binder_open(unsigned mapsize)
         goto fail_open;
     }
 
+    if ((ioctl(bs->fd, BINDER_VERSION, &vers) == -1) ||
+        (vers.protocol_version != BINDER_CURRENT_PROTOCOL_VERSION)) {
+        fprintf(stderr, "binder: driver version differs from user space\n");
+        goto fail_open;
+    }
+
     bs->mapsize = mapsize;
     bs->mapped = mmap(NULL, mapsize, PROT_READ, MAP_PRIVATE, bs->fd, 0);
     if (bs->mapped == MAP_FAILED) {
@@ -115,8 +122,6 @@ struct binder_state *binder_open(unsigned mapsize)
                 strerror(errno));
         goto fail_map;
     }
-
-        /* TODO: check version */
 
     return bs;
 
