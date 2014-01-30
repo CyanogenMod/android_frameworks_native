@@ -64,7 +64,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mName("unnamed"),
         mDebug(false),
         mFormat(PIXEL_FORMAT_NONE),
-        mOpaqueLayer(true),
         mTransactionFlags(0),
         mQueuedFrames(0),
         mCurrentTransform(0),
@@ -86,7 +85,9 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     uint32_t layerFlags = 0;
     if (flags & ISurfaceComposerClient::eHidden)
-        layerFlags = layer_state_t::eLayerHidden;
+        layerFlags |= layer_state_t::eLayerHidden;
+    if (flags & ISurfaceComposerClient::eOpaque)
+        layerFlags |= layer_state_t::eLayerOpaque;
 
     if (flags & ISurfaceComposerClient::eNonPremultiplied)
         mPremultipliedAlpha = false;
@@ -189,7 +190,6 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
 
     mSecure = (flags & ISurfaceComposerClient::eSecure) ? true : false;
     mProtectedByApp = (flags & ISurfaceComposerClient::eProtectedByApp) ? true : false;
-    mOpaqueLayer = (flags & ISurfaceComposerClient::eOpaque);
     mCurrentOpacity = getOpacityForFormat(format);
 
     mSurfaceFlingerConsumer->setDefaultBufferSize(w, h);
@@ -352,7 +352,7 @@ void Layer::setGeometry(
 
     // this gives us only the "orientation" component of the transform
     const State& s(getDrawingState());
-    if (!isOpaque() || s.alpha != 0xFF) {
+    if (!isOpaque(s) || s.alpha != 0xFF) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
                 HWC_BLENDING_COVERAGE);
@@ -596,7 +596,7 @@ void Layer::drawWithOpenGL(
     texCoords[3] = vec2(right, 1.0f - top);
 
     RenderEngine& engine(mFlinger->getRenderEngine());
-    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
     engine.drawMesh(mMesh);
     engine.disableBlending();
 }
@@ -656,7 +656,7 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh) const
     }
 }
 
-bool Layer::isOpaque() const
+bool Layer::isOpaque(const Layer::State& s) const
 {
     // if we don't have a buffer yet, we're translucent regardless of the
     // layer's opaque flag.
@@ -666,7 +666,7 @@ bool Layer::isOpaque() const
 
     // if the layer has the opaque flag, then we're always opaque,
     // otherwise we use the current buffer's format.
-    return mOpaqueLayer || mCurrentOpacity;
+    return ((s.flags & layer_state_t::eLayerOpaque) != 0) || mCurrentOpacity;
 }
 
 bool Layer::isProtected() const
@@ -954,7 +954,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         }
 
         // Capture the old state of the layer for comparisons later
-        const bool oldOpacity = isOpaque();
+        const State& s(getDrawingState());
+        const bool oldOpacity = isOpaque(s);
         sp<GraphicBuffer> oldActiveBuffer = mActiveBuffer;
 
         struct Reject : public SurfaceFlingerConsumer::BufferRejecter {
@@ -1122,12 +1123,11 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         }
 
         mCurrentOpacity = getOpacityForFormat(mActiveBuffer->format);
-        if (oldOpacity != isOpaque()) {
+        if (oldOpacity != isOpaque(s)) {
             recomputeVisibleRegions = true;
         }
 
         // FIXME: postedRegion should be dirty & bounds
-        const Layer::State& s(getDrawingState());
         Region dirtyRegion(Rect(s.active.w, s.active.h));
 
         // transform the dirty region to window-manager space
@@ -1188,7 +1188,7 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
             s.layerStack, s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
-            isOpaque(), contentDirty,
+            isOpaque(s), contentDirty,
             s.alpha, s.flags,
             s.transform[0][0], s.transform[0][1],
             s.transform[1][0], s.transform[1][1],
