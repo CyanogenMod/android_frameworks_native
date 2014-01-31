@@ -1504,12 +1504,23 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                 || (state.frame != draw[i].frame))
                         {
                             // Honor the orientation change after boot
-                            // animation completes or the new orientation is
-                            // same as panel orientation..
-                            if(mBootFinished ||
-                               state.orientation == disp->getOrientation()) {
+                            // animation completes and make sure boot
+                            // animation is shown in panel orientation always.
+                            if(mBootFinished){
                                 disp->setProjection(state.orientation,
                                         state.viewport, state.frame);
+                            }
+                            else{
+                                char property[PROPERTY_VALUE_MAX];
+                                int panelOrientation =
+                                        DisplayState::eOrientationDefault;
+                                if(property_get("persist.panel.orientation",
+                                            property, "0") > 0){
+                                    panelOrientation = atoi(property) / 90;
+                                }
+                                disp->setProjection(panelOrientation,
+                                        state.viewport, state.frame);
+
                             }
                         }
                     }
