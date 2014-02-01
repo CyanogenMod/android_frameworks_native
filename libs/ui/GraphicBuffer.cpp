@@ -311,6 +311,8 @@ status_t GraphicBuffer::unflatten(
     if (handle != 0) {
         status_t err = mBufferMapper.registerBuffer(handle);
         if (err != NO_ERROR) {
+            width = height = stride = format = usage = 0;
+            handle = NULL;
             ALOGE("unflatten: registerBuffer failed: %s (%d)",
                     strerror(-err), err);
             return err;
