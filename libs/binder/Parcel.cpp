@@ -77,12 +77,12 @@ void acquire_object(const sp<ProcessState>& proc,
         case BINDER_TYPE_BINDER:
             if (obj.binder) {
                 LOG_REFS("Parcel %p acquiring reference on local %p", who, obj.cookie);
-                static_cast<IBinder*>(obj.cookie)->incStrong(who);
+                reinterpret_cast<IBinder*>(obj.cookie)->incStrong(who);
             }
             return;
         case BINDER_TYPE_WEAK_BINDER:
             if (obj.binder)
-                static_cast<RefBase::weakref_type*>(obj.binder)->incWeak(who);
+                reinterpret_cast<RefBase::weakref_type*>(obj.binder)->incWeak(who);
             return;
         case BINDER_TYPE_HANDLE: {
             const sp<IBinder> b = proc->getStrongProxyForHandle(obj.handle);
@@ -114,12 +114,12 @@ void release_object(const sp<ProcessState>& proc,
         case BINDER_TYPE_BINDER:
             if (obj.binder) {
                 LOG_REFS("Parcel %p releasing reference on local %p", who, obj.cookie);
-                static_cast<IBinder*>(obj.cookie)->decStrong(who);
+                reinterpret_cast<IBinder*>(obj.cookie)->decStrong(who);
             }
             return;
         case BINDER_TYPE_WEAK_BINDER:
             if (obj.binder)
-                static_cast<RefBase::weakref_type*>(obj.binder)->decWeak(who);
+                reinterpret_cast<RefBase::weakref_type*>(obj.binder)->decWeak(who);
             return;
         case BINDER_TYPE_HANDLE: {
             const sp<IBinder> b = proc->getStrongProxyForHandle(obj.handle);
@@ -135,7 +135,7 @@ void release_object(const sp<ProcessState>& proc,
             return;
         }
         case BINDER_TYPE_FD: {
-            if (obj.cookie != (void*)0) close(obj.handle);
+            if (obj.cookie != 0) close(obj.handle);
             return;
         }
     }
@@ -165,16 +165,16 @@ status_t flatten_binder(const sp<ProcessState>& proc,
             const int32_t handle = proxy ? proxy->handle() : 0;
             obj.type = BINDER_TYPE_HANDLE;
             obj.handle = handle;
-            obj.cookie = NULL;
+            obj.cookie = 0;
         } else {
             obj.type = BINDER_TYPE_BINDER;
-            obj.binder = local->getWeakRefs();
-            obj.cookie = local;
+            obj.binder = reinterpret_cast<uintptr_t>(local->getWeakRefs());
+            obj.cookie = reinterpret_cast<uintptr_t>(local);
         }
     } else {
         obj.type = BINDER_TYPE_BINDER;
-        obj.binder = NULL;
-        obj.cookie = NULL;
+        obj.binder = 0;
+        obj.cookie = 0;
     }
     
     return finish_flatten_binder(binder, obj, out);
@@ -198,11 +198,11 @@ status_t flatten_binder(const sp<ProcessState>& proc,
                 const int32_t handle = proxy ? proxy->handle() : 0;
                 obj.type = BINDER_TYPE_WEAK_HANDLE;
                 obj.handle = handle;
-                obj.cookie = NULL;
+                obj.cookie = 0;
             } else {
                 obj.type = BINDER_TYPE_WEAK_BINDER;
-                obj.binder = binder.get_refs();
-                obj.cookie = binder.unsafe_get();
+                obj.binder = reinterpret_cast<uintptr_t>(binder.get_refs());
+                obj.cookie = reinterpret_cast<uintptr_t>(binder.unsafe_get());
             }
             return finish_flatten_binder(real, obj, out);
         }
@@ -216,14 +216,14 @@ status_t flatten_binder(const sp<ProcessState>& proc,
         // implementation we are using.
         ALOGE("Unable to unflatten Binder weak reference!");
         obj.type = BINDER_TYPE_BINDER;
-        obj.binder = NULL;
-        obj.cookie = NULL;
+        obj.binder = 0;
+        obj.cookie = 0;
         return finish_flatten_binder(NULL, obj, out);
     
     } else {
         obj.type = BINDER_TYPE_BINDER;
-        obj.binder = NULL;
-        obj.cookie = NULL;
+        obj.binder = 0;
+        obj.cookie = 0;
         return finish_flatten_binder(NULL, obj, out);
     }
 }
@@ -242,7 +242,7 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
     if (flat) {
         switch (flat->type) {
             case BINDER_TYPE_BINDER:
-                *out = static_cast<IBinder*>(flat->cookie);
+                *out = reinterpret_cast<IBinder*>(flat->cookie);
                 return finish_unflatten_binder(NULL, *flat, in);
             case BINDER_TYPE_HANDLE:
                 *out = proc->getStrongProxyForHandle(flat->handle);
@@ -261,13 +261,13 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
     if (flat) {
         switch (flat->type) {
             case BINDER_TYPE_BINDER:
-                *out = static_cast<IBinder*>(flat->cookie);
+                *out = reinterpret_cast<IBinder*>(flat->cookie);
                 return finish_unflatten_binder(NULL, *flat, in);
             case BINDER_TYPE_WEAK_BINDER:
-                if (flat->binder != NULL) {
+                if (flat->binder != 0) {
                     out->set_object_and_refs(
-                        static_cast<IBinder*>(flat->cookie),
-                        static_cast<RefBase::weakref_type*>(flat->binder));
+                        reinterpret_cast<IBinder*>(flat->cookie),
+                        reinterpret_cast<RefBase::weakref_type*>(flat->binder));
                 } else {
                     *out = NULL;
                 }
@@ -364,7 +364,7 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
     const sp<ProcessState> proc(ProcessState::self());
     status_t err;
     const uint8_t *data = parcel->mData;
-    const size_t *objects = parcel->mObjects;
+    const binder_size_t *objects = parcel->mObjects;
     size_t size = parcel->mObjectsSize;
     int startPos = mDataPos;
     int firstIndex = -1, lastIndex = -2;
@@ -411,9 +411,9 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
         // grow objects
         if (mObjectsCapacity < mObjectsSize + numObjects) {
             int newSize = ((mObjectsSize + numObjects)*3)/2;
-            size_t *objects =
-                (size_t*)realloc(mObjects, newSize*sizeof(size_t));
-            if (objects == (size_t*)0) {
+            binder_size_t *objects =
+                (binder_size_t*)realloc(mObjects, newSize*sizeof(binder_size_t));
+            if (objects == (binder_size_t*)0) {
                 return NO_MEMORY;
             }
             mObjects = objects;
@@ -436,7 +436,7 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
                 // new Parcel now owns its own fd, and can declare that we
                 // officially know we have fds.
                 flat->handle = dup(flat->handle);
-                flat->cookie = (void*)1;
+                flat->cookie = 1;
                 mHasFds = mFdsKnown = true;
                 if (!mAllowFds) {
                     err = FDS_NOT_ALLOWED;
@@ -511,7 +511,7 @@ bool Parcel::enforceInterface(const String16& interface,
     }
 }
 
-const size_t* Parcel::objects() const
+const binder_size_t* Parcel::objects() const
 {
     return mObjects;
 }
@@ -633,6 +633,11 @@ status_t Parcel::writeInt64(int64_t val)
     return writeAligned(val);
 }
 
+status_t Parcel::writePointer(uintptr_t val)
+{
+    return writeAligned<binder_uintptr_t>(val);
+}
+
 status_t Parcel::writeFloat(float val)
 {
     return writeAligned(val);
@@ -743,7 +748,7 @@ status_t Parcel::writeFileDescriptor(int fd, bool takeOwnership)
     obj.type = BINDER_TYPE_FD;
     obj.flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
     obj.handle = fd;
-    obj.cookie = (void*) (takeOwnership ? 1 : 0);
+    obj.cookie = takeOwnership ? 1 : 0;
     return writeObject(obj, true);
 }
 
@@ -879,7 +884,7 @@ restart_write:
         *reinterpret_cast<flat_binder_object*>(mData+mDataPos) = val;
         
         // Need to write meta-data?
-        if (nullMetaData || val.binder != NULL) {
+        if (nullMetaData || val.binder != 0) {
             mObjects[mObjectsSize] = mDataPos;
             acquire_object(ProcessState::self(), val, this);
             mObjectsSize++;
@@ -902,7 +907,7 @@ restart_write:
     }
     if (!enoughObjects) {
         size_t newSize = ((mObjectsSize+2)*3)/2;
-        size_t* objects = (size_t*)realloc(mObjects, newSize*sizeof(size_t));
+        binder_size_t* objects = (binder_size_t*)realloc(mObjects, newSize*sizeof(binder_size_t));
         if (objects == NULL) return NO_MEMORY;
         mObjects = objects;
         mObjectsCapacity = newSize;
@@ -1003,6 +1008,22 @@ int64_t Parcel::readInt64() const
 {
     return readAligned<int64_t>();
 }
+
+status_t Parcel::readPointer(uintptr_t *pArg) const
+{
+    status_t ret;
+    binder_uintptr_t ptr;
+    ret = readAligned(&ptr);
+    if (!ret)
+        *pArg = ptr;
+    return ret;
+}
+
+uintptr_t Parcel::readPointer() const
+{
+    return readAligned<binder_uintptr_t>();
+}
+
 
 status_t Parcel::readFloat(float *pArg) const
 {
@@ -1266,7 +1287,7 @@ const flat_binder_object* Parcel::readObject(bool nullMetaData) const
         const flat_binder_object* obj
                 = reinterpret_cast<const flat_binder_object*>(mData+DPOS);
         mDataPos = DPOS + sizeof(flat_binder_object);
-        if (!nullMetaData && (obj->cookie == NULL && obj->binder == NULL)) {
+        if (!nullMetaData && (obj->cookie == 0 && obj->binder == 0)) {
             // When transferring a NULL object, we don't write it into
             // the object list, so we don't want to check for it when
             // reading.
@@ -1275,7 +1296,7 @@ const flat_binder_object* Parcel::readObject(bool nullMetaData) const
         }
         
         // Ensure that this object is valid...
-        size_t* const OBJS = mObjects;
+        binder_size_t* const OBJS = mObjects;
         const size_t N = mObjectsSize;
         size_t opos = mNextObjectHint;
         
@@ -1337,9 +1358,9 @@ void Parcel::closeFileDescriptors()
     }
 }
 
-const uint8_t* Parcel::ipcData() const
+uintptr_t Parcel::ipcData() const
 {
-    return mData;
+    return reinterpret_cast<uintptr_t>(mData);
 }
 
 size_t Parcel::ipcDataSize() const
@@ -1347,9 +1368,9 @@ size_t Parcel::ipcDataSize() const
     return (mDataSize > mDataPos ? mDataSize : mDataPos);
 }
 
-const size_t* Parcel::ipcObjects() const
+uintptr_t Parcel::ipcObjects() const
 {
-    return mObjects;
+    return reinterpret_cast<uintptr_t>(mObjects);
 }
 
 size_t Parcel::ipcObjectsCount() const
@@ -1358,7 +1379,7 @@ size_t Parcel::ipcObjectsCount() const
 }
 
 void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
-    const size_t* objects, size_t objectsCount, release_func relFunc, void* relCookie)
+    const binder_size_t* objects, size_t objectsCount, release_func relFunc, void* relCookie)
 {
     freeDataNoInit();
     mError = NO_ERROR;
@@ -1367,7 +1388,7 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     //ALOGI("setDataReference Setting data size of %p to %lu (pid=%d)\n", this, mDataSize, getpid());
     mDataPos = 0;
     ALOGV("setDataReference Setting data pos of %p to %d\n", this, mDataPos);
-    mObjects = const_cast<size_t*>(objects);
+    mObjects = const_cast<binder_size_t*>(objects);
     mObjectsSize = mObjectsCapacity = objectsCount;
     mNextObjectHint = 0;
     mOwner = relFunc;
@@ -1385,7 +1406,7 @@ void Parcel::print(TextOutput& to, uint32_t flags) const
     } else if (dataSize() > 0) {
         const uint8_t* DATA = data();
         to << indent << HexDump(DATA, dataSize()) << dedent;
-        const size_t* OBJS = objects();
+        const binder_size_t* OBJS = objects();
         const size_t N = objectsCount();
         for (size_t i=0; i<N; i++) {
             const flat_binder_object* flat
@@ -1406,7 +1427,7 @@ void Parcel::releaseObjects()
     const sp<ProcessState> proc(ProcessState::self());
     size_t i = mObjectsSize;
     uint8_t* const data = mData;
-    size_t* const objects = mObjects;
+    binder_size_t* const objects = mObjects;
     while (i > 0) {
         i--;
         const flat_binder_object* flat
@@ -1420,7 +1441,7 @@ void Parcel::acquireObjects()
     const sp<ProcessState> proc(ProcessState::self());
     size_t i = mObjectsSize;
     uint8_t* const data = mData;
-    size_t* const objects = mObjects;
+    binder_size_t* const objects = mObjects;
     while (i > 0) {
         i--;
         const flat_binder_object* flat
@@ -1521,10 +1542,10 @@ status_t Parcel::continueWrite(size_t desired)
             mError = NO_MEMORY;
             return NO_MEMORY;
         }
-        size_t* objects = NULL;
+        binder_size_t* objects = NULL;
         
         if (objectsSize) {
-            objects = (size_t*)malloc(objectsSize*sizeof(size_t));
+            objects = (binder_size_t*)malloc(objectsSize*sizeof(binder_size_t));
             if (!objects) {
                 free(data);
 
@@ -1544,7 +1565,7 @@ status_t Parcel::continueWrite(size_t desired)
             memcpy(data, mData, mDataSize < desired ? mDataSize : desired);
         }
         if (objects && mObjects) {
-            memcpy(objects, mObjects, objectsSize*sizeof(size_t));
+            memcpy(objects, mObjects, objectsSize*sizeof(binder_size_t));
         }
         //ALOGI("Freeing data ref of %p (pid=%d)\n", this, getpid());
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
@@ -1571,8 +1592,8 @@ status_t Parcel::continueWrite(size_t desired)
                 }
                 release_object(proc, *flat, this);
             }
-            size_t* objects =
-                (size_t*)realloc(mObjects, objectsSize*sizeof(size_t));
+            binder_size_t* objects =
+                (binder_size_t*)realloc(mObjects, objectsSize*sizeof(binder_size_t));
             if (objects) {
                 mObjects = objects;
             }

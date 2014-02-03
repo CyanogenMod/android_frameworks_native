@@ -663,7 +663,7 @@ status_t IPCThreadState::requestDeathNotification(int32_t handle, BpBinder* prox
 {
     mOut.writeInt32(BC_REQUEST_DEATH_NOTIFICATION);
     mOut.writeInt32((int32_t)handle);
-    mOut.writeInt32((int32_t)proxy);
+    mOut.writePointer((uintptr_t)proxy);
     return NO_ERROR;
 }
 
@@ -671,7 +671,7 @@ status_t IPCThreadState::clearDeathNotification(int32_t handle, BpBinder* proxy)
 {
     mOut.writeInt32(BC_CLEAR_DEATH_NOTIFICATION);
     mOut.writeInt32((int32_t)handle);
-    mOut.writeInt32((int32_t)proxy);
+    mOut.writePointer((uintptr_t)proxy);
     return NO_ERROR;
 }
 
@@ -753,23 +753,23 @@ status_t IPCThreadState::waitForResponse(Parcel *reply, status_t *acquireResult)
                         reply->ipcSetDataReference(
                             reinterpret_cast<const uint8_t*>(tr.data.ptr.buffer),
                             tr.data_size,
-                            reinterpret_cast<const size_t*>(tr.data.ptr.offsets),
-                            tr.offsets_size/sizeof(size_t),
+                            reinterpret_cast<const binder_size_t*>(tr.data.ptr.offsets),
+                            tr.offsets_size/sizeof(binder_size_t),
                             freeBuffer, this);
                     } else {
-                        err = *static_cast<const status_t*>(tr.data.ptr.buffer);
+                        err = *reinterpret_cast<const status_t*>(tr.data.ptr.buffer);
                         freeBuffer(NULL,
                             reinterpret_cast<const uint8_t*>(tr.data.ptr.buffer),
                             tr.data_size,
-                            reinterpret_cast<const size_t*>(tr.data.ptr.offsets),
-                            tr.offsets_size/sizeof(size_t), this);
+                            reinterpret_cast<const binder_size_t*>(tr.data.ptr.offsets),
+                            tr.offsets_size/sizeof(binder_size_t), this);
                     }
                 } else {
                     freeBuffer(NULL,
                         reinterpret_cast<const uint8_t*>(tr.data.ptr.buffer),
                         tr.data_size,
-                        reinterpret_cast<const size_t*>(tr.data.ptr.offsets),
-                        tr.offsets_size/sizeof(size_t), this);
+                        reinterpret_cast<const binder_size_t*>(tr.data.ptr.offsets),
+                        tr.offsets_size/sizeof(binder_size_t), this);
                     continue;
                 }
             }
@@ -809,12 +809,12 @@ status_t IPCThreadState::talkWithDriver(bool doReceive)
     const size_t outAvail = (!doReceive || needRead) ? mOut.dataSize() : 0;
     
     bwr.write_size = outAvail;
-    bwr.write_buffer = (long unsigned int)mOut.data();
+    bwr.write_buffer = (uintptr_t)mOut.data();
 
     // This is what we'll read.
     if (doReceive && needRead) {
         bwr.read_size = mIn.dataCapacity();
-        bwr.read_buffer = (long unsigned int)mIn.data();
+        bwr.read_buffer = (uintptr_t)mIn.data();
     } else {
         bwr.read_size = 0;
         bwr.read_buffer = 0;
@@ -868,7 +868,7 @@ status_t IPCThreadState::talkWithDriver(bool doReceive)
 
     if (err >= NO_ERROR) {
         if (bwr.write_consumed > 0) {
-            if (bwr.write_consumed < (ssize_t)mOut.dataSize())
+            if (bwr.write_consumed < mOut.dataSize())
                 mOut.remove(0, bwr.write_consumed);
             else
                 mOut.setDataSize(0);
@@ -909,15 +909,15 @@ status_t IPCThreadState::writeTransactionData(int32_t cmd, uint32_t binderFlags,
     if (err == NO_ERROR) {
         tr.data_size = data.ipcDataSize();
         tr.data.ptr.buffer = data.ipcData();
-        tr.offsets_size = data.ipcObjectsCount()*sizeof(size_t);
+        tr.offsets_size = data.ipcObjectsCount()*sizeof(binder_size_t);
         tr.data.ptr.offsets = data.ipcObjects();
     } else if (statusBuffer) {
         tr.flags |= TF_STATUS_CODE;
         *statusBuffer = err;
         tr.data_size = sizeof(status_t);
-        tr.data.ptr.buffer = statusBuffer;
+        tr.data.ptr.buffer = reinterpret_cast<binder_uintptr_t>(statusBuffer);
         tr.offsets_size = 0;
-        tr.data.ptr.offsets = NULL;
+        tr.data.ptr.offsets = 0;
     } else {
         return (mLastError = err);
     }
@@ -950,8 +950,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_ACQUIRE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         ALOG_ASSERT(refs->refBase() == obj,
                    "BR_ACQUIRE: object %p does not match cookie %p (expected %p)",
                    refs, obj, refs->refBase());
@@ -961,13 +961,13 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             obj->printRefs();
         }
         mOut.writeInt32(BC_ACQUIRE_DONE);
-        mOut.writeInt32((int32_t)refs);
-        mOut.writeInt32((int32_t)obj);
+        mOut.writePointer((uintptr_t)refs);
+        mOut.writePointer((uintptr_t)obj);
         break;
         
     case BR_RELEASE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         ALOG_ASSERT(refs->refBase() == obj,
                    "BR_RELEASE: object %p does not match cookie %p (expected %p)",
                    refs, obj, refs->refBase());
@@ -979,17 +979,17 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_INCREFS:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         refs->incWeak(mProcess.get());
         mOut.writeInt32(BC_INCREFS_DONE);
-        mOut.writeInt32((int32_t)refs);
-        mOut.writeInt32((int32_t)obj);
+        mOut.writePointer((uintptr_t)refs);
+        mOut.writePointer((uintptr_t)obj);
         break;
         
     case BR_DECREFS:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
         // NOTE: This assertion is not valid, because the object may no
         // longer exist (thus the (BBinder*)cast above resulting in a different
         // memory address).
@@ -1000,8 +1000,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
         break;
         
     case BR_ATTEMPT_ACQUIRE:
-        refs = (RefBase::weakref_type*)mIn.readInt32();
-        obj = (BBinder*)mIn.readInt32();
+        refs = (RefBase::weakref_type*)mIn.readPointer();
+        obj = (BBinder*)mIn.readPointer();
          
         {
             const bool success = refs->attemptIncStrong(mProcess.get());
@@ -1026,8 +1026,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             buffer.ipcSetDataReference(
                 reinterpret_cast<const uint8_t*>(tr.data.ptr.buffer),
                 tr.data_size,
-                reinterpret_cast<const size_t*>(tr.data.ptr.offsets),
-                tr.offsets_size/sizeof(size_t), freeBuffer, this);
+                reinterpret_cast<const binder_size_t*>(tr.data.ptr.offsets),
+                tr.offsets_size/sizeof(binder_size_t), freeBuffer, this);
             
             const pid_t origPid = mCallingPid;
             const uid_t origUid = mCallingUid;
@@ -1103,15 +1103,15 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
     
     case BR_DEAD_BINDER:
         {
-            BpBinder *proxy = (BpBinder*)mIn.readInt32();
+            BpBinder *proxy = (BpBinder*)mIn.readPointer();
             proxy->sendObituary();
             mOut.writeInt32(BC_DEAD_BINDER_DONE);
-            mOut.writeInt32((int32_t)proxy);
+            mOut.writePointer((uintptr_t)proxy);
         } break;
         
     case BR_CLEAR_DEATH_NOTIFICATION_DONE:
         {
-            BpBinder *proxy = (BpBinder*)mIn.readInt32();
+            BpBinder *proxy = (BpBinder*)mIn.readPointer();
             proxy->getWeakRefs()->decWeak(proxy);
         } break;
         
@@ -1155,7 +1155,7 @@ void IPCThreadState::threadDestructor(void *st)
 
 
 void IPCThreadState::freeBuffer(Parcel* parcel, const uint8_t* data, size_t dataSize,
-                                const size_t* objects, size_t objectsSize,
+                                const binder_size_t* objects, size_t objectsSize,
                                 void* cookie)
 {
     //ALOGI("Freeing parcel %p", &parcel);
@@ -1166,7 +1166,7 @@ void IPCThreadState::freeBuffer(Parcel* parcel, const uint8_t* data, size_t data
     if (parcel != NULL) parcel->closeFileDescriptors();
     IPCThreadState* state = self();
     state->mOut.writeInt32(BC_FREE_BUFFER);
-    state->mOut.writeInt32((int32_t)data);
+    state->mOut.writePointer((uintptr_t)data);
 }
 
 }; // namespace android
