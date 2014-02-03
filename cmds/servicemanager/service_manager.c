@@ -24,7 +24,7 @@
  * uid can register media.*, etc)
  */
 static struct {
-    unsigned uid;
+    uid_t uid;
     const char *name;
 } allowed[] = {
     { AID_MEDIA, "media.audio_flinger" },
@@ -50,9 +50,9 @@ static struct {
     { AID_KEYSTORE, "android.security.keystore" },
 };
 
-void *svcmgr_handle;
+uint32_t svcmgr_handle;
 
-const char *str8(uint16_t *x)
+const char *str8(const uint16_t *x)
 {
     static char buf[128];
     unsigned max = 127;
@@ -67,7 +67,7 @@ const char *str8(uint16_t *x)
     return buf;
 }
 
-int str16eq(uint16_t *a, const char *b)
+int str16eq(const uint16_t *a, const char *b)
 {
     while (*a && *b)
         if (*a++ != *b++) return 0;
@@ -76,10 +76,10 @@ int str16eq(uint16_t *a, const char *b)
     return 1;
 }
 
-int svc_can_register(unsigned uid, uint16_t *name)
+int svc_can_register(uid_t uid, const uint16_t *name)
 {
-    unsigned n;
-    
+    size_t n;
+
     if ((uid == 0) || (uid == AID_SYSTEM))
         return 1;
 
@@ -90,19 +90,19 @@ int svc_can_register(unsigned uid, uint16_t *name)
     return 0;
 }
 
-struct svcinfo 
+struct svcinfo
 {
     struct svcinfo *next;
-    void *ptr;
+    uint32_t handle;
     struct binder_death death;
     int allow_isolated;
-    unsigned len;
+    size_t len;
     uint16_t name[0];
 };
 
-struct svcinfo *svclist = 0;
+struct svcinfo *svclist = NULL;
 
-struct svcinfo *find_svc(uint16_t *s16, unsigned len)
+struct svcinfo *find_svc(const uint16_t *s16, size_t len)
 {
     struct svcinfo *si;
 
@@ -112,111 +112,116 @@ struct svcinfo *find_svc(uint16_t *s16, unsigned len)
             return si;
         }
     }
-    return 0;
+    return NULL;
 }
 
 void svcinfo_death(struct binder_state *bs, void *ptr)
 {
-    struct svcinfo *si = ptr;
+    struct svcinfo *si = (struct svcinfo* ) ptr;
+
     ALOGI("service '%s' died\n", str8(si->name));
-    if (si->ptr) {
-        binder_release(bs, si->ptr);
-        si->ptr = 0;
-    }   
+    if (si->handle) {
+        binder_release(bs, si->handle);
+        si->handle = 0;
+    }
 }
 
-uint16_t svcmgr_id[] = { 
+uint16_t svcmgr_id[] = {
     'a','n','d','r','o','i','d','.','o','s','.',
-    'I','S','e','r','v','i','c','e','M','a','n','a','g','e','r' 
+    'I','S','e','r','v','i','c','e','M','a','n','a','g','e','r'
 };
-  
 
-void *do_find_service(struct binder_state *bs, uint16_t *s, unsigned len, unsigned uid)
+
+uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid)
 {
     struct svcinfo *si;
-    si = find_svc(s, len);
 
-//    ALOGI("check_service('%s') ptr = %p\n", str8(s), si ? si->ptr : 0);
-    if (si && si->ptr) {
+    si = find_svc(s, len);
+    //ALOGI("check_service('%s') handle = %x\n", str8(s), si ? si->handle : 0);
+    if (si && si->handle) {
         if (!si->allow_isolated) {
             // If this service doesn't allow access from isolated processes,
             // then check the uid to see if it is isolated.
-            unsigned appid = uid % AID_USER;
+            uid_t appid = uid % AID_USER;
             if (appid >= AID_ISOLATED_START && appid <= AID_ISOLATED_END) {
                 return 0;
             }
         }
-        return si->ptr;
+        return si->handle;
     } else {
         return 0;
     }
 }
 
 int do_add_service(struct binder_state *bs,
-                   uint16_t *s, unsigned len,
-                   void *ptr, unsigned uid, int allow_isolated)
+                   const uint16_t *s, size_t len,
+                   uint32_t handle, uid_t uid, int allow_isolated)
 {
     struct svcinfo *si;
-    //ALOGI("add_service('%s',%p,%s) uid=%d\n", str8(s), ptr,
+
+    //ALOGI("add_service('%s',%x,%s) uid=%d\n", str8(s), handle,
     //        allow_isolated ? "allow_isolated" : "!allow_isolated", uid);
 
-    if (!ptr || (len == 0) || (len > 127))
+    if (!handle || (len == 0) || (len > 127))
         return -1;
 
     if (!svc_can_register(uid, s)) {
-        ALOGE("add_service('%s',%p) uid=%d - PERMISSION DENIED\n",
-             str8(s), ptr, uid);
+        ALOGE("add_service('%s',%x) uid=%d - PERMISSION DENIED\n",
+             str8(s), handle, uid);
         return -1;
     }
 
     si = find_svc(s, len);
     if (si) {
-        if (si->ptr) {
-            ALOGE("add_service('%s',%p) uid=%d - ALREADY REGISTERED, OVERRIDE\n",
-                 str8(s), ptr, uid);
+        if (si->handle) {
+            ALOGE("add_service('%s',%x) uid=%d - ALREADY REGISTERED, OVERRIDE\n",
+                 str8(s), handle, uid);
             svcinfo_death(bs, si);
         }
-        si->ptr = ptr;
+        si->handle = handle;
     } else {
         si = malloc(sizeof(*si) + (len + 1) * sizeof(uint16_t));
         if (!si) {
-            ALOGE("add_service('%s',%p) uid=%d - OUT OF MEMORY\n",
-                 str8(s), ptr, uid);
+            ALOGE("add_service('%s',%x) uid=%d - OUT OF MEMORY\n",
+                 str8(s), handle, uid);
             return -1;
         }
-        si->ptr = ptr;
+        si->handle = handle;
         si->len = len;
         memcpy(si->name, s, (len + 1) * sizeof(uint16_t));
         si->name[len] = '\0';
-        si->death.func = svcinfo_death;
+        si->death.func = (void*) svcinfo_death;
         si->death.ptr = si;
         si->allow_isolated = allow_isolated;
         si->next = svclist;
         svclist = si;
     }
 
-    binder_acquire(bs, ptr);
-    binder_link_to_death(bs, ptr, &si->death);
+    binder_acquire(bs, handle);
+    binder_link_to_death(bs, handle, &si->death);
     return 0;
 }
 
 int svcmgr_handler(struct binder_state *bs,
-                   struct binder_txn *txn,
+                   struct binder_transaction_data *txn,
                    struct binder_io *msg,
                    struct binder_io *reply)
 {
     struct svcinfo *si;
     uint16_t *s;
-    unsigned len;
-    void *ptr;
+    size_t len;
+    uint32_t handle;
     uint32_t strict_policy;
     int allow_isolated;
 
-//    ALOGI("target=%p code=%d pid=%d uid=%d\n",
-//         txn->target, txn->code, txn->sender_pid, txn->sender_euid);
+    //ALOGI("target=%x code=%d pid=%d uid=%d\n",
+    //  txn->target.handle, txn->code, txn->sender_pid, txn->sender_euid);
 
-    if (txn->target != svcmgr_handle)
+    if (txn->target.handle != svcmgr_handle)
         return -1;
+
+    if (txn->code == PING_TRANSACTION)
+        return 0;
 
     // Equivalent to Parcel::enforceInterface(), reading the RPC
     // header with the strict mode policy mask and the interface name.
@@ -234,22 +239,22 @@ int svcmgr_handler(struct binder_state *bs,
     case SVC_MGR_GET_SERVICE:
     case SVC_MGR_CHECK_SERVICE:
         s = bio_get_string16(msg, &len);
-        ptr = do_find_service(bs, s, len, txn->sender_euid);
-        if (!ptr)
+        handle = do_find_service(bs, s, len, txn->sender_euid);
+        if (!handle)
             break;
-        bio_put_ref(reply, ptr);
+        bio_put_ref(reply, handle);
         return 0;
 
     case SVC_MGR_ADD_SERVICE:
         s = bio_get_string16(msg, &len);
-        ptr = bio_get_ref(msg);
+        handle = bio_get_ref(msg);
         allow_isolated = bio_get_uint32(msg) ? 1 : 0;
-        if (do_add_service(bs, s, len, ptr, txn->sender_euid, allow_isolated))
+        if (do_add_service(bs, s, len, handle, txn->sender_euid, allow_isolated))
             return -1;
         break;
 
     case SVC_MGR_LIST_SERVICES: {
-        unsigned n = bio_get_uint32(msg);
+        uint32_t n = bio_get_uint32(msg);
 
         si = svclist;
         while ((n-- > 0) && si)
@@ -272,16 +277,20 @@ int svcmgr_handler(struct binder_state *bs,
 int main(int argc, char **argv)
 {
     struct binder_state *bs;
-    void *svcmgr = BINDER_SERVICE_MANAGER;
 
     bs = binder_open(128*1024);
+    if (!bs) {
+        ALOGE("failed to open binder driver\n");
+        return -1;
+    }
 
     if (binder_become_context_manager(bs)) {
         ALOGE("cannot become context manager (%s)\n", strerror(errno));
         return -1;
     }
 
-    svcmgr_handle = svcmgr;
+    svcmgr_handle = BINDER_SERVICE_MANAGER;
     binder_loop(bs, svcmgr_handler);
+
     return 0;
 }

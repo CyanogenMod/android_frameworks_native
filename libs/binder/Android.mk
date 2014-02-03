@@ -42,6 +42,9 @@ LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
 LOCAL_SHARED_LIBRARIES := liblog libcutils libutils
 LOCAL_SRC_FILES := $(sources)
+ifneq ($(TARGET_USES_64_BIT_BINDER),true)
+LOCAL_CFLAGS += -DBINDER_IPC_32BIT=1
+endif
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -49,4 +52,7 @@ LOCAL_LDLIBS += -lpthread
 LOCAL_MODULE := libbinder
 LOCAL_STATIC_LIBRARIES += libutils
 LOCAL_SRC_FILES := $(sources)
+ifneq ($(TARGET_USES_64_BIT_BINDER),true)
+LOCAL_CFLAGS += -DBINDER_IPC_32BIT=1
+endif
 include $(BUILD_STATIC_LIBRARY)
