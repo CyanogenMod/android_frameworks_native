@@ -4,7 +4,9 @@ svc_c_flags =	\
 	-Wall -Wextra \
 
 ifneq ($(TARGET_USES_64_BIT_BINDER),true)
+ifneq ($(TARGET_IS_64_BIT),true)
 svc_c_flags += -DBINDER_IPC_32BIT=1
+endif
 endif
 
 include $(CLEAR_VARS)
