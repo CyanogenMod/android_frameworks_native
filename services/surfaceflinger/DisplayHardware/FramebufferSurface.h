@@ -39,7 +39,7 @@ class FramebufferSurface : public ConsumerBase,
 public:
     FramebufferSurface(HWComposer& hwc, int disp, const sp<IGraphicBufferConsumer>& consumer);
 
-    virtual status_t beginFrame();
+    virtual status_t beginFrame(bool mustRecompose);
     virtual status_t prepareFrame(CompositionType compositionType);
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
