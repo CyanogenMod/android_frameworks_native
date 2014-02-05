@@ -124,7 +124,9 @@ public:
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
     const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
 
-    status_t beginFrame() const;
+    // We pass in mustRecompose so we can keep VirtualDisplaySurface's state
+    // machine happy without actually queueing a buffer if nothing has changed
+    status_t beginFrame(bool mustRecompose) const;
     status_t prepareFrame(const HWComposer& hwc) const;
 
     void swapBuffers(HWComposer& hwc) const;

@@ -56,7 +56,8 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mOutputUsage(GRALLOC_USAGE_HW_COMPOSER),
     mProducerSlotSource(0),
     mDbgState(DBG_STATE_IDLE),
-    mDbgLastCompositionType(COMPOSITION_UNKNOWN)
+    mDbgLastCompositionType(COMPOSITION_UNKNOWN),
+    mMustRecompose(false)
 {
     mSource[SOURCE_SINK] = sink;
     mSource[SOURCE_SCRATCH] = bq;
@@ -92,9 +93,11 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
 VirtualDisplaySurface::~VirtualDisplaySurface() {
 }
 
-status_t VirtualDisplaySurface::beginFrame() {
+status_t VirtualDisplaySurface::beginFrame(bool mustRecompose) {
     if (mDisplayId < 0)
         return NO_ERROR;
+
+    mMustRecompose = mustRecompose;
 
     VDS_LOGW_IF(mDbgState != DBG_STATE_IDLE,
             "Unexpected beginFrame() in %s state", dbgStateStr());
@@ -228,16 +231,24 @@ void VirtualDisplaySurface::onFrameCommitted() {
         QueueBufferOutput qbo;
         sp<Fence> outFence = mHwc.getLastRetireFence(mDisplayId);
         VDS_LOGV("onFrameCommitted: queue sink sslot=%d", sslot);
-        status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
-                QueueBufferInput(
-                    systemTime(), false /* isAutoTimestamp */,
-                    Rect(mSinkBufferWidth, mSinkBufferHeight),
-                    NATIVE_WINDOW_SCALING_MODE_FREEZE, 0 /* transform */,
-                    true /* async*/,
-                    outFence),
-                &qbo);
-        if (result == NO_ERROR) {
-            updateQueueBufferOutput(qbo);
+        if (mMustRecompose) {
+            status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
+                    QueueBufferInput(
+                        systemTime(), false /* isAutoTimestamp */,
+                        Rect(mSinkBufferWidth, mSinkBufferHeight),
+                        NATIVE_WINDOW_SCALING_MODE_FREEZE, 0 /* transform */,
+                        true /* async*/,
+                        outFence),
+                    &qbo);
+            if (result == NO_ERROR) {
+                updateQueueBufferOutput(qbo);
+            }
+        } else {
+            // If the surface hadn't actually been updated, then we only went
+            // through the motions of updating the display to keep our state
+            // machine happy. We cancel the buffer to avoid triggering another
+            // re-composition and causing an infinite loop.
+            mSource[SOURCE_SINK]->cancelBuffer(sslot, outFence);
         }
     }
 
