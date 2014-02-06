@@ -38,7 +38,7 @@ const char* stringForIndent(int32_t indentLevel)
 
 // ---------------------------------------------------------------------
 
-static void defaultPrintFunc(void* cookie, const char* txt)
+static void defaultPrintFunc(void* /*cookie*/, const char* txt)
 {
     printf("%s", txt);
 }

@@ -86,7 +86,7 @@ void ProcessState::setContextObject(const sp<IBinder>& object)
     setContextObject(object, String16("default"));
 }
 
-sp<IBinder> ProcessState::getContextObject(const sp<IBinder>& caller)
+sp<IBinder> ProcessState::getContextObject(const sp<IBinder>& /*caller*/)
 {
     return getStrongProxyForHandle(0);
 }
