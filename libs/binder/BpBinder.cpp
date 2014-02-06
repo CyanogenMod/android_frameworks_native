@@ -343,7 +343,7 @@ void BpBinder::onFirstRef()
     if (ipc) ipc->incStrongHandle(mHandle);
 }
 
-void BpBinder::onLastStrongRef(const void* id)
+void BpBinder::onLastStrongRef(const void* /*id*/)
 {
     ALOGV("onLastStrongRef BpBinder %p handle %d\n", this, mHandle);
     IF_ALOGV() {
@@ -353,7 +353,7 @@ void BpBinder::onLastStrongRef(const void* id)
     if (ipc) ipc->decStrongHandle(mHandle);
 }
 
-bool BpBinder::onIncStrongAttempted(uint32_t flags, const void* id)
+bool BpBinder::onIncStrongAttempted(uint32_t /*flags*/, const void* /*id*/)
 {
     ALOGV("onIncStrongAttempted BpBinder %p handle %d\n", this, mHandle);
     IPCThreadState* ipc = IPCThreadState::self();

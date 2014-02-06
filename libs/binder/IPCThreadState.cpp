@@ -533,7 +533,7 @@ status_t IPCThreadState::handlePolledCommands()
     return result;
 }
 
-void IPCThreadState::stopProcess(bool immediate)
+void IPCThreadState::stopProcess(bool /*immediate*/)
 {
     //ALOGI("**** STOPPING PROCESS");
     flushCommands();
@@ -861,7 +861,7 @@ status_t IPCThreadState::talkWithDriver(bool doReceive)
     } while (err == -EINTR);
 
     IF_LOG_COMMANDS() {
-        alog << "Our err: " << (void*)err << ", write consumed: "
+        alog << "Our err: " << (void*)(intptr_t)err << ", write consumed: "
             << bwr.write_consumed << " (of " << mOut.dataSize()
                         << "), read consumed: " << bwr.read_consumed << endl;
     }
@@ -1154,9 +1154,10 @@ void IPCThreadState::threadDestructor(void *st)
 }
 
 
-void IPCThreadState::freeBuffer(Parcel* parcel, const uint8_t* data, size_t dataSize,
-                                const binder_size_t* objects, size_t objectsSize,
-                                void* cookie)
+void IPCThreadState::freeBuffer(Parcel* parcel, const uint8_t* data,
+                                size_t /*dataSize*/,
+                                const binder_size_t* /*objects*/,
+                                size_t /*objectsSize*/, void* /*cookie*/)
 {
     //ALOGI("Freeing parcel %p", &parcel);
     IF_LOG_COMMANDS() {

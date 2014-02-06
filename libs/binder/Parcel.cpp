@@ -104,7 +104,7 @@ void acquire_object(const sp<ProcessState>& proc,
         }
     }
 
-    ALOGD("Invalid object type 0x%08lx", obj.type);
+    ALOGD("Invalid object type 0x%08x", obj.type);
 }
 
 void release_object(const sp<ProcessState>& proc,
@@ -140,16 +140,16 @@ void release_object(const sp<ProcessState>& proc,
         }
     }
 
-    ALOGE("Invalid object type 0x%08lx", obj.type);
+    ALOGE("Invalid object type 0x%08x", obj.type);
 }
 
 inline static status_t finish_flatten_binder(
-    const sp<IBinder>& binder, const flat_binder_object& flat, Parcel* out)
+    const sp<IBinder>& /*binder*/, const flat_binder_object& flat, Parcel* out)
 {
     return out->writeObject(flat, false);
 }
 
-status_t flatten_binder(const sp<ProcessState>& proc,
+status_t flatten_binder(const sp<ProcessState>& /*proc*/,
     const sp<IBinder>& binder, Parcel* out)
 {
     flat_binder_object obj;
@@ -180,7 +180,7 @@ status_t flatten_binder(const sp<ProcessState>& proc,
     return finish_flatten_binder(binder, obj, out);
 }
 
-status_t flatten_binder(const sp<ProcessState>& proc,
+status_t flatten_binder(const sp<ProcessState>& /*proc*/,
     const wp<IBinder>& binder, Parcel* out)
 {
     flat_binder_object obj;
@@ -229,7 +229,8 @@ status_t flatten_binder(const sp<ProcessState>& proc,
 }
 
 inline static status_t finish_unflatten_binder(
-    BpBinder* proxy, const flat_binder_object& flat, const Parcel& in)
+    BpBinder* /*proxy*/, const flat_binder_object& /*flat*/,
+    const Parcel& /*in*/)
 {
     return NO_ERROR;
 }
@@ -895,7 +896,7 @@ status_t Parcel::writeNoException()
     return writeInt32(0);
 }
 
-void Parcel::remove(size_t start, size_t amt)
+void Parcel::remove(size_t /*start*/, size_t /*amt*/)
 {
     LOG_ALWAYS_FATAL("Parcel::remove() not yet implemented!");
 }
@@ -1292,7 +1293,7 @@ const flat_binder_object* Parcel::readObject(bool nullMetaData) const
                 return obj;
             }
         }
-        ALOGW("Attempt to read object from Parcel %p at offset %d that is not in the object list",
+        ALOGW("Attempt to read object from Parcel %p at offset %zu that is not in the object list",
              this, DPOS);
     }
     return NULL;
@@ -1353,13 +1354,13 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     scanForFds();
 }
 
-void Parcel::print(TextOutput& to, uint32_t flags) const
+void Parcel::print(TextOutput& to, uint32_t /*flags*/) const
 {
     to << "Parcel(";
     
     if (errorCheck() != NO_ERROR) {
         const status_t err = errorCheck();
-        to << "Error: " << (void*)err << " \"" << strerror(-err) << "\"";
+        to << "Error: " << (void*)(intptr_t)err << " \"" << strerror(-err) << "\"";
     } else if (dataSize() > 0) {
         const uint8_t* DATA = data();
         to << indent << HexDump(DATA, dataSize()) << dedent;
@@ -1589,7 +1590,7 @@ status_t Parcel::continueWrite(size_t desired)
 
         if(!(mDataCapacity == 0 && mObjects == NULL
              && mObjectsCapacity == 0)) {
-            ALOGE("continueWrite: %d/%p/%d/%d", mDataCapacity, mObjects, mObjectsCapacity, desired);
+            ALOGE("continueWrite: %zu/%p/%zu/%zu", mDataCapacity, mObjects, mObjectsCapacity, desired);
         }
         
         mData = data;
