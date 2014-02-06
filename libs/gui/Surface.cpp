@@ -36,11 +36,8 @@
 
 #ifdef QCOM_BSP
 #include <gralloc_priv.h>
-#include <qdMetaData.h>
-#ifdef VFM_AVAILABLE
-#include "vfm_metadata.h"
-#endif //VFM_AVAILABLE
 #endif
+
 namespace android {
 
 Surface::Surface(
@@ -307,27 +304,6 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     } else {
         timestamp = mTimestamp;
     }
-#ifdef QCOM_BSP
-#ifdef VFM_AVAILABLE
-    /* Add a session ID while queuing the buffers to maintain session
-       association */
-    {
-        int nErr;
-        private_handle_t* pBufPrvtHandle = (private_handle_t*)buffer->handle;
-
-        VfmMetaData_t vfmMetaData;
-        memset(&vfmMetaData, 0, sizeof(VfmMetaData_t));
-
-        vfmMetaData.type = VFM_SESSION_ID;
-        vfmMetaData.sessionId =
-            reinterpret_cast<int>(mGraphicBufferProducer.get());
-        nErr = setMetaData(pBufPrvtHandle, PP_PARAM_VFM_DATA,
-            (void*)&vfmMetaData);
-        if(0 != nErr)
-            ALOGE("Error:%d in setMetaData PP_PARAM_SESSIONID", nErr);
-   }
-#endif
-#endif
     int i = getSlotFromBufferLocked(buffer);
     if (i < 0) {
         return i;
