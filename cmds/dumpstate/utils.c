@@ -495,7 +495,7 @@ const char *dump_traces() {
         if (!mkdir(anr_traces_dir, 0775)) {
             chown(anr_traces_dir, AID_SYSTEM, AID_SYSTEM);
             chmod(anr_traces_dir, 0775);
-            if (selinux_android_restorecon(anr_traces_dir) == -1) {
+            if (selinux_android_restorecon(anr_traces_dir, 0) == -1) {
                 fprintf(stderr, "restorecon failed for %s: %s\n", anr_traces_dir, strerror(errno));
             }
         } else if (errno != EEXIST) {
