@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_POWERMANAGER_H
-#define ANDROID_POWERMANAGER_H
+#define LOG_TAG "InputApplication"
+
+#include "InputApplication.h"
+
+#include <cutils/log.h>
 
 namespace android {
 
-// must be kept in sync with definitions in PowerManager.java
-enum {
-    POWERMANAGER_PARTIAL_WAKE_LOCK = 1, // equals PowerManager.PARTIAL_WAKE_LOCK constant
-};
+// --- InputApplicationHandle ---
 
-enum {
-    USER_ACTIVITY_EVENT_OTHER = 0,
-    USER_ACTIVITY_EVENT_BUTTON = 1,
-    USER_ACTIVITY_EVENT_TOUCH = 2,
+InputApplicationHandle::InputApplicationHandle() :
+    mInfo(NULL) {
+}
 
-    USER_ACTIVITY_EVENT_LAST = USER_ACTIVITY_EVENT_TOUCH, // Last valid event code.
-};
+InputApplicationHandle::~InputApplicationHandle() {
+    delete mInfo;
+}
 
-}; // namespace android
+void InputApplicationHandle::releaseInfo() {
+    if (mInfo) {
+        delete mInfo;
+        mInfo = NULL;
+    }
+}
 
-#endif // ANDROID_POWERMANAGER_H
+} // namespace android
