@@ -16,13 +16,6 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-    EventHub.cpp \
-    InputApplication.cpp \
-    InputDispatcher.cpp \
-    InputListener.cpp \
-    InputManager.cpp \
-    InputReader.cpp \
-    InputWindow.cpp \
     InputFlinger.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -30,13 +23,9 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libinput \
     liblog \
-    libutils \
-	libui \
-	libhardware_legacy
+    libutils
 
-
-# TODO: Move inputflinger to its own process and mark it hidden
-#LOCAL_CFLAGS += -fvisibility=hidden
+LOCAL_CFLAGS += -fvisibility=hidden
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 
