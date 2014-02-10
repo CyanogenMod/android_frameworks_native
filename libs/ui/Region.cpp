@@ -221,6 +221,22 @@ Region& Region::makeBoundsSelf()
     return *this;
 }
 
+bool Region::contains(const Point& point) const {
+    return contains(point.x, point.y);
+}
+
+bool Region::contains(int x, int y) const {
+    const_iterator cur = begin();
+    const_iterator const tail = end();
+    while (cur != tail) {
+        if (y >= cur->top && y < cur->bottom && x >= cur->left && x < cur->right) {
+            return true;
+        }
+        cur++;
+    }
+    return false;
+}
+
 void Region::clear()
 {
     mStorage.clear();
