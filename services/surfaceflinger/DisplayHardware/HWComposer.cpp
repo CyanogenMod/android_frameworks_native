@@ -88,7 +88,8 @@ HWComposer::HWComposer(
       mFbDev(0), mHwc(0), mNumDisplays(1),
       mCBContext(new cb_context),
       mEventHandler(handler),
-      mDebugForceFakeVSync(false)
+      mDebugForceFakeVSync(false),
+      mVDSEnabled(false)
 {
     for (size_t i =0 ; i<MAX_HWC_DISPLAYS ; i++) {
         mLists[i] = 0;
@@ -184,6 +185,15 @@ HWComposer::HWComposer(
         for (size_t i =0 ; i<NUM_BUILTIN_DISPLAYS ; i++) {
             queryDisplayProperties(i);
         }
+    }
+
+    // read system property for VDS solution
+    // This property is expected to be setup once during bootup
+    if( (property_get("persist.hwc.enable_vds", value, NULL) > 0) &&
+        ((!strncmp(value, "1", strlen("1"))) ||
+        !strncasecmp(value, "true", strlen("true")))) {
+        //HAL virtual display is using VDS based implementation
+        mVDSEnabled = true;
     }
 
     if (needVSyncThread) {
