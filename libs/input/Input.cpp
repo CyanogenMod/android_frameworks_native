@@ -213,6 +213,11 @@ void PointerCoords::scale(float scaleFactor) {
     scaleAxisValue(*this, AMOTION_EVENT_AXIS_TOOL_MINOR, scaleFactor);
 }
 
+void PointerCoords::applyOffset(float xOffset, float yOffset) {
+    setAxisValue(AMOTION_EVENT_AXIS_X, getX() + xOffset);
+    setAxisValue(AMOTION_EVENT_AXIS_Y, getY() + yOffset);
+}
+
 #ifdef HAVE_ANDROID_OS
 status_t PointerCoords::readFromParcel(Parcel* parcel) {
     bits = parcel->readInt64();
