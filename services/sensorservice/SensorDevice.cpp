@@ -309,7 +309,7 @@ int SensorDevice::getHalDeviceVersion() const {
     return mSensorDevice->common.version;
 }
 
-status_t SensorDevice::flush(void* /*ident*/, int handle) {
+status_t SensorDevice::flush(void* ident, int handle) {
     if (getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_1) {
         return INVALID_OPERATION;
     }

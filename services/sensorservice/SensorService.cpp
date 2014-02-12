@@ -164,6 +164,7 @@ void SensorService::onFirstRef()
                 fclose(fp);
             }
 
+            mWakeLockAcquired = false;
             run("SensorService", PRIORITY_URGENT_DISPLAY);
             mInitCheck = NO_ERROR;
         }
@@ -284,6 +285,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
         }
 
         result.appendFormat("%zu Max Socket Buffer size\n", mSocketBufferSize);
+        result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
         result.appendFormat("%zd active connections\n", mActiveConnections.size());
 
         for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
@@ -298,7 +300,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
     return NO_ERROR;
 }
 
-void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
+void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
         sensors_event_t const* buffer, const int count) {
     SensorInterface* sensor;
     status_t err = NO_ERROR;
@@ -311,7 +313,7 @@ void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& c
                 if (sensor != NULL) {
                     sensor->autoDisable(connection.get(), handle);
                 }
-                cleanupWithoutDisable(connection, handle);
+                cleanupWithoutDisableLocked(connection, handle);
             }
         }
     }
@@ -333,7 +335,6 @@ bool SensorService::threadLoop()
     const size_t vcount = mVirtualSensorList.size();
 
     ssize_t count;
-    bool wakeLockAcquired = false;
     const int halVersion = device.getHalDeviceVersion();
     do {
         count = device.poll(buffer, numEventMax);
@@ -341,26 +342,31 @@ bool SensorService::threadLoop()
             ALOGE("sensor poll failed (%s)", strerror(-count));
             break;
         }
-
-        // Poll has returned. Hold a wakelock.
-        // Todo(): add a flag to the sensors definitions to indicate
-        // the sensors which can wake up the AP
+        Mutex::Autolock _l(mLock);
+        // Poll has returned. Hold a wakelock if one of the events is from a wake up sensor. The
+        // rest of this loop is under a critical section protected by mLock. Acquiring a wakeLock,
+        // sending events to clients (incrementing SensorEventConnection::mWakeLockRefCount) should
+        // not be interleaved with decrementing SensorEventConnection::mWakeLockRefCount and
+        // releasing the wakelock.
+        bool bufferHasWakeUpEvent = false;
         for (int i = 0; i < count; i++) {
-            if (buffer[i].type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
-                 acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
-                 wakeLockAcquired = true;
-                 break;
+            if (isWakeUpSensorEvent(buffer[i])) {
+                bufferHasWakeUpEvent = true;
+                break;
             }
         }
 
-        recordLastValue(buffer, count);
+        if (bufferHasWakeUpEvent && !mWakeLockAcquired) {
+            acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
+            mWakeLockAcquired = true;
+            ALOGD_IF(DEBUG_CONNECTIONS, "acquired wakelock %s", WAKE_LOCK_NAME);
+        }
+        recordLastValueLocked(buffer, count);
 
         // handle virtual sensors
         if (count && vcount) {
             sensors_event_t const * const event = buffer;
-            const DefaultKeyedVector<int, SensorInterface*> virtualSensors(
-                    getActiveVirtualSensors());
-            const size_t activeVirtualSensorCount = virtualSensors.size();
+            const size_t activeVirtualSensorCount = mActiveVirtualSensors.size();
             if (activeVirtualSensorCount) {
                 size_t k = 0;
                 SensorFusion& fusion(SensorFusion::getInstance());
@@ -378,7 +384,7 @@ bool SensorService::threadLoop()
                             break;
                         }
                         sensors_event_t out;
-                        SensorInterface* si = virtualSensors.valueAt(j);
+                        SensorInterface* si = mActiveVirtualSensors.valueAt(j);
                         if (si->process(&out, event[i])) {
                             buffer[count + k] = out;
                             k++;
@@ -387,7 +393,7 @@ bool SensorService::threadLoop()
                 }
                 if (k) {
                     // record the last synthesized values
-                    recordLastValue(&buffer[count], k);
+                    recordLastValueLocked(&buffer[count], k);
                     count += k;
                     // sort the buffer by time-stamps
                     sortEventBuffer(buffer, count);
@@ -406,22 +412,24 @@ bool SensorService::threadLoop()
             }
         }
 
-        // send our events to clients...
-        const SortedVector< wp<SensorEventConnection> > activeConnections(
-                getActiveConnections());
-        size_t numConnections = activeConnections.size();
-        for (size_t i=0 ; i<numConnections ; i++) {
-            sp<SensorEventConnection> connection(
-                    activeConnections[i].promote());
+        // Send our events to clients. Check the state of wake lock for each client and release the
+        // lock if none of the clients need it.
+        bool needsWakeLock = false;
+        for (size_t i=0 ; i < mActiveConnections.size(); i++) {
+            sp<SensorEventConnection> connection(mActiveConnections[i].promote());
             if (connection != 0) {
                 connection->sendEvents(buffer, count, scratch);
+                needsWakeLock |= connection->needsWakeLock();
                 // Some sensors need to be auto disabled after the trigger
-                cleanupAutoDisabledSensor(connection, buffer, count);
+                cleanupAutoDisabledSensorLocked(connection, buffer, count);
             }
         }
 
-        // We have read the data, upper layers should hold the wakelock.
-        if (wakeLockAcquired) release_wake_lock(WAKE_LOCK_NAME);
+        if (mWakeLockAcquired && !needsWakeLock) {
+            release_wake_lock(WAKE_LOCK_NAME);
+            mWakeLockAcquired = false;
+            ALOGD_IF(DEBUG_CONNECTIONS, "released wakelock %s", WAKE_LOCK_NAME);
+        }
     } while (count >= 0 || Thread::exitPending());
 
     ALOGW("Exiting SensorService::threadLoop => aborting...");
@@ -429,9 +437,8 @@ bool SensorService::threadLoop()
     return false;
 }
 
-void SensorService::recordLastValue(
+void SensorService::recordLastValueLocked(
         const sensors_event_t* buffer, size_t count) {
-    Mutex::Autolock _l(mLock);
     const sensors_event_t* last = NULL;
     for (size_t i = 0; i < count; i++) {
         const sensors_event_t* event = &buffer[i];
@@ -459,20 +466,6 @@ void SensorService::sortEventBuffer(sensors_event_t* buffer, size_t count)
     qsort(buffer, count, sizeof(sensors_event_t), compar::cmp);
 }
 
-SortedVector< wp<SensorService::SensorEventConnection> >
-SensorService::getActiveConnections() const
-{
-    Mutex::Autolock _l(mLock);
-    return mActiveConnections;
-}
-
-DefaultKeyedVector<int, SensorInterface*>
-SensorService::getActiveVirtualSensors() const
-{
-    Mutex::Autolock _l(mLock);
-    return mActiveVirtualSensors;
-}
-
 String8 SensorService::getSensorName(int handle) const {
     size_t count = mUserSensorList.size();
     for (size_t i=0 ; i<count ; i++) {
@@ -488,6 +481,11 @@ String8 SensorService::getSensorName(int handle) const {
 bool SensorService::isVirtualSensor(int handle) const {
     SensorInterface* sensor = mSensorMap.valueFor(handle);
     return sensor->isVirtual();
+}
+
+bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
+    SensorInterface* sensor = mSensorMap.valueFor(event.sensor);
+    return sensor->getSensor().isWakeUpSensor();
 }
 
 Vector<Sensor> SensorService::getSensorList()
@@ -554,6 +552,9 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
     }
     mActiveConnections.remove(connection);
     BatteryService::cleanup(c->getUid());
+    if (c->needsWakeLock()) {
+        checkWakeLockStateLocked();
+    }
 }
 
 Sensor SensorService::getSensorFromHandle(int handle) const {
@@ -585,15 +586,24 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         }
     } else {
         if (rec->addConnection(connection)) {
-            // this sensor is already activated, but we are adding a
-            // connection that uses it. Immediately send down the last
-            // known value of the requested sensor if it's not a
+            // this sensor is already activated, but we are adding a connection that uses it.
+            // Immediately send down the last known value of the requested sensor if it's not a
             // "continuous" sensor.
             if (sensor->getSensor().getMinDelay() == 0) {
-                sensors_event_t scratch;
+                // NOTE: The wake_up flag of this event may get set to
+                // WAKE_UP_SENSOR_EVENT_NEEDS_ACK if this is a wake_up event.
                 sensors_event_t& event(mLastEventSeen.editValueFor(handle));
                 if (event.version == sizeof(sensors_event_t)) {
-                    connection->sendEvents(&event, 1);
+                    if (isWakeUpSensorEvent(event) && !mWakeLockAcquired) {
+                        acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
+                        mWakeLockAcquired = true;
+                        ALOGD_IF(DEBUG_CONNECTIONS, "acquired wakelock for on_change sensor %s",
+                                                        WAKE_LOCK_NAME);
+                    }
+                    connection->sendEvents(&event, 1, NULL);
+                    if (!connection->needsWakeLock() && mWakeLockAcquired) {
+                        checkWakeLockStateLocked();
+                    }
                 }
             }
         }
@@ -751,6 +761,31 @@ bool SensorService::verifyCanAccessSensor(const Sensor& sensor, const char* oper
     }
 }
 
+void SensorService::checkWakeLockState() {
+    Mutex::Autolock _l(mLock);
+    checkWakeLockStateLocked();
+}
+
+void SensorService::checkWakeLockStateLocked() {
+    if (!mWakeLockAcquired) {
+        return;
+    }
+    bool releaseLock = true;
+    for (size_t i=0 ; i<mActiveConnections.size() ; i++) {
+        sp<SensorEventConnection> connection(mActiveConnections[i].promote());
+        if (connection != 0) {
+            if (connection->needsWakeLock()) {
+                releaseLock = false;
+                break;
+            }
+        }
+    }
+    if (releaseLock) {
+        ALOGD_IF(DEBUG_CONNECTIONS, "releasing wakelock %s", WAKE_LOCK_NAME);
+        release_wake_lock(WAKE_LOCK_NAME);
+        mWakeLockAcquired = false;
+    }
+}
 // ---------------------------------------------------------------------------
 
 SensorService::SensorRecord::SensorRecord(
@@ -783,7 +818,7 @@ bool SensorService::SensorRecord::removeConnection(
 
 SensorService::SensorEventConnection::SensorEventConnection(
         const sp<SensorService>& service, uid_t uid)
-    : mService(service), mUid(uid)
+    : mService(service), mUid(uid), mWakeLockRefCount(0)
 {
     const SensorDevice& device(SensorDevice::getInstance());
     if (device.getHalDeviceVersion() >= SENSORS_DEVICE_API_VERSION_1_1) {
@@ -804,8 +839,14 @@ void SensorService::SensorEventConnection::onFirstRef()
 {
 }
 
+bool SensorService::SensorEventConnection::needsWakeLock() {
+    Mutex::Autolock _l(mConnectionLock);
+    return mWakeLockRefCount > 0;
+}
+
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
+    result.appendFormat("%d WakeLockRefCount\n", mWakeLockRefCount);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
         result.appendFormat("\t %s | status: %s | pending flush events %d | uid %d\n",
@@ -863,9 +904,8 @@ status_t SensorService::SensorEventConnection::sendEvents(
 {
     // filter out events not for this connection
     size_t count = 0;
-
+    Mutex::Autolock _l(mConnectionLock);
     if (scratch) {
-        Mutex::Autolock _l(mConnectionLock);
         size_t i=0;
         while (i<numEvents) {
             int32_t curr = buffer[i].sensor;
@@ -905,7 +945,6 @@ status_t SensorService::SensorEventConnection::sendEvents(
         ASensorEvent flushCompleteEvent;
         flushCompleteEvent.type = SENSOR_TYPE_META_DATA;
         flushCompleteEvent.sensor = 0;
-        Mutex::Autolock _l(mConnectionLock);
         // Loop through all the sensors for this connection and check if there are any pending
         // flush complete events to be sent.
         for (size_t i = 0; i < mSensorInfo.size(); ++i) {
@@ -930,6 +969,7 @@ status_t SensorService::SensorEventConnection::sendEvents(
         return status_t(NO_ERROR);
     }
 
+    int numWakeUpSensorEvents = countWakeUpSensorEventsLocked(scratch, count);
     // NOTE: ASensorEvent and sensors_event_t are the same type
     ssize_t size = SensorEventQueue::write(mChannel,
             reinterpret_cast<ASensorEvent const*>(scratch), count);
@@ -937,11 +977,10 @@ status_t SensorService::SensorEventConnection::sendEvents(
         // the destination doesn't accept events anymore, it's probably
         // full. For now, we just drop the events on the floor.
         // ALOGW("dropping %d events on the floor", count);
-        Mutex::Autolock _l(mConnectionLock);
         countFlushCompleteEventsLocked(scratch, count);
+        mWakeLockRefCount -= numWakeUpSensorEvents;
         return size;
     }
-
     return size < 0 ? status_t(size) : status_t(NO_ERROR);
 }
 
@@ -959,6 +998,18 @@ void SensorService::SensorEventConnection::countFlushCompleteEventsLocked(
         }
     }
     return;
+}
+
+int SensorService::SensorEventConnection::countWakeUpSensorEventsLocked(
+                       sensors_event_t* scratch, const int count) {
+    for (int i = 0; i < count; ++i) {
+        if (mService->isWakeUpSensorEvent(scratch[i])) {
+            scratch[i].flags |= WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
+            ++mWakeLockRefCount;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 sp<BitTube> SensorService::SensorEventConnection::getSensorChannel() const
@@ -1008,6 +1059,17 @@ status_t  SensorService::SensorEventConnection::flush() {
         }
     }
     return err;
+}
+
+void SensorService::SensorEventConnection::decreaseWakeLockRefCount() {
+    {
+        Mutex::Autolock _l(mConnectionLock);
+        --mWakeLockRefCount;
+    }
+    // Release the lock before calling checkWakeLockState which also needs the same connectionLock.
+    if (mWakeLockRefCount == 0) {
+        mService->checkWakeLockState();
+    }
 }
 
 // ---------------------------------------------------------------------------

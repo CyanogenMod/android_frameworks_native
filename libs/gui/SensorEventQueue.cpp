@@ -144,6 +144,15 @@ status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const 
     return mSensorEventConnection->setEventRate(sensor->getHandle(), ns);
 }
 
+void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
+    for (int i = 0; i < count; ++i) {
+        if (events[i].flags & WAKE_UP_SENSOR_EVENT_NEEDS_ACK) {
+            mSensorEventConnection->decreaseWakeLockRefCount();
+        }
+    }
+    return;
+}
+
 // ----------------------------------------------------------------------------
 }; // namespace android
 

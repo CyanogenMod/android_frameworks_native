@@ -27,7 +27,7 @@
 #include <gui/BitTube.h>
 
 // ----------------------------------------------------------------------------
-
+#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1 << 31)
 struct ALooper;
 struct ASensorEvent;
 
@@ -75,7 +75,8 @@ public:
                           int reservedFlags) const;
     status_t disableSensor(int32_t handle) const;
     status_t flush() const;
-
+    // Send an ack for every wake_up sensor event that is set to WAKE_UP_SENSOR_EVENT_NEEDS_ACK.
+    void sendAck(const ASensorEvent* events, int count);
 private:
     sp<Looper> getLooper() const;
     sp<ISensorEventConnection> mSensorEventConnection;

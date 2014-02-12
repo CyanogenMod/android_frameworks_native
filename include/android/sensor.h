@@ -157,7 +157,9 @@ typedef struct ASensorEvent {
             uint64_t        step_counter;
         } u64;
     };
-    int32_t reserved1[4];
+
+    uint32_t flags;
+    int32_t reserved1[3];
 } ASensorEvent;
 
 struct ASensorManager;

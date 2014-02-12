@@ -34,7 +34,8 @@ enum {
     GET_SENSOR_CHANNEL = IBinder::FIRST_CALL_TRANSACTION,
     ENABLE_DISABLE,
     SET_EVENT_RATE,
-    FLUSH_SENSOR
+    FLUSH_SENSOR,
+    DECREASE_WAKE_LOCK_REFCOUNT
 };
 
 class BpSensorEventConnection : public BpInterface<ISensorEventConnection>
@@ -83,6 +84,13 @@ public:
         remote()->transact(FLUSH_SENSOR, data, &reply);
         return reply.readInt32();
     }
+
+    virtual void decreaseWakeLockRefCount() {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISensorEventConnection::getInterfaceDescriptor());
+        remote()->transact(DECREASE_WAKE_LOCK_REFCOUNT, data, &reply, IBinder::FLAG_ONEWAY);
+        return;
+    }
 };
 
 IMPLEMENT_META_INTERFACE(SensorEventConnection, "android.gui.SensorEventConnection");
@@ -123,6 +131,11 @@ status_t BnSensorEventConnection::onTransact(
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
             status_t result = flush();
             reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case DECREASE_WAKE_LOCK_REFCOUNT: {
+            CHECK_INTERFACE(ISensorEventConnection, data, reply);
+            decreaseWakeLockRefCount();
             return NO_ERROR;
         } break;
     }
