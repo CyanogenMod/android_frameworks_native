@@ -273,7 +273,7 @@ public:
 
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
-    void updateTransformHint(const sp<const DisplayDevice>& hw) const;
+    void updateTransformHint(const sp<const DisplayDevice>& hw);
 
     /*
      * returns the rectangle that crops the content of the layer and scales it
@@ -403,6 +403,9 @@ private:
 
     // This layer can be a cursor on some displays.
     bool mPotentialCursor;
+
+    // Transform hint assigned for the layer
+    uint32_t mTransformHint;
 };
 
 // ---------------------------------------------------------------------------
