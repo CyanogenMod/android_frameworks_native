@@ -34,6 +34,7 @@ BufferItem::BufferItem() :
     mAcquireCalled(false),
     mTransformToDisplayInverse(false) {
     mCrop.makeInvalid();
+    mDirtyRect.makeInvalid();
 }
 
 BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
@@ -41,6 +42,7 @@ BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
     bufferItem.mGraphicBuffer = mGraphicBuffer;
     bufferItem.mFence = mFence;
     bufferItem.mCrop = mCrop;
+    bufferItem.mDirtyRect = mDirtyRect;
     bufferItem.mTransform = mTransform;
     bufferItem.mScalingMode = mScalingMode;
     bufferItem.mTimestamp = mTimestamp;
@@ -55,6 +57,7 @@ BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
 
 size_t BufferItem::getPodSize() const {
     size_t c =  sizeof(mCrop) +
+            sizeof(mDirtyRect) +
             sizeof(mTransform) +
             sizeof(mScalingMode) +
             sizeof(mTimestamp) +
@@ -125,6 +128,7 @@ status_t BufferItem::flatten(
     }
 
     FlattenableUtils::write(buffer, size, mCrop);
+    FlattenableUtils::write(buffer, size, mDirtyRect);
     FlattenableUtils::write(buffer, size, mTransform);
     FlattenableUtils::write(buffer, size, mScalingMode);
     FlattenableUtils::write(buffer, size, mTimestamp);
@@ -167,6 +171,7 @@ status_t BufferItem::unflatten(
     }
 
     FlattenableUtils::read(buffer, size, mCrop);
+    FlattenableUtils::read(buffer, size, mDirtyRect);
     FlattenableUtils::read(buffer, size, mTransform);
     FlattenableUtils::read(buffer, size, mScalingMode);
     FlattenableUtils::read(buffer, size, mTimestamp);

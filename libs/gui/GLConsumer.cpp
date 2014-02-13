@@ -141,6 +141,7 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
             sizeof(mCurrentTransformMatrix));
 
     mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
+    mCurrentDirtyRect.clear();
 }
 
 GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t texTarget,
@@ -437,6 +438,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
     mCurrentTimestamp = item.mTimestamp;
     mCurrentFence = item.mFence;
     mCurrentFrameNumber = item.mFrameNumber;
+    mCurrentDirtyRect = item.mDirtyRect;
 
     computeCurrentTransformMatrixLocked();
 
@@ -981,6 +983,11 @@ status_t GLConsumer::doGLFenceWaitLocked() const {
     }
 
     return NO_ERROR;
+}
+
+Rect GLConsumer::getCurrentDirtyRect() const {
+     Mutex::Autolock lock(mMutex);
+     return mCurrentDirtyRect;
 }
 
 void GLConsumer::freeBufferLocked(int slotIndex) {
