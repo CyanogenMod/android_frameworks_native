@@ -262,7 +262,7 @@ public:
 
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
-    void updateTransformHint(const sp<const DisplayDevice>& hw) const;
+    void updateTransformHint(const sp<const DisplayDevice>& hw);
 #ifdef QCOM_BSP
     virtual bool isExtOnly() const;
     virtual bool isIntOnly() const;
@@ -383,6 +383,8 @@ private:
     // Set to true once we've returned this surface's handle
     mutable bool mHasSurface;
     const wp<Client> mClientRef;
+    // Transform hint assigned for the layer
+    uint32_t mTransformHint;
 };
 
 // ---------------------------------------------------------------------------

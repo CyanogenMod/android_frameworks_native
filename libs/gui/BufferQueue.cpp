@@ -479,6 +479,9 @@ status_t BufferQueue::queueBuffer(int buf,
     ATRACE_BUFFER_INDEX(buf);
 
     Rect crop;
+#ifdef QCOM_BSP
+    Rect dirtyRect;
+#endif
     uint32_t transform;
     int scalingMode;
     int64_t timestamp;
@@ -486,8 +489,11 @@ status_t BufferQueue::queueBuffer(int buf,
     bool async;
     sp<Fence> fence;
 
-    input.deflate(&timestamp, &isAutoTimestamp, &crop, &scalingMode, &transform,
-            &async, &fence);
+    input.deflate(&timestamp, &isAutoTimestamp, &crop,
+#ifdef QCOM_BSP
+            &dirtyRect,
+#endif
+            &scalingMode, &transform, &async, &fence);
 
     if (fence == NULL) {
         ST_LOGE("queueBuffer: fence is NULL");
@@ -564,6 +570,9 @@ status_t BufferQueue::queueBuffer(int buf,
         item.mAcquireCalled = mSlots[buf].mAcquireCalled;
         item.mGraphicBuffer = mSlots[buf].mGraphicBuffer;
         item.mCrop = crop;
+#ifdef QCOM_BSP
+        item.mDirtyRect = dirtyRect;
+#endif
         item.mTransform = transform & ~NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY;
         item.mTransformToDisplayInverse = bool(transform & NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
         item.mScalingMode = scalingMode;

@@ -1142,6 +1142,11 @@ public:
         SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
         visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
     }
+#ifdef QCOM_BSP
+    virtual void setDirtyRect(const Rect& dirtyRect) {
+        // Unimplemented
+    }
+#endif
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
             getLayer()->compositionType = HWC_FRAMEBUFFER;
@@ -1264,6 +1269,22 @@ public:
         SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
         visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
     }
+#ifdef QCOM_BSP
+    virtual void setDirtyRect(const Rect& dirtyRect) {
+        Rect srcCrop;
+        srcCrop.left = int(ceilf(getLayer()->sourceCropf.left));
+        srcCrop.right = int(ceilf(getLayer()->sourceCropf.right));
+        srcCrop.top = int(ceilf(getLayer()->sourceCropf.top));
+        srcCrop.bottom = int(ceilf(getLayer()->sourceCropf.bottom));
+
+        /* DirtyRect is generated for the full buffer resolution. Crop the value
+         * for the hwc_layer_1_t::sourceCrop resolution before sending to HWC.
+         */
+        Rect finalDR;
+        srcCrop.intersect(dirtyRect, &finalDR);
+        getLayer()->dirtyRect = reinterpret_cast<hwc_rect_t const&>(finalDR);
+    }
+#endif
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
             getLayer()->compositionType = HWC_FRAMEBUFFER;

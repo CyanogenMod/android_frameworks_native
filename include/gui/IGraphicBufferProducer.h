@@ -112,14 +112,44 @@ public:
                 const Rect& crop, int scalingMode, uint32_t transform, bool async,
                 const sp<Fence>& fence)
         : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp), crop(crop),
-          scalingMode(scalingMode), transform(transform), async(async),
-          fence(fence) { }
+#ifdef QCOM_BSP
+        dirtyRect(crop),
+#endif
+        scalingMode(scalingMode), transform(transform),
+        async(async), fence(fence) { }
+#ifdef QCOM_BSP
+        inline QueueBufferInput(int64_t timestamp, bool isAutoTimestamp,
+                const Rect& crop, const Rect& dirtyRect, int scalingMode,
+                uint32_t transform, bool async, const sp<Fence>& fence)
+        : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp), crop(crop),
+        dirtyRect(dirtyRect), scalingMode(scalingMode), transform(transform),
+        async(async), fence(fence) { }
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
-                Rect* outCrop, int* outScalingMode, uint32_t* outTransform,
-                bool* outAsync, sp<Fence>* outFence) const {
+                            Rect* outCrop, int* outScalingMode,
+                            uint32_t* outTransform,  bool* outAsync,
+                            sp<Fence>* outFence) const {
             *outTimestamp = timestamp;
             *outIsAutoTimestamp = bool(isAutoTimestamp);
             *outCrop = crop;
+            *outScalingMode = scalingMode;
+            *outTransform = transform;
+            *outAsync = bool(async);
+            *outFence = fence;
+        }
+#endif
+        inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
+                            Rect* outCrop,
+#ifdef QCOM_BSP
+                            Rect* outDirtyRect,
+#endif
+                            int* outScalingMode, uint32_t* outTransform,
+                            bool* outAsync, sp<Fence>* outFence) const {
+            *outTimestamp = timestamp;
+            *outIsAutoTimestamp = bool(isAutoTimestamp);
+            *outCrop = crop;
+#ifdef QCOM_BSP
+            *outDirtyRect = dirtyRect;
+#endif
             *outScalingMode = scalingMode;
             *outTransform = transform;
             *outAsync = bool(async);
@@ -136,6 +166,9 @@ public:
         int64_t timestamp;
         int isAutoTimestamp;
         Rect crop;
+#ifdef QCOM_BSP
+        Rect dirtyRect;
+#endif
         int scalingMode;
         uint32_t transform;
         int async;
