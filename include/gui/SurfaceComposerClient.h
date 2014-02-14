@@ -164,7 +164,8 @@ public:
             const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ);
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useIdentityTransform);
 
 private:
     mutable sp<CpuConsumer> mCpuConsumer;
@@ -177,12 +178,14 @@ public:
     ~ScreenshotClient();
 
     // frees the previous screenshot and capture a new one
-    status_t update(const sp<IBinder>& display);
-    status_t update(const sp<IBinder>& display,
-            uint32_t reqWidth, uint32_t reqHeight);
+    status_t update(const sp<IBinder>& display, bool useIdentityTransform);
     status_t update(const sp<IBinder>& display,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ);
+            bool useIdentityTransform);
+    status_t update(const sp<IBinder>& display,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useIdentityTransform);
 
     sp<CpuConsumer> getCpuConsumer() const;
 
