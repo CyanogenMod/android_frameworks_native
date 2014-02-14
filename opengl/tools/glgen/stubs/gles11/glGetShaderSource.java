@@ -11,6 +11,7 @@
 
     // C function void glGetShaderSource ( GLuint shader, GLsizei bufsize, GLsizei *length, char *source )
 
+    /** @hide Method is broken, but used to be public (b/6006380) */
     public static native void glGetShaderSource(
         int shader,
         int bufsize,
