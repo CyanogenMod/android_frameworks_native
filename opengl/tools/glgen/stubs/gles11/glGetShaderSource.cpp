@@ -85,7 +85,7 @@ android_glGetShaderSource__IILjava_nio_IntBuffer_2B
         (GLuint)shader,
         (GLsizei)bufsize,
         (GLsizei *)length,
-        (char *)source
+        reinterpret_cast<char *>(source)
     );
     if (_array) {
         releasePointer(_env, _array, length, JNI_TRUE);
