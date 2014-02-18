@@ -29,17 +29,13 @@ LOCAL_CFLAGS += -fvisibility=hidden
 LOCAL_SHARED_LIBRARIES := libcutils libhardware libutils liblog libpixelflinger libETC1 libui
 LOCAL_LDLIBS := -lpthread -ldl
 
-ifeq ($(TARGET_ARCH),arm)
-	LOCAL_SRC_FILES += fixed_asm.S iterators.S
-	LOCAL_CFLAGS += -fstrict-aliasing
-endif
+LOCAL_SRC_FILES_arm += fixed_asm.S iterators.S
+LOCAL_CFLAGS_arm += -fstrict-aliasing
 
-ifeq ($(TARGET_ARCH),mips)
-    LOCAL_SRC_FILES += arch-$(TARGET_ARCH)/fixed_asm.S
-    LOCAL_CFLAGS += -fstrict-aliasing
-    # The graphics code can generate division by zero
-    LOCAL_CFLAGS += -mno-check-zero-division
-endif
+LOCAL_SRC_FILES_mips += arch-mips/fixed_asm.S
+LOCAL_CFLAGS_mips += -fstrict-aliasing
+# The graphics code can generate division by zero
+LOCAL_CFLAGS_mips += -mno-check-zero-division
 
 # we need to access the private Bionic header <bionic_tls.h>
 LOCAL_C_INCLUDES += bionic/libc/private
