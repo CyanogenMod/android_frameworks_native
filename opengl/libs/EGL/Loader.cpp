@@ -187,8 +187,13 @@ void* Loader::open(egl_connection_t* cnx)
 
     LOG_ALWAYS_FATAL_IF(!hnd, "couldn't find an OpenGL ES implementation");
 
+#if defined(__LP64__)
+    cnx->libGles2 = load_wrapper("/system/lib64/libGLESv2.so");
+    cnx->libGles1 = load_wrapper("/system/lib64/libGLESv1_CM.so");
+#else
     cnx->libGles2 = load_wrapper("/system/lib/libGLESv2.so");
     cnx->libGles1 = load_wrapper("/system/lib/libGLESv1_CM.so");
+#endif
     LOG_ALWAYS_FATAL_IF(!cnx->libGles2 || !cnx->libGles1,
             "couldn't load system OpenGL ES wrapper libraries");
 
@@ -268,8 +273,13 @@ void *Loader::load_driver(const char* kind,
             String8 pattern;
             pattern.appendFormat("lib%s", kind);
             const char* const searchPaths[] = {
+#if defined(__LP64__)
+                    "/vendor/lib64/egl",
+                    "/system/lib64/egl"
+#else
                     "/vendor/lib/egl",
                     "/system/lib/egl"
+#endif
             };
 
             // first, we search for the exact name of the GLES userspace
@@ -310,7 +320,11 @@ void *Loader::load_driver(const char* kind,
             if (checkGlesEmulationStatus() == 0) {
                 ALOGD("Emulator without GPU support detected. "
                       "Fallback to software renderer.");
+#if defined(__LP64__)
+                result.setTo("/system/lib64/egl/libGLES_android.so");
+#else
                 result.setTo("/system/lib/egl/libGLES_android.so");
+#endif
                 return true;
             }
 
