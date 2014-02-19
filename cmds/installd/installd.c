@@ -146,27 +146,46 @@ struct cmdinfo cmds[] = {
     { "rmuser",               1, do_rm_user },
 };
 
+char write_error = 0;
+
+/* Single threaded. */
 static int readx(int s, void *_buf, int count)
 {
     char *buf = _buf;
     int n = 0, r;
     if (count < 0) return -1;
     while (n < count) {
+        pthread_mutex_lock(&io_mutex);
         r = read(s, buf + n, count - n);
+        if (write_error) {
+            goto read_error;
+        }
         if (r < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR) goto read_cont;
+
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                pthread_cond_wait(&io_wait, &io_mutex);
+                goto read_cont;
+            }
             ALOGE("read error: %s\n", strerror(errno));
-            return -1;
+            goto read_error;
         }
         if (r == 0) {
             ALOGE("eof\n");
-            return -1; /* EOF */
+            goto read_error; /* EOF */
         }
         n += r;
+read_cont:
+        pthread_mutex_unlock(&io_mutex);
+        continue;
+read_error:
+        pthread_mutex_unlock(&io_mutex);
+        return -1;
     }
     return 0;
 }
 
+/* Mutex should be taken outside. */
 static int writex(int s, const void *_buf, int count)
 {
     const char *buf = _buf;
@@ -189,7 +208,7 @@ static int writex(int s, const void *_buf, int count)
  * ensure that the required number of arguments are provided,
  * call the function(), return the result.
  */
-static int execute(int s, char cmd[BUFFER_MAX])
+static int execute(int s, char cmd[BUFFER_MAX], int id)
 {
     char reply[REPLY_MAX];
     char *arg[TOKEN_MAX+1];
@@ -240,9 +259,36 @@ done:
     if (n > BUFFER_MAX) n = BUFFER_MAX;
     count = n;
 
-    // ALOGI("reply: '%s'\n", cmd);
-    if (writex(s, &count, sizeof(count))) return -1;
-    if (writex(s, cmd, count)) return -1;
+    // ALOGI("reply [%d]: '%s'\n", id, cmd);
+    pthread_mutex_lock(&io_mutex);
+    if (write_error) {
+        goto exec_error;
+    }
+    if (writex(s, &id, sizeof(id))) {
+        write_error = 1;
+        goto exec_error;
+    }
+    if (writex(s, &count, sizeof(count))) {
+        write_error = 1;
+        goto exec_error;
+    }
+    if (writex(s, cmd, count)) {
+        write_error = 1;
+        goto exec_error;
+    }
+    pthread_mutex_unlock(&io_mutex);
+    return 0;
+
+exec_error:
+    pthread_cond_broadcast(&io_wait);
+    pthread_mutex_unlock(&io_mutex);
+    return -1;
+}
+
+static void* executeAsync(void *arg) {
+    thread_parm* parm = (thread_parm*) arg;
+    execute(parm->s, parm->cmd, parm->id);
+    free(arg);
     return 0;
 }
 
@@ -525,11 +571,41 @@ static void drop_privileges() {
     }
 }
 
+static void io_signal_handler(int sig) {
+    sigset_t sigs_to_catch;
+    int caught;
+    sigemptyset(&sigs_to_catch);
+    sigaddset(&sigs_to_catch, SIGIO);
+    for (;;) {
+        sigwait(&sigs_to_catch, &caught);
+        if (SIGKILL == caught) {
+            return;
+        }
+        pthread_mutex_lock(&io_mutex);
+        pthread_cond_broadcast(&io_wait);
+        pthread_mutex_unlock(&io_mutex);
+    }
+}
+
 int main(const int argc, const char *argv[]) {
     char buf[BUFFER_MAX];
     struct sockaddr addr;
     socklen_t alen;
     int lsocket, s, count;
+
+    pthread_t worker_threads, signal_thread;
+    pthread_attr_t pthread_custom_attr;
+    sigset_t sigs_to_block;
+    pthread_mutex_init(&io_mutex, NULL);
+    pthread_cond_init(&io_wait, NULL);
+
+    pthread_attr_init(&pthread_custom_attr);
+
+    sigemptyset(&sigs_to_block);
+    sigaddset(&sigs_to_block, SIGIO);
+    pthread_sigmask(SIG_BLOCK, &sigs_to_block, NULL);
+
+    pthread_create(&signal_thread, &pthread_custom_attr, io_signal_handler, NULL);
 
     ALOGI("installd firing up\n");
 
@@ -564,10 +640,19 @@ int main(const int argc, const char *argv[]) {
             continue;
         }
         fcntl(s, F_SETFD, FD_CLOEXEC);
+        fcntl(s, F_SETFL, O_ASYNC | O_NONBLOCK);
+        fcntl(s, F_SETSIG, 0);
+        fcntl(s, F_SETOWN, getpid());
+        write_error = 0;
 
         ALOGI("new connection\n");
         for (;;) {
             unsigned short count;
+            int id;
+            if (readx(s, &id, sizeof(id))) {
+                ALOGE("failed to read transaction id\n");
+                break;
+            }
             if (readx(s, &count, sizeof(count))) {
                 ALOGE("failed to read size\n");
                 break;
@@ -581,11 +666,18 @@ int main(const int argc, const char *argv[]) {
                 break;
             }
             buf[count] = 0;
-            if (execute(s, buf)) break;
+            thread_parm *args = (thread_parm*) malloc(sizeof(thread_parm));
+            args->s = s;
+            strncpy(args->cmd, buf, count + 1);
+            args->id = id;
+            pthread_create(&worker_threads, &pthread_custom_attr, executeAsync, (void*) args);
         }
         ALOGI("closing connection\n");
         close(s);
     }
+
+    pthread_kill(&signal_thread, SIGKILL);
+    pthread_join(&signal_thread, NULL);
 
     return 0;
 }
