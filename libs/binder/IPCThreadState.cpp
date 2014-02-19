@@ -904,6 +904,7 @@ status_t IPCThreadState::writeTransactionData(int32_t cmd, uint32_t binderFlags,
 {
     binder_transaction_data tr;
 
+    tr.target.ptr = 0; /* Don't pass uninitialized stack data to a remote process */
     tr.target.handle = handle;
     tr.code = code;
     tr.flags = binderFlags;
