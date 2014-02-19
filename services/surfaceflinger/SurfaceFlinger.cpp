@@ -82,6 +82,12 @@
 #include "SecTVOutService.h"
 #endif
 
+#ifdef ENABLE_SWAPRECT
+#define SWAPRECT_DEFAULT "1"
+#else
+#define SWAPRECT_DEFAULT "0"
+#endif
+
 #define DISPLAY_COUNT       1
 
 /*
@@ -193,7 +199,7 @@ SurfaceFlinger::SurfaceFlinger()
 #endif
 #endif
 
-    property_get("debug.sf.swaprect", value, "1");
+    property_get("debug.sf.swaprect", value, SWAPRECT_DEFAULT);
     mSwapRectEnable = atoi(value) ? true:false ;
 }
 
