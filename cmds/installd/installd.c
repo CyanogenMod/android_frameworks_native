@@ -121,6 +121,12 @@ static int do_linklib(char **arg, char reply[REPLY_MAX])
     return linklib(arg[0], arg[1], atoi(arg[2]));
 }
 
+static int do_restorecon_data(char **arg __attribute__((unused)),
+    char reply[REPLY_MAX] __attribute__((unused)))
+{
+    return restorecon_data();
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -144,6 +150,7 @@ struct cmdinfo cmds[] = {
     { "linklib",              3, do_linklib },
     { "mkuserdata",           3, do_mk_user_data },
     { "rmuser",               1, do_rm_user },
+    { "restorecondata",       0, do_restorecon_data },
 };
 
 char write_error = 0;
