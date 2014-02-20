@@ -1340,7 +1340,7 @@ size_t Parcel::ipcObjectsCount() const
 void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     const binder_size_t* objects, size_t objectsCount, release_func relFunc, void* relCookie)
 {
-    binder_size_t minOffset = 0;
+    size_t minOffset = 0;
     freeDataNoInit();
     mError = NO_ERROR;
     mData = const_cast<uint8_t*>(data);
@@ -1354,10 +1354,10 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     mOwner = relFunc;
     mOwnerCookie = relCookie;
     for (size_t i = 0; i < mObjectsSize; i++) {
-        binder_size_t offset = mObjects[i];
+        size_t offset = mObjects[i];
         if (offset < minOffset) {
-            ALOGE("%s: bad object offset %"PRIu64" < %"PRIu64"\n",
-                  __func__, (uint64_t)offset, (uint64_t)minOffset);
+            ALOGE("%s: bad object offset %zu < %zu\n",
+                  __func__, offset, minOffset);
             mObjectsSize = 0;
             break;
         }
