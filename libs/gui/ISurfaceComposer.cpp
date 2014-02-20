@@ -105,7 +105,8 @@ public:
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
-            uint32_t minLayerZ, uint32_t maxLayerZ)
+            uint32_t minLayerZ, uint32_t maxLayerZ,
+            bool useIdentityTransform)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
@@ -115,6 +116,7 @@ public:
         data.writeInt32(reqHeight);
         data.writeInt32(minLayerZ);
         data.writeInt32(maxLayerZ);
+        data.writeInt32(static_cast<int32_t>(useIdentityTransform));
         remote()->transact(BnSurfaceComposer::CAPTURE_SCREEN, data, &reply);
         return reply.readInt32();
     }
@@ -285,8 +287,11 @@ status_t BnSurfaceComposer::onTransact(
             uint32_t reqHeight = data.readInt32();
             uint32_t minLayerZ = data.readInt32();
             uint32_t maxLayerZ = data.readInt32();
+            bool useIdentityTransform = static_cast<bool>(data.readInt32());
+
             status_t res = captureScreen(display, producer,
-                    reqWidth, reqHeight, minLayerZ, maxLayerZ);
+                    reqWidth, reqHeight, minLayerZ, maxLayerZ,
+                    useIdentityTransform);
             reply->writeInt32(res);
             return NO_ERROR;
         }
