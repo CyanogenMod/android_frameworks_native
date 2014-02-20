@@ -750,11 +750,12 @@ void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
-        result.appendFormat("\t %s | status: %s | pending flush events %d\n",
+        result.appendFormat("\t %s | status: %s | pending flush events %d | uid %d\n",
                             mService->getSensorName(mSensorInfo.keyAt(i)).string(),
                             flushInfo.mFirstFlushPending ? "First flush pending" :
                                                            "active",
-                            flushInfo.mPendingFlushEventsToSend);
+                            flushInfo.mPendingFlushEventsToSend,
+                            mUid);
     }
 }
 
