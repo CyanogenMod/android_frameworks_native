@@ -120,6 +120,10 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_MODULE:= surfaceflinger
 
+ifdef TARGET_32_BIT_SURFACEFLINGER
+LOCAL_32_BIT_ONLY := true
+endif
+
 include $(BUILD_EXECUTABLE)
 
 ###############################################################
