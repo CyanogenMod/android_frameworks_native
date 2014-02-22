@@ -165,6 +165,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
             }
             const int32_t handle = proxy ? proxy->handle() : 0;
             obj.type = BINDER_TYPE_HANDLE;
+            obj.binder = 0; /* Don't pass uninitialized stack data to a remote process */
             obj.handle = handle;
             obj.cookie = 0;
         } else {
@@ -198,6 +199,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
                 }
                 const int32_t handle = proxy ? proxy->handle() : 0;
                 obj.type = BINDER_TYPE_WEAK_HANDLE;
+                obj.binder = 0; /* Don't pass uninitialized stack data to a remote process */
                 obj.handle = handle;
                 obj.cookie = 0;
             } else {
@@ -749,6 +751,7 @@ status_t Parcel::writeFileDescriptor(int fd, bool takeOwnership)
     flat_binder_object obj;
     obj.type = BINDER_TYPE_FD;
     obj.flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
+    obj.binder = 0; /* Don't pass uninitialized stack data to a remote process */
     obj.handle = fd;
     obj.cookie = takeOwnership ? 1 : 0;
     return writeObject(obj, true);

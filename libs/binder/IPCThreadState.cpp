@@ -635,6 +635,7 @@ void IPCThreadState::decWeakHandle(int32_t handle)
 
 status_t IPCThreadState::attemptIncStrongHandle(int32_t handle)
 {
+#if HAS_BC_ATTEMPT_ACQUIRE
     LOG_REMOTEREFS("IPCThreadState::attemptIncStrongHandle(%d)\n", handle);
     mOut.writeInt32(BC_ATTEMPT_ACQUIRE);
     mOut.writeInt32(0); // xxx was thread priority
@@ -649,6 +650,11 @@ status_t IPCThreadState::attemptIncStrongHandle(int32_t handle)
 #endif
     
     return result;
+#else
+    (void)handle;
+    ALOGE("%s(%d): Not supported\n", __func__, handle);
+    return INVALID_OPERATION;
+#endif
 }
 
 void IPCThreadState::expungeHandle(int32_t handle, IBinder* binder)
@@ -898,6 +904,7 @@ status_t IPCThreadState::writeTransactionData(int32_t cmd, uint32_t binderFlags,
 {
     binder_transaction_data tr;
 
+    tr.target.ptr = 0; /* Don't pass uninitialized stack data to a remote process */
     tr.target.handle = handle;
     tr.code = code;
     tr.flags = binderFlags;
@@ -915,7 +922,7 @@ status_t IPCThreadState::writeTransactionData(int32_t cmd, uint32_t binderFlags,
         tr.flags |= TF_STATUS_CODE;
         *statusBuffer = err;
         tr.data_size = sizeof(status_t);
-        tr.data.ptr.buffer = reinterpret_cast<binder_uintptr_t>(statusBuffer);
+        tr.data.ptr.buffer = reinterpret_cast<uintptr_t>(statusBuffer);
         tr.offsets_size = 0;
         tr.data.ptr.offsets = 0;
     } else {
