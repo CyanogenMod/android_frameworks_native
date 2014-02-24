@@ -77,7 +77,7 @@
 
 #include "RenderEngine/RenderEngine.h"
 #include <cutils/compiler.h>
-#ifdef QCOM_BSP
+#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
 #include "cb_swap_rect.h"
 #endif
 
@@ -3426,7 +3426,7 @@ void SurfaceFlinger::setupSwapRect()
     HWComposer& hwc(getHwComposer());
     const LayerVector& currentLayers(mDrawingState.layersSortedByZ);
     size_t count = currentLayers.size();
-#ifdef QCOM_BSP
+#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
     qdutils::cb_swap_rect::getInstance().setSwapRectFeature_on(false);
 #endif
     hwc.setSwapRectOn(false);
@@ -3470,7 +3470,7 @@ void SurfaceFlinger::setupSwapRect()
              * Create dirty layer work list to be used by HWComposer instead of
              * visible layer work list
              */
-#ifdef QCOM_BSP
+#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
            qdutils::cb_swap_rect::getInstance().setSwapRectFeature_on(true);
 #endif
             hwc.setSwapRectOn(true);

@@ -110,18 +110,17 @@ ifeq ($(TARGET_USES_QCOM_BSP), true)
 ifneq ($(TARGET_QCOM_DISPLAY_VARIANT),)
     LOCAL_C_INCLUDES += hardware/qcom/display-$(TARGET_QCOM_DISPLAY_VARIANT)/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display-$(TARGET_QCOM_DISPLAY_VARIANT)/libqdutils
+
+    # Swaprect optimization is supported with caf-new driver variant
+    ifeq ($(TARGET_QCOM_DISPLAY_VARIANT),caf-new)
+        LOCAL_CFLAGS += -DENABLE_SWAPRECT
+    endif
 else
     LOCAL_C_INCLUDES += hardware/qcom/display/$(TARGET_BOARD_PLATFORM)/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display/$(TARGET_BOARD_PLATFORM)/libqdutils
 endif
     LOCAL_SHARED_LIBRARIES += libqdutils
     LOCAL_CFLAGS += -DQCOM_BSP
-endif
-
-# Swaprect optimization has only been verified on QC devices, and at least
-# some devices with Mali have glitching with it enabled.
-ifeq ($(call is-vendor-board-platform,QCOM),true)
-    LOCAL_CFLAGS += -DENABLE_SWAPRECT
 endif
 
 LOCAL_MODULE:= libsurfaceflinger

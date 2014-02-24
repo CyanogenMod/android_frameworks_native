@@ -346,13 +346,13 @@ private:
     struct hwc_display_contents_1*  mLists[MAX_HWC_DISPLAYS];
     DisplayData                     mDisplayData[MAX_HWC_DISPLAYS];
     size_t                          mNumDisplays;
-    bool                            mSwapRectOn;
     cb_context*                     mCBContext;
     EventHandler&                   mEventHandler;
     size_t                          mVSyncCounts[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
     sp<VSyncThread>                 mVSyncThread;
     bool                            mDebugForceFakeVSync;
     BitSet32                        mAllocatedDisplayIDs;
+    bool                            mSwapRectOn;
 
     // protected by mLock
     mutable Mutex mLock;

@@ -46,7 +46,7 @@
 #include "../Layer.h"           // needed only for debugging
 #include "../SurfaceFlinger.h"
 
-#ifdef QCOM_BSP
+#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
 #include "cb_swap_rect.h"
 #endif
 namespace android {
@@ -1363,7 +1363,7 @@ void HWComposer::setSwapRect(Rect dirtyRect)
                l.displayFrame.right  = dirtyRect.right;
                l.displayFrame.bottom = dirtyRect.bottom;
           } else {
-#ifdef QCOM_BSP
+#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
                l.flags |= qdutils::HWC_SKIP_HWC_COMPOSITION;
 #endif
           }
