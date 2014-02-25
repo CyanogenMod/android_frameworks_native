@@ -157,7 +157,7 @@ android_glGetActiveUniform__IIILjava_nio_IntBuffer_2Ljava_nio_IntBuffer_2Ljava_n
         (GLsizei *)length,
         (GLint *)size,
         (GLenum *)type,
-        (char *)name
+        reinterpret_cast<char *>(name)
     );
     if (_typeArray) {
         releasePointer(_env, _typeArray, type, JNI_TRUE);
