@@ -77,16 +77,6 @@ DisplayDevice::DisplayDevice(
     mNativeWindow = new Surface(producer, false);
     ANativeWindow* const window = mNativeWindow.get();
 
-    // Make sure that composition can never be stalled by a virtual display
-    // consumer that isn't processing buffers fast enough. We have to do this
-    // in two places:
-    // * Here, in case the display is composed entirely by HWC.
-    // * In makeCurrent(), using eglSwapInterval. Some EGL drivers set the
-    //   window's swap interval in eglMakeCurrent, so they'll override the
-    //   interval we set here.
-    if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
-        window->setSwapInterval(window, 0);
-
     /*
      * Create our display's surface
      */
@@ -100,6 +90,16 @@ DisplayDevice::DisplayDevice(
     surface = eglCreateWindowSurface(display, config, window, NULL);
     eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
     eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
+
+    // Make sure that composition can never be stalled by a virtual display
+    // consumer that isn't processing buffers fast enough. We have to do this
+    // in two places:
+    // * Here, in case the display is composed entirely by HWC.
+    // * In makeCurrent(), using eglSwapInterval. Some EGL drivers set the
+    //   window's swap interval in eglMakeCurrent, so they'll override the
+    //   interval we set here.
+    if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
+        window->setSwapInterval(window, 0);
 
     mDisplay = display;
     mSurface = surface;
