@@ -18,7 +18,7 @@ static_libraries := \
     libgtest_main
 
 c_includes := \
-    frameworks/base/cmds/installd
+    frameworks/native/cmds/installd
 
 $(foreach file,$(test_src_files), \
     $(eval include $(CLEAR_VARS)) \
