@@ -58,6 +58,12 @@ public:
         RELEASE_ALL_BUFFERS       = 0x2,
     };
 
+    // updateDirtyRegion gets called from hardware renderer when there
+    // is a change in the dirty rect for a layer. It sets the dirty
+    // rect for corresponding layer buffer.
+    virtual status_t updateDirtyRegion(int bufferidx, int l, int t,
+                                       int r, int b) = 0;
+
     // requestBuffer requests a new buffer for the given index. The server (i.e.
     // the IGraphicBufferProducer implementation) assigns the newly created
     // buffer to the given slot index, and the client is expected to mirror the

@@ -85,7 +85,8 @@ public:
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
     virtual void dump(String8& result) const;
-
+    virtual status_t updateDirtyRegion(int bufferidx, int l,
+                                       int t, int r, int b);
 private:
     enum Source {SOURCE_SINK = 0, SOURCE_SCRATCH = 1};
 
