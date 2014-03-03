@@ -17,7 +17,7 @@
 #ifndef ANDROID_GUI_BUFFERQUEUEPRODUCER_H
 #define ANDROID_GUI_BUFFERQUEUEPRODUCER_H
 
-#include <gui/BufferQueueCore.h>
+#include <gui/BufferQueueDefs.h>
 #include <gui/IGraphicBufferProducer.h>
 
 namespace android {
@@ -26,8 +26,9 @@ class BufferSlot;
 
 class BufferQueueProducer : public BnGraphicBufferProducer,
                             private IBinder::DeathRecipient {
-
 public:
+    friend class BufferQueue; // Needed to access binderDied
+
     BufferQueueProducer(const sp<BufferQueueCore>& core);
     virtual ~BufferQueueProducer();
 
@@ -151,7 +152,9 @@ private:
     virtual void binderDied(const wp<IBinder>& who);
 
     sp<BufferQueueCore> mCore;
-    BufferQueueCore::SlotsType& mSlots;
+
+    // This references mCore->mSlots. Lock mCore->mMutex while accessing.
+    BufferQueueDefs::SlotsType& mSlots;
 
     // This is a cached copy of the name stored in the BufferQueueCore.
     // It's updated during connect and dequeueBuffer (which should catch

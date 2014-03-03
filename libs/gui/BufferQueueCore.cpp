@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "BufferQueueCore"
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+//#define LOG_NDEBUG 0
+
 #define EGL_EGLEXT_PROTOTYPES
 
 #include <gui/BufferItem.h>
 #include <gui/BufferQueueCore.h>
 #include <gui/IConsumerListener.h>
+#include <gui/IGraphicBufferAlloc.h>
+#include <gui/ISurfaceComposer.h>
+#include <private/gui/ComposerService.h>
 
 template <typename T>
 static inline T max(T a, T b) { return a > b ? a : b; }
@@ -54,7 +61,16 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mMaxAcquiredBufferCount(1),
     mBufferHasBeenQueued(false),
     mFrameCounter(0),
-    mTransformHint(0) {}
+    mTransformHint(0)
+{
+    if (allocator == NULL) {
+        sp<ISurfaceComposer> composer(ComposerService::getComposerService());
+        mAllocator = composer->createGraphicBufferAlloc();
+        if (mAllocator == NULL) {
+            BQ_LOGE("createGraphicBufferAlloc failed");
+        }
+    }
+}
 
 BufferQueueCore::~BufferQueueCore() {}
 
@@ -82,7 +98,7 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
 
     // Trim the free buffers so as to not spam the dump
     int maxBufferCount = 0;
-    for (int s = NUM_BUFFER_SLOTS - 1; s >= 0; --s) {
+    for (int s = BufferQueueDefs::NUM_BUFFER_SLOTS - 1; s >= 0; --s) {
         const BufferSlot& slot(mSlots[s]);
         if (slot.mBufferState != BufferSlot::FREE ||
                 slot.mGraphicBuffer != NULL) {
@@ -140,7 +156,7 @@ int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
     // waiting to be consumed need to have their slots preserved. Such buffers
     // will temporarily keep the max buffer count up until the slots no longer
     // need to be preserved.
-    for (int s = maxBufferCount; s < NUM_BUFFER_SLOTS; ++s) {
+    for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
         BufferSlot::BufferState state = mSlots[s].mBufferState;
         if (state == BufferSlot::QUEUED || state == BufferSlot::DEQUEUED) {
             maxBufferCount = s + 1;
@@ -152,9 +168,9 @@ int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
 
 status_t BufferQueueCore::setDefaultMaxBufferCountLocked(int count) {
     const int minBufferCount = mUseAsyncBuffer ? 2 : 1;
-    if (count < minBufferCount || count > NUM_BUFFER_SLOTS) {
+    if (count < minBufferCount || count > BufferQueueDefs::NUM_BUFFER_SLOTS) {
         BQ_LOGV("setDefaultMaxBufferCount: invalid count %d, should be in "
-                "[%d, %d]", minBufferCount, NUM_BUFFER_SLOTS);
+                "[%d, %d]", minBufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
         return BAD_VALUE;
     }
 
@@ -185,7 +201,7 @@ void BufferQueueCore::freeBufferLocked(int slot) {
 
 void BufferQueueCore::freeAllBuffersLocked() {
     mBufferHasBeenQueued = false;
-    for (int s = 0; s < NUM_BUFFER_SLOTS; ++s) {
+    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
         freeBufferLocked(s);
     }
 }

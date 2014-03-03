@@ -20,7 +20,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include <gui/BufferQueueCore.h>
+#include <gui/BufferQueueDefs.h>
 #include <gui/IGraphicBufferConsumer.h>
 
 namespace android {
@@ -136,10 +136,34 @@ public:
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
 
+    // Functions required for backwards compatibility.
+    // These will be modified/renamed in IGraphicBufferConsumer and will be
+    // removed from this class at that time. See b/13306289.
+
+    virtual status_t releaseBuffer(int buf, uint64_t frameNumber,
+            EGLDisplay display, EGLSyncKHR fence,
+            const sp<Fence>& releaseFence) {
+        return releaseBuffer(buf, frameNumber, releaseFence, display, fence);
+    }
+
+    virtual status_t consumerConnect(const sp<IConsumerListener>& consumer,
+            bool controlledByApp) {
+        return connect(consumer, controlledByApp);
+    }
+
+    virtual status_t consumerDisconnect() { return disconnect(); }
+
+    // End functions required for backwards compatibility
+
 private:
     sp<BufferQueueCore> mCore;
-    BufferQueueCore::SlotsType& mSlots;
-    String8 mConsumerName; // Cached from mCore. Updated on setConsumerName.
+
+    // This references mCore->mSlots. Lock mCore->mMutex while accessing.
+    BufferQueueDefs::SlotsType& mSlots;
+
+    // This is a cached copy of the name stored in the BufferQueueCore.
+    // It's updated during setConsumerName.
+    String8 mConsumerName;
 
 }; // class BufferQueueConsumer
 
