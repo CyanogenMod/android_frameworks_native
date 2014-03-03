@@ -57,6 +57,12 @@ public:
     // This is called without any lock held and can be called concurrently
     // by multiple threads.
     virtual void onBuffersReleased() = 0; /* Asynchronous */
+
+    // onSidebandStreamChanged is called to notify the buffer consumer that the
+    // BufferQueue's sideband buffer stream has changed. This is called when a
+    // stream is first attached and when it is either detached or replaced by a
+    // different stream.
+    virtual void onSidebandStreamChanged() = 0; /* Asynchronous */
 };
 
 

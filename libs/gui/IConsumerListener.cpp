@@ -28,7 +28,8 @@ namespace android {
 
 enum {
     ON_FRAME_AVAILABLE = IBinder::FIRST_CALL_TRANSACTION,
-    ON_BUFFER_RELEASED
+    ON_BUFFER_RELEASED,
+    ON_SIDEBAND_STREAM_CHANGED,
 };
 
 class BpConsumerListener : public BpInterface<IConsumerListener>
@@ -49,6 +50,12 @@ public:
         data.writeInterfaceToken(IConsumerListener::getInterfaceDescriptor());
         remote()->transact(ON_BUFFER_RELEASED, data, &reply, IBinder::FLAG_ONEWAY);
     }
+
+    virtual void onSidebandStreamChanged() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IConsumerListener::getInterfaceDescriptor());
+        remote()->transact(ON_SIDEBAND_STREAM_CHANGED, data, &reply, IBinder::FLAG_ONEWAY);
+    }
 };
 
 IMPLEMENT_META_INTERFACE(ConsumerListener, "android.gui.IConsumerListener");
@@ -66,6 +73,10 @@ status_t BnConsumerListener::onTransact(
         case ON_BUFFER_RELEASED:
             CHECK_INTERFACE(IConsumerListener, data, reply);
             onBuffersReleased();
+            return NO_ERROR;
+        case ON_SIDEBAND_STREAM_CHANGED:
+            CHECK_INTERFACE(IConsumerListener, data, reply);
+            onSidebandStreamChanged();
             return NO_ERROR;
     }
     return BBinder::onTransact(code, data, reply, flags);

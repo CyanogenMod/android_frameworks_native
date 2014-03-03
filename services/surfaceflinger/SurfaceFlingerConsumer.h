@@ -27,6 +27,10 @@ namespace android {
  */
 class SurfaceFlingerConsumer : public GLConsumer {
 public:
+    struct ContentsChangedListener: public FrameAvailableListener {
+        virtual void onSidebandStreamChanged() = 0;
+    };
+
     SurfaceFlingerConsumer(const sp<BufferQueue>& bq, uint32_t tex)
         : GLConsumer(bq, tex, GLConsumer::TEXTURE_EXTERNAL, false)
     {}
@@ -54,8 +58,18 @@ public:
     // must be called from SF main thread
     bool getTransformToDisplayInverse() const;
 
+    // Sets the contents changed listener. This should be used instead of
+    // ConsumerBase::setFrameAvailableListener().
+    void setContentsChangedListener(const wp<ContentsChangedListener>& listener);
+
+    sp<NativeHandle> getSidebandStream() const;
+
 private:
     nsecs_t computeExpectedPresent();
+
+    virtual void onSidebandStreamChanged();
+
+    wp<ContentsChangedListener> mContentsChangedListener;
 
     // Indicates this buffer must be transformed by the inverse transform of the screen
     // it is displayed onto. This is applied after GLConsumer::mCurrentTransform.

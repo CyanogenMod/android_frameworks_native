@@ -25,6 +25,7 @@
 
 #include <utils/Errors.h>
 #include <utils/misc.h>
+#include <utils/NativeHandle.h>
 #include <utils/String8.h>
 #include <utils/Thread.h>
 #include <utils/Trace.h>
@@ -942,12 +943,22 @@ public:
         SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
         visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
     }
+    virtual void setSidebandStream(const sp<NativeHandle>& stream) {
+        ALOG_ASSERT(stream->handle() != NULL);
+        getLayer()->compositionType = HWC_SIDEBAND;
+        getLayer()->sidebandStream = stream->handle();
+    }
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
             getLayer()->compositionType = HWC_FRAMEBUFFER;
             getLayer()->flags |= HWC_SKIP_LAYER;
             getLayer()->handle = 0;
         } else {
+            if (getLayer()->compositionType == HWC_SIDEBAND) {
+                // If this was a sideband layer but the stream was removed, reset
+                // it to FRAMEBUFFER. The HWC can change it to OVERLAY in prepare.
+                getLayer()->compositionType = HWC_FRAMEBUFFER;
+            }
             getLayer()->handle = buffer->handle;
         }
     }

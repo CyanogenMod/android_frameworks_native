@@ -78,6 +78,19 @@ public:
         return surface != NULL && surface->getIGraphicBufferProducer() != NULL;
     }
 
+    /* Attaches a sideband buffer stream to the Surface's IGraphicBufferProducer.
+     *
+     * A sideband stream is a device-specific mechanism for passing buffers
+     * from the producer to the consumer without using dequeueBuffer/
+     * queueBuffer. If a sideband stream is present, the consumer can choose
+     * whether to acquire buffers from the sideband stream or from the queued
+     * buffers.
+     *
+     * Passing NULL or a different stream handle will detach the previous
+     * handle if any.
+     */
+    void setSidebandStream(const sp<NativeHandle>& stream);
+
 protected:
     virtual ~Surface();
 
