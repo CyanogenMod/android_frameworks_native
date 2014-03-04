@@ -131,7 +131,7 @@ class SensorService :
 
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
-    void recordLastValue(sensors_event_t const * buffer, size_t count);
+    void recordLastValue(const sensors_event_t* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
     Sensor registerVirtualSensor(SensorInterface* sensor);
