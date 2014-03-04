@@ -656,7 +656,7 @@ TEST_P(CpuConsumerTest, FromCpuLockMax) {
     ALOGV("Locking frame %d (too many)", params.maxLockedBuffers);
     CpuConsumer::LockedBuffer bTooMuch;
     err = mCC->lockNextBuffer(&bTooMuch);
-    ASSERT_TRUE(err == INVALID_OPERATION) << "Allowing too many locks";
+    ASSERT_TRUE(err == NOT_ENOUGH_DATA) << "Allowing too many locks";
 
     ALOGV("Unlocking frame 0");
     err = mCC->unlockBuffer(b[0]);
