@@ -579,8 +579,13 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
 }
 
 static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
-    const char* output_file_name, const char* dexopt_flags)
+    const char* output_file_name)
 {
+    /* platform-specific flags affecting optimization and verification */
+    char dexopt_flags[PROPERTY_VALUE_MAX];
+    property_get("dalvik.vm.dexopt-flags", dexopt_flags, "");
+    ALOGV("dalvik.vm.dexopt-flags=%s\n", dexopt_flags);
+
     static const char* DEX_OPT_BIN = "/system/bin/dexopt";
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
     char zip_num[MAX_INT_LEN];
@@ -596,8 +601,12 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name, const char* dexopt_flags)
+    const char* output_file_name)
 {
+    char dex2oat_flags[PROPERTY_VALUE_MAX];
+    property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, "");
+    ALOGV("dalvik.vm.dex2oat-flags=%s\n", dex2oat_flags);
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
     char zip_fd_arg[strlen("--zip-fd=") + MAX_INT_LEN];
@@ -614,6 +623,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     execl(DEX2OAT_BIN, DEX2OAT_BIN,
           zip_fd_arg, zip_location_arg,
           oat_fd_arg, oat_location_arg,
+          dex2oat_flags,
           (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
 }
@@ -649,7 +659,6 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
     struct utimbuf ut;
     struct stat apk_stat, dex_stat;
     char out_path[PKG_PATH_MAX];
-    char dexopt_flags[PROPERTY_VALUE_MAX];
     char persist_sys_dalvik_vm_lib[PROPERTY_VALUE_MAX];
     char *end;
     int res, zip_fd=-1, out_fd=-1;
@@ -658,11 +667,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
         return -1;
     }
 
-    /* platform-specific flags affecting optimization and verification */
-    property_get("dalvik.vm.dexopt-flags", dexopt_flags, "");
-    ALOGV("dalvik.vm.dexopt_flags=%s\n", dexopt_flags);
-
-    /* The command to run depend ones the value of persist.sys.dalvik.vm.lib */
+    /* The command to run depend on the value of persist.sys.dalvik.vm.lib */
     property_get("persist.sys.dalvik.vm.lib.1", persist_sys_dalvik_vm_lib, "libdvm.so");
 
     /* Before anything else: is there a .odex file?  If so, we have
@@ -733,9 +738,9 @@ int dexopt(const char *apk_path, uid_t uid, int is_public)
         }
 
         if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
-            run_dexopt(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
+            run_dexopt(zip_fd, out_fd, apk_path, out_path);
         } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
-            run_dex2oat(zip_fd, out_fd, apk_path, out_path, dexopt_flags);
+            run_dex2oat(zip_fd, out_fd, apk_path, out_path);
         } else {
             exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
         }
