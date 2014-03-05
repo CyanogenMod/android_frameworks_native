@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
+#ifndef ANDROID_GUI_BUFFERQUEUECOREDEFS_H
+#define ANDROID_GUI_BUFFERQUEUECOREDEFS_H
+
 #include <gui/BufferSlot.h>
 
 namespace android {
+    class BufferQueueCore;
 
-const char* BufferSlot::bufferStateName(BufferState state) {
-    switch (state) {
-        case BufferSlot::DEQUEUED: return "DEQUEUED";
-        case BufferSlot::QUEUED: return "QUEUED";
-        case BufferSlot::FREE: return "FREE";
-        case BufferSlot::ACQUIRED: return "ACQUIRED";
-        default: return "Unknown";
-    }
-}
+    namespace BufferQueueDefs {
+        // BufferQueue will keep track of at most this value of buffers.
+        // Attempts at runtime to increase the number of buffers past this
+        // will fail.
+        enum { NUM_BUFFER_SLOTS = 32 };
 
+        typedef BufferSlot SlotsType[NUM_BUFFER_SLOTS];
+    } // namespace BufferQueueDefs
 } // namespace android
+
+#endif

@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "BufferQueueConsumer"
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+//#define LOG_NDEBUG 0
+
 #include <gui/BufferItem.h>
 #include <gui/BufferQueueConsumer.h>
 #include <gui/BufferQueueCore.h>
@@ -38,7 +42,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
     // buffer so that the consumer can successfully set up the newly acquired
     // buffer before releasing the old one.
     int numAcquiredBuffers = 0;
-    for (int s = 0; s < BufferQueueCore::NUM_BUFFER_SLOTS; ++s) {
+    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
         if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
             ++numAcquiredBuffers;
         }
@@ -275,7 +279,7 @@ status_t BufferQueueConsumer::getReleasedBuffers(uint32_t *outSlotMask) {
     }
 
     uint32_t mask = 0;
-    for (int s = 0; s < BufferQueueCore::NUM_BUFFER_SLOTS; ++s) {
+    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
         if (!mSlots[s].mAcquireCalled) {
             mask |= (1u << s);
         }
