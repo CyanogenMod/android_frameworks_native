@@ -26,8 +26,8 @@
 
 #include <utils/Timers.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <WindowSurface.h>
+#include <EGLUtils.h>
 
 using namespace android;
 
@@ -46,7 +46,8 @@ int main(int argc, char** argv)
      EGLint w, h;
      EGLDisplay dpy;
 
-     EGLNativeWindowType window = android_createDisplaySurface();
+     WindowSurface windowSurface;
+     EGLNativeWindowType window = windowSurface.getSurface();
      
      dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
      eglInitialize(dpy, &majorVersion, &minorVersion);

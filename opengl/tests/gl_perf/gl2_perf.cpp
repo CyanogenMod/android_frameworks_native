@@ -26,8 +26,8 @@
 
 #include <utils/Timers.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <WindowSurface.h>
+#include <EGLUtils.h>
 
 using namespace android;
 
@@ -86,7 +86,8 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    EGLNativeWindowType window = android_createDisplaySurface();
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
     returnValue = EGLUtils::selectConfigForNativeWindow(dpy, s_configAttribs, window, &myConfig);
     if (returnValue) {
         printf("EGLUtils::selectConfigForNativeWindow() returned %d", returnValue);

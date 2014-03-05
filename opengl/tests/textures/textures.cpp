@@ -22,8 +22,8 @@
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <WindowSurface.h>
+#include <EGLUtils.h>
 
 using namespace android;
 
@@ -42,7 +42,8 @@ int main(int argc, char** argv)
      EGLint w, h;
      EGLDisplay dpy;
 
-     EGLNativeWindowType window = android_createDisplaySurface();
+     WindowSurface windowSurface;
+     EGLNativeWindowType window = windowSurface.getSurface();
      
      dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
      eglInitialize(dpy, &majorVersion, &minorVersion);
@@ -114,5 +115,7 @@ int main(int argc, char** argv)
      glDrawTexiOES(dim/2, dim/2, 0, dim/2, dim/2);
 
      eglSwapBuffers(dpy, surface);
+
+     sleep(2);      // so you have a chance to admire it
      return 0;
 }

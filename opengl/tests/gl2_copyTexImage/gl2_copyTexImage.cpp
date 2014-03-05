@@ -26,8 +26,8 @@
 
 #include <utils/Timers.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <WindowSurface.h>
+#include <EGLUtils.h>
 
 using namespace android;
 
@@ -406,7 +406,8 @@ int main(int argc, char** argv) {
 
     checkEglError("printEGLConfigurations");
 
-    EGLNativeWindowType window = android_createDisplaySurface();
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
     EGLint numConfigs = -1, n = 0;
     eglChooseConfig(dpy, s_configAttribs, 0, 0, &numConfigs);
     if (numConfigs) {

@@ -80,7 +80,11 @@ void hwcTestInitDisplay(bool verbose, EGLDisplay *dpy, EGLSurface *surface,
         exit(71);
     }
 
-    EGLNativeWindowType window = android_createDisplaySurface();
+    // The tests want to stop the framework and play with the hardware
+    // composer, which means it doesn't make sense to use WindowSurface
+    // here.  android_createDisplaySurface() is going away, so just
+    // politely fail here.
+    EGLNativeWindowType window = NULL; //android_createDisplaySurface();
     if (window == NULL) {
         testPrintE("android_createDisplaySurface failed");
         exit(72);

@@ -52,8 +52,8 @@
 #include <EGL/egl.h>
 #include <GLES/gl.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <EGLUtils.h>
+#include <WindowSurface.h>
 
 using namespace android;
 
@@ -118,7 +118,7 @@ static void checkEGLErrors()
         fprintf(stderr, "EGL Error: 0x%04x\n", (int)error);
 }
 
-static int initGraphics(unsigned samples)
+static int initGraphics(unsigned samples, const WindowSurface& windowSurface)
 {
     EGLint configAttribs[] = {
             EGL_DEPTH_SIZE, 16,
@@ -135,7 +135,7 @@ static int initGraphics(unsigned samples)
     EGLint w, h;
     EGLDisplay dpy;
 
-    EGLNativeWindowType window = android_createDisplaySurface();
+    EGLNativeWindowType window = windowSurface.getSurface();
 
     dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     eglInitialize(dpy, &majorVersion, &minorVersion);
@@ -193,7 +193,8 @@ int main(int argc, char *argv[])
         printf("Multisample enabled: GL_SAMPLES = %u\n", samples);
     }
 
-    if (!initGraphics(samples))
+    WindowSurface windowSurface;
+    if (!initGraphics(samples, windowSurface))
     {
         fprintf(stderr, "Graphics initialization failed.\n");
         return EXIT_FAILURE;

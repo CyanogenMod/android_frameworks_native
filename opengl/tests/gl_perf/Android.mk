@@ -10,7 +10,11 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libEGL \
     libGLESv2 \
-    libui
+    libui \
+    libgui \
+    libutils
+
+LOCAL_STATIC_LIBRARIES += libglTest
 
 LOCAL_C_INCLUDES += $(call include-path-for, opengl-tests-includes)
 

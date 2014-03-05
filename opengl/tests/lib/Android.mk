@@ -17,7 +17,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := tests
 LOCAL_MODULE:= libglTest
-LOCAL_SRC_FILES:= glTestLib.cpp
+LOCAL_SRC_FILES:= glTestLib.cpp WindowSurface.cpp
 LOCAL_C_INCLUDES += system/extras/tests/include \
     bionic \
     bionic/libstdc++/include \

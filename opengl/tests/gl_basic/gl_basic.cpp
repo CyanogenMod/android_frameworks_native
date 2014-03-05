@@ -5,8 +5,8 @@
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 
-#include <ui/FramebufferNativeWindow.h>
-#include "EGLUtils.h"
+#include <WindowSurface.h>
+#include <EGLUtils.h>
 
 #include <stdio.h>
 
@@ -23,7 +23,7 @@ GLuint texture;
 #define FIXED_ONE 0x10000
 #define ITERATIONS 50
 
-int init_gl_surface(void);
+int init_gl_surface(const WindowSurface& windowSurface);
 void free_gl_surface(void);
 void init_scene(void);
 void render();
@@ -194,7 +194,8 @@ int main(int argc, char **argv)
     int q;
     int start, end;
     printf("Initializing EGL...\n");
-    if(!init_gl_surface())
+    WindowSurface windowSurface;
+    if(!init_gl_surface(windowSurface))
     {
         printf("GL initialisation failed - exiting\n");
         return 0;
@@ -209,7 +210,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int init_gl_surface(void)
+int init_gl_surface(const WindowSurface& windowSurface)
 {
     EGLint numConfigs = 1;
     EGLConfig myConfig = {0};
@@ -236,7 +237,7 @@ int init_gl_surface(void)
         return 0;
     }
 
-    EGLNativeWindowType window = android_createDisplaySurface();
+    EGLNativeWindowType window = windowSurface.getSurface();
     EGLUtils::selectConfigForNativeWindow(eglDisplay, attrib, window, &myConfig);
 
     if ( (eglSurface = eglCreateWindowSurface(eglDisplay, myConfig,
