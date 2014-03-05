@@ -369,6 +369,8 @@ private:
 
     // protected by mLock
     mutable Mutex mLock;
+    // synchronization between Draw call and Dumpsys call
+    mutable Mutex mDrawLock;
     mutable nsecs_t mLastHwVSync[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     // thread-safe
