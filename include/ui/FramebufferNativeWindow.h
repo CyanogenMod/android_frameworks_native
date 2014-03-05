@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEBUFFER_NATIVE_WINDOW_H
 #define ANDROID_FRAMEBUFFER_NATIVE_WINDOW_H
 
+#warning "FramebufferNativeWindow is deprecated"
+
 #include <stdint.h>
 #include <sys/types.h>
 
