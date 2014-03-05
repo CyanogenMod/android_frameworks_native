@@ -65,6 +65,31 @@ enum {
     AINPUT_SOURCE_SWITCH = 0x80000000,
 };
 
+enum {
+    /**
+     * Constants for LEDs. Hidden from the API since we don't actually expose a way to interact
+     * with LEDs to developers
+     *
+     * NOTE: If you add LEDs here, you must also add them to KeycodeLabels.h
+     */
+
+    ALED_NUM_LOCK = 0x00,
+    ALED_CAPS_LOCK = 0x01,
+    ALED_SCROLL_LOCK = 0x02,
+    ALED_COMPOSE = 0x03,
+    ALED_KANA = 0x04,
+    ALED_SLEEP = 0x05,
+    ALED_SUSPEND = 0x06,
+    ALED_MUTE = 0x07,
+    ALED_MISC = 0x08,
+    ALED_MAIL = 0x09,
+    ALED_CHARGING = 0x0a,
+    ALED_CONTROLLER_1 = 0x10,
+    ALED_CONTROLLER_2 = 0x11,
+    ALED_CONTROLLER_3 = 0x12,
+    ALED_CONTROLLER_4 = 0x13,
+};
+
 /*
  * SystemUiVisibility constants from View.
  */
