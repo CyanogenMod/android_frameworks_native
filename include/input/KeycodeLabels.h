@@ -319,4 +319,26 @@ static const KeycodeLabel AXES[] = {
     { NULL, -1 }
 };
 
+static const KeycodeLabel LEDS[] = {
+    { "NUM_LOCK", 0x00 },
+    { "CAPS_LOCK", 0x01 },
+    { "SCROLL_LOCK", 0x02 },
+    { "COMPOSE", 0x03 },
+    { "KANA", 0x04 },
+    { "SLEEP", 0x05 },
+    { "SUSPEND", 0x06 },
+    { "MUTE", 0x07 },
+    { "MISC", 0x08 },
+    { "MAIL", 0x09 },
+    { "CHARGING", 0x0a },
+    { "CONTROLLER_1", 0x10 },
+    { "CONTROLLER_2", 0x11 },
+    { "CONTROLLER_3", 0x12 },
+    { "CONTROLLER_4", 0x13 },
+
+    // NOTE: If you add new LEDs here, you must also add them to Input.h
+
+    { NULL, -1 }
+};
+
 #endif // _LIBINPUT_KEYCODE_LABELS_H
