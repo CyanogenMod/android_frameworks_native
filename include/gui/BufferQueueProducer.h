@@ -96,6 +96,12 @@ public:
     virtual status_t dequeueBuffer(int *outSlot, sp<Fence>* outFence, bool async,
             uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
 
+    // See IGraphicBufferProducer::detachBuffer
+    virtual status_t detachBuffer(int slot);
+
+    // See IGraphicBufferProducer::attachBuffer
+    virtual status_t attachBuffer(int* outSlot, const sp<GraphicBuffer>& buffer);
+
     // queueBuffer returns a filled buffer to the BufferQueue.
     //
     // Additional data is provided in the QueueBufferInput struct.  Notably,
@@ -150,6 +156,14 @@ public:
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);
+
+    // waitForFreeSlotThenRelock finds the oldest slot in the FREE state. It may
+    // block if there are no available slots and we are not in non-blocking
+    // mode (producer and consumer controlled by the application). If it blocks,
+    // it will release mCore->mMutex while blocked so that other operations on
+    // the BufferQueue may succeed.
+    status_t waitForFreeSlotThenRelock(const char* caller, bool async,
+            int* found, status_t* returnFlags) const;
 
     sp<BufferQueueCore> mCore;
 

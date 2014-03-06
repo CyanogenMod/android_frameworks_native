@@ -139,6 +139,36 @@ public:
     // * INVALID_OPERATION - too many buffers have been acquired
     virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) = 0;
 
+    // detachBuffer attempts to remove all ownership of the buffer in the given
+    // slot from the buffer queue. If this call succeeds, the slot will be
+    // freed, and there will be no way to obtain the buffer from this interface.
+    // The freed slot will remain unallocated until either it is selected to
+    // hold a freshly allocated buffer in dequeueBuffer or a buffer is attached
+    // to the slot. The buffer must have already been acquired.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - the given slot number is invalid, either because it is
+    //               out of the range [0, NUM_BUFFER_SLOTS) or because the slot
+    //               it refers to is not currently acquired.
+    virtual status_t detachBuffer(int slot) = 0;
+
+    // attachBuffer attempts to transfer ownership of a buffer to the buffer
+    // queue. If this call succeeds, it will be as if this buffer was acquired
+    // from the returned slot number. As such, this call will fail if attaching
+    // this buffer would cause too many buffers to be simultaneously acquired.
+    //
+    // If the buffer is successfully attached, its frameNumber is initialized
+    // to 0. This must be passed into the releaseBuffer call or else the buffer
+    // will be deallocated as stale.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - outSlot or buffer were NULL
+    // * INVALID_OPERATION - cannot attach the buffer because it would cause too
+    //                       many buffers to be acquired.
+    // * NO_MEMORY - no free slots available
+    virtual status_t attachBuffer(int *outSlot,
+            const sp<GraphicBuffer>& buffer) = 0;
+
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
     // being accessed.  The fence will signal when the buffer is no longer

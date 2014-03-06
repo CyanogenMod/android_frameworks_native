@@ -183,6 +183,8 @@ status_t IGraphicBufferConsumer::BufferItem::unflatten(
 
 enum {
     ACQUIRE_BUFFER = IBinder::FIRST_CALL_TRANSACTION,
+    DETACH_BUFFER,
+    ATTACH_BUFFER,
     RELEASE_BUFFER,
     CONSUMER_CONNECT,
     CONSUMER_DISCONNECT,
@@ -220,6 +222,31 @@ public:
             return result;
         }
         return reply.readInt32();
+    }
+
+    virtual status_t detachBuffer(int slot) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        data.writeInt32(slot);
+        status_t result = remote()->transact(DETACH_BUFFER, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
+
+    virtual status_t attachBuffer(int* slot, const sp<GraphicBuffer>& buffer) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        data.write(*buffer.get());
+        status_t result = remote()->transact(ATTACH_BUFFER, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        *slot = reply.readInt32();
+        result = reply.readInt32();
+        return result;
     }
 
     virtual status_t releaseBuffer(int buf, uint64_t frameNumber,
@@ -379,6 +406,23 @@ status_t BnGraphicBufferConsumer::onTransact(
             status_t result = acquireBuffer(&item, presentWhen);
             status_t err = reply->write(item);
             if (err) return err;
+            reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case DETACH_BUFFER: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            int slot = data.readInt32();
+            int result = detachBuffer(slot);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case ATTACH_BUFFER: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            sp<GraphicBuffer> buffer = new GraphicBuffer();
+            data.read(*buffer.get());
+            int slot;
+            int result = attachBuffer(&slot, buffer);
+            reply->writeInt32(slot);
             reply->writeInt32(result);
             return NO_ERROR;
         } break;

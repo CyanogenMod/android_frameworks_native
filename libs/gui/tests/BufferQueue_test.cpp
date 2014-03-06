@@ -24,27 +24,31 @@
 
 #include <ui/GraphicBuffer.h>
 
+#include <binder/IServiceManager.h>
 #include <gui/BufferQueue.h>
 
 namespace android {
 
 class BufferQueueTest : public ::testing::Test {
+
+public:
+    static const String16 PRODUCER_NAME;
+    static const String16 CONSUMER_NAME;
+
 protected:
-
-    BufferQueueTest() {}
-
-    virtual void SetUp() {
+    BufferQueueTest() {
         const ::testing::TestInfo* const testInfo =
             ::testing::UnitTest::GetInstance()->current_test_info();
         ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
                 testInfo->name());
 
-        mBQ = new BufferQueue();
+        BufferQueue::createBufferQueue(&mProducer, &mConsumer);
+        sp<IServiceManager> serviceManager = defaultServiceManager();
+        serviceManager->addService(PRODUCER_NAME, mProducer.get());
+        serviceManager->addService(CONSUMER_NAME, mConsumer.get());
     }
 
-    virtual void TearDown() {
-        mBQ.clear();
-
+    ~BufferQueueTest() {
         const ::testing::TestInfo* const testInfo =
             ::testing::UnitTest::GetInstance()->current_test_info();
         ALOGV("End test:   %s.%s", testInfo->test_case_name(),
@@ -52,13 +56,18 @@ protected:
     }
 
     void GetMinUndequeuedBufferCount(int* bufferCount) {
-        ASSERT_NE((void*)NULL, bufferCount);
-        ASSERT_EQ(OK, mBQ->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, bufferCount));
-        ASSERT_LE(0, *bufferCount); // non-negative
+        ASSERT_TRUE(bufferCount != NULL);
+        ASSERT_EQ(OK, mProducer->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
+                    bufferCount));
+        ASSERT_GE(*bufferCount, 0);
     }
 
-    sp<BufferQueue> mBQ;
+    sp<BnGraphicBufferProducer> mProducer;
+    sp<BnGraphicBufferConsumer> mConsumer;
 };
+
+const String16 BufferQueueTest::PRODUCER_NAME = String16("BQTestProducer");
+const String16 BufferQueueTest::CONSUMER_NAME = String16("BQTestConsumer");
 
 struct DummyConsumer : public BnConsumerListener {
     virtual void onFrameAvailable() {}
@@ -67,10 +76,10 @@ struct DummyConsumer : public BnConsumerListener {
 
 TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc, false);
+    mConsumer->consumerConnect(dc, false);
     IGraphicBufferProducer::QueueBufferOutput qbo;
-    mBQ->connect(NULL, NATIVE_WINDOW_API_CPU, false, &qbo);
-    mBQ->setBufferCount(4);
+    mProducer->connect(NULL, NATIVE_WINDOW_API_CPU, false, &qbo);
+    mProducer->setBufferCount(4);
 
     int slot;
     sp<Fence> fence;
@@ -81,50 +90,198 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-                mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
+                mProducer->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                     GRALLOC_USAGE_SW_READ_OFTEN));
-        ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
-        ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
-        ASSERT_EQ(OK, mBQ->acquireBuffer(&item, 0));
+        ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mBQ->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
+            mProducer->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
                 GRALLOC_USAGE_SW_READ_OFTEN));
-    ASSERT_EQ(OK, mBQ->requestBuffer(slot, &buf));
-    ASSERT_EQ(OK, mBQ->queueBuffer(slot, qbi, &qbo));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
 
     // Acquire the third buffer, which should fail.
-    ASSERT_EQ(INVALID_OPERATION, mBQ->acquireBuffer(&item, 0));
+    ASSERT_EQ(INVALID_OPERATION, mConsumer->acquireBuffer(&item, 0));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc, false);
+    mConsumer->consumerConnect(dc, false);
 
     int minBufferCount;
     ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
-    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(minBufferCount - 1));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(
+                minBufferCount - 1));
 
-    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(0));
-    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(-3));
-    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(0));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(-3));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS+1));
-    EXPECT_EQ(BAD_VALUE, mBQ->setMaxAcquiredBufferCount(100));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(100));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
-    mBQ->consumerConnect(dc, false);
+    mConsumer->consumerConnect(dc, false);
 
     int minBufferCount;
     ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
 
-    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(1));
-    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(2));
-    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(minBufferCount));
-    EXPECT_EQ(OK, mBQ->setMaxAcquiredBufferCount(
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(1));
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(2));
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(minBufferCount));
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS));
+}
+
+TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK,
+            mProducer->connect(NULL, NATIVE_WINDOW_API_CPU, false, &output));
+
+    ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(-1)); // Index too low
+    ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(
+                BufferQueueDefs::NUM_BUFFER_SLOTS)); // Index too high
+    ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(0)); // Not dequeued
+
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+                    GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(slot)); // Not requested
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+    ASSERT_EQ(OK, mProducer->detachBuffer(slot));
+    ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(slot)); // Not dequeued
+
+    sp<GraphicBuffer> safeToClobberBuffer;
+    // Can no longer request buffer from this slot
+    ASSERT_EQ(BAD_VALUE, mProducer->requestBuffer(slot, &safeToClobberBuffer));
+
+    uint32_t* dataIn;
+    ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
+            reinterpret_cast<void**>(&dataIn)));
+    *dataIn = 0x12345678;
+    ASSERT_EQ(OK, buffer->unlock());
+
+    int newSlot;
+    ASSERT_EQ(BAD_VALUE, mProducer->attachBuffer(NULL, safeToClobberBuffer));
+    ASSERT_EQ(BAD_VALUE, mProducer->attachBuffer(&newSlot, NULL));
+
+    ASSERT_EQ(OK, mProducer->attachBuffer(&newSlot, buffer));
+    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(newSlot, input, &output));
+
+    IGraphicBufferConsumer::BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
+
+    uint32_t* dataOut;
+    ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
+            reinterpret_cast<void**>(&dataOut)));
+    ASSERT_EQ(*dataOut, 0x12345678);
+}
+
+TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK,
+            mProducer->connect(NULL, NATIVE_WINDOW_API_CPU, false, &output));
+
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+                    GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+
+    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(-1)); // Index too low
+    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(
+            BufferQueueDefs::NUM_BUFFER_SLOTS)); // Index too high
+    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(0)); // Not acquired
+
+    IGraphicBufferConsumer::BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
+
+    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
+    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(item.mBuf)); // Not acquired
+
+    uint32_t* dataIn;
+    ASSERT_EQ(OK, item.mGraphicBuffer->lock(
+            GraphicBuffer::USAGE_SW_WRITE_OFTEN,
+            reinterpret_cast<void**>(&dataIn)));
+    *dataIn = 0x12345678;
+    ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
+
+    int newSlot;
+    sp<GraphicBuffer> safeToClobberBuffer;
+    ASSERT_EQ(BAD_VALUE, mConsumer->attachBuffer(NULL, safeToClobberBuffer));
+    ASSERT_EQ(BAD_VALUE, mConsumer->attachBuffer(&newSlot, NULL));
+    ASSERT_EQ(OK, mConsumer->attachBuffer(&newSlot, item.mGraphicBuffer));
+
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mBuf, 0, EGL_NO_DISPLAY,
+            EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+                    GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+
+    uint32_t* dataOut;
+    ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
+            reinterpret_cast<void**>(&dataOut)));
+    ASSERT_EQ(*dataOut, 0x12345678);
+}
+
+TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK,
+            mProducer->connect(NULL, NATIVE_WINDOW_API_CPU, false, &output));
+
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+                    GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+
+    uint32_t* dataIn;
+    ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
+            reinterpret_cast<void**>(&dataIn)));
+    *dataIn = 0x12345678;
+    ASSERT_EQ(OK, buffer->unlock());
+
+    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+
+    IGraphicBufferConsumer::BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
+    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
+
+    int newSlot;
+    ASSERT_EQ(OK, mProducer->attachBuffer(&newSlot, item.mGraphicBuffer));
+    ASSERT_EQ(OK, mProducer->queueBuffer(newSlot, input, &output));
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
+
+    uint32_t* dataOut;
+    ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
+            reinterpret_cast<void**>(&dataOut)));
+    ASSERT_EQ(*dataOut, 0x12345678);
 }
 
 } // namespace android
