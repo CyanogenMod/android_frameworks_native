@@ -112,6 +112,11 @@ public:
     void useProgram(const Description& description);
 
 private:
+
+    Program* useProgram(const Key& needs);
+    // Add known programs at boot time
+    void initPrograms();
+
     // compute a cache Key from a Description
     static Key computeKey(const Description& description);
     // generates a program from the Key

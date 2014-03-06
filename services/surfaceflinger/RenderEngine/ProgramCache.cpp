@@ -79,9 +79,24 @@ ANDROID_SINGLETON_STATIC_INSTANCE(ProgramCache)
 
 
 ProgramCache::ProgramCache() {
+    initPrograms();
 }
 
 ProgramCache::~ProgramCache() {
+}
+
+void ProgramCache::initPrograms() {
+    Key needs;
+    needs.set(Key::TEXTURE_MASK, Key::TEXTURE_EXT)
+    .set(Key::PLANE_ALPHA_MASK, Key::PLANE_ALPHA_LT_ONE)
+    .set(Key::BLEND_MASK, Key::BLEND_PREMULT)
+    .set(Key::OPACITY_MASK, Key::OPACITY_OPAQUE)
+    .set(Key::COLOR_MATRIX_MASK, Key::COLOR_MATRIX_OFF);
+    useProgram(needs);
+    needs.set(Key::OPACITY_MASK, Key::OPACITY_TRANSLUCENT);
+    useProgram(needs);
+    needs.set(Key::PLANE_ALPHA_MASK, Key::PLANE_ALPHA_EQ_ONE);
+    useProgram(needs);
 }
 
 ProgramCache::Key ProgramCache::computeKey(const Description& description) {
@@ -192,12 +207,8 @@ Program* ProgramCache::generateProgram(const Key& needs) {
     return program;
 }
 
-void ProgramCache::useProgram(const Description& description) {
-
-    // generate the key for the shader based on the description
-    Key needs(computeKey(description));
-
-     // look-up the program in the cache
+Program* ProgramCache::useProgram(const Key& needs) {
+    // look-up the program in the cache
     Program* program = mCache.valueFor(needs);
     if (program == NULL) {
         // we didn't find our program, so generate one...
@@ -209,6 +220,15 @@ void ProgramCache::useProgram(const Description& description) {
         //ALOGD(">>> generated new program: needs=%08X, time=%u ms (%d programs)",
         //        needs.mNeeds, uint32_t(ns2ms(time)), mCache.size());
     }
+
+    return program;
+}
+
+void ProgramCache::useProgram(const Description& description) {
+
+    // generate the key for the shader based on the description
+    Key needs(computeKey(description));
+    Program* program = useProgram(needs);
 
     // here we have a suitable program for this description
     if (program->isValid()) {
