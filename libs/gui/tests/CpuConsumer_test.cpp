@@ -33,8 +33,6 @@
 #include <utils/Mutex.h>
 #include <utils/Condition.h>
 
-#include <ui/FramebufferNativeWindow.h>
-
 #define CPU_CONSUMER_TEST_FORMAT_RAW 0
 #define CPU_CONSUMER_TEST_FORMAT_Y8 0
 #define CPU_CONSUMER_TEST_FORMAT_Y16 0
