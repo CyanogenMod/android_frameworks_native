@@ -445,8 +445,8 @@ void SimpleBestFitAllocator::dump_l(String8& result,
         int np = ((cur->next) && cur->next->prev != cur) ? 1 : 0;
         int pn = ((cur->prev) && cur->prev->next != cur) ? 2 : 0;
 
-        snprintf(buffer, SIZE, "  %3u: %08x | 0x%08X | 0x%08X | %s %s\n",
-            i, int(cur), int(cur->start*kMemoryAlign),
+        snprintf(buffer, SIZE, "  %3u: %p | 0x%08X | 0x%08X | %s %s\n",
+            i, cur, int(cur->start*kMemoryAlign),
             int(cur->size*kMemoryAlign),
                     int(cur->free) ? "F" : "A",
                     errs[np|pn]);
