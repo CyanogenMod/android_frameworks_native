@@ -124,6 +124,11 @@ static int do_linklib(char **arg, char reply[REPLY_MAX])
     return linklib(arg[0], arg[1], atoi(arg[2]));
 }
 
+static int do_idmap(char **arg, char reply[REPLY_MAX])
+{
+    return idmap(arg[0], arg[1], atoi(arg[2]));
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -147,6 +152,7 @@ struct cmdinfo cmds[] = {
     { "linklib",              3, do_linklib },
     { "mkuserdata",           4, do_mk_user_data },
     { "rmuser",               1, do_rm_user },
+    { "idmap",                3, do_idmap },
 };
 
 static int readx(int s, void *_buf, int count)
@@ -515,6 +521,7 @@ static void drop_privileges() {
     capdata[CAP_TO_INDEX(CAP_CHOWN)].permitted        |= CAP_TO_MASK(CAP_CHOWN);
     capdata[CAP_TO_INDEX(CAP_SETUID)].permitted       |= CAP_TO_MASK(CAP_SETUID);
     capdata[CAP_TO_INDEX(CAP_SETGID)].permitted       |= CAP_TO_MASK(CAP_SETGID);
+    capdata[CAP_TO_INDEX(CAP_FOWNER)].permitted       |= CAP_TO_MASK(CAP_FOWNER);
 
     capdata[0].effective = capdata[0].permitted;
     capdata[1].effective = capdata[1].permitted;
