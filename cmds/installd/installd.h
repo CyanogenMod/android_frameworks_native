@@ -189,6 +189,8 @@ char *build_string3(char *s1, char *s2, char *s3);
 
 int ensure_dir(const char* path, mode_t mode, uid_t uid, gid_t gid);
 int ensure_media_user_dirs(userid_t userid);
+int create_profile_file(const char *pkgname, gid_t gid);
+void remove_profile_file(const char *pkgname);
 
 /* commands.c */
 
@@ -207,7 +209,7 @@ int get_size(const char *pkgname, userid_t userid, const char *apkpath, const ch
              const char *fwdlock_apkpath, const char *asecpath, int64_t *codesize,
              int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
 int free_cache(int64_t free_size);
-int dexopt(const char *apk_path, uid_t uid, int is_public);
+int dexopt(const char *apk_path, uid_t uid, int is_public, const char *pkgName);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
