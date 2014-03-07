@@ -328,7 +328,7 @@ void EventThread::dump(String8& result) const {
             mDebugVsyncEnabled?"enabled":"disabled");
     result.appendFormat("  soft-vsync: %s\n",
             mUseSoftwareVSync?"enabled":"disabled");
-    result.appendFormat("  numListeners=%u,\n  events-delivered: %u\n",
+    result.appendFormat("  numListeners=%zu,\n  events-delivered: %u\n",
             mDisplayEventConnections.size(),
             mVSyncEvent[DisplayDevice::DISPLAY_PRIMARY].vsync.count);
     for (size_t i=0 ; i<mDisplayEventConnections.size() ; i++) {
