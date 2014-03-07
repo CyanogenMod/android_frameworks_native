@@ -39,7 +39,7 @@ IBinder::~IBinder()
 
 // ---------------------------------------------------------------------------
 
-sp<IInterface>  IBinder::queryLocalInterface(const String16& descriptor)
+sp<IInterface>  IBinder::queryLocalInterface(const String16& /*descriptor*/)
 {
     return NULL;
 }
@@ -117,19 +117,20 @@ status_t BBinder::transact(
 }
 
 status_t BBinder::linkToDeath(
-    const sp<DeathRecipient>& recipient, void* cookie, uint32_t flags)
+    const sp<DeathRecipient>& /*recipient*/, void* /*cookie*/,
+    uint32_t /*flags*/)
 {
     return INVALID_OPERATION;
 }
 
 status_t BBinder::unlinkToDeath(
-    const wp<DeathRecipient>& recipient, void* cookie, uint32_t flags,
-    wp<DeathRecipient>* outRecipient)
+    const wp<DeathRecipient>& /*recipient*/, void* /*cookie*/,
+    uint32_t /*flags*/, wp<DeathRecipient>* /*outRecipient*/)
 {
     return INVALID_OPERATION;
 }
 
-status_t BBinder::dump(int fd, const Vector<String16>& args)
+    status_t BBinder::dump(int /*fd*/, const Vector<String16>& /*args*/)
 {
     return NO_ERROR;
 }
@@ -189,7 +190,7 @@ BBinder::~BBinder()
 
 
 status_t BBinder::onTransact(
-    uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
+    uint32_t code, const Parcel& data, Parcel* reply, uint32_t /*flags*/)
 {
     switch (code) {
         case INTERFACE_TRANSACTION:
@@ -251,14 +252,14 @@ void BpRefBase::onFirstRef()
     android_atomic_or(kRemoteAcquired, &mState);
 }
 
-void BpRefBase::onLastStrongRef(const void* id)
+void BpRefBase::onLastStrongRef(const void* /*id*/)
 {
     if (mRemote) {
         mRemote->decStrong(this);
     }
 }
 
-bool BpRefBase::onIncStrongAttempted(uint32_t flags, const void* id)
+bool BpRefBase::onIncStrongAttempted(uint32_t /*flags*/, const void* /*id*/)
 {
     return mRemote ? mRefs->attemptIncStrong(this) : false;
 }
