@@ -17,6 +17,8 @@
 // This is needed for stdint.h to define INT64_MAX in C++
 #define __STDC_LIMIT_MACROS
 
+#include <inttypes.h>
+
 #include <cutils/log.h>
 
 #include <ui/Fence.h>
@@ -211,7 +213,7 @@ void FrameTracker::dump(String8& result) const {
     const size_t o = mOffset;
     for (size_t i = 1; i < NUM_FRAME_RECORDS; i++) {
         const size_t index = (o+i) % NUM_FRAME_RECORDS;
-        result.appendFormat("%lld\t%lld\t%lld\n",
+        result.appendFormat("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\n",
             mFrameRecords[index].desiredPresentTime,
             mFrameRecords[index].actualPresentTime,
             mFrameRecords[index].frameReadyTime);
