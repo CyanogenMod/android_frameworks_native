@@ -1,16 +1,16 @@
 /*
 ** Copyright 2008, The Android Open Source Project
 **
-** Licensed under the Apache License, Version 2.0 (the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-** Unless required by applicable law or agreed to in writing, software 
-** distributed under the License is distributed on an "AS IS" BASIS, 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-** See the License for the specific language governing permissions and 
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
@@ -1004,4 +1004,60 @@ int ensure_media_user_dirs(userid_t userid) {
     }
 
     return 0;
+}
+
+int create_profile_file(const char *pkgname, gid_t gid) {
+    const char *profile_dir = DALVIK_CACHE_PREFIX "profiles";
+    struct stat profileStat;
+    char profile_file[PKG_PATH_MAX];
+
+    // If we don't have a profile directory under dalvik-cache we need to create one.
+    if (stat(profile_dir, &profileStat) < 0) {
+        // Create the profile directory under dalvik-cache.
+        if (mkdir(profile_dir, 0711) < 0) {
+            ALOGE("cannot make profile dir '%s': %s\n", profile_dir, strerror(errno));
+            return -1;
+        }
+
+        // Make the profile directory write-only for group and other. Owner can rwx it.
+        if (chmod(profile_dir, 0711) < 0) {
+            ALOGE("cannot chown profile dir '%s': %s\n", profile_dir, strerror(errno));
+            unlink(profile_dir);
+            return -1;
+        }
+    }
+
+    snprintf(profile_file, sizeof(profile_file), "%s/%s", profile_dir, pkgname);
+
+    // The 'system' user needs to be able to read the profile to determine if dex2oat
+    // needs to be run.  This is done in dalvik.system.DexFile.isDexOptNeededInternal().  So
+    // we make it world readable.  Not a problem since the dalvik cache is world
+    // readable anyway.
+
+    int fd = open(profile_file, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0664);
+
+    // Open will fail if the file already exists.  We want to ignore that.
+    if (fd >= 0) {
+        if (fchown(fd, -1, gid) < 0) {
+            ALOGE("cannot chown profile file '%s': %s\n", profile_file, strerror(errno));
+            close(fd);
+            unlink(profile_file);
+            return -1;
+        }
+
+        if (fchmod(fd, 0664) < 0) {
+            ALOGE("cannot chmod profile file '%s': %s\n", profile_file, strerror(errno));
+            close(fd);
+            unlink(profile_file);
+            return -1;
+        }
+        close(fd);
+    }
+    return 0;
+}
+
+void remove_profile_file(const char *pkgname) {
+    char profile_file[PKG_PATH_MAX];
+    snprintf(profile_file, sizeof(profile_file), "%s/%s", DALVIK_CACHE_PREFIX "profiles", pkgname);
+    unlink(profile_file);
 }
