@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <math.h>
 #include <dlfcn.h>
+#include <inttypes.h>
 
 #include <EGL/egl.h>
 
@@ -431,7 +432,7 @@ void SurfaceFlinger::init() {
                 // FIXME: currently we don't get blank/unblank requests
                 // for displays other than the main display, so we always
                 // assume a connected display is unblanked.
-                ALOGD("marking display %d as acquired/unblanked", i);
+                ALOGD("marking display %zu as acquired/unblanked", i);
                 hw->acquireScreen();
             }
             mDisplays.add(token, hw);
@@ -1656,7 +1657,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                     case HWC_FRAMEBUFFER_TARGET: {
                         // this should not happen as the iterator shouldn't
                         // let us get there.
-                        ALOGW("HWC_FRAMEBUFFER_TARGET found in hwc list (index=%d)", i);
+                        ALOGW("HWC_FRAMEBUFFER_TARGET found in hwc list (index=%zu)", i);
                         break;
                     }
                 }
@@ -2258,7 +2259,7 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
 
     const nsecs_t period =
             getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
-    result.appendFormat("%lld\n", period);
+    result.appendFormat("%" PRId64 "\n", period);
 
     if (name.isEmpty()) {
         mAnimFrameTracker.dump(result);
@@ -2371,7 +2372,7 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
     const size_t count = currentLayers.size();
     colorizer.bold(result);
-    result.appendFormat("Visible layers (count = %d)\n", count);
+    result.appendFormat("Visible layers (count = %zu)\n", count);
     colorizer.reset(result);
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
@@ -2383,7 +2384,7 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
      */
 
     colorizer.bold(result);
-    result.appendFormat("Displays (%d entries)\n", mDisplays.size());
+    result.appendFormat("Displays (%zu entries)\n", mDisplays.size());
     colorizer.reset(result);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<const DisplayDevice>& hw(mDisplays[dpy]);
@@ -2993,7 +2994,7 @@ void SurfaceFlinger::checkScreenshot(size_t w, size_t s, size_t h, void const* v
             const bool visible = (state.layerStack == hw->getLayerStack())
                                 && (state.z >= minLayerZ && state.z <= maxLayerZ)
                                 && (layer->isVisible());
-            ALOGE("%c index=%d, name=%s, layerStack=%d, z=%d, visible=%d, flags=%x, alpha=%x",
+            ALOGE("%c index=%zu, name=%s, layerStack=%d, z=%d, visible=%d, flags=%x, alpha=%x",
                     visible ? '+' : '-',
                             i, layer->getName().string(), state.layerStack, state.z,
                             layer->isVisible(), state.flags, state.alpha);
