@@ -148,9 +148,6 @@ void Daltonizer::update() {
     // set to identity, errp, errd, errt ([0] for simulation only)
     mat4 correction(0);
 
-    // control: simulation post-correction (used for debugging):
-    // set to identity or lms2lmsp, lms2lmsd, lms2lmst
-    mat4 control;
     switch (mType) {
         case protanopia:
         case protanomaly:
@@ -172,12 +169,8 @@ void Daltonizer::update() {
             break;
     }
 
-    if (true) {
-        control = simulation;
-    }
-
-    mColorTransform = lms2rgb * control *
-            (simulation * rgb2lms + correction * (rgb2lms - simulation * rgb2lms));
+    mColorTransform = lms2rgb *
+        (simulation * rgb2lms + correction * (rgb2lms - simulation * rgb2lms));
 }
 
 } /* namespace android */
