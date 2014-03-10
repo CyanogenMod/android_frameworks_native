@@ -218,6 +218,17 @@ void InputReaderConfiguration::setDisplayInfo(bool external, const DisplayViewpo
 }
 
 
+// -- TouchAffineTransformation --
+void TouchAffineTransformation::applyTo(float& x, float& y) const {
+    float newX, newY;
+    newX = x * x_scale + y * x_ymix + x_offset;
+    newY = x * y_xmix + y * y_scale + y_offset;
+
+    x = newX;
+    y = newY;
+}
+
+
 // --- InputReader ---
 
 InputReader::InputReader(const sp<EventHubInterface>& eventHub,
@@ -2642,6 +2653,7 @@ void TouchInputMapper::dump(String8& dump) {
     dumpVirtualKeys(dump);
     dumpRawPointerAxes(dump);
     dumpCalibration(dump);
+    dumpAffineTransformation(dump);
     dumpSurface(dump);
 
     dump.appendFormat(INDENT3 "Translation and Scaling Factors:\n");
@@ -3631,6 +3643,17 @@ void TouchInputMapper::dumpCalibration(String8& dump) {
     }
 }
 
+void TouchInputMapper::dumpAffineTransformation(String8& dump) {
+    dump.append(INDENT3 "Affine Transformation:\n");
+
+    dump.appendFormat(INDENT4 "X scale: %0.3f\n", mAffineTransform.x_scale);
+    dump.appendFormat(INDENT4 "X ymix: %0.3f\n", mAffineTransform.x_ymix);
+    dump.appendFormat(INDENT4 "X offset: %0.3f\n", mAffineTransform.x_offset);
+    dump.appendFormat(INDENT4 "Y xmix: %0.3f\n", mAffineTransform.y_xmix);
+    dump.appendFormat(INDENT4 "Y scale: %0.3f\n", mAffineTransform.y_scale);
+    dump.appendFormat(INDENT4 "Y offset: %0.3f\n", mAffineTransform.y_offset);
+}
+
 void TouchInputMapper::reset(nsecs_t when) {
     mCursorButtonAccumulator.reset(getDevice());
     mCursorScrollAccumulator.reset(getDevice());
@@ -4246,13 +4269,19 @@ void TouchInputMapper::cookPointerData() {
             break;
         }
 
-        // X, Y, and the bounding box for coverage information
-        // Adjust coords for surface orientation.
-        float x, y, left, top, right, bottom;
+        // Adjust X,Y coords for device calibration
+        // TODO: Adjust coverage coords?
+        float xTransformed = in.x, yTransformed = in.y;
+        mAffineTransform.applyTo(xTransformed, yTransformed);
+
+        // Adjust X, Y, and coverage coords for surface orientation.
+        float x, y;
+        float left, top, right, bottom;
+
         switch (mSurfaceOrientation) {
         case DISPLAY_ORIENTATION_90:
-            x = float(in.y - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
-            y = float(mRawPointerAxes.x.maxValue - in.x) * mXScale + mXTranslate;
+            x = float(yTransformed - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
+            y = float(mRawPointerAxes.x.maxValue - xTransformed) * mXScale + mXTranslate;
             left = float(rawTop - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
             right = float(rawBottom- mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
             bottom = float(mRawPointerAxes.x.maxValue - rawLeft) * mXScale + mXTranslate;
@@ -4263,8 +4292,8 @@ void TouchInputMapper::cookPointerData() {
             }
             break;
         case DISPLAY_ORIENTATION_180:
-            x = float(mRawPointerAxes.x.maxValue - in.x) * mXScale + mXTranslate;
-            y = float(mRawPointerAxes.y.maxValue - in.y) * mYScale + mYTranslate;
+            x = float(mRawPointerAxes.x.maxValue - xTransformed) * mXScale + mXTranslate;
+            y = float(mRawPointerAxes.y.maxValue - yTransformed) * mYScale + mYTranslate;
             left = float(mRawPointerAxes.x.maxValue - rawRight) * mXScale + mXTranslate;
             right = float(mRawPointerAxes.x.maxValue - rawLeft) * mXScale + mXTranslate;
             bottom = float(mRawPointerAxes.y.maxValue - rawTop) * mYScale + mYTranslate;
@@ -4275,8 +4304,8 @@ void TouchInputMapper::cookPointerData() {
             }
             break;
         case DISPLAY_ORIENTATION_270:
-            x = float(mRawPointerAxes.y.maxValue - in.y) * mYScale + mYTranslate;
-            y = float(in.x - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
+            x = float(mRawPointerAxes.y.maxValue - yTransformed) * mYScale + mYTranslate;
+            y = float(xTransformed - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
             left = float(mRawPointerAxes.y.maxValue - rawBottom) * mYScale + mYTranslate;
             right = float(mRawPointerAxes.y.maxValue - rawTop) * mYScale + mYTranslate;
             bottom = float(rawRight - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
@@ -4287,8 +4316,8 @@ void TouchInputMapper::cookPointerData() {
             }
             break;
         default:
-            x = float(in.x - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
-            y = float(in.y - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
+            x = float(xTransformed - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
+            y = float(yTransformed - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
             left = float(rawLeft - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
             right = float(rawRight - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
             bottom = float(rawBottom - mRawPointerAxes.y.minValue) * mYScale + mYTranslate;
