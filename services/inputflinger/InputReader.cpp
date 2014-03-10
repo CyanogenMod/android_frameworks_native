@@ -2752,6 +2752,11 @@ void TouchInputMapper::configure(nsecs_t when,
         resolveCalibration();
     }
 
+    if (!changes || (changes & InputReaderConfiguration::TOUCH_AFFINE_TRANSFORMATION)) {
+        // Update location calibration to reflect current settings
+        updateAffineTransformation();
+    }
+
     if (!changes || (changes & InputReaderConfiguration::CHANGE_POINTER_SPEED)) {
         // Update pointer speed.
         mPointerVelocityControl.setParameters(mConfig.pointerVelocityControlParameters);
@@ -3652,6 +3657,10 @@ void TouchInputMapper::dumpAffineTransformation(String8& dump) {
     dump.appendFormat(INDENT4 "Y xmix: %0.3f\n", mAffineTransform.y_xmix);
     dump.appendFormat(INDENT4 "Y scale: %0.3f\n", mAffineTransform.y_scale);
     dump.appendFormat(INDENT4 "Y offset: %0.3f\n", mAffineTransform.y_offset);
+}
+
+void TouchInputMapper::updateAffineTransformation() {
+    mAffineTransform = getPolicy()->getTouchAffineTransformation(mDevice->getDescriptor());
 }
 
 void TouchInputMapper::reset(nsecs_t when) {
