@@ -174,7 +174,8 @@ public:
         return mInputDevices;
     }
 
-    TouchAffineTransformation getTouchAffineTransformation(const String8& inputDeviceDescriptor) {
+    TouchAffineTransformation getTouchAffineTransformation(const String8& inputDeviceDescriptor,
+            int32_t surfaceRotation) {
         return transform;
     }
 
