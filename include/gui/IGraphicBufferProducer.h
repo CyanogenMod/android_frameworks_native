@@ -150,12 +150,14 @@ public:
     //
     // Return of a negative means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
-    // * BAD_VALUE - one of the below conditions occurred:
-    //              * both in async mode and buffer count was less than the
-    //                max numbers of buffers that can be allocated at once
-    //              * attempting dequeue more than one buffer at a time
-    //                without setting the buffer count with setBufferCount()
-    // * -EBUSY - attempting to dequeue too many buffers at a time
+    // * BAD_VALUE - both in async mode and buffer count was less than the
+    //               max numbers of buffers that can be allocated at once.
+    // * INVALID_OPERATION - cannot attach the buffer because it would cause
+    //                       too many buffers to be dequeued, either because
+    //                       the producer already has a single buffer dequeued
+    //                       and did not set a buffer count, or because a
+    //                       buffer count was set and this call would cause
+    //                       it to be exceeded.
     // * WOULD_BLOCK - no buffer is currently available, and blocking is disabled
     //                 since both the producer/consumer are controlled by app
     // * NO_MEMORY - out of memory, cannot allocate the graphics buffer.
@@ -164,6 +166,49 @@ public:
     // from the graphics allocator (typically errno).
     virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage) = 0;
+
+    // detachBuffer attempts to remove all ownership of the buffer in the given
+    // slot from the buffer queue. If this call succeeds, the slot will be
+    // freed, and there will be no way to obtain the buffer from this interface.
+    // The freed slot will remain unallocated until either it is selected to
+    // hold a freshly allocated buffer in dequeueBuffer or a buffer is attached
+    // to the slot. The buffer must have already been dequeued, and the caller
+    // must already possesses the sp<GraphicBuffer> (i.e., must have called
+    // requestBuffer).
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
+    // * BAD_VALUE - the given slot number is invalid, either because it is
+    //               out of the range [0, NUM_BUFFER_SLOTS), or because the slot
+    //               it refers to is not currently dequeued and requested.
+    virtual status_t detachBuffer(int slot) = 0;
+
+    // attachBuffer attempts to transfer ownership of a buffer to the buffer
+    // queue. If this call succeeds, it will be as if this buffer was dequeued
+    // from the returned slot number. As such, this call will fail if attaching
+    // this buffer would cause too many buffers to be simultaneously dequeued.
+    //
+    // If attachBuffer returns the RELEASE_ALL_BUFFERS flag, the caller is
+    // expected to release all of the mirrored slot->buffer mappings.
+    //
+    // A non-negative value with flags set (see above) will be returned upon
+    // success.
+    //
+    // Return of a negative value means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
+    // * BAD_VALUE - outSlot or buffer were NULL or invalid combination of
+    //               async mode and buffer count override.
+    // * INVALID_OPERATION - cannot attach the buffer because it would cause
+    //                       too many buffers to be dequeued, either because
+    //                       the producer already has a single buffer dequeued
+    //                       and did not set a buffer count, or because a
+    //                       buffer count was set and this call would cause
+    //                       it to be exceeded.
+    // * WOULD_BLOCK - no buffer slot is currently available, and blocking is
+    //                 disabled since both the producer/consumer are
+    //                 controlled by the app.
+    virtual status_t attachBuffer(int* outSlot,
+            const sp<GraphicBuffer>& buffer) = 0;
 
     // queueBuffer indicates that the client has finished filling in the
     // contents of the buffer associated with slot and transfers ownership of

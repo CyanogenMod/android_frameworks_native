@@ -38,7 +38,8 @@ struct BufferSlot {
       mFrameNumber(0),
       mEglFence(EGL_NO_SYNC_KHR),
       mAcquireCalled(false),
-      mNeedsCleanupOnRelease(false) {
+      mNeedsCleanupOnRelease(false),
+      mAttachedByConsumer(false) {
     }
 
     // mGraphicBuffer points to the buffer allocated for this slot or is NULL
@@ -129,6 +130,11 @@ struct BufferSlot {
     // consumer.  This is set when a buffer in ACQUIRED state is freed.
     // It causes releaseBuffer to return STALE_BUFFER_SLOT.
     bool mNeedsCleanupOnRelease;
+
+    // Indicates whether the buffer was attached on the consumer side.
+    // If so, it needs to set the BUFFER_NEEDS_REALLOCATION flag when dequeued
+    // to prevent the producer from using a stale cached buffer.
+    bool mAttachedByConsumer;
 };
 
 } // namespace android

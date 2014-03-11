@@ -86,7 +86,7 @@ status_t BufferQueueProducer::setBufferCount(int bufferCount) {
         for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
             if (mSlots[s].mBufferState == BufferSlot::DEQUEUED) {
                 BQ_LOGE("setBufferCount: buffer owned by producer");
-                return -EINVAL;
+                return BAD_VALUE;
             }
         }
 
@@ -121,6 +121,110 @@ status_t BufferQueueProducer::setBufferCount(int bufferCount) {
     return NO_ERROR;
 }
 
+status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
+        bool async, int* found, status_t* returnFlags) const {
+    bool tryAgain = true;
+    while (tryAgain) {
+        if (mCore->mIsAbandoned) {
+            BQ_LOGE("%s: BufferQueue has been abandoned", caller);
+            return NO_INIT;
+        }
+
+        const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+        if (async && mCore->mOverrideMaxBufferCount) {
+            // FIXME: Some drivers are manually setting the buffer count
+            // (which they shouldn't), so we do this extra test here to
+            // handle that case. This is TEMPORARY until we get this fixed.
+            if (mCore->mOverrideMaxBufferCount < maxBufferCount) {
+                BQ_LOGE("%s: async mode is invalid with buffer count override",
+                        caller);
+                return BAD_VALUE;
+            }
+        }
+
+        // Free up any buffers that are in slots beyond the max buffer count
+        for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+            assert(mSlots[s].mBufferState == BufferSlot::FREE);
+            if (mSlots[s].mGraphicBuffer != NULL) {
+                mCore->freeBufferLocked(s);
+                *returnFlags |= RELEASE_ALL_BUFFERS;
+            }
+        }
+
+        // Look for a free buffer to give to the client
+        *found = BufferQueueCore::INVALID_BUFFER_SLOT;
+        int dequeuedCount = 0;
+        int acquiredCount = 0;
+        for (int s = 0; s < maxBufferCount; ++s) {
+            switch (mSlots[s].mBufferState) {
+                case BufferSlot::DEQUEUED:
+                    ++dequeuedCount;
+                    break;
+                case BufferSlot::ACQUIRED:
+                    ++acquiredCount;
+                    break;
+                case BufferSlot::FREE:
+                    // We return the oldest of the free buffers to avoid
+                    // stalling the producer if possible, since the consumer
+                    // may still have pending reads of in-flight buffers
+                    if (*found == BufferQueueCore::INVALID_BUFFER_SLOT ||
+                            mSlots[s].mFrameNumber < mSlots[*found].mFrameNumber) {
+                        *found = s;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Producers are not allowed to dequeue more than one buffer if they
+        // did not set a buffer count
+        if (!mCore->mOverrideMaxBufferCount && dequeuedCount) {
+            BQ_LOGE("%s: can't dequeue multiple buffers without setting the "
+                    "buffer count", caller);
+            return INVALID_OPERATION;
+        }
+
+        // See whether a buffer has been queued since the last
+        // setBufferCount so we know whether to perform the min undequeued
+        // buffers check below
+        if (mCore->mBufferHasBeenQueued) {
+            // Make sure the producer is not trying to dequeue more buffers
+            // than allowed
+            const int newUndequeuedCount =
+                maxBufferCount - (dequeuedCount + 1);
+            const int minUndequeuedCount =
+                mCore->getMinUndequeuedBufferCountLocked(async);
+            if (newUndequeuedCount < minUndequeuedCount) {
+                BQ_LOGE("%s: min undequeued buffer count (%d) exceeded "
+                        "(dequeued=%d undequeued=%d)",
+                        caller, minUndequeuedCount,
+                        dequeuedCount, newUndequeuedCount);
+                return INVALID_OPERATION;
+            }
+        }
+
+        // If no buffer is found, wait for a buffer to be released or for
+        // the max buffer count to change
+        tryAgain = (*found == BufferQueueCore::INVALID_BUFFER_SLOT);
+        if (tryAgain) {
+            // Return an error if we're in non-blocking mode (producer and
+            // consumer are controlled by the application).
+            // However, the consumer is allowed to briefly acquire an extra
+            // buffer (which could cause us to have to wait here), which is
+            // okay, since it is only used to implement an atomic acquire +
+            // release (e.g., in GLConsumer::updateTexImage())
+            if (mCore->mDequeueBufferCannotBlock &&
+                    (acquiredCount <= mCore->mMaxAcquiredBufferCount)) {
+                return WOULD_BLOCK;
+            }
+            mCore->mDequeueCondition.wait(mCore->mMutex);
+        }
+    } // while (tryAgain)
+
+    return NO_ERROR;
+}
+
 status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         sp<android::Fence> *outFence, bool async,
         uint32_t width, uint32_t height, uint32_t format, uint32_t usage) {
@@ -141,6 +245,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
     status_t returnFlags = NO_ERROR;
     EGLDisplay eglDisplay = EGL_NO_DISPLAY;
     EGLSyncKHR eglFence = EGL_NO_SYNC_KHR;
+    bool attachedByConsumer = false;
 
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
@@ -152,105 +257,12 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         // Enable the usage bits the consumer requested
         usage |= mCore->mConsumerUsageBits;
 
-        int found = -1;
-        bool tryAgain = true;
-        while (tryAgain) {
-            if (mCore->mIsAbandoned) {
-                BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
-                return NO_INIT;
-            }
-
-            const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
-            if (async && mCore->mOverrideMaxBufferCount) {
-                // FIXME: Some drivers are manually setting the buffer count
-                // (which they shouldn't), so we do this extra test here to
-                // handle that case. This is TEMPORARY until we get this fixed.
-                if (mCore->mOverrideMaxBufferCount < maxBufferCount) {
-                    BQ_LOGE("dequeueBuffer: async mode is invalid with "
-                            "buffer count override");
-                    return BAD_VALUE;
-                }
-            }
-
-            // Free up any buffers that are in slots beyond the max buffer count
-            for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-                assert(mSlots[s].mBufferState == BufferSlot::FREE);
-                if (mSlots[s].mGraphicBuffer != NULL) {
-                    mCore->freeBufferLocked(s);
-                    returnFlags |= RELEASE_ALL_BUFFERS;
-                }
-            }
-
-            // Look for a free buffer to give to the client
-            found = BufferQueueCore::INVALID_BUFFER_SLOT;
-            int dequeuedCount = 0;
-            int acquiredCount = 0;
-            for (int s = 0; s < maxBufferCount; ++s) {
-                switch (mSlots[s].mBufferState) {
-                    case BufferSlot::DEQUEUED:
-                        ++dequeuedCount;
-                        break;
-                    case BufferSlot::ACQUIRED:
-                        ++acquiredCount;
-                        break;
-                    case BufferSlot::FREE:
-                        // We return the oldest of the free buffers to avoid
-                        // stalling the producer if possible, since the consumer
-                        // may still have pending reads of in-flight buffers
-                        if (found == BufferQueueCore::INVALID_BUFFER_SLOT ||
-                                mSlots[s].mFrameNumber < mSlots[found].mFrameNumber) {
-                            found = s;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            // Producers are not allowed to dequeue more than one buffer if they
-            // did not set a buffer count
-            if (!mCore->mOverrideMaxBufferCount && dequeuedCount) {
-                BQ_LOGE("dequeueBuffer: can't dequeue multiple buffers "
-                        "without setting the buffer count");
-                return -EINVAL;
-            }
-
-            // See whether a buffer has been queued since the last
-            // setBufferCount so we know whether to perform the min undequeued
-            // buffers check below
-            if (mCore->mBufferHasBeenQueued) {
-                // Make sure the producer is not trying to dequeue more buffers
-                // than allowed
-                const int newUndequeuedCount =
-                        maxBufferCount - (dequeuedCount + 1);
-                const int minUndequeuedCount =
-                        mCore->getMinUndequeuedBufferCountLocked(async);
-                if (newUndequeuedCount < minUndequeuedCount) {
-                    BQ_LOGE("dequeueBuffer: min undequeued buffer count (%d) "
-                            "exceeded (dequeued=%d undequeued=%d)",
-                            minUndequeuedCount, dequeuedCount,
-                            newUndequeuedCount);
-                    return -EBUSY;
-                }
-            }
-
-            // If no buffer is found, wait for a buffer to be released or for
-            // the max buffer count to change
-            tryAgain = (found == BufferQueueCore::INVALID_BUFFER_SLOT);
-            if (tryAgain) {
-                // Return an error if we're in non-blocking mode (producer and
-                // consumer are controlled by the application).
-                // However, the consumer is allowed to briefly acquire an extra
-                // buffer (which could cause us to have to wait here), which is
-                // okay, since it is only used to implement an atomic acquire +
-                // release (e.g., in GLConsumer::updateTexImage())
-                if (mCore->mDequeueBufferCannotBlock &&
-                        (acquiredCount <= mCore->mMaxAcquiredBufferCount)) {
-                    return WOULD_BLOCK;
-                }
-                mCore->mDequeueCondition.wait(mCore->mMutex);
-            }
-        } // while (tryAgain)
+        int found;
+        status_t status = waitForFreeSlotThenRelock("dequeueBuffer", async,
+                &found, &returnFlags);
+        if (status != NO_ERROR) {
+            return status;
+        }
 
         // This should not happen
         if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
@@ -260,6 +272,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         *outSlot = found;
         ATRACE_BUFFER_INDEX(found);
+
+        attachedByConsumer = mSlots[found].mAttachedByConsumer;
 
         const bool useDefaultSize = !width && !height;
         if (useDefaultSize) {
@@ -316,9 +330,13 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
                 return NO_INIT;
             }
 
-            mSlots[*outSlot].mFrameNumber = ~0;
+            mSlots[*outSlot].mFrameNumber = UINT32_MAX;
             mSlots[*outSlot].mGraphicBuffer = graphicBuffer;
         } // Autolock scope
+    }
+
+    if (attachedByConsumer) {
+        returnFlags |= BUFFER_NEEDS_REALLOCATION;
     }
 
     if (eglFence != EGL_NO_SYNC_KHR) {
@@ -339,6 +357,81 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
     BQ_LOGV("dequeueBuffer: returning slot=%d/%llu buf=%p flags=%#x", *outSlot,
             mSlots[*outSlot].mFrameNumber,
             mSlots[*outSlot].mGraphicBuffer->handle, returnFlags);
+
+    return returnFlags;
+}
+
+status_t BufferQueueProducer::detachBuffer(int slot) {
+    ATRACE_CALL();
+    ATRACE_BUFFER_INDEX(slot);
+    BQ_LOGV("detachBuffer(P): slot %d", slot);
+    Mutex::Autolock lock(mCore->mMutex);
+
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachBuffer(P): BufferQueue has been abandoned");
+        return NO_INIT;
+    }
+
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("detachBuffer(P): slot index %d out of range [0, %d)",
+                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
+        return BAD_VALUE;
+    } else if (mSlots[slot].mBufferState != BufferSlot::DEQUEUED) {
+        BQ_LOGE("detachBuffer(P): slot %d is not owned by the producer "
+                "(state = %d)", slot, mSlots[slot].mBufferState);
+        return BAD_VALUE;
+    } else if (!mSlots[slot].mRequestBufferCalled) {
+        BQ_LOGE("detachBuffer(P): buffer in slot %d has not been requested",
+                slot);
+        return BAD_VALUE;
+    }
+
+    mCore->freeBufferLocked(slot);
+    mCore->mDequeueCondition.broadcast();
+
+    return NO_ERROR;
+}
+
+status_t BufferQueueProducer::attachBuffer(int* outSlot,
+        const sp<android::GraphicBuffer>& buffer) {
+    ATRACE_CALL();
+
+    if (outSlot == NULL) {
+        BQ_LOGE("attachBuffer(P): outSlot must not be NULL");
+        return BAD_VALUE;
+    } else if (buffer == NULL) {
+        BQ_LOGE("attachBuffer(P): cannot attach NULL buffer");
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mCore->mMutex);
+
+    status_t returnFlags = NO_ERROR;
+    int found;
+    // TODO: Should we provide an async flag to attachBuffer? It seems
+    // unlikely that buffers which we are attaching to a BufferQueue will
+    // be asynchronous (droppable), but it may not be impossible.
+    status_t status = waitForFreeSlotThenRelock("attachBuffer(P)", false,
+            &found, &returnFlags);
+    if (status != NO_ERROR) {
+        return status;
+    }
+
+    // This should not happen
+    if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
+        BQ_LOGE("attachBuffer(P): no available buffer slots");
+        return -EBUSY;
+    }
+
+    *outSlot = found;
+    ATRACE_BUFFER_INDEX(*outSlot);
+    BQ_LOGV("attachBuffer(P): returning slot %d flags=%#x",
+            *outSlot, returnFlags);
+
+    mSlots[*outSlot].mGraphicBuffer = buffer;
+    mSlots[*outSlot].mBufferState = BufferSlot::DEQUEUED;
+    mSlots[*outSlot].mEglFence = EGL_NO_SYNC_KHR;
+    mSlots[*outSlot].mFence = Fence::NO_FENCE;
 
     return returnFlags;
 }
@@ -371,7 +464,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             break;
         default:
             BQ_LOGE("queueBuffer: unknown scaling mode %d", scalingMode);
-            return -EINVAL;
+            return BAD_VALUE;
     }
 
     sp<IConsumerListener> listener;
@@ -398,15 +491,15 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         if (slot < 0 || slot >= maxBufferCount) {
             BQ_LOGE("queueBuffer: slot index %d out of range [0, %d)",
                     slot, maxBufferCount);
-            return -EINVAL;
+            return BAD_VALUE;
         } else if (mSlots[slot].mBufferState != BufferSlot::DEQUEUED) {
             BQ_LOGE("queueBuffer: slot %d is not owned by the producer "
                     "(state = %d)", slot, mSlots[slot].mBufferState);
-            return -EINVAL;
+            return BAD_VALUE;
         } else if (!mSlots[slot].mRequestBufferCalled) {
             BQ_LOGE("queueBuffer: slot %d was queued without requesting "
                     "a buffer", slot);
-            return -EINVAL;
+            return BAD_VALUE;
         }
 
         BQ_LOGV("queueBuffer: slot=%d/%llu time=%llu crop=[%d,%d,%d,%d] "
@@ -422,7 +515,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         if (croppedRect != crop) {
             BQ_LOGE("queueBuffer: crop rect is not contained within the "
                     "buffer in slot %d", slot);
-            return -EINVAL;
+            return BAD_VALUE;
         }
 
         mSlots[slot].mFence = fence;
@@ -679,12 +772,12 @@ status_t BufferQueueProducer::disconnect(int api) {
                 } else {
                     BQ_LOGE("disconnect(P): connected to another API "
                             "(cur=%d req=%d)", mCore->mConnectedApi, api);
-                    status = -EINVAL;
+                    status = BAD_VALUE;
                 }
                 break;
             default:
                 BQ_LOGE("disconnect(P): unknown API %d", api);
-                status = -EINVAL;
+                status = BAD_VALUE;
                 break;
         }
     } // Autolock scope

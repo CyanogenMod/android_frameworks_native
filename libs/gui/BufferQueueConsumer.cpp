@@ -168,13 +168,96 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
     return NO_ERROR;
 }
 
+status_t BufferQueueConsumer::detachBuffer(int slot) {
+    ATRACE_CALL();
+    ATRACE_BUFFER_INDEX(slot);
+    BQ_LOGV("detachBuffer(C): slot %d", slot);
+    Mutex::Autolock lock(mCore->mMutex);
+
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachBuffer(C): BufferQueue has been abandoned");
+        return NO_INIT;
+    }
+
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("detachBuffer(C): slot index %d out of range [0, %d)",
+                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
+        return BAD_VALUE;
+    } else if (mSlots[slot].mBufferState != BufferSlot::ACQUIRED) {
+        BQ_LOGE("detachBuffer(C): slot %d is not owned by the consumer "
+                "(state = %d)", slot, mSlots[slot].mBufferState);
+        return BAD_VALUE;
+    }
+
+    mCore->freeBufferLocked(slot);
+    mCore->mDequeueCondition.broadcast();
+
+    return NO_ERROR;
+}
+
+status_t BufferQueueConsumer::attachBuffer(int* outSlot,
+        const sp<android::GraphicBuffer>& buffer) {
+    ATRACE_CALL();
+
+    if (outSlot == NULL) {
+        BQ_LOGE("attachBuffer(P): outSlot must not be NULL");
+        return BAD_VALUE;
+    } else if (buffer == NULL) {
+        BQ_LOGE("attachBuffer(P): cannot attach NULL buffer");
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mCore->mMutex);
+
+    // Make sure we don't have too many acquired buffers and find a free slot
+    // to put the buffer into (the oldest if there are multiple).
+    int numAcquiredBuffers = 0;
+    int found = BufferQueueCore::INVALID_BUFFER_SLOT;
+    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+        if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
+            ++numAcquiredBuffers;
+        } else if (mSlots[s].mBufferState == BufferSlot::FREE) {
+            if (found == BufferQueueCore::INVALID_BUFFER_SLOT ||
+                    mSlots[s].mFrameNumber < mSlots[found].mFrameNumber) {
+                found = s;
+            }
+        }
+    }
+
+    if (numAcquiredBuffers >= mCore->mMaxAcquiredBufferCount + 1) {
+        BQ_LOGE("attachBuffer(P): max acquired buffer count reached: %d "
+                "(max %d)", numAcquiredBuffers,
+                mCore->mMaxAcquiredBufferCount);
+        return INVALID_OPERATION;
+    }
+    if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
+        BQ_LOGE("attachBuffer(P): could not find free buffer slot");
+        return NO_MEMORY;
+    }
+
+    *outSlot = found;
+    ATRACE_BUFFER_INDEX(*outSlot);
+    BQ_LOGV("attachBuffer(C): returning slot %d", *outSlot);
+
+    mSlots[*outSlot].mGraphicBuffer = buffer;
+    mSlots[*outSlot].mBufferState = BufferSlot::ACQUIRED;
+    mSlots[*outSlot].mAttachedByConsumer = true;
+    mSlots[*outSlot].mAcquireCalled = true;
+    mSlots[*outSlot].mNeedsCleanupOnRelease = false;
+    mSlots[*outSlot].mFence = Fence::NO_FENCE;
+    mSlots[*outSlot].mFrameNumber = 0;
+
+    return NO_ERROR;
+}
+
 status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         const sp<Fence>& releaseFence, EGLDisplay eglDisplay,
         EGLSyncKHR eglFence) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);
 
-    if (slot == BufferQueueCore::INVALID_BUFFER_SLOT || releaseFence == NULL) {
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS ||
+            releaseFence == NULL) {
         return BAD_VALUE;
     }
 
@@ -192,7 +275,7 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         if (current->mSlot == slot) {
             BQ_LOGE("releaseBuffer: buffer slot %d pending release is "
                     "currently queued", slot);
-            return -EINVAL;
+            return BAD_VALUE;
         }
         ++current;
     }
@@ -210,7 +293,7 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
     } else {
         BQ_LOGV("releaseBuffer: attempted to release buffer slot %d "
                 "but its state was %d", slot, mSlots[slot].mBufferState);
-        return -EINVAL;
+        return BAD_VALUE;
     }
 
     mCore->mDequeueCondition.broadcast();
@@ -252,7 +335,7 @@ status_t BufferQueueConsumer::disconnect() {
 
     if (mCore->mConsumerListener == NULL) {
         BQ_LOGE("disconnect(C): no consumer is connected");
-        return -EINVAL;
+        return BAD_VALUE;
     }
 
     mCore->mIsAbandoned = true;

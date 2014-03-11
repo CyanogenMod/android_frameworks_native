@@ -43,6 +43,19 @@ void BufferQueue::ProxyConsumerListener::onBuffersReleased() {
     }
 }
 
+void BufferQueue::createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
+        sp<BnGraphicBufferConsumer>* outConsumer,
+        const sp<IGraphicBufferAlloc>& allocator) {
+    LOG_ALWAYS_FATAL_IF(outProducer == NULL,
+            "BufferQueue: outProducer must not be NULL");
+    LOG_ALWAYS_FATAL_IF(outConsumer == NULL,
+            "BufferQueue: outConsumer must not be NULL");
+
+    sp<BufferQueueCore> core(new BufferQueueCore(allocator));
+    *outProducer = new BufferQueueProducer(core);
+    *outConsumer = new BufferQueueConsumer(core);
+}
+
 BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     mProducer(),
     mConsumer()
@@ -75,6 +88,15 @@ status_t BufferQueue::dequeueBuffer(int *outBuf, sp<Fence>* outFence, bool async
     return mProducer->dequeueBuffer(outBuf, outFence, async, w, h, format, usage);
 }
 
+status_t BufferQueue::detachProducerBuffer(int slot) {
+    return mProducer->detachBuffer(slot);
+}
+
+status_t BufferQueue::attachProducerBuffer(int* slot,
+        const sp<GraphicBuffer>& buffer) {
+    return mProducer->attachBuffer(slot, buffer);
+}
+
 status_t BufferQueue::queueBuffer(int buf,
         const QueueBufferInput& input, QueueBufferOutput* output) {
     return mProducer->queueBuffer(buf, input, output);
@@ -95,6 +117,15 @@ status_t BufferQueue::disconnect(int api) {
 
 status_t BufferQueue::acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) {
     return mConsumer->acquireBuffer(buffer, presentWhen);
+}
+
+status_t BufferQueue::detachConsumerBuffer(int slot) {
+    return mConsumer->detachBuffer(slot);
+}
+
+status_t BufferQueue::attachConsumerBuffer(int* slot,
+        const sp<GraphicBuffer>& buffer) {
+    return mConsumer->attachBuffer(slot, buffer);
 }
 
 status_t BufferQueue::releaseBuffer(

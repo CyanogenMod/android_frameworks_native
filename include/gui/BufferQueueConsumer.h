@@ -49,6 +49,12 @@ public:
     virtual status_t acquireBuffer(BufferItem* outBuffer,
             nsecs_t expectedPresent);
 
+    // See IGraphicBufferConsumer::detachBuffer
+    virtual status_t detachBuffer(int slot);
+
+    // See IGraphicBufferConsumer::attachBuffer
+    virtual status_t attachBuffer(int* slot, const sp<GraphicBuffer>& buffer);
+
     // releaseBuffer releases a buffer slot from the consumer back to the
     // BufferQueue.  This may be done while the buffer's contents are still
     // being accessed.  The fence will signal when the buffer is no longer
