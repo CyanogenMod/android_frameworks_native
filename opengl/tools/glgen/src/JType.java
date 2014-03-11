@@ -57,8 +57,8 @@ public class JType {
     typeMapping.put(new CType("EGLenum"), new JType("int"));
     typeMapping.put(new CType("EGLNativePixmapType"), new JType("int"));
     typeMapping.put(new CType("EGLNativeWindowType"), new JType("int"));
-    typeMapping.put(new CType("EGLNativeDisplayType"), new JType("int"));
-    typeMapping.put(new CType("EGLClientBuffer"), new JType("int"));
+    typeMapping.put(new CType("EGLNativeDisplayType"), new JType("long"));
+    typeMapping.put(new CType("EGLClientBuffer"), new JType("long"));
     typeMapping.put(new CType("EGLnsecsANDROID"), new JType("long"));
 
     // EGL nonprimitive types
