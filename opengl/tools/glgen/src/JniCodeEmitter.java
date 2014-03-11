@@ -1283,7 +1283,7 @@ public class JniCodeEmitter {
             for (int i = 0; i < numArgs; i++) {
                 String typecast;
                 if (i == numArgs - 1 && isPointerOffsetFunc) {
-                    typecast = "(GLvoid *)";
+                    typecast = "reinterpret_cast<GLvoid *>";
                 } else {
                     typecast = "(" + cfunc.getArgType(i).getDeclaration() + ")";
                 }
@@ -1297,6 +1297,8 @@ public class JniCodeEmitter {
                 if (cfunc.getArgType(i).isEGLHandle() &&
                     !cfunc.getArgType(i).isPointer()){
                     out.print(cfunc.getArgName(i)+"_native");
+                } else if (i == numArgs - 1 && isPointerOffsetFunc){
+                    out.print("("+cfunc.getArgName(i)+")");
                 } else {
                     out.print(cfunc.getArgName(i));
                 }
