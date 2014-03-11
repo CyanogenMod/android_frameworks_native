@@ -632,8 +632,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     execl(DEX2OAT_BIN, DEX2OAT_BIN,
           zip_fd_arg, zip_location_arg,
           oat_fd_arg, oat_location_arg,
-          strlen(dex2oat_flags) > 0 ? dex2oat_flags : NULL,
           profile_file,
+          strlen(dex2oat_flags) > 0 ? dex2oat_flags : NULL,
           (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
 }
