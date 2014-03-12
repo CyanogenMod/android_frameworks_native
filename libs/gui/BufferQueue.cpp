@@ -56,6 +56,19 @@ void BufferQueue::createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
     *outConsumer = new BufferQueueConsumer(core);
 }
 
+void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
+        sp<IGraphicBufferConsumer>* outConsumer,
+        const sp<IGraphicBufferAlloc>& allocator) {
+    LOG_ALWAYS_FATAL_IF(outProducer == NULL,
+            "BufferQueue: outProducer must not be NULL");
+    LOG_ALWAYS_FATAL_IF(outConsumer == NULL,
+            "BufferQueue: outConsumer must not be NULL");
+
+    sp<BufferQueueCore> core(new BufferQueueCore(allocator));
+    *outProducer = new BufferQueueProducer(core);
+    *outConsumer = new BufferQueueConsumer(core);
+}
+
 BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     mProducer(),
     mConsumer()
