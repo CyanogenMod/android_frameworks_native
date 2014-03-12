@@ -106,14 +106,19 @@ public:
         wp<ConsumerListener> mConsumerListener;
     };
 
-    static void createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
-            sp<BnGraphicBufferConsumer>* outConsumer,
-            const sp<IGraphicBufferAlloc>& allocator = NULL);
-
     // BufferQueue manages a pool of gralloc memory slots to be used by
     // producers and consumers. allocator is used to allocate all the
     // needed gralloc buffers.
     BufferQueue(const sp<IGraphicBufferAlloc>& allocator = NULL);
+
+    static void createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
+            sp<BnGraphicBufferConsumer>* outConsumer,
+            const sp<IGraphicBufferAlloc>& allocator = NULL);
+
+    static void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
+            sp<IGraphicBufferConsumer>* outConsumer,
+            const sp<IGraphicBufferAlloc>& allocator = NULL);
+
     virtual ~BufferQueue();
 
     /*
