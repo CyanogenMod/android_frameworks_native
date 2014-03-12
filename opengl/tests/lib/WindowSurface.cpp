@@ -43,8 +43,19 @@ WindowSurface::WindowSurface() {
         return;
     }
 
+    uint32_t width, height;
+    if (mainDpyInfo.orientation != DISPLAY_ORIENTATION_0 &&
+            mainDpyInfo.orientation != DISPLAY_ORIENTATION_180) {
+        // rotated
+        width = mainDpyInfo.h;
+        height = mainDpyInfo.w;
+    } else {
+        width = mainDpyInfo.w;
+        height = mainDpyInfo.h;
+    }
+
     sp<SurfaceControl> sc = surfaceComposerClient->createSurface(
-            String8("Benchmark"), mainDpyInfo.w, mainDpyInfo.h,
+            String8("Benchmark"), width, height,
             PIXEL_FORMAT_RGBA_8888, ISurfaceComposerClient::eOpaque);
     if (sc == NULL || !sc->isValid()) {
         fprintf(stderr, "Failed to create SurfaceControl\n");
