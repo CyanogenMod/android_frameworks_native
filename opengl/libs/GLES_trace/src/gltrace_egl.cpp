@@ -71,7 +71,7 @@ void GLTrace_eglMakeCurrent(int contextId) {
     glContext->traceGLMessage(&glmessage);
 }
 
-void GLTrace_eglSwapBuffers(void *dpy, void *draw) {
+void GLTrace_eglSwapBuffers(void* /*dpy*/, void* /*draw*/) {
     GLMessage glmessage;
     GLTraceContext *glContext = getGLTraceContext();
 

@@ -435,7 +435,7 @@ static void _inc_num_cache_collected(cache_t* cache)
 {
     cache->numCollected++;
     if ((cache->numCollected%20000) == 0) {
-        ALOGI("Collected cache so far: %d directories, %d files",
+        ALOGI("Collected cache so far: %zd directories, %zd files",
             cache->numDirs, cache->numFiles);
     }
 }
@@ -730,7 +730,7 @@ void clear_cache_files(cache_t* cache, int64_t free_size)
     int skip = 0;
     char path[PATH_MAX];
 
-    ALOGI("Collected cache files: %d directories, %d files",
+    ALOGI("Collected cache files: %zd directories, %zd files",
         cache->numDirs, cache->numFiles);
 
     CACHE_NOISY(ALOGI("Sorting files..."));

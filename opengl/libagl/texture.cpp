@@ -1223,10 +1223,10 @@ void glTexImage2D(
 // ----------------------------------------------------------------------------
 
 void glCompressedTexSubImage2D(
-        GLenum target, GLint level, GLint xoffset,
-        GLint yoffset, GLsizei width, GLsizei height,
-        GLenum format, GLsizei imageSize,
-        const GLvoid *data)
+        GLenum /*target*/, GLint /*level*/, GLint /*xoffset*/,
+        GLint /*yoffset*/, GLsizei /*width*/, GLsizei /*height*/,
+        GLenum /*format*/, GLsizei /*imageSize*/,
+        const GLvoid* /*data*/)
 {
     ogles_context_t* c = ogles_context_t::get();
     ogles_error(c, GL_INVALID_ENUM);

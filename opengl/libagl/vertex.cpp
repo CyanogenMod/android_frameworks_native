@@ -41,7 +41,7 @@ void ogles_init_vertex(ogles_context_t* c)
     c->currentNormal.z = 0x10000;
 }
 
-void ogles_uninit_vertex(ogles_context_t* c)
+void ogles_uninit_vertex(ogles_context_t* /*c*/)
 {
 }
 

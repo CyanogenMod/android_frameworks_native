@@ -94,7 +94,7 @@ static void lightTriangleDarkSmooth(ogles_context_t* c,
 }
 
 static void lightTriangleDarkFlat(ogles_context_t* c,
-        vertex_t* v0, vertex_t* v1, vertex_t* v2)
+        vertex_t* /*v0*/, vertex_t* /*v1*/, vertex_t* v2)
 {
     if (!(v2->flags & vertex_t::LIT)) {
         v2->flags |= vertex_t::LIT;
@@ -118,7 +118,7 @@ static void lightTriangleSmooth(ogles_context_t* c,
 }
 
 static void lightTriangleFlat(ogles_context_t* c,
-        vertex_t* v0, vertex_t* v1, vertex_t* v2)
+        vertex_t* /*v0*/, vertex_t* /*v1*/, vertex_t* v2)
 {
     if (!(v2->flags & vertex_t::LIT))
         c->lighting.lightVertex(c, v2);
@@ -567,8 +567,8 @@ void primitive_line(ogles_context_t* c, vertex_t* v0, vertex_t* v1)
 #pragma mark Triangle
 #endif
 
-void primitive_nop_triangle(ogles_context_t* c,
-        vertex_t* v0, vertex_t* v1, vertex_t* v2) {
+void primitive_nop_triangle(ogles_context_t* /*c*/,
+        vertex_t* /*v0*/, vertex_t* /*v1*/, vertex_t* /*v2*/) {
 }
 
 void primitive_clip_triangle(ogles_context_t* c,
@@ -823,7 +823,7 @@ void lerp_texcoords_w(ogles_context_t* c,
 
 
 static inline
-bool cull_triangle(ogles_context_t* c, vertex_t* v0, vertex_t* v1, vertex_t* v2)
+bool cull_triangle(ogles_context_t* c, vertex_t* /*v0*/, vertex_t* /*v1*/, vertex_t* /*v2*/)
 {
     if (ggl_likely(c->cull.enable)) {
         const GLenum winding = (c->lerp.area() > 0) ? GL_CW : GL_CCW;

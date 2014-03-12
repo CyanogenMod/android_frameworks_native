@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 
+#include <inttypes.h>
 #include <sys/capability.h>
 #include "installd.h"
 #include <diskusage/dirsize.h>
@@ -157,7 +158,7 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
     if (stat(pkgdir, &s) < 0) return -1;
 
     if (s.st_uid != 0 || s.st_gid != 0) {
-        ALOGE("fixing uid of non-root pkg: %s %lu %lu\n", pkgdir, s.st_uid, s.st_gid);
+        ALOGE("fixing uid of non-root pkg: %s %" PRIu32 " %" PRIu32 "\n", pkgdir, s.st_uid, s.st_gid);
         return -1;
     }
 
