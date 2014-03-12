@@ -374,13 +374,15 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
     return result;
 }
 
-status_t VirtualDisplaySurface::detachBuffer(int slot) {
-    return mSource[SOURCE_SINK]->detachBuffer(slot);
+status_t VirtualDisplaySurface::detachBuffer(int /* slot */) {
+    VDS_LOGE("detachBuffer is not available for VirtualDisplaySurface");
+    return INVALID_OPERATION;
 }
 
-status_t VirtualDisplaySurface::attachBuffer(int* outSlot,
-        const sp<GraphicBuffer>& buffer) {
-    return mSource[SOURCE_SINK]->attachBuffer(outSlot, buffer);
+status_t VirtualDisplaySurface::attachBuffer(int* /* outSlot */,
+        const sp<GraphicBuffer>& /* buffer */) {
+    VDS_LOGE("attachBuffer is not available for VirtualDisplaySurface");
+    return INVALID_OPERATION;
 }
 
 status_t VirtualDisplaySurface::queueBuffer(int pslot,
