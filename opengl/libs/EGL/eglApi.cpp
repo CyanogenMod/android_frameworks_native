@@ -162,7 +162,8 @@ static const extention_map_t sExtensionMap[] = {
         (!strcmp((procname), "eglSetBlobCacheFuncsANDROID") ||    \
          !strcmp((procname), "eglHibernateProcessIMG")      ||    \
          !strcmp((procname), "eglAwakenProcessIMG")         ||    \
-         !strcmp((procname), "eglDupNativeFenceFDANDROID"))
+         !strcmp((procname), "eglDupNativeFenceFDANDROID")  ||    \
+         !strcmp((procname), "eglGpuPerfHintQCOM"))
 
 
 
@@ -1546,6 +1547,45 @@ EGLBoolean eglPresentationTimeANDROID(EGLDisplay dpy, EGLSurface surface,
     native_window_set_buffers_timestamp(s->win.get(), time);
 
     return EGL_TRUE;
+}
+
+// ----------------------------------------------------------------------------
+// QCOM extensions
+// ----------------------------------------------------------------------------
+#ifdef __cplusplus
+extern "C" {
+#endif
+EGLAPI EGLBoolean eglGpuPerfHintQCOM(EGLDisplay dpy, EGLContext ctx, EGLint *attrib_list);
+#ifdef __cplusplus
+}
+#endif
+
+EGLBoolean eglGpuPerfHintQCOM(EGLDisplay dpy, EGLContext ctx, EGLint *attrib_list)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) return EGL_FALSE;
+
+    ContextRef _c(dp.get(), ctx);
+    if ((ctx != EGL_NO_CONTEXT) && !_c.get()) {
+        // ctx is not valid
+        return setError(EGL_BAD_CONTEXT, EGL_FALSE);
+    }
+
+    egl_context_t * c = NULL;
+    c = get_context(ctx);
+
+    EGLint result = EGL_FALSE;
+    egl_connection_t* const cnx = &gEGLImpl;
+    if (cnx->dso && cnx->egl.eglGpuPerfHintQCOM) {
+        result = cnx->egl.eglGpuPerfHintQCOM(
+                dp->disp.dpy,
+                c->context,
+                attrib_list);
+    }
+    return result;
+
 }
 
 // ----------------------------------------------------------------------------
