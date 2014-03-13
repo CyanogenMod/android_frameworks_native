@@ -201,14 +201,16 @@ bool GLHelper::getShaderProgram(const char* name, GLuint* outPgm) {
 
 bool GLHelper::createNamedSurfaceTexture(GLuint name, uint32_t w, uint32_t h,
         sp<GLConsumer>* glConsumer, EGLSurface* surface) {
-    sp<BufferQueue> bq = new BufferQueue(mGraphicBufferAlloc);
-    sp<GLConsumer> glc = new GLConsumer(bq, name,
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer, mGraphicBufferAlloc);
+    sp<GLConsumer> glc = new GLConsumer(consumer, name,
             GL_TEXTURE_EXTERNAL_OES, false);
     glc->setDefaultBufferSize(w, h);
     glc->setDefaultMaxBufferCount(3);
     glc->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
 
-    sp<ANativeWindow> anw = new Surface(bq);
+    sp<ANativeWindow> anw = new Surface(producer);
     EGLSurface s = eglCreateWindowSurface(mDisplay, mConfig, anw.get(), NULL);
     if (s == EGL_NO_SURFACE) {
         fprintf(stderr, "eglCreateWindowSurface error: %#x\n", eglGetError());
