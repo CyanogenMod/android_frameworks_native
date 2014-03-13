@@ -57,6 +57,8 @@ public:
         }
     }
 
+    virtual void onSidebandStreamChanged() {}
+
     void finishDisconnect() {
         Mutex::Autolock lock(mMutex);
         mWaitForDisconnect = true;

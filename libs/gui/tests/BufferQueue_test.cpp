@@ -72,6 +72,7 @@ const String16 BufferQueueTest::CONSUMER_NAME = String16("BQTestConsumer");
 struct DummyConsumer : public BnConsumerListener {
     virtual void onFrameAvailable() {}
     virtual void onBuffersReleased() {}
+    virtual void onSidebandStreamChanged() {}
 };
 
 TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
