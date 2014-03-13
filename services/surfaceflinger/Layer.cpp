@@ -40,8 +40,8 @@
 #include "Colorizer.h"
 #include "DisplayDevice.h"
 #include "Layer.h"
+#include "MonitoredProducer.h"
 #include "SurfaceFlinger.h"
-#include "SurfaceTextureLayer.h"
 
 #include "DisplayHardware/HWComposer.h"
 
@@ -117,8 +117,11 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
 void Layer::onFirstRef() {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
-    mBufferQueue = new SurfaceTextureLayer(mFlinger);
-    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(mBufferQueue, mTextureName);
+    sp<BnGraphicBufferProducer> producer;
+    sp<BnGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer);
+    mProducer = new MonitoredProducer(producer, mFlinger);
+    mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(consumer, mTextureName);
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
     mSurfaceFlingerConsumer->setContentsChangedListener(this);
     mSurfaceFlingerConsumer->setName(mName);
@@ -236,8 +239,8 @@ sp<IBinder> Layer::getHandle() {
     return new Handle(mFlinger, this);
 }
 
-sp<IGraphicBufferProducer> Layer::getBufferQueue() const {
-    return mBufferQueue;
+sp<IGraphicBufferProducer> Layer::getProducer() const {
+    return mProducer;
 }
 
 // ---------------------------------------------------------------------------
