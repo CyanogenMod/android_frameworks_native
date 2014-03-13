@@ -101,6 +101,7 @@ public:
     status_t            writeStrongBinder(const sp<IBinder>& val);
     status_t            writeWeakBinder(const wp<IBinder>& val);
     status_t            write(const Flattenable& val);
+    status_t            writeByteArray(size_t len, const uint8_t *val);
 
     // Place a native_handle into the parcel (the native_handle's file-
     // descriptors are dup'ed, so it is safe to delete the native_handle
