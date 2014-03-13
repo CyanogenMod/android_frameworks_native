@@ -646,8 +646,9 @@ ScreenshotClient::~ScreenshotClient() {
 
 sp<CpuConsumer> ScreenshotClient::getCpuConsumer() const {
     if (mCpuConsumer == NULL) {
-        mBufferQueue = new BufferQueue();
-        mCpuConsumer = new CpuConsumer(mBufferQueue, 1);
+        sp<IGraphicBufferConsumer> consumer;
+        BufferQueue::createBufferQueue(&mProducer, &consumer);
+        mCpuConsumer = new CpuConsumer(consumer, 1);
         mCpuConsumer->setName(String8("ScreenshotClient"));
     }
     return mCpuConsumer;
@@ -667,7 +668,7 @@ status_t ScreenshotClient::update(const sp<IBinder>& display,
         mHaveBuffer = false;
     }
 
-    status_t err = s->captureScreen(display, mBufferQueue,
+    status_t err = s->captureScreen(display, mProducer,
             reqWidth, reqHeight, minLayerZ, maxLayerZ, useIdentityTransform);
 
     if (err == NO_ERROR) {
