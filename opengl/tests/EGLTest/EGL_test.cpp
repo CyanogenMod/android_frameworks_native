@@ -103,6 +103,7 @@ TEST_F(EGLTest, EGLTerminateSucceedsWithRemainingObjects) {
     struct DummyConsumer : public BnConsumerListener {
         virtual void onFrameAvailable() {}
         virtual void onBuffersReleased() {}
+        virtual void onSidebandStreamChanged() {}
     };
 
     // Create a EGLSurface
