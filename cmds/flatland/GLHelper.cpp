@@ -332,7 +332,7 @@ static bool compileShader(GLenum shaderType, const char* src,
 
 static void printShaderSource(const char* const* src) {
     for (size_t i = 0; i < MAX_SHADER_LINES && src[i] != NULL; i++) {
-        fprintf(stderr, "%3d: %s\n", i+1, src[i]);
+        fprintf(stderr, "%3zu: %s\n", i+1, src[i]);
     }
 }
 

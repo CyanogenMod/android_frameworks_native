@@ -56,7 +56,7 @@ status_t RotationVectorSensor::activate(void* ident, bool enabled) {
     return mSensorFusion.activate(ident, enabled);
 }
 
-status_t RotationVectorSensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t RotationVectorSensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(ident, ns);
 }
 
@@ -105,7 +105,7 @@ status_t GyroDriftSensor::activate(void* ident, bool enabled) {
     return mSensorFusion.activate(ident, enabled);
 }
 
-status_t GyroDriftSensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t GyroDriftSensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(ident, ns);
 }
 

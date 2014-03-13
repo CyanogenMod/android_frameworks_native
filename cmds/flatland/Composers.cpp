@@ -122,12 +122,12 @@ public:
     virtual void tearDown() {
     }
 
-    virtual bool compose(GLuint texName, const sp<GLConsumer>& glc) {
+    virtual bool compose(GLuint /*texName*/, const sp<GLConsumer>& /*glc*/) {
         return true;
     }
 
 protected:
-    virtual bool setUp(GLHelper* helper) {
+    virtual bool setUp(GLHelper* /*helper*/) {
         return true;
     }
 

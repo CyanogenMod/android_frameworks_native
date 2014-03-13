@@ -397,9 +397,9 @@ void vertex_cache_t::clear()
     }
 }
 
+#if VC_CACHE_STATISTICS
 void vertex_cache_t::dump_stats(GLenum mode)
 {
-#if VC_CACHE_STATISTICS
     nsecs_t time = systemTime(SYSTEM_TIME_THREAD) - startTime;
     uint32_t hits = total - misses;
     uint32_t prim_count;
@@ -418,8 +418,12 @@ void vertex_cache_t::dump_stats(GLenum mode)
             total, hits, misses, (hits*100)/total,
             prim_count, int(ns2us(time)), int(prim_count*float(seconds(1))/time),
             float(misses) / prim_count);
-#endif
 }
+#else
+void vertex_cache_t::dump_stats(GLenum /*mode*/)
+{
+}
+#endif
 
 // ----------------------------------------------------------------------------
 #if 0

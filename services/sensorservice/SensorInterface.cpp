@@ -50,7 +50,7 @@ status_t HardwareSensor::activate(void* ident, bool enabled) {
     return mSensorDevice.activate(ident, mSensor.getHandle(), enabled);
 }
 
-status_t HardwareSensor::batch(void* ident, int handle, int flags,
+status_t HardwareSensor::batch(void* ident, int /*handle*/, int flags,
                                int64_t samplingPeriodNs, int64_t maxBatchReportLatencyNs) {
     return mSensorDevice.batch(ident, mSensor.getHandle(), flags, samplingPeriodNs,
                                maxBatchReportLatencyNs);

@@ -25,7 +25,7 @@
 
 namespace android {
 
-Program::Program(const ProgramCache::Key& needs, const char* vertex, const char* fragment)
+Program::Program(const ProgramCache::Key& /*needs*/, const char* vertex, const char* fragment)
         : mInitialized(false) {
     GLuint vertexId = buildShader(vertex, GL_VERTEX_SHADER);
     GLuint fragmentId = buildShader(fragment, GL_FRAGMENT_SHADER);
@@ -112,7 +112,7 @@ GLuint Program::buildShader(const char* source, GLenum type) {
     return shader;
 }
 
-String8& Program::dumpShader(String8& result, GLenum type) {
+String8& Program::dumpShader(String8& result, GLenum /*type*/) {
     GLuint shader = GL_FRAGMENT_SHADER ? mFragmentShader : mVertexShader;
     GLint l;
     glGetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &l);
