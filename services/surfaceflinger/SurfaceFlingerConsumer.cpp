@@ -21,8 +21,9 @@
 
 #include <private/gui/SyncFeatures.h>
 
-#include <utils/Trace.h>
 #include <utils/Errors.h>
+#include <utils/NativeHandle.h>
+#include <utils/Trace.h>
 
 namespace android {
 
@@ -112,6 +113,10 @@ bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
     return mTransformToDisplayInverse;
 }
 
+sp<NativeHandle> SurfaceFlingerConsumer::getSidebandStream() const {
+    return mConsumer->getSidebandStream();
+}
+
 // We need to determine the time when a buffer acquired now will be
 // displayed.  This can be calculated:
 //   time when previous buffer's actual-present fence was signaled
@@ -152,6 +157,26 @@ nsecs_t SurfaceFlingerConsumer::computeExpectedPresent()
 
     // Total it up.
     return prevVsync + hwcLatency * vsyncPeriod + extraPadding;
+}
+
+void SurfaceFlingerConsumer::setContentsChangedListener(
+        const wp<ContentsChangedListener>& listener) {
+    setFrameAvailableListener(listener);
+    Mutex::Autolock lock(mMutex);
+    mContentsChangedListener = listener;
+}
+
+void SurfaceFlingerConsumer::onSidebandStreamChanged() {
+    sp<ContentsChangedListener> listener;
+    {   // scope for the lock
+        Mutex::Autolock lock(mMutex);
+        ALOG_ASSERT(mFrameAvailableListener.unsafe_get() == mContentsChangedListener.unsafe_get());
+        listener = mContentsChangedListener.promote();
+    }
+
+    if (listener != NULL) {
+        listener->onSidebandStreamChanged();
+    }
 }
 
 // ---------------------------------------------------------------------------

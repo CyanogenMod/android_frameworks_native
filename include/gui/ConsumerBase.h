@@ -101,11 +101,14 @@ protected:
 
     // Implementation of the IConsumerListener interface.  These
     // calls are used to notify the ConsumerBase of asynchronous events in the
-    // BufferQueue.  These methods should not need to be overridden by derived
-    // classes, but if they are overridden the ConsumerBase implementation
-    // must be called from the derived class.
+    // BufferQueue.  The onFrameAvailable and onBuffersReleased methods should
+    // not need to be overridden by derived classes, but if they are overridden
+    // the ConsumerBase implementation must be called from the derived class.
+    // The ConsumerBase version of onSidebandStreamChanged does nothing and can
+    // be overriden by derived classes if they want the notification.
     virtual void onFrameAvailable();
     virtual void onBuffersReleased();
+    virtual void onSidebandStreamChanged();
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that

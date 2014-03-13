@@ -107,6 +107,7 @@ private:
     virtual status_t connect(const sp<IBinder>& token,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
+    virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
 
     //
     // Utility methods

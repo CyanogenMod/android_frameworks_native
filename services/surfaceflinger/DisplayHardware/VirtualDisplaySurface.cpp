@@ -469,6 +469,10 @@ status_t VirtualDisplaySurface::disconnect(int api) {
     return mSource[SOURCE_SINK]->disconnect(api);
 }
 
+status_t VirtualDisplaySurface::setSidebandStream(const sp<NativeHandle>& /*stream*/) {
+    return INVALID_OPERATION;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

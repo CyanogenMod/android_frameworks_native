@@ -767,6 +767,7 @@ status_t BufferQueueProducer::disconnect(int api) {
                     }
                     mCore->mConnectedProducerToken = NULL;
                     mCore->mConnectedApi = BufferQueueCore::NO_CONNECTED_API;
+                    mCore->mSidebandStream.clear();
                     mCore->mDequeueCondition.broadcast();
                     listener = mCore->mConsumerListener;
                 } else {
@@ -788,6 +789,12 @@ status_t BufferQueueProducer::disconnect(int api) {
     }
 
     return status;
+}
+
+status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) {
+    Mutex::Autolock _l(mCore->mMutex);
+    mCore->mSidebandStream = stream;
+    return NO_ERROR;
 }
 
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {

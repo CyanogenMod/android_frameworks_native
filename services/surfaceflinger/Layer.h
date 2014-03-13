@@ -66,7 +66,7 @@ class SurfaceFlinger;
  * This also implements onFrameAvailable(), which notifies SurfaceFlinger
  * that new data has arrived.
  */
-class Layer : public SurfaceFlingerConsumer::FrameAvailableListener {
+class Layer : public SurfaceFlingerConsumer::ContentsChangedListener {
     static int32_t sSequence;
 
 public:
@@ -313,8 +313,9 @@ protected:
 
 
 private:
-    // Interface implementation for SurfaceFlingerConsumer::FrameAvailableListener
+    // Interface implementation for SurfaceFlingerConsumer::ContentsChangedListener
     virtual void onFrameAvailable();
+    virtual void onSidebandStreamChanged();
 
     void commitTransaction();
 
@@ -351,10 +352,12 @@ private:
 
     // thread-safe
     volatile int32_t mQueuedFrames;
+    volatile int32_t mSidebandStreamChanged; // used like an atomic boolean
     FrameTracker mFrameTracker;
 
     // main thread
     sp<GraphicBuffer> mActiveBuffer;
+    sp<NativeHandle> mSidebandStream;
     Rect mCurrentCrop;
     uint32_t mCurrentTransform;
     uint32_t mCurrentScalingMode;

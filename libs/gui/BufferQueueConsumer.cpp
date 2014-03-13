@@ -478,6 +478,10 @@ status_t BufferQueueConsumer::setTransformHint(uint32_t hint) {
     return NO_ERROR;
 }
 
+sp<NativeHandle> BufferQueueConsumer::getSidebandStream() const {
+    return mCore->mSidebandStream;
+}
+
 void BufferQueueConsumer::dump(String8& result, const char* prefix) const {
     mCore->dump(result, prefix);
 }

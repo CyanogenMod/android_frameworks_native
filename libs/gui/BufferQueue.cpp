@@ -128,6 +128,10 @@ status_t BufferQueue::disconnect(int api) {
     return mProducer->disconnect(api);
 }
 
+status_t BufferQueue::setSidebandStream(const sp<NativeHandle>& stream) {
+    return mProducer->setSidebandStream(stream);
+}
+
 status_t BufferQueue::acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) {
     return mConsumer->acquireBuffer(buffer, presentWhen);
 }
@@ -192,8 +196,19 @@ status_t BufferQueue::setTransformHint(uint32_t hint) {
     return mConsumer->setTransformHint(hint);
 }
 
+sp<NativeHandle> BufferQueue::getSidebandStream() const {
+    return mConsumer->getSidebandStream();
+}
+
 void BufferQueue::dump(String8& result, const char* prefix) const {
     mConsumer->dump(result, prefix);
+}
+
+void BufferQueue::ProxyConsumerListener::onSidebandStreamChanged() {
+    sp<ConsumerListener> listener(mConsumerListener.promote());
+    if (listener != NULL) {
+        listener->onSidebandStreamChanged();
+    }
 }
 
 }; // namespace android

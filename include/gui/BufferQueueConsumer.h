@@ -139,6 +139,9 @@ public:
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
     virtual status_t setTransformHint(uint32_t hint);
 
+    // Retrieve the sideband buffer stream, if any.
+    virtual sp<NativeHandle> getSidebandStream() const;
+
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
 

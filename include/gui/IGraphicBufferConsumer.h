@@ -30,9 +30,10 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-class IConsumerListener;
-class GraphicBuffer;
 class Fence;
+class GraphicBuffer;
+class IConsumerListener;
+class NativeHandle;
 
 class IGraphicBufferConsumer : public IInterface {
 
@@ -295,6 +296,9 @@ public:
     //
     // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setTransformHint(uint32_t hint) = 0;
+
+    // Retrieve the sideband buffer stream, if any.
+    virtual sp<NativeHandle> getSidebandStream() const = 0;
 
     // dump state into a string
     virtual void dump(String8& result, const char* prefix) const = 0;

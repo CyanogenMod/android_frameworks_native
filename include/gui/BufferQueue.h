@@ -100,6 +100,7 @@ public:
         virtual ~ProxyConsumerListener();
         virtual void onFrameAvailable();
         virtual void onBuffersReleased();
+        virtual void onSidebandStreamChanged();
     private:
         // mConsumerListener is a weak reference to the IConsumerListener.  This is
         // the raison d'etre of ProxyConsumerListener.
@@ -253,6 +254,18 @@ public:
     // connected to the specified producer API.
     virtual status_t disconnect(int api);
 
+    // Attaches a sideband buffer stream to the BufferQueue.
+    //
+    // A sideband stream is a device-specific mechanism for passing buffers
+    // from the producer to the consumer without using dequeueBuffer/
+    // queueBuffer. If a sideband stream is present, the consumer can choose
+    // whether to acquire buffers from the sideband stream or from the queued
+    // buffers.
+    //
+    // Passing NULL or a different stream handle will detach the previous
+    // handle if any.
+    virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
+
     /*
      * IGraphicBufferConsumer interface
      */
@@ -361,6 +374,9 @@ public:
     // The values are enumerated in window.h, e.g.
     // NATIVE_WINDOW_TRANSFORM_ROT_90.  The default is 0 (no transform).
     virtual status_t setTransformHint(uint32_t hint);
+
+    // Retrieve the BufferQueue's sideband stream, if any.
+    virtual sp<NativeHandle> getSidebandStream() const;
 
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
