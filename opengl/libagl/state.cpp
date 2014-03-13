@@ -219,11 +219,11 @@ using namespace android;
 #endif
 
 // These ones are super-easy, we're not supporting those features!
-void glSampleCoverage(GLclampf value, GLboolean invert) {
+void glSampleCoverage(GLclampf /*value*/, GLboolean /*invert*/) {
 }
-void glSampleCoveragex(GLclampx value, GLboolean invert) {
+void glSampleCoveragex(GLclampx /*value*/, GLboolean /*invert*/) {
 }
-void glStencilFunc(GLenum func, GLint ref, GLuint mask) {
+void glStencilFunc(GLenum func, GLint /*ref*/, GLuint /*mask*/) {
     ogles_context_t* c = ogles_context_t::get();
     if (func < GL_NEVER || func > GL_ALWAYS) {
         ogles_error(c, GL_INVALID_ENUM);

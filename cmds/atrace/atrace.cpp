@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -368,7 +369,7 @@ static bool pokeBinderServices()
 static bool setTagsProperty(uint64_t tags)
 {
     char buf[64];
-    snprintf(buf, 64, "%#llx", tags);
+    snprintf(buf, 64, "%#" PRIx64, tags);
     if (property_set(k_traceTagsProperty, buf) < 0) {
         fprintf(stderr, "error setting trace tags system property\n");
         return false;
@@ -665,7 +666,7 @@ static void dumpTrace()
     close(traceFD);
 }
 
-static void handleSignal(int signo)
+static void handleSignal(int /*signo*/)
 {
     if (!g_nohup) {
         g_traceAborted = true;

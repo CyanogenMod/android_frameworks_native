@@ -69,7 +69,7 @@ status_t OrientationSensor::activate(void* ident, bool enabled) {
     return mSensorFusion.activate(ident, enabled);
 }
 
-status_t OrientationSensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t OrientationSensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(ident, ns);
 }
 

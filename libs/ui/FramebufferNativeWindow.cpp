@@ -259,8 +259,8 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
     return 0;
 }
 
-int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* window, 
-        ANativeWindowBuffer* buffer)
+int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* /*window*/, 
+        ANativeWindowBuffer* /*buffer*/)
 {
     return NO_ERROR;
 }
@@ -326,7 +326,7 @@ int FramebufferNativeWindow::query(const ANativeWindow* window,
     return BAD_VALUE;
 }
 
-int FramebufferNativeWindow::perform(ANativeWindow* window,
+int FramebufferNativeWindow::perform(ANativeWindow* /*window*/,
         int operation, ...)
 {
     switch (operation) {

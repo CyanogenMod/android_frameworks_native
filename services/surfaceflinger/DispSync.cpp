@@ -287,7 +287,7 @@ class ZeroPhaseTracer : public DispSync::Callback {
 public:
     ZeroPhaseTracer() : mParity(false) {}
 
-    virtual void onDispSyncEvent(nsecs_t when) {
+    virtual void onDispSyncEvent(nsecs_t /*when*/) {
         mParity = !mParity;
         ATRACE_INT("ZERO_PHASE_VSYNC", mParity ? 1 : 0);
     }
