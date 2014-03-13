@@ -61,7 +61,7 @@ status_t CorrectedGyroSensor::activate(void* ident, bool enabled) {
     return mSensorFusion.activate(ident, enabled);
 }
 
-status_t CorrectedGyroSensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t CorrectedGyroSensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     mSensorDevice.setDelay(ident, mGyro.getHandle(), ns);
     return mSensorFusion.setDelay(ident, ns);
 }

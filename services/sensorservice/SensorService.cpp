@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
+#include <inttypes.h>
 #include <math.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 #include <cutils/properties.h>
@@ -153,7 +154,7 @@ void SensorService::onFirstRef()
             char line[128];
             if (fp != NULL && fgets(line, sizeof(line), fp) != NULL) {
                 line[sizeof(line) - 1] = '\0';
-                sscanf(line, "%u", &mSocketBufferSize);
+                sscanf(line, "%zu", &mSocketBufferSize);
                 if (mSocketBufferSize > MAX_SOCKET_BUFFER_SIZE_BATCHED) {
                     mSocketBufferSize = MAX_SOCKET_BUFFER_SIZE_BATCHED;
                 }
@@ -200,7 +201,7 @@ SensorService::~SensorService()
 
 static const String16 sDump("android.permission.DUMP");
 
-status_t SensorService::dump(int fd, const Vector<String16>& args)
+status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
 {
     String8 result;
     if (!PermissionCache::checkCallingPermission(sDump)) {
@@ -257,7 +258,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                     result.appendFormat( "last=<%f>\n", e.data[0]);
                     break;
                 case SENSOR_TYPE_STEP_COUNTER:
-                    result.appendFormat( "last=<%llu>\n", e.u64.step_counter);
+                    result.appendFormat( "last=<%" PRIu64 ">\n", e.u64.step_counter);
                     break;
                 default:
                     // default to 3 values
@@ -273,19 +274,19 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
         result.append("Active sensors:\n");
         for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
             int handle = mActiveSensors.keyAt(i);
-            result.appendFormat("%s (handle=0x%08x, connections=%d)\n",
+            result.appendFormat("%s (handle=0x%08x, connections=%zu)\n",
                     getSensorName(handle).string(),
                     handle,
                     mActiveSensors.valueAt(i)->getNumConnections());
         }
 
-        result.appendFormat("%u Max Socket Buffer size\n", mSocketBufferSize);
-        result.appendFormat("%d active connections\n", mActiveConnections.size());
+        result.appendFormat("%zu Max Socket Buffer size\n", mSocketBufferSize);
+        result.appendFormat("%zd active connections\n", mActiveConnections.size());
 
         for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
             sp<SensorEventConnection> connection(mActiveConnections[i].promote());
             if (connection != 0) {
-                result.appendFormat("Connection Number: %d \n", i);
+                result.appendFormat("Connection Number: %zu \n", i);
                 connection->dump(result);
             }
         }

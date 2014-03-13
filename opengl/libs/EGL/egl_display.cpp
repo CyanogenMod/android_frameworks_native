@@ -313,7 +313,7 @@ void egl_display_t::loseCurrentImpl(egl_context_t * cur_c)
 }
 
 EGLBoolean egl_display_t::makeCurrent(egl_context_t* c, egl_context_t* cur_c,
-        EGLSurface draw, EGLSurface read, EGLContext ctx,
+        EGLSurface draw, EGLSurface read, EGLContext /*ctx*/,
         EGLSurface impl_draw, EGLSurface impl_read, EGLContext impl_ctx)
 {
     EGLBoolean result;

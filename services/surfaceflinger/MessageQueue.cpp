@@ -179,7 +179,7 @@ int MessageQueue::cb_eventReceiver(int fd, int events, void* data) {
     return queue->eventReceiver(fd, events);
 }
 
-int MessageQueue::eventReceiver(int fd, int events) {
+int MessageQueue::eventReceiver(int /*fd*/, int /*events*/) {
     ssize_t n;
     DisplayEventReceiver::Event buffer[8];
     while ((n = DisplayEventReceiver::getEvents(mEventTube, buffer, 8)) > 0) {

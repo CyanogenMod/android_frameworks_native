@@ -70,7 +70,7 @@ status_t GravitySensor::activate(void* ident, bool enabled) {
     return mSensorFusion.activate(ident, enabled);
 }
 
-status_t GravitySensor::setDelay(void* ident, int handle, int64_t ns) {
+status_t GravitySensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(ident, ns);
 }
 
