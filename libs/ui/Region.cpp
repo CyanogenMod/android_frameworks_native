@@ -16,6 +16,7 @@
 
 #define LOG_TAG "Region"
 
+#include <inttypes.h>
 #include <limits.h>
 
 #include <utils/Log.h>
@@ -814,7 +815,7 @@ void Region::dump(String8& out, const char* what, uint32_t flags) const
     size_t SIZE = 256;
     char buffer[SIZE];
 
-    snprintf(buffer, SIZE, "  Region %s (this=%p, count=%d)\n",
+    snprintf(buffer, SIZE, "  Region %s (this=%p, count=%" PRIdPTR ")\n",
             what, this, tail-head);
     out.append(buffer);
     while (head != tail) {
@@ -830,7 +831,7 @@ void Region::dump(const char* what, uint32_t flags) const
     (void)flags;
     const_iterator head = begin();
     const_iterator const tail = end();
-    ALOGD("  Region %s (this=%p, count=%d)\n", what, this, tail-head);
+    ALOGD("  Region %s (this=%p, count=%" PRIdPTR ")\n", what, this, tail-head);
     while (head != tail) {
         ALOGD("    [%3d, %3d, %3d, %3d]\n",
                 head->left, head->top, head->right, head->bottom);

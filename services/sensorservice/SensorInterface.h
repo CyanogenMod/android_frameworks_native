@@ -40,7 +40,7 @@ public:
     virtual status_t setDelay(void* ident, int handle, int64_t ns) = 0;
 
     // Not all sensors need to support batching.
-    virtual status_t batch(void* ident, int handle, int flags, int64_t samplingPeriodNs,
+    virtual status_t batch(void* ident, int handle, int /*flags*/, int64_t samplingPeriodNs,
                            int64_t maxBatchReportLatencyNs) {
         if (maxBatchReportLatencyNs == 0) {
             return setDelay(ident, handle, samplingPeriodNs);
@@ -48,13 +48,13 @@ public:
         return -EINVAL;
     }
 
-    virtual status_t flush(void* ident, int handle) {
+    virtual status_t flush(void* /*ident*/, int /*handle*/) {
         return -EINVAL;
     }
 
     virtual Sensor getSensor() const = 0;
     virtual bool isVirtual() const = 0;
-    virtual void autoDisable(void *ident, int handle) { }
+    virtual void autoDisable(void* /*ident*/, int /*handle*/) { }
 };
 
 // ---------------------------------------------------------------------------

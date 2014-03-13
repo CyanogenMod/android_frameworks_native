@@ -78,7 +78,7 @@ void SensorDevice::dump(String8& result)
     Mutex::Autolock _l(mLock);
     for (size_t i=0 ; i<size_t(count) ; i++) {
         const Info& info = mActivationCount.valueFor(list[i].handle);
-        result.appendFormat("handle=0x%08x, active-count=%d, batch_period(ms)={ ", list[i].handle,
+        result.appendFormat("handle=0x%08x, active-count=%zu, batch_period(ms)={ ", list[i].handle,
                             info.batchParams.size());
         for (size_t j = 0; j < info.batchParams.size(); j++) {
             BatchParams params = info.batchParams.valueAt(j);
@@ -87,7 +87,7 @@ void SensorDevice::dump(String8& result)
         }
         result.appendFormat(" }, selected=%4.1f ms\n", info.bestBatchParams.batchDelay / 1e6f);
 
-        result.appendFormat("handle=0x%08x, active-count=%d, batch_timeout(ms)={ ", list[i].handle,
+        result.appendFormat("handle=0x%08x, active-count=%zu, batch_timeout(ms)={ ", list[i].handle,
                             info.batchParams.size());
         for (size_t j = 0; j < info.batchParams.size(); j++) {
             BatchParams params = info.batchParams.valueAt(j);
@@ -309,7 +309,7 @@ int SensorDevice::getHalDeviceVersion() const {
     return mSensorDevice->common.version;
 }
 
-status_t SensorDevice::flush(void* ident, int handle) {
+status_t SensorDevice::flush(void* /*ident*/, int handle) {
     if (getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_1) {
         return INVALID_OPERATION;
     }

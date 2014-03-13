@@ -600,7 +600,7 @@ static bool runTest(const BenchmarkDesc b, size_t run) {
 
     uint32_t runHeight = b.runHeights[run];
     uint32_t runWidth = b.width * runHeight / b.height;
-    printf(" %-*s | %4d x %4d | ", g_BenchmarkNameLen, b.name,
+    printf(" %-*s | %4d x %4d | ", static_cast<int>(g_BenchmarkNameLen), b.name,
             runWidth, runHeight);
     fflush(stdout);
 
@@ -690,8 +690,9 @@ static void printResultsTableHeader() {
     size_t len = strlen(scenario);
     size_t leftPad = (g_BenchmarkNameLen - len) / 2;
     size_t rightPad = g_BenchmarkNameLen - len - leftPad;
-    printf(" %*s%s%*s | Resolution  | Time (ms)\n", leftPad, "",
-            "Scenario", rightPad, "");
+    printf(" %*s%s%*s | Resolution  | Time (ms)\n",
+            static_cast<int>(leftPad), "",
+            "Scenario", static_cast<int>(rightPad), "");
 }
 
 // Run ALL the benchmarks!

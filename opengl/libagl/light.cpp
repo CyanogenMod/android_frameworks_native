@@ -105,7 +105,7 @@ void ogles_init_light(ogles_context_t* c)
     c->lighting.shadeModel = GL_SMOOTH;
 }
 
-void ogles_uninit_light(ogles_context_t* c)
+void ogles_uninit_light(ogles_context_t* /*c*/)
 {
 }
 
@@ -285,7 +285,7 @@ void ogles_invalidate_lighting_mvui(ogles_context_t* c)
     invalidate_lighting(c);
 }
 
-void lightVertexNop(ogles_context_t*, vertex_t* v)
+void lightVertexNop(ogles_context_t*, vertex_t* /*v*/)
 {
     // we should never end-up here
 }

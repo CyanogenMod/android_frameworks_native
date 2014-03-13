@@ -237,7 +237,7 @@ void GLES11RenderEngine::drawMesh(const Mesh& mesh) {
     }
 }
 
-void GLES11RenderEngine::beginGroup(const mat4& colorTransform) {
+void GLES11RenderEngine::beginGroup(const mat4& /*colorTransform*/) {
     // doesn't do anything in GLES 1.1
 }
 

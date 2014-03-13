@@ -19,7 +19,7 @@
 
 using namespace android;
 
-int main(int argc, char** argv) {
+int main(int /*argc*/, char** /*argv*/) {
     SensorService::publishAndJoinThreadPool();
     return 0;
 }

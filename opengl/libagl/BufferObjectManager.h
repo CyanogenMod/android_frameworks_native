@@ -69,10 +69,10 @@ private:
     KeyedVector<GLuint, gl::buffer_t*>  mBuffers;
 };
 
-void EGLBufferObjectManager::incStrong(const void* id) const {
+void EGLBufferObjectManager::incStrong(const void* /*id*/) const {
     android_atomic_inc(&mCount);
 }
-void EGLBufferObjectManager::decStrong(const void* id) const {
+void EGLBufferObjectManager::decStrong(const void* /*id*/) const {
     if (android_atomic_dec(&mCount) == 1) {
         delete this;
     }
