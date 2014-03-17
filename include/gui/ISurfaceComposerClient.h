@@ -49,7 +49,6 @@ public:
 
         eFXSurfaceNormal    = 0x00000000,
         eFXSurfaceDim       = 0x00020000,
-        eFXSurfaceVideoPlane= 0x00040000,
         eFXSurfaceMask      = 0x000F0000,
     };
 

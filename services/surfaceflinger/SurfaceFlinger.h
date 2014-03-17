@@ -280,10 +280,6 @@ private:
             uint32_t w, uint32_t h, uint32_t flags, sp<IBinder>* outHandle,
             sp<IGraphicBufferProducer>* outGbp, sp<Layer>* outLayer);
 
-    status_t createVideoPlaneLayer(const sp<Client>& client, const String8& name,
-            uint32_t w, uint32_t h, uint32_t flags, sp<IBinder>* outHandle,
-            sp<IGraphicBufferProducer>* outGbp, sp<Layer>* outLayer);
-
     // called in response to the window-manager calling
     // ISurfaceComposerClient::destroySurface()
     status_t onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle);

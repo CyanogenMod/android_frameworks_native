@@ -64,7 +64,6 @@
 #include "EventThread.h"
 #include "Layer.h"
 #include "LayerDim.h"
-#include "LayerVideoPlane.h"
 #include "SurfaceFlinger.h"
 
 #include "DisplayHardware/FramebufferSurface.h"
@@ -1938,11 +1937,6 @@ status_t SurfaceFlinger::createLayer(
                     name, w, h, flags,
                     handle, gbp, &layer);
             break;
-        case ISurfaceComposerClient::eFXSurfaceVideoPlane:
-            result = createVideoPlaneLayer(client,
-                    name, w, h, flags,
-                    handle, gbp, &layer);
-            break;
         default:
             result = BAD_VALUE;
             break;
@@ -1995,16 +1989,6 @@ status_t SurfaceFlinger::createDimLayer(const sp<Client>& client,
         sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp, sp<Layer>* outLayer)
 {
     *outLayer = new LayerDim(this, client, name, w, h, flags);
-    *handle = (*outLayer)->getHandle();
-    *gbp = (*outLayer)->getBufferQueue();
-    return NO_ERROR;
-}
-
-status_t SurfaceFlinger::createVideoPlaneLayer(const sp<Client>& client,
-        const String8& name, uint32_t w, uint32_t h, uint32_t flags,
-        sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp, sp<Layer>* outLayer)
-{
-    *outLayer = new LayerVideoPlane(this, client, name, w, h, flags);
     *handle = (*outLayer)->getHandle();
     *gbp = (*outLayer)->getBufferQueue();
     return NO_ERROR;
