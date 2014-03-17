@@ -35,7 +35,6 @@
     <feature name="android.hardware.screen.landscape" />
 
     <!-- basic system services -->
-    <feature name="android.software.accessibility" />
     <feature name="android.software.app_widgets" />
     <feature name="android.software.backup" />
     <feature name="android.software.home_screen" />
