@@ -917,7 +917,8 @@ void Parcel::remove(size_t /*start*/, size_t /*amt*/)
 
 status_t Parcel::read(void* outData, size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize) {
+    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
+            && len <= PAD_SIZE(len)) {
         memcpy(outData, mData+mDataPos, len);
         mDataPos += PAD_SIZE(len);
         ALOGV("read Setting data pos of %p to %d\n", this, mDataPos);
@@ -928,7 +929,8 @@ status_t Parcel::read(void* outData, size_t len) const
 
 const void* Parcel::readInplace(size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize) {
+    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
+            && len <= PAD_SIZE(len)) {
         const void* data = mData+mDataPos;
         mDataPos += PAD_SIZE(len);
         ALOGV("readInplace Setting data pos of %p to %d\n", this, mDataPos);
