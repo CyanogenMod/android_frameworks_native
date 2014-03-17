@@ -86,6 +86,10 @@ sp<IGraphicBufferProducer> Surface::getIGraphicBufferProducer() const {
     return mGraphicBufferProducer;
 }
 
+void Surface::setSidebandStream(const sp<NativeHandle>& stream) {
+    mGraphicBufferProducer->setSidebandStream(stream);
+}
+
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
     Surface* c = getSelf(window);
     return c->setSwapInterval(interval);
