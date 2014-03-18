@@ -10,7 +10,6 @@ LOCAL_SRC_FILES:= \
     FrameTracker.cpp \
     Layer.cpp \
     LayerDim.cpp \
-    LayerVideoPlane.cpp \
     MessageQueue.cpp \
     SurfaceFlinger.cpp \
     SurfaceFlingerConsumer.cpp \
