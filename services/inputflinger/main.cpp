@@ -19,7 +19,7 @@
 
 using namespace android;
 
-int main(int argc, char** argv) {
+int main(int, char**) {
     ProcessState::self()->setThreadPoolMaxThreadCount(4);
     BinderService<InputFlinger>::publishAndJoinThreadPool(true);
     return 0;

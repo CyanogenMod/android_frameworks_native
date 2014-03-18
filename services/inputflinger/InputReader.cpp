@@ -2003,9 +2003,9 @@ void KeyboardInputMapper::dump(String8& dump) {
     dumpParameters(dump);
     dump.appendFormat(INDENT3 "KeyboardType: %d\n", mKeyboardType);
     dump.appendFormat(INDENT3 "Orientation: %d\n", mOrientation);
-    dump.appendFormat(INDENT3 "KeyDowns: %d keys currently down\n", mKeyDowns.size());
+    dump.appendFormat(INDENT3 "KeyDowns: %zu keys currently down\n", mKeyDowns.size());
     dump.appendFormat(INDENT3 "MetaState: 0x%0x\n", mMetaState);
-    dump.appendFormat(INDENT3 "DownTime: %lld\n", mDownTime);
+    dump.appendFormat(INDENT3 "DownTime: %lld\n", (long long)mDownTime);
 }
 
 
@@ -2303,7 +2303,7 @@ void CursorInputMapper::dump(String8& dump) {
     dump.appendFormat(INDENT3 "Orientation: %d\n", mOrientation);
     dump.appendFormat(INDENT3 "ButtonState: 0x%08x\n", mButtonState);
     dump.appendFormat(INDENT3 "Down: %s\n", toString(isPointerDown(mButtonState)));
-    dump.appendFormat(INDENT3 "DownTime: %lld\n", mDownTime);
+    dump.appendFormat(INDENT3 "DownTime: %lld\n", (long long)mDownTime);
 }
 
 void CursorInputMapper::configure(nsecs_t when,
@@ -3409,7 +3409,7 @@ void TouchInputMapper::dumpVirtualKeys(String8& dump) {
 
         for (size_t i = 0; i < mVirtualKeys.size(); i++) {
             const VirtualKey& virtualKey = mVirtualKeys.itemAt(i);
-            dump.appendFormat(INDENT4 "%d: scanCode=%d, keyCode=%d, "
+            dump.appendFormat(INDENT4 "%zu: scanCode=%d, keyCode=%d, "
                     "hitLeft=%d, hitRight=%d, hitTop=%d, hitBottom=%d\n",
                     i, virtualKey.scanCode, virtualKey.keyCode,
                     virtualKey.hitLeft, virtualKey.hitRight,
