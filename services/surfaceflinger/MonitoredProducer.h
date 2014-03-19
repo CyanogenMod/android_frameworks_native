@@ -1,0 +1,60 @@
+/*
+ * Copyright 2014 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef ANDROID_MONITORED_PRODUCER_H
+#define ANDROID_MONITORED_PRODUCER_H
+
+#include <gui/IGraphicBufferProducer.h>
+
+namespace android {
+
+class IBinder;
+class NativeHandle;
+class SurfaceFlinger;
+
+// MonitoredProducer wraps an IGraphicBufferProducer so that SurfaceFlinger will
+// be notified upon its destruction
+class MonitoredProducer : public BnGraphicBufferProducer {
+public:
+    MonitoredProducer(const sp<BnGraphicBufferProducer>& producer,
+            const sp<SurfaceFlinger>& flinger);
+    virtual ~MonitoredProducer();
+
+    // From IGraphicBufferProducer
+    virtual status_t requestBuffer(int slot, sp<GraphicBuffer>* buf);
+    virtual status_t setBufferCount(int bufferCount);
+    virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,
+            uint32_t w, uint32_t h, uint32_t format, uint32_t usage);
+    virtual status_t detachBuffer(int slot);
+    virtual status_t attachBuffer(int* outSlot,
+            const sp<GraphicBuffer>& buffer);
+    virtual status_t queueBuffer(int slot, const QueueBufferInput& input,
+            QueueBufferOutput* output);
+    virtual void cancelBuffer(int slot, const sp<Fence>& fence);
+    virtual int query(int what, int* value);
+    virtual status_t connect(const sp<IBinder>& token, int api,
+            bool producerControlledByApp, QueueBufferOutput* output);
+    virtual status_t disconnect(int api);
+    virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
+
+private:
+    sp<BnGraphicBufferProducer> mProducer;
+    sp<SurfaceFlinger> mFlinger;
+};
+
+}; // namespace android
+
+#endif // ANDROID_MONITORED_PRODUCER_H

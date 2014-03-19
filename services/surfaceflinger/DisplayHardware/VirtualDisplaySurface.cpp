@@ -47,9 +47,10 @@ static const char* dbgCompositionTypeStr(DisplaySurface::CompositionType type) {
 
 VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
         const sp<IGraphicBufferProducer>& sink,
-        const sp<BufferQueue>& bq,
+        const sp<IGraphicBufferProducer>& bqProducer,
+        const sp<IGraphicBufferConsumer>& bqConsumer,
         const String8& name)
-:   ConsumerBase(bq),
+:   ConsumerBase(bqConsumer),
     mHwc(hwc),
     mDisplayId(dispId),
     mDisplayName(name),
@@ -60,7 +61,7 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mMustRecompose(false)
 {
     mSource[SOURCE_SINK] = sink;
-    mSource[SOURCE_SCRATCH] = bq;
+    mSource[SOURCE_SCRATCH] = bqProducer;
 
     resetPerFrameState();
 
