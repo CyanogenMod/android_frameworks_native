@@ -213,3 +213,4 @@ int dexopt(const char *apk_path, uid_t uid, int is_public, const char *pkgName);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
+int restorecon_data();
