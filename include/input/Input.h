@@ -22,11 +22,12 @@
  */
 
 #include <android/input.h>
-#include <utils/Vector.h>
+#include <utils/BitSet.h>
 #include <utils/KeyedVector.h>
-#include <utils/Timers.h>
 #include <utils/RefBase.h>
 #include <utils/String8.h>
+#include <utils/Timers.h>
+#include <utils/Vector.h>
 
 /*
  * Additional private constants not defined in ndk/ui/input.h.
@@ -205,7 +206,11 @@ struct PointerCoords {
     float values[MAX_AXES];
 
     inline void clear() {
-        bits = 0;
+        BitSet64::clear(bits);
+    }
+
+    bool isEmpty() const {
+        return BitSet64::isEmpty(bits);
     }
 
     float getAxisValue(int32_t axis) const;
