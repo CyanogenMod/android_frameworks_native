@@ -50,7 +50,11 @@ public:
             data.writeInterfaceToken(IBatteryPropertiesRegistrar::getInterfaceDescriptor());
             data.writeInt32(id);
             remote()->transact(GET_PROPERTY, data, &reply);
-            status_t ret = reply.readInt32();
+            int32_t ret = reply.readExceptionCode();
+            if (ret != 0) {
+                return ret;
+            }
+            ret = reply.readInt32();
             int parcelpresent = reply.readInt32();
             if (parcelpresent)
                 val->readFromParcel(&reply);
