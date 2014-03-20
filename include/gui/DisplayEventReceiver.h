@@ -49,7 +49,7 @@ public:
         struct Header {
             uint32_t type;
             uint32_t id;
-            nsecs_t timestamp;
+            nsecs_t timestamp __attribute__((aligned(8)));
         };
 
         struct VSync {
