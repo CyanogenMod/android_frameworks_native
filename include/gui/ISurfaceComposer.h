@@ -22,9 +22,12 @@
 
 #include <utils/RefBase.h>
 #include <utils/Errors.h>
+#include <utils/Timers.h>
+#include <utils/Vector.h>
 
 #include <binder/IInterface.h>
 
+#include <ui/FrameStats.h>
 #include <ui/PixelFormat.h>
 
 #include <gui/IGraphicBufferAlloc.h>
@@ -122,6 +125,19 @@ public:
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform) = 0;
+
+
+    /* Clears the frame statistics for animations.
+     *
+     * Requires the ACCESS_SURFACE_FLINGER permission.
+     */
+    virtual status_t clearAnimationFrameStats() = 0;
+
+    /* Gets the frame statistics for animations.
+     *
+     * Requires the ACCESS_SURFACE_FLINGER permission.
+     */
+    virtual status_t getAnimationFrameStats(FrameStats* outStats) const = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -145,6 +161,8 @@ public:
         GET_DISPLAY_INFO,
         CONNECT_DISPLAY,
         CAPTURE_SCREEN,
+        CLEAR_ANIMATION_FRAME_STATS,
+        GET_ANIMATION_FRAME_STATS
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,

@@ -155,5 +155,23 @@ status_t Client::destroySurface(const sp<IBinder>& handle) {
     return mFlinger->onLayerRemoved(this, handle);
 }
 
+status_t Client::clearLayerFrameStats(const sp<IBinder>& handle) const {
+    sp<Layer> layer = getLayerUser(handle);
+    if (layer == NULL) {
+        return NAME_NOT_FOUND;
+    }
+    layer->clearFrameStats();
+    return NO_ERROR;
+}
+
+status_t Client::getLayerFrameStats(const sp<IBinder>& handle, FrameStats* outStats) const {
+    sp<Layer> layer = getLayerUser(handle);
+    if (layer == NULL) {
+        return NAME_NOT_FOUND;
+    }
+    layer->getFrameStats(outStats);
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 }; // namespace android

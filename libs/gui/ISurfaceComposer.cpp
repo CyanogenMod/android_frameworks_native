@@ -229,6 +229,21 @@ public:
         memcpy(info, reply.readInplace(sizeof(DisplayInfo)), sizeof(DisplayInfo));
         return reply.readInt32();
     }
+
+    virtual status_t clearAnimationFrameStats() {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        remote()->transact(BnSurfaceComposer::CLEAR_ANIMATION_FRAME_STATS, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual status_t getAnimationFrameStats(FrameStats* outStats) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        remote()->transact(BnSurfaceComposer::GET_ANIMATION_FRAME_STATS, data, &reply);
+        reply.read(*outStats);
+        return reply.readInt32();
+    }
 };
 
 IMPLEMENT_META_INTERFACE(SurfaceComposer, "android.ui.ISurfaceComposer");
@@ -348,6 +363,20 @@ status_t BnSurfaceComposer::onTransact(
             sp<IBinder> display = data.readStrongBinder();
             status_t result = getDisplayInfo(display, &info);
             memcpy(reply->writeInplace(sizeof(DisplayInfo)), &info, sizeof(DisplayInfo));
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case CLEAR_ANIMATION_FRAME_STATS: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            status_t result = clearAnimationFrameStats();
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case GET_ANIMATION_FRAME_STATS: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            FrameStats stats;
+            status_t result = getAnimationFrameStats(&stats);
+            reply->write(stats);
             reply->writeInt32(result);
             return NO_ERROR;
         }

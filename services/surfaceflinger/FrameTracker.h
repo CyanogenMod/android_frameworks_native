@@ -78,15 +78,18 @@ public:
     // advanceFrame advances the frame tracker to the next frame.
     void advanceFrame();
 
-    // clear resets all the tracked frame data to zero.
-    void clear();
+    // clearStats clears the tracked frame stats.
+    void clearStats();
+
+    // getStats gets the tracked frame stats.
+    void getStats(FrameStats* outStats) const;
 
     // logAndResetStats dumps the current statistics to the binary event log
     // and then resets the accumulated statistics to their initial values.
     void logAndResetStats(const String8& name);
 
-    // dump appends the current frame display time history to the result string.
-    void dump(String8& result) const;
+    // dumpStats dump appends the current frame display time history to the result string.
+    void dumpStats(String8& result) const;
 
 private:
     struct FrameRecord {

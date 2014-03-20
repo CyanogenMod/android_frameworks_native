@@ -156,6 +156,20 @@ status_t SurfaceControl::setCrop(const Rect& crop) {
     return client->setCrop(mHandle, crop);
 }
 
+status_t SurfaceControl::clearLayerFrameStats() const {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->clearLayerFrameStats(mHandle);
+}
+
+status_t SurfaceControl::getLayerFrameStats(FrameStats* outStats) const {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->getLayerFrameStats(mHandle, outStats);
+}
+
 status_t SurfaceControl::validate() const
 {
     if (mHandle==0 || mClient==0) {

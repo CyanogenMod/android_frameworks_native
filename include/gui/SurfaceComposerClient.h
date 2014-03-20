@@ -28,6 +28,7 @@
 #include <utils/SortedVector.h>
 #include <utils/threads.h>
 
+#include <ui/FrameStats.h>
 #include <ui/PixelFormat.h>
 
 #include <gui/CpuConsumer.h>
@@ -124,6 +125,12 @@ public:
     status_t    setCrop(const sp<IBinder>& id, const Rect& crop);
     status_t    setLayerStack(const sp<IBinder>& id, uint32_t layerStack);
     status_t    destroySurface(const sp<IBinder>& id);
+
+    status_t clearLayerFrameStats(const sp<IBinder>& token) const;
+    status_t getLayerFrameStats(const sp<IBinder>& token, FrameStats* outStats) const;
+
+    static status_t clearAnimationFrameStats();
+    static status_t getAnimationFrameStats(FrameStats* outStats);
 
     static void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);

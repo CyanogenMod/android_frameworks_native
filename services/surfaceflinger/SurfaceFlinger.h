@@ -210,6 +210,8 @@ private:
     // called when screen is turning back on
     virtual void unblank(const sp<IBinder>& display);
     virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
+    virtual status_t clearAnimationFrameStats();
+    virtual status_t getAnimationFrameStats(FrameStats* outStats) const;
 
     /* ------------------------------------------------------------------------
      * DeathRecipient interface

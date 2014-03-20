@@ -574,6 +574,18 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
     return NO_ERROR;
 }
 
+status_t SurfaceFlinger::clearAnimationFrameStats() {
+    Mutex::Autolock _l(mStateLock);
+    mAnimFrameTracker.clearStats();
+    return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getAnimationFrameStats(FrameStats* outStats) const {
+    Mutex::Autolock _l(mStateLock);
+    mAnimFrameTracker.getStats(outStats);
+    return NO_ERROR;
+}
+
 // ----------------------------------------------------------------------------
 
 sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
@@ -2255,14 +2267,14 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
     result.appendFormat("%" PRId64 "\n", period);
 
     if (name.isEmpty()) {
-        mAnimFrameTracker.dump(result);
+        mAnimFrameTracker.dumpStats(result);
     } else {
         const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
         const size_t count = currentLayers.size();
         for (size_t i=0 ; i<count ; i++) {
             const sp<Layer>& layer(currentLayers[i]);
             if (name == layer->getName()) {
-                layer->dumpStats(result);
+                layer->dumpFrameStats(result);
             }
         }
     }
@@ -2282,11 +2294,11 @@ void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& inde
     for (size_t i=0 ; i<count ; i++) {
         const sp<Layer>& layer(currentLayers[i]);
         if (name.isEmpty() || (name == layer->getName())) {
-            layer->clearStats();
+            layer->clearFrameStats();
         }
     }
 
-    mAnimFrameTracker.clear();
+    mAnimFrameTracker.clearStats();
 }
 
 // This should only be called from the main thread.  Otherwise it would need
@@ -2500,6 +2512,8 @@ status_t SurfaceFlinger::onTransact(
         case BOOT_FINISHED:
         case BLANK:
         case UNBLANK:
+        case CLEAR_ANIMATION_FRAME_STATS:
+        case GET_ANIMATION_FRAME_STATS:
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();
