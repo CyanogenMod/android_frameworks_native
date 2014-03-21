@@ -88,9 +88,9 @@ int MonitoredProducer::query(int what, int* value) {
     return mProducer->query(what, value);
 }
 
-status_t MonitoredProducer::connect(const sp<IBinder>& token, int api,
-        bool producerControlledByApp, QueueBufferOutput* output) {
-    return mProducer->connect(token, api, producerControlledByApp, output);
+status_t MonitoredProducer::connect(const sp<IProducerListener>& listener,
+        int api, bool producerControlledByApp, QueueBufferOutput* output) {
+    return mProducer->connect(listener, api, producerControlledByApp, output);
 }
 
 status_t MonitoredProducer::disconnect(int api) {

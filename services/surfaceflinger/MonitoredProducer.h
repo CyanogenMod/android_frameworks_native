@@ -21,7 +21,7 @@
 
 namespace android {
 
-class IBinder;
+class IProducerListener;
 class NativeHandle;
 class SurfaceFlinger;
 
@@ -45,7 +45,7 @@ public:
             QueueBufferOutput* output);
     virtual void cancelBuffer(int slot, const sp<Fence>& fence);
     virtual int query(int what, int* value);
-    virtual status_t connect(const sp<IBinder>& token, int api,
+    virtual status_t connect(const sp<IProducerListener>& token, int api,
             bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);

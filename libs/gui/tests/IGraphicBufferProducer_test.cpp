@@ -25,13 +25,14 @@
 #include <ui/GraphicBuffer.h>
 
 #include <gui/BufferQueue.h>
+#include <gui/IProducerListener.h>
 
 #include <vector>
 
 #define ASSERT_OK(x) ASSERT_EQ(OK, (x))
 #define EXPECT_OK(x) EXPECT_EQ(OK, (x))
 
-#define TEST_TOKEN ((IBinder*)(NULL))
+#define TEST_TOKEN ((IProducerListener*)(NULL))
 #define TEST_API NATIVE_WINDOW_API_CPU
 #define TEST_API_OTHER NATIVE_WINDOW_API_EGL // valid API that's not TEST_API
 #define TEST_CONTROLLED_BY_APP false

@@ -32,6 +32,7 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+class IProducerListener;
 class NativeHandle;
 class Surface;
 
@@ -344,9 +345,11 @@ public:
     // This method will fail if the connect was previously called on the
     // IGraphicBufferProducer and no corresponding disconnect call was made.
     //
-    // The token needs to be any opaque binder object that lives in the
-    // producer process -- it is solely used for obtaining a death notification
-    // when the producer is killed.
+    // The listener is an optional binder callback object that can be used if
+    // the producer wants to be notified when the consumer releases a buffer
+    // back to the BufferQueue. It is also used to detect the death of the
+    // producer. If only the latter functionality is desired, there is a
+    // DummyProducerListener class in IProducerListener.h that can be used.
     //
     // The api should be one of the NATIVE_WINDOW_API_* values in <window.h>
     //
@@ -370,7 +373,7 @@ public:
     //
     // Additional negative errors may be returned by the internals, they
     // should be treated as opaque fatal unrecoverable errors.
-    virtual status_t connect(const sp<IBinder>& token,
+    virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
 
     // disconnect attempts to disconnect a client API from the
