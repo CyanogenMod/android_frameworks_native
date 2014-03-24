@@ -24,7 +24,9 @@
 
 #include <ui/GraphicBuffer.h>
 
+#include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
 #include <gui/BufferQueue.h>
 
 namespace android {
@@ -32,20 +34,12 @@ namespace android {
 class BufferQueueTest : public ::testing::Test {
 
 public:
-    static const String16 PRODUCER_NAME;
-    static const String16 CONSUMER_NAME;
-
 protected:
     BufferQueueTest() {
         const ::testing::TestInfo* const testInfo =
             ::testing::UnitTest::GetInstance()->current_test_info();
         ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
                 testInfo->name());
-
-        BufferQueue::createBufferQueue(&mProducer, &mConsumer);
-        sp<IServiceManager> serviceManager = defaultServiceManager();
-        serviceManager->addService(PRODUCER_NAME, mProducer.get());
-        serviceManager->addService(CONSUMER_NAME, mConsumer.get());
     }
 
     ~BufferQueueTest() {
@@ -62,12 +56,13 @@ protected:
         ASSERT_GE(*bufferCount, 0);
     }
 
-    sp<BnGraphicBufferProducer> mProducer;
-    sp<BnGraphicBufferConsumer> mConsumer;
-};
+    void createBufferQueue() {
+        BufferQueue::createBufferQueue(&mProducer, &mConsumer);
+    }
 
-const String16 BufferQueueTest::PRODUCER_NAME = String16("BQTestProducer");
-const String16 BufferQueueTest::CONSUMER_NAME = String16("BQTestConsumer");
+    sp<IGraphicBufferProducer> mProducer;
+    sp<IGraphicBufferConsumer> mConsumer;
+};
 
 struct DummyConsumer : public BnConsumerListener {
     virtual void onFrameAvailable() {}
@@ -75,7 +70,74 @@ struct DummyConsumer : public BnConsumerListener {
     virtual void onSidebandStreamChanged() {}
 };
 
+// XXX: Tests that fork a process to hold the BufferQueue must run before tests
+// that use a local BufferQueue, or else Binder will get unhappy
+TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
+    const String16 PRODUCER_NAME = String16("BQTestProducer");
+    const String16 CONSUMER_NAME = String16("BQTestConsumer");
+
+    pid_t forkPid = fork();
+    ASSERT_NE(forkPid, -1);
+
+    if (forkPid == 0) {
+        // Child process
+        sp<BnGraphicBufferProducer> producer;
+        sp<BnGraphicBufferConsumer> consumer;
+        BufferQueue::createBufferQueue(&producer, &consumer);
+        sp<IServiceManager> serviceManager = defaultServiceManager();
+        serviceManager->addService(PRODUCER_NAME, producer.get());
+        serviceManager->addService(CONSUMER_NAME, consumer.get());
+        ProcessState::self()->startThreadPool();
+        IPCThreadState::self()->joinThreadPool();
+        LOG_ALWAYS_FATAL("Shouldn't be here");
+    }
+
+    sp<IServiceManager> serviceManager = defaultServiceManager();
+    sp<IBinder> binderProducer =
+        serviceManager->getService(PRODUCER_NAME);
+    mProducer = interface_cast<IGraphicBufferProducer>(binderProducer);
+    EXPECT_TRUE(mProducer != NULL);
+    sp<IBinder> binderConsumer =
+        serviceManager->getService(CONSUMER_NAME);
+    mConsumer = interface_cast<IGraphicBufferConsumer>(binderConsumer);
+    EXPECT_TRUE(mConsumer != NULL);
+
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK,
+            mProducer->connect(NULL, NATIVE_WINDOW_API_CPU, false, &output));
+
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+                    GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+
+    uint32_t* dataIn;
+    ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
+            reinterpret_cast<void**>(&dataIn)));
+    *dataIn = 0x12345678;
+    ASSERT_EQ(OK, buffer->unlock());
+
+    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+
+    IGraphicBufferConsumer::BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+
+    uint32_t* dataOut;
+    ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
+            reinterpret_cast<void**>(&dataOut)));
+    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
+}
+
 TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
     IGraphicBufferProducer::QueueBufferOutput qbo;
@@ -109,6 +171,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
 
@@ -125,6 +188,7 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
 
@@ -139,6 +203,7 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
 }
 
 TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
     IGraphicBufferProducer::QueueBufferOutput output;
@@ -187,9 +252,11 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
     ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 }
 
 TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
     IGraphicBufferProducer::QueueBufferOutput output;
@@ -243,9 +310,11 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
     ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(OK, buffer->unlock());
 }
 
 TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
+    createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
     IGraphicBufferProducer::QueueBufferOutput output;
@@ -283,6 +352,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
     ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 }
 
 } // namespace android
