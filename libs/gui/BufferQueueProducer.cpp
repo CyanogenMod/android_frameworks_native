@@ -432,6 +432,7 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
     mSlots[*outSlot].mBufferState = BufferSlot::DEQUEUED;
     mSlots[*outSlot].mEglFence = EGL_NO_SYNC_KHR;
     mSlots[*outSlot].mFence = Fence::NO_FENCE;
+    mSlots[*outSlot].mRequestBufferCalled = true;
 
     return returnFlags;
 }
