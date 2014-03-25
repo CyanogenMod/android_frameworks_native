@@ -48,6 +48,8 @@
 #ifndef OMX_Types_h
 #define OMX_Types_h
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -160,10 +162,10 @@ typedef unsigned short OMX_U16;
 typedef signed short OMX_S16;
 
 /** OMX_U32 is a 32 bit unsigned quantity that is 32 bit word aligned */
-typedef unsigned long OMX_U32;
+typedef uint32_t OMX_U32;
 
 /** OMX_S32 is a 32 bit signed quantity that is 32 bit word aligned */
-typedef signed long OMX_S32;
+typedef int32_t OMX_S32;
 
 
 /* Users with compilers that cannot accept the "long long" designation should
