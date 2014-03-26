@@ -541,6 +541,27 @@ static void drop_privileges() {
     }
 }
 
+static int log_callback(int type, const char *fmt, ...) {
+    va_list ap;
+    int priority;
+
+    switch (type) {
+    case SELINUX_WARNING:
+        priority = ANDROID_LOG_WARN;
+        break;
+    case SELINUX_INFO:
+        priority = ANDROID_LOG_INFO;
+        break;
+    default:
+        priority = ANDROID_LOG_ERROR;
+        break;
+    }
+    va_start(ap, fmt);
+    LOG_PRI_VA(priority, "SELinux", fmt, ap);
+    va_end(ap);
+    return 0;
+}
+
 int main(const int argc, const char *argv[]) {
     char buf[BUFFER_MAX];
     struct sockaddr addr;
@@ -549,6 +570,10 @@ int main(const int argc, const char *argv[]) {
     int selinux_enabled = (is_selinux_enabled() > 0);
 
     ALOGI("installd firing up\n");
+
+    union selinux_callback cb;
+    cb.func_log = log_callback;
+    selinux_set_callback(SELINUX_CB_LOG, cb);
 
     if (initialize_globals() < 0) {
         ALOGE("Could not initialize globals; exiting.\n");
