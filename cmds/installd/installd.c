@@ -129,10 +129,10 @@ static int do_idmap(char **arg, char reply[REPLY_MAX])
     return idmap(arg[0], arg[1], atoi(arg[2]));
 }
 
-static int do_restorecon_data(char **arg __attribute__((unused)),
-    char reply[REPLY_MAX] __attribute__((unused)))
+static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((unused)))
 {
-    return restorecon_data();
+    return restorecon_data(arg[0], arg[1], atoi(arg[2]));
+                             /* pkgName, seinfo, uid*/
 }
 
 struct cmdinfo {
@@ -159,7 +159,7 @@ struct cmdinfo cmds[] = {
     { "mkuserdata",           4, do_mk_user_data },
     { "rmuser",               1, do_rm_user },
     { "idmap",                3, do_idmap },
-    { "restorecondata",       0, do_restorecon_data },
+    { "restorecondata",       3, do_restorecon_data },
 };
 
 static int readx(int s, void *_buf, int count)
