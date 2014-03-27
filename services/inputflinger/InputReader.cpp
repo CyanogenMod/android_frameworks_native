@@ -6174,8 +6174,8 @@ void MultiTouchInputMapper::configureRawPointerAxes() {
             && mRawPointerAxes.slot.minValue == 0 && mRawPointerAxes.slot.maxValue > 0) {
         size_t slotCount = mRawPointerAxes.slot.maxValue + 1;
         if (slotCount > MAX_SLOTS) {
-            ALOGW("MultiTouch Device %s reported %d slots but the framework "
-                    "only supports a maximum of %d slots at this time.",
+            ALOGW("MultiTouch Device %s reported %zu slots but the framework "
+                    "only supports a maximum of %zu slots at this time.",
                     getDeviceName().string(), slotCount, MAX_SLOTS);
             slotCount = MAX_SLOTS;
         }
@@ -6347,7 +6347,7 @@ void JoystickInputMapper::configure(nsecs_t when,
         // If there are too many axes, start dropping them.
         // Prefer to keep explicitly mapped axes.
         if (mAxes.size() > PointerCoords::MAX_AXES) {
-            ALOGI("Joystick '%s' has %d axes but the framework only supports a maximum of %d.",
+            ALOGI("Joystick '%s' has %zu axes but the framework only supports a maximum of %d.",
                     getDeviceName().string(), mAxes.size(), PointerCoords::MAX_AXES);
             pruneAxes(true);
             pruneAxes(false);
