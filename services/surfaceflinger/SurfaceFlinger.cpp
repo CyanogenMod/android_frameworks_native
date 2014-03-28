@@ -2641,7 +2641,7 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
             looper->sendMessage(this, Message(MSG_API_CALL));
             barrier.wait();
         }
-        return NO_ERROR;
+        return result;
     }
 
     /*
@@ -2651,7 +2651,7 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
     virtual void handleMessage(const Message& message) {
         android_atomic_release_load(&memoryBarrier);
         if (message.what == MSG_API_CALL) {
-            impl->asBinder()->transact(code, data[0], reply);
+            result = impl->asBinder()->transact(code, data[0], reply);
             barrier.open();
         } else if (message.what == MSG_EXIT) {
             exitRequested = true;
