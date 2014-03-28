@@ -158,16 +158,10 @@ void KeyEvent::initialize(const KeyEvent& from) {
 // --- PointerCoords ---
 
 float PointerCoords::getAxisValue(int32_t axis) const {
-    if (axis < 0 || axis > 63) {
+    if (axis < 0 || axis > 63 || !BitSet64::hasBit(bits, axis)){
         return 0;
     }
-
-    uint64_t axisBit = 1LL << axis;
-    if (!(bits & axisBit)) {
-        return 0;
-    }
-    uint32_t index = __builtin_popcountll(bits & (axisBit - 1LL));
-    return values[index];
+    return values[BitSet64::getIndexOfBit(bits, axis)];
 }
 
 status_t PointerCoords::setAxisValue(int32_t axis, float value) {
@@ -175,22 +169,23 @@ status_t PointerCoords::setAxisValue(int32_t axis, float value) {
         return NAME_NOT_FOUND;
     }
 
-    uint64_t axisBit = 1LL << axis;
-    uint32_t index = __builtin_popcountll(bits & (axisBit - 1LL));
-    if (!(bits & axisBit)) {
+    uint32_t index = BitSet64::getIndexOfBit(bits, axis);
+    if (!BitSet64::hasBit(bits, axis)) {
         if (value == 0) {
             return OK; // axes with value 0 do not need to be stored
         }
-        uint32_t count = __builtin_popcountll(bits);
+
+        uint32_t count = BitSet64::count(bits);
         if (count >= MAX_AXES) {
             tooManyAxes(axis);
             return NO_MEMORY;
         }
-        bits |= axisBit;
+        BitSet64::markBit(bits, axis);
         for (uint32_t i = count; i > index; i--) {
             values[i] = values[i - 1];
         }
     }
+
     values[index] = value;
     return OK;
 }
@@ -222,7 +217,7 @@ void PointerCoords::applyOffset(float xOffset, float yOffset) {
 status_t PointerCoords::readFromParcel(Parcel* parcel) {
     bits = parcel->readInt64();
 
-    uint32_t count = __builtin_popcountll(bits);
+    uint32_t count = BitSet64::count(bits);
     if (count > MAX_AXES) {
         return BAD_VALUE;
     }
@@ -236,7 +231,7 @@ status_t PointerCoords::readFromParcel(Parcel* parcel) {
 status_t PointerCoords::writeToParcel(Parcel* parcel) const {
     parcel->writeInt64(bits);
 
-    uint32_t count = __builtin_popcountll(bits);
+    uint32_t count = BitSet64::count(bits);
     for (uint32_t i = 0; i < count; i++) {
         parcel->writeFloat(values[i]);
     }
@@ -253,7 +248,7 @@ bool PointerCoords::operator==(const PointerCoords& other) const {
     if (bits != other.bits) {
         return false;
     }
-    uint32_t count = __builtin_popcountll(bits);
+    uint32_t count = BitSet64::count(bits);
     for (uint32_t i = 0; i < count; i++) {
         if (values[i] != other.values[i]) {
             return false;
@@ -264,7 +259,7 @@ bool PointerCoords::operator==(const PointerCoords& other) const {
 
 void PointerCoords::copyFrom(const PointerCoords& other) {
     bits = other.bits;
-    uint32_t count = __builtin_popcountll(bits);
+    uint32_t count = BitSet64::count(bits);
     for (uint32_t i = 0; i < count; i++) {
         values[i] = other.values[i];
     }
