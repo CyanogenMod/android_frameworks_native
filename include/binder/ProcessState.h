@@ -27,11 +27,6 @@
 // ---------------------------------------------------------------------------
 namespace android {
 
-// Global variables
-extern int                 mArgC;
-extern const char* const*  mArgV;
-extern int                 mArgLen;
-
 class IPCThreadState;
 
 class ProcessState : public virtual RefBase
@@ -61,12 +56,6 @@ public:
             sp<IBinder>         getStrongProxyForHandle(int32_t handle);
             wp<IBinder>         getWeakProxyForHandle(int32_t handle);
             void                expungeHandle(int32_t handle, IBinder* binder);
-
-            void                setArgs(int argc, const char* const argv[]);
-            int                 getArgC() const;
-            const char* const*  getArgV() const;
-
-            void                setArgV0(const char* txt);
 
             void                spawnPooledThread(bool isMain);
             
