@@ -393,6 +393,50 @@ status_t BufferQueueProducer::detachBuffer(int slot) {
     return NO_ERROR;
 }
 
+status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
+        sp<Fence>* outFence) {
+    ATRACE_CALL();
+
+    if (outBuffer == NULL) {
+        BQ_LOGE("detachNextBuffer: outBuffer must not be NULL");
+        return BAD_VALUE;
+    } else if (outFence == NULL) {
+        BQ_LOGE("detachNextBuffer: outFence must not be NULL");
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mCore->mMutex);
+
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachNextBuffer: BufferQueue has been abandoned");
+        return NO_INIT;
+    }
+
+    // Find the oldest valid slot
+    int found = BufferQueueCore::INVALID_BUFFER_SLOT;
+    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+        if (mSlots[s].mBufferState == BufferSlot::FREE &&
+                mSlots[s].mGraphicBuffer != NULL) {
+            if (found == BufferQueueCore::INVALID_BUFFER_SLOT ||
+                    mSlots[s].mFrameNumber < mSlots[found].mFrameNumber) {
+                found = s;
+            }
+        }
+    }
+
+    if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
+        return NO_MEMORY;
+    }
+
+    BQ_LOGV("detachNextBuffer detached slot %d", found);
+
+    *outBuffer = mSlots[found].mGraphicBuffer;
+    *outFence = mSlots[found].mFence;
+    mCore->freeBufferLocked(found);
+
+    return NO_ERROR;
+}
+
 status_t BufferQueueProducer::attachBuffer(int* outSlot,
         const sp<android::GraphicBuffer>& buffer) {
     ATRACE_CALL();

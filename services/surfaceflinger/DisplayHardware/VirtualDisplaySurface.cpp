@@ -380,6 +380,12 @@ status_t VirtualDisplaySurface::detachBuffer(int /* slot */) {
     return INVALID_OPERATION;
 }
 
+status_t VirtualDisplaySurface::detachNextBuffer(
+        sp<GraphicBuffer>* /* outBuffer */, sp<Fence>* /* outFence */) {
+    VDS_LOGE("detachNextBuffer is not available for VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
 status_t VirtualDisplaySurface::attachBuffer(int* /* outSlot */,
         const sp<GraphicBuffer>& /* buffer */) {
     VDS_LOGE("attachBuffer is not available for VirtualDisplaySurface");

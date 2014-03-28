@@ -69,6 +69,11 @@ status_t MonitoredProducer::detachBuffer(int slot) {
     return mProducer->detachBuffer(slot);
 }
 
+status_t MonitoredProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
+        sp<Fence>* outFence) {
+    return mProducer->detachNextBuffer(outBuffer, outFence);
+}
+
 status_t MonitoredProducer::attachBuffer(int* outSlot,
         const sp<GraphicBuffer>& buffer) {
     return mProducer->attachBuffer(outSlot, buffer);

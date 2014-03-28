@@ -37,6 +37,7 @@ enum {
     SET_BUFFER_COUNT,
     DEQUEUE_BUFFER,
     DETACH_BUFFER,
+    DETACH_NEXT_BUFFER,
     ATTACH_BUFFER,
     QUEUE_BUFFER,
     CANCEL_BUFFER,
@@ -120,6 +121,37 @@ public:
             return result;
         }
         result = reply.readInt32();
+        return result;
+    }
+
+    virtual status_t detachNextBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) {
+        if (outBuffer == NULL) {
+            ALOGE("detachNextBuffer: outBuffer must not be NULL");
+            return BAD_VALUE;
+        } else if (outFence == NULL) {
+            ALOGE("detachNextBuffer: outFence must not be NULL");
+            return BAD_VALUE;
+        }
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        status_t result = remote()->transact(DETACH_NEXT_BUFFER, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        if (result == NO_ERROR) {
+            bool nonNull = reply.readInt32();
+            if (nonNull) {
+                *outBuffer = new GraphicBuffer;
+                reply.read(**outBuffer);
+            }
+            nonNull = reply.readInt32();
+            if (nonNull) {
+                *outFence = new Fence;
+                reply.read(**outFence);
+            }
+        }
         return result;
     }
 
@@ -272,6 +304,24 @@ status_t BnGraphicBufferProducer::onTransact(
             int slot = data.readInt32();
             int result = detachBuffer(slot);
             reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case DETACH_NEXT_BUFFER: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            sp<GraphicBuffer> buffer;
+            sp<Fence> fence;
+            int32_t result = detachNextBuffer(&buffer, &fence);
+            reply->writeInt32(result);
+            if (result == NO_ERROR) {
+                reply->writeInt32(buffer != NULL);
+                if (buffer != NULL) {
+                    reply->write(*buffer);
+                }
+                reply->writeInt32(fence != NULL);
+                if (fence != NULL) {
+                    reply->write(*fence);
+                }
+            }
             return NO_ERROR;
         } break;
         case ATTACH_BUFFER: {
