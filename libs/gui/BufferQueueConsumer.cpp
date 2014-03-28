@@ -243,10 +243,26 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
     mSlots[*outSlot].mGraphicBuffer = buffer;
     mSlots[*outSlot].mBufferState = BufferSlot::ACQUIRED;
     mSlots[*outSlot].mAttachedByConsumer = true;
-    mSlots[*outSlot].mAcquireCalled = true;
     mSlots[*outSlot].mNeedsCleanupOnRelease = false;
     mSlots[*outSlot].mFence = Fence::NO_FENCE;
     mSlots[*outSlot].mFrameNumber = 0;
+
+    // mAcquireCalled tells BufferQueue that it doesn't need to send a valid
+    // GraphicBuffer pointer on the next acquireBuffer call, which decreases
+    // Binder traffic by not un/flattening the GraphicBuffer. However, it
+    // requires that the consumer maintain a cached copy of the slot <--> buffer
+    // mappings, which is why the consumer doesn't need the valid pointer on
+    // acquire.
+    //
+    // The StreamSplitter is one of the primary users of the attach/detach
+    // logic, and while it is running, all buffers it acquires are immediately
+    // detached, and all buffers it eventually releases are ones that were
+    // attached (as opposed to having been obtained from acquireBuffer), so it
+    // doesn't make sense to maintain the slot/buffer mappings, which would
+    // become invalid for every buffer during detach/attach. By setting this to
+    // false, the valid GraphicBuffer pointer will always be sent with acquire
+    // for attached buffers.
+    mSlots[*outSlot].mAcquireCalled = false;
 
     return NO_ERROR;
 }
