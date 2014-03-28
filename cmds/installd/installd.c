@@ -103,7 +103,8 @@ static int do_rm_user_data(char **arg, char reply[REPLY_MAX])
 
 static int do_mk_user_data(char **arg, char reply[REPLY_MAX])
 {
-    return make_user_data(arg[0], atoi(arg[1]), atoi(arg[2])); /* pkgname, uid, userid */
+    return make_user_data(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
+                             /* pkgname, uid, userid, seinfo */
 }
 
 static int do_rm_user(char **arg, char reply[REPLY_MAX])
@@ -119,6 +120,12 @@ static int do_movefiles(char **arg, char reply[REPLY_MAX])
 static int do_linklib(char **arg, char reply[REPLY_MAX])
 {
     return linklib(arg[0], arg[1], atoi(arg[2]));
+}
+
+static int do_restorecon_data(char **arg __attribute__((unused)),
+    char reply[REPLY_MAX] __attribute__((unused)))
+{
+    return restorecon_data();
 }
 
 struct cmdinfo {
@@ -142,8 +149,9 @@ struct cmdinfo cmds[] = {
     { "rmuserdata",           2, do_rm_user_data },
     { "movefiles",            0, do_movefiles },
     { "linklib",              3, do_linklib },
-    { "mkuserdata",           3, do_mk_user_data },
+    { "mkuserdata",           4, do_mk_user_data },
     { "rmuser",               1, do_rm_user },
+    { "restorecondata",       0, do_restorecon_data },
 };
 
 char write_error = 0;
@@ -437,6 +445,10 @@ int initialize_directories() {
 
         // Create /data/media again
         if (fs_prepare_dir(android_media_dir.path, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
+            goto fail;
+        }
+
+        if (selinux_android_restorecon(android_media_dir.path, 0)) {
             goto fail;
         }
 
