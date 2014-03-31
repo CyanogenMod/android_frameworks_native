@@ -793,8 +793,16 @@ status_t BufferQueueProducer::disconnect(int api) {
 }
 
 status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) {
-    Mutex::Autolock _l(mCore->mMutex);
-    mCore->mSidebandStream = stream;
+    sp<IConsumerListener> listener;
+    { // Autolock scope
+        Mutex::Autolock _l(mCore->mMutex);
+        mCore->mSidebandStream = stream;
+        listener = mCore->mConsumerListener;
+    } // Autolock scope
+
+    if (listener != NULL) {
+        listener->onSidebandStreamChanged();
+    }
     return NO_ERROR;
 }
 

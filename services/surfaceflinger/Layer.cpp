@@ -959,7 +959,7 @@ void Layer::onPostComposition() {
 bool Layer::isVisible() const {
     const Layer::State& s(mDrawingState);
     return !(s.flags & layer_state_t::eLayerHidden) && s.alpha
-            && (mActiveBuffer != NULL);
+            && (mActiveBuffer != NULL || mSidebandStream != NULL);
 }
 
 Region Layer::latchBuffer(bool& recomputeVisibleRegions)
