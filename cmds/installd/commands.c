@@ -1235,31 +1235,82 @@ fail:
     return -1;
 }
 
-int restorecon_data()
+int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid)
 {
-    char *data_dir = build_string2(android_data_dir.path, PRIMARY_USER_PREFIX);
-    char *user_dir = build_string2(android_data_dir.path, SECONDARY_USER_PREFIX);
-
-    unsigned int flags = SELINUX_ANDROID_RESTORECON_RECURSE |
-            SELINUX_ANDROID_RESTORECON_DATADATA;
-
+    struct dirent *entry;
+    DIR *d;
+    struct stat s;
+    char *userdir;
+    char *primarydir;
+    char *pkgdir;
     int ret = 0;
 
-    if (!data_dir || !user_dir) {
+    // SELINUX_ANDROID_RESTORECON_DATADATA flag is set by libselinux. Not needed here.
+    unsigned int flags = SELINUX_ANDROID_RESTORECON_RECURSE;
+
+    if (!pkgName || !seinfo) {
+        ALOGE("Package name or seinfo tag is null when trying to restorecon.");
         return -1;
     }
 
-    if (selinux_android_restorecon(data_dir, flags) < 0) {
-        ALOGE("restorecon failed for %s: %s\n", data_dir, strerror(errno));
+    if (asprintf(&primarydir, "%s%s%s", android_data_dir.path, PRIMARY_USER_PREFIX, pkgName) < 0) {
+        return -1;
+    }
+
+    // Relabel for primary user.
+    if (selinux_android_restorecon_pkgdir(primarydir, seinfo, uid, flags) < 0) {
+        ALOGE("restorecon failed for %s: %s\n", primarydir, strerror(errno));
         ret |= -1;
     }
 
-    if (selinux_android_restorecon(user_dir, flags) < 0) {
-        ALOGE("restorecon failed for %s: %s\n", user_dir, strerror(errno));
-        ret |= -1;
+    if (asprintf(&userdir, "%s%s", android_data_dir.path, SECONDARY_USER_PREFIX) < 0) {
+        free(primarydir);
+        return -1;
     }
 
-    free(data_dir);
-    free(user_dir);
+    // Relabel package directory for all secondary users.
+    d = opendir(userdir);
+    if (d == NULL) {
+        free(primarydir);
+        free(userdir);
+        return -1;
+    }
+
+    while ((entry = readdir(d))) {
+        if (entry->d_type != DT_DIR) {
+            continue;
+        }
+
+        const char *user = entry->d_name;
+        // Ignore "." and ".."
+        if (!strcmp(user, ".") || !strcmp(user, "..")) {
+            continue;
+        }
+
+        // user directories start with a number
+        if (user[0] < '0' || user[0] > '9') {
+            ALOGE("Expecting numbered directory during restorecon. Instead got '%s'.", user);
+            continue;
+        }
+
+        if (asprintf(&pkgdir, "%s%s/%s", userdir, user, pkgName) < 0) {
+            continue;
+        }
+
+        if (stat(pkgdir, &s) < 0) {
+            free(pkgdir);
+            continue;
+        }
+
+        if (selinux_android_restorecon_pkgdir(pkgdir, seinfo, uid, flags) < 0) {
+            ALOGE("restorecon failed for %s: %s\n", pkgdir, strerror(errno));
+            ret |= -1;
+        }
+        free(pkgdir);
+    }
+
+    closedir(d);
+    free(primarydir);
+    free(userdir);
     return ret;
 }
