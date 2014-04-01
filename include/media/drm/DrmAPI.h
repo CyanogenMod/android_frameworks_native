@@ -178,12 +178,16 @@ namespace android {
         // provisioning server.
         //
         // If successful, the opaque provision request blob is returned to the caller.
-        virtual status_t getProvisionRequest(Vector<uint8_t> &request,
+        virtual status_t getProvisionRequest(String8 const &cert_type,
+                                             String8 const &cert_authority,
+                                             Vector<uint8_t> &request,
                                              String8 &defaultUrl) = 0;
 
         // After a provision response is received by the app, it is provided to the
         // Drm plugin using provideProvisionResponse.
-        virtual status_t provideProvisionResponse(Vector<uint8_t> const &response) = 0;
+        virtual status_t provideProvisionResponse(Vector<uint8_t> const &response,
+                                                  Vector<uint8_t> &certificate,
+                                                  Vector<uint8_t> &wrapped_key) = 0;
 
         // A means of enforcing the contractual requirement for a concurrent stream
         // limit per subscriber across devices is provided via SecureStop.  SecureStop
@@ -288,6 +292,15 @@ namespace android {
                                 Vector<uint8_t> const &message,
                                 Vector<uint8_t> const &signature,
                                 bool &match) = 0;
+
+
+        // Compute an RSA signature on the provided message using the algorithm
+        // specified by algorithm.
+        virtual status_t signRSA(Vector<uint8_t> const &sessionId,
+                                 String8 const &algorithm,
+                                 Vector<uint8_t> const &message,
+                                 Vector<uint8_t> const &wrapped_key,
+                                 Vector<uint8_t> &signature) = 0;
 
 
         status_t setListener(const sp<DrmPluginListener>& listener) {
