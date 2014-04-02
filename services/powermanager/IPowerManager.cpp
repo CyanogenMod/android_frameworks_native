@@ -33,6 +33,7 @@ enum {
     ACQUIRE_WAKE_LOCK_UID = IBinder::FIRST_CALL_TRANSACTION + 1,
     RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 2,
     UPDATE_WAKE_LOCK_UIDS = IBinder::FIRST_CALL_TRANSACTION + 3,
+    POWER_HINT = IBinder::FIRST_CALL_TRANSACTION + 4,
 };
 
 class BpPowerManager : public BpInterface<IPowerManager>
@@ -88,6 +89,15 @@ public:
         // We don't really care too much if this succeeds (there's nothing we can do if it doesn't)
         // but it should return ASAP
         return remote()->transact(UPDATE_WAKE_LOCK_UIDS, data, &reply, IBinder::FLAG_ONEWAY);
+    }
+
+    virtual status_t powerHint(int hintId, int param)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
+        data.writeInt32(hintId);
+        data.writeInt32(param);
+        return remote()->transact(POWER_HINT, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
 

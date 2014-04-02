@@ -19,6 +19,7 @@
 
 #include <utils/Errors.h>
 #include <binder/IInterface.h>
+#include <hardware/power.h>
 
 namespace android {
 
@@ -36,6 +37,7 @@ public:
             const String16& packageName, int uid) = 0;
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags) = 0;
     virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids) = 0;
+    virtual status_t powerHint(int hintId, int data) = 0;
 };
 
 // ----------------------------------------------------------------------------
