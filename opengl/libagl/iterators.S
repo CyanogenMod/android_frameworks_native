@@ -17,7 +17,7 @@
 
 
     .text
-    .align
+    .align 2
     .arm
     
     .global iterators0032
