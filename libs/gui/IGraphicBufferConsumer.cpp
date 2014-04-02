@@ -402,7 +402,7 @@ public:
         }
         sp<NativeHandle> stream;
         if (reply.readInt32()) {
-            stream = NativeHandle::create(reply.readNativeHandle());
+            stream = NativeHandle::create(reply.readNativeHandle(), true);
         }
         return stream;
     }
