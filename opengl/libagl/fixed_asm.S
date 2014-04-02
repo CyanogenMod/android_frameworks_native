@@ -17,7 +17,7 @@
 
 
     .text
-    .align
+    .align 2
     
     .global gglFloatToFixed
     .type gglFloatToFixed, %function
