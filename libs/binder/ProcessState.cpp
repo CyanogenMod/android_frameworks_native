@@ -48,11 +48,6 @@
 
 namespace android {
  
-// Global variables
-int                 mArgC;
-const char* const*  mArgV;
-int                 mArgLen;
-
 class PoolThread : public Thread
 {
 public:
@@ -278,36 +273,6 @@ void ProcessState::expungeHandle(int32_t handle, IBinder* binder)
     // (if someone failed the AttemptIncWeak() above); we don't want
     // to overwrite it.
     if (e && e->binder == binder) e->binder = NULL;
-}
-
-void ProcessState::setArgs(int argc, const char* const argv[])
-{
-    mArgC = argc;
-    mArgV = (const char **)argv;
-
-    mArgLen = 0;
-    for (int i=0; i<argc; i++) {
-        mArgLen += strlen(argv[i]) + 1;
-    }
-    mArgLen--;
-}
-
-int ProcessState::getArgC() const
-{
-    return mArgC;
-}
-
-const char* const* ProcessState::getArgV() const
-{
-    return mArgV;
-}
-
-void ProcessState::setArgV0(const char* txt)
-{
-    if (mArgV != NULL) {
-        strncpy((char*)mArgV[0], txt, mArgLen);
-        set_process_name(txt);
-    }
 }
 
 String8 ProcessState::makeBinderThreadName() {
