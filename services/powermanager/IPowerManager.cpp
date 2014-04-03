@@ -55,6 +55,7 @@ public:
         data.writeString16(tag);
         data.writeString16(packageName);
         data.writeInt32(0); // no WorkSource
+        data.writeString16(NULL, 0); // no history tag
         return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply);
     }
 
