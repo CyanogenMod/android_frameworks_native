@@ -20,6 +20,8 @@
 
 #define EGL_EGLEXT_PROTOTYPES
 
+#include <inttypes.h>
+
 #include <gui/BufferItem.h>
 #include <gui/BufferQueueCore.h>
 #include <gui/IConsumerListener.h>
@@ -81,7 +83,7 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
     Fifo::const_iterator current(mQueue.begin());
     while (current != mQueue.end()) {
         fifo.appendFormat("%02d:%p crop=[%d,%d,%d,%d], "
-                "xform=0x%02x, time=%#llx, scale=%s\n",
+                "xform=0x%02x, time=%#" PRIx64 ", scale=%s\n",
                 current->mSlot, current->mGraphicBuffer.get(),
                 current->mCrop.left, current->mCrop.top, current->mCrop.right,
                 current->mCrop.bottom, current->mTransform, current->mTimestamp,
@@ -91,7 +93,7 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
 
     result.appendFormat("%s-BufferQueue mMaxAcquiredBufferCount=%d, "
             "mDequeueBufferCannotBlock=%d, default-size=[%dx%d], "
-            "default-format=%d, transform-hint=%02x, FIFO(%d)={%s}\n",
+            "default-format=%d, transform-hint=%02x, FIFO(%zu)={%s}\n",
             prefix, mMaxAcquiredBufferCount, mDequeueBufferCannotBlock,
             mDefaultWidth, mDefaultHeight, mDefaultBufferFormat, mTransformHint,
             mQueue.size(), fifo.string());
