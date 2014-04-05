@@ -281,28 +281,6 @@ float ASensor_getResolution(ASensor const* sensor);
  */
 int ASensor_getMinDelay(ASensor const* sensor);
 
-/*
- * Returns the maximum size of batches for this sensor. Batches will often be
- * smaller, as the hardware fifo might be used for other sensors.
- */
-int ASensor_getFifoMaxEventCount(ASensor const* sensor);
-
-/*
- * Returns the hardware batch fifo size reserved to this sensor.
- */
-int ASensor_getFifoReservedEventCount(ASensor const* sensor);
-
-/*
- * Returns this sensor's string type.
- */
-const char* ASensor_getStringType(ASensor const* sensor);
-
-/*
- * Returns the permission required to see or access this sensor, or the
- * empty string if none is required.
- */
-const char* ASensor_getRequiredPermission(ASensor const* sensor);
-
 
 #ifdef __cplusplus
 };
