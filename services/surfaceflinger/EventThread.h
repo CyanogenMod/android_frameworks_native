@@ -97,7 +97,6 @@ public:
             DisplayEventReceiver::Event* event);
 
     void dump(String8& result) const;
-    void sendVsyncHintOff();
 
 private:
     virtual bool        threadLoop();
@@ -108,7 +107,6 @@ private:
     void removeDisplayEventConnection(const wp<Connection>& connection);
     void enableVSyncLocked();
     void disableVSyncLocked();
-    void sendVsyncHintOnLocked();
 
     // constants
     sp<VSyncSource> mVSyncSource;
@@ -126,9 +124,6 @@ private:
 
     // for debugging
     bool mDebugVsyncEnabled;
-
-    bool mVsyncHintSent;
-    timer_t mTimerId;
 };
 
 // ---------------------------------------------------------------------------

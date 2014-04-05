@@ -20,30 +20,38 @@
 #include <cutils/log.h>
 #include <utils/Errors.h>
 
-#include <binder/IServiceManager.h>
-#include <powermanager/IPowerManager.h>
-#include <powermanager/PowerManager.h>
-
 #include "PowerHAL.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
 
+PowerHAL::PowerHAL() : mPowerModule(0), mVSyncHintEnabled(false) {
+    int err = hw_get_module(POWER_HARDWARE_MODULE_ID,
+            (const hw_module_t **)&mPowerModule);
+    ALOGW_IF(err, "%s module not found", POWER_HARDWARE_MODULE_ID);
+}
+
+PowerHAL::~PowerHAL() {
+}
+
+status_t PowerHAL::initCheck() const {
+    return mPowerModule ? NO_ERROR : NO_INIT;
+}
+
 status_t PowerHAL::vsyncHint(bool enabled) {
-    Mutex::Autolock _l(mlock);
-    if (mPowerManager == NULL) {
-        const String16 serviceName("power");
-        sp<IBinder> bs = defaultServiceManager()->checkService(serviceName);
-        if (bs == NULL) {
-            return NAME_NOT_FOUND;
+    if (!mPowerModule) {
+        return NO_INIT;
+    }
+    if (mPowerModule->common.module_api_version >= POWER_MODULE_API_VERSION_0_2) {
+        if (mPowerModule->powerHint) {
+            if (mVSyncHintEnabled != bool(enabled)) {
+                mPowerModule->powerHint(mPowerModule,
+                        POWER_HINT_VSYNC, (void*)enabled);
+                mVSyncHintEnabled = bool(enabled);
+            }
         }
-        mPowerManager = interface_cast<IPowerManager>(bs);
     }
-    status_t status = mPowerManager->powerHint(POWER_HINT_VSYNC, enabled ? 1 : 0);
-    if(status == DEAD_OBJECT) {
-        mPowerManager = NULL;
-    }
-    return status;
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------

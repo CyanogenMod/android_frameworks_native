@@ -19,9 +19,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
-#include <utils/Mutex.h>
 
-#include <powermanager/IPowerManager.h>
 #include <hardware/power.h>
 
 namespace android {
@@ -30,11 +28,15 @@ namespace android {
 class PowerHAL
 {
 public:
+    PowerHAL();
+    ~PowerHAL();
+
+    status_t initCheck() const;
     status_t vsyncHint(bool enabled);
 
 private:
-    sp<IPowerManager> mPowerManager;
-    Mutex mlock;
+    power_module_t*   mPowerModule;
+    bool mVSyncHintEnabled;
 };
 
 // ---------------------------------------------------------------------------
