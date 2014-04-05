@@ -48,90 +48,14 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     mResolution = hwSensor->resolution;
     mPower = hwSensor->power;
     mMinDelay = hwSensor->minDelay;
-
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_1) {
         mFifoReservedEventCount = hwSensor->fifoReservedEventCount;
         mFifoMaxEventCount = hwSensor->fifoMaxEventCount;
-    }
-
-    // Ensure existing sensors have correct string type and required
-    // permissions.
-    switch (mType) {
-    case SENSOR_TYPE_ACCELEROMETER:
-        mStringType = SENSOR_STRING_TYPE_ACCELEROMETER;
-        break;
-    case SENSOR_TYPE_AMBIENT_TEMPERATURE:
-        mStringType = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
-        break;
-    case SENSOR_TYPE_GAME_ROTATION_VECTOR:
-        mStringType = SENSOR_STRING_TYPE_GAME_ROTATION_VECTOR;
-        break;
-    case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
-        mStringType = SENSOR_STRING_TYPE_GEOMAGNETIC_ROTATION_VECTOR;
-        break;
-    case SENSOR_TYPE_GRAVITY:
-        mStringType = SENSOR_STRING_TYPE_GRAVITY;
-        break;
-    case SENSOR_TYPE_GYROSCOPE:
-        mStringType = SENSOR_STRING_TYPE_GYROSCOPE;
-        break;
-    case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
-        mStringType = SENSOR_STRING_TYPE_GYROSCOPE_UNCALIBRATED;
-        break;
-    case SENSOR_TYPE_HEART_RATE:
-        mStringType = SENSOR_STRING_TYPE_HEART_RATE;
-        mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
-        break;
-    case SENSOR_TYPE_LIGHT:
-        mStringType = SENSOR_STRING_TYPE_LIGHT;
-        break;
-    case SENSOR_TYPE_LINEAR_ACCELERATION:
-        mStringType = SENSOR_STRING_TYPE_LINEAR_ACCELERATION;
-        break;
-    case SENSOR_TYPE_MAGNETIC_FIELD:
-        mStringType = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
-        break;
-    case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-        mStringType = SENSOR_STRING_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
-        break;
-    case SENSOR_TYPE_ORIENTATION:
-        mStringType = SENSOR_STRING_TYPE_ORIENTATION;
-        break;
-    case SENSOR_TYPE_PRESSURE:
-        mStringType = SENSOR_STRING_TYPE_PRESSURE;
-        break;
-    case SENSOR_TYPE_PROXIMITY:
-        mStringType = SENSOR_STRING_TYPE_PROXIMITY;
-        break;
-    case SENSOR_TYPE_RELATIVE_HUMIDITY:
-        mStringType = SENSOR_STRING_TYPE_RELATIVE_HUMIDITY;
-        break;
-    case SENSOR_TYPE_ROTATION_VECTOR:
-        mStringType = SENSOR_STRING_TYPE_ROTATION_VECTOR;
-        break;
-    case SENSOR_TYPE_SIGNIFICANT_MOTION:
-        mStringType = SENSOR_STRING_TYPE_SIGNIFICANT_MOTION;
-        break;
-    case SENSOR_TYPE_STEP_COUNTER:
-        mStringType = SENSOR_STRING_TYPE_STEP_COUNTER;
-        break;
-    case SENSOR_TYPE_STEP_DETECTOR:
-        mStringType = SENSOR_STRING_TYPE_STEP_DETECTOR;
-        break;
-    case SENSOR_TYPE_TEMPERATURE:
-        mStringType = SENSOR_STRING_TYPE_TEMPERATURE;
-        break;
-    default:
-        // Only pipe the stringType and requiredPermission for custom sensors.
-        if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->stringType) {
-            mStringType = hwSensor->stringType;
-        }
-        if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->requiredPermission) {
-            mRequiredPermission = hwSensor->requiredPermission;
-        }
-        break;
+    } else {
+        mFifoReservedEventCount = 0;
+        mFifoMaxEventCount = 0;
     }
 }
 
@@ -191,14 +115,6 @@ int32_t Sensor::getFifoMaxEventCount() const {
     return mFifoMaxEventCount;
 }
 
-const String8& Sensor::getStringType() const {
-    return mStringType;
-}
-
-const String8& Sensor::getRequiredPermission() const {
-    return mRequiredPermission;
-}
-
 size_t Sensor::getFlattenedSize() const
 {
     size_t fixedSize =
@@ -207,10 +123,8 @@ size_t Sensor::getFlattenedSize() const
             sizeof(int32_t) * 3;
 
     size_t variableSize =
-            sizeof(uint32_t) + FlattenableUtils::align<4>(mName.length()) +
-            sizeof(uint32_t) + FlattenableUtils::align<4>(mVendor.length()) +
-            sizeof(uint32_t) + FlattenableUtils::align<4>(mStringType.length()) +
-            sizeof(uint32_t) + FlattenableUtils::align<4>(mRequiredPermission.length());
+            sizeof(int32_t) + FlattenableUtils::align<4>(mName.length()) +
+            sizeof(int32_t) + FlattenableUtils::align<4>(mVendor.length());
 
     return fixedSize + variableSize;
 }
@@ -220,8 +134,14 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
         return NO_MEMORY;
     }
 
-    flattenString8(buffer, size, mName);
-    flattenString8(buffer, size, mVendor);
+    FlattenableUtils::write(buffer, size, mName.length());
+    memcpy(static_cast<char*>(buffer), mName.string(), mName.length());
+    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(mName.length()));
+
+    FlattenableUtils::write(buffer, size, mVendor.length());
+    memcpy(static_cast<char*>(buffer), mVendor.string(), mVendor.length());
+    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(mVendor.length()));
+
     FlattenableUtils::write(buffer, size, mVersion);
     FlattenableUtils::write(buffer, size, mHandle);
     FlattenableUtils::write(buffer, size, mType);
@@ -232,23 +152,38 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mMinDelay);
     FlattenableUtils::write(buffer, size, mFifoReservedEventCount);
     FlattenableUtils::write(buffer, size, mFifoMaxEventCount);
-    flattenString8(buffer, size, mStringType);
-    flattenString8(buffer, size, mRequiredPermission);
     return NO_ERROR;
 }
 
 status_t Sensor::unflatten(void const* buffer, size_t size) {
-    if (!unflattenString8(buffer, size, mName)) {
+    size_t len;
+
+    if (size < sizeof(size_t)) {
         return NO_MEMORY;
     }
-    if (!unflattenString8(buffer, size, mVendor)) {
+    FlattenableUtils::read(buffer, size, len);
+    if (size < len) {
         return NO_MEMORY;
     }
+    mName.setTo(static_cast<char const*>(buffer), len);
+    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
+
+
+    if (size < sizeof(size_t)) {
+        return NO_MEMORY;
+    }
+    FlattenableUtils::read(buffer, size, len);
+    if (size < len) {
+        return NO_MEMORY;
+    }
+    mVendor.setTo(static_cast<char const*>(buffer), len);
+    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
 
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
             sizeof(int32_t) * 3;
+
     if (size < fixedSize) {
         return NO_MEMORY;
     }
@@ -263,36 +198,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     FlattenableUtils::read(buffer, size, mMinDelay);
     FlattenableUtils::read(buffer, size, mFifoReservedEventCount);
     FlattenableUtils::read(buffer, size, mFifoMaxEventCount);
-
-    if (!unflattenString8(buffer, size, mStringType)) {
-        return NO_MEMORY;
-    }
-    if (!unflattenString8(buffer, size, mRequiredPermission)) {
-        return NO_MEMORY;
-    }
     return NO_ERROR;
-}
-
-void Sensor::flattenString8(void*& buffer, size_t& size,
-        const String8& string8) {
-    uint32_t len = string8.length();
-    FlattenableUtils::write(buffer, size, len);
-    memcpy(static_cast<char*>(buffer), string8.string(), len);
-    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
-}
-
-bool Sensor::unflattenString8(void const*& buffer, size_t& size, String8& outputString8) {
-    uint32_t len;
-    if (size < sizeof(len)) {
-        return false;
-    }
-    FlattenableUtils::read(buffer, size, len);
-    if (size < len) {
-        return false;
-    }
-    outputString8.setTo(static_cast<char const*>(buffer), len);
-    FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
-    return true;
 }
 
 // ----------------------------------------------------------------------------
