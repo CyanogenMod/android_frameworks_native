@@ -350,19 +350,23 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
 {
     status_t err = NO_ERROR;
 
+    int buf = item.mBuf;
+
     if (!mAttached) {
         ST_LOGE("updateAndRelease: GLConsumer is not attached to an OpenGL "
                 "ES context");
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
         return INVALID_OPERATION;
     }
 
     // Confirm state.
     err = checkAndUpdateEglStateLocked();
     if (err != NO_ERROR) {
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
         return err;
     }
-
-    int buf = item.mBuf;
 
     // If the mEglSlot entry is empty, create an EGLImage for the gralloc
     // buffer currently in the slot in ConsumerBase.
@@ -377,6 +381,12 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
         if (image == EGL_NO_IMAGE_KHR) {
             ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
                   mEglDisplay, buf);
+            const sp<GraphicBuffer>& gb = mSlots[buf].mGraphicBuffer;
+            ST_LOGW("buffer size=%ux%u st=%u usage=0x%x fmt=%d",
+                gb->getWidth(), gb->getHeight(), gb->getStride(),
+                gb->getUsage(), gb->getPixelFormat());
+            releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                    mEglDisplay, EGL_NO_SYNC_KHR);
             return UNKNOWN_ERROR;
         }
         mEglSlots[buf].mEglImage = image;
