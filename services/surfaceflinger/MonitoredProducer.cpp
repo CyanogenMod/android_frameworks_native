@@ -20,7 +20,7 @@
 
 namespace android {
 
-MonitoredProducer::MonitoredProducer(const sp<BnGraphicBufferProducer>& producer,
+MonitoredProducer::MonitoredProducer(const sp<IGraphicBufferProducer>& producer,
         const sp<SurfaceFlinger>& flinger) :
     mProducer(producer),
     mFlinger(flinger) {}
@@ -49,8 +49,7 @@ MonitoredProducer::~MonitoredProducer() {
         wp<IBinder> mProducer;
     };
 
-    mFlinger->postMessageAsync(new MessageCleanUpList(mFlinger,
-            static_cast<BnGraphicBufferProducer*>(this)));
+    mFlinger->postMessageAsync(new MessageCleanUpList(mFlinger, asBinder()));
 }
 
 status_t MonitoredProducer::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
@@ -99,6 +98,10 @@ status_t MonitoredProducer::disconnect(int api) {
 
 status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {
     return mProducer->setSidebandStream(stream);
+}
+
+IBinder* MonitoredProducer::onAsBinder() {
+    return mProducer->asBinder().get();
 }
 
 // ---------------------------------------------------------------------------

@@ -112,10 +112,6 @@ public:
     // needed gralloc buffers.
     BufferQueue(const sp<IGraphicBufferAlloc>& allocator = NULL);
 
-    static void createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
-            sp<BnGraphicBufferConsumer>* outConsumer,
-            const sp<IGraphicBufferAlloc>& allocator = NULL);
-
     static void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
             sp<IGraphicBufferConsumer>* outConsumer,
             const sp<IGraphicBufferAlloc>& allocator = NULL);

@@ -81,12 +81,12 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
 
     if (forkPid == 0) {
         // Child process
-        sp<BnGraphicBufferProducer> producer;
-        sp<BnGraphicBufferConsumer> consumer;
+        sp<IGraphicBufferProducer> producer;
+        sp<IGraphicBufferConsumer> consumer;
         BufferQueue::createBufferQueue(&producer, &consumer);
         sp<IServiceManager> serviceManager = defaultServiceManager();
-        serviceManager->addService(PRODUCER_NAME, producer.get());
-        serviceManager->addService(CONSUMER_NAME, consumer.get());
+        serviceManager->addService(PRODUCER_NAME, producer->asBinder());
+        serviceManager->addService(CONSUMER_NAME, consumer->asBinder());
         ProcessState::self()->startThreadPool();
         IPCThreadState::self()->joinThreadPool();
         LOG_ALWAYS_FATAL("Shouldn't be here");

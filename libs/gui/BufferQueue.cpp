@@ -43,19 +43,6 @@ void BufferQueue::ProxyConsumerListener::onBuffersReleased() {
     }
 }
 
-void BufferQueue::createBufferQueue(sp<BnGraphicBufferProducer>* outProducer,
-        sp<BnGraphicBufferConsumer>* outConsumer,
-        const sp<IGraphicBufferAlloc>& allocator) {
-    LOG_ALWAYS_FATAL_IF(outProducer == NULL,
-            "BufferQueue: outProducer must not be NULL");
-    LOG_ALWAYS_FATAL_IF(outConsumer == NULL,
-            "BufferQueue: outConsumer must not be NULL");
-
-    sp<BufferQueueCore> core(new BufferQueueCore(allocator));
-    *outProducer = new BufferQueueProducer(core);
-    *outConsumer = new BufferQueueConsumer(core);
-}
-
 void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
         sp<IGraphicBufferConsumer>* outConsumer,
         const sp<IGraphicBufferAlloc>& allocator) {
@@ -65,8 +52,19 @@ void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
             "BufferQueue: outConsumer must not be NULL");
 
     sp<BufferQueueCore> core(new BufferQueueCore(allocator));
-    *outProducer = new BufferQueueProducer(core);
-    *outConsumer = new BufferQueueConsumer(core);
+    LOG_ALWAYS_FATAL_IF(core == NULL,
+            "BufferQueue: failed to create BufferQueueCore");
+
+    sp<IGraphicBufferProducer> producer(new BufferQueueProducer(core));
+    LOG_ALWAYS_FATAL_IF(producer == NULL,
+            "BufferQueue: failed to create BufferQueueProducer");
+
+    sp<IGraphicBufferConsumer> consumer(new BufferQueueConsumer(core));
+    LOG_ALWAYS_FATAL_IF(consumer == NULL,
+            "BufferQueue: failed to create BufferQueueConsumer");
+
+    *outProducer = producer;
+    *outConsumer = consumer;
 }
 
 BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
