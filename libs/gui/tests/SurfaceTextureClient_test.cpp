@@ -43,9 +43,11 @@ protected:
         ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
                 testInfo->name());
 
-        sp<BufferQueue> bq = new BufferQueue();
-        mST = new GLConsumer(bq, 123);
-        mSTC = new Surface(bq);
+        sp<IGraphicBufferProducer> producer;
+        sp<IGraphicBufferConsumer> consumer;
+        BufferQueue::createBufferQueue(&producer, &consumer);
+        mST = new GLConsumer(consumer, 123);
+        mSTC = new Surface(producer);
         mANW = mSTC;
 
         // We need a valid GL context so we can test updateTexImage()
@@ -711,9 +713,11 @@ protected:
         ASSERT_NE(EGL_NO_CONTEXT, mEglContext);
 
         for (int i = 0; i < NUM_SURFACE_TEXTURES; i++) {
-            sp<BufferQueue> bq = new BufferQueue();
-            sp<GLConsumer> st(new GLConsumer(bq, i));
-            sp<Surface> stc(new Surface(bq));
+            sp<IGraphicBufferProducer> producer;
+            sp<IGraphicBufferConsumer> consumer;
+            BufferQueue::createBufferQueue(&producer, &consumer);
+            sp<GLConsumer> st(new GLConsumer(consumer, i));
+            sp<Surface> stc(new Surface(producer));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);
             ASSERT_EQ(EGL_SUCCESS, eglGetError());

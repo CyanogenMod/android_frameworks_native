@@ -68,13 +68,15 @@ protected:
     }
 
     virtual void SetUp() {
-        mBufferQueue = new BufferQueue();
-        ASSERT_EQ(NO_ERROR, mBufferQueue->setDefaultBufferSize(
+        sp<IGraphicBufferProducer> producer;
+        sp<IGraphicBufferConsumer> consumer;
+        BufferQueue::createBufferQueue(&producer, &consumer);
+        ASSERT_EQ(NO_ERROR, consumer->setDefaultBufferSize(
                 DISPLAY_WIDTH, DISPLAY_HEIGHT));
-        mCpuConsumer = new CpuConsumer(mBufferQueue, 1);
+        mCpuConsumer = new CpuConsumer(consumer, 1);
         String8 name("CpuConsumer_for_SRGBTest");
         mCpuConsumer->setName(name);
-        mInputSurface = new Surface(mBufferQueue);
+        mInputSurface = new Surface(producer);
 
         ASSERT_NO_FATAL_FAILURE(createEGLSurface(mInputSurface.get()));
         ASSERT_NO_FATAL_FAILURE(createDebugSurface());
@@ -222,7 +224,6 @@ protected:
     }
 
     // Primary producer and consumer
-    sp<BufferQueue> mBufferQueue;
     sp<Surface> mInputSurface;
     sp<CpuConsumer> mCpuConsumer;
     CpuConsumer::LockedBuffer mLockedBuffer;
