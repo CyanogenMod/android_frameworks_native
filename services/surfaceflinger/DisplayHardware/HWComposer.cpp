@@ -46,9 +46,6 @@
 #include "../Layer.h"           // needed only for debugging
 #include "../SurfaceFlinger.h"
 
-#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
-#include "cb_swap_rect.h"
-#endif
 namespace android {
 
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
@@ -192,7 +189,6 @@ HWComposer::HWComposer(
       mCBContext(new cb_context),
       mEventHandler(handler),
       mDebugForceFakeVSync(false),
-      mSwapRectOn(false),
       mVDSEnabled(false)
 {
     for (size_t i =0 ; i<MAX_HWC_DISPLAYS ; i++) {
@@ -826,9 +822,6 @@ status_t HWComposer::prepare() {
                     // trigger a FLIP
                     if(l.compositionType == HWC_BLIT) {
                         disp.hasFbComp = true;
-                     // Setting disp.hasBlitComp to true to identify
-                     // blit cases. This is used in features like swaprect.
-                        disp.hasBlitComp = true;
                     }
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
@@ -850,12 +843,6 @@ bool HWComposer::hasGlesComposition(int32_t id) const {
     if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return true;
     return mDisplayData[id].hasFbComp;
-}
-
-bool HWComposer::hasBlitComposition(int32_t id) const {
-    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
-         return false;
-    return mDisplayData[id].hasBlitComp;
 }
 
 sp<Fence> HWComposer::getAndResetReleaseFence(int32_t id) {
@@ -1348,46 +1335,10 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, numLayers);
 }
 
-
-void HWComposer::setSwapRect(Rect dirtyRect)
-{
-    DisplayData& disp(mDisplayData[0]);
-
-    for (size_t i=0 ; i<disp.list->numHwLayers-1 ; i++) {
-         hwc_layer_1_t &l = disp.list->hwLayers[i];
-         Rect temp;
-         Rect dCrop;
-         dCrop.left =l.displayFrame.left;
-         dCrop.top =l.displayFrame.top;
-         dCrop.right =l.displayFrame.right;
-         dCrop.bottom =l.displayFrame.bottom;
-
-         if((dCrop).intersect(dirtyRect,&temp)) {
-               l.sourceCropf.left   = dirtyRect.left;
-               l.sourceCropf.top    = dirtyRect.top;
-               l.sourceCropf.right  = dirtyRect.right;
-               l.sourceCropf.bottom = dirtyRect.bottom;
-
-               l.displayFrame.left   = dirtyRect.left;
-               l.displayFrame.top    = dirtyRect.top;
-               l.displayFrame.right  = dirtyRect.right;
-               l.displayFrame.bottom = dirtyRect.bottom;
-          } else {
-#if defined(ENABLE_SWAPRECT) && defined(QCOM_BSP)
-               l.flags |= qdutils::HWC_SKIP_HWC_COMPOSITION;
-#endif
-          }
-     }
-}
-
-void HWComposer::setSwapRectOn(bool enable){
-    mSwapRectOn = enable;
-}
 void HWComposer::dump(String8& result) const {
     if (mHwc) {
         result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
-        result.appendFormat("  mSwapRectOn=%d\n",mSwapRectOn);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
             if (!disp.connected)

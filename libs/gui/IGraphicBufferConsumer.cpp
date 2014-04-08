@@ -195,8 +195,6 @@ enum {
     SET_DEFAULT_BUFFER_FORMAT,
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
-    SET_DIRTY_RECT,
-    GET_DIRTY_RECT,
     DUMP,
 };
 
@@ -364,32 +362,6 @@ public:
         remote()->transact(DUMP, data, &reply);
         reply.readString8();
     }
-    virtual status_t setCurrentDirtyRegion( int index) {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
-        data.writeInt32(index);
-        status_t result = remote()->transact(SET_DIRTY_RECT, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        return reply.readInt32();
-    }
-
-    virtual  status_t getCurrentDirtyRegion(Rect& dirtyRect) {
-        Parcel data, reply;
-        data.writeInterfaceToken(
-            IGraphicBufferConsumer::getInterfaceDescriptor());
-        status_t result = remote()->transact(GET_DIRTY_RECT, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        dirtyRect.left   = reply.readInt32();
-        dirtyRect.top    = reply.readInt32();
-        dirtyRect.right  = reply.readInt32();
-        dirtyRect.bottom = reply.readInt32();
-        return reply.readInt32();
-    }
-
 };
 
 IMPLEMENT_META_INTERFACE(GraphicBufferConsumer, "android.gui.IGraphicBufferConsumer");
@@ -506,24 +478,6 @@ status_t BnGraphicBufferConsumer::onTransact(
             reply->writeString8(result);
             return NO_ERROR;
         }
-        case SET_DIRTY_RECT: {
-           CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
-            uint32_t index = data.readInt32();
-            status_t result = setCurrentDirtyRegion(index);
-            reply->writeInt32(result);
-            return NO_ERROR;
-        } break;
-        case GET_DIRTY_RECT: {
-            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
-            Rect dirtyRect;
-            status_t result = getCurrentDirtyRegion(dirtyRect);
-            reply->writeInt32(dirtyRect.left);
-            reply->writeInt32(dirtyRect.top);
-            reply->writeInt32(dirtyRect.right);
-            reply->writeInt32(dirtyRect.bottom);
-            reply->writeInt32(result);
-            return NO_ERROR;
-        } break;
     }
     return BBinder::onTransact(code, data, reply, flags);
 }
