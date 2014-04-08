@@ -27,9 +27,9 @@ class SurfaceFlinger;
 
 // MonitoredProducer wraps an IGraphicBufferProducer so that SurfaceFlinger will
 // be notified upon its destruction
-class MonitoredProducer : public BnGraphicBufferProducer {
+class MonitoredProducer : public IGraphicBufferProducer {
 public:
-    MonitoredProducer(const sp<BnGraphicBufferProducer>& producer,
+    MonitoredProducer(const sp<IGraphicBufferProducer>& producer,
             const sp<SurfaceFlinger>& flinger);
     virtual ~MonitoredProducer();
 
@@ -49,9 +49,10 @@ public:
             bool producerControlledByApp, QueueBufferOutput* output);
     virtual status_t disconnect(int api);
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
+    virtual IBinder* onAsBinder();
 
 private:
-    sp<BnGraphicBufferProducer> mProducer;
+    sp<IGraphicBufferProducer> mProducer;
     sp<SurfaceFlinger> mFlinger;
 };
 

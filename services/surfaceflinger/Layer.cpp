@@ -117,8 +117,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
 void Layer::onFirstRef() {
     // Creates a custom BufferQueue for SurfaceFlingerConsumer to use
-    sp<BnGraphicBufferProducer> producer;
-    sp<BnGraphicBufferConsumer> consumer;
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
     BufferQueue::createBufferQueue(&producer, &consumer);
     mProducer = new MonitoredProducer(producer, mFlinger);
     mSurfaceFlingerConsumer = new SurfaceFlingerConsumer(consumer, mTextureName);
