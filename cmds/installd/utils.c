@@ -1022,7 +1022,13 @@ int create_profile_file(const char *pkgname, gid_t gid) {
         // Make the profile directory write-only for group and other. Owner can rwx it.
         if (chmod(profile_dir, 0711) < 0) {
             ALOGE("cannot chown profile dir '%s': %s\n", profile_dir, strerror(errno));
-            unlink(profile_dir);
+            rmdir(profile_dir);
+            return -1;
+        }
+
+        if (selinux_android_restorecon(profile_dir, 0) < 0) {
+            ALOGE("cannot restorecon profile dir '%s': %s\n", profile_dir, strerror(errno));
+            rmdir(profile_dir);
             return -1;
         }
     }
