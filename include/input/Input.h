@@ -178,13 +178,9 @@ enum {
 
     /* These flags are set by the input reader policy as it intercepts each event. */
 
-    // Indicates that the screen was off when the event was received and the event
-    // should wake the device.
-    POLICY_FLAG_WOKE_HERE = 0x10000000,
-
-    // Indicates that the screen was dim when the event was received and the event
-    // should brighten the device.
-    POLICY_FLAG_BRIGHT_HERE = 0x20000000,
+    // Indicates that the device was in an interactive state when the
+    // event was intercepted.
+    POLICY_FLAG_INTERACTIVE = 0x20000000,
 
     // Indicates that the event should be dispatched to applications.
     // The input event should still be sent to the InputDispatcher so that it can see all
