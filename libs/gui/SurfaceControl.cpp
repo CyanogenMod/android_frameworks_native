@@ -92,68 +92,57 @@ bool SurfaceControl::isSameSurface(
 status_t SurfaceControl::setLayerStack(int32_t layerStack) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayerStack(mHandle, layerStack);
+    return mClient->setLayerStack(mHandle, layerStack);
 }
 status_t SurfaceControl::setLayer(int32_t layer) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setLayer(mHandle, layer);
+    return mClient->setLayer(mHandle, layer);
 }
 status_t SurfaceControl::setPosition(float x, float y) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setPosition(mHandle, x, y);
+    return mClient->setPosition(mHandle, x, y);
 }
 status_t SurfaceControl::setSize(uint32_t w, uint32_t h) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setSize(mHandle, w, h);
+    return mClient->setSize(mHandle, w, h);
 }
 status_t SurfaceControl::hide() {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->hide(mHandle);
+    return mClient->hide(mHandle);
 }
 status_t SurfaceControl::show() {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->show(mHandle);
+    return mClient->show(mHandle);
 }
 status_t SurfaceControl::setFlags(uint32_t flags, uint32_t mask) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setFlags(mHandle, flags, mask);
+    return mClient->setFlags(mHandle, flags, mask);
 }
 status_t SurfaceControl::setTransparentRegionHint(const Region& transparent) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setTransparentRegionHint(mHandle, transparent);
+    return mClient->setTransparentRegionHint(mHandle, transparent);
 }
 status_t SurfaceControl::setAlpha(float alpha) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setAlpha(mHandle, alpha);
+    return mClient->setAlpha(mHandle, alpha);
 }
 status_t SurfaceControl::setMatrix(float dsdx, float dtdx, float dsdy, float dtdy) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setMatrix(mHandle, dsdx, dtdx, dsdy, dtdy);
+    return mClient->setMatrix(mHandle, dsdx, dtdx, dsdy, dtdy);
 }
 status_t SurfaceControl::setCrop(const Rect& crop) {
     status_t err = validate();
     if (err < 0) return err;
-    const sp<SurfaceComposerClient>& client(mClient);
-    return client->setCrop(mHandle, crop);
+    return mClient->setCrop(mHandle, crop);
 }
 
 status_t SurfaceControl::validate() const
