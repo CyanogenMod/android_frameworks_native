@@ -18,6 +18,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= \
 	Fence.cpp \
 	FramebufferNativeWindow.cpp \
+	FrameStats.cpp \
 	GraphicBuffer.cpp \
 	GraphicBufferAllocator.cpp \
 	GraphicBufferMapper.cpp \

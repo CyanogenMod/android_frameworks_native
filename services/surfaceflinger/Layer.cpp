@@ -1244,16 +1244,20 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
     }
 }
 
-void Layer::dumpStats(String8& result) const {
-    mFrameTracker.dump(result);
+void Layer::dumpFrameStats(String8& result) const {
+    mFrameTracker.dumpStats(result);
 }
 
-void Layer::clearStats() {
-    mFrameTracker.clear();
+void Layer::clearFrameStats() {
+    mFrameTracker.clearStats();
 }
 
 void Layer::logFrameStats() {
     mFrameTracker.logAndResetStats(mName);
+}
+
+void Layer::getFrameStats(FrameStats* outStats) const {
+    mFrameTracker.getStats(outStats);
 }
 
 // ---------------------------------------------------------------------------

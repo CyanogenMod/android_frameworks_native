@@ -39,7 +39,9 @@ namespace android {
 
 enum {
     CREATE_SURFACE = IBinder::FIRST_CALL_TRANSACTION,
-    DESTROY_SURFACE
+    DESTROY_SURFACE,
+    CLEAR_LAYER_FRAME_STATS,
+    GET_LAYER_FRAME_STATS
 };
 
 class BpSurfaceComposerClient : public BpInterface<ISurfaceComposerClient>
@@ -73,6 +75,23 @@ public:
         remote()->transact(DESTROY_SURFACE, data, &reply);
         return reply.readInt32();
     }
+
+    virtual status_t clearLayerFrameStats(const sp<IBinder>& handle) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
+        data.writeStrongBinder(handle);
+        remote()->transact(CLEAR_LAYER_FRAME_STATS, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual status_t getLayerFrameStats(const sp<IBinder>& handle, FrameStats* outStats) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
+        data.writeStrongBinder(handle);
+        remote()->transact(GET_LAYER_FRAME_STATS, data, &reply);
+        reply.read(*outStats);
+        return reply.readInt32();
+    }
 };
 
 IMPLEMENT_META_INTERFACE(SurfaceComposerClient, "android.ui.ISurfaceComposerClient");
@@ -101,7 +120,23 @@ status_t BnSurfaceComposerClient::onTransact(
         } break;
         case DESTROY_SURFACE: {
             CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
-            reply->writeInt32( destroySurface( data.readStrongBinder() ) );
+            reply->writeInt32(destroySurface( data.readStrongBinder() ) );
+            return NO_ERROR;
+        } break;
+       case CLEAR_LAYER_FRAME_STATS: {
+            CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
+            sp<IBinder> handle = data.readStrongBinder();
+            status_t result = clearLayerFrameStats(handle);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        } break;
+        case GET_LAYER_FRAME_STATS: {
+            CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
+            sp<IBinder> handle = data.readStrongBinder();
+            FrameStats stats;
+            status_t result = getLayerFrameStats(handle, &stats);
+            reply->write(stats);
+            reply->writeInt32(result);
             return NO_ERROR;
         } break;
         default:

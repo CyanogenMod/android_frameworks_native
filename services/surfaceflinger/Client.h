@@ -60,6 +60,10 @@ private:
 
     virtual status_t destroySurface(const sp<IBinder>& handle);
 
+    virtual status_t clearLayerFrameStats(const sp<IBinder>& handle) const;
+
+    virtual status_t getLayerFrameStats(const sp<IBinder>& handle, FrameStats* outStats) const;
+
     virtual status_t onTransact(
         uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags);
 

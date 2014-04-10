@@ -515,6 +515,21 @@ status_t SurfaceComposerClient::destroySurface(const sp<IBinder>& sid) {
     return err;
 }
 
+status_t SurfaceComposerClient::clearLayerFrameStats(const sp<IBinder>& token) const {
+    if (mStatus != NO_ERROR) {
+        return mStatus;
+    }
+    return mClient->clearLayerFrameStats(token);
+}
+
+status_t SurfaceComposerClient::getLayerFrameStats(const sp<IBinder>& token,
+        FrameStats* outStats) const {
+    if (mStatus != NO_ERROR) {
+        return mStatus;
+    }
+    return mClient->getLayerFrameStats(token, outStats);
+}
+
 inline Composer& SurfaceComposerClient::getComposer() {
     return mComposer;
 }
@@ -620,6 +635,14 @@ void SurfaceComposerClient::blankDisplay(const sp<IBinder>& token) {
 
 void SurfaceComposerClient::unblankDisplay(const sp<IBinder>& token) {
     ComposerService::getComposerService()->unblank(token);
+}
+
+status_t SurfaceComposerClient::clearAnimationFrameStats() {
+    return ComposerService::getComposerService()->clearAnimationFrameStats();
+}
+
+status_t SurfaceComposerClient::getAnimationFrameStats(FrameStats* outStats) {
+    return ComposerService::getComposerService()->getAnimationFrameStats(outStats);
 }
 
 // ----------------------------------------------------------------------------

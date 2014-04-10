@@ -27,6 +27,7 @@
 #include <utils/String8.h>
 #include <utils/Timers.h>
 
+#include <ui/FrameStats.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/PixelFormat.h>
 #include <ui/Region.h>
@@ -288,9 +289,10 @@ public:
 
     /* always call base class first */
     void dump(String8& result, Colorizer& colorizer) const;
-    void dumpStats(String8& result) const;
-    void clearStats();
+    void dumpFrameStats(String8& result) const;
+    void clearFrameStats();
     void logFrameStats();
+    void getFrameStats(FrameStats* outStats) const;
 
 protected:
     // constant
