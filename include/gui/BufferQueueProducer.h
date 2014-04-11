@@ -140,7 +140,7 @@ public:
     // it's still connected to a producer).
     //
     // APIs are enumerated in window.h (e.g. NATIVE_WINDOW_API_CPU).
-    virtual status_t connect(const sp<IBinder>& token,
+    virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
 
     // disconnect attempts to disconnect a producer API from the BufferQueue.

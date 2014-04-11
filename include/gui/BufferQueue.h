@@ -228,16 +228,8 @@ public:
     // will usually be the one obtained from dequeueBuffer.
     virtual void cancelBuffer(int buf, const sp<Fence>& fence);
 
-    // connect attempts to connect a producer API to the BufferQueue.  This
-    // must be called before any other IGraphicBufferProducer methods are
-    // called except for getAllocator.  A consumer must already be connected.
-    //
-    // This method will fail if connect was previously called on the
-    // BufferQueue and no corresponding disconnect call was made (i.e. if
-    // it's still connected to a producer).
-    //
-    // APIs are enumerated in window.h (e.g. NATIVE_WINDOW_API_CPU).
-    virtual status_t connect(const sp<IBinder>& token,
+    // See IGraphicBufferProducer::connect
+    virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
 
     // disconnect attempts to disconnect a producer API from the BufferQueue.

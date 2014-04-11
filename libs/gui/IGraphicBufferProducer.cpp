@@ -27,6 +27,7 @@
 #include <binder/IInterface.h>
 
 #include <gui/IGraphicBufferProducer.h>
+#include <gui/IProducerListener.h>
 
 namespace android {
 // ----------------------------------------------------------------------------
@@ -171,11 +172,16 @@ public:
         return result;
     }
 
-    virtual status_t connect(const sp<IBinder>& token,
+    virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeStrongBinder(token);
+        if (listener != NULL) {
+            data.writeInt32(1);
+            data.writeStrongBinder(listener->asBinder());
+        } else {
+            data.writeInt32(0);
+        }
         data.writeInt32(api);
         data.writeInt32(producerControlledByApp);
         status_t result = remote()->transact(CONNECT, data, &reply);
@@ -308,13 +314,16 @@ status_t BnGraphicBufferProducer::onTransact(
         } break;
         case CONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            sp<IBinder> token = data.readStrongBinder();
+            sp<IProducerListener> listener;
+            if (data.readInt32() == 1) {
+                listener = IProducerListener::asInterface(data.readStrongBinder());
+            }
             int api = data.readInt32();
             bool producerControlledByApp = data.readInt32();
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
-            status_t res = connect(token, api, producerControlledByApp, output);
+            status_t res = connect(listener, api, producerControlledByApp, output);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;

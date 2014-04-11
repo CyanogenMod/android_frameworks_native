@@ -117,9 +117,9 @@ void BufferQueue::cancelBuffer(int buf, const sp<Fence>& fence) {
     mProducer->cancelBuffer(buf, fence);
 }
 
-status_t BufferQueue::connect(const sp<IBinder>& token,
+status_t BufferQueue::connect(const sp<IProducerListener>& listener,
         int api, bool producerControlledByApp, QueueBufferOutput* output) {
-    return mProducer->connect(token, api, producerControlledByApp, output);
+    return mProducer->connect(listener, api, producerControlledByApp, output);
 }
 
 status_t BufferQueue::disconnect(int api) {

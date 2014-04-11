@@ -25,6 +25,7 @@
 #include <gui/BufferQueueProducer.h>
 #include <gui/IConsumerListener.h>
 #include <gui/IGraphicBufferAlloc.h>
+#include <gui/IProducerListener.h>
 
 #include <utils/Log.h>
 #include <utils/Trace.h>
@@ -654,7 +655,7 @@ int BufferQueueProducer::query(int what, int *outValue) {
     return NO_ERROR;
 }
 
-status_t BufferQueueProducer::connect(const sp<android::IBinder> &token,
+status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
         int api, bool producerControlledByApp, QueueBufferOutput *output) {
     ATRACE_CALL();
     Mutex::Autolock lock(mCore->mMutex);
@@ -711,16 +712,16 @@ status_t BufferQueueProducer::connect(const sp<android::IBinder> &token,
 
             // Set up a death notification so that we can disconnect
             // automatically if the remote producer dies
-            if (token != NULL && token->remoteBinder() != NULL) {
-                status = token->linkToDeath(
+            if (listener != NULL &&
+                    listener->asBinder()->remoteBinder() != NULL) {
+                status = listener->asBinder()->linkToDeath(
                         static_cast<IBinder::DeathRecipient*>(this));
-                if (status == NO_ERROR) {
-                    mCore->mConnectedProducerToken = token;
-                } else {
+                if (status != NO_ERROR) {
                     BQ_LOGE("connect(P): linkToDeath failed: %s (%d)",
                             strerror(-status), status);
                 }
             }
+            mCore->mConnectedProducerListener = listener;
             break;
         default:
             BQ_LOGE("connect(P): unknown API %d", api);
@@ -759,14 +760,15 @@ status_t BufferQueueProducer::disconnect(int api) {
                     mCore->freeAllBuffersLocked();
 
                     // Remove our death notification callback if we have one
-                    sp<IBinder> token = mCore->mConnectedProducerToken;
-                    if (token != NULL) {
+                    if (mCore->mConnectedProducerListener != NULL) {
+                        sp<IBinder> token =
+                                mCore->mConnectedProducerListener->asBinder();
                         // This can fail if we're here because of the death
                         // notification, but we just ignore it
                         token->unlinkToDeath(
                                 static_cast<IBinder::DeathRecipient*>(this));
                     }
-                    mCore->mConnectedProducerToken = NULL;
+                    mCore->mConnectedProducerListener = NULL;
                     mCore->mConnectedApi = BufferQueueCore::NO_CONNECTED_API;
                     mCore->mSidebandStream.clear();
                     mCore->mDequeueCondition.broadcast();

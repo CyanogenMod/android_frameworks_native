@@ -46,9 +46,9 @@
 namespace android {
 
 class BufferItem;
-class IBinder;
 class IConsumerListener;
 class IGraphicBufferAlloc;
+class IProducerListener;
 
 class BufferQueueCore : public virtual RefBase {
 
@@ -162,7 +162,7 @@ private:
 
     // mConnectedProducerToken is used to set a binder death notification on
     // the producer.
-    sp<IBinder> mConnectedProducerToken;
+    sp<IProducerListener> mConnectedProducerListener;
 
     // mSlots is an array of buffer slots that must be mirrored on the producer
     // side. This allows buffer ownership to be transferred between the producer
