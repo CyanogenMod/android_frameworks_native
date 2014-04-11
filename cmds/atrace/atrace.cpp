@@ -92,6 +92,9 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
     } },
+    { "irq",        "IRQ Events",   0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/irq/enable" },
+    } },
     { "freq",       "CPU Frequency",    0, {
         { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable" },
         { OPT,      "/sys/kernel/debug/tracing/events/power/clock_set_rate/enable" },
