@@ -38,18 +38,18 @@ static int do_install(char **arg, char reply[REPLY_MAX])
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX])
 {
-        /* apk_path, uid, is_public, pkgname */
-    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
+        /* apk_path, uid, is_public, pkgname, instruction_set */
+    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4]);
 }
 
 static int do_move_dex(char **arg, char reply[REPLY_MAX])
 {
-    return move_dex(arg[0], arg[1]); /* src, dst */
+    return move_dex(arg[0], arg[1], arg[2]); /* src, dst, instruction_set */
 }
 
 static int do_rm_dex(char **arg, char reply[REPLY_MAX])
 {
-    return rm_dex(arg[0]); /* pkgname */
+    return rm_dex(arg[0], arg[1]); /* pkgname, instruction_set */
 }
 
 static int do_remove(char **arg, char reply[REPLY_MAX])
@@ -87,7 +87,7 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
 
         /* pkgdir, userid, apkpath */
     res = get_size(arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
-            &codesize, &datasize, &cachesize, &asecsize);
+            arg[6], &codesize, &datasize, &cachesize, &asecsize);
 
     /*
      * Each int64_t can take up 22 characters printed out. Make sure it
@@ -144,15 +144,15 @@ struct cmdinfo {
 struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
     { "install",              4, do_install },
-    { "dexopt",               4, do_dexopt },
-    { "movedex",              2, do_move_dex },
-    { "rmdex",                1, do_rm_dex },
+    { "dexopt",               5, do_dexopt },
+    { "movedex",              3, do_move_dex },
+    { "rmdex",                2, do_rm_dex },
     { "remove",               2, do_remove },
     { "rename",               2, do_rename },
     { "fixuid",               3, do_fixuid },
     { "freecache",            1, do_free_cache },
     { "rmcache",              2, do_rm_cache },
-    { "getsize",              6, do_get_size },
+    { "getsize",              7, do_get_size },
     { "rmuserdata",           2, do_rm_user_data },
     { "movefiles",            0, do_movefiles },
     { "linklib",              3, do_linklib },
