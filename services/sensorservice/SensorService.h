@@ -131,6 +131,7 @@ class SensorService :
 
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
+    Sensor getSensorFromHandle(int handle) const;
     void recordLastValue(const sensors_event_t* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
@@ -141,7 +142,8 @@ class SensorService :
             const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
             sensors_event_t const* buffer, const int count);
-
+    static bool canAccessSensor(const Sensor& sensor);
+    static bool verifyCanAccessSensor(const Sensor& sensor, const char* operation);
     // constants
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
