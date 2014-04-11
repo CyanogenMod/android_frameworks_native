@@ -152,7 +152,8 @@ int create_move_path(char path[PKG_PATH_MAX],
 
 int is_valid_package_name(const char* pkgname);
 
-int create_cache_path(char path[PKG_PATH_MAX], const char *src);
+int create_cache_path(char path[PKG_PATH_MAX], const char *src,
+                      const char *instruction_set);
 
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
@@ -202,14 +203,15 @@ int delete_user_data(const char *pkgname, userid_t userid);
 int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo);
 int delete_user(userid_t userid);
 int delete_cache(const char *pkgname, userid_t userid);
-int move_dex(const char *src, const char *dst);
-int rm_dex(const char *path);
+int move_dex(const char *src, const char *dst, const char *instruction_set);
+int rm_dex(const char *path, const char *instruction_set);
 int protect(char *pkgname, gid_t gid);
 int get_size(const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
-             const char *fwdlock_apkpath, const char *asecpath, int64_t *codesize,
-             int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
+             const char *fwdlock_apkpath, const char *asecpath, const char *instruction_set,
+             int64_t *codesize, int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
 int free_cache(int64_t free_size);
-int dexopt(const char *apk_path, uid_t uid, int is_public, const char *pkgName);
+int dexopt(const char *apk_path, uid_t uid, int is_public, const char *pkgName,
+           const char *instruction_set);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
