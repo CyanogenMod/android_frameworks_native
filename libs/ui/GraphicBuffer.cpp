@@ -34,9 +34,17 @@ namespace android {
 // Buffer and implementation of ANativeWindowBuffer
 // ===========================================================================
 
+static uint64_t getUniqueId() {
+    static volatile int32_t nextId = 0;
+    uint64_t id = static_cast<uint64_t>(getpid()) << 32;
+    id |= static_cast<uint32_t>(android_atomic_inc(&nextId));
+    return id;
+}
+
 GraphicBuffer::GraphicBuffer()
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR) {
+      mInitCheck(NO_ERROR), mId(getUniqueId())
+{
     width  = 
     height = 
     stride = 
@@ -48,7 +56,7 @@ GraphicBuffer::GraphicBuffer()
 GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h, 
         PixelFormat reqFormat, uint32_t reqUsage)
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR)
+      mInitCheck(NO_ERROR), mId(getUniqueId())
 {
     width  = 
     height = 
@@ -64,7 +72,7 @@ GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h,
         uint32_t inStride, native_handle_t* inHandle, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR)
+      mInitCheck(NO_ERROR), mId(getUniqueId())
 {
     width  = w;
     height = h;
@@ -77,7 +85,7 @@ GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h,
 GraphicBuffer::GraphicBuffer(ANativeWindowBuffer* buffer, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
-      mInitCheck(NO_ERROR), mWrappedBuffer(buffer)
+      mInitCheck(NO_ERROR), mWrappedBuffer(buffer), mId(getUniqueId())
 {
     width  = buffer->width;
     height = buffer->height;
@@ -201,7 +209,7 @@ status_t GraphicBuffer::unlock()
 }
 
 size_t GraphicBuffer::getFlattenedSize() const {
-    return (8 + (handle ? handle->numInts : 0))*sizeof(int);
+    return (10 + (handle ? handle->numInts : 0))*sizeof(int);
 }
 
 size_t GraphicBuffer::getFdCount() const {
@@ -215,22 +223,24 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
     size_t fdCountNeeded = GraphicBuffer::getFdCount();
     if (count < fdCountNeeded) return NO_MEMORY;
 
-    int* buf = static_cast<int*>(buffer);
+    int32_t* buf = static_cast<int32_t*>(buffer);
     buf[0] = 'GBFR';
     buf[1] = width;
     buf[2] = height;
     buf[3] = stride;
     buf[4] = format;
     buf[5] = usage;
-    buf[6] = 0;
-    buf[7] = 0;
+    buf[6] = static_cast<int32_t>(mId >> 32);
+    buf[7] = static_cast<int32_t>(mId & 0xFFFFFFFFull);
+    buf[8] = 0;
+    buf[9] = 0;
 
     if (handle) {
-        buf[6] = handle->numFds;
-        buf[7] = handle->numInts;
+        buf[8] = handle->numFds;
+        buf[9] = handle->numInts;
         native_handle_t const* const h = handle;
         memcpy(fds,     h->data,             h->numFds*sizeof(int));
-        memcpy(&buf[8], h->data + h->numFds, h->numInts*sizeof(int));
+        memcpy(&buf[10], h->data + h->numFds, h->numInts*sizeof(int));
     }
 
     buffer = reinterpret_cast<void*>(static_cast<int*>(buffer) + sizeNeeded);
@@ -250,10 +260,10 @@ status_t GraphicBuffer::unflatten(
     int const* buf = static_cast<int const*>(buffer);
     if (buf[0] != 'GBFR') return BAD_TYPE;
 
-    const size_t numFds  = buf[6];
-    const size_t numInts = buf[7];
+    const size_t numFds  = buf[8];
+    const size_t numInts = buf[9];
 
-    const size_t sizeNeeded = (8 + numInts) * sizeof(int);
+    const size_t sizeNeeded = (10 + numInts) * sizeof(int);
     if (size < sizeNeeded) return NO_MEMORY;
 
     size_t fdCountNeeded = 0;
@@ -272,12 +282,15 @@ status_t GraphicBuffer::unflatten(
         usage  = buf[5];
         native_handle* h = native_handle_create(numFds, numInts);
         memcpy(h->data,          fds,     numFds*sizeof(int));
-        memcpy(h->data + numFds, &buf[8], numInts*sizeof(int));
+        memcpy(h->data + numFds, &buf[10], numInts*sizeof(int));
         handle = h;
     } else {
         width = height = stride = format = usage = 0;
         handle = NULL;
     }
+
+    mId = static_cast<uint64_t>(buf[6]) << 32;
+    mId |= static_cast<uint32_t>(buf[7]);
 
     mOwner = ownHandle;
 

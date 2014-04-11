@@ -88,7 +88,8 @@ public:
     uint32_t getUsage() const           { return usage; }
     PixelFormat getPixelFormat() const  { return format; }
     Rect getBounds() const              { return Rect(width, height); }
-    
+    uint64_t getId() const              { return mId; }
+
     status_t reallocate(uint32_t w, uint32_t h, PixelFormat f, uint32_t usage);
 
     status_t lock(uint32_t usage, void** vaddr);
@@ -146,6 +147,8 @@ private:
     // If we're wrapping another buffer then this reference will make sure it
     // doesn't get freed.
     sp<ANativeWindowBuffer> mWrappedBuffer;
+
+    uint64_t mId;
 };
 
 }; // namespace android
