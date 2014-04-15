@@ -138,7 +138,7 @@ status_t Fence::flatten(void*& buffer, size_t& size, int*& fds, size_t& count) c
     if (size < getFlattenedSize() || count < getFdCount()) {
         return NO_MEMORY;
     }
-    FlattenableUtils::write(buffer, size, getFdCount());
+    FlattenableUtils::write(buffer, size, (uint32_t)getFdCount());
     if (isValid()) {
         *fds++ = mFenceFd;
         count--;
@@ -156,7 +156,7 @@ status_t Fence::unflatten(void const*& buffer, size_t& size, int const*& fds, si
         return NO_MEMORY;
     }
 
-    size_t numFds;
+    uint32_t numFds;
     FlattenableUtils::read(buffer, size, numFds);
 
     if (numFds > 1) {
