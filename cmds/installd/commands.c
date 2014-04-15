@@ -1139,15 +1139,21 @@ int restorecon_data()
     return ret;
 }
 
-static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd, const char *redirectionsPath)
+static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd,
+                      uint32_t target_hash, uint32_t overlay_hash, const char *redirectionsPath)
 {
     static const char *IDMAP_BIN = "/system/bin/idmap";
     static const size_t MAX_INT_LEN = 32;
     char idmap_str[MAX_INT_LEN];
+    char target_hash_str[MAX_INT_LEN];
+    char overlay_hash_str[MAX_INT_LEN];
 
     snprintf(idmap_str, sizeof(idmap_str), "%d", idmap_fd);
+    snprintf(target_hash_str, sizeof(target_hash_str), "%d", target_hash);
+    snprintf(overlay_hash_str, sizeof(overlay_hash_str), "%d", overlay_hash);
 
-    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str, redirectionsPath, (char*)NULL);
+    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str,
+            target_hash_str, overlay_hash_str, redirectionsPath, (char*)NULL);
     ALOGE("execl(%s) failed: %s\n", IDMAP_BIN, strerror(errno));
 }
 
@@ -1195,7 +1201,8 @@ static int flatten_path(const char *prefix, const char *suffix,
     return 0;
 }
 
-int idmap(const char *target_apk, const char *overlay_apk, uid_t uid, const char *redirections)
+int idmap(const char *target_apk, const char *overlay_apk, uid_t uid,
+          uint32_t target_hash, uint32_t overlay_hash, const char *redirections)
 {
     ALOGV("idmap target_apk=%s overlay_apk=%s uid=%d\n", target_apk, overlay_apk, uid);
 
@@ -1240,7 +1247,7 @@ int idmap(const char *target_apk, const char *overlay_apk, uid_t uid, const char
             exit(1);
         }
 
-        run_idmap(target_apk, overlay_apk, idmap_fd, redirections);
+        run_idmap(target_apk, overlay_apk, idmap_fd, target_hash, overlay_hash, redirections);
         exit(1); /* only if exec call to idmap failed */
     } else {
         int status = wait_child(pid);
