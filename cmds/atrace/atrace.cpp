@@ -40,7 +40,7 @@ using namespace android;
 
 #define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 
-enum { MAX_SYS_FILES = 8 };
+enum { MAX_SYS_FILES = 10 };
 
 const char* k_traceTagsProperty = "debug.atrace.tags.enableflags";
 const char* k_traceAppCmdlineProperty = "debug.atrace.app_cmdlines";
@@ -99,6 +99,12 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_idle/enable" },
     } },
     { "disk",       "Disk I/O",         0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/f2fs/f2fs_sync_file_enter/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/f2fs/f2fs_sync_file_exit/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/f2fs/f2fs_write_begin/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/f2fs/f2fs_write_end/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_da_write_begin/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_da_write_end/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_enter/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/ext4/ext4_sync_file_exit/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/block/block_rq_issue/enable" },
