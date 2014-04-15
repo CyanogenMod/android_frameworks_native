@@ -262,7 +262,7 @@ public:
 
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
-    void updateTransformHint(const sp<const DisplayDevice>& hw) const;
+    void updateTransformHint(const sp<const DisplayDevice>& hw);
 #ifdef QCOM_BSP
     virtual bool isExtOnly() const;
     virtual bool isIntOnly() const;
@@ -288,14 +288,6 @@ public:
     inline  const State&    getCurrentState() const { return mCurrentState; }
     inline  State&          getCurrentState()       { return mCurrentState; }
 
-    /**
-     * canUseSwapRect - returns true if Layer can be composited using SwapRect
-     * dirty rectangle for SwapRect is stored and returned in dirtyRect
-     */
-    bool canUseSwapRect(Region& consolidateVisibleRegion, Rect& dirtyRect,
-                        const sp<const DisplayDevice>& hw) const;
-
-    virtual void resetSwapRect();
 
     /* always call base class first */
     void dump(String8& result, Colorizer& colorizer) const;
@@ -391,10 +383,8 @@ private:
     // Set to true once we've returned this surface's handle
     mutable bool mHasSurface;
     const wp<Client> mClientRef;
-
-    uint32_t mDirtyRectRepeatCount;
-    Rect mSwapDirtyRect;
-
+    // Transform hint assigned for the layer
+    uint32_t mTransformHint;
 };
 
 // ---------------------------------------------------------------------------

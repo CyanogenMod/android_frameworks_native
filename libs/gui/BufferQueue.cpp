@@ -95,12 +95,6 @@ BufferQueue::BufferQueue(const sp<IGraphicBufferAlloc>& allocator) :
     } else {
         mGraphicBufferAlloc = allocator;
     }
-    Rect x(0,0,0,0);
-    mCurrentDirtyRegion.set(x);
-
-    for(size_t cur=0; cur<NUM_BUFFER_SLOTS; cur++)
-        mDirtyRegion[cur].set(x);
-
 }
 
 BufferQueue::~BufferQueue() {
@@ -140,36 +134,6 @@ status_t BufferQueue::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
     mTransformHint = hint;
     return NO_ERROR;
-}
-
-status_t BufferQueue::updateDirtyRegion(int bufferidx, int l, int t,
-                                       int r, int b) {
-    Mutex::Autolock lock(mMutex);
-    ST_LOGV("updateDirtyRegion: buffer idx:%d, dirty rect:[%d,%d][%d,%d]",
-            bufferidx, l, t, r, b);
-    Rect x(l,t,r,b);
-    mDirtyRegion[bufferidx].set(x);
-    return OK;
-}
-
-status_t BufferQueue::setCurrentDirtyRegion(int cur) {
-    Mutex::Autolock lock(mMutex);
-    ST_LOGV("setCurrentDirtyRegion");
-
-    mCurrentDirtyRegion.set(mDirtyRegion[cur]);
-
-    if(mCurrentDirtyRegion.isEmpty()) {
-            mCurrentDirtyRegion.clear();
-    }
-
-    mDirtyRegion[cur].clear();
-    return OK;
-}
-
-status_t BufferQueue::getCurrentDirtyRegion(Rect& dirtyRect) {
-    Mutex::Autolock lock(mMutex);
-    dirtyRect = mCurrentDirtyRegion;
-    return OK;
 }
 
 status_t BufferQueue::setBufferCount(int bufferCount) {
@@ -515,6 +479,9 @@ status_t BufferQueue::queueBuffer(int buf,
     ATRACE_BUFFER_INDEX(buf);
 
     Rect crop;
+#ifdef QCOM_BSP
+    Rect dirtyRect;
+#endif
     uint32_t transform;
     int scalingMode;
     int64_t timestamp;
@@ -522,8 +489,11 @@ status_t BufferQueue::queueBuffer(int buf,
     bool async;
     sp<Fence> fence;
 
-    input.deflate(&timestamp, &isAutoTimestamp, &crop, &scalingMode, &transform,
-            &async, &fence);
+    input.deflate(&timestamp, &isAutoTimestamp, &crop,
+#ifdef QCOM_BSP
+            &dirtyRect,
+#endif
+            &scalingMode, &transform, &async, &fence);
 
     if (fence == NULL) {
         ST_LOGE("queueBuffer: fence is NULL");
@@ -600,6 +570,9 @@ status_t BufferQueue::queueBuffer(int buf,
         item.mAcquireCalled = mSlots[buf].mAcquireCalled;
         item.mGraphicBuffer = mSlots[buf].mGraphicBuffer;
         item.mCrop = crop;
+#ifdef QCOM_BSP
+        item.mDirtyRect = dirtyRect;
+#endif
         item.mTransform = transform & ~NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY;
         item.mTransformToDisplayInverse = bool(transform & NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
         item.mScalingMode = scalingMode;
