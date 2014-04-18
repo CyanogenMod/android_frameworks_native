@@ -191,7 +191,7 @@ void BufferQueueCore::freeBufferLocked(int slot) {
         mSlots[slot].mNeedsCleanupOnRelease = true;
     }
     mSlots[slot].mBufferState = BufferSlot::FREE;
-    mSlots[slot].mFrameNumber = 0;
+    mSlots[slot].mFrameNumber = UINT32_MAX;
     mSlots[slot].mAcquireCalled = false;
 
     // Destroy fence as BufferQueue now takes ownership

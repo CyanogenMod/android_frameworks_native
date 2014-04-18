@@ -27,6 +27,9 @@
 #include <binder/IInterface.h>
 #include <ui/Rect.h>
 
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+
 namespace android {
 // ----------------------------------------------------------------------------
 

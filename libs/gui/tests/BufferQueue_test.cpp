@@ -301,7 +301,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     ASSERT_EQ(BAD_VALUE, mConsumer->attachBuffer(&newSlot, NULL));
     ASSERT_EQ(OK, mConsumer->attachBuffer(&newSlot, item.mGraphicBuffer));
 
-    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mBuf, 0, EGL_NO_DISPLAY,
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(newSlot, 0, EGL_NO_DISPLAY,
             EGL_NO_SYNC_KHR, Fence::NO_FENCE));
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
