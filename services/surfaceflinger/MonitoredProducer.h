@@ -39,6 +39,8 @@ public:
     virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, uint32_t format, uint32_t usage);
     virtual status_t detachBuffer(int slot);
+    virtual status_t detachNextBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence);
     virtual status_t attachBuffer(int* outSlot,
             const sp<GraphicBuffer>& buffer);
     virtual status_t queueBuffer(int slot, const QueueBufferInput& input,

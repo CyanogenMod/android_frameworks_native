@@ -185,6 +185,27 @@ public:
     //               it refers to is not currently dequeued and requested.
     virtual status_t detachBuffer(int slot) = 0;
 
+    // detachNextBuffer is equivalent to calling dequeueBuffer, requestBuffer,
+    // and detachBuffer in sequence, except for two things:
+    //
+    // 1) It is unnecessary to know the dimensions, format, or usage of the
+    //    next buffer.
+    // 2) It will not block, since if it cannot find an appropriate buffer to
+    //    return, it will return an error instead.
+    //
+    // Only slots that are free but still contain a GraphicBuffer will be
+    // considered, and the oldest of those will be returned. outBuffer is
+    // equivalent to outBuffer from the requestBuffer call, and outFence is
+    // equivalent to fence from the dequeueBuffer call.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
+    // * BAD_VALUE - either outBuffer or outFence were NULL.
+    // * NO_MEMORY - no slots were found that were both free and contained a
+    //               GraphicBuffer.
+    virtual status_t detachNextBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) = 0;
+
     // attachBuffer attempts to transfer ownership of a buffer to the buffer
     // queue. If this call succeeds, it will be as if this buffer was dequeued
     // from the returned slot number. As such, this call will fail if attaching
