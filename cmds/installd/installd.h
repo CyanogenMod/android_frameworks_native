@@ -28,7 +28,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <utime.h>
-#include <pthread.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -132,15 +131,6 @@ typedef struct {
     int8_t* curMemBlockAvail;
     int8_t* curMemBlockEnd;
 } cache_t;
-
-pthread_mutex_t io_mutex;
-pthread_cond_t io_wait;
-
-typedef struct {
-    int s;
-    char cmd[1024];
-    int id;
-} thread_parm;
 
 /* util.c */
 
