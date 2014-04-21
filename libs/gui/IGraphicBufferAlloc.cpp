@@ -24,7 +24,6 @@
 
 #include <ui/GraphicBuffer.h>
 
-#include <gui/BufferQueue.h>
 #include <gui/IGraphicBufferAlloc.h>
 
 // ---------------------------------------------------------------------------
@@ -42,7 +41,6 @@ public:
     BpGraphicBufferAlloc(const sp<IBinder>& impl)
         : BpInterface<IGraphicBufferAlloc>(impl)
     {
-        mSlotIndex = -1;
     }
 
     virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
@@ -59,9 +57,9 @@ public:
         if (result == NO_ERROR) {
             graphicBuffer = new GraphicBuffer();
             result = reply.read(*graphicBuffer);
-            if (mSlotIndex != -1) {
-                mSlots[mSlotIndex].mBufRef = reply.readStrongBinder();
-            }
+            // reply.readStrongBinder();
+            // here we don't even have to read the BufferReference from
+            // the parcel, it'll die with the parcel.
         }
         *error = result;
         return graphicBuffer;
@@ -74,24 +72,6 @@ public:
         data.writeInt32(size);
         remote()->transact(SET_GRAPHIC_BUFFER_SIZE, data, &reply);
     }
-
-    virtual void acquireBufferReferenceSlot(int32_t slot) {
-        mSlotIndex = slot;
-    }
-
-    virtual void releaseBufferReferenceSlot(int32_t slot) {
-        mSlots[slot].mBufRef = 0;
-    }
-
-    struct BufferReferenceSlot {
-        BufferReferenceSlot() : mBufRef(0) {}
-        sp<IBinder> mBufRef;
-    };
-
-protected:
-    enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
-    BufferReferenceSlot mSlots[NUM_BUFFER_SLOTS];
-    int mSlotIndex;
 };
 
 IMPLEMENT_META_INTERFACE(GraphicBufferAlloc, "android.ui.IGraphicBufferAlloc");
