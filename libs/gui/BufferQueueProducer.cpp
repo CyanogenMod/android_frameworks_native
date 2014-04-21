@@ -205,9 +205,21 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
             }
         }
 
-        // If no buffer is found, wait for a buffer to be released or for
-        // the max buffer count to change
-        tryAgain = (*found == BufferQueueCore::INVALID_BUFFER_SLOT);
+        // If we disconnect and reconnect quickly, we can be in a state where
+        // our slots are empty but we have many buffers in the queue. This can
+        // cause us to run out of memory if we outrun the consumer. Wait here if
+        // it looks like we have too many buffers queued up.
+        bool tooManyBuffers = mCore->mQueue.size() > maxBufferCount;
+        if (tooManyBuffers) {
+            BQ_LOGV("%s: queue size is %d, waiting", caller,
+                    mCore->mQueue.size());
+        }
+
+        // If no buffer is found, or if the queue has too many buffers
+        // outstanding, wait for a buffer to be acquired or released, or for the
+        // max buffer count to change.
+        tryAgain = (*found == BufferQueueCore::INVALID_BUFFER_SLOT) ||
+                   tooManyBuffers;
         if (tryAgain) {
             // Return an error if we're in non-blocking mode (producer and
             // consumer are controlled by the application).
@@ -707,41 +719,25 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
     BQ_LOGV("connect(P): api=%d producerControlledByApp=%s", api,
             producerControlledByApp ? "true" : "false");
 
-    // If we disconnect and reconnect quickly, we can be in a state where our
-    // slots are empty but we have many buffers in the queue. This can cause us
-    // to run out of memory if we outrun the consumer. Wait here if it looks
-    // like we have too many buffers queued up.
-    while (true) {
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("connect(P): BufferQueue has been abandoned");
-            return NO_INIT;
-        }
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("connect(P): BufferQueue has been abandoned");
+        return NO_INIT;
+    }
 
-        if (mCore->mConsumerListener == NULL) {
-            BQ_LOGE("connect(P): BufferQueue has no consumer");
-            return NO_INIT;
-        }
+    if (mCore->mConsumerListener == NULL) {
+        BQ_LOGE("connect(P): BufferQueue has no consumer");
+        return NO_INIT;
+    }
 
-        if (output == NULL) {
-            BQ_LOGE("connect(P): output was NULL");
-            return BAD_VALUE;
-        }
+    if (output == NULL) {
+        BQ_LOGE("connect(P): output was NULL");
+        return BAD_VALUE;
+    }
 
-        if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
-            BQ_LOGE("connect(P): already connected (cur=%d req=%d)",
-                    mCore->mConnectedApi, api);
-            return BAD_VALUE;
-        }
-
-        size_t maxBufferCount = mCore->getMaxBufferCountLocked(false);
-        if (mCore->mQueue.size() <= maxBufferCount) {
-            // The queue size seems small enough to proceed
-            // TODO: Make this bound tighter?
-            break;
-        }
-
-        BQ_LOGV("connect(P): queue size is %d, waiting", mCore->mQueue.size());
-        mCore->mDequeueCondition.wait(mCore->mMutex);
+    if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("connect(P): already connected (cur=%d req=%d)",
+                mCore->mConnectedApi, api);
+        return BAD_VALUE;
     }
 
     int status = NO_ERROR;
