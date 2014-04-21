@@ -39,9 +39,6 @@ public:
     virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
             PixelFormat format, uint32_t usage, status_t* error) = 0;
     virtual void setGraphicBufferSize(int size) = 0;
-
-    virtual void acquireBufferReferenceSlot(int32_t slot) {}
-    virtual void releaseBufferReferenceSlot(int32_t slot) {}
 };
 
 // ----------------------------------------------------------------------------
