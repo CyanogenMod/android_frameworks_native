@@ -44,6 +44,7 @@ struct egl_connection_t {
     EGLint              minor;
     egl_t               egl;
 
+    void*               libEgl;
     void*               libGles1;
     void*               libGles2;
 };

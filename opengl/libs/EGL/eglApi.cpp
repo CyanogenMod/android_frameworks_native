@@ -877,10 +877,13 @@ EGLint eglGetError(void)
     return err;
 }
 
-static __eglMustCastToProperFunctionPointerType findBuiltinGLWrapper(
+static __eglMustCastToProperFunctionPointerType findBuiltinWrapper(
         const char* procname) {
     const egl_connection_t* cnx = &gEGLImpl;
     void* proc = NULL;
+
+    proc = dlsym(cnx->libEgl, procname);
+    if (proc) return (__eglMustCastToProperFunctionPointerType)proc;
 
     proc = dlsym(cnx->libGles2, procname);
     if (proc) return (__eglMustCastToProperFunctionPointerType)proc;
@@ -912,7 +915,7 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
     addr = findProcAddress(procname, sExtensionMap, NELEM(sExtensionMap));
     if (addr) return addr;
 
-    addr = findBuiltinGLWrapper(procname);
+    addr = findBuiltinWrapper(procname);
     if (addr) return addr;
 
     // this protects accesses to sGLExtentionMap and sGLExtentionSlot
