@@ -188,12 +188,17 @@ void* Loader::open(egl_connection_t* cnx)
     LOG_ALWAYS_FATAL_IF(!hnd, "couldn't find an OpenGL ES implementation");
 
 #if defined(__LP64__)
+    cnx->libEgl   = load_wrapper("/system/lib64/libEGL.so");
     cnx->libGles2 = load_wrapper("/system/lib64/libGLESv2.so");
     cnx->libGles1 = load_wrapper("/system/lib64/libGLESv1_CM.so");
 #else
+    cnx->libEgl   = load_wrapper("/system/lib/libEGL.so");
     cnx->libGles2 = load_wrapper("/system/lib/libGLESv2.so");
     cnx->libGles1 = load_wrapper("/system/lib/libGLESv1_CM.so");
 #endif
+    LOG_ALWAYS_FATAL_IF(!cnx->libEgl,
+            "couldn't load system EGL wrapper libraries");
+
     LOG_ALWAYS_FATAL_IF(!cnx->libGles2 || !cnx->libGles1,
             "couldn't load system OpenGL ES wrapper libraries");
 
