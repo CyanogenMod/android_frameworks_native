@@ -233,7 +233,7 @@ public:
     //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
-    virtual status_t getReleasedBuffers(uint32_t* slotMask) = 0;
+    virtual status_t getReleasedBuffers(uint64_t* slotMask) = 0;
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // dequeueBuffer when a width and height of zero is requested.  Default

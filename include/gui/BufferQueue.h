@@ -69,7 +69,7 @@ class BufferQueue : public BQProducer,
 public:
     // BufferQueue will keep track of at most this value of buffers.
     // Attempts at runtime to increase the number of buffers past this will fail.
-    enum { NUM_BUFFER_SLOTS = 32 };
+    enum { NUM_BUFFER_SLOTS = BufferQueueDefs::NUM_BUFFER_SLOTS };
     // Used as a placeholder slot# when the value isn't pointing to an existing buffer.
     enum { INVALID_BUFFER_SLOT = IGraphicBufferConsumer::BufferItem::INVALID_BUFFER_SLOT };
     // Alias to <IGraphicBufferConsumer.h> -- please scope from there in future code!
@@ -321,7 +321,7 @@ public:
     // but have not yet been released by the consumer.
     //
     // This should be called from the onBuffersReleased() callback.
-    virtual status_t getReleasedBuffers(uint32_t* slotMask);
+    virtual status_t getReleasedBuffers(uint64_t* slotMask);
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // dequeueBuffer when a width and height of zero is requested.  Default

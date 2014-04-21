@@ -26,7 +26,7 @@ namespace android {
         // BufferQueue will keep track of at most this value of buffers.
         // Attempts at runtime to increase the number of buffers past this
         // will fail.
-        enum { NUM_BUFFER_SLOTS = 32 };
+        enum { NUM_BUFFER_SLOTS = 64 };
 
         typedef BufferSlot SlotsType[NUM_BUFFER_SLOTS];
     } // namespace BufferQueueDefs
