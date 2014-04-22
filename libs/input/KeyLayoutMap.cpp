@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include <android/keycodes.h>
+#include <input/InputEventLabels.h>
 #include <input/Keyboard.h>
 #include <input/KeyLayoutMap.h>
 #include <utils/Log.h>

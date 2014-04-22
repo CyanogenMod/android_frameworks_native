@@ -19,6 +19,7 @@
 
 #include <input/Input.h>
 #include <input/InputDevice.h>
+#include <input/InputEventLabels.h>
 #include <utils/Errors.h>
 #include <utils/String8.h>
 #include <utils/PropertyMap.h>
@@ -80,36 +81,6 @@ private:
  */
 extern bool isEligibleBuiltInKeyboard(const InputDeviceIdentifier& deviceIdentifier,
         const PropertyMap* deviceConfiguration, const KeyMap* keyMap);
-
-/**
- * Gets a key code by its short form label, eg. "HOME".
- * Returns 0 if unknown.
- */
-extern int32_t getKeyCodeByLabel(const char* label);
-
-/**
- * Gets a key flag by its short form label, eg. "WAKE".
- * Returns 0 if unknown.
- */
-extern uint32_t getKeyFlagByLabel(const char* label);
-
-/**
- * Gets an axis by its short form label, eg. "X".
- * Returns -1 if unknown.
- */
-extern int32_t getAxisByLabel(const char* label);
-
-/**
- * Gets an axis label by its id.
- * Returns NULL if unknown.
- */
-extern const char* getAxisLabel(int32_t axisId);
-
-/**
- * Gets an LED by its short form label, eg. "CAPS_LOCK".
- * Returns -1 if unknown.
- */
-extern int32_t getLedByLabel(const char* label);
 
 /**
  * Updates a meta state field when a key is pressed or released.

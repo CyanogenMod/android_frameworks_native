@@ -2360,18 +2360,6 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
         policyFlags |= POLICY_FLAG_VIRTUAL;
         flags |= AKEY_EVENT_FLAG_VIRTUAL_HARD_KEY;
     }
-    if (policyFlags & POLICY_FLAG_ALT) {
-        metaState |= AMETA_ALT_ON | AMETA_ALT_LEFT_ON;
-    }
-    if (policyFlags & POLICY_FLAG_ALT_GR) {
-        metaState |= AMETA_ALT_ON | AMETA_ALT_RIGHT_ON;
-    }
-    if (policyFlags & POLICY_FLAG_SHIFT) {
-        metaState |= AMETA_SHIFT_ON | AMETA_SHIFT_LEFT_ON;
-    }
-    if (policyFlags & POLICY_FLAG_CAPS_LOCK) {
-        metaState |= AMETA_CAPS_LOCK_ON;
-    }
     if (policyFlags & POLICY_FLAG_FUNCTION) {
         metaState |= AMETA_FUNCTION_ON;
     }

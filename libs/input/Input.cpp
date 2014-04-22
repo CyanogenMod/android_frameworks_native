@@ -21,6 +21,7 @@
 #include <limits.h>
 
 #include <input/Input.h>
+#include <input/InputEventLabels.h>
 
 #ifdef HAVE_ANDROID_OS
 #include <binder/Parcel.h>
@@ -42,82 +43,12 @@ void InputEvent::initialize(const InputEvent& from) {
 
 // --- KeyEvent ---
 
-bool KeyEvent::hasDefaultAction(int32_t keyCode) {
-    switch (keyCode) {
-        case AKEYCODE_HOME:
-        case AKEYCODE_BACK:
-        case AKEYCODE_CALL:
-        case AKEYCODE_ENDCALL:
-        case AKEYCODE_VOLUME_UP:
-        case AKEYCODE_VOLUME_DOWN:
-        case AKEYCODE_VOLUME_MUTE:
-        case AKEYCODE_POWER:
-        case AKEYCODE_CAMERA:
-        case AKEYCODE_HEADSETHOOK:
-        case AKEYCODE_MENU:
-        case AKEYCODE_NOTIFICATION:
-        case AKEYCODE_FOCUS:
-        case AKEYCODE_SEARCH:
-        case AKEYCODE_MEDIA_PLAY:
-        case AKEYCODE_MEDIA_PAUSE:
-        case AKEYCODE_MEDIA_PLAY_PAUSE:
-        case AKEYCODE_MEDIA_STOP:
-        case AKEYCODE_MEDIA_NEXT:
-        case AKEYCODE_MEDIA_PREVIOUS:
-        case AKEYCODE_MEDIA_REWIND:
-        case AKEYCODE_MEDIA_RECORD:
-        case AKEYCODE_MEDIA_FAST_FORWARD:
-        case AKEYCODE_MUTE:
-        case AKEYCODE_BRIGHTNESS_DOWN:
-        case AKEYCODE_BRIGHTNESS_UP:
-        case AKEYCODE_MEDIA_AUDIO_TRACK:
-            return true;
-    }
-    
-    return false;
+const char* KeyEvent::getLabel(int32_t keyCode) {
+    return getLabelByKeyCode(keyCode);
 }
 
-bool KeyEvent::hasDefaultAction() const {
-    return hasDefaultAction(getKeyCode());
-}
-
-bool KeyEvent::isSystemKey(int32_t keyCode) {
-    switch (keyCode) {
-        case AKEYCODE_MENU:
-        case AKEYCODE_SOFT_RIGHT:
-        case AKEYCODE_HOME:
-        case AKEYCODE_BACK:
-        case AKEYCODE_CALL:
-        case AKEYCODE_ENDCALL:
-        case AKEYCODE_VOLUME_UP:
-        case AKEYCODE_VOLUME_DOWN:
-        case AKEYCODE_VOLUME_MUTE:
-        case AKEYCODE_MUTE:
-        case AKEYCODE_POWER:
-        case AKEYCODE_HEADSETHOOK:
-        case AKEYCODE_MEDIA_PLAY:
-        case AKEYCODE_MEDIA_PAUSE:
-        case AKEYCODE_MEDIA_PLAY_PAUSE:
-        case AKEYCODE_MEDIA_STOP:
-        case AKEYCODE_MEDIA_NEXT:
-        case AKEYCODE_MEDIA_PREVIOUS:
-        case AKEYCODE_MEDIA_REWIND:
-        case AKEYCODE_MEDIA_RECORD:
-        case AKEYCODE_MEDIA_FAST_FORWARD:
-        case AKEYCODE_CAMERA:
-        case AKEYCODE_FOCUS:
-        case AKEYCODE_SEARCH:
-        case AKEYCODE_BRIGHTNESS_DOWN:
-        case AKEYCODE_BRIGHTNESS_UP:
-        case AKEYCODE_MEDIA_AUDIO_TRACK:
-            return true;
-    }
-    
-    return false;
-}
-
-bool KeyEvent::isSystemKey() const {
-    return isSystemKey(getKeyCode());
+int32_t KeyEvent::getKeyCodeFromLabel(const char* label) {
+    return getKeyCodeByLabel(label);
 }
 
 void KeyEvent::initialize(
@@ -589,6 +520,14 @@ bool MotionEvent::isTouchEvent(int32_t source, int32_t action) {
         }
     }
     return false;
+}
+
+const char* MotionEvent::getLabel(int32_t axis) {
+    return getAxisLabel(axis);
+}
+
+int32_t MotionEvent::getAxisFromLabel(const char* label) {
+    return getAxisByLabel(label);
 }
 
 
