@@ -1020,9 +1020,27 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
     return getLayerIterator(id, numLayers);
 }
 
+// Converts a PixelFormat to a human-readable string.  Max 11 chars.
+// (Could use a table of prefab String8 objects.)
+static String8 getFormatStr(PixelFormat format) {
+    switch (format) {
+    case PIXEL_FORMAT_RGBA_8888:    return String8("RGBA_8888");
+    case PIXEL_FORMAT_RGBX_8888:    return String8("RGBx_8888");
+    case PIXEL_FORMAT_RGB_888:      return String8("RGB_888");
+    case PIXEL_FORMAT_RGB_565:      return String8("RGB_565");
+    case PIXEL_FORMAT_BGRA_8888:    return String8("BGRA_8888");
+    case PIXEL_FORMAT_sRGB_A_8888:  return String8("sRGB_A_8888");
+    case PIXEL_FORMAT_sRGB_X_8888:  return String8("sRGB_x_8888");
+    default:
+        String8 result;
+        result.appendFormat("? %08x", format);
+        return result;
+    }
+}
+
 void HWComposer::dump(String8& result) const {
     if (mHwc) {
-        result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
+        result.appendFormat("Hardware Composer state (version %08x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
         for (size_t i=0 ; i<mNumDisplays ; i++) {
             const DisplayData& disp(mDisplayData[i]);
@@ -1042,9 +1060,9 @@ void HWComposer::dump(String8& result) const {
                         disp.list->numHwLayers, disp.list->flags);
 
                 result.append(
-                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |          source crop            |           frame           name \n"
-                        "------------+----------+----------+----------+----+-------+----------+---------------------------------+--------------------------------\n");
-                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____._,_____._,_____._,_____._] | [_____,_____,_____,_____]
+                        "    type   |  handle  | hint | flag | tr | blnd |   format    |     source crop (l,t,r,b)      |          frame         | name \n"
+                        "-----------+----------+------+------+----+------+-------------+--------------------------------+------------------------+------\n");
+                //      " _________ | ________ | ____ | ____ | __ | ____ | ___________ |_____._,_____._,_____._,_____._ |_____,_____,_____,_____ | ___...
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
                     int32_t format = -1;
@@ -1069,25 +1087,26 @@ void HWComposer::dump(String8& result) const {
                     static char const* compositionTypeName[] = {
                             "GLES",
                             "HWC",
-                            "BACKGROUND",
+                            "BKGND",
                             "FB TARGET",
                             "UNKNOWN"};
                     if (type >= NELEM(compositionTypeName))
                         type = NELEM(compositionTypeName) - 1;
 
+                    String8 formatStr = getFormatStr(format);
                     if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
                         result.appendFormat(
-                                " %10s | %08" PRIxPTR " | %08x | %08x | %02x | %05x | %08x | [%7.1f,%7.1f,%7.1f,%7.1f] | [%5d,%5d,%5d,%5d] %s\n",
+                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7.1f,%7.1f,%7.1f,%7.1f |%5d,%5d,%5d,%5d | %s\n",
                                         compositionTypeName[type],
-                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
+                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCropf.left, l.sourceCropf.top, l.sourceCropf.right, l.sourceCropf.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
                                         name.string());
                     } else {
                         result.appendFormat(
-                                " %10s | %08" PRIxPTR " | %08x | %08x | %02x | %05x | %08x | [%7d,%7d,%7d,%7d] | [%5d,%5d,%5d,%5d] %s\n",
+                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7d,%7d,%7d,%7d |%5d,%5d,%5d,%5d | %s\n",
                                         compositionTypeName[type],
-                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
+                                        intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
                                         name.string());

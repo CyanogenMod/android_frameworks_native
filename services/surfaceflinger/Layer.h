@@ -76,6 +76,10 @@ public:
     Region visibleRegion;
     Region coveredRegion;
     Region visibleNonTransparentRegion;
+
+    // Layer serial number.  This gives layers an explicit ordering, so we
+    // have a stable sort order when their layer stack and Z-order are
+    // the same.
     int32_t sequence;
 
     enum { // flags for doTransaction()
@@ -341,7 +345,7 @@ private:
     // constants
     sp<SurfaceFlingerConsumer> mSurfaceFlingerConsumer;
     sp<IGraphicBufferProducer> mProducer;
-    uint32_t mTextureName;
+    uint32_t mTextureName;      // from GLES
     bool mPremultipliedAlpha;
     String8 mName;
     mutable bool mDebug;
@@ -372,7 +376,7 @@ private:
     bool mNeedsFiltering;
     // The mesh used to draw the layer in GLES composition mode
     mutable Mesh mMesh;
-    // The mesh used to draw the layer in GLES composition mode
+    // The texture used to draw the layer in GLES composition mode
     mutable Texture mTexture;
 
     // page-flip thread (currently main thread)
