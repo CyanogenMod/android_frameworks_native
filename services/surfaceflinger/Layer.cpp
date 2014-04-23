@@ -374,7 +374,11 @@ void Layer::setGeometry(
     // apply the layer's transform, followed by the display's global transform
     // here we're guaranteed that the layer's transform preserves rects
     Rect frame(s.transform.transform(computeBounds()));
+    Rect transparentFrame(s.transform.transform(
+                s.activeTransparentRegion.getBounds()));
+    transparentFrame.intersect(hw->getViewport(), &transparentFrame);
     frame.intersect(hw->getViewport(), &frame);
+    frame = reduce(frame,Region(transparentFrame));
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
 #ifdef QCOM_BSP
