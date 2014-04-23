@@ -33,7 +33,9 @@ public:
     // beginFrame is called at the beginning of the composition loop, before
     // the configuration is known. The DisplaySurface should do anything it
     // needs to do to enable HWComposer to decide how to compose the frame.
-    virtual status_t beginFrame() = 0;
+    // We pass in mustRecompose so we can keep VirtualDisplaySurface's state
+    // machine happy without actually queueing a buffer if nothing has changed.
+    virtual status_t beginFrame(bool mustRecompose) = 0;
 
     // prepareFrame is called after the composition configuration is known but
     // before composition takes place. The DisplaySurface can use the

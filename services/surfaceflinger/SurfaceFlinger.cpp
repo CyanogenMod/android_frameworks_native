@@ -882,7 +882,9 @@ void SurfaceFlinger::rebuildLayerStacks() {
 
 void SurfaceFlinger::setUpHWComposer() {
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
-        mDisplays[dpy]->beginFrame();
+        bool mustRecompose =
+                !(mDisplays[dpy]->getDirtyRegion(false).isEmpty());
+        mDisplays[dpy]->beginFrame(mustRecompose);
     }
 
     HWComposer& hwc(getHwComposer());
@@ -1500,6 +1502,15 @@ void SurfaceFlinger::invalidateHwcGeometry()
 void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         const Region& inDirtyRegion)
 {
+    // We only need to actually compose the display if:
+    // 1) It is being handled by hardware composer, which may need this to
+    //    keep its virtual display state machine in sync, or
+    // 2) There is work to be done (the dirty region isn't empty)
+    bool isHwcDisplay = hw->getHwcDisplayId() >= 0;
+    if (!isHwcDisplay && inDirtyRegion.isEmpty()) {
+        return;
+    }
+
     Region dirtyRegion(inDirtyRegion);
 
     // compute the invalid region
