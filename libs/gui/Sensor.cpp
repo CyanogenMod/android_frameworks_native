@@ -32,7 +32,8 @@ namespace android {
 Sensor::Sensor()
     : mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
-      mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0)
+      mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0),
+      mWakeUpSensor(false)
 {
 }
 
@@ -48,6 +49,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     mResolution = hwSensor->resolution;
     mPower = hwSensor->power;
     mMinDelay = hwSensor->minDelay;
+    mWakeUpSensor = false;
 
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
@@ -104,6 +106,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     case SENSOR_TYPE_PROXIMITY:
         mStringType = SENSOR_STRING_TYPE_PROXIMITY;
+        mWakeUpSensor = true;
         break;
     case SENSOR_TYPE_RELATIVE_HUMIDITY:
         mStringType = SENSOR_STRING_TYPE_RELATIVE_HUMIDITY;
@@ -113,6 +116,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     case SENSOR_TYPE_SIGNIFICANT_MOTION:
         mStringType = SENSOR_STRING_TYPE_SIGNIFICANT_MOTION;
+        mWakeUpSensor = true;
         break;
     case SENSOR_TYPE_STEP_COUNTER:
         mStringType = SENSOR_STRING_TYPE_STEP_COUNTER;
@@ -123,13 +127,92 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     case SENSOR_TYPE_TEMPERATURE:
         mStringType = SENSOR_STRING_TYPE_TEMPERATURE;
         break;
+    case SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR:
+        mStringType = SENSOR_STRING_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR;
+        break;
+    case SENSOR_TYPE_WAKE_UP_ACCELEROMETER:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_ACCELEROMETER;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_ORIENTATION:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_ORIENTATION;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_GYROSCOPE:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_LIGHT:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_LIGHT;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_PRESSURE:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_PRESSURE;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_GRAVITY:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_GRAVITY;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_LINEAR_ACCELERATION:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_LINEAR_ACCELERATION;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_ROTATION_VECTOR:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_ROTATION_VECTOR;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_RELATIVE_HUMIDITY:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_RELATIVE_HUMIDITY;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_AMBIENT_TEMPERATURE:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_AMBIENT_TEMPERATURE;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_GAME_ROTATION_VECTOR:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_GAME_ROTATION_VECTOR;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_STEP_DETECTOR:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_STEP_DETECTOR;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_STEP_COUNTER:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_STEP_COUNTER;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR;
+        mWakeUpSensor = true;
+        break;
+    case SENSOR_TYPE_WAKE_UP_HEART_RATE:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_HEART_RATE;
+        mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
+        mWakeUpSensor = true;
+        break;
     default:
-        // Only pipe the stringType and requiredPermission for custom sensors.
+        // Only pipe the stringType, requiredPermission and flags for custom sensors.
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->stringType) {
             mStringType = hwSensor->stringType;
         }
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->requiredPermission) {
             mRequiredPermission = hwSensor->requiredPermission;
+        }
+        if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
+            mWakeUpSensor = hwSensor->flags & SENSOR_FLAG_WAKE_UP;
         }
         break;
     }
@@ -197,6 +280,10 @@ const String8& Sensor::getStringType() const {
 
 const String8& Sensor::getRequiredPermission() const {
     return mRequiredPermission;
+}
+
+bool Sensor::isWakeUpSensor() const {
+    return mWakeUpSensor;
 }
 
 size_t Sensor::getFlattenedSize() const

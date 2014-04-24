@@ -41,6 +41,7 @@
 // Max size is 1 MB which is enough to accept a batch of about 10k events.
 #define MAX_SOCKET_BUFFER_SIZE_BATCHED 1024 * 1024
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
+#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1 << 31)
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -71,7 +72,6 @@ class SensorService :
     virtual sp<ISensorEventConnection> createSensorEventConnection();
     virtual status_t dump(int fd, const Vector<String16>& args);
 
-
     class SensorEventConnection : public BnSensorEventConnection {
         virtual ~SensorEventConnection();
         virtual void onFirstRef();
@@ -80,15 +80,26 @@ class SensorService :
                                        nsecs_t maxBatchReportLatencyNs, int reservedFlags);
         virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
         virtual status_t flush();
+        void decreaseWakeLockRefCount();
         // Count the number of flush complete events which are about to be dropped in the buffer.
         // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
         // sent separately before the next batch of events.
         void countFlushCompleteEventsLocked(sensors_event_t* scratch, int numEventsDropped);
 
+        // Check if there are any wake up events in the buffer. If yes, increment the ref count.
+        // Increment it by exactly one unit for each packet sent on the socket. SOCK_SEQPACKET for
+        // the socket ensures that either the entire packet is read or dropped.
+        // Return 1 if mWakeLockRefCount has been incremented, zero if not.
+        int countWakeUpSensorEventsLocked(sensors_event_t* scratch, const int count);
+
         sp<SensorService> const mService;
         sp<BitTube> mChannel;
         uid_t mUid;
         mutable Mutex mConnectionLock;
+        // Number of events from wake up sensors which are still pending and haven't been delivered
+        // to the corresponding application. It is incremented by one unit for each write to the
+        // socket.
+        int mWakeLockRefCount;
 
         struct FlushInfo {
             // The number of flush complete events dropped for this sensor is stored here.
@@ -106,13 +117,14 @@ class SensorService :
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
 
         status_t sendEvents(sensors_event_t const* buffer, size_t count,
-                sensors_event_t* scratch = NULL);
+                sensors_event_t* scratch);
         bool hasSensor(int32_t handle) const;
         bool hasAnySensor() const;
         bool addSensor(int32_t handle);
         bool removeSensor(int32_t handle);
         void setFirstFlushPending(int32_t handle, bool value);
         void dump(String8& result);
+        bool needsWakeLock();
 
         uid_t getUid() const { return mUid; }
     };
@@ -126,13 +138,11 @@ class SensorService :
         size_t getNumConnections() const { return mConnections.size(); }
     };
 
-    SortedVector< wp<SensorEventConnection> > getActiveConnections() const;
-    DefaultKeyedVector<int, SensorInterface*> getActiveVirtualSensors() const;
-
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
     Sensor getSensorFromHandle(int handle) const;
-    void recordLastValue(const sensors_event_t* buffer, size_t count);
+    bool isWakeUpSensor(int type) const;
+    void recordLastValueLocked(const sensors_event_t* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
     Sensor registerVirtualSensor(SensorInterface* sensor);
@@ -140,10 +150,16 @@ class SensorService :
             const sp<SensorEventConnection>& connection, int handle);
     status_t cleanupWithoutDisableLocked(
             const sp<SensorEventConnection>& connection, int handle);
-    void cleanupAutoDisabledSensor(const sp<SensorEventConnection>& connection,
+    void cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
             sensors_event_t const* buffer, const int count);
     static bool canAccessSensor(const Sensor& sensor);
     static bool verifyCanAccessSensor(const Sensor& sensor, const char* operation);
+    // SensorService acquires a partial wakelock for delivering events from wake up sensors. This
+    // method checks whether all the events from these wake up sensors have been delivered to the
+    // corresponding applications, if yes the wakelock is released.
+    void checkWakeLockState();
+    void checkWakeLockStateLocked();
+    bool isWakeUpSensorEvent(const sensors_event_t& event) const;
     // constants
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
@@ -158,6 +174,7 @@ class SensorService :
     DefaultKeyedVector<int, SensorRecord*> mActiveSensors;
     DefaultKeyedVector<int, SensorInterface*> mActiveVirtualSensors;
     SortedVector< wp<SensorEventConnection> > mActiveConnections;
+    bool mWakeLockAcquired;
 
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;
