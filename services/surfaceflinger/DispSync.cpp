@@ -61,7 +61,10 @@ class DispSyncThread: public Thread {
 public:
 
     DispSyncThread():
+            mLowPowerMode(false),
             mStop(false),
+            mLastVsyncSent(false),
+            mLastBufferFull(false),
             mPeriod(0),
             mPhase(0),
             mWakeupLatency(0) {
@@ -145,7 +148,18 @@ public:
             }
 
             if (callbackInvocations.size() > 0) {
-                fireCallbackInvocations(callbackInvocations);
+                if (mLowPowerMode) {
+                    if (!mLastVsyncSent || !mLastBufferFull) {
+                        fireCallbackInvocations(callbackInvocations);
+                        mLastVsyncSent = true;
+                    } else
+                        mLastVsyncSent = false;
+                } else {
+                    fireCallbackInvocations(callbackInvocations);
+                }
+                mLastBufferFull = true;
+            } else {
+                mLastBufferFull = false;
             }
         }
 
@@ -200,6 +214,7 @@ public:
         return !mEventListeners.empty();
     }
 
+    bool mLowPowerMode;
 private:
 
     struct EventListener {
@@ -272,6 +287,8 @@ private:
     }
 
     bool mStop;
+    bool mLastVsyncSent;
+    bool mLastBufferFull;
 
     nsecs_t mPeriod;
     nsecs_t mPhase;
@@ -393,6 +410,10 @@ status_t DispSync::addEventListener(nsecs_t phase,
 
     Mutex::Autolock lock(mMutex);
     return mThread->addEventListener(phase, callback);
+}
+
+void DispSync::setLowPowerMode(bool enabled) {
+    mThread->mLowPowerMode = enabled;
 }
 
 status_t DispSync::removeEventListener(const sp<Callback>& callback) {

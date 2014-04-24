@@ -2643,6 +2643,16 @@ status_t SurfaceFlinger::onTransact(
                 repaintEverything();
                 return NO_ERROR;
             }
+            // This is an experimental interface
+            // Needs to be shifted to proper binder interface when we productize
+            case 1016: {
+                mPrimaryDispSync.setLowPowerMode(true);
+                return NO_ERROR;
+            }
+            case 1017: {
+                mPrimaryDispSync.setLowPowerMode(false);
+                return NO_ERROR;
+            }
         }
     }
     return err;

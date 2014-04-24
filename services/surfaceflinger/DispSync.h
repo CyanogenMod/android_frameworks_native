@@ -88,6 +88,9 @@ public:
     // turned on.  It should NOT be used after that.
     void setPeriod(nsecs_t period);
 
+    // Setting the low power mode reduces the frame rate to half of the default
+    void setLowPowerMode(bool enabled);
+
     // addEventListener registers a callback to be called repeatedly at the
     // given phase offset from the hardware vsync events.  The callback is
     // called from a separate thread and it should return reasonably quickly
