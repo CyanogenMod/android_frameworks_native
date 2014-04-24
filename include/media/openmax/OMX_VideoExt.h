@@ -108,6 +108,43 @@ typedef struct OMX_VIDEO_VP8REFERENCEFRAMEINFOTYPE {
     OMX_BOOL bIsGoldenOrAlternateFrame;
 } OMX_VIDEO_VP8REFERENCEFRAMEINFOTYPE;
 
+/** Maximum number of VP8 temporal layers */
+#define OMX_VIDEO_ANDROID_MAXVP8TEMPORALLAYERS 3
+
+/** VP8 temporal layer patterns */
+typedef enum OMX_VIDEO_ANDROID_VPXTEMPORALLAYERPATTERNTYPE {
+    OMX_VIDEO_VPXTemporalLayerPatternNone = 0,
+    OMX_VIDEO_VPXTemporalLayerPatternWebRTC = 1,
+    OMX_VIDEO_VPXTemporalLayerPatternMax = 0x7FFFFFFF
+} OMX_VIDEO_ANDROID_VPXTEMPORALLAYERPATTERNTYPE;
+
+/**
+ * Android specific VP8 encoder params
+ *
+ * STRUCT MEMBERS:
+ *  nSize                      : Size of the structure in bytes
+ *  nVersion                   : OMX specification version information
+ *  nPortIndex                 : Port that this structure applies to
+ *  nKeyFrameInterval          : Key frame interval in frames
+ *  eTemporalPattern           : Type of temporal layer pattern
+ *  nTemporalLayerCount        : Number of temporal coding layers
+ *  nTemporalLayerBitrateRatio : Bitrate ratio allocation between temporal
+ *                               streams in percentage
+ *  nMinQuantizer              : Minimum (best quality) quantizer
+ *  nMaxQuantizer              : Maximum (worst quality) quantizer
+ */
+typedef struct OMX_VIDEO_PARAM_ANDROID_VP8ENCODERTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_U32 nKeyFrameInterval;
+    OMX_VIDEO_ANDROID_VPXTEMPORALLAYERPATTERNTYPE eTemporalPattern;
+    OMX_U32 nTemporalLayerCount;
+    OMX_U32 nTemporalLayerBitrateRatio[OMX_VIDEO_ANDROID_MAXVP8TEMPORALLAYERS];
+    OMX_U32 nMinQuantizer;
+    OMX_U32 nMaxQuantizer;
+};
+
 
 #ifdef __cplusplus
 }
