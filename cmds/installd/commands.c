@@ -265,25 +265,38 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
     return 0;
 }
 
-int delete_user(userid_t userid)
+int create_user(userid_t userid)
 {
-    char data_path[PKG_PATH_MAX];
-    if (create_user_path(data_path, userid)) {
-        return -1;
-    }
-    if (delete_dir_contents(data_path, 1, NULL)) {
-        return -1;
-    }
-
-    char media_path[PATH_MAX];
-    if (create_user_media_path(media_path, userid) == -1) {
-        return -1;
-    }
-    if (delete_dir_contents(media_path, 1, NULL) == -1) {
+    if (ensure_config_user_dirs(userid) == -1) {
         return -1;
     }
 
     return 0;
+}
+
+int delete_user(userid_t userid)
+{
+    int status = 0;
+
+    char data_path[PKG_PATH_MAX];
+    if ((create_user_path(data_path, userid) != 0)
+            || (delete_dir_contents(data_path, 1, NULL) != 0)) {
+        status = -1;
+    }
+
+    char media_path[PATH_MAX];
+    if ((create_user_media_path(media_path, userid) != 0)
+            || (delete_dir_contents(media_path, 1, NULL) != 0)) {
+        status = -1;
+    }
+
+    char config_path[PATH_MAX];
+    if ((create_user_config_path(config_path, userid) != 0)
+            || (delete_dir_contents(config_path, 1, NULL) != 0)) {
+        status = -1;
+    }
+
+    return status;
 }
 
 int delete_cache(const char *pkgname, userid_t userid)
