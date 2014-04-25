@@ -142,7 +142,7 @@ public:
     // signal when the h/w composer is completely finished with the frame.
     // For physical displays, it is no longer being displayed. For virtual
     // displays, writes to the output buffer are complete.
-    sp<Fence> getLastRetireFence(int32_t id);
+    sp<Fence> getLastRetireFence(int32_t id) const;
 
     /*
      * Interface to hardware composer's layers functionality.

@@ -508,4 +508,9 @@ void DispSync::resetErrorLocked() {
     }
 }
 
+nsecs_t DispSync::computeNextRefresh(int periodOffset) const {
+    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+    return (((now - mPhase) / mPeriod) + periodOffset + 1) * mPeriod + mPhase;
+}
+
 } // namespace android

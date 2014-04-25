@@ -2371,6 +2371,15 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     result.append(SyncFeatures::getInstance().toString());
     result.append("\n");
 
+    colorizer.bold(result);
+    result.append("DispSync configuration: ");
+    colorizer.reset(result);
+    result.appendFormat("app phase %"PRId64" ns, sf phase %"PRId64" ns, "
+            "present offset %d ns (refresh %"PRId64" ns)",
+        vsyncPhaseOffsetNs, sfVsyncPhaseOffsetNs, PRESENT_TIME_OFFSET_FROM_VSYNC_NS,
+        mHwc->getRefreshPeriod(HWC_DISPLAY_PRIMARY));
+    result.append("\n");
+
     /*
      * Dump the visible layer list
      */
