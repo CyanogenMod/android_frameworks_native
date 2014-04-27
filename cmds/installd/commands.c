@@ -18,6 +18,7 @@
 #include "installd.h"
 #include <diskusage/dirsize.h>
 #include <selinux/android.h>
+#include <unistd.h>
 
 /* Directory records that are used in execution of commands. */
 dir_rec_t android_data_dir;
@@ -1298,6 +1299,9 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
 {
     ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d\n",
              source_apk, internal_path, out_restable, uid, pkgId);
+    static const int PARENT_READ_PIPE = 0;
+    static const int CHILD_WRITE_PIPE = 1;
+
     int restable_fd = -1;
     int resapk_fd = -1;
     char restable_path[PATH_MAX];
@@ -1337,8 +1341,11 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
         goto fail;
     }
 
-    pid_t pid;
-    pid = fork();
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        pipefd[0] = pipefd[1] = -1;
+    }
+    pid_t pid = fork();
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         if (setgid(uid) != 0) {
@@ -1360,10 +1367,47 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
             exit(1);
         }
 
+        if (pipefd[PARENT_READ_PIPE] > 0 && pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[PARENT_READ_PIPE]); // close unused read end
+            if (dup2(pipefd[CHILD_WRITE_PIPE], STDERR_FILENO) != STDERR_FILENO) {
+                pipefd[CHILD_WRITE_PIPE] = -1;
+            }
+        }
+
         run_aapt(source_apk, internal_path, restable_fd, resapk_fd, pkgId);
+
+        if (pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[CHILD_WRITE_PIPE]);
+        }
         exit(1); /* only if exec call to idmap failed */
     } else {
-        int status = wait_child(pid);
+        int status, i;
+        char buffer[1024];
+        ssize_t readlen;
+
+        if (pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[CHILD_WRITE_PIPE]); // close unused write end
+        }
+
+        if (pipefd[PARENT_READ_PIPE] > 0) {
+            while ((readlen = read(pipefd[PARENT_READ_PIPE], buffer, sizeof(buffer) - 1)) > 0) {
+                // in case buffer has more than one string in it, replace '\0' with '\n'
+                for (i = 0; i < readlen; i++) {
+                    if (buffer[i] == '\0') buffer[i] = '\n';
+                }
+                // null terminate buffer at readlen
+                buffer[readlen] = '\0';
+                ALOG(LOG_ERROR, "InstallTheme", "%s", buffer);
+            }
+            waitpid(pid, &status, 0);
+
+            if (pipefd[PARENT_READ_PIPE] > 0) {
+                close(pipefd[PARENT_READ_PIPE]);
+            }
+        } else {
+            status = wait_child(pid);
+        }
+
         if (status != 0) {
             ALOGE("aapt failed, status=0x%04x\n", status);
             goto fail;
