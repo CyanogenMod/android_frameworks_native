@@ -25,6 +25,7 @@
 #include <binder/ProcessState.h>
 #include <binder/TextOutput.h>
 
+#include <errno.h>
 #include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/String8.h>
@@ -1229,7 +1230,11 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
     status_t err = NO_ERROR;
     for (size_t i=0 ; i<fd_count && err==NO_ERROR ; i++) {
         fds[i] = dup(this->readFileDescriptor());
-        if (fds[i] < 0) err = BAD_VALUE;
+        if (fds[i] < 0) {
+            err = BAD_VALUE;
+            ALOGE("dup() failed in Parcel::read, i is %d, fds[i] is %d, fd_count is %d, error: %s",
+                i, fds[i], fd_count, strerror(errno));
+        }
     }
 
     if (err == NO_ERROR) {
