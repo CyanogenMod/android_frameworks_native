@@ -2167,9 +2167,8 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t keyCode,
     // For internal keyboards, the key layout file should specify the policy flags for
     // each wake key individually.
     // TODO: Use the input device configuration to control this behavior more finely.
-    if (down && getDevice()->isExternal()
-            && !(policyFlags & (POLICY_FLAG_WAKE | POLICY_FLAG_WAKE_DROPPED))) {
-        policyFlags |= POLICY_FLAG_WAKE_DROPPED;
+    if (down && getDevice()->isExternal()) {
+        policyFlags |= POLICY_FLAG_WAKE;
     }
 
     if (mParameters.handlesKeyRepeat) {
@@ -2510,7 +2509,7 @@ void CursorInputMapper::sync(nsecs_t when) {
     // TODO: Use the input device configuration to control this behavior more finely.
     uint32_t policyFlags = 0;
     if ((buttonsPressed || moved || scrolled) && getDevice()->isExternal()) {
-        policyFlags |= POLICY_FLAG_WAKE_DROPPED;
+        policyFlags |= POLICY_FLAG_WAKE;
     }
 
     // Synthesize key down from buttons if needed.
@@ -3787,7 +3786,7 @@ void TouchInputMapper::sync(nsecs_t when) {
             }
 
             if (mParameters.wake) {
-                policyFlags |= POLICY_FLAG_WAKE_DROPPED;
+                policyFlags |= POLICY_FLAG_WAKE;
             }
         }
 

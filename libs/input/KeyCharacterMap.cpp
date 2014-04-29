@@ -24,6 +24,7 @@
 #endif
 
 #include <android/keycodes.h>
+#include <input/InputEventLabels.h>
 #include <input/Keyboard.h>
 #include <input/KeyCharacterMap.h>
 

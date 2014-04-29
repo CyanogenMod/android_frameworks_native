@@ -312,7 +312,7 @@ status_t InputPublisher::publishMotionEvent(
     }
 
     if (pointerCount > MAX_POINTERS || pointerCount < 1) {
-        ALOGE("channel '%s' publisher ~ Invalid number of pointers provided: %d.",
+        ALOGE("channel '%s' publisher ~ Invalid number of pointers provided: %zu.",
                 mChannel->getName().string(), pointerCount);
         return BAD_VALUE;
     }

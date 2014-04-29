@@ -71,7 +71,7 @@ enum {
      * Constants for LEDs. Hidden from the API since we don't actually expose a way to interact
      * with LEDs to developers
      *
-     * NOTE: If you add LEDs here, you must also add them to KeycodeLabels.h
+     * NOTE: If you add LEDs here, you must also add them to InputEventLabels.h
      */
 
     ALED_NUM_LOCK = 0x00,
@@ -146,18 +146,12 @@ class Parcel;
  */
 enum {
     /* These flags originate in RawEvents and are generally set in the key map.
-     * NOTE: If you edit these flags, also edit labels in KeycodeLabels.h. */
+     * NOTE: If you want a flag to be able to set in a keylayout file, then you must add it to
+     * InputEventLabels.h as well. */
 
     POLICY_FLAG_WAKE = 0x00000001,
-    POLICY_FLAG_WAKE_DROPPED = 0x00000002,
-    POLICY_FLAG_SHIFT = 0x00000004,
-    POLICY_FLAG_CAPS_LOCK = 0x00000008,
-    POLICY_FLAG_ALT = 0x00000010,
-    POLICY_FLAG_ALT_GR = 0x00000020,
-    POLICY_FLAG_MENU = 0x00000040,
-    POLICY_FLAG_LAUNCHER = 0x00000080,
-    POLICY_FLAG_VIRTUAL = 0x00000100,
-    POLICY_FLAG_FUNCTION = 0x00000200,
+    POLICY_FLAG_VIRTUAL = 0x00000002,
+    POLICY_FLAG_FUNCTION = 0x00000004,
 
     POLICY_FLAG_RAW_MASK = 0x0000ffff,
 
@@ -312,13 +306,8 @@ public:
 
     inline nsecs_t getEventTime() const { return mEventTime; }
 
-    // Return true if this event may have a default action implementation.
-    static bool hasDefaultAction(int32_t keyCode);
-    bool hasDefaultAction() const;
-
-    // Return true if this event represents a system key.
-    static bool isSystemKey(int32_t keyCode);
-    bool isSystemKey() const;
+    static const char* getLabel(int32_t keyCode);
+    static int32_t getKeyCodeFromLabel(const char* label);
     
     void initialize(
             int32_t deviceId,
@@ -577,6 +566,9 @@ public:
     inline const PointerCoords* getSamplePointerCoords() const {
             return mSamplePointerCoords.array();
     }
+
+    static const char* getLabel(int32_t axis);
+    static int32_t getAxisFromLabel(const char* label);
 
 protected:
     int32_t mAction;
