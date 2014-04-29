@@ -631,6 +631,16 @@ status_t Parcel::writeInt32Array(size_t len, const int32_t *val) {
     }
     return ret;
 }
+status_t Parcel::writeByteArray(size_t len, const uint8_t *val) {
+    if (!val) {
+        return writeAligned(-1);
+    }
+    status_t ret = writeAligned(len);
+    if (ret == NO_ERROR) {
+        ret = write(val, len * sizeof(*val));
+    }
+    return ret;
+}
 
 status_t Parcel::writeInt64(int64_t val)
 {
@@ -907,7 +917,8 @@ void Parcel::remove(size_t /*start*/, size_t /*amt*/)
 
 status_t Parcel::read(void* outData, size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize) {
+    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
+            && len <= PAD_SIZE(len)) {
         memcpy(outData, mData+mDataPos, len);
         mDataPos += PAD_SIZE(len);
         ALOGV("read Setting data pos of %p to %d\n", this, mDataPos);
@@ -918,7 +929,8 @@ status_t Parcel::read(void* outData, size_t len) const
 
 const void* Parcel::readInplace(size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize) {
+    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
+            && len <= PAD_SIZE(len)) {
         const void* data = mData+mDataPos;
         mDataPos += PAD_SIZE(len);
         ALOGV("readInplace Setting data pos of %p to %d\n", this, mDataPos);
@@ -1343,7 +1355,7 @@ size_t Parcel::ipcObjectsCount() const
 void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     const binder_size_t* objects, size_t objectsCount, release_func relFunc, void* relCookie)
 {
-    binder_size_t minOffset = 0;
+    size_t minOffset = 0;
     freeDataNoInit();
     mError = NO_ERROR;
     mData = const_cast<uint8_t*>(data);
@@ -1357,10 +1369,10 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     mOwner = relFunc;
     mOwnerCookie = relCookie;
     for (size_t i = 0; i < mObjectsSize; i++) {
-        binder_size_t offset = mObjects[i];
+        size_t offset = mObjects[i];
         if (offset < minOffset) {
-            ALOGE("%s: bad object offset %"PRIu64" < %"PRIu64"\n",
-                  __func__, (uint64_t)offset, (uint64_t)minOffset);
+            ALOGE("%s: bad object offset %zu < %zu\n",
+                  __func__, offset, minOffset);
             mObjectsSize = 0;
             break;
         }
