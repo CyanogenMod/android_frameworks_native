@@ -587,7 +587,7 @@ const char *dump_traces() {
 
             /* wait for the writable-close notification from inotify */
             struct pollfd pfd = { ifd, POLLIN, 0 };
-            int ret = poll(&pfd, 1, 200);  /* 200 msec timeout */
+            int ret = poll(&pfd, 1, 5000);  /* 5 sec timeout */
             if (ret < 0) {
                 fprintf(stderr, "poll: %s\n", strerror(errno));
             } else if (ret == 0) {
