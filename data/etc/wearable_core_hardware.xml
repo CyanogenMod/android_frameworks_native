@@ -21,9 +21,7 @@
      Wearable devices include watches, glasses, backpacks, and sweaters.
 -->
 <permissions>
-    <feature name="android.hardware.camera" />
     <feature name="android.hardware.location" />
-    <feature name="android.hardware.location.network" />
     <feature name="android.hardware.sensor.compass" />
     <feature name="android.hardware.sensor.accelerometer" />
     <feature name="android.hardware.bluetooth" />
@@ -34,11 +32,9 @@
 
     <!-- basic system services -->
     <feature name="android.software.home_screen" />
-    <feature name="android.software.input_methods" />
 
-    <!-- Feature to specify if the device supports adding device admins. -->
-    <feature name="android.software.device_admin" />
-
+    <!-- devices that support a device administrator policy must include
+         android.software.device_admin.xml -->
     <!-- devices with GPS must include android.hardware.location.gps.xml -->
     <!-- devices with an autofocus camera and/or flash must include either
          android.hardware.camera.autofocus.xml or
