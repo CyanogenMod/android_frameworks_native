@@ -380,6 +380,8 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
         if (image == EGL_NO_IMAGE_KHR) {
             ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
                   mEglDisplay, buf);
+            releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                                mEglDisplay, EGL_NO_SYNC_KHR);
             return UNKNOWN_ERROR;
         }
         mEglSlots[buf].mEglImage = image;
