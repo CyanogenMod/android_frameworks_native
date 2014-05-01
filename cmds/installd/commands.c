@@ -387,7 +387,7 @@ int free_cache(int64_t free_size)
     return data_disk_free() >= free_size ? 0 : -1;
 }
 
-int move_dex(const char *src, const char *dst)
+int move_dex(const char *src, const char *dst, const char *instruction_set)
 {
     char src_dex[PKG_PATH_MAX];
     char dst_dex[PKG_PATH_MAX];
@@ -395,8 +395,8 @@ int move_dex(const char *src, const char *dst)
     if (validate_apk_path(src)) return -1;
     if (validate_apk_path(dst)) return -1;
 
-    if (create_cache_path(src_dex, src)) return -1;
-    if (create_cache_path(dst_dex, dst)) return -1;
+    if (create_cache_path(src_dex, src, instruction_set)) return -1;
+    if (create_cache_path(dst_dex, dst, instruction_set)) return -1;
 
     ALOGV("move %s -> %s\n", src_dex, dst_dex);
     if (rename(src_dex, dst_dex) < 0) {
@@ -407,12 +407,12 @@ int move_dex(const char *src, const char *dst)
     }
 }
 
-int rm_dex(const char *path)
+int rm_dex(const char *path, const char *instruction_set)
 {
     char dex_path[PKG_PATH_MAX];
 
     if (validate_apk_path(path)) return -1;
-    if (create_cache_path(dex_path, path)) return -1;
+    if (create_cache_path(dex_path, path, instruction_set)) return -1;
 
     ALOGV("unlink %s\n", dex_path);
     if (unlink(dex_path) < 0) {
@@ -425,8 +425,8 @@ int rm_dex(const char *path)
 
 int get_size(const char *pkgname, userid_t userid, const char *apkpath,
              const char *libdirpath, const char *fwdlock_apkpath, const char *asecpath,
-             int64_t *_codesize, int64_t *_datasize, int64_t *_cachesize,
-             int64_t* _asecsize)
+             const char *instruction_set, int64_t *_codesize, int64_t *_datasize,
+             int64_t *_cachesize, int64_t* _asecsize)
 {
     DIR *d;
     int dfd;
@@ -456,7 +456,7 @@ int get_size(const char *pkgname, userid_t userid, const char *apkpath,
         }
     }
         /* count the cached dexfile as code */
-    if (!create_cache_path(path, apkpath)) {
+    if (!create_cache_path(path, apkpath, instruction_set)) {
         if (stat(path, &s) == 0) {
             codesize += stat_size(&s);
         }
@@ -543,7 +543,7 @@ done:
 }
 
 
-int create_cache_path(char path[PKG_PATH_MAX], const char *src)
+int create_cache_path(char path[PKG_PATH_MAX], const char *src, const char *instruction_set)
 {
     char *tmp;
     int srclen;
@@ -561,18 +561,20 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src)
     }
 
     dstlen = srclen + strlen(DALVIK_CACHE_PREFIX) +
-        strlen(DALVIK_CACHE_POSTFIX) + 1;
+        strlen(instruction_set) +
+        strlen(DALVIK_CACHE_POSTFIX) + 2;
 
     if (dstlen > PKG_PATH_MAX) {
         return -1;
     }
 
-    sprintf(path,"%s%s%s",
+    sprintf(path,"%s%s/%s%s",
             DALVIK_CACHE_PREFIX,
+            instruction_set,
             src + 1, /* skip the leading / */
             DALVIK_CACHE_POSTFIX);
 
-    for(tmp = path + strlen(DALVIK_CACHE_PREFIX); *tmp; tmp++) {
+    for(tmp = path + strlen(DALVIK_CACHE_PREFIX) + strlen(instruction_set) + 1; *tmp; tmp++) {
         if (*tmp == '/') {
             *tmp = '@';
         }
@@ -604,7 +606,7 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name, const char *pkgname)
+    const char* output_file_name, const char *pkgname, const char *instruction_set)
 {
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, "");
@@ -612,28 +614,38 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
+    static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
+
+    if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
+        ALOGE("Instruction set %s longer than max length of %d",
+              instruction_set, MAX_INSTRUCTION_SET_LEN);
+        return;
+    }
+
     char zip_fd_arg[strlen("--zip-fd=") + MAX_INT_LEN];
     char zip_location_arg[strlen("--zip-location=") + PKG_PATH_MAX];
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
     char oat_location_arg[strlen("--oat-name=") + PKG_PATH_MAX];
-    char profile_file[strlen("--profile-file=") + PKG_PATH_MAX];
+    char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
+    char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
 
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
     sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
     sprintf(oat_location_arg, "--oat-location=%s", output_file_name);
+    sprintf(instruction_set_arg, "--instruction-set=%s", instruction_set);
     if (strcmp(pkgname, "*") != 0) {
-        snprintf(profile_file, sizeof(profile_file), "--profile-file=%s/%s",
+        snprintf(profile_file_arg, sizeof(profile_file_arg), "--profile-file=%s/%s",
                  DALVIK_CACHE_PREFIX "profiles", pkgname);
     } else {
-        strcpy(profile_file, "--no-profile-file");
+        strcpy(profile_file_arg, "--no-profile-file");
     }
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
     execl(DEX2OAT_BIN, DEX2OAT_BIN,
           zip_fd_arg, zip_location_arg,
           oat_fd_arg, oat_location_arg,
-          profile_file,
+          profile_file_arg, instruction_set_arg,
           strlen(dex2oat_flags) > 0 ? dex2oat_flags : NULL,
           (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
@@ -666,7 +678,7 @@ static int wait_child(pid_t pid)
 }
 
 int dexopt(const char *apk_path, uid_t uid, int is_public,
-           const char *pkgname)
+           const char *pkgname, const char *instruction_set)
 {
     struct utimbuf ut;
     struct stat apk_stat, dex_stat;
@@ -694,7 +706,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
         }
     }
 
-    if (create_cache_path(out_path, apk_path)) {
+    if (create_cache_path(out_path, apk_path, instruction_set)) {
         return -1;
     }
 
@@ -762,7 +774,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
         if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
             run_dexopt(zip_fd, out_fd, apk_path, out_path);
         } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
-            run_dex2oat(zip_fd, out_fd, apk_path, out_path, pkgname);
+            run_dex2oat(zip_fd, out_fd, apk_path, out_path, pkgname, instruction_set);
         } else {
             exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
         }
