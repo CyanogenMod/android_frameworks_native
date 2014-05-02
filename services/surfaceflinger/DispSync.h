@@ -83,7 +83,7 @@ public:
     bool addResyncSample(nsecs_t timestamp);
     void endResync();
 
-    // The setPreiod method sets the vsync event model's period to a specific
+    // The setPeriod method sets the vsync event model's period to a specific
     // value.  This should be used to prime the model when a display is first
     // turned on.  It should NOT be used after that.
     void setPeriod(nsecs_t period);
@@ -101,6 +101,12 @@ public:
     // this method returns that callback will no longer be called by the
     // DispSync object.
     status_t removeEventListener(const sp<Callback>& callback);
+
+    // computeNextRefresh computes when the next refresh is expected to begin.
+    // The periodOffset value can be used to move forward or backward; an
+    // offset of zero is the next refresh, -1 is the previous refresh, 1 is
+    // the refresh after next. etc.
+    nsecs_t computeNextRefresh(int periodOffset) const;
 
 private:
 

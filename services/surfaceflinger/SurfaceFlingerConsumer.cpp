@@ -29,7 +29,8 @@ namespace android {
 
 // ---------------------------------------------------------------------------
 
-status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
+status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
+        const DispSync& dispSync)
 {
     ATRACE_CALL();
     ALOGV("updateTexImage");
@@ -51,7 +52,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter)
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item, computeExpectedPresent());
+    err = acquireBufferLocked(&item, computeExpectedPresent(dispSync));
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             err = NO_ERROR;
@@ -128,35 +129,41 @@ sp<NativeHandle> SurfaceFlingerConsumer::getSidebandStream() const {
 // will be slightly later then the actual-present timing.  If we get a
 // desired-present time that is unintentionally a hair after the next
 // vsync, we'll hold the frame when we really want to display it.  We
-// want to use an expected-presentation time that is slightly late to
-// avoid this sort of edge case.
-nsecs_t SurfaceFlingerConsumer::computeExpectedPresent()
+// need to take the offset between actual-present and reported-vsync
+// into account.
+//
+// If the system is configured without a DispSync phase offset for the app,
+// we also want to throw in a bit of padding to avoid edge cases where we
+// just barely miss.  We want to do it here, not in every app.  A major
+// source of trouble is the app's use of the display's ideal refresh time
+// (via Display.getRefreshRate()), which could be off of the actual refresh
+// by a few percent, with the error multiplied by the number of frames
+// between now and when the buffer should be displayed.
+//
+// If the refresh reported to the app has a phase offset, we shouldn't need
+// to tweak anything here.
+nsecs_t SurfaceFlingerConsumer::computeExpectedPresent(const DispSync& dispSync)
 {
-    // Don't yet have an easy way to get actual buffer flip time for
-    // the specific display, so use the current time.  This is typically
-    // 1.3ms past the vsync event time.
-    const nsecs_t prevVsync = systemTime(CLOCK_MONOTONIC);
-
-    // Given a SurfaceFlinger reference, and information about what display
-    // we're destined for, we could query the HWC for the refresh rate.  This
-    // could change over time, e.g. we could switch to 24fps for a movie.
-    // For now, assume 60fps.
-    //const nsecs_t vsyncPeriod =
-    //        getHwComposer().getRefreshPeriod(HWC_DISPLAY_PRIMARY);
-    const nsecs_t vsyncPeriod = 16700000;
-
     // The HWC doesn't currently have a way to report additional latency.
-    // Assume that whatever we submit now will appear on the next flip,
-    // i.e. 1 frame of latency w.r.t. the previous flip.
-    const uint32_t hwcLatency = 1;
+    // Assume that whatever we submit now will appear right after the flip.
+    // For a smart panel this might be 1.  This is expressed in frames,
+    // rather than time, because we expect to have a constant frame delay
+    // regardless of the refresh rate.
+    const uint32_t hwcLatency = 0;
 
-    // A little extra padding to compensate for slack between actual vsync
-    // time and vsync event receipt.  Currently not needed since we're
-    // using "now" instead of a vsync time.
-    const nsecs_t extraPadding = 0;
+    // Ask DispSync when the next refresh will be (CLOCK_MONOTONIC).
+    const nsecs_t nextRefresh = dispSync.computeNextRefresh(hwcLatency);
 
-    // Total it up.
-    return prevVsync + hwcLatency * vsyncPeriod + extraPadding;
+    // The DispSync time is already adjusted for the difference between
+    // vsync and reported-vsync (PRESENT_TIME_OFFSET_FROM_VSYNC_NS), so
+    // we don't need to factor that in here.  Pad a little to avoid
+    // weird effects if apps might be requesting times right on the edge.
+    nsecs_t extraPadding = 0;
+    if (VSYNC_EVENT_PHASE_OFFSET_NS == 0) {
+        extraPadding = 1000000;        // 1ms (6% of 60Hz)
+    }
+
+    return nextRefresh + extraPadding;
 }
 
 void SurfaceFlingerConsumer::setContentsChangedListener(
