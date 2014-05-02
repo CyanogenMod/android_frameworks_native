@@ -623,10 +623,36 @@ void SurfaceComposerClient::setDisplayProjection(const sp<IBinder>& token,
 
 // ----------------------------------------------------------------------------
 
-status_t SurfaceComposerClient::getDisplayInfo(
-        const sp<IBinder>& display, DisplayInfo* info)
+status_t SurfaceComposerClient::getDisplayConfigs(
+        const sp<IBinder>& display, Vector<DisplayInfo>* configs)
 {
-    return ComposerService::getComposerService()->getDisplayInfo(display, info);
+    return ComposerService::getComposerService()->getDisplayConfigs(display, configs);
+}
+
+status_t SurfaceComposerClient::getDisplayInfo(const sp<IBinder>& display,
+        DisplayInfo* info) {
+    Vector<DisplayInfo> configs;
+    status_t result = getDisplayConfigs(display, &configs);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    int activeId = getActiveConfig(display);
+    if (activeId < 0) {
+        ALOGE("No active configuration found");
+        return NAME_NOT_FOUND;
+    }
+
+    *info = configs[activeId];
+    return NO_ERROR;
+}
+
+int SurfaceComposerClient::getActiveConfig(const sp<IBinder>& display) {
+    return ComposerService::getComposerService()->getActiveConfig(display);
+}
+
+status_t SurfaceComposerClient::setActiveConfig(const sp<IBinder>& display, int id) {
+    return ComposerService::getComposerService()->setActiveConfig(display, id);
 }
 
 void SurfaceComposerClient::blankDisplay(const sp<IBinder>& token) {

@@ -220,13 +220,43 @@ public:
         remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
     }
 
-    virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info)
+    virtual status_t getDisplayConfigs(const sp<IBinder>& display,
+            Vector<DisplayInfo>* configs)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeStrongBinder(display);
-        remote()->transact(BnSurfaceComposer::GET_DISPLAY_INFO, data, &reply);
-        memcpy(info, reply.readInplace(sizeof(DisplayInfo)), sizeof(DisplayInfo));
+        remote()->transact(BnSurfaceComposer::GET_DISPLAY_CONFIGS, data, &reply);
+        status_t result = reply.readInt32();
+        if (result == NO_ERROR) {
+            size_t numConfigs = static_cast<size_t>(reply.readInt32());
+            configs->clear();
+            configs->resize(numConfigs);
+            for (size_t c = 0; c < numConfigs; ++c) {
+                memcpy(&(configs->editItemAt(c)),
+                        reply.readInplace(sizeof(DisplayInfo)),
+                        sizeof(DisplayInfo));
+            }
+        }
+        return result;
+    }
+
+    virtual int getActiveConfig(const sp<IBinder>& display)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
+        remote()->transact(BnSurfaceComposer::GET_ACTIVE_CONFIG, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual status_t setActiveConfig(const sp<IBinder>& display, int id)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
+        data.writeInt32(id);
+        remote()->transact(BnSurfaceComposer::SET_ACTIVE_CONFIG, data, &reply);
         return reply.readInt32();
     }
 
@@ -357,12 +387,33 @@ status_t BnSurfaceComposer::onTransact(
             unblank(display);
             return NO_ERROR;
         }
-        case GET_DISPLAY_INFO: {
+        case GET_DISPLAY_CONFIGS: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            DisplayInfo info;
+            Vector<DisplayInfo> configs;
             sp<IBinder> display = data.readStrongBinder();
-            status_t result = getDisplayInfo(display, &info);
-            memcpy(reply->writeInplace(sizeof(DisplayInfo)), &info, sizeof(DisplayInfo));
+            status_t result = getDisplayConfigs(display, &configs);
+            reply->writeInt32(result);
+            if (result == NO_ERROR) {
+                reply->writeInt32(static_cast<int32_t>(configs.size()));
+                for (size_t c = 0; c < configs.size(); ++c) {
+                    memcpy(reply->writeInplace(sizeof(DisplayInfo)),
+                            &configs[c], sizeof(DisplayInfo));
+                }
+            }
+            return NO_ERROR;
+        }
+        case GET_ACTIVE_CONFIG: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = data.readStrongBinder();
+            int id = getActiveConfig(display);
+            reply->writeInt32(id);
+            return NO_ERROR;
+        }
+        case SET_ACTIVE_CONFIG: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = data.readStrongBinder();
+            int id = data.readInt32();
+            status_t result = setActiveConfig(display, id);
             reply->writeInt32(result);
             return NO_ERROR;
         }

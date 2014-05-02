@@ -66,8 +66,21 @@ public:
     status_t linkToComposerDeath(const sp<IBinder::DeathRecipient>& recipient,
             void* cookie = NULL, uint32_t flags = 0);
 
-    // Get information about a display
-    static status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
+    // Get a list of supported configurations for a given display
+    static status_t getDisplayConfigs(const sp<IBinder>& display,
+            Vector<DisplayInfo>* configs);
+
+    // Get the DisplayInfo for the currently-active configuration
+    static status_t getDisplayInfo(const sp<IBinder>& display,
+            DisplayInfo* info);
+
+    // Get the index of the current active configuration (relative to the list
+    // returned by getDisplayInfo)
+    static int getActiveConfig(const sp<IBinder>& display);
+
+    // Set a new active configuration using an index relative to the list
+    // returned by getDisplayInfo
+    static status_t setActiveConfig(const sp<IBinder>& display, int id);
 
     /* triggers screen off and waits for it to complete */
     static void blankDisplay(const sp<IBinder>& display);
