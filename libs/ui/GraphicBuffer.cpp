@@ -235,8 +235,10 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
 
     buffer = reinterpret_cast<void*>(static_cast<int*>(buffer) + sizeNeeded);
     size -= sizeNeeded;
-    fds += handle->numFds;
-    count -= handle->numFds;
+    if (handle) {
+        fds += handle->numFds;
+        count -= handle->numFds;
+    }
 
     return NO_ERROR;
 }
