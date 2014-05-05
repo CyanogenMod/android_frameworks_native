@@ -161,6 +161,12 @@ public:
     void dump(String8& result) const;
     int getHardwareOrientation();
 
+#ifdef QCOM_BSP
+    /* To set egl atribute, EGL_SWAP_BEHAVIOR value
+     * (EGL_BUFFER_PRESERVED/EGL_BUFFER_DESTROYED)
+     */
+    void eglSwapPreserved(bool status) const;
+#endif
 private:
     /*
      *  Constants, set during initialization

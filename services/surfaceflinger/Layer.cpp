@@ -1358,6 +1358,12 @@ bool Layer::isSecureDisplay() const
 }
 
 #endif
+
+#ifdef QCOM_BSP
+bool Layer::hasNewFrame() const {
+   return (mQueuedFrames > 0);
+}
+#endif
 // ---------------------------------------------------------------------------
 }; // namespace android
 
