@@ -53,8 +53,8 @@ TEST_F(PointerCoordsTest, AxisValues) {
 
     // Set first axis.
     ASSERT_EQ(OK, coords.setAxisValue(1, 5));
-    ASSERT_EQ(0x00000002ULL, coords.bits);
     ASSERT_EQ(5, coords.values[0]);
+    ASSERT_EQ(0x4000000000000000ULL, coords.bits);
 
     ASSERT_EQ(0, coords.getAxisValue(0))
             << "getAxisValue should return zero because axis is not present";
@@ -63,7 +63,7 @@ TEST_F(PointerCoordsTest, AxisValues) {
 
     // Set an axis with a higher id than all others.  (appending value at the end)
     ASSERT_EQ(OK, coords.setAxisValue(3, 2));
-    ASSERT_EQ(0x0000000aULL, coords.bits);
+    ASSERT_EQ(0x5000000000000000ULL, coords.bits);
     ASSERT_EQ(5, coords.values[0]);
     ASSERT_EQ(2, coords.values[1]);
 
@@ -78,7 +78,7 @@ TEST_F(PointerCoordsTest, AxisValues) {
 
     // Set an axis with an id lower than all others.  (prepending value at beginning)
     ASSERT_EQ(OK, coords.setAxisValue(0, 4));
-    ASSERT_EQ(0x0000000bULL, coords.bits);
+    ASSERT_EQ(0xd000000000000000ULL, coords.bits);
     ASSERT_EQ(4, coords.values[0]);
     ASSERT_EQ(5, coords.values[1]);
     ASSERT_EQ(2, coords.values[2]);
@@ -94,7 +94,7 @@ TEST_F(PointerCoordsTest, AxisValues) {
 
     // Set an axis with an id between the others.  (inserting value in the middle)
     ASSERT_EQ(OK, coords.setAxisValue(2, 1));
-    ASSERT_EQ(0x0000000fULL, coords.bits);
+    ASSERT_EQ(0xf000000000000000ULL, coords.bits);
     ASSERT_EQ(4, coords.values[0]);
     ASSERT_EQ(5, coords.values[1]);
     ASSERT_EQ(1, coords.values[2]);
@@ -111,7 +111,7 @@ TEST_F(PointerCoordsTest, AxisValues) {
 
     // Set an existing axis value in place.
     ASSERT_EQ(OK, coords.setAxisValue(1, 6));
-    ASSERT_EQ(0x0000000fULL, coords.bits);
+    ASSERT_EQ(0xf000000000000000ULL, coords.bits);
     ASSERT_EQ(4, coords.values[0]);
     ASSERT_EQ(6, coords.values[1]);
     ASSERT_EQ(1, coords.values[2]);
