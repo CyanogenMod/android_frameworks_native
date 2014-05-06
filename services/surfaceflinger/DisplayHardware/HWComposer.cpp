@@ -170,20 +170,15 @@ HWComposer::HWComposer(
 
         DisplayData& disp(mDisplayData[HWC_DISPLAY_PRIMARY]);
         disp.connected = true;
-        disp.width = mFbDev->width;
-        disp.height = mFbDev->height;
         disp.format = mFbDev->format;
-        disp.xdpi = mFbDev->xdpi;
-        disp.ydpi = mFbDev->ydpi;
-        if (disp.refresh == 0) {
-            disp.refresh = nsecs_t(1e9 / mFbDev->fps);
-            ALOGW("getting VSYNC period from fb HAL: %lld", disp.refresh);
-        }
-        if (disp.refresh == 0) {
-            disp.refresh = nsecs_t(1e9 / 60.0);
-            ALOGW("getting VSYNC period from thin air: %lld",
-                    mDisplayData[HWC_DISPLAY_PRIMARY].refresh);
-        }
+        DisplayConfig config = DisplayConfig();
+        config.width = mFbDev->width;
+        config.height = mFbDev->height;
+        config.xdpi = mFbDev->xdpi;
+        config.ydpi = mFbDev->ydpi;
+        config.refresh = nsecs_t(1e9 / mFbDev->fps);
+        disp.configs.push_back(config);
+        disp.currentConfig = 0;
     } else if (mHwc) {
         // here we're guaranteed to have at least HWC 1.1
         for (size_t i =0 ; i<NUM_BUILTIN_DISPLAYS ; i++) {
@@ -342,55 +337,63 @@ status_t HWComposer::queryDisplayProperties(int disp) {
     int32_t values[NUM_DISPLAY_ATTRIBUTES - 1];
     memset(values, 0, sizeof(values));
 
-    uint32_t config;
-    size_t numConfigs = 1;
-    status_t err = mHwc->getDisplayConfigs(mHwc, disp, &config, &numConfigs);
+    const size_t MAX_NUM_CONFIGS = 128;
+    uint32_t configs[MAX_NUM_CONFIGS] = {0};
+    size_t numConfigs = MAX_NUM_CONFIGS;
+    status_t err = mHwc->getDisplayConfigs(mHwc, disp, configs, &numConfigs);
     if (err != NO_ERROR) {
         // this can happen if an unpluggable display is not connected
         mDisplayData[disp].connected = false;
         return err;
     }
 
-    err = mHwc->getDisplayAttributes(mHwc, disp, config, DISPLAY_ATTRIBUTES, values);
-    if (err != NO_ERROR) {
-        // we can't get this display's info. turn it off.
-        mDisplayData[disp].connected = false;
-        return err;
-    }
-
-    int32_t w = 0, h = 0;
-    for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
-        switch (DISPLAY_ATTRIBUTES[i]) {
-        case HWC_DISPLAY_VSYNC_PERIOD:
-            mDisplayData[disp].refresh = nsecs_t(values[i]);
-            break;
-        case HWC_DISPLAY_WIDTH:
-            mDisplayData[disp].width = values[i];
-            break;
-        case HWC_DISPLAY_HEIGHT:
-            mDisplayData[disp].height = values[i];
-            break;
-        case HWC_DISPLAY_DPI_X:
-            mDisplayData[disp].xdpi = values[i] / 1000.0f;
-            break;
-        case HWC_DISPLAY_DPI_Y:
-            mDisplayData[disp].ydpi = values[i] / 1000.0f;
-            break;
-        default:
-            ALOG_ASSERT(false, "unknown display attribute[%d] %#x",
-                    i, DISPLAY_ATTRIBUTES[i]);
-            break;
+    mDisplayData[disp].currentConfig = 0;
+    for (size_t c = 0; c < numConfigs; ++c) {
+        err = mHwc->getDisplayAttributes(mHwc, disp, configs[c],
+                DISPLAY_ATTRIBUTES, values);
+        if (err != NO_ERROR) {
+            // we can't get this display's info. turn it off.
+            mDisplayData[disp].connected = false;
+            return err;
         }
+
+        DisplayConfig config = DisplayConfig();
+        for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
+            switch (DISPLAY_ATTRIBUTES[i]) {
+                case HWC_DISPLAY_VSYNC_PERIOD:
+                    config.refresh = nsecs_t(values[i]);
+                    break;
+                case HWC_DISPLAY_WIDTH:
+                    config.width = values[i];
+                    break;
+                case HWC_DISPLAY_HEIGHT:
+                    config.height = values[i];
+                    break;
+                case HWC_DISPLAY_DPI_X:
+                    config.xdpi = values[i] / 1000.0f;
+                    break;
+                case HWC_DISPLAY_DPI_Y:
+                    config.ydpi = values[i] / 1000.0f;
+                    break;
+                default:
+                    ALOG_ASSERT(false, "unknown display attribute[%d] %#x",
+                            i, DISPLAY_ATTRIBUTES[i]);
+                    break;
+            }
+        }
+
+        if (config.xdpi == 0.0f || config.ydpi == 0.0f) {
+            float dpi = getDefaultDensity(config.height);
+            config.xdpi = dpi;
+            config.ydpi = dpi;
+        }
+
+        mDisplayData[disp].configs.push_back(config);
     }
 
     // FIXME: what should we set the format to?
     mDisplayData[disp].format = HAL_PIXEL_FORMAT_RGBA_8888;
     mDisplayData[disp].connected = true;
-    if (mDisplayData[disp].xdpi == 0.0f || mDisplayData[disp].ydpi == 0.0f) {
-        float dpi = getDefaultDensity(h);
-        mDisplayData[disp].xdpi = dpi;
-        mDisplayData[disp].ydpi = dpi;
-    }
     return NO_ERROR;
 }
 
@@ -400,10 +403,12 @@ status_t HWComposer::setVirtualDisplayProperties(int32_t id,
             !mAllocatedDisplayIDs.hasBit(id)) {
         return BAD_INDEX;
     }
-    mDisplayData[id].width = w;
-    mDisplayData[id].height = h;
+    size_t configId = mDisplayData[id].currentConfig;
     mDisplayData[id].format = format;
-    mDisplayData[id].xdpi = mDisplayData[id].ydpi = getDefaultDensity(h);
+    DisplayConfig& config = mDisplayData[id].configs.editItemAt(configId);
+    config.width = w;
+    config.height = h;
+    config.xdpi = config.ydpi = getDefaultDensity(h);
     return NO_ERROR;
 }
 
@@ -414,6 +419,8 @@ int32_t HWComposer::allocateDisplayId() {
     int32_t id = mAllocatedDisplayIDs.firstUnmarkedBit();
     mAllocatedDisplayIDs.markBit(id);
     mDisplayData[id].connected = true;
+    mDisplayData[id].configs.resize(1);
+    mDisplayData[id].currentConfig = 0;
     return id;
 }
 
@@ -430,29 +437,19 @@ status_t HWComposer::freeDisplayId(int32_t id) {
     return NO_ERROR;
 }
 
-nsecs_t HWComposer::getRefreshPeriod(int disp) const {
-    return mDisplayData[disp].refresh;
-}
-
 nsecs_t HWComposer::getRefreshTimestamp(int disp) const {
     // this returns the last refresh timestamp.
     // if the last one is not available, we estimate it based on
     // the refresh period and whatever closest timestamp we have.
     Mutex::Autolock _l(mLock);
     nsecs_t now = systemTime(CLOCK_MONOTONIC);
-    return now - ((now - mLastHwVSync[disp]) %  mDisplayData[disp].refresh);
+    size_t configId = mDisplayData[disp].currentConfig;
+    return now - ((now - mLastHwVSync[disp]) %
+            mDisplayData[disp].configs[configId].refresh);
 }
 
 sp<Fence> HWComposer::getDisplayFence(int disp) const {
     return mDisplayData[disp].lastDisplayFence;
-}
-
-uint32_t HWComposer::getWidth(int disp) const {
-    return mDisplayData[disp].width;
-}
-
-uint32_t HWComposer::getHeight(int disp) const {
-    return mDisplayData[disp].height;
 }
 
 uint32_t HWComposer::getFormat(int disp) const {
@@ -463,16 +460,41 @@ uint32_t HWComposer::getFormat(int disp) const {
     }
 }
 
+bool HWComposer::isConnected(int disp) const {
+    return mDisplayData[disp].connected;
+}
+
+uint32_t HWComposer::getWidth(int disp) const {
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].width;
+}
+
+uint32_t HWComposer::getHeight(int disp) const {
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].height;
+}
+
 float HWComposer::getDpiX(int disp) const {
-    return mDisplayData[disp].xdpi;
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].xdpi;
 }
 
 float HWComposer::getDpiY(int disp) const {
-    return mDisplayData[disp].ydpi;
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].ydpi;
 }
 
-bool HWComposer::isConnected(int disp) const {
-    return mDisplayData[disp].connected;
+nsecs_t HWComposer::getRefreshPeriod(int disp) const {
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].refresh;
+}
+
+const Vector<HWComposer::DisplayConfig>& HWComposer::getConfigs(int disp) const {
+    return mDisplayData[disp].configs;
+}
+
+size_t HWComposer::getCurrentConfig(int disp) const {
+    return mDisplayData[disp].currentConfig;
 }
 
 void HWComposer::eventControl(int disp, int event, int enabled) {
@@ -536,7 +558,10 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             disp.framebufferTarget = &disp.list->hwLayers[numLayers - 1];
             memset(disp.framebufferTarget, 0, sizeof(hwc_layer_1_t));
-            const hwc_rect_t r = { 0, 0, (int) disp.width, (int) disp.height };
+            const DisplayConfig& currentConfig =
+                    disp.configs[disp.currentConfig];
+            const hwc_rect_t r = { 0, 0,
+                    (int) currentConfig.width, (int) currentConfig.height };
             disp.framebufferTarget->compositionType = HWC_FRAMEBUFFER_TARGET;
             disp.framebufferTarget->hints = 0;
             disp.framebufferTarget->flags = 0;
@@ -546,8 +571,10 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
                 disp.framebufferTarget->sourceCropf.left = 0;
                 disp.framebufferTarget->sourceCropf.top = 0;
-                disp.framebufferTarget->sourceCropf.right = disp.width;
-                disp.framebufferTarget->sourceCropf.bottom = disp.height;
+                disp.framebufferTarget->sourceCropf.right =
+                        currentConfig.width;
+                disp.framebufferTarget->sourceCropf.bottom =
+                        currentConfig.height;
             } else {
                 disp.framebufferTarget->sourceCrop = r;
             }
@@ -1050,9 +1077,14 @@ void HWComposer::dump(String8& result) const {
             const Vector< sp<Layer> >& visibleLayersSortedByZ =
                     mFlinger->getLayerSortedByZForHwcDisplay(i);
 
-            result.appendFormat(
-                    "  Display[%zd] : %ux%u, xdpi=%f, ydpi=%f, refresh=%" PRId64 "\n",
-                    i, disp.width, disp.height, disp.xdpi, disp.ydpi, disp.refresh);
+
+            result.appendFormat("  Display[%zd] configurations (* current):\n", i);
+            for (size_t c = 0; c < disp.configs.size(); ++c) {
+                const DisplayConfig& config(disp.configs[c]);
+                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, refresh=%" PRId64 "\n",
+                        c == disp.currentConfig ? "* " : "", c, config.width, config.height,
+                        config.xdpi, config.ydpi, config.refresh);
+            }
 
             if (disp.list) {
                 result.appendFormat(
@@ -1181,9 +1213,9 @@ bool HWComposer::VSyncThread::threadLoop() {
 }
 
 HWComposer::DisplayData::DisplayData()
-:   width(0), height(0), format(HAL_PIXEL_FORMAT_RGBA_8888),
-    xdpi(0.0f), ydpi(0.0f),
-    refresh(0),
+:   configs(),
+    currentConfig(0),
+    format(HAL_PIXEL_FORMAT_RGBA_8888),
     connected(false),
     hasFbComp(false), hasOvComp(false),
     capacity(0), list(NULL),

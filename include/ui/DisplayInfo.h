@@ -33,7 +33,6 @@ struct DisplayInfo {
     float density;
     uint8_t orientation;
     bool secure;
-    uint8_t reserved[2];
 };
 
 /* Display orientations as defined in Surface.java and ISurfaceComposer.h. */

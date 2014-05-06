@@ -247,17 +247,31 @@ public:
 
     void eventControl(int disp, int event, int enabled);
 
+    struct DisplayConfig {
+        uint32_t width;
+        uint32_t height;
+        float xdpi;
+        float ydpi;
+        nsecs_t refresh;
+    };
+
     // Query display parameters.  Pass in a display index (e.g.
     // HWC_DISPLAY_PRIMARY).
-    nsecs_t getRefreshPeriod(int disp) const;
     nsecs_t getRefreshTimestamp(int disp) const;
     sp<Fence> getDisplayFence(int disp) const;
+    uint32_t getFormat(int disp) const;
+    bool isConnected(int disp) const;
+
+    // These return the values for the current config of a given display index.
+    // To get the values for all configs, use getConfigs below.
     uint32_t getWidth(int disp) const;
     uint32_t getHeight(int disp) const;
-    uint32_t getFormat(int disp) const;
     float getDpiX(int disp) const;
     float getDpiY(int disp) const;
-    bool isConnected(int disp) const;
+    nsecs_t getRefreshPeriod(int disp) const;
+
+    const Vector<DisplayConfig>& getConfigs(int disp) const;
+    size_t getCurrentConfig(int disp) const;
 
     status_t setVirtualDisplayProperties(int32_t id, uint32_t w, uint32_t h,
             uint32_t format);
@@ -306,16 +320,12 @@ private:
     status_t setFramebufferTarget(int32_t id,
             const sp<Fence>& acquireFence, const sp<GraphicBuffer>& buf);
 
-
     struct DisplayData {
         DisplayData();
         ~DisplayData();
-        uint32_t width;
-        uint32_t height;
+        Vector<DisplayConfig> configs;
+        size_t currentConfig;
         uint32_t format;    // pixel format from FB hal, for pre-hwc-1.1
-        float xdpi;
-        float ydpi;
-        nsecs_t refresh;
         bool connected;
         bool hasFbComp;
         bool hasOvComp;

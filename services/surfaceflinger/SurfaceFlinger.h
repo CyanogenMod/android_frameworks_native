@@ -209,7 +209,10 @@ private:
     virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
     virtual void unblank(const sp<IBinder>& display);
-    virtual status_t getDisplayInfo(const sp<IBinder>& display, DisplayInfo* info);
+    virtual status_t getDisplayConfigs(const sp<IBinder>& display,
+            Vector<DisplayInfo>* configs);
+    virtual int getActiveConfig(const sp<IBinder>& display);
+    virtual status_t setActiveConfig(const sp<IBinder>& display, int id);
     virtual status_t clearAnimationFrameStats();
     virtual status_t getAnimationFrameStats(FrameStats* outStats) const;
 
