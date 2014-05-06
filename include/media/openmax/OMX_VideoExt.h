@@ -145,6 +145,63 @@ typedef struct OMX_VIDEO_PARAM_ANDROID_VP8ENCODERTYPE {
     OMX_U32 nMaxQuantizer;
 };
 
+/** HEVC Profile enum type */
+typedef enum OMX_VIDEO_HEVCPROFILETYPE {
+    OMX_VIDEO_HEVCProfileUnknown = 0x0,
+    OMX_VIDEO_HEVCProfileMain    = 0x1,
+    OMX_VIDEO_HEVCProfileMain10  = 0x2,
+    OMX_VIDEO_HEVCProfileMax     = 0x7FFFFFFF
+} OMX_VIDEO_HEVCPROFILETYPE;
+
+/** HEVC Level enum type */
+typedef enum OMX_VIDEO_HEVCLEVELTYPE {
+    OMX_VIDEO_HEVCLevelUnknown    = 0x0,
+    OMX_VIDEO_HEVCMainTierLevel1  = 0x1,
+    OMX_VIDEO_HEVCHighTierLevel1  = 0x2,
+    OMX_VIDEO_HEVCMainTierLevel2  = 0x4,
+    OMX_VIDEO_HEVCHighTierLevel2  = 0x8,
+    OMX_VIDEO_HEVCMainTierLevel21 = 0x10,
+    OMX_VIDEO_HEVCHighTierLevel21 = 0x20,
+    OMX_VIDEO_HEVCMainTierLevel3  = 0x40,
+    OMX_VIDEO_HEVCHighTierLevel3  = 0x80,
+    OMX_VIDEO_HEVCMainTierLevel31 = 0x100,
+    OMX_VIDEO_HEVCHighTierLevel31 = 0x200,
+    OMX_VIDEO_HEVCMainTierLevel4  = 0x400,
+    OMX_VIDEO_HEVCHighTierLevel4  = 0x800,
+    OMX_VIDEO_HEVCMainTierLevel41 = 0x1000,
+    OMX_VIDEO_HEVCHighTierLevel41 = 0x2000,
+    OMX_VIDEO_HEVCMainTierLevel5  = 0x4000,
+    OMX_VIDEO_HEVCHighTierLevel5  = 0x8000,
+    OMX_VIDEO_HEVCMainTierLevel51 = 0x10000,
+    OMX_VIDEO_HEVCHighTierLevel51 = 0x20000,
+    OMX_VIDEO_HEVCMainTierLevel52 = 0x40000,
+    OMX_VIDEO_HEVCHighTierLevel52 = 0x80000,
+    OMX_VIDEO_HEVCMainTierLevel6  = 0x100000,
+    OMX_VIDEO_HEVCHighTierLevel6  = 0x200000,
+    OMX_VIDEO_HEVCMainTierLevel61 = 0x400000,
+    OMX_VIDEO_HEVCHighTierLevel61 = 0x800000,
+    OMX_VIDEO_HEVCMainTierLevel62 = 0x1000000,
+    OMX_VIDEO_HEVCHighTierLevel62 = 0x2000000,
+    OMX_VIDEO_HEVCHighTiermax     = 0x7FFFFFFF
+} OMX_VIDEO_HEVCLEVELTYPE;
+
+/** Structure for controlling HEVC video encoding and decoding */
+typedef struct OMX_VIDEO_PARAM_HEVCTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_VIDEO_HEVCPROFILETYPE eProfile;
+    OMX_VIDEO_HEVCLEVELTYPE eLevel;
+} OMX_VIDEO_PARAM_HEVCTYPE;
+
+/** Structure to define if dependent slice segments should be used */
+typedef struct OMX_VIDEO_SLICESEGMENTSTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bDepedentSegments;
+    OMX_BOOL bEnableLoopFilterAcrossSlices;
+} OMX_VIDEO_SLICESEGMENTSTYPE;
 
 #ifdef __cplusplus
 }
