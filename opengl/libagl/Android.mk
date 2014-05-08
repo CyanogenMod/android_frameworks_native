@@ -27,7 +27,6 @@ LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
 
 LOCAL_SHARED_LIBRARIES := libcutils libhardware libutils liblog libpixelflinger libETC1 libui
-LOCAL_LDLIBS := -lpthread -ldl
 
 LOCAL_SRC_FILES_arm += fixed_asm.S iterators.S
 LOCAL_CFLAGS_arm += -fstrict-aliasing
