@@ -27,7 +27,7 @@
 
 using namespace android;
 
-int main(int argc, char** argv) {
+int main(int, char**) {
     // When SF is launched in its own process, limit the number of
     // binder threads to 4.
     ProcessState::self()->setThreadPoolMaxThreadCount(4);

@@ -2201,6 +2201,13 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
                 clearStatsLocked(args, index, result);
                 dumpAll = false;
             }
+
+            if ((index < numArgs) &&
+                    (args[index] == String16("--dispsync"))) {
+                index++;
+                mPrimaryDispSync.dump(result);
+                dumpAll = false;
+            }
         }
 
         if (dumpAll) {

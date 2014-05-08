@@ -99,6 +99,9 @@ public:
     // DispSync object.
     status_t removeEventListener(const sp<Callback>& callback);
 
+    // dump appends human-readable debug info to the result string.
+    void dump(String8& result) const;
+
 private:
 
     void updateModelLocked();
