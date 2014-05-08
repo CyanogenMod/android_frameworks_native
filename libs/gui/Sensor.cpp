@@ -203,6 +203,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
         mWakeUpSensor = true;
         break;
+    case SENSOR_TYPE_WAKE_GESTURE:
+        mStringType = SENSOR_STRING_TYPE_WAKE_GESTURE;
+        mWakeUpSensor = true;
+        break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->stringType) {
