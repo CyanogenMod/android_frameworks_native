@@ -28,12 +28,12 @@ namespace android {
  */
 
 status_t BatteryProperty::readFromParcel(Parcel* p) {
-    valueInt = p->readInt32();
+    valueInt64 = p->readInt64();
     return OK;
 }
 
 status_t BatteryProperty::writeToParcel(Parcel* p) const {
-    p->writeInt32(valueInt);
+    p->writeInt64(valueInt64);
     return OK;
 }
 

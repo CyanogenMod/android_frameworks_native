@@ -18,6 +18,7 @@
 #define ANDROID_BATTERYSERVICE_H
 
 #include <binder/Parcel.h>
+#include <sys/types.h>
 #include <utils/Errors.h>
 #include <utils/String8.h>
 
@@ -45,10 +46,11 @@ enum {
 
 // must be kept in sync with definitions in BatteryProperty.java
 enum {
-    BATTERY_PROP_CHARGE_COUNTER = 1, // equals BatteryProperty.BATTERY_PROP_CHARGE_COUNTER constant
-    BATTERY_PROP_CURRENT_NOW = 2, // equals BatteryProperty.BATTERY_PROP_CURRENT_NOW constant
-    BATTERY_PROP_CURRENT_AVG = 3, // equals BatteryProperty.BATTERY_PROP_CURRENT_AVG constant
-    BATTERY_PROP_CAPACITY = 4, // equals BatteryProperty.BATTERY_PROP_CAPACITY constant
+    BATTERY_PROP_CHARGE_COUNTER = 1, // equals BatteryProperty.CHARGE_COUNTER constant
+    BATTERY_PROP_CURRENT_NOW = 2, // equals BatteryProperty.CURRENT_NOW constant
+    BATTERY_PROP_CURRENT_AVG = 3, // equals BatteryProperty.CURRENT_AVG constant
+    BATTERY_PROP_CAPACITY = 4, // equals BatteryProperty.CAPACITY constant
+    BATTERY_PROP_ENERGY_COUNTER = 5, // equals BatteryProperty.ENERGY_COUNTER constant
 };
 
 struct BatteryProperties {
@@ -68,7 +70,7 @@ struct BatteryProperties {
 };
 
 struct BatteryProperty {
-    int valueInt;
+    int64_t valueInt64;
 
     status_t writeToParcel(Parcel* parcel) const;
     status_t readFromParcel(Parcel* parcel);
