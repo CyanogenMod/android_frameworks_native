@@ -509,6 +509,7 @@ void DispSync::resetErrorLocked() {
 }
 
 nsecs_t DispSync::computeNextRefresh(int periodOffset) const {
+    Mutex::Autolock lock(mMutex);
     nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
     return (((now - mPhase) / mPeriod) + periodOffset + 1) * mPeriod + mPhase;
 }
