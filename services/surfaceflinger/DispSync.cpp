@@ -20,6 +20,7 @@
 #define __STDC_LIMIT_MACROS
 
 #include <math.h>
+#include <inttypes.h>
 
 #include <cutils/log.h>
 
@@ -484,6 +485,51 @@ void DispSync::resetErrorLocked() {
     for (size_t i = 0; i < NUM_PRESENT_SAMPLES; i++) {
         mPresentFences[i].clear();
         mPresentTimes[i] = 0;
+    }
+}
+
+void DispSync::dump(String8& result) const {
+    Mutex::Autolock lock(mMutex);
+    result.appendFormat("mPeriod: %"PRId64" ns\n", mPeriod);
+    result.appendFormat("mPhase: %"PRId64" ns\n", mPhase);
+    result.appendFormat("mError: %"PRId64" ns (sqrt: %.1f)\n",
+            mError, sqrt(mError));
+    result.appendFormat("mNumResyncSamplesSincePresent: %d (max %d)\n",
+            mNumResyncSamplesSincePresent, MAX_RESYNC_SAMPLES_WITHOUT_PRESENT);
+    result.appendFormat("mNumResyncSamples: %d (max %d)\n",
+            mNumResyncSamples, MAX_RESYNC_SAMPLES);
+
+    result.appendFormat("mResyncSamples:\n");
+    nsecs_t previous = -1;
+    for (size_t i = 0; i < mNumResyncSamples; i++) {
+        size_t idx = (mFirstResyncSample + i) % MAX_RESYNC_SAMPLES;
+        nsecs_t sampleTime = mResyncSamples[idx];
+        if (i == 0) {
+            result.appendFormat("  %"PRId64"\n", sampleTime);
+        } else {
+            result.appendFormat("  %"PRId64" (+%"PRId64")\n",
+                    sampleTime, sampleTime - previous);
+        }
+        previous = sampleTime;
+    }
+
+    result.appendFormat("mPresentFences / mPresentTimes [%d]:\n",
+            NUM_PRESENT_SAMPLES);
+    previous = 0;
+    for (size_t i = 0; i < NUM_PRESENT_SAMPLES; i++) {
+        size_t idx = (i + mPresentSampleOffset) % NUM_PRESENT_SAMPLES;
+        bool signaled = mPresentFences[idx] == NULL;
+        nsecs_t presentTime = mPresentTimes[idx];
+        if (!signaled) {
+            result.appendFormat("  [unsignaled fence]\n");
+        } else if (previous == 0) {
+            result.appendFormat("  %"PRId64"\n", presentTime);
+        } else {
+            result.appendFormat("  %"PRId64" (+%"PRId64" / %.3f)\n",
+                    presentTime, presentTime - previous,
+                    (presentTime - previous) / (double) mPeriod);
+        }
+        previous = presentTime;
     }
 }
 
