@@ -89,6 +89,11 @@ typedef enum OMX_VIDEO_CODINGTYPE {
     OMX_VIDEO_CodingVP9,        /**< Google VP9 */
     OMX_VIDEO_CodingKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
     OMX_VIDEO_CodingVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_VIDEO_CodingVC1,        /**< VC1 */
+    OMX_VIDEO_CodingFLV1,       /**< Sorenson's H.263 */
+    OMX_VIDEO_CodingDIVX,       /**< DIVX */
+    OMX_VIDEO_CodingHEVC,       /**< HEVC */
+    OMX_VIDEO_CodingFFMPEG,     /**< FFMPEG */
     OMX_VIDEO_CodingMax = 0x7FFFFFFF
 } OMX_VIDEO_CODINGTYPE;
 
@@ -1067,6 +1072,19 @@ typedef struct OMX_VIDEO_CONFIG_NALSIZE {
     OMX_U32 nPortIndex;
     OMX_U32 nNaluBytes;
 } OMX_VIDEO_CONFIG_NALSIZE;
+
+/**
+ * FFMPEG Video Params
+ */
+typedef struct OMX_VIDEO_PARAM_FFMPEGTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+
+    OMX_S32 eCodecId;              /**< enum AVCodecID */
+    OMX_U32 nWidth;
+    OMX_U32 nHeight;
+} OMX_VIDEO_PARAM_FFMPEGTYPE;
 
 /** @} */
 
