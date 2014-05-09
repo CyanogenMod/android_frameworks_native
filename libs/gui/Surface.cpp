@@ -764,6 +764,15 @@ status_t Surface::lock(
     ALOGE_IF(err, "dequeueBuffer failed (%s)", strerror(-err));
     if (err == NO_ERROR) {
         sp<GraphicBuffer> backBuffer(GraphicBuffer::getSelf(out));
+        sp<Fence> fence(new Fence(fenceFd));
+
+        err = fence->waitForever("Surface::lock");
+        if (err != OK) {
+            ALOGE("Fence::wait failed (%s)", strerror(-err));
+            cancelBuffer(out, fenceFd);
+            return err;
+        }
+
         const Rect bounds(backBuffer->width, backBuffer->height);
 
         Region newDirtyRegion;
@@ -814,9 +823,9 @@ status_t Surface::lock(
         }
 
         void* vaddr;
-        status_t res = backBuffer->lockAsync(
+        status_t res = backBuffer->lock(
                 GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN,
-                newDirtyRegion.bounds(), &vaddr, fenceFd);
+                newDirtyRegion.bounds(), &vaddr);
 
         ALOGW_IF(res, "failed locking buffer (handle = %p)",
                 backBuffer->handle);
@@ -842,11 +851,10 @@ status_t Surface::unlockAndPost()
         return INVALID_OPERATION;
     }
 
-    int fd = -1;
-    status_t err = mLockedBuffer->unlockAsync(&fd);
+    status_t err = mLockedBuffer->unlock();
     ALOGE_IF(err, "failed unlocking buffer (%p)", mLockedBuffer->handle);
 
-    err = queueBuffer(mLockedBuffer.get(), fd);
+    err = queueBuffer(mLockedBuffer.get(), -1);
     ALOGE_IF(err, "queueBuffer (handle=%p) failed (%s)",
             mLockedBuffer->handle, strerror(-err));
 

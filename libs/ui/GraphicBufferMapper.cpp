@@ -20,8 +20,6 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include <sync/sync.h>
-
 #include <utils/Errors.h>
 #include <utils/Log.h>
 #include <utils/Trace.h>
@@ -108,66 +106,6 @@ status_t GraphicBufferMapper::unlock(buffer_handle_t handle)
     err = mAllocMod->unlock(mAllocMod, handle);
 
     ALOGW_IF(err, "unlock(...) failed %d (%s)", err, strerror(-err));
-    return err;
-}
-
-status_t GraphicBufferMapper::lockAsync(buffer_handle_t handle,
-        int usage, const Rect& bounds, void** vaddr, int fenceFd)
-{
-    ATRACE_CALL();
-    status_t err;
-
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
-        err = mAllocMod->lockAsync(mAllocMod, handle, usage,
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                vaddr, fenceFd);
-    } else {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
-        err = mAllocMod->lock(mAllocMod, handle, usage,
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                vaddr);
-    }
-
-    ALOGW_IF(err, "lockAsync(...) failed %d (%s)", err, strerror(-err));
-    return err;
-}
-
-status_t GraphicBufferMapper::lockAsyncYCbCr(buffer_handle_t handle,
-        int usage, const Rect& bounds, android_ycbcr *ycbcr, int fenceFd)
-{
-    ATRACE_CALL();
-    status_t err;
-
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
-        err = mAllocMod->lockAsync_ycbcr(mAllocMod, handle, usage,
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                ycbcr, fenceFd);
-    } else {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
-        err = mAllocMod->lock_ycbcr(mAllocMod, handle, usage,
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                ycbcr);
-    }
-
-    ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
-    return err;
-}
-
-status_t GraphicBufferMapper::unlockAsync(buffer_handle_t handle, int *fenceFd)
-{
-    ATRACE_CALL();
-    status_t err;
-
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
-        err = mAllocMod->unlockAsync(mAllocMod, handle, fenceFd);
-    } else {
-        *fenceFd = -1;
-        err = mAllocMod->unlock(mAllocMod, handle);
-    }
-
-    ALOGW_IF(err, "unlockAsync(...) failed %d (%s)", err, strerror(-err));
     return err;
 }
 
