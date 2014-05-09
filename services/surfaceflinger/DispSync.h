@@ -108,6 +108,9 @@ public:
     // the refresh after next. etc.
     nsecs_t computeNextRefresh(int periodOffset) const;
 
+    // dump appends human-readable debug info to the result string.
+    void dump(String8& result) const;
+
 private:
 
     void updateModelLocked();
