@@ -97,6 +97,11 @@ public:
     status_t lockYCbCr(uint32_t usage, android_ycbcr *ycbcr);
     status_t lockYCbCr(uint32_t usage, const Rect& rect, android_ycbcr *ycbcr);
     status_t unlock();
+    status_t lockAsync(uint32_t usage, void** vaddr, int fenceFd);
+    status_t lockAsync(uint32_t usage, const Rect& rect, void** vaddr, int fenceFd);
+    status_t lockAsyncYCbCr(uint32_t usage, android_ycbcr *ycbcr, int fenceFd);
+    status_t lockAsyncYCbCr(uint32_t usage, const Rect& rect, android_ycbcr *ycbcr, int fenceFd);
+    status_t unlockAsync(int *fenceFd);
 
     ANativeWindowBuffer* getNativeBuffer() const;
 
