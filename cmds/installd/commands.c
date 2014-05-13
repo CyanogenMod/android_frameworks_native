@@ -86,18 +86,18 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
         }
     }
 
-    if (symlink(applibdir, libsymlink) < 0) {
-        ALOGE("couldn't symlink directory '%s' -> '%s': %s\n", libsymlink, applibdir,
-                strerror(errno));
-        unlink(pkgdir);
-        return -1;
-    }
-
     if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(libsymlink);
         unlink(pkgdir);
         return -errno;
+    }
+
+    if (symlink(applibdir, libsymlink) < 0) {
+        ALOGE("couldn't symlink directory '%s' -> '%s': %s\n", libsymlink, applibdir,
+                strerror(errno));
+        unlink(pkgdir);
+        return -1;
     }
 
     if (chown(pkgdir, uid, gid) < 0) {
@@ -240,18 +240,18 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
         }
     }
 
-    if (symlink(applibdir, libsymlink) < 0) {
-        ALOGE("couldn't symlink directory for non-primary '%s' -> '%s': %s\n", libsymlink,
-                applibdir, strerror(errno));
-        unlink(pkgdir);
-        return -1;
-    }
-
     if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
         unlink(libsymlink);
         unlink(pkgdir);
         return -errno;
+    }
+
+    if (symlink(applibdir, libsymlink) < 0) {
+        ALOGE("couldn't symlink directory for non-primary '%s' -> '%s': %s\n", libsymlink,
+                applibdir, strerror(errno));
+        unlink(pkgdir);
+        return -1;
     }
 
     if (chown(pkgdir, uid, uid) < 0) {
