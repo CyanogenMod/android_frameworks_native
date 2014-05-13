@@ -54,6 +54,9 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_1) {
         mFifoReservedEventCount = hwSensor->fifoReservedEventCount;
         mFifoMaxEventCount = hwSensor->fifoMaxEventCount;
+    } else {
+        mFifoReservedEventCount = 0;
+        mFifoMaxEventCount = 0;
     }
 
     // Ensure existing sensors have correct string type and required
