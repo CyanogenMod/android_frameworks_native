@@ -325,8 +325,12 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     Rect crop;
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
-    Rect dirtyRect = mDirtyRect.isEmpty() ?
-        Rect(buffer->width, buffer->height) : mDirtyRect;
+    Rect dirtyRect = mDirtyRect;
+    if(dirtyRect.isEmpty()) {
+        int drWidth = mUserWidth ? mUserWidth : mDefaultWidth;
+        int drHeight = mUserHeight ? mUserHeight : mDefaultHeight;
+        dirtyRect = Rect(drWidth, drHeight);
+    }
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
