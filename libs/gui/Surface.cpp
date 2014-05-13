@@ -310,8 +310,12 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
 #ifdef QCOM_BSP
-    Rect dirtyRect = mDirtyRect.isEmpty() ?
-        Rect(buffer->width, buffer->height) : mDirtyRect;
+    Rect dirtyRect = mDirtyRect;
+    if(dirtyRect.isEmpty()) {
+        int drWidth = mUserWidth ? mUserWidth : mDefaultWidth;
+        int drHeight = mUserHeight ? mUserHeight : mDefaultHeight;
+        dirtyRect = Rect(drWidth, drHeight);
+    }
 #endif
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
