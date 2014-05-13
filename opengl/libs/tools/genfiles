@@ -20,17 +20,13 @@ export LC_ALL=POSIX
 
 ./glapigen ../../include/GLES/gl.h      > ../GLES_CM/gl_api.in
 ./glapigen ../../include/GLES/glext.h   > ../GLES_CM/glext_api.in
-./glapigen ../../include/GLES2/gl2.h    > ../GLES2/gl2_api.in
+./glapigen ../../include/GLES3/gl3.h    > ../GLES2/gl2_api.in
 ./glapigen ../../include/GLES2/gl2ext.h > ../GLES2/gl2ext_api.in
-./glapigen ../../include/GLES3/gl3.h    > ../GLES2/gl3_api.in
-./glapigen ../../include/GLES3/gl3ext.h > ../GLES2/gl3ext_api.in
 
 ./glentrygen ../../include/GLES/gl.h      > /tmp/gl_entries.in
 ./glentrygen ../../include/GLES/glext.h   > /tmp/glext_entries.in
-./glentrygen ../../include/GLES2/gl2.h    > /tmp/gl2_entries.in
+./glentrygen ../../include/GLES3/gl3.h    > /tmp/gl2_entries.in
 ./glentrygen ../../include/GLES2/gl2ext.h > /tmp/gl2ext_entries.in
-./glentrygen ../../include/GLES3/gl3.h    > /tmp/gl3_entries.in
-./glentrygen ../../include/GLES3/gl3ext.h > /tmp/gl3ext_entries.in
 
 # The awk command removes lines with the same function name as an earlier
 # line, even if the rest of the line differs. Although signatures of
@@ -40,8 +36,6 @@ cat /tmp/gl_entries.in \
     /tmp/glext_entries.in \
     /tmp/gl2_entries.in \
     /tmp/gl2ext_entries.in \
-    /tmp/gl3_entries.in \
-    /tmp/gl3ext_entries.in \
         | sort -t, -k2 \
         | awk -F, '!_[$2]++' \
             > ../entries.in
@@ -50,10 +44,8 @@ cat /tmp/gl_entries.in \
 
 cat ../../include/GLES/gl.h \
     ../../include/GLES/glext.h \
-    ../../include/GLES2/gl2.h \
     ../../include/GLES2/gl2ext.h \
     ../../include/GLES3/gl3.h \
-    ../../include/GLES3/gl3ext.h \
         | ./glenumsgen \
         | sort \
         > ../enums.in

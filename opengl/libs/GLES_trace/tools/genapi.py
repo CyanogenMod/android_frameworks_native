@@ -106,8 +106,6 @@ GLPROTOBUF_TYPE_MAP = {
 }
 
 API_SPECS = [
-    ('GL3','../GLES2/gl3_api.in'),
-    ('GL3Ext','../GLES2/gl3ext_api.in'),
     ('GL2','../GLES2/gl2_api.in'),
     ('GL2Ext','../GLES2/gl2ext_api.in'),
     ('GL1','../GLES_CM/gl_api.in'),
