@@ -18,7 +18,7 @@
 #   This script is used to generate the trace implementations of all
 #   OpenGL calls. When executed, it reads the specs for the OpenGL calls
 #   from the files GLES2/gl2_api.in, GLES2/gl2ext_api.in, GLES_CM/gl_api.in,
-#   and GLES_CM/glext_api.in, and generates trace versions for all the 
+#   and GLES_CM/glext_api.in, and generates trace versions for all the
 #   defined functions.
 #
 # PREREQUISITES
@@ -103,6 +103,7 @@ GLPROTOBUF_TYPE_MAP = {
     "GLint64":DataType.INT64,
     "GLuint64":DataType.INT64,
     "GLsync":DataType.POINTER,
+    "GLDEBUGPROCKHR":DataType.POINTER,
 }
 
 API_SPECS = [
@@ -231,7 +232,7 @@ def getNameTypePair(decl):
 
         # if name is a pointer (e.g. "*ptr"), then remove the "*" from the name
         # and add it to the data type
-        pointersInName = name.count("*")            
+        pointersInName = name.count("*")
         if pointersInName > 0:
             name = name.replace("*", "")
             dataType += "*" * pointersInName
@@ -267,7 +268,7 @@ class ApiCall(object):
     API_ENTRY_REGEX = "(.*)API_ENTRY\(.*?\)\((.*?)\)"
 
     # Regex to match CALL_GL_API specification:
-    #       e.g. CALL_GL_API(glCullFace, mode); 
+    #       e.g. CALL_GL_API(glCullFace, mode);
     #            CALL_GL_API_RETURN(glCreateProgram);
     CALL_GL_API_REGEX = "CALL_GL_API(_RETURN)?\((.*)\);"
 
@@ -279,7 +280,7 @@ class ApiCall(object):
         defn: specification line containing API_ENTRY macro
               e.g: void API_ENTRY(glActiveTexture)(GLenum texture) {
         callsite: specification line containing CALL_GL_API macro
-              e.g: CALL_GL_API(glActiveTexture, texture);        
+              e.g: CALL_GL_API(glActiveTexture, texture);
         """
         self.prefix = prefix
         self.ret = self.getReturnType(apientry)
@@ -295,7 +296,7 @@ class ApiCall(object):
         '''Extract the return type from the API_ENTRY specification'''
         m = re.search(self.API_ENTRY_REGEX, apientry)
         if not m:
-            raise ValueError("%s does not match API_ENTRY specification %s" 
+            raise ValueError("%s does not match API_ENTRY specification %s"
                              % (apientry, self.API_ENTRY_REGEX))
 
         return m.group(1).strip()
@@ -304,7 +305,7 @@ class ApiCall(object):
         '''Extract the argument list from the API_ENTRY specification'''
         m = re.search(self.API_ENTRY_REGEX, apientry)
         if not m:
-            raise ValueError("%s does not match API_ENTRY specification %s" 
+            raise ValueError("%s does not match API_ENTRY specification %s"
                              % (apientry, self.API_ENTRY_REGEX))
 
         return m.group(2).strip()
@@ -335,7 +336,7 @@ class ApiCall(object):
         return "%s GLTrace_%s(%s);" % (self.ret, self.func, self.arglist)
 
     def genCode(self):
-        return TRACE_CALL_TEMPLATE(func = self.func, 
+        return TRACE_CALL_TEMPLATE(func = self.func,
                                    retType = self.ret,
                                    retDataType = getDataTypeFromKw(self.ret),
                                    inputArgList = self.arglist,
