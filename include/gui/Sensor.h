@@ -71,6 +71,7 @@ public:
     int32_t getFifoMaxEventCount() const;
     const String8& getStringType() const;
     const String8& getRequiredPermission() const;
+    int32_t getMaxDelay() const;
     bool isWakeUpSensor() const;
 
     // LightFlattenable protocol
@@ -94,7 +95,7 @@ private:
     int32_t mFifoMaxEventCount;
     String8 mStringType;
     String8 mRequiredPermission;
-    // Todo: Surface this in java SDK.
+    int32_t mMaxDelay;
     bool    mWakeUpSensor;
     static void flattenString8(void*& buffer, size_t& size, const String8& string8);
     static bool unflattenString8(void const*& buffer, size_t& size, String8& outputString8);

@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/limits.h>
 
 #include <utils/Errors.h>
 #include <utils/String8.h>
@@ -24,6 +25,7 @@
 #include <hardware/sensors.h>
 
 #include <gui/Sensor.h>
+#include <log/log.h>
 
 // ----------------------------------------------------------------------------
 namespace android {
@@ -33,7 +35,7 @@ Sensor::Sensor()
     : mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
       mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0),
-      mWakeUpSensor(false)
+      mMaxDelay(0), mWakeUpSensor(false)
 {
 }
 
@@ -59,6 +61,20 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     } else {
         mFifoReservedEventCount = 0;
         mFifoMaxEventCount = 0;
+    }
+
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
+        if (hwSensor->maxDelay > INT_MAX) {
+            // Max delay is declared as a 64 bit integer for 64 bit architectures. But it should
+            // always fit in a 32 bit integer, log error and cap it to INT_MAX.
+            ALOGE("Sensor maxDelay overflow error %s %lld", mName.string(), hwSensor->maxDelay);
+            mMaxDelay = INT_MAX;
+        } else {
+            mMaxDelay = (int32_t) hwSensor->maxDelay;
+        }
+    } else {
+        // For older hals set maxDelay to 0.
+        mMaxDelay = 0;
     }
 
     // Ensure existing sensors have correct string type and required
@@ -289,6 +305,10 @@ const String8& Sensor::getRequiredPermission() const {
     return mRequiredPermission;
 }
 
+int32_t Sensor::getMaxDelay() const {
+    return mMaxDelay;
+}
+
 bool Sensor::isWakeUpSensor() const {
     return mWakeUpSensor;
 }
@@ -298,7 +318,8 @@ size_t Sensor::getFlattenedSize() const
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t) * 3;
+            sizeof(int32_t) * 4 +
+            sizeof(bool) * 1;
 
     size_t variableSize =
             sizeof(uint32_t) + FlattenableUtils::align<4>(mName.length()) +
@@ -328,6 +349,8 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mFifoMaxEventCount);
     flattenString8(buffer, size, mStringType);
     flattenString8(buffer, size, mRequiredPermission);
+    FlattenableUtils::write(buffer, size, mMaxDelay);
+    FlattenableUtils::write(buffer, size, mWakeUpSensor);
     return NO_ERROR;
 }
 
@@ -342,7 +365,8 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t) * 3;
+            sizeof(int32_t) * 4 +
+            sizeof(bool) * 1;
     if (size < fixedSize) {
         return NO_MEMORY;
     }
@@ -364,6 +388,8 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     if (!unflattenString8(buffer, size, mRequiredPermission)) {
         return NO_MEMORY;
     }
+    FlattenableUtils::read(buffer, size, mMaxDelay);
+    FlattenableUtils::read(buffer, size, mWakeUpSensor);
     return NO_ERROR;
 }
 
