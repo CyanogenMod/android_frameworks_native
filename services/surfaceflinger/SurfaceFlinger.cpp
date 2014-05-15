@@ -183,7 +183,7 @@ SurfaceFlinger::SurfaceFlinger()
         }
     }
 #ifdef QCOM_BSP
-    property_get("debug.sf.gpu_comp_tiling", value, "1");
+    property_get("debug.sf.gpu_comp_tiling", value, "0");
     mGpuTileRenderEnable = atoi(value) ? true : false;
     if(mGpuTileRenderEnable)
        ALOGV("DirtyRect optimization enabled for FULL GPU Composition");
