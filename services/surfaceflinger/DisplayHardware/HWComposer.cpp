@@ -1356,6 +1356,8 @@ HWComposer::DisplayData::~DisplayData() {
 #ifdef QCOM_BSP
 //======================== GPU TiledRect/DR changes =====================
 bool HWComposer::areVisibleRegionsOverlapping(int32_t id ) {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return false;
     const Vector< sp<Layer> >& currentLayers  =
             mFlinger->getLayerSortedByZForHwcDisplay(id);
     size_t count = currentLayers.size();
@@ -1373,6 +1375,8 @@ bool HWComposer::areVisibleRegionsOverlapping(int32_t id ) {
 }
 
 bool HWComposer::needsScaling(int32_t id) {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return false;
     DisplayData& disp(mDisplayData[id]);
     for (size_t i=0; i<disp.list->numHwLayers-1; i++) {
         int dst_w, dst_h, src_w, src_h;
@@ -1398,6 +1402,8 @@ bool HWComposer::needsScaling(int32_t id) {
 }
 
 void HWComposer::computeUnionDirtyRect(int32_t id, Rect& unionDirtyRect) {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return;
     const Vector< sp<Layer> >& currentLayers =
             mFlinger->getLayerSortedByZForHwcDisplay(id);
     size_t count = currentLayers.size();
@@ -1430,6 +1436,8 @@ void HWComposer::computeUnionDirtyRect(int32_t id, Rect& unionDirtyRect) {
 }
 
 bool HWComposer::isGeometryChanged(int32_t id) {
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return false;
     DisplayData& disp(mDisplayData[id]);
     return ( disp.list->flags & HWC_GEOMETRY_CHANGED );
 }
@@ -1438,8 +1446,10 @@ bool HWComposer::isGeometryChanged(int32_t id) {
  * 2. if overlapping visible regions present.
  * 3. Compute a Union Dirty Rect to operate on. */
 bool HWComposer::canUseTiledDR(int32_t id, Rect& unionDr ){
-    bool status = true;
+    if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
+        return false;
 
+    bool status = true;
     if (isGeometryChanged(id)) {
         ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect : geometrychanged, disable");
         status = false;
