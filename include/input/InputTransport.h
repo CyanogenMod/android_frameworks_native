@@ -86,7 +86,7 @@ struct InputMessage {
             float yOffset;
             float xPrecision;
             float yPrecision;
-            size_t pointerCount;
+            uint32_t pointerCount;
             struct Pointer {
                 PointerProperties properties;
                 PointerCoords coords;
@@ -234,7 +234,7 @@ public:
             float yPrecision,
             nsecs_t downTime,
             nsecs_t eventTime,
-            size_t pointerCount,
+            uint32_t pointerCount,
             const PointerProperties* pointerProperties,
             const PointerCoords* pointerCoords);
 
@@ -360,7 +360,7 @@ private:
         void initializeFrom(const InputMessage* msg) {
             eventTime = msg->body.motion.eventTime;
             idBits.clear();
-            for (size_t i = 0; i < msg->body.motion.pointerCount; i++) {
+            for (uint32_t i = 0; i < msg->body.motion.pointerCount; i++) {
                 uint32_t id = msg->body.motion.pointers[i].properties.id;
                 idBits.markBit(id);
                 idToIndex[id] = i;
