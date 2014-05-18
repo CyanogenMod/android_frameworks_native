@@ -736,3 +736,207 @@ void API_ENTRY(glTexStorage3D)(GLenum target, GLsizei levels, GLenum internalfor
 void API_ENTRY(glGetInternalformativ)(GLenum target, GLenum internalformat, GLenum pname, GLsizei bufSize, GLint * params) {
     CALL_GL_API(glGetInternalformativ, target, internalformat, pname, bufSize, params);
 }
+void API_ENTRY(glDispatchCompute)(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z) {
+    CALL_GL_API(glDispatchCompute, num_groups_x, num_groups_y, num_groups_z);
+}
+void API_ENTRY(glDispatchComputeIndirect)(GLintptr indirect) {
+    CALL_GL_API(glDispatchComputeIndirect, indirect);
+}
+void API_ENTRY(glDrawArraysIndirect)(GLenum mode, const void * indirect) {
+    CALL_GL_API(glDrawArraysIndirect, mode, indirect);
+}
+void API_ENTRY(glDrawElementsIndirect)(GLenum mode, GLenum type, const void * indirect) {
+    CALL_GL_API(glDrawElementsIndirect, mode, type, indirect);
+}
+void API_ENTRY(glFramebufferParameteri)(GLenum target, GLenum pname, GLint param) {
+    CALL_GL_API(glFramebufferParameteri, target, pname, param);
+}
+void API_ENTRY(glGetFramebufferParameteriv)(GLenum target, GLenum pname, GLint * params) {
+    CALL_GL_API(glGetFramebufferParameteriv, target, pname, params);
+}
+void API_ENTRY(glGetProgramInterfaceiv)(GLuint program, GLenum programInterface, GLenum pname, GLint * params) {
+    CALL_GL_API(glGetProgramInterfaceiv, program, programInterface, pname, params);
+}
+GLuint API_ENTRY(glGetProgramResourceIndex)(GLuint program, GLenum programInterface, const GLchar * name) {
+    CALL_GL_API_RETURN(glGetProgramResourceIndex, program, programInterface, name);
+}
+void API_ENTRY(glGetProgramResourceName)(GLuint program, GLenum programInterface, GLuint index, GLsizei bufSize, GLsizei * length, GLchar * name) {
+    CALL_GL_API(glGetProgramResourceName, program, programInterface, index, bufSize, length, name);
+}
+void API_ENTRY(glGetProgramResourceiv)(GLuint program, GLenum programInterface, GLuint index, GLsizei propCount, const GLenum * props, GLsizei bufSize, GLsizei * length, GLint * params) {
+    CALL_GL_API(glGetProgramResourceiv, program, programInterface, index, propCount, props, bufSize, length, params);
+}
+GLint API_ENTRY(glGetProgramResourceLocation)(GLuint program, GLenum programInterface, const GLchar * name) {
+    CALL_GL_API_RETURN(glGetProgramResourceLocation, program, programInterface, name);
+}
+void API_ENTRY(glUseProgramStages)(GLuint pipeline, GLbitfield stages, GLuint program) {
+    CALL_GL_API(glUseProgramStages, pipeline, stages, program);
+}
+void API_ENTRY(glActiveShaderProgram)(GLuint pipeline, GLuint program) {
+    CALL_GL_API(glActiveShaderProgram, pipeline, program);
+}
+GLuint API_ENTRY(glCreateShaderProgramv)(GLenum type, GLsizei count, const GLchar *const* strings) {
+    CALL_GL_API_RETURN(glCreateShaderProgramv, type, count, strings);
+}
+void API_ENTRY(glBindProgramPipeline)(GLuint pipeline) {
+    CALL_GL_API(glBindProgramPipeline, pipeline);
+}
+void API_ENTRY(glDeleteProgramPipelines)(GLsizei n, const GLuint * pipelines) {
+    CALL_GL_API(glDeleteProgramPipelines, n, pipelines);
+}
+void API_ENTRY(glGenProgramPipelines)(GLsizei n, GLuint * pipelines) {
+    CALL_GL_API(glGenProgramPipelines, n, pipelines);
+}
+GLboolean API_ENTRY(glIsProgramPipeline)(GLuint pipeline) {
+    CALL_GL_API_RETURN(glIsProgramPipeline, pipeline);
+}
+void API_ENTRY(glGetProgramPipelineiv)(GLuint pipeline, GLenum pname, GLint * params) {
+    CALL_GL_API(glGetProgramPipelineiv, pipeline, pname, params);
+}
+void API_ENTRY(glProgramUniform1i)(GLuint program, GLint location, GLint v0) {
+    CALL_GL_API(glProgramUniform1i, program, location, v0);
+}
+void API_ENTRY(glProgramUniform2i)(GLuint program, GLint location, GLint v0, GLint v1) {
+    CALL_GL_API(glProgramUniform2i, program, location, v0, v1);
+}
+void API_ENTRY(glProgramUniform3i)(GLuint program, GLint location, GLint v0, GLint v1, GLint v2) {
+    CALL_GL_API(glProgramUniform3i, program, location, v0, v1, v2);
+}
+void API_ENTRY(glProgramUniform4i)(GLuint program, GLint location, GLint v0, GLint v1, GLint v2, GLint v3) {
+    CALL_GL_API(glProgramUniform4i, program, location, v0, v1, v2, v3);
+}
+void API_ENTRY(glProgramUniform1ui)(GLuint program, GLint location, GLuint v0) {
+    CALL_GL_API(glProgramUniform1ui, program, location, v0);
+}
+void API_ENTRY(glProgramUniform2ui)(GLuint program, GLint location, GLuint v0, GLuint v1) {
+    CALL_GL_API(glProgramUniform2ui, program, location, v0, v1);
+}
+void API_ENTRY(glProgramUniform3ui)(GLuint program, GLint location, GLuint v0, GLuint v1, GLuint v2) {
+    CALL_GL_API(glProgramUniform3ui, program, location, v0, v1, v2);
+}
+void API_ENTRY(glProgramUniform4ui)(GLuint program, GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3) {
+    CALL_GL_API(glProgramUniform4ui, program, location, v0, v1, v2, v3);
+}
+void API_ENTRY(glProgramUniform1f)(GLuint program, GLint location, GLfloat v0) {
+    CALL_GL_API(glProgramUniform1f, program, location, v0);
+}
+void API_ENTRY(glProgramUniform2f)(GLuint program, GLint location, GLfloat v0, GLfloat v1) {
+    CALL_GL_API(glProgramUniform2f, program, location, v0, v1);
+}
+void API_ENTRY(glProgramUniform3f)(GLuint program, GLint location, GLfloat v0, GLfloat v1, GLfloat v2) {
+    CALL_GL_API(glProgramUniform3f, program, location, v0, v1, v2);
+}
+void API_ENTRY(glProgramUniform4f)(GLuint program, GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) {
+    CALL_GL_API(glProgramUniform4f, program, location, v0, v1, v2, v3);
+}
+void API_ENTRY(glProgramUniform1iv)(GLuint program, GLint location, GLsizei count, const GLint * value) {
+    CALL_GL_API(glProgramUniform1iv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform2iv)(GLuint program, GLint location, GLsizei count, const GLint * value) {
+    CALL_GL_API(glProgramUniform2iv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform3iv)(GLuint program, GLint location, GLsizei count, const GLint * value) {
+    CALL_GL_API(glProgramUniform3iv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform4iv)(GLuint program, GLint location, GLsizei count, const GLint * value) {
+    CALL_GL_API(glProgramUniform4iv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform1uiv)(GLuint program, GLint location, GLsizei count, const GLuint * value) {
+    CALL_GL_API(glProgramUniform1uiv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform2uiv)(GLuint program, GLint location, GLsizei count, const GLuint * value) {
+    CALL_GL_API(glProgramUniform2uiv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform3uiv)(GLuint program, GLint location, GLsizei count, const GLuint * value) {
+    CALL_GL_API(glProgramUniform3uiv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform4uiv)(GLuint program, GLint location, GLsizei count, const GLuint * value) {
+    CALL_GL_API(glProgramUniform4uiv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform1fv)(GLuint program, GLint location, GLsizei count, const GLfloat * value) {
+    CALL_GL_API(glProgramUniform1fv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform2fv)(GLuint program, GLint location, GLsizei count, const GLfloat * value) {
+    CALL_GL_API(glProgramUniform2fv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform3fv)(GLuint program, GLint location, GLsizei count, const GLfloat * value) {
+    CALL_GL_API(glProgramUniform3fv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniform4fv)(GLuint program, GLint location, GLsizei count, const GLfloat * value) {
+    CALL_GL_API(glProgramUniform4fv, program, location, count, value);
+}
+void API_ENTRY(glProgramUniformMatrix2fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix2fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix3fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix3fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix4fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix4fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix2x3fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix2x3fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix3x2fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix3x2fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix2x4fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix2x4fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix4x2fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix4x2fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix3x4fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix3x4fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glProgramUniformMatrix4x3fv)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat * value) {
+    CALL_GL_API(glProgramUniformMatrix4x3fv, program, location, count, transpose, value);
+}
+void API_ENTRY(glValidateProgramPipeline)(GLuint pipeline) {
+    CALL_GL_API(glValidateProgramPipeline, pipeline);
+}
+void API_ENTRY(glGetProgramPipelineInfoLog)(GLuint pipeline, GLsizei bufSize, GLsizei * length, GLchar * infoLog) {
+    CALL_GL_API(glGetProgramPipelineInfoLog, pipeline, bufSize, length, infoLog);
+}
+void API_ENTRY(glBindImageTexture)(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format) {
+    CALL_GL_API(glBindImageTexture, unit, texture, level, layered, layer, access, format);
+}
+void API_ENTRY(glGetBooleani_v)(GLenum target, GLuint index, GLboolean * data) {
+    CALL_GL_API(glGetBooleani_v, target, index, data);
+}
+void API_ENTRY(glMemoryBarrier)(GLbitfield barriers) {
+    CALL_GL_API(glMemoryBarrier, barriers);
+}
+void API_ENTRY(glMemoryBarrierByRegion)(GLbitfield barriers) {
+    CALL_GL_API(glMemoryBarrierByRegion, barriers);
+}
+void API_ENTRY(glTexStorage2DMultisample)(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations) {
+    CALL_GL_API(glTexStorage2DMultisample, target, samples, internalformat, width, height, fixedsamplelocations);
+}
+void API_ENTRY(glGetMultisamplefv)(GLenum pname, GLuint index, GLfloat * val) {
+    CALL_GL_API(glGetMultisamplefv, pname, index, val);
+}
+void API_ENTRY(glSampleMaski)(GLuint maskNumber, GLbitfield mask) {
+    CALL_GL_API(glSampleMaski, maskNumber, mask);
+}
+void API_ENTRY(glGetTexLevelParameteriv)(GLenum target, GLint level, GLenum pname, GLint * params) {
+    CALL_GL_API(glGetTexLevelParameteriv, target, level, pname, params);
+}
+void API_ENTRY(glGetTexLevelParameterfv)(GLenum target, GLint level, GLenum pname, GLfloat * params) {
+    CALL_GL_API(glGetTexLevelParameterfv, target, level, pname, params);
+}
+void API_ENTRY(glBindVertexBuffer)(GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride) {
+    CALL_GL_API(glBindVertexBuffer, bindingindex, buffer, offset, stride);
+}
+void API_ENTRY(glVertexAttribFormat)(GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset) {
+    CALL_GL_API(glVertexAttribFormat, attribindex, size, type, normalized, relativeoffset);
+}
+void API_ENTRY(glVertexAttribIFormat)(GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset) {
+    CALL_GL_API(glVertexAttribIFormat, attribindex, size, type, relativeoffset);
+}
+void API_ENTRY(glVertexAttribBinding)(GLuint attribindex, GLuint bindingindex) {
+    CALL_GL_API(glVertexAttribBinding, attribindex, bindingindex);
+}
+void API_ENTRY(glVertexBindingDivisor)(GLuint bindingindex, GLuint divisor) {
+    CALL_GL_API(glVertexBindingDivisor, bindingindex, divisor);
+}
