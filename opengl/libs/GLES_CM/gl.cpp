@@ -158,8 +158,10 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
 
 
 extern "C" {
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include "gl_api.in"
 #include "glext_api.in"
+#pragma GCC diagnostic warning "-Wunused-parameter"
 }
 
 #undef API_ENTRY
