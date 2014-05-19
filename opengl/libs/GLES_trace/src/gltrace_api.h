@@ -19,7 +19,7 @@
 namespace android {
 namespace gltrace {
 
-// Declarations for GL3 APIs
+// Declarations for GL2 APIs
 
 void GLTrace_glActiveTexture(GLenum texture);
 void GLTrace_glAttachShader(GLuint program, GLuint shader);

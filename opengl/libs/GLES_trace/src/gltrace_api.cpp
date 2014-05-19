@@ -28,7 +28,7 @@
 namespace android {
 namespace gltrace {
 
-// Definitions for GL3 APIs
+// Definitions for GL2 APIs
 
 void GLTrace_glActiveTexture(GLenum texture) {
     GLMessage glmsg;

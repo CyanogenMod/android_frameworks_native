@@ -107,9 +107,8 @@ using namespace android;
 
 
 extern "C" {
-#include "gl3_api.in"
+#include "gl2_api.in"
 #include "gl2ext_api.in"
-#include "gl3ext_api.in"
 }
 
 #undef API_ENTRY
