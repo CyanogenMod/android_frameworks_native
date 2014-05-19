@@ -30,6 +30,29 @@ if sys.path[1] != regpath:
 import reg
 
 
+AEP_EXTENSIONS = [
+    'GL_KHR_blend_equation_advanced',
+    'GL_KHR_debug',
+    'GL_KHR_texture_compression_astc_ldr',
+    'GL_OES_sample_shading',
+    'GL_OES_sample_variables',
+    'GL_OES_shader_image_atomic',
+    'GL_OES_shader_multisample_interpolation',
+    'GL_OES_texture_stencil8',
+    'GL_OES_texture_storage_multisample_2d_array',
+    'GL_EXT_copy_image',
+    'GL_EXT_draw_buffers_indexed',
+    'GL_EXT_geometry_shader',
+    'GL_EXT_gpu_shader5',
+    'GL_EXT_primitive_bounding_box',
+    'GL_EXT_shader_io_blocks',
+    'GL_EXT_tessellation_shader',
+    'GL_EXT_texture_border_clamp',
+    'GL_EXT_texture_buffer',
+    'GL_EXT_texture_cube_map_array',
+    'GL_EXT_texture_sRGB_decode']
+
+
 def nonestr(s):
     return s if s else ""
 
@@ -188,6 +211,20 @@ class ApiGenerator(reg.OutputGenerator):
             print('GL_ENUM(%s,%s)' % (enum[0], enum[1]), file=outfile)
 
 
+# Generate .spec entries for use by legacy 'gen' script
+class SpecGenerator(reg.OutputGenerator):
+    def __init__(self):
+        reg.OutputGenerator.__init__(self, sys.stderr, sys.stderr, None)
+
+    def genCmd(self, cmd, name):
+        reg.OutputGenerator.genCmd(self, cmd, name)
+        rtype, fname = parseTypedName(cmd.elem.find('proto'))
+        params = [parseTypedName(p) for p in cmd.elem.findall('param')]
+
+        print('%s %s ( %s )' % (rtype, fname, fmtParams(params)),
+              file=self.outFile)
+
+
 if __name__ == '__main__':
     registry = reg.Registry()
     registry.loadFile('registry/gl.xml')
@@ -248,3 +285,30 @@ if __name__ == '__main__':
         apigen.writeTrace(f)
     with open('../../libs/enums.in', 'w') as f:
         apigen.writeEnums(f)
+
+    registry.setGenerator(SpecGenerator())
+    SPEC_OPTIONS = [
+        reg.GeneratorOptions(
+            apiname             = 'gles2',
+            profile             = 'common',
+            versions            = '3\.1',
+            filename            = '../glgen/specs/gles11/GLES31.spec'),
+        reg.GeneratorOptions(
+            apiname             = 'gles2',
+            profile             = 'common',
+            emitversions        = None,
+            defaultExtensions   = None,
+            addExtensions       = '^({})$'.format('|'.join(AEP_EXTENSIONS)),
+            filename            = '../glgen/specs/gles11/GLES31Ext.spec')]
+    # SpecGenerator creates a good starting point, but the CFunc.java parser is
+    # so terrible that the .spec file needs a lot of manual massaging before
+    # it works. Commenting this out to avoid accidentally overwriting all the
+    # manual modifications.
+    #
+    # Eventually this script should generate the Java and JNI code directly,
+    # skipping the intermediate .spec step, and obsoleting the existing
+    # ../glgen system.
+    #
+    # for opts in SPEC_OPTIONS:
+    #     registry.apiGen(opts)
+
