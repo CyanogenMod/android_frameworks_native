@@ -33,14 +33,14 @@ extern "C" {
 ** used to make the header, and the header can be found at
 **   http://www.opengl.org/registry/
 **
-** Khronos $Revision$ on $Date$
+** Khronos $Revision: 26696 $ on $Date: 2014-05-17 14:48:55 -0700 (Sat, 17 May 2014) $
 */
 
 #ifndef GL_APIENTRYP
 #define GL_APIENTRYP GL_APIENTRY*
 #endif
 
-/* Generated on date 20140519 */
+/* Generated on date 20140517 */
 
 /* Generated C header for:
  * API: gles2
@@ -987,15 +987,6 @@ GL_APICALL void GL_APIENTRY glGetIntegeri_vEXT (GLenum target, GLuint index, GLi
 #define GL_ANY_SAMPLES_PASSED_EXT         0x8C2F
 #define GL_ANY_SAMPLES_PASSED_CONSERVATIVE_EXT 0x8D6A
 #endif /* GL_EXT_occlusion_query_boolean */
-
-#ifndef GL_EXT_primitive_bounding_box
-#define GL_EXT_primitive_bounding_box 1
-#define GL_PRIMITIVE_BOUNDING_BOX_EXT     0x92BE
-typedef void (GL_APIENTRYP PFNGLPRIMITIVEBOUNDINGBOXEXTPROC) (GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW);
-#ifdef GL_GLEXT_PROTOTYPES
-GL_APICALL void GL_APIENTRY glPrimitiveBoundingBoxEXT (GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW);
-#endif
-#endif /* GL_EXT_primitive_bounding_box */
 
 #ifndef GL_EXT_pvrtc_sRGB
 #define GL_EXT_pvrtc_sRGB 1
