@@ -948,7 +948,6 @@ typedef unsigned int GLhandleARB;
             <enum name="GL_POST_CONVOLUTION_RED_SCALE_EXT"/>
             <enum name="GL_POST_TEXTURE_FILTER_BIAS_RANGE_SGIX"/>
             <enum name="GL_POST_TEXTURE_FILTER_SCALE_RANGE_SGIX"/>
-            <enum name="GL_PRIMITIVE_BOUNDING_BOX_EXT"/>
             <enum name="GL_PROJECTION_MATRIX"/>
             <enum name="GL_PROJECTION_STACK_DEPTH"/>
             <enum name="GL_READ_BUFFER"/>
@@ -7805,9 +7804,7 @@ typedef unsigned int GLhandleARB;
         <enum value="0x92B2" name="GL_PLUS_CLAMPED_ALPHA_NV"/>
         <enum value="0x92B3" name="GL_MINUS_CLAMPED_NV"/>
         <enum value="0x92B4" name="GL_INVERT_OVG_NV"/>
-            <unused start="0x92B5" end="0x92BD"/>
-        <enum value="0x92BE" name="GL_PRIMITIVE_BOUNDING_BOX_EXT"/>
-            <unused start="0x92BF"/>
+            <unused start="0x92B5" end="0x92BF"/>
         <enum value="0x92C0" name="GL_ATOMIC_COUNTER_BUFFER"/>
         <enum value="0x92C1" name="GL_ATOMIC_COUNTER_BUFFER_BINDING"/>
         <enum value="0x92C2" name="GL_ATOMIC_COUNTER_BUFFER_START"/>
@@ -19352,17 +19349,6 @@ typedef unsigned int GLhandleARB;
             <param><ptype>GLenum</ptype> <name>target1</name></param>
             <param><ptype>GLuint</ptype> <name>fill1</name></param>
             <param><ptype>GLuint</ptype> <name>key1</name></param>
-        </command>
-        <command>
-            <proto>void <name>glPrimitiveBoundingBoxEXT</name></proto>
-            <param><ptype>GLfloat</ptype> <name>minX</name></param>
-            <param><ptype>GLfloat</ptype> <name>minY</name></param>
-            <param><ptype>GLfloat</ptype> <name>minZ</name></param>
-            <param><ptype>GLfloat</ptype> <name>minW</name></param>
-            <param><ptype>GLfloat</ptype> <name>maxX</name></param>
-            <param><ptype>GLfloat</ptype> <name>maxY</name></param>
-            <param><ptype>GLfloat</ptype> <name>maxZ</name></param>
-            <param><ptype>GLfloat</ptype> <name>maxW</name></param>
         </command>
         <command>
             <proto>void <name>glPrimitiveRestartIndex</name></proto>
@@ -37507,12 +37493,6 @@ typedef unsigned int GLhandleARB;
                 <enum name="GL_POLYGON_OFFSET_FACTOR_EXT"/>
                 <enum name="GL_POLYGON_OFFSET_BIAS_EXT"/>
                 <command name="glPolygonOffsetEXT"/>
-            </require>
-        </extension>
-        <extension name="GL_EXT_primitive_bounding_box" supported="gles2">
-            <require>
-                <enum name="GL_PRIMITIVE_BOUNDING_BOX_EXT"/>
-                <command name="glPrimitiveBoundingBoxEXT"/>
             </require>
         </extension>
         <extension name="GL_EXT_provoking_vertex" supported="gl">
