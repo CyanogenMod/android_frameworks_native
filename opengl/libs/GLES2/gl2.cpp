@@ -20,6 +20,10 @@
 
 #include <sys/ioctl.h>
 
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
+#include <GLES2/gl2ext.h>
+
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
