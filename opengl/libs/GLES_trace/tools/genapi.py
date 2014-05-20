@@ -135,7 +135,6 @@ HEADER_LICENSE = """/*
 HEADER_INCLUDES = """
 #include <cutils/log.h>
 #include <utils/Timers.h>
-#include <GLES3/gl3.h>
 
 #include "gltrace.pb.h"
 #include "gltrace_context.h"

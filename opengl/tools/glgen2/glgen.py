@@ -206,12 +206,10 @@ if __name__ == '__main__':
             filename            = '../../libs/GLES_CM/glext_api.in'),
         reg.GeneratorOptions(
             apiname             = 'gles2',
-            versions            = '(2|3)\.0',
             profile             = 'common',
             filename            = '../../libs/GLES2/gl2_api.in'),
         reg.GeneratorOptions(
             apiname             = 'gles2',
-            versions            = '(2|3)\.0',
             profile             = 'common',
             emitversions        = None,
             defaultExtensions   = 'gles2',
@@ -230,7 +228,6 @@ if __name__ == '__main__':
             profile             = 'common'),
         reg.GeneratorOptions(
             apiname             = 'gles2',
-            versions            = '2\.0|3\.0',
             profile             = 'common'),
         reg.GeneratorOptions(
             apiname             = 'gles1',
@@ -239,7 +236,6 @@ if __name__ == '__main__':
             defaultExtensions   = 'gles1'),
         reg.GeneratorOptions(
             apiname             = 'gles2',
-            versions            = '2\.0|3\.0',
             profile             = 'common',
             emitversions        = None,
             defaultExtensions   = 'gles2')]
