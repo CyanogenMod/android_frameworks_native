@@ -340,6 +340,7 @@ static const InputEventLabel LEDS[] = {
 };
 
 static const InputEventLabel FLAGS[] = {
+    DEFINE_FLAG(VIRTUAL),
     DEFINE_FLAG(FUNCTION),
 
     { NULL, 0 }
