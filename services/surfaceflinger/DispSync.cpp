@@ -37,25 +37,17 @@ namespace android {
 
 // Setting this to true enables verbose tracing that can be used to debug
 // vsync event model or phase issues.
-static const bool traceDetailedInfo = false;
+static const bool kTraceDetailedInfo = false;
 
 // This is the threshold used to determine when hardware vsync events are
 // needed to re-synchronize the software vsync model with the hardware.  The
 // error metric used is the mean of the squared difference between each
 // present time and the nearest software-predicted vsync.
-static const nsecs_t errorThreshold = 160000000000;
-
-// This works around the lack of support for the sync framework on some
-// devices.
-#ifdef RUNNING_WITHOUT_SYNC_FRAMEWORK
-static const bool runningWithoutSyncFramework = true;
-#else
-static const bool runningWithoutSyncFramework = false;
-#endif
+static const nsecs_t kErrorThreshold = 160000000000;    // 400 usec squared
 
 // This is the offset from the present fence timestamps to the corresponding
 // vsync event.
-static const int64_t presentTimeOffset = PRESENT_TIME_OFFSET_FROM_VSYNC_NS;
+static const int64_t kPresentTimeOffset = PRESENT_TIME_OFFSET_FROM_VSYNC_NS;
 
 class DispSyncThread: public Thread {
 public:
@@ -138,7 +130,7 @@ public:
                         // Don't correct by more than 500 us
                         mWakeupLatency = 500000;
                     }
-                    if (traceDetailedInfo) {
+                    if (kTraceDetailedInfo) {
                         ATRACE_INT64("DispSync:WakeupLat", now - nextEventTime);
                         ATRACE_INT64("DispSync:AvgWakeupLat", mWakeupLatency);
                     }
@@ -207,8 +199,7 @@ public:
         return BAD_VALUE;
     }
 
-    // This method is only here to handle the runningWithoutSyncFramework
-    // case.
+    // This method is only here to handle the kIgnorePresentFences case.
     bool hasAnyEventListeners() {
         Mutex::Autolock lock(mMutex);
         return !mEventListeners.empty();
@@ -320,12 +311,13 @@ DispSync::DispSync() {
     reset();
     beginResync();
 
-    if (traceDetailedInfo) {
-        // If runningWithoutSyncFramework is true then the ZeroPhaseTracer
+    if (kTraceDetailedInfo) {
+        // If we're not getting present fences then the ZeroPhaseTracer
         // would prevent HW vsync event from ever being turned off.
-        // Furthermore the zero-phase tracing is not needed because any time
-        // there is an event registered we will turn on the HW vsync events.
-        if (!runningWithoutSyncFramework) {
+        // Even if we're just ignoring the fences, the zero-phase tracing is
+        // not needed because any time there is an event registered we will
+        // turn on the HW vsync events.
+        if (!kIgnorePresentFences) {
             addEventListener(0, new ZeroPhaseTracer());
         }
     }
@@ -356,14 +348,14 @@ bool DispSync::addPresentFence(const sp<Fence>& fence) {
             nsecs_t t = f->getSignalTime();
             if (t < INT64_MAX) {
                 mPresentFences[i].clear();
-                mPresentTimes[i] = t + presentTimeOffset;
+                mPresentTimes[i] = t + kPresentTimeOffset;
             }
         }
     }
 
     updateErrorLocked();
 
-    return mPeriod == 0 || mError > errorThreshold;
+    return mPeriod == 0 || mError > kErrorThreshold;
 }
 
 void DispSync::beginResync() {
@@ -390,7 +382,7 @@ bool DispSync::addResyncSample(nsecs_t timestamp) {
         resetErrorLocked();
     }
 
-    if (runningWithoutSyncFramework) {
+    if (kIgnorePresentFences) {
         // If we don't have the sync framework we will never have
         // addPresentFence called.  This means we have no way to know whether
         // or not we're synchronized with the HW vsyncs, so we just request
@@ -399,7 +391,7 @@ bool DispSync::addResyncSample(nsecs_t timestamp) {
         return mThread->hasAnyEventListeners();
     }
 
-    return mPeriod == 0 || mError > errorThreshold;
+    return mPeriod == 0 || mError > kErrorThreshold;
 }
 
 void DispSync::endResync() {
@@ -459,7 +451,7 @@ void DispSync::updateModelLocked() {
             mPhase += mPeriod;
         }
 
-        if (traceDetailedInfo) {
+        if (kTraceDetailedInfo) {
             ATRACE_INT64("DispSync:Period", mPeriod);
             ATRACE_INT64("DispSync:Phase", mPhase);
         }
@@ -494,7 +486,7 @@ void DispSync::updateErrorLocked() {
         mError = 0;
     }
 
-    if (traceDetailedInfo) {
+    if (kTraceDetailedInfo) {
         ATRACE_INT64("DispSync:Error", mError);
     }
 }
@@ -516,13 +508,16 @@ nsecs_t DispSync::computeNextRefresh(int periodOffset) const {
 
 void DispSync::dump(String8& result) const {
     Mutex::Autolock lock(mMutex);
-    result.appendFormat("mPeriod: %"PRId64" ns\n", mPeriod);
-    result.appendFormat("mPhase: %"PRId64" ns\n", mPhase);
-    result.appendFormat("mError: %"PRId64" ns (sqrt: %.1f)\n",
+    result.appendFormat("present fences are %s\n",
+            kIgnorePresentFences ? "ignored" : "used");
+    result.appendFormat("mPeriod: %" PRId64 " ns (%.3f fps)\n",
+            mPeriod, 1000000000.0 / mPeriod);
+    result.appendFormat("mPhase: %" PRId64 " ns\n", mPhase);
+    result.appendFormat("mError: %" PRId64 " ns (sqrt=%.1f)\n",
             mError, sqrt(mError));
-    result.appendFormat("mNumResyncSamplesSincePresent: %d (max %d)\n",
+    result.appendFormat("mNumResyncSamplesSincePresent: %d (limit %d)\n",
             mNumResyncSamplesSincePresent, MAX_RESYNC_SAMPLES_WITHOUT_PRESENT);
-    result.appendFormat("mNumResyncSamples: %d (max %d)\n",
+    result.appendFormat("mNumResyncSamples: %zd (max %d)\n",
             mNumResyncSamples, MAX_RESYNC_SAMPLES);
 
     result.appendFormat("mResyncSamples:\n");
@@ -531,9 +526,9 @@ void DispSync::dump(String8& result) const {
         size_t idx = (mFirstResyncSample + i) % MAX_RESYNC_SAMPLES;
         nsecs_t sampleTime = mResyncSamples[idx];
         if (i == 0) {
-            result.appendFormat("  %"PRId64"\n", sampleTime);
+            result.appendFormat("  %" PRId64 "\n", sampleTime);
         } else {
-            result.appendFormat("  %"PRId64" (+%"PRId64")\n",
+            result.appendFormat("  %" PRId64 " (+%" PRId64 ")\n",
                     sampleTime, sampleTime - previous);
         }
         previous = sampleTime;
@@ -541,6 +536,7 @@ void DispSync::dump(String8& result) const {
 
     result.appendFormat("mPresentFences / mPresentTimes [%d]:\n",
             NUM_PRESENT_SAMPLES);
+    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
     previous = 0;
     for (size_t i = 0; i < NUM_PRESENT_SAMPLES; i++) {
         size_t idx = (i + mPresentSampleOffset) % NUM_PRESENT_SAMPLES;
@@ -548,15 +544,21 @@ void DispSync::dump(String8& result) const {
         nsecs_t presentTime = mPresentTimes[idx];
         if (!signaled) {
             result.appendFormat("  [unsignaled fence]\n");
+        } else if (presentTime == 0) {
+            result.appendFormat("  0\n");
         } else if (previous == 0) {
-            result.appendFormat("  %"PRId64"\n", presentTime);
+            result.appendFormat("  %" PRId64 "  (%.3f ms ago)\n", presentTime,
+                    (now - presentTime) / 1000000.0);
         } else {
-            result.appendFormat("  %"PRId64" (+%"PRId64" / %.3f)\n",
+            result.appendFormat("  %" PRId64 " (+%" PRId64 " / %.3f)  (%.3f ms ago)\n",
                     presentTime, presentTime - previous,
-                    (presentTime - previous) / (double) mPeriod);
+                    (presentTime - previous) / (double) mPeriod,
+                    (now - presentTime) / 1000000.0);
         }
         previous = presentTime;
     }
+
+    result.appendFormat("current monotonic time: %" PRId64 "\n", now);
 }
 
 } // namespace android
