@@ -297,13 +297,6 @@ int ASensor_getFifoReservedEventCount(ASensor const* sensor);
  */
 const char* ASensor_getStringType(ASensor const* sensor);
 
-/*
- * Returns the permission required to see or access this sensor, or the
- * empty string if none is required.
- */
-const char* ASensor_getRequiredPermission(ASensor const* sensor);
-
-
 #ifdef __cplusplus
 };
 #endif
