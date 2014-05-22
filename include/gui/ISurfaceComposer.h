@@ -41,6 +41,7 @@ class DisplayState;
 class DisplayInfo;
 class IDisplayEventConnection;
 class IMemoryHeap;
+class Rect;
 
 /*
  * This class defines the Binder IPC interface for accessing various
@@ -131,10 +132,9 @@ public:
      */
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
-            uint32_t reqWidth, uint32_t reqHeight,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform) = 0;
-
 
     /* Clears the frame statistics for animations.
      *

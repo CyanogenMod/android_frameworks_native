@@ -104,7 +104,7 @@ public:
 
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
-            uint32_t reqWidth, uint32_t reqHeight,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform)
     {
@@ -112,6 +112,7 @@ public:
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeStrongBinder(display);
         data.writeStrongBinder(producer->asBinder());
+        data.write(sourceCrop);
         data.writeInt32(reqWidth);
         data.writeInt32(reqHeight);
         data.writeInt32(minLayerZ);
@@ -328,6 +329,8 @@ status_t BnSurfaceComposer::onTransact(
             sp<IBinder> display = data.readStrongBinder();
             sp<IGraphicBufferProducer> producer =
                     interface_cast<IGraphicBufferProducer>(data.readStrongBinder());
+            Rect sourceCrop;
+            data.read(sourceCrop);
             uint32_t reqWidth = data.readInt32();
             uint32_t reqHeight = data.readInt32();
             uint32_t minLayerZ = data.readInt32();
@@ -335,7 +338,7 @@ status_t BnSurfaceComposer::onTransact(
             bool useIdentityTransform = static_cast<bool>(data.readInt32());
 
             status_t res = captureScreen(display, producer,
-                    reqWidth, reqHeight, minLayerZ, maxLayerZ,
+                    sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
                     useIdentityTransform);
             reply->writeInt32(res);
             return NO_ERROR;

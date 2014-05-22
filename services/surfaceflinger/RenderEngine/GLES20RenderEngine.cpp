@@ -19,6 +19,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include <ui/Rect.h>
+
 #include <utils/String8.h>
 #include <utils/Trace.h>
 
@@ -78,10 +80,21 @@ size_t GLES20RenderEngine::getMaxViewportDims() const {
 }
 
 void GLES20RenderEngine::setViewportAndProjection(
-        size_t vpw, size_t vph, size_t w, size_t h, bool yswap) {
+        size_t vpw, size_t vph, Rect sourceCrop, size_t hwh, bool yswap) {
+
+    size_t l = sourceCrop.left;
+    size_t r = sourceCrop.right;
+
+    // In GL, (0, 0) is the bottom-left corner, so flip y coordinates
+    size_t t = hwh - sourceCrop.top;
+    size_t b = hwh - sourceCrop.bottom;
+
     mat4 m;
-    if (yswap)  m = mat4::ortho(0, w, h, 0, 0, 1);
-    else        m = mat4::ortho(0, w, 0, h, 0, 1);
+    if (yswap) {
+        m = mat4::ortho(l, r, t, b, 0, 1);
+    } else {
+        m = mat4::ortho(l, r, b, t, 0, 1);
+    }
 
     glViewport(0, 0, vpw, vph);
     mState.setProjectionMatrix(m);
