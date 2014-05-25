@@ -205,13 +205,10 @@ private:
             Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform);
-    // called when screen needs to turn off
-    virtual void blank(const sp<IBinder>& display);
-    // called when screen is turning back on
-    virtual void unblank(const sp<IBinder>& display);
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
             Vector<DisplayInfo>* configs);
     virtual int getActiveConfig(const sp<IBinder>& display);
+    virtual void setPowerMode(const sp<IBinder>& display, int mode);
     virtual status_t setActiveConfig(const sp<IBinder>& display, int id);
     virtual status_t clearAnimationFrameStats();
     virtual status_t getAnimationFrameStats(FrameStats* outStats) const;
@@ -242,10 +239,8 @@ private:
 
     // called on the main thread in response to initializeDisplays()
     void onInitializeDisplays();
-    // called on the main thread in response to blank()
-    void onScreenReleased(const sp<const DisplayDevice>& hw);
-    // called on the main thread in response to unblank()
-    void onScreenAcquired(const sp<const DisplayDevice>& hw);
+    // called on the main thread in response to setPowerMode()
+    void setPowerModeInternal(const sp<DisplayDevice>& hw, int mode);
 
     void handleMessageTransaction();
     void handleMessageInvalidate();

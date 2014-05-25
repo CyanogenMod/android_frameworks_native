@@ -70,9 +70,9 @@ DisplayDevice::DisplayDevice(
       mPageFlipCount(),
       mIsSecure(isSecure),
       mSecureLayerVisible(false),
-      mScreenAcquired(false),
       mLayerStack(NO_LAYER_STACK),
-      mOrientation()
+      mOrientation(),
+      mPowerMode(HWC_POWER_MODE_OFF)
 {
     mNativeWindow = new Surface(producer, false);
     ANativeWindow* const window = mNativeWindow.get();
@@ -109,7 +109,8 @@ DisplayDevice::DisplayDevice(
     mFrame.makeInvalid();
 
     // virtual displays are always considered enabled
-    mScreenAcquired = (mType >= DisplayDevice::DISPLAY_VIRTUAL);
+    mPowerMode = (mType >= DisplayDevice::DISPLAY_VIRTUAL) ?
+                  HWC_POWER_MODE_NORMAL : HWC_POWER_MODE_OFF;
 
     // Name the display.  The name will be replaced shortly if the display
     // was created with createDisplay().
@@ -322,21 +323,16 @@ Region DisplayDevice::getDirtyRegion(bool repaintEverything) const {
 }
 
 // ----------------------------------------------------------------------------
-
-bool DisplayDevice::canDraw() const {
-    return mScreenAcquired;
+void DisplayDevice::setPowerMode(int mode) {
+    mPowerMode = mode;
 }
 
-void DisplayDevice::releaseScreen() const {
-    mScreenAcquired = false;
+int DisplayDevice::getPowerMode()  const {
+    return mPowerMode;
 }
 
-void DisplayDevice::acquireScreen() const {
-    mScreenAcquired = true;
-}
-
-bool DisplayDevice::isScreenAcquired() const {
-    return mScreenAcquired;
+bool DisplayDevice::isDisplayOn() const {
+    return (mPowerMode != HWC_POWER_MODE_OFF);
 }
 
 // ----------------------------------------------------------------------------
@@ -465,13 +461,13 @@ void DisplayDevice::dump(String8& result) const {
     result.appendFormat(
         "+ DisplayDevice: %s\n"
         "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
-        "flips=%u, isSecure=%d, secureVis=%d, acquired=%d, numLayers=%zu\n"
+        "flips=%u, isSecure=%d, secureVis=%d, powerMode=%d, numLayers=%zu\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], s:[%d,%d,%d,%d],"
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
         mDisplayName.string(), mType, mHwcDisplayId,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
         mOrientation, tr.getType(), getPageFlipCount(),
-        mIsSecure, mSecureLayerVisible, mScreenAcquired, mVisibleLayersSortedByZ.size(),
+        mIsSecure, mSecureLayerVisible, mPowerMode, mVisibleLayersSortedByZ.size(),
         mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
         mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,
         mScissor.left, mScissor.top, mScissor.right, mScissor.bottom,

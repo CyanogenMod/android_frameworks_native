@@ -205,20 +205,13 @@ public:
         return reply.readStrongBinder();
     }
 
-    virtual void blank(const sp<IBinder>& display)
+    virtual void setPowerMode(const sp<IBinder>& display, int mode)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeStrongBinder(display);
-        remote()->transact(BnSurfaceComposer::BLANK, data, &reply);
-    }
-
-    virtual void unblank(const sp<IBinder>& display)
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-        data.writeStrongBinder(display);
-        remote()->transact(BnSurfaceComposer::UNBLANK, data, &reply);
+        data.writeInt32(mode);
+        remote()->transact(BnSurfaceComposer::SET_POWER_MODE, data, &reply);
     }
 
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
@@ -378,18 +371,6 @@ status_t BnSurfaceComposer::onTransact(
             reply->writeStrongBinder(display);
             return NO_ERROR;
         }
-        case BLANK: {
-            CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> display = data.readStrongBinder();
-            blank(display);
-            return NO_ERROR;
-        }
-        case UNBLANK: {
-            CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> display = data.readStrongBinder();
-            unblank(display);
-            return NO_ERROR;
-        }
         case GET_DISPLAY_CONFIGS: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             Vector<DisplayInfo> configs;
@@ -432,6 +413,13 @@ status_t BnSurfaceComposer::onTransact(
             status_t result = getAnimationFrameStats(&stats);
             reply->write(stats);
             reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_POWER_MODE: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = data.readStrongBinder();
+            int32_t mode = data.readInt32();
+            setPowerMode(display, mode);
             return NO_ERROR;
         }
         default: {

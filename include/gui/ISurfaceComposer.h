@@ -104,15 +104,11 @@ public:
     virtual bool authenticateSurfaceTexture(
             const sp<IGraphicBufferProducer>& surface) const = 0;
 
-    /* triggers screen off and waits for it to complete
+    /* set display power mode. depending on the mode, it can either trigger
+     * screen on, off or low power mode and wait for it to complete.
      * requires ACCESS_SURFACE_FLINGER permission.
      */
-    virtual void blank(const sp<IBinder>& display) = 0;
-
-    /* triggers screen on and waits for it to complete
-     * requires ACCESS_SURFACE_FLINGER permission.
-     */
-    virtual void unblank(const sp<IBinder>& display) = 0;
+    virtual void setPowerMode(const sp<IBinder>& display, int mode) = 0;
 
     /* returns information for each configuration of the given display
      * intended to be used to get information about built-in displays */
@@ -165,15 +161,14 @@ public:
         GET_BUILT_IN_DISPLAY,
         SET_TRANSACTION_STATE,
         AUTHENTICATE_SURFACE,
-        BLANK,
-        UNBLANK,
         GET_DISPLAY_CONFIGS,
         GET_ACTIVE_CONFIG,
         SET_ACTIVE_CONFIG,
         CONNECT_DISPLAY,
         CAPTURE_SCREEN,
         CLEAR_ANIMATION_FRAME_STATS,
-        GET_ANIMATION_FRAME_STATS
+        GET_ANIMATION_FRAME_STATS,
+        SET_POWER_MODE,
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,
