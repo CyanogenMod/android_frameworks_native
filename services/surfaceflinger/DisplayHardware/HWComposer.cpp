@@ -1394,11 +1394,10 @@ void HWComposer::dump(String8& result) const {
                 result.appendFormat(
                         "  numHwLayers=%u, flags=%08x\n",
                         disp.list->numHwLayers, disp.list->flags);
-
                 result.append(
-                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |          source crop            |           frame           name \n"
-                        "------------+----------+----------+----------+----+-------+----------+---------------------------------+--------------------------------\n");
-                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____._,_____._,_____._,_____._] | [_____,_____,_____,_____]
+                        "    type    |  handle  |   hints  |   flags  | tr | blend |  format  |          source crop              |           frame           |         dirtyRect         |  name \n"
+                        "------------+----------+----------+----------+----+-------+----------+-----------------------------------+---------------------------+---------------------------+-------\n");
+                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____._,_____._,_____._,_____._] | [_____,_____,_____,_____] | [_____,_____,_____,_____] |
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
                     int32_t format = -1;
@@ -1432,19 +1431,29 @@ void HWComposer::dump(String8& result) const {
 
                     if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
                         result.appendFormat(
-                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7.1f,%7.1f,%7.1f,%7.1f] | [%5d,%5d,%5d,%5d] %s\n",
+                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7.1f,%7.1f,%7.1f,%7.1f] | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] | %s\n",
                                         compositionTypeName[type],
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
                                         l.sourceCropf.left, l.sourceCropf.top, l.sourceCropf.right, l.sourceCropf.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+#ifdef QCOM_BSP
+                                        l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
+#else
+                                        0, 0, 0, 0,
+#endif
                                         name.string());
                     } else {
                         result.appendFormat(
-                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7d,%7d,%7d,%7d] | [%5d,%5d,%5d,%5d] %s\n",
+                                " %10s | %08x | %08x | %08x | %02x | %05x | %08x | [%7d,%7d,%7d,%7d] | [%5d,%5d,%5d,%5d] | [%5d,%5d,%5d,%5d] | %s\n",
                                         compositionTypeName[type],
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, format,
                                         l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+#ifdef QCOM_BSP
+                                        l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
+#else
+                                        0, 0, 0, 0,
+#endif
                                         name.string());
                     }
                 }
