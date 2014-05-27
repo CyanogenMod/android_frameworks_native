@@ -110,6 +110,44 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
             :                                                   \
             );
 
+#elif defined(__i386__) && !USE_SLOW_BINDING
+
+    #define API_ENTRY(_api) __attribute__((noinline)) _api
+
+    #define CALL_GL_API(_api, ...)                                  \
+        register void* fn;                                          \
+        __asm__ volatile(                                           \
+            "mov %%gs:0, %[fn]\n"                                   \
+            "mov %P[tls](%[fn]), %[fn]\n"                           \
+            "test %[fn], %[fn]\n"                                   \
+            "je 1f\n"                                               \
+            "jmp *%P[api](%[fn])\n"                                 \
+            "1:\n"                                                  \
+            : [fn] "=r" (fn)                                        \
+            : [tls] "i" (TLS_SLOT_OPENGL_API*sizeof(void*)),        \
+              [api] "i" (__builtin_offsetof(gl_hooks_t, gl._api))   \
+            : "cc"                                                  \
+            );
+
+#elif defined(__x86_64__) && !USE_SLOW_BINDING
+
+    #define API_ENTRY(_api) __attribute__((noinline)) _api
+
+    #define CALL_GL_API(_api, ...)                                  \
+         register void** fn;                                        \
+         __asm__ volatile(                                          \
+            "mov %%fs:0, %[fn]\n"                                   \
+            "mov %P[tls](%[fn]), %[fn]\n"                           \
+            "test %[fn], %[fn]\n"                                   \
+            "je 1f\n"                                               \
+            "jmp *%P[api](%[fn])\n"                                 \
+            "1:\n"                                                  \
+            : [fn] "=r" (fn)                                        \
+            : [tls] "i" (TLS_SLOT_OPENGL_API*sizeof(void*)),        \
+              [api] "i" (__builtin_offsetof(gl_hooks_t, gl._api))   \
+            : "cc"                                                  \
+            );
+
 #elif defined(__mips__) && !USE_SLOW_BINDING
 
     #define API_ENTRY(_api) __attribute__((noinline)) _api

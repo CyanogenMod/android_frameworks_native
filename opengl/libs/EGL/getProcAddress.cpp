@@ -56,6 +56,50 @@ namespace android {
             :                                                   \
             );
 
+#elif defined(__i386__)
+
+    #define API_ENTRY(_api) __attribute__((noinline)) _api
+
+    #define CALL_GL_EXTENSION_API(_api)                         \
+         register void** fn;                                    \
+         __asm__ volatile(                                      \
+            "mov %%gs:0, %[fn]\n"                               \
+            "mov %P[tls](%[fn]), %[fn]\n"                       \
+            "test %[fn], %[fn]\n"                               \
+            "cmovne %P[api](%[fn]), %[fn]\n"                    \
+            "test %[fn], %[fn]\n"                               \
+            "je 1f\n"                                           \
+            "jmp *%[fn]\n"                                      \
+            "1:\n"                                              \
+            : [fn] "=r" (fn)                                    \
+            : [tls] "i" (TLS_SLOT_OPENGL_API*sizeof(void*)),    \
+              [api] "i" (__builtin_offsetof(gl_hooks_t,         \
+                                      ext.extensions[_api]))    \
+            : "cc"                                              \
+            );
+
+#elif defined(__x86_64__)
+
+    #define API_ENTRY(_api) __attribute__((noinline)) _api
+
+    #define CALL_GL_EXTENSION_API(_api)                         \
+         register void** fn;                                    \
+         __asm__ volatile(                                      \
+            "mov %%fs:0, %[fn]\n"                               \
+            "mov %P[tls](%[fn]), %[fn]\n"                       \
+            "test %[fn], %[fn]\n"                               \
+            "cmovne %P[api](%[fn]), %[fn]\n"                    \
+            "test %[fn], %[fn]\n"                               \
+            "je 1f\n"                                           \
+            "jmp *%[fn]\n"                                      \
+            "1:\n"                                              \
+            : [fn] "=r" (fn)                                    \
+            : [tls] "i" (TLS_SLOT_OPENGL_API*sizeof(void*)),    \
+              [api] "i" (__builtin_offsetof(gl_hooks_t,         \
+                                      ext.extensions[_api]))    \
+            : "cc"                                              \
+            );
+
 #elif defined(__mips__)
 
         #define API_ENTRY(_api) __attribute__((noinline)) _api
@@ -86,6 +130,7 @@ namespace android {
                                           ext.extensions[_api]))    \
                 :                                                   \
             );
+
 #endif
 
 #if defined(CALL_GL_EXTENSION_API)
