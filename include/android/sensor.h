@@ -66,6 +66,7 @@ enum {
  * Sensor accuracy measure
  */
 enum {
+    ASENSOR_STATUS_NO_CONTACT       = -1,
     ASENSOR_STATUS_UNRELIABLE       = 0,
     ASENSOR_STATUS_ACCURACY_LOW     = 1,
     ASENSOR_STATUS_ACCURACY_MEDIUM  = 2,
@@ -130,6 +131,11 @@ typedef struct AUncalibratedEvent {
   };
 } AUncalibratedEvent;
 
+typedef struct AHeartRateEvent {
+  float bpm;
+  int8_t status;
+} AHeartRateEvent;
+
 /* NOTE: Must match hardware/sensors.h */
 typedef struct ASensorEvent {
     int32_t version; /* sizeof(struct ASensorEvent) */
@@ -151,6 +157,7 @@ typedef struct ASensorEvent {
             AUncalibratedEvent uncalibrated_gyro;
             AUncalibratedEvent uncalibrated_magnetic;
             AMetaDataEvent meta_data;
+            AHeartRateEvent heart_rate;
         };
         union {
             uint64_t        data[8];
