@@ -1158,11 +1158,11 @@ void HWComposer::dump(String8& result) const {
                 result.appendFormat(
                         "  numHwLayers=%zu, flags=%08x\n",
                         disp.list->numHwLayers, disp.list->flags);
-
                 result.append(
-                        "    type   |  handle  | hint | flag | tr | blnd |   format    |     source crop (l,t,r,b)      |          frame         | name \n"
-                        "-----------+----------+------+------+----+------+-------------+--------------------------------+------------------------+------\n");
-                //      " _________ | ________ | ____ | ____ | __ | ____ | ___________ |_____._,_____._,_____._,_____._ |_____,_____,_____,_____ | ___...
+
+                        "    type   |  handle  | hint | flag | tr | blnd |  format     |     source crop(l,t,r,b)       |           frame        |      dirtyRect         |  name \n"
+                        "------------+----------+----------+----------+----+-------+----------+-----------------------------------+---------------------------+-------------------\n");
+                //      " __________ | ________ | ________ | ________ | __ | _____ | ________ | [_____._,_____._,_____._,_____._] | [_____,_____,_____,_____] | [_____,_____,_____,_____] |
                 for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
                     const hwc_layer_1_t&l = disp.list->hwLayers[i];
                     int32_t format = -1;
@@ -1198,19 +1198,21 @@ void HWComposer::dump(String8& result) const {
                     String8 formatStr = getFormatStr(format);
                     if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_3)) {
                         result.appendFormat(
-                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7.1f,%7.1f,%7.1f,%7.1f |%5d,%5d,%5d,%5d | %s\n",
+                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7.1f,%7.1f,%7.1f,%7.1f |%5d,%5d,%5d,%5d | [%5d,%5d,%5d,%5d] | %s\n",
                                         compositionTypeName[type],
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCropf.left, l.sourceCropf.top, l.sourceCropf.right, l.sourceCropf.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+                                        l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
                                         name.string());
                     } else {
                         result.appendFormat(
-                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7d,%7d,%7d,%7d |%5d,%5d,%5d,%5d | %s\n",
+                                " %9s | %08" PRIxPTR " | %04x | %04x | %02x | %04x | %-11s |%7d,%7d,%7d,%7d |%5d,%5d,%5d,%5d | [%5d,%5d,%5d,%5d] | %s\n",
                                         compositionTypeName[type],
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+                                        l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
                                         name.string());
                     }
                 }
