@@ -159,7 +159,6 @@ void SensorService::onFirstRef()
                     mSocketBufferSize = MAX_SOCKET_BUFFER_SIZE_BATCHED;
                 }
             }
-            ALOGD("Max socket buffer size %u", mSocketBufferSize);
             if (fp) {
                 fclose(fp);
             }
