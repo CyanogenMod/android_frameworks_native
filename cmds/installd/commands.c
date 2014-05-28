@@ -692,7 +692,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
     }
 
     /* The command to run depend on the value of persist.sys.dalvik.vm.lib */
-    property_get("persist.sys.dalvik.vm.lib.1", persist_sys_dalvik_vm_lib, "libdvm.so");
+    property_get("persist.sys.dalvik.vm.lib.2", persist_sys_dalvik_vm_lib, "libart.so");
 
     /* Before anything else: is there a .odex file?  If so, we have
      * precompiled the apk and there is nothing to do here.
