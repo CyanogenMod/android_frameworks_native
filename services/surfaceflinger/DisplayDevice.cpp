@@ -283,7 +283,8 @@ EGLBoolean DisplayDevice::makeCurrent(EGLDisplay dpy, EGLContext ctx) const {
 void DisplayDevice::setViewportAndProjection() const {
     size_t w = mDisplayWidth;
     size_t h = mDisplayHeight;
-    mFlinger->getRenderEngine().setViewportAndProjection(w, h, w, h, false);
+    Rect sourceCrop(0, 0, w, h);
+    mFlinger->getRenderEngine().setViewportAndProjection(w, h, sourceCrop, h, false);
 }
 
 // ----------------------------------------------------------------------------

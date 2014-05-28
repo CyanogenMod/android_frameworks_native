@@ -2790,7 +2790,7 @@ public:
 
 status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         const sp<IGraphicBufferProducer>& producer,
-        uint32_t reqWidth, uint32_t reqHeight,
+        Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
         bool useIdentityTransform) {
 
@@ -2816,6 +2816,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         SurfaceFlinger* flinger;
         sp<IBinder> display;
         sp<IGraphicBufferProducer> producer;
+        Rect sourceCrop;
         uint32_t reqWidth, reqHeight;
         uint32_t minLayerZ,maxLayerZ;
         bool useIdentityTransform;
@@ -2824,11 +2825,11 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         MessageCaptureScreen(SurfaceFlinger* flinger,
                 const sp<IBinder>& display,
                 const sp<IGraphicBufferProducer>& producer,
-                uint32_t reqWidth, uint32_t reqHeight,
+                Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
                 uint32_t minLayerZ, uint32_t maxLayerZ,
                 bool useIdentityTransform)
             : flinger(flinger), display(display), producer(producer),
-              reqWidth(reqWidth), reqHeight(reqHeight),
+              sourceCrop(sourceCrop), reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
               useIdentityTransform(useIdentityTransform),
               result(PERMISSION_DENIED)
@@ -2841,7 +2842,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
             result = flinger->captureScreenImplLocked(hw, producer,
-                    reqWidth, reqHeight, minLayerZ, maxLayerZ,
+                    sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
                     useIdentityTransform);
             static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
             return true;
@@ -2864,7 +2865,8 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     // which does the marshaling work forwards to our "fake remote" above.
     sp<MessageBase> msg = new MessageCaptureScreen(this,
             display, IGraphicBufferProducer::asInterface( wrapper ),
-            reqWidth, reqHeight, minLayerZ, maxLayerZ, useIdentityTransform);
+            sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
+            useIdentityTransform);
 
     status_t res = postMessageAsync(msg);
     if (res == NO_ERROR) {
@@ -2876,7 +2878,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
 
 void SurfaceFlinger::renderScreenImplLocked(
         const sp<const DisplayDevice>& hw,
-        uint32_t reqWidth, uint32_t reqHeight,
+        Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
         bool yswap, bool useIdentityTransform)
 {
@@ -2888,11 +2890,32 @@ void SurfaceFlinger::renderScreenImplLocked(
     const uint32_t hw_h = hw->getHeight();
     const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
 
+    // if a default or invalid sourceCrop is passed in, set reasonable values
+    if (sourceCrop.width() == 0 || sourceCrop.height() == 0 ||
+            !sourceCrop.isValid()) {
+        sourceCrop.setLeftTop(Point(0, 0));
+        sourceCrop.setRightBottom(Point(hw_w, hw_h));
+    }
+
+    // ensure that sourceCrop is inside screen
+    if (sourceCrop.left < 0) {
+        ALOGE("Invalid crop rect: l = %d (< 0)", sourceCrop.left);
+    }
+    if (sourceCrop.right >= hw_w) {
+        ALOGE("Invalid crop rect: r = %d (>= %d)", sourceCrop.right, hw_w);
+    }
+    if (sourceCrop.top < 0) {
+        ALOGE("Invalid crop rect: t = %d (< 0)", sourceCrop.top);
+    }
+    if (sourceCrop.bottom >= hw_h) {
+        ALOGE("Invalid crop rect: b = %d (>= %d)", sourceCrop.bottom, hw_h);
+    }
+
     // make sure to clear all GL error flags
     engine.checkErrors();
 
     // set-up our viewport
-    engine.setViewportAndProjection(reqWidth, reqHeight, hw_w, hw_h, yswap);
+    engine.setViewportAndProjection(reqWidth, reqHeight, sourceCrop, hw_h, yswap);
     engine.disableTexturing();
 
     // redraw the screen entirely...
@@ -2923,7 +2946,7 @@ void SurfaceFlinger::renderScreenImplLocked(
 status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<const DisplayDevice>& hw,
         const sp<IGraphicBufferProducer>& producer,
-        uint32_t reqWidth, uint32_t reqHeight,
+        Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
         bool useIdentityTransform)
 {
@@ -2978,7 +3001,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         // via an FBO, which means we didn't have to create
                         // an EGLSurface and therefore we're not
                         // dependent on the context's EGLConfig.
-                        renderScreenImplLocked(hw, reqWidth, reqHeight,
+                        renderScreenImplLocked(hw, sourceCrop, reqWidth, reqHeight,
                                 minLayerZ, maxLayerZ, true, useIdentityTransform);
 
                         // Create a sync point and wait on it, so we know the buffer is

@@ -202,7 +202,7 @@ private:
     virtual sp<IDisplayEventConnection> createDisplayEventConnection();
     virtual status_t captureScreen(const sp<IBinder>& display,
             const sp<IGraphicBufferProducer>& producer,
-            uint32_t reqWidth, uint32_t reqHeight,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform);
     // called when screen needs to turn off
@@ -311,14 +311,14 @@ private:
 
     void renderScreenImplLocked(
             const sp<const DisplayDevice>& hw,
-            uint32_t reqWidth, uint32_t reqHeight,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool yswap, bool useIdentityTransform);
 
     status_t captureScreenImplLocked(
             const sp<const DisplayDevice>& hw,
             const sp<IGraphicBufferProducer>& producer,
-            uint32_t reqWidth, uint32_t reqHeight,
+            Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform);
 
