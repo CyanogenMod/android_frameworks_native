@@ -45,18 +45,21 @@ void DdmConnection::start(const char* name) {
     args.ignoreUnrecognized = JNI_FALSE;
 
 
-    void* libdvm_dso = dlopen("libdvm.so", RTLD_NOW);
-    ALOGE_IF(!libdvm_dso, "DdmConnection: %s", dlerror());
+    // TODO: Should this just link against libnativehelper and use its
+    // JNI_CreateJavaVM wrapper that essential does this dlopen/dlsym
+    // work based on the current system default runtime?
+    void* libart_dso = dlopen("libart.so", RTLD_NOW);
+    ALOGE_IF(!libart_dso, "DdmConnection: %s", dlerror());
 
     void* libandroid_runtime_dso = dlopen("libandroid_runtime.so", RTLD_NOW);
     ALOGE_IF(!libandroid_runtime_dso, "DdmConnection: %s", dlerror());
 
-    if (!libdvm_dso || !libandroid_runtime_dso) {
+    if (!libart_dso || !libandroid_runtime_dso) {
         goto error;
     }
 
     jint (*JNI_CreateJavaVM)(JavaVM** p_vm, JNIEnv** p_env, void* vm_args);
-    JNI_CreateJavaVM = (typeof JNI_CreateJavaVM)dlsym(libdvm_dso, "JNI_CreateJavaVM");
+    JNI_CreateJavaVM = (typeof JNI_CreateJavaVM)dlsym(libart_dso, "JNI_CreateJavaVM");
     ALOGE_IF(!JNI_CreateJavaVM, "DdmConnection: %s", dlerror());
 
     jint (*registerNatives)(JNIEnv* env, jclass clazz);
@@ -104,8 +107,8 @@ error:
     if (libandroid_runtime_dso) {
         dlclose(libandroid_runtime_dso);
     }
-    if (libdvm_dso) {
-        dlclose(libdvm_dso);
+    if (libart_dso) {
+        dlclose(libart_dso);
     }
 }
 
