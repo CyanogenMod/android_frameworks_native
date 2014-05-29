@@ -18,7 +18,6 @@
 
 #include <binder/IPermissionController.h>
 
-#include <utils/Debug.h>
 #include <utils/Log.h>
 #include <binder/Parcel.h>
 #include <utils/String8.h>

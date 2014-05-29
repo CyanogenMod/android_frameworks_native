@@ -18,7 +18,6 @@
 
 #include <binder/IServiceManager.h>
 
-#include <utils/Debug.h>
 #include <utils/Log.h>
 #include <binder/IPCThreadState.h>
 #include <binder/Parcel.h>
