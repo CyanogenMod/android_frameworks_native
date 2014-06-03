@@ -170,7 +170,7 @@ struct PointerCoords {
     enum { MAX_AXES = 14 }; // 14 so that sizeof(PointerCoords) == 64
 
     // Bitfield of axes that are present in this structure.
-    uint64_t bits;
+    uint64_t bits __attribute__((aligned(8)));
 
     // Values of axes that are stored in this structure packed in order by axis id
     // for each axis that is present in the structure according to 'bits'.

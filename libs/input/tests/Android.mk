@@ -29,5 +29,16 @@ $(foreach file,$(test_src_files), \
     $(eval include $(BUILD_NATIVE_TEST)) \
 )
 
+# NOTE: This is a compile time test, and does not need to be
+# run. All assertions are static_asserts and will fail during
+# buildtime if something's wrong.
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := StructLayout_test.cpp
+LOCAL_MODULE := StructLayout_test
+LOCAL_CFLAGS := -std=c++11 -O0
+LOCAL_MULTILIB := both
+include $(BUILD_STATIC_LIBRARY)
+
+
 # Build the manual test programs.
 include $(call all-makefiles-under, $(LOCAL_PATH))
