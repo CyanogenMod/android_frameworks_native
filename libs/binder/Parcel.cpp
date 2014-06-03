@@ -155,7 +155,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
     const sp<IBinder>& binder, Parcel* out)
 {
     flat_binder_object obj;
-    
+
     obj.flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
     if (binder != NULL) {
         IBinder *local = binder->localBinder();
@@ -179,7 +179,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
         obj.binder = 0;
         obj.cookie = 0;
     }
-    
+
     return finish_flatten_binder(binder, obj, out);
 }
 
@@ -187,7 +187,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
     const wp<IBinder>& binder, Parcel* out)
 {
     flat_binder_object obj;
-    
+
     obj.flags = 0x7f | FLAT_BINDER_FLAG_ACCEPTS_FDS;
     if (binder != NULL) {
         sp<IBinder> real = binder.promote();
@@ -210,7 +210,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
             }
             return finish_flatten_binder(real, obj, out);
         }
-        
+
         // XXX How to deal?  In order to flatten the given binder,
         // we need to probe it for information, which requires a primary
         // reference...  but we don't have one.
@@ -223,7 +223,7 @@ status_t flatten_binder(const sp<ProcessState>& /*proc*/,
         obj.binder = 0;
         obj.cookie = 0;
         return finish_flatten_binder(NULL, obj, out);
-    
+
     } else {
         obj.type = BINDER_TYPE_BINDER;
         obj.binder = 0;
@@ -238,12 +238,12 @@ inline static status_t finish_unflatten_binder(
 {
     return NO_ERROR;
 }
-    
+
 status_t unflatten_binder(const sp<ProcessState>& proc,
     const Parcel& in, sp<IBinder>* out)
 {
     const flat_binder_object* flat = in.readObject(false);
-    
+
     if (flat) {
         switch (flat->type) {
             case BINDER_TYPE_BINDER:
@@ -253,7 +253,7 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
                 *out = proc->getStrongProxyForHandle(flat->handle);
                 return finish_unflatten_binder(
                     static_cast<BpBinder*>(out->get()), *flat, in);
-        }        
+        }
     }
     return BAD_TYPE;
 }
@@ -262,7 +262,7 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
     const Parcel& in, wp<IBinder>* out)
 {
     const flat_binder_object* flat = in.readObject(false);
-    
+
     if (flat) {
         switch (flat->type) {
             case BINDER_TYPE_BINDER:
@@ -336,7 +336,7 @@ status_t Parcel::setDataSize(size_t size)
     err = continueWrite(size);
     if (err == NO_ERROR) {
         mDataSize = size;
-        ALOGV("setDataSize Setting data size of %p to %d\n", this, mDataSize);
+        ALOGV("setDataSize Setting data size of %p to %zu", this, mDataSize);
     }
     return err;
 }
@@ -424,7 +424,7 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
             mObjects = objects;
             mObjectsCapacity = newSize;
         }
-        
+
         // append and acquire objects
         int idx = mObjectsSize;
         for (int i = firstIndex; i <= lastIndex; i++) {
@@ -510,7 +510,7 @@ bool Parcel::enforceInterface(const String16& interface,
     if (str == interface) {
         return true;
     } else {
-        ALOGW("**** enforceInterface() expected '%s' but read '%s'\n",
+        ALOGW("**** enforceInterface() expected '%s' but read '%s'",
                 String8(interface).string(), String8(str).string());
         return false;
     }
@@ -540,10 +540,10 @@ status_t Parcel::finishWrite(size_t len)
 {
     //printf("Finish write of %d\n", len);
     mDataPos += len;
-    ALOGV("finishWrite Setting data pos of %p to %d\n", this, mDataPos);
+    ALOGV("finishWrite Setting data pos of %p to %zu", this, mDataPos);
     if (mDataPos > mDataSize) {
         mDataSize = mDataPos;
-        ALOGV("finishWrite Setting data size of %p to %d\n", this, mDataSize);
+        ALOGV("finishWrite Setting data size of %p to %zu", this, mDataSize);
     }
     //printf("New pos=%d, size=%d\n", mDataPos, mDataSize);
     return NO_ERROR;
@@ -709,7 +709,7 @@ status_t Parcel::writeString16(const String16& str)
 status_t Parcel::writeString16(const char16_t* str, size_t len)
 {
     if (str == NULL) return writeInt32(-1);
-    
+
     status_t err = writeInt32(len);
     if (err == NO_ERROR) {
         len *= sizeof(char16_t);
@@ -898,14 +898,14 @@ status_t Parcel::writeObject(const flat_binder_object& val, bool nullMetaData)
     if (enoughData && enoughObjects) {
 restart_write:
         *reinterpret_cast<flat_binder_object*>(mData+mDataPos) = val;
-        
+
         // Need to write meta-data?
         if (nullMetaData || val.binder != 0) {
             mObjects[mObjectsSize] = mDataPos;
             acquire_object(ProcessState::self(), val, this);
             mObjectsSize++;
         }
-        
+
         // remember if it's a file descriptor
         if (val.type == BINDER_TYPE_FD) {
             if (!mAllowFds) {
@@ -928,7 +928,7 @@ restart_write:
         mObjects = objects;
         mObjectsCapacity = newSize;
     }
-    
+
     goto restart_write;
 }
 
@@ -948,7 +948,7 @@ status_t Parcel::read(void* outData, size_t len) const
             && len <= PAD_SIZE(len)) {
         memcpy(outData, mData+mDataPos, len);
         mDataPos += PAD_SIZE(len);
-        ALOGV("read Setting data pos of %p to %d\n", this, mDataPos);
+        ALOGV("read Setting data pos of %p to %zu", this, mDataPos);
         return NO_ERROR;
     }
     return NOT_ENOUGH_DATA;
@@ -960,7 +960,7 @@ const void* Parcel::readInplace(size_t len) const
             && len <= PAD_SIZE(len)) {
         const void* data = mData+mDataPos;
         mDataPos += PAD_SIZE(len);
-        ALOGV("readInplace Setting data pos of %p to %d\n", this, mDataPos);
+        ALOGV("readInplace Setting data pos of %p to %zu", this, mDataPos);
         return data;
     }
     return NULL;
@@ -1114,7 +1114,7 @@ const char* Parcel::readCString() const
         if (eos) {
             const size_t len = eos - str;
             mDataPos += PAD_SIZE(len+1);
-            ALOGV("readCString Setting data pos of %p to %d\n", this, mDataPos);
+            ALOGV("readCString Setting data pos of %p to %zu", this, mDataPos);
             return str;
         }
     }
@@ -1216,9 +1216,9 @@ int Parcel::readFileDescriptor() const
     if (flat) {
         switch (flat->type) {
             case BINDER_TYPE_FD:
-                //ALOGI("Returning file descriptor %ld from parcel %p\n", flat->handle, this);
+                //ALOGI("Returning file descriptor %ld from parcel %p", flat->handle, this);
                 return flat->handle;
-        }        
+        }
     }
     return BAD_TYPE;
 }
@@ -1287,7 +1287,7 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
         fds[i] = dup(this->readFileDescriptor());
         if (fds[i] < 0) {
             err = BAD_VALUE;
-            ALOGE("dup() failed in Parcel::read, i is %d, fds[i] is %d, fd_count is %d, error: %s",
+            ALOGE("dup() failed in Parcel::read, i is %zu, fds[i] is %d, fd_count is %zu, error: %s",
                 i, fds[i], fd_count, strerror(errno));
         }
     }
@@ -1313,19 +1313,19 @@ const flat_binder_object* Parcel::readObject(bool nullMetaData) const
             // When transferring a NULL object, we don't write it into
             // the object list, so we don't want to check for it when
             // reading.
-            ALOGV("readObject Setting data pos of %p to %d\n", this, mDataPos);
+            ALOGV("readObject Setting data pos of %p to %zu", this, mDataPos);
             return obj;
         }
-        
+
         // Ensure that this object is valid...
         binder_size_t* const OBJS = mObjects;
         const size_t N = mObjectsSize;
         size_t opos = mNextObjectHint;
-        
+
         if (N > 0) {
-            ALOGV("Parcel %p looking for obj at %d, hint=%d\n",
+            ALOGV("Parcel %p looking for obj at %zu, hint=%zu",
                  this, DPOS, opos);
-            
+
             // Start at the current hint position, looking for an object at
             // the current data position.
             if (opos < N) {
@@ -1337,23 +1337,23 @@ const flat_binder_object* Parcel::readObject(bool nullMetaData) const
             }
             if (OBJS[opos] == DPOS) {
                 // Found it!
-                ALOGV("Parcel found obj %d at index %d with forward search",
+                ALOGV("Parcel %p found obj %zu at index %zu with forward search",
                      this, DPOS, opos);
                 mNextObjectHint = opos+1;
-                ALOGV("readObject Setting data pos of %p to %d\n", this, mDataPos);
+                ALOGV("readObject Setting data pos of %p to %zu", this, mDataPos);
                 return obj;
             }
-        
+
             // Look backwards for it...
             while (opos > 0 && OBJS[opos] > DPOS) {
                 opos--;
             }
             if (OBJS[opos] == DPOS) {
                 // Found it!
-                ALOGV("Parcel found obj %d at index %d with backward search",
+                ALOGV("Parcel %p found obj %zu at index %zu with backward search",
                      this, DPOS, opos);
                 mNextObjectHint = opos+1;
-                ALOGV("readObject Setting data pos of %p to %d\n", this, mDataPos);
+                ALOGV("readObject Setting data pos of %p to %zu", this, mDataPos);
                 return obj;
             }
         }
@@ -1367,14 +1367,14 @@ void Parcel::closeFileDescriptors()
 {
     size_t i = mObjectsSize;
     if (i > 0) {
-        //ALOGI("Closing file descriptors for %d objects...", mObjectsSize);
+        //ALOGI("Closing file descriptors for %zu objects...", i);
     }
     while (i > 0) {
         i--;
         const flat_binder_object* flat
             = reinterpret_cast<flat_binder_object*>(mData+mObjects[i]);
         if (flat->type == BINDER_TYPE_FD) {
-            //ALOGI("Closing fd: %ld\n", flat->handle);
+            //ALOGI("Closing fd: %ld", flat->handle);
             close(flat->handle);
         }
     }
@@ -1408,9 +1408,9 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
     mError = NO_ERROR;
     mData = const_cast<uint8_t*>(data);
     mDataSize = mDataCapacity = dataSize;
-    //ALOGI("setDataReference Setting data size of %p to %lu (pid=%d)\n", this, mDataSize, getpid());
+    //ALOGI("setDataReference Setting data size of %p to %lu (pid=%d)", this, mDataSize, getpid());
     mDataPos = 0;
-    ALOGV("setDataReference Setting data pos of %p to %d\n", this, mDataPos);
+    ALOGV("setDataReference Setting data pos of %p to %zu", this, mDataPos);
     mObjects = const_cast<binder_size_t*>(objects);
     mObjectsSize = mObjectsCapacity = objectsCount;
     mNextObjectHint = 0;
@@ -1432,7 +1432,7 @@ void Parcel::ipcSetDataReference(const uint8_t* data, size_t dataSize,
 void Parcel::print(TextOutput& to, uint32_t /*flags*/) const
 {
     to << "Parcel(";
-    
+
     if (errorCheck() != NO_ERROR) {
         const status_t err = errorCheck();
         to << "Error: " << (void*)(intptr_t)err << " \"" << strerror(-err) << "\"";
@@ -1451,7 +1451,7 @@ void Parcel::print(TextOutput& to, uint32_t /*flags*/) const
     } else {
         to << "NULL";
     }
-    
+
     to << ")";
 }
 
@@ -1492,7 +1492,7 @@ void Parcel::freeData()
 void Parcel::freeDataNoInit()
 {
     if (mOwner) {
-        //ALOGI("Freeing data ref of %p (pid=%d)\n", this, getpid());
+        //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
     } else {
         releaseObjects();
@@ -1515,24 +1515,24 @@ status_t Parcel::restartWrite(size_t desired)
         freeData();
         return continueWrite(desired);
     }
-    
+
     uint8_t* data = (uint8_t*)realloc(mData, desired);
     if (!data && desired > mDataCapacity) {
         mError = NO_MEMORY;
         return NO_MEMORY;
     }
-    
+
     releaseObjects();
-    
+
     if (data) {
         mData = data;
         mDataCapacity = desired;
     }
-    
+
     mDataSize = mDataPos = 0;
-    ALOGV("restartWrite Setting data size of %p to %d\n", this, mDataSize);
-    ALOGV("restartWrite Setting data pos of %p to %d\n", this, mDataPos);
-        
+    ALOGV("restartWrite Setting data size of %p to %zu", this, mDataSize);
+    ALOGV("restartWrite Setting data pos of %p to %zu", this, mDataPos);
+
     free(mObjects);
     mObjects = NULL;
     mObjectsSize = mObjectsCapacity = 0;
@@ -1540,7 +1540,7 @@ status_t Parcel::restartWrite(size_t desired)
     mHasFds = false;
     mFdsKnown = true;
     mAllowFds = true;
-    
+
     return NO_ERROR;
 }
 
@@ -1560,7 +1560,7 @@ status_t Parcel::continueWrite(size_t desired)
             }
         }
     }
-    
+
     if (mOwner) {
         // If the size is going to zero, just release the owner's data.
         if (desired == 0) {
@@ -1576,7 +1576,7 @@ status_t Parcel::continueWrite(size_t desired)
             return NO_MEMORY;
         }
         binder_size_t* objects = NULL;
-        
+
         if (objectsSize) {
             objects = (binder_size_t*)malloc(objectsSize*sizeof(binder_size_t));
             if (!objects) {
@@ -1593,21 +1593,21 @@ status_t Parcel::continueWrite(size_t desired)
             acquireObjects();
             mObjectsSize = oldObjectsSize;
         }
-        
+
         if (mData) {
             memcpy(data, mData, mDataSize < desired ? mDataSize : desired);
         }
         if (objects && mObjects) {
             memcpy(objects, mObjects, objectsSize*sizeof(binder_size_t));
         }
-        //ALOGI("Freeing data ref of %p (pid=%d)\n", this, getpid());
+        //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
         mOwner = NULL;
 
         mData = data;
         mObjects = objects;
         mDataSize = (mDataSize < desired) ? mDataSize : desired;
-        ALOGV("continueWrite Setting data size of %p to %d\n", this, mDataSize);
+        ALOGV("continueWrite Setting data size of %p to %zu", this, mDataSize);
         mDataCapacity = desired;
         mObjectsSize = mObjectsCapacity = objectsSize;
         mNextObjectHint = 0;
@@ -1647,14 +1647,14 @@ status_t Parcel::continueWrite(size_t desired)
         } else {
             if (mDataSize > desired) {
                 mDataSize = desired;
-                ALOGV("continueWrite Setting data size of %p to %d\n", this, mDataSize);
+                ALOGV("continueWrite Setting data size of %p to %zu", this, mDataSize);
             }
             if (mDataPos > desired) {
                 mDataPos = desired;
-                ALOGV("continueWrite Setting data pos of %p to %d\n", this, mDataPos);
+                ALOGV("continueWrite Setting data pos of %p to %zu", this, mDataPos);
             }
         }
-        
+
     } else {
         // This is the first data.  Easy!
         uint8_t* data = (uint8_t*)malloc(desired);
@@ -1667,11 +1667,11 @@ status_t Parcel::continueWrite(size_t desired)
              && mObjectsCapacity == 0)) {
             ALOGE("continueWrite: %zu/%p/%zu/%zu", mDataCapacity, mObjects, mObjectsCapacity, desired);
         }
-        
+
         mData = data;
         mDataSize = mDataPos = 0;
-        ALOGV("continueWrite Setting data size of %p to %d\n", this, mDataSize);
-        ALOGV("continueWrite Setting data pos of %p to %d\n", this, mDataPos);
+        ALOGV("continueWrite Setting data size of %p to %zu", this, mDataSize);
+        ALOGV("continueWrite Setting data pos of %p to %zu", this, mDataPos);
         mDataCapacity = desired;
     }
 
@@ -1685,8 +1685,8 @@ void Parcel::initState()
     mDataSize = 0;
     mDataCapacity = 0;
     mDataPos = 0;
-    ALOGV("initState Setting data size of %p to %d\n", this, mDataSize);
-    ALOGV("initState Setting data pos of %p to %d\n", this, mDataPos);
+    ALOGV("initState Setting data size of %p to %zu", this, mDataSize);
+    ALOGV("initState Setting data pos of %p to %zu", this, mDataPos);
     mObjects = NULL;
     mObjectsSize = 0;
     mObjectsCapacity = 0;
