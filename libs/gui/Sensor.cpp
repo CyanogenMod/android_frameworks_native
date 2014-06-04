@@ -35,7 +35,7 @@ Sensor::Sensor()
     : mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
       mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0),
-      mMaxDelay(0), mWakeUpSensor(false)
+      mMaxDelay(0), mFlags(0)
 {
 }
 
@@ -51,7 +51,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     mResolution = hwSensor->resolution;
     mPower = hwSensor->power;
     mMinDelay = hwSensor->minDelay;
-    mWakeUpSensor = false;
+    mFlags = 0;
 
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
@@ -77,154 +77,177 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         mMaxDelay = 0;
     }
 
-    // Ensure existing sensors have correct string type and required
-    // permissions.
+    // Ensure existing sensors have correct string type, required permissions and reporting mode.
     switch (mType) {
     case SENSOR_TYPE_ACCELEROMETER:
         mStringType = SENSOR_STRING_TYPE_ACCELEROMETER;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_AMBIENT_TEMPERATURE:
         mStringType = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_GAME_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_GAME_ROTATION_VECTOR;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_GEOMAGNETIC_ROTATION_VECTOR;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_GRAVITY:
         mStringType = SENSOR_STRING_TYPE_GRAVITY;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_GYROSCOPE:
         mStringType = SENSOR_STRING_TYPE_GYROSCOPE;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
         mStringType = SENSOR_STRING_TYPE_GYROSCOPE_UNCALIBRATED;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_HEART_RATE:
         mStringType = SENSOR_STRING_TYPE_HEART_RATE;
         mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_LIGHT:
         mStringType = SENSOR_STRING_TYPE_LIGHT;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_LINEAR_ACCELERATION:
         mStringType = SENSOR_STRING_TYPE_LINEAR_ACCELERATION;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_MAGNETIC_FIELD:
         mStringType = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
         mStringType = SENSOR_STRING_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_ORIENTATION:
         mStringType = SENSOR_STRING_TYPE_ORIENTATION;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_PRESSURE:
         mStringType = SENSOR_STRING_TYPE_PRESSURE;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_PROXIMITY:
         mStringType = SENSOR_STRING_TYPE_PROXIMITY;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_RELATIVE_HUMIDITY:
         mStringType = SENSOR_STRING_TYPE_RELATIVE_HUMIDITY;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_ROTATION_VECTOR;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
     case SENSOR_TYPE_SIGNIFICANT_MOTION:
         mStringType = SENSOR_STRING_TYPE_SIGNIFICANT_MOTION;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_STEP_COUNTER:
         mStringType = SENSOR_STRING_TYPE_STEP_COUNTER;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_STEP_DETECTOR:
         mStringType = SENSOR_STRING_TYPE_STEP_DETECTOR;
+        mFlags |= SENSOR_FLAG_SPECIAL_REPORTING_MODE;
         break;
     case SENSOR_TYPE_TEMPERATURE:
         mStringType = SENSOR_STRING_TYPE_TEMPERATURE;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR:
         mStringType = SENSOR_STRING_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
     case SENSOR_TYPE_WAKE_UP_ACCELEROMETER:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_ACCELEROMETER;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_ORIENTATION:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_ORIENTATION;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_GYROSCOPE:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_LIGHT:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_LIGHT;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_PRESSURE:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_PRESSURE;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_GRAVITY:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_GRAVITY;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_LINEAR_ACCELERATION:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_LINEAR_ACCELERATION;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_ROTATION_VECTOR;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_RELATIVE_HUMIDITY:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_RELATIVE_HUMIDITY;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_SPECIAL_REPORTING_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_AMBIENT_TEMPERATURE:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_AMBIENT_TEMPERATURE;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_GAME_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_GAME_ROTATION_VECTOR;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_STEP_DETECTOR:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_STEP_DETECTOR;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_SPECIAL_REPORTING_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_STEP_COUNTER:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_STEP_COUNTER;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_CONTINUOUS_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_UP_HEART_RATE:
         mStringType = SENSOR_STRING_TYPE_WAKE_UP_HEART_RATE;
         mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
+        break;
+    case SENSOR_TYPE_WAKE_UP_TILT_DETECTOR:
+        mStringType = SENSOR_STRING_TYPE_WAKE_UP_TILT_DETECTOR;
+        mFlags |= (SENSOR_FLAG_SPECIAL_REPORTING_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     case SENSOR_TYPE_WAKE_GESTURE:
         mStringType = SENSOR_STRING_TYPE_WAKE_GESTURE;
-        mWakeUpSensor = true;
+        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
         break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
@@ -234,8 +257,19 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->requiredPermission) {
             mRequiredPermission = hwSensor->requiredPermission;
         }
+
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-            mWakeUpSensor = hwSensor->flags & SENSOR_FLAG_WAKE_UP;
+            mFlags = (int32_t) hwSensor->flags;
+        } else {
+            // This is an OEM defined sensor on an older HAL. Use minDelay to determine the
+            // reporting mode of the sensor.
+            if (mMinDelay > 0) {
+                mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
+            } else if (mMinDelay == 0) {
+                mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
+            } else if (mMinDelay < 0) {
+                mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+            }
         }
         break;
     }
@@ -309,8 +343,16 @@ int32_t Sensor::getMaxDelay() const {
     return mMaxDelay;
 }
 
+int32_t Sensor::getFlags() const {
+    return mFlags;
+}
+
 bool Sensor::isWakeUpSensor() const {
-    return mWakeUpSensor;
+    return mFlags & SENSOR_FLAG_WAKE_UP;
+}
+
+int32_t Sensor::getReportingMode() const {
+    return ((mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT);
 }
 
 size_t Sensor::getFlattenedSize() const
@@ -318,8 +360,7 @@ size_t Sensor::getFlattenedSize() const
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t) * 4 +
-            sizeof(bool) * 1;
+            sizeof(int32_t) * 5;
 
     size_t variableSize =
             sizeof(uint32_t) + FlattenableUtils::align<4>(mName.length()) +
@@ -350,7 +391,7 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     flattenString8(buffer, size, mStringType);
     flattenString8(buffer, size, mRequiredPermission);
     FlattenableUtils::write(buffer, size, mMaxDelay);
-    FlattenableUtils::write(buffer, size, mWakeUpSensor);
+    FlattenableUtils::write(buffer, size, mFlags);
     return NO_ERROR;
 }
 
@@ -365,8 +406,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t) * 4 +
-            sizeof(bool) * 1;
+            sizeof(int32_t) * 5;
     if (size < fixedSize) {
         return NO_MEMORY;
     }
@@ -389,7 +429,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
         return NO_MEMORY;
     }
     FlattenableUtils::read(buffer, size, mMaxDelay);
-    FlattenableUtils::read(buffer, size, mWakeUpSensor);
+    FlattenableUtils::read(buffer, size, mFlags);
     return NO_ERROR;
 }
 
