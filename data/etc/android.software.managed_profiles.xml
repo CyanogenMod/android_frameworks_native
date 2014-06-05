@@ -16,5 +16,5 @@
 
 <!-- This is the standard feature indicating that the device supports managed profiles. -->
 <permissions>
-    <feature name="android.software.managedprofiles" />
+    <feature name="android.software.managed_profiles" />
 </permissions>
