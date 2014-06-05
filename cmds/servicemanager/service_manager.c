@@ -32,6 +32,7 @@ static struct {
     { AID_MEDIA, "media.player" },
     { AID_MEDIA, "media.camera" },
     { AID_MEDIA, "media.audio_policy" },
+    { AID_MEDIA, "media.sound_trigger_hw" },
     { AID_AUDIO, "audio" },
     { AID_INPUT, "input" },
     { AID_DRM,   "drm.drmManager" },
