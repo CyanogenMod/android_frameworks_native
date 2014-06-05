@@ -149,6 +149,17 @@ int create_user_media_path(char path[PATH_MAX], userid_t userid) {
     return 0;
 }
 
+/**
+ * Create the path name for config for a certain userid.
+ * Returns 0 on success, and -1 on failure.
+ */
+int create_user_config_path(char path[PATH_MAX], userid_t userid) {
+    if (snprintf(path, PATH_MAX, "%s%d", "/data/misc/user/", userid) > PATH_MAX) {
+        return -1;
+    }
+    return 0;
+}
+
 int create_move_path(char path[PKG_PATH_MAX],
     const char* pkgname,
     const char* leaf,
@@ -1004,6 +1015,23 @@ int ensure_media_user_dirs(userid_t userid) {
     }
 
     return 0;
+}
+
+int ensure_config_user_dirs(userid_t userid) {
+    char config_user_path[PATH_MAX];
+    char path[PATH_MAX];
+
+    // writable by system, readable by any app within the same user
+    const int uid = (userid * AID_USER) + AID_SYSTEM;
+    const int gid = (userid * AID_USER) + AID_EVERYBODY;
+
+    // Ensure /data/misc/user/<userid> exists
+    create_user_config_path(config_user_path, userid);
+    if (fs_prepare_dir(config_user_path, 0750, uid, gid) == -1) {
+        return -1;
+    }
+
+   return 0;
 }
 
 int create_profile_file(const char *pkgname, gid_t gid) {

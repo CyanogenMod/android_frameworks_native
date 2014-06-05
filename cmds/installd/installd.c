@@ -109,6 +109,11 @@ static int do_mk_user_data(char **arg, char reply[REPLY_MAX])
                              /* pkgname, uid, userid, seinfo */
 }
 
+static int do_mk_user(char **arg, char reply[REPLY_MAX])
+{
+    return create_user(atoi(arg[0])); /* userid */
+}
+
 static int do_rm_user(char **arg, char reply[REPLY_MAX])
 {
     return delete_user(atoi(arg[0])); /* userid */
@@ -157,6 +162,7 @@ struct cmdinfo cmds[] = {
     { "movefiles",            0, do_movefiles },
     { "linklib",              3, do_linklib },
     { "mkuserdata",           4, do_mk_user_data },
+    { "mkuser",               1, do_mk_user },
     { "rmuser",               1, do_rm_user },
     { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
@@ -480,6 +486,42 @@ int initialize_directories() {
         goto fail;
     }
     if (fs_prepare_dir(media_obb_dir, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
+        goto fail;
+    }
+
+    if (version == 2) {
+        ALOGD("Upgrading to /data/misc/user directories");
+
+        DIR *dir;
+        struct dirent *dirent;
+        char user_data_dir[PATH_MAX];
+
+        dir = opendir(user_data_dir);
+        if (dir != NULL) {
+            while ((dirent = readdir(dir))) {
+                if (dirent->d_type == DT_DIR) {
+                    const char *name = dirent->d_name;
+
+                    // skip "." and ".."
+                    if (name[0] == '.') {
+                        if (name[1] == 0) continue;
+                        if ((name[1] == '.') && (name[2] == 0)) continue;
+                    }
+
+                    // /data/misc/user/<user_id>
+                    if (ensure_config_user_dirs(atoi(name)) == -1) {
+                        goto fail;
+                    }
+                }
+            }
+            closedir(dir);
+        }
+
+        version = 3;
+    }
+
+    if (ensure_config_user_dirs(0) == -1) {
+        ALOGE("Failed to setup misc for user 0");
         goto fail;
     }
 
