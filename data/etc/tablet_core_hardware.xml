@@ -47,7 +47,7 @@
     <feature name="android.software.device_admin" />
 
     <!-- Feature to specify if the device support managed profiles. -->
-    <feature name="android.software.managedprofiles" />
+    <feature name="android.software.managed_profiles" />
 
     <!-- devices with GPS must include android.hardware.location.gps.xml -->
     <!-- devices with a rear-facing camera must include one of these as appropriate:
