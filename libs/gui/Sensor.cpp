@@ -134,11 +134,11 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
         return NO_MEMORY;
     }
 
-    FlattenableUtils::write(buffer, size, mName.length());
+    FlattenableUtils::write(buffer, size, static_cast<uint32_t>(mName.length()));
     memcpy(static_cast<char*>(buffer), mName.string(), mName.length());
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(mName.length()));
 
-    FlattenableUtils::write(buffer, size, mVendor.length());
+    FlattenableUtils::write(buffer, size, static_cast<uint32_t>(mVendor.length()));
     memcpy(static_cast<char*>(buffer), mVendor.string(), mVendor.length());
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(mVendor.length()));
 
@@ -156,9 +156,9 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
 }
 
 status_t Sensor::unflatten(void const* buffer, size_t size) {
-    size_t len;
+    uint32_t len;
 
-    if (size < sizeof(size_t)) {
+    if (size < sizeof(uint32_t)) {
         return NO_MEMORY;
     }
     FlattenableUtils::read(buffer, size, len);
@@ -169,7 +169,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
 
 
-    if (size < sizeof(size_t)) {
+    if (size < sizeof(uint32_t)) {
         return NO_MEMORY;
     }
     FlattenableUtils::read(buffer, size, len);
@@ -179,7 +179,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     mVendor.setTo(static_cast<char const*>(buffer), len);
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));
 
-    size_t fixedSize =
+    const size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
             sizeof(int32_t) * 3;
