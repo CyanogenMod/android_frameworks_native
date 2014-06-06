@@ -143,7 +143,7 @@ typedef struct OMX_VIDEO_PARAM_ANDROID_VP8ENCODERTYPE {
     OMX_U32 nTemporalLayerBitrateRatio[OMX_VIDEO_ANDROID_MAXVP8TEMPORALLAYERS];
     OMX_U32 nMinQuantizer;
     OMX_U32 nMaxQuantizer;
-};
+} OMX_VIDEO_PARAM_ANDROID_VP8ENCODERTYPE;
 
 /** HEVC Profile enum type */
 typedef enum OMX_VIDEO_HEVCPROFILETYPE {
