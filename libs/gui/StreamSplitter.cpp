@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
+
 #define LOG_TAG "StreamSplitter"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
@@ -63,7 +65,7 @@ StreamSplitter::~StreamSplitter() {
     }
 
     if (mBuffers.size() > 0) {
-        ALOGE("%d buffers still being tracked", mBuffers.size());
+        ALOGE("%zu buffers still being tracked", mBuffers.size());
     }
 }
 
@@ -126,7 +128,7 @@ void StreamSplitter::onFrameAvailable() {
     LOG_ALWAYS_FATAL_IF(status != NO_ERROR,
             "acquiring buffer from input failed (%d)", status);
 
-    ALOGV("acquired buffer %#llx from input",
+    ALOGV("acquired buffer %#" PRIx64 " from input",
             bufferItem.mGraphicBuffer->getId());
 
     status = mInput->detachBuffer(bufferItem.mBuf);
@@ -176,7 +178,7 @@ void StreamSplitter::onFrameAvailable() {
                     "queueing buffer to output failed (%d)", status);
         }
 
-        ALOGV("queued buffer %#llx to output %p",
+        ALOGV("queued buffer %#" PRIx64 " to output %p",
                 bufferItem.mGraphicBuffer->getId(), output->get());
     }
 }
@@ -199,7 +201,8 @@ void StreamSplitter::onBufferReleasedByOutput(
                 "detaching buffer from output failed (%d)", status);
     }
 
-    ALOGV("detached buffer %#llx from output %p", buffer->getId(), from.get());
+    ALOGV("detached buffer %#" PRIx64 " from output %p",
+          buffer->getId(), from.get());
 
     const sp<BufferTracker>& tracker = mBuffers.editValueFor(buffer->getId());
 
@@ -209,7 +212,7 @@ void StreamSplitter::onBufferReleasedByOutput(
 
     // Check to see if this is the last outstanding reference to this buffer
     size_t releaseCount = tracker->incrementReleaseCountLocked();
-    ALOGV("buffer %#llx reference count %d (of %d)", buffer->getId(),
+    ALOGV("buffer %#" PRIx64 " reference count %zu (of %zu)", buffer->getId(),
             releaseCount, mOutputs.size());
     if (releaseCount < mOutputs.size()) {
         return;
@@ -233,7 +236,7 @@ void StreamSplitter::onBufferReleasedByOutput(
     LOG_ALWAYS_FATAL_IF(status != NO_ERROR,
             "releasing buffer to input failed (%d)", status);
 
-    ALOGV("released buffer %#llx to input", buffer->getId());
+    ALOGV("released buffer %#" PRIx64 " to input", buffer->getId());
 
     // We no longer need to track the buffer once it has been returned to the
     // input

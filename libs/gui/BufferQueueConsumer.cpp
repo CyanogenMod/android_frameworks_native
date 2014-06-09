@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
+
 #define LOG_TAG "BufferQueueConsumer"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
@@ -104,14 +106,16 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
                 // This buffer is set to display in the near future, or
                 // desiredPresent is garbage. Either way we don't want to drop
                 // the previous buffer just to get this on the screen sooner.
-                BQ_LOGV("acquireBuffer: nodrop desire=%lld expect=%lld "
-                        "(%lld) now=%lld", desiredPresent, expectedPresent,
+                BQ_LOGV("acquireBuffer: nodrop desire=%" PRId64 " expect=%"
+                        PRId64 " (%" PRId64 ") now=%" PRId64,
+                        desiredPresent, expectedPresent,
                         desiredPresent - expectedPresent,
                         systemTime(CLOCK_MONOTONIC));
                 break;
             }
 
-            BQ_LOGV("acquireBuffer: drop desire=%lld expect=%lld size=%d",
+            BQ_LOGV("acquireBuffer: drop desire=%" PRId64 " expect=%" PRId64
+                    " size=%zu",
                     desiredPresent, expectedPresent, mCore->mQueue.size());
             if (mCore->stillTracking(front)) {
                 // Front buffer is still in mSlots, so mark the slot as free
@@ -125,15 +129,16 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         nsecs_t desiredPresent = front->mTimestamp;
         if (desiredPresent > expectedPresent &&
                 desiredPresent < expectedPresent + MAX_REASONABLE_NSEC) {
-            BQ_LOGV("acquireBuffer: defer desire=%lld expect=%lld "
-                    "(%lld) now=%lld", desiredPresent, expectedPresent,
+            BQ_LOGV("acquireBuffer: defer desire=%" PRId64 " expect=%" PRId64
+                    " (%" PRId64 ") now=%" PRId64,
+                    desiredPresent, expectedPresent,
                     desiredPresent - expectedPresent,
                     systemTime(CLOCK_MONOTONIC));
             return PRESENT_LATER;
         }
 
-        BQ_LOGV("acquireBuffer: accept desire=%lld expect=%lld "
-                "(%lld) now=%lld", desiredPresent, expectedPresent,
+        BQ_LOGV("acquireBuffer: accept desire=%" PRId64 " expect=%" PRId64 " "
+                "(%" PRId64 ") now=%" PRId64, desiredPresent, expectedPresent,
                 desiredPresent - expectedPresent,
                 systemTime(CLOCK_MONOTONIC));
     }
@@ -142,7 +147,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
     *outBuffer = *front;
     ATRACE_BUFFER_INDEX(slot);
 
-    BQ_LOGV("acquireBuffer: acquiring { slot=%d/%llu buffer=%p }",
+    BQ_LOGV("acquireBuffer: acquiring { slot=%d/%" PRIu64 " buffer=%p }",
             slot, front->mFrameNumber, front->mGraphicBuffer->handle);
     // If the front buffer is still being tracked, update its slot state
     if (mCore->stillTracking(front)) {

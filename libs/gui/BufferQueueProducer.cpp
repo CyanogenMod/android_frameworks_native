@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
+
 #define LOG_TAG "BufferQueueProducer"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
@@ -209,9 +211,10 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
         // our slots are empty but we have many buffers in the queue. This can
         // cause us to run out of memory if we outrun the consumer. Wait here if
         // it looks like we have too many buffers queued up.
-        bool tooManyBuffers = mCore->mQueue.size() > maxBufferCount;
+        bool tooManyBuffers = mCore->mQueue.size()
+                            > static_cast<size_t>(maxBufferCount);
         if (tooManyBuffers) {
-            BQ_LOGV("%s: queue size is %d, waiting", caller,
+            BQ_LOGV("%s: queue size is %zu, waiting", caller,
                     mCore->mQueue.size());
         }
 
@@ -367,7 +370,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         eglDestroySyncKHR(eglDisplay, eglFence);
     }
 
-    BQ_LOGV("dequeueBuffer: returning slot=%d/%llu buf=%p flags=%#x", *outSlot,
+    BQ_LOGV("dequeueBuffer: returning slot=%d/%" PRIu64 " buf=%p flags=%#x",
+            *outSlot,
             mSlots[*outSlot].mFrameNumber,
             mSlots[*outSlot].mGraphicBuffer->handle, returnFlags);
 
@@ -560,8 +564,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
         }
 
-        BQ_LOGV("queueBuffer: slot=%d/%llu time=%llu crop=[%d,%d,%d,%d] "
-                "transform=%#x scale=%s",
+        BQ_LOGV("queueBuffer: slot=%d/%" PRIu64 " time=%" PRIu64
+                " crop=[%d,%d,%d,%d] transform=%#x scale=%s",
                 slot, mCore->mFrameCounter + 1, timestamp,
                 crop.left, crop.top, crop.right, crop.bottom,
                 transform, BufferItem::scalingModeName(scalingMode));

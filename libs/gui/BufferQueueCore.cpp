@@ -173,7 +173,8 @@ status_t BufferQueueCore::setDefaultMaxBufferCountLocked(int count) {
     const int minBufferCount = mUseAsyncBuffer ? 2 : 1;
     if (count < minBufferCount || count > BufferQueueDefs::NUM_BUFFER_SLOTS) {
         BQ_LOGV("setDefaultMaxBufferCount: invalid count %d, should be in "
-                "[%d, %d]", minBufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
+                "[%d, %d]",
+                count, minBufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
         return BAD_VALUE;
     }
 
@@ -212,8 +213,8 @@ void BufferQueueCore::freeAllBuffersLocked() {
 bool BufferQueueCore::stillTracking(const BufferItem* item) const {
     const BufferSlot& slot = mSlots[item->mSlot];
 
-    BQ_LOGV("stillTracking: item { slot=%d/%llu buffer=%p } "
-            "slot { slot=%d/%llu buffer=%p }",
+    BQ_LOGV("stillTracking: item { slot=%d/%" PRIu64 " buffer=%p } "
+            "slot { slot=%d/%" PRIu64 " buffer=%p }",
             item->mSlot, item->mFrameNumber,
             (item->mGraphicBuffer.get() ? item->mGraphicBuffer->handle : 0),
             item->mSlot, slot.mFrameNumber,
