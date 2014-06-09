@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
+
 #define LOG_TAG "ConsumerBase"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
@@ -188,7 +190,7 @@ status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item,
     mSlots[item->mBuf].mFrameNumber = item->mFrameNumber;
     mSlots[item->mBuf].mFence = item->mFence;
 
-    CB_LOGV("acquireBufferLocked: -> slot=%d/%llu",
+    CB_LOGV("acquireBufferLocked: -> slot=%d/%" PRIu64,
             item->mBuf, item->mFrameNumber);
 
     return OK;
@@ -239,7 +241,7 @@ status_t ConsumerBase::releaseBufferLocked(
         return OK;
     }
 
-    CB_LOGV("releaseBufferLocked: slot=%d/%llu",
+    CB_LOGV("releaseBufferLocked: slot=%d/%" PRIu64,
             slot, mSlots[slot].mFrameNumber);
     status_t err = mConsumer->releaseBuffer(slot, mSlots[slot].mFrameNumber,
             display, eglFence, mSlots[slot].mFence);
