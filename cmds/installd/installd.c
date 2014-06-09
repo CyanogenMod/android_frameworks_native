@@ -489,6 +489,11 @@ int initialize_directories() {
         goto fail;
     }
 
+    if (ensure_config_user_dirs(0) == -1) {
+        ALOGE("Failed to setup misc for user 0");
+        goto fail;
+    }
+
     if (version == 2) {
         ALOGD("Upgrading to /data/misc/user directories");
 
@@ -517,12 +522,31 @@ int initialize_directories() {
             closedir(dir);
         }
 
-        version = 3;
-    }
+        // Just rename keychain files into user/0; they should already have the right permissions
+        char misc_dir[PATH_MAX];
+        char keychain_added_dir[PATH_MAX];
+        char keychain_removed_dir[PATH_MAX];
+        char config_added_dir[PATH_MAX];
+        char config_removed_dir[PATH_MAX];
 
-    if (ensure_config_user_dirs(0) == -1) {
-        ALOGE("Failed to setup misc for user 0");
-        goto fail;
+        snprintf(misc_dir, PATH_MAX, "%s/misc", android_data_dir.path);
+        snprintf(keychain_added_dir, PATH_MAX, "%s/keychain/cacerts-added", misc_dir);
+        snprintf(keychain_removed_dir, PATH_MAX, "%s/keychain/cacerts-removed", misc_dir);
+        snprintf(config_added_dir, PATH_MAX, "%s/user/0/cacerts-added", misc_dir);
+        snprintf(config_removed_dir, PATH_MAX, "%s/user/0/cacerts-removed", misc_dir);
+
+        if (access(keychain_added_dir, F_OK) == 0) {
+            if (rename(keychain_added_dir, config_added_dir) != 0) {
+                goto fail;
+            }
+        }
+        if (access(keychain_removed_dir, F_OK) == 0) {
+            if (rename(keychain_removed_dir, config_removed_dir) != 0) {
+                goto fail;
+            }
+        }
+
+        version = 3;
     }
 
     // Persist layout version if changed
