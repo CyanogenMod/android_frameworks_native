@@ -145,7 +145,7 @@ ssize_t BitTube::sendObjects(const sp<BitTube>& tube,
 
     // should never happen because of SOCK_SEQPACKET
     LOG_ALWAYS_FATAL_IF((size >= 0) && (size % objSize),
-            "BitTube::sendObjects(count=%d, size=%d), res=%d (partial events were sent!)",
+            "BitTube::sendObjects(count=%zu, size=%zu), res=%zd (partial events were sent!)",
             count, objSize, size);
 
     //ALOGE_IF(size<0, "error %d sending %d events", size, count);
@@ -160,7 +160,7 @@ ssize_t BitTube::recvObjects(const sp<BitTube>& tube,
 
     // should never happen because of SOCK_SEQPACKET
     LOG_ALWAYS_FATAL_IF((size >= 0) && (size % objSize),
-            "BitTube::recvObjects(count=%d, size=%d), res=%d (partial events were received!)",
+            "BitTube::recvObjects(count=%zu, size=%zu), res=%zd (partial events were received!)",
             count, objSize, size);
 
     //ALOGE_IF(size<0, "error %d receiving %d events", size, count);
