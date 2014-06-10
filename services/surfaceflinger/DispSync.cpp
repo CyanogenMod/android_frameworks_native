@@ -53,10 +53,7 @@ class DispSyncThread: public Thread {
 public:
 
     DispSyncThread():
-            mLowPowerMode(false),
             mStop(false),
-            mLastVsyncSent(false),
-            mLastBufferFull(false),
             mPeriod(0),
             mPhase(0),
             mWakeupLatency(0) {
@@ -140,18 +137,7 @@ public:
             }
 
             if (callbackInvocations.size() > 0) {
-                if (mLowPowerMode) {
-                    if (!mLastVsyncSent || !mLastBufferFull) {
-                        fireCallbackInvocations(callbackInvocations);
-                        mLastVsyncSent = true;
-                    } else
-                        mLastVsyncSent = false;
-                } else {
-                    fireCallbackInvocations(callbackInvocations);
-                }
-                mLastBufferFull = true;
-            } else {
-                mLastBufferFull = false;
+                fireCallbackInvocations(callbackInvocations);
             }
         }
 
@@ -205,7 +191,6 @@ public:
         return !mEventListeners.empty();
     }
 
-    bool mLowPowerMode;
 private:
 
     struct EventListener {
@@ -278,8 +263,6 @@ private:
     }
 
     bool mStop;
-    bool mLastVsyncSent;
-    bool mLastBufferFull;
 
     nsecs_t mPeriod;
     nsecs_t mPhase;
@@ -304,8 +287,10 @@ private:
     bool mParity;
 };
 
-DispSync::DispSync() {
-    mThread = new DispSyncThread();
+DispSync::DispSync() :
+        mRefreshSkipCount(0),
+        mThread(new DispSyncThread()) {
+
     mThread->run("DispSync", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
 
     reset();
@@ -404,8 +389,11 @@ status_t DispSync::addEventListener(nsecs_t phase,
     return mThread->addEventListener(phase, callback);
 }
 
-void DispSync::setLowPowerMode(bool enabled) {
-    mThread->mLowPowerMode = enabled;
+void DispSync::setRefreshSkipCount(int count) {
+    Mutex::Autolock lock(mMutex);
+    ALOGD("setRefreshSkipCount(%d)", count);
+    mRefreshSkipCount = count;
+    updateModelLocked();
 }
 
 status_t DispSync::removeEventListener(const sp<Callback>& callback) {
@@ -456,6 +444,9 @@ void DispSync::updateModelLocked() {
             ATRACE_INT64("DispSync:Phase", mPhase);
         }
 
+        // Artificially inflate the period if requested.
+        mPeriod += mPeriod * mRefreshSkipCount;
+
         mThread->updateModel(mPeriod, mPhase);
     }
 }
@@ -465,15 +456,19 @@ void DispSync::updateErrorLocked() {
         return;
     }
 
+    // Need to compare present fences against the un-adjusted refresh period,
+    // since they might arrive between two events.
+    nsecs_t period = mPeriod / (1 + mRefreshSkipCount);
+
     int numErrSamples = 0;
     nsecs_t sqErrSum = 0;
 
     for (size_t i = 0; i < NUM_PRESENT_SAMPLES; i++) {
         nsecs_t sample = mPresentTimes[i];
         if (sample > mPhase) {
-            nsecs_t sampleErr = (sample - mPhase) % mPeriod;
-            if (sampleErr > mPeriod / 2) {
-                sampleErr -= mPeriod;
+            nsecs_t sampleErr = (sample - mPhase) % period;
+            if (sampleErr > period / 2) {
+                sampleErr -= period;
             }
             sqErrSum += sampleErr * sampleErr;
             numErrSamples++;
@@ -510,8 +505,8 @@ void DispSync::dump(String8& result) const {
     Mutex::Autolock lock(mMutex);
     result.appendFormat("present fences are %s\n",
             kIgnorePresentFences ? "ignored" : "used");
-    result.appendFormat("mPeriod: %" PRId64 " ns (%.3f fps)\n",
-            mPeriod, 1000000000.0 / mPeriod);
+    result.appendFormat("mPeriod: %" PRId64 " ns (%.3f fps; skipCount=%d)\n",
+            mPeriod, 1000000000.0 / mPeriod, mRefreshSkipCount);
     result.appendFormat("mPhase: %" PRId64 " ns\n", mPhase);
     result.appendFormat("mError: %" PRId64 " ns (sqrt=%.1f)\n",
             mError, sqrt(mError));

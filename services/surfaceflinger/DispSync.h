@@ -67,6 +67,7 @@ public:
     DispSync();
     ~DispSync();
 
+    // reset clears the resync samples and error value.
     void reset();
 
     // addPresentFence adds a fence for use in validating the current vsync
@@ -100,8 +101,11 @@ public:
     // turned on.  It should NOT be used after that.
     void setPeriod(nsecs_t period);
 
-    // Setting the low power mode reduces the frame rate to half of the default
-    void setLowPowerMode(bool enabled);
+    // setRefreshSkipCount specifies an additional number of refresh
+    // cycles to skip.  For example, on a 60Hz display, a skip count of 1
+    // will result in events happening at 30Hz.  Default is zero.  The idea
+    // is to sacrifice smoothness for battery life.
+    void setRefreshSkipCount(int count);
 
     // addEventListener registers a callback to be called repeatedly at the
     // given phase offset from the hardware vsync events.  The callback is
@@ -160,6 +164,8 @@ private:
     sp<Fence> mPresentFences[NUM_PRESENT_SAMPLES];
     nsecs_t mPresentTimes[NUM_PRESENT_SAMPLES];
     size_t mPresentSampleOffset;
+
+    int mRefreshSkipCount;
 
     // mThread is the thread from which all the callbacks are called.
     sp<DispSyncThread> mThread;
