@@ -265,7 +265,7 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
     return 0;
 }
 
-int create_user(userid_t userid)
+int make_user_config(userid_t userid)
 {
     if (ensure_config_user_dirs(userid) == -1) {
         return -1;

@@ -109,9 +109,9 @@ static int do_mk_user_data(char **arg, char reply[REPLY_MAX])
                              /* pkgname, uid, userid, seinfo */
 }
 
-static int do_mk_user(char **arg, char reply[REPLY_MAX])
+static int do_mk_user_config(char **arg, char reply[REPLY_MAX])
 {
-    return create_user(atoi(arg[0])); /* userid */
+    return make_user_config(atoi(arg[0])); /* userid */
 }
 
 static int do_rm_user(char **arg, char reply[REPLY_MAX])
@@ -162,7 +162,7 @@ struct cmdinfo cmds[] = {
     { "movefiles",            0, do_movefiles },
     { "linklib",              3, do_linklib },
     { "mkuserdata",           4, do_mk_user_data },
-    { "mkuser",               1, do_mk_user },
+    { "mkuserconfig",         1, do_mk_user_config },
     { "rmuser",               1, do_rm_user },
     { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
