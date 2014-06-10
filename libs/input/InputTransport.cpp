@@ -301,7 +301,7 @@ status_t InputPublisher::publishMotionEvent(
             "action=0x%x, flags=0x%x, edgeFlags=0x%x, metaState=0x%x, buttonState=0x%x, "
             "xOffset=%f, yOffset=%f, "
             "xPrecision=%f, yPrecision=%f, downTime=%lld, eventTime=%lld, "
-            "pointerCount=%d",
+            "pointerCount=%" PRIu32,
             mChannel->getName().string(), seq,
             deviceId, source, action, flags, edgeFlags, metaState, buttonState,
             xOffset, yOffset, xPrecision, yPrecision, downTime, eventTime, pointerCount);
@@ -313,7 +313,7 @@ status_t InputPublisher::publishMotionEvent(
     }
 
     if (pointerCount > MAX_POINTERS || pointerCount < 1) {
-        ALOGE("channel '%s' publisher ~ Invalid number of pointers provided: %"PRIu32".",
+        ALOGE("channel '%s' publisher ~ Invalid number of pointers provided: %" PRIu32 ".",
                 mChannel->getName().string(), pointerCount);
         return BAD_VALUE;
     }
