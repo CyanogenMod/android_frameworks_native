@@ -73,7 +73,7 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
         }
     } else {
         if (S_ISDIR(libStat.st_mode)) {
-            if (delete_dir_contents(libsymlink, 1, 0) < 0) {
+            if (delete_dir_contents(libsymlink, 1, NULL) < 0) {
                 ALOGE("couldn't delete lib directory during install for: %s", libsymlink);
                 return -1;
             }
@@ -176,6 +176,10 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
     return 0;
 }
 
+static int lib_dir_matcher(const char* file_name, const int is_dir) {
+  return is_dir && !strcmp(file_name, "lib");
+}
+
 int delete_user_data(const char *pkgname, userid_t userid)
 {
     char pkgdir[PKG_PATH_MAX];
@@ -184,7 +188,7 @@ int delete_user_data(const char *pkgname, userid_t userid)
         return -1;
 
     /* delete contents, excluding "lib", but not the directory itself */
-    return delete_dir_contents(pkgdir, 0, "lib");
+    return delete_dir_contents(pkgdir, 0, &lib_dir_matcher);
 }
 
 int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
@@ -225,7 +229,7 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
         }
     } else {
         if (S_ISDIR(libStat.st_mode)) {
-            if (delete_dir_contents(libsymlink, 1, 0) < 0) {
+            if (delete_dir_contents(libsymlink, 1, NULL) < 0) {
                 ALOGE("couldn't delete lib directory during install for non-primary: %s",
                         libsymlink);
                 unlink(pkgdir);
@@ -294,7 +298,7 @@ int delete_cache(const char *pkgname, userid_t userid)
         return -1;
 
         /* delete contents, not the directory, no exceptions */
-    return delete_dir_contents(cachedir, 0, 0);
+    return delete_dir_contents(cachedir, 0, NULL);
 }
 
 /* Try to ensure free_size bytes of storage are available.
@@ -1105,7 +1109,7 @@ int linklib(const char* pkgname, const char* asecLibDir, int userId)
         }
     } else {
         if (S_ISDIR(libStat.st_mode)) {
-            if (delete_dir_contents(libsymlink, 1, 0) < 0) {
+            if (delete_dir_contents(libsymlink, 1, NULL) < 0) {
                 rc = -1;
                 goto out;
             }
@@ -1329,4 +1333,31 @@ int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid)
     free(primarydir);
     free(userdir);
     return ret;
+}
+
+static int prune_dex_exclusion_predicate(const char *file_name, const int is_dir)
+{
+    // Don't exclude any directories, we want to inspect them
+    // recusively for files.
+    if (is_dir) {
+      return 0;
+    }
+
+
+    // Don't exclude regular files that start with the list
+    // of prefixes.
+    static const char data_app_prefix[] = "data@app@";
+    static const char data_priv_app_prefix[] = "data@priv-app@";
+    if (!strncmp(file_name, data_app_prefix, sizeof(data_app_prefix) - 1) ||
+        !strncmp(file_name, data_priv_app_prefix, sizeof(data_priv_app_prefix) - 1)) {
+      return 0;
+    }
+
+    // Exclude all regular files that don't start with the prefix "data@app@" or
+    // "data@priv-app@".
+    return 1;
+}
+
+int prune_dex_cache() {
+  return delete_dir_contents(DALVIK_CACHE_PREFIX, 0, &prune_dex_exclusion_predicate);
 }
