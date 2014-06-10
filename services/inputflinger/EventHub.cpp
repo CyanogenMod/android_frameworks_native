@@ -14,6 +14,24 @@
  * limitations under the License.
  */
 
+#include <assert.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <memory.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <sys/limits.h>
+#include <sys/inotify.h>
+#include <sys/ioctl.h>
+#include <sys/sha1.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+
 #define LOG_TAG "EventHub"
 
 // #define LOG_NDEBUG 0
@@ -28,28 +46,9 @@
 #include <utils/threads.h>
 #include <utils/Errors.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <memory.h>
-#include <errno.h>
-#include <assert.h>
-
 #include <input/KeyLayoutMap.h>
 #include <input/KeyCharacterMap.h>
 #include <input/VirtualKeyMap.h>
-
-#include <string.h>
-#include <stdint.h>
-#include <dirent.h>
-
-#include <sys/inotify.h>
-#include <sys/epoll.h>
-#include <sys/ioctl.h>
-#include <sys/limits.h>
-#include <sys/sha1.h>
-#include <sys/utsname.h>
 
 /* this macro is used to tell if "bit" is set in "array"
  * it selects a byte from the array, and does a boolean AND
@@ -812,8 +811,8 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                         sizeof(struct input_event) * capacity);
                 if (readSize == 0 || (readSize < 0 && errno == ENODEV)) {
                     // Device was removed before INotify noticed.
-                    ALOGW("could not get event, removed? (fd: %d size: %d bufferSize: %d "
-                            "capacity: %zu errno: %d)\n",
+                    ALOGW("could not get event, removed? (fd: %d size: %" PRId32
+                            " bufferSize: %zu capacity: %zu errno: %d)\n",
                             device->fd, readSize, bufferSize, capacity, errno);
                     deviceChanged = true;
                     closeDeviceLocked(device);
@@ -873,7 +872,7 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                         // system call that also queries ktime_get_ts().
                         event->when = nsecs_t(iev.time.tv_sec) * 1000000000LL
                                 + nsecs_t(iev.time.tv_usec) * 1000LL;
-                        ALOGV("event time %lld, now %lld", event->when, now);
+                        ALOGV("event time %" PRId64 ", now %" PRId64, event->when, now);
 
                         // Bug 7291243: Add a guard in case the kernel generates timestamps
                         // that appear to be far into the future because they were generated
@@ -897,14 +896,16 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                                 ALOGW("An input event from %s has a timestamp that appears to "
                                         "have been generated using the wrong clock source "
                                         "(expected CLOCK_MONOTONIC): "
-                                        "event time %lld, current time %lld, call time %lld.  "
+                                        "event time %" PRId64 ", current time %" PRId64
+                                        ", call time %" PRId64 ".  "
                                         "Using current time instead.",
                                         device->path.string(), event->when, time, now);
                                 event->when = time;
                             } else {
                                 ALOGV("Event time is ok but failed the fast path and required "
                                         "an extra call to systemTime: "
-                                        "event time %lld, current time %lld, call time %lld.",
+                                        "event time %" PRId64 ", current time %" PRId64
+                                        ", call time %" PRId64 ".",
                                         event->when, time, now);
                             }
                         }
