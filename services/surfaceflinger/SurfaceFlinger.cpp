@@ -2682,11 +2682,8 @@ status_t SurfaceFlinger::onTransact(
             // This is an experimental interface
             // Needs to be shifted to proper binder interface when we productize
             case 1016: {
-                mPrimaryDispSync.setLowPowerMode(true);
-                return NO_ERROR;
-            }
-            case 1017: {
-                mPrimaryDispSync.setLowPowerMode(false);
+                n = data.readInt32();
+                mPrimaryDispSync.setRefreshSkipCount(n);
                 return NO_ERROR;
             }
         }
