@@ -77,6 +77,9 @@
 
 #include "RenderEngine/RenderEngine.h"
 #include <cutils/compiler.h>
+#ifdef QCOM_BSP
+#include <gralloc_priv.h>
+#endif
 
 #ifdef QCOM_BSP
 #include <display_config.h>
@@ -1309,7 +1312,13 @@ void SurfaceFlinger::configureVirtualDisplay(int32_t &hwcDisplayId,
             // so the GLES driver can pass buffers directly to the sink.
             producer = state.surface;
         } else {
-            hwcDisplayId = allocateHwcDisplayId(state.type);
+            int sinkUsage = -1;
+            state.surface->query(NATIVE_WINDOW_CONSUMER_USAGE_BITS, &sinkUsage);
+#ifdef QCOM_BSP
+            if(sinkUsage & GRALLOC_USAGE_PRIVATE_WFD)
+#endif
+                hwcDisplayId = allocateHwcDisplayId(state.type);
+
             if (hwcDisplayId >= 0) {
                 // This is for WFD virtual display scenario.
                 // Read virtual display properties and create a
