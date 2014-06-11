@@ -2002,18 +2002,9 @@ status_t SurfaceFlinger::createNormalLayer(const sp<Client>& client,
         format = PIXEL_FORMAT_RGBA_8888;
         break;
     case PIXEL_FORMAT_OPAQUE:
-#ifdef NO_RGBX_8888
-        format = PIXEL_FORMAT_RGB_565;
-#else
         format = PIXEL_FORMAT_RGBX_8888;
-#endif
         break;
     }
-
-#ifdef NO_RGBX_8888
-    if (format == PIXEL_FORMAT_RGBX_8888)
-        format = PIXEL_FORMAT_RGBA_8888;
-#endif
 
     *outLayer = new Layer(this, client, name, w, h, flags);
     status_t err = (*outLayer)->setBuffers(w, h, format, flags);
@@ -2345,9 +2336,6 @@ void SurfaceFlinger::logFrameStats() {
 {
     static const char* config =
             " [sf"
-#ifdef NO_RGBX_8888
-            " NO_RGBX_8888"
-#endif
 #ifdef HAS_CONTEXT_PRIORITY
             " HAS_CONTEXT_PRIORITY"
 #endif
