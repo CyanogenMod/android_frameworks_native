@@ -373,7 +373,7 @@ bool SensorService::threadLoop()
                     for (size_t j=0 ; j<activeVirtualSensorCount ; j++) {
                         if (count + k >= minBufferSize) {
                             ALOGE("buffer too small to hold all events: "
-                                    "count=%u, k=%u, size=%u",
+                                    "count=%zd, k=%zu, size=%zu",
                                     count, k, minBufferSize);
                             break;
                         }
@@ -525,11 +525,11 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
     Mutex::Autolock _l(mLock);
     const wp<SensorEventConnection> connection(c);
     size_t size = mActiveSensors.size();
-    ALOGD_IF(DEBUG_CONNECTIONS, "%d active sensors", size);
+    ALOGD_IF(DEBUG_CONNECTIONS, "%zu active sensors", size);
     for (size_t i=0 ; i<size ; ) {
         int handle = mActiveSensors.keyAt(i);
         if (c->hasSensor(handle)) {
-            ALOGD_IF(DEBUG_CONNECTIONS, "%i: disabling handle=0x%08x", i, handle);
+            ALOGD_IF(DEBUG_CONNECTIONS, "%zu: disabling handle=0x%08x", i, handle);
             SensorInterface* sensor = mSensorMap.valueFor( handle );
             ALOGE_IF(!sensor, "mSensorMap[handle=0x%08x] is null!", handle);
             if (sensor) {
@@ -537,9 +537,9 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
             }
         }
         SensorRecord* rec = mActiveSensors.valueAt(i);
-        ALOGE_IF(!rec, "mActiveSensors[%d] is null (handle=0x%08x)!", i, handle);
+        ALOGE_IF(!rec, "mActiveSensors[%zu] is null (handle=0x%08x)!", i, handle);
         ALOGD_IF(DEBUG_CONNECTIONS,
-                "removing connection %p for sensor[%d].handle=0x%08x",
+                "removing connection %p for sensor[%zu].handle=0x%08x",
                 c, i, handle);
 
         if (rec && rec->removeConnection(connection)) {
@@ -616,7 +616,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         samplingPeriodNs = minDelayNs;
     }
 
-    ALOGD_IF(DEBUG_CONNECTIONS, "Calling batch handle==%d flags=%d rate=%lld timeout== %lld",
+    ALOGD_IF(DEBUG_CONNECTIONS, "Calling batch handle==%d flags=%d rate=%" PRId64 " timeout== %" PRId64,
              handle, reservedFlags, samplingPeriodNs, maxBatchReportLatencyNs);
 
     status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
