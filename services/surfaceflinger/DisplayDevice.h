@@ -147,12 +147,11 @@ public:
     void setViewportAndProjection() const;
 
     /* ------------------------------------------------------------------------
-     * blank / unblank management
+     * Display power mode management.
      */
-    void releaseScreen() const;
-    void acquireScreen() const;
-    bool isScreenAcquired() const;
-    bool canDraw() const;
+    int getPowerMode() const;
+    void setPowerMode(int mode);
+    bool isDisplayOn() const;
 
     // release HWC resources (if any) for removable displays
     void disconnect(HWComposer& hwc);
@@ -197,9 +196,6 @@ private:
     // Whether we have a visible secure layer on this display
     bool mSecureLayerVisible;
 
-    // Whether the screen is blanked;
-    mutable int mScreenAcquired;
-
 
     /*
      * Transaction state
@@ -217,6 +213,8 @@ private:
     Rect mScissor;
     Transform mGlobalTransform;
     bool mNeedsFiltering;
+    // Current power mode
+    int mPowerMode;
 };
 
 }; // namespace android
