@@ -8,6 +8,8 @@
 
 #include <private/android_filesystem_config.h>
 
+#include <selinux/android.h>
+
 #include "binder.h"
 
 #if 0
@@ -80,16 +82,67 @@ int str16eq(const uint16_t *a, const char *b)
     return 1;
 }
 
-int svc_can_register(uid_t uid, const uint16_t *name)
+static struct selabel_handle* sehandle;
+
+static bool check_mac_perms(const char *name, pid_t spid)
+{
+    if (is_selinux_enabled() <= 0) {
+        return true;
+    }
+
+    bool allowed = false;
+
+    const char *class = "service_manager";
+    const char *perm = "add";
+
+    char *tctx = NULL;
+    char *sctx = NULL;
+
+    if (!sehandle) {
+        ALOGE("SELinux: Failed to find sehandle %s.\n", name);
+        return false;
+    }
+
+    if (getpidcon(spid, &sctx) < 0) {
+        ALOGE("SELinux: getpidcon failed to retrieve pid context.\n");
+        return false;
+    }
+
+    if (!sctx) {
+        ALOGE("SELinux: Failed to find sctx for %s.\n", name);
+        return false;
+    }
+
+    if (selabel_lookup(sehandle, &tctx, name, 1) != 0) {
+        ALOGE("SELinux: selabel_lookup failed to set tctx for %s.\n", name);
+        freecon(sctx);
+        return false;
+    }
+
+    if (!tctx) {
+        ALOGE("SELinux: Failed to find tctx for %s.\n", name);
+        freecon(sctx);
+        return false;
+    }
+
+    int result = selinux_check_access(sctx, tctx, class, perm, (void *) name);
+    allowed = (result == 0);
+
+    freecon(sctx);
+    freecon(tctx);
+    return allowed;
+}
+
+static int svc_can_register(uid_t uid, const uint16_t *name, pid_t spid)
 {
     size_t n;
 
     if ((uid == 0) || (uid == AID_SYSTEM))
-        return 1;
+        return check_mac_perms(str8(name), spid) ? 1 : 0;
 
     for (n = 0; n < sizeof(allowed) / sizeof(allowed[0]); n++)
         if ((uid == allowed[n].uid) && str16eq(name, allowed[n].name))
-            return 1;
+            return check_mac_perms(str8(name), spid) ? 1 : 0;
 
     return 0;
 }
@@ -159,7 +212,8 @@ uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len,
 
 int do_add_service(struct binder_state *bs,
                    const uint16_t *s, size_t len,
-                   uint32_t handle, uid_t uid, int allow_isolated)
+                   uint32_t handle, uid_t uid, int allow_isolated,
+                   pid_t spid)
 {
     struct svcinfo *si;
 
@@ -169,7 +223,7 @@ int do_add_service(struct binder_state *bs,
     if (!handle || (len == 0) || (len > 127))
         return -1;
 
-    if (!svc_can_register(uid, s)) {
+    if (!svc_can_register(uid, s, spid)) {
         ALOGE("add_service('%s',%x) uid=%d - PERMISSION DENIED\n",
              str8(s), handle, uid);
         return -1;
@@ -239,6 +293,14 @@ int svcmgr_handler(struct binder_state *bs,
         return -1;
     }
 
+    if (sehandle && selinux_status_updated() > 0) {
+        struct selabel_handle *tmp_sehandle = selinux_android_service_context_handle();
+        if (tmp_sehandle) {
+            selabel_close(sehandle);
+            sehandle = tmp_sehandle;
+        }
+    }
+
     switch(txn->code) {
     case SVC_MGR_GET_SERVICE:
     case SVC_MGR_CHECK_SERVICE:
@@ -253,7 +315,8 @@ int svcmgr_handler(struct binder_state *bs,
         s = bio_get_string16(msg, &len);
         handle = bio_get_ref(msg);
         allow_isolated = bio_get_uint32(msg) ? 1 : 0;
-        if (do_add_service(bs, s, len, handle, txn->sender_euid, allow_isolated))
+        if (do_add_service(bs, s, len, handle, txn->sender_euid,
+            allow_isolated, txn->sender_pid))
             return -1;
         break;
 
@@ -278,6 +341,13 @@ int svcmgr_handler(struct binder_state *bs,
     return 0;
 }
 
+
+static int audit_callback(void *data, security_class_t cls, char *buf, size_t len)
+{
+    snprintf(buf, len, "service=%s", !data ? "NULL" : (char *)data);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     struct binder_state *bs;
@@ -292,6 +362,14 @@ int main(int argc, char **argv)
         ALOGE("cannot become context manager (%s)\n", strerror(errno));
         return -1;
     }
+
+    sehandle = selinux_android_service_context_handle();
+
+    union selinux_callback cb;
+    cb.func_audit = audit_callback;
+    selinux_set_callback(SELINUX_CB_AUDIT, cb);
+    cb.func_log = selinux_log_callback;
+    selinux_set_callback(SELINUX_CB_LOG, cb);
 
     svcmgr_handle = BINDER_SERVICE_MANAGER;
     binder_loop(bs, svcmgr_handler);
