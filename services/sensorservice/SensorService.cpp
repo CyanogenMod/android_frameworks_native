@@ -223,14 +223,23 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
                     s.getHandle(),
                     s.getRequiredPermission().string());
 
-            if (s.getMinDelay() > 0) {
-                result.appendFormat(
-                        "maxRate=%7.2fHz | ", 1e6f / s.getMinDelay());
+            const int reportingMode = s.getReportingMode();
+            if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
+                result.append("continuous      |");
+            } else if (reportingMode == AREPORTING_MODE_ON_CHANGE) {
+                result.append("on-change       | ");
+            } else if (reportingMode == AREPORTING_MODE_ONE_SHOT) {
+                result.append("one-shot        | ");
             } else {
-                result.append(s.getMinDelay() == 0
-                        ? "on-demand         | "
-                        : "one-shot          | ");
+                result.append("special-trigger | ");
             }
+
+            if (s.getMinDelay() > 0) {
+                result.appendFormat("maxRate=%7.2fHz | ", 1e6f / s.getMinDelay());
+            } else {
+                result.appendFormat("minDelay=%5dus |", s.getMinDelay());
+            }
+
             if (s.getFifoMaxEventCount() > 0) {
                 result.appendFormat("FifoMax=%d events | ",
                         s.getFifoMaxEventCount());
@@ -301,17 +310,15 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
 
 void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
         sensors_event_t const* buffer, const int count) {
-    SensorInterface* sensor;
-    status_t err = NO_ERROR;
     for (int i=0 ; i<count ; i++) {
         int handle = buffer[i].sensor;
-        int type = buffer[i].type;
-        if (type == SENSOR_TYPE_SIGNIFICANT_MOTION) {
-            if (connection->hasSensor(handle)) {
-                sensor = mSensorMap.valueFor(handle);
-                if (sensor != NULL) {
-                    sensor->autoDisable(connection.get(), handle);
-                }
+        if (connection->hasSensor(handle)) {
+            SensorInterface* sensor = mSensorMap.valueFor(handle);
+            // If this buffer has an event from a one_shot sensor and this connection is registered
+            // for this particular one_shot sensor, try cleaning up the connection.
+            if (sensor != NULL &&
+                sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+                sensor->autoDisable(connection.get(), handle);
                 cleanupWithoutDisableLocked(connection, handle);
             }
         }
@@ -588,7 +595,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             // this sensor is already activated, but we are adding a connection that uses it.
             // Immediately send down the last known value of the requested sensor if it's not a
             // "continuous" sensor.
-            if (sensor->getSensor().getMinDelay() == 0) {
+            if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ON_CHANGE) {
                 // NOTE: The wake_up flag of this event may get set to
                 // WAKE_UP_SENSOR_EVENT_NEEDS_ACK if this is a wake_up event.
                 sensors_event_t& event(mLastEventSeen.editValueFor(handle));
@@ -732,8 +739,8 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
         return BAD_VALUE;
     }
 
-    if (sensor->getSensor().getType() == SENSOR_TYPE_SIGNIFICANT_MOTION) {
-        ALOGE("flush called on Significant Motion sensor");
+    if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+        ALOGE("flush called on a one-shot sensor");
         return INVALID_OPERATION;
     }
     return sensor->flush(connection.get(), handle);

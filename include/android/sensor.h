@@ -74,6 +74,16 @@ enum {
 };
 
 /*
+ * Sensor Reporting Modes.
+ */
+enum {
+    AREPORTING_MODE_CONTINUOUS = 0,
+    AREPORTING_MODE_ON_CHANGE = 1,
+    AREPORTING_MODE_ONE_SHOT = 2,
+    AREPORTING_MODE_SPECIAL_TRIGGER = 3
+};
+
+/*
  * A few useful constants
  */
 
@@ -305,6 +315,11 @@ int ASensor_getFifoReservedEventCount(ASensor const* sensor);
  * Returns this sensor's string type.
  */
 const char* ASensor_getStringType(ASensor const* sensor);
+
+/*
+ * Returns the reporting mode for this sensor. One of AREPORTING_MODE_* constants.
+ */
+int ASensor_getReportingMode(ASensor const* sensor);
 
 #ifdef __cplusplus
 };

@@ -72,7 +72,9 @@ public:
     const String8& getStringType() const;
     const String8& getRequiredPermission() const;
     int32_t getMaxDelay() const;
+    int32_t getFlags() const;
     bool isWakeUpSensor() const;
+    int32_t getReportingMode() const;
 
     // LightFlattenable protocol
     inline bool isFixedSize() const { return false; }
@@ -96,7 +98,7 @@ private:
     String8 mStringType;
     String8 mRequiredPermission;
     int32_t mMaxDelay;
-    bool    mWakeUpSensor;
+    int32_t mFlags;
     static void flattenString8(void*& buffer, size_t& size, const String8& string8);
     static bool unflattenString8(void const*& buffer, size_t& size, String8& outputString8);
 };
