@@ -54,6 +54,8 @@ static struct {
     { AID_MEDIA, "common_time.config" },
     { AID_KEYSTORE, "android.security.keystore" },
     { AID_RADIO, "telecomm" },
+    { AID_RADIO, "isub" },
+    { AID_RADIO, "ims" },
 };
 
 uint32_t svcmgr_handle;
