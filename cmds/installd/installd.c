@@ -140,6 +140,12 @@ static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((u
                              /* pkgName, seinfo, uid*/
 }
 
+static int do_prune_dex_cache(char **arg __attribute__((unused)),
+                              char reply[REPLY_MAX] __attribute__((unused)))
+{
+    return prune_dex_cache();
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -166,6 +172,7 @@ struct cmdinfo cmds[] = {
     { "rmuser",               1, do_rm_user },
     { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
+    { "prunedexcache",        0, do_prune_dex_cache },
 };
 
 static int readx(int s, void *_buf, int count)

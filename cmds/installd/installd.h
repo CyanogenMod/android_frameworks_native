@@ -159,7 +159,7 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src,
 
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
-                        const char *ignore);
+                        int (*exclusion_predicate)(const char *name, const int is_dir));
 
 int delete_dir_contents_fd(int dfd, const char *name);
 
@@ -220,3 +220,4 @@ int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int restorecon_data();
+int prune_dex_cache();
