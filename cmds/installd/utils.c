@@ -219,7 +219,8 @@ int is_valid_package_name(const char* pkgname) {
     return 0;
 }
 
-static int _delete_dir_contents(DIR *d, const char *ignore)
+static int _delete_dir_contents(DIR *d,
+                                int (*exclusion_predicate)(const char *name, const int is_dir))
 {
     int result = 0;
     struct dirent *de;
@@ -232,8 +233,10 @@ static int _delete_dir_contents(DIR *d, const char *ignore)
     while ((de = readdir(d))) {
         const char *name = de->d_name;
 
-            /* skip the ignore name if provided */
-        if (ignore && !strcmp(name, ignore)) continue;
+            /* check using the exclusion predicate, if provided */
+        if (exclusion_predicate && exclusion_predicate(name, (de->d_type == DT_DIR))) {
+            continue;
+        }
 
         if (de->d_type == DT_DIR) {
             int r, subfd;
@@ -258,7 +261,7 @@ static int _delete_dir_contents(DIR *d, const char *ignore)
                 result = -1;
                 continue;
             }
-            if (_delete_dir_contents(subdir, 0)) {
+            if (_delete_dir_contents(subdir, exclusion_predicate)) {
                 result = -1;
             }
             closedir(subdir);
@@ -279,7 +282,7 @@ static int _delete_dir_contents(DIR *d, const char *ignore)
 
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
-                        const char *ignore)
+                        int (*exclusion_predicate)(const char*, const int))
 {
     int res = 0;
     DIR *d;
@@ -289,7 +292,7 @@ int delete_dir_contents(const char *pathname,
         ALOGE("Couldn't opendir %s: %s\n", pathname, strerror(errno));
         return -errno;
     }
-    res = _delete_dir_contents(d, ignore);
+    res = _delete_dir_contents(d, exclusion_predicate);
     closedir(d);
     if (also_delete_dir) {
         if (rmdir(pathname)) {
