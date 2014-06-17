@@ -27,6 +27,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SHARED_LIBRARIES := \
     libbinder \
+    libcrypto \
     libcutils \
     libinput \
     liblog \
@@ -37,6 +38,9 @@ LOCAL_SHARED_LIBRARIES := \
 
 # TODO: Move inputflinger to its own process and mark it hidden
 #LOCAL_CFLAGS += -fvisibility=hidden
+
+LOCAL_C_INCLUDES := \
+    external/openssl/include \
 
 LOCAL_CFLAGS += -Wno-unused-parameter
 
