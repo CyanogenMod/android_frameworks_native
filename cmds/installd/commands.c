@@ -645,7 +645,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char zip_fd_arg[strlen("--zip-fd=") + MAX_INT_LEN];
     char zip_location_arg[strlen("--zip-location=") + PKG_PATH_MAX];
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
-    char oat_location_arg[strlen("--oat-name=") + PKG_PATH_MAX];
+    char oat_location_arg[strlen("--oat-location=") + PKG_PATH_MAX];
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
     char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
     char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
