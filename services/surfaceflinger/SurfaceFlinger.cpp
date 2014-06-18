@@ -576,6 +576,22 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         info.xdpi = xdpi;
         info.ydpi = ydpi;
         info.fps = float(1e9 / hwConfig.refresh);
+        info.appVsyncOffset = VSYNC_EVENT_PHASE_OFFSET_NS;
+
+        // This is how far in advance a buffer must be queued for
+        // presentation at a given time.  If you want a buffer to appear
+        // on the screen at time N, you must submit the buffer before
+        // (N - presentationDeadline).
+        //
+        // Normally it's one full refresh period (to give SF a chance to
+        // latch the buffer), but this can be reduced by configuring a
+        // DispSync offset.  Any additional delays introduced by the hardware
+        // composer or panel must be accounted for here.
+        //
+        // We add an additional 1ms to allow for processing time and
+        // differences between the ideal and actual refresh rate.
+        info.presentationDeadline =
+                hwConfig.refresh - SF_VSYNC_EVENT_PHASE_OFFSET_NS + 1000000;
 
         // All non-virtual displays are currently considered secure.
         info.secure = true;
@@ -586,11 +602,11 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     return NO_ERROR;
 }
 
-int SurfaceFlinger::getActiveConfig(const sp<IBinder>& display) {
+int SurfaceFlinger::getActiveConfig(const sp<IBinder>&) {
     return 0;
 }
 
-status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int id) {
+status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>&, int) {
     return NO_ERROR;
 }
 
