@@ -180,7 +180,10 @@ status_t SurfaceControl::writeSurfaceToParcel(
     if (control != NULL) {
         bp = control->mGraphicBufferProducer;
     }
-    return parcel->writeStrongBinder(bp->asBinder());
+    if (bp != NULL) {
+        return parcel->writeStrongBinder(bp->asBinder());
+    }
+    return NO_INIT;
 }
 
 sp<Surface> SurfaceControl::getSurface() const

@@ -667,6 +667,8 @@ status_t HWComposer::createWorkList(int32_t id, size_t numLayers) {
             size_t size = sizeofHwcLayerList(mHwc, numLayers);
             free(disp.list);
             disp.list = (hwc_display_contents_1_t*)malloc(size);
+            if(disp.list == NULL)
+                return NO_MEMORY;
             disp.capacity = numLayers;
         }
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
