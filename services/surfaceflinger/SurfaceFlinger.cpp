@@ -2873,14 +2873,14 @@ void SurfaceFlinger::renderScreenImplLocked(
     if (sourceCrop.left < 0) {
         ALOGE("Invalid crop rect: l = %d (< 0)", sourceCrop.left);
     }
-    if (sourceCrop.right >= hw_w) {
-        ALOGE("Invalid crop rect: r = %d (>= %d)", sourceCrop.right, hw_w);
+    if (sourceCrop.right > hw_w) {
+        ALOGE("Invalid crop rect: r = %d (> %d)", sourceCrop.right, hw_w);
     }
     if (sourceCrop.top < 0) {
         ALOGE("Invalid crop rect: t = %d (< 0)", sourceCrop.top);
     }
-    if (sourceCrop.bottom >= hw_h) {
-        ALOGE("Invalid crop rect: b = %d (>= %d)", sourceCrop.bottom, hw_h);
+    if (sourceCrop.bottom > hw_h) {
+        ALOGE("Invalid crop rect: b = %d (> %d)", sourceCrop.bottom, hw_h);
     }
 
     // make sure to clear all GL error flags
