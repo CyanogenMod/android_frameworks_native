@@ -874,7 +874,9 @@ status_t Surface::lock(
 
         { // scope for the lock
             Mutex::Autolock lock(mMutex);
-            mSlots[backBufferSlot].dirtyRegion = newDirtyRegion;
+            if (backBufferSlot >= 0) {
+               mSlots[backBufferSlot].dirtyRegion = newDirtyRegion;
+            }
         }
 
         if (inOutDirtyBounds) {
