@@ -35,12 +35,21 @@
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
+// time to wait between VSYNC requests before sending a VSYNC OFF power hint: 40msec.
+const long vsyncHintOffDelay = 40000000;
+
+static void vsyncOffCallback(union sigval val) {
+    EventThread *ev = (EventThread *)val.sival_ptr;
+    ev->sendVsyncHintOff();
+    return;
+}
 
 EventThread::EventThread(const sp<VSyncSource>& src)
     : mVSyncSource(src),
       mUseSoftwareVSync(false),
       mVsyncEnabled(false),
-      mDebugVsyncEnabled(false) {
+      mDebugVsyncEnabled(false),
+      mVsyncHintSent(false) {
 
     for (int32_t i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         mVSyncEvent[i].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
@@ -48,6 +57,31 @@ EventThread::EventThread(const sp<VSyncSource>& src)
         mVSyncEvent[i].header.timestamp = 0;
         mVSyncEvent[i].vsync.count =  0;
     }
+    struct sigevent se;
+    se.sigev_notify = SIGEV_THREAD;
+    se.sigev_value.sival_ptr = this;
+    se.sigev_notify_function = vsyncOffCallback;
+    se.sigev_notify_attributes = NULL;
+    timer_create(CLOCK_MONOTONIC, &se, &mTimerId);
+}
+
+void EventThread::sendVsyncHintOff() {
+    Mutex::Autolock _l(mLock);
+    mPowerHAL.vsyncHint(false);
+    mVsyncHintSent = false;
+}
+
+void EventThread::sendVsyncHintOnLocked() {
+    struct itimerspec ts;
+    if(!mVsyncHintSent) {
+        mPowerHAL.vsyncHint(true);
+        mVsyncHintSent = true;
+    }
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = vsyncHintOffDelay;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+    timer_settime(mTimerId, 0, &ts, NULL);
 }
 
 void EventThread::onFirstRef() {
@@ -307,17 +341,16 @@ void EventThread::enableVSyncLocked() {
             mVsyncEnabled = true;
             mVSyncSource->setCallback(static_cast<VSyncSource::Callback*>(this));
             mVSyncSource->setVSyncEnabled(true);
-            mPowerHAL.vsyncHint(true);
         }
     }
     mDebugVsyncEnabled = true;
+    sendVsyncHintOnLocked();
 }
 
 void EventThread::disableVSyncLocked() {
     if (mVsyncEnabled) {
         mVsyncEnabled = false;
         mVSyncSource->setVSyncEnabled(false);
-        mPowerHAL.vsyncHint(false);
         mDebugVsyncEnabled = false;
     }
 }
