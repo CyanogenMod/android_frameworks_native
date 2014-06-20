@@ -486,6 +486,12 @@ status_t VirtualDisplaySurface::setSidebandStream(const sp<NativeHandle>& /*stre
     return INVALID_OPERATION;
 }
 
+void VirtualDisplaySurface::allocateBuffers(bool /* async */,
+        uint32_t /* width */, uint32_t /* height */, uint32_t /* format */,
+        uint32_t /* usage */) {
+    // TODO: Should we actually allocate buffers for a virtual display?
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

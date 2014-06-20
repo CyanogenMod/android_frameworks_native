@@ -91,6 +91,16 @@ public:
      */
     void setSidebandStream(const sp<NativeHandle>& stream);
 
+    /* Allocates buffers based on the current dimensions/format.
+     *
+     * This function will allocate up to the maximum number of buffers
+     * permitted by the current BufferQueue configuration. It will use the
+     * default format and dimensions. This is most useful to avoid an allocation
+     * delay during dequeueBuffer. If there are already the maximum number of
+     * buffers allocated, this function has no effect.
+     */
+    void allocateBuffers();
+
 protected:
     virtual ~Surface();
 

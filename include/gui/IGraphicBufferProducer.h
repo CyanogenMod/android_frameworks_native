@@ -429,6 +429,19 @@ public:
     // Passing NULL or a different stream handle will detach the previous
     // handle if any.
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream) = 0;
+
+    // Allocates buffers based on the given dimensions/format.
+    //
+    // This function will allocate up to the maximum number of buffers
+    // permitted by the current BufferQueue configuration. It will use the
+    // given format, dimensions, and usage bits, which are interpreted in the
+    // same way as for dequeueBuffer, and the async flag must be set the same
+    // way as for dequeueBuffer to ensure that the correct number of buffers are
+    // allocated. This is most useful to avoid an allocation delay during
+    // dequeueBuffer. If there are already the maximum number of buffers
+    // allocated, this function has no effect.
+    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+            uint32_t format, uint32_t usage) = 0;
 };
 
 // ----------------------------------------------------------------------------

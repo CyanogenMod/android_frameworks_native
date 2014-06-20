@@ -45,6 +45,7 @@ enum {
     CONNECT,
     DISCONNECT,
     SET_SIDEBAND_STREAM,
+    ALLOCATE_BUFFERS,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -252,6 +253,21 @@ public:
         }
         return result;
     }
+
+    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+            uint32_t format, uint32_t usage) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(static_cast<int32_t>(async));
+        data.writeInt32(static_cast<int32_t>(width));
+        data.writeInt32(static_cast<int32_t>(height));
+        data.writeInt32(static_cast<int32_t>(format));
+        data.writeInt32(static_cast<int32_t>(usage));
+        status_t result = remote()->transact(ALLOCATE_BUFFERS, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("allocateBuffers failed to transact: %d", result);
+        }
+    }
 };
 
 IMPLEMENT_META_INTERFACE(GraphicBufferProducer, "android.gui.IGraphicBufferProducer");
@@ -394,6 +410,15 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(result);
             return NO_ERROR;
         } break;
+        case ALLOCATE_BUFFERS:
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool async = static_cast<bool>(data.readInt32());
+            uint32_t width = static_cast<uint32_t>(data.readInt32());
+            uint32_t height = static_cast<uint32_t>(data.readInt32());
+            uint32_t format = static_cast<uint32_t>(data.readInt32());
+            uint32_t usage = static_cast<uint32_t>(data.readInt32());
+            allocateBuffers(async, width, height, format, usage);
+            return NO_ERROR;
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

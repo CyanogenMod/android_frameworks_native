@@ -331,6 +331,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
     if (returnFlags & BUFFER_NEEDS_REALLOCATION) {
         status_t error;
+        BQ_LOGV("dequeueBuffer: allocating a new buffer for slot %d", *outSlot);
         sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
                     width, height, format, usage, &error));
         if (graphicBuffer == NULL) {
@@ -850,6 +851,60 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
         listener->onSidebandStreamChanged();
     }
     return NO_ERROR;
+}
+
+void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
+        uint32_t height, uint32_t format, uint32_t usage) {
+    Vector<int> freeSlots;
+
+    Mutex::Autolock lock(mCore->mMutex);
+
+    int currentBufferCount = 0;
+    for (int slot = 0; slot < BufferQueueDefs::NUM_BUFFER_SLOTS; ++slot) {
+        if (mSlots[slot].mGraphicBuffer != NULL) {
+            ++currentBufferCount;
+        } else {
+            if (mSlots[slot].mBufferState != BufferSlot::FREE) {
+                BQ_LOGE("allocateBuffers: slot %d without buffer is not FREE",
+                        slot);
+                continue;
+            }
+
+            freeSlots.push_front(slot);
+        }
+    }
+
+    int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+    BQ_LOGV("allocateBuffers: allocating from %d buffers up to %d buffers",
+            currentBufferCount, maxBufferCount);
+    for (; currentBufferCount < maxBufferCount; ++currentBufferCount) {
+        if (freeSlots.empty()) {
+            BQ_LOGE("allocateBuffers: ran out of free slots");
+            return;
+        }
+
+        width = width > 0 ? width : mCore->mDefaultWidth;
+        height = height > 0 ? height : mCore->mDefaultHeight;
+        format = format != 0 ? format : mCore->mDefaultBufferFormat;
+        usage |= mCore->mConsumerUsageBits;
+
+        status_t result = NO_ERROR;
+        sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
+                width, height, format, usage, &result));
+        if (result != NO_ERROR) {
+            BQ_LOGE("allocateBuffers: failed to allocate buffer (%u x %u, format"
+                    " %u, usage %u)", width, height, format, usage);
+            return;
+        }
+
+        int slot = freeSlots[freeSlots.size() - 1];
+        mCore->freeBufferLocked(slot); // Clean up the slot first
+        mSlots[slot].mGraphicBuffer = graphicBuffer;
+        mSlots[slot].mFrameNumber = 0;
+        mSlots[slot].mFence = Fence::NO_FENCE;
+        BQ_LOGV("allocateBuffers: allocated a new buffer in slot %d", slot);
+        freeSlots.pop();
+    }
 }
 
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {
