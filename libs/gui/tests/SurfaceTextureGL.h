@@ -39,7 +39,8 @@ protected:
         GLTest::SetUp();
         sp<IGraphicBufferProducer> producer;
         BufferQueue::createBufferQueue(&producer, &mConsumer);
-        mST = new GLConsumer(mConsumer, TEX_ID);
+        mST = new GLConsumer(mConsumer, TEX_ID, GLConsumer::TEXTURE_EXTERNAL,
+                true, false);
         mSTC = new Surface(producer);
         mANW = mSTC;
         mTextureRenderer = new TextureRenderer(TEX_ID, mST);

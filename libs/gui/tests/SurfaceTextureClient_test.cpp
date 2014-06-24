@@ -46,7 +46,8 @@ protected:
         sp<IGraphicBufferProducer> producer;
         sp<IGraphicBufferConsumer> consumer;
         BufferQueue::createBufferQueue(&producer, &consumer);
-        mST = new GLConsumer(consumer, 123);
+        mST = new GLConsumer(consumer, 123, GLConsumer::TEXTURE_EXTERNAL, true,
+                false);
         mSTC = new Surface(producer);
         mANW = mSTC;
 
@@ -716,7 +717,8 @@ protected:
             sp<IGraphicBufferProducer> producer;
             sp<IGraphicBufferConsumer> consumer;
             BufferQueue::createBufferQueue(&producer, &consumer);
-            sp<GLConsumer> st(new GLConsumer(consumer, i));
+            sp<GLConsumer> st(new GLConsumer(consumer, i,
+                    GLConsumer::TEXTURE_EXTERNAL, true, false));
             sp<Surface> stc(new Surface(producer));
             mEglSurfaces[i] = eglCreateWindowSurface(mEglDisplay, myConfig,
                     static_cast<ANativeWindow*>(stc.get()), NULL);

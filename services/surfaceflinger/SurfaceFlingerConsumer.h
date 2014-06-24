@@ -34,7 +34,7 @@ public:
 
     SurfaceFlingerConsumer(const sp<IGraphicBufferConsumer>& consumer,
             uint32_t tex)
-        : GLConsumer(consumer, tex, GLConsumer::TEXTURE_EXTERNAL, false),
+        : GLConsumer(consumer, tex, GLConsumer::TEXTURE_EXTERNAL, false, false),
           mTransformToDisplayInverse(false)
     {}
 

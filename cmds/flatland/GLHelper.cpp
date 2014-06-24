@@ -205,7 +205,7 @@ bool GLHelper::createNamedSurfaceTexture(GLuint name, uint32_t w, uint32_t h,
     sp<IGraphicBufferConsumer> consumer;
     BufferQueue::createBufferQueue(&producer, &consumer, mGraphicBufferAlloc);
     sp<GLConsumer> glc = new GLConsumer(consumer, name,
-            GL_TEXTURE_EXTERNAL_OES, false);
+            GL_TEXTURE_EXTERNAL_OES, false, true);
     glc->setDefaultBufferSize(w, h);
     glc->setDefaultMaxBufferCount(3);
     glc->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);

@@ -52,9 +52,8 @@ class String8;
  * This class was previously called SurfaceTexture.
  */
 class GLConsumer : public ConsumerBase {
-protected:
-    enum { TEXTURE_EXTERNAL = 0x8D65 }; // GL_TEXTURE_EXTERNAL_OES
 public:
+    enum { TEXTURE_EXTERNAL = 0x8D65 }; // GL_TEXTURE_EXTERNAL_OES
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
 
     // GLConsumer constructs a new GLConsumer object. tex indicates the
@@ -82,8 +81,8 @@ public:
     // context to another. If such a transfer is not needed there is no
     // requirement that either of these methods be called.
     GLConsumer(const sp<IGraphicBufferConsumer>& bq,
-            uint32_t tex, uint32_t texureTarget = TEXTURE_EXTERNAL,
-            bool useFenceSync = true, bool isControlledByApp = false);
+            uint32_t tex, uint32_t texureTarget, bool useFenceSync,
+            bool isControlledByApp);
 
     // updateTexImage acquires the most recently queued buffer, and sets the
     // image contents of the target texture to it.
