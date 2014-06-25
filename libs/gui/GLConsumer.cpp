@@ -143,6 +143,33 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
     mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
+GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t texTarget,
+        bool useFenceSync, bool isControlledByApp) :
+    ConsumerBase(bq, isControlledByApp),
+    mCurrentTransform(0),
+    mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
+    mCurrentFence(Fence::NO_FENCE),
+    mCurrentTimestamp(0),
+    mCurrentFrameNumber(0),
+    mDefaultWidth(1),
+    mDefaultHeight(1),
+    mFilteringEnabled(true),
+    mTexName(-1),
+    mUseFenceSync(useFenceSync),
+    mTexTarget(texTarget),
+    mEglDisplay(EGL_NO_DISPLAY),
+    mEglContext(EGL_NO_CONTEXT),
+    mCurrentTexture(BufferQueue::INVALID_BUFFER_SLOT),
+    mAttached(false)
+{
+    ST_LOGV("GLConsumer");
+
+    memcpy(mCurrentTransformMatrix, mtxIdentity,
+            sizeof(mCurrentTransformMatrix));
+
+    mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
+}
+
 status_t GLConsumer::setDefaultMaxBufferCount(int bufferCount) {
     Mutex::Autolock lock(mMutex);
     return mConsumer->setDefaultMaxBufferCount(bufferCount);
