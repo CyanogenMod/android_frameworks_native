@@ -170,6 +170,7 @@ private:
         Rect viewport;
         Rect frame;
         uint8_t orientation;
+        uint32_t width, height;
         String8 displayName;
         bool isSecure;
     };
