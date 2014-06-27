@@ -66,6 +66,7 @@ Surface::Surface(
     mCrop.clear();
     mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
     mTransform = 0;
+    mStickyTransform = 0;
     mDefaultWidth = 0;
     mDefaultHeight = 0;
     mUserWidth = 0;
@@ -315,14 +316,21 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
-            crop, mScalingMode, mTransform, mSwapIntervalZero, fence);
+            crop, mScalingMode, mTransform ^ mStickyTransform, mSwapIntervalZero,
+            fence, mStickyTransform);
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
     uint32_t numPendingBuffers = 0;
-    output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
+    uint32_t hint = 0;
+    output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
             &numPendingBuffers);
+
+    // Disable transform hint if sticky transform is set.
+    if (mStickyTransform == 0) {
+        mTransformHint = hint;
+    }
 
     mConsumerRunningBehind = (numPendingBuffers >= 2);
 
@@ -404,6 +412,9 @@ int Surface::perform(int operation, va_list args)
         break;
     case NATIVE_WINDOW_SET_BUFFERS_TRANSFORM:
         res = dispatchSetBuffersTransform(args);
+        break;
+    case NATIVE_WINDOW_SET_BUFFERS_STICKY_TRANSFORM:
+        res = dispatchSetBuffersStickyTransform(args);
         break;
     case NATIVE_WINDOW_SET_BUFFERS_TIMESTAMP:
         res = dispatchSetBuffersTimestamp(args);
@@ -502,6 +513,11 @@ int Surface::dispatchSetBuffersTransform(va_list args) {
     return setBuffersTransform(transform);
 }
 
+int Surface::dispatchSetBuffersStickyTransform(va_list args) {
+    int transform = va_arg(args, int);
+    return setBuffersStickyTransform(transform);
+}
+
 int Surface::dispatchSetBuffersTimestamp(va_list args) {
     int64_t timestamp = va_arg(args, int64_t);
     return setBuffersTimestamp(timestamp);
@@ -527,8 +543,15 @@ int Surface::connect(int api) {
     int err = mGraphicBufferProducer->connect(listener, api, mProducerControlledByApp, &output);
     if (err == NO_ERROR) {
         uint32_t numPendingBuffers = 0;
-        output.deflate(&mDefaultWidth, &mDefaultHeight, &mTransformHint,
+        uint32_t hint = 0;
+        output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
                 &numPendingBuffers);
+
+        // Disable transform hint if sticky transform is set.
+        if (mStickyTransform == 0) {
+            mTransformHint = hint;
+        }
+
         mConsumerRunningBehind = (numPendingBuffers >= 2);
     }
     if (!err && api == NATIVE_WINDOW_API_CPU) {
@@ -552,6 +575,8 @@ int Surface::disconnect(int api) {
         mCrop.clear();
         mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
         mTransform = 0;
+        mStickyTransform = 0;
+
         if (api == NATIVE_WINDOW_API_CPU) {
             mConnectedToCpu = false;
         }
@@ -675,6 +700,15 @@ int Surface::setBuffersTransform(int transform)
     ALOGV("Surface::setBuffersTransform");
     Mutex::Autolock lock(mMutex);
     mTransform = transform;
+    return NO_ERROR;
+}
+
+int Surface::setBuffersStickyTransform(int transform)
+{
+    ATRACE_CALL();
+    ALOGV("Surface::setBuffersStickyTransform");
+    Mutex::Autolock lock(mMutex);
+    mStickyTransform = transform;
     return NO_ERROR;
 }
 

@@ -195,6 +195,8 @@ private:
     // most updates).
     String8 mConsumerName;
 
+    uint32_t mStickyTransform;
+
 }; // class BufferQueueProducer
 
 } // namespace android

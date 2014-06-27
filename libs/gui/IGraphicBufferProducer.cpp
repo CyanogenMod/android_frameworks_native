@@ -435,6 +435,7 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
          + sizeof(crop)
          + sizeof(scalingMode)
          + sizeof(transform)
+         + sizeof(stickyTransform)
          + sizeof(async)
          + fence->getFlattenedSize();
 }
@@ -454,6 +455,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::flatten(
     FlattenableUtils::write(buffer, size, crop);
     FlattenableUtils::write(buffer, size, scalingMode);
     FlattenableUtils::write(buffer, size, transform);
+    FlattenableUtils::write(buffer, size, stickyTransform);
     FlattenableUtils::write(buffer, size, async);
     return fence->flatten(buffer, size, fds, count);
 }
@@ -467,6 +469,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
             + sizeof(crop)
             + sizeof(scalingMode)
             + sizeof(transform)
+            + sizeof(stickyTransform)
             + sizeof(async);
 
     if (size < minNeeded) {
@@ -478,6 +481,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
     FlattenableUtils::read(buffer, size, crop);
     FlattenableUtils::read(buffer, size, scalingMode);
     FlattenableUtils::read(buffer, size, transform);
+    FlattenableUtils::read(buffer, size, stickyTransform);
     FlattenableUtils::read(buffer, size, async);
 
     fence = new Fence();
