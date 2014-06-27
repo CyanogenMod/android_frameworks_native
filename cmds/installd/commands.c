@@ -633,6 +633,11 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     bool profiler = (property_get("dalvik.vm.profiler", prop_buf, "0") > 0) && (prop_buf[0] == '1');
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
+
+    // TODO: Make this memory value configurable with a system property b/15919420
+    static const char* RUNTIME_ARG = "--runtime-arg";
+    static const char* MEMORY_MAX_ARG = "-Xmx512m";
+
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
 
@@ -676,12 +681,14 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
-    char* argv[7  // program name, mandatory arguments and the final NULL
+    char* argv[9  // program name, mandatory arguments and the final NULL
                + (have_profile_file ? 1 : 0)
                + (have_top_k_profile_threshold ? 1 : 0)
                + (have_dex2oat_flags ? 1 : 0)];
     int i = 0;
     argv[i++] = (char*)DEX2OAT_BIN;
+    argv[i++] = (char*)RUNTIME_ARG;
+    argv[i++] = (char*)MEMORY_MAX_ARG;
     argv[i++] = zip_fd_arg;
     argv[i++] = zip_location_arg;
     argv[i++] = oat_fd_arg;
