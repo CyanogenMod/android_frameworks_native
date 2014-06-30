@@ -169,6 +169,10 @@ public:
     // handle if any.
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
 
+    // See IGraphicBufferProducer::allocateBuffers
+    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+            uint32_t format, uint32_t usage);
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

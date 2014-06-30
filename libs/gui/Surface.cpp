@@ -91,6 +91,13 @@ void Surface::setSidebandStream(const sp<NativeHandle>& stream) {
     mGraphicBufferProducer->setSidebandStream(stream);
 }
 
+void Surface::allocateBuffers() {
+    uint32_t reqWidth = mReqWidth ? mReqWidth : mUserWidth;
+    uint32_t reqHeight = mReqHeight ? mReqHeight : mUserHeight;
+    mGraphicBufferProducer->allocateBuffers(mSwapIntervalZero, mReqWidth,
+            mReqHeight, mReqFormat, mReqUsage);
+}
+
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
     Surface* c = getSelf(window);
     return c->setSwapInterval(interval);
