@@ -51,8 +51,8 @@ struct CryptoPlugin {
     };
 
     struct SubSample {
-        size_t mNumBytesOfClearData;
-        size_t mNumBytesOfEncryptedData;
+        uint32_t mNumBytesOfClearData;
+        uint32_t mNumBytesOfEncryptedData;
     };
 
     CryptoPlugin() {}
