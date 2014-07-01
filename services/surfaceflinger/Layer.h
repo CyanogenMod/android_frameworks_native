@@ -295,6 +295,11 @@ public:
     void clearStats();
     void logFrameStats();
 
+#ifdef QCOM_BSP
+    //GPUTileRect : Return true if the layer has been updated in this frame.
+    bool hasNewFrame() const;
+#endif
+
 protected:
     // constant
     sp<SurfaceFlinger> mFlinger;

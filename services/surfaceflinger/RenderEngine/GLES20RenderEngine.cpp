@@ -149,6 +149,18 @@ void GLES20RenderEngine::disableBlending() {
     glDisable(GL_BLEND);
 }
 
+#ifdef QCOM_BSP
+void GLES20RenderEngine::startTileComposition(int x , int y, int width,
+                                            int height, bool preserve) {
+    glStartTilingQCOM(x, y, width, height,
+          (preserve ? GL_COLOR_BUFFER_BIT0_QCOM : GL_NONE));
+}
+
+void GLES20RenderEngine::endTileComposition(unsigned int preserveMask) {
+    glEndTilingQCOM(preserveMask);
+}
+#endif
+
 
 void GLES20RenderEngine::bindImageAsFramebuffer(EGLImageKHR image,
         uint32_t* texName, uint32_t* fbName, uint32_t* status,

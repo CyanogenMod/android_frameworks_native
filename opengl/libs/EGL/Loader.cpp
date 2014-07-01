@@ -374,6 +374,35 @@ void *Loader::load_driver(const char* kind,
         ALOGE_IF(!getProcAddress,
                 "can't find eglGetProcAddress() in %s", driver_absolute_path);
 
+#ifdef SYSTEMUI_PBSIZE_HACK
+#warning "SYSTEMUI_PBSIZE_HACK enabled"
+        /*
+         * TODO: replace SYSTEMUI_PBSIZE_HACK by something less hackish
+         *
+         * Here we adjust the PB size from its default value to 512KB which
+         * is the minimum acceptable for the systemui process.
+         * We do this on low-end devices only because it allows us to enable
+         * h/w acceleration in the systemui process while keeping the
+         * memory usage down.
+         *
+         * Obviously, this is the wrong place and wrong way to make this
+         * adjustment, but at the time of this writing this was the safest
+         * solution.
+         */
+        const char *cmdline = getProcessCmdline();
+        if (strstr(cmdline, "systemui")) {
+            void *imgegl = dlopen("/vendor/lib/libIMGegl.so", RTLD_LAZY);
+            if (imgegl) {
+                unsigned int *PVRDefaultPBS =
+                        (unsigned int *)dlsym(imgegl, "PVRDefaultPBS");
+                if (PVRDefaultPBS) {
+                    ALOGD("setting default PBS to 512KB, was %d KB", *PVRDefaultPBS / 1024);
+                    *PVRDefaultPBS = 512*1024;
+                }
+            }
+        }
+#endif
+
         egl_t* egl = &cnx->egl;
         __eglMustCastToProperFunctionPointerType* curr =
             (__eglMustCastToProperFunctionPointerType*)egl;

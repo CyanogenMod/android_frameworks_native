@@ -41,12 +41,68 @@
 #include <sys/mman.h>
 #include "ion.h"
 
+#define HEAP_MASK_FILTER    ((1 << 16) - (2))
+#define FLAG_MASK_FILTER    (~(HEAP_MASK_FILTER) - (1))
+
 namespace android {
+
+uint32_t ion_HeapMask_valid_check(uint32_t flags)
+{
+    uint32_t heap_mask, result;
+    result = 0;
+
+    heap_mask = flags & HEAP_MASK_FILTER;
+
+    switch(heap_mask) {
+        case MHB_ION_HEAP_SYSTEM_MASK:
+            return ION_HEAP_SYSTEM_MASK;
+        case MHB_ION_HEAP_SYSTEM_CONTIG_MASK:
+            return ION_HEAP_SYSTEM_CONTIG_MASK;
+        case MHB_ION_HEAP_EXYNOS_CONTIG_MASK:
+            return ION_HEAP_EXYNOS_CONTIG_MASK;
+        case MHB_ION_HEAP_EXYNOS_MASK:
+            return ION_HEAP_EXYNOS_MASK;
+        default:
+            ALOGE("MemoryHeapIon : Heap Mask flag is default (flags:%x)", flags);
+            return 0;
+            break;
+    }
+    ALOGE("MemoryHeapIon : Heap Mask flag is wrong (flags:%x)", flags);
+    return 0;
+}
+
+uint32_t ion_FlagMask_valid_check(uint32_t flags)
+{
+    uint32_t flag_mask, result;
+    result = 0;
+
+    flag_mask = flags & FLAG_MASK_FILTER;
+
+    if (flag_mask & MHB_ION_FLAG_CACHED)
+        result |= ION_FLAG_CACHED;
+    if (flag_mask & MHB_ION_FLAG_CACHED_NEEDS_SYNC)
+        result |= ION_FLAG_CACHED_NEEDS_SYNC;
+    if (flag_mask & MHB_ION_FLAG_PRESERVE_KMAP)
+        result |= ION_FLAG_PRESERVE_KMAP;
+    if (flag_mask & MHB_ION_EXYNOS_VIDEO_MASK)
+        result |= ION_EXYNOS_VIDEO_MASK;
+    if (flag_mask & MHB_ION_EXYNOS_MFC_INPUT_MASK)
+        result |= ION_EXYNOS_MFC_INPUT_MASK;
+    if (flag_mask & MHB_ION_EXYNOS_MFC_OUTPUT_MASK)
+        result |= ION_EXYNOS_MFC_OUTPUT_MASK;
+    if (flag_mask & MHB_ION_EXYNOS_GSC_MASK)
+        result |= ION_EXYNOS_GSC_MASK;
+    if (flag_mask & MHB_ION_EXYNOS_FIMD_VIDEO_MASK)
+        result |= ION_EXYNOS_FIMD_VIDEO_MASK;
+
+    return result;
+}
 
 MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags, char const *name):MemoryHeapBase()
 {
     void* base = NULL;
     int fd = -1;
+    uint32_t isReadOnly, heapMask, flagMask;
 
     mIonClient = ion_client_create();
 
@@ -54,7 +110,27 @@ MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags, char const *name):Memo
         ALOGE("MemoryHeapIon : ION client creation failed : %s", strerror(errno));
         mIonClient = -1;
     } else {
-        fd = ion_alloc(mIonClient, size, 0, ION_HEAP_SYSTEM_MASK, ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC | ION_FLAG_PRESERVE_KMAP);
+        isReadOnly = flags & (IMemoryHeap::READ_ONLY);
+        heapMask = ion_HeapMask_valid_check(flags);
+        flagMask = ion_FlagMask_valid_check(flags);
+
+        if (heapMask) {
+            ALOGD("MemoryHeapIon : Allocated with size:%d, heap:0x%X , flag:0x%X", size, heapMask, flagMask);
+            fd = ion_alloc(mIonClient, size, 0, heapMask, flagMask);
+            if (fd < 0) {
+                ALOGE("MemoryHeapIon : ION Reserve memory allocation failed(size[%u]) : %s", size, strerror(errno));
+                if (errno == ENOMEM) { // Out of reserve memory. So re-try allocating in system heap
+                    ALOGD("MemoryHeapIon : Re-try Allocating in default heap - SYSTEM heap");
+                    fd = ion_alloc(mIonClient, size, 0, ION_HEAP_SYSTEM_MASK, ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC | ION_FLAG_PRESERVE_KMAP);
+                }
+            }
+        } else {
+            fd = ion_alloc(mIonClient, size, 0, ION_HEAP_SYSTEM_MASK, ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC | ION_FLAG_PRESERVE_KMAP);
+            ALOGD("MemoryHeapIon : Allocated with default heap - SYSTEM heap");
+        }
+
+        flags = isReadOnly | heapMask | flagMask;
+
         if (fd < 0) {
             ALOGE("MemoryHeapIon : ION memory allocation failed(size[%u]) : %s", size, strerror(errno));
         } else {
@@ -63,7 +139,7 @@ MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags, char const *name):Memo
             if (base != MAP_FAILED) {
                 init(fd, base, size, flags, NULL);
             } else {
-                ALOGE("MemoryHeapIon : mmap failed(size[%u], fd[%d]) : %s", size, fd, strerror(errno));
+                ALOGE("MemoryHeapIon : ION mmap failed(size[%u], fd[%d]) : %s", size, fd, strerror(errno));
                 ion_free(fd);
             }
         }
