@@ -218,6 +218,59 @@ void fixup_glTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
     fixup_glTexImage(widthIndex, heightIndex, glmsg, pointersToFixup[0]);
 }
 
+void fixup_glCompressedTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+    /* void glCompressedTexImage2D(GLenum target,
+                                   GLint level,
+                                   GLenum internalformat,
+                                   GLsizei width,
+                                   GLsizei height,
+                                   GLint border,
+                                   GLsizei imageSize,
+                                   const GLvoid* data);
+    */
+    GLsizei size  = glmsg->args(6).intvalue(0);
+    void *data = pointersToFixup[0];
+
+    GLMessage_DataType *arg_data  = glmsg->mutable_args(7);
+    arg_data->set_type(GLMessage::DataType::BYTE);
+    arg_data->clear_rawbytes();
+
+    if (data != NULL) {
+        arg_data->set_isarray(true);
+        arg_data->add_rawbytes(data, size);
+    } else {
+        arg_data->set_isarray(false);
+        arg_data->set_type(GLMessage::DataType::VOID);
+    }
+}
+
+void fixup_glCompressedTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+    /* void glCompressedTexSubImage2D(GLenum target,
+                                      GLint level,
+                                      GLint xoffset,
+                                      GLint yoffset,
+                                      GLsizei width,
+                                      GLsizei height,
+                                      GLenum format,
+                                      GLsizei imageSize,
+                                      const GLvoid* data);
+    */
+    GLsizei size  = glmsg->args(7).intvalue(0);
+    void *data = pointersToFixup[0];
+
+    GLMessage_DataType *arg_data  = glmsg->mutable_args(8);
+    arg_data->set_type(GLMessage::DataType::BYTE);
+    arg_data->clear_rawbytes();
+
+    if (data != NULL) {
+        arg_data->set_isarray(true);
+        arg_data->add_rawbytes(data, size);
+    } else {
+        arg_data->set_isarray(false);
+        arg_data->set_type(GLMessage::DataType::VOID);
+    }
+}
+
 void fixup_glShaderSource(GLMessage *glmsg, void *pointersToFixup[]) {
     /* void glShaderSource(GLuint shader, GLsizei count, const GLchar** string,
                                     const GLint* length) */
@@ -758,6 +811,16 @@ void fixupGLMessage(GLTraceContext *context, nsecs_t wallStart, nsecs_t wallEnd,
     case GLMessage::glTexSubImage2D:
         if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
             fixup_glTexSubImage2D(glmsg, pointersToFixup);
+        }
+        break;
+    case GLMessage::glCompressedTexImage2D:
+        if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
+            fixup_glCompressedTexImage2D(glmsg, pointersToFixup);
+        }
+        break;
+    case GLMessage::glCompressedTexSubImage2D:
+        if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
+            fixup_glCompressedTexSubImage2D(glmsg, pointersToFixup);
         }
         break;
     case GLMessage::glShaderSource:
