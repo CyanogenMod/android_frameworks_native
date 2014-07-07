@@ -20,44 +20,6 @@
 #include <cutils/log.h>
 #endif
 
-/* TODO:
- * These should come from a config file or perhaps be
- * based on some namespace rules of some sort (media
- * uid can register media.*, etc)
- */
-static struct {
-    uid_t uid;
-    const char *name;
-} allowed[] = {
-    { AID_MEDIA, "media.audio_flinger" },
-    { AID_MEDIA, "media.log" },
-    { AID_MEDIA, "media.player" },
-    { AID_MEDIA, "media.camera" },
-    { AID_MEDIA, "media.audio_policy" },
-    { AID_MEDIA, "media.sound_trigger_hw" },
-    { AID_AUDIO, "audio" },
-    { AID_INPUT, "input" },
-    { AID_DRM,   "drm.drmManager" },
-    { AID_NFC,   "nfc" },
-    { AID_BLUETOOTH, "bluetooth" },
-    { AID_RADIO, "radio.phone" },
-    { AID_RADIO, "radio.sms" },
-    { AID_RADIO, "radio.phonesubinfo" },
-    { AID_RADIO, "radio.simphonebook" },
-/* TODO: remove after phone services are updated: */
-    { AID_RADIO, "phone" },
-    { AID_RADIO, "sip" },
-    { AID_RADIO, "isms" },
-    { AID_RADIO, "iphonesubinfo" },
-    { AID_RADIO, "simphonebook" },
-    { AID_MEDIA, "common_time.clock" },
-    { AID_MEDIA, "common_time.config" },
-    { AID_KEYSTORE, "android.security.keystore" },
-    { AID_RADIO, "telecomm" },
-    { AID_RADIO, "isub" },
-    { AID_RADIO, "ims" },
-};
-
 uint32_t svcmgr_handle;
 
 const char *str8(const uint16_t *x)
@@ -137,16 +99,7 @@ static bool check_mac_perms(const char *name, pid_t spid)
 
 static int svc_can_register(uid_t uid, const uint16_t *name, pid_t spid)
 {
-    size_t n;
-
-    if ((uid == 0) || (uid == AID_SYSTEM))
-        return check_mac_perms(str8(name), spid) ? 1 : 0;
-
-    for (n = 0; n < sizeof(allowed) / sizeof(allowed[0]); n++)
-        if ((uid == allowed[n].uid) && str16eq(name, allowed[n].name))
-            return check_mac_perms(str8(name), spid) ? 1 : 0;
-
-    return 0;
+    return check_mac_perms(str8(name), spid) ? 1 : 0;
 }
 
 struct svcinfo
