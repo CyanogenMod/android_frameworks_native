@@ -67,6 +67,9 @@ void do_dmesg();
 /* Dumps settings for a given user id */
 void do_dump_settings(int userid);
 
+/* Prints the contents of all the routing tables, both IPv4 and IPv6. */
+void dump_route_tables();
+
 /* Play a sound via Stagefright */
 void play_sound(const char* path);
 
