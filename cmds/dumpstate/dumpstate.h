@@ -60,6 +60,9 @@ void do_showmap(int pid, const char *name);
 /* Gets the dmesg output for the kernel */
 void do_dmesg();
 
+/* Prints the contents of all the routing tables, both IPv4 and IPv6. */
+void dump_route_tables();
+
 /* Play a sound via Stagefright */
 void play_sound(const char* path);
 
