@@ -9,6 +9,7 @@
 #include <private/android_filesystem_config.h>
 
 #include <selinux/android.h>
+#include <selinux/avc.h>
 
 #include "binder.h"
 
@@ -22,15 +23,20 @@
 
 uint32_t svcmgr_handle;
 
-const char *str8(const uint16_t *x)
+const char *str8(const uint16_t *x, size_t x_len)
 {
     static char buf[128];
-    unsigned max = 127;
+    size_t max = 127;
     char *p = buf;
 
+    if (x_len < max) {
+        max = x_len;
+    }
+
     if (x) {
-        while (*x && max--) {
+        while ((max > 0) && (*x != '\0')) {
             *p++ = *x++;
+            max--;
         }
     }
     *p++ = 0;
@@ -97,9 +103,9 @@ static bool check_mac_perms(const char *name, pid_t spid)
     return allowed;
 }
 
-static int svc_can_register(uid_t uid, const uint16_t *name, pid_t spid)
+static int svc_can_register(uid_t uid, const uint16_t *name, size_t name_len, pid_t spid)
 {
-    return check_mac_perms(str8(name), spid) ? 1 : 0;
+    return check_mac_perms(str8(name, name_len), spid) ? 1 : 0;
 }
 
 struct svcinfo
@@ -131,7 +137,7 @@ void svcinfo_death(struct binder_state *bs, void *ptr)
 {
     struct svcinfo *si = (struct svcinfo* ) ptr;
 
-    ALOGI("service '%s' died\n", str8(si->name));
+    ALOGI("service '%s' died\n", str8(si->name, si->len));
     if (si->handle) {
         binder_release(bs, si->handle);
         si->handle = 0;
@@ -149,7 +155,7 @@ uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len,
     struct svcinfo *si;
 
     si = find_svc(s, len);
-    //ALOGI("check_service('%s') handle = %x\n", str8(s), si ? si->handle : 0);
+    //ALOGI("check_service('%s') handle = %x\n", str8(s, len), si ? si->handle : 0);
     if (si && si->handle) {
         if (!si->allow_isolated) {
             // If this service doesn't allow access from isolated processes,
@@ -172,15 +178,15 @@ int do_add_service(struct binder_state *bs,
 {
     struct svcinfo *si;
 
-    //ALOGI("add_service('%s',%x,%s) uid=%d\n", str8(s), handle,
+    //ALOGI("add_service('%s',%x,%s) uid=%d\n", str8(s, len), handle,
     //        allow_isolated ? "allow_isolated" : "!allow_isolated", uid);
 
     if (!handle || (len == 0) || (len > 127))
         return -1;
 
-    if (!svc_can_register(uid, s, spid)) {
+    if (!svc_can_register(uid, s, len, spid)) {
         ALOGE("add_service('%s',%x) uid=%d - PERMISSION DENIED\n",
-             str8(s), handle, uid);
+             str8(s, len), handle, uid);
         return -1;
     }
 
@@ -188,7 +194,7 @@ int do_add_service(struct binder_state *bs,
     if (si) {
         if (si->handle) {
             ALOGE("add_service('%s',%x) uid=%d - ALREADY REGISTERED, OVERRIDE\n",
-                 str8(s), handle, uid);
+                 str8(s, len), handle, uid);
             svcinfo_death(bs, si);
         }
         si->handle = handle;
@@ -196,7 +202,7 @@ int do_add_service(struct binder_state *bs,
         si = malloc(sizeof(*si) + (len + 1) * sizeof(uint16_t));
         if (!si) {
             ALOGE("add_service('%s',%x) uid=%d - OUT OF MEMORY\n",
-                 str8(s), handle, uid);
+                 str8(s, len), handle, uid);
             return -1;
         }
         si->handle = handle;
@@ -242,9 +248,13 @@ int svcmgr_handler(struct binder_state *bs,
     // further (since we do no outbound RPCs anyway).
     strict_policy = bio_get_uint32(msg);
     s = bio_get_string16(msg, &len);
+    if (s == NULL) {
+        return -1;
+    }
+
     if ((len != (sizeof(svcmgr_id) / 2)) ||
         memcmp(svcmgr_id, s, sizeof(svcmgr_id))) {
-        fprintf(stderr,"invalid id %s\n", str8(s));
+        fprintf(stderr,"invalid id %s\n", str8(s, len));
         return -1;
     }
 
@@ -260,6 +270,9 @@ int svcmgr_handler(struct binder_state *bs,
     case SVC_MGR_GET_SERVICE:
     case SVC_MGR_CHECK_SERVICE:
         s = bio_get_string16(msg, &len);
+        if (s == NULL) {
+            return -1;
+        }
         handle = do_find_service(bs, s, len, txn->sender_euid);
         if (!handle)
             break;
@@ -268,6 +281,9 @@ int svcmgr_handler(struct binder_state *bs,
 
     case SVC_MGR_ADD_SERVICE:
         s = bio_get_string16(msg, &len);
+        if (s == NULL) {
+            return -1;
+        }
         handle = bio_get_ref(msg);
         allow_isolated = bio_get_uint32(msg) ? 1 : 0;
         if (do_add_service(bs, s, len, handle, txn->sender_euid,
