@@ -279,8 +279,12 @@ status_t GLConsumer::releaseTexImage() {
             return err;
         }
 
+        if (mReleasedTexImage == NULL) {
+            mReleasedTexImage = new EglImage(getDebugTexImageBuffer());
+        }
+
         mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
-        mCurrentTextureBuf = getDebugTexImageBuffer();
+        mCurrentTextureImage = mReleasedTexImage;
         mCurrentCrop.makeInvalid();
         mCurrentTransform = 0;
         mCurrentScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
@@ -288,9 +292,11 @@ status_t GLConsumer::releaseTexImage() {
         mCurrentFence = Fence::NO_FENCE;
 
         if (mAttached) {
-            // bind a dummy texture
-            glBindTexture(mTexTarget, mTexName);
-            bindUnslottedBufferLocked(mEglDisplay);
+            // This binds a dummy buffer (mReleasedTexImage).
+            status_t err =  bindTextureImageLocked();
+            if (err != NO_ERROR) {
+                return err;
+            }
         } else {
             // detached, don't touch the texture (and we may not even have an
             // EGLDisplay here.
@@ -332,29 +338,12 @@ status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
         return err;
     }
 
-    int slot = item->mBuf;
-    bool destroyEglImage = false;
-
-    if (mEglSlots[slot].mEglImage != EGL_NO_IMAGE_KHR) {
-        if (item->mGraphicBuffer != NULL) {
-            // This buffer has not been acquired before, so we must assume
-            // that any EGLImage in mEglSlots is stale.
-            destroyEglImage = true;
-        } else if (mEglSlots[slot].mCropRect != item->mCrop) {
-            // We've already seen this buffer before, but it now has a
-            // different crop rect, so we'll need to recreate the EGLImage if
-            // we're using the EGL_ANDROID_image_crop extension.
-            destroyEglImage = hasEglAndroidImageCrop();
-        }
-    }
-
-    if (destroyEglImage) {
-        if (!eglDestroyImageKHR(mEglDisplay, mEglSlots[slot].mEglImage)) {
-            ST_LOGW("acquireBufferLocked: eglDestroyImageKHR failed for slot=%d",
-                  slot);
-            // keep going
-        }
-        mEglSlots[slot].mEglImage = EGL_NO_IMAGE_KHR;
+    // If item->mGraphicBuffer is not null, this buffer has not been acquired
+    // before, so any prior EglImage created is using a stale buffer. This
+    // replaces any old EglImage with a new one (using the new buffer).
+    if (item->mGraphicBuffer != NULL) {
+        int slot = item->mBuf;
+        mEglSlots[slot].mEglImage = new EglImage(item->mGraphicBuffer);
     }
 
     return NO_ERROR;
@@ -395,29 +384,18 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
         return err;
     }
 
-    // If the mEglSlot entry is empty, create an EGLImage for the gralloc
-    // buffer currently in the slot in ConsumerBase.
-    //
+    // Ensure we have a valid EglImageKHR for the slot, creating an EglImage
+    // if nessessary, for the gralloc buffer currently in the slot in
+    // ConsumerBase.
     // We may have to do this even when item.mGraphicBuffer == NULL (which
-    // means the buffer was previously acquired), if we destroyed the
-    // EGLImage when detaching from a context but the buffer has not been
-    // re-allocated.
-    if (mEglSlots[buf].mEglImage == EGL_NO_IMAGE_KHR) {
-        EGLImageKHR image = createImage(mEglDisplay,
-                mSlots[buf].mGraphicBuffer, item.mCrop);
-        if (image == EGL_NO_IMAGE_KHR) {
-            ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
-                  mEglDisplay, buf);
-            const sp<GraphicBuffer>& gb = mSlots[buf].mGraphicBuffer;
-            ST_LOGW("buffer size=%ux%u st=%u usage=0x%x fmt=%d",
-                gb->getWidth(), gb->getHeight(), gb->getStride(),
-                gb->getUsage(), gb->getPixelFormat());
-            releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
-                    mEglDisplay, EGL_NO_SYNC_KHR);
-            return UNKNOWN_ERROR;
-        }
-        mEglSlots[buf].mEglImage = image;
-        mEglSlots[buf].mCropRect = item.mCrop;
+    // means the buffer was previously acquired).
+    err = mEglSlots[buf].mEglImage->createIfNeeded(mEglDisplay, item.mCrop);
+    if (err != NO_ERROR) {
+        ST_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
+                mEglDisplay, buf);
+        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, EGL_NO_SYNC_KHR);
+        return UNKNOWN_ERROR;
     }
 
     // Do whatever sync ops we need to do before releasing the old slot.
@@ -433,15 +411,15 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
     }
 
     ST_LOGV("updateAndRelease: (slot=%d buf=%p) -> (slot=%d buf=%p)",
-            mCurrentTexture,
-            mCurrentTextureBuf != NULL ? mCurrentTextureBuf->handle : 0,
+            mCurrentTexture, mCurrentTextureImage != NULL ?
+                    mCurrentTextureImage->graphicBufferHandle() : 0,
             buf, mSlots[buf].mGraphicBuffer->handle);
 
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
         status_t status = releaseBufferLocked(
-                mCurrentTexture, mCurrentTextureBuf, mEglDisplay,
-                mEglSlots[mCurrentTexture].mEglFence);
+                mCurrentTexture, mCurrentTextureImage->graphicBuffer(),
+                mEglDisplay, mEglSlots[mCurrentTexture].mEglFence);
         if (status < NO_ERROR) {
             ST_LOGE("updateAndRelease: failed to release buffer: %s (%d)",
                    strerror(-status), status);
@@ -452,7 +430,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferQueue::BufferItem& item)
 
     // Update the GLConsumer state.
     mCurrentTexture = buf;
-    mCurrentTextureBuf = mSlots[buf].mGraphicBuffer;
+    mCurrentTextureImage = mEglSlots[buf].mEglImage;
     mCurrentCrop = item.mCrop;
     mCurrentTransform = item.mTransform;
     mCurrentScalingMode = item.mScalingMode;
@@ -477,25 +455,26 @@ status_t GLConsumer::bindTextureImageLocked() {
     }
 
     glBindTexture(mTexTarget, mTexName);
-    if (mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT) {
-        if (mCurrentTextureBuf == NULL) {
-            ST_LOGE("bindTextureImage: no currently-bound texture");
-            return NO_INIT;
-        }
-        status_t err = bindUnslottedBufferLocked(mEglDisplay);
-        if (err != NO_ERROR) {
-            return err;
-        }
-    } else {
-        EGLImageKHR image = mEglSlots[mCurrentTexture].mEglImage;
+    if (mCurrentTexture == BufferQueue::INVALID_BUFFER_SLOT &&
+            mCurrentTextureImage == NULL) {
+        ST_LOGE("bindTextureImage: no currently-bound texture");
+        return NO_INIT;
+    }
 
-        glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
+    status_t err = mCurrentTextureImage->createIfNeeded(mEglDisplay,
+                                                      mCurrentCrop);
 
-        while ((error = glGetError()) != GL_NO_ERROR) {
-            ST_LOGE("bindTextureImage: error binding external texture image %p"
-                    ": %#04x", image, error);
-            return UNKNOWN_ERROR;
-        }
+    if (err != NO_ERROR) {
+        ST_LOGW("bindTextureImage: can't create image on display=%p slot=%d",
+                mEglDisplay, mCurrentTexture);
+        return UNKNOWN_ERROR;
+    }
+
+    mCurrentTextureImage->bindToTextureTarget(mTexTarget);
+
+    while ((error = glGetError()) != GL_NO_ERROR) {
+        ST_LOGE("bindTextureImage: error binding external image: %#04x", error);
+        return UNKNOWN_ERROR;
     }
 
     // Wait for the new buffer to be ready.
@@ -537,7 +516,7 @@ void GLConsumer::setReleaseFence(const sp<Fence>& fence) {
     if (fence->isValid() &&
             mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
         status_t err = addReleaseFence(mCurrentTexture,
-                mCurrentTextureBuf, fence);
+                mCurrentTextureImage->graphicBuffer(), fence);
         if (err != OK) {
             ST_LOGE("setReleaseFence: failed to add the fence: %s (%d)",
                     strerror(-err), err);
@@ -583,18 +562,6 @@ status_t GLConsumer::detachFromContext() {
         glDeleteTextures(1, &mTexName);
     }
 
-    // Because we're giving up the EGLDisplay we need to free all the EGLImages
-    // that are associated with it.  They'll be recreated when the
-    // GLConsumer gets attached to a new OpenGL ES context (and thus gets a
-    // new EGLDisplay).
-    for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
-        EGLImageKHR img = mEglSlots[i].mEglImage;
-        if (img != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(mEglDisplay, img);
-            mEglSlots[i].mEglImage = EGL_NO_IMAGE_KHR;
-        }
-    }
-
     mEglDisplay = EGL_NO_DISPLAY;
     mEglContext = EGL_NO_CONTEXT;
     mAttached = false;
@@ -635,54 +602,23 @@ status_t GLConsumer::attachToContext(uint32_t tex) {
     // buffer.
     glBindTexture(mTexTarget, GLuint(tex));
 
-    if (mCurrentTextureBuf != NULL) {
-        // The EGLImageKHR that was associated with the slot was destroyed when
-        // the GLConsumer was detached from the old context, so we need to
-        // recreate it here.
-        status_t err = bindUnslottedBufferLocked(dpy);
-        if (err != NO_ERROR) {
-            return err;
-        }
-    }
-
     mEglDisplay = dpy;
     mEglContext = ctx;
     mTexName = tex;
     mAttached = true;
 
+    if (mCurrentTextureImage != NULL) {
+        // This may wait for a buffer a second time. This is likely required if
+        // this is a different context, since otherwise the wait could be skipped
+        // by bouncing through another context. For the same context the extra
+        // wait is redundant.
+        status_t err =  bindTextureImageLocked();
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
     return OK;
-}
-
-status_t GLConsumer::bindUnslottedBufferLocked(EGLDisplay dpy) {
-    ST_LOGV("bindUnslottedBuffer ct=%d ctb=%p",
-            mCurrentTexture, mCurrentTextureBuf.get());
-
-    // Create a temporary EGLImageKHR.
-    Rect crop;
-    EGLImageKHR image = createImage(dpy, mCurrentTextureBuf, mCurrentCrop);
-    if (image == EGL_NO_IMAGE_KHR) {
-        return UNKNOWN_ERROR;
-    }
-
-    // Attach the current buffer to the GL texture.
-    glEGLImageTargetTexture2DOES(mTexTarget, (GLeglImageOES)image);
-
-    GLint error;
-    status_t err = OK;
-    while ((error = glGetError()) != GL_NO_ERROR) {
-        ST_LOGE("bindUnslottedBuffer: error binding external texture image %p "
-                "(slot %d): %#04x", image, mCurrentTexture, error);
-        err = UNKNOWN_ERROR;
-    }
-
-    // We destroy the EGLImageKHR here because the current buffer may no
-    // longer be associated with one of the buffer slots, so we have
-    // nowhere to to store it.  If the buffer is still associated with a
-    // slot then another EGLImageKHR will be created next time that buffer
-    // gets acquired in updateTexImage.
-    eglDestroyImageKHR(dpy, image);
-
-    return err;
 }
 
 
@@ -708,7 +644,7 @@ status_t GLConsumer::syncForReleaseLocked(EGLDisplay dpy) {
             }
             sp<Fence> fence(new Fence(fenceFd));
             status_t err = addReleaseFenceLocked(mCurrentTexture,
-                    mCurrentTextureBuf, fence);
+                    mCurrentTextureImage->graphicBuffer(), fence);
             if (err != OK) {
                 ST_LOGE("syncForReleaseLocked: error adding release fence: "
                         "%s (%d)", strerror(-err), err);
@@ -787,11 +723,11 @@ void GLConsumer::setFilteringEnabled(bool enabled) {
     bool needsRecompute = mFilteringEnabled != enabled;
     mFilteringEnabled = enabled;
 
-    if (needsRecompute && mCurrentTextureBuf==NULL) {
-        ST_LOGD("setFilteringEnabled called with mCurrentTextureBuf == NULL");
+    if (needsRecompute && mCurrentTextureImage==NULL) {
+        ST_LOGD("setFilteringEnabled called with mCurrentTextureImage == NULL");
     }
 
-    if (needsRecompute && mCurrentTextureBuf != NULL) {
+    if (needsRecompute && mCurrentTextureImage != NULL) {
         computeCurrentTransformMatrixLocked();
     }
 }
@@ -825,10 +761,11 @@ void GLConsumer::computeCurrentTransformMatrixLocked() {
         }
     }
 
-    sp<GraphicBuffer>& buf(mCurrentTextureBuf);
+    sp<GraphicBuffer> buf = (mCurrentTextureImage == NULL) ?
+            NULL : mCurrentTextureImage->graphicBuffer();
 
     if (buf == NULL) {
-        ST_LOGD("computeCurrentTransformMatrixLocked: mCurrentTextureBuf is NULL");
+        ST_LOGD("computeCurrentTransformMatrixLocked: mCurrentTextureImage is NULL");
     }
 
     float mtxBeforeFlipV[16];
@@ -911,39 +848,10 @@ nsecs_t GLConsumer::getFrameNumber() {
     return mCurrentFrameNumber;
 }
 
-EGLImageKHR GLConsumer::createImage(EGLDisplay dpy,
-        const sp<GraphicBuffer>& graphicBuffer, const Rect& crop) {
-    EGLClientBuffer cbuf = (EGLClientBuffer)graphicBuffer->getNativeBuffer();
-    EGLint attrs[] = {
-        EGL_IMAGE_PRESERVED_KHR,        EGL_TRUE,
-        EGL_IMAGE_CROP_LEFT_ANDROID,    crop.left,
-        EGL_IMAGE_CROP_TOP_ANDROID,     crop.top,
-        EGL_IMAGE_CROP_RIGHT_ANDROID,   crop.right,
-        EGL_IMAGE_CROP_BOTTOM_ANDROID,  crop.bottom,
-        EGL_NONE,
-    };
-    if (!crop.isValid()) {
-        // No crop rect to set, so terminate the attrib array before the crop.
-        attrs[2] = EGL_NONE;
-    } else if (!isEglImageCroppable(crop)) {
-        // The crop rect is not at the origin, so we can't set the crop on the
-        // EGLImage because that's not allowed by the EGL_ANDROID_image_crop
-        // extension.  In the future we can add a layered extension that
-        // removes this restriction if there is hardware that can support it.
-        attrs[2] = EGL_NONE;
-    }
-    EGLImageKHR image = eglCreateImageKHR(dpy, EGL_NO_CONTEXT,
-            EGL_NATIVE_BUFFER_ANDROID, cbuf, attrs);
-    if (image == EGL_NO_IMAGE_KHR) {
-        EGLint error = eglGetError();
-        ST_LOGE("error creating EGLImage: %#x", error);
-    }
-    return image;
-}
-
 sp<GraphicBuffer> GLConsumer::getCurrentBuffer() const {
     Mutex::Autolock lock(mMutex);
-    return mCurrentTextureBuf;
+    return (mCurrentTextureImage == NULL) ?
+            NULL : mCurrentTextureImage->graphicBuffer();
 }
 
 Rect GLConsumer::getCurrentCrop() const {
@@ -1067,18 +975,13 @@ void GLConsumer::freeBufferLocked(int slotIndex) {
     if (slotIndex == mCurrentTexture) {
         mCurrentTexture = BufferQueue::INVALID_BUFFER_SLOT;
     }
-    EGLImageKHR img = mEglSlots[slotIndex].mEglImage;
-    if (img != EGL_NO_IMAGE_KHR) {
-        ST_LOGV("destroying EGLImage dpy=%p img=%p", mEglDisplay, img);
-        eglDestroyImageKHR(mEglDisplay, img);
-    }
-    mEglSlots[slotIndex].mEglImage = EGL_NO_IMAGE_KHR;
+    mEglSlots[slotIndex].mEglImage.clear();
     ConsumerBase::freeBufferLocked(slotIndex);
 }
 
 void GLConsumer::abandonLocked() {
     ST_LOGV("abandonLocked");
-    mCurrentTextureBuf.clear();
+    mCurrentTextureImage.clear();
     ConsumerBase::abandonLocked();
 }
 
@@ -1136,6 +1039,89 @@ static void mtxMul(float out[16], const float a[16], const float b[16]) {
     out[13] = a[1]*b[12] + a[5]*b[13] + a[9]*b[14] + a[13]*b[15];
     out[14] = a[2]*b[12] + a[6]*b[13] + a[10]*b[14] + a[14]*b[15];
     out[15] = a[3]*b[12] + a[7]*b[13] + a[11]*b[14] + a[15]*b[15];
+}
+
+GLConsumer::EglImage::EglImage(sp<GraphicBuffer> graphicBuffer) :
+    mGraphicBuffer(graphicBuffer),
+    mEglImage(EGL_NO_IMAGE_KHR),
+    mEglDisplay(EGL_NO_DISPLAY) {
+}
+
+GLConsumer::EglImage::~EglImage() {
+    if (mEglImage != EGL_NO_IMAGE_KHR) {
+        if (!eglDestroyImageKHR(mEglDisplay, mEglImage)) {
+           ALOGE("~EglImage: eglDestroyImageKHR failed");
+        }
+    }
+}
+
+status_t GLConsumer::EglImage::createIfNeeded(EGLDisplay eglDisplay,
+                                              const Rect& cropRect) {
+    // If there's an image and it's no longer valid, destroy it.
+    bool haveImage = mEglImage != EGL_NO_IMAGE_KHR;
+    bool displayInvalid = mEglDisplay != eglDisplay;
+    bool cropInvalid = hasEglAndroidImageCrop() && mCropRect != cropRect;
+    if (haveImage && (displayInvalid || cropInvalid)) {
+        if (!eglDestroyImageKHR(mEglDisplay, mEglImage)) {
+           ALOGE("createIfNeeded: eglDestroyImageKHR failed");
+        }
+        mEglImage = EGL_NO_IMAGE_KHR;
+        mEglDisplay = EGL_NO_DISPLAY;
+    }
+
+    // If there's no image, create one.
+    if (mEglImage == EGL_NO_IMAGE_KHR) {
+        mEglDisplay = eglDisplay;
+        mCropRect = cropRect;
+        mEglImage = createImage(mEglDisplay, mGraphicBuffer, mCropRect);
+    }
+
+    // Fail if we can't create a valid image.
+    if (mEglImage == EGL_NO_IMAGE_KHR) {
+        mEglDisplay = EGL_NO_DISPLAY;
+        mCropRect.makeInvalid();
+        const sp<GraphicBuffer>& buffer = mGraphicBuffer;
+        ALOGE("Failed to create image. size=%ux%u st=%u usage=0x%x fmt=%d",
+            buffer->getWidth(), buffer->getHeight(), buffer->getStride(),
+            buffer->getUsage(), buffer->getPixelFormat());
+        return UNKNOWN_ERROR;
+    }
+
+    return OK;
+}
+
+void GLConsumer::EglImage::bindToTextureTarget(uint32_t texTarget) {
+    glEGLImageTargetTexture2DOES(texTarget, (GLeglImageOES)mEglImage);
+}
+
+EGLImageKHR GLConsumer::EglImage::createImage(EGLDisplay dpy,
+        const sp<GraphicBuffer>& graphicBuffer, const Rect& crop) {
+    EGLClientBuffer cbuf = (EGLClientBuffer)graphicBuffer->getNativeBuffer();
+    EGLint attrs[] = {
+        EGL_IMAGE_PRESERVED_KHR,        EGL_TRUE,
+        EGL_IMAGE_CROP_LEFT_ANDROID,    crop.left,
+        EGL_IMAGE_CROP_TOP_ANDROID,     crop.top,
+        EGL_IMAGE_CROP_RIGHT_ANDROID,   crop.right,
+        EGL_IMAGE_CROP_BOTTOM_ANDROID,  crop.bottom,
+        EGL_NONE,
+    };
+    if (!crop.isValid()) {
+        // No crop rect to set, so terminate the attrib array before the crop.
+        attrs[2] = EGL_NONE;
+    } else if (!isEglImageCroppable(crop)) {
+        // The crop rect is not at the origin, so we can't set the crop on the
+        // EGLImage because that's not allowed by the EGL_ANDROID_image_crop
+        // extension.  In the future we can add a layered extension that
+        // removes this restriction if there is hardware that can support it.
+        attrs[2] = EGL_NONE;
+    }
+    EGLImageKHR image = eglCreateImageKHR(dpy, EGL_NO_CONTEXT,
+            EGL_NATIVE_BUFFER_ANDROID, cbuf, attrs);
+    if (image == EGL_NO_IMAGE_KHR) {
+        EGLint error = eglGetError();
+        ALOGE("error creating EGLImage: %#x", error);
+    }
+    return image;
 }
 
 }; // namespace android
