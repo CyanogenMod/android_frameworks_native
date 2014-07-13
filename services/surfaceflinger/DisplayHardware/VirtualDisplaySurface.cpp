@@ -28,11 +28,11 @@ static const bool sForceHwcCopy = true;
 static const bool sForceHwcCopy = false;
 #endif
 
-#define VDS_LOGE(msg, ...) ALOGE("[%s] "msg, \
+#define VDS_LOGE(msg, ...) ALOGE("[%s] " msg, \
         mDisplayName.string(), ##__VA_ARGS__)
-#define VDS_LOGW_IF(cond, msg, ...) ALOGW_IF(cond, "[%s] "msg, \
+#define VDS_LOGW_IF(cond, msg, ...) ALOGW_IF(cond, "[%s] " msg, \
         mDisplayName.string(), ##__VA_ARGS__)
-#define VDS_LOGV(msg, ...) ALOGV("[%s] "msg, \
+#define VDS_LOGV(msg, ...) ALOGV("[%s] " msg, \
         mDisplayName.string(), ##__VA_ARGS__)
 
 static const char* dbgCompositionTypeStr(DisplaySurface::CompositionType type) {
