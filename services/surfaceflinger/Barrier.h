@@ -28,15 +28,25 @@ class Barrier
 public:
     inline Barrier() : state(CLOSED) { }
     inline ~Barrier() { }
+
+    // Release any threads waiting at the Barrier.
+    // Provides release semantics: preceding loads and stores will be visible
+    // to other threads before they wake up.
     void open() {
         Mutex::Autolock _l(lock);
         state = OPENED;
         cv.broadcast();
     }
+
+    // Reset the Barrier, so wait() will block until open() has been called.
     void close() {
         Mutex::Autolock _l(lock);
         state = CLOSED;
     }
+
+    // Wait until the Barrier is OPEN.
+    // Provides acquire semantics: no subsequent loads or stores will occur
+    // until wait() returns.
     void wait() const {
         Mutex::Autolock _l(lock);
         while (state == CLOSED) {
