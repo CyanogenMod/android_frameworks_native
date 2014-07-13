@@ -22,6 +22,7 @@
 #include <math.h>
 #include <dlfcn.h>
 #include <inttypes.h>
+#include <stdatomic.h>
 
 #include <EGL/egl.h>
 
@@ -2681,20 +2682,32 @@ void SurfaceFlinger::repaintEverything() {
 /* The code below is here to handle b/8734824
  *
  * We create a IGraphicBufferProducer wrapper that forwards all calls
- * to the calling binder thread, where they are executed. This allows
- * the calling thread to be reused (on the other side) and not
- * depend on having "enough" binder threads to handle the requests.
- *
+ * from the surfaceflinger thread to the calling binder thread, where they
+ * are executed. This allows the calling thread in the calling process to be
+ * reused and not depend on having "enough" binder threads to handle the
+ * requests.
  */
-
 class GraphicProducerWrapper : public BBinder, public MessageHandler {
+    /* Parts of GraphicProducerWrapper are run on two different threads,
+     * communicating by sending messages via Looper but also by shared member
+     * data. Coherence maintenance is subtle and in places implicit (ugh).
+     *
+     * Don't rely on Looper's sendMessage/handleMessage providing
+     * release/acquire semantics for any data not actually in the Message.
+     * Data going from surfaceflinger to binder threads needs to be
+     * synchronized explicitly.
+     *
+     * Barrier open/wait do provide release/acquire semantics. This provides
+     * implicit synchronization for data coming back from binder to
+     * surfaceflinger threads.
+     */
+
     sp<IGraphicBufferProducer> impl;
     sp<Looper> looper;
     status_t result;
     bool exitPending;
     bool exitRequested;
-    mutable Barrier barrier;
-    volatile int32_t memoryBarrier;
+    Barrier barrier;
     uint32_t code;
     Parcel const* data;
     Parcel* reply;
@@ -2705,20 +2718,26 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
     };
 
     /*
-     * this is called by our "fake" BpGraphicBufferProducer. We package the
-     * data and reply Parcel and forward them to the calling thread.
+     * Called on surfaceflinger thread. This is called by our "fake"
+     * BpGraphicBufferProducer. We package the data and reply Parcel and
+     * forward them to the binder thread.
      */
     virtual status_t transact(uint32_t code,
             const Parcel& data, Parcel* reply, uint32_t /* flags */) {
         this->code = code;
         this->data = &data;
         this->reply = reply;
-        android_atomic_acquire_store(0, &memoryBarrier);
         if (exitPending) {
-            // if we've exited, we run the message synchronously right here
+            // if we've exited, we run the message synchronously right here.
+            // note (JH): as far as I can tell from looking at the code, this
+            // never actually happens. if it does, i'm not sure if it happens
+            // on the surfaceflinger or binder thread.
             handleMessage(Message(MSG_API_CALL));
         } else {
             barrier.close();
+            // Prevent stores to this->{code, data, reply} from being
+            // reordered later than the construction of Message.
+            atomic_thread_fence(memory_order_release);
             looper->sendMessage(this, Message(MSG_API_CALL));
             barrier.wait();
         }
@@ -2726,25 +2745,30 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
     }
 
     /*
-     * here we run on the binder calling thread. All we've got to do is
+     * here we run on the binder thread. All we've got to do is
      * call the real BpGraphicBufferProducer.
      */
     virtual void handleMessage(const Message& message) {
-        android_atomic_release_load(&memoryBarrier);
-        if (message.what == MSG_API_CALL) {
+        int what = message.what;
+        // Prevent reads below from happening before the read from Message
+        atomic_thread_fence(memory_order_acquire);
+        if (what == MSG_API_CALL) {
             result = impl->asBinder()->transact(code, data[0], reply);
             barrier.open();
-        } else if (message.what == MSG_EXIT) {
+        } else if (what == MSG_EXIT) {
             exitRequested = true;
         }
     }
 
 public:
-    GraphicProducerWrapper(const sp<IGraphicBufferProducer>& impl) :
-        impl(impl), looper(new Looper(true)), result(NO_ERROR),
-        exitPending(false), exitRequested(false) {
-    }
+    GraphicProducerWrapper(const sp<IGraphicBufferProducer>& impl)
+    :   impl(impl),
+        looper(new Looper(true)),
+        exitPending(false),
+        exitRequested(false)
+    {}
 
+    // Binder thread
     status_t waitForResponse() {
         do {
             looper->pollOnce(-1);
@@ -2752,9 +2776,13 @@ public:
         return result;
     }
 
+    // Client thread
     void exit(status_t result) {
         this->result = result;
         exitPending = true;
+        // Ensure this->result is visible to the binder thread before it
+        // handles the message.
+        atomic_thread_fence(memory_order_release);
         looper->sendMessage(this, Message(MSG_EXIT));
     }
 };
