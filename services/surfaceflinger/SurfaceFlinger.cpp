@@ -2380,8 +2380,8 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     colorizer.bold(result);
     result.append("DispSync configuration: ");
     colorizer.reset(result);
-    result.appendFormat("app phase %"PRId64" ns, sf phase %"PRId64" ns, "
-            "present offset %d ns (refresh %"PRId64" ns)",
+    result.appendFormat("app phase %" PRId64 " ns, sf phase %" PRId64 " ns, "
+            "present offset %d ns (refresh %" PRId64 " ns)",
         vsyncPhaseOffsetNs, sfVsyncPhaseOffsetNs, PRESENT_TIME_OFFSET_FROM_VSYNC_NS,
         mHwc->getRefreshPeriod(HWC_DISPLAY_PRIMARY));
     result.append("\n");
@@ -2508,7 +2508,7 @@ bool SurfaceFlinger::startDdmConnection()
     }
     void (*DdmConnection_start)(const char* name);
     DdmConnection_start =
-            (typeof DdmConnection_start)dlsym(libddmconnection_dso, "DdmConnection_start");
+            (decltype(DdmConnection_start))dlsym(libddmconnection_dso, "DdmConnection_start");
     if (!DdmConnection_start) {
         dlclose(libddmconnection_dso);
         return false;
