@@ -625,18 +625,22 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, const char *pkgname, const char *instruction_set)
 {
+    char prop_buf[PROPERTY_VALUE_MAX];
+    bool profiler = (property_get("dalvik.vm.profiler", prop_buf, "0") > 0) && (prop_buf[0] == '1');
+
+    char dex2oat_Xms_flag[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_Xms_flag = property_get("dalvik.vm.dex2oat-Xms", dex2oat_Xms_flag, NULL) > 0;
+
+    char dex2oat_Xmx_flag[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_Xmx_flag = property_get("dalvik.vm.dex2oat-Xmx", dex2oat_Xmx_flag, NULL) > 0;
+
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     bool have_dex2oat_flags = property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, NULL) > 0;
     ALOGV("dalvik.vm.dex2oat-flags=%s\n", dex2oat_flags);
 
-    char prop_buf[PROPERTY_VALUE_MAX];
-    bool profiler = (property_get("dalvik.vm.profiler", prop_buf, "0") > 0) && (prop_buf[0] == '1');
-
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
-    // TODO: Make this memory value configurable with a system property b/15919420
     static const char* RUNTIME_ARG = "--runtime-arg";
-    static const char* MEMORY_MAX_ARG = "-Xmx512m";
 
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
@@ -654,6 +658,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
     char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
     char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
+    char dex2oat_Xms_arg[strlen("-Xms") + PROPERTY_VALUE_MAX];
+    char dex2oat_Xmx_arg[strlen("-Xmx") + PROPERTY_VALUE_MAX];
 
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
@@ -679,16 +685,23 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         }
     }
 
+    if (have_dex2oat_Xms_flag) {
+        sprintf(dex2oat_Xms_arg, "-Xms%s", dex2oat_Xms_flag);
+    }
+    if (have_dex2oat_Xmx_flag) {
+        sprintf(dex2oat_Xmx_arg, "-Xmx%s", dex2oat_Xmx_flag);
+    }
+
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
-    char* argv[9  // program name, mandatory arguments and the final NULL
+    char* argv[7  // program name, mandatory arguments and the final NULL
                + (have_profile_file ? 1 : 0)
                + (have_top_k_profile_threshold ? 1 : 0)
+               + (have_dex2oat_Xms_flag ? 2 : 0)
+               + (have_dex2oat_Xmx_flag ? 2 : 0)
                + (have_dex2oat_flags ? 1 : 0)];
     int i = 0;
     argv[i++] = (char*)DEX2OAT_BIN;
-    argv[i++] = (char*)RUNTIME_ARG;
-    argv[i++] = (char*)MEMORY_MAX_ARG;
     argv[i++] = zip_fd_arg;
     argv[i++] = zip_location_arg;
     argv[i++] = oat_fd_arg;
@@ -700,9 +713,18 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_top_k_profile_threshold) {
         argv[i++] = top_k_profile_threshold_arg;
     }
+    if (have_dex2oat_Xms_flag) {
+        argv[i++] = (char*)RUNTIME_ARG;
+        argv[i++] = dex2oat_Xms_arg;
+    }
+    if (have_dex2oat_Xmx_flag) {
+        argv[i++] = (char*)RUNTIME_ARG;
+        argv[i++] = dex2oat_Xmx_arg;
+    }
     if (have_dex2oat_flags) {
         argv[i++] = dex2oat_flags;
     }
+    // Do not add after dex2oat_flags, they should override others for debugging.
     argv[i] = NULL;
 
     execv(DEX2OAT_BIN, (char* const *)argv);
