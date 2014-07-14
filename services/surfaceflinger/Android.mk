@@ -3,6 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
 
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 LOCAL_SRC_FILES:= \
     Client.cpp \
     DisplayDevice.cpp \
