@@ -239,6 +239,8 @@ private:
 
     // called on the main thread in response to initializeDisplays()
     void onInitializeDisplays();
+    // called on the main thread in response to setActiveConfig()
+    void setActiveConfigInternal(const sp<DisplayDevice>& hw, int mode);
     // called on the main thread in response to setPowerMode()
     void setPowerModeInternal(const sp<DisplayDevice>& hw, int mode);
 
