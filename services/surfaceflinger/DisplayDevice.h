@@ -153,6 +153,12 @@ public:
     void setPowerMode(int mode);
     bool isDisplayOn() const;
 
+    /* ------------------------------------------------------------------------
+     * Display active config management.
+     */
+    int getActiveConfig() const;
+    void setActiveConfig(int mode);
+
     // release HWC resources (if any) for removable displays
     void disconnect(HWComposer& hwc);
 
@@ -215,6 +221,8 @@ private:
     bool mNeedsFiltering;
     // Current power mode
     int mPowerMode;
+    // Current active config
+    int mActiveConfig;
 };
 
 }; // namespace android

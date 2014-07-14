@@ -602,11 +602,55 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     return NO_ERROR;
 }
 
-int SurfaceFlinger::getActiveConfig(const sp<IBinder>&) {
-    return 0;
+int SurfaceFlinger::getActiveConfig(const sp<IBinder>& display) {
+    return getDisplayDevice(display)->getActiveConfig();
 }
 
-status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>&, int) {
+void SurfaceFlinger::setActiveConfigInternal(const sp<DisplayDevice>& hw, int mode) {
+    ALOGD("Set active config mode=%d, type=%d flinger=%p", mode, hw->getDisplayType(),
+          this);
+    int32_t type = hw->getDisplayType();
+    int currentMode = hw->getActiveConfig();
+
+    if (mode == currentMode) {
+        ALOGD("Screen type=%d is already mode=%d", hw->getDisplayType(), mode);
+        return;
+    }
+
+    if (type >= DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
+        ALOGW("Trying to set config for virtual display");
+        return;
+    }
+
+    hw->setActiveConfig(mode);
+    getHwComposer().setActiveConfig(type, mode);
+}
+
+status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
+    class MessageSetActiveConfig: public MessageBase {
+        SurfaceFlinger& mFlinger;
+        sp<IBinder> mDisplay;
+        int mMode;
+    public:
+        MessageSetActiveConfig(SurfaceFlinger& flinger, const sp<IBinder>& disp,
+                               int mode) :
+            mFlinger(flinger), mDisplay(disp) { mMode = mode; }
+        virtual bool handler() {
+            sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
+            if (hw == NULL) {
+                ALOGE("Attempt to set active config = %d for null display %p",
+                        mDisplay.get(), mMode);
+            } else if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
+                ALOGW("Attempt to set active config = %d for virtual display",
+                        mMode);
+            } else {
+                mFlinger.setActiveConfigInternal(hw, mMode);
+            }
+            return true;
+        }
+    };
+    sp<MessageBase> msg = new MessageSetActiveConfig(*this, display, mode);
+    postMessageSync(msg);
     return NO_ERROR;
 }
 
