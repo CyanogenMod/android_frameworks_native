@@ -490,8 +490,12 @@ bool SensorService::isVirtualSensor(int handle) const {
 }
 
 bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
-    SensorInterface* sensor = mSensorMap.valueFor(event.sensor);
-    return sensor->getSensor().isWakeUpSensor();
+    int handle = event.sensor;
+    if (event.type == SENSOR_TYPE_META_DATA) {
+        handle = event.meta_data.sensor;
+    }
+    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    return sensor != NULL && sensor->getSensor().isWakeUpSensor();
 }
 
 Vector<Sensor> SensorService::getSensorList()
