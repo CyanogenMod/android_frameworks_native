@@ -775,6 +775,16 @@ status_t HWComposer::setPowerMode(int disp, int mode) {
     return NO_ERROR;
 }
 
+status_t HWComposer::setActiveConfig(int disp, int mode) {
+    LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {
+        return (status_t)mHwc->setActiveConfig(mHwc, disp, mode);
+    } else {
+        LOG_FATAL_IF(mode != 0);
+    }
+    return NO_ERROR;
+}
+
 void HWComposer::disconnectDisplay(int disp) {
     LOG_ALWAYS_FATAL_IF(disp < 0 || disp == HWC_DISPLAY_PRIMARY);
     DisplayData& dd(mDisplayData[disp]);
