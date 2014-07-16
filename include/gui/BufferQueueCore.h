@@ -120,6 +120,9 @@ private:
     // in one of the slots.
     bool stillTracking(const BufferItem* item) const;
 
+    // waitWhileAllocatingLocked blocks until mIsAllocating is false.
+    void waitWhileAllocatingLocked() const;
+
     // mAllocator is the connection to SurfaceFlinger that is used to allocate
     // new GraphicBuffer objects.
     sp<IGraphicBufferAlloc> mAllocator;
@@ -234,6 +237,15 @@ private:
     // mSidebandStream is a handle to the sideband buffer stream, if any
     sp<NativeHandle> mSidebandStream;
 
+    // mIsAllocating indicates whether a producer is currently trying to allocate buffers (which
+    // releases mMutex while doing the allocation proper). Producers should not modify any of the
+    // FREE slots while this is true. mIsAllocatingCondition is signaled when this value changes to
+    // false.
+    bool mIsAllocating;
+
+    // mIsAllocatingCondition is a condition variable used by producers to wait until mIsAllocating
+    // becomes false.
+    mutable Condition mIsAllocatingCondition;
 }; // class BufferQueueCore
 
 } // namespace android
