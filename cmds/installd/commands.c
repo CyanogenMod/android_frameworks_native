@@ -310,8 +310,19 @@ int delete_cache(const char *pkgname, userid_t userid)
     if (create_pkg_path(cachedir, pkgname, CACHE_DIR_POSTFIX, userid))
         return -1;
 
-        /* delete contents, not the directory, no exceptions */
+    /* delete contents, not the directory, no exceptions */
     return delete_dir_contents(cachedir, 0, NULL);
+}
+
+int delete_code_cache(const char *pkgname, userid_t userid)
+{
+    char codecachedir[PKG_PATH_MAX];
+
+    if (create_pkg_path(codecachedir, pkgname, CODE_CACHE_DIR_POSTFIX, userid))
+        return -1;
+
+    /* delete contents, not the directory, no exceptions */
+    return delete_dir_contents(codecachedir, 0, NULL);
 }
 
 /* Try to ensure free_size bytes of storage are available.
