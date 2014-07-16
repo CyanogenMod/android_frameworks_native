@@ -59,6 +59,7 @@
 #define PKG_LIB_POSTFIX        "/lib"
 
 #define CACHE_DIR_POSTFIX      "/cache"
+#define CODE_CACHE_DIR_POSTFIX "/code_cache"
 
 #define APP_SUBDIR             "app/" // sub-directory under ANDROID_DATA
 
@@ -207,6 +208,7 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
 int make_user_config(userid_t userid);
 int delete_user(userid_t userid);
 int delete_cache(const char *pkgname, userid_t userid);
+int delete_code_cache(const char *pkgname, userid_t userid);
 int move_dex(const char *src, const char *dst, const char *instruction_set);
 int rm_dex(const char *path, const char *instruction_set);
 int protect(char *pkgname, gid_t gid);
