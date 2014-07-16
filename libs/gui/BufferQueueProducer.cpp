@@ -74,6 +74,7 @@ status_t BufferQueueProducer::setBufferCount(int bufferCount) {
     sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
 
         if (mCore->mIsAbandoned) {
             BQ_LOGE("setBufferCount: BufferQueue has been abandoned");
@@ -266,6 +267,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
 
         if (format == 0) {
             format = mCore->mDefaultBufferFormat;
@@ -424,6 +426,7 @@ status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
     }
 
     Mutex::Autolock lock(mCore->mMutex);
+    mCore->waitWhileAllocatingLocked();
 
     if (mCore->mIsAbandoned) {
         BQ_LOGE("detachNextBuffer: BufferQueue has been abandoned");
@@ -468,6 +471,7 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
     }
 
     Mutex::Autolock lock(mCore->mMutex);
+    mCore->waitWhileAllocatingLocked();
 
     status_t returnFlags = NO_ERROR;
     int found;
@@ -796,6 +800,7 @@ status_t BufferQueueProducer::disconnect(int api) {
     sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
 
         if (mCore->mIsAbandoned) {
             // It's not really an error to disconnect after the surface has
@@ -862,55 +867,101 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
 
 void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
         uint32_t height, uint32_t format, uint32_t usage) {
-    Vector<int> freeSlots;
+    ATRACE_CALL();
+    while (true) {
+        Vector<int> freeSlots;
+        size_t newBufferCount = 0;
+        uint32_t allocWidth = 0;
+        uint32_t allocHeight = 0;
+        uint32_t allocFormat = 0;
+        uint32_t allocUsage = 0;
+        { // Autolock scope
+            Mutex::Autolock lock(mCore->mMutex);
+            mCore->waitWhileAllocatingLocked();
 
-    Mutex::Autolock lock(mCore->mMutex);
+            int currentBufferCount = 0;
+            for (int slot = 0; slot < BufferQueueDefs::NUM_BUFFER_SLOTS; ++slot) {
+                if (mSlots[slot].mGraphicBuffer != NULL) {
+                    ++currentBufferCount;
+                } else {
+                    if (mSlots[slot].mBufferState != BufferSlot::FREE) {
+                        BQ_LOGE("allocateBuffers: slot %d without buffer is not FREE",
+                                slot);
+                        continue;
+                    }
 
-    int currentBufferCount = 0;
-    for (int slot = 0; slot < BufferQueueDefs::NUM_BUFFER_SLOTS; ++slot) {
-        if (mSlots[slot].mGraphicBuffer != NULL) {
-            ++currentBufferCount;
-        } else {
-            if (mSlots[slot].mBufferState != BufferSlot::FREE) {
-                BQ_LOGE("allocateBuffers: slot %d without buffer is not FREE",
-                        slot);
+                    freeSlots.push_front(slot);
+                }
+            }
+
+            int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+            BQ_LOGV("allocateBuffers: allocating from %d buffers up to %d buffers",
+                    currentBufferCount, maxBufferCount);
+            if (maxBufferCount <= currentBufferCount)
+                return;
+            newBufferCount = maxBufferCount - currentBufferCount;
+            if (freeSlots.size() < newBufferCount) {
+                BQ_LOGE("allocateBuffers: ran out of free slots");
+                return;
+            }
+            allocWidth = width > 0 ? width : mCore->mDefaultWidth;
+            allocHeight = height > 0 ? height : mCore->mDefaultHeight;
+            allocFormat = format != 0 ? format : mCore->mDefaultBufferFormat;
+            allocUsage = usage | mCore->mConsumerUsageBits;
+
+            mCore->mIsAllocating = true;
+        } // Autolock scope
+
+        Vector<sp<GraphicBuffer> > buffers;
+        for (size_t i = 0; i <  newBufferCount; ++i) {
+            status_t result = NO_ERROR;
+            sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
+                    allocWidth, allocHeight, allocFormat, allocUsage, &result));
+            if (result != NO_ERROR) {
+                BQ_LOGE("allocateBuffers: failed to allocate buffer (%u x %u, format"
+                        " %u, usage %u)", width, height, format, usage);
+                Mutex::Autolock lock(mCore->mMutex);
+                mCore->mIsAllocating = false;
+                mCore->mIsAllocatingCondition.broadcast();
+                return;
+            }
+            buffers.push_back(graphicBuffer);
+        }
+
+        { // Autolock scope
+            Mutex::Autolock lock(mCore->mMutex);
+            uint32_t checkWidth = width > 0 ? width : mCore->mDefaultWidth;
+            uint32_t checkHeight = height > 0 ? height : mCore->mDefaultHeight;
+            uint32_t checkFormat = format != 0 ? format : mCore->mDefaultBufferFormat;
+            uint32_t checkUsage = usage | mCore->mConsumerUsageBits;
+            if (checkWidth != allocWidth || checkHeight != allocHeight ||
+                checkFormat != allocFormat || checkUsage != allocUsage) {
+                // Something changed while we released the lock. Retry.
+                BQ_LOGV("allocateBuffers: size/format/usage changed while allocating. Retrying.");
+                mCore->mIsAllocating = false;
+                mCore->mIsAllocatingCondition.broadcast();
                 continue;
             }
 
-            freeSlots.push_front(slot);
-        }
-    }
+            for (size_t i = 0; i < newBufferCount; ++i) {
+                int slot = freeSlots[i];
+                if (mSlots[slot].mBufferState != BufferSlot::FREE) {
+                    // A consumer allocated the FREE slot with attachBuffer. Discard the buffer we
+                    // allocated.
+                    BQ_LOGV("allocateBuffers: slot %d was acquired while allocating. "
+                            "Dropping allocated buffer.", slot);
+                    continue;
+                }
+                mCore->freeBufferLocked(slot); // Clean up the slot first
+                mSlots[slot].mGraphicBuffer = buffers[i];
+                mSlots[slot].mFrameNumber = 0;
+                mSlots[slot].mFence = Fence::NO_FENCE;
+                BQ_LOGV("allocateBuffers: allocated a new buffer in slot %d", slot);
+            }
 
-    int maxBufferCount = mCore->getMaxBufferCountLocked(async);
-    BQ_LOGV("allocateBuffers: allocating from %d buffers up to %d buffers",
-            currentBufferCount, maxBufferCount);
-    for (; currentBufferCount < maxBufferCount; ++currentBufferCount) {
-        if (freeSlots.empty()) {
-            BQ_LOGE("allocateBuffers: ran out of free slots");
-            return;
-        }
-
-        width = width > 0 ? width : mCore->mDefaultWidth;
-        height = height > 0 ? height : mCore->mDefaultHeight;
-        format = format != 0 ? format : mCore->mDefaultBufferFormat;
-        usage |= mCore->mConsumerUsageBits;
-
-        status_t result = NO_ERROR;
-        sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                width, height, format, usage, &result));
-        if (result != NO_ERROR) {
-            BQ_LOGE("allocateBuffers: failed to allocate buffer (%u x %u, format"
-                    " %u, usage %u)", width, height, format, usage);
-            return;
-        }
-
-        int slot = freeSlots[freeSlots.size() - 1];
-        mCore->freeBufferLocked(slot); // Clean up the slot first
-        mSlots[slot].mGraphicBuffer = graphicBuffer;
-        mSlots[slot].mFrameNumber = 0;
-        mSlots[slot].mFence = Fence::NO_FENCE;
-        BQ_LOGV("allocateBuffers: allocated a new buffer in slot %d", slot);
-        freeSlots.pop();
+            mCore->mIsAllocating = false;
+            mCore->mIsAllocatingCondition.broadcast();
+        } // Autolock scope
     }
 }
 
