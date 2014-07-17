@@ -565,7 +565,7 @@ const char *dump_traces() {
         }
         data[len] = '\0';
 
-        if (!strcmp(data, "/system/bin/app_process")) {
+        if (!strncmp(data, "/system/bin/app_process", strlen("/system/bin/app_process"))) {
             /* skip zygote -- it won't dump its stack anyway */
             snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
             int fd = open(path, O_RDONLY);
@@ -575,7 +575,7 @@ const char *dump_traces() {
                 continue;
             }
             data[len] = '\0';
-            if (!strcmp(data, "zygote")) {
+            if (!strncmp(data, "zygote", strlen("zygote"))) {
                 continue;
             }
 
