@@ -124,6 +124,8 @@ const String16 sAccessSurfaceFlinger("android.permission.ACCESS_SURFACE_FLINGER"
 const String16 sReadFramebuffer("android.permission.READ_FRAME_BUFFER");
 const String16 sDump("android.permission.DUMP");
 
+static sp<Layer> lastSurfaceViewLayer;
+
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::SurfaceFlinger()
@@ -1174,6 +1176,10 @@ void SurfaceFlinger::setUpHWComposer() {
                     const sp<Layer>& layer(currentLayers[i]);
                     layer->setPerFrameData(hw, *cur);
                     setOrientationEventControl(freezeSurfacePresent,id);
+                    if(!strncmp(layer->getName(), "SurfaceView",
+                                11)) {
+                        lastSurfaceViewLayer = layer;
+                    }
                 }
             }
         }
@@ -2612,13 +2618,18 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
     if (name.isEmpty()) {
         mAnimFrameTracker.dumpStats(result);
     } else {
+        bool found = false;
         const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
         const size_t count = currentLayers.size();
         for (size_t i=0 ; i<count ; i++) {
             const sp<Layer>& layer(currentLayers[i]);
             if (name == layer->getName()) {
+                found = true;
                 layer->dumpFrameStats(result);
             }
+        }
+        if (!found && !strncmp(name.string(), "SurfaceView", 11)) {
+            lastSurfaceViewLayer->dumpFrameStats(result);
         }
     }
 }
