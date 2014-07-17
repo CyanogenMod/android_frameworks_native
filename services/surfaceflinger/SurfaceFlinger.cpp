@@ -132,6 +132,8 @@ const String16 sAccessSurfaceFlinger("android.permission.ACCESS_SURFACE_FLINGER"
 const String16 sReadFramebuffer("android.permission.READ_FRAME_BUFFER");
 const String16 sDump("android.permission.DUMP");
 
+static sp<Layer> lastSurfaceViewLayer;
+
 // ---------------------------------------------------------------------------
 // Initialize extendedMode to false
 #ifdef QCOM_BSP
@@ -1223,6 +1225,10 @@ void SurfaceFlinger::setUpHWComposer() {
                                          SurfaceFlinger::EVENT_ORIENTATION,
                                          uint32_t(draw[i].orientation));
                             }
+                        }
+                        if(!strncmp(layer->getName(), "SurfaceView",
+                                    11)) {
+                            lastSurfaceViewLayer = layer;
                         }
                     }
 #endif
@@ -2899,13 +2905,18 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
     if (name.isEmpty()) {
         mAnimFrameTracker.dumpStats(result);
     } else {
+        bool found = false;
         const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
         const size_t count = currentLayers.size();
         for (size_t i=0 ; i<count ; i++) {
             const sp<Layer>& layer(currentLayers[i]);
             if (name == layer->getName()) {
+                found = true;
                 layer->dumpFrameStats(result);
             }
+        }
+        if (!found && !strncmp(name.string(), "SurfaceView", 11)) {
+            lastSurfaceViewLayer->dumpFrameStats(result);
         }
     }
 }
