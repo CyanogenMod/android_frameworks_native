@@ -102,6 +102,7 @@ DisplayDevice::DisplayDevice(
     if (mType >= DisplayDevice::DISPLAY_VIRTUAL)
         window->setSwapInterval(window, 0);
 
+    mConfig = config;
     mDisplay = display;
     mSurface = surface;
     mFormat  = format;
@@ -395,6 +396,22 @@ status_t DisplayDevice::orientationToTransfrom(
     }
     tr->set(flags, w, h);
     return NO_ERROR;
+}
+
+void DisplayDevice::setDisplaySize(const int newWidth, const int newHeight) {
+    dirtyRegion.set(getBounds());
+
+    mDisplaySurface->resizeBuffers(newWidth, newHeight);
+
+    ANativeWindow* const window = mNativeWindow.get();
+    mSurface = eglCreateWindowSurface(mDisplay, mConfig, window, NULL);
+    eglQuerySurface(mDisplay, mSurface, EGL_WIDTH,  &mDisplayWidth);
+    eglQuerySurface(mDisplay, mSurface, EGL_HEIGHT, &mDisplayHeight);
+
+    LOG_FATAL_IF(mDisplayWidth != newWidth,
+                "Unable to set new width to %d", newWidth);
+    LOG_FATAL_IF(mDisplayHeight != newHeight,
+                "Unable to set new height to %d", newHeight);
 }
 
 void DisplayDevice::setProjection(int orientation,
