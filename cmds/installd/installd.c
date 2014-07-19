@@ -15,7 +15,7 @@
 */
 
 #include <sys/capability.h>
-#include <linux/prctl.h>
+#include <sys/prctl.h>
 #include <selinux/android.h>
 #include <selinux/avc.h>
 
