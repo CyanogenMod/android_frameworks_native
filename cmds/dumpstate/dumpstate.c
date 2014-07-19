@@ -26,7 +26,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sys/capability.h>
-#include <linux/prctl.h>
+#include <sys/prctl.h>
 
 #include <cutils/properties.h>
 
