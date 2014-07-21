@@ -297,14 +297,18 @@ void fixup_glShaderSource(GLMessage *glmsg, void *pointersToFixup[]) {
     arg_strpp->add_charvalue(src);
 }
 
-void fixup_glUniformGenericInteger(int argIndex, int nIntegers, GLMessage *glmsg,
+void fixup_glUniformGenericInteger(int argIndex, int nElemsPerVector, GLMessage *glmsg,
                                                                     void *pointersToFixup[]) {
     /* void glUniform?iv(GLint location, GLsizei count, const GLint *value); */
-    fixup_GenericIntArray(argIndex, nIntegers, glmsg, pointersToFixup[0]);
+    GLMessage_DataType arg_count  = glmsg->args(1);
+    int n_vectors = arg_count.intvalue(0);
+    fixup_GenericIntArray(argIndex, nElemsPerVector * n_vectors, glmsg, pointersToFixup[0]);
 }
 
-void fixup_glUniformGeneric(int argIndex, int nFloats, GLMessage *glmsg, void *src) {
-    fixup_GenericFloatArray(argIndex, nFloats, glmsg, src);
+void fixup_glUniformGeneric(int argIndex, int nElemsPerVector, GLMessage *glmsg, void *src) {
+    GLMessage_DataType arg_count  = glmsg->args(1);
+    int n_vectors = arg_count.intvalue(0);
+    fixup_GenericFloatArray(argIndex, nElemsPerVector * n_vectors, glmsg, src);
 }
 
 void fixup_glUniformMatrixGeneric(int matrixSize, GLMessage *glmsg, void *pointersToFixup[]) {
