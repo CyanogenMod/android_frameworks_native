@@ -30,10 +30,18 @@ public:
 
     virtual void noteStartSensor(int uid, int sensor) = 0;
     virtual void noteStopSensor(int uid, int sensor) = 0;
+    virtual void noteStartVideo(int uid) = 0;
+    virtual void noteStopVideo(int uid) = 0;
+    virtual void noteStartAudio(int uid) = 0;
+    virtual void noteStopAudio(int uid) = 0;
 
     enum {
         NOTE_START_SENSOR_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION,
         NOTE_STOP_SENSOR_TRANSACTION,
+        NOTE_START_VIDEO_TRANSACTION,
+        NOTE_STOP_VIDEO_TRANSACTION,
+        NOTE_START_AUDIO_TRANSACTION,
+        NOTE_STOP_AUDIO_TRANSACTION,
     };
 };
 
