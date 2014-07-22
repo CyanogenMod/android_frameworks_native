@@ -29,7 +29,10 @@ typedef void (for_each_tid_func)(int, int, const char *);
 typedef void (for_each_userid_func)(int);
 
 /* prints the contents of a file */
-int dump_file(const char *title, const char* path);
+int dump_file(const char *title, const char *path);
+
+/* prints the contents of the fd */
+int dump_file_from_fd(const char *title, const char *path, int fd);
 
 /* forks a command and waits for it to finish -- terminate args with NULL */
 int run_command(const char *title, int timeout_seconds, const char *command, ...);
@@ -71,7 +74,7 @@ void do_dump_settings(int userid);
 void dump_route_tables();
 
 /* Play a sound via Stagefright */
-void play_sound(const char* path);
+void play_sound(const char *path);
 
 /* Implemented by libdumpstate_board to dump board-specific info */
 void dumpstate_board();
