@@ -49,6 +49,34 @@ public:
         data.writeInt32(sensor);
         remote()->transact(NOTE_STOP_SENSOR_TRANSACTION, data, &reply);
     }
+
+    virtual void noteStartVideo(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_START_VIDEO_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteStopVideo(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_STOP_VIDEO_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteStartAudio(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_START_AUDIO_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteStopAudio(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_STOP_AUDIO_TRANSACTION, data, &reply);
+    }
 };
 
 IMPLEMENT_META_INTERFACE(BatteryStats, "com.android.internal.app.IBatteryStats");
@@ -72,6 +100,34 @@ status_t BnBatteryStats::onTransact(
             int uid = data.readInt32();
             int sensor = data.readInt32();
             noteStopSensor(uid, sensor);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_START_VIDEO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStartVideo(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_STOP_VIDEO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStopVideo(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_START_AUDIO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStartAudio(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_STOP_AUDIO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStopAudio(uid);
             reply->writeNoException();
             return NO_ERROR;
         } break;
