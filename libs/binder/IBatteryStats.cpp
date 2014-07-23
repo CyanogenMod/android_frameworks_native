@@ -77,6 +77,18 @@ public:
         data.writeInt32(uid);
         remote()->transact(NOTE_STOP_AUDIO_TRANSACTION, data, &reply);
     }
+
+    virtual void noteResetVideo() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        remote()->transact(NOTE_RESET_VIDEO_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteResetAudio() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        remote()->transact(NOTE_RESET_AUDIO_TRANSACTION, data, &reply);
+    }
 };
 
 IMPLEMENT_META_INTERFACE(BatteryStats, "com.android.internal.app.IBatteryStats");
@@ -128,6 +140,18 @@ status_t BnBatteryStats::onTransact(
             CHECK_INTERFACE(IBatteryStats, data, reply);
             int uid = data.readInt32();
             noteStopAudio(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_RESET_VIDEO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            noteResetVideo();
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_RESET_AUDIO_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            noteResetAudio();
             reply->writeNoException();
             return NO_ERROR;
         } break;
