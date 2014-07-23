@@ -112,21 +112,16 @@ LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv2\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
 
-include $(BUILD_SHARED_LIBRARY)
-
 # Symlink libGLESv3.so -> libGLESv2.so
 # Platform modules should link against libGLESv2.so (-lGLESv2), but NDK apps
 # will be linked against libGLESv3.so.
-LIBGLESV2 := $(LOCAL_INSTALLED_MODULE)
-LIBGLESV3 := $(subst libGLESv2,libGLESv3,$(LIBGLESV2))
-$(LIBGLESV3): $(LIBGLESV2)
-	@echo "Symlink: $@ -> $(notdir $<)"
-	@mkdir -p $(dir $@)
-	$(hide) ln -sf $(notdir $<) $@
-ALL_MODULES.$(LOCAL_MODULE).INSTALLED := \
-	$(ALL_MODULES.$(LOCAL_MODULE).INSTALLED) $(LIBGLESV3)
-LIBGLESV2 :=
-LIBGLESV3 :=
+# Note we defer the evaluation of the LOCAL_POST_INSTALL_CMD,
+# so $(LOCAL_INSTALLED_MODULE) will be expanded to correct value,
+# even for both 32-bit and 64-bit installed files in multilib build.
+LOCAL_POST_INSTALL_CMD = \
+    $(hide) ln -sf $(notdir $(LOCAL_INSTALLED_MODULE)) $(dir $(LOCAL_INSTALLED_MODULE))libGLESv3.so
+
+include $(BUILD_SHARED_LIBRARY)
 
 ###############################################################################
 # Build the ETC1 host static library
