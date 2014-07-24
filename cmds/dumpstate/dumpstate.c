@@ -20,13 +20,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/capability.h>
-#include <sys/prctl.h>
 
 #include <cutils/properties.h>
 
@@ -44,6 +44,36 @@ static const char *dump_traces_path = NULL;
 static char screenshot_path[PATH_MAX] = "";
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
+
+#define TOMBSTONE_DIR "/data/tombstones"
+#define TOMBSTONE_FILE_PREFIX TOMBSTONE_DIR "/tombstone_"
+/* Can accomodate a tombstone number up to 9999. */
+#define TOMBSTONE_MAX_LEN (sizeof(TOMBSTONE_FILE_PREFIX) + 4)
+#define NUM_TOMBSTONES  10
+
+typedef struct {
+  char name[TOMBSTONE_MAX_LEN];
+  int fd;
+} tombstone_data_t;
+
+static tombstone_data_t tombstone_data[NUM_TOMBSTONES];
+
+/* Get the fds of any tombstone that was modified in the last half an hour. */
+static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
+    time_t thirty_minutes_ago = time(NULL) - 60*30;
+    for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
+        snprintf(data[i].name, sizeof(data[i].name), "%s%02zu", TOMBSTONE_FILE_PREFIX, i);
+        int fd = open(data[i].name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+        struct stat st;
+        if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
+                (time_t) st.st_mtime >= thirty_minutes_ago) {
+            data[i].fd = fd;
+        } else {
+            close(fd);
+            data[i].fd = -1;
+        }
+    }
+}
 
 /* dumps the current system state to stdout */
 static void dumpstate() {
@@ -119,7 +149,6 @@ static void dumpstate() {
     run_command("EVENT LOG", 20, "logcat", "-b", "events", "-v", "threadtime", "-d", "*:v", NULL);
     run_command("RADIO LOG", 20, "logcat", "-b", "radio", "-v", "threadtime", "-d", "*:v", NULL);
 
-
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {
         dump_file("VM TRACES JUST NOW", dump_traces_path);
@@ -131,10 +160,13 @@ static void dumpstate() {
     property_get("dalvik.vm.stack-trace-file", anr_traces_path, "");
     if (!anr_traces_path[0]) {
         printf("*** NO VM TRACES FILE DEFINED (dalvik.vm.stack-trace-file)\n\n");
-    } else if (stat(anr_traces_path, &st)) {
-        printf("*** NO ANR VM TRACES FILE (%s): %s\n\n", anr_traces_path, strerror(errno));
     } else {
-        dump_file("VM TRACES AT LAST ANR", anr_traces_path);
+      int fd = open(anr_traces_path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+      if (fd < 0) {
+          printf("*** NO ANR VM TRACES FILE (%s): %s\n\n", anr_traces_path, strerror(errno));
+      } else {
+          dump_file_from_fd("VM TRACES AT LAST ANR", anr_traces_path, fd);
+      }
     }
 
     /* slow traces for slow operations */
@@ -153,6 +185,18 @@ static void dumpstate() {
             dump_file("VM TRACES WHEN SLOW", anr_traces_path);
             i++;
         }
+    }
+
+    int dumped = 0;
+    for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
+        if (tombstone_data[i].fd != -1) {
+            dumped = 1;
+            dump_file_from_fd("TOMBSTONE", tombstone_data[i].name, tombstone_data[i].fd);
+            tombstone_data[i].fd = -1;
+        }
+    }
+    if (!dumped) {
+        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR);
     }
 
     dump_file("NETWORK DEV INFO", "/proc/net/dev");
@@ -410,6 +454,9 @@ int main(int argc, char *argv[]) {
         ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
         return -1;
     }
+
+    /* Get the tombstone fds here while we are running as root. */
+    get_tombstone_fds(tombstone_data);
 
     /* switch to non-root user and group */
     gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
