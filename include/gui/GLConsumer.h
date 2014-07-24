@@ -231,7 +231,7 @@ public:
 protected:
 
     // abandonLocked overrides the ConsumerBase method to clear
-    // mCurrentTextureBuf in addition to the ConsumerBase behavior.
+    // mCurrentTextureImage in addition to the ConsumerBase behavior.
     virtual void abandonLocked();
 
     // dumpLocked overrides the ConsumerBase method to dump GLConsumer-
@@ -262,7 +262,7 @@ protected:
     status_t updateAndReleaseLocked(const BufferQueue::BufferItem& item);
 
     // Binds mTexName and the current buffer to mTexTarget.  Uses
-    // mCurrentTexture if it's set, mCurrentTextureBuf if not.  If the
+    // mCurrentTexture if it's set, mCurrentTextureImage if not.  If the
     // bind succeeds, this calls doGLFenceWait.
     status_t bindTextureImageLocked();
 
@@ -275,11 +275,57 @@ protected:
     status_t checkAndUpdateEglStateLocked(bool contextCheck = false);
 
 private:
-    // createImage creates a new EGLImage from a GraphicBuffer.
-    EGLImageKHR createImage(EGLDisplay dpy,
-            const sp<GraphicBuffer>& graphicBuffer, const Rect& crop);
+    // EglImage is a utility class for tracking and creating EGLImageKHRs. There
+    // is primarily just one image per slot, but there is also special cases:
+    //  - For releaseTexImage, we use a debug image (mReleasedTexImage)
+    //  - After freeBuffer, we must still keep the current image/buffer
+    // Reference counting EGLImages lets us handle all these cases easily while
+    // also only creating new EGLImages from buffers when required.
+    class EglImage : public LightRefBase<EglImage>  {
+    public:
+        EglImage(sp<GraphicBuffer> graphicBuffer);
 
-    // freeBufferLocked frees up the given buffer slot.  If the slot has been
+        // createIfNeeded creates an EGLImage if required (we haven't created
+        // one yet, or the EGLDisplay or crop-rect has changed).
+        status_t createIfNeeded(EGLDisplay display, const Rect& cropRect);
+
+        // This calls glEGLImageTargetTexture2DOES to bind the image to the
+        // texture in the specified texture target.
+        void bindToTextureTarget(uint32_t texTarget);
+
+        const sp<GraphicBuffer>& graphicBuffer() { return mGraphicBuffer; }
+        const native_handle* graphicBufferHandle() {
+            return mGraphicBuffer == NULL ? NULL : mGraphicBuffer->handle;
+        }
+
+    private:
+        // Only allow instantiation using ref counting.
+        friend class LightRefBase<EglImage>;
+        virtual ~EglImage();
+
+        // createImage creates a new EGLImage from a GraphicBuffer.
+        EGLImageKHR createImage(EGLDisplay dpy,
+                const sp<GraphicBuffer>& graphicBuffer, const Rect& crop);
+
+        // Disallow copying
+        EglImage(const EglImage& rhs);
+        void operator = (const EglImage& rhs);
+
+        // mGraphicBuffer is the buffer that was used to create this image.
+        sp<GraphicBuffer> mGraphicBuffer;
+
+        // mEglImage is the EGLImage created from mGraphicBuffer.
+        EGLImageKHR mEglImage;
+
+        // mEGLDisplay is the EGLDisplay that was used to create mEglImage.
+        EGLDisplay mEglDisplay;
+
+        // mCropRect is the crop rectangle passed to EGL when mEglImage
+        // was created.
+        Rect mCropRect;
+    };
+
+    // freeBufferLocked frees up the given buffer slot. If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
     // slot and destroy the EGLImage in that slot.  Otherwise it has no effect.
     //
@@ -289,7 +335,7 @@ private:
     // computeCurrentTransformMatrixLocked computes the transform matrix for the
     // current texture.  It uses mCurrentTransform and the current GraphicBuffer
     // to compute this matrix and stores it in mCurrentTransformMatrix.
-    // mCurrentTextureBuf must not be NULL.
+    // mCurrentTextureImage must not be NULL.
     void computeCurrentTransformMatrixLocked();
 
     // doGLFenceWaitLocked inserts a wait command into the OpenGL ES command
@@ -303,13 +349,6 @@ private:
     // before the outstanding accesses have completed.
     status_t syncForReleaseLocked(EGLDisplay dpy);
 
-    // Normally, when we bind a buffer to a texture target, we bind a buffer
-    // that is referenced by an entry in mEglSlots.  In some situations we
-    // have a buffer in mCurrentTextureBuf, but no corresponding entry for
-    // it in our slot array.  bindUnslottedBuffer handles that situation by
-    // binding the buffer without touching the EglSlots.
-    status_t bindUnslottedBufferLocked(EGLDisplay dpy);
-
     // returns a graphic buffer used when the texture image has been released
     static sp<GraphicBuffer> getDebugTexImageBuffer();
 
@@ -319,10 +358,10 @@ private:
     // consume buffers as hardware textures.
     static const uint32_t DEFAULT_USAGE_FLAGS = GraphicBuffer::USAGE_HW_TEXTURE;
 
-    // mCurrentTextureBuf is the graphic buffer of the current texture. It's
+    // mCurrentTextureImage is the EglImage/buffer of the current texture. It's
     // possible that this buffer is not associated with any buffer slot, so we
     // must track it separately in order to support the getCurrentBuffer method.
-    sp<GraphicBuffer> mCurrentTextureBuf;
+    sp<EglImage> mCurrentTextureImage;
 
     // mCurrentCrop is the crop rectangle that applies to the current texture.
     // It gets set each time updateTexImage is called.
@@ -382,17 +421,10 @@ private:
     // EGLSlot contains the information and object references that
     // GLConsumer maintains about a BufferQueue buffer slot.
     struct EglSlot {
-        EglSlot()
-        : mEglImage(EGL_NO_IMAGE_KHR),
-          mEglFence(EGL_NO_SYNC_KHR) {
-        }
+        EglSlot() : mEglFence(EGL_NO_SYNC_KHR) {}
 
         // mEglImage is the EGLImage created from mGraphicBuffer.
-        EGLImageKHR mEglImage;
-
-        // mCropRect is the crop rectangle passed to EGL when mEglImage was
-        // created.
-        Rect mCropRect;
+        sp<EglImage> mEglImage;
 
         // mFence is the EGL sync object that must signal before the buffer
         // associated with this buffer slot may be dequeued. It is initialized
@@ -444,6 +476,7 @@ private:
     // mReleasedTexImageBuffer is a dummy buffer used when in single buffer
     // mode and releaseTexImage() has been called
     static sp<GraphicBuffer> sReleasedTexImageBuffer;
+    sp<EglImage> mReleasedTexImage;
 };
 
 // ----------------------------------------------------------------------------
