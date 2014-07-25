@@ -24,7 +24,9 @@
 #include <utils/SortedVector.h>
 #include <utils/KeyedVector.h>
 #include <utils/threads.h>
+#include <utils/AndroidThreads.h>
 #include <utils/RefBase.h>
+#include <utils/Looper.h>
 
 #include <binder/BinderService.h>
 
@@ -38,10 +40,11 @@
 // ---------------------------------------------------------------------------
 
 #define DEBUG_CONNECTIONS   false
-// Max size is 1 MB which is enough to accept a batch of about 10k events.
-#define MAX_SOCKET_BUFFER_SIZE_BATCHED 1024 * 1024
+// Max size is 100 KB which is enough to accept a batch of about 1000 events.
+#define MAX_SOCKET_BUFFER_SIZE_BATCHED 100 * 1024
+// For older HALs which don't support batching, use a smaller socket buffer size.
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
-#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1 << 31)
+#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1U << 31)
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -72,7 +75,8 @@ class SensorService :
     virtual sp<ISensorEventConnection> createSensorEventConnection();
     virtual status_t dump(int fd, const Vector<String16>& args);
 
-    class SensorEventConnection : public BnSensorEventConnection {
+    class SensorEventConnection : public BnSensorEventConnection, public LooperCallback {
+        friend class SensorService;
         virtual ~SensorEventConnection();
         virtual void onFirstRef();
         virtual sp<BitTube> getSensorChannel() const;
@@ -80,7 +84,6 @@ class SensorService :
                                        nsecs_t maxBatchReportLatencyNs, int reservedFlags);
         virtual status_t setEventRate(int handle, nsecs_t samplingPeriodNs);
         virtual status_t flush();
-        void decreaseWakeLockRefCount();
         // Count the number of flush complete events which are about to be dropped in the buffer.
         // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
         // sent separately before the next batch of events.
@@ -90,7 +93,20 @@ class SensorService :
         // Increment it by exactly one unit for each packet sent on the socket. SOCK_SEQPACKET for
         // the socket ensures that either the entire packet is read or dropped.
         // Return 1 if mWakeLockRefCount has been incremented, zero if not.
-        int countWakeUpSensorEventsLocked(sensors_event_t* scratch, const int count);
+        int countWakeUpSensorEventsLocked(sensors_event_t* scratch, int count);
+
+        // Writes events from mEventCache to the socket.
+        void writeToSocketFromCacheLocked();
+
+        // Compute the approximate cache size from the FIFO sizes of various sensors registered for
+        // this connection. Wake up and non-wake up sensors have separate FIFOs but FIFO may be
+        // shared amongst wake-up sensors and non-wake up sensors.
+        int computeMaxCacheSizeLocked() const;
+
+        // LooperCallback method. If there is data to read on this fd, it is an ack from the
+        // app that it has read events from a wake up sensor, decrement mWakeLockRefCount.
+        // If this fd is available for writing send the data from the cache.
+        virtual int handleEvent(int fd, int events, void* data);
 
         sp<SensorService> const mService;
         sp<BitTube> mChannel;
@@ -108,10 +124,20 @@ class SensorService :
             // Every activate is preceded by a flush. Only after the first flush complete is
             // received, the events for the sensor are sent on that *connection*.
             bool mFirstFlushPending;
-            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false) {}
+            // Number of time flush() was called on this connection. This is incremented every time
+            // flush() is called and decremented when flush_complete_event is received.
+            int mNumFlushCalls;
+            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false),
+                                            mNumFlushCalls(0) {}
         };
         // protected by SensorService::mLock. Key for this vector is the sensor handle.
         KeyedVector<int, FlushInfo> mSensorInfo;
+        sensors_event_t *mEventCache;
+        int mCacheSize, mMaxCacheSize;
+
+#if DEBUG_CONNECTIONS
+        int mEventsReceived, mEventsSent, mEventsSentFromCache;
+#endif
 
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
@@ -138,6 +164,13 @@ class SensorService :
         size_t getNumConnections() const { return mConnections.size(); }
     };
 
+    class SensorEventAckReceiver : public Thread {
+        sp<SensorService> const mService;
+    public:
+        virtual bool threadLoop();
+        SensorEventAckReceiver(const sp<SensorService>& service): mService(service) {}
+    };
+
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
     Sensor getSensorFromHandle(int handle) const;
@@ -160,6 +193,9 @@ class SensorService :
     void checkWakeLockState();
     void checkWakeLockStateLocked();
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
+
+    sp<Looper> getLooper() const;
+
     // constants
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
@@ -168,6 +204,7 @@ class SensorService :
     Vector<SensorInterface *> mVirtualSensorList;
     status_t mInitCheck;
     size_t mSocketBufferSize;
+    sp<Looper> mLooper;
 
     // protected by mLock
     mutable Mutex mLock;
