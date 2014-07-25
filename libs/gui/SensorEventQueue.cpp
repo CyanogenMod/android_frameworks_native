@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -147,7 +148,14 @@ status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const 
 void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
     for (int i = 0; i < count; ++i) {
         if (events[i].flags & WAKE_UP_SENSOR_EVENT_NEEDS_ACK) {
-            mSensorEventConnection->decreaseWakeLockRefCount();
+            // Send just a byte of data to acknowledge for the wake up sensor events
+            // received
+            char buf = '1';
+            ssize_t size = ::send(mSensorChannel->getFd(), &buf, sizeof(buf),
+                                             MSG_DONTWAIT | MSG_NOSIGNAL);
+            if (size < 0) {
+                ALOGE("sendAck failure %d", size);
+            }
         }
     }
     return;
