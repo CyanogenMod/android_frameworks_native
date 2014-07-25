@@ -48,6 +48,9 @@ public:
     // get receive file-descriptor
     int getFd() const;
 
+    // get the send file-descriptor.
+    int getSendFd() const;
+
     // send objects (sized blobs). All objects are guaranteed to be written or the call fails.
     template <typename T>
     static ssize_t sendObjects(const sp<BitTube>& tube,

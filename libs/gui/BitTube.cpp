@@ -99,6 +99,11 @@ int BitTube::getFd() const
     return mReceiveFd;
 }
 
+int BitTube::getSendFd() const
+{
+    return mSendFd;
+}
+
 ssize_t BitTube::write(void const* vaddr, size_t size)
 {
     ssize_t err, len;
