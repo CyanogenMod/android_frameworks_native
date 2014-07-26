@@ -157,6 +157,13 @@ typedef enum OMX_COLOR_FORMATTYPE {
      * an acceptable range once that is done.
      * */
     OMX_COLOR_FormatAndroidOpaque = 0x7F000789,
+    /** Flexible 8-bit YUV format.  Codec should report this format
+     *  as being supported if it supports any YUV420 packed planar
+     *  or semiplanar formats.  When port is set to use this format,
+     *  codec can substitute any YUV420 packed planar or semiplanar
+     *  format for it. */
+    OMX_COLOR_FormatYUV420Flexible = 0x7F420888,
+
     OMX_TI_COLOR_FormatYUV420PackedSemiPlanar = 0x7F000100,
     OMX_QCOM_COLOR_FormatYVU420SemiPlanar = 0x7FA30C00,
     OMX_QCOM_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka = 0x7FA30C03,
