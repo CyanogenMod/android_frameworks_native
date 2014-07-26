@@ -157,6 +157,63 @@ struct PrependSPSPPSToIDRFramesParams {
     OMX_BOOL bEnable;
 };
 
+// Structure describing a media image (frame)
+// Currently only supporting YUV
+struct MediaImage {
+    enum Type {
+        MEDIA_IMAGE_TYPE_UNKNOWN = 0,
+        MEDIA_IMAGE_TYPE_YUV,
+    };
+
+    enum PlaneIndex {
+        Y = 0,
+        U,
+        V,
+        MAX_NUM_PLANES
+    };
+
+    Type mType;
+    size_t mNumPlanes;              // number of planes
+    size_t mWidth;                  // width of largest plane
+    size_t mHeight;                 // height of largest plane
+    size_t mBitDepth;               // useable bit depth
+    struct PlaneInfo {
+        size_t mOffset;             // offset of first pixel of the plane in bytes
+                                    // from buffer offset
+        size_t mColInc;             // column increment in bytes
+        size_t mRowInc;             // row increment in bytes
+        size_t mHorizSubsampling;   // subsampling compared to the largest plane
+        size_t mVertSubsampling;    // subsampling compared to the largest plane
+    };
+    PlaneInfo mPlane[MAX_NUM_PLANES];
+};
+
+// A pointer to this struct is passed to OMX_GetParameter when the extension
+// index for the 'OMX.google.android.index.describeColorFormat'
+// extension is given.  This method can be called from any component state
+// other than invalid.  The color-format, frame width/height, and stride/
+// slice-height parameters are ones that are associated with a raw video
+// port (input or output), but the stride/slice height parameters may be
+// incorrect.  The component shall fill out the MediaImage structure that
+// corresponds to the described raw video format, and the potentially corrected
+// stride and slice-height info.
+//
+// For non-YUV packed planar/semiplanar image formats, the component shall set
+// mNumPlanes to 0, and mType to MEDIA_IMAGE_TYPE_UNKNOWN.
+struct DescribeColorFormatParams {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    // input: parameters from OMX_VIDEO_PORTDEFINITIONTYPE
+    OMX_COLOR_FORMATTYPE eColorFormat;
+    OMX_U32 nFrameWidth;
+    OMX_U32 nFrameHeight;
+    OMX_U32 nStride;
+    OMX_U32 nSliceHeight;
+
+    // output: fill out the MediaImage fields
+    MediaImage sMediaImage;
+};
+
 }  // namespace android
 
 extern android::OMXPluginBase *createOMXPlugin();
