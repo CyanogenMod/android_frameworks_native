@@ -681,6 +681,9 @@ status_t HWComposer::prepare() {
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
                     }
+                    if (l.compositionType == HWC_CURSOR_OVERLAY) {
+                        disp.hasOvComp = true;
+                    }
                 }
                 if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
                     disp.hasFbComp = true;
@@ -853,6 +856,16 @@ sp<Fence> HWComposer::getLastRetireFence(int32_t id) const {
     return mDisplayData[id].lastRetireFence;
 }
 
+status_t HWComposer::setCursorPositionAsync(int32_t id, const Rect& pos)
+{
+    if (mHwc->setCursorPositionAsync) {
+        return (status_t)mHwc->setCursorPositionAsync(mHwc, id, pos.left, pos.top);
+    }
+    else {
+        return NO_ERROR;
+    }
+}
+
 /*
  * Helper template to implement a concrete HWCLayer
  * This holds the pointer to the concrete hwc layer type
@@ -933,6 +946,16 @@ public:
             getLayer()->flags |= HWC_SKIP_LAYER;
         } else {
             getLayer()->flags &= ~HWC_SKIP_LAYER;
+        }
+    }
+    virtual void setIsCursorLayerHint(bool isCursor) {
+        if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {
+            if (isCursor) {
+                getLayer()->flags |= HWC_IS_CURSOR_LAYER;
+            }
+            else {
+                getLayer()->flags &= ~HWC_IS_CURSOR_LAYER;
+            }
         }
     }
     virtual void setBlending(uint32_t blending) {
@@ -1122,6 +1145,8 @@ void HWComposer::dump(String8& result) const {
                             "HWC",
                             "BKGND",
                             "FB TARGET",
+                            "SIDEBAND",
+                            "HWC_CURSOR",
                             "UNKNOWN"};
                     if (type >= NELEM(compositionTypeName))
                         type = NELEM(compositionTypeName) - 1;

@@ -201,6 +201,8 @@ public:
     void setAcquireFence(const sp<const DisplayDevice>& hw,
             HWComposer::HWCLayerInterface& layer);
 
+    Rect getPosition(const sp<const DisplayDevice>& hw);
+
     /*
      * called after page-flip
      */
@@ -259,6 +261,8 @@ public:
      * to figure out if the content or size of a surface has changed.
      */
     Region latchBuffer(bool& recomputeVisibleRegions);
+
+    bool isPotentialCursor() const { return mPotentialCursor;}
 
     /*
      * called with the state lock when the surface is removed from the
@@ -391,6 +395,9 @@ private:
     // Set to true once we've returned this surface's handle
     mutable bool mHasSurface;
     const wp<Client> mClientRef;
+
+    // This layer can be a cursor on some displays.
+    bool mPotentialCursor;
 };
 
 // ---------------------------------------------------------------------------
