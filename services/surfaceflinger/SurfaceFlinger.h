@@ -497,11 +497,15 @@ private:
 
     // Set if the Gpu Tile render DR optimization enabled
     bool mGpuTileRenderEnable;
+    bool mCanUseGpuTileRender;
+    Rect mUnionDirtyRect;
+
 #ifdef QCOM_BSP
+    // Set up the DirtyRect/flags for GPU Comp optimization if required.
+    void setUpTiledDr();
     // Find out if GPU composition can use Dirtyregion optimization
-    // Get the mode individual layer Dirty rect / union dirty rect to operate &
-    // the dirty region
-    bool computeTiledDr(const sp<const DisplayDevice>& hw,Rect& dirtyRect);
+    // Get the union dirty rect to operate
+    bool computeTiledDr(const sp<const DisplayDevice>& hw);
     enum {
        GL_PRESERVE_NONE = 0,
        GL_PRESERVE      = 1
