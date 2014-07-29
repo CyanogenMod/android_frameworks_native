@@ -80,6 +80,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     }
 
     // Ensure existing sensors have correct string type, required permissions and reporting mode.
+    // Set reportingMode for all android defined sensor types, set wake-up flag only for proximity
+    // sensor, significant motion, tilt, pick_up gesture, wake gesture and glance gesture on older
+    // HALs. Newer HALs can define both wake-up and non wake-up proximity sensors.
+    // All the OEM defined defined sensors have flags set to whatever is provided by the HAL.
     switch (mType) {
     case SENSOR_TYPE_ACCELEROMETER:
         mStringType = SENSOR_STRING_TYPE_ACCELEROMETER;
@@ -140,7 +144,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     case SENSOR_TYPE_PROXIMITY:
         mStringType = SENSOR_STRING_TYPE_PROXIMITY;
-        mFlags |= (SENSOR_FLAG_ON_CHANGE_MODE | SENSOR_FLAG_WAKE_UP);
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
         break;
     case SENSOR_TYPE_RELATIVE_HUMIDITY:
         mStringType = SENSOR_STRING_TYPE_RELATIVE_HUMIDITY;
@@ -152,7 +159,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     case SENSOR_TYPE_SIGNIFICANT_MOTION:
         mStringType = SENSOR_STRING_TYPE_SIGNIFICANT_MOTION;
-        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
         break;
     case SENSOR_TYPE_STEP_COUNTER:
         mStringType = SENSOR_STRING_TYPE_STEP_COUNTER;
@@ -166,21 +176,33 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         mStringType = SENSOR_STRING_TYPE_TEMPERATURE;
         mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
         break;
-    case SENSOR_TYPE_WAKE_UP_TILT_DETECTOR:
-        mStringType = SENSOR_STRING_TYPE_WAKE_UP_TILT_DETECTOR;
-        mFlags |= (SENSOR_FLAG_SPECIAL_REPORTING_MODE | SENSOR_FLAG_WAKE_UP);
-        break;
+    case SENSOR_TYPE_TILT_DETECTOR:
+        mStringType = SENSOR_STRING_TYPE_TILT_DETECTOR;
+        mFlags |= SENSOR_FLAG_SPECIAL_REPORTING_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
+         break;
     case SENSOR_TYPE_WAKE_GESTURE:
         mStringType = SENSOR_STRING_TYPE_WAKE_GESTURE;
-        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
         break;
     case SENSOR_TYPE_GLANCE_GESTURE:
         mStringType = SENSOR_STRING_TYPE_GLANCE_GESTURE;
-        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
         break;
     case SENSOR_TYPE_PICK_UP_GESTURE:
         mStringType = SENSOR_STRING_TYPE_PICK_UP_GESTURE;
-        mFlags |= (SENSOR_FLAG_ONE_SHOT_MODE | SENSOR_FLAG_WAKE_UP);
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
         break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
@@ -205,6 +227,23 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
             }
         }
         break;
+    }
+
+    // For the newer HALs log errors if reporting mask flags are set incorrectly.
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
+        // Wake-up flag is set here.
+        mFlags |= (hwSensor->flags & SENSOR_FLAG_WAKE_UP);
+        if (mFlags != hwSensor->flags) {
+            int actualReportingMode =
+                 (hwSensor->flags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
+            int expectedReportingMode = (mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
+            if (actualReportingMode != expectedReportingMode) {
+                ALOGE("Reporting Mode incorrect: sensor %s handle=%d type=%d "
+                       "actual=%d expected=%d",
+                       mName.string(), mHandle, mType, actualReportingMode, expectedReportingMode);
+            }
+
+        }
     }
 }
 
