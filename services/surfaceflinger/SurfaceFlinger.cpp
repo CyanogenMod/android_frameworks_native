@@ -1034,6 +1034,26 @@ void SurfaceFlinger::setUpHWComposer() {
             }
         }
 
+        // If possible, attempt to use the cursor overlay on each display.
+        for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+            sp<const DisplayDevice> hw(mDisplays[dpy]);
+            const int32_t id = hw->getHwcDisplayId();
+            if (id >= 0) {
+                const Vector< sp<Layer> >& currentLayers(
+                    hw->getVisibleLayersSortedByZ());
+                const size_t count = currentLayers.size();
+                HWComposer::LayerListIterator cur = hwc.begin(id);
+                const HWComposer::LayerListIterator end = hwc.end(id);
+                for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+                    const sp<Layer>& layer(currentLayers[i]);
+                    if (layer->isPotentialCursor()) {
+                        cur->setIsCursorLayerHint();
+                        break;
+                    }
+                }
+            }
+        }
+
         status_t err = hwc.prepare();
         ALOGE_IF(err, "HWComposer::prepare failed (%s)", strerror(-err));
 
@@ -1408,6 +1428,34 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
     }
 
     commitTransaction();
+
+    updateCursorAsync();
+}
+
+void SurfaceFlinger::updateCursorAsync()
+{
+    HWComposer& hwc(getHwComposer());
+    for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
+        sp<const DisplayDevice> hw(mDisplays[dpy]);
+        const int32_t id = hw->getHwcDisplayId();
+        if (id < 0) {
+            continue;
+        }
+        const Vector< sp<Layer> >& currentLayers(
+            hw->getVisibleLayersSortedByZ());
+        const size_t count = currentLayers.size();
+        HWComposer::LayerListIterator cur = hwc.begin(id);
+        const HWComposer::LayerListIterator end = hwc.end(id);
+        for (size_t i=0 ; cur!=end && i<count ; ++i, ++cur) {
+            if (cur->getCompositionType() != HWC_CURSOR_OVERLAY) {
+                continue;
+            }
+            const sp<Layer>& layer(currentLayers[i]);
+            Rect cursorPos = layer->getPosition(hw);
+            hwc.setCursorPositionAsync(id, cursorPos);
+            break;
+        }
+    }
 }
 
 void SurfaceFlinger::commitTransaction()
@@ -1739,6 +1787,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
                 switch (cur->getCompositionType()) {
+                    case HWC_CURSOR_OVERLAY:
                     case HWC_OVERLAY: {
                         const Layer::State& state(layer->getDrawingState());
                         if ((cur->getHints() & HWC_HINT_CLEAR_FB)

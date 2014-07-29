@@ -144,6 +144,8 @@ public:
     // displays, writes to the output buffer are complete.
     sp<Fence> getLastRetireFence(int32_t id) const;
 
+    status_t setCursorPositionAsync(int32_t id, const Rect &pos);
+
     /*
      * Interface to hardware composer's layers functionality.
      * This abstracts the HAL interface to layers which can evolve in
@@ -160,6 +162,7 @@ public:
         virtual sp<Fence> getAndResetReleaseFence() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
+        virtual void setIsCursorLayerHint(bool isCursor = true) = 0;
         virtual void setBlending(uint32_t blending) = 0;
         virtual void setTransform(uint32_t transform) = 0;
         virtual void setFrame(const Rect& frame) = 0;
