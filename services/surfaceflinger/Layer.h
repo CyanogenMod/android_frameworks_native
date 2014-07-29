@@ -277,6 +277,11 @@ public:
      */
     Rect getContentCrop() const;
 
+    /*
+     * Returns if a frame is queued.
+     */
+    bool hasQueuedFrame() const { return mQueuedFrames > 0; }
+
     // -----------------------------------------------------------------------
 
     void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip) const;
