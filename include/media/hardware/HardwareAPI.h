@@ -214,6 +214,27 @@ struct DescribeColorFormatParams {
     MediaImage sMediaImage;
 };
 
+// A pointer to this struct is passed to OMX_SetParameter or OMX_GetParameter
+// when the extension index for the
+// 'OMX.google.android.index.configureVideoTunnelMode' extension is  given.
+// If the extension is supported then tunneled playback mode should be supported
+// by the codec. If bTunneled is set to OMX_TRUE then the video decoder should
+// operate in "tunneled" mode and output its decoded frames directly to the
+// sink. In this case nAudioHwSync is the HW SYNC ID of the audio HAL Output
+// stream to sync the video with. If bTunneled is set to OMX_FALSE, "tunneled"
+// mode should be disabled and nAudioHwSync should be ignored.
+// OMX_GetParameter is used to query tunneling configuration. bTunneled should
+// return whether decoder is operating in tunneled mode, and if it is,
+// pSidebandWindow should contain the codec allocated sideband window handle.
+struct ConfigureVideoTunnelModeParams {
+    OMX_U32 nSize;              // IN
+    OMX_VERSIONTYPE nVersion;   // IN
+    OMX_U32 nPortIndex;         // IN
+    OMX_BOOL bTunneled;         // IN/OUT
+    OMX_U32 nAudioHwSync;       // IN
+    OMX_PTR pSidebandWindow;    // OUT
+};
+
 }  // namespace android
 
 extern android::OMXPluginBase *createOMXPlugin();

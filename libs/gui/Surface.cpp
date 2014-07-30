@@ -24,6 +24,7 @@
 
 #include <utils/Log.h>
 #include <utils/Trace.h>
+#include <utils/NativeHandle.h>
 
 #include <ui/Fence.h>
 
@@ -443,6 +444,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_API_DISCONNECT:
         res = dispatchDisconnect(args);
         break;
+    case NATIVE_WINDOW_SET_SIDEBAND_STREAM:
+        res = dispatchSetSidebandStream(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -533,6 +537,12 @@ int Surface::dispatchUnlockAndPost(va_list args __attribute__((unused))) {
     return unlockAndPost();
 }
 
+int Surface::dispatchSetSidebandStream(va_list args) {
+    native_handle_t* sH = va_arg(args, native_handle_t*);
+    sp<NativeHandle> sidebandHandle = NativeHandle::create(sH, false);
+    setSidebandStream(sidebandHandle);
+    return OK;
+}
 
 int Surface::connect(int api) {
     ATRACE_CALL();
