@@ -166,6 +166,7 @@ public:
             uint32_t orientation,
             const Rect& layerStackRect,
             const Rect& displayRect);
+    void setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t height);
 
     static void setAnimationTransaction() {
         Composer::getInstance().setAnimationTransactionImpl();
@@ -426,6 +427,14 @@ void Composer::setDisplayProjection(const sp<IBinder>& token,
     mForceSynchronous = true; // TODO: do we actually still need this?
 }
 
+void Composer::setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t height) {
+    Mutex::Autolock _l(mLock);
+    DisplayState& s(getDisplayStateLocked(token));
+    s.width = width;
+    s.height = height;
+    s.what |= DisplayState::eDisplaySizeChanged;
+}
+
 // ---------------------------------------------------------------------------
 
 SurfaceComposerClient::SurfaceComposerClient()
@@ -619,6 +628,11 @@ void SurfaceComposerClient::setDisplayProjection(const sp<IBinder>& token,
         const Rect& displayRect) {
     Composer::getInstance().setDisplayProjection(token, orientation,
             layerStackRect, displayRect);
+}
+
+void SurfaceComposerClient::setDisplaySize(const sp<IBinder>& token,
+        uint32_t width, uint32_t height) {
+    Composer::getInstance().setDisplaySize(token, width, height);
 }
 
 // ----------------------------------------------------------------------------
