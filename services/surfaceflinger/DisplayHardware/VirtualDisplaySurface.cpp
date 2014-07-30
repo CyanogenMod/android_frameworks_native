@@ -470,7 +470,7 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
 
 void VirtualDisplaySurface::cancelBuffer(int pslot, const sp<Fence>& fence) {
     if (mDisplayId < 0)
-        return mSource[SOURCE_SINK]->cancelBuffer(mapProducer2SourceSlot(source, pslot), fence);
+        return mSource[SOURCE_SINK]->cancelBuffer(mapProducer2SourceSlot(SOURCE_SINK, pslot), fence);
 
     VDS_LOGW_IF(mDbgState != DBG_STATE_GLES,
             "Unexpected cancelBuffer(pslot=%d) in %s state", pslot,
