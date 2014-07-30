@@ -692,6 +692,13 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     bool have_dex2oat_flags = property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, NULL) > 0;
     ALOGV("dalvik.vm.dex2oat-flags=%s\n", dex2oat_flags);
 
+    // If we booting without the real /data, don't spend time compiling.
+    char vold_decrypt[PROPERTY_VALUE_MAX];
+    bool have_vold_decrypt = property_get("vold.decrypt", vold_decrypt, "") > 0;
+    bool skip_compilation = (have_vold_decrypt &&
+                             (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
+                             (strcmp(vold_decrypt, "1") == 0)));
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
     static const char* RUNTIME_ARG = "--runtime-arg";
@@ -746,7 +753,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_dex2oat_Xmx_flag) {
         sprintf(dex2oat_Xmx_arg, "-Xmx%s", dex2oat_Xmx_flag);
     }
-    if (have_dex2oat_compiler_filter_flag) {
+    if (skip_compilation) {
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+        have_dex2oat_compiler_filter_flag = true;
+    } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
     }
 
