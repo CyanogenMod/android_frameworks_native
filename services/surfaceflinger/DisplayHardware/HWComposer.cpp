@@ -288,7 +288,7 @@ void HWComposer::vsync(int disp, int64_t timestamp) {
             // is a bug in the HWC implementation, but filter the extra events
             // out here so they don't cause havoc downstream.
             if (timestamp == mLastHwVSync[disp]) {
-                ALOGW("Ignoring duplicate VSYNC event from HWC (t=%lld)",
+                ALOGW("Ignoring duplicate VSYNC event from HWC (t=%" PRId64 ")",
                         timestamp);
                 return;
             }
@@ -631,7 +631,7 @@ status_t HWComposer::prepare() {
             disp.framebufferTarget->compositionType = HWC_FRAMEBUFFER_TARGET;
         }
         if (!disp.connected && disp.list != NULL) {
-            ALOGW("WARNING: disp %d: connected, non-null list, layers=%d",
+            ALOGW("WARNING: disp %zu: connected, non-null list, layers=%zu",
                   i, disp.list->numHwLayers);
         }
         mLists[i] = disp.list;
