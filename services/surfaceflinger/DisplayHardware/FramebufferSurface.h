@@ -49,6 +49,10 @@ public:
     // has a non-virtual dump() with the same signature.
     virtual void dump(String8& result) const;
 
+    // Cannot resize a buffers in a FramebufferSurface. Only works with virtual
+    // displays.
+    virtual void resizeBuffers(const uint32_t /*w*/, const uint32_t /*h*/) { };
+
 private:
     virtual ~FramebufferSurface() { }; // this class cannot be overloaded
 
