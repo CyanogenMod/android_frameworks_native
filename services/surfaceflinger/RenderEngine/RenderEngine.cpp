@@ -139,8 +139,8 @@ RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
     ALOGI("renderer  : %s", extensions.getRenderer());
     ALOGI("version   : %s", extensions.getVersion());
     ALOGI("extensions: %s", extensions.getExtension());
-    ALOGI("GL_MAX_TEXTURE_SIZE = %d", engine->getMaxTextureSize());
-    ALOGI("GL_MAX_VIEWPORT_DIMS = %d", engine->getMaxViewportDims());
+    ALOGI("GL_MAX_TEXTURE_SIZE = %zu", engine->getMaxTextureSize());
+    ALOGI("GL_MAX_VIEWPORT_DIMS = %zu", engine->getMaxViewportDims());
 
     eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, dummy);
