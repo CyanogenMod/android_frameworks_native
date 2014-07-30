@@ -640,7 +640,7 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
             Vector<DisplayInfo> configs;
             mFlinger.getDisplayConfigs(mDisplay, &configs);
             if(mMode < 0 || mMode >= configs.size()) {
-                ALOGE("Attempt to set active config = %d for display with %d configs",
+                ALOGE("Attempt to set active config = %d for display with %zu configs",
                         mMode, configs.size());
             }
             sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
