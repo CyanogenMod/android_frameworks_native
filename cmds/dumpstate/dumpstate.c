@@ -205,9 +205,6 @@ static void dumpstate() {
     dump_file("QTAGUID CTRL INFO", "/proc/net/xt_qtaguid/ctrl");
     dump_file("QTAGUID STATS INFO", "/proc/net/xt_qtaguid/stats");
 
-    dump_file("NETWORK ROUTES", "/proc/net/route");
-    dump_file("NETWORK ROUTES IPV6", "/proc/net/ipv6_route");
-
     if (!stat(PSTORE_LAST_KMSG, &st)) {
         /* Also TODO: Make console-ramoops CAP_SYSLOG protected. */
         dump_file("LAST KMSG", PSTORE_LAST_KMSG);
@@ -223,12 +220,18 @@ static void dumpstate() {
 
     /* The following have a tendency to get wedged when wifi drivers/fw goes belly-up. */
     run_command("NETWORK INTERFACES", 10, SU_PATH, "root", "netcfg", NULL);
+
+    run_command("IPv4 ADDRESSES", 10, "ip", "-4", "addr", "show", NULL);
+    run_command("IPv6 ADDRESSES", 10, "ip", "-6", "addr", "show", NULL);
+
     run_command("IP RULES", 10, "ip", "rule", "show", NULL);
     run_command("IP RULES v6", 10, "ip", "-6", "rule", "show", NULL);
 
     dump_route_tables();
 
-    dump_file("ARP CACHE", "/proc/net/arp");
+    run_command("ARP CACHE", 10, "ip", "-4", "neigh", "show", NULL);
+    run_command("IPv6 ND CACHE", 10, "ip", "-6", "neigh", "show", NULL);
+
     run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
     run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
     run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-nvx", NULL);
