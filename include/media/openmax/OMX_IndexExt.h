@@ -59,6 +59,7 @@ typedef enum OMX_INDEXEXTTYPE {
     OMX_IndexExtAudioStartUnused = OMX_IndexKhronosExtensions + 0x00400000,
     OMX_IndexParamAudioAndroidAc3,                  /**< reference: OMX_AUDIO_PARAM_ANDROID_AC3TYPE */
     OMX_IndexParamAudioAndroidOpus,                 /**< reference: OMX_AUDIO_PARAM_ANDROID_OPUSTYPE */
+    OMX_IndexParamAudioAndroidAacPresentation,      /**< reference: OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE */
 
     /* Image parameters and configurations */
     OMX_IndexExtImageStartUnused = OMX_IndexKhronosExtensions + 0x00500000,
