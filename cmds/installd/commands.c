@@ -559,7 +559,6 @@ done:
     return 0;
 }
 
-
 int create_cache_path(char path[PKG_PATH_MAX], const char *src, const char *instruction_set)
 {
     char *tmp;
@@ -620,6 +619,46 @@ static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
     execl(DEX_OPT_BIN, DEX_OPT_BIN, "--zip", zip_num, odex_num, input_file_name,
         dexopt_flags, (char*) NULL);
     ALOGE("execl(%s) failed: %s\n", DEX_OPT_BIN, strerror(errno));
+}
+
+static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
+    const char* output_file_name, const char *pkgname, const char *instruction_set)
+{
+    static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
+    static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
+
+    static const char* PATCHOAT_BIN = "/system/bin/patchoat";
+    if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
+        ALOGE("Instruction set %s longer than max length of %d",
+              instruction_set, MAX_INSTRUCTION_SET_LEN);
+        return;
+    }
+
+    /* input_file_name/input_fd should be the .odex/.oat file that is precompiled. I think*/
+    char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
+    char output_oat_fd_arg[strlen("--output-oat-fd=") + MAX_INT_LEN];
+    char input_oat_fd_arg[strlen("--input-oat-fd=") + MAX_INT_LEN];
+    const char* patched_image_location_arg = "--patched-image-location=/system/framework/boot.art";
+    // The caller has already gotten all the locks we need.
+    const char* no_lock_arg = "--no-lock-output";
+    sprintf(instruction_set_arg, "--instruction-set=%s", instruction_set);
+    sprintf(output_oat_fd_arg, "--output-oat-fd=%d", oat_fd);
+    sprintf(input_oat_fd_arg, "--input-oat-fd=%d", input_fd);
+    ALOGE("Running %s isa=%s in-fd=%d (%s) out-fd=%d (%s)\n",
+          PATCHOAT_BIN, instruction_set, input_fd, input_file_name, oat_fd, output_file_name);
+
+    /* patchoat, patched-image-location, no-lock, isa, input-fd, output-fd */
+    char* argv[7];
+    argv[0] = (char*) PATCHOAT_BIN;
+    argv[1] = (char*) patched_image_location_arg;
+    argv[2] = (char*) no_lock_arg;
+    argv[3] = instruction_set_arg;
+    argv[4] = output_oat_fd_arg;
+    argv[5] = input_oat_fd_arg;
+    argv[6] = NULL;
+
+    execv(PATCHOAT_BIN, (char* const *)argv);
+    ALOGE("execv(%s) failed: %s\n", PATCHOAT_BIN, strerror(errno));
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
@@ -780,14 +819,17 @@ static int wait_child(pid_t pid)
 }
 
 int dexopt(const char *apk_path, uid_t uid, int is_public,
-           const char *pkgname, const char *instruction_set)
+           const char *pkgname, const char *instruction_set,
+           int is_patchoat)
 {
     struct utimbuf ut;
-    struct stat apk_stat, dex_stat;
+    struct stat input_stat, dex_stat;
     char out_path[PKG_PATH_MAX];
     char persist_sys_dalvik_vm_lib[PROPERTY_VALUE_MAX];
     char *end;
-    int res, zip_fd=-1, out_fd=-1;
+    const char *input_file;
+    char in_odex_path[PKG_PATH_MAX];
+    int res, input_fd=-1, out_fd=-1;
 
     if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
         return -1;
@@ -796,12 +838,20 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
     /* The command to run depend on the value of persist.sys.dalvik.vm.lib */
     property_get("persist.sys.dalvik.vm.lib.2", persist_sys_dalvik_vm_lib, "libart.so");
 
+    if (is_patchoat && strncmp(persist_sys_dalvik_vm_lib, "libart", 6) != 0) {
+        /* We may only patch if we are libart */
+        ALOGE("Patching is only supported in libart\n");
+        return -1;
+    }
+
     /* Before anything else: is there a .odex file?  If so, we have
      * precompiled the apk and there is nothing to do here.
+     *
+     * We skip this if we are doing a patchoat.
      */
     strcpy(out_path, apk_path);
     end = strrchr(out_path, '.');
-    if (end != NULL) {
+    if (end != NULL && !is_patchoat) {
         strcpy(end, ".odex");
         if (stat(out_path, &dex_stat) == 0) {
             return 0;
@@ -812,12 +862,33 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
         return -1;
     }
 
-    memset(&apk_stat, 0, sizeof(apk_stat));
-    stat(apk_path, &apk_stat);
+    if (is_patchoat) {
+        /* /system/framework/whatever.jar -> /system/framework/<isa>/whatever.odex */
+        strcpy(in_odex_path, apk_path);
+        end = strrchr(in_odex_path, '/');
+        if (end == NULL) {
+            ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
+            return -1;
+        }
+        const char *apk_end = apk_path + (end - in_odex_path); // strrchr(apk_path, '/');
+        strcpy(end + 1, instruction_set); // in_odex_path now is /system/framework/<isa>\0
+        strcat(in_odex_path, apk_end);
+        end = strrchr(in_odex_path, '.');
+        if (end == NULL) {
+            return -1;
+        }
+        strcpy(end + 1, "odex");
+        input_file = in_odex_path;
+    } else {
+        input_file = apk_path;
+    }
 
-    zip_fd = open(apk_path, O_RDONLY, 0);
-    if (zip_fd < 0) {
-        ALOGE("installd cannot open '%s' for input during dexopt\n", apk_path);
+    memset(&input_stat, 0, sizeof(input_stat));
+    stat(input_file, &input_stat);
+
+    input_fd = open(input_file, O_RDONLY, 0);
+    if (input_fd < 0) {
+        ALOGE("installd cannot open '%s' for input during dexopt\n", input_file);
         return -1;
     }
 
@@ -844,7 +915,7 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
     }
 
 
-    ALOGV("DexInv: --- BEGIN '%s' ---\n", apk_path);
+    ALOGV("DexInv: --- BEGIN '%s' ---\n", input_file);
 
     pid_t pid;
     pid = fork();
@@ -874,9 +945,13 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
         }
 
         if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
-            run_dexopt(zip_fd, out_fd, apk_path, out_path);
+            run_dexopt(input_fd, out_fd, input_file, out_path);
         } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
-            run_dex2oat(zip_fd, out_fd, apk_path, out_path, pkgname, instruction_set);
+            if (is_patchoat) {
+                run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
+            } else {
+                run_dex2oat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
+            }
         } else {
             exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
         }
@@ -884,19 +959,19 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
     } else {
         res = wait_child(pid);
         if (res == 0) {
-            ALOGV("DexInv: --- END '%s' (success) ---\n", apk_path);
+            ALOGV("DexInv: --- END '%s' (success) ---\n", input_file);
         } else {
-            ALOGE("DexInv: --- END '%s' --- status=0x%04x, process failed\n", apk_path, res);
+            ALOGE("DexInv: --- END '%s' --- status=0x%04x, process failed\n", input_file, res);
             goto fail;
         }
     }
 
-    ut.actime = apk_stat.st_atime;
-    ut.modtime = apk_stat.st_mtime;
+    ut.actime = input_stat.st_atime;
+    ut.modtime = input_stat.st_mtime;
     utime(out_path, &ut);
 
     close(out_fd);
-    close(zip_fd);
+    close(input_fd);
     return 0;
 
 fail:
@@ -904,8 +979,8 @@ fail:
         close(out_fd);
         unlink(out_path);
     }
-    if (zip_fd >= 0) {
-        close(zip_fd);
+    if (input_fd >= 0) {
+        close(input_fd);
     }
     return -1;
 }

@@ -39,7 +39,7 @@ static int do_install(char **arg, char reply[REPLY_MAX])
 static int do_dexopt(char **arg, char reply[REPLY_MAX])
 {
         /* apk_path, uid, is_public, pkgname, instruction_set */
-    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4]);
+    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], 0);
 }
 
 static int do_move_dex(char **arg, char reply[REPLY_MAX])
@@ -146,6 +146,10 @@ static int do_prune_dex_cache(char **arg __attribute__((unused)),
     return prune_dex_cache(arg[0] /* subdirectory name */);
 }
 
+static int do_patchoat(char **arg, char reply[REPLY_MAX]) {
+    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], 1);
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -173,6 +177,7 @@ struct cmdinfo cmds[] = {
     { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
     { "prunedexcache",        1, do_prune_dex_cache },
+    { "patchoat",             5, do_patchoat },
 };
 
 static int readx(int s, void *_buf, int count)
