@@ -278,6 +278,7 @@ typedef enum OMX_AUDIO_AACPROFILETYPE{
 #define OMX_AUDIO_AACToolTNS  0x00000004 /**< TNS: Temporal Noise Shaping tool allowed or active */
 #define OMX_AUDIO_AACToolPNS  0x00000008 /**< PNS: MPEG-4 Perceptual Noise substitution tool allowed or active */
 #define OMX_AUDIO_AACToolLTP  0x00000010 /**< LTP: MPEG-4 Long Term Prediction tool allowed or active */
+#define OMX_AUDIO_AACToolVendor 0x00010000 /**< NOT A KHRONOS VALUE, offset for vendor-specific additions */
 #define OMX_AUDIO_AACToolAll  0x7FFFFFFF /**< all AAC tools allowed or active (*/
 
 /** MPEG-4 AAC error resilience (ER) tool usage (for nAACERtools in OMX_AUDIO_PARAM_AACPROFILETYPE).

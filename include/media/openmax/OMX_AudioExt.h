@@ -40,6 +40,9 @@ extern "C" {
  */
 #include <OMX_Core.h>
 
+#define OMX_AUDIO_AACToolAndroidSSBR (OMX_AUDIO_AACToolVendor << 0) /**< SSBR: MPEG-4 Single-rate (downsampled) Spectral Band Replication tool allowed or active */
+#define OMX_AUDIO_AACToolAndroidDSBR (OMX_AUDIO_AACToolVendor << 1) /**< DSBR: MPEG-4 Dual-rate Spectral Band Replication tool allowed or active */
+
 typedef enum OMX_AUDIO_CODINGEXTTYPE {
     OMX_AUDIO_CodingAndroidUnused = OMX_AUDIO_CodingKhronosExtensions + 0x00100000,
     OMX_AUDIO_CodingAndroidAC3,         /**< AC3 encoded data */
@@ -68,6 +71,17 @@ typedef struct OMX_AUDIO_PARAM_ANDROID_OPUSTYPE {
     OMX_U32 nAudioBandWidth;  /**< Audio band width (in Hz) to which an encoder should
                                    limit the audio signal. Use 0 to let encoder decide */
 } OMX_AUDIO_PARAM_ANDROID_OPUSTYPE;
+
+typedef struct OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE {
+    OMX_U32 nSize;            /**< size of the structure in bytes */
+    OMX_VERSIONTYPE nVersion; /**< OMX specification version information */
+    OMX_S32 nMaxOutputChannels;    /**< Maximum channel count to be output, -1 if unspecified, 0 if downmixing disabled */
+    OMX_S32 nDrcCut;               /**< The DRC attenuation factor, between 0 and 127, -1 if unspecified */
+    OMX_S32 nDrcBoost;             /**< The DRC amplification factor, between 0 and 127, -1 if unspecified */
+    OMX_S32 nHeavyCompression;     /**< 0 for light compression, 1 for heavy compression, -1 if unspecified */
+    OMX_S32 nTargetReferenceLevel; /**< Target reference level, between 0 and 127, -1 if unspecified */
+    OMX_S32 nEncodedTargetLevel;   /**< Target reference level assumed at the encoder, between 0 and 127, -1 if unspecified */
+} OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE;
 
 #ifdef __cplusplus
 }
