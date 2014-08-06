@@ -210,9 +210,16 @@ int ASensorManager_getSensorList(ASensorManager* manager, ASensorList* list);
 
 /*
  * Returns the default sensor for the given type, or NULL if no sensor
- * of that type exist.
+ * of that type exists.
  */
 ASensor const* ASensorManager_getDefaultSensor(ASensorManager* manager, int type);
+
+/*
+ * Returns the default sensor with the given type and wakeUp properties or NULL if no sensor
+ * of this type and wakeUp properties exists.
+ */
+ASensor const* ASensorManager_getDefaultSensorEx(ASensorManager* manager, int type,
+        bool wakeUp);
 
 /*
  * Creates a new sensor event queue and associate it with a looper.
@@ -320,6 +327,11 @@ const char* ASensor_getStringType(ASensor const* sensor);
  * Returns the reporting mode for this sensor. One of AREPORTING_MODE_* constants.
  */
 int ASensor_getReportingMode(ASensor const* sensor);
+
+/*
+ * Returns true if this is a wake up sensor, false otherwise.
+ */
+bool ASensor_isWakeUpSensor(ASensor const* sensor);
 
 #ifdef __cplusplus
 };
