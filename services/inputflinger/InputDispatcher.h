@@ -904,6 +904,20 @@ private:
     void resetKeyRepeatLocked();
     KeyEntry* synthesizeKeyRepeatLocked(nsecs_t currentTime);
 
+    // Key replacement tracking
+    struct KeyReplacement {
+        int32_t keyCode;
+        int32_t deviceId;
+        bool operator==(const KeyReplacement& rhs) const {
+            return keyCode == rhs.keyCode && deviceId == rhs.deviceId;
+        }
+        bool operator<(const KeyReplacement& rhs) const {
+            return keyCode != rhs.keyCode ? keyCode < rhs.keyCode : deviceId < rhs.deviceId;
+        }
+    };
+    // Maps the key code replaced, device id tuple to the key code it was replaced with
+    KeyedVector<KeyReplacement, int32_t> mReplacedKeys;
+
     // Deferred command processing.
     bool haveCommandsLocked() const;
     bool runCommandsLockedInterruptible();
