@@ -116,12 +116,23 @@ Sensor const* SensorManager::getDefaultSensor(int type)
 {
     Mutex::Autolock _l(mLock);
     if (assertStateLocked() == NO_ERROR) {
+        bool wakeUpSensor = false;
+        // For the following sensor types, return a wake-up sensor. These types are by default
+        // defined as wake-up sensors. For the rest of the sensor types defined in sensors.h return
+        // a non_wake-up version.
+        if (type == SENSOR_TYPE_PROXIMITY || type == SENSOR_TYPE_SIGNIFICANT_MOTION ||
+            type == SENSOR_TYPE_TILT_DETECTOR || type == SENSOR_TYPE_WAKE_GESTURE ||
+            type == SENSOR_TYPE_GLANCE_GESTURE || type == SENSOR_TYPE_PICK_UP_GESTURE) {
+            wakeUpSensor = true;
+        }
         // For now we just return the first sensor of that type we find.
         // in the future it will make sense to let the SensorService make
         // that decision.
         for (size_t i=0 ; i<mSensors.size() ; i++) {
-            if (mSensorList[i]->getType() == type)
+            if (mSensorList[i]->getType() == type &&
+                mSensorList[i]->isWakeUpSensor() == wakeUpSensor) {
                 return mSensorList[i];
+            }
         }
     }
     return NULL;
