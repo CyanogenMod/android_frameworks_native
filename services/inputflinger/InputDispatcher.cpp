@@ -2366,9 +2366,38 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
 
     policyFlags |= POLICY_FLAG_TRUSTED;
 
+    int32_t keyCode = args->keyCode;
+    if (metaState & AMETA_META_ON && args->action == AKEY_EVENT_ACTION_DOWN) {
+        int32_t newKeyCode = AKEYCODE_UNKNOWN;
+        if (keyCode == AKEYCODE_DEL) {
+            newKeyCode = AKEYCODE_BACK;
+        } else if (keyCode == AKEYCODE_ENTER) {
+            newKeyCode = AKEYCODE_HOME;
+        }
+        if (newKeyCode != AKEYCODE_UNKNOWN) {
+            AutoMutex _l(mLock);
+            struct KeyReplacement replacement = {keyCode, args->deviceId};
+            mReplacedKeys.add(replacement, newKeyCode);
+            keyCode = newKeyCode;
+            metaState &= ~AMETA_META_ON;
+        }
+    } else if (args->action == AKEY_EVENT_ACTION_UP) {
+        // In order to maintain a consistent stream of up and down events, check to see if the key
+        // going up is one we've replaced in a down event and haven't yet replaced in an up event,
+        // even if the modifier was released between the down and the up events.
+        AutoMutex _l(mLock);
+        struct KeyReplacement replacement = {keyCode, args->deviceId};
+        ssize_t index = mReplacedKeys.indexOfKey(replacement);
+        if (index >= 0) {
+            keyCode = mReplacedKeys.valueAt(index);
+            mReplacedKeys.removeItemsAt(index);
+            metaState &= ~AMETA_META_ON;
+        }
+    }
+
     KeyEvent event;
     event.initialize(args->deviceId, args->source, args->action,
-            flags, args->keyCode, args->scanCode, metaState, 0,
+            flags, keyCode, args->scanCode, metaState, 0,
             args->downTime, args->eventTime);
 
     mPolicy->interceptKeyBeforeQueueing(&event, /*byref*/ policyFlags);
@@ -2391,7 +2420,7 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
         int32_t repeatCount = 0;
         KeyEntry* newEntry = new KeyEntry(args->eventTime,
                 args->deviceId, args->source, policyFlags,
-                args->action, flags, args->keyCode, args->scanCode,
+                args->action, flags, keyCode, args->scanCode,
                 metaState, repeatCount, args->downTime);
 
         needWake = enqueueInboundEventLocked(newEntry);
@@ -3050,6 +3079,7 @@ void InputDispatcher::resetAndDropEverythingLocked(const char* reason) {
 
     mTouchStatesByDisplay.clear();
     mLastHoverWindowHandle.clear();
+    mReplacedKeys.clear();
 }
 
 void InputDispatcher::logDispatchStateLocked() {
@@ -3186,6 +3216,18 @@ void InputDispatcher::dumpDispatchStateLocked(String8& dump) {
         }
     } else {
         dump.append(INDENT "InboundQueue: <empty>\n");
+    }
+
+    if (!mReplacedKeys.isEmpty()) {
+        dump.append(INDENT "ReplacedKeys:\n");
+        for (size_t i = 0; i < mReplacedKeys.size(); i++) {
+            const KeyReplacement& replacement = mReplacedKeys.keyAt(i);
+            int32_t newKeyCode = mReplacedKeys.valueAt(i);
+            dump.appendFormat(INDENT2 "%zu: originalKeyCode=%d, deviceId=%d, newKeyCode=%d\n",
+                    i, replacement.keyCode, replacement.deviceId, newKeyCode);
+        }
+    } else {
+        dump.append(INDENT "ReplacedKeys: <empty>\n");
     }
 
     if (!mConnectionsByFd.isEmpty()) {
