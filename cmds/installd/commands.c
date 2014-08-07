@@ -684,9 +684,20 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char dex2oat_Xmx_flag[PROPERTY_VALUE_MAX];
     bool have_dex2oat_Xmx_flag = property_get("dalvik.vm.dex2oat-Xmx", dex2oat_Xmx_flag, NULL) > 0;
 
+    char dex2oat_compiler_filter_flag[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_compiler_filter_flag = property_get("dalvik.vm.dex2oat-filter",
+                                                          dex2oat_compiler_filter_flag, NULL) > 0;
+
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     bool have_dex2oat_flags = property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, NULL) > 0;
     ALOGV("dalvik.vm.dex2oat-flags=%s\n", dex2oat_flags);
+
+    // If we booting without the real /data, don't spend time compiling.
+    char vold_decrypt[PROPERTY_VALUE_MAX];
+    bool have_vold_decrypt = property_get("vold.decrypt", vold_decrypt, "") > 0;
+    bool skip_compilation = (have_vold_decrypt &&
+                             (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
+                             (strcmp(vold_decrypt, "1") == 0)));
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
@@ -710,6 +721,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
     char dex2oat_Xms_arg[strlen("-Xms") + PROPERTY_VALUE_MAX];
     char dex2oat_Xmx_arg[strlen("-Xmx") + PROPERTY_VALUE_MAX];
+    char dex2oat_compiler_filter_arg[strlen("--compiler-filter=") + PROPERTY_VALUE_MAX];
 
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
@@ -741,6 +753,12 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_dex2oat_Xmx_flag) {
         sprintf(dex2oat_Xmx_arg, "-Xmx%s", dex2oat_Xmx_flag);
     }
+    if (skip_compilation) {
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+        have_dex2oat_compiler_filter_flag = true;
+    } else if (have_dex2oat_compiler_filter_flag) {
+        sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
+    }
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
@@ -749,6 +767,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                + (have_top_k_profile_threshold ? 1 : 0)
                + (have_dex2oat_Xms_flag ? 2 : 0)
                + (have_dex2oat_Xmx_flag ? 2 : 0)
+               + (have_dex2oat_compiler_filter_flag ? 1 : 0)
                + (have_dex2oat_flags ? 1 : 0)];
     int i = 0;
     argv[i++] = (char*)DEX2OAT_BIN;
@@ -770,6 +789,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_dex2oat_Xmx_flag) {
         argv[i++] = (char*)RUNTIME_ARG;
         argv[i++] = dex2oat_Xmx_arg;
+    }
+    if (have_dex2oat_compiler_filter_flag) {
+        argv[i++] = dex2oat_compiler_filter_arg;
     }
     if (have_dex2oat_flags) {
         argv[i++] = dex2oat_flags;
