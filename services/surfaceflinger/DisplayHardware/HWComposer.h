@@ -196,7 +196,7 @@ public:
      * This behaves more or less like a forward iterator.
      */
     class LayerListIterator {
-        friend struct HWComposer;
+        friend class HWComposer;
         HWCLayer* const mLayerList;
         size_t mIndex;
 
