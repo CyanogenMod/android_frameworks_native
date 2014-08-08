@@ -376,7 +376,7 @@ status_t HWComposer::queryDisplayProperties(int disp) {
                     config.ydpi = values[i] / 1000.0f;
                     break;
                 default:
-                    ALOG_ASSERT(false, "unknown display attribute[%d] %#x",
+                    ALOG_ASSERT(false, "unknown display attribute[%zu] %#x",
                             i, DISPLAY_ATTRIBUTES[i]);
                     break;
             }
