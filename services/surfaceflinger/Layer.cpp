@@ -332,16 +332,16 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
             winHeight = s.active.w;
         }
         const Rect winCrop = activeCrop.transform(
-                invTransform, s.active.w, s.active.h);
+                invTransform, winWidth, winHeight);
 
         // below, crop is intersected with winCrop expressed in crop's coordinate space
         float xScale = crop.getWidth()  / float(winWidth);
         float yScale = crop.getHeight() / float(winHeight);
 
-        float insetL = winCrop.left                 * xScale;
-        float insetT = winCrop.top                  * yScale;
-        float insetR = (winWidth  - winCrop.right ) * xScale;
-        float insetB = (winHeight - winCrop.bottom) * yScale;
+        float insetL = winCrop.left                  * xScale;
+        float insetT = winCrop.top                   * yScale;
+        float insetR = (s.active.w - winCrop.right ) * xScale;
+        float insetB = (s.active.h - winCrop.bottom) * yScale;
 
         crop.left   += insetL;
         crop.top    += insetT;
