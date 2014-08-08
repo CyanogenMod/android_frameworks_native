@@ -78,7 +78,7 @@ namespace android {
 
 #elif defined(__i386__)
 
-    #define API_ENTRY(_api) __attribute__((noinline)) _api
+    #define API_ENTRY(_api) __attribute__((noinline,optimize("omit-frame-pointer"))) _api
 
     #define CALL_GL_EXTENSION_API(_api)                         \
          register void** fn;                                    \
@@ -100,7 +100,7 @@ namespace android {
 
 #elif defined(__x86_64__)
 
-    #define API_ENTRY(_api) __attribute__((noinline)) _api
+    #define API_ENTRY(_api) __attribute__((noinline,optimize("omit-frame-pointer"))) _api
 
     #define CALL_GL_EXTENSION_API(_api)                         \
          register void** fn;                                    \
