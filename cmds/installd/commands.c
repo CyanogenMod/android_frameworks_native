@@ -17,6 +17,7 @@
 #include <inttypes.h>
 #include <sys/capability.h>
 #include "installd.h"
+#include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
 #include <selinux/android.h>
 
@@ -949,6 +950,10 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
         if (capset(&capheader, &capdata[0]) < 0) {
             ALOGE("capset failed: %s\n", strerror(errno));
             exit(66);
+        }
+        if (set_sched_policy(0, SP_BACKGROUND) < 0) {
+            ALOGE("set_sched_policy failed: %s\n", strerror(errno));
+            exit(70);
         }
         if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
