@@ -145,6 +145,7 @@ private:
     int dispatchSetUsage(va_list args);
     int dispatchLock(va_list args);
     int dispatchUnlockAndPost(va_list args);
+    int dispatchSetSidebandStream(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
