@@ -56,7 +56,7 @@ public:
         data.writeString16(packageName);
         data.writeInt32(0); // no WorkSource
         data.writeString16(NULL, 0); // no history tag
-        return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply);
+        return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply, IBinder::FLAG_ONEWAY);
     }
 
     virtual status_t acquireWakeLockWithUid(int flags, const sp<IBinder>& lock, const String16& tag,
@@ -70,7 +70,7 @@ public:
         data.writeString16(tag);
         data.writeString16(packageName);
         data.writeInt32(uid); // uid to blame for the work
-        return remote()->transact(ACQUIRE_WAKE_LOCK_UID, data, &reply);
+        return remote()->transact(ACQUIRE_WAKE_LOCK_UID, data, &reply, IBinder::FLAG_ONEWAY);
     }
 
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags)
@@ -79,7 +79,7 @@ public:
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
         data.writeStrongBinder(lock);
         data.writeInt32(flags);
-        return remote()->transact(RELEASE_WAKE_LOCK, data, &reply);
+        return remote()->transact(RELEASE_WAKE_LOCK, data, &reply, IBinder::FLAG_ONEWAY);
     }
 
     virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids) {
