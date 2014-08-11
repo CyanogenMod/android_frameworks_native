@@ -656,7 +656,7 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
     sprintf(instruction_set_arg, "--instruction-set=%s", instruction_set);
     sprintf(output_oat_fd_arg, "--output-oat-fd=%d", oat_fd);
     sprintf(input_oat_fd_arg, "--input-oat-fd=%d", input_fd);
-    ALOGE("Running %s isa=%s in-fd=%d (%s) out-fd=%d (%s)\n",
+    ALOGV("Running %s isa=%s in-fd=%d (%s) out-fd=%d (%s)\n",
           PATCHOAT_BIN, instruction_set, input_fd, input_file_name, oat_fd, output_file_name);
 
     /* patchoat, patched-image-location, no-lock, isa, input-fd, output-fd */
