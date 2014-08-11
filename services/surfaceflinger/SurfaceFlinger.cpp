@@ -188,6 +188,9 @@ SurfaceFlinger::SurfaceFlinger()
     if(mGpuTileRenderEnable)
        ALOGV("DirtyRect optimization enabled for FULL GPU Composition");
     mUnionDirtyRect.clear();
+
+    property_get("sys.disable_ext_animation", value, "0");
+    mDisableExtAnimation = atoi(value) ? true : false;
 #endif
 
     ALOGI_IF(mDebugRegion, "showupdates enabled");
@@ -1137,9 +1140,9 @@ void SurfaceFlinger::setUpHWComposer() {
 #ifdef QCOM_BSP
                 bool freezeSurfacePresent = false;
                 const size_t layerCount = layers.size();
-                char value[PROPERTY_VALUE_MAX];
-                property_get("sys.disable_ext_animation", value, "0");
-                if(atoi(value) && (id != HWC_DISPLAY_PRIMARY)) {
+                // Look for ScreenShotSurface in external layer list, only when
+                // disable external rotation animation feature is enabled
+                if(mDisableExtAnimation && (id != HWC_DISPLAY_PRIMARY)) {
                     for (size_t i = 0 ; i < layerCount ; ++i) {
                         static int screenShotLen = strlen("ScreenshotSurface");
                         const sp<Layer>& layer(layers[i]);
@@ -2316,18 +2319,22 @@ void SurfaceFlinger::setTransactionState(
     ATRACE_CALL();
     size_t count = displays.size();
 #ifdef QCOM_BSP
-    for (size_t i=0 ; i<count ; i++) {
-        const DisplayState& s(displays[i]);
-        if(s.token != mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]) {
-            const uint32_t what = s.what;
-            // Invalidate and Delay the binder thread by 50 ms on
-            // eDisplayProjectionChanged to trigger a draw cycle so that
-            // it can fix one incorrect frame on the External, when we disable
-            // external animation
-            if (what & DisplayState::eDisplayProjectionChanged) {
-                invalidateHwcGeometry();
-                repaintEverything();
-                usleep(50000);
+    // Delay the display projection transaction by 50ms only when the disable
+    // external rotation animation feature is enabled
+    if(mDisableExtAnimation) {
+        for (size_t i=0 ; i<count ; i++) {
+            const DisplayState& s(displays[i]);
+            if(s.token != mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]) {
+                const uint32_t what = s.what;
+                // Invalidate and Delay the binder thread by 50 ms on
+                // eDisplayProjectionChanged to trigger a draw cycle so that
+                // it can fix one incorrect frame on the External, when we
+                // disable external animation
+                if (what & DisplayState::eDisplayProjectionChanged) {
+                    invalidateHwcGeometry();
+                    repaintEverything();
+                    usleep(50000);
+                }
             }
         }
     }
