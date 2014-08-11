@@ -161,6 +161,14 @@ void Layer::onFirstRef() {
     mSurfaceFlingerConsumer->setDefaultMaxBufferCount(2);
 #else
     mSurfaceFlingerConsumer->setDefaultMaxBufferCount(3);
+
+#ifdef QCOM_BSP
+    char property[PROPERTY_VALUE_MAX];
+    if (property_get("ro.sf.default_app_buffer", property, NULL) > 0) {
+        mSurfaceFlingerConsumer->setDefaultMaxBufferCount(atoi(property));
+    }
+#endif
+
 #endif
 
     const sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
