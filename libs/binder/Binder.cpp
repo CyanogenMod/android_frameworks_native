@@ -16,7 +16,7 @@
 
 #include <binder/Binder.h>
 
-#include <utils/Atomic.h>
+#include <stdatomic.h>
 #include <utils/misc.h>
 #include <binder/BpBinder.h>
 #include <binder/IInterface.h>
@@ -71,8 +71,8 @@ public:
 // ---------------------------------------------------------------------------
 
 BBinder::BBinder()
-    : mExtras(NULL)
 {
+    atomic_init(&mExtras, 0);
 }
 
 bool BBinder::isBinderAlive() const
@@ -139,19 +139,19 @@ void BBinder::attachObject(
     const void* objectID, void* object, void* cleanupCookie,
     object_cleanup_func func)
 {
-    Extras* e = mExtras;
+    Extras* e = reinterpret_cast<Extras*>(
+                    atomic_load_explicit(&mExtras, memory_order_acquire));
 
     if (!e) {
         e = new Extras;
-#ifdef __LP64__
-        if (android_atomic_release_cas64(0, reinterpret_cast<int64_t>(e),
-                reinterpret_cast<volatile int64_t*>(&mExtras)) != 0) {
-#else
-        if (android_atomic_cmpxchg(0, reinterpret_cast<int32_t>(e),
-                reinterpret_cast<volatile int32_t*>(&mExtras)) != 0) {
-#endif
+        uintptr_t* expected = 0;
+        if (!atomic_compare_exchange_strong_explicit(
+                                        &mExtras, &expected,
+                                        reinterpret_cast<uintptr_t>(e),
+                                        memory_order_release,
+                                        memory_order_acquire)) {
             delete e;
-            e = mExtras;
+            e = reinterpret_cast<Extras*>(expected);  // Filled in by CAS
         }
         if (e == 0) return; // out of memory
     }
@@ -162,7 +162,8 @@ void BBinder::attachObject(
 
 void* BBinder::findObject(const void* objectID) const
 {
-    Extras* e = mExtras;
+    Extras* e = reinterpret_cast<Extras*>(
+                    atomic_load_explicit(&mExtras, memory_order_acquire));
     if (!e) return NULL;
 
     AutoMutex _l(e->mLock);
@@ -171,7 +172,8 @@ void* BBinder::findObject(const void* objectID) const
 
 void BBinder::detachObject(const void* objectID)
 {
-    Extras* e = mExtras;
+    Extras* e = reinterpret_cast<Extras*>(
+                    atomic_load_explicit(&mExtras, memory_order_acquire));
     if (!e) return;
 
     AutoMutex _l(e->mLock);
@@ -185,7 +187,9 @@ BBinder* BBinder::localBinder()
 
 BBinder::~BBinder()
 {
-    if (mExtras) delete mExtras;
+    Extras* e = reinterpret_cast<Extras*>(
+                    atomic_load_explicit(&mExtras, memory_order_relaxed));
+    if (e) delete e;
 }
 
 
