@@ -744,7 +744,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         sprintf(dex2oat_Xmx_arg, "-Xmx%s", dex2oat_Xmx_flag);
     }
     if (skip_compilation) {
-        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-none");
         have_dex2oat_compiler_filter_flag = true;
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
