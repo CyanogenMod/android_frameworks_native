@@ -914,16 +914,13 @@ int copy_and_append(dir_rec_t* dst, const dir_rec_t* src, const char* suffix) {
 }
 
 /**
- * Check whether path points to a valid path for an APK file. An ASEC
- * directory is allowed to have one level of subdirectory names. Returns -1
- * when an invalid path is encountered and 0 when a valid path is encountered.
+ * Check whether path points to a valid path for an APK file. Only one level of
+ * subdirectory names is allowed. Returns -1 when an invalid path is encountered
+ * and 0 when a valid path is encountered.
  */
 int validate_apk_path(const char *path)
 {
-    int allowsubdir = 0;
-    char *subdir = NULL;
     size_t dir_len;
-    size_t path_len;
 
     if (!strncmp(path, android_app_dir.path, android_app_dir.len)) {
         dir_len = android_app_dir.len;
@@ -931,32 +928,24 @@ int validate_apk_path(const char *path)
         dir_len = android_app_private_dir.len;
     } else if (!strncmp(path, android_asec_dir.path, android_asec_dir.len)) {
         dir_len = android_asec_dir.len;
-        allowsubdir = 1;
     } else {
         ALOGE("invalid apk path '%s' (bad prefix)\n", path);
         return -1;
     }
 
-    path_len = strlen(path);
+    const char* subdir = strchr(path + dir_len, '/');
 
-    /*
-     * Only allow the path to have a subdirectory if it's been marked as being allowed.
-     */
-    if ((subdir = strchr(path + dir_len, '/')) != NULL) {
+    // Only allow the path to have at most one subdirectory.
+    if (subdir != NULL) {
         ++subdir;
-        if (!allowsubdir
-                || (path_len > (size_t) (subdir - path) && (strchr(subdir, '/') != NULL))) {
+        if (strchr(subdir, '/') != NULL) {
             ALOGE("invalid apk path '%s' (subdir?)\n", path);
             return -1;
         }
     }
 
-    /*
-     *  Directories can't have a period directly after the directory markers
-     *  to prevent ".."
-     */
-    if (path[dir_len] == '.'
-            || (subdir != NULL && ((*subdir == '.') || (strchr(subdir, '/') != NULL)))) {
+    // Directories can't have a period directly after the directory markers to prevent "..".
+    if ((path[dir_len] == '.') || ((subdir != NULL) && (*subdir == '.'))) {
         ALOGE("invalid apk path '%s' (trickery)\n", path);
         return -1;
     }
