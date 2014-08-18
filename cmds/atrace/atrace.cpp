@@ -129,6 +129,12 @@ static const TracingCategory k_categories[] = {
     { "workq",      "Kernel Workqueues", 0, {
         { REQ,      "/sys/kernel/debug/tracing/events/workqueue/enable" },
     } },
+    { "memreclaim", "Kernel Memory Reclaim", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_kswapd_wake/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_kswapd_sleep/enable" },
+    } },
 };
 
 /* Command line options */
