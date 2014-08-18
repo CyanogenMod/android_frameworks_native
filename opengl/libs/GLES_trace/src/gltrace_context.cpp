@@ -133,6 +133,9 @@ GLTraceContext::GLTraceContext(int id, int version, GLTraceState *state,
         BufferedOutputStream *stream) :
     mId(id),
     mVersion(version),
+    mVersionMajor(0),
+    mVersionMinor(0),
+    mVersionParsed(false),
     mState(state),
     mBufferedOutputStream(stream),
     mElementArrayBuffers(DefaultKeyedVector<GLuint, ElementArrayBuffer*>(NULL))
@@ -149,8 +152,38 @@ int GLTraceContext::getVersion() {
     return mVersion;
 }
 
+int GLTraceContext::getVersionMajor() {
+    if (!mVersionParsed) {
+        parseGlesVersion();
+        mVersionParsed = true;
+    }
+    return mVersionMajor;
+}
+
+int GLTraceContext::getVersionMinor() {
+    if (!mVersionParsed) {
+        parseGlesVersion();
+        mVersionParsed = true;
+    }
+    return mVersionMinor;
+}
+
 GLTraceState *GLTraceContext::getGlobalTraceState() {
     return mState;
+}
+
+void GLTraceContext::parseGlesVersion() {
+    const char* str = (const char*)hooks->gl.glGetString(GL_VERSION);
+    int major, minor;
+    if (sscanf(str, "OpenGL ES-CM %d.%d", &major, &minor) != 2) {
+        if (sscanf(str, "OpenGL ES %d.%d", &major, &minor) != 2) {
+            ALOGW("Unable to parse GL_VERSION string: \"%s\"", str);
+            major = 1;
+            minor = 0;
+        }
+    }
+    mVersionMajor = major;
+    mVersionMinor = minor;
 }
 
 void GLTraceContext::resizeFBMemory(unsigned minSize) {
