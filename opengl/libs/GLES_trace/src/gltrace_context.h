@@ -51,6 +51,9 @@ public:
 class GLTraceContext {
     int mId;                    /* unique context id */
     int mVersion;               /* GL version, e.g: egl_connection_t::GLESv2_INDEX */
+    int mVersionMajor;          /* GL major version. Lazily parsed in getVersionX(). */
+    int mVersionMinor;          /* GL minor version. Lazily parsed in getVersionX(). */
+    bool mVersionParsed;        /* True if major and minor versions have been parsed. */
     GLTraceState *mState;       /* parent GL Trace state (for per process GL Trace State Info) */
 
     void *fbcontents;           /* memory area to read framebuffer contents */
@@ -62,6 +65,9 @@ class GLTraceContext {
     /* list of element array buffers in use. */
     DefaultKeyedVector<GLuint, ElementArrayBuffer*> mElementArrayBuffers;
 
+    /* Parses the GL version string returned from glGetString(GL_VERSION) to get find the major and
+       minor versions of the GLES API. The context must be current before calling. */
+    void parseGlesVersion();
     void resizeFBMemory(unsigned minSize);
 public:
     gl_hooks_t *hooks;
@@ -69,6 +75,8 @@ public:
     GLTraceContext(int id, int version, GLTraceState *state, BufferedOutputStream *stream);
     int getId();
     int getVersion();
+    int getVersionMajor();
+    int getVersionMinor();
     GLTraceState *getGlobalTraceState();
     void getCompressedFB(void **fb, unsigned *fbsize,
                             unsigned *fbwidth, unsigned *fbheight,
