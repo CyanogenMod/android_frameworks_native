@@ -93,41 +93,62 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
     int buf = b.mBuf;
 
-    if (b.mFence.get()) {
-        err = b.mFence->waitForever("CpuConsumer::lockNextBuffer");
-        if (err != OK) {
-            CC_LOGE("Failed to wait for fence of acquired buffer: %s (%d)",
-                    strerror(-err), err);
-            return err;
-        }
-    }
-
     void *bufferPointer = NULL;
     android_ycbcr ycbcr = android_ycbcr();
 
-    if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
-            HAL_PIXEL_FORMAT_YCbCr_420_888) {
-        err = mSlots[buf].mGraphicBuffer->lockYCbCr(
-            GraphicBuffer::USAGE_SW_READ_OFTEN,
-            b.mCrop,
-            &ycbcr);
+    if (b.mFence.get()) {
+        if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
+                HAL_PIXEL_FORMAT_YCbCr_420_888) {
+            err = mSlots[buf].mGraphicBuffer->lockAsyncYCbCr(
+                GraphicBuffer::USAGE_SW_READ_OFTEN,
+                b.mCrop,
+                &ycbcr,
+                b.mFence->dup());
 
-        if (err != OK) {
-            CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
-                    strerror(-err), err);
-            return err;
+            if (err != OK) {
+                CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
+                        strerror(-err), err);
+                return err;
+            }
+            bufferPointer = ycbcr.y;
+        } else {
+            err = mSlots[buf].mGraphicBuffer->lockAsync(
+                GraphicBuffer::USAGE_SW_READ_OFTEN,
+                b.mCrop,
+                &bufferPointer,
+                b.mFence->dup());
+
+            if (err != OK) {
+                CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
+                        strerror(-err), err);
+                return err;
+            }
         }
-        bufferPointer = ycbcr.y;
     } else {
-        err = mSlots[buf].mGraphicBuffer->lock(
-            GraphicBuffer::USAGE_SW_READ_OFTEN,
-            b.mCrop,
-            &bufferPointer);
+        if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
+                HAL_PIXEL_FORMAT_YCbCr_420_888) {
+            err = mSlots[buf].mGraphicBuffer->lockYCbCr(
+                GraphicBuffer::USAGE_SW_READ_OFTEN,
+                b.mCrop,
+                &ycbcr);
 
-        if (err != OK) {
-            CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
-                    strerror(-err), err);
-            return err;
+            if (err != OK) {
+                CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
+                        strerror(-err), err);
+                return err;
+            }
+            bufferPointer = ycbcr.y;
+        } else {
+            err = mSlots[buf].mGraphicBuffer->lock(
+                GraphicBuffer::USAGE_SW_READ_OFTEN,
+                b.mCrop,
+                &bufferPointer);
+
+            if (err != OK) {
+                CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
+                        strerror(-err), err);
+                return err;
+            }
         }
     }
 
@@ -189,14 +210,22 @@ status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
 
 status_t CpuConsumer::releaseAcquiredBufferLocked(int lockedIdx) {
     status_t err;
+    int fd = -1;
 
-    err = mAcquiredBuffers[lockedIdx].mGraphicBuffer->unlock();
+    err = mAcquiredBuffers[lockedIdx].mGraphicBuffer->unlockAsync(&fd);
     if (err != OK) {
         CC_LOGE("%s: Unable to unlock graphic buffer %d", __FUNCTION__,
                 lockedIdx);
         return err;
     }
     int buf = mAcquiredBuffers[lockedIdx].mSlot;
+    if (CC_LIKELY(fd != -1)) {
+        sp<Fence> fence(new Fence(fd));
+        addReleaseFenceLocked(
+            mAcquiredBuffers[lockedIdx].mSlot,
+            mSlots[buf].mGraphicBuffer,
+            fence);
+    }
 
     // release the buffer if it hasn't already been freed by the BufferQueue.
     // This can happen, for example, when the producer of this buffer
