@@ -44,7 +44,6 @@
 #define MAX_SOCKET_BUFFER_SIZE_BATCHED 100 * 1024
 // For older HALs which don't support batching, use a smaller socket buffer size.
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
-#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1U << 31)
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -89,11 +88,17 @@ class SensorService :
         // sent separately before the next batch of events.
         void countFlushCompleteEventsLocked(sensors_event_t* scratch, int numEventsDropped);
 
-        // Check if there are any wake up events in the buffer. If yes, increment the ref count.
-        // Increment it by exactly one unit for each packet sent on the socket. SOCK_SEQPACKET for
-        // the socket ensures that either the entire packet is read or dropped.
-        // Return 1 if mWakeLockRefCount has been incremented, zero if not.
-        int countWakeUpSensorEventsLocked(sensors_event_t* scratch, int count);
+        // Check if there are any wake up events in the buffer. If yes, return the index of the
+        // first wake_up sensor event in the buffer else return -1. This wake_up sensor event will
+        // have the flag WAKE_UP_SENSOR_EVENT_NEEDS_ACK set. Exactly one event per packet will have
+        // the wake_up flag set. SOCK_SEQPACKET ensures that either the entire packet is read or
+        // dropped.
+        int findWakeUpSensorEventLocked(sensors_event_t const* scratch, int count);
+
+        // Send pending flush_complete events. There may have been flush_complete_events that are
+        // dropped which need to be sent separately before other events. On older HALs (1_0) this
+        // method emulates the behavior of flush().
+        void sendPendingFlushEventsLocked();
 
         // Writes events from mEventCache to the socket.
         void writeToSocketFromCacheLocked();
@@ -102,6 +107,10 @@ class SensorService :
         // this connection. Wake up and non-wake up sensors have separate FIFOs but FIFO may be
         // shared amongst wake-up sensors and non-wake up sensors.
         int computeMaxCacheSizeLocked() const;
+
+        // When more sensors register, the maximum cache size desired may change. Compute max cache
+        // size, reallocate memory and copy over events from the older cache.
+        void reAllocateCacheLocked(sensors_event_t const* scratch, int count);
 
         // LooperCallback method. If there is data to read on this fd, it is an ack from the
         // app that it has read events from a wake up sensor, decrement mWakeLockRefCount.
@@ -124,11 +133,7 @@ class SensorService :
             // Every activate is preceded by a flush. Only after the first flush complete is
             // received, the events for the sensor are sent on that *connection*.
             bool mFirstFlushPending;
-            // Number of time flush() was called on this connection. This is incremented every time
-            // flush() is called and decremented when flush_complete_event is received.
-            int mNumFlushCalls;
-            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false),
-                                            mNumFlushCalls(0) {}
+            FlushInfo() : mPendingFlushEventsToSend(0), mFirstFlushPending(false) {}
         };
         // protected by SensorService::mLock. Key for this vector is the sensor handle.
         KeyedVector<int, FlushInfo> mSensorInfo;
@@ -157,11 +162,18 @@ class SensorService :
 
     class SensorRecord {
         SortedVector< wp<SensorEventConnection> > mConnections;
+        // A queue of all flush() calls made on this sensor. Flush complete events will be
+        // sent in this order.
+        Vector< wp<SensorEventConnection> > mPendingFlushConnections;
     public:
         SensorRecord(const sp<SensorEventConnection>& connection);
         bool addConnection(const sp<SensorEventConnection>& connection);
         bool removeConnection(const wp<SensorEventConnection>& connection);
         size_t getNumConnections() const { return mConnections.size(); }
+
+        void addPendingFlushConnection(const sp<SensorEventConnection>& connection);
+        void removeFirstPendingFlushConnection();
+        SensorEventConnection * getFirstPendingFlushConnection();
     };
 
     class SensorEventAckReceiver : public Thread {
@@ -193,6 +205,8 @@ class SensorService :
     void checkWakeLockState();
     void checkWakeLockStateLocked();
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
+
+    SensorRecord * getSensorRecord(int handle);
 
     sp<Looper> getLooper() const;
 
