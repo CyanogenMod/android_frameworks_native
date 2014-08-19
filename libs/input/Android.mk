@@ -27,7 +27,6 @@ commonSources := \
 
 deviceSources := \
     $(commonSources) \
-    IInputFlinger.cpp \
     InputTransport.cpp \
     VelocityControl.cpp \
     VelocityTracker.cpp

@@ -22,8 +22,7 @@ LOCAL_SRC_FILES:= \
     InputListener.cpp \
     InputManager.cpp \
     InputReader.cpp \
-    InputWindow.cpp \
-    InputFlinger.cpp
+    InputWindow.cpp
 
 LOCAL_SHARED_LIBRARIES := \
     libbinder \
@@ -49,19 +48,3 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 LOCAL_MODULE := libinputflinger
 
 include $(BUILD_SHARED_LIBRARY)
-
-########################################################################
-# build input flinger executable
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES:= \
-	main.cpp
-
-LOCAL_SHARED_LIBRARIES := \
-	libbinder \
-	libinputflinger \
-	libutils
-
-LOCAL_MODULE := inputflinger
-
-include $(BUILD_EXECUTABLE)
