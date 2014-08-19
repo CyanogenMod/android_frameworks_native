@@ -54,6 +54,11 @@ SensorDevice::SensorDevice()
                 SENSORS_HARDWARE_MODULE_ID, strerror(-err));
 
         if (mSensorDevice) {
+            if (mSensorDevice->common.version == SENSORS_DEVICE_API_VERSION_1_1 ||
+                mSensorDevice->common.version == SENSORS_DEVICE_API_VERSION_1_2) {
+                ALOGE(">>>> WARNING <<< Upgrade sensor HAL to version 1_3");
+            }
+
             sensor_t const* list;
             ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
             mActivationCount.setCapacity(count);
@@ -74,6 +79,7 @@ void SensorDevice::dump(String8& result)
     sensor_t const* list;
     ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
 
+    result.appendFormat("halVersion %d\n", getHalDeviceVersion());
     result.appendFormat("%d h/w sensors:\n", int(count));
 
     Mutex::Autolock _l(mLock);
@@ -210,24 +216,8 @@ status_t SensorDevice::batch(void* ident, int handle, int flags, int64_t samplin
     }
 
     const int halVersion = getHalDeviceVersion();
-    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_1) {
-        if (flags & SENSORS_BATCH_DRY_RUN) {
-            return mSensorDevice->batch(mSensorDevice, handle, flags, samplingPeriodNs,
-                                        maxBatchReportLatencyNs);
-        } else {
-            // Call h/w with dry run to see if the given parameters are feasible or not. Return if
-            // there is an error.
-            status_t errDryRun(NO_ERROR);
-            errDryRun = mSensorDevice->batch(mSensorDevice, handle, flags | SENSORS_BATCH_DRY_RUN,
-                                             samplingPeriodNs, maxBatchReportLatencyNs);
-            if (errDryRun != NO_ERROR) {
-                ALOGD_IF(DEBUG_CONNECTIONS, "SensorDevice::batch dry run error %s",
-                         strerror(-errDryRun));
-                return errDryRun;
-            }
-        }
-    } else if (maxBatchReportLatencyNs != 0) {
-        // Batch is not supported on older devices.
+    if (halVersion < SENSORS_DEVICE_API_VERSION_1_1 && maxBatchReportLatencyNs != 0) {
+        // Batch is not supported on older devices return invalid operation.
         return INVALID_OPERATION;
     }
 
