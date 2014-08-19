@@ -144,7 +144,7 @@ void BBinder::attachObject(
 
     if (!e) {
         e = new Extras;
-        uintptr_t* expected = 0;
+        uintptr_t expected = 0;
         if (!atomic_compare_exchange_strong_explicit(
                                         &mExtras, &expected,
                                         reinterpret_cast<uintptr_t>(e),
