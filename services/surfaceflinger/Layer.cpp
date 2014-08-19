@@ -323,6 +323,20 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         // which means using the inverse of the current transform set on the
         // SurfaceFlingerConsumer.
         uint32_t invTransform = mCurrentTransform;
+        if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+            /*
+             * the code below applies the display's inverse transform to the buffer
+             */
+            uint32_t invTransformOrient = hw->getOrientationTransform();
+            // calculate the inverse transform
+            if (invTransformOrient & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+                invTransformOrient ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                        NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            }
+            // and apply to the current transform
+            invTransform = (Transform(invTransform) * Transform(invTransformOrient)).getOrientation();
+        }
+
         int winWidth = s.active.w;
         int winHeight = s.active.h;
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
@@ -332,16 +346,16 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
             winHeight = s.active.w;
         }
         const Rect winCrop = activeCrop.transform(
-                invTransform, winWidth, winHeight);
+                invTransform, s.active.w, s.active.h);
 
         // below, crop is intersected with winCrop expressed in crop's coordinate space
         float xScale = crop.getWidth()  / float(winWidth);
         float yScale = crop.getHeight() / float(winHeight);
 
-        float insetL = winCrop.left                  * xScale;
-        float insetT = winCrop.top                   * yScale;
-        float insetR = (s.active.w - winCrop.right ) * xScale;
-        float insetB = (s.active.h - winCrop.bottom) * yScale;
+        float insetL = winCrop.left                 * xScale;
+        float insetT = winCrop.top                  * yScale;
+        float insetR = (winWidth - winCrop.right )  * xScale;
+        float insetB = (winHeight - winCrop.bottom) * yScale;
 
         crop.left   += insetL;
         crop.top    += insetT;
