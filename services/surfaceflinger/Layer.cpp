@@ -332,6 +332,14 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
             if (invTransformOrient & NATIVE_WINDOW_TRANSFORM_ROT_90) {
                 invTransformOrient ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
                         NATIVE_WINDOW_TRANSFORM_FLIP_H;
+                // If the transform has been rotated the axis of flip has been swapped
+                // so we need to swap which flip operations we are performing
+                bool is_h_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
+                bool is_v_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
+                if (is_h_flipped != is_v_flipped) {
+                    invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                            NATIVE_WINDOW_TRANSFORM_FLIP_H;
+                }
             }
             // and apply to the current transform
             invTransform = (Transform(invTransform) * Transform(invTransformOrient)).getOrientation();
@@ -411,13 +419,22 @@ void Layer::setGeometry(
          * the code below applies the display's inverse transform to the buffer
          */
         uint32_t invTransform = hw->getOrientationTransform();
+        uint32_t t_orientation = transform.getOrientation();
         // calculate the inverse transform
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
             invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
                     NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            // If the transform has been rotated the axis of flip has been swapped
+            // so we need to swap which flip operations we are performing
+            bool is_h_flipped = (t_orientation & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
+            bool is_v_flipped = (t_orientation & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
+            if (is_h_flipped != is_v_flipped) {
+                t_orientation ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                        NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            }
         }
         // and apply to the current transform
-        transform = transform * Transform(invTransform);
+        transform = Transform(t_orientation) * Transform(invTransform);
     }
 
     // this gives us only the "orientation" component of the transform
