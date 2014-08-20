@@ -401,6 +401,11 @@ status_t DisplayDevice::orientationToTransfrom(
 void DisplayDevice::setDisplaySize(const int newWidth, const int newHeight) {
     dirtyRegion.set(getBounds());
 
+    if (mSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(mDisplay, mSurface);
+        mSurface = EGL_NO_SURFACE;
+    }
+
     mDisplaySurface->resizeBuffers(newWidth, newHeight);
 
     ANativeWindow* const window = mNativeWindow.get();
