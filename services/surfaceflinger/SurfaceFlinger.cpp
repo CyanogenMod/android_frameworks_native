@@ -882,9 +882,32 @@ void SurfaceFlinger::rebuildLayerStacks() {
 
 void SurfaceFlinger::setUpHWComposer() {
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
-        bool mustRecompose =
-                !(mDisplays[dpy]->getDirtyRegion(false).isEmpty());
+        bool dirty = !mDisplays[dpy]->getDirtyRegion(false).isEmpty();
+        bool empty = mDisplays[dpy]->getVisibleLayersSortedByZ().size() == 0;
+        bool wasEmpty = !mDisplays[dpy]->lastCompositionHadVisibleLayers;
+
+        // If nothing has changed (!dirty), don't recompose.
+        // If something changed, but we don't currently have any visible layers,
+        //   and didn't when we last did a composition, then skip it this time.
+        // The second rule does two things:
+        // - When all layers are removed from a display, we'll emit one black
+        //   frame, then nothing more until we get new layers.
+        // - When a display is created with a private layer stack, we won't
+        //   emit any black frames until a layer is added to the layer stack.
+        bool mustRecompose = dirty && !(empty && wasEmpty);
+
+        ALOGV_IF(mDisplays[dpy]->getDisplayType() == DisplayDevice::DISPLAY_VIRTUAL,
+                "dpy[%zu]: %s composition (%sdirty %sempty %swasEmpty)", dpy,
+                mustRecompose ? "doing" : "skipping",
+                dirty ? "+" : "-",
+                empty ? "+" : "-",
+                wasEmpty ? "+" : "-");
+
         mDisplays[dpy]->beginFrame(mustRecompose);
+
+        if (mustRecompose) {
+            mDisplays[dpy]->lastCompositionHadVisibleLayers = !empty;
+        }
     }
 
     HWComposer& hwc(getHwComposer());
