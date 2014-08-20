@@ -348,8 +348,17 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         int winWidth = s.active.w;
         int winHeight = s.active.h;
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
-                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            // If the activeCrop has been rotate the ends are rotated but not
+            // the space itself so when transforming ends back we can't rely on
+            // a modification of the axes of rotation. To account for this we
+            // need to reorient the inverse rotation in terms of the current
+            // axes of rotation.
+            bool is_h_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
+            bool is_v_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
+            if (is_h_flipped == is_v_flipped) {
+                invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                        NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            }
             winWidth = s.active.h;
             winHeight = s.active.w;
         }
