@@ -29,6 +29,33 @@
 namespace android {
 namespace gltrace {
 
+GLint glGetInteger(GLTraceContext *context, GLenum param) {
+    GLint x;
+    context->hooks->gl.glGetIntegerv(param, &x);
+    return x;
+}
+
+GLint glGetVertexAttrib(GLTraceContext *context, GLuint index, GLenum pname) {
+    GLint x;
+    context->hooks->gl.glGetVertexAttribiv(index, pname, &x);
+    return x;
+}
+
+bool isUsingPixelBuffers(GLTraceContext *context) {
+    if (context->getVersionMajor() < 3) {
+        return false; // PBOs not supported prior to GLES 3.0
+    }
+    return glGetInteger(context, GL_PIXEL_UNPACK_BUFFER_BINDING) != 0;
+}
+
+bool isUsingArrayBuffers(GLTraceContext *context) {
+    return glGetInteger(context, GL_ARRAY_BUFFER_BINDING) != 0;
+}
+
+bool isUsingElementArrayBuffers(GLTraceContext *context) {
+    return glGetInteger(context, GL_ELEMENT_ARRAY_BUFFER_BINDING) != 0;
+}
+
 unsigned getBytesPerTexel(const GLenum format, const GLenum type) {
     /*
     Description from glTexImage2D spec:
@@ -156,7 +183,8 @@ void fixup_addFBContents(GLTraceContext *context, GLMessage *glmsg, FBBinding fb
 }
 
 /** Common fixup routing for glTexImage2D & glTexSubImage2D. */
-void fixup_glTexImage(int widthIndex, int heightIndex, GLMessage *glmsg, void *dataSrc) {
+void fixup_glTexImage(GLTraceContext *context, int widthIndex, int heightIndex, GLMessage *glmsg,
+                        void *dataSrc) {
     GLMessage_DataType arg_width  = glmsg->args(widthIndex);
     GLMessage_DataType arg_height = glmsg->args(heightIndex);
 
@@ -175,7 +203,7 @@ void fixup_glTexImage(int widthIndex, int heightIndex, GLMessage *glmsg, void *d
     arg_data->set_type(GLMessage::DataType::BYTE);
     arg_data->clear_rawbytes();
 
-    if (data != NULL) {
+    if (data != NULL && !isUsingPixelBuffers(context)) {
         arg_data->set_isarray(true);
         arg_data->add_rawbytes(data, bytesPerTexel * width * height);
     } else {
@@ -185,7 +213,7 @@ void fixup_glTexImage(int widthIndex, int heightIndex, GLMessage *glmsg, void *d
 }
 
 
-void fixup_glTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+void fixup_glTexImage2D(GLTraceContext *context, GLMessage *glmsg, void *pointersToFixup[]) {
     /* void glTexImage2D(GLenum target,
                         GLint level,
                         GLint internalformat,
@@ -198,10 +226,10 @@ void fixup_glTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
     */
     int widthIndex = 3;
     int heightIndex = 4;
-    fixup_glTexImage(widthIndex, heightIndex, glmsg, pointersToFixup[0]);
+    fixup_glTexImage(context, widthIndex, heightIndex, glmsg, pointersToFixup[0]);
 }
 
-void fixup_glTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+void fixup_glTexSubImage2D(GLTraceContext *context, GLMessage *glmsg, void *pointersToFixup[]) {
     /*
     void glTexSubImage2D(GLenum target,
                         GLint level,
@@ -215,10 +243,11 @@ void fixup_glTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
     */
     int widthIndex = 4;
     int heightIndex = 5;
-    fixup_glTexImage(widthIndex, heightIndex, glmsg, pointersToFixup[0]);
+    fixup_glTexImage(context, widthIndex, heightIndex, glmsg, pointersToFixup[0]);
 }
 
-void fixup_glCompressedTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+void fixup_glCompressedTexImage2D(GLTraceContext *context, GLMessage *glmsg,
+                                    void *pointersToFixup[]) {
     /* void glCompressedTexImage2D(GLenum target,
                                    GLint level,
                                    GLenum internalformat,
@@ -235,7 +264,7 @@ void fixup_glCompressedTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
     arg_data->set_type(GLMessage::DataType::BYTE);
     arg_data->clear_rawbytes();
 
-    if (data != NULL) {
+    if (data != NULL && !isUsingPixelBuffers(context)) {
         arg_data->set_isarray(true);
         arg_data->add_rawbytes(data, size);
     } else {
@@ -244,7 +273,8 @@ void fixup_glCompressedTexImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
     }
 }
 
-void fixup_glCompressedTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) {
+void fixup_glCompressedTexSubImage2D(GLTraceContext *context, GLMessage *glmsg,
+                                        void *pointersToFixup[]) {
     /* void glCompressedTexSubImage2D(GLenum target,
                                       GLint level,
                                       GLint xoffset,
@@ -262,7 +292,7 @@ void fixup_glCompressedTexSubImage2D(GLMessage *glmsg, void *pointersToFixup[]) 
     arg_data->set_type(GLMessage::DataType::BYTE);
     arg_data->clear_rawbytes();
 
-    if (data != NULL) {
+    if (data != NULL && !isUsingPixelBuffers(context)) {
         arg_data->set_isarray(true);
         arg_data->add_rawbytes(data, size);
     } else {
@@ -434,26 +464,6 @@ void fixup_glGetActiveAttribOrUniform(GLTraceContext *context, GLMessage *glmsg,
     arg_location->set_isarray(false);
     arg_location->set_type(GLMessage::DataType::INT);
     arg_location->add_intvalue(location);
-}
-
-GLint glGetInteger(GLTraceContext *context, GLenum param) {
-    GLint x;
-    context->hooks->gl.glGetIntegerv(param, &x);
-    return x;
-}
-
-GLint glGetVertexAttrib(GLTraceContext *context, GLuint index, GLenum pname) {
-    GLint x;
-    context->hooks->gl.glGetVertexAttribiv(index, pname, &x);
-    return x;
-}
-
-bool isUsingArrayBuffers(GLTraceContext *context) {
-    return glGetInteger(context, GL_ARRAY_BUFFER_BINDING) != 0;
-}
-
-bool isUsingElementArrayBuffers(GLTraceContext *context) {
-    return glGetInteger(context, GL_ELEMENT_ARRAY_BUFFER_BINDING) != 0;
 }
 
 /** Copy @len bytes of data from @src into the @dataIndex'th argument of the message. */
@@ -809,22 +819,22 @@ void fixupGLMessage(GLTraceContext *context, nsecs_t wallStart, nsecs_t wallEnd,
         break;
     case GLMessage::glTexImage2D:
         if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
-            fixup_glTexImage2D(glmsg, pointersToFixup);
+            fixup_glTexImage2D(context, glmsg, pointersToFixup);
         }
         break;
     case GLMessage::glTexSubImage2D:
         if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
-            fixup_glTexSubImage2D(glmsg, pointersToFixup);
+            fixup_glTexSubImage2D(context, glmsg, pointersToFixup);
         }
         break;
     case GLMessage::glCompressedTexImage2D:
         if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
-            fixup_glCompressedTexImage2D(glmsg, pointersToFixup);
+            fixup_glCompressedTexImage2D(context, glmsg, pointersToFixup);
         }
         break;
     case GLMessage::glCompressedTexSubImage2D:
         if (context->getGlobalTraceState()->shouldCollectTextureDataOnGlTexImage()) {
-            fixup_glCompressedTexSubImage2D(glmsg, pointersToFixup);
+            fixup_glCompressedTexSubImage2D(context, glmsg, pointersToFixup);
         }
         break;
     case GLMessage::glShaderSource:
