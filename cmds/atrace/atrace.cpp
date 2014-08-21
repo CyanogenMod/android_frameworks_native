@@ -341,11 +341,56 @@ static bool setTraceBufferSizeKB(int size)
     return writeStr(k_traceBufferSizePath, str);
 }
 
+// Read the trace_clock sysfs file and return true if it matches the requested
+// value.  The trace_clock file format is:
+// local [global] counter uptime perf
+static bool isTraceClock(const char *mode)
+{
+    int fd = open(k_traceClockPath, O_RDONLY);
+    if (fd == -1) {
+        fprintf(stderr, "error opening %s: %s (%d)\n", k_traceClockPath,
+            strerror(errno), errno);
+        return false;
+    }
+
+    char buf[4097];
+    ssize_t n = read(fd, buf, 4096);
+    close(fd);
+    if (n == -1) {
+        fprintf(stderr, "error reading %s: %s (%d)\n", k_traceClockPath,
+            strerror(errno), errno);
+        return false;
+    }
+    buf[n] = '\0';
+
+    char *start = strchr(buf, '[');
+    if (start == NULL) {
+        return false;
+    }
+    start++;
+
+    char *end = strchr(start, ']');
+    if (end == NULL) {
+        return false;
+    }
+    *end = '\0';
+
+    return strcmp(mode, start) == 0;
+}
+
 // Enable or disable the kernel's use of the global clock.  Disabling the global
 // clock will result in the kernel using a per-CPU local clock.
+// Any write to the trace_clock sysfs file will reset the buffer, so only
+// update it if the requested value is not the current value.
 static bool setGlobalClockEnable(bool enable)
 {
-    return writeStr(k_traceClockPath, enable ? "global" : "local");
+    const char *clock = enable ? "global" : "local";
+
+    if (isTraceClock(clock)) {
+        return true;
+    }
+
+    return writeStr(k_traceClockPath, clock);
 }
 
 static bool setPrintTgidEnableIfPresent(bool enable)
