@@ -924,6 +924,7 @@ SensorService::SensorEventConnection::SensorEventConnection(
     }
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
+    mTotalAcksNeeded = mTotalAcksReceived = 0;
 #endif
 }
 
@@ -960,12 +961,15 @@ void SensorService::SensorEventConnection::dump(String8& result) {
                             mCacheSize,
                             mMaxCacheSize);
 #if DEBUG_CONNECTIONS
-        result.appendFormat("\t events recvd: %d | sent %d | cache %d | dropped %d\n",
+        result.appendFormat("\t events recvd: %d | sent %d | cache %d | dropped %d |"
+                                  " total_acks_needed %d | total_acks_recvd %d\n",
                                         mEventsReceived,
                                         mEventsSent,
                                         mEventsSentFromCache,
-                                        mEventsReceived - (mEventsSentFromCache
-                                                           mEventsSent + mCacheSize));
+                                        mEventsReceived - (mEventsSentFromCache +
+                                                           mEventsSent + mCacheSize),
+                                        mTotalAcksNeeded,
+                                        mTotalAcksReceived);
 #endif
 
     }
@@ -1125,6 +1129,9 @@ status_t SensorService::SensorEventConnection::sendEvents(
     if (index_wake_up_event >= 0) {
         scratch[index_wake_up_event].flags |= WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
         ++mWakeLockRefCount;
+#if DEBUG_CONNECTIONS
+        ++mTotalAcksNeeded;
+#endif
     }
 
     // NOTE: ASensorEvent and sensors_event_t are the same type.
@@ -1136,6 +1143,9 @@ status_t SensorService::SensorEventConnection::sendEvents(
             // If there was a wake_up sensor_event, reset the flag.
             scratch[index_wake_up_event].flags &= ~WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
             --mWakeLockRefCount;
+#if DEBUG_CONNECTIONS
+            --mTotalAcksNeeded;
+#endif
         }
         if (mEventCache == NULL) {
             mMaxCacheSize = computeMaxCacheSizeLocked();
@@ -1214,6 +1224,9 @@ void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
             mEventCache[index_wake_up_event + numEventsSent].flags |=
                     WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
             ++mWakeLockRefCount;
+#if DEBUG_CONNECTIONS
+            ++mTotalAcksNeeded;
+#endif
         }
 
         ssize_t size = SensorEventQueue::write(mChannel,
@@ -1225,6 +1238,9 @@ void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
                 mEventCache[index_wake_up_event + numEventsSent].flags  &=
                         ~WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
                 --mWakeLockRefCount;
+#if DEBUG_CONNECTIONS
+                --mTotalAcksNeeded;
+#endif
             }
             memmove(mEventCache, &mEventCache[numEventsSent],
                                  (mCacheSize - numEventsSent) * sizeof(sensors_event_t));
@@ -1333,6 +1349,9 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
         {
            Mutex::Autolock _l(mConnectionLock);
            --mWakeLockRefCount;
+#if DEBUG_CONNECTIONS
+           ++mTotalAcksReceived;
+#endif
         }
         // Check if wakelock can be released by sensorservice. mConnectionLock needs to be released
         // here as checkWakeLockState() will need it.
@@ -1380,7 +1399,7 @@ int SensorService::SensorEventConnection::computeMaxCacheSizeLocked() const {
    if (fifoWakeUpSensors + fifoNonWakeUpSensors == 0) {
        // It is extremely unlikely that there is a write failure in non batch mode. Return a cache
        // size that is equal to that of the batch mode.
-       ALOGI("Write failure in non-batch mode");
+       // ALOGW("Write failure in non-batch mode");
        return MAX_SOCKET_BUFFER_SIZE_BATCHED/sizeof(sensors_event_t);
    }
    return fifoWakeUpSensors + fifoNonWakeUpSensors;
