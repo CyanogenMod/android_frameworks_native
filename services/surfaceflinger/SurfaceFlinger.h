@@ -375,7 +375,8 @@ private:
     void initializeDisplays();
 
     // Create an IBinder for a builtin display and add it to current state
-    void createBuiltinDisplayLocked(DisplayDevice::DisplayType type);
+    void createBuiltinDisplayLocked(DisplayDevice::DisplayType type,
+                                    bool secure);
 
     // NOTE: can only be called from the main thread or with mStateLock held
     sp<const DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) const {

@@ -276,6 +276,7 @@ public:
         uint32_t height;
         float xdpi;
         float ydpi;
+        bool secure;
         nsecs_t refresh;
     };
 
@@ -285,6 +286,7 @@ public:
     sp<Fence> getDisplayFence(int disp) const;
     uint32_t getFormat(int disp) const;
     bool isConnected(int disp) const;
+    bool isSecure(int disp) const;
 
     // These return the values for the current config of a given display index.
     // To get the values for all configs, use getConfigs below.

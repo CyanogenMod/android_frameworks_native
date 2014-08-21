@@ -179,6 +179,7 @@ HWComposer::HWComposer(
         config.height = mFbDev->height;
         config.xdpi = mFbDev->xdpi;
         config.ydpi = mFbDev->ydpi;
+        config.secure = true; //XXX: Assuming primary is always true
         config.refresh = nsecs_t(1e9 / mFbDev->fps);
         disp.configs.push_back(config);
         disp.currentConfig = 0;
@@ -350,6 +351,10 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_HEIGHT,
     HWC_DISPLAY_DPI_X,
     HWC_DISPLAY_DPI_Y,
+    //To specify if display is secure
+    //Primary is considered as secure always
+    //HDMI can be secure based on HDCP
+    HWC_DISPLAY_SECURE,
     HWC_DISPLAY_NO_ATTRIBUTE,
 };
 #define NUM_DISPLAY_ATTRIBUTES (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0])
@@ -405,6 +410,9 @@ status_t HWComposer::queryDisplayProperties(int disp) {
                 case HWC_DISPLAY_DPI_Y:
                     config.ydpi = values[i] / 1000.0f;
                     break;
+                case HWC_DISPLAY_SECURE:
+                    config.secure = values[i];
+                    break;
                 default:
                     ALOG_ASSERT(false, "unknown display attribute[%zu] %#x",
                             i, DISPLAY_ATTRIBUTES[i]);
@@ -439,6 +447,8 @@ status_t HWComposer::setVirtualDisplayProperties(int32_t id,
     config.width = w;
     config.height = h;
     config.xdpi = config.ydpi = getDefaultDensity(w, h);
+    //XXXX: No need to set secure for virtual display's as its initiated by
+    //the frameworks
     return NO_ERROR;
 }
 
@@ -513,6 +523,12 @@ float HWComposer::getDpiY(int disp) const {
     size_t currentConfig = mDisplayData[disp].currentConfig;
     return mDisplayData[disp].configs[currentConfig].ydpi;
 }
+
+bool HWComposer::isSecure(int disp) const {
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].secure;
+}
+
 
 nsecs_t HWComposer::getRefreshPeriod(int disp) const {
     size_t currentConfig = mDisplayData[disp].currentConfig;
@@ -1242,9 +1258,9 @@ void HWComposer::dump(String8& result) const {
             result.appendFormat("  Display[%zd] configurations (* current):\n", i);
             for (size_t c = 0; c < disp.configs.size(); ++c) {
                 const DisplayConfig& config(disp.configs[c]);
-                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, refresh=%" PRId64 "\n",
+                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, secure=%d refresh=%" PRId64 "\n",
                         c == disp.currentConfig ? "* " : "", c, config.width, config.height,
-                        config.xdpi, config.ydpi, config.refresh);
+                        config.xdpi, config.ydpi, config.secure, config.refresh);
             }
 
             if (disp.list) {
