@@ -780,6 +780,8 @@ status_t HWComposer::setPowerMode(int disp, int mode) {
 
 status_t HWComposer::setActiveConfig(int disp, int mode) {
     LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
+    DisplayData& dd(mDisplayData[disp]);
+    dd.currentConfig = mode;
     if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {
         return (status_t)mHwc->setActiveConfig(mHwc, disp, mode);
     } else {
