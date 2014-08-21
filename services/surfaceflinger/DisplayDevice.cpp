@@ -59,7 +59,8 @@ DisplayDevice::DisplayDevice(
         const sp<DisplaySurface>& displaySurface,
         const sp<IGraphicBufferProducer>& producer,
         EGLConfig config)
-    : mFlinger(flinger),
+    : lastCompositionHadVisibleLayers(false),
+      mFlinger(flinger),
       mType(type), mHwcDisplayId(hwcId),
       mDisplayToken(displayToken),
       mDisplaySurface(displaySurface),
