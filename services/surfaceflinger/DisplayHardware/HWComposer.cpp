@@ -799,6 +799,9 @@ void HWComposer::disconnectDisplay(int disp) {
     dd.lastRetireFence = Fence::NO_FENCE;
     dd.lastDisplayFence = Fence::NO_FENCE;
     dd.outbufAcquireFence = Fence::NO_FENCE;
+    // clear all the previous configs and repopulate when a new
+    // device is added
+    dd.configs.clear();
 }
 
 int HWComposer::getVisualID() const {
