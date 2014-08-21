@@ -1539,7 +1539,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 #ifdef QCOM_B_FAMILY
                             // Set the view frame of each display only of its
                             // default orientation.
-                            if(orient == DisplayState::eOrientationDefault) {
+                            if(orient == DisplayState::eOrientationDefault and
+                                    state.frame.isValid()) {
                                 qdutils::setViewFrame(disp->getHwcDisplayId(),
                                     state.frame.left, state.frame.top,
                                     state.frame.right, state.frame.bottom);
