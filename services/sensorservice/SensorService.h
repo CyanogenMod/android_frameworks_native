@@ -142,6 +142,7 @@ class SensorService :
 
 #if DEBUG_CONNECTIONS
         int mEventsReceived, mEventsSent, mEventsSentFromCache;
+        int mTotalAcksNeeded, mTotalAcksReceived;
 #endif
 
     public:
