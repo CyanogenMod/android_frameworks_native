@@ -808,6 +808,33 @@ void finish_cache_collection(cache_t* cache)
 }
 
 /**
+ * Validate that the path is valid in the context of the provided directory.
+ * The path is allowed to have at most one subdirectory and no indirections
+ * to top level directories (i.e. have "..").
+ */
+static int validate_path(const dir_rec_t* dir, const char* path) {
+    size_t dir_len = dir->len;
+    const char* subdir = strchr(path + dir_len, '/');
+
+    // Only allow the path to have at most one subdirectory.
+    if (subdir != NULL) {
+        ++subdir;
+        if (strchr(subdir, '/') != NULL) {
+            ALOGE("invalid apk path '%s' (subdir?)\n", path);
+            return -1;
+        }
+    }
+
+    // Directories can't have a period directly after the directory markers to prevent "..".
+    if ((path[dir_len] == '.') || ((subdir != NULL) && (*subdir == '.'))) {
+        ALOGE("invalid apk path '%s' (trickery)\n", path);
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Checks whether a path points to a system app (.apk file). Returns 0
  * if it is a system app or -1 if it is not.
  */
@@ -817,11 +844,7 @@ int validate_system_app_path(const char* path) {
     for (i = 0; i < android_system_dirs.count; i++) {
         const size_t dir_len = android_system_dirs.dirs[i].len;
         if (!strncmp(path, android_system_dirs.dirs[i].path, dir_len)) {
-            if (path[dir_len] == '.' || strchr(path + dir_len, '/') != NULL) {
-                ALOGE("invalid system apk path '%s' (trickery)\n", path);
-                return -1;
-            }
-            return 0;
+            return validate_path(android_system_dirs.dirs + i, path);
         }
     }
 
@@ -920,37 +943,20 @@ int copy_and_append(dir_rec_t* dst, const dir_rec_t* src, const char* suffix) {
  */
 int validate_apk_path(const char *path)
 {
-    size_t dir_len;
+    const dir_rec_t* dir = NULL;
 
     if (!strncmp(path, android_app_dir.path, android_app_dir.len)) {
-        dir_len = android_app_dir.len;
+        dir = &android_app_dir;
     } else if (!strncmp(path, android_app_private_dir.path, android_app_private_dir.len)) {
-        dir_len = android_app_private_dir.len;
+        dir = &android_app_private_dir;
     } else if (!strncmp(path, android_asec_dir.path, android_asec_dir.len)) {
-        dir_len = android_asec_dir.len;
+        dir = &android_asec_dir;
     } else {
         ALOGE("invalid apk path '%s' (bad prefix)\n", path);
         return -1;
     }
 
-    const char* subdir = strchr(path + dir_len, '/');
-
-    // Only allow the path to have at most one subdirectory.
-    if (subdir != NULL) {
-        ++subdir;
-        if (strchr(subdir, '/') != NULL) {
-            ALOGE("invalid apk path '%s' (subdir?)\n", path);
-            return -1;
-        }
-    }
-
-    // Directories can't have a period directly after the directory markers to prevent "..".
-    if ((path[dir_len] == '.') || ((subdir != NULL) && (*subdir == '.'))) {
-        ALOGE("invalid apk path '%s' (trickery)\n", path);
-        return -1;
-    }
-
-    return 0;
+    return validate_path(dir, path);
 }
 
 int append_and_increment(char** dst, const char* src, size_t* dst_size) {
