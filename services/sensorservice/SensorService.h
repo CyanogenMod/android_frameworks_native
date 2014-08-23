@@ -218,6 +218,8 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;
     status_t mInitCheck;
+    // Socket buffersize used to initialize BitTube. This size depends on whether batching is
+    // supported or not.
     size_t mSocketBufferSize;
     sp<Looper> mLooper;
 

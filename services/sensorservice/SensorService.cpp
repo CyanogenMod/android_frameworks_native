@@ -150,14 +150,33 @@ void SensorService::onFirstRef()
             // debugging sensor list
             mUserSensorListDebug = mSensorList;
 
-            mSocketBufferSize = SOCKET_BUFFER_SIZE_NON_BATCHED;
+            // Check if the device really supports batching by looking at the FIFO event
+            // counts for each sensor.
+            bool batchingSupported = false;
+            for (int i = 0; i < mSensorList.size(); ++i) {
+                if (mSensorList[i].getFifoMaxEventCount() > 0) {
+                    batchingSupported = true;
+                    break;
+                }
+            }
+
+            if (batchingSupported) {
+                // Increase socket buffer size to a max of 100 KB for batching capabilities.
+                mSocketBufferSize = MAX_SOCKET_BUFFER_SIZE_BATCHED;
+            } else {
+                mSocketBufferSize = SOCKET_BUFFER_SIZE_NON_BATCHED;
+            }
+
+            // Compare the socketBufferSize value against the system limits and limit
+            // it to maxSystemSocketBufferSize if necessary.
             FILE *fp = fopen("/proc/sys/net/core/wmem_max", "r");
             char line[128];
             if (fp != NULL && fgets(line, sizeof(line), fp) != NULL) {
                 line[sizeof(line) - 1] = '\0';
-                sscanf(line, "%zu", &mSocketBufferSize);
-                if (mSocketBufferSize > MAX_SOCKET_BUFFER_SIZE_BATCHED) {
-                    mSocketBufferSize = MAX_SOCKET_BUFFER_SIZE_BATCHED;
+                size_t maxSystemSocketBufferSize;
+                sscanf(line, "%zu", &maxSystemSocketBufferSize);
+                if (mSocketBufferSize > maxSystemSocketBufferSize) {
+                    mSocketBufferSize = maxSystemSocketBufferSize;
                 }
             }
             if (fp) {
@@ -310,7 +329,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
                     mActiveSensors.valueAt(i)->getNumConnections());
         }
 
-        result.appendFormat("Max Socket Buffer size = %d events\n",
+        result.appendFormat("Socket Buffer size = %d events\n",
                             mSocketBufferSize/sizeof(sensors_event_t));
         result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
         result.appendFormat("%zd active connections\n", mActiveConnections.size());
@@ -687,13 +706,18 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
                                  maxBatchReportLatencyNs);
 
-    if (err == NO_ERROR && sensor->getSensor().getReportingMode() != AREPORTING_MODE_ONE_SHOT) {
+    // Call flush() before calling activate() on the sensor. Wait for a first flush complete
+    // event before sending events on this connection. Ignore one-shot sensors which don't
+    // support flush(). Also if this sensor isn't already active, don't call flush().
+    if (err == NO_ERROR && sensor->getSensor().getReportingMode() != AREPORTING_MODE_ONE_SHOT &&
+            rec->getNumConnections() > 1) {
+        connection->setFirstFlushPending(handle, true);
         status_t err_flush = sensor->flush(connection.get(), handle);
-        // Flush may return error if the sensor is not activated or the underlying h/w sensor does
-        // not support flush.
+        // Flush may return error if the underlying h/w sensor uses an older HAL.
         if (err_flush == NO_ERROR) {
-            connection->setFirstFlushPending(handle, true);
             rec->addPendingFlushConnection(connection.get());
+        } else {
+            connection->setFirstFlushPending(handle, false);
         }
     }
 
@@ -808,7 +832,6 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
     return ret;
 }
 
-
 bool SensorService::canAccessSensor(const Sensor& sensor) {
     return (sensor.getRequiredPermission().isEmpty()) ||
             PermissionCache::checkCallingPermission(String16(sensor.getRequiredPermission()));
@@ -916,12 +939,7 @@ SensorService::SensorEventConnection::SensorEventConnection(
     : mService(service), mUid(uid), mWakeLockRefCount(0), mEventCache(NULL), mCacheSize(0),
       mMaxCacheSize(0) {
     const SensorDevice& device(SensorDevice::getInstance());
-    if (device.getHalDeviceVersion() >= SENSORS_DEVICE_API_VERSION_1_1) {
-        // Increase socket buffer size to a max of 100 KB for batching capabilities.
-        mChannel = new BitTube(mService->mSocketBufferSize);
-    } else {
-        mChannel = new BitTube(SOCKET_BUFFER_SIZE_NON_BATCHED);
-    }
+    mChannel = new BitTube(mService->mSocketBufferSize);
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
     mTotalAcksNeeded = mTotalAcksReceived = 0;
@@ -1211,13 +1229,14 @@ void SensorService::SensorEventConnection::sendPendingFlushEventsLocked() {
 }
 
 void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
-    // At a time write at most half the size of the receiver buffer in SensorEventQueue.
-    const int maxWriteSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT/2;
+    // At a time write at most half the size of the receiver buffer in SensorEventQueue OR
+    // half the size of the socket buffer allocated in BitTube whichever is smaller.
+    const int maxWriteSize = helpers::min(SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT/2,
+            int(mService->mSocketBufferSize/(sizeof(sensors_event_t)*2)));
+    // Send pending flush complete events (if any)
     sendPendingFlushEventsLocked();
-    // Write "count" events at a time.
     for (int numEventsSent = 0; numEventsSent < mCacheSize;) {
-        const int numEventsToWrite = (mCacheSize - numEventsSent) < maxWriteSize ?
-                                        mCacheSize - numEventsSent : maxWriteSize;
+        const int numEventsToWrite = helpers::min(mCacheSize - numEventsSent, maxWriteSize);
         int index_wake_up_event =
                   findWakeUpSensorEventLocked(mEventCache + numEventsSent, numEventsToWrite);
         if (index_wake_up_event >= 0) {
