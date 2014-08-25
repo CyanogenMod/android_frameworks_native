@@ -313,6 +313,12 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
         /* make sure the child dies when dumpstate dies */
         prctl(PR_SET_PDEATHSIG, SIGKILL);
 
+        /* just ignore SIGPIPE, will go down with parent's */
+        struct sigaction sigact;
+        memset(&sigact, 0, sizeof(sigact));
+        sigact.sa_handler = SIG_IGN;
+        sigaction(SIGPIPE, &sigact, NULL);
+
         va_list ap;
         va_start(ap, command);
         if (title) printf("------ %s (%s", title, command);
