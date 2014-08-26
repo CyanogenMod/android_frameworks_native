@@ -626,7 +626,7 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, const char *pkgname, const char *instruction_set)
 {
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
-    static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
+    static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
     static const char* PATCHOAT_BIN = "/system/bin/patchoat";
     if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
@@ -665,6 +665,14 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, const char *pkgname, const char *instruction_set)
 {
+    static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
+
+    if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
+        ALOGE("Instruction set %s longer than max length of %d",
+              instruction_set, MAX_INSTRUCTION_SET_LEN);
+        return;
+    }
+
     char prop_buf[PROPERTY_VALUE_MAX];
     bool profiler = (property_get("dalvik.vm.profiler", prop_buf, "0") > 0) && (prop_buf[0] == '1');
 
@@ -677,6 +685,12 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char dex2oat_compiler_filter_flag[PROPERTY_VALUE_MAX];
     bool have_dex2oat_compiler_filter_flag = property_get("dalvik.vm.dex2oat-filter",
                                                           dex2oat_compiler_filter_flag, NULL) > 0;
+
+    char dex2oat_isa_features_key[PROPERTY_KEY_MAX];
+    sprintf(dex2oat_isa_features_key, "dalvik.vm.isa.%s.features", instruction_set);
+    char dex2oat_isa_features[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_isa_features = property_get(dex2oat_isa_features_key,
+                                                  dex2oat_isa_features, NULL) > 0;
 
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     bool have_dex2oat_flags = property_get("dalvik.vm.dex2oat-flags", dex2oat_flags, NULL) > 0;
@@ -694,19 +708,13 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     static const char* RUNTIME_ARG = "--runtime-arg";
 
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
-    static const unsigned int MAX_INSTRUCTION_SET_LEN = 32;
-
-    if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
-        ALOGE("Instruction set %s longer than max length of %d",
-              instruction_set, MAX_INSTRUCTION_SET_LEN);
-        return;
-    }
 
     char zip_fd_arg[strlen("--zip-fd=") + MAX_INT_LEN];
     char zip_location_arg[strlen("--zip-location=") + PKG_PATH_MAX];
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
     char oat_location_arg[strlen("--oat-location=") + PKG_PATH_MAX];
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
+    char instruction_set_features_arg[strlen("--instruction-set-features=") + PROPERTY_VALUE_MAX];
     char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
     char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
     char dex2oat_Xms_arg[strlen("-Xms") + PROPERTY_VALUE_MAX];
@@ -718,6 +726,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
     sprintf(oat_location_arg, "--oat-location=%s", output_file_name);
     sprintf(instruction_set_arg, "--instruction-set=%s", instruction_set);
+    sprintf(instruction_set_features_arg, "--instruction-set-features=%s", dex2oat_isa_features);
 
     bool have_profile_file = false;
     bool have_top_k_profile_threshold = false;
@@ -753,6 +762,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
     char* argv[7  // program name, mandatory arguments and the final NULL
+               + (have_dex2oat_isa_features ? 1 : 0)
                + (have_profile_file ? 1 : 0)
                + (have_top_k_profile_threshold ? 1 : 0)
                + (have_dex2oat_Xms_flag ? 2 : 0)
@@ -766,6 +776,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     argv[i++] = oat_fd_arg;
     argv[i++] = oat_location_arg;
     argv[i++] = instruction_set_arg;
+    if (have_dex2oat_isa_features) {
+        argv[i++] = instruction_set_features_arg;
+    }
     if (have_profile_file) {
         argv[i++] = profile_file_arg;
     }
