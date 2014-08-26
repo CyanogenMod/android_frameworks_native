@@ -524,6 +524,10 @@ void HWComposer::eventControl(int disp, int event, int enabled) {
             if (!err) {
                 int32_t& events(mDisplayData[disp].events);
                 events = (events & ~eventBit) | newValue;
+
+                char tag[16];
+                snprintf(tag, sizeof(tag), "HW_VSYNC_ON_%1u", disp);
+                ATRACE_INT(tag, enabled);
             }
         }
         // error here should not happen -- not sure what we should
