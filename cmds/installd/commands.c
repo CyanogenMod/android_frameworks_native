@@ -674,7 +674,8 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name, const char *pkgname, const char *instruction_set)
+    const char* output_file_name, const char *pkgname, const char *instruction_set,
+    bool vm_safe_mode)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -766,6 +767,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (skip_compilation) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-none");
         have_dex2oat_compiler_filter_flag = true;
+    } else if (vm_safe_mode) {
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
     }
@@ -843,9 +846,9 @@ static int wait_child(pid_t pid)
     }
 }
 
-int dexopt(const char *apk_path, uid_t uid, int is_public,
+int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set,
-           int is_patchoat)
+           bool vm_safe_mode, bool is_patchoat)
 {
     struct utimbuf ut;
     struct stat input_stat, dex_stat;
@@ -979,7 +982,8 @@ int dexopt(const char *apk_path, uid_t uid, int is_public,
             if (is_patchoat) {
                 run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
             } else {
-                run_dex2oat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
+                run_dex2oat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set,
+                            vm_safe_mode);
             }
         } else {
             exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
