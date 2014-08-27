@@ -177,10 +177,6 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
     return 0;
 }
 
-static int lib_dir_matcher(const char* file_name, const int is_dir) {
-  return is_dir && !strcmp(file_name, "lib");
-}
-
 int delete_user_data(const char *pkgname, userid_t userid)
 {
     char pkgdir[PKG_PATH_MAX];
@@ -188,8 +184,7 @@ int delete_user_data(const char *pkgname, userid_t userid)
     if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
         return -1;
 
-    /* delete contents, excluding "lib", but not the directory itself */
-    return delete_dir_contents(pkgdir, 0, &lib_dir_matcher);
+    return delete_dir_contents(pkgdir, 0, NULL);
 }
 
 int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
