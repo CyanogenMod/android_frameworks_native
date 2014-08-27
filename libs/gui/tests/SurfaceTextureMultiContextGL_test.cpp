@@ -386,4 +386,59 @@ TEST_F(SurfaceTextureMultiContextGLTest,
     ASSERT_EQ(OK, mST->updateTexImage());
 }
 
+TEST_F(SurfaceTextureMultiContextGLTest,
+       AttachAfterDisplayTerminatedSucceeds) {
+    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
+
+    // produce two frames and consume them both on the primary context
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+
+    // produce one more frame
+    ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
+
+    // Detach from the primary context.
+    ASSERT_EQ(OK, mST->releaseTexImage());
+    ASSERT_EQ(OK, mST->detachFromContext());
+
+    // Terminate and then initialize the display. All contexts, surfaces
+    // and images are invalid at this point.
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    ASSERT_NE(EGL_NO_DISPLAY, mEglDisplay);
+    EGLint majorVersion = 0;
+    EGLint minorVersion = 0;
+    EXPECT_TRUE(eglTerminate(display));
+    EXPECT_TRUE(eglInitialize(mEglDisplay, &majorVersion, &minorVersion));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // The surface is invalid so create it again.
+    EGLint pbufferAttribs[] = {
+        EGL_WIDTH, 64,
+        EGL_HEIGHT, 64,
+        EGL_NONE };
+    mEglSurface = eglCreatePbufferSurface(mEglDisplay, mGlConfig,
+            pbufferAttribs);
+
+    // The second context is invalid so create it again.
+    mSecondEglContext = eglCreateContext(mEglDisplay, mGlConfig,
+            EGL_NO_CONTEXT, getContextAttribs());
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+    ASSERT_NE(EGL_NO_CONTEXT, mSecondEglContext);
+
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface,
+            mSecondEglContext));
+    ASSERT_EQ(EGL_SUCCESS, eglGetError());
+
+    // Now attach to and consume final frame on secondary context.
+    ASSERT_EQ(OK, mST->attachToContext(SECOND_TEX_ID));
+    mFW->waitForFrame();
+    ASSERT_EQ(OK, mST->updateTexImage());
+}
+
+
 } // namespace android
