@@ -462,24 +462,37 @@ status_t GLConsumer::bindTextureImageLocked() {
     }
 
     status_t err = mCurrentTextureImage->createIfNeeded(mEglDisplay,
-                                                      mCurrentCrop);
-
+                                                        mCurrentCrop);
     if (err != NO_ERROR) {
         ST_LOGW("bindTextureImage: can't create image on display=%p slot=%d",
                 mEglDisplay, mCurrentTexture);
         return UNKNOWN_ERROR;
     }
-
     mCurrentTextureImage->bindToTextureTarget(mTexTarget);
 
-    while ((error = glGetError()) != GL_NO_ERROR) {
-        ST_LOGE("bindTextureImage: error binding external image: %#04x", error);
-        return UNKNOWN_ERROR;
+    // In the rare case that the display is terminated and then initialized
+    // again, we can't detect that the display changed (it didn't), but the
+    // image is invalid. In this case, repeat the exact same steps while
+    // forcing the creation of a new image.
+    if ((error = glGetError()) != GL_NO_ERROR) {
+        glBindTexture(mTexTarget, mTexName);
+        status_t err = mCurrentTextureImage->createIfNeeded(mEglDisplay,
+                                                            mCurrentCrop,
+                                                            true);
+        if (err != NO_ERROR) {
+            ST_LOGW("bindTextureImage: can't create image on display=%p slot=%d",
+                    mEglDisplay, mCurrentTexture);
+            return UNKNOWN_ERROR;
+        }
+        mCurrentTextureImage->bindToTextureTarget(mTexTarget);
+        if ((error = glGetError()) != GL_NO_ERROR) {
+            ST_LOGE("bindTextureImage: error binding external image: %#04x", error);
+            return UNKNOWN_ERROR;
+        }
     }
 
     // Wait for the new buffer to be ready.
     return doGLFenceWaitLocked();
-
 }
 
 status_t GLConsumer::checkAndUpdateEglStateLocked(bool contextCheck) {
@@ -1056,12 +1069,13 @@ GLConsumer::EglImage::~EglImage() {
 }
 
 status_t GLConsumer::EglImage::createIfNeeded(EGLDisplay eglDisplay,
-                                              const Rect& cropRect) {
+                                              const Rect& cropRect,
+                                              bool forceCreation) {
     // If there's an image and it's no longer valid, destroy it.
     bool haveImage = mEglImage != EGL_NO_IMAGE_KHR;
     bool displayInvalid = mEglDisplay != eglDisplay;
     bool cropInvalid = hasEglAndroidImageCrop() && mCropRect != cropRect;
-    if (haveImage && (displayInvalid || cropInvalid)) {
+    if (haveImage && (displayInvalid || cropInvalid || forceCreation)) {
         if (!eglDestroyImageKHR(mEglDisplay, mEglImage)) {
            ALOGE("createIfNeeded: eglDestroyImageKHR failed");
         }
