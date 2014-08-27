@@ -769,6 +769,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         have_dex2oat_compiler_filter_flag = true;
     } else if (vm_safe_mode) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+        have_dex2oat_compiler_filter_flag = true;
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
     }
