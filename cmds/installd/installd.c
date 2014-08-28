@@ -140,12 +140,6 @@ static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((u
                              /* pkgName, seinfo, uid*/
 }
 
-static int do_prune_dex_cache(char **arg __attribute__((unused)),
-                              char reply[REPLY_MAX] __attribute__((unused)))
-{
-    return prune_dex_cache(arg[0] /* subdirectory name */);
-}
-
 static int do_patchoat(char **arg, char reply[REPLY_MAX]) {
     /* apk_path, uid, is_public, pkgname, instruction_set, vm_safe_mode, should_relocate */
     return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], 0, 1);
@@ -177,7 +171,6 @@ struct cmdinfo cmds[] = {
     { "rmuser",               1, do_rm_user },
     { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
-    { "prunedexcache",        1, do_prune_dex_cache },
     { "patchoat",             5, do_patchoat },
 };
 
