@@ -999,9 +999,10 @@ public:
     virtual void process(const RawEvent* rawEvent);
 
     virtual int32_t getSwitchState(uint32_t sourceMask, int32_t switchCode);
+    virtual void dump(String8& dump);
 
 private:
-    uint32_t mUpdatedSwitchValues;
+    uint32_t mSwitchValues;
     uint32_t mUpdatedSwitchMask;
 
     void processSwitch(int32_t switchCode, int32_t switchValue);
