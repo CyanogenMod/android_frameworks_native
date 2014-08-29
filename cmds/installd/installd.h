@@ -222,4 +222,3 @@ int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int restorecon_data();
-int prune_dex_cache(const char* subdir);
