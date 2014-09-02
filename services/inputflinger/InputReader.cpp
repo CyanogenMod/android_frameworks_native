@@ -1815,7 +1815,7 @@ void InputMapper::dumpRawAbsoluteAxisInfo(String8& dump,
 // --- SwitchInputMapper ---
 
 SwitchInputMapper::SwitchInputMapper(InputDevice* device) :
-        InputMapper(device), mUpdatedSwitchValues(0), mUpdatedSwitchMask(0) {
+        InputMapper(device), mSwitchValues(0), mUpdatedSwitchMask(0) {
 }
 
 SwitchInputMapper::~SwitchInputMapper() {
@@ -1841,7 +1841,9 @@ void SwitchInputMapper::process(const RawEvent* rawEvent) {
 void SwitchInputMapper::processSwitch(int32_t switchCode, int32_t switchValue) {
     if (switchCode >= 0 && switchCode < 32) {
         if (switchValue) {
-            mUpdatedSwitchValues |= 1 << switchCode;
+            mSwitchValues |= 1 << switchCode;
+        } else {
+            mSwitchValues &= ~(1 << switchCode);
         }
         mUpdatedSwitchMask |= 1 << switchCode;
     }
@@ -1849,10 +1851,10 @@ void SwitchInputMapper::processSwitch(int32_t switchCode, int32_t switchValue) {
 
 void SwitchInputMapper::sync(nsecs_t when) {
     if (mUpdatedSwitchMask) {
-        NotifySwitchArgs args(when, 0, mUpdatedSwitchValues, mUpdatedSwitchMask);
+        int32_t updatedSwitchValues = mSwitchValues & mUpdatedSwitchMask;
+        NotifySwitchArgs args(when, 0, updatedSwitchValues, mUpdatedSwitchMask);
         getListener()->notifySwitch(&args);
 
-        mUpdatedSwitchValues = 0;
         mUpdatedSwitchMask = 0;
     }
 }
@@ -1861,6 +1863,10 @@ int32_t SwitchInputMapper::getSwitchState(uint32_t sourceMask, int32_t switchCod
     return getEventHub()->getSwitchState(getDeviceId(), switchCode);
 }
 
+void SwitchInputMapper::dump(String8& dump) {
+    dump.append(INDENT2 "Switch Input Mapper:\n");
+    dump.appendFormat(INDENT3 "SwitchValues: %x\n", mSwitchValues);
+}
 
 // --- VibratorInputMapper ---
 
