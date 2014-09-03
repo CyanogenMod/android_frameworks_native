@@ -322,6 +322,11 @@ HWComposer::HWComposer(
         // we don't have VSYNC support, we need to fake it
         mVSyncThread = new VSyncThread(*this);
     }
+#ifdef QCOM_BSP
+    // Threshold Area to enable GPU Tiled Rect.
+    property_get("debug.hwc.gpuTiledThreshold", value, "1.9");
+    mDynThreshold = atof(value);
+#endif
 }
 
 HWComposer::~HWComposer() {
@@ -733,6 +738,7 @@ status_t HWComposer::setFramebufferTarget(int32_t id,
 }
 
 status_t HWComposer::prepare() {
+    Mutex::Autolock _l(mDrawLock);
     for (size_t i=0 ; i<mNumDisplays ; i++) {
         DisplayData& disp(mDisplayData[i]);
         if (disp.framebufferTarget) {
@@ -774,7 +780,16 @@ status_t HWComposer::prepare() {
                 DisplayData& disp(mDisplayData[i]);
                 disp.hasFbComp = false;
                 disp.hasOvComp = false;
+#ifdef QCOM_BSP
+                disp.hasBlitComp = false;
+#endif
                 if (disp.list) {
+#ifdef QCOM_BSP
+                    //GPUTILERECT
+                    prev_comp_map[i] = current_comp_map[i];
+                    current_comp_map[i].reset();
+                    current_comp_map[i].count = disp.list->numHwLayers-1;
+#endif
                     for (size_t j=0 ; j<disp.list->numHwLayers ; j++) {
                         hwc_layer_1_t& l = disp.list->hwLayers[j];
 
@@ -792,10 +807,19 @@ status_t HWComposer::prepare() {
                         // trigger a FLIP
                         if(l.compositionType == HWC_BLIT) {
                             disp.hasFbComp = true;
+#ifdef QCOM_BSP
+                            disp.hasBlitComp = true;
+#endif
                         }
                         if (l.compositionType == HWC_OVERLAY) {
                             disp.hasOvComp = true;
                         }
+#ifdef QCOM_BSP
+                        //GPUTILERECT
+                        if(l.compositionType != HWC_FRAMEBUFFER_TARGET) {
+                            current_comp_map[i].compType[j] = l.compositionType;
+                        }
+#endif
                     }
                     if (disp.list->numHwLayers == (disp.framebufferTarget ? 1 : 0)) {
                         disp.hasFbComp = true;
@@ -808,9 +832,6 @@ status_t HWComposer::prepare() {
             DisplayData& disp(mDisplayData[0]);
             disp.hasFbComp = false;
             disp.hasOvComp = false;
-#ifdef QCOM_BSP
-            disp.hasBlitComp = false;
-#endif
 
             if (disp.list) {
                 hwc_layer_list_t* list0 = reinterpret_cast<hwc_layer_list_t*>(disp.list);
@@ -830,9 +851,6 @@ status_t HWComposer::prepare() {
                     // trigger a FLIP
                     if(l.compositionType == HWC_BLIT) {
                         disp.hasFbComp = true;
-#ifdef QCOM_BSP
-                        disp.hasBlitComp = true;
-#endif
                     }
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
@@ -845,10 +863,10 @@ status_t HWComposer::prepare() {
 }
 
 #ifdef QCOM_BSP
-bool HWComposer::hasHwcOrBlitComposition(int32_t id) const {
+bool HWComposer::hasBlitComposition(int32_t id) const {
     if (!mHwc || uint32_t(id) > 31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
-    return mDisplayData[id].hasOvComp || mDisplayData[id].hasBlitComp;
+    return mDisplayData[id].hasBlitComp;
 }
 #endif
 bool HWComposer::hasHwcComposition(int32_t id) const {
@@ -1375,6 +1393,7 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
 }
 
 void HWComposer::dump(String8& result) const {
+    Mutex::Autolock _l(mDrawLock);
     if (mHwc) {
         result.appendFormat("Hardware Composer state (version %8x):\n", hwcApiVersion(mHwc));
         result.appendFormat("  mDebugForceFakeVSync=%d\n", mDebugForceFakeVSync);
@@ -1562,6 +1581,37 @@ bool HWComposer::areVisibleRegionsOverlapping(int32_t id ) {
     return false;
 }
 
+bool HWComposer::canHandleOverlapArea(int32_t id, Rect unionDr) {
+    DisplayData& disp(mDisplayData[id]);
+    float layerAreaSum = 0;
+    float drArea = ((unionDr.right-unionDr.left)* (unionDr.bottom-unionDr.top));
+    hwc_layer_1_t& fbLayer = disp.list->hwLayers[disp.list->numHwLayers-1];
+    hwc_rect_t fbDisplayFrame  = fbLayer.displayFrame;
+    float fbLayerArea = ((fbDisplayFrame.right - fbDisplayFrame.left)*
+              (fbDisplayFrame.bottom - fbDisplayFrame.top));
+
+    //Compute sum of the Areas of FB layers intersecting with Union Dirty Rect
+    for (size_t i=0; i<disp.list->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = disp.list->hwLayers[i];
+        if(layer.compositionType != HWC_FRAMEBUFFER)
+           continue;
+
+        hwc_rect_t displayFrame  = layer.displayFrame;
+        Rect df(displayFrame.left, displayFrame.top,
+              displayFrame.right, displayFrame.bottom);
+        Rect df_dirty;
+        df_dirty.clear();
+        if(df.intersect(unionDr, &df_dirty))
+            layerAreaSum += ((df_dirty.right - df_dirty.left)*
+                  (df_dirty.bottom - df_dirty.top));
+    }
+    ALOGD_IF(GPUTILERECT_DEBUG,"GPUTileRect: overlap/FB : %f",
+           (layerAreaSum/fbLayerArea));
+    // Return false, if the sum of layer Areas intersecting with union Dr is
+    // more than the threshold as we are not getting better performance.
+    return (mDynThreshold > (layerAreaSum/fbLayerArea));
+}
+
 bool HWComposer::needsScaling(int32_t id) {
     if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
@@ -1601,8 +1651,10 @@ void HWComposer::computeUnionDirtyRect(int32_t id, Rect& unionDirtyRect) {
     // Find UnionDr of all layers
     for (size_t i=0; i<count; i++) {
         hwc_layer_1_t& l = disp.list->hwLayers[i];
-        Rect dr(0,0,0,0);
-        if(currentLayers[i]->hasNewFrame()) {
+        Rect dr;
+        dr.clear();
+        if((l.compositionType == HWC_FRAMEBUFFER) &&
+              currentLayers[i]->hasNewFrame()) {
             dr = Rect(l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right,
                   l.dirtyRect.bottom);
             hwc_rect_t dst = l.displayFrame;
@@ -1622,7 +1674,12 @@ void HWComposer::computeUnionDirtyRect(int32_t id, Rect& unionDirtyRect) {
     }
     unionDirtyRect = unionDirtyRegion.getBounds();
 }
-
+bool HWComposer::isCompositionMapChanged(int32_t id) {
+    if (prev_comp_map[id] == current_comp_map[id]) {
+        return false;
+    }
+    return true;
+}
 bool HWComposer::isGeometryChanged(int32_t id) {
     if (!mHwc || uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return false;
@@ -1641,27 +1698,28 @@ bool HWComposer::canUseTiledDR(int32_t id, Rect& unionDr ){
     if (isGeometryChanged(id)) {
         ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect : geometrychanged, disable");
         status = false;
-    } else if ( hasHwcOrBlitComposition(id)) {
-     /* Currently enabled only for full GPU Comp
-      * TODO : enable for mixed mode also */
+    } else if ( hasBlitComposition(id)) {
         ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect: Blit comp, disable");
         status = false;
-    } else if (areVisibleRegionsOverlapping(id)) {
-      /* With DirtyRect optimiaton, On certain targets we are  seeing slightly
-       * lower FPS in use cases where visible regions overlap in Full GPU Comp.
-       * Hence this optimizatin has been disabled for usecases where visible
-       * regions overlap. TODO : Analyse & handle overlap usecases. */
-       ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect: Visible \
-             regions overlap, disable");
-       status = false;
+    } else if ( isCompositionMapChanged(id)) {
+        ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect: comp map changed, disable");
+        status = false;
     } else if (needsScaling(id)) {
        /* Do Not use TiledDR optimization, if layers need scaling */
        ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect: Layers need scaling, disable");
        status = false;
     } else {
         computeUnionDirtyRect(id, unionDr);
-        if(unionDr.isEmpty())
-        {
+        if(areVisibleRegionsOverlapping(id) &&
+              !canHandleOverlapArea(id, unionDr)){
+           /* With DR optimizaton, On certain targets we are seeing slightly
+            * lower FPS in use cases where visible regions overlap &
+            * the total dirty area of layers is greater than a threshold value.
+            * Hence this optimization has been disabled for such use cases */
+            ALOGD_IF(GPUTILERECT_DEBUG, "GPUTileRect: Visible \
+                 regions overlap & Total Dirty Area > Threashold, disable");
+            status = false;
+        } else if(unionDr.isEmpty()) {
             ALOGD_IF(GPUTILERECT_DEBUG,"GPUTileRect: UnionDr is emtpy, \
                   No need to PRESERVE");
             status = false;

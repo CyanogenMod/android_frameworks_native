@@ -32,6 +32,8 @@
 #include <utils/Timers.h>
 #include <utils/Vector.h>
 
+#define MAX_LAYER_COUNT 32
+
 extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            const struct timespec *request,
                            struct timespec *remain);
@@ -117,8 +119,8 @@ public:
     bool hasGlesComposition(int32_t id) const;
 
 #ifdef QCOM_BSP
-    // does this display have layers handled by overlays/blit
-    bool hasHwcOrBlitComposition(int32_t id) const;
+    // does this display have layers handled by BLIT HW
+    bool hasBlitComposition(int32_t id) const;
 
     //GPUTiledRect : function to find out if DR can be used in GPU Comp.
     bool canUseTiledDR(int32_t id, Rect& dr);
@@ -369,17 +371,57 @@ private:
 
     // protected by mLock
     mutable Mutex mLock;
+    // synchronization between Draw call and Dumpsys call
+    mutable Mutex mDrawLock;
     mutable nsecs_t mLastHwVSync[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     // thread-safe
     mutable Mutex mEventControlLock;
 
+    //GPUTileRect : CompMap, class to track the composition type of layers
+    struct CompMap {
+        int32_t count;
+        int32_t compType[MAX_LAYER_COUNT];
+        CompMap () {
+            reset();
+        }
+        void reset () {
+            count=0;
+            for(size_t i= 0; i <MAX_LAYER_COUNT; i++) {
+                compType[i] = -1;
+            }
+        }
+        CompMap& operator=(const CompMap &rhs) {
+            if(this != &rhs) {
+                reset();
+                count = rhs.count;
+                for(int32_t i=0; i<count; i++) {
+                    compType[i] = rhs.compType[i];
+                }
+            }
+            return *this;
+        }
+        bool operator== (CompMap &rhs) {
+            if( count != rhs.count)
+                return false;
+            for(int32_t i=0; i<count; i++) {
+                if(compType[i] != rhs.compType[i])
+                    return false;
+            }
+            return true;
+        }
+    };
+
 #ifdef QCOM_BSP
     //GPUTileRect Optimization Functions.
+    CompMap prev_comp_map[MAX_HWC_DISPLAYS], current_comp_map[MAX_HWC_DISPLAYS];
+    bool isCompositionMapChanged(int32_t id);
     bool isGeometryChanged(int32_t id);
     void computeUnionDirtyRect(int32_t id, Rect& unionDirtyRect);
     bool areVisibleRegionsOverlapping(int32_t id );
     bool needsScaling(int32_t id);
+    float mDynThreshold;
+    bool canHandleOverlapArea(int32_t id, Rect unionDr);
 #endif
 };
 
