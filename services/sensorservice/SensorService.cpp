@@ -807,29 +807,36 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
     return sensor->setDelay(connection.get(), handle, ns);
 }
 
-status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
-                                    int handle) {
+status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection) {
     if (mInitCheck != NO_ERROR) return mInitCheck;
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
-    if (sensor == NULL) {
-        return BAD_VALUE;
+    SensorDevice& dev(SensorDevice::getInstance());
+    const int halVersion = dev.getHalDeviceVersion();
+    status_t err(NO_ERROR);
+    Mutex::Autolock _l(mLock);
+    // Loop through all sensors for this connection and call flush on each of them.
+    for (size_t i = 0; i < connection->mSensorInfo.size(); ++i) {
+        const int handle = connection->mSensorInfo.keyAt(i);
+        SensorInterface* sensor = mSensorMap.valueFor(handle);
+        if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+            ALOGE("flush called on a one-shot sensor");
+            err = INVALID_OPERATION;
+            continue;
+        }
+        SensorEventConnection::FlushInfo& flushInfo = connection->mSensorInfo.editValueFor(handle);
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1 || isVirtualSensor(handle)) {
+            // For older devices just increment pending flush count which will send a trivial
+            // flush complete event.
+            flushInfo.mPendingFlushEventsToSend++;
+        } else {
+            status_t err_flush = sensor->flush(connection.get(), handle);
+            if (err_flush == NO_ERROR) {
+                SensorRecord* rec = mActiveSensors.valueFor(handle);
+                if (rec != NULL) rec->addPendingFlushConnection(connection);
+            }
+            err = (err_flush != NO_ERROR) ? err_flush : err;
+        }
     }
-
-    if (!verifyCanAccessSensor(sensor->getSensor(), "Tried flushing")) {
-        return BAD_VALUE;
-    }
-
-    if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
-        ALOGE("flush called on a one-shot sensor");
-        return INVALID_OPERATION;
-    }
-
-    status_t ret = sensor->flush(connection.get(), handle);
-    if (ret == NO_ERROR) {
-        SensorRecord* rec = mActiveSensors.valueFor(handle);
-        if (rec != NULL) rec->addPendingFlushConnection(connection);
-    }
-    return ret;
+    return err;
 }
 
 bool SensorService::canAccessSensor(const Sensor& sensor) {
@@ -1034,7 +1041,7 @@ void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
 }
 
 status_t SensorService::SensorEventConnection::sendEvents(
-        sensors_event_t const* buffer, size_t numEvents,
+        sensors_event_t* buffer, size_t numEvents,
         sensors_event_t* scratch) {
     // filter out events not for this connection
     size_t count = 0;
@@ -1042,10 +1049,16 @@ status_t SensorService::SensorEventConnection::sendEvents(
     if (scratch) {
         size_t i=0;
         while (i<numEvents) {
+            // Flush complete events can be invalidated. If this event has been invalidated
+            // before, ignore and proceed to the next event.
+            if (buffer[i].flags & SENSOR_EVENT_INVALID_FLAG) {
+                ++i;
+                continue;
+            }
             int32_t sensor_handle = buffer[i].sensor;
             if (buffer[i].type == SENSOR_TYPE_META_DATA) {
                 ALOGD_IF(DEBUG_CONNECTIONS, "flush complete event sensor==%d ",
-                         buffer[i].meta_data.sensor);
+                        buffer[i].meta_data.sensor);
                 // Setting sensor_handle to the correct sensor to ensure the sensor events per connection are
                 // filtered correctly. buffer[i].sensor is zero for meta_data events.
                 sensor_handle = buffer[i].meta_data.sensor;
@@ -1065,9 +1078,12 @@ status_t SensorService::SensorEventConnection::sendEvents(
                 if (rec && rec->getFirstPendingFlushConnection() == this) {
                     rec->removeFirstPendingFlushConnection();
                     flushInfo.mFirstFlushPending = false;
-                    ++i;
+                    // Invalidate this flush_complete_event so that it cannot be used by other
+                    // connections.
+                    buffer[i].flags |= SENSOR_EVENT_INVALID_FLAG;
                     ALOGD_IF(DEBUG_CONNECTIONS, "First flush event for sensor==%d ",
-                                                    buffer[i].meta_data.sensor);
+                            buffer[i].meta_data.sensor);
+                    ++i;
                     continue;
                 }
             }
@@ -1080,13 +1096,20 @@ status_t SensorService::SensorEventConnection::sendEvents(
             }
 
             do {
+                if (buffer[i].flags & SENSOR_EVENT_INVALID_FLAG) {
+                    ++i;
+                    continue;
+                }
                 if (buffer[i].type == SENSOR_TYPE_META_DATA) {
-                   // Check if this connection has called flush() on this sensor. Only if
-                   // a flush() has been explicitly called, send a flush_complete_event.
-                   SensorService::SensorRecord *rec = mService->getSensorRecord(sensor_handle);
-                   if (rec && rec->getFirstPendingFlushConnection() == this) {
+                    // Check if this connection has called flush() on this sensor. Only if
+                    // a flush() has been explicitly called, send a flush_complete_event.
+                    SensorService::SensorRecord *rec = mService->getSensorRecord(sensor_handle);
+                    if (rec && rec->getFirstPendingFlushConnection() == this) {
                         rec->removeFirstPendingFlushConnection();
                         scratch[count++] = buffer[i];
+                        // Invalidate this flush_complete_event so that it cannot be used by
+                        // other connections.
+                        buffer[i].flags |= SENSOR_EVENT_INVALID_FLAG;
                     }
                     ++i;
                 } else {
@@ -1333,27 +1356,7 @@ status_t SensorService::SensorEventConnection::setEventRate(
 }
 
 status_t  SensorService::SensorEventConnection::flush() {
-    SensorDevice& dev(SensorDevice::getInstance());
-    const int halVersion = dev.getHalDeviceVersion();
-    Mutex::Autolock _l(mConnectionLock);
-    status_t err(NO_ERROR);
-    // Loop through all sensors for this connection and call flush on each of them.
-    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
-        const int handle = mSensorInfo.keyAt(i);
-        FlushInfo& flushInfo = mSensorInfo.editValueFor(handle);
-        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1 || mService->isVirtualSensor(handle)) {
-            // For older devices just increment pending flush count which will send a trivial
-            // flush complete event.
-            flushInfo.mPendingFlushEventsToSend++;
-        } else {
-            status_t err_flush = mService->flushSensor(this, handle);
-            if (err_flush != NO_ERROR) {
-                ALOGE("Flush error handle=%d %s", handle, strerror(-err_flush));
-            }
-            err = (err_flush != NO_ERROR) ? err_flush : err;
-        }
-    }
-    return err;
+    return  mService->flushSensor(this);
 }
 
 int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* data) {

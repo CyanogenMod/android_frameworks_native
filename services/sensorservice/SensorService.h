@@ -45,6 +45,14 @@
 // For older HALs which don't support batching, use a smaller socket buffer size.
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
+// Flags for sensors_event_t.flag. Using only the most significant two bits for flags.
+// MSB is to invalidate a sensor_event (typically a flush_complete_event) so that
+// it won't be used by other connections.
+// MSB 2nd bit is used to indicate whether the event needs to be acknowledged or not.
+// This is typically used for WAKE_UP sensors. WAKE_UP_SENSOR_EVENT_NEEDS_ACK is defined
+// in SensorEveneQueue.h
+#define SENSOR_EVENT_INVALID_FLAG     (1U << 31)
+
 struct sensors_poll_device_t;
 struct sensors_module_t;
 
@@ -148,7 +156,7 @@ class SensorService :
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
 
-        status_t sendEvents(sensors_event_t const* buffer, size_t count,
+        status_t sendEvents(sensors_event_t* buffer, size_t count,
                 sensors_event_t* scratch);
         bool hasSensor(int32_t handle) const;
         bool hasAnySensor() const;
@@ -229,7 +237,6 @@ class SensorService :
     DefaultKeyedVector<int, SensorInterface*> mActiveVirtualSensors;
     SortedVector< wp<SensorEventConnection> > mActiveConnections;
     bool mWakeLockAcquired;
-
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;
 
@@ -239,7 +246,7 @@ public:
                     nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags);
     status_t disable(const sp<SensorEventConnection>& connection, int handle);
     status_t setEventRate(const sp<SensorEventConnection>& connection, int handle, nsecs_t ns);
-    status_t flushSensor(const sp<SensorEventConnection>& connection, int handle);
+    status_t flushSensor(const sp<SensorEventConnection>& connection);
 };
 
 // ---------------------------------------------------------------------------
