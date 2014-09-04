@@ -322,6 +322,7 @@ tmat44<T> tmat44<T>::rotate(A radian, const tvec3<B>& about) {
         r[ 1] =  xy*nc + zs;    r[ 5] = y*y*nc +  c;    r[ 9] =  yz*nc - xs;
         r[ 2] =  zx*nc - ys;    r[ 6] =  yz*nc + xs;    r[10] = z*z*nc +  c;
     }
+    return rotation;
 }
 
 // ----------------------------------------------------------------------------------------
