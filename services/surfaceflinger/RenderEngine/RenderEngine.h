@@ -24,6 +24,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <ui/mat4.h>
+#include <Transform.h>
 
 #define EGL_NO_CONFIG ((EGLConfig)0)
 
@@ -90,7 +91,7 @@ public:
     // set-up
     virtual void checkErrors() const;
     virtual void setViewportAndProjection(size_t vpw, size_t vph,
-            Rect sourceCrop, size_t hwh, bool yswap) = 0;
+            Rect sourceCrop, size_t hwh, bool yswap, Transform::orientation_flags rotation) = 0;
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;
     virtual void setupLayerTexturing(const Texture& texture) = 0;
