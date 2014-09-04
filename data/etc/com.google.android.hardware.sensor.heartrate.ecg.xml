@@ -16,5 +16,5 @@
 
 <!-- Feature for devices with a hardware electrocardiography(ECG) sensor. -->
 <permissions>
-    <feature name="android.hardware.sensor.heartrate.ecg" />
+    <feature name="com.google.android.hardware.sensor.heartrate.ecg" />
 </permissions>
