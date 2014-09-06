@@ -505,7 +505,7 @@ status_t GLConsumer::checkAndUpdateEglStateLocked(bool contextCheck) {
         if (mEglDisplay == EGL_NO_DISPLAY) {
             mEglDisplay = dpy;
         }
-        if (mEglContext == EGL_NO_DISPLAY) {
+        if (mEglContext == EGL_NO_CONTEXT) {
             mEglContext = ctx;
         }
     }
