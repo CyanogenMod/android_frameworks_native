@@ -45,7 +45,7 @@ public:
     }
 
     virtual status_t acquireWakeLock(int flags, const sp<IBinder>& lock, const String16& tag,
-            const String16& packageName)
+            const String16& packageName, bool isOneWay)
     {
         Parcel data, reply;
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
@@ -56,11 +56,12 @@ public:
         data.writeString16(packageName);
         data.writeInt32(0); // no WorkSource
         data.writeString16(NULL, 0); // no history tag
-        return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply, IBinder::FLAG_ONEWAY);
+        return remote()->transact(ACQUIRE_WAKE_LOCK, data, &reply,
+                isOneWay ? IBinder::FLAG_ONEWAY : 0);
     }
 
     virtual status_t acquireWakeLockWithUid(int flags, const sp<IBinder>& lock, const String16& tag,
-            const String16& packageName, int uid)
+            const String16& packageName, int uid, bool isOneWay)
     {
         Parcel data, reply;
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
@@ -70,26 +71,28 @@ public:
         data.writeString16(tag);
         data.writeString16(packageName);
         data.writeInt32(uid); // uid to blame for the work
-        return remote()->transact(ACQUIRE_WAKE_LOCK_UID, data, &reply, IBinder::FLAG_ONEWAY);
+        return remote()->transact(ACQUIRE_WAKE_LOCK_UID, data, &reply,
+                isOneWay ? IBinder::FLAG_ONEWAY : 0);
     }
 
-    virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags)
+    virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags, bool isOneWay)
     {
         Parcel data, reply;
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
         data.writeStrongBinder(lock);
         data.writeInt32(flags);
-        return remote()->transact(RELEASE_WAKE_LOCK, data, &reply, IBinder::FLAG_ONEWAY);
+        return remote()->transact(RELEASE_WAKE_LOCK, data, &reply,
+                isOneWay ? IBinder::FLAG_ONEWAY : 0);
     }
 
-    virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids) {
+    virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids,
+            bool isOneWay) {
         Parcel data, reply;
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
         data.writeStrongBinder(lock);
         data.writeInt32Array(len, uids);
-        // We don't really care too much if this succeeds (there's nothing we can do if it doesn't)
-        // but it should return ASAP
-        return remote()->transact(UPDATE_WAKE_LOCK_UIDS, data, &reply, IBinder::FLAG_ONEWAY);
+        return remote()->transact(UPDATE_WAKE_LOCK_UIDS, data, &reply,
+                isOneWay ? IBinder::FLAG_ONEWAY : 0);
     }
 
     virtual status_t powerHint(int hintId, int param)
@@ -98,6 +101,7 @@ public:
         data.writeInterfaceToken(IPowerManager::getInterfaceDescriptor());
         data.writeInt32(hintId);
         data.writeInt32(param);
+        // This FLAG_ONEWAY is in the .aidl, so there is no way to disable it
         return remote()->transact(POWER_HINT, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
