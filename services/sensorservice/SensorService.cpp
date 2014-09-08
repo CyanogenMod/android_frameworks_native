@@ -186,6 +186,11 @@ void SensorService::onFirstRef()
             mWakeLockAcquired = false;
             run("SensorService", PRIORITY_URGENT_DISPLAY);
             mLooper = new Looper(false);
+
+            const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
+            mSensorEventBuffer = new sensors_event_t[minBufferSize];
+            mSensorEventScratch = new sensors_event_t[minBufferSize];
+            mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
             mInitCheck = NO_ERROR;
         }
     }
@@ -350,6 +355,9 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
         sensors_event_t const* buffer, const int count) {
     for (int i=0 ; i<count ; i++) {
         int handle = buffer[i].sensor;
+        if (buffer[i].type == SENSOR_TYPE_META_DATA) {
+            handle = buffer[i].meta_data.sensor;
+        }
         if (connection->hasSensor(handle)) {
             SensorInterface* sensor = mSensorMap.valueFor(handle);
             // If this buffer has an event from a one_shot sensor and this connection is registered
@@ -373,25 +381,22 @@ bool SensorService::threadLoop()
     const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
     const size_t numEventMax = minBufferSize / (1 + mVirtualSensorList.size());
 
-    sensors_event_t buffer[minBufferSize];
-    sensors_event_t scratch[minBufferSize];
     SensorDevice& device(SensorDevice::getInstance());
     const size_t vcount = mVirtualSensorList.size();
 
     SensorEventAckReceiver sender(this);
     sender.run("SensorEventAckReceiver", PRIORITY_URGENT_DISPLAY);
-    ssize_t count;
     const int halVersion = device.getHalDeviceVersion();
     do {
-        count = device.poll(buffer, numEventMax);
-        if (count<0) {
+        ssize_t count = device.poll(mSensorEventBuffer, numEventMax);
+        if (count < 0) {
             ALOGE("sensor poll failed (%s)", strerror(-count));
             break;
         }
 
         // Reset sensors_event_t.flags to zero for all events in the buffer.
         for (int i = 0; i < count; i++) {
-             buffer[i].flags = 0;
+             mSensorEventBuffer[i].flags = 0;
         }
         Mutex::Autolock _l(mLock);
         // Poll has returned. Hold a wakelock if one of the events is from a wake up sensor. The
@@ -401,7 +406,7 @@ bool SensorService::threadLoop()
         // releasing the wakelock.
         bool bufferHasWakeUpEvent = false;
         for (int i = 0; i < count; i++) {
-            if (isWakeUpSensorEvent(buffer[i])) {
+            if (isWakeUpSensorEvent(mSensorEventBuffer[i])) {
                 bufferHasWakeUpEvent = true;
                 break;
             }
@@ -412,11 +417,11 @@ bool SensorService::threadLoop()
             mWakeLockAcquired = true;
             ALOGD_IF(DEBUG_CONNECTIONS, "acquired wakelock %s", WAKE_LOCK_NAME);
         }
-        recordLastValueLocked(buffer, count);
+        recordLastValueLocked(mSensorEventBuffer, count);
 
         // handle virtual sensors
         if (count && vcount) {
-            sensors_event_t const * const event = buffer;
+            sensors_event_t const * const event = mSensorEventBuffer;
             const size_t activeVirtualSensorCount = mActiveVirtualSensors.size();
             if (activeVirtualSensorCount) {
                 size_t k = 0;
@@ -437,17 +442,17 @@ bool SensorService::threadLoop()
                         sensors_event_t out;
                         SensorInterface* si = mActiveVirtualSensors.valueAt(j);
                         if (si->process(&out, event[i])) {
-                            buffer[count + k] = out;
+                            mSensorEventBuffer[count + k] = out;
                             k++;
                         }
                     }
                 }
                 if (k) {
                     // record the last synthesized values
-                    recordLastValueLocked(&buffer[count], k);
+                    recordLastValueLocked(&mSensorEventBuffer[count], k);
                     count += k;
                     // sort the buffer by time-stamps
-                    sortEventBuffer(buffer, count);
+                    sortEventBuffer(mSensorEventBuffer, count);
                 }
             }
         }
@@ -455,10 +460,26 @@ bool SensorService::threadLoop()
         // handle backward compatibility for RotationVector sensor
         if (halVersion < SENSORS_DEVICE_API_VERSION_1_0) {
             for (int i = 0; i < count; i++) {
-                if (buffer[i].type == SENSOR_TYPE_ROTATION_VECTOR) {
+                if (mSensorEventBuffer[i].type == SENSOR_TYPE_ROTATION_VECTOR) {
                     // All the 4 components of the quaternion should be available
                     // No heading accuracy. Set it to -1
-                    buffer[i].data[4] = -1;
+                    mSensorEventBuffer[i].data[4] = -1;
+                }
+            }
+        }
+
+        // Map flush_complete_events in the buffer to SensorEventConnections which called
+        // flush on the hardware sensor. mapFlushEventsToConnections[i] will be the
+        // SensorEventConnection mapped to the corresponding flush_complete_event in
+        // mSensorEventBuffer[i] if such a mapping exists (NULL otherwise).
+        for (int i = 0; i < count; ++i) {
+            mMapFlushEventsToConnections[i] = NULL;
+            if (mSensorEventBuffer[i].type == SENSOR_TYPE_META_DATA) {
+                const int sensor_handle = mSensorEventBuffer[i].meta_data.sensor;
+                SensorRecord* rec = mActiveSensors.valueFor(sensor_handle);
+                if (rec != NULL) {
+                    mMapFlushEventsToConnections[i] = rec->getFirstPendingFlushConnection();
+                    rec->removeFirstPendingFlushConnection();
                 }
             }
         }
@@ -466,13 +487,22 @@ bool SensorService::threadLoop()
         // Send our events to clients. Check the state of wake lock for each client and release the
         // lock if none of the clients need it.
         bool needsWakeLock = false;
-        for (size_t i=0 ; i < mActiveConnections.size(); i++) {
-            sp<SensorEventConnection> connection(mActiveConnections[i].promote());
+        // Make a copy of the connection vector as some connections may be removed during the
+        // course of this loop (especially when one-shot sensor events are present in the
+        // sensor_event buffer).
+        const SortedVector< wp<SensorEventConnection> > activeConnections(mActiveConnections);
+        size_t numConnections = activeConnections.size();
+        for (size_t i=0 ; i < numConnections; ++i) {
+            sp<SensorEventConnection> connection(activeConnections[i].promote());
             if (connection != 0) {
-                connection->sendEvents(buffer, count, scratch);
+                connection->sendEvents(mSensorEventBuffer, count, mSensorEventScratch,
+                        mMapFlushEventsToConnections);
                 needsWakeLock |= connection->needsWakeLock();
-                // Some sensors need to be auto disabled after the trigger
-                cleanupAutoDisabledSensorLocked(connection, buffer, count);
+                // If the connection has one-shot sensors, it may be cleaned up after first trigger.
+                // Early check for one-shot sensors.
+                if (connection->hasOneShotSensors()) {
+                    cleanupAutoDisabledSensorLocked(connection, mSensorEventBuffer, count);
+                }
             }
         }
 
@@ -481,7 +511,7 @@ bool SensorService::threadLoop()
             mWakeLockAcquired = false;
             ALOGD_IF(DEBUG_CONNECTIONS, "released wakelock %s", WAKE_LOCK_NAME);
         }
-    } while (count >= 0 || Thread::exitPending());
+    } while (!Thread::exitPending());
 
     ALOGW("Exiting SensorService::threadLoop => aborting...");
     abort();
@@ -823,7 +853,7 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection)
             continue;
         }
         SensorEventConnection::FlushInfo& flushInfo = connection->mSensorInfo.editValueFor(handle);
-        if (halVersion < SENSORS_DEVICE_API_VERSION_1_1 || isVirtualSensor(handle)) {
+        if (halVersion <= SENSORS_DEVICE_API_VERSION_1_0 || isVirtualSensor(handle)) {
             // For older devices just increment pending flush count which will send a trivial
             // flush complete event.
             flushInfo.mPendingFlushEventsToSend++;
@@ -1030,6 +1060,17 @@ bool SensorService::SensorEventConnection::hasAnySensor() const {
     return mSensorInfo.size() ? true : false;
 }
 
+bool SensorService::SensorEventConnection::hasOneShotSensors() const {
+    Mutex::Autolock _l(mConnectionLock);
+    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const int handle = mSensorInfo.keyAt(i);
+        if (mService->getSensorFromHandle(handle).getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
                                 bool value) {
     Mutex::Autolock _l(mConnectionLock);
@@ -1042,19 +1083,14 @@ void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
 
 status_t SensorService::SensorEventConnection::sendEvents(
         sensors_event_t* buffer, size_t numEvents,
-        sensors_event_t* scratch) {
+        sensors_event_t* scratch,
+        SensorEventConnection const * const * mapFlushEventsToConnections) {
     // filter out events not for this connection
     size_t count = 0;
     Mutex::Autolock _l(mConnectionLock);
     if (scratch) {
         size_t i=0;
         while (i<numEvents) {
-            // Flush complete events can be invalidated. If this event has been invalidated
-            // before, ignore and proceed to the next event.
-            if (buffer[i].flags & SENSOR_EVENT_INVALID_FLAG) {
-                ++i;
-                continue;
-            }
             int32_t sensor_handle = buffer[i].sensor;
             if (buffer[i].type == SENSOR_TYPE_META_DATA) {
                 ALOGD_IF(DEBUG_CONNECTIONS, "flush complete event sensor==%d ",
@@ -1073,19 +1109,13 @@ status_t SensorService::SensorEventConnection::sendEvents(
 
             FlushInfo& flushInfo = mSensorInfo.editValueAt(index);
             // Check if there is a pending flush_complete event for this sensor on this connection.
-            if (buffer[i].type == SENSOR_TYPE_META_DATA && flushInfo.mFirstFlushPending == true) {
-                SensorService::SensorRecord *rec = mService->getSensorRecord(sensor_handle);
-                if (rec && rec->getFirstPendingFlushConnection() == this) {
-                    rec->removeFirstPendingFlushConnection();
-                    flushInfo.mFirstFlushPending = false;
-                    // Invalidate this flush_complete_event so that it cannot be used by other
-                    // connections.
-                    buffer[i].flags |= SENSOR_EVENT_INVALID_FLAG;
-                    ALOGD_IF(DEBUG_CONNECTIONS, "First flush event for sensor==%d ",
-                            buffer[i].meta_data.sensor);
-                    ++i;
-                    continue;
-                }
+            if (buffer[i].type == SENSOR_TYPE_META_DATA && flushInfo.mFirstFlushPending == true &&
+                    this == mapFlushEventsToConnections[i]) {
+                flushInfo.mFirstFlushPending = false;
+                ALOGD_IF(DEBUG_CONNECTIONS, "First flush event for sensor==%d ",
+                        buffer[i].meta_data.sensor);
+                ++i;
+                continue;
             }
 
             // If there is a pending flush complete event for this sensor on this connection,
@@ -1096,27 +1126,21 @@ status_t SensorService::SensorEventConnection::sendEvents(
             }
 
             do {
-                if (buffer[i].flags & SENSOR_EVENT_INVALID_FLAG) {
-                    ++i;
-                    continue;
-                }
+                // Keep copying events into the scratch buffer as long as they are regular
+                // sensor_events are from the same sensor_handle OR they are flush_complete_events
+                // from the same sensor_handle AND the current connection is mapped to the
+                // corresponding flush_complete_event.
                 if (buffer[i].type == SENSOR_TYPE_META_DATA) {
-                    // Check if this connection has called flush() on this sensor. Only if
-                    // a flush() has been explicitly called, send a flush_complete_event.
-                    SensorService::SensorRecord *rec = mService->getSensorRecord(sensor_handle);
-                    if (rec && rec->getFirstPendingFlushConnection() == this) {
-                        rec->removeFirstPendingFlushConnection();
+                    if (this == mapFlushEventsToConnections[i]) {
                         scratch[count++] = buffer[i];
-                        // Invalidate this flush_complete_event so that it cannot be used by
-                        // other connections.
-                        buffer[i].flags |= SENSOR_EVENT_INVALID_FLAG;
                     }
                     ++i;
                 } else {
                     // Regular sensor event, just copy it to the scratch buffer.
                     scratch[count++] = buffer[i++];
                 }
-            } while ((i<numEvents) && ((buffer[i].sensor == sensor_handle) ||
+            } while ((i<numEvents) && ((buffer[i].sensor == sensor_handle &&
+                                        buffer[i].type != SENSOR_TYPE_META_DATA) ||
                                        (buffer[i].type == SENSOR_TYPE_META_DATA  &&
                                         buffer[i].meta_data.sensor == sensor_handle)));
         }
