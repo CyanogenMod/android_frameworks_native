@@ -1518,7 +1518,7 @@ int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid)
             continue;
         }
 
-        if (selinux_android_restorecon_pkgdir(pkgdir, seinfo, uid, flags) < 0) {
+        if (selinux_android_restorecon_pkgdir(pkgdir, seinfo, s.st_uid, flags) < 0) {
             ALOGE("restorecon failed for %s: %s\n", pkgdir, strerror(errno));
             ret |= -1;
         }
