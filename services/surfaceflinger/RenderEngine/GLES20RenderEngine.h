@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include <GLES2/gl2.h>
+#include <Transform.h>
 
 #include "RenderEngine.h"
 #include "ProgramCache.h"
@@ -65,7 +66,7 @@ protected:
 
     virtual void dump(String8& result);
     virtual void setViewportAndProjection(size_t vpw, size_t vph,
-            Rect sourceCrop, size_t hwh, bool yswap);
+            Rect sourceCrop, size_t hwh, bool yswap, Transform::orientation_flags rotation);
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha);
     virtual void setupDimLayerBlending(int alpha);
     virtual void setupLayerTexturing(const Texture& texture);

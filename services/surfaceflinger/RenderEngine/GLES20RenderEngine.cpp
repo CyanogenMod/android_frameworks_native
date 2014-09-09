@@ -25,6 +25,8 @@
 #include <utils/Trace.h>
 
 #include <cutils/compiler.h>
+#include <gui/ISurfaceComposer.h>
+#include <math.h>
 
 #include "GLES20RenderEngine.h"
 #include "Program.h"
@@ -80,7 +82,8 @@ size_t GLES20RenderEngine::getMaxViewportDims() const {
 }
 
 void GLES20RenderEngine::setViewportAndProjection(
-        size_t vpw, size_t vph, Rect sourceCrop, size_t hwh, bool yswap) {
+        size_t vpw, size_t vph, Rect sourceCrop, size_t hwh, bool yswap,
+        Transform::orientation_flags rotation) {
 
     size_t l = sourceCrop.left;
     size_t r = sourceCrop.right;
@@ -94,6 +97,24 @@ void GLES20RenderEngine::setViewportAndProjection(
         m = mat4::ortho(l, r, t, b, 0, 1);
     } else {
         m = mat4::ortho(l, r, b, t, 0, 1);
+    }
+
+    // Apply custom rotation to the projection.
+    float rot90InRadians = 2.0f * static_cast<float>(M_PI) / 4.0f;
+    switch (rotation) {
+        case Transform::ROT_0:
+            break;
+        case Transform::ROT_90:
+            m = mat4::rotate(rot90InRadians, vec3(0,0,1)) * m;
+            break;
+        case Transform::ROT_180:
+            m = mat4::rotate(rot90InRadians * 2.0f, vec3(0,0,1)) * m;
+            break;
+        case Transform::ROT_270:
+            m = mat4::rotate(rot90InRadians * 3.0f, vec3(0,0,1)) * m;
+            break;
+        default:
+            break;
     }
 
     glViewport(0, 0, vpw, vph);

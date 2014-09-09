@@ -21,6 +21,7 @@
 
 #include <utils/String8.h>
 #include <cutils/compiler.h>
+#include <gui/ISurfaceComposer.h>
 
 #include "GLES11RenderEngine.h"
 #include "Mesh.h"
@@ -74,7 +75,8 @@ size_t GLES11RenderEngine::getMaxViewportDims() const {
 }
 
 void GLES11RenderEngine::setViewportAndProjection(
-        size_t vpw, size_t vph, Rect sourceCrop, size_t hwh, bool yswap) {
+        size_t vpw, size_t vph, Rect sourceCrop, size_t hwh, bool yswap,
+        Transform::orientation_flags rotation) {
     glViewport(0, 0, vpw, vph);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -91,6 +93,23 @@ void GLES11RenderEngine::setViewportAndProjection(
     } else {
         glOrthof(l, r, b, t, 0, 1);
     }
+
+    switch (rotation) {
+        case Transform::ROT_0:
+            break;
+        case Transform::ROT_90:
+            glRotatef(90, 0, 0, 1);
+            break;
+        case Transform::ROT_180:
+            glRotatef(180, 0, 0, 1);
+            break;
+        case Transform::ROT_270:
+            glRotatef(270, 0, 0, 1);
+            break;
+        default:
+            break;
+    }
+
     glMatrixMode(GL_MODELVIEW);
 }
 
