@@ -313,9 +313,15 @@ int delete_cache(const char *pkgname, userid_t userid)
 int delete_code_cache(const char *pkgname, userid_t userid)
 {
     char codecachedir[PKG_PATH_MAX];
+    struct stat s;
 
     if (create_pkg_path(codecachedir, pkgname, CODE_CACHE_DIR_POSTFIX, userid))
         return -1;
+
+    /* it's okay if code cache is missing */
+    if (lstat(codecachedir, &s) == -1 && errno == ENOENT) {
+        return 0;
+    }
 
     /* delete contents, not the directory, no exceptions */
     return delete_dir_contents(codecachedir, 0, NULL);
@@ -416,8 +422,14 @@ int move_dex(const char *src, const char *dst, const char *instruction_set)
     char src_dex[PKG_PATH_MAX];
     char dst_dex[PKG_PATH_MAX];
 
-    if (validate_apk_path(src)) return -1;
-    if (validate_apk_path(dst)) return -1;
+    if (validate_apk_path(src)) {
+        ALOGE("invalid apk path '%s' (bad prefix)\n", src);
+        return -1;
+    }
+    if (validate_apk_path(dst)) {
+        ALOGE("invalid apk path '%s' (bad prefix)\n", dst);
+        return -1;
+    }
 
     if (create_cache_path(src_dex, src, instruction_set)) return -1;
     if (create_cache_path(dst_dex, dst, instruction_set)) return -1;
@@ -435,12 +447,18 @@ int rm_dex(const char *path, const char *instruction_set)
 {
     char dex_path[PKG_PATH_MAX];
 
-    if (validate_apk_path(path)) return -1;
+    if (validate_apk_path(path) && validate_system_app_path(path)) {
+        ALOGE("invalid apk path '%s' (bad prefix)\n", path);
+        return -1;
+    }
+
     if (create_cache_path(dex_path, path, instruction_set)) return -1;
 
     ALOGV("unlink %s\n", dex_path);
     if (unlink(dex_path) < 0) {
-        ALOGE("Couldn't unlink %s: %s\n", dex_path, strerror(errno));
+        if (errno != ENOENT) {
+            ALOGE("Couldn't unlink %s: %s\n", dex_path, strerror(errno));
+        }
         return -1;
     } else {
         return 0;
