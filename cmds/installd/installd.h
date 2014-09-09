@@ -62,6 +62,7 @@
 #define CODE_CACHE_DIR_POSTFIX "/code_cache"
 
 #define APP_SUBDIR             "app/" // sub-directory under ANDROID_DATA
+#define PRIV_APP_SUBDIR        "priv-app/" // sub-directory under ANDROID_DATA
 
 #define APP_LIB_SUBDIR         "app-lib/" // sub-directory under ANDROID_DATA
 

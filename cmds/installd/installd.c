@@ -328,7 +328,7 @@ int initialize_globals() {
     }
 
     // Take note of the system and vendor directories.
-    android_system_dirs.count = 2;
+    android_system_dirs.count = 4;
 
     android_system_dirs.dirs = calloc(android_system_dirs.count, sizeof(dir_rec_t));
     if (android_system_dirs.dirs == NULL) {
@@ -336,21 +336,23 @@ int initialize_globals() {
         return -1;
     }
 
-    // system
-    if (get_path_from_env(&android_system_dirs.dirs[0], "ANDROID_ROOT") < 0) {
-        free_globals();
+    dir_rec_t android_root_dir;
+    if (get_path_from_env(&android_root_dir, "ANDROID_ROOT") < 0) {
+        ALOGE("Missing ANDROID_ROOT; aborting\n");
         return -1;
     }
 
-    // append "app/" to dirs[0]
-    char *system_app_path = build_string2(android_system_dirs.dirs[0].path, APP_SUBDIR);
-    android_system_dirs.dirs[0].path = system_app_path;
-    android_system_dirs.dirs[0].len = strlen(system_app_path);
+    android_system_dirs.dirs[0].path = build_string2(android_root_dir.path, APP_SUBDIR);
+    android_system_dirs.dirs[0].len = strlen(android_system_dirs.dirs[0].path);
 
-    // vendor
-    // TODO replace this with an environment variable (doesn't exist yet)
-    android_system_dirs.dirs[1].path = "/vendor/app/";
+    android_system_dirs.dirs[1].path = build_string2(android_root_dir.path, PRIV_APP_SUBDIR);
     android_system_dirs.dirs[1].len = strlen(android_system_dirs.dirs[1].path);
+
+    android_system_dirs.dirs[2].path = "/vendor/app/";
+    android_system_dirs.dirs[2].len = strlen(android_system_dirs.dirs[2].path);
+
+    android_system_dirs.dirs[3].path = "/oem/app/";
+    android_system_dirs.dirs[3].len = strlen(android_system_dirs.dirs[3].path);
 
     return 0;
 }
