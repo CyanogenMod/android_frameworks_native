@@ -288,7 +288,8 @@ void DisplayDevice::setViewportAndProjection() const {
     size_t w = mDisplayWidth;
     size_t h = mDisplayHeight;
     Rect sourceCrop(0, 0, w, h);
-    mFlinger->getRenderEngine().setViewportAndProjection(w, h, sourceCrop, h, false);
+    mFlinger->getRenderEngine().setViewportAndProjection(w, h, sourceCrop, h,
+        false, Transform::ROT_0);
 }
 
 // ----------------------------------------------------------------------------
