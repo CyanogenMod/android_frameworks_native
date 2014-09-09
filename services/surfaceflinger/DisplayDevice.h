@@ -37,7 +37,7 @@ struct ANativeWindow;
 
 namespace android {
 
-class DisplayInfo;
+struct DisplayInfo;
 class DisplaySurface;
 class IGraphicBufferProducer;
 class Layer;
