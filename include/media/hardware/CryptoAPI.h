@@ -64,6 +64,12 @@ struct CryptoPlugin {
     // media data of the given mime type.
     virtual bool requiresSecureDecoderComponent(const char *mime) const = 0;
 
+    // To implement resolution constraints, the crypto plugin needs to know
+    // the resolution of the video being decrypted.  The media player should
+    // call this method when the resolution is determined and any time it
+    // is subsequently changed.
+    virtual void notifyResolution(uint32_t width, uint32_t height) {}
+
     // If the error returned falls into the range
     // ERROR_DRM_VENDOR_MIN..ERROR_DRM_VENDOR_MAX, errorDetailMsg should be
     // filled in with an appropriate string.
