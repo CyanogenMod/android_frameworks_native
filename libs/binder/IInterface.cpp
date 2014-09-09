@@ -29,12 +29,12 @@ IInterface::~IInterface() {
 
 sp<IBinder> IInterface::asBinder()
 {
-    return this ? onAsBinder() : NULL;
+    return onAsBinder();
 }
 
 sp<const IBinder> IInterface::asBinder() const
 {
-    return this ? const_cast<IInterface*>(this)->onAsBinder() : NULL;
+    return const_cast<IInterface*>(this)->onAsBinder();
 }
 
 // ---------------------------------------------------------------------------
