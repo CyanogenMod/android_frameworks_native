@@ -244,7 +244,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
     resetPerFrameState();
 }
 
-void VirtualDisplaySurface::dump(String8& result) const {
+void VirtualDisplaySurface::dump(String8&) const {
 }
 
 status_t VirtualDisplaySurface::requestBuffer(int pslot,

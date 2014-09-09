@@ -180,7 +180,7 @@ status_t DisplayDevice::compositionComplete() const {
     return mDisplaySurface->compositionComplete();
 }
 
-void DisplayDevice::flip(const Region& dirty) const
+void DisplayDevice::flip(const Region& dirty __unused) const
 {
     mFlinger->getRenderEngine().checkErrors();
 
