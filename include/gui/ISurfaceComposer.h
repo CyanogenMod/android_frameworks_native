@@ -35,7 +35,7 @@ namespace android {
 
 class ComposerState;
 class DisplayState;
-class DisplayInfo;
+struct DisplayInfo;
 class IDisplayEventConnection;
 class IMemoryHeap;
 
