@@ -39,6 +39,7 @@ namespace android {
 class ComposerState;
 class DisplayState;
 class DisplayInfo;
+class DisplayStatInfo;
 class IDisplayEventConnection;
 class IMemoryHeap;
 class Rect;
@@ -122,6 +123,12 @@ public:
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
             Vector<DisplayInfo>* configs) = 0;
 
+    /* returns display statistics for a given display
+     * intended to be used by the media framework to properly schedule
+     * video frames */
+    virtual status_t getDisplayStats(const sp<IBinder>& display,
+            DisplayStatInfo* stats) = 0;
+
     /* indicates which of the configurations returned by getDisplayInfo is
      * currently active */
     virtual int getActiveConfig(const sp<IBinder>& display) = 0;
@@ -177,6 +184,7 @@ public:
         CLEAR_ANIMATION_FRAME_STATS,
         GET_ANIMATION_FRAME_STATS,
         SET_POWER_MODE,
+        GET_DISPLAY_STATS,
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,
