@@ -144,7 +144,7 @@ Layer::~Layer() {
 // callbacks
 // ---------------------------------------------------------------------------
 
-void Layer::onLayerDisplayed(const sp<const DisplayDevice>& hw,
+void Layer::onLayerDisplayed(const sp<const DisplayDevice>&,
         HWComposer::HWCLayerInterface* layer) {
     if (layer) {
         layer->onDisplayed();
@@ -418,7 +418,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
     layer.setBuffer(mActiveBuffer);
 }
 
-void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
+void Layer::setAcquireFence(const sp<const DisplayDevice>&,
         HWComposer::HWCLayerInterface& layer) {
     int fenceFd = -1;
 
@@ -545,7 +545,7 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 }
 
 
-void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
+void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region&,
         float red, float green, float blue, float alpha) const
 {
     RenderEngine& engine(mFlinger->getRenderEngine());
@@ -560,7 +560,7 @@ void Layer::clearWithOpenGL(
 }
 
 void Layer::drawWithOpenGL(
-        const sp<const DisplayDevice>& hw, const Region& clip) const {
+        const sp<const DisplayDevice>& hw, const Region&) const {
     const uint32_t fbHeight = hw->getHeight();
     const State& s(getDrawingState());
 

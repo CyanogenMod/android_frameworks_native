@@ -39,7 +39,7 @@ LayerDim::LayerDim(SurfaceFlinger* flinger, const sp<Client>& client,
 LayerDim::~LayerDim() {
 }
 
-void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
+void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region&) const
 {
     const State& s(getDrawingState());
     if (s.alpha>0) {

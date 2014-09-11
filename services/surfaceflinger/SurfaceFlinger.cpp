@@ -190,7 +190,7 @@ SurfaceFlinger::~SurfaceFlinger()
     eglTerminate(display);
 }
 
-void SurfaceFlinger::binderDied(const wp<IBinder>& who)
+void SurfaceFlinger::binderDied(const wp<IBinder>&)
 {
     // the window manager died on us. prepare its eulogy.
 
@@ -593,12 +593,12 @@ void SurfaceFlinger::signalRefresh() {
 }
 
 status_t SurfaceFlinger::postMessageAsync(const sp<MessageBase>& msg,
-        nsecs_t reltime, uint32_t flags) {
+        nsecs_t reltime, uint32_t) {
     return mEventQueue.postMessage(msg, reltime);
 }
 
 status_t SurfaceFlinger::postMessageSync(const sp<MessageBase>& msg,
-        nsecs_t reltime, uint32_t flags) {
+        nsecs_t reltime, uint32_t) {
     status_t res = mEventQueue.postMessage(msg, reltime);
     if (res == NO_ERROR) {
         msg->wait();
@@ -1695,7 +1695,7 @@ status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer) {
     return status_t(index);
 }
 
-uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t flags) {
+uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t) {
     return android_atomic_release_load(&mTransactionFlags);
 }
 
@@ -2203,7 +2203,7 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
     return NO_ERROR;
 }
 
-void SurfaceFlinger::listLayersLocked(const Vector<String16>& args, size_t& index,
+void SurfaceFlinger::listLayersLocked(const Vector<String16>&, size_t&,
         String8& result) const
 {
     const LayerVector& currentLayers = mCurrentState.layersSortedByZ;
@@ -2242,7 +2242,7 @@ void SurfaceFlinger::dumpStatsLocked(const Vector<String16>& args, size_t& index
 }
 
 void SurfaceFlinger::clearStatsLocked(const Vector<String16>& args, size_t& index,
-        String8& result)
+        String8&)
 {
     String8 name;
     if (index < args.size()) {
@@ -2626,7 +2626,7 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
      * data and reply Parcel and forward them to the calling thread.
      */
     virtual status_t transact(uint32_t code,
-            const Parcel& data, Parcel* reply, uint32_t flags) {
+            const Parcel& data, Parcel* reply, uint32_t) {
         this->code = code;
         this->data = &data;
         this->reply = reply;
