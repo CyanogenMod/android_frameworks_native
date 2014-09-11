@@ -42,6 +42,8 @@
 
 #include "dumpstate.h"
 
+static const int64_t NANOS_PER_SEC = 1000000000;
+
 /* list of native processes to include in the native dumps */
 static const char* native_processes_to_dump[] = {
         "/system/bin/drmserver",
@@ -293,10 +295,16 @@ int dump_file_from_fd(const char *title, const char *path, int fd) {
     return 0;
 }
 
+static int64_t nanotime() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec;
+}
+
 /* forks a command and waits for it to finish */
 int run_command(const char *title, int timeout_seconds, const char *command, ...) {
     fflush(stdout);
-    time_t start = time(NULL);
+    int64_t start = nanotime();
     pid_t pid = fork();
 
     /* handle error case */
@@ -340,18 +348,18 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
     for (;;) {
         int status;
         pid_t p = waitpid(pid, &status, WNOHANG);
-        time_t elapsed = time(NULL) - start;
+        int64_t elapsed = nanotime() - start;
         if (p == pid) {
             if (WIFSIGNALED(status)) {
                 printf("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
             } else if (WIFEXITED(status) && WEXITSTATUS(status) > 0) {
                 printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
             }
-            if (title) printf("[%s: %ds elapsed]\n\n", command, (int) elapsed);
+            if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
             return status;
         }
 
-        if (timeout_seconds && elapsed > timeout_seconds) {
+        if (timeout_seconds && elapsed / NANOS_PER_SEC > timeout_seconds) {
             printf("*** %s: Timed out after %ds (killing pid %d)\n", command, (int) elapsed, pid);
             kill(pid, SIGTERM);
             return -1;
@@ -578,9 +586,9 @@ const char *dump_traces() {
         if (!strncmp(data, "/system/bin/app_process", strlen("/system/bin/app_process"))) {
             /* skip zygote -- it won't dump its stack anyway */
             snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-            int fd = open(path, O_RDONLY);
-            len = read(fd, data, sizeof(data) - 1);
-            close(fd);
+            int cfd = open(path, O_RDONLY);
+            len = read(cfd, data, sizeof(data) - 1);
+            close(cfd);
             if (len <= 0) {
                 continue;
             }
@@ -590,6 +598,7 @@ const char *dump_traces() {
             }
 
             ++dalvik_found;
+            int64_t start = nanotime();
             if (kill(pid, SIGQUIT)) {
                 fprintf(stderr, "kill(%d, SIGQUIT): %s\n", pid, strerror(errno));
                 continue;
@@ -606,12 +615,24 @@ const char *dump_traces() {
                 struct inotify_event ie;
                 read(ifd, &ie, sizeof(ie));
             }
+
+            if (lseek(fd, 0, SEEK_END) < 0) {
+                fprintf(stderr, "lseek: %s\n", strerror(errno));
+            } else {
+                snprintf(data, sizeof(data), "[dump dalvik stack %d: %.3fs elapsed]\n",
+                        pid, (float)(nanotime() - start) / NANOS_PER_SEC);
+                write(fd, data, strlen(data));
+            }
         } else if (should_dump_native_traces(data)) {
             /* dump native process if appropriate */
             if (lseek(fd, 0, SEEK_END) < 0) {
                 fprintf(stderr, "lseek: %s\n", strerror(errno));
             } else {
+                int64_t start = nanotime();
                 dump_backtrace_to_file(pid, fd);
+                snprintf(data, sizeof(data), "[dump native stack %d: %.3fs elapsed]\n",
+                        pid, (float)(nanotime() - start) / NANOS_PER_SEC);
+                write(fd, data, strlen(data));
             }
         }
     }
@@ -637,10 +658,6 @@ error_close_ifd:
 error_close_fd:
     close(fd);
     return result;
-}
-
-void play_sound(const char* path) {
-    run_command(NULL, 5, "/system/bin/stagefright", "-o", "-a", path, NULL);
 }
 
 void dump_route_tables() {
