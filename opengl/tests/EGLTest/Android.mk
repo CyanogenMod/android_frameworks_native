@@ -1,6 +1,7 @@
 # Build the unit tests.
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 LOCAL_MODULE := EGL_test
 
@@ -14,27 +15,18 @@ LOCAL_SHARED_LIBRARIES := \
 	libEGL \
 	libcutils \
 	libbinder \
-	libstlport \
 	libutils \
 	libgui \
 
-LOCAL_STATIC_LIBRARIES := \
-	libgtest \
-	libgtest_main \
-
 LOCAL_C_INCLUDES := \
-    bionic \
     bionic/libc/private \
-    bionic/libstdc++/include \
-    external/gtest/include \
-    external/stlport/stlport \
     frameworks/native/opengl/libs \
     frameworks/native/opengl/libs/EGL \
 
 # gold in binutils 2.22 will warn about the usage of mktemp
 LOCAL_LDFLAGS += -Wl,--no-fatal-warnings
 
-include $(BUILD_EXECUTABLE)
+include $(BUILD_NATIVE_TEST)
 
 # Include subdirectory makefiles
 # ============================================================

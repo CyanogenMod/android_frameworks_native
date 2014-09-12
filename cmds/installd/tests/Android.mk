@@ -1,6 +1,7 @@
 # Build the unit tests for installd
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 # Build the unit tests.
 test_src_files := \
@@ -9,13 +10,10 @@ test_src_files := \
 shared_libraries := \
     libutils \
     libcutils \
-    libstlport
 
 static_libraries := \
     libinstalld \
     libdiskusage \
-    libgtest \
-    libgtest_main
 
 c_includes := \
     frameworks/native/cmds/installd
