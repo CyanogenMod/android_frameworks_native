@@ -26,58 +26,58 @@
 #define TOKEN_MAX     8     /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
-static int do_ping(char **arg, char reply[REPLY_MAX])
+static int do_ping(char **arg __unused, char reply[REPLY_MAX] __unused)
 {
     return 0;
 }
 
-static int do_install(char **arg, char reply[REPLY_MAX])
+static int do_install(char **arg, char reply[REPLY_MAX] __unused)
 {
     return install(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]); /* pkgname, uid, gid, seinfo */
 }
 
-static int do_dexopt(char **arg, char reply[REPLY_MAX])
+static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
 {
     /* apk_path, uid, is_public, pkgname, instruction_set, vm_safe_mode, should_relocate */
     return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], atoi(arg[5]), 0);
 }
 
-static int do_move_dex(char **arg, char reply[REPLY_MAX])
+static int do_move_dex(char **arg, char reply[REPLY_MAX] __unused)
 {
     return move_dex(arg[0], arg[1], arg[2]); /* src, dst, instruction_set */
 }
 
-static int do_rm_dex(char **arg, char reply[REPLY_MAX])
+static int do_rm_dex(char **arg, char reply[REPLY_MAX] __unused)
 {
     return rm_dex(arg[0], arg[1]); /* pkgname, instruction_set */
 }
 
-static int do_remove(char **arg, char reply[REPLY_MAX])
+static int do_remove(char **arg, char reply[REPLY_MAX] __unused)
 {
     return uninstall(arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
-static int do_rename(char **arg, char reply[REPLY_MAX])
+static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
 {
     return renamepkg(arg[0], arg[1]); /* oldpkgname, newpkgname */
 }
 
-static int do_fixuid(char **arg, char reply[REPLY_MAX])
+static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
 {
     return fix_uid(arg[0], atoi(arg[1]), atoi(arg[2])); /* pkgname, uid, gid */
 }
 
-static int do_free_cache(char **arg, char reply[REPLY_MAX]) /* TODO int:free_size */
+static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int:free_size */
 {
     return free_cache((int64_t)atoll(arg[0])); /* free_size */
 }
 
-static int do_rm_cache(char **arg, char reply[REPLY_MAX])
+static int do_rm_cache(char **arg, char reply[REPLY_MAX] __unused)
 {
     return delete_cache(arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
-static int do_get_size(char **arg, char reply[REPLY_MAX])
+static int do_get_size(char **arg, char reply[REPLY_MAX] __unused)
 {
     int64_t codesize = 0;
     int64_t datasize = 0;
@@ -98,38 +98,38 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     return res;
 }
 
-static int do_rm_user_data(char **arg, char reply[REPLY_MAX])
+static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
     return delete_user_data(arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
-static int do_mk_user_data(char **arg, char reply[REPLY_MAX])
+static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
     return make_user_data(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
                              /* pkgname, uid, userid, seinfo */
 }
 
-static int do_mk_user_config(char **arg, char reply[REPLY_MAX])
+static int do_mk_user_config(char **arg, char reply[REPLY_MAX] __unused)
 {
     return make_user_config(atoi(arg[0])); /* userid */
 }
 
-static int do_rm_user(char **arg, char reply[REPLY_MAX])
+static int do_rm_user(char **arg, char reply[REPLY_MAX] __unused)
 {
     return delete_user(atoi(arg[0])); /* userid */
 }
 
-static int do_movefiles(char **arg, char reply[REPLY_MAX])
+static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
 {
     return movefiles();
 }
 
-static int do_linklib(char **arg, char reply[REPLY_MAX])
+static int do_linklib(char **arg, char reply[REPLY_MAX] __unused)
 {
     return linklib(arg[0], arg[1], atoi(arg[2]));
 }
 
-static int do_idmap(char **arg, char reply[REPLY_MAX])
+static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
 {
     return idmap(arg[0], arg[1], atoi(arg[2]));
 }
@@ -140,7 +140,7 @@ static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((u
                              /* pkgName, seinfo, uid*/
 }
 
-static int do_patchoat(char **arg, char reply[REPLY_MAX]) {
+static int do_patchoat(char **arg, char reply[REPLY_MAX] __unused) {
     /* apk_path, uid, is_public, pkgname, instruction_set, vm_safe_mode, should_relocate */
     return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], 0, 1);
 }
@@ -634,11 +634,11 @@ static int log_callback(int type, const char *fmt, ...) {
     return 0;
 }
 
-int main(const int argc, const char *argv[]) {
+int main(const int argc __unused, const char *argv[] __unused) {
     char buf[BUFFER_MAX];
     struct sockaddr addr;
     socklen_t alen;
-    int lsocket, s, count;
+    int lsocket, s;
     int selinux_enabled = (is_selinux_enabled() > 0);
 
     ALOGI("installd firing up\n");
