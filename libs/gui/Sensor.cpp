@@ -56,7 +56,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
 
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
-    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_1) {
+    if (halVersion > SENSORS_DEVICE_API_VERSION_1_0) {
         mFifoReservedEventCount = hwSensor->fifoReservedEventCount;
         mFifoMaxEventCount = hwSensor->fifoMaxEventCount;
     } else {
@@ -206,10 +206,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
-        if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->stringType) {
+        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->stringType) {
             mStringType = hwSensor->stringType;
         }
-        if (halVersion >= SENSORS_DEVICE_API_VERSION_1_2 && hwSensor->requiredPermission) {
+        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->requiredPermission) {
             mRequiredPermission = hwSensor->requiredPermission;
         }
 

@@ -27,7 +27,7 @@
 #include <gui/BitTube.h>
 
 // ----------------------------------------------------------------------------
-#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1U << 30)
+#define WAKE_UP_SENSOR_EVENT_NEEDS_ACK (1U << 31)
 struct ALooper;
 struct ASensorEvent;
 
