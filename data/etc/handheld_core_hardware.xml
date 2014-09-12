@@ -23,7 +23,7 @@
      devices.
 -->
 <permissions>
-    <feature name="andriod.hardware.audio.output" />
+    <feature name="android.hardware.audio.output" />
     <feature name="android.hardware.camera" />
     <feature name="android.hardware.location" />
     <feature name="android.hardware.location.network" />
