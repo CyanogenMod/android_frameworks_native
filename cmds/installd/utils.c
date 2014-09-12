@@ -163,7 +163,7 @@ int create_user_config_path(char path[PATH_MAX], userid_t userid) {
 int create_move_path(char path[PKG_PATH_MAX],
     const char* pkgname,
     const char* leaf,
-    userid_t userid)
+    userid_t userid __unused)
 {
     if ((android_data_dir.len + strlen(PRIMARY_USER_PREFIX) + strlen(pkgname) + strlen(leaf) + 1)
             >= PKG_PATH_MAX) {
@@ -239,7 +239,7 @@ static int _delete_dir_contents(DIR *d,
         }
 
         if (de->d_type == DT_DIR) {
-            int r, subfd;
+            int subfd;
             DIR *subdir;
 
                 /* always skip "." and ".." */
@@ -783,7 +783,7 @@ void clear_cache_files(cache_t* cache, int64_t free_size)
 
 void finish_cache_collection(cache_t* cache)
 {
-    size_t i;
+    CACHE_NOISY(size_t i;)
 
     CACHE_NOISY(ALOGI("clear_cache_files: %d dirs, %d files\n", cache->numDirs, cache->numFiles));
     CACHE_NOISY(
@@ -1003,7 +1003,6 @@ char *build_string3(char *s1, char *s2, char *s3) {
 /* Ensure that /data/media directories are prepared for given user. */
 int ensure_media_user_dirs(userid_t userid) {
     char media_user_path[PATH_MAX];
-    char path[PATH_MAX];
 
     // Ensure /data/media/<userid> exists
     create_user_media_path(media_user_path, userid);
@@ -1016,7 +1015,6 @@ int ensure_media_user_dirs(userid_t userid) {
 
 int ensure_config_user_dirs(userid_t userid) {
     char config_user_path[PATH_MAX];
-    char path[PATH_MAX];
 
     // writable by system, readable by any app within the same user
     const int uid = (userid * AID_USER) + AID_SYSTEM;
