@@ -1,6 +1,7 @@
 # Build the unit tests,
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 LOCAL_MODULE := libgui_test
 
@@ -20,16 +21,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libcutils \
 	libgui \
-	libstlport \
 	libsync \
 	libui \
 	libutils \
-
-LOCAL_C_INCLUDES := \
-    bionic \
-    bionic/libstdc++/include \
-    external/gtest/include \
-    external/stlport/stlport \
 
 # Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
 # to integrate with auto-test framework.
