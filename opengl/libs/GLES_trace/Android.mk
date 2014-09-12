@@ -1,6 +1,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 LOCAL_SRC_FILES := \
     src/gltrace_api.cpp \
@@ -15,14 +16,12 @@ LOCAL_SRC_FILES := \
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH) \
     $(LOCAL_PATH)/../ \
-    external/stlport/stlport \
     external/protobuf/src \
     external \
-    bionic
 
 LOCAL_CFLAGS := -DGOOGLE_PROTOBUF_NO_RTTI
 LOCAL_STATIC_LIBRARIES := libprotobuf-cpp-2.3.0-lite liblzf
-LOCAL_SHARED_LIBRARIES := libcutils libutils liblog libstlport
+LOCAL_SHARED_LIBRARIES := libcutils libutils liblog
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLES_trace\"
 
@@ -32,4 +31,5 @@ LOCAL_C_INCLUDES += bionic/libc/private
 LOCAL_MODULE:= libGLES_trace
 LOCAL_MODULE_TAGS := optional
 
+include external/stlport/libstlport.mk
 include $(BUILD_SHARED_LIBRARY)
