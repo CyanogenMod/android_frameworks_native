@@ -119,7 +119,6 @@ static void dumpstate() {
     dump_file("BUDDYINFO", "/proc/buddyinfo");
     dump_file("FRAGMENTATION INFO", "/d/extfrag/unusable_index");
 
-
     dump_file("KERNEL WAKELOCKS", "/proc/wakelocks");
     dump_file("KERNEL WAKE SOURCES", "/d/wakeup_sources");
     dump_file("KERNEL CPUFREQ", "/sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state");
@@ -134,15 +133,14 @@ static void dumpstate() {
     do_dmesg();
 
     run_command("LIST OF OPEN FILES", 10, SU_PATH, "root", "lsof", NULL);
+    for_each_pid(do_showmap, "SMAPS OF ALL PROCESSES");
+    for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
     if (screenshot_path[0]) {
         ALOGI("taking screenshot\n");
         run_command(NULL, 10, "/system/bin/screencap", "-p", screenshot_path, NULL);
         ALOGI("wrote screenshot: %s\n", screenshot_path);
     }
-
-    for_each_pid(do_showmap, "SMAPS OF ALL PROCESSES");
-    for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
     run_command("SYSTEM LOG", 20, "logcat", "-v", "threadtime", "-d", "*:v", NULL);
@@ -382,14 +380,17 @@ static void sigpipe_handler(int n) {
     _exit(EXIT_FAILURE);
 }
 
+static void vibrate(FILE* vibrator, int ms) {
+    fprintf(vibrator, "%d\n", ms);
+    fflush(vibrator);
+}
+
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
     int do_add_date = 0;
     int do_compress = 0;
     int do_vibrate = 1;
     char* use_outfile = 0;
-    char* begin_sound = 0;
-    char* end_sound = 0;
     int use_socket = 0;
     int do_fb = 0;
     int do_broadcast = 0;
@@ -402,13 +403,13 @@ int main(int argc, char *argv[]) {
         // correct program.
         return execl("/system/bin/bugreport", "/system/bin/bugreport", NULL);
     }
+
     ALOGI("begin\n");
 
-
+    /* clear SIGPIPE handler */
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = sigpipe_handler;
     sigaction(SIGPIPE, &sigact, NULL);
-
 
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
@@ -418,15 +419,11 @@ int main(int argc, char *argv[]) {
         fclose(oom_adj);
     }
 
-    /* very first thing, collect stack traces from Dalvik and native processes (needs root) */
-    dump_traces_path = dump_traces();
-
+    /* parse arguments */
     int c;
-    while ((c = getopt(argc, argv, "b:de:ho:svqzpB")) != -1) {
+    while ((c = getopt(argc, argv, "dho:svqzpB")) != -1) {
         switch (c) {
-            case 'b': begin_sound = optarg;  break;
             case 'd': do_add_date = 1;       break;
-            case 'e': end_sound = optarg;    break;
             case 'o': use_outfile = optarg;  break;
             case 's': use_socket = 1;        break;
             case 'v': break;  // compatibility no-op
@@ -441,11 +438,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* open the vibrator before dropping root */
     FILE *vibrator = 0;
     if (do_vibrate) {
-        /* open the vibrator before dropping root */
         vibrator = fopen("/sys/class/timed_output/vibrator/enable", "w");
-        if (vibrator) fcntl(fileno(vibrator), F_SETFD, FD_CLOEXEC);
+        if (vibrator) {
+            fcntl(fileno(vibrator), F_SETFD, FD_CLOEXEC);
+            vibrate(vibrator, 150);
+        }
     }
 
     /* read /proc/cmdline before dropping root */
@@ -455,13 +455,17 @@ int main(int argc, char *argv[]) {
         fclose(cmdline);
     }
 
+    /* collect stack traces from Dalvik and native processes (needs root) */
+    dump_traces_path = dump_traces();
+
+    /* Get the tombstone fds here while we are running as root. */
+    get_tombstone_fds(tombstone_data);
+
+    /* ensure we will keep capabilities when we drop root */
     if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
         ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
         return -1;
     }
-
-    /* Get the tombstone fds here while we are running as root. */
-    get_tombstone_fds(tombstone_data);
 
     /* switch to non-root user and group */
     gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
@@ -496,6 +500,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    /* redirect output if needed */
     char path[PATH_MAX], tmp_path[PATH_MAX];
     pid_t gzip_pid = -1;
 
@@ -520,22 +525,12 @@ int main(int argc, char *argv[]) {
         gzip_pid = redirect_to_file(stdout, tmp_path, do_compress);
     }
 
-    if (begin_sound) {
-        play_sound(begin_sound);
-    } else if (vibrator) {
-        fputs("150", vibrator);
-        fflush(vibrator);
-    }
-
     dumpstate();
 
-    if (end_sound) {
-        play_sound(end_sound);
-    } else if (vibrator) {
-        int i;
-        for (i = 0; i < 3; i++) {
-            fputs("75\n", vibrator);
-            fflush(vibrator);
+    /* done */
+    if (vibrator) {
+        for (int i = 0; i < 3; i++) {
+            vibrate(vibrator, 75);
             usleep((75 + 50) * 1000);
         }
         fclose(vibrator);
@@ -552,6 +547,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "rename(%s, %s): %s\n", tmp_path, path, strerror(errno));
     }
 
+    /* tell activity manager we're done */
     if (do_broadcast && use_outfile && do_fb) {
         run_command(NULL, 5, "/system/bin/am", "broadcast", "--user", "0",
                 "-a", "android.intent.action.BUGREPORT_FINISHED",
