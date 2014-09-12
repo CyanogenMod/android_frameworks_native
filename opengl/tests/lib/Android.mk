@@ -15,18 +15,13 @@
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 LOCAL_MODULE_TAGS := tests
 LOCAL_MODULE:= libglTest
 LOCAL_SRC_FILES:= glTestLib.cpp WindowSurface.cpp
 LOCAL_C_INCLUDES += system/extras/tests/include \
-    bionic \
-    bionic/libstdc++/include \
-    external/stlport/stlport \
 	$(call include-path-for, opengl-tests-includes)
 
 LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
-
-LOCAL_SHARED_LIBRARIES += libcutils libutils libstlport
-
 
 include $(BUILD_STATIC_LIBRARY)
