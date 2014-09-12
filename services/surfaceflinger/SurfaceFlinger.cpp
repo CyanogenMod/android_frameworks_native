@@ -2340,7 +2340,8 @@ void SurfaceFlinger::setTransactionState(
     if(mDisableExtAnimation) {
         for (size_t i=0 ; i<count ; i++) {
             const DisplayState& s(displays[i]);
-            if(s.token != mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY]) {
+            if((mDisplays.indexOfKey(s.token) >= 0) && (s.token !=
+                    mBuiltinDisplays[DisplayDevice::DISPLAY_PRIMARY])) {
                 const uint32_t what = s.what;
                 // Invalidate and Delay the binder thread by 50 ms on
                 // eDisplayProjectionChanged to trigger a draw cycle so that
