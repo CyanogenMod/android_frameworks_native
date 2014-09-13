@@ -14,7 +14,7 @@
      limitations under the License.
 -->
 
-<!-- This is the standard feature indicating that the device supports managed profiles. -->
+<!-- This is the standard feature indicating that the device supports managed users. -->
 <permissions>
-    <feature name="android.software.managed_profiles" />
+    <feature name="android.software.managed_users" />
 </permissions>
