@@ -86,7 +86,7 @@ class SensorService :
         // Count the number of flush complete events which are about to be dropped in the buffer.
         // Increment mPendingFlushEventsToSend in mSensorInfo. These flush complete events will be
         // sent separately before the next batch of events.
-        void countFlushCompleteEventsLocked(sensors_event_t* scratch, int numEventsDropped);
+        void countFlushCompleteEventsLocked(sensors_event_t const* scratch, int numEventsDropped);
 
         // Check if there are any wake up events in the buffer. If yes, return the index of the
         // first wake_up sensor event in the buffer else return -1. This wake_up sensor event will
@@ -148,7 +148,7 @@ class SensorService :
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid);
 
-        status_t sendEvents(sensors_event_t* buffer, size_t count,
+        status_t sendEvents(sensors_event_t const* buffer, size_t count,
                 sensors_event_t* scratch,
                 SensorEventConnection const * const * mapFlushEventsToConnections = NULL);
         bool hasSensor(int32_t handle) const;
@@ -190,7 +190,7 @@ class SensorService :
     bool isVirtualSensor(int handle) const;
     Sensor getSensorFromHandle(int handle) const;
     bool isWakeUpSensor(int type) const;
-    void recordLastValueLocked(const sensors_event_t* buffer, size_t count);
+    void recordLastValueLocked(sensors_event_t const* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
     Sensor registerVirtualSensor(SensorInterface* sensor);
