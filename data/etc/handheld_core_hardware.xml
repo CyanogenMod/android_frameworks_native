@@ -23,7 +23,7 @@
      devices.
 -->
 <permissions>
-    <feature name="andriod.hardware.audio.output" />
+    <feature name="android.hardware.audio.output" />
     <feature name="android.hardware.camera" />
     <feature name="android.hardware.location" />
     <feature name="android.hardware.location.network" />
@@ -37,6 +37,7 @@
 
     <!-- basic system services -->
     <feature name="android.software.app_widgets" />
+    <feature name="android.software.connectionservice" />
     <feature name="android.software.voice_recognizers" />
     <feature name="android.software.backup" />
     <feature name="android.software.home_screen" />
