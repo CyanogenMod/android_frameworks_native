@@ -1002,32 +1002,27 @@ bool SensorService::SensorEventConnection::needsWakeLock() {
 
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
-    result.appendFormat("\t %d WakeLockRefCount \n", mWakeLockRefCount);
+    result.appendFormat("\t WakeLockRefCount %d | uid %d | cache size %d | max cache size %d\n",
+            mWakeLockRefCount, mUid, mCacheSize, mMaxCacheSize);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
-        result.appendFormat("\t %s 0x%08x | status: %s | pending flush events %d | uid %d|"
-                            "cache size: %d max cache size %d\n",
+        result.appendFormat("\t %s 0x%08x | status: %s | pending flush events %d \n",
                             mService->getSensorName(mSensorInfo.keyAt(i)).string(),
                             mSensorInfo.keyAt(i),
                             flushInfo.mFirstFlushPending ? "First flush pending" :
                                                            "active",
-                            flushInfo.mPendingFlushEventsToSend,
-                            mUid,
-                            mCacheSize,
-                            mMaxCacheSize);
-#if DEBUG_CONNECTIONS
-        result.appendFormat("\t events recvd: %d | sent %d | cache %d | dropped %d |"
-                                  " total_acks_needed %d | total_acks_recvd %d\n",
-                                        mEventsReceived,
-                                        mEventsSent,
-                                        mEventsSentFromCache,
-                                        mEventsReceived - (mEventsSentFromCache +
-                                                           mEventsSent + mCacheSize),
-                                        mTotalAcksNeeded,
-                                        mTotalAcksReceived);
-#endif
-
+                            flushInfo.mPendingFlushEventsToSend);
     }
+#if DEBUG_CONNECTIONS
+    result.appendFormat("\t events recvd: %d | sent %d | cache %d | dropped %d |"
+            " total_acks_needed %d | total_acks_recvd %d\n",
+            mEventsReceived,
+            mEventsSent,
+            mEventsSentFromCache,
+            mEventsReceived - (mEventsSentFromCache + mEventsSent + mCacheSize),
+            mTotalAcksNeeded,
+            mTotalAcksReceived);
+#endif
 }
 
 bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
@@ -1082,7 +1077,7 @@ void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
 }
 
 status_t SensorService::SensorEventConnection::sendEvents(
-        sensors_event_t* buffer, size_t numEvents,
+        sensors_event_t const* buffer, size_t numEvents,
         sensors_event_t* scratch,
         SensorEventConnection const * const * mapFlushEventsToConnections) {
     // filter out events not for this connection
@@ -1207,7 +1202,9 @@ status_t SensorService::SensorEventConnection::sendEvents(
         if (index_wake_up_event >= 0) {
             // If there was a wake_up sensor_event, reset the flag.
             scratch[index_wake_up_event].flags &= ~WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
-            --mWakeLockRefCount;
+            if (mWakeLockRefCount > 0) {
+                --mWakeLockRefCount;
+            }
 #if DEBUG_CONNECTIONS
             --mTotalAcksNeeded;
 #endif
@@ -1256,14 +1253,18 @@ void SensorService::SensorEventConnection::reAllocateCacheLocked(sensors_event_t
 
 void SensorService::SensorEventConnection::sendPendingFlushEventsLocked() {
     ASensorEvent flushCompleteEvent;
+    memset(&flushCompleteEvent, 0, sizeof(flushCompleteEvent));
     flushCompleteEvent.type = SENSOR_TYPE_META_DATA;
-    flushCompleteEvent.sensor = 0;
     // Loop through all the sensors for this connection and check if there are any pending
     // flush complete events to be sent.
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         FlushInfo& flushInfo = mSensorInfo.editValueAt(i);
         while (flushInfo.mPendingFlushEventsToSend > 0) {
-            flushCompleteEvent.meta_data.sensor = mSensorInfo.keyAt(i);
+            const int sensor_handle = mSensorInfo.keyAt(i);
+            flushCompleteEvent.meta_data.sensor = sensor_handle;
+            if (mService->getSensorFromHandle(sensor_handle).isWakeUpSensor()) {
+               flushCompleteEvent.flags |= WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
+            }
             ssize_t size = SensorEventQueue::write(mChannel, &flushCompleteEvent, 1);
             if (size < 0) {
                 return;
@@ -1303,7 +1304,9 @@ void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
                 // If there was a wake_up sensor_event, reset the flag.
                 mEventCache[index_wake_up_event + numEventsSent].flags  &=
                         ~WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
-                --mWakeLockRefCount;
+                if (mWakeLockRefCount > 0) {
+                    --mWakeLockRefCount;
+                }
 #if DEBUG_CONNECTIONS
                 --mTotalAcksNeeded;
 #endif
@@ -1328,7 +1331,7 @@ void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
 }
 
 void SensorService::SensorEventConnection::countFlushCompleteEventsLocked(
-                sensors_event_t* scratch, const int numEventsDropped) {
+                sensors_event_t const* scratch, const int numEventsDropped) {
     ALOGD_IF(DEBUG_CONNECTIONS, "dropping %d events ", numEventsDropped);
     // Count flushComplete events in the events that are about to the dropped. These will be sent
     // separately before the next batch of events.
@@ -1394,7 +1397,9 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
 
         {
            Mutex::Autolock _l(mConnectionLock);
-           --mWakeLockRefCount;
+           if (mWakeLockRefCount > 0) {
+               --mWakeLockRefCount;
+           }
 #if DEBUG_CONNECTIONS
            ++mTotalAcksReceived;
 #endif
