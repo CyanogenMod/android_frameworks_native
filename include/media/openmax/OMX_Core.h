@@ -457,6 +457,12 @@ typedef struct OMX_BUFFERHEADERTYPE
                                      this buffer */
   OMX_U32 nInputPortIndex;      /**< The index of the input port (if any) using
                                      this buffer */
+#ifdef MTK_HARDWARE
+  OMX_U32 nWidth;
+  OMX_U32 nHeight;
+  OMX_U32 nStride;
+  OMX_U32 nSliceHeight;
+#endif
 } OMX_BUFFERHEADERTYPE;
 
 /** The OMX_EXTRADATATYPE enumeration is used to define the 
@@ -491,6 +497,14 @@ typedef struct OMX_PORT_PARAM_TYPE {
     OMX_U32 nPorts;             /**< The number of ports for this component */
     OMX_U32 nStartPortNumber;   /** first port number for this type of port */
 } OMX_PORT_PARAM_TYPE; 
+
+#ifdef MTK_HARDWARE
+typedef struct OMX_MTK_PLATFORM_PRIVATE {
+    OMX_U32 mM4UMVABufferPa;
+    OMX_U32 mM4UVABufferVa;
+    //add next private members
+} OMX_MTK_PLATFORM_PRIVATE;
+#endif
 
 /** @ingroup comp */
 typedef enum OMX_EVENTTYPE
