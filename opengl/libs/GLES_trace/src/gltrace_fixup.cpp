@@ -21,7 +21,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "gltrace.pb.h"
+#include "frameworks/native/opengl/libs/GLES_trace/proto/gltrace.pb.h"
 #include "gltrace_api.h"
 #include "gltrace_context.h"
 #include "gltrace_fixup.h"
