@@ -35,6 +35,7 @@
 #include <binder/PermissionCache.h>
 
 #include <ui/DisplayInfo.h>
+#include <ui/DisplayStatInfo.h>
 
 #include <gui/BitTube.h>
 #include <gui/BufferQueue.h>
@@ -600,6 +601,19 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         configs->push_back(info);
     }
 
+    return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& display,
+        DisplayStatInfo* stats) {
+    if (stats == NULL) {
+        return BAD_VALUE;
+    }
+
+    // FIXME for now we always return stats for the primary display
+    memset(stats, 0, sizeof(*stats));
+    stats->vsyncTime   = mPrimaryDispSync.computeNextRefresh(0);
+    stats->vsyncPeriod = mPrimaryDispSync.getPeriod();
     return NO_ERROR;
 }
 

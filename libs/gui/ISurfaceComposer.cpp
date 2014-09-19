@@ -33,6 +33,7 @@
 #include <private/gui/LayerState.h>
 
 #include <ui/DisplayInfo.h>
+#include <ui/DisplayStatInfo.h>
 
 #include <utils/Log.h>
 
@@ -237,6 +238,22 @@ public:
         return result;
     }
 
+    virtual status_t getDisplayStats(const sp<IBinder>& display,
+            DisplayStatInfo* stats)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        data.writeStrongBinder(display);
+        remote()->transact(BnSurfaceComposer::GET_DISPLAY_STATS, data, &reply);
+        status_t result = reply.readInt32();
+        if (result == NO_ERROR) {
+            memcpy(stats,
+                    reply.readInplace(sizeof(DisplayStatInfo)),
+                    sizeof(DisplayStatInfo));
+        }
+        return result;
+    }
+
     virtual int getActiveConfig(const sp<IBinder>& display)
     {
         Parcel data, reply;
@@ -387,6 +404,18 @@ status_t BnSurfaceComposer::onTransact(
                     memcpy(reply->writeInplace(sizeof(DisplayInfo)),
                             &configs[c], sizeof(DisplayInfo));
                 }
+            }
+            return NO_ERROR;
+        }
+        case GET_DISPLAY_STATS: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            DisplayStatInfo stats;
+            sp<IBinder> display = data.readStrongBinder();
+            status_t result = getDisplayStats(display, &stats);
+            reply->writeInt32(result);
+            if (result == NO_ERROR) {
+                memcpy(reply->writeInplace(sizeof(DisplayStatInfo)),
+                        &stats, sizeof(DisplayStatInfo));
             }
             return NO_ERROR;
         }

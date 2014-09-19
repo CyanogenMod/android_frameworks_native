@@ -101,6 +101,9 @@ public:
     // turned on.  It should NOT be used after that.
     void setPeriod(nsecs_t period);
 
+    // The getPeriod method returns the current vsync period.
+    nsecs_t getPeriod();
+
     // setRefreshSkipCount specifies an additional number of refresh
     // cycles to skip.  For example, on a 60Hz display, a skip count of 1
     // will result in events happening at 30Hz.  Default is zero.  The idea
