@@ -206,6 +206,8 @@ private:
             Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useIdentityTransform, ISurfaceComposer::Rotation rotation);
+    virtual status_t getDisplayStats(const sp<IBinder>& display,
+            DisplayStatInfo* stats);
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
             Vector<DisplayInfo>* configs);
     virtual int getActiveConfig(const sp<IBinder>& display);

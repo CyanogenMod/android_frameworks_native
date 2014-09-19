@@ -408,6 +408,12 @@ void DispSync::setPeriod(nsecs_t period) {
     mThread->updateModel(mPeriod, mPhase);
 }
 
+nsecs_t DispSync::getPeriod() {
+    // lock mutex as mPeriod changes multiple times in updateModelLocked
+    Mutex::Autolock lock(mMutex);
+    return mPeriod;
+}
+
 void DispSync::updateModelLocked() {
     if (mNumResyncSamples >= MIN_RESYNC_SAMPLES_FOR_UPDATE) {
         nsecs_t durationSum = 0;
