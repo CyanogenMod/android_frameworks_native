@@ -352,7 +352,7 @@ private:
     FloatRect computeCrop(const sp<const DisplayDevice>& hw) const;
     bool isCropped() const;
     static bool getOpacityForFormat(uint32_t format);
-    Transform computeBufferTransform(const sp<const DisplayDevice>& hw);
+    Transform computeBufferTransform(const sp<const DisplayDevice>& hw) const;
 
     // drawing
     void clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
