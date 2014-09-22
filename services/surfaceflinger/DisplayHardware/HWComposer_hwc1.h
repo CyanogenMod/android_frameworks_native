@@ -103,6 +103,9 @@ public:
     // set active config
     status_t setActiveConfig(int disp, int mode);
 
+    // get active config
+    int getActiveConfig(int disp) const;
+
     // reset state when an external, non-virtual display is disconnected
     void disconnectDisplay(int disp);
 

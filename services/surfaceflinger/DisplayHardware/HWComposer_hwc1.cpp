@@ -373,7 +373,12 @@ status_t HWComposer::queryDisplayProperties(int disp) {
         return err;
     }
 
-    mDisplayData[disp].currentConfig = 0;
+    int currentConfig = getActiveConfig(disp);
+    if (currentConfig < 0 || currentConfig > static_cast<int>((numConfigs-1))) {
+        ALOGE("%s: Invalid display config! %d", __FUNCTION__, currentConfig);
+        currentConfig = 0;
+    }
+    mDisplayData[disp].currentConfig = currentConfig;
     for (size_t c = 0; c < numConfigs; ++c) {
         err = mHwc->getDisplayAttributes(mHwc, disp, configs[c],
                 DISPLAY_ATTRIBUTES, values);
@@ -821,13 +826,28 @@ status_t HWComposer::setPowerMode(int disp, int mode) {
 status_t HWComposer::setActiveConfig(int disp, int mode) {
     LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
     DisplayData& dd(mDisplayData[disp]);
-    dd.currentConfig = mode;
     if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {
-        return (status_t)mHwc->setActiveConfig(mHwc, disp, mode);
+        status_t status = static_cast<status_t>(
+                mHwc->setActiveConfig(mHwc, disp, mode));
+        if (status == NO_ERROR) {
+            dd.currentConfig = mode;
+        } else {
+            ALOGE("%s Failed to set new config (%d) for display (%d)",
+                    __FUNCTION__, mode, disp);
+        }
     } else {
         LOG_FATAL_IF(mode != 0);
     }
     return NO_ERROR;
+}
+
+int HWComposer::getActiveConfig(int disp) const {
+    LOG_FATAL_IF(disp >= VIRTUAL_DISPLAY_ID_BASE);
+    if (mHwc && hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {
+        return mHwc->getActiveConfig(mHwc, disp);
+    } else {
+        return 0;
+    }
 }
 
 void HWComposer::disconnectDisplay(int disp) {

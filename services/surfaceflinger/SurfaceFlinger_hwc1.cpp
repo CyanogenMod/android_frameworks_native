@@ -505,6 +505,14 @@ void SurfaceFlinger::init() {
                 ALOGD("marking display %zu as acquired/unblanked", i);
                 hw->setPowerMode(HWC_POWER_MODE_NORMAL);
             }
+
+            // When a non-virtual display device is added at boot time,
+            // update the active config by querying HWC otherwise the
+            // default config (config 0) will be used.
+            int activeConfig = mHwc->getActiveConfig(hwcId);
+            if (activeConfig >= 0) {
+                hw->setActiveConfig(activeConfig);
+            }
             mDisplays.add(token, hw);
         }
     }
@@ -703,8 +711,10 @@ void SurfaceFlinger::setActiveConfigInternal(const sp<DisplayDevice>& hw, int mo
         return;
     }
 
-    hw->setActiveConfig(mode);
-    getHwComposer().setActiveConfig(type, mode);
+    status_t status = getHwComposer().setActiveConfig(type, mode);
+    if (status == NO_ERROR) {
+        hw->setActiveConfig(mode);
+    }
 }
 
 status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
@@ -1523,6 +1533,16 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         hw->setProjection(state.orientation,
                                 state.viewport, state.frame);
                         hw->setDisplayName(state.displayName);
+                        // When a new display device is added update the active
+                        // config by querying HWC otherwise the default config
+                        // (config 0) will be used.
+                        if (hwcDisplayId >= DisplayDevice::DISPLAY_PRIMARY &&
+                                hwcDisplayId < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
+                            int activeConfig = mHwc->getActiveConfig(hwcDisplayId);
+                            if (activeConfig >= 0) {
+                                hw->setActiveConfig(activeConfig);
+                            }
+                        }
                         mDisplays.add(display, hw);
                         if (state.isVirtualDisplay()) {
                             if (hwcDisplayId >= 0) {
