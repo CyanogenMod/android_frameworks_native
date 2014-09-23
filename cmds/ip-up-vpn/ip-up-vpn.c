@@ -46,16 +46,17 @@ static int set_address(struct sockaddr *sa, const char *address) {
 
 /*
  * The primary goal is to create a file with VPN parameters. Currently they
- * are interface, addresses, routes, DNS servers, and search domains. Each
- * parameter occupies one line in the file, and it can be an empty string or
- * space-separated values. The order and the format must be consistent with
- * com.android.server.connectivity.Vpn. Here is an example.
+ * are interface, addresses, routes, DNS servers, and search domains and VPN
+ * server address. Each parameter occupies one line in the file, and it can be
+ * an empty string or space-separated values. The order and the format must be
+ * consistent with com.android.server.connectivity.Vpn. Here is an example.
  *
  *   ppp0
  *   192.168.1.100/24
  *   0.0.0.0/0
  *   192.168.1.1 192.168.1.2
  *   example.org
+ *   192.0.2.1
  *
  * The secondary goal is to unify the outcome of VPN. The current baseline
  * is to have an interface configured with the given address and netmask
@@ -78,6 +79,7 @@ int main(int argc, char **argv)
         fprintf(state, "0.0.0.0/0\n");
         fprintf(state, "%s %s\n", env("DNS1"), env("DNS2"));
         fprintf(state, "\n");
+        fprintf(state, "\n");
     } else if (argc == 2) {
         /* Invoked by racoon. */
         const char *interface = env("INTERFACE");
@@ -85,29 +87,8 @@ int main(int argc, char **argv)
         const char *routes = env("SPLIT_INCLUDE_CIDR");
 
         int s = socket(AF_INET, SOCK_DGRAM, 0);
-        struct rtentry rt;
         struct ifreq ifr;
-
-        memset(&rt, 0, sizeof(rt));
         memset(&ifr, 0, sizeof(ifr));
-
-        /* Remove the old host route. There could be more than one. */
-        rt.rt_flags |= RTF_UP | RTF_HOST;
-        if (set_address(&rt.rt_dst, env("REMOTE_ADDR"))) {
-            while (!ioctl(s, SIOCDELRT, &rt));
-        }
-        if (errno != ESRCH) {
-            ALOGE("Cannot remove host route: %s", strerror(errno));
-            return 1;
-        }
-
-        /* Create a new host route. */
-        rt.rt_flags |= RTF_GATEWAY;
-        if (!set_address(&rt.rt_gateway, argv[1]) ||
-                (ioctl(s, SIOCADDRT, &rt) && errno != EEXIST)) {
-            ALOGE("Cannot create host route: %s", strerror(errno));
-            return 1;
-        }
 
         /* Bring up the interface. */
         ifr.ifr_flags = IFF_UP;
@@ -139,6 +120,7 @@ int main(int argc, char **argv)
         fprintf(state, "%s\n", routes[0] ? routes : "0.0.0.0/0");
         fprintf(state, "%s\n", env("INTERNAL_DNS4_LIST"));
         fprintf(state, "%s\n", env("DEFAULT_DOMAIN"));
+        fprintf(state, "%s\n", env("REMOTE_ADDR"));
     } else {
         ALOGE("Cannot parse parameters");
         return 1;
