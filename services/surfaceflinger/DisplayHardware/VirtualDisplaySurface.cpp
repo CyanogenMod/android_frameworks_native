@@ -283,7 +283,10 @@ void VirtualDisplaySurface::onFrameCommitted() {
         QueueBufferOutput qbo;
         sp<Fence> outFence = mHwc.getLastRetireFence(mDisplayId);
         VDS_LOGV("onFrameCommitted: queue sink sslot=%d", sslot);
-        if (mMustRecompose) {
+        // Allow queuing to sink buffer if mMustRecompose is true or
+        // mForceHwcCopy is true. This is required to support Miracast WFD Sink
+        // Initiatied Pause/Resume feature support
+        if (mForceHwcCopy || mMustRecompose) {
             status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
                     QueueBufferInput(
                         systemTime(), false /* isAutoTimestamp */,
