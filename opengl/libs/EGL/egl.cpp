@@ -330,12 +330,26 @@ EGLBoolean egl_init_drivers() {
     return res;
 }
 
+static pthread_mutex_t sLogPrintMutex = PTHREAD_MUTEX_INITIALIZER;
+static nsecs_t sLogPrintTime = 0;
+#define NSECS_DURATION 1000000000
+
 void gl_unimplemented() {
-    ALOGE("called unimplemented OpenGL ES API");
-    char value[PROPERTY_VALUE_MAX];
-    property_get("debug.egl.callstack", value, "0");
-    if (atoi(value)) {
-        CallStack stack(LOG_TAG);
+    bool printLog = false;
+    nsecs_t now = systemTime();
+    pthread_mutex_lock(&sLogPrintMutex);
+    if ((now - sLogPrintTime) > NSECS_DURATION) {
+        sLogPrintTime = now;
+        printLog = true;
+    }
+    pthread_mutex_unlock(&sLogPrintMutex);
+    if (printLog) {
+        ALOGE("called unimplemented OpenGL ES API");
+        char value[PROPERTY_VALUE_MAX];
+        property_get("debug.egl.callstack", value, "0");
+        if (atoi(value)) {
+            CallStack stack(LOG_TAG);
+        }
     }
 }
 
