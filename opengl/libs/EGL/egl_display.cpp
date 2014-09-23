@@ -171,6 +171,7 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
         } else {
             ALOGW("eglInitialize(%p) failed (%s)", idpy,
                     egl_tls_t::egl_strerror(cnx->egl.eglGetError()));
+            return EGL_FALSE;
         }
     }
 
