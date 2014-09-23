@@ -95,7 +95,7 @@ status_t BnSurfaceComposerClient::onTransact(
             status_t result = createSurface(name, w, h, format, flags,
                     &handle, &gbp);
             reply->writeStrongBinder(handle);
-            reply->writeStrongBinder(gbp->asBinder());
+            reply->writeStrongBinder(gbp != NULL ? gbp->asBinder() : NULL);
             reply->writeInt32(result);
             return NO_ERROR;
         } break;
