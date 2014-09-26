@@ -653,8 +653,8 @@ InputDispatcher::KeyEntry* InputDispatcher::synthesizeKeyRepeatLocked(nsecs_t cu
     KeyEntry* entry = mKeyRepeatState.lastKeyEntry;
 
     // Reuse the repeated key entry if it is otherwise unreferenced.
-    uint32_t policyFlags = (entry->policyFlags & POLICY_FLAG_RAW_MASK)
-            | POLICY_FLAG_PASS_TO_USER | POLICY_FLAG_TRUSTED;
+    uint32_t policyFlags = entry->policyFlags &
+            (POLICY_FLAG_RAW_MASK | POLICY_FLAG_PASS_TO_USER | POLICY_FLAG_TRUSTED);
     if (entry->refCount == 1) {
         entry->recycle();
         entry->eventTime = currentTime;
