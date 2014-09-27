@@ -653,7 +653,6 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
             i++;
         }
     }
-    mLooper->removeFd(c->getSensorChannel()->getSendFd());
     mActiveConnections.remove(connection);
     BatteryService::cleanup(c->getUid());
     if (c->needsWakeLock()) {
@@ -800,7 +799,6 @@ status_t SensorService::cleanupWithoutDisableLocked(
             BatteryService::disableSensor(connection->getUid(), handle);
         }
         if (connection->hasAnySensor() == false) {
-            mLooper->removeFd(connection->getSensorChannel()->getSendFd());
             mActiveConnections.remove(connection);
         }
         // see if this sensor becomes inactive
