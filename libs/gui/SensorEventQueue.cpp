@@ -36,7 +36,8 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 SensorEventQueue::SensorEventQueue(const sp<ISensorEventConnection>& connection)
-    : mSensorEventConnection(connection), mRecBuffer(NULL), mAvailable(0), mConsumed(0) {
+    : mSensorEventConnection(connection), mRecBuffer(NULL), mAvailable(0), mConsumed(0),
+      mNumAcksToSend(0) {
     mRecBuffer = new ASensorEvent[MAX_RECEIVE_BUFFER_EVENT_COUNT];
 }
 
@@ -148,14 +149,17 @@ status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const 
 void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
     for (int i = 0; i < count; ++i) {
         if (events[i].flags & WAKE_UP_SENSOR_EVENT_NEEDS_ACK) {
-            // Send just a byte of data to acknowledge for the wake up sensor events
-            // received
-            char buf = '1';
-            ssize_t size = ::send(mSensorChannel->getFd(), &buf, sizeof(buf),
-                                             MSG_DONTWAIT | MSG_NOSIGNAL);
-            if (size < 0) {
-                ALOGE("sendAck failure %d", size);
-            }
+            ++mNumAcksToSend;
+        }
+    }
+    // Send mNumAcksToSend to acknowledge for the wake up sensor events received.
+    if (mNumAcksToSend > 0) {
+        ssize_t size = ::send(mSensorChannel->getFd(), &mNumAcksToSend, sizeof(mNumAcksToSend),
+                MSG_DONTWAIT | MSG_NOSIGNAL);
+        if (size < 0) {
+            ALOGE("sendAck failure %d %d", size, mNumAcksToSend);
+        } else {
+            mNumAcksToSend = 0;
         }
     }
     return;
