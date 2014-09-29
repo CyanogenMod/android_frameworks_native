@@ -398,6 +398,24 @@ bool SensorService::threadLoop()
         for (int i = 0; i < count; i++) {
              mSensorEventBuffer[i].flags = 0;
         }
+
+        // Make a copy of the connection vector as some connections may be removed during the
+        // course of this loop (especially when one-shot sensor events are present in the
+        // sensor_event buffer). Promote all connections to StrongPointers before the lock is
+        // acquired. If the destructor of the sp gets called when the lock is acquired, it may
+        // result in a deadlock as ~SensorEventConnection() needs to acquire mLock again for
+        // cleanup. So copy all the strongPointers to a vector before the lock is acquired.
+        SortedVector< sp<SensorEventConnection> > activeConnections;
+        {
+            Mutex::Autolock _l(mLock);
+            for (size_t i=0 ; i < mActiveConnections.size(); ++i) {
+                sp<SensorEventConnection> connection(mActiveConnections[i].promote());
+                if (connection != 0) {
+                    activeConnections.add(connection);
+                }
+            }
+        }
+
         Mutex::Autolock _l(mLock);
         // Poll has returned. Hold a wakelock if one of the events is from a wake up sensor. The
         // rest of this loop is under a critical section protected by mLock. Acquiring a wakeLock,
@@ -487,21 +505,17 @@ bool SensorService::threadLoop()
         // Send our events to clients. Check the state of wake lock for each client and release the
         // lock if none of the clients need it.
         bool needsWakeLock = false;
-        // Make a copy of the connection vector as some connections may be removed during the
-        // course of this loop (especially when one-shot sensor events are present in the
-        // sensor_event buffer).
-        const SortedVector< wp<SensorEventConnection> > activeConnections(mActiveConnections);
         size_t numConnections = activeConnections.size();
         for (size_t i=0 ; i < numConnections; ++i) {
-            sp<SensorEventConnection> connection(activeConnections[i].promote());
-            if (connection != 0) {
-                connection->sendEvents(mSensorEventBuffer, count, mSensorEventScratch,
+            if (activeConnections[i] != 0) {
+                activeConnections[i]->sendEvents(mSensorEventBuffer, count, mSensorEventScratch,
                         mMapFlushEventsToConnections);
-                needsWakeLock |= connection->needsWakeLock();
+                needsWakeLock |= activeConnections[i]->needsWakeLock();
                 // If the connection has one-shot sensors, it may be cleaned up after first trigger.
                 // Early check for one-shot sensors.
-                if (connection->hasOneShotSensors()) {
-                    cleanupAutoDisabledSensorLocked(connection, mSensorEventBuffer, count);
+                if (activeConnections[i]->hasOneShotSensors()) {
+                    cleanupAutoDisabledSensorLocked(activeConnections[i], mSensorEventBuffer,
+                            count);
                 }
             }
         }
@@ -985,10 +999,10 @@ SensorService::SensorEventConnection::SensorEventConnection(
 
 SensorService::SensorEventConnection::~SensorEventConnection() {
     ALOGD_IF(DEBUG_CONNECTIONS, "~SensorEventConnection(%p)", this);
+    mService->cleanupConnection(this);
     if (mEventCache != NULL) {
         delete mEventCache;
     }
-    mService->cleanupConnection(this);
 }
 
 void SensorService::SensorEventConnection::onFirstRef() {
