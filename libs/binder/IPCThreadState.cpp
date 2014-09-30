@@ -1037,10 +1037,13 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             
             const pid_t origPid = mCallingPid;
             const uid_t origUid = mCallingUid;
-            
+            const int32_t origStrictModePolicy = mStrictModePolicy;
+            const int32_t origTransactionBinderFlags = mLastTransactionBinderFlags;
+
             mCallingPid = tr.sender_pid;
             mCallingUid = tr.sender_euid;
-            
+            mLastTransactionBinderFlags = tr.flags;
+
             int curPrio = getpriority(PRIO_PROCESS, mMyThreadId);
             if (gDisableBackgroundScheduling) {
                 if (curPrio > ANDROID_PRIORITY_NORMAL) {
@@ -1062,8 +1065,9 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             }
 
             //ALOGI(">>>> TRANSACT from pid %d uid %d\n", mCallingPid, mCallingUid);
-            
+
             Parcel reply;
+            status_t error;
             IF_LOG_TRANSACTIONS() {
                 TextOutput::Bundle _b(alog);
                 alog << "BR_TRANSACTION thr " << (void*)pthread_self()
@@ -1077,19 +1081,18 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             }
             if (tr.target.ptr) {
                 sp<BBinder> b((BBinder*)tr.cookie);
-                const status_t error = b->transact(tr.code, buffer, &reply, tr.flags);
-                if (error < NO_ERROR) reply.setError(error);
+                error = b->transact(tr.code, buffer, &reply, tr.flags);
 
             } else {
-                const status_t error = the_context_object->transact(tr.code, buffer, &reply, tr.flags);
-                if (error < NO_ERROR) reply.setError(error);
+                error = the_context_object->transact(tr.code, buffer, &reply, tr.flags);
             }
-            
+
             //ALOGI("<<<< TRANSACT from pid %d restore pid %d uid %d\n",
             //     mCallingPid, origPid, origUid);
             
             if ((tr.flags & TF_ONE_WAY) == 0) {
                 LOG_ONEWAY("Sending reply to %d!", mCallingPid);
+                if (error < NO_ERROR) reply.setError(error);
                 sendReply(reply, 0);
             } else {
                 LOG_ONEWAY("NOT sending reply to %d!", mCallingPid);
@@ -1097,6 +1100,8 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
             
             mCallingPid = origPid;
             mCallingUid = origUid;
+            mStrictModePolicy = origStrictModePolicy;
+            mLastTransactionBinderFlags = origTransactionBinderFlags;
 
             IF_LOG_TRANSACTIONS() {
                 TextOutput::Bundle _b(alog);
