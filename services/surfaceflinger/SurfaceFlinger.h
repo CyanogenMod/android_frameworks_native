@@ -377,7 +377,10 @@ private:
     void doComposition();
     void doDebugFlashRegions();
     void doDisplayComposition(const sp<const DisplayDevice>& hw, const Region& dirtyRegion);
-    void doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty);
+
+    // compose surfaces for display hw. this fails if using GL and the surface
+    // has been destroyed and is no longer valid.
+    bool doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty);
 
     void postFramebuffer();
     void drawWormhole(const sp<const DisplayDevice>& hw, const Region& region) const;
