@@ -1539,7 +1539,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 #ifdef QCOM_B_FAMILY
                             // Set the view frame of each display only of its
                             // default orientation.
-                            if(orient == DisplayState::eOrientationDefault) {
+                            if(orient == DisplayState::eOrientationDefault and
+                                    state.frame.isValid()) {
                                 qdutils::setViewFrame(disp->getHwcDisplayId(),
                                     state.frame.left, state.frame.top,
                                     state.frame.right, state.frame.bottom);
@@ -2119,20 +2120,23 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                 hw->eglSwapPreserved(false);
             }
             // DrawWormHole/Any Draw has to be within startTile & EndTile
-            if (hasHwcComposition) {
-                if(mCanUseGpuTileRender && !mUnionDirtyRect.isEmpty()) {
-                    const Rect& scissor(mUnionDirtyRect);
-                    engine.setScissor(scissor.left, hw->getHeight()- scissor.bottom,
-                    scissor.getWidth(), scissor.getHeight());
-                    engine.clearWithColor(0, 0, 0, 0);
-                    engine.disableScissor();
+            if (hasGlesComposition) {
+                if (hasHwcComposition) {
+                    if(mCanUseGpuTileRender && !mUnionDirtyRect.isEmpty()) {
+                        const Rect& scissor(mUnionDirtyRect);
+                        engine.setScissor(scissor.left,
+                              hw->getHeight()- scissor.bottom,
+                              scissor.getWidth(), scissor.getHeight());
+                        engine.clearWithColor(0, 0, 0, 0);
+                        engine.disableScissor();
+                    } else {
+                        engine.clearWithColor(0, 0, 0, 0);
+                    }
                 } else {
-                    engine.clearWithColor(0, 0, 0, 0);
-                }
-            } else {
-                if (cur->getCompositionType() != HWC_BLIT &&
-                      !clearRegion.isEmpty()){
-                    drawWormhole(hw, clearRegion);
+                    if (cur->getCompositionType() != HWC_BLIT &&
+                          !clearRegion.isEmpty()){
+                        drawWormhole(hw, clearRegion);
+                    }
                 }
             }
         }
