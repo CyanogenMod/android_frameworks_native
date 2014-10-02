@@ -1743,7 +1743,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
     }
 
     if (CC_LIKELY(!mDaltonize && !mHasColorMatrix)) {
-        doComposeSurfaces(hw, dirtyRegion);
+        if (!doComposeSurfaces(hw, dirtyRegion)) return;
     } else {
         RenderEngine& engine(getRenderEngine());
         mat4 colorMatrix = mColorMatrix;
@@ -1762,7 +1762,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
     hw->swapBuffers(getHwComposer());
 }
 
-void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
+bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
     RenderEngine& engine(getRenderEngine());
     const int32_t id = hw->getHwcDisplayId();
@@ -1775,7 +1775,11 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         if (!hw->makeCurrent(mEGLDisplay, mEGLContext)) {
             ALOGW("DisplayDevice::makeCurrent failed. Aborting surface composition for display %s",
                   hw->getDisplayName().string());
-            return;
+            eglMakeCurrent(mEGLDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            if(!getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext)) {
+              ALOGE("DisplayDevice::makeCurrent on default display failed. Aborting.");
+            }
+            return false;
         }
 
         // Never touch the framebuffer if we don't have any framebuffer layers
@@ -1883,6 +1887,7 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 
     // disable scissor at the end of the frame
     engine.disableScissor();
+    return true;
 }
 
 void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw, const Region& region) const {
