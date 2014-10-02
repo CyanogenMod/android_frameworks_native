@@ -77,11 +77,42 @@ Formatter& dedent(Formatter& f) {
 
 ANDROID_SINGLETON_STATIC_INSTANCE(ProgramCache)
 
-
 ProgramCache::ProgramCache() {
+    // Until surfaceflinger has a dependable blob cache on the filesystem,
+    // generate shaders on initialization so as to avoid jank.
+    primeCache();
 }
 
 ProgramCache::~ProgramCache() {
+}
+
+void ProgramCache::primeCache() {
+    uint32_t shaderCount = 0;
+    uint32_t keyMask = Key::BLEND_MASK | Key::OPACITY_MASK |
+                       Key::PLANE_ALPHA_MASK | Key::TEXTURE_MASK;
+    // Prime the cache for all combinations of the above masks,
+    // leaving off the experimental color matrix mask options.
+
+    nsecs_t timeBefore = systemTime();
+    for (uint32_t keyVal = 0; keyVal <= keyMask; keyVal++) {
+        Key shaderKey;
+        shaderKey.set(keyMask, keyVal);
+        uint32_t tex = shaderKey.getTextureTarget();
+        if (tex != Key::TEXTURE_OFF &&
+            tex != Key::TEXTURE_EXT &&
+            tex != Key::TEXTURE_2D) {
+            continue;
+        }
+        Program* program = mCache.valueFor(shaderKey);
+        if (program == NULL) {
+            program = generateProgram(shaderKey);
+            mCache.add(shaderKey, program);
+            shaderCount++;
+        }
+    }
+    nsecs_t timeAfter = systemTime();
+    float compileTimeMs = static_cast<float>(timeAfter - timeBefore) / 1.0E6;
+    ALOGD("shader cache generated - %u shaders in %f ms\n", shaderCount, compileTimeMs);
 }
 
 ProgramCache::Key ProgramCache::computeKey(const Description& description) {
