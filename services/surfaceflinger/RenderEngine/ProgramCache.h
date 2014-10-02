@@ -112,6 +112,8 @@ public:
     void useProgram(const Description& description);
 
 private:
+    // Generate shaders to populate the cache
+    void primeCache();
     // compute a cache Key from a Description
     static Key computeKey(const Description& description);
     // generates a program from the Key
