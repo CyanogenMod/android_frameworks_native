@@ -81,6 +81,7 @@ typedef struct OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE {
     OMX_S32 nHeavyCompression;     /**< 0 for light compression, 1 for heavy compression, -1 if unspecified */
     OMX_S32 nTargetReferenceLevel; /**< Target reference level, between 0 and 127, -1 if unspecified */
     OMX_S32 nEncodedTargetLevel;   /**< Target reference level assumed at the encoder, between 0 and 127, -1 if unspecified */
+    OMX_S32 nPCMLimiterEnable;     /**< Signal level limiting, 0 for disable, 1 for enable, -1 if unspecified */
 } OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE;
 
 #ifdef __cplusplus
