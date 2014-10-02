@@ -314,9 +314,17 @@ void HWComposer::hotplug(int disp, int connected) {
     mEventHandler.onHotplugReceived(disp, bool(connected));
 }
 
-static float getDefaultDensity(uint32_t height) {
-    if (height >= 1080) return ACONFIGURATION_DENSITY_XHIGH;
-    else                return ACONFIGURATION_DENSITY_TV;
+static float getDefaultDensity(uint32_t width, uint32_t height) {
+    // Default density is based on TVs: 1080p displays get XHIGH density,
+    // lower-resolution displays get TV density. Maybe eventually we'll need
+    // to update it for 4K displays, though hopefully those just report
+    // accurate DPI information to begin with. This is also used for virtual
+    // displays and even primary displays with older hwcomposers, so be
+    // careful about orientation.
+
+    uint32_t h = width < height ? width : height;
+    if (h >= 1080) return ACONFIGURATION_DENSITY_XHIGH;
+    else           return ACONFIGURATION_DENSITY_TV;
 }
 
 static const uint32_t DISPLAY_ATTRIBUTES[] = {
@@ -383,7 +391,7 @@ status_t HWComposer::queryDisplayProperties(int disp) {
         }
 
         if (config.xdpi == 0.0f || config.ydpi == 0.0f) {
-            float dpi = getDefaultDensity(config.height);
+            float dpi = getDefaultDensity(config.width, config.height);
             config.xdpi = dpi;
             config.ydpi = dpi;
         }
@@ -408,7 +416,7 @@ status_t HWComposer::setVirtualDisplayProperties(int32_t id,
     DisplayConfig& config = mDisplayData[id].configs.editItemAt(configId);
     config.width = w;
     config.height = h;
-    config.xdpi = config.ydpi = getDefaultDensity(h);
+    config.xdpi = config.ydpi = getDefaultDensity(w, h);
     return NO_ERROR;
 }
 
