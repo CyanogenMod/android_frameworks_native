@@ -438,6 +438,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // If we are going to use a socket, do it as early as possible
+    // to avoid timeouts from bugreport.
+    if (use_socket) {
+        redirect_to_socket(stdout, "dumpstate");
+    }
+
     /* open the vibrator before dropping root */
     FILE *vibrator = 0;
     if (do_vibrate) {
@@ -504,9 +510,7 @@ int main(int argc, char *argv[]) {
     char path[PATH_MAX], tmp_path[PATH_MAX];
     pid_t gzip_pid = -1;
 
-    if (use_socket) {
-        redirect_to_socket(stdout, "dumpstate");
-    } else if (use_outfile) {
+    if (!use_socket && use_outfile) {
         strlcpy(path, use_outfile, sizeof(path));
         if (do_add_date) {
             char date[80];
