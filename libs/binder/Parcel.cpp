@@ -36,6 +36,7 @@
 
 #include <private/binder/binder_module.h>
 
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1280,11 +1281,22 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
 
     status_t err = NO_ERROR;
     for (size_t i=0 ; i<fd_count && err==NO_ERROR ; i++) {
-        fds[i] = dup(this->readFileDescriptor());
+        int oldfd = this->readFileDescriptor();
+        fds[i] = dup(oldfd);
         if (fds[i] < 0) {
+            int dupErrno = errno;
             err = BAD_VALUE;
-            ALOGE("dup() failed in Parcel::read, i is %zu, fds[i] is %d, fd_count is %zu, error: %s",
-                i, fds[i], fd_count, strerror(errno));
+            int flags = fcntl(oldfd, F_GETFD);
+            int fcntlErrno = errno;
+            const flat_binder_object* flat = readObject(true);
+            ALOGE("dup failed in Parcel::read, fd %zu of %zu\n"
+                "  dup(%d) = %d [errno: %d (%s)]\n"
+                "  fcntl(%d, F_GETFD) = %d [errno: %d (%s)]\n"
+                "  flat %p type %d",
+                i, fd_count,
+                oldfd, fds[i], dupErrno, strerror(dupErrno),
+                oldfd, flags, fcntlErrno, strerror(fcntlErrno),
+                flat, flat ? flat->type : 0);
         }
     }
 
