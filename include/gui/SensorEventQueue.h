@@ -86,6 +86,7 @@ private:
     ASensorEvent* mRecBuffer;
     size_t mAvailable;
     size_t mConsumed;
+    uint32_t mNumAcksToSend;
 };
 
 // ----------------------------------------------------------------------------
