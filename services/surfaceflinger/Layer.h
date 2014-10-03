@@ -142,6 +142,7 @@ public:
 
     void computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
             bool useIdentityTransform) const;
+    Rect computeBounds(const Region& activeTransparentRegion) const;
     Rect computeBounds() const;
 
     sp<IBinder> getHandle();
