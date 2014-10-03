@@ -66,7 +66,8 @@ namespace android {
 const char* SensorService::WAKE_LOCK_NAME = "SensorService";
 
 SensorService::SensorService()
-    : mInitCheck(NO_INIT)
+    : mInitCheck(NO_INIT), mSocketBufferSize(SOCKET_BUFFER_SIZE_NON_BATCHED),
+      mWakeLockAcquired(false)
 {
 }
 
@@ -433,7 +434,6 @@ bool SensorService::threadLoop()
         if (bufferHasWakeUpEvent && !mWakeLockAcquired) {
             acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
             mWakeLockAcquired = true;
-            ALOGD_IF(DEBUG_CONNECTIONS, "acquired wakelock %s", WAKE_LOCK_NAME);
         }
         recordLastValueLocked(mSensorEventBuffer, count);
 
@@ -523,7 +523,6 @@ bool SensorService::threadLoop()
         if (mWakeLockAcquired && !needsWakeLock) {
             release_wake_lock(WAKE_LOCK_NAME);
             mWakeLockAcquired = false;
-            ALOGD_IF(DEBUG_CONNECTIONS, "released wakelock %s", WAKE_LOCK_NAME);
         }
     } while (!Thread::exitPending());
 
@@ -650,6 +649,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
             if (sensor) {
                 sensor->activate(c, false);
             }
+            c->removeSensor(handle);
         }
         SensorRecord* rec = mActiveSensors.valueAt(i);
         ALOGE_IF(!rec, "mActiveSensors[%zu] is null (handle=0x%08x)!", i, handle);
@@ -667,6 +667,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
             i++;
         }
     }
+    c->updateLooperRegistration(mLooper);
     mActiveConnections.remove(connection);
     BatteryService::cleanup(c->getUid());
     if (c->needsWakeLock()) {
@@ -770,10 +771,8 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         err = sensor->activate(connection.get(), true);
     }
 
-    if (err == NO_ERROR && sensor->getSensor().isWakeUpSensor()) {
-        // Add the file descriptor to the Looper for receiving acknowledgments;
-        int ret = mLooper->addFd(connection->getSensorChannel()->getSendFd(), 0,
-                                        ALOOPER_EVENT_INPUT, connection.get(), NULL);
+    if (err == NO_ERROR) {
+        connection->updateLooperRegistration(mLooper);
     }
 
     if (err != NO_ERROR) {
@@ -813,6 +812,7 @@ status_t SensorService::cleanupWithoutDisableLocked(
             BatteryService::disableSensor(connection->getUid(), handle);
         }
         if (connection->hasAnySensor() == false) {
+            connection->updateLooperRegistration(mLooper);
             mActiveConnections.remove(connection);
         }
         // see if this sensor becomes inactive
@@ -866,11 +866,10 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection)
             err = INVALID_OPERATION;
             continue;
         }
-        SensorEventConnection::FlushInfo& flushInfo = connection->mSensorInfo.editValueFor(handle);
         if (halVersion <= SENSORS_DEVICE_API_VERSION_1_0 || isVirtualSensor(handle)) {
             // For older devices just increment pending flush count which will send a trivial
             // flush complete event.
-            flushInfo.mPendingFlushEventsToSend++;
+            connection->incrementPendingFlushCount(handle);
         } else {
             status_t err_flush = sensor->flush(connection.get(), handle);
             if (err_flush == NO_ERROR) {
@@ -922,7 +921,6 @@ void SensorService::checkWakeLockStateLocked() {
         }
     }
     if (releaseLock) {
-        ALOGD_IF(DEBUG_CONNECTIONS, "releasing wakelock %s", WAKE_LOCK_NAME);
         release_wake_lock(WAKE_LOCK_NAME);
         mWakeLockAcquired = false;
     }
@@ -955,6 +953,7 @@ bool SensorService::SensorRecord::removeConnection(
     // Remove this connections from the queue of flush() calls made on this sensor.
     for (Vector< wp<SensorEventConnection> >::iterator it =
             mPendingFlushConnections.begin(); it != mPendingFlushConnections.end();) {
+
         if (it->unsafe_get() == connection.unsafe_get()) {
             it = mPendingFlushConnections.erase(it);
         } else {
@@ -987,9 +986,8 @@ SensorService::SensorRecord::getFirstPendingFlushConnection() {
 
 SensorService::SensorEventConnection::SensorEventConnection(
         const sp<SensorService>& service, uid_t uid)
-    : mService(service), mUid(uid), mWakeLockRefCount(0), mEventCache(NULL), mCacheSize(0),
-      mMaxCacheSize(0) {
-    const SensorDevice& device(SensorDevice::getInstance());
+    : mService(service), mUid(uid), mWakeLockRefCount(0), mHasLooperCallbacks(false),
+      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0) {
     mChannel = new BitTube(mService->mSocketBufferSize);
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
@@ -1011,7 +1009,7 @@ void SensorService::SensorEventConnection::onFirstRef() {
 
 bool SensorService::SensorEventConnection::needsWakeLock() {
     Mutex::Autolock _l(mConnectionLock);
-    return mWakeLockRefCount > 0;
+    return !mDead && mWakeLockRefCount > 0;
 }
 
 void SensorService::SensorEventConnection::dump(String8& result) {
@@ -1090,6 +1088,65 @@ void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
     }
 }
 
+void SensorService::SensorEventConnection::updateLooperRegistration(const sp<Looper>& looper) {
+    Mutex::Autolock _l(mConnectionLock);
+    updateLooperRegistrationLocked(looper);
+}
+
+void SensorService::SensorEventConnection::updateLooperRegistrationLocked(
+        const sp<Looper>& looper) {
+    bool isConnectionActive = mSensorInfo.size() > 0;
+    // If all sensors are unregistered OR Looper has encountered an error, we
+    // can remove the Fd from the Looper if it has been previously added.
+    if (!isConnectionActive || mDead) {
+        if (mHasLooperCallbacks) {
+            ALOGD_IF(DEBUG_CONNECTIONS, "%p removeFd fd=%d", this, mChannel->getSendFd());
+            looper->removeFd(mChannel->getSendFd());
+            mHasLooperCallbacks = false;
+        }
+        return;
+    }
+
+    int looper_flags = 0;
+    if (mCacheSize > 0) looper_flags |= ALOOPER_EVENT_OUTPUT;
+    for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const int handle = mSensorInfo.keyAt(i);
+        if (mService->getSensorFromHandle(handle).isWakeUpSensor()) {
+            looper_flags |= ALOOPER_EVENT_INPUT;
+            break;
+        }
+    }
+    // If flags is still set to zero, we don't need to add this fd to the Looper, if
+    // the fd has already been added, remove it. This is likely to happen when ALL the
+    // events stored in the cache have been sent to the corresponding app.
+    if (looper_flags == 0) {
+        if (mHasLooperCallbacks) {
+            ALOGD_IF(DEBUG_CONNECTIONS, "removeFd fd=%d", mChannel->getSendFd());
+            looper->removeFd(mChannel->getSendFd());
+            mHasLooperCallbacks = false;
+        }
+        return;
+    }
+    // Add the file descriptor to the Looper for receiving acknowledegments if the app has
+    // registered for wake-up sensors OR for sending events in the cache.
+    int ret = looper->addFd(mChannel->getSendFd(), 0, looper_flags, this, NULL);
+    if (ret == 1) {
+        ALOGD_IF(DEBUG_CONNECTIONS, "%p addFd fd=%d", this, mChannel->getSendFd());
+        mHasLooperCallbacks = true;
+    } else {
+        ALOGE("Looper::addFd failed ret=%d fd=%d", ret, mChannel->getSendFd());
+    }
+}
+
+void SensorService::SensorEventConnection::incrementPendingFlushCount(int32_t handle) {
+    Mutex::Autolock _l(mConnectionLock);
+    ssize_t index = mSensorInfo.indexOfKey(handle);
+    if (index >= 0) {
+        FlushInfo& flushInfo = mSensorInfo.editValueAt(index);
+        flushInfo.mPendingFlushEventsToSend++;
+    }
+}
+
 status_t SensorService::SensorEventConnection::sendEvents(
         sensors_event_t const* buffer, size_t numEvents,
         sensors_event_t* scratch,
@@ -1104,8 +1161,9 @@ status_t SensorService::SensorEventConnection::sendEvents(
             if (buffer[i].type == SENSOR_TYPE_META_DATA) {
                 ALOGD_IF(DEBUG_CONNECTIONS, "flush complete event sensor==%d ",
                         buffer[i].meta_data.sensor);
-                // Setting sensor_handle to the correct sensor to ensure the sensor events per connection are
-                // filtered correctly. buffer[i].sensor is zero for meta_data events.
+                // Setting sensor_handle to the correct sensor to ensure the sensor events per
+                // connection are filtered correctly.  buffer[i].sensor is zero for meta_data
+                // events.
                 sensor_handle = buffer[i].meta_data.sensor;
             }
             ssize_t index = mSensorInfo.indexOfKey(sensor_handle);
@@ -1233,8 +1291,7 @@ status_t SensorService::SensorEventConnection::sendEvents(
 
         // Add this file descriptor to the looper to get a callback when this fd is available for
         // writing.
-        mService->getLooper()->addFd(mChannel->getSendFd(), 0,
-                ALOOPER_EVENT_OUTPUT | ALOOPER_EVENT_INPUT, this, NULL);
+        updateLooperRegistrationLocked(mService->getLooper());
         return size;
     }
 
@@ -1340,8 +1397,9 @@ void SensorService::SensorEventConnection::writeToSocketFromCacheLocked() {
     ALOGD_IF(DEBUG_CONNECTIONS, "wrote all events from cache size=%d ", mCacheSize);
     // All events from the cache have been sent. Reset cache size to zero.
     mCacheSize = 0;
-    // Poll only for ALOOPER_EVENT_INPUT(read) on the file descriptor.
-    mService->getLooper()->addFd(mChannel->getSendFd(), 0, ALOOPER_EVENT_INPUT, this, NULL);
+    // There are no more events in the cache. We don't need to poll for write on the fd.
+    // Update Looper registration.
+    updateLooperRegistrationLocked(mService->getLooper());
 }
 
 void SensorService::SensorEventConnection::countFlushCompleteEventsLocked(
@@ -1400,22 +1458,38 @@ status_t  SensorService::SensorEventConnection::flush() {
     return  mService->flushSensor(this);
 }
 
-int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* data) {
+int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* /*data*/) {
     if (events & ALOOPER_EVENT_HANGUP || events & ALOOPER_EVENT_ERROR) {
-        return 0;
+        {
+            // If the Looper encounters some error, set the flag mDead, reset mWakeLockRefCount,
+            // and remove the fd from Looper. Call checkWakeLockState to know if SensorService
+            // can release the wake-lock.
+            ALOGD_IF(DEBUG_CONNECTIONS, "%p Looper error %d", this, fd);
+            Mutex::Autolock _l(mConnectionLock);
+            mDead = true;
+            mWakeLockRefCount = 0;
+            updateLooperRegistrationLocked(mService->getLooper());
+        }
+        mService->checkWakeLockState();
+        return 1;
     }
 
     if (events & ALOOPER_EVENT_INPUT) {
-        char buf;
-        ssize_t ret = ::recv(fd, &buf, sizeof(buf), MSG_DONTWAIT);
-
+        uint32_t numAcks = 0;
+        ssize_t ret = ::recv(fd, &numAcks, sizeof(numAcks), MSG_DONTWAIT);
         {
            Mutex::Autolock _l(mConnectionLock);
-           if (mWakeLockRefCount > 0) {
-               --mWakeLockRefCount;
+           // Sanity check to ensure  there are no read errors in recv, numAcks is always
+           // within the range and not zero. If any of the above don't hold reset mWakeLockRefCount
+           // to zero.
+           if (ret != sizeof(numAcks) || numAcks > mWakeLockRefCount || numAcks == 0) {
+               ALOGE("Looper read error ret=%d numAcks=%d", ret, numAcks);
+               mWakeLockRefCount = 0;
+           } else {
+               mWakeLockRefCount -= numAcks;
            }
 #if DEBUG_CONNECTIONS
-           ++mTotalAcksReceived;
+           mTotalAcksReceived += numAcks;
 #endif
         }
         // Check if wakelock can be released by sensorservice. mConnectionLock needs to be released

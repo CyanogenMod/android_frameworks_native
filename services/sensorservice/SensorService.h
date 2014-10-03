@@ -117,6 +117,20 @@ class SensorService :
         // If this fd is available for writing send the data from the cache.
         virtual int handleEvent(int fd, int events, void* data);
 
+        // Increment mPendingFlushEventsToSend for the given sensor handle.
+        void incrementPendingFlushCount(int32_t handle);
+
+        // Add or remove the file descriptor associated with the BitTube to the looper. If mDead is
+        // set to true or there are no more sensors for this connection, the file descriptor is
+        // removed if it has been previously added to the Looper. Depending on the state of the
+        // connection FD may be added to the Looper. The flags to set are determined by the internal
+        // state of the connection. FDs are added to the looper when wake-up sensors are registered
+        // (to poll for acknowledgements) and when write fails on the socket when there are too many
+        // events (to poll when the FD is available for writing). FDs are removed when there is an
+        // error and the other end hangs up or when this client unregisters for this connection.
+        void updateLooperRegistration(const sp<Looper>& looper);
+        void updateLooperRegistrationLocked(const sp<Looper>& looper);
+
         sp<SensorService> const mService;
         sp<BitTube> mChannel;
         uid_t mUid;
@@ -124,8 +138,17 @@ class SensorService :
         // Number of events from wake up sensors which are still pending and haven't been delivered
         // to the corresponding application. It is incremented by one unit for each write to the
         // socket.
-        int mWakeLockRefCount;
+        uint32_t mWakeLockRefCount;
 
+        // If this flag is set to true, it means that the file descriptor associated with the
+        // BitTube has been added to the Looper in SensorService. This flag is typically set when
+        // this connection has wake-up sensors associated with it or when write has failed on this
+        // connection and we're storing some events in the cache.
+        bool mHasLooperCallbacks;
+        // If there are any errors associated with the Looper this flag is set to true and
+        // mWakeLockRefCount is reset to zero. needsWakeLock method will always return false, if
+        // this flag is set.
+        bool mDead;
         struct FlushInfo {
             // The number of flush complete events dropped for this sensor is stored here.
             // They are sent separately before the next batch of events.
@@ -222,7 +245,7 @@ class SensorService :
     status_t mInitCheck;
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
     // supported or not.
-    size_t mSocketBufferSize;
+    uint32_t mSocketBufferSize;
     sp<Looper> mLooper;
 
     // protected by mLock
