@@ -278,12 +278,17 @@ static Rect reduce(const Rect& win, const Region& exclude) {
 
 Rect Layer::computeBounds() const {
     const Layer::State& s(getDrawingState());
+    return computeBounds(s.activeTransparentRegion);
+}
+
+Rect Layer::computeBounds(const Region& activeTransparentRegion) const {
+    const Layer::State& s(getDrawingState());
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
-    return reduce(win, s.activeTransparentRegion);
+    return reduce(win, activeTransparentRegion);
 }
 
 FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
@@ -405,7 +410,22 @@ void Layer::setGeometry(
 
     // apply the layer's transform, followed by the display's global transform
     // here we're guaranteed that the layer's transform preserves rects
-    Rect frame(s.transform.transform(computeBounds()));
+    Region activeTransparentRegion(s.activeTransparentRegion);
+    if (!s.active.crop.isEmpty()) {
+        Rect activeCrop(s.active.crop);
+        activeCrop = s.transform.transform(activeCrop);
+        activeCrop.intersect(hw->getViewport(), &activeCrop);
+        activeCrop = s.transform.inverse().transform(activeCrop);
+        // mark regions outside the crop as transparent
+        activeTransparentRegion.orSelf(Rect(0, 0, s.active.w, activeCrop.top));
+        activeTransparentRegion.orSelf(Rect(0, activeCrop.bottom,
+                s.active.w, s.active.h));
+        activeTransparentRegion.orSelf(Rect(0, activeCrop.top,
+                activeCrop.left, activeCrop.bottom));
+        activeTransparentRegion.orSelf(Rect(activeCrop.right, activeCrop.top,
+                s.active.w, activeCrop.bottom));
+    }
+    Rect frame(s.transform.transform(computeBounds(activeTransparentRegion)));
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
