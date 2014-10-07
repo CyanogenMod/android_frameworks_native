@@ -511,52 +511,61 @@ int initialize_directories() {
     if (version == 2) {
         ALOGD("Upgrading to /data/misc/user directories");
 
+        char misc_dir[PATH_MAX];
+        snprintf(misc_dir, PATH_MAX, "%smisc", android_data_dir.path);
+
+        char keychain_added_dir[PATH_MAX];
+        snprintf(keychain_added_dir, PATH_MAX, "%s/keychain/cacerts-added", misc_dir);
+
+        char keychain_removed_dir[PATH_MAX];
+        snprintf(keychain_removed_dir, PATH_MAX, "%s/keychain/cacerts-removed", misc_dir);
+
         DIR *dir;
         struct dirent *dirent;
-        char user_data_dir[PATH_MAX];
-
         dir = opendir(user_data_dir);
         if (dir != NULL) {
             while ((dirent = readdir(dir))) {
-                if (dirent->d_type == DT_DIR) {
-                    const char *name = dirent->d_name;
+                const char *name = dirent->d_name;
 
-                    // skip "." and ".."
-                    if (name[0] == '.') {
-                        if (name[1] == 0) continue;
-                        if ((name[1] == '.') && (name[2] == 0)) continue;
+                // skip "." and ".."
+                if (name[0] == '.') {
+                    if (name[1] == 0) continue;
+                    if ((name[1] == '.') && (name[2] == 0)) continue;
+                }
+
+                uint32_t user_id = atoi(name);
+
+                // /data/misc/user/<user_id>
+                if (ensure_config_user_dirs(user_id) == -1) {
+                    goto fail;
+                }
+
+                char misc_added_dir[PATH_MAX];
+                snprintf(misc_added_dir, PATH_MAX, "%s/user/%s/cacerts-added", misc_dir, name);
+
+                char misc_removed_dir[PATH_MAX];
+                snprintf(misc_removed_dir, PATH_MAX, "%s/user/%s/cacerts-removed", misc_dir, name);
+
+                uid_t uid = multiuser_get_uid(user_id, AID_SYSTEM);
+                gid_t gid = uid;
+                if (access(keychain_added_dir, F_OK) == 0) {
+                    if (copy_dir_files(keychain_added_dir, misc_added_dir, uid, gid) != 0) {
+                        ALOGE("Some files failed to copy");
                     }
-
-                    // /data/misc/user/<user_id>
-                    if (ensure_config_user_dirs(atoi(name)) == -1) {
-                        goto fail;
+                }
+                if (access(keychain_removed_dir, F_OK) == 0) {
+                    if (copy_dir_files(keychain_removed_dir, misc_removed_dir, uid, gid) != 0) {
+                        ALOGE("Some files failed to copy");
                     }
                 }
             }
             closedir(dir);
-        }
 
-        // Just rename keychain files into user/0; they should already have the right permissions
-        char misc_dir[PATH_MAX];
-        char keychain_added_dir[PATH_MAX];
-        char keychain_removed_dir[PATH_MAX];
-        char config_added_dir[PATH_MAX];
-        char config_removed_dir[PATH_MAX];
-
-        snprintf(misc_dir, PATH_MAX, "%s/misc", android_data_dir.path);
-        snprintf(keychain_added_dir, PATH_MAX, "%s/keychain/cacerts-added", misc_dir);
-        snprintf(keychain_removed_dir, PATH_MAX, "%s/keychain/cacerts-removed", misc_dir);
-        snprintf(config_added_dir, PATH_MAX, "%s/user/0/cacerts-added", misc_dir);
-        snprintf(config_removed_dir, PATH_MAX, "%s/user/0/cacerts-removed", misc_dir);
-
-        if (access(keychain_added_dir, F_OK) == 0) {
-            if (rename(keychain_added_dir, config_added_dir) != 0) {
-                goto fail;
+            if (access(keychain_added_dir, F_OK) == 0) {
+                delete_dir_contents(keychain_added_dir, 1, 0);
             }
-        }
-        if (access(keychain_removed_dir, F_OK) == 0) {
-            if (rename(keychain_removed_dir, config_removed_dir) != 0) {
-                goto fail;
+            if (access(keychain_removed_dir, F_OK) == 0) {
+                delete_dir_contents(keychain_removed_dir, 1, 0);
             }
         }
 
