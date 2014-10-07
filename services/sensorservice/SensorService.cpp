@@ -185,14 +185,14 @@ void SensorService::onFirstRef()
             }
 
             mWakeLockAcquired = false;
-            run("SensorService", PRIORITY_URGENT_DISPLAY);
             mLooper = new Looper(false);
-
             const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
             mSensorEventBuffer = new sensors_event_t[minBufferSize];
             mSensorEventScratch = new sensors_event_t[minBufferSize];
             mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
+
             mInitCheck = NO_ERROR;
+            run("SensorService", PRIORITY_URGENT_DISPLAY);
         }
     }
 }
