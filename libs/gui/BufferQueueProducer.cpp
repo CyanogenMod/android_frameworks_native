@@ -38,7 +38,8 @@ BufferQueueProducer::BufferQueueProducer(const sp<BufferQueueCore>& core) :
     mCore(core),
     mSlots(core->mSlots),
     mConsumerName(),
-    mStickyTransform(0) {}
+    mStickyTransform(0),
+    mLastQueueBufferFence(Fence::NO_FENCE) {}
 
 BufferQueueProducer::~BufferQueueProducer() {}
 
@@ -643,6 +644,15 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
     } // Autolock scope
+
+    // Wait without lock held
+    if (mCore->mConnectedApi == NATIVE_WINDOW_API_EGL) {
+        // Waiting here allows for two full buffers to be queued but not a
+        // third. In the event that frames take varying time, this makes a
+        // small trade-off in favor of latency rather than throughput.
+        mLastQueueBufferFence->waitForever("Throttling EGL Production");
+        mLastQueueBufferFence = fence;
+    }
 
     // Call back without lock held
     if (listener != NULL) {
