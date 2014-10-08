@@ -197,6 +197,12 @@ private:
 
     uint32_t mStickyTransform;
 
+    // This saves the fence from the last queueBuffer, such that the
+    // next queueBuffer call can throttle buffer production. The prior
+    // queueBuffer's fence is not nessessarily available elsewhere,
+    // since the previous buffer might have already been acquired.
+    sp<Fence> mLastQueueBufferFence;
+
 }; // class BufferQueueProducer
 
 } // namespace android
