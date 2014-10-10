@@ -1281,7 +1281,7 @@ status_t Parcel::readBlob(size_t len, ReadableBlob* outBlob) const
     if (fd == int(BAD_TYPE)) return BAD_VALUE;
 
     void* ptr = ::mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
-    if (!ptr) return NO_MEMORY;
+    if (ptr == MAP_FAILED) return NO_MEMORY;
 
     outBlob->init(true /*mapped*/, ptr, len);
     return NO_ERROR;
