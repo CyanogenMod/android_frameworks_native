@@ -1038,10 +1038,12 @@ private:
             const InjectionState* injectionState);
     bool isWindowObscuredAtPointLocked(const sp<InputWindowHandle>& windowHandle,
             int32_t x, int32_t y) const;
-    bool isWindowReadyForMoreInputLocked(nsecs_t currentTime,
-            const sp<InputWindowHandle>& windowHandle, const EventEntry* eventEntry);
     String8 getApplicationWindowLabelLocked(const sp<InputApplicationHandle>& applicationHandle,
             const sp<InputWindowHandle>& windowHandle);
+
+    String8 checkWindowReadyForMoreInputLocked(nsecs_t currentTime,
+            const sp<InputWindowHandle>& windowHandle, const EventEntry* eventEntry,
+            const char* targetType);
 
     // Manage the dispatch cycle for a single connection.
     // These methods are deliberately not Interruptible because doing all of the work
