@@ -1064,6 +1064,7 @@ void InputDispatcher::resetANRTimeoutsLocked() {
 int32_t InputDispatcher::findFocusedWindowTargetsLocked(nsecs_t currentTime,
         const EventEntry* entry, Vector<InputTarget>& inputTargets, nsecs_t* nextWakeupTime) {
     int32_t injectionResult;
+    String8 reason;
 
     // If there is no currently focused window and no focused application
     // then drop the event.
@@ -1088,20 +1089,12 @@ int32_t InputDispatcher::findFocusedWindowTargetsLocked(nsecs_t currentTime,
         goto Failed;
     }
 
-    // If the currently focused window is paused then keep waiting.
-    if (mFocusedWindowHandle->getInfo()->paused) {
+    // Check whether the window is ready for more input.
+    reason = checkWindowReadyForMoreInputLocked(currentTime,
+            mFocusedWindowHandle, entry, "focused");
+    if (!reason.isEmpty()) {
         injectionResult = handleTargetsNotReadyLocked(currentTime, entry,
-                mFocusedApplicationHandle, mFocusedWindowHandle, nextWakeupTime,
-                "Waiting because the focused window is paused.");
-        goto Unresponsive;
-    }
-
-    // If the currently focused window is still working on previous events then keep waiting.
-    if (!isWindowReadyForMoreInputLocked(currentTime, mFocusedWindowHandle, entry)) {
-        injectionResult = handleTargetsNotReadyLocked(currentTime, entry,
-                mFocusedApplicationHandle, mFocusedWindowHandle, nextWakeupTime,
-                "Waiting because the focused window has not finished "
-                "processing the input events that were previously delivered to it.");
+                mFocusedApplicationHandle, mFocusedWindowHandle, nextWakeupTime, reason.string());
         goto Unresponsive;
     }
 
@@ -1426,20 +1419,12 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
     for (size_t i = 0; i < mTempTouchState.windows.size(); i++) {
         const TouchedWindow& touchedWindow = mTempTouchState.windows[i];
         if (touchedWindow.targetFlags & InputTarget::FLAG_FOREGROUND) {
-            // If the touched window is paused then keep waiting.
-            if (touchedWindow.windowHandle->getInfo()->paused) {
+            // Check whether the window is ready for more input.
+            String8 reason = checkWindowReadyForMoreInputLocked(currentTime,
+                    touchedWindow.windowHandle, entry, "touched");
+            if (!reason.isEmpty()) {
                 injectionResult = handleTargetsNotReadyLocked(currentTime, entry,
-                        NULL, touchedWindow.windowHandle, nextWakeupTime,
-                        "Waiting because the touched window is paused.");
-                goto Unresponsive;
-            }
-
-            // If the touched window is still working on previous events then keep waiting.
-            if (!isWindowReadyForMoreInputLocked(currentTime, touchedWindow.windowHandle, entry)) {
-                injectionResult = handleTargetsNotReadyLocked(currentTime, entry,
-                        NULL, touchedWindow.windowHandle, nextWakeupTime,
-                        "Waiting because the touched window has not finished "
-                        "processing the input events that were previously delivered to it.");
+                        NULL, touchedWindow.windowHandle, nextWakeupTime, reason.string());
                 goto Unresponsive;
             }
         }
@@ -1657,29 +1642,57 @@ bool InputDispatcher::isWindowObscuredAtPointLocked(
     return false;
 }
 
-bool InputDispatcher::isWindowReadyForMoreInputLocked(nsecs_t currentTime,
-        const sp<InputWindowHandle>& windowHandle, const EventEntry* eventEntry) {
+String8 InputDispatcher::checkWindowReadyForMoreInputLocked(nsecs_t currentTime,
+        const sp<InputWindowHandle>& windowHandle, const EventEntry* eventEntry,
+        const char* targetType) {
+    // If the window is paused then keep waiting.
+    if (windowHandle->getInfo()->paused) {
+        return String8::format("Waiting because the %s window is paused.", targetType);
+    }
+
+    // If the window's connection is not registered then keep waiting.
     ssize_t connectionIndex = getConnectionIndexLocked(windowHandle->getInputChannel());
-    if (connectionIndex >= 0) {
-        sp<Connection> connection = mConnectionsByFd.valueAt(connectionIndex);
-        if (connection->inputPublisherBlocked) {
-            return false;
+    if (connectionIndex < 0) {
+        return String8::format("Waiting because the %s window's input channel is not "
+                "registered with the input dispatcher.  The window may be in the process "
+                "of being removed.", targetType);
+    }
+
+    // If the connection is dead then keep waiting.
+    sp<Connection> connection = mConnectionsByFd.valueAt(connectionIndex);
+    if (connection->status != Connection::STATUS_NORMAL) {
+        return String8::format("Waiting because the %s window's input connection is %s."
+                "The window may be in the process of being removed.", targetType,
+                connection->getStatusLabel());
+    }
+
+    // If the connection is backed up then keep waiting.
+    if (connection->inputPublisherBlocked) {
+        return String8::format("Waiting because the %s window's input channel is full.  "
+                "Outbound queue length: %d.  Wait queue length: %d.",
+                targetType, connection->outboundQueue.count(), connection->waitQueue.count());
+    }
+
+    // Ensure that the dispatch queues aren't too far backed up for this event.
+    if (eventEntry->type == EventEntry::TYPE_KEY) {
+        // If the event is a key event, then we must wait for all previous events to
+        // complete before delivering it because previous events may have the
+        // side-effect of transferring focus to a different window and we want to
+        // ensure that the following keys are sent to the new window.
+        //
+        // Suppose the user touches a button in a window then immediately presses "A".
+        // If the button causes a pop-up window to appear then we want to ensure that
+        // the "A" key is delivered to the new pop-up window.  This is because users
+        // often anticipate pending UI changes when typing on a keyboard.
+        // To obtain this behavior, we must serialize key events with respect to all
+        // prior input events.
+        if (!connection->outboundQueue.isEmpty() || !connection->waitQueue.isEmpty()) {
+            return String8::format("Waiting to send key event because the %s window has not "
+                    "finished processing all of the input events that were previously "
+                    "delivered to it.  Outbound queue length: %d.  Wait queue length: %d.",
+                    targetType, connection->outboundQueue.count(), connection->waitQueue.count());
         }
-        if (eventEntry->type == EventEntry::TYPE_KEY) {
-            // If the event is a key event, then we must wait for all previous events to
-            // complete before delivering it because previous events may have the
-            // side-effect of transferring focus to a different window and we want to
-            // ensure that the following keys are sent to the new window.
-            //
-            // Suppose the user touches a button in a window then immediately presses "A".
-            // If the button causes a pop-up window to appear then we want to ensure that
-            // the "A" key is delivered to the new pop-up window.  This is because users
-            // often anticipate pending UI changes when typing on a keyboard.
-            // To obtain this behavior, we must serialize key events with respect to all
-            // prior input events.
-            return connection->outboundQueue.isEmpty()
-                    && connection->waitQueue.isEmpty();
-        }
+    } else {
         // Touch events can always be sent to a window immediately because the user intended
         // to touch whatever was visible at the time.  Even if focus changes or a new
         // window appears moments later, the touch event was meant to be delivered to
@@ -1698,10 +1711,15 @@ bool InputDispatcher::isWindowReadyForMoreInputLocked(nsecs_t currentTime,
         if (!connection->waitQueue.isEmpty()
                 && currentTime >= connection->waitQueue.head->deliveryTime
                         + STREAM_AHEAD_EVENT_TIMEOUT) {
-            return false;
+            return String8::format("Waiting to send non-key event because the %s window has not "
+                    "finished processing certain input events that were delivered to it over "
+                    "%0.1fms ago.  Wait queue length: %d.  Wait queue head age: %0.1fms.",
+                    targetType, STREAM_AHEAD_EVENT_TIMEOUT * 0.000001f,
+                    connection->waitQueue.count(),
+                    (currentTime - connection->waitQueue.head->deliveryTime) * 0.000001f);
         }
     }
-    return true;
+    return String8::empty();
 }
 
 String8 InputDispatcher::getApplicationWindowLabelLocked(
