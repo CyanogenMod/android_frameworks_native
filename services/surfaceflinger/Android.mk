@@ -108,17 +108,24 @@ include $(BUILD_SHARED_LIBRARY)
 # build surfaceflinger's executable
 include $(CLEAR_VARS)
 
-LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
+LOCAL_LDFLAGS := -Wl,--version-script,art/sigchainlib/version-script.txt -Wl,--export-dynamic
+LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\" -Iart
+LOCAL_CPPFLAGS:= -std=c++11
 
+# TODO: Trying to link libsigchain as a static library prevents
+# static linker from exporting necessary symbols. So as a workaround
+# we use sigchain.o
 LOCAL_SRC_FILES:= \
-	main_surfaceflinger.cpp 
+	main_surfaceflinger.cpp \
+	sigchain_proxy.cpp
 
 LOCAL_SHARED_LIBRARIES := \
 	libsurfaceflinger \
 	libcutils \
 	liblog \
 	libbinder \
-	libutils
+	libutils \
+	libdl
 
 LOCAL_MODULE:= surfaceflinger
 
