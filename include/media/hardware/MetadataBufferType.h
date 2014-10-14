@@ -82,6 +82,24 @@ typedef enum {
      */
     kMetadataBufferTypeGrallocSource = 1,
 
+    /*
+     * kMetadataBufferTypeGraphicBuffer is used to indicate that
+     * the payload of the metadata buffers can be interpreted as
+     * a GraphicBuffer.  It is only to be used by software encoders.
+     * In this case, the metadata that the encoder receives
+     * will have a byte stream that consists of two parts:
+     * 1. First, there is an integer indicating that the metadata
+     * contains a GraphicBuffer (kMetadataBufferTypeGraphicBuffer)
+     * 2. This is followed by the pointer to the GraphicBuffer that
+     * is to be encoded.  Encoder must not create a sp<> from this
+     * graphic buffer, or free it, as it does not actually own this
+     * buffer.
+     * --------------------------------------------------------------
+     * |  kMetadataBufferTypeGraphicBuffer | sizeof(GraphicBuffer *) |
+     * --------------------------------------------------------------
+     */
+    kMetadataBufferTypeGraphicBuffer = 2,
+
     // Add more here...
 
 } MetadataBufferType;
