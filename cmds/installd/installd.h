@@ -165,6 +165,8 @@ int delete_dir_contents(const char *pathname,
 
 int delete_dir_contents_fd(int dfd, const char *name);
 
+int copy_dir_files(const char *srcname, const char *dstname, uid_t owner, gid_t group);
+
 int lookup_media_dir(char basepath[PATH_MAX], const char *dir);
 
 int64_t data_disk_free();
