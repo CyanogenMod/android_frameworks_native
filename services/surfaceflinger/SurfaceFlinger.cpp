@@ -1110,7 +1110,11 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     // this display is in both lists. see if something changed.
                     const DisplayDeviceState& state(curr[j]);
                     const wp<IBinder>& display(curr.keyAt(j));
-                    if (state.surface->asBinder() != draw[i].surface->asBinder()) {
+                    const sp<IBinder> state_binder =
+                        state.surface != NULL ? state.surface->asBinder() : NULL;
+                    const sp<IBinder> draw_binder =
+                        draw[i].surface != NULL ? draw[i].surface->asBinder() : NULL;
+                    if (state_binder != draw_binder) {
                         // changing the surface is like destroying and
                         // recreating the DisplayDevice, so we just remove it
                         // from the drawing state, so that it get re-added
