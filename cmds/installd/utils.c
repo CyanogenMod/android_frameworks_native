@@ -324,6 +324,104 @@ int delete_dir_contents_fd(int dfd, const char *name)
     return res;
 }
 
+static int _copy_owner_permissions(int srcfd, int dstfd)
+{
+    struct stat st;
+    if (fstat(srcfd, &st) != 0) {
+        return -1;
+    }
+    if (fchmod(dstfd, st.st_mode) != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static int _copy_dir_files(int sdfd, int ddfd, uid_t owner, gid_t group)
+{
+    int result = 0;
+    if (_copy_owner_permissions(sdfd, ddfd) != 0) {
+        ALOGE("_copy_dir_files failed to copy dir permissions\n");
+    }
+    if (fchown(ddfd, owner, group) != 0) {
+        ALOGE("_copy_dir_files failed to change dir owner\n");
+    }
+
+    DIR *ds = fdopendir(sdfd);
+    if (ds == NULL) {
+        ALOGE("Couldn't fdopendir: %s\n", strerror(errno));
+        return -1;
+    }
+    struct dirent *de;
+    while ((de = readdir(ds))) {
+        if (de->d_type != DT_REG) {
+            continue;
+        }
+
+        const char *name = de->d_name;
+        int fsfd = openat(sdfd, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+        int fdfd = openat(ddfd, name, O_WRONLY | O_NOFOLLOW | O_CLOEXEC | O_CREAT, 0600);
+        if (fsfd == -1 || fdfd == -1) {
+            ALOGW("Couldn't copy %s: %s\n", name, strerror(errno));
+        } else {
+            if (_copy_owner_permissions(fsfd, fdfd) != 0) {
+                ALOGE("Failed to change file permissions\n");
+            }
+            if (fchown(fdfd, owner, group) != 0) {
+                ALOGE("Failed to change file owner\n");
+            }
+
+            char buf[8192];
+            ssize_t size;
+            while ((size = read(fsfd, buf, sizeof(buf))) > 0) {
+                write(fdfd, buf, size);
+            }
+            if (size < 0) {
+                ALOGW("Couldn't copy %s: %s\n", name, strerror(errno));
+                result = -1;
+            }
+        }
+        close(fdfd);
+        close(fsfd);
+    }
+
+    return result;
+}
+
+int copy_dir_files(const char *srcname,
+                   const char *dstname,
+                   uid_t owner,
+                   uid_t group)
+{
+    int res = 0;
+    DIR *ds = NULL;
+    DIR *dd = NULL;
+
+    ds = opendir(srcname);
+    if (ds == NULL) {
+        ALOGE("Couldn't opendir %s: %s\n", srcname, strerror(errno));
+        return -errno;
+    }
+
+    mkdir(dstname, 0600);
+    dd = opendir(dstname);
+    if (dd == NULL) {
+        ALOGE("Couldn't opendir %s: %s\n", dstname, strerror(errno));
+        closedir(ds);
+        return -errno;
+    }
+
+    int sdfd = dirfd(ds);
+    int ddfd = dirfd(dd);
+    if (sdfd != -1 && ddfd != -1) {
+        res = _copy_dir_files(sdfd, ddfd, owner, group);
+    } else {
+        res = -errno;
+    }
+    closedir(dd);
+    closedir(ds);
+    return res;
+}
+
 int lookup_media_dir(char basepath[PATH_MAX], const char *dir)
 {
     DIR *d;
@@ -1017,8 +1115,8 @@ int ensure_config_user_dirs(userid_t userid) {
     char config_user_path[PATH_MAX];
 
     // writable by system, readable by any app within the same user
-    const int uid = (userid * AID_USER) + AID_SYSTEM;
-    const int gid = (userid * AID_USER) + AID_EVERYBODY;
+    const int uid = multiuser_get_uid(userid, AID_SYSTEM);
+    const int gid = multiuser_get_uid(userid, AID_EVERYBODY);
 
     // Ensure /data/misc/user/<userid> exists
     create_user_config_path(config_user_path, userid);
