@@ -1,31 +1,36 @@
-# Build the unit tests.
+#
+# Copyright (C) 2014 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 LOCAL_PATH := $(call my-dir)
+
 include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_SHARED_LIBRARIES := libui
+LOCAL_SRC_FILES := Region_test.cpp
+LOCAL_MODULE := Region_test
+include $(BUILD_NATIVE_TEST)
 
-# Build the unit tests.
-test_src_files := \
-    Region_test.cpp \
-    vec_test.cpp \
-    mat_test.cpp
+include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_SRC_FILES := vec_test.cpp
+LOCAL_MODULE := vec_test
+include $(BUILD_NATIVE_TEST)
 
-shared_libraries := \
-    libutils \
-    libui
-
-static_libraries := \
-    libgtest \
-    libgtest_main
-
-$(foreach file,$(test_src_files), \
-    $(eval include $(CLEAR_VARS)) \
-    $(eval LOCAL_SHARED_LIBRARIES := $(shared_libraries)) \
-    $(eval LOCAL_STATIC_LIBRARIES := $(static_libraries)) \
-    $(eval LOCAL_SRC_FILES := $(file)) \
-    $(eval LOCAL_MODULE := $(notdir $(file:%.cpp=%))) \
-    $(eval include $(BUILD_NATIVE_TEST)) \
-)
-
-# Build the unit tests.
-
-# Build the manual test programs.
-include $(call all-makefiles-under, $(LOCAL_PATH))
+include $(CLEAR_VARS)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_SRC_FILES := mat_test.cpp
+LOCAL_MODULE := mat_test
+include $(BUILD_NATIVE_TEST)
