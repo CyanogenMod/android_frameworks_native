@@ -16,17 +16,18 @@
 
 #define LOG_TAG "RegionTest"
 
+#include <math.h>
 #include <stdlib.h>
+
 #include <ui/Region.h>
 #include <ui/Rect.h>
-#include <gtest/gtest.h>
-
 #include <ui/vec4.h>
+
+#include <gtest/gtest.h>
 
 namespace android {
 
 class VecTest : public testing::Test {
-protected:
 };
 
 TEST_F(VecTest, Basics) {
