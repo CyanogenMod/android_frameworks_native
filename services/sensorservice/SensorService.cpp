@@ -243,9 +243,10 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
             const Sensor& s(mSensorList[i]);
             const sensors_event_t& e(mLastEventSeen.valueFor(s.getHandle()));
             result.appendFormat(
-                    "%-15s| %-10s| %-20s| 0x%08x | \"%s\" | type=%d |",
+                    "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
                     s.getName().string(),
                     s.getVendor().string(),
+                    s.getVersion(),
                     s.getStringType().string(),
                     s.getHandle(),
                     s.getRequiredPermission().string(),
