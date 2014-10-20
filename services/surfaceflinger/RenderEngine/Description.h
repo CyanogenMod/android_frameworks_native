@@ -71,6 +71,7 @@ public:
     void setColorMatrix(const mat4& mtx);
     void setMasking(const Texture& maskTexture, float alphaThreshold);
     void disableMasking();
+    const mat4& getColorMatrix() const;
 
 private:
     bool mUniformsDirty;

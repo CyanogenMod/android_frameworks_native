@@ -100,4 +100,9 @@ void Description::disableMasking() {
     mMaskTextureEnabled = false;
 }
 
+const mat4& Description::getColorMatrix() const {
+    return mColorMatrix;
+}
+
+
 } /* namespace android */

@@ -300,14 +300,6 @@ void GLES11RenderEngine::drawMesh(const Mesh& mesh) {
     }
 }
 
-void GLES11RenderEngine::beginGroup(const mat4& /*colorTransform*/) {
-    // doesn't do anything in GLES 1.1
-}
-
-void GLES11RenderEngine::endGroup() {
-    // doesn't do anything in GLES 1.1
-}
-
 void GLES11RenderEngine::dump(String8& result) {
     RenderEngine::dump(result);
 }

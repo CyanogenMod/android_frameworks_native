@@ -2132,9 +2132,9 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         if (mDaltonize) {
             colorMatrix = colorMatrix * mDaltonizer();
         }
-        engine.beginGroup(colorMatrix);
+        mat4 oldMatrix = engine.setupColorTransform(colorMatrix);
         doComposeSurfaces(hw, dirtyRegion);
-        engine.endGroup();
+        engine.setupColorTransform(oldMatrix);
     }
 
     // update the swap region and clear the dirty region
