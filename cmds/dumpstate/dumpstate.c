@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -75,6 +76,28 @@ static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
     }
 }
 
+static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
+{
+    DIR *d;
+    struct dirent *de;
+    char path[PATH_MAX];
+
+    d = opendir(driverpath);
+    if (d == NULL) {
+        return;
+    }
+
+    while ((de = readdir(d))) {
+        if (de->d_type != DT_LNK) {
+            continue;
+        }
+        snprintf(path, sizeof(path), "%s/%s/%s", driverpath, de->d_name, filename);
+        dump_file(title, path);
+    }
+
+    closedir(d);
+}
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
     time_t now = time(NULL);
@@ -107,6 +130,7 @@ static void dumpstate() {
     printf("Command line: %s\n", strtok(cmdline_buf, "\n"));
     printf("\n");
 
+    dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
     run_command("UPTIME", 10, "uptime", NULL);
     dump_file("MEMORY INFO", "/proc/meminfo");
     run_command("CPU INFO", 10, "top", "-n", "1", "-d", "1", "-m", "30", "-t", NULL);
