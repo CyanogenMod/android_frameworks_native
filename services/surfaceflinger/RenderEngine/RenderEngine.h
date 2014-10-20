@@ -99,17 +99,15 @@ public:
     virtual void setupLayerBlackedOut() = 0;
     virtual void setupFillWithColor(float r, float g, float b, float a) = 0;
 
+    virtual mat4 setupColorTransform(const mat4& /* colorTransform */) {
+        return mat4();
+    }
+
     virtual void disableTexturing() = 0;
     virtual void disableBlending() = 0;
 
     // drawing
     virtual void drawMesh(const Mesh& mesh) = 0;
-
-    // grouping
-    // creates a color-transform group, everything drawn in the group will be
-    // transformed by the given color transform when endGroup() is called.
-    virtual void beginGroup(const mat4& colorTransform) = 0;
-    virtual void endGroup() = 0;
 
     // queries
     virtual size_t getMaxTextureSize() const = 0;
