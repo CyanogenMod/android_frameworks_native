@@ -522,7 +522,12 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
     if (fence == NULL) {
         BQ_LOGE("queueBuffer: fence is NULL");
-        return BAD_VALUE;
+        // Temporary workaround for b/17946343: soldier-on instead of returning an error. This
+        // prevents the client from dying, at the risk of visible corruption due to hwcomposer
+        // reading the buffer before the producer is done rendering it. Unless the buffer is the
+        // last frame of an animation, the corruption will be transient.
+        fence = Fence::NO_FENCE;
+        // return BAD_VALUE;
     }
 
     switch (scalingMode) {
