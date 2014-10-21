@@ -3247,10 +3247,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                 } else {
                     result = BAD_VALUE;
                 }
+                // queueBuffer takes ownership of syncFd
                 window->queueBuffer(window, buffer, syncFd);
-                if (syncFd != -1) {
-                    close(syncFd);
-                }
             }
         } else {
             result = BAD_VALUE;
