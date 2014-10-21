@@ -25,12 +25,6 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-#if defined(FORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS)
-static const bool sForceHwcCopy = true;
-#else
-static const bool sForceHwcCopy = false;
-#endif
-
 #define VDS_LOGE(msg, ...) ALOGE("[%s] " msg, \
         mDisplayName.string(), ##__VA_ARGS__)
 #define VDS_LOGW_IF(cond, msg, ...) ALOGW_IF(cond, "[%s] " msg, \
@@ -219,7 +213,20 @@ status_t VirtualDisplaySurface::advanceFrame() {
     if (mDisplayId < 0)
         return NO_ERROR;
 
-    if (mCompositionType == COMPOSITION_HWC) {
+    // When mForceHwcCopy is true, we override the composition type to MIXED.
+    // Therefore, we need to check whether we are in this scenario and add
+    // checks to satisfy the state machine requirements and reduce log spam.
+    // In particular, by setting mForceHwcCopy we can now expect to get an
+    // advanceFrame when composition type is MIXED and our previous state was
+    // PREPARED or GLES_DONE.
+    if (mForceHwcCopy && (mCompositionType == COMPOSITION_MIXED)) {
+        bool isValidState = (mDbgState == DBG_STATE_PREPARED) ||
+                (mDbgState == DBG_STATE_GLES_DONE);
+        VDS_LOGW_IF(!isValidState,
+                "Unexpected advanceFrame() in %s state on %s frame",
+                dbgStateStr(),
+                (mDbgState == DBG_STATE_PREPARED) ? "HWC" : "GLES/MIXED");
+    } else if (mCompositionType == COMPOSITION_HWC) {
         VDS_LOGW_IF(mDbgState != DBG_STATE_PREPARED,
                 "Unexpected advanceFrame() in %s state on HWC frame",
                 dbgStateStr());
