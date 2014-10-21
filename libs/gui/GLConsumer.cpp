@@ -1065,6 +1065,7 @@ GLConsumer::EglImage::~EglImage() {
         if (!eglDestroyImageKHR(mEglDisplay, mEglImage)) {
            ALOGE("~EglImage: eglDestroyImageKHR failed");
         }
+        eglTerminate(mEglDisplay);
     }
 }
 
@@ -1079,6 +1080,7 @@ status_t GLConsumer::EglImage::createIfNeeded(EGLDisplay eglDisplay,
         if (!eglDestroyImageKHR(mEglDisplay, mEglImage)) {
            ALOGE("createIfNeeded: eglDestroyImageKHR failed");
         }
+        eglTerminate(mEglDisplay);
         mEglImage = EGL_NO_IMAGE_KHR;
         mEglDisplay = EGL_NO_DISPLAY;
     }
@@ -1129,11 +1131,13 @@ EGLImageKHR GLConsumer::EglImage::createImage(EGLDisplay dpy,
         // removes this restriction if there is hardware that can support it.
         attrs[2] = EGL_NONE;
     }
+    eglInitialize(dpy, 0, 0);
     EGLImageKHR image = eglCreateImageKHR(dpy, EGL_NO_CONTEXT,
             EGL_NATIVE_BUFFER_ANDROID, cbuf, attrs);
     if (image == EGL_NO_IMAGE_KHR) {
         EGLint error = eglGetError();
         ALOGE("error creating EGLImage: %#x", error);
+        eglTerminate(dpy);
     }
     return image;
 }
