@@ -1208,6 +1208,8 @@ HWComposer::LayerListIterator HWComposer::end(int32_t id) {
 static String8 getFormatStr(PixelFormat format) {
     switch (format) {
     case PIXEL_FORMAT_RGBA_8888:    return String8("RGBA_8888");
+    case PIXEL_FORMAT_RGBA_4444:    return String8("RGBA_4444");
+    case PIXEL_FORMAT_RGBA_5551:    return String8("RGBA_5551");
     case PIXEL_FORMAT_RGBX_8888:    return String8("RGBx_8888");
     case PIXEL_FORMAT_RGB_888:      return String8("RGB_888");
     case PIXEL_FORMAT_RGB_565:      return String8("RGB_565");
