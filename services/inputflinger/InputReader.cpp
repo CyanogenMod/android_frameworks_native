@@ -2593,6 +2593,7 @@ void CursorInputMapper::fadePointer() {
 TouchInputMapper::TouchInputMapper(InputDevice* device) :
         InputMapper(device),
         mSource(0), mDeviceMode(DEVICE_MODE_DISABLED),
+        mHasExternalHoveringCursorControl(false), mExternalHoveringCursorVisible(false),
         mSurfaceWidth(-1), mSurfaceHeight(-1), mSurfaceLeft(0), mSurfaceTop(0),
         mSurfaceOrientation(DISPLAY_ORIENTATION_0) {
 }
@@ -2864,6 +2865,8 @@ void TouchInputMapper::configureParameters() {
                         && getDevice()->isExternal();
     }
 
+    mHasExternalHoveringCursorControl = getDevice()->hasKey(BTN_USF_HOVERING_CURSOR);
+
     // Initial downs on external touch devices should wake the device.
     // Normally we don't do this for internal touch screens to prevent them from waking
     // up in your pocket but you can enable it using the input device configuration.
@@ -3060,7 +3063,7 @@ void TouchInputMapper::configureSurface(nsecs_t when, bool* outResetNeeded) {
     }
 
     // Create pointer controller if needed.
-    if (mDeviceMode == DEVICE_MODE_POINTER ||
+    if (mDeviceMode == DEVICE_MODE_POINTER || mHasExternalHoveringCursorControl ||
             (mDeviceMode == DEVICE_MODE_DIRECT && mConfig.showTouches)) {
         if (mPointerController == NULL) {
             mPointerController = getPolicy()->obtainPointerController(getDeviceId());
@@ -3730,6 +3733,20 @@ void TouchInputMapper::process(const RawEvent* rawEvent) {
     if (rawEvent->type == EV_SYN && rawEvent->code == SYN_REPORT) {
         sync(rawEvent->when);
     }
+    if (mHasExternalHoveringCursorControl && rawEvent->type == EV_KEY) {
+        if (rawEvent->code == BTN_USF_HOVERING_CURSOR && mPointerController != NULL) {
+            if (rawEvent->value) {
+                // show a hover cursor
+                mPointerController->setPresentation(PointerControllerInterface::PRESENTATION_STYLUS_HOVER);
+                mPointerController->unfade(android::PointerControllerInterface::TRANSITION_IMMEDIATE);
+                mExternalHoveringCursorVisible = true;
+            } else {
+                // hide the cursor
+                mPointerController->fade(android::PointerControllerInterface::TRANSITION_IMMEDIATE);
+                mExternalHoveringCursorVisible = false;
+            }
+        }
+    }
 }
 
 void TouchInputMapper::sync(nsecs_t when) {
@@ -3859,6 +3876,25 @@ void TouchInputMapper::sync(nsecs_t when) {
                 mPointerController->setSpots(mCurrentCookedPointerData.pointerCoords,
                         mCurrentCookedPointerData.idToIndex,
                         mCurrentCookedPointerData.touchingIdBits);
+            }
+
+            if (mHasExternalHoveringCursorControl && mPointerController != NULL) {
+                if (mExternalHoveringCursorVisible) {
+                    // find the pointer position from the first touch point (either touching or hovering)
+                    uint32_t index = MAX_POINTERS;
+                    if (!mCurrentRawPointerData.touchingIdBits.isEmpty()) {
+                        index = mCurrentCookedPointerData.idToIndex[mCurrentRawPointerData.touchingIdBits.firstMarkedBit()];
+                    } else if (!mCurrentRawPointerData.hoveringIdBits.isEmpty()) {
+                        index = mCurrentCookedPointerData.idToIndex[mCurrentRawPointerData.hoveringIdBits.firstMarkedBit()];
+                    }
+                    if (index < MAX_POINTERS)
+                    {
+                        float x = mCurrentCookedPointerData.pointerCoords[index].getX();
+                        float y = mCurrentCookedPointerData.pointerCoords[index].getY();
+                        mPointerController->setPosition(x, y);
+                        mPointerController->unfade(android::PointerControllerInterface::TRANSITION_IMMEDIATE);
+                    }
+                }
             }
 
             dispatchHoverExit(when, policyFlags);
