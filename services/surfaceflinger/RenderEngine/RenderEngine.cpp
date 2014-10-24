@@ -219,6 +219,10 @@ void RenderEngine::fillRegionWithColor(const Region& region, uint32_t height,
     drawMesh(mesh);
 }
 
+void RenderEngine::flush() {
+    glFlush();
+}
+
 void RenderEngine::clearWithColor(float red, float green, float blue, float alpha) {
     glClearColor(red, green, blue, alpha);
     glClear(GL_COLOR_BUFFER_BIT);
