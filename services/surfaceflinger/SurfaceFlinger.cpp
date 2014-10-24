@@ -3201,6 +3201,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         EGLSyncKHR sync;
                         if (!DEBUG_SCREENSHOTS) {
                            sync = eglCreateSyncKHR(mEGLDisplay, EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
+                           // native fence fd will not be populated until flush() is done.
+                           getRenderEngine().flush();
                         } else {
                             sync = EGL_NO_SYNC_KHR;
                         }
