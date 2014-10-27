@@ -3629,7 +3629,6 @@ status_t SurfaceFlinger::captureScreenImplLocked(
              */
             result = native_window_dequeue_buffer_and_wait(window,  &buffer);
             if (result == NO_ERROR) {
-                int syncFd = -1;
                 // create an EGLImage from the buffer so we can later
                 // turn it into a texture
                 EGLImageKHR image = eglCreateImageKHR(mEGLDisplay, EGL_NO_CONTEXT,
@@ -3647,41 +3646,27 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                             hw, sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ, true,
                             useIdentityTransform, rotation);
 
-                        // Attempt to create a sync khr object that can produce a sync point. If that
-                        // isn't available, create a non-dupable sync object in the fallback path and
-                        // wait on it directly.
-                        EGLSyncKHR sync;
-                        if (!DEBUG_SCREENSHOTS) {
-                           sync = eglCreateSyncKHR(mEGLDisplay, EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
-                        } else {
-                            sync = EGL_NO_SYNC_KHR;
-                        }
+                        // Create a sync point and wait on it, so we know the buffer is
+                        // ready before we pass it along.  We can't trivially call glFlush(),
+                        // so we use a wait flag instead.
+                        // TODO: pass a sync fd to queueBuffer() and let the consumer wait.
+                        EGLSyncKHR sync = eglCreateSyncKHR(mEGLDisplay, EGL_SYNC_FENCE_KHR, NULL);
                         if (sync != EGL_NO_SYNC_KHR) {
-                            // get the sync fd
-                            syncFd = eglDupNativeFenceFDANDROID(mEGLDisplay, sync);
-                            if (syncFd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
-                                ALOGW("captureScreen: failed to dup sync khr object");
-                                syncFd = -1;
-                            }
-                            eglDestroySyncKHR(mEGLDisplay, sync);
-                        } else {
-                            // fallback path
-                            sync = eglCreateSyncKHR(mEGLDisplay, EGL_SYNC_FENCE_KHR, NULL);
-                            if (sync != EGL_NO_SYNC_KHR) {
-                                EGLint result = eglClientWaitSyncKHR(mEGLDisplay, sync,
+                            EGLint result = eglClientWaitSyncKHR(mEGLDisplay, sync,
                                     EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, 2000000000 /*2 sec*/);
-                                EGLint eglErr = eglGetError();
-                                if (result == EGL_TIMEOUT_EXPIRED_KHR) {
-                                    ALOGW("captureScreen: fence wait timed out");
-                                } else {
-                                    ALOGW_IF(eglErr != EGL_SUCCESS,
-                                            "captureScreen: error waiting on EGL fence: %#x", eglErr);
-                                }
-                                eglDestroySyncKHR(mEGLDisplay, sync);
+                            EGLint eglErr = eglGetError();
+                            eglDestroySyncKHR(mEGLDisplay, sync);
+                            if (result == EGL_TIMEOUT_EXPIRED_KHR) {
+                                ALOGW("captureScreen: fence wait timed out");
                             } else {
-                                ALOGW("captureScreen: error creating EGL fence: %#x", eglGetError());
+                                ALOGW_IF(eglErr != EGL_SUCCESS,
+                                        "captureScreen: error waiting on EGL fence: %#x", eglErr);
                             }
+                        } else {
+                            ALOGW("captureScreen: error creating EGL fence: %#x", eglGetError());
+                            // not fatal
                         }
+
                         if (DEBUG_SCREENSHOTS) {
                             uint32_t* pixels = new uint32_t[reqWidth*reqHeight];
                             getRenderEngine().readPixels(0, 0, reqWidth, reqHeight, pixels);
@@ -3699,8 +3684,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                 } else {
                     result = BAD_VALUE;
                 }
-                // queueBuffer takes ownership of syncFd
-                window->queueBuffer(window, buffer, syncFd);
+                window->queueBuffer(window, buffer, -1);
             }
         } else {
             result = BAD_VALUE;
