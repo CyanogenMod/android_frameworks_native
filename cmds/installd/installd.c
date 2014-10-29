@@ -243,7 +243,9 @@ static int execute(int s, char cmd[BUFFER_MAX])
                 goto done;
             }
         }
-        cmd++;
+        if (*cmd) {
+          cmd++;
+        }
     }
 
     for (i = 0; i < sizeof(cmds) / sizeof(cmds[0]); i++) {
