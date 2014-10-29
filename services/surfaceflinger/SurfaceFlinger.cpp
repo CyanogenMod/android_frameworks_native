@@ -528,7 +528,7 @@ bool SurfaceFlinger::authenticateSurfaceTexture(
 
 status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         Vector<DisplayInfo>* configs) {
-    if (configs == NULL) {
+    if ((configs == NULL) || (display.get() == NULL)) {
         return BAD_VALUE;
     }
 
