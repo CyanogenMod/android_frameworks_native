@@ -418,6 +418,12 @@ void SurfaceFlinger::init() {
     status_t err;
     Mutex::Autolock _l(mStateLock);
 
+    /* Set the mask bit of the sigset to block the SIGPIPE signal */
+    sigset_t sigMask;
+    sigemptyset (&sigMask);
+    sigaddset(&sigMask, SIGPIPE);
+    sigprocmask(SIG_BLOCK, &sigMask, NULL);
+
     // initialize EGL for the default display
     mEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     eglInitialize(mEGLDisplay, NULL, NULL);
