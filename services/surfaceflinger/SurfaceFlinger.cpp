@@ -1332,7 +1332,22 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
 
-                            hwcDisplayId = allocateHwcDisplayId(state.type);
+                            int width = 0;
+                            int status = state.surface->query(
+                                    NATIVE_WINDOW_WIDTH, &width);
+                            ALOGE_IF(status != NO_ERROR,
+                                    "Unable to query width (%d)", status);
+                            int height = 0;
+                            status = state.surface->query(
+                                    NATIVE_WINDOW_HEIGHT, &height);
+                            ALOGE_IF(status != NO_ERROR,
+                                    "Unable to query height (%d)", status);
+                            if (MAX_VIRTUAL_DISPLAY_DIMENSION == 0 ||
+                                    (width <= MAX_VIRTUAL_DISPLAY_DIMENSION &&
+                                     height <= MAX_VIRTUAL_DISPLAY_DIMENSION)) {
+                                hwcDisplayId = allocateHwcDisplayId(state.type);
+                            }
+
                             sp<VirtualDisplaySurface> vds = new VirtualDisplaySurface(
                                     *mHwc, hwcDisplayId, state.surface,
                                     bqProducer, bqConsumer, state.displayName);
