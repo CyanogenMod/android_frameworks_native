@@ -209,7 +209,9 @@ namespace android {
         // confirmed. The persisted record on the client is only removed after positive
         // confirmation that the server received the message using releaseSecureStops().
         virtual status_t getSecureStops(List<Vector<uint8_t> > &secureStops) = 0;
+        virtual status_t getSecureStop(Vector<uint8_t> const &ssid, Vector<uint8_t> &secureStop) = 0;
         virtual status_t releaseSecureStops(Vector<uint8_t> const &ssRelease) = 0;
+        virtual status_t releaseAllSecureStops() = 0;
 
         // Read a property value given the device property string.  There are a few forms
         // of property access methods, depending on the data type returned.
