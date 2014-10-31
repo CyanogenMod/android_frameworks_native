@@ -28,7 +28,7 @@ namespace android {
 
 class LayerDim : public Layer
 {
-public:    
+public:
                 LayerDim(SurfaceFlinger* flinger, const sp<Client>& client,
                         const String8& name, uint32_t w, uint32_t h, uint32_t flags);
         virtual ~LayerDim();
@@ -36,7 +36,7 @@ public:
     virtual const char* getTypeId() const { return "LayerDim"; }
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
             bool useIdentityTransform) const;
-    virtual bool isOpaque() const         { return false; }
+    virtual bool isOpaque(const Layer::State&) const { return false; }
     virtual bool isSecure() const         { return false; }
     virtual bool isFixedSize() const      { return true; }
     virtual bool isVisible() const;
