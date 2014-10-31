@@ -653,7 +653,7 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
         virtual bool handler() {
             Vector<DisplayInfo> configs;
             mFlinger.getDisplayConfigs(mDisplay, &configs);
-            if(mMode < 0 || mMode >= configs.size()) {
+            if (mMode < 0 || mMode >= static_cast<int>(configs.size())) {
                 ALOGE("Attempt to set active config = %d for display with %zu configs",
                         mMode, configs.size());
             }
@@ -3108,13 +3108,13 @@ void SurfaceFlinger::renderScreenImplLocked(
     if (sourceCrop.left < 0) {
         ALOGE("Invalid crop rect: l = %d (< 0)", sourceCrop.left);
     }
-    if (sourceCrop.right > hw_w) {
+    if (static_cast<uint32_t>(sourceCrop.right) > hw_w) {
         ALOGE("Invalid crop rect: r = %d (> %d)", sourceCrop.right, hw_w);
     }
     if (sourceCrop.top < 0) {
         ALOGE("Invalid crop rect: t = %d (< 0)", sourceCrop.top);
     }
-    if (sourceCrop.bottom > hw_h) {
+    if (static_cast<uint32_t>(sourceCrop.bottom) > hw_h) {
         ALOGE("Invalid crop rect: b = %d (> %d)", sourceCrop.bottom, hw_h);
     }
 
