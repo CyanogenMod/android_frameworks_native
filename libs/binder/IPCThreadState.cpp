@@ -74,9 +74,8 @@ static const char* getCommandString(size_t idx);
 static const void* printReturnCommand(TextOutput& out, const void* _cmd);
 static const void* printCommand(TextOutput& out, const void* _cmd);
 
-// This will result in a missing symbol failure if the IF_LOG_COMMANDS()
-// conditionals don't get stripped...  but that is probably what we want.
-#if !LOG_NDEBUG
+// Static const and functions will be optimized out if not used,
+// when LOG_NDEBUG and references in IF_LOG_COMMANDS() are optimized out.
 static const char *kReturnStrings[] = {
     "BR_ERROR",
     "BR_OK",
@@ -145,7 +144,7 @@ static const void* printBinderTransactionData(TextOutput& out, const void* data)
         out << "target.ptr=" << btd->target.ptr;
     }
     out << " (cookie " << btd->cookie << ")" << endl
-        << "code=" << TypeCode(btd->code) << ", flags=" << (void*)btd->flags << endl
+        << "code=" << TypeCode(btd->code) << ", flags=" << (void*)(long)btd->flags << endl
         << "data=" << btd->data.ptr.buffer << " (" << (void*)btd->data_size
         << " bytes)" << endl
         << "offsets=" << btd->data.ptr.offsets << " (" << (void*)btd->offsets_size
@@ -160,7 +159,7 @@ static const void* printReturnCommand(TextOutput& out, const void* _cmd)
     int32_t code = *cmd++;
     size_t cmdIndex = code & 0xff;
     if (code == (int32_t) BR_ERROR) {
-        out << "BR_ERROR: " << (void*)(*cmd++) << endl;
+        out << "BR_ERROR: " << (void*)(long)(*cmd++) << endl;
         return cmd;
     } else if (cmdIndex >= N) {
         out << "Unknown reply: " << code << endl;
@@ -187,21 +186,21 @@ static const void* printReturnCommand(TextOutput& out, const void* _cmd)
         case BR_DECREFS: {
             const int32_t b = *cmd++;
             const int32_t c = *cmd++;
-            out << ": target=" << (void*)b << " (cookie " << (void*)c << ")";
+            out << ": target=" << (void*)(long)b << " (cookie " << (void*)(long)c << ")";
         } break;
     
         case BR_ATTEMPT_ACQUIRE: {
             const int32_t p = *cmd++;
             const int32_t b = *cmd++;
             const int32_t c = *cmd++;
-            out << ": target=" << (void*)b << " (cookie " << (void*)c
+            out << ": target=" << (void*)(long)b << " (cookie " << (void*)(long)c
                 << "), pri=" << p;
         } break;
 
         case BR_DEAD_BINDER:
         case BR_CLEAR_DEATH_NOTIFICATION_DONE: {
             const int32_t c = *cmd++;
-            out << ": death cookie " << (void*)c;
+            out << ": death cookie " << (void*)(long)c;
         } break;
 
         default:
@@ -242,7 +241,7 @@ static const void* printCommand(TextOutput& out, const void* _cmd)
         
         case BC_FREE_BUFFER: {
             const int32_t buf = *cmd++;
-            out << ": buffer=" << (void*)buf;
+            out << ": buffer=" << (void*)(long)buf;
         } break;
         
         case BC_INCREFS:
@@ -257,7 +256,7 @@ static const void* printCommand(TextOutput& out, const void* _cmd)
         case BC_ACQUIRE_DONE: {
             const int32_t b = *cmd++;
             const int32_t c = *cmd++;
-            out << ": target=" << (void*)b << " (cookie " << (void*)c << ")";
+            out << ": target=" << (void*)(long)b << " (cookie " << (void*)(long)c << ")";
         } break;
         
         case BC_ATTEMPT_ACQUIRE: {
@@ -270,12 +269,12 @@ static const void* printCommand(TextOutput& out, const void* _cmd)
         case BC_CLEAR_DEATH_NOTIFICATION: {
             const int32_t h = *cmd++;
             const int32_t c = *cmd++;
-            out << ": handle=" << h << " (death cookie " << (void*)c << ")";
+            out << ": handle=" << h << " (death cookie " << (void*)(long)c << ")";
         } break;
 
         case BC_DEAD_BINDER_DONE: {
             const int32_t c = *cmd++;
-            out << ": death cookie " << (void*)c;
+            out << ": death cookie " << (void*)(long)c;
         } break;
 
         default:
@@ -287,7 +286,6 @@ static const void* printCommand(TextOutput& out, const void* _cmd)
     out << endl;
     return cmd;
 }
-#endif
 
 static pthread_mutex_t gTLSMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool gHaveTLS = false;
