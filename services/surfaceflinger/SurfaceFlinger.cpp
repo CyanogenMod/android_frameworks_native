@@ -507,6 +507,9 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         return BAD_VALUE;
     }
 
+    if (!display.get())
+        return NAME_NOT_FOUND;
+
     int32_t type = NAME_NOT_FOUND;
     for (int i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
         if (display == mBuiltinDisplays[i]) {
