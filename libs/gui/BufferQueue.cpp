@@ -191,12 +191,14 @@ status_t BufferQueue::setBufferCount(int bufferCount) {
     return NO_ERROR;
 }
 
+#ifdef QCOM_HARDWARE
 status_t BufferQueue::setBuffersSize(int size) {
     ST_LOGV("setBuffersSize: size=%d", size);
     Mutex::Autolock lock(mMutex);
     mGraphicBufferAlloc->setGraphicBufferSize(size);
     return NO_ERROR;
 }
+#endif
 
 int BufferQueue::query(int what, int* outValue)
 {

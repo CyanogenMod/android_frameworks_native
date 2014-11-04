@@ -80,6 +80,8 @@ void SensorService::onFirstRef()
         if (count > 0) {
             ssize_t orientationIndex = -1;
             bool hasGyro = false;
+            bool hasMagnetometer = false;
+            bool hasAccelerometer = false;
             uint32_t virtualSensorsNeeds =
                     (1<<SENSOR_TYPE_GRAVITY) |
                     (1<<SENSOR_TYPE_LINEAR_ACCELERATION) |
@@ -95,6 +97,12 @@ void SensorService::onFirstRef()
                     case SENSOR_TYPE_GYROSCOPE:
                     case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
                         hasGyro = true;
+                        break;
+                    case SENSOR_TYPE_MAGNETIC_FIELD:
+                        hasMagnetometer = true;
+                        break;
+                    case SENSOR_TYPE_ACCELEROMETER:
+                        hasAccelerometer = true;
                         break;
                     case SENSOR_TYPE_GRAVITY:
                     case SENSOR_TYPE_LINEAR_ACCELERATION:
@@ -112,7 +120,7 @@ void SensorService::onFirstRef()
             // build the sensor list returned to users
             mUserSensorList = mSensorList;
 
-            if (hasGyro) {
+            if (hasGyro && hasMagnetometer && hasAccelerometer) {
                 Sensor aSensor;
 
                 // Add Android virtual sensors if they're not already

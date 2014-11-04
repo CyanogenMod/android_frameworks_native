@@ -446,9 +446,11 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_BUFFERS_FORMAT:
         res = dispatchSetBuffersFormat(args);
         break;
+#ifdef QCOM_HARDWARE
     case NATIVE_WINDOW_SET_BUFFERS_SIZE:
         res = dispatchSetBuffersSize(args);
         break;
+#endif
     case NATIVE_WINDOW_LOCK:
         res = dispatchLock(args);
         break;
@@ -524,10 +526,12 @@ int Surface::dispatchSetBuffersFormat(va_list args) {
     return setBuffersFormat(f);
 }
 
+#ifdef QCOM_HARDWARE
 int Surface::dispatchSetBuffersSize(va_list args) {
     int size = va_arg(args, int);
     return setBuffersSize(size);
 }
+#endif
 
 int Surface::dispatchSetScalingMode(va_list args) {
     int m = va_arg(args, int);
@@ -687,6 +691,7 @@ int Surface::setBuffersFormat(int format)
     return NO_ERROR;
 }
 
+#ifdef QCOM_HARDWARE
 int Surface::setBuffersSize(int size)
 {
     ATRACE_CALL();
@@ -702,6 +707,7 @@ int Surface::setBuffersSize(int size)
     }
     return NO_ERROR;
 }
+#endif
 
 int Surface::setScalingMode(int mode)
 {

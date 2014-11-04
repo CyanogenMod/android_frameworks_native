@@ -150,7 +150,9 @@ protected:
     virtual int setBuffersTimestamp(int64_t timestamp);
     virtual int setCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
+#ifdef QCOM_HARDWARE
     virtual int setBuffersSize(int size);
+#endif
 
 public:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
