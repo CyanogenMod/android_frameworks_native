@@ -26,7 +26,6 @@
 #include <binder/TextOutput.h>
 
 #include <errno.h>
-#include <utils/CallStack.h>
 #include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/String8.h>
@@ -768,29 +767,6 @@ status_t Parcel::writeFileDescriptor(int fd, bool takeOwnership)
 status_t Parcel::writeDupFileDescriptor(int fd)
 {
     int dupFd = dup(fd);
-
-    {   // Temporary extra debug validation for b/17477219: a Parcel recipient is
-        // getting a positive but invalid fd unexpectedly. Trying to track down
-        // where it's coming from.
-        int dupErrno = dupFd < 0 ? errno : 0;
-        int fdFlags = fcntl(fd, F_GETFD);
-        int fdFlagsErrno = fdFlags == -1 ? errno : 0;
-        int dupFlags = fcntl(dupFd, F_GETFD);
-        int dupFlagsErrno = dupFlags == -1 ? errno : 0;
-        if (dupFd < 0 || fdFlags == -1 || dupFlags == -1) {
-            ALOGE("Parcel::writeDupFileDescriptor failed:\n"
-                    "  fd=%d flags=%d err=%d(%s)\n"
-                    "  dupFd=%d dupErr=%d(%s) flags=%d err=%d(%s)",
-                    fd, fdFlags, fdFlagsErrno, strerror(fdFlagsErrno),
-                    dupFd, dupErrno, strerror(dupErrno),
-                    dupFlags, dupFlagsErrno, strerror(dupFlagsErrno));
-            if (fd < 0 || fdFlags == -1) {
-                CallStack(LOG_TAG);
-            }
-            return -errno;
-        }
-    }
-
     if (dupFd < 0) {
         return -errno;
     }
@@ -1321,7 +1297,6 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
                 oldfd, fds[i], dupErrno, strerror(dupErrno),
                 oldfd, flags, fcntlErrno, strerror(fcntlErrno),
                 flat, flat ? flat->type : 0);
-            CallStack(LOG_TAG);
         }
     }
 
