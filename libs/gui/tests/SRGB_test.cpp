@@ -19,6 +19,8 @@
 
 #include "GLTest.h"
 
+#include <math.h>
+
 #include <gui/CpuConsumer.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
