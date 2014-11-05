@@ -16,19 +16,24 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+
 LOCAL_MODULE_TAGS := tests
 LOCAL_MODULE:= libhwcTest
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CXX_STL := libc++
 LOCAL_SRC_FILES:= hwcTestLib.cpp
 LOCAL_C_INCLUDES += system/extras/tests/include \
-	$(call include-path-for, opengl-tests-includes)
+    $(call include-path-for, opengl-tests-includes) \
 
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
-
-include external/stlport/libstlport.mk
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+
+LOCAL_MODULE:= hwcStress
+LOCAL_MODULE_TAGS := tests
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CXX_STL := libc++
 LOCAL_SRC_FILES:= hwcStress.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -48,20 +53,17 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_C_INCLUDES += \
     system/extras/tests/include \
     hardware/libhardware/include \
-	$(call include-path-for, opengl-tests-includes)
-
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
-
-LOCAL_MODULE:= hwcStress
-
-LOCAL_MODULE_TAGS := tests
-
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+    $(call include-path-for, opengl-tests-includes) \
 
 include $(BUILD_NATIVE_TEST)
 
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+
+LOCAL_MODULE:= hwcRects
+LOCAL_MODULE_TAGS := tests
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CXX_STL := libc++
 LOCAL_SRC_FILES:= hwcRects.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -81,18 +83,17 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_C_INCLUDES += \
     system/extras/tests/include \
     hardware/libhardware/include \
-	$(call include-path-for, opengl-tests-includes)
-
-LOCAL_MODULE:= hwcRects
-
-LOCAL_MODULE_TAGS := tests
-
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+    $(call include-path-for, opengl-tests-includes) \
 
 include $(BUILD_NATIVE_TEST)
 
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+
+LOCAL_MODULE:= hwcColorEquiv
+LOCAL_MODULE_TAGS := tests
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CXX_STL := libc++
 LOCAL_SRC_FILES:= hwcColorEquiv.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -112,18 +113,17 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_C_INCLUDES += \
     system/extras/tests/include \
     hardware/libhardware/include \
-	$(call include-path-for, opengl-tests-includes)
-
-LOCAL_MODULE:= hwcColorEquiv
-
-LOCAL_MODULE_TAGS := tests
-
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+    $(call include-path-for, opengl-tests-includes) \
 
 include $(BUILD_NATIVE_TEST)
 
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+
+LOCAL_MODULE:= hwcCommit
+LOCAL_MODULE_TAGS := tests
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CXX_STL := libc++
 LOCAL_SRC_FILES:= hwcCommit.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -143,12 +143,6 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_C_INCLUDES += \
     system/extras/tests/include \
     hardware/libhardware/include \
-	$(call include-path-for, opengl-tests-includes)
-
-LOCAL_MODULE:= hwcCommit
-
-LOCAL_MODULE_TAGS := tests
-
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+    $(call include-path-for, opengl-tests-includes) \
 
 include $(BUILD_NATIVE_TEST)
