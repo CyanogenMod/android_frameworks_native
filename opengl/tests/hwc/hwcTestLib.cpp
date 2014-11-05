@@ -20,17 +20,18 @@
  * Utility library functions for use by the Hardware Composer test cases
  */
 
+#include <arpa/inet.h> // For ntohl() and htonl()
+
+#include <cmath>
 #include <sstream>
 #include <string>
-
-#include <arpa/inet.h> // For ntohl() and htonl()
 
 #include "hwcTestLib.h"
 
 #include "EGLUtils.h"
 
 // Defines
-#define NUMA(a) (sizeof(a) / sizeof(a [0]))
+#define NUMA(a) (sizeof(a) / sizeof((a)[0]))
 
 // Function Prototypes
 static void printGLString(const char *name, GLenum s);
