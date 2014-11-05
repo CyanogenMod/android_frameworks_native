@@ -143,9 +143,14 @@ void SensorService::onFirstRef()
 
                 aSensor = registerVirtualSensor( new OrientationSensor() );
                 if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
-                    // if we are doing our own rotation-vector, also add
-                    // the orientation sensor and remove the HAL provided one.
-                    mUserSensorList.replaceAt(aSensor, orientationIndex);
+                    if (orientationIndex == -1) {
+                        // some sensor HALs don't provide an orientation sensor.
+                        mUserSensorList.add(aSensor);
+                    } else {
+                        // if we are doing our own rotation-vector, also add
+                        // the orientation sensor and remove the HAL provided one.
+                        mUserSensorList.replaceAt(aSensor, orientationIndex);
+                    }
                 }
 
                 // virtual debugging sensors are not added to mUserSensorList
