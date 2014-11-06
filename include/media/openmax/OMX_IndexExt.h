@@ -81,6 +81,7 @@ typedef enum OMX_INDEXEXTTYPE {
 
     /* Other configurations */
     OMX_IndexExtOtherStartUnused = OMX_IndexKhronosExtensions + 0x00800000,
+    OMX_IndexConfigAutoFramerateConversion,         /**< reference: OMX_CONFIG_BOOLEANTYPE */
 
     /* Time configurations */
     OMX_IndexExtTimeStartUnused = OMX_IndexKhronosExtensions + 0x00900000,
