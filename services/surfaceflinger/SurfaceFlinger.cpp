@@ -3553,6 +3553,12 @@ void SurfaceFlinger::renderScreenImplLocked(
     // make sure to clear all GL error flags
     engine.checkErrors();
 
+    if (DisplayDevice::DISPLAY_PRIMARY == hw->getDisplayType() &&
+                hw->isPanelInverseMounted()) {
+        rotation = (Transform::orientation_flags)
+                (rotation ^ Transform::ROT_180);
+    }
+
     // set-up our viewport
     engine.setViewportAndProjection(
         reqWidth, reqHeight, sourceCrop, hw_h, yswap, rotation);
