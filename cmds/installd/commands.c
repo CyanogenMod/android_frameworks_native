@@ -20,6 +20,7 @@
 #include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
 #include <selinux/android.h>
+#include <system/thread_defs.h>
 
 /* Directory records that are used in execution of commands. */
 dir_rec_t android_data_dir;
@@ -1016,6 +1017,10 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
         if (set_sched_policy(0, SP_BACKGROUND) < 0) {
             ALOGE("set_sched_policy failed: %s\n", strerror(errno));
             exit(70);
+        }
+        if (setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_BACKGROUND) < 0) {
+            ALOGE("setpriority failed: %s\n", strerror(errno));
+            exit(71);
         }
         if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
