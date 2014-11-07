@@ -74,7 +74,7 @@ private:
     // can block if there are too many outstanding buffers. If it blocks, it
     // will resume when onBufferReleasedByOutput releases a buffer back to the
     // input.
-    virtual void onFrameAvailable();
+    virtual void onFrameAvailable(const BufferItem& item);
 
     // From IConsumerListener
     // We don't care about released buffers because we detach each buffer as

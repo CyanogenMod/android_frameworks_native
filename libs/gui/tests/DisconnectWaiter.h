@@ -44,7 +44,7 @@ public:
         mPendingFrames--;
     }
 
-    virtual void onFrameAvailable() {
+    virtual void onFrameAvailable(const BufferItem& /* item */) {
         Mutex::Autolock lock(mMutex);
         mPendingFrames++;
         mFrameCondition.signal();

@@ -56,7 +56,7 @@ public:
 private:
     virtual ~FramebufferSurface() { }; // this class cannot be overloaded
 
-    virtual void onFrameAvailable();
+    virtual void onFrameAvailable(const BufferItem& item);
     virtual void freeBufferLocked(int slotIndex);
 
     virtual void dumpLocked(String8& result, const char* prefix) const;

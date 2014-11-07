@@ -62,7 +62,7 @@ public:
     public:
         ProxyConsumerListener(const wp<ConsumerListener>& consumerListener);
         virtual ~ProxyConsumerListener();
-        virtual void onFrameAvailable();
+        virtual void onFrameAvailable(const android::BufferItem& item);
         virtual void onBuffersReleased();
         virtual void onSidebandStreamChanged();
     private:

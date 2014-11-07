@@ -31,10 +31,11 @@ BufferQueue::ProxyConsumerListener::ProxyConsumerListener(
 
 BufferQueue::ProxyConsumerListener::~ProxyConsumerListener() {}
 
-void BufferQueue::ProxyConsumerListener::onFrameAvailable() {
+void BufferQueue::ProxyConsumerListener::onFrameAvailable(
+        const android::BufferItem& item) {
     sp<ConsumerListener> listener(mConsumerListener.promote());
     if (listener != NULL) {
-        listener->onFrameAvailable();
+        listener->onFrameAvailable(item);
     }
 }
 
