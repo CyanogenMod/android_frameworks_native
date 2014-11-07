@@ -159,7 +159,7 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& /* hw */,
     }
 }
 
-void Layer::onFrameAvailable() {
+void Layer::onFrameAvailable(const BufferItem& /* item */) {
     android_atomic_inc(&mQueuedFrames);
     mFlinger->signalLayerUpdate();
 }

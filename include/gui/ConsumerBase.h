@@ -46,7 +46,7 @@ public:
         //
         // This is called without any lock held and can be called concurrently
         // by multiple threads.
-        virtual void onFrameAvailable() = 0;
+        virtual void onFrameAvailable(const BufferItem& item) = 0;
     };
 
     virtual ~ConsumerBase();
@@ -106,7 +106,7 @@ protected:
     // the ConsumerBase implementation must be called from the derived class.
     // The ConsumerBase version of onSidebandStreamChanged does nothing and can
     // be overriden by derived classes if they want the notification.
-    virtual void onFrameAvailable();
+    virtual void onFrameAvailable(const BufferItem& item);
     virtual void onBuffersReleased();
     virtual void onSidebandStreamChanged();
 

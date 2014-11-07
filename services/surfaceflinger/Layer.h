@@ -330,7 +330,7 @@ protected:
 
 private:
     // Interface implementation for SurfaceFlingerConsumer::ContentsChangedListener
-    virtual void onFrameAvailable();
+    virtual void onFrameAvailable(const BufferItem& item);
     virtual void onSidebandStreamChanged();
 
     void commitTransaction();

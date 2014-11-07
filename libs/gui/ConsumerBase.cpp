@@ -98,7 +98,7 @@ void ConsumerBase::freeBufferLocked(int slotIndex) {
     mSlots[slotIndex].mFrameNumber = 0;
 }
 
-void ConsumerBase::onFrameAvailable() {
+void ConsumerBase::onFrameAvailable(const BufferItem& item) {
     CB_LOGV("onFrameAvailable");
 
     sp<FrameAvailableListener> listener;
@@ -109,7 +109,7 @@ void ConsumerBase::onFrameAvailable() {
 
     if (listener != NULL) {
         CB_LOGV("actually calling onFrameAvailable");
-        listener->onFrameAvailable();
+        listener->onFrameAvailable(item);
     }
 }
 
