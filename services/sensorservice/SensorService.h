@@ -101,7 +101,7 @@ class SensorService :
         void sendPendingFlushEventsLocked();
 
         // Writes events from mEventCache to the socket.
-        void writeToSocketFromCacheLocked();
+        void writeToSocketFromCache();
 
         // Compute the approximate cache size from the FIFO sizes of various sensors registered for
         // this connection. Wake up and non-wake up sensors have separate FIFOs but FIFO may be
@@ -182,6 +182,7 @@ class SensorService :
         void setFirstFlushPending(int32_t handle, bool value);
         void dump(String8& result);
         bool needsWakeLock();
+        void resetWakeLockRefCount();
 
         uid_t getUid() const { return mUid; }
     };
@@ -230,11 +231,28 @@ class SensorService :
     // corresponding applications, if yes the wakelock is released.
     void checkWakeLockState();
     void checkWakeLockStateLocked();
+    bool isWakeLockAcquired();
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
 
     SensorRecord * getSensorRecord(int handle);
 
     sp<Looper> getLooper() const;
+
+    // Reset mWakeLockRefCounts for all SensorEventConnections to zero. This may happen if
+    // SensorService did not receive any acknowledgements from apps which have registered for
+    // wake_up sensors.
+    void resetAllWakeLockRefCounts();
+
+    // Acquire or release wake_lock. If wake_lock is acquired, set the timeout in the looper to
+    // 5 seconds and wake the looper.
+    void setWakeLockAcquiredLocked(bool acquire);
+
+    // Send events from the event cache for this particular connection.
+    void sendEventsFromCache(const sp<SensorEventConnection>& connection);
+
+    // Promote all weak referecences in mActiveConnections vector to strong references and add them
+    // to the output vector.
+    void populateActiveConnections(SortedVector< sp<SensorEventConnection> >* activeConnections);
 
     // constants
     Vector<Sensor> mSensorList;
@@ -247,6 +265,7 @@ class SensorService :
     // supported or not.
     uint32_t mSocketBufferSize;
     sp<Looper> mLooper;
+    sp<SensorEventAckReceiver> mAckReceiver;
 
     // protected by mLock
     mutable Mutex mLock;
