@@ -34,6 +34,7 @@
 #include <ui/GraphicBuffer.h>
 #include <ui/PixelFormat.h>
 
+#include <gui/BufferItem.h>
 #include <gui/Surface.h>
 
 #include "clz.h"
@@ -159,9 +160,24 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& /* hw */,
     }
 }
 
-void Layer::onFrameAvailable(const BufferItem& /* item */) {
+void Layer::onFrameAvailable(const BufferItem& item) {
+    // Add this buffer from our internal queue tracker
+    { // Autolock scope
+        Mutex::Autolock lock(mQueueItemLock);
+        mQueueItems.push_back(item);
+    }
+
     android_atomic_inc(&mQueuedFrames);
     mFlinger->signalLayerUpdate();
+}
+
+void Layer::onFrameReplaced(const BufferItem& item) {
+    Mutex::Autolock lock(mQueueItemLock);
+    if (mQueueItems.empty()) {
+        ALOGE("Can't replace a frame on an empty queue");
+        return;
+    }
+    mQueueItems.editItemAt(0) = item;
 }
 
 void Layer::onSidebandStreamChanged() {
@@ -1014,6 +1030,14 @@ bool Layer::setLayerStack(uint32_t layerStack) {
 // pageflip handling...
 // ----------------------------------------------------------------------------
 
+bool Layer::shouldPresentNow(const DispSync& dispSync) const {
+    Mutex::Autolock lock(mQueueItemLock);
+    nsecs_t expectedPresent =
+            mSurfaceFlingerConsumer->computeExpectedPresent(dispSync);
+    return mQueueItems.empty() ?
+            false : mQueueItems[0].mTimestamp < expectedPresent;
+}
+
 bool Layer::onPreComposition() {
     mRefreshPending = false;
     return mQueuedFrames > 0 || mSidebandStreamChanged;
@@ -1201,6 +1225,12 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             // layer update so we check again at the next opportunity.
             mFlinger->signalLayerUpdate();
             return outDirtyRegion;
+        }
+
+        // Remove this buffer from our internal queue tracker
+        { // Autolock scope
+            Mutex::Autolock lock(mQueueItemLock);
+            mQueueItems.removeAt(0);
         }
 
         // Decrement the queued-frames count.  Signal another event if we
