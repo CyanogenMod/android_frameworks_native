@@ -92,7 +92,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         // be discarded based on them.
 #ifdef QCOM_BSP
         char property[PROPERTY_VALUE_MAX];
-        if (property_get("ro.sf.default_app_buffer", property, NULL) > 0) {
+        if (property_get("sf.default.app_buffer_count", property, NULL) > 0) {
            if (!mCore->mQueue[0].mIsAutoTimestamp && mCore->mDefaultMaxBufferCount < 3) {
               const BufferItem& bufferItem(mCore->mQueue[0]);
               nsecs_t desiredPresent = bufferItem.mTimestamp;
