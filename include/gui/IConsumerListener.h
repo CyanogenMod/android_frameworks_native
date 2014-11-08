@@ -62,7 +62,7 @@ public:
     //
     // This is called without any lock held and can be called concurrently
     // by multiple threads.
-    virtual void onFrameReplaced(const BufferItem& item) {} /* Asynchronous */
+    virtual void onFrameReplaced(const BufferItem& /* item */) {} /* Asynchronous */
 
     // onBuffersReleased is called to notify the buffer consumer that the
     // BufferQueue has released its references to one or more GraphicBuffers
