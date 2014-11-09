@@ -79,8 +79,6 @@ public:
         PRESENTATION_POINTER,
         // Show spots and a spot anchor in place of the mouse pointer.
         PRESENTATION_SPOT,
-        // Show a stylus hovering icon (small circle)
-        PRESENTATION_STYLUS_HOVER,
     };
 
     /* Sets the mode of the pointer controller. */
