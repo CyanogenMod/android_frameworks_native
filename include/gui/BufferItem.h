@@ -60,8 +60,10 @@ class BufferItem : public Flattenable<BufferItem> {
     // mCrop is the current crop rectangle for this buffer slot.
     Rect mCrop;
 
+#ifdef QCOM_BSP
     // mDirtyRect is the dirty rectangle for this buffer slot.
     Rect mDirtyRect;
+#endif
 
     // mTransform is the current transform flags for this buffer slot.
     // refer to NATIVE_WINDOW_TRANSFORM_* in <window.h>

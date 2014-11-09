@@ -101,9 +101,11 @@ public:
      */
     void allocateBuffers();
 
+#ifdef QCOM_BSP
     /* sets dirty rectangle of the buffer that gets queued next for the
      * Surface */
     status_t setDirtyRect(const Rect* dirtyRect);
+#endif
 
 protected:
     virtual ~Surface();
@@ -230,9 +232,11 @@ private:
     // that gets queued. It is set by calling setCrop.
     Rect mCrop;
 
+#ifdef QCOM_BSP
     // mDirtyRect is the dirty rectangle set for the next buffer that gets
     // queued. It is set by calling setDirtyRect.
     Rect mDirtyRect;
+#endif
 
     // mScalingMode is the scaling mode that will be used for the next
     // buffers that get queued. It is set by calling setScalingMode.
