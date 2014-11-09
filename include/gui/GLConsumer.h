@@ -176,8 +176,10 @@ public:
     // getCurrentCrop returns the cropping rectangle of the current buffer.
     Rect getCurrentCrop() const;
 
+#ifdef QCOM_BSP
     // getDirtyRegion returns the dirty rect associated with the current buffer.
     Rect getCurrentDirtyRect() const;
+#endif
 
     // getCurrentTransform returns the transform of the current buffer.
     uint32_t getCurrentTransform() const;
@@ -372,9 +374,11 @@ private:
     // It gets set each time updateTexImage is called.
     Rect mCurrentCrop;
 
+#ifdef QCOM_BSP
     //mCurrentDirtyRect is the dirty rectangle associated with the current
     //buffer.
     Rect mCurrentDirtyRect;
+#endif
 
     // mCurrentTransform is the transform identifier for the current texture. It
     // gets set each time updateTexImage is called.

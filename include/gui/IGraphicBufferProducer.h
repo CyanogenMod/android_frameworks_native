@@ -282,12 +282,14 @@ public:
           scalingMode(scalingMode), transform(transform), stickyTransform(sticky),
           async(async), fence(fence) { }
 
+#ifdef QCOM_BSP
         inline QueueBufferInput(int64_t timestamp, bool isAutoTimestamp,
                 const Rect& crop, const Rect& dirtyRect, int scalingMode, uint32_t transform, bool async,
                 const sp<Fence>& fence, uint32_t sticky = 0)
         : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp), crop(crop),
           dirtyRect(dirtyRect),scalingMode(scalingMode), transform(transform), stickyTransform(sticky),
           async(async), fence(fence) { }
+#endif
 
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
                 Rect* outCrop, int* outScalingMode, uint32_t* outTransform,
@@ -305,6 +307,7 @@ public:
             }
         }
 
+#ifdef QCOM_BSP
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
                 Rect* outCrop, Rect* outDirtyRect, int* outScalingMode, uint32_t* outTransform,
                 bool* outAsync, sp<Fence>* outFence,
@@ -321,7 +324,7 @@ public:
                 *outStickyTransform = stickyTransform;
             }
         }
-
+#endif
 
         // Flattenable protocol
         size_t getFlattenedSize() const;
@@ -333,7 +336,9 @@ public:
         int64_t timestamp;
         int isAutoTimestamp;
         Rect crop;
+#ifdef QCOM_BSP
         Rect dirtyRect;
+#endif
         int scalingMode;
         uint32_t transform;
         uint32_t stickyTransform;

@@ -1115,6 +1115,7 @@ public:
         getLayer()->sidebandStream = stream->handle();
     }
 
+#ifdef QCOM_BSP
     virtual void setDirtyRect(const Rect& dirtyRect) {
         Rect srcCrop;
         srcCrop.left = int(ceilf(getLayer()->sourceCropf.left));
@@ -1129,6 +1130,7 @@ public:
         srcCrop.intersect(dirtyRect, &finalDR);
         getLayer()->dirtyRect = reinterpret_cast<hwc_rect_t const&>(finalDR);
     }
+#endif
 
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
@@ -1293,7 +1295,11 @@ void HWComposer::dump(String8& result) const {
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCropf.left, l.sourceCropf.top, l.sourceCropf.right, l.sourceCropf.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+#ifdef QCOM_BSP
                                         l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
+#else
+                                        0, 0, 0, 0,
+#endif
                                         name.string());
                     } else {
                         result.appendFormat(
@@ -1302,7 +1308,11 @@ void HWComposer::dump(String8& result) const {
                                         intptr_t(l.handle), l.hints, l.flags, l.transform, l.blending, formatStr.string(),
                                         l.sourceCrop.left, l.sourceCrop.top, l.sourceCrop.right, l.sourceCrop.bottom,
                                         l.displayFrame.left, l.displayFrame.top, l.displayFrame.right, l.displayFrame.bottom,
+#ifdef QCOM_BSP
                                         l.dirtyRect.left, l.dirtyRect.top, l.dirtyRect.right, l.dirtyRect.bottom,
+#else
+                                        0, 0, 0, 0,
+#endif
                                         name.string());
                     }
                 }
