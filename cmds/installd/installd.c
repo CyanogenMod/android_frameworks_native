@@ -42,6 +42,11 @@ static int do_dexopt(char **arg, char reply[REPLY_MAX])
     return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], atoi(arg[5]), 0);
 }
 
+static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX])
+{
+    return mark_boot_complete(arg[0] /* instruction set */);
+}
+
 static int do_move_dex(char **arg, char reply[REPLY_MAX])
 {
     return move_dex(arg[0], arg[1], arg[2]); /* src, dst, instruction_set */
@@ -160,6 +165,7 @@ struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
     { "install",              4, do_install },
     { "dexopt",               6, do_dexopt },
+    { "markbootcomplete",     1, do_mark_boot_complete },
     { "movedex",              3, do_move_dex },
     { "rmdex",                2, do_rm_dex },
     { "remove",               2, do_remove },

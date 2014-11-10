@@ -221,6 +221,7 @@ int get_size(const char *pkgname, userid_t userid, const char *apkpath, const ch
 int free_cache(int64_t free_size);
 int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char *instruction_set, bool vm_safe_mode, bool should_relocate);
+int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
