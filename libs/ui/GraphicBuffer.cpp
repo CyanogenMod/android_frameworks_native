@@ -45,31 +45,29 @@ GraphicBuffer::GraphicBuffer()
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId())
 {
-    width  = 
-    height = 
-    stride = 
-    format = 
+    width  =
+    height =
+    stride =
+    format =
     usage  = 0;
     handle = NULL;
 }
 
-GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h, 
-        PixelFormat reqFormat, uint32_t reqUsage)
+GraphicBuffer::GraphicBuffer(int w, int h, PixelFormat reqFormat, int reqUsage)
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId())
 {
-    width  = 
-    height = 
-    stride = 
-    format = 
+    width  =
+    height =
+    stride =
+    format =
     usage  = 0;
     handle = NULL;
     mInitCheck = initSize(w, h, reqFormat, reqUsage);
 }
 
-GraphicBuffer::GraphicBuffer(uint32_t w, uint32_t h,
-        PixelFormat inFormat, uint32_t inUsage,
-        uint32_t inStride, native_handle_t* inHandle, bool keepOwnership)
+GraphicBuffer::GraphicBuffer(int w, int h, PixelFormat inFormat, int inUsage,
+        int inStride, native_handle_t* inHandle, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId())
@@ -131,8 +129,7 @@ ANativeWindowBuffer* GraphicBuffer::getNativeBuffer() const
             const_cast<GraphicBuffer*>(this));
 }
 
-status_t GraphicBuffer::reallocate(uint32_t w, uint32_t h, PixelFormat f,
-        uint32_t reqUsage)
+status_t GraphicBuffer::reallocate(int w, int h, PixelFormat f, int reqUsage)
 {
     if (mOwner != ownData)
         return INVALID_OPERATION;
@@ -171,10 +168,10 @@ status_t GraphicBuffer::lock(uint32_t usage, void** vaddr)
 
 status_t GraphicBuffer::lock(uint32_t usage, const Rect& rect, void** vaddr)
 {
-    if (rect.left < 0 || rect.right  > this->width || 
+    if (rect.left < 0 || rect.right  > this->width ||
         rect.top  < 0 || rect.bottom > this->height) {
         ALOGE("locking pixels (%d,%d,%d,%d) outside of buffer (w=%d, h=%d)",
-                rect.left, rect.top, rect.right, rect.bottom, 
+                rect.left, rect.top, rect.right, rect.bottom,
                 this->width, this->height);
         return BAD_VALUE;
     }
@@ -314,7 +311,7 @@ status_t GraphicBuffer::unflatten(
     if (numFds >= maxNumber || numInts >= (maxNumber - 10)) {
         width = height = stride = format = usage = 0;
         handle = NULL;
-        ALOGE("unflatten: numFds or numInts is too large: %d, %d",
+        ALOGE("unflatten: numFds or numInts is too large: %zd, %zd",
                 numFds, numInts);
         return BAD_VALUE;
     }

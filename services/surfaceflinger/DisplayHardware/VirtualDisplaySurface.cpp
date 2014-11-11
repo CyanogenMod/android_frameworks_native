@@ -254,7 +254,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
     resetPerFrameState();
 }
 
-void VirtualDisplaySurface::dump(String8& /* result */) const {
+void VirtualDisplaySurface::dumpAsString(String8& /* result */) const {
 }
 
 void VirtualDisplaySurface::resizeBuffers(const uint32_t w, const uint32_t h) {

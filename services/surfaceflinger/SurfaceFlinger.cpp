@@ -607,7 +607,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     return NO_ERROR;
 }
 
-status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& display,
+status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& /* display */,
         DisplayStatInfo* stats) {
     if (stats == NULL) {
         return BAD_VALUE;
