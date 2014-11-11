@@ -35,6 +35,7 @@
 #include <cutils/ashmem.h>
 
 #include <private/binder/binder_module.h>
+#include <private/binder/Static.h>
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -48,6 +49,8 @@
 
 #define LOG_REFS(...)
 //#define LOG_REFS(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
+#define LOG_ALLOC(...)
+//#define LOG_ALLOC(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
 
 // ---------------------------------------------------------------------------
 
@@ -291,12 +294,24 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
 
 Parcel::Parcel()
 {
+    LOG_ALLOC("Parcel %p: constructing", this);
     initState();
 }
 
 Parcel::~Parcel()
 {
     freeDataNoInit();
+    LOG_ALLOC("Parcel %p: destroyed", this);
+}
+
+size_t Parcel::getGlobalAllocSize() {
+    AutoMutex _l(gParcelGlobalAllocSizeLock);
+    return gParcelGlobalAllocSize;
+}
+
+size_t Parcel::getGlobalAllocCount() {
+    AutoMutex _l(gParcelGlobalAllocSizeLock);
+    return gParcelGlobalAllocCount;
 }
 
 const uint8_t* Parcel::data() const
@@ -1488,11 +1503,20 @@ void Parcel::freeData()
 void Parcel::freeDataNoInit()
 {
     if (mOwner) {
+        LOG_ALLOC("Parcel %p: freeing other owner data", this);
         //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
     } else {
+        LOG_ALLOC("Parcel %p: freeing allocated data", this);
         releaseObjects();
-        if (mData) free(mData);
+        if (mData) {
+            LOG_ALLOC("Parcel %p: freeing with %zu capacity", this, mDataCapacity);
+            gParcelGlobalAllocSizeLock.lock();
+            gParcelGlobalAllocSize -= mDataCapacity;
+            gParcelGlobalAllocCount--;
+            gParcelGlobalAllocSizeLock.unlock();
+            free(mData);
+        }
         if (mObjects) free(mObjects);
     }
 }
@@ -1521,6 +1545,11 @@ status_t Parcel::restartWrite(size_t desired)
     releaseObjects();
 
     if (data) {
+        LOG_ALLOC("Parcel %p: restart from %zu to %zu capacity", this, mDataCapacity, desired);
+        gParcelGlobalAllocSizeLock.lock();
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocSize -= mDataCapacity;
+        gParcelGlobalAllocSizeLock.unlock();
         mData = data;
         mDataCapacity = desired;
     }
@@ -1600,6 +1629,12 @@ status_t Parcel::continueWrite(size_t desired)
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
         mOwner = NULL;
 
+        LOG_ALLOC("Parcel %p: taking ownership of %zu capacity", this, desired);
+        gParcelGlobalAllocSizeLock.lock();
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocCount++;
+        gParcelGlobalAllocSizeLock.unlock();
+
         mData = data;
         mObjects = objects;
         mDataSize = (mDataSize < desired) ? mDataSize : desired;
@@ -1634,6 +1669,12 @@ status_t Parcel::continueWrite(size_t desired)
         if (desired > mDataCapacity) {
             uint8_t* data = (uint8_t*)realloc(mData, desired);
             if (data) {
+                LOG_ALLOC("Parcel %p: continue from %zu to %zu capacity", this, mDataCapacity,
+                        desired);
+                gParcelGlobalAllocSizeLock.lock();
+                gParcelGlobalAllocSize += desired;
+                gParcelGlobalAllocSize -= mDataCapacity;
+                gParcelGlobalAllocSizeLock.unlock();
                 mData = data;
                 mDataCapacity = desired;
             } else if (desired > mDataCapacity) {
@@ -1664,6 +1705,12 @@ status_t Parcel::continueWrite(size_t desired)
             ALOGE("continueWrite: %zu/%p/%zu/%zu", mDataCapacity, mObjects, mObjectsCapacity, desired);
         }
 
+        LOG_ALLOC("Parcel %p: allocating with %zu capacity", this, desired);
+        gParcelGlobalAllocSizeLock.lock();
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocCount++;
+        gParcelGlobalAllocSizeLock.unlock();
+
         mData = data;
         mDataSize = mDataPos = 0;
         ALOGV("continueWrite Setting data size of %p to %zu", this, mDataSize);
@@ -1676,6 +1723,7 @@ status_t Parcel::continueWrite(size_t desired)
 
 void Parcel::initState()
 {
+    LOG_ALLOC("Parcel %p: initState", this);
     mError = NO_ERROR;
     mData = 0;
     mDataSize = 0;

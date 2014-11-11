@@ -34,7 +34,12 @@ extern Vector<int32_t> gTextBuffers;
 extern Mutex gProcessMutex;
 extern sp<ProcessState> gProcess;
 
-// For ServiceManager.cpp
+// For Parcel.cpp
+extern Mutex gParcelGlobalAllocSizeLock;
+extern size_t gParcelGlobalAllocSize;
+extern size_t gParcelGlobalAllocCount;
+
+// For IServiceManager.cpp
 extern Mutex gDefaultServiceManagerLock;
 extern sp<IServiceManager> gDefaultServiceManager;
 extern sp<IPermissionController> gPermissionController;
