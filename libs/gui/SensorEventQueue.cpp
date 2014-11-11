@@ -157,7 +157,7 @@ void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
         ssize_t size = ::send(mSensorChannel->getFd(), &mNumAcksToSend, sizeof(mNumAcksToSend),
                 MSG_DONTWAIT | MSG_NOSIGNAL);
         if (size < 0) {
-            ALOGE("sendAck failure %d %d", size, mNumAcksToSend);
+            ALOGE("sendAck failure %zd %d", size, mNumAcksToSend);
         } else {
             mNumAcksToSend = 0;
         }

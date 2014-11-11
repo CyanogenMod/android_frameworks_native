@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:= \
+LOCAL_CLANG := true
+LOCAL_CPPFLAGS := -std=c++11
+
+LOCAL_SRC_FILES := \
 	Fence.cpp \
 	FramebufferNativeWindow.cpp \
 	FrameStats.cpp \
@@ -38,7 +41,7 @@ ifneq ($(BOARD_FRAMEBUFFER_FORCE_FORMAT),)
 LOCAL_CFLAGS += -DFRAMEBUFFER_FORCE_FORMAT=$(BOARD_FRAMEBUFFER_FORCE_FORMAT)
 endif
 
-LOCAL_MODULE:= libui
+LOCAL_MODULE := libui
 
 include $(BUILD_SHARED_LIBRARY)
 

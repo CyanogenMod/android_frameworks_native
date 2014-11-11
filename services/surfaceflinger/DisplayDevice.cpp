@@ -517,6 +517,6 @@ void DisplayDevice::dump(String8& result) const {
         tr[0][2], tr[1][2], tr[2][2]);
 
     String8 surfaceDump;
-    mDisplaySurface->dump(surfaceDump);
+    mDisplaySurface->dumpAsString(surfaceDump);
     result.append(surfaceDump);
 }
