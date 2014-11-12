@@ -205,7 +205,11 @@ public:
 
     // Explicitly close all file descriptors in the parcel.
     void                closeFileDescriptors();
-    
+
+    // Debugging: get metrics on current allocations.
+    static size_t       getGlobalAllocSize();
+    static size_t       getGlobalAllocCount();
+
 private:
     typedef void        (*release_func)(Parcel* parcel,
                                         const uint8_t* data, size_t dataSize,
