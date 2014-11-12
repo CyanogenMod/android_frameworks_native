@@ -752,14 +752,14 @@ status_t ScreenshotClient::update(const sp<IBinder>& display,
 
 status_t ScreenshotClient::update(const sp<IBinder>& display, Rect sourceCrop,
         bool useIdentityTransform) {
-    return ScreenshotClient::update(display, sourceCrop, 0, 0, 0, -1UL,
+    return ScreenshotClient::update(display, sourceCrop, 0, 0, 0, -1U,
             useIdentityTransform, ISurfaceComposer::eRotateNone);
 }
 
 status_t ScreenshotClient::update(const sp<IBinder>& display, Rect sourceCrop,
         uint32_t reqWidth, uint32_t reqHeight, bool useIdentityTransform) {
     return ScreenshotClient::update(display, sourceCrop, reqWidth, reqHeight,
-            0, -1UL, useIdentityTransform, ISurfaceComposer::eRotateNone);
+            0, -1U, useIdentityTransform, ISurfaceComposer::eRotateNone);
 }
 
 void ScreenshotClient::release() {

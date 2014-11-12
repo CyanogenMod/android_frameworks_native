@@ -59,12 +59,14 @@ void DdmConnection::start(const char* name) {
     }
 
     jint (*JNI_CreateJavaVM)(JavaVM** p_vm, JNIEnv** p_env, void* vm_args);
-    JNI_CreateJavaVM = (typeof JNI_CreateJavaVM)dlsym(libart_dso, "JNI_CreateJavaVM");
+    JNI_CreateJavaVM = reinterpret_cast<decltype(JNI_CreateJavaVM)>(
+            dlsym(libart_dso, "JNI_CreateJavaVM"));
     ALOGE_IF(!JNI_CreateJavaVM, "DdmConnection: %s", dlerror());
 
     jint (*registerNatives)(JNIEnv* env, jclass clazz);
-    registerNatives = (typeof registerNatives)dlsym(libandroid_runtime_dso,
-        "Java_com_android_internal_util_WithFramework_registerNatives");
+    registerNatives = reinterpret_cast<decltype(registerNatives)>(
+            dlsym(libandroid_runtime_dso,
+                "Java_com_android_internal_util_WithFramework_registerNatives"));
     ALOGE_IF(!registerNatives, "DdmConnection: %s", dlerror());
 
     if (!JNI_CreateJavaVM || !registerNatives) {

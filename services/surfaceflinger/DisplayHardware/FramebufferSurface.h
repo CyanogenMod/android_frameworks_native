@@ -44,10 +44,7 @@ public:
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
-
-    // Implementation of DisplaySurface::dump(). Note that ConsumerBase also
-    // has a non-virtual dump() with the same signature.
-    virtual void dump(String8& result) const;
+    virtual void dumpAsString(String8& result) const;
 
     // Cannot resize a buffers in a FramebufferSurface. Only works with virtual
     // displays.

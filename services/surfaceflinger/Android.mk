@@ -1,10 +1,10 @@
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
-LOCAL_SRC_FILES:= \
+LOCAL_SRC_FILES := \
     Client.cpp \
     DisplayDevice.cpp \
     DispSync.cpp \
@@ -37,7 +37,7 @@ LOCAL_SRC_FILES:= \
     RenderEngine/GLES20RenderEngine.cpp
 
 
-LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
+LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
@@ -90,7 +90,7 @@ else
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden -Werror=format
-LOCAL_CFLAGS += -std=c++11
+LOCAL_CPPFLAGS := -std=c++11
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
@@ -106,7 +106,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libgui \
 	libpowermanager
 
-LOCAL_MODULE:= libsurfaceflinger
+LOCAL_MODULE := libsurfaceflinger
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -114,11 +114,13 @@ include $(BUILD_SHARED_LIBRARY)
 # build surfaceflinger's executable
 include $(CLEAR_VARS)
 
-LOCAL_LDFLAGS := -Wl,--version-script,art/sigchainlib/version-script.txt -Wl,--export-dynamic
-LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
-LOCAL_CPPFLAGS:= -std=c++11
+LOCAL_CLANG := true
 
-LOCAL_SRC_FILES:= \
+LOCAL_LDFLAGS := -Wl,--version-script,art/sigchainlib/version-script.txt -Wl,--export-dynamic
+LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
+LOCAL_CPPFLAGS := -std=c++11
+
+LOCAL_SRC_FILES := \
 	main_surfaceflinger.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -131,7 +133,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libsigchain
 
-LOCAL_MODULE:= surfaceflinger
+LOCAL_MODULE := surfaceflinger
 
 ifdef TARGET_32_BIT_SURFACEFLINGER
 LOCAL_32_BIT_ONLY := true
@@ -143,9 +145,13 @@ include $(BUILD_EXECUTABLE)
 # uses jni which may not be available in PDK
 ifneq ($(wildcard libnativehelper/include),)
 include $(CLEAR_VARS)
-LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 
-LOCAL_SRC_FILES:= \
+LOCAL_CLANG := true
+
+LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
+LOCAL_CPPFLAGS := -std=c++11
+
+LOCAL_SRC_FILES := \
     DdmConnection.cpp
 
 LOCAL_SHARED_LIBRARIES := \
@@ -153,7 +159,7 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libdl
 
-LOCAL_MODULE:= libsurfaceflinger_ddmconnection
+LOCAL_MODULE := libsurfaceflinger_ddmconnection
 
 include $(BUILD_SHARED_LIBRARY)
 endif # libnativehelper
