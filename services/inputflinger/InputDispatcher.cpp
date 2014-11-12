@@ -477,7 +477,6 @@ sp<InputWindowHandle> InputDispatcher::findTouchedWindowAtLocked(int32_t display
         const InputWindowInfo* windowInfo = windowHandle->getInfo();
         if (windowInfo->displayId == displayId) {
             int32_t flags = windowInfo->layoutParamsFlags;
-            int32_t privateFlags = windowInfo->layoutParamsPrivateFlags;
 
             if (windowInfo->visible) {
                 if (!(flags & InputWindowInfo::FLAG_NOT_TOUCHABLE)) {
@@ -488,11 +487,6 @@ sp<InputWindowHandle> InputDispatcher::findTouchedWindowAtLocked(int32_t display
                         return windowHandle;
                     }
                 }
-            }
-
-            if (privateFlags & InputWindowInfo::PRIVATE_FLAG_SYSTEM_ERROR) {
-                // Error window is on top but not visible, so touch is dropped.
-                return NULL;
             }
         }
     }
@@ -1190,7 +1184,6 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
         int32_t y = int32_t(entry->pointerCoords[pointerIndex].
                 getAxisValue(AMOTION_EVENT_AXIS_Y));
         sp<InputWindowHandle> newTouchedWindowHandle;
-        sp<InputWindowHandle> topErrorWindowHandle;
         bool isTouchModal = false;
 
         // Traverse windows from front to back to find touched window and outside targets.
@@ -1200,13 +1193,6 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
             const InputWindowInfo* windowInfo = windowHandle->getInfo();
             if (windowInfo->displayId != displayId) {
                 continue; // wrong display
-            }
-
-            int32_t privateFlags = windowInfo->layoutParamsPrivateFlags;
-            if (privateFlags & InputWindowInfo::PRIVATE_FLAG_SYSTEM_ERROR) {
-                if (topErrorWindowHandle == NULL) {
-                    topErrorWindowHandle = windowHandle;
-                }
             }
 
             int32_t flags = windowInfo->layoutParamsFlags;
@@ -1231,17 +1217,6 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                             windowHandle, outsideTargetFlags, BitSet32(0));
                 }
             }
-        }
-
-        // If there is an error window but it is not taking focus (typically because
-        // it is invisible) then wait for it.  Any other focused window may in
-        // fact be in ANR state.
-        if (topErrorWindowHandle != NULL && newTouchedWindowHandle != topErrorWindowHandle) {
-            injectionResult = handleTargetsNotReadyLocked(currentTime, entry,
-                    NULL, NULL, nextWakeupTime,
-                    "Waiting because a system error window is about to be displayed.");
-            injectionPermission = INJECTION_PERMISSION_UNKNOWN;
-            goto Unresponsive;
         }
 
         // Figure out whether splitting will be allowed for this window.
