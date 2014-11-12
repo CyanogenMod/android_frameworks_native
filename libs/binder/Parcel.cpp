@@ -72,9 +72,6 @@ static size_t pad_size(size_t s) {
 // Note: must be kept in sync with android/os/Parcel.java's EX_HAS_REPLY_HEADER
 #define EX_HAS_REPLY_HEADER -128
 
-// Maximum size of a blob to transfer in-place.
-static const size_t IN_PLACE_BLOB_LIMIT = 40 * 1024;
-
 // XXX This can be made public if we want to provide
 // support for typed data.
 struct small_flat_data
@@ -88,6 +85,15 @@ namespace android {
 static pthread_mutex_t gParcelGlobalAllocSizeLock = PTHREAD_MUTEX_INITIALIZER;
 static size_t gParcelGlobalAllocSize = 0;
 static size_t gParcelGlobalAllocCount = 0;
+
+// Maximum size of a blob to transfer in-place.
+static const size_t BLOB_INPLACE_LIMIT = 16 * 1024;
+
+enum {
+    BLOB_INPLACE = 0,
+    BLOB_ASHMEM_IMMUTABLE = 1,
+    BLOB_ASHMEM_MUTABLE = 2,
+};
 
 void acquire_object(const sp<ProcessState>& proc,
     const flat_binder_object& obj, const void* who)
@@ -516,6 +522,11 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
     return err;
 }
 
+bool Parcel::allowFds() const
+{
+    return mAllowFds;
+}
+
 bool Parcel::pushAllowFds(bool allowFds)
 {
     const bool origValue = mAllowFds;
@@ -886,25 +897,24 @@ status_t Parcel::writeDupFileDescriptor(int fd)
     return err;
 }
 
-status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
+status_t Parcel::writeBlob(size_t len, bool mutableCopy, WritableBlob* outBlob)
 {
-    status_t status;
-
     if (len > INT32_MAX) {
         // don't accept size_t values which may have come from an
         // inadvertent conversion from a negative int.
         return BAD_VALUE;
     }
 
-    if (!mAllowFds || len <= IN_PLACE_BLOB_LIMIT) {
+    status_t status;
+    if (!mAllowFds || len <= BLOB_INPLACE_LIMIT) {
         ALOGV("writeBlob: write in place");
-        status = writeInt32(0);
+        status = writeInt32(BLOB_INPLACE);
         if (status) return status;
 
         void* ptr = writeInplace(len);
         if (!ptr) return NO_MEMORY;
 
-        outBlob->init(false /*mapped*/, ptr, len);
+        outBlob->init(-1, ptr, len, false);
         return NO_ERROR;
     }
 
@@ -922,15 +932,17 @@ status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
         if (ptr == MAP_FAILED) {
             status = -errno;
         } else {
-            result = ashmem_set_prot_region(fd, PROT_READ);
+            if (!mutableCopy) {
+                result = ashmem_set_prot_region(fd, PROT_READ);
+            }
             if (result < 0) {
                 status = result;
             } else {
-                status = writeInt32(1);
+                status = writeInt32(mutableCopy ? BLOB_ASHMEM_MUTABLE : BLOB_ASHMEM_IMMUTABLE);
                 if (!status) {
                     status = writeFileDescriptor(fd, true /*takeOwnership*/);
                     if (!status) {
-                        outBlob->init(true /*mapped*/, ptr, len);
+                        outBlob->init(fd, ptr, len, mutableCopy);
                         return NO_ERROR;
                     }
                 }
@@ -940,6 +952,15 @@ status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
     }
     ::close(fd);
     return status;
+}
+
+status_t Parcel::writeDupImmutableBlobFileDescriptor(int fd)
+{
+    // Must match up with what's done in writeBlob.
+    if (!mAllowFds) return FDS_NOT_ALLOWED;
+    status_t status = writeInt32(BLOB_ASHMEM_IMMUTABLE);
+    if (status) return status;
+    return writeDupFileDescriptor(fd);
 }
 
 status_t Parcel::write(const FlattenableHelperInterface& val)
@@ -1354,27 +1375,29 @@ int Parcel::readFileDescriptor() const
 
 status_t Parcel::readBlob(size_t len, ReadableBlob* outBlob) const
 {
-    int32_t useAshmem;
-    status_t status = readInt32(&useAshmem);
+    int32_t blobType;
+    status_t status = readInt32(&blobType);
     if (status) return status;
 
-    if (!useAshmem) {
+    if (blobType == BLOB_INPLACE) {
         ALOGV("readBlob: read in place");
         const void* ptr = readInplace(len);
         if (!ptr) return BAD_VALUE;
 
-        outBlob->init(false /*mapped*/, const_cast<void*>(ptr), len);
+        outBlob->init(-1, const_cast<void*>(ptr), len, false);
         return NO_ERROR;
     }
 
     ALOGV("readBlob: read from ashmem");
+    bool isMutable = (blobType == BLOB_ASHMEM_MUTABLE);
     int fd = readFileDescriptor();
     if (fd == int(BAD_TYPE)) return BAD_VALUE;
 
-    void* ptr = ::mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+    void* ptr = ::mmap(NULL, len, isMutable ? PROT_READ | PROT_WRITE : PROT_READ,
+            MAP_SHARED, fd, 0);
     if (ptr == MAP_FAILED) return NO_MEMORY;
 
-    outBlob->init(true /*mapped*/, ptr, len);
+    outBlob->init(fd, ptr, len, isMutable);
     return NO_ERROR;
 }
 
@@ -1890,7 +1913,7 @@ size_t Parcel::getBlobAshmemSize() const
 // --- Parcel::Blob ---
 
 Parcel::Blob::Blob() :
-        mMapped(false), mData(NULL), mSize(0) {
+        mFd(-1), mData(NULL), mSize(0), mMutable(false) {
 }
 
 Parcel::Blob::~Blob() {
@@ -1898,22 +1921,24 @@ Parcel::Blob::~Blob() {
 }
 
 void Parcel::Blob::release() {
-    if (mMapped && mData) {
+    if (mFd != -1 && mData) {
         ::munmap(mData, mSize);
     }
     clear();
 }
 
-void Parcel::Blob::init(bool mapped, void* data, size_t size) {
-    mMapped = mapped;
+void Parcel::Blob::init(int fd, void* data, size_t size, bool isMutable) {
+    mFd = fd;
     mData = data;
     mSize = size;
+    mMutable = isMutable;
 }
 
 void Parcel::Blob::clear() {
-    mMapped = false;
+    mFd = -1;
     mData = NULL;
     mSize = 0;
+    mMutable = false;
 }
 
 }; // namespace android
