@@ -388,7 +388,6 @@ void SurfaceFlinger::init() {
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
-    status_t err;
     Mutex::Autolock _l(mStateLock);
 
     // initialize EGL for the default display
@@ -607,7 +606,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     return NO_ERROR;
 }
 
-status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& display,
+status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& /* display */,
         DisplayStatInfo* stats) {
     if (stats == NULL) {
         return BAD_VALUE;
@@ -3096,9 +3095,10 @@ void SurfaceFlinger::renderScreenImplLocked(
     RenderEngine& engine(getRenderEngine());
 
     // get screen geometry
-    const uint32_t hw_w = hw->getWidth();
-    const uint32_t hw_h = hw->getHeight();
-    const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
+    const int32_t hw_w = hw->getWidth();
+    const int32_t hw_h = hw->getHeight();
+    const bool filtering = static_cast<int32_t>(reqWidth) != hw_w ||
+                           static_cast<int32_t>(reqWidth) != hw_h;
 
     // if a default or invalid sourceCrop is passed in, set reasonable values
     if (sourceCrop.width() == 0 || sourceCrop.height() == 0 ||
@@ -3111,13 +3111,13 @@ void SurfaceFlinger::renderScreenImplLocked(
     if (sourceCrop.left < 0) {
         ALOGE("Invalid crop rect: l = %d (< 0)", sourceCrop.left);
     }
-    if (static_cast<uint32_t>(sourceCrop.right) > hw_w) {
+    if (sourceCrop.right > hw_w) {
         ALOGE("Invalid crop rect: r = %d (> %d)", sourceCrop.right, hw_w);
     }
     if (sourceCrop.top < 0) {
         ALOGE("Invalid crop rect: t = %d (< 0)", sourceCrop.top);
     }
-    if (static_cast<uint32_t>(sourceCrop.bottom) > hw_h) {
+    if (sourceCrop.bottom > hw_h) {
         ALOGE("Invalid crop rect: b = %d (> %d)", sourceCrop.bottom, hw_h);
     }
 
