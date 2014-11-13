@@ -63,7 +63,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mTextureName(-1U),
         mPremultipliedAlpha(true),
         mName("unnamed"),
-        mDebug(false),
         mFormat(PIXEL_FORMAT_NONE),
         mTransactionFlags(0),
         mQueuedFrames(0),
@@ -646,7 +645,6 @@ void Layer::clearWithOpenGL(
 
 void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
         const Region& /* clip */, bool useIdentityTransform) const {
-    const uint32_t fbHeight = hw->getHeight();
     const State& s(getDrawingState());
 
     computeGeometry(hw, mMesh, useIdentityTransform);

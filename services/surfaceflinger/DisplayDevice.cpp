@@ -44,6 +44,18 @@
 using namespace android;
 // ----------------------------------------------------------------------------
 
+#ifdef EGL_ANDROID_swap_rectangle
+static constexpr bool kEGLAndroidSwapRectangle = true;
+#else
+static constexpr bool kEGLAndroidSwapRectangle = false;
+#endif
+
+#if !defined(EGL_EGLEXT_PROTOTYPES) || !defined(EGL_ANDROID_swap_rectangle)
+// Dummy implementation in case it is missing.
+inline void eglSetSwapRectangleANDROID (EGLDisplay, EGLSurface, EGLint, EGLint, EGLint, EGLint) {
+}
+#endif
+
 /*
  * Initialize the display to the specified values.
  *
@@ -84,7 +96,6 @@ DisplayDevice::DisplayDevice(
      */
 
     EGLSurface surface;
-    EGLint w, h;
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (config == EGL_NO_CONFIG) {
         config = RenderEngine::chooseEglConfig(display, format);
@@ -188,19 +199,14 @@ void DisplayDevice::flip(const Region& dirty) const
 {
     mFlinger->getRenderEngine().checkErrors();
 
-    EGLDisplay dpy = mDisplay;
-    EGLSurface surface = mSurface;
-
-#ifdef EGL_ANDROID_swap_rectangle
-    if (mFlags & SWAP_RECTANGLE) {
-        const Region newDirty(dirty.intersect(bounds()));
-        const Rect b(newDirty.getBounds());
-        eglSetSwapRectangleANDROID(dpy, surface,
-                b.left, b.top, b.width(), b.height());
+    if (kEGLAndroidSwapRectangle) {
+        if (mFlags & SWAP_RECTANGLE) {
+            const Region newDirty(dirty.intersect(bounds()));
+            const Rect b(newDirty.getBounds());
+            eglSetSwapRectangleANDROID(mDisplay, mSurface,
+                    b.left, b.top, b.width(), b.height());
+        }
     }
-#else
-    (void) dirty; // Eliminate unused parameter warning
-#endif
 
     mPageFlipCount++;
 }

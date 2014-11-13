@@ -360,7 +360,6 @@ private:
     uint32_t mTextureName;      // from GLES
     bool mPremultipliedAlpha;
     String8 mName;
-    mutable bool mDebug;
     PixelFormat mFormat;
 
     // these are protected by an external lock

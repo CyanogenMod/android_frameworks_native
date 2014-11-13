@@ -86,6 +86,7 @@ public:
     virtual status_t compositionComplete();
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
+    using BBinder::dump;
     virtual void dump(String8& result) const;
     virtual void resizeBuffers(const uint32_t w, const uint32_t h);
 
