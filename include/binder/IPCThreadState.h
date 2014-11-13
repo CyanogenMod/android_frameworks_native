@@ -22,7 +22,7 @@
 #include <binder/ProcessState.h>
 #include <utils/Vector.h>
 
-#ifdef HAVE_WIN32_PROC
+#if defined(_WIN32)
 typedef  int  uid_t;
 #endif
 
