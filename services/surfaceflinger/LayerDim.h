@@ -36,6 +36,7 @@ public:
     virtual const char* getTypeId() const { return "LayerDim"; }
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
             bool useIdentityTransform) const;
+    using Layer::isOpaque;
     virtual bool isOpaque() const         { return false; }
     virtual bool isSecure() const         { return false; }
     virtual bool isFixedSize() const      { return true; }

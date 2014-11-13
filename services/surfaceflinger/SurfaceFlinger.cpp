@@ -388,7 +388,6 @@ void SurfaceFlinger::init() {
     ALOGI(  "SurfaceFlinger's main thread ready to run. "
             "Initializing graphics H/W...");
 
-    status_t err;
     Mutex::Autolock _l(mStateLock);
 
     // initialize EGL for the default display
@@ -604,7 +603,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
     return NO_ERROR;
 }
 
-status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& display,
+status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& /* display */,
         DisplayStatInfo* stats) {
     if (stats == NULL) {
         return BAD_VALUE;
@@ -653,7 +652,7 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
         virtual bool handler() {
             Vector<DisplayInfo> configs;
             mFlinger.getDisplayConfigs(mDisplay, &configs);
-            if(mMode < 0 || mMode >= configs.size()) {
+            if(mMode < 0 || static_cast<size_t>(mMode) >= configs.size()) {
                 ALOGE("Attempt to set active config = %d for display with %zu configs",
                         mMode, configs.size());
             }
@@ -3078,9 +3077,10 @@ void SurfaceFlinger::renderScreenImplLocked(
     RenderEngine& engine(getRenderEngine());
 
     // get screen geometry
-    const uint32_t hw_w = hw->getWidth();
-    const uint32_t hw_h = hw->getHeight();
-    const bool filtering = reqWidth != hw_w || reqWidth != hw_h;
+    const int32_t hw_w = hw->getWidth();
+    const int32_t hw_h = hw->getHeight();
+    const bool filtering = static_cast<int32_t>(reqWidth) != hw_w ||
+                           static_cast<int32_t>(reqWidth) != hw_h;
 
     // if a default or invalid sourceCrop is passed in, set reasonable values
     if (sourceCrop.width() == 0 || sourceCrop.height() == 0 ||
