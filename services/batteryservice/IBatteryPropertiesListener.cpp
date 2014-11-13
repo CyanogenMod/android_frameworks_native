@@ -35,7 +35,7 @@ public:
         data.writeInterfaceToken(IBatteryPropertiesListener::getInterfaceDescriptor());
         data.writeInt32(1);
         props.writeToParcel(&data);
-        status_t err = remote()->transact(TRANSACT_BATTERYPROPERTIESCHANGED, data, &reply, IBinder::FLAG_ONEWAY);
+        remote()->transact(TRANSACT_BATTERYPROPERTIESCHANGED, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
 
