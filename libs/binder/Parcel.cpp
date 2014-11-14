@@ -75,6 +75,10 @@ struct small_flat_data
 
 namespace android {
 
+static pthread_mutex_t gParcelGlobalAllocSizeLock = PTHREAD_MUTEX_INITIALIZER;
+static size_t gParcelGlobalAllocSize = 0;
+static size_t gParcelGlobalAllocCount = 0;
+
 void acquire_object(const sp<ProcessState>& proc,
     const flat_binder_object& obj, const void* who)
 {
@@ -305,13 +309,17 @@ Parcel::~Parcel()
 }
 
 size_t Parcel::getGlobalAllocSize() {
-    AutoMutex _l(gParcelGlobalAllocSizeLock);
-    return gParcelGlobalAllocSize;
+    pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+    size_t size = gParcelGlobalAllocSize;
+    pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+    return size;
 }
 
 size_t Parcel::getGlobalAllocCount() {
-    AutoMutex _l(gParcelGlobalAllocSizeLock);
-    return gParcelGlobalAllocCount;
+    pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+    size_t count = gParcelGlobalAllocCount;
+    pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+    return count;
 }
 
 const uint8_t* Parcel::data() const
@@ -1511,10 +1519,10 @@ void Parcel::freeDataNoInit()
         releaseObjects();
         if (mData) {
             LOG_ALLOC("Parcel %p: freeing with %zu capacity", this, mDataCapacity);
-            gParcelGlobalAllocSizeLock.lock();
+            pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
             gParcelGlobalAllocSize -= mDataCapacity;
             gParcelGlobalAllocCount--;
-            gParcelGlobalAllocSizeLock.unlock();
+            pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
             free(mData);
         }
         if (mObjects) free(mObjects);
@@ -1546,10 +1554,10 @@ status_t Parcel::restartWrite(size_t desired)
 
     if (data) {
         LOG_ALLOC("Parcel %p: restart from %zu to %zu capacity", this, mDataCapacity, desired);
-        gParcelGlobalAllocSizeLock.lock();
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
         gParcelGlobalAllocSize += desired;
         gParcelGlobalAllocSize -= mDataCapacity;
-        gParcelGlobalAllocSizeLock.unlock();
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
         mData = data;
         mDataCapacity = desired;
     }
@@ -1630,10 +1638,10 @@ status_t Parcel::continueWrite(size_t desired)
         mOwner = NULL;
 
         LOG_ALLOC("Parcel %p: taking ownership of %zu capacity", this, desired);
-        gParcelGlobalAllocSizeLock.lock();
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
         gParcelGlobalAllocSize += desired;
         gParcelGlobalAllocCount++;
-        gParcelGlobalAllocSizeLock.unlock();
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
 
         mData = data;
         mObjects = objects;
@@ -1671,10 +1679,10 @@ status_t Parcel::continueWrite(size_t desired)
             if (data) {
                 LOG_ALLOC("Parcel %p: continue from %zu to %zu capacity", this, mDataCapacity,
                         desired);
-                gParcelGlobalAllocSizeLock.lock();
+                pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
                 gParcelGlobalAllocSize += desired;
                 gParcelGlobalAllocSize -= mDataCapacity;
-                gParcelGlobalAllocSizeLock.unlock();
+                pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
                 mData = data;
                 mDataCapacity = desired;
             } else if (desired > mDataCapacity) {
@@ -1706,10 +1714,10 @@ status_t Parcel::continueWrite(size_t desired)
         }
 
         LOG_ALLOC("Parcel %p: allocating with %zu capacity", this, desired);
-        gParcelGlobalAllocSizeLock.lock();
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
         gParcelGlobalAllocSize += desired;
         gParcelGlobalAllocCount++;
-        gParcelGlobalAllocSizeLock.unlock();
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
 
         mData = data;
         mDataSize = mDataPos = 0;

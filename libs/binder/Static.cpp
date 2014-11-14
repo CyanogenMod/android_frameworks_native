@@ -90,12 +90,6 @@ public:
 
 static LibBinderIPCtStatics gIPCStatics;
 
-// ------------ Parcel.cpp
-
-Mutex gParcelGlobalAllocSizeLock;
-size_t gParcelGlobalAllocSize = 0;
-size_t gParcelGlobalAllocCount = 0;
-
 // ------------ IServiceManager.cpp
 
 Mutex gDefaultServiceManagerLock;
