@@ -283,7 +283,6 @@ status_t RenderEngine::BindImageAsFramebuffer::getStatus() const {
 
 static status_t selectConfigForAttribute(EGLDisplay dpy, EGLint const* attrs,
         EGLint attribute, EGLint wanted, EGLConfig* outConfig) {
-    EGLConfig config = NULL;
     EGLint numConfigs = -1, n = 0;
     eglGetConfigs(dpy, NULL, 0, &numConfigs);
     EGLConfig* const configs = new EGLConfig[numConfigs];

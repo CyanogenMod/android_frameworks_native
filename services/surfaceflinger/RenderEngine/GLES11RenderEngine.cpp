@@ -43,12 +43,6 @@ GLES11RenderEngine::GLES11RenderEngine() {
     glDisable(GL_DITHER);
     glDisable(GL_CULL_FACE);
 
-    struct pack565 {
-        inline uint16_t operator() (int r, int g, int b) const {
-            return (r<<11)|(g<<5)|b;
-        }
-    } pack565;
-
     const uint16_t protTexData[] = { 0 };
     glGenTextures(1, &mProtectedTexName);
     glBindTexture(GL_TEXTURE_2D, mProtectedTexName);
