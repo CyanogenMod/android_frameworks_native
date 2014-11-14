@@ -749,6 +749,12 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     bool have_dex2oat_isa_features = property_get(dex2oat_isa_features_key,
                                                   dex2oat_isa_features, NULL) > 0;
 
+    char dex2oat_isa_variant_key[PROPERTY_KEY_MAX];
+    sprintf(dex2oat_isa_variant_key, "dalvik.vm.isa.%s.variant", instruction_set);
+    char dex2oat_isa_variant[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_isa_variant = property_get(dex2oat_isa_variant_key,
+                                                 dex2oat_isa_variant, NULL) > 0;
+
     char dex2oat_flags[PROPERTY_VALUE_MAX];
     int dex2oat_flags_count = property_get("dalvik.vm.dex2oat-flags",
                                  dex2oat_flags, NULL) <= 0 ? 0 : split_count(dex2oat_flags);
@@ -772,6 +778,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
     char oat_location_arg[strlen("--oat-location=") + PKG_PATH_MAX];
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
+    char instruction_set_variant_arg[strlen("--instruction-set-variant=") + PROPERTY_VALUE_MAX];
     char instruction_set_features_arg[strlen("--instruction-set-features=") + PROPERTY_VALUE_MAX];
     char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
     char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
@@ -784,6 +791,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
     sprintf(oat_location_arg, "--oat-location=%s", output_file_name);
     sprintf(instruction_set_arg, "--instruction-set=%s", instruction_set);
+    sprintf(instruction_set_variant_arg, "--instruction-set-variant=%s", dex2oat_isa_variant);
     sprintf(instruction_set_features_arg, "--instruction-set-features=%s", dex2oat_isa_features);
 
     bool have_profile_file = false;
@@ -823,6 +831,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
     char* argv[7  // program name, mandatory arguments and the final NULL
+               + (have_dex2oat_isa_variant ? 1 : 0)
                + (have_dex2oat_isa_features ? 1 : 0)
                + (have_profile_file ? 1 : 0)
                + (have_top_k_profile_threshold ? 1 : 0)
@@ -837,6 +846,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     argv[i++] = oat_fd_arg;
     argv[i++] = oat_location_arg;
     argv[i++] = instruction_set_arg;
+    if (have_dex2oat_isa_variant) {
+        argv[i++] = instruction_set_variant_arg;
+    }
     if (have_dex2oat_isa_features) {
         argv[i++] = instruction_set_features_arg;
     }
