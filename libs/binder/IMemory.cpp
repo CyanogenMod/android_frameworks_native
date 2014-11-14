@@ -216,7 +216,7 @@ status_t BnMemory::onTransact(
             CHECK_INTERFACE(IMemory, data, reply);
             ssize_t offset;
             size_t size;
-            reply->writeStrongBinder( getMemory(&offset, &size)->asBinder() );
+            reply->writeStrongBinder( IInterface::asBinder(getMemory(&offset, &size)) );
             reply->writeInt32(offset);
             reply->writeInt32(size);
             return NO_ERROR;
@@ -241,7 +241,7 @@ BpMemoryHeap::~BpMemoryHeap() {
         if (mRealHeap) {
             // by construction we're the last one
             if (mBase != MAP_FAILED) {
-                sp<IBinder> binder = const_cast<BpMemoryHeap*>(this)->asBinder();
+                sp<IBinder> binder = IInterface::asBinder(this);
 
                 if (VERBOSE) {
                     ALOGD("UNMAPPING binder=%p, heap=%p, size=%zu, fd=%d",
@@ -253,7 +253,7 @@ BpMemoryHeap::~BpMemoryHeap() {
             }
         } else {
             // remove from list only if it was mapped before
-            sp<IBinder> binder = const_cast<BpMemoryHeap*>(this)->asBinder();
+            sp<IBinder> binder = IInterface::asBinder(this);
             free_heap(binder);
         }
     }
@@ -262,7 +262,7 @@ BpMemoryHeap::~BpMemoryHeap() {
 void BpMemoryHeap::assertMapped() const
 {
     if (mHeapId == -1) {
-        sp<IBinder> binder(const_cast<BpMemoryHeap*>(this)->asBinder());
+        sp<IBinder> binder(IInterface::asBinder(const_cast<BpMemoryHeap*>(this)));
         sp<BpMemoryHeap> heap(static_cast<BpMemoryHeap*>(find_heap(binder).get()));
         heap->assertReallyMapped();
         if (heap->mBase != MAP_FAILED) {
@@ -297,7 +297,8 @@ void BpMemoryHeap::assertReallyMapped() const
         uint32_t offset = reply.readInt32();
 
         ALOGE_IF(err, "binder=%p transaction failed fd=%d, size=%zd, err=%d (%s)",
-                asBinder().get(), parcel_fd, size, err, strerror(-err));
+                IInterface::asBinder(this).get(),
+                parcel_fd, size, err, strerror(-err));
 
         int fd = dup( parcel_fd );
         ALOGE_IF(fd==-1, "cannot dup fd=%d, size=%zd, err=%d (%s)",
@@ -314,7 +315,7 @@ void BpMemoryHeap::assertReallyMapped() const
             mBase = mmap(0, size, access, MAP_SHARED, fd, offset);
             if (mBase == MAP_FAILED) {
                 ALOGE("cannot map BpMemoryHeap (binder=%p), size=%zd, fd=%d (%s)",
-                        asBinder().get(), size, fd, strerror(errno));
+                        IInterface::asBinder(this).get(), size, fd, strerror(errno));
                 close(fd);
             } else {
                 mSize = size;

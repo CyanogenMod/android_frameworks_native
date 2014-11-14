@@ -34,14 +34,14 @@ public:
         void registerListener(const sp<IBatteryPropertiesListener>& listener) {
             Parcel data;
             data.writeInterfaceToken(IBatteryPropertiesRegistrar::getInterfaceDescriptor());
-            data.writeStrongBinder(listener->asBinder());
+            data.writeStrongBinder(IInterface::asBinder(listener));
             remote()->transact(REGISTER_LISTENER, data, NULL);
         }
 
         void unregisterListener(const sp<IBatteryPropertiesListener>& listener) {
             Parcel data;
             data.writeInterfaceToken(IBatteryPropertiesRegistrar::getInterfaceDescriptor());
-            data.writeStrongBinder(listener->asBinder());
+            data.writeStrongBinder(IInterface::asBinder(listener));
             remote()->transact(UNREGISTER_LISTENER, data, NULL);
         }
 
