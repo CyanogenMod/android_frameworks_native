@@ -211,7 +211,7 @@ public:
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         if (listener != NULL) {
             data.writeInt32(1);
-            data.writeStrongBinder(listener->asBinder());
+            data.writeStrongBinder(IInterface::asBinder(listener));
         } else {
             data.writeInt32(0);
         }

@@ -91,7 +91,7 @@ status_t BnSensorServer::onTransact(
         case CREATE_SENSOR_EVENT_CONNECTION: {
             CHECK_INTERFACE(ISensorServer, data, reply);
             sp<ISensorEventConnection> connection(createSensorEventConnection());
-            reply->writeStrongBinder(connection->asBinder());
+            reply->writeStrongBinder(IInterface::asBinder(connection));
             return NO_ERROR;
         } break;
     }
