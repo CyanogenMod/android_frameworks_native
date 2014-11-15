@@ -26,7 +26,9 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 GraphicBufferAlloc::GraphicBufferAlloc() {
+#ifdef QCOM_BSP
     mBufferSize = 0;
+#endif
 }
 
 GraphicBufferAlloc::~GraphicBufferAlloc() {
@@ -34,8 +36,12 @@ GraphicBufferAlloc::~GraphicBufferAlloc() {
 
 sp<GraphicBuffer> GraphicBufferAlloc::createGraphicBuffer(uint32_t w, uint32_t h,
         PixelFormat format, uint32_t usage, status_t* error) {
+#ifdef QCOM_BSP
     sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format,
                                                       usage, mBufferSize));
+#else
+    sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format, usage));
+#endif
     status_t err = graphicBuffer->initCheck();
     *error = err;
     if (err != 0 || graphicBuffer->handle == 0) {
@@ -50,9 +56,11 @@ sp<GraphicBuffer> GraphicBufferAlloc::createGraphicBuffer(uint32_t w, uint32_t h
     return graphicBuffer;
 }
 
+#ifdef QCOM_BSP
 void GraphicBufferAlloc::setGraphicBufferSize(int size) {
     mBufferSize = size;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 }; // namespace android
