@@ -914,12 +914,14 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
     return NO_ERROR;
 }
 
+#ifdef QCOM_BSP
 status_t BufferQueueProducer::setBuffersSize(int size) {
     BQ_LOGV("setBuffersSize: size=%d", size);
     Mutex::Autolock _l(mCore->mMutex);
     mCore->mAllocator->setGraphicBufferSize(size);
     return NO_ERROR;
 }
+#endif
 
 void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
         uint32_t height, uint32_t format, uint32_t usage) {

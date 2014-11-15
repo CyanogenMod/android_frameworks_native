@@ -67,9 +67,11 @@ public:
                 usage, error);
         return buffer;
     }
+#ifdef QCOM_BSP
     virtual void setGraphicBufferSize(int size) {
 
     }
+#endif
     int getAllocCount() const { return mAllocCount; }
 
 private:
