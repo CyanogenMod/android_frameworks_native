@@ -80,7 +80,7 @@ status_t StreamSplitter::addOutput(
 
     IGraphicBufferProducer::QueueBufferOutput queueBufferOutput;
     sp<OutputListener> listener(new OutputListener(this, outputQueue));
-    outputQueue->asBinder()->linkToDeath(listener);
+    IInterface::asBinder(outputQueue)->linkToDeath(listener);
     status_t status = outputQueue->connect(listener, NATIVE_WINDOW_API_CPU,
             /* producerControlledByApp */ false, &queueBufferOutput);
     if (status != NO_ERROR) {

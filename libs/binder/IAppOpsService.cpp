@@ -91,14 +91,14 @@ public:
         data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
         data.writeInt32(op);
         data.writeString16(packageName);
-        data.writeStrongBinder(callback->asBinder());
+        data.writeStrongBinder(IInterface::asBinder(callback));
         remote()->transact(START_WATCHING_MODE_TRANSACTION, data, &reply);
     }
 
     virtual void stopWatchingMode(const sp<IAppOpsCallback>& callback) {
         Parcel data, reply;
         data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
-        data.writeStrongBinder(callback->asBinder());
+        data.writeStrongBinder(IInterface::asBinder(callback));
         remote()->transact(STOP_WATCHING_MODE_TRANSACTION, data, &reply);
     }
 

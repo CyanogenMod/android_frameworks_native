@@ -807,8 +807,8 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
             // Set up a death notification so that we can disconnect
             // automatically if the remote producer dies
             if (listener != NULL &&
-                    listener->asBinder()->remoteBinder() != NULL) {
-                status = listener->asBinder()->linkToDeath(
+                    IInterface::asBinder(listener)->remoteBinder() != NULL) {
+                status = IInterface::asBinder(listener)->linkToDeath(
                         static_cast<IBinder::DeathRecipient*>(this));
                 if (status != NO_ERROR) {
                     BQ_LOGE("connect(P): linkToDeath failed: %s (%d)",
@@ -857,7 +857,7 @@ status_t BufferQueueProducer::disconnect(int api) {
                     // Remove our death notification callback if we have one
                     if (mCore->mConnectedProducerListener != NULL) {
                         sp<IBinder> token =
-                                mCore->mConnectedProducerListener->asBinder();
+                                IInterface::asBinder(mCore->mConnectedProducerListener);
                         // This can fail if we're here because of the death
                         // notification, but we just ignore it
                         token->unlinkToDeath(

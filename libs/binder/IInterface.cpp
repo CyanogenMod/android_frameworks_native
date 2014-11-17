@@ -27,14 +27,18 @@ IInterface::IInterface()
 IInterface::~IInterface() {
 }
 
-sp<IBinder> IInterface::asBinder()
+// static
+sp<IBinder> IInterface::asBinder(const IInterface* iface)
 {
-    return onAsBinder();
+    if (iface == NULL) return NULL;
+    return const_cast<IInterface*>(iface)->onAsBinder();
 }
 
-sp<const IBinder> IInterface::asBinder() const
+// static
+sp<IBinder> IInterface::asBinder(const sp<IInterface>& iface)
 {
-    return const_cast<IInterface*>(this)->onAsBinder();
+    if (iface == NULL) return NULL;
+    return iface->onAsBinder();
 }
 
 // ---------------------------------------------------------------------------

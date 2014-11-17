@@ -113,7 +113,7 @@ public:
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         data.writeStrongBinder(display);
-        data.writeStrongBinder(producer->asBinder());
+        data.writeStrongBinder(IInterface::asBinder(producer));
         data.write(sourceCrop);
         data.writeInt32(reqWidth);
         data.writeInt32(reqHeight);
@@ -137,7 +137,7 @@ public:
                     "interface descriptor: %s (%d)", strerror(-err), -err);
             return false;
         }
-        err = data.writeStrongBinder(bufferProducer->asBinder());
+        err = data.writeStrongBinder(IInterface::asBinder(bufferProducer));
         if (err != NO_ERROR) {
             ALOGE("ISurfaceComposer::authenticateSurfaceTexture: error writing "
                     "strong binder to parcel: %s (%d)", strerror(-err), -err);
@@ -299,13 +299,13 @@ status_t BnSurfaceComposer::onTransact(
     switch(code) {
         case CREATE_CONNECTION: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> b = createConnection()->asBinder();
+            sp<IBinder> b = IInterface::asBinder(createConnection());
             reply->writeStrongBinder(b);
             return NO_ERROR;
         }
         case CREATE_GRAPHIC_BUFFER_ALLOC: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-            sp<IBinder> b = createGraphicBufferAlloc()->asBinder();
+            sp<IBinder> b = IInterface::asBinder(createGraphicBufferAlloc());
             reply->writeStrongBinder(b);
             return NO_ERROR;
         }
@@ -378,7 +378,7 @@ status_t BnSurfaceComposer::onTransact(
         case CREATE_DISPLAY_EVENT_CONNECTION: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
             sp<IDisplayEventConnection> connection(createDisplayEventConnection());
-            reply->writeStrongBinder(connection->asBinder());
+            reply->writeStrongBinder(IInterface::asBinder(connection));
             return NO_ERROR;
         }
         case CREATE_DISPLAY: {
