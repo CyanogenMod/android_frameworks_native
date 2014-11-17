@@ -15,5 +15,5 @@
 -->
 
 <permissions>
-    <feature name="android.software.voice_recognizers" />
+    <feature name="android.software.voice_recognizers" notLowRam="true" />
 </permissions>
