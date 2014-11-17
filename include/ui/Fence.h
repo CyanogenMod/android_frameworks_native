@@ -65,7 +65,7 @@ public:
     // before the fence signals then -ETIME is returned.  A timeout of
     // TIMEOUT_NEVER may be used to indicate that the call should wait
     // indefinitely for the fence to signal.
-    status_t wait(unsigned int timeout);
+    status_t wait(int timeout);
 
     // waitForever is a convenience function for waiting forever for a fence to
     // signal (just like wait(TIMEOUT_NEVER)), but issuing an error to the

@@ -55,11 +55,11 @@ public:
 
             // the region becomes its bounds
             Region&     makeBoundsSelf();
-    
+
             void        clear();
             void        set(const Rect& r);
-            void        set(uint32_t w, uint32_t h);
-        
+            void        set(int32_t w, int32_t h);
+
             Region&     orSelf(const Rect& rhs);
             Region&     xorSelf(const Rect& rhs);
             Region&     andSelf(const Rect& rhs);
@@ -110,14 +110,14 @@ public:
     inline  Region&     operator -= (const Region& rhs);
     inline  Region&     operator += (const Point& pt);
 
-    
+
     // returns true if the regions share the same underlying storage
     bool isTriviallyEqual(const Region& region) const;
 
 
     /* various ways to access the rectangle list */
 
-    
+
     // STL-like iterators
     typedef Rect const* const_iterator;
     const_iterator begin() const;
@@ -133,7 +133,7 @@ public:
     SharedBuffer const* getSharedBuffer(size_t* count) const;
 
     /* no user serviceable parts here... */
-            
+
             // add a rectangle to the internal list. This rectangle must
             // be sorted in Y and X and must not make the region invalid.
             void        addRectUnchecked(int l, int t, int r, int b);
@@ -149,7 +149,7 @@ public:
 private:
     class rasterizer;
     friend class rasterizer;
-    
+
     Region& operationSelf(const Rect& r, int op);
     Region& operationSelf(const Region& r, int op);
     Region& operationSelf(const Region& r, int dx, int dy, int op);
@@ -172,7 +172,7 @@ private:
 
     static bool validate(const Region& reg,
             const char* name, bool silent = false);
-    
+
     // mStorage is a (manually) sorted array of Rects describing the region
     // with an extra Rect as the last element which is set to the
     // bounds of the region. However, if the region is

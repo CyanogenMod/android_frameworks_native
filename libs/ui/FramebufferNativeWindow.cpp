@@ -1,17 +1,17 @@
-/* 
+/*
 **
 ** Copyright 2007 The Android Open Source Project
 **
-** Licensed under the Apache License Version 2.0(the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License Version 2.0(the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-** Unless required by applicable law or agreed to in writing software 
-** distributed under the License is distributed on an "AS IS" BASIS 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND either express or implied. 
-** See the License for the specific language governing permissions and 
+** Unless required by applicable law or agreed to in writing software
+** distributed under the License is distributed on an "AS IS" BASIS
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
@@ -43,11 +43,11 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-class NativeBuffer 
+class NativeBuffer final
     : public ANativeObjectBase<
-        ANativeWindowBuffer, 
-        NativeBuffer, 
-        LightRefBase<NativeBuffer> >
+        ANativeWindowBuffer,
+        NativeBuffer,
+        LightRefBase<NativeBuffer>>
 {
 public:
     NativeBuffer(int w, int h, int f, int u) : BASE() {
@@ -57,24 +57,23 @@ public:
         ANativeWindowBuffer::usage  = u;
     }
 private:
-    friend class LightRefBase<NativeBuffer>;    
-    ~NativeBuffer() { }; // this class cannot be overloaded
+    friend class LightRefBase<NativeBuffer>;
 };
 
 
 /*
  * This implements the (main) framebuffer management. This class is used
  * mostly by SurfaceFlinger, but also by command line GL application.
- * 
+ *
  * In fact this is an implementation of ANativeWindow on top of
  * the framebuffer.
- * 
- * Currently it is pretty simple, it manages only two buffers (the front and 
+ *
+ * Currently it is pretty simple, it manages only two buffers (the front and
  * back buffer).
- * 
+ *
  */
 
-FramebufferNativeWindow::FramebufferNativeWindow() 
+FramebufferNativeWindow::FramebufferNativeWindow()
     : BASE(), fbDev(0), grDev(0), mUpdateOnDemand(false)
 {
     hw_module_t const* module;
@@ -84,16 +83,16 @@ FramebufferNativeWindow::FramebufferNativeWindow()
         int i;
         err = framebuffer_open(module, &fbDev);
         ALOGE_IF(err, "couldn't open framebuffer HAL (%s)", strerror(-err));
-        
+
         err = gralloc_open(module, &grDev);
         ALOGE_IF(err, "couldn't open gralloc HAL (%s)", strerror(-err));
 
         // bail out if we can't initialize the modules
         if (!fbDev || !grDev)
             return;
-        
+
         mUpdateOnDemand = (fbDev->setUpdateRect != 0);
-        
+
         // initialize the buffer FIFO
         if(fbDev->numFramebuffers >= MIN_NUM_FRAME_BUFFERS &&
            fbDev->numFramebuffers <= MAX_NUM_FRAME_BUFFERS){
@@ -116,36 +115,37 @@ FramebufferNativeWindow::FramebufferNativeWindow()
         *((uint32_t *)&fbDev->format) = FRAMEBUFFER_FORCE_FORMAT;
 #endif
 
-        for (i = 0; i < mNumBuffers; i++)
-        {
-                buffers[i] = new NativeBuffer(
-                        fbDev->width, fbDev->height, fbDev->format, GRALLOC_USAGE_HW_FB);
+        for (i = 0; i < mNumBuffers; i++) {
+            buffers[i] = new NativeBuffer(
+                    static_cast<int>(fbDev->width),
+                    static_cast<int>(fbDev->height),
+                    fbDev->format, GRALLOC_USAGE_HW_FB);
         }
 
-        for (i = 0; i < mNumBuffers; i++)
-        {
-                err = grDev->alloc(grDev,
-                        fbDev->width, fbDev->height, fbDev->format,
-                        GRALLOC_USAGE_HW_FB, &buffers[i]->handle, &buffers[i]->stride);
+        for (i = 0; i < mNumBuffers; i++) {
+            err = grDev->alloc(grDev,
+                    static_cast<int>(fbDev->width),
+                    static_cast<int>(fbDev->height),
+                    fbDev->format, GRALLOC_USAGE_HW_FB,
+                    &buffers[i]->handle, &buffers[i]->stride);
 
-                ALOGE_IF(err, "fb buffer %d allocation failed w=%d, h=%d, err=%s",
-                        i, fbDev->width, fbDev->height, strerror(-err));
+            ALOGE_IF(err, "fb buffer %d allocation failed w=%d, h=%d, err=%s",
+                    i, fbDev->width, fbDev->height, strerror(-err));
 
-                if (err)
-                {
-                        mNumBuffers = i;
-                        mNumFreeBuffers = i;
-                        mBufferHead = mNumBuffers-1;
-                        break;
-                }
+            if (err) {
+                mNumBuffers = i;
+                mNumFreeBuffers = i;
+                mBufferHead = mNumBuffers-1;
+                break;
+            }
         }
 
-        const_cast<uint32_t&>(ANativeWindow::flags) = fbDev->flags; 
+        const_cast<uint32_t&>(ANativeWindow::flags) = fbDev->flags;
         const_cast<float&>(ANativeWindow::xdpi) = fbDev->xdpi;
         const_cast<float&>(ANativeWindow::ydpi) = fbDev->ydpi;
-        const_cast<int&>(ANativeWindow::minSwapInterval) = 
+        const_cast<int&>(ANativeWindow::minSwapInterval) =
             fbDev->minSwapInterval;
-        const_cast<int&>(ANativeWindow::maxSwapInterval) = 
+        const_cast<int&>(ANativeWindow::maxSwapInterval) =
             fbDev->maxSwapInterval;
     } else {
         ALOGE("Couldn't get gralloc module");
@@ -162,7 +162,7 @@ FramebufferNativeWindow::FramebufferNativeWindow()
     ANativeWindow::queueBuffer_DEPRECATED = queueBuffer_DEPRECATED;
 }
 
-FramebufferNativeWindow::~FramebufferNativeWindow() 
+FramebufferNativeWindow::~FramebufferNativeWindow()
 {
     if (grDev) {
         for(int i = 0; i < mNumBuffers; i++) {
@@ -178,7 +178,7 @@ FramebufferNativeWindow::~FramebufferNativeWindow()
     }
 }
 
-status_t FramebufferNativeWindow::setUpdateRectangle(const Rect& r) 
+status_t FramebufferNativeWindow::setUpdateRectangle(const Rect& r)
 {
     if (!mUpdateOnDemand) {
         return INVALID_OPERATION;
@@ -195,7 +195,7 @@ status_t FramebufferNativeWindow::compositionComplete()
 }
 
 int FramebufferNativeWindow::setSwapInterval(
-        ANativeWindow* window, int interval) 
+        ANativeWindow* window, int interval)
 {
     framebuffer_device_t* fb = getSelf(window)->fbDev;
     return fb->setSwapInterval(fb, interval);
@@ -219,7 +219,7 @@ int FramebufferNativeWindow::getCurrentBufferIndex() const
     return index;
 }
 
-int FramebufferNativeWindow::dequeueBuffer_DEPRECATED(ANativeWindow* window, 
+int FramebufferNativeWindow::dequeueBuffer_DEPRECATED(ANativeWindow* window,
         ANativeWindowBuffer** buffer)
 {
     int fenceFd = -1;
@@ -234,7 +234,7 @@ int FramebufferNativeWindow::dequeueBuffer_DEPRECATED(ANativeWindow* window,
     return result;
 }
 
-int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window, 
+int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
         ANativeWindowBuffer** buffer, int* fenceFd)
 {
     FramebufferNativeWindow* self = getSelf(window);
@@ -249,7 +249,7 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
     while (self->mNumFreeBuffers < 2) {
         self->mCondition.wait(self->mutex);
     }
-    ALOG_ASSERT(self->buffers[index] != self->front);
+    ALOG_ASSERT(self->buffers[index] != self->front, "");
 
     // get this buffer
     self->mNumFreeBuffers--;
@@ -261,19 +261,19 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
     return 0;
 }
 
-int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* /*window*/, 
+int FramebufferNativeWindow::lockBuffer_DEPRECATED(ANativeWindow* /*window*/,
         ANativeWindowBuffer* /*buffer*/)
 {
     return NO_ERROR;
 }
 
-int FramebufferNativeWindow::queueBuffer_DEPRECATED(ANativeWindow* window, 
+int FramebufferNativeWindow::queueBuffer_DEPRECATED(ANativeWindow* window,
         ANativeWindowBuffer* buffer)
 {
     return queueBuffer(window, buffer, -1);
 }
 
-int FramebufferNativeWindow::queueBuffer(ANativeWindow* window, 
+int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
         ANativeWindowBuffer* buffer, int fenceFd)
 {
     FramebufferNativeWindow* self = getSelf(window);
@@ -293,17 +293,17 @@ int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
 }
 
 int FramebufferNativeWindow::query(const ANativeWindow* window,
-        int what, int* value) 
+        int what, int* value)
 {
     const FramebufferNativeWindow* self = getSelf(window);
     Mutex::Autolock _l(self->mutex);
     framebuffer_device_t* fb = self->fbDev;
     switch (what) {
         case NATIVE_WINDOW_WIDTH:
-            *value = fb->width;
+            *value = static_cast<int>(fb->width);
             return NO_ERROR;
         case NATIVE_WINDOW_HEIGHT:
-            *value = fb->height;
+            *value = static_cast<int>(fb->height);
             return NO_ERROR;
         case NATIVE_WINDOW_FORMAT:
             *value = fb->format;
@@ -315,10 +315,10 @@ int FramebufferNativeWindow::query(const ANativeWindow* window,
             *value = 0;
             return NO_ERROR;
         case NATIVE_WINDOW_DEFAULT_WIDTH:
-            *value = fb->width;
+            *value = static_cast<int>(fb->width);
             return NO_ERROR;
         case NATIVE_WINDOW_DEFAULT_HEIGHT:
-            *value = fb->height;
+            *value = static_cast<int>(fb->height);
             return NO_ERROR;
         case NATIVE_WINDOW_TRANSFORM_HINT:
             *value = 0;
@@ -359,7 +359,8 @@ int FramebufferNativeWindow::perform(ANativeWindow* /*window*/,
 }; // namespace android
 // ----------------------------------------------------------------------------
 
-using namespace android;
+using android::sp;
+using android::FramebufferNativeWindow;
 
 EGLNativeWindowType android_createDisplaySurface(void)
 {
@@ -370,5 +371,5 @@ EGLNativeWindowType android_createDisplaySurface(void)
         sp<FramebufferNativeWindow> ref(w);
         return NULL;
     }
-    return (EGLNativeWindowType)w;
+    return static_cast<EGLNativeWindowType>(w);
 }
