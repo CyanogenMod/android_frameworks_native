@@ -63,7 +63,7 @@ status_t layer_state_t::read(const Parcel& input)
 }
 
 status_t ComposerState::write(Parcel& output) const {
-    output.writeStrongBinder(client->asBinder());
+    output.writeStrongBinder(IInterface::asBinder(client));
     return state.write(output);
 }
 
@@ -75,7 +75,7 @@ status_t ComposerState::read(const Parcel& input) {
 
 status_t DisplayState::write(Parcel& output) const {
     output.writeStrongBinder(token);
-    output.writeStrongBinder(surface != NULL ? surface->asBinder() : NULL);
+    output.writeStrongBinder(IInterface::asBinder(surface));
     output.writeInt32(what);
     output.writeInt32(layerStack);
     output.writeInt32(orientation);

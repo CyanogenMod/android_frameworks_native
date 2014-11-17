@@ -87,8 +87,8 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
         sp<IGraphicBufferConsumer> consumer;
         BufferQueue::createBufferQueue(&producer, &consumer);
         sp<IServiceManager> serviceManager = defaultServiceManager();
-        serviceManager->addService(PRODUCER_NAME, producer->asBinder());
-        serviceManager->addService(CONSUMER_NAME, consumer->asBinder());
+        serviceManager->addService(PRODUCER_NAME, IInterface::asBinder(producer));
+        serviceManager->addService(CONSUMER_NAME, IInterface::asBinder(consumer));
         ProcessState::self()->startThreadPool();
         IPCThreadState::self()->joinThreadPool();
         LOG_ALWAYS_FATAL("Shouldn't be here");

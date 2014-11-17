@@ -86,7 +86,7 @@ status_t SensorManager::assertStateLocked() const {
         };
 
         mDeathObserver = new DeathObserver(*const_cast<SensorManager *>(this));
-        mSensorServer->asBinder()->linkToDeath(mDeathObserver);
+        IInterface::asBinder(mSensorServer)->linkToDeath(mDeathObserver);
 
         mSensors = mSensorServer->getSensorList();
         size_t count = mSensors.size();

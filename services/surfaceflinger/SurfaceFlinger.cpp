@@ -496,7 +496,7 @@ size_t SurfaceFlinger::getMaxViewportDims() const {
 bool SurfaceFlinger::authenticateSurfaceTexture(
         const sp<IGraphicBufferProducer>& bufferProducer) const {
     Mutex::Autolock _l(mStateLock);
-    sp<IBinder> surfaceTextureBinder(bufferProducer->asBinder());
+    sp<IBinder> surfaceTextureBinder(IInterface::asBinder(bufferProducer));
     return mGraphicBufferProducerList.indexOf(surfaceTextureBinder) >= 0;
 }
 
@@ -1273,10 +1273,8 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     // this display is in both lists. see if something changed.
                     const DisplayDeviceState& state(curr[j]);
                     const wp<IBinder>& display(curr.keyAt(j));
-                    const sp<IBinder> state_binder =
-                        state.surface != NULL ? state.surface->asBinder() : NULL;
-                    const sp<IBinder> draw_binder =
-                        draw[i].surface != NULL ? draw[i].surface->asBinder() : NULL;
+                    const sp<IBinder> state_binder = IInterface::asBinder(state.surface);
+                    const sp<IBinder> draw_binder = IInterface::asBinder(draw[i].surface);
                     if (state_binder != draw_binder) {
                         // changing the surface is like destroying and
                         // recreating the DisplayDevice, so we just remove it
@@ -1910,7 +1908,7 @@ void SurfaceFlinger::addClientLayer(const sp<Client>& client,
     // add this layer to the current state list
     Mutex::Autolock _l(mStateLock);
     mCurrentState.layersSortedByZ.add(lbc);
-    mGraphicBufferProducerList.add(gbc->asBinder());
+    mGraphicBufferProducerList.add(IInterface::asBinder(gbc));
 }
 
 status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer) {
@@ -1983,7 +1981,7 @@ void SurfaceFlinger::setTransactionState(
         // NOTE: it would be better to use RTTI as we could directly check
         // that we have a Client*. however, RTTI is disabled in Android.
         if (s.client != NULL) {
-            sp<IBinder> binder = s.client->asBinder();
+            sp<IBinder> binder = IInterface::asBinder(s.client);
             if (binder != NULL) {
                 String16 desc(binder->getInterfaceDescriptor());
                 if (desc == ISurfaceComposerClient::descriptor) {
@@ -2030,7 +2028,7 @@ uint32_t SurfaceFlinger::setDisplayStateLocked(const DisplayState& s)
     if (disp.isValid()) {
         const uint32_t what = s.what;
         if (what & DisplayState::eSurfaceChanged) {
-            if (disp.surface->asBinder() != s.surface->asBinder()) {
+            if (IInterface::asBinder(disp.surface) != IInterface::asBinder(s.surface)) {
                 disp.surface = s.surface;
                 flags |= eDisplayTransactionNeeded;
             }
@@ -2921,7 +2919,7 @@ class GraphicProducerWrapper : public BBinder, public MessageHandler {
         // Prevent reads below from happening before the read from Message
         atomic_thread_fence(memory_order_acquire);
         if (what == MSG_API_CALL) {
-            result = impl->asBinder()->transact(code, data[0], reply);
+            result = IInterface::asBinder(impl)->transact(code, data[0], reply);
             barrier.open();
         } else if (what == MSG_EXIT) {
             exitRequested = true;
@@ -2971,7 +2969,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     // if we have secure windows on this display, never allow the screen capture
     // unless the producer interface is local (i.e.: we can take a screenshot for
     // ourselves).
-    if (!producer->asBinder()->localBinder()) {
+    if (!IInterface::asBinder(producer)->localBinder()) {
         Mutex::Autolock _l(mStateLock);
         sp<const DisplayDevice> hw(getDisplayDevice(display));
         if (hw->getSecureLayerVisible()) {
@@ -3035,7 +3033,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
             result = flinger->captureScreenImplLocked(hw, producer,
                     sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
                     useIdentityTransform, rotation);
-            static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
+            static_cast<GraphicProducerWrapper*>(IInterface::asBinder(producer).get())->exit(result);
             return true;
         }
     };
