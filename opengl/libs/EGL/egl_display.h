@@ -39,7 +39,7 @@ namespace android {
 
 class egl_object_t;
 class egl_context_t;
-class egl_connection_t;
+struct egl_connection_t;
 
 // ----------------------------------------------------------------------------
 
