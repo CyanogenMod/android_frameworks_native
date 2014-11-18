@@ -1443,7 +1443,7 @@ void EventHub::setLedForController(Device* device) {
 }
 
 bool EventHub::hasKeycodeLocked(Device* device, int keycode) const {
-    if (!device->keyMap.haveKeyLayout() || !device->keyBitmask) {
+    if (!device->keyMap.haveKeyLayout()) {
         return false;
     }
     
@@ -1461,7 +1461,7 @@ bool EventHub::hasKeycodeLocked(Device* device, int keycode) const {
 }
 
 status_t EventHub::mapLed(Device* device, int32_t led, int32_t* outScanCode) const {
-    if (!device->keyMap.haveKeyLayout() || !device->ledBitmask) {
+    if (!device->keyMap.haveKeyLayout()) {
         return NAME_NOT_FOUND;
     }
 
