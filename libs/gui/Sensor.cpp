@@ -72,7 +72,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
                   static_cast<int64_t>(hwSensor->maxDelay));
             mMaxDelay = INT_MAX;
         } else {
-            mMaxDelay = (int32_t) hwSensor->maxDelay;
+            mMaxDelay = static_cast<int32_t>(hwSensor->maxDelay);
         }
     } else {
         // For older hals set maxDelay to 0.
@@ -214,7 +214,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         }
 
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-            mFlags = (int32_t) hwSensor->flags;
+            mFlags = static_cast<uint32_t>(hwSensor->flags);
         } else {
             // This is an OEM defined sensor on an older HAL. Use minDelay to determine the
             // reporting mode of the sensor.
@@ -295,11 +295,11 @@ int32_t Sensor::getVersion() const {
     return mVersion;
 }
 
-int32_t Sensor::getFifoReservedEventCount() const {
+uint32_t Sensor::getFifoReservedEventCount() const {
     return mFifoReservedEventCount;
 }
 
-int32_t Sensor::getFifoMaxEventCount() const {
+uint32_t Sensor::getFifoMaxEventCount() const {
     return mFifoMaxEventCount;
 }
 
@@ -315,7 +315,7 @@ int32_t Sensor::getMaxDelay() const {
     return mMaxDelay;
 }
 
-int32_t Sensor::getFlags() const {
+uint32_t Sensor::getFlags() const {
     return mFlags;
 }
 
@@ -407,7 +407,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
 
 void Sensor::flattenString8(void*& buffer, size_t& size,
         const String8& string8) {
-    uint32_t len = string8.length();
+    uint32_t len = static_cast<uint32_t>(string8.length());
     FlattenableUtils::write(buffer, size, len);
     memcpy(static_cast<char*>(buffer), string8.string(), len);
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));

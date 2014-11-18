@@ -95,7 +95,7 @@ class BufferItemConsumer: public ConsumerBase
     // setDefaultBufferFormat allows the BufferQueue to create
     // GraphicBuffers of a defaultFormat if no format is specified
     // in dequeueBuffer
-    status_t setDefaultBufferFormat(uint32_t defaultFormat);
+    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
 };
 
 } // namespace android
