@@ -44,6 +44,8 @@ public:
     {
     }
 
+    virtual ~BpDisplayEventConnection();
+
     virtual sp<BitTube> getDataChannel() const
     {
         Parcel data, reply;
@@ -55,7 +57,7 @@ public:
     virtual void setVsyncRate(uint32_t count) {
         Parcel data, reply;
         data.writeInterfaceToken(IDisplayEventConnection::getInterfaceDescriptor());
-        data.writeInt32(count);
+        data.writeUint32(count);
         remote()->transact(SET_VSYNC_RATE, data, &reply);
     }
 
@@ -65,6 +67,10 @@ public:
         remote()->transact(REQUEST_NEXT_VSYNC, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
+
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpDisplayEventConnection::~BpDisplayEventConnection() {}
 
 IMPLEMENT_META_INTERFACE(DisplayEventConnection, "android.gui.DisplayEventConnection");
 
@@ -79,17 +85,17 @@ status_t BnDisplayEventConnection::onTransact(
             sp<BitTube> channel(getDataChannel());
             channel->writeToParcel(reply);
             return NO_ERROR;
-        } break;
+        }
         case SET_VSYNC_RATE: {
             CHECK_INTERFACE(IDisplayEventConnection, data, reply);
-            setVsyncRate(data.readInt32());
+            setVsyncRate(data.readUint32());
             return NO_ERROR;
-        } break;
+        }
         case REQUEST_NEXT_VSYNC: {
             CHECK_INTERFACE(IDisplayEventConnection, data, reply);
             requestNextVsync();
             return NO_ERROR;
-        } break;
+        }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

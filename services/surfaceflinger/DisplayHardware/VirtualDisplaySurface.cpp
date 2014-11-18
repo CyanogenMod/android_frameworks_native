@@ -284,7 +284,7 @@ status_t VirtualDisplaySurface::setBufferCount(int bufferCount) {
 }
 
 status_t VirtualDisplaySurface::dequeueBuffer(Source source,
-        uint32_t format, uint32_t usage, int* sslot, sp<Fence>* fence) {
+        PixelFormat format, uint32_t usage, int* sslot, sp<Fence>* fence) {
     LOG_FATAL_IF(mDisplayId < 0, "mDisplayId=%d but should not be < 0.", mDisplayId);
     // Don't let a slow consumer block us
     bool async = (source == SOURCE_SINK);
@@ -329,7 +329,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(Source source,
 }
 
 status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
-        uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
+        uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
     if (mDisplayId < 0)
         return mSource[SOURCE_SINK]->dequeueBuffer(pslot, fence, async, w, h, format, usage);
 
@@ -364,7 +364,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
         usage |= GRALLOC_USAGE_HW_COMPOSER;
         const sp<GraphicBuffer>& buf = mProducerBuffers[mOutputProducerSlot];
         if ((usage & ~buf->getUsage()) != 0 ||
-                (format != 0 && format != (uint32_t)buf->getPixelFormat()) ||
+                (format != 0 && format != buf->getPixelFormat()) ||
                 (w != 0 && w != mSinkBufferWidth) ||
                 (h != 0 && h != mSinkBufferHeight)) {
             VDS_LOGV("dequeueBuffer: dequeueing new output buffer: "
@@ -517,7 +517,7 @@ status_t VirtualDisplaySurface::setSidebandStream(const sp<NativeHandle>& /*stre
 }
 
 void VirtualDisplaySurface::allocateBuffers(bool /* async */,
-        uint32_t /* width */, uint32_t /* height */, uint32_t /* format */,
+        uint32_t /* width */, uint32_t /* height */, PixelFormat /* format */,
         uint32_t /* usage */) {
     // TODO: Should we actually allocate buffers for a virtual display?
 }

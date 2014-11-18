@@ -61,7 +61,7 @@ status_t MonitoredProducer::setBufferCount(int bufferCount) {
 }
 
 status_t MonitoredProducer::dequeueBuffer(int* slot, sp<Fence>* fence,
-        bool async, uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
+        bool async, uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
     return mProducer->dequeueBuffer(slot, fence, async, w, h, format, usage);
 }
 
@@ -106,7 +106,7 @@ status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {
 }
 
 void MonitoredProducer::allocateBuffers(bool async, uint32_t width,
-        uint32_t height, uint32_t format, uint32_t usage) {
+        uint32_t height, PixelFormat format, uint32_t usage) {
     mProducer->allocateBuffers(async, width, height, format, usage);
 }
 

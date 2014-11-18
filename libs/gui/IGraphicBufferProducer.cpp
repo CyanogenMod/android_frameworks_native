@@ -56,6 +56,8 @@ public:
     {
     }
 
+    virtual ~BpGraphicBufferProducer();
+
     virtual status_t requestBuffer(int bufferIdx, sp<GraphicBuffer>* buf) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
@@ -91,14 +93,15 @@ public:
     }
 
     virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
-            uint32_t w, uint32_t h, uint32_t format, uint32_t usage) {
+            uint32_t width, uint32_t height, PixelFormat format,
+            uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(async);
-        data.writeInt32(w);
-        data.writeInt32(h);
-        data.writeInt32(format);
-        data.writeInt32(usage);
+        data.writeInt32(static_cast<int32_t>(async));
+        data.writeUint32(width);
+        data.writeUint32(height);
+        data.writeInt32(static_cast<int32_t>(format));
+        data.writeUint32(usage);
         status_t result = remote()->transact(DEQUEUE_BUFFER, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -255,20 +258,24 @@ public:
     }
 
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
-            uint32_t format, uint32_t usage) {
+            PixelFormat format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(static_cast<int32_t>(async));
-        data.writeInt32(static_cast<int32_t>(width));
-        data.writeInt32(static_cast<int32_t>(height));
+        data.writeUint32(width);
+        data.writeUint32(height);
         data.writeInt32(static_cast<int32_t>(format));
-        data.writeInt32(static_cast<int32_t>(usage));
+        data.writeUint32(usage);
         status_t result = remote()->transact(ALLOCATE_BUFFERS, data, &reply);
         if (result != NO_ERROR) {
             ALOGE("allocateBuffers failed to transact: %d", result);
         }
     }
 };
+
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpGraphicBufferProducer::~BpGraphicBufferProducer() {}
 
 IMPLEMENT_META_INTERFACE(GraphicBufferProducer, "android.gui.IGraphicBufferProducer");
 
@@ -289,24 +296,25 @@ status_t BnGraphicBufferProducer::onTransact(
             }
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case SET_BUFFER_COUNT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int bufferCount = data.readInt32();
             int result = setBufferCount(bufferCount);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case DEQUEUE_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool async      = data.readInt32();
-            uint32_t w      = data.readInt32();
-            uint32_t h      = data.readInt32();
-            uint32_t format = data.readInt32();
-            uint32_t usage  = data.readInt32();
+            bool async = static_cast<bool>(data.readInt32());
+            uint32_t width = data.readUint32();
+            uint32_t height = data.readUint32();
+            PixelFormat format = static_cast<PixelFormat>(data.readInt32());
+            uint32_t usage = data.readUint32();
             int buf;
             sp<Fence> fence;
-            int result = dequeueBuffer(&buf, &fence, async, w, h, format, usage);
+            int result = dequeueBuffer(&buf, &fence, async, width, height,
+                    format, usage);
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {
@@ -314,14 +322,14 @@ status_t BnGraphicBufferProducer::onTransact(
             }
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case DETACH_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int slot = data.readInt32();
             int result = detachBuffer(slot);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case DETACH_NEXT_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer;
@@ -339,7 +347,7 @@ status_t BnGraphicBufferProducer::onTransact(
                 }
             }
             return NO_ERROR;
-        } break;
+        }
         case ATTACH_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer = new GraphicBuffer();
@@ -349,7 +357,7 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(slot);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case QUEUE_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int buf = data.readInt32();
@@ -360,7 +368,7 @@ status_t BnGraphicBufferProducer::onTransact(
             status_t result = queueBuffer(buf, input, output);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case CANCEL_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int buf = data.readInt32();
@@ -368,7 +376,7 @@ status_t BnGraphicBufferProducer::onTransact(
             data.read(*fence.get());
             cancelBuffer(buf, fence);
             return NO_ERROR;
-        } break;
+        }
         case QUERY: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int value;
@@ -377,7 +385,7 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(value);
             reply->writeInt32(res);
             return NO_ERROR;
-        } break;
+        }
         case CONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<IProducerListener> listener;
@@ -392,14 +400,14 @@ status_t BnGraphicBufferProducer::onTransact(
             status_t res = connect(listener, api, producerControlledByApp, output);
             reply->writeInt32(res);
             return NO_ERROR;
-        } break;
+        }
         case DISCONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int api = data.readInt32();
             status_t res = disconnect(api);
             reply->writeInt32(res);
             return NO_ERROR;
-        } break;
+        }
         case SET_SIDEBAND_STREAM: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<NativeHandle> stream;
@@ -409,14 +417,14 @@ status_t BnGraphicBufferProducer::onTransact(
             status_t result = setSidebandStream(stream);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case ALLOCATE_BUFFERS:
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool async = static_cast<bool>(data.readInt32());
-            uint32_t width = static_cast<uint32_t>(data.readInt32());
-            uint32_t height = static_cast<uint32_t>(data.readInt32());
-            uint32_t format = static_cast<uint32_t>(data.readInt32());
-            uint32_t usage = static_cast<uint32_t>(data.readInt32());
+            uint32_t width = data.readUint32();
+            uint32_t height = data.readUint32();
+            PixelFormat format = static_cast<PixelFormat>(data.readInt32());
+            uint32_t usage = data.readUint32();
             allocateBuffers(async, width, height, format, usage);
             return NO_ERROR;
     }
