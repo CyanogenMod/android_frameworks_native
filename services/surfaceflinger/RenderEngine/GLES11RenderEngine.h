@@ -40,8 +40,9 @@ class GLES11RenderEngine : public RenderEngine {
     GLint mMaxTextureSize;
 
     virtual void bindImageAsFramebuffer(EGLImageKHR image,
-            uint32_t* texName, uint32_t* fbName, uint32_t* status);
-    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName);
+            uint32_t* texName, uint32_t* fbName, uint32_t* status, bool useReadPixels,
+            int reqWidth, int reqHeight);
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName, bool useReadPixels);
 
 public:
     GLES11RenderEngine();
