@@ -3415,7 +3415,8 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         const sp<IGraphicBufferProducer>& producer,
         Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
-        bool useIdentityTransform, ISurfaceComposer::Rotation rotation) {
+        bool useIdentityTransform, ISurfaceComposer::Rotation rotation,
+        bool useReadPixels) {
 
     if (CC_UNLIKELY(display == 0))
         return BAD_VALUE;
@@ -3465,6 +3466,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         uint32_t minLayerZ,maxLayerZ;
         bool useIdentityTransform;
         Transform::orientation_flags rotation;
+        bool useReadPixels;
         status_t result;
     public:
         MessageCaptureScreen(SurfaceFlinger* flinger,
@@ -3472,12 +3474,14 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
                 const sp<IGraphicBufferProducer>& producer,
                 Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
                 uint32_t minLayerZ, uint32_t maxLayerZ,
-                bool useIdentityTransform, Transform::orientation_flags rotation)
+                bool useIdentityTransform, Transform::orientation_flags rotation,
+                bool useReadPixels)
             : flinger(flinger), display(display), producer(producer),
               sourceCrop(sourceCrop), reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
               useIdentityTransform(useIdentityTransform),
               rotation(rotation),
+              useReadPixels(useReadPixels),
               result(PERMISSION_DENIED)
         {
         }
@@ -3487,9 +3491,10 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         virtual bool handler() {
             Mutex::Autolock _l(flinger->mStateLock);
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
+            bool useReadPixels = this->useReadPixels && !flinger->mGpuToCpuSupported;
             result = flinger->captureScreenImplLocked(hw, producer,
                     sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-                    useIdentityTransform, rotation);
+                    useIdentityTransform, rotation, useReadPixels);
             static_cast<GraphicProducerWrapper*>(producer->asBinder().get())->exit(result);
             return true;
         }
@@ -3512,7 +3517,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     sp<MessageBase> msg = new MessageCaptureScreen(this,
             display, IGraphicBufferProducer::asInterface( wrapper ),
             sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-            useIdentityTransform, rotationFlags);
+            useIdentityTransform, rotationFlags, useReadPixels);
 
     status_t res = postMessageAsync(msg);
     if (res == NO_ERROR) {
@@ -3618,7 +3623,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<IGraphicBufferProducer>& producer,
         Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
-        bool useIdentityTransform, Transform::orientation_flags rotation)
+        bool useIdentityTransform, Transform::orientation_flags rotation,
+        bool useReadPixels)
 {
     ATRACE_CALL();
 
@@ -3665,7 +3671,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                 if (image != EGL_NO_IMAGE_KHR) {
                     // this binds the given EGLImage as a framebuffer for the
                     // duration of this scope.
-                    RenderEngine::BindImageAsFramebuffer imageBond(getRenderEngine(), image);
+                    RenderEngine::BindImageAsFramebuffer imageBond(getRenderEngine(), image, useReadPixels, reqWidth, reqHeight);
                     if (imageBond.getStatus() == NO_ERROR) {
                         // this will in fact render into our dequeued buffer
                         // via an FBO, which means we didn't have to create
@@ -3701,7 +3707,14 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                             ALOGW("captureScreen: error creating EGL fence: %#x", eglGetError());
                             // not fatal
                         }
-
+                        if (useReadPixels) {
+                            sp<GraphicBuffer> buf = static_cast<GraphicBuffer*>(buffer);
+                            void* vaddr;
+                            if (buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, &vaddr) == NO_ERROR) {
+                                getRenderEngine().readPixels(0, 0, buffer->stride, reqHeight, (uint32_t *)vaddr);
+                                buf->unlock();
+                            }
+                        }
                         if (DEBUG_SCREENSHOTS) {
                             uint32_t* pixels = new uint32_t[reqWidth*reqHeight];
                             getRenderEngine().readPixels(0, 0, reqWidth, reqHeight, pixels);

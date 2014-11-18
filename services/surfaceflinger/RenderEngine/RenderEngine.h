@@ -51,8 +51,8 @@ class RenderEngine {
     EGLContext mEGLContext;
     void setEGLHandles(EGLConfig config, EGLContext ctxt);
 
-    virtual void bindImageAsFramebuffer(EGLImageKHR image, uint32_t* texName, uint32_t* fbName, uint32_t* status) = 0;
-    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName) = 0;
+    virtual void bindImageAsFramebuffer(EGLImageKHR image, uint32_t* texName, uint32_t* fbName, uint32_t* status, bool useReadPixels, int reqWidth, int reqHeight) = 0;
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName, bool useReadPixels) = 0;
 
 protected:
     RenderEngine();
@@ -83,8 +83,9 @@ public:
         RenderEngine& mEngine;
         uint32_t mTexName, mFbName;
         uint32_t mStatus;
+        bool mUseReadPixels;
     public:
-        BindImageAsFramebuffer(RenderEngine& engine, EGLImageKHR image);
+        BindImageAsFramebuffer(RenderEngine& engine, EGLImageKHR image, bool useReadPixels, int reqWidth, int reqHeight);
         ~BindImageAsFramebuffer();
         int getStatus() const;
     };
