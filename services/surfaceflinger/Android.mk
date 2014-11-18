@@ -97,8 +97,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libpowermanager
 
 ifeq ($(TARGET_USES_QCOM_BSP), true)
-    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/$(TARGET_BOARD_PLATFORM)/libgralloc
-    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/$(TARGET_BOARD_PLATFORM)/libqdutils
+    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/libgralloc
+    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/libqdutils
     LOCAL_SHARED_LIBRARIES += libqdutils
     LOCAL_CFLAGS += -DQCOM_BSP
 endif
