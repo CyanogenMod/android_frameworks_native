@@ -55,8 +55,9 @@ class GLES20RenderEngine : public RenderEngine {
     Vector<Group> mGroupStack;
 
     virtual void bindImageAsFramebuffer(EGLImageKHR image,
-            uint32_t* texName, uint32_t* fbName, uint32_t* status);
-    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName);
+            uint32_t* texName, uint32_t* fbName, uint32_t* status,
+            bool useReadPixels, int reqWidth, int reqHeight);
+    virtual void unbindFramebuffer(uint32_t texName, uint32_t fbName, bool useReadPixels);
 
 public:
     GLES20RenderEngine();
