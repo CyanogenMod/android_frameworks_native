@@ -134,9 +134,7 @@ public:
     // updateTexImage() is called.  If width and height are both zero, the
     // default values specified by setDefaultBufferSize() are used instead.
     //
-    // The pixel formats are enumerated in <graphics.h>, e.g.
-    // HAL_PIXEL_FORMAT_RGBA_8888.  If the format is 0, the default format
-    // will be used.
+    // If the format is 0, the default format will be used.
     //
     // The usage argument specifies gralloc buffer usage flags.  The values
     // are enumerated in <gralloc.h>, e.g. GRALLOC_USAGE_HW_RENDER.  These
@@ -167,7 +165,7 @@ public:
     // All other negative values are an unknown error returned downstream
     // from the graphics allocator (typically errno).
     virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,
-            uint32_t w, uint32_t h, uint32_t format, uint32_t usage) = 0;
+            uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) = 0;
 
     // detachBuffer attempts to remove all ownership of the buffer in the given
     // slot from the buffer queue. If this call succeeds, the slot will be
@@ -448,7 +446,7 @@ public:
     // dequeueBuffer. If there are already the maximum number of buffers
     // allocated, this function has no effect.
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
-            uint32_t format, uint32_t usage) = 0;
+            PixelFormat format, uint32_t usage) = 0;
 };
 
 // ----------------------------------------------------------------------------

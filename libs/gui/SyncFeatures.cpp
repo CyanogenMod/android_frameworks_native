@@ -16,7 +16,6 @@
 
 #define LOG_TAG "GLConsumer"
 
-#define GL_GLEXT_PROTOTYPES
 #define EGL_EGLEXT_PROTOTYPES
 
 #include <EGL/egl.h>
@@ -78,10 +77,11 @@ bool SyncFeatures::useFenceSync() const {
     // on some devices it's better to not use EGL_KHR_fence_sync
     // even if they have it
     return false;
-#endif
+#else
     // currently we shall only attempt to use EGL_KHR_fence_sync if
     // USE_FENCE_SYNC is set in our makefile
     return !mHasNativeFenceSync && mHasFenceSync;
+#endif
 }
 bool SyncFeatures::useWaitSync() const {
     return (useNativeFenceSync() || useFenceSync()) && mHasWaitSync;

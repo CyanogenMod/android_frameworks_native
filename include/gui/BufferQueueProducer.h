@@ -73,9 +73,7 @@ public:
     // updateTexImage() is called.  If width and height are both zero, the
     // default values specified by setDefaultBufferSize() are used instead.
     //
-    // The pixel formats are enumerated in graphics.h, e.g.
-    // HAL_PIXEL_FORMAT_RGBA_8888.  If the format is 0, the default format
-    // will be used.
+    // If the format is 0, the default format will be used.
     //
     // The usage argument specifies gralloc buffer usage flags.  The values
     // are enumerated in gralloc.h, e.g. GRALLOC_USAGE_HW_RENDER.  These
@@ -93,8 +91,9 @@ public:
     //
     // In both cases, the producer will need to call requestBuffer to get a
     // GraphicBuffer handle for the returned slot.
-    virtual status_t dequeueBuffer(int *outSlot, sp<Fence>* outFence, bool async,
-            uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
+    virtual status_t dequeueBuffer(int *outSlot, sp<Fence>* outFence,
+            bool async, uint32_t width, uint32_t height, PixelFormat format,
+            uint32_t usage);
 
     // See IGraphicBufferProducer::detachBuffer
     virtual status_t detachBuffer(int slot);
@@ -171,7 +170,7 @@ public:
 
     // See IGraphicBufferProducer::allocateBuffers
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
-            uint32_t format, uint32_t usage);
+            PixelFormat format, uint32_t usage);
 
 private:
     // This is required by the IBinder::DeathRecipient interface
