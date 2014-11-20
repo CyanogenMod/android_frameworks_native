@@ -40,7 +40,7 @@
 
 #include <private/android_filesystem_config.h>
 
-#if INCLUDE_SYS_MOUNT_FOR_STATFS
+#if defined(__APPLE__)
 #include <sys/mount.h>
 #else
 #include <sys/statfs.h>
