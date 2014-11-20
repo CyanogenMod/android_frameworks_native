@@ -92,14 +92,29 @@ void GLES11RenderEngine::setViewportAndProjection(
         case Transform::ROT_0:
             break;
         case Transform::ROT_90:
-            glRotatef(90, 0, 0, 1);
-            break;
-        case Transform::ROT_180:
-            glRotatef(180, 0, 0, 1);
-            break;
-        case Transform::ROT_270:
+        {
+            float x1 = (l+r)/2;
+            float y1 = (t+b)/2;
+            glTranslatef(x1-y1, x1+y1, 0);
             glRotatef(270, 0, 0, 1);
             break;
+        }
+        case Transform::ROT_180:
+        {
+            float x1 = (l+r)/2;
+            float y1 = (t+b)/2;
+            glTranslatef(x1*2, y1*2, 0);
+            glRotatef(180, 0, 0, 1);
+            break;
+        }
+        case Transform::ROT_270:
+        {
+            float x1 = (l+r)/2;
+            float y1 = (t+b)/2;
+            glTranslatef(x1+y1, y1-x1, 0);
+            glRotatef(90, 0, 0, 1);
+            break;
+        }
         default:
             break;
     }
