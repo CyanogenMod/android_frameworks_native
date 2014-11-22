@@ -116,7 +116,7 @@ private:
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
             uint32_t format, uint32_t usage);
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     virtual status_t setBuffersSize(int size);
 #endif
 

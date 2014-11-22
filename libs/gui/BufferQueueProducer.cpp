@@ -881,7 +881,7 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
     return NO_ERROR;
 }
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
 status_t BufferQueueProducer::setBuffersSize(int size) {
     BQ_LOGV("setBuffersSize: size=%d", size);
     Mutex::Autolock _l(mCore->mMutex);

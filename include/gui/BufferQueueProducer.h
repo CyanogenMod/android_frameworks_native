@@ -169,7 +169,7 @@ public:
     // handle if any.
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     // setBufferSize enables us to specify user defined sizes for the buffers
     // that need to be allocated by surfaceflinger for its client. This is
     // useful for cases where the client doesn't want the gralloc to calculate

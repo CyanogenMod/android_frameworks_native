@@ -38,7 +38,7 @@ public:
      */
     virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
             PixelFormat format, uint32_t usage, status_t* error) = 0;
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     virtual void setGraphicBufferSize(int size) = 0;
 #endif
 };

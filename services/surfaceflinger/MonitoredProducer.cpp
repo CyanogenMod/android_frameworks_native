@@ -105,7 +105,7 @@ status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {
     return mProducer->setSidebandStream(stream);
 }
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
 status_t MonitoredProducer::setBuffersSize(int size) {
     return mProducer->setBuffersSize(size);
 }

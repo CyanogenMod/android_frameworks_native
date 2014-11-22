@@ -42,7 +42,7 @@ enum {
     QUEUE_BUFFER,
     CANCEL_BUFFER,
     QUERY,
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     SET_BUFFERS_SIZE,
 #endif
     CONNECT,
@@ -272,7 +272,7 @@ public:
         }
     }
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     virtual status_t setBuffersSize(int size) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
@@ -396,7 +396,7 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
         case SET_BUFFERS_SIZE: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int size = data.readInt32();
