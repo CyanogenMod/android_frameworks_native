@@ -93,7 +93,7 @@ void GraphicBufferAllocator::dumpToSystemLog()
 status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat format,
         int usage, buffer_handle_t* handle, int32_t* stride)
 {
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     status_t err = alloc(w, h, format, usage, handle, stride, 0);
     return err;
 }
@@ -112,7 +112,7 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h,
 
     // we have a h/w allocator and h/w buffer is requested
     status_t err;
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     if(bufferSize) {
         err = mAllocDev->allocSize(mAllocDev, w, h,
                                format, usage, handle, stride, bufferSize);

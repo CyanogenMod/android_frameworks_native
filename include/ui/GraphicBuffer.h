@@ -71,7 +71,7 @@ public:
 
     GraphicBuffer();
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     // creates buffer of bufferSize
     GraphicBuffer(uint32_t w, uint32_t h,
                   PixelFormat format, uint32_t usage, uint32_t bufferSize);
@@ -151,7 +151,7 @@ private:
 
     status_t initSize(uint32_t w, uint32_t h, PixelFormat format,
             uint32_t usage);
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     status_t initSize(uint32_t w, uint32_t h, PixelFormat format,
             uint32_t usage, uint32_t bufferSize);
 #endif

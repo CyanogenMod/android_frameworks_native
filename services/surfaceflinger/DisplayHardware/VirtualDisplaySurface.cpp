@@ -585,7 +585,7 @@ void VirtualDisplaySurface::allocateBuffers(bool /* async */,
     // TODO: Should we actually allocate buffers for a virtual display?
 }
 
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
 status_t VirtualDisplaySurface::setBuffersSize(int size) {
    return mSource[SOURCE_SINK]->setBuffersSize(size);
 }

@@ -67,7 +67,7 @@ public:
                 usage, error);
         return buffer;
     }
-#ifdef QCOM_BSP
+#ifdef QCOM_BSP_LEGACY
     virtual void setGraphicBufferSize(int size) {
 
     }
