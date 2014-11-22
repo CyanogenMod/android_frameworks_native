@@ -220,13 +220,8 @@ void printHexData(int32_t indent, const void *buf, size_t length,
         
         for (word = 0; word < bytesPerLine; ) {
 
-#ifdef HAVE_LITTLE_ENDIAN
             const size_t startIndex = word+(alignment-(alignment?1:0));
             const ssize_t dir = -1;
-#else
-            const size_t startIndex = word;
-            const ssize_t dir = 1;
-#endif
 
             for (index = 0; index < alignment || (alignment == 0 && index < bytesPerLine); index++) {
             
