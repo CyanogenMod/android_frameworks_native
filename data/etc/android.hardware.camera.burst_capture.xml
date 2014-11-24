@@ -14,9 +14,9 @@
      limitations under the License.
 -->
 
-<!-- This is the set of features required for a camera2 device that supports manual sensor capability-->
+<!-- This is the set of features required for a camera2 device that supports the
+     burst capture capability-->
 <permissions>
     <feature name="android.hardware.camera.any" />
-    <feature name="android.hardware.camera.capability.manual_sensor" />
-    <feature name="android.hardware.camera.capability.read_sensor_settings" />
+    <feature name="android.hardware.camera.capability.burst_capture" />
 </permissions>
