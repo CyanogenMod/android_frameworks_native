@@ -1201,7 +1201,8 @@ void Layer::onPostComposition() {
 
 bool Layer::isVisible() const {
     const Layer::State& s(mDrawingState);
-    return !(s.flags & layer_state_t::eLayerHidden) && s.alpha
+    return !(s.flags & layer_state_t::eLayerHidden) &&
+            !(s.flags & layer_state_t::eLayerTransparent) && s.alpha
             && (mActiveBuffer != NULL || mSidebandStream != NULL);
 }
 

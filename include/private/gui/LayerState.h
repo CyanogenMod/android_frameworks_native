@@ -39,6 +39,7 @@ struct layer_state_t {
     enum {
         eLayerHidden        = 0x01,     // SURFACE_HIDDEN in SurfaceControl.java
         eLayerOpaque        = 0x02,     // SURFACE_OPAQUE
+        eLayerTransparent   = 0x80,     // SURFACE_TRANSPARENT
     };
 
     enum {
@@ -52,6 +53,7 @@ struct layer_state_t {
         eLayerStackChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
         eOpacityChanged             = 0x00000200,
+        eTransparencyChanged        = 0x80000000,
     };
 
     layer_state_t()

@@ -316,6 +316,9 @@ status_t Composer::setFlags(const sp<SurfaceComposerClient>& client,
     if (mask & layer_state_t::eLayerHidden) {
         s->what |= layer_state_t::eVisibilityChanged;
     }
+    if (mask & layer_state_t::eLayerTransparent) {
+        s->what |= layer_state_t::eTransparencyChanged;
+    }
     s->flags &= ~mask;
     s->flags |= (flags & mask);
     s->mask |= mask;
