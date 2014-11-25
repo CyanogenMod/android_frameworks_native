@@ -78,7 +78,7 @@
 #define UPDATE_COMMANDS_DIR_PREFIX  "/system/etc/updatecmds/"
 
 #define IDMAP_PREFIX           "/data/resource-cache/"
-#define IDMAP_SUFFIX           "@idmap"
+#define IDMAP_SUFFIX           "idmap"
 
 #define PKG_NAME_MAX  128   /* largest allowed package name */
 #define PKG_PATH_MAX  256   /* max size of any path we use */
@@ -223,5 +223,9 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char *instruction_set, bool vm_safe_mode, bool should_relocate);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
-int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int restorecon_data();
+int idmap(const char *target_path, const char *overlay_path, const char *cache_path, uid_t uid,
+          uint32_t target_hash, uint32_t overlay_hash);
+int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid,
+         int pkgId, int min_sdk_version, const char *common_res_path);
+

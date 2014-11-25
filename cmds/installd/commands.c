@@ -1363,62 +1363,46 @@ out:
     return rc;
 }
 
-static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd)
+static void run_idmap(const char *target_apk, const char *overlay_apk, const char *cache_path,
+                      int idmap_fd, uint32_t target_hash, uint32_t overlay_hash)
 {
     static const char *IDMAP_BIN = "/system/bin/idmap";
     static const size_t MAX_INT_LEN = 32;
     char idmap_str[MAX_INT_LEN];
+    char target_hash_str[MAX_INT_LEN];
+    char overlay_hash_str[MAX_INT_LEN];
 
     snprintf(idmap_str, sizeof(idmap_str), "%d", idmap_fd);
+    snprintf(target_hash_str, sizeof(target_hash_str), "%d", target_hash);
+    snprintf(overlay_hash_str, sizeof(overlay_hash_str), "%d", overlay_hash);
 
-    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str, (char*)NULL);
+    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, cache_path, idmap_str,
+            target_hash_str, overlay_hash_str, (char*)NULL);
     ALOGE("execl(%s) failed: %s\n", IDMAP_BIN, strerror(errno));
 }
 
-// Transform string /a/b/c.apk to (prefix)/a@b@c.apk@(suffix)
-// eg /a/b/c.apk to /data/resource-cache/a@b@c.apk@idmap
-static int flatten_path(const char *prefix, const char *suffix,
-        const char *overlay_path, char *idmap_path, size_t N)
+static int get_idmap_path(const char *prefix, const char *suffix, char *idmap_path, size_t N)
 {
-    if (overlay_path == NULL || idmap_path == NULL) {
-        return -1;
-    }
-    const size_t len_overlay_path = strlen(overlay_path);
-    // will access overlay_path + 1 further below; requires absolute path
-    if (len_overlay_path < 2 || *overlay_path != '/') {
-        return -1;
-    }
-    const size_t len_idmap_root = strlen(prefix);
-    const size_t len_suffix = strlen(suffix);
-    if (SIZE_MAX - len_idmap_root < len_overlay_path ||
-            SIZE_MAX - (len_idmap_root + len_overlay_path) < len_suffix) {
-        // additions below would cause overflow
-        return -1;
-    }
-    if (N < len_idmap_root + len_overlay_path + len_suffix) {
-        return -1;
-    }
+    if (idmap_path == NULL) return -1;
+
     memset(idmap_path, 0, N);
-    snprintf(idmap_path, N, "%s%s%s", prefix, overlay_path + 1, suffix);
-    char *ch = idmap_path + len_idmap_root;
-    while (*ch != '\0') {
-        if (*ch == '/') {
-            *ch = '@';
-        }
-        ++ch;
+    int len = snprintf(idmap_path, N, "%s/%s", prefix, suffix);
+    if (len < 0 || (size_t)len >= N) {
+        return -1; // error or truncated
     }
     return 0;
 }
 
-int idmap(const char *target_apk, const char *overlay_apk, uid_t uid)
+int idmap(const char *target_apk, const char *overlay_apk, const char *cache_path,
+          uid_t uid, uint32_t target_hash, uint32_t overlay_hash)
 {
-    ALOGV("idmap target_apk=%s overlay_apk=%s uid=%d\n", target_apk, overlay_apk, uid);
+    ALOGD("idmap target_apk=%s overlay_apk=%s cache_path=%s uid=%d\n", target_apk, overlay_apk,
+            cache_path, uid);
 
     int idmap_fd = -1;
     char idmap_path[PATH_MAX];
 
-    if (flatten_path(IDMAP_PREFIX, IDMAP_SUFFIX, overlay_apk,
-                idmap_path, sizeof(idmap_path)) == -1) {
+    if (get_idmap_path(cache_path, IDMAP_SUFFIX, idmap_path, sizeof(idmap_path)) == -1) {
         ALOGE("idmap cannot generate idmap path for overlay %s\n", overlay_apk);
         goto fail;
     }
@@ -1455,7 +1439,7 @@ int idmap(const char *target_apk, const char *overlay_apk, uid_t uid)
             exit(1);
         }
 
-        run_idmap(target_apk, overlay_apk, idmap_fd);
+        run_idmap(target_apk, overlay_apk, cache_path, idmap_fd, target_hash, overlay_hash);
         exit(1); /* only if exec call to idmap failed */
     } else {
         int status = wait_child(pid);
@@ -1471,6 +1455,160 @@ fail:
     if (idmap_fd >= 0) {
         close(idmap_fd);
         unlink(idmap_path);
+    }
+    return -1;
+}
+
+static void run_aapt(const char *source_apk, const char *internal_path,
+                     int resapk_fd, int pkgId, int min_sdk_version, const char *common_res_path)
+{
+    static const char *AAPT_BIN = "/system/bin/aapt";
+    static const char *MANIFEST = "/data/app/AndroidManifest.xml";
+    static const char *FRAMEWORK_RES = "/system/framework/framework-res.apk";
+
+    static const size_t MAX_INT_LEN = 32;
+    char restable_str[MAX_INT_LEN];
+    char resapk_str[MAX_INT_LEN];
+    char pkgId_str[MAX_INT_LEN];
+    char minSdkVersion_str[MAX_INT_LEN];
+
+    snprintf(resapk_str, sizeof(resapk_str), "%d", resapk_fd);
+    snprintf(pkgId_str, sizeof(pkgId_str), "%d", pkgId);
+    snprintf(minSdkVersion_str, sizeof(minSdkVersion_str), "%d", min_sdk_version);
+    bool hasCommonResources = (common_res_path != NULL && common_res_path[0] != '\0');
+
+    if (hasCommonResources) {
+        execl(AAPT_BIN, AAPT_BIN, "package",
+                              "--min-sdk-version", minSdkVersion_str,
+                              "-M", MANIFEST,
+                              "-S", source_apk,
+                              "-X", internal_path,
+                              "-I", FRAMEWORK_RES,
+                              "-I", common_res_path,
+                              "-r", resapk_str,
+                              "-x", pkgId_str,
+                              (char*)NULL);
+    } else {
+        execl(AAPT_BIN, AAPT_BIN, "package",
+                              "--min-sdk-version", minSdkVersion_str,
+                              "-M", MANIFEST,
+                              "-S", source_apk,
+                              "-X", internal_path,
+                              "-I", FRAMEWORK_RES,
+                              "-r", resapk_str,
+                              "-x", pkgId_str,
+                              (char*)NULL);
+    }
+    ALOGE("execl(%s) failed: %s\n", AAPT_BIN, strerror(errno));
+}
+
+int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid,
+         int pkgId, int min_sdk_version, const char *common_res_path)
+{
+    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d, min_sdk_version=%d, common_res_path=%s",
+             source_apk, internal_path, out_restable, uid, pkgId, min_sdk_version, common_res_path);
+    static const int PARENT_READ_PIPE = 0;
+    static const int CHILD_WRITE_PIPE = 1;
+
+    int resapk_fd = -1;
+    char restable_path[PATH_MAX];
+    char resapk_path[PATH_MAX];
+
+    // get file descriptor for resources.arsc
+    snprintf(restable_path, PATH_MAX, "%s/resources.arsc", out_restable);
+    unlink(restable_path);
+
+    // get file descriptor for resources.apk
+    snprintf(resapk_path, PATH_MAX, "%s/resources.apk", out_restable);
+    unlink(resapk_path);
+    resapk_fd = open(resapk_path, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (resapk_fd < 0) {
+        ALOGE("aapt cannot open '%s' for output: %s\n", resapk_path, strerror(errno));
+        goto fail;
+    }
+    if (fchown(resapk_fd, AID_SYSTEM, uid) < 0) {
+        ALOGE("aapt cannot chown '%s'\n", resapk_path);
+        goto fail;
+    }
+    if (fchmod(resapk_fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) < 0) {
+        ALOGE("aapt cannot chmod '%s'\n", resapk_path);
+        goto fail;
+    }
+
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        pipefd[0] = pipefd[1] = -1;
+    }
+    pid_t pid = fork();
+    if (pid == 0) {
+        /* child -- drop privileges before continuing */
+        if (setgid(uid) != 0) {
+            ALOGE("setgid(%d) failed during aapt\n", uid);
+            exit(1);
+        }
+        if (setuid(uid) != 0) {
+            ALOGE("setuid(%d) failed during aapt\n", uid);
+            exit(1);
+        }
+
+        if (flock(resapk_fd, LOCK_EX | LOCK_NB) != 0) {
+            ALOGE("flock(%s) failed during aapt: %s\n", out_restable, strerror(errno));
+            exit(1);
+        }
+
+        if (pipefd[PARENT_READ_PIPE] > 0 && pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[PARENT_READ_PIPE]); // close unused read end
+            if (dup2(pipefd[CHILD_WRITE_PIPE], STDERR_FILENO) != STDERR_FILENO) {
+                pipefd[CHILD_WRITE_PIPE] = -1;
+            }
+        }
+
+        run_aapt(source_apk, internal_path, resapk_fd, pkgId, min_sdk_version, common_res_path);
+
+        if (pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[CHILD_WRITE_PIPE]);
+        }
+        exit(1); /* only if exec call to idmap failed */
+    } else {
+        int status, i;
+        char buffer[1024];
+        ssize_t readlen;
+
+        if (pipefd[CHILD_WRITE_PIPE] > 0) {
+            close(pipefd[CHILD_WRITE_PIPE]); // close unused write end
+        }
+
+        if (pipefd[PARENT_READ_PIPE] > 0) {
+            while ((readlen = read(pipefd[PARENT_READ_PIPE], buffer, sizeof(buffer) - 1)) > 0) {
+                // in case buffer has more than one string in it, replace '\0' with '\n'
+                for (i = 0; i < readlen; i++) {
+                    if (buffer[i] == '\0') buffer[i] = '\n';
+                }
+                // null terminate buffer at readlen
+                buffer[readlen] = '\0';
+                ALOG(LOG_ERROR, "InstallTheme", "%s", buffer);
+            }
+            waitpid(pid, &status, 0);
+
+            if (pipefd[PARENT_READ_PIPE] > 0) {
+                close(pipefd[PARENT_READ_PIPE]);
+            }
+        } else {
+            status = wait_child(pid);
+        }
+
+        if (status != 0) {
+            ALOGE("aapt failed, status=0x%04x\n", status);
+            goto fail;
+        }
+    }
+
+    close(resapk_fd);
+    return 0;
+fail:
+    if (resapk_fd >= 0) {
+        close(resapk_fd);
+        unlink(resapk_path);
     }
     return -1;
 }

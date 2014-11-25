@@ -136,7 +136,17 @@ static int do_linklib(char **arg, char reply[REPLY_MAX])
 
 static int do_idmap(char **arg, char reply[REPLY_MAX])
 {
-    return idmap(arg[0], arg[1], atoi(arg[2]));
+    return idmap(arg[0], arg[1], arg[2], atoi(arg[3]), atoi(arg[4]), atoi(arg[5]));
+}
+
+static int do_aapt(char **arg, char reply[REPLY_MAX])
+{
+    return aapt(arg[0], arg[1], arg[2], atoi(arg[3]), atoi(arg[4]), atoi(arg[5]), "");
+}
+
+static int do_aapt_with_common(char **arg, char reply[REPLY_MAX])
+{
+    return aapt(arg[0], arg[1], arg[2], atoi(arg[3]), atoi(arg[4]), atoi(arg[5]), arg[6]);
 }
 
 static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((unused)))
@@ -175,9 +185,11 @@ struct cmdinfo cmds[] = {
     { "mkuserdata",           4, do_mk_user_data },
     { "mkuserconfig",         1, do_mk_user_config },
     { "rmuser",               1, do_rm_user },
-    { "idmap",                3, do_idmap },
     { "restorecondata",       3, do_restorecon_data },
     { "patchoat",             5, do_patchoat },
+    { "idmap",                6, do_idmap },
+    { "aapt",                 6, do_aapt },
+    { "aapt_with_common",     7, do_aapt_with_common },
 };
 
 static int readx(int s, void *_buf, int count)
