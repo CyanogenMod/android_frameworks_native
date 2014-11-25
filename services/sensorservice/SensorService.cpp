@@ -647,12 +647,9 @@ Vector<Sensor> SensorService::getSensorList()
         if (canAccessSensor(sensor)) {
             accessibleSensorList.add(sensor);
         } else {
-            String8 infoMessage;
-            infoMessage.appendFormat(
-                    "Skipped sensor %s because it requires permission %s",
-                    sensor.getName().string(),
-                    sensor.getRequiredPermission().string());
-            ALOGI(infoMessage.string());
+            ALOGI("Skipped sensor %s because it requires permission %s",
+                  sensor.getName().string(),
+                  sensor.getRequiredPermission().string());
         }
     }
     return accessibleSensorList;
