@@ -247,7 +247,10 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
-int idmap(const char *target_path, const char *overlay_path, uid_t uid);
+int idmap(const char *target_path, const char *overlay_path, uid_t uid,
+          uint32_t target_hash, uint32_t overlay_hash);
+int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid,
+         int pkgId, int min_sdk_version, const char *common_res_path);
 int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
