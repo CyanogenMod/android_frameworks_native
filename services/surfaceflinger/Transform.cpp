@@ -301,16 +301,16 @@ Transform Transform::inverse() const {
     // (T*M)^-1 = M^-1 * T^-1
     Transform result;
     if (mType <= TRANSLATE) {
-        // 1 0 x
-        // 0 1 y
-        // 0 0 1
+        // 1 0 0
+        // 0 1 0
+        // x y 1
         result = *this;
         result.mMatrix[2][0] = -result.mMatrix[2][0];
         result.mMatrix[2][1] = -result.mMatrix[2][1];
     } else {
-        // a c x
-        // b d y
-        // 0 0 1
+        // a c 0
+        // b d 0
+        // x y 1
         const mat33& M(mMatrix);
         const float a = M[0][0];
         const float b = M[1][0];
@@ -319,16 +319,17 @@ Transform Transform::inverse() const {
         const float x = M[2][0];
         const float y = M[2][1];
 
-        Transform R, T;
         const float idet = 1.0 / (a*d - b*c);
-        R.mMatrix[0][0] =  d*idet;    R.mMatrix[0][1] = -c*idet;
-        R.mMatrix[1][0] = -b*idet;    R.mMatrix[1][1] =  a*idet;
-        R.mType = mType &= ~TRANSLATE;
+        result.mMatrix[0][0] =  d*idet;
+        result.mMatrix[0][1] = -c*idet;
+        result.mMatrix[1][0] = -b*idet;
+        result.mMatrix[1][1] =  a*idet;
+        result.mType = mType;
 
-        T.mMatrix[2][0] = -x;
-        T.mMatrix[2][1] = -y;
-        T.mType = TRANSLATE;
-        result =  R * T;
+        vec2 T(-x, -y);
+        T = result.transform(T);
+        result.mMatrix[2][0] = T[0];
+        result.mMatrix[2][1] = T[1];
     }
     return result;
 }
