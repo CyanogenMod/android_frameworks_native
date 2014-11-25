@@ -70,7 +70,6 @@
 namespace android {
 
 static const char* getReturnString(size_t idx);
-static const char* getCommandString(size_t idx);
 static const void* printReturnCommand(TextOutput& out, const void* _cmd);
 static const void* printCommand(TextOutput& out, const void* _cmd);
 
@@ -121,14 +120,6 @@ static const char* getReturnString(size_t idx)
 {
     if (idx < sizeof(kReturnStrings) / sizeof(kReturnStrings[0]))
         return kReturnStrings[idx];
-    else
-        return "unknown";
-}
-
-static const char* getCommandString(size_t idx)
-{
-    if (idx < sizeof(kCommandStrings) / sizeof(kCommandStrings[0]))
-        return kCommandStrings[idx];
     else
         return "unknown";
 }

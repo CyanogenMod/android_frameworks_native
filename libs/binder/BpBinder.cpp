@@ -220,7 +220,6 @@ status_t BpBinder::unlinkToDeath(
         if ((obit.recipient == recipient
                     || (recipient == NULL && obit.cookie == cookie))
                 && obit.flags == flags) {
-            const uint32_t allFlags = obit.flags|flags;
             if (outRecipient != NULL) {
                 *outRecipient = mObituaries->itemAt(i).recipient;
             }
