@@ -332,8 +332,12 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     activeCrop.intersect(hw->getViewport(), &activeCrop);
     activeCrop = s.transform.inverse().transform(activeCrop);
 
-    // paranoia: make sure the window-crop is constrained in the
-    // window's bounds
+    // This needs to be here as transform.transform(Rect) computes the
+    // transformed rect and then takes the bounding box of the result before
+    // returning. This means
+    // transform.inverse().transform(transform.transform(Rect)) != Rect
+    // in which case we need to make sure the final rect is clipped to the
+    // display bounds.
     activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
 
     // subtract the transparent region and snap to the bounds
@@ -432,6 +436,13 @@ void Layer::setGeometry(
         activeCrop = s.transform.transform(activeCrop);
         activeCrop.intersect(hw->getViewport(), &activeCrop);
         activeCrop = s.transform.inverse().transform(activeCrop);
+        // This needs to be here as transform.transform(Rect) computes the
+        // transformed rect and then takes the bounding box of the result before
+        // returning. This means
+        // transform.inverse().transform(transform.transform(Rect)) != Rect
+        // in which case we need to make sure the final rect is clipped to the
+        // display bounds.
+        activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
         // mark regions outside the crop as transparent
         activeTransparentRegion.orSelf(Rect(0, 0, s.active.w, activeCrop.top));
         activeTransparentRegion.orSelf(Rect(0, activeCrop.bottom,
