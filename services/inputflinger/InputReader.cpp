@@ -58,6 +58,9 @@
 #define INDENT4 "        "
 #define INDENT5 "          "
 
+// Ultrasound device name.
+#define USF_DEVICE_NAME "usf_tsc"
+
 namespace android {
 
 // --- Constants ---
@@ -2087,6 +2090,11 @@ void KeyboardInputMapper::process(const RawEvent* rawEvent) {
             if (getEventHub()->mapKey(getDeviceId(), scanCode, usageCode, &keyCode, &flags)) {
                 keyCode = AKEYCODE_UNKNOWN;
                 flags = 0;
+            }
+            InputDeviceIdentifier identifier = getEventHub()->getDeviceIdentifier(rawEvent->deviceId);
+            if ((identifier.name == USF_DEVICE_NAME) && (scanCode == BTN_USF_HOVERING_CURSOR))
+            {
+                break;
             }
             processKey(rawEvent->when, rawEvent->value != 0, keyCode, scanCode, flags);
         }
