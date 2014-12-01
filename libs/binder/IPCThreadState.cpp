@@ -350,12 +350,12 @@ status_t IPCThreadState::clearLastError()
     return err;
 }
 
-int IPCThreadState::getCallingPid() const
+pid_t IPCThreadState::getCallingPid() const
 {
     return mCallingPid;
 }
 
-int IPCThreadState::getCallingUid() const
+uid_t IPCThreadState::getCallingUid() const
 {
     return mCallingUid;
 }
