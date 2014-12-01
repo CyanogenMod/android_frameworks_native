@@ -94,6 +94,7 @@ public:
     void*               writeInplace(size_t len);
     status_t            writeUnpadded(const void* data, size_t len);
     status_t            writeInt32(int32_t val);
+    status_t            writeUint32(uint32_t val);
     status_t            writeInt64(int64_t val);
     status_t            writeFloat(float val);
     status_t            writeDouble(double val);
@@ -152,6 +153,8 @@ public:
     const void*         readInplace(size_t len) const;
     int32_t             readInt32() const;
     status_t            readInt32(int32_t *pArg) const;
+    uint32_t            readUint32() const;
+    status_t            readUint32(uint32_t *pArg) const;
     int64_t             readInt64() const;
     status_t            readInt64(int64_t *pArg) const;
     float               readFloat() const;
