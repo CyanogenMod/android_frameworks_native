@@ -624,6 +624,12 @@ status_t Parcel::writeInt32(int32_t val)
 {
     return writeAligned(val);
 }
+
+status_t Parcel::writeUint32(uint32_t val)
+{
+    return writeAligned(val);
+}
+
 status_t Parcel::writeInt32Array(size_t len, const int32_t *val) {
     if (!val) {
         return writeAligned(-1);
@@ -1035,6 +1041,15 @@ int32_t Parcel::readInt32() const
     return readAligned<int32_t>();
 }
 
+status_t Parcel::readUint32(uint32_t *pArg) const
+{
+    return readAligned(pArg);
+}
+
+uint32_t Parcel::readUint32() const
+{
+    return readAligned<uint32_t>();
+}
 
 status_t Parcel::readInt64(int64_t *pArg) const
 {
