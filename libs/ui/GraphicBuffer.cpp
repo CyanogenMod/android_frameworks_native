@@ -116,7 +116,7 @@ void GraphicBuffer::free_handle()
 }
 
 status_t GraphicBuffer::initCheck() const {
-    return mInitCheck;
+    return static_cast<status_t>(mInitCheck);
 }
 
 void GraphicBuffer::dumpAllocationsToSystemLog()
