@@ -338,7 +338,6 @@ int
 main(int argc, char *argv[])
 {
     int     rv, opt;
-    char   *chptr;
     bool    error;
     string  str;
     char cmd[MAXCMD];
