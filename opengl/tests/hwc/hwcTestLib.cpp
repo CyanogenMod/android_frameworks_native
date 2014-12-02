@@ -36,7 +36,6 @@
 // Function Prototypes
 static void printGLString(const char *name, GLenum s);
 static void checkEglError(const char* op, EGLBoolean returnVal = EGL_TRUE);
-static void checkGlError(const char* op);
 static void printEGLConfiguration(EGLDisplay dpy, EGLConfig config);
 
 using namespace std;
@@ -51,8 +50,6 @@ void hwcTestInitDisplay(bool verbose, EGLDisplay *dpy, EGLSurface *surface,
     EGLint *width, EGLint *height)
 {
     static EGLContext context;
-
-    int rv;
 
     EGLBoolean returnValue;
     EGLConfig myConfig = {0};
@@ -669,7 +666,6 @@ void hwcTestFillColor(GraphicBuffer *gBuf, ColorFract color, float alpha)
 
     for (unsigned int x = 0; x < gBuf->getStride(); x++) {
         for (unsigned int y = 0; y < gBuf->getHeight(); y++) {
-            uint32_t val = pixel;
             hwcTestSetPixel(gBuf, buf, x, y, (x < gBuf->getWidth())
                             ? pixel : testRand());
         }
@@ -963,14 +959,6 @@ static void checkEglError(const char* op, EGLBoolean returnVal)
             = eglGetError()) {
         testPrintE("after %s() eglError %s (0x%x)",
                    op, EGLUtils::strerror(error), error);
-    }
-}
-
-static void checkGlError(const char* op)
-{
-    for (GLint error = glGetError(); error; error
-            = glGetError()) {
-        testPrintE("after %s() glError (0x%x)", op, error);
     }
 }
 
