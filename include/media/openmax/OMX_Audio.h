@@ -357,7 +357,6 @@ typedef struct OMX_AUDIO_PARAM_FLACTYPE {
                                    unknown sampling rate. */
     OMX_U32 nCompressionLevel;/**< FLAC compression level, from 0 (fastest compression)
                                    to 8 (highest compression */
-    OMX_U32 nBitsPerSample;   /**< Number of bits in each sample */
 } OMX_AUDIO_PARAM_FLACTYPE;
 
 
