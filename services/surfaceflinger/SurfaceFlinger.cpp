@@ -835,9 +835,11 @@ void SurfaceFlinger::onMessageReceived(int32_t what) {
         case MessageQueue::INVALIDATE: {
             bool refreshNeeded = handleMessageTransaction();
             refreshNeeded |= handleMessageInvalidate();
+            refreshNeeded |= mRepaintEverything;
             if (refreshNeeded) {
-                // Signal a refresh if a transaction modified the window state or if
-                // a new buffer was latched
+                // Signal a refresh if a transaction modified the window state,
+                // a new buffer was latched, or if HWC has requested a full
+                // repaint
                 signalRefresh();
             }
             break;
