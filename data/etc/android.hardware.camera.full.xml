@@ -20,6 +20,4 @@
     <feature name="android.hardware.camera.level.full" />
     <feature name="android.hardware.camera.capability.manual_sensor" />
     <feature name="android.hardware.camera.capability.manual_post_processing" />
-    <feature name="android.hardware.camera.capability.burst_capture" />
-    <feature name="android.hardware.camera.capability.read_sensor_settings" />
 </permissions>
