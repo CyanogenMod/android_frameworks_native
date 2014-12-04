@@ -98,7 +98,8 @@ uint32_t ion_FlagMask_valid_check(uint32_t flags)
     return result;
 }
 
-MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags, char const *name):MemoryHeapBase()
+MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags,
+    __attribute__((unused))char const *name):MemoryHeapBase()
 {
     void* base = NULL;
     int fd = -1;
@@ -146,7 +147,8 @@ MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags, char const *name):Memo
     }
 }
 
-MemoryHeapIon::MemoryHeapIon(int fd, size_t size, uint32_t flags, uint32_t offset):MemoryHeapBase()
+MemoryHeapIon::MemoryHeapIon(int fd, size_t size, uint32_t flags,
+    __attribute__((unused))uint32_t offset):MemoryHeapBase()
 {
     void* base = NULL;
     int dup_fd = -1;
