@@ -18,5 +18,4 @@
 <permissions>
     <feature name="android.hardware.camera.any" />
     <feature name="android.hardware.camera.capability.manual_sensor" />
-    <feature name="android.hardware.camera.capability.read_sensor_settings" />
 </permissions>
