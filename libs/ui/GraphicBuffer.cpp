@@ -53,7 +53,8 @@ GraphicBuffer::GraphicBuffer()
     handle = NULL;
 }
 
-GraphicBuffer::GraphicBuffer(int w, int h, PixelFormat reqFormat, int reqUsage)
+GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
+        PixelFormat inFormat, uint32_t inUsage)
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId())
 {
@@ -63,20 +64,21 @@ GraphicBuffer::GraphicBuffer(int w, int h, PixelFormat reqFormat, int reqUsage)
     format =
     usage  = 0;
     handle = NULL;
-    mInitCheck = initSize(w, h, reqFormat, reqUsage);
+    mInitCheck = initSize(inWidth, inHeight, inFormat, inUsage);
 }
 
-GraphicBuffer::GraphicBuffer(int w, int h, PixelFormat inFormat, int inUsage,
-        int inStride, native_handle_t* inHandle, bool keepOwnership)
+GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
+        PixelFormat inFormat, uint32_t inUsage, uint32_t inStride,
+        native_handle_t* inHandle, bool keepOwnership)
     : BASE(), mOwner(keepOwnership ? ownHandle : ownNone),
       mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId())
 {
-    width  = w;
-    height = h;
-    stride = inStride;
+    width  = static_cast<int>(inWidth);
+    height = static_cast<int>(inHeight);
+    stride = static_cast<int>(inStride);
     format = inFormat;
-    usage  = inUsage;
+    usage  = static_cast<int>(inUsage);
     handle = inHandle;
 }
 
@@ -129,12 +131,17 @@ ANativeWindowBuffer* GraphicBuffer::getNativeBuffer() const
             const_cast<GraphicBuffer*>(this));
 }
 
-status_t GraphicBuffer::reallocate(int w, int h, PixelFormat f, int reqUsage)
+status_t GraphicBuffer::reallocate(uint32_t inWidth, uint32_t inHeight,
+        PixelFormat inFormat, uint32_t inUsage)
 {
     if (mOwner != ownData)
         return INVALID_OPERATION;
 
-    if (handle && w==width && h==height && f==format && reqUsage==usage)
+    if (handle &&
+            static_cast<int>(inWidth) == width &&
+            static_cast<int>(inHeight) == height &&
+            inFormat == format &&
+            static_cast<int>(inUsage) == usage)
         return NO_ERROR;
 
     if (handle) {
@@ -142,61 +149,64 @@ status_t GraphicBuffer::reallocate(int w, int h, PixelFormat f, int reqUsage)
         allocator.free(handle);
         handle = 0;
     }
-    return initSize(w, h, f, reqUsage);
+    return initSize(inWidth, inHeight, inFormat, inUsage);
 }
 
-status_t GraphicBuffer::initSize(uint32_t w, uint32_t h, PixelFormat format,
-        uint32_t reqUsage)
+status_t GraphicBuffer::initSize(uint32_t inWidth, uint32_t inHeight,
+        PixelFormat inFormat, uint32_t inUsage)
 {
     GraphicBufferAllocator& allocator = GraphicBufferAllocator::get();
-    status_t err = allocator.alloc(w, h, format, reqUsage, &handle, &stride);
+    uint32_t outStride = 0;
+    status_t err = allocator.alloc(inWidth, inHeight, inFormat, inUsage,
+            &handle, &outStride);
     if (err == NO_ERROR) {
-        this->width  = w;
-        this->height = h;
-        this->format = format;
-        this->usage  = reqUsage;
+        width = static_cast<int>(inWidth);
+        height = static_cast<int>(inHeight);
+        format = inFormat;
+        usage = static_cast<int>(inUsage);
+        stride = static_cast<int>(outStride);
     }
     return err;
 }
 
-status_t GraphicBuffer::lock(uint32_t usage, void** vaddr)
+status_t GraphicBuffer::lock(uint32_t inUsage, void** vaddr)
 {
     const Rect lockBounds(width, height);
-    status_t res = lock(usage, lockBounds, vaddr);
+    status_t res = lock(inUsage, lockBounds, vaddr);
     return res;
 }
 
-status_t GraphicBuffer::lock(uint32_t usage, const Rect& rect, void** vaddr)
+status_t GraphicBuffer::lock(uint32_t inUsage, const Rect& rect, void** vaddr)
 {
-    if (rect.left < 0 || rect.right  > this->width ||
-        rect.top  < 0 || rect.bottom > this->height) {
+    if (rect.left < 0 || rect.right  > width ||
+        rect.top  < 0 || rect.bottom > height) {
         ALOGE("locking pixels (%d,%d,%d,%d) outside of buffer (w=%d, h=%d)",
                 rect.left, rect.top, rect.right, rect.bottom,
-                this->width, this->height);
+                width, height);
         return BAD_VALUE;
     }
-    status_t res = getBufferMapper().lock(handle, usage, rect, vaddr);
+    status_t res = getBufferMapper().lock(handle, inUsage, rect, vaddr);
     return res;
 }
 
-status_t GraphicBuffer::lockYCbCr(uint32_t usage, android_ycbcr *ycbcr)
+status_t GraphicBuffer::lockYCbCr(uint32_t inUsage, android_ycbcr* ycbcr)
 {
     const Rect lockBounds(width, height);
-    status_t res = lockYCbCr(usage, lockBounds, ycbcr);
+    status_t res = lockYCbCr(inUsage, lockBounds, ycbcr);
     return res;
 }
 
-status_t GraphicBuffer::lockYCbCr(uint32_t usage, const Rect& rect,
-        android_ycbcr *ycbcr)
+status_t GraphicBuffer::lockYCbCr(uint32_t inUsage, const Rect& rect,
+        android_ycbcr* ycbcr)
 {
-    if (rect.left < 0 || rect.right  > this->width ||
-        rect.top  < 0 || rect.bottom > this->height) {
+    if (rect.left < 0 || rect.right  > width ||
+        rect.top  < 0 || rect.bottom > height) {
         ALOGE("locking pixels (%d,%d,%d,%d) outside of buffer (w=%d, h=%d)",
                 rect.left, rect.top, rect.right, rect.bottom,
-                this->width, this->height);
+                width, height);
         return BAD_VALUE;
     }
-    status_t res = getBufferMapper().lockYCbCr(handle, usage, rect, ycbcr);
+    status_t res = getBufferMapper().lockYCbCr(handle, inUsage, rect, ycbcr);
     return res;
 }
 
@@ -206,43 +216,48 @@ status_t GraphicBuffer::unlock()
     return res;
 }
 
-status_t GraphicBuffer::lockAsync(uint32_t usage, void** vaddr, int fenceFd)
+status_t GraphicBuffer::lockAsync(uint32_t inUsage, void** vaddr, int fenceFd)
 {
     const Rect lockBounds(width, height);
-    status_t res = lockAsync(usage, lockBounds, vaddr, fenceFd);
+    status_t res = lockAsync(inUsage, lockBounds, vaddr, fenceFd);
     return res;
 }
 
-status_t GraphicBuffer::lockAsync(uint32_t usage, const Rect& rect, void** vaddr, int fenceFd)
+status_t GraphicBuffer::lockAsync(uint32_t inUsage, const Rect& rect,
+        void** vaddr, int fenceFd)
 {
-    if (rect.left < 0 || rect.right  > this->width ||
-        rect.top  < 0 || rect.bottom > this->height) {
+    if (rect.left < 0 || rect.right  > width ||
+        rect.top  < 0 || rect.bottom > height) {
         ALOGE("locking pixels (%d,%d,%d,%d) outside of buffer (w=%d, h=%d)",
                 rect.left, rect.top, rect.right, rect.bottom,
-                this->width, this->height);
+                width, height);
         return BAD_VALUE;
     }
-    status_t res = getBufferMapper().lockAsync(handle, usage, rect, vaddr, fenceFd);
+    status_t res = getBufferMapper().lockAsync(handle, inUsage, rect, vaddr,
+            fenceFd);
     return res;
 }
 
-status_t GraphicBuffer::lockAsyncYCbCr(uint32_t usage, android_ycbcr *ycbcr, int fenceFd)
+status_t GraphicBuffer::lockAsyncYCbCr(uint32_t inUsage, android_ycbcr* ycbcr,
+        int fenceFd)
 {
     const Rect lockBounds(width, height);
-    status_t res = lockAsyncYCbCr(usage, lockBounds, ycbcr, fenceFd);
+    status_t res = lockAsyncYCbCr(inUsage, lockBounds, ycbcr, fenceFd);
     return res;
 }
 
-status_t GraphicBuffer::lockAsyncYCbCr(uint32_t usage, const Rect& rect, android_ycbcr *ycbcr, int fenceFd)
+status_t GraphicBuffer::lockAsyncYCbCr(uint32_t inUsage, const Rect& rect,
+        android_ycbcr* ycbcr, int fenceFd)
 {
-    if (rect.left < 0 || rect.right  > this->width ||
-        rect.top  < 0 || rect.bottom > this->height) {
+    if (rect.left < 0 || rect.right  > width ||
+        rect.top  < 0 || rect.bottom > height) {
         ALOGE("locking pixels (%d,%d,%d,%d) outside of buffer (w=%d, h=%d)",
                 rect.left, rect.top, rect.right, rect.bottom,
-                this->width, this->height);
+                width, height);
         return BAD_VALUE;
     }
-    status_t res = getBufferMapper().lockAsyncYCbCr(handle, usage, rect, ycbcr, fenceFd);
+    status_t res = getBufferMapper().lockAsyncYCbCr(handle, inUsage, rect,
+            ycbcr, fenceFd);
     return res;
 }
 
@@ -253,11 +268,11 @@ status_t GraphicBuffer::unlockAsync(int *fenceFd)
 }
 
 size_t GraphicBuffer::getFlattenedSize() const {
-    return (10 + (handle ? handle->numInts : 0))*sizeof(int);
+    return static_cast<size_t>(10 + (handle ? handle->numInts : 0)) * sizeof(int);
 }
 
 size_t GraphicBuffer::getFdCount() const {
-    return handle ? handle->numFds : 0;
+    return static_cast<size_t>(handle ? handle->numFds : 0);
 }
 
 status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const {
@@ -282,16 +297,17 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
     if (handle) {
         buf[8] = handle->numFds;
         buf[9] = handle->numInts;
-        native_handle_t const* const h = handle;
-        memcpy(fds,     h->data,             h->numFds*sizeof(int));
-        memcpy(&buf[10], h->data + h->numFds, h->numInts*sizeof(int));
+        memcpy(fds, handle->data,
+                static_cast<size_t>(handle->numFds) * sizeof(int));
+        memcpy(&buf[10], handle->data + handle->numFds,
+                static_cast<size_t>(handle->numInts) * sizeof(int));
     }
 
     buffer = reinterpret_cast<void*>(static_cast<int*>(buffer) + sizeNeeded);
     size -= sizeNeeded;
     if (handle) {
         fds += handle->numFds;
-        count -= handle->numFds;
+        count -= static_cast<size_t>(handle->numFds);
     }
 
     return NO_ERROR;
@@ -304,8 +320,8 @@ status_t GraphicBuffer::unflatten(
     int const* buf = static_cast<int const*>(buffer);
     if (buf[0] != 'GBFR') return BAD_TYPE;
 
-    const size_t numFds  = buf[8];
-    const size_t numInts = buf[9];
+    const size_t numFds  = static_cast<size_t>(buf[8]);
+    const size_t numInts = static_cast<size_t>(buf[9]);
 
     const size_t maxNumber = UINT_MAX / sizeof(int);
     if (numFds >= maxNumber || numInts >= (maxNumber - 10)) {
@@ -333,15 +349,16 @@ status_t GraphicBuffer::unflatten(
         stride = buf[3];
         format = buf[4];
         usage  = buf[5];
-        native_handle* h = native_handle_create(numFds, numInts);
+        native_handle* h = native_handle_create(
+                static_cast<int>(numFds), static_cast<int>(numInts));
         if (!h) {
             width = height = stride = format = usage = 0;
             handle = NULL;
             ALOGE("unflatten: native_handle_create failed");
             return NO_MEMORY;
         }
-        memcpy(h->data,          fds,     numFds*sizeof(int));
-        memcpy(h->data + numFds, &buf[10], numInts*sizeof(int));
+        memcpy(h->data, fds, numFds * sizeof(int));
+        memcpy(h->data + numFds, &buf[10], numInts * sizeof(int));
         handle = h;
     } else {
         width = height = stride = format = usage = 0;

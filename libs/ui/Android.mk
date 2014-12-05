@@ -16,7 +16,19 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
-LOCAL_CPPFLAGS := -std=c++11
+LOCAL_CPPFLAGS := -std=c++1y -Weverything -Werror
+
+# The static constructors and destructors in this library have not been noted to
+# introduce significant overheads
+LOCAL_CPPFLAGS += -Wno-exit-time-destructors
+LOCAL_CPPFLAGS += -Wno-global-constructors
+
+# We only care about compiling as C++14
+LOCAL_CPPFLAGS += -Wno-c++98-compat-pedantic
+
+# We use four-character constants for the GraphicBuffer header, and don't care
+# that they're non-portable as long as they're consistent within one execution
+LOCAL_CPPFLAGS += -Wno-four-char-constants
 
 LOCAL_SRC_FILES := \
 	Fence.cpp \
