@@ -98,7 +98,7 @@ private:
     String8 mStringType;
     String8 mRequiredPermission;
     int32_t mMaxDelay;
-    int32_t mFlags;
+    uint32_t mFlags;
     static void flattenString8(void*& buffer, size_t& size, const String8& string8);
     static bool unflattenString8(void const*& buffer, size_t& size, String8& outputString8);
 };

@@ -70,7 +70,7 @@ public:
     // frame's buffer.
     virtual void onFrameCommitted() = 0;
 
-    virtual void dump(String8& result) const = 0;
+    virtual void dumpAsString(String8& result) const = 0;
 
     virtual void resizeBuffers(const uint32_t w, const uint32_t h) = 0;
 
