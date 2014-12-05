@@ -102,8 +102,8 @@ static void reverseRectsResolvingJunctions(const Rect* begin, const Rect* end,
         current--;
     } while (current->top == lastTop && current >= begin);
 
-    unsigned int beginLastSpan = -1;
-    unsigned int endLastSpan = -1;
+    int beginLastSpan = -1;
+    int endLastSpan = -1;
     int top = -1;
     int bottom = -1;
 
@@ -118,7 +118,7 @@ static void reverseRectsResolvingJunctions(const Rect* begin, const Rect* end,
             } else {
                 beginLastSpan = endLastSpan + 1;
             }
-            endLastSpan = dst.size() - 1;
+            endLastSpan = static_cast<int>(dst.size()) - 1;
 
             top = current->top;
             bottom = current->bottom;
@@ -126,8 +126,12 @@ static void reverseRectsResolvingJunctions(const Rect* begin, const Rect* end,
         int left = current->left;
         int right = current->right;
 
-        for (unsigned int prevIndex = beginLastSpan; prevIndex <= endLastSpan; prevIndex++) {
-            const Rect* prev = &dst[prevIndex];
+        for (int prevIndex = beginLastSpan; prevIndex <= endLastSpan; prevIndex++) {
+            // prevIndex can't be -1 here because if endLastSpan is set to a
+            // value greater than -1 (allowing the loop to execute),
+            // beginLastSpan (and therefore prevIndex) will also be increased
+            const Rect* prev = &dst[static_cast<size_t>(prevIndex)];
+
             if (spanDirection == direction_RTL) {
                 // iterating over previous span RTL, quit if it's too far left
                 if (prev->right <= left) break;
@@ -250,10 +254,10 @@ void Region::set(const Rect& r)
     mStorage.add(r);
 }
 
-void Region::set(uint32_t w, uint32_t h)
+void Region::set(int32_t w, int32_t h)
 {
     mStorage.clear();
-    mStorage.add(Rect(w,h));
+    mStorage.add(Rect(w, h));
 }
 
 bool Region::isTriviallyEqual(const Region& region) const {
@@ -404,7 +408,7 @@ const Region Region::operation(const Region& rhs, int dx, int dy, int op) const 
 
 // This is our region rasterizer, which merges rects and spans together
 // to obtain an optimal region.
-class Region::rasterizer : public region_operator<Rect>::region_rasterizer 
+class Region::rasterizer : public region_operator<Rect>::region_rasterizer
 {
     Rect bounds;
     Vector<Rect>& storage;
@@ -413,80 +417,91 @@ class Region::rasterizer : public region_operator<Rect>::region_rasterizer
     Vector<Rect> span;
     Rect* cur;
 public:
-    rasterizer(Region& reg) 
+    rasterizer(Region& reg)
         : bounds(INT_MAX, 0, INT_MIN, 0), storage(reg.mStorage), head(), tail(), cur() {
         storage.clear();
     }
 
-    ~rasterizer() {
-        if (span.size()) {
-            flushSpan();
-        }
-        if (storage.size()) {
-            bounds.top = storage.itemAt(0).top;
-            bounds.bottom = storage.top().bottom;
-            if (storage.size() == 1) {
-                storage.clear();
-            }
-        } else {
-            bounds.left  = 0;
-            bounds.right = 0;
-        }
-        storage.add(bounds);
-    }
-    
-    virtual void operator()(const Rect& rect) {
-        //ALOGD(">>> %3d, %3d, %3d, %3d",
-        //        rect.left, rect.top, rect.right, rect.bottom);
-        if (span.size()) {
-            if (cur->top != rect.top) {
-                flushSpan();
-            } else if (cur->right == rect.left) {
-                cur->right = rect.right;
-                return;
-            }
-        }
-        span.add(rect);
-        cur = span.editArray() + (span.size() - 1);
-    }
+    virtual ~rasterizer();
+
+    virtual void operator()(const Rect& rect);
+
 private:
-    template<typename T> 
+    template<typename T>
     static inline T min(T rhs, T lhs) { return rhs < lhs ? rhs : lhs; }
-    template<typename T> 
+    template<typename T>
     static inline T max(T rhs, T lhs) { return rhs > lhs ? rhs : lhs; }
-    void flushSpan() {
-        bool merge = false;
-        if (tail-head == ssize_t(span.size())) {
-            Rect const* p = span.editArray();
-            Rect const* q = head;
-            if (p->top == q->bottom) {
-                merge = true;
-                while (q != tail) {
-                    if ((p->left != q->left) || (p->right != q->right)) {
-                        merge = false;
-                        break;
-                    }
-                    p++, q++;
-                }
-            }
-        }
-        if (merge) {
-            const int bottom = span[0].bottom;
-            Rect* r = head;
-            while (r != tail) {
-                r->bottom = bottom;
-                r++;
-            }
-        } else {
-            bounds.left = min(span.itemAt(0).left, bounds.left);
-            bounds.right = max(span.top().right, bounds.right);
-            storage.appendVector(span);
-            tail = storage.editArray() + storage.size();
-            head = tail - span.size();
-        }
-        span.clear();
-    }
+
+    void flushSpan();
 };
+
+Region::rasterizer::~rasterizer()
+{
+    if (span.size()) {
+        flushSpan();
+    }
+    if (storage.size()) {
+        bounds.top = storage.itemAt(0).top;
+        bounds.bottom = storage.top().bottom;
+        if (storage.size() == 1) {
+            storage.clear();
+        }
+    } else {
+        bounds.left  = 0;
+        bounds.right = 0;
+    }
+    storage.add(bounds);
+}
+
+void Region::rasterizer::operator()(const Rect& rect)
+{
+    //ALOGD(">>> %3d, %3d, %3d, %3d",
+    //        rect.left, rect.top, rect.right, rect.bottom);
+    if (span.size()) {
+        if (cur->top != rect.top) {
+            flushSpan();
+        } else if (cur->right == rect.left) {
+            cur->right = rect.right;
+            return;
+        }
+    }
+    span.add(rect);
+    cur = span.editArray() + (span.size() - 1);
+}
+
+void Region::rasterizer::flushSpan()
+{
+    bool merge = false;
+    if (tail-head == ssize_t(span.size())) {
+        Rect const* p = span.editArray();
+        Rect const* q = head;
+        if (p->top == q->bottom) {
+            merge = true;
+            while (q != tail) {
+                if ((p->left != q->left) || (p->right != q->right)) {
+                    merge = false;
+                    break;
+                }
+                p++, q++;
+            }
+        }
+    }
+    if (merge) {
+        const int bottom = span[0].bottom;
+        Rect* r = head;
+        while (r != tail) {
+            r->bottom = bottom;
+            r++;
+        }
+    } else {
+        bounds.left = min(span.itemAt(0).left, bounds.left);
+        bounds.right = max(span.top().right, bounds.right);
+        storage.appendVector(span);
+        tail = storage.editArray() + storage.size();
+        head = tail - span.size();
+    }
+    span.clear();
+}
 
 bool Region::validate(const Region& reg, const char* name, bool silent)
 {
@@ -786,10 +801,8 @@ Region::const_iterator Region::end() const {
 }
 
 Rect const* Region::getArray(size_t* count) const {
-    const_iterator const b(begin());
-    const_iterator const e(end());
-    if (count) *count = e-b;
-    return b;
+    if (count) *count = static_cast<size_t>(end() - begin());
+    return begin();
 }
 
 SharedBuffer const* Region::getSharedBuffer(size_t* count) const {
@@ -806,29 +819,22 @@ SharedBuffer const* Region::getSharedBuffer(size_t* count) const {
 
 // ----------------------------------------------------------------------------
 
-void Region::dump(String8& out, const char* what, uint32_t flags) const
+void Region::dump(String8& out, const char* what, uint32_t /* flags */) const
 {
-    (void)flags;
     const_iterator head = begin();
     const_iterator const tail = end();
 
-    size_t SIZE = 256;
-    char buffer[SIZE];
-
-    snprintf(buffer, SIZE, "  Region %s (this=%p, count=%" PRIdPTR ")\n",
-            what, this, tail-head);
-    out.append(buffer);
+    out.appendFormat("  Region %s (this=%p, count=%" PRIdPTR ")\n",
+            what, this, tail - head);
     while (head != tail) {
-        snprintf(buffer, SIZE, "    [%3d, %3d, %3d, %3d]\n",
-                head->left, head->top, head->right, head->bottom);
-        out.append(buffer);
-        head++;
+        out.appendFormat("    [%3d, %3d, %3d, %3d]\n", head->left, head->top,
+                head->right, head->bottom);
+        ++head;
     }
 }
 
-void Region::dump(const char* what, uint32_t flags) const
+void Region::dump(const char* what, uint32_t /* flags */) const
 {
-    (void)flags;
     const_iterator head = begin();
     const_iterator const tail = end();
     ALOGD("  Region %s (this=%p, count=%" PRIdPTR ")\n", what, this, tail-head);

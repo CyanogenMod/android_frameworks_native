@@ -18,8 +18,11 @@
 
 namespace android {
 
+#ifdef FRAMEBUFFER_FORCE_FORMAT
+// We need the two-level macro to stringify the contents of a macro argument
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
+#endif
 
 void appendUiConfigString(String8& configStr)
 {
