@@ -17,8 +17,6 @@
 #ifndef ANDROID_UI_RECT
 #define ANDROID_UI_RECT
 
-#define LOG_TAG "Rect"
-
 #include <utils/Flattenable.h>
 #include <utils/Log.h>
 #include <utils/TypeHelpers.h>
@@ -48,11 +46,13 @@ public:
 
     inline Rect(uint32_t w, uint32_t h) {
         if (w > INT32_MAX) {
-            ALOGW("Width %u too large for Rect class, clamping", w);
+            ALOG(LOG_WARN, "Rect",
+                    "Width %u too large for Rect class, clamping", w);
             w = INT32_MAX;
         }
         if (h > INT32_MAX) {
-            ALOGW("Height %u too large for Rect class, clamping", h);
+            ALOG(LOG_WARN, "Rect",
+                    "Height %u too large for Rect class, clamping", h);
             h = INT32_MAX;
         }
         left = top = 0;
