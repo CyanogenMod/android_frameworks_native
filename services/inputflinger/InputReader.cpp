@@ -5843,6 +5843,7 @@ void TouchInputMapper::dispatchPointerStylus(nsecs_t when, uint32_t policyFlags)
         mPointerSimple.currentProperties.id = 0;
         mPointerSimple.currentProperties.toolType =
                 mCurrentCookedState.cookedPointerData.pointerProperties[index].toolType;
+        mLastStylusTime = when;
     } else {
         down = false;
         hovering = false;
@@ -5923,6 +5924,11 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
         } else if (!down && !hovering && (mPointerSimple.down || mPointerSimple.hovering)) {
             mPointerController->fade(PointerControllerInterface::TRANSITION_GRADUAL);
         }
+    }
+    
+    if (rejectPalm(when)) {     // stylus is currently active
+        mPointerSimple.reset();
+        return;
     }
 
     if (mPointerSimple.down && !down) {
@@ -6045,6 +6051,9 @@ void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32
         const PointerProperties* properties, const PointerCoords* coords,
         const uint32_t* idToIndex, BitSet32 idBits, int32_t changedId,
         float xPrecision, float yPrecision, nsecs_t downTime) {
+    
+    if (rejectPalm(when)) return;
+    
     PointerCoords pointerCoords[MAX_POINTERS];
     PointerProperties pointerProperties[MAX_POINTERS];
     uint32_t pointerCount = 0;
@@ -6116,6 +6125,13 @@ void TouchInputMapper::fadePointer() {
     if (mPointerController != NULL) {
         mPointerController->fade(PointerControllerInterface::TRANSITION_GRADUAL);
     }
+}
+
+nsecs_t TouchInputMapper::mLastStylusTime = 0;
+
+bool TouchInputMapper::rejectPalm(nsecs_t when) {
+    return (when - mLastStylusTime < mConfig.stylusPalmRejectionTime) &&
+        mPointerSimple.currentProperties.toolType != AMOTION_EVENT_TOOL_TYPE_STYLUS;
 }
 
 void TouchInputMapper::cancelTouch(nsecs_t when) {
