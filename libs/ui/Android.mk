@@ -30,6 +30,9 @@ LOCAL_CPPFLAGS += -Wno-c++98-compat-pedantic
 # that they're non-portable as long as they're consistent within one execution
 LOCAL_CPPFLAGS += -Wno-four-char-constants
 
+# Don't warn about struct padding
+LOCAL_CPPFLAGS += -Wno-padded
+
 LOCAL_SRC_FILES := \
 	Fence.cpp \
 	FramebufferNativeWindow.cpp \
