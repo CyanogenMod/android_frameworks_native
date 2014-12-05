@@ -1,7 +1,10 @@
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:= \
+LOCAL_CLANG := true
+LOCAL_CPPFLAGS := -std=c++11
+
+LOCAL_SRC_FILES := \
 	IGraphicBufferConsumer.cpp \
 	IConsumerListener.cpp \
 	BitTube.cpp \
@@ -47,7 +50,7 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog
 
 
-LOCAL_MODULE:= libgui
+LOCAL_MODULE := libgui
 
 ifeq ($(TARGET_BOARD_PLATFORM), tegra)
 	LOCAL_CFLAGS += -DDONT_USE_FENCE_SYNC

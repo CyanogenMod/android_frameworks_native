@@ -72,11 +72,11 @@ public:
     GraphicBuffer();
 
     // creates w * h buffer
-    GraphicBuffer(uint32_t w, uint32_t h, PixelFormat format, uint32_t usage);
+    GraphicBuffer(int w, int h, PixelFormat format, int usage);
 
     // create a buffer from an existing handle
-    GraphicBuffer(uint32_t w, uint32_t h, PixelFormat format, uint32_t usage,
-            uint32_t stride, native_handle_t* handle, bool keepOwnership);
+    GraphicBuffer(int w, int h, PixelFormat format, int usage,
+            int stride, native_handle_t* handle, bool keepOwnership);
 
     // create a buffer from an existing ANativeWindowBuffer
     GraphicBuffer(ANativeWindowBuffer* buffer, bool keepOwnership);
@@ -84,15 +84,15 @@ public:
     // return status
     status_t initCheck() const;
 
-    uint32_t getWidth() const           { return width; }
-    uint32_t getHeight() const          { return height; }
-    uint32_t getStride() const          { return stride; }
-    uint32_t getUsage() const           { return usage; }
+    int getWidth() const                { return width; }
+    int getHeight() const               { return height; }
+    int getStride() const               { return stride; }
+    int getUsage() const                { return usage; }
     PixelFormat getPixelFormat() const  { return format; }
     Rect getBounds() const              { return Rect(width, height); }
     uint64_t getId() const              { return mId; }
 
-    status_t reallocate(uint32_t w, uint32_t h, PixelFormat f, uint32_t usage);
+    status_t reallocate(int w, int h, PixelFormat f, int usage);
 
     status_t lock(uint32_t usage, void** vaddr);
     status_t lock(uint32_t usage, const Rect& rect, void** vaddr);

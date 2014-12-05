@@ -29,7 +29,9 @@
 
 #include <ui/ANativeObjectBase.h>
 #include <ui/Fence.h>
+#define INCLUDED_FROM_FRAMEBUFFER_NATIVE_WINDOW_CPP
 #include <ui/FramebufferNativeWindow.h>
+#undef INCLUDED_FROM_FRAMEBUFFER_NATIVE_WINDOW_CPP
 #include <ui/Rect.h>
 
 #include <EGL/egl.h>
