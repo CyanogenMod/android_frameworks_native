@@ -64,6 +64,8 @@ Program::Program(const ProgramCache::Key& /*needs*/, const char* vertex, const c
         mSamplerLoc = glGetUniformLocation(programId, "sampler");
         mColorLoc = glGetUniformLocation(programId, "color");
         mAlphaPlaneLoc = glGetUniformLocation(programId, "alphaPlane");
+        mSamplerMaskLoc = glGetUniformLocation(programId, "samplerMask");
+        mMaskAlphaThresholdLoc = glGetUniformLocation(programId, "maskAlphaThreshold");
 
         // set-up the default values for our uniforms
         glUseProgram(programId);
@@ -143,6 +145,12 @@ void Program::setUniforms(const Description& desc) {
     }
     // these uniforms are always present
     glUniformMatrix4fv(mProjectionMatrixLoc, 1, GL_FALSE, desc.mProjectionMatrix.asArray());
+    if (mSamplerMaskLoc >= 0) {
+        glUniform1i(mSamplerMaskLoc, 1);
+    }
+    if (mMaskAlphaThresholdLoc >= 0) {
+        glUniform1f(mMaskAlphaThresholdLoc, desc.mMaskAlphaThreshold);
+    }
 }
 
 } /* namespace android */

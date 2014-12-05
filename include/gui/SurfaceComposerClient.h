@@ -128,6 +128,10 @@ public:
     status_t    setFlags(const sp<IBinder>& id, uint32_t flags, uint32_t mask);
     status_t    setTransparentRegionHint(const sp<IBinder>& id, const Region& transparent);
     status_t    setLayer(const sp<IBinder>& id, int32_t layer);
+    status_t    setBlur(const sp<IBinder>& id, float blur);
+    status_t    setBlurMaskSurface(const sp<IBinder>& id, const sp<IBinder>& maskSurfaceId);
+    status_t    setBlurMaskSampling(const sp<IBinder>& id, int32_t blurMaskSampling);
+    status_t    setBlurMaskAlphaThreshold(const sp<IBinder>& id, float alpha);
     status_t    setAlpha(const sp<IBinder>& id, float alpha=1.0f);
     status_t    setMatrix(const sp<IBinder>& id, float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setPosition(const sp<IBinder>& id, float x, float y);
