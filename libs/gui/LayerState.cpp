@@ -32,6 +32,10 @@ status_t layer_state_t::write(Parcel& output) const
     output.writeInt32(w);
     output.writeInt32(h);
     output.writeInt32(layerStack);
+    output.writeFloat(blur);
+    output.writeStrongBinder(blurMaskSurface);
+    output.writeInt32(blurMaskSampling);
+    output.writeFloat(blurMaskAlphaThreshold);
     output.writeFloat(alpha);
     output.writeInt32(flags);
     output.writeInt32(mask);
@@ -52,6 +56,10 @@ status_t layer_state_t::read(const Parcel& input)
     w = input.readInt32();
     h = input.readInt32();
     layerStack = input.readInt32();
+    blur = input.readFloat();
+    blurMaskSurface = input.readStrongBinder();
+    blurMaskSampling = input.readInt32();
+    blurMaskAlphaThreshold = input.readFloat();
     alpha = input.readFloat();
     flags = input.readInt32();
     mask = input.readInt32();

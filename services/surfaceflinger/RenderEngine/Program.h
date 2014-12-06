@@ -84,6 +84,9 @@ private:
 
     /* location of the color uniform */
     GLint mColorLoc;
+
+    GLint mSamplerMaskLoc;
+    GLint mMaskAlphaThresholdLoc;
 };
 
 

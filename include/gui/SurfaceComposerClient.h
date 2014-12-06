@@ -166,6 +166,11 @@ public:
             const Rect& layerStackRect,
             const Rect& displayRect);
 
+    status_t    setBlur(const sp<IBinder>& id, float blur);
+    status_t    setBlurMaskSurface(const sp<IBinder>& id, const sp<IBinder>& maskSurfaceId);
+    status_t    setBlurMaskSampling(const sp<IBinder>& id, int32_t blurMaskSampling);
+    status_t    setBlurMaskAlphaThreshold(const sp<IBinder>& id, float alpha);
+
 private:
     virtual void onFirstRef();
     Composer& getComposer();
