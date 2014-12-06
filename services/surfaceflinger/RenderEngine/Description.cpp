@@ -33,6 +33,8 @@ Description::Description() :
     mOpaque = true;
     mTextureEnabled = false;
     mColorMatrixEnabled = false;
+    mMaskTextureEnabled = false;
+    mMaskAlphaThreshold = 0.0f;
 
     memset(mColor, 0, sizeof(mColor));
 }
@@ -92,5 +94,14 @@ const mat4& Description::getColorMatrix() const {
     return mColorMatrix;
 }
 
+void Description::setMasking(const Texture& maskTexture, float alphaThreshold) {
+    mMaskTexture = maskTexture;
+    mMaskTextureEnabled = true;
+    mMaskAlphaThreshold = alphaThreshold;
+}
+
+void Description::disableMasking() {
+    mMaskTextureEnabled = false;
+}
 
 } /* namespace android */

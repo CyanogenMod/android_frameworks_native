@@ -108,6 +108,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mCurrentState.active.crop.makeInvalid();
     mCurrentState.z = 0;
     mCurrentState.alpha = 0xFF;
+    mCurrentState.blur = 0xFF;
     mCurrentState.layerStack = 0;
     mCurrentState.flags = layerFlags;
     mCurrentState.sequence = 0;
@@ -607,21 +608,21 @@ Rect Layer::getPosition(
 // drawing...
 // ---------------------------------------------------------------------------
 
-void Layer::draw(const sp<const DisplayDevice>& hw, const Region& clip) const {
+void Layer::draw(const sp<const DisplayDevice>& hw, const Region& clip) {
     onDraw(hw, clip, false);
 }
 
 void Layer::draw(const sp<const DisplayDevice>& hw,
-        bool useIdentityTransform) const {
+        bool useIdentityTransform) {
     onDraw(hw, Region(hw->bounds()), useIdentityTransform);
 }
 
-void Layer::draw(const sp<const DisplayDevice>& hw) const {
+void Layer::draw(const sp<const DisplayDevice>& hw) {
     onDraw(hw, Region(hw->bounds()), false);
 }
 
 void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
-        bool useIdentityTransform) const
+        bool useIdentityTransform)
 {
     ATRACE_CALL();
 
@@ -1028,6 +1029,14 @@ bool Layer::setLayer(uint32_t z) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.z = z;
+    setTransactionFlags(eTransactionNeeded);
+    return true;
+}
+bool Layer::setBlur(uint8_t blur) {
+    if (mCurrentState.blur == blur)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.blur = blur;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1479,13 +1488,13 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
     result.appendFormat(            "      "
             "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, invalidate=%1d, "
-            "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
+            "alpha=0x%02x, blur=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
             "      client=%p\n",
             s.layerStack, s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
             isOpaque(s), contentDirty,
-            s.alpha, s.flags,
+            s.alpha, s.blur, s.flags,
             s.transform[0][0], s.transform[0][1],
             s.transform[1][0], s.transform[1][1],
             client.get());

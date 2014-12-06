@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -110,9 +112,27 @@ void ProgramCache::primeCache() {
             shaderCount++;
         }
     }
+
+    // Keys that are actually used by blurring.
+    // This is obtained by log msg from useProgram()
+    uint32_t blurringKeys[] = {
+        0x01000015,
+        0x01000011,
+    };
+    for (size_t i=0; i<sizeof(blurringKeys)/sizeof(blurringKeys[0]); ++i) {
+        Key shaderKey;
+        shaderKey.set(blurringKeys[i], blurringKeys[i]);
+        Program* program = mCache.valueFor(shaderKey);
+        if (program == NULL) {
+            program = generateProgram(shaderKey);
+            mCache.add(shaderKey, program);
+            shaderCount++;
+        }
+    }
+
     nsecs_t timeAfter = systemTime();
     float compileTimeMs = static_cast<float>(timeAfter - timeBefore) / 1.0E6;
-    ALOGD("shader cache generated - %u shaders in %f ms\n", shaderCount, compileTimeMs);
+    ALOGD("SF. shader cache generated - %u shaders in %f ms\n", shaderCount, compileTimeMs);
 }
 
 ProgramCache::Key ProgramCache::computeKey(const Description& description) {
@@ -129,15 +149,20 @@ ProgramCache::Key ProgramCache::computeKey(const Description& description) {
     .set(Key::OPACITY_MASK,
             description.mOpaque ? Key::OPACITY_OPAQUE : Key::OPACITY_TRANSLUCENT)
     .set(Key::COLOR_MATRIX_MASK,
-            description.mColorMatrixEnabled ? Key::COLOR_MATRIX_ON :  Key::COLOR_MATRIX_OFF);
+            description.mColorMatrixEnabled ? Key::COLOR_MATRIX_ON :  Key::COLOR_MATRIX_OFF)
+    .set(Key::TEXTURE_MASKING_MASK,
+            !description.mMaskTextureEnabled ? Key::TEXTURE_MASKING_OFF :
+            description.mMaskTexture.getTextureTarget() == GL_TEXTURE_EXTERNAL_OES ? Key::TEXTURE_MASKING_EXT :
+            description.mMaskTexture.getTextureTarget() == GL_TEXTURE_2D           ? Key::TEXTURE_MASKING_2D :
+            Key::TEXTURE_MASKING_OFF);
     return needs;
 }
 
 String8 ProgramCache::generateVertexShader(const Key& needs) {
     Formatter vs;
     if (needs.isTexturing()) {
-        vs  << "attribute vec4 texCoords;"
-            << "varying vec2 outTexCoords;";
+        vs << "attribute vec4 texCoords;"
+           << "varying vec2 outTexCoords;";
     }
     vs << "attribute vec4 position;"
        << "uniform mat4 projection;"
@@ -145,7 +170,7 @@ String8 ProgramCache::generateVertexShader(const Key& needs) {
        << "void main(void) {" << indent
        << "gl_Position = projection * position;";
     if (needs.isTexturing()) {
-        vs << "outTexCoords = (texture * texCoords).st;";
+       vs << "outTexCoords = (texture * texCoords).st;";
     }
     vs << dedent << "}";
     return vs.getString();
@@ -169,6 +194,14 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
     } else if (needs.getTextureTarget() == Key::TEXTURE_OFF) {
         fs << "uniform vec4 color;";
     }
+    if (needs.getTextureMaskingTarget() == Key::TEXTURE_MASKING_EXT) {
+        fs << "uniform samplerExternalOES samplerMask;";
+    } else if (needs.getTextureMaskingTarget() == Key::TEXTURE_MASKING_2D) {
+        fs << "uniform sampler2D samplerMask;";
+    }
+    if (needs.getTextureMaskingTarget() != Key::TEXTURE_MASKING_OFF) {
+        fs << "uniform float maskAlphaThreshold;";
+    }
     if (needs.hasPlaneAlpha()) {
         fs << "uniform float alphaPlane;";
     }
@@ -177,7 +210,12 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
     }
     fs << "void main(void) {" << indent;
     if (needs.isTexturing()) {
-        fs << "gl_FragColor = texture2D(sampler, outTexCoords);";
+        if (needs.getTextureMaskingTarget() != Key::TEXTURE_MASKING_OFF) {
+            fs << "if (texture2D(samplerMask, outTexCoords).a <= maskAlphaThreshold) discard;"
+               << "gl_FragColor = texture2D(sampler, outTexCoords);";
+        } else {
+            fs << "gl_FragColor = texture2D(sampler, outTexCoords);";
+        }
     } else {
         fs << "gl_FragColor = color;";
     }
@@ -235,9 +273,6 @@ void ProgramCache::useProgram(const Description& description) {
         program = generateProgram(needs);
         mCache.add(needs, program);
         time += systemTime();
-
-        //ALOGD(">>> generated new program: needs=%08X, time=%u ms (%d programs)",
-        //        needs.mNeeds, uint32_t(ns2ms(time)), mCache.size());
     }
 
     // here we have a suitable program for this description

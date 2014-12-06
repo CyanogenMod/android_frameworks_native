@@ -50,6 +50,7 @@ public:
         eCursorWindow       = 0x00002000,
 
         eFXSurfaceNormal    = 0x00000000,
+        eFXSurfaceBlur      = 0x00010000,
         eFXSurfaceDim       = 0x00020000,
         eFXSurfaceMask      = 0x000F0000,
     };
