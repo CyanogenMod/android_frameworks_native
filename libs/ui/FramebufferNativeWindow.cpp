@@ -78,7 +78,6 @@ FramebufferNativeWindow::FramebufferNativeWindow()
 {
     hw_module_t const* module;
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {
-        int stride;
         int err;
         int i;
         err = framebuffer_open(module, &fbDev);
@@ -239,7 +238,6 @@ int FramebufferNativeWindow::dequeueBuffer(ANativeWindow* window,
 {
     FramebufferNativeWindow* self = getSelf(window);
     Mutex::Autolock _l(self->mutex);
-    framebuffer_device_t* fb = self->fbDev;
 
     int index = self->mBufferHead++;
     if (self->mBufferHead >= self->mNumBuffers)
@@ -284,7 +282,6 @@ int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
     sp<Fence> fence(new Fence(fenceFd));
     fence->wait(Fence::TIMEOUT_NEVER);
 
-    const int index = self->mCurrentBufferIndex;
     int res = fb->post(fb, handle);
     self->front = static_cast<NativeBuffer*>(buffer);
     self->mNumFreeBuffers++;
