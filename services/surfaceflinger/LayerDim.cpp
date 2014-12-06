@@ -48,7 +48,7 @@ LayerDim::~LayerDim() {
 }
 
 void LayerDim::onDraw(const sp<const DisplayDevice>& hw,
-        const Region& /* clip */, bool useIdentityTransform) const
+        const Region& /* clip */, bool useIdentityTransform)
 {
     const State& s(getDrawingState());
     if (s.alpha>0) {

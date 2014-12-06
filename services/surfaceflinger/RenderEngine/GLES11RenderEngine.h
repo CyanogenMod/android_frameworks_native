@@ -69,6 +69,8 @@ protected:
     virtual void setupFillWithColor(float r, float g, float b, float a) ;
     virtual void disableTexturing();
     virtual void disableBlending();
+    virtual void setupLayerMasking(const Texture& /*maskTexture*/, float /*alphaThreshold*/) {}
+    virtual void disableLayerMasking() {}
 
     virtual void drawMesh(const Mesh& mesh);
 

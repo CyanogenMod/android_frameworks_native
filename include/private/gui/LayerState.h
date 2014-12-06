@@ -57,12 +57,16 @@ struct layer_state_t {
         eOverrideScalingModeChanged = 0x00000800,
         ePositionAppliesWithResize  = 0x00001000,
         eColorChanged               = 0x00002000,
+        eBlurChanged                = 0x00400000,
+        eBlurMaskSurfaceChanged     = 0x00800000,
+        eBlurMaskSamplingChanged    = 0x01000000,
+        eBlurMaskAlphaThresholdChanged = 0x02000000,
     };
 
     layer_state_t()
         :   what(0),
-            x(0), y(0), z(0), w(0), h(0), layerStack(0),
-            alpha(0), flags(0), mask(0),
+            x(0), y(0), z(0), w(0), h(0), layerStack(0), blur(0),
+            blurMaskSampling(0), blurMaskAlphaThreshold(0), alpha(0), flags(0), mask(0),
             reserved(0), crop(Rect::INVALID_RECT),
             finalCrop(Rect::INVALID_RECT), frameNumber(0),
             overrideScalingMode(-1), color(0)
@@ -88,6 +92,10 @@ struct layer_state_t {
             uint32_t        w;
             uint32_t        h;
             uint32_t        layerStack;
+            float           blur;
+            sp<IBinder>     blurMaskSurface;
+            uint32_t        blurMaskSampling;
+            float           blurMaskAlphaThreshold;
             float           alpha;
             uint8_t         flags;
             uint8_t         mask;

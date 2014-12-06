@@ -135,6 +135,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 #else
     mCurrentState.alpha = 0xFF;
 #endif
+    mCurrentState.blur = 0xFF;
     mCurrentState.layerStack = 0;
     mCurrentState.flags = layerFlags;
     mCurrentState.sequence = 0;
@@ -864,21 +865,21 @@ Rect Layer::getPosition(
 // drawing...
 // ---------------------------------------------------------------------------
 
-void Layer::draw(const sp<const DisplayDevice>& hw, const Region& clip) const {
+void Layer::draw(const sp<const DisplayDevice>& hw, const Region& clip) {
     onDraw(hw, clip, false);
 }
 
 void Layer::draw(const sp<const DisplayDevice>& hw,
-        bool useIdentityTransform) const {
+        bool useIdentityTransform) {
     onDraw(hw, Region(hw->bounds()), useIdentityTransform);
 }
 
-void Layer::draw(const sp<const DisplayDevice>& hw) const {
+void Layer::draw(const sp<const DisplayDevice>& hw) {
     onDraw(hw, Region(hw->bounds()), false);
 }
 
 void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
-        bool useIdentityTransform) const
+        bool useIdentityTransform)
 {
     ATRACE_CALL();
 
@@ -1585,6 +1586,14 @@ bool Layer::setLayer(uint32_t z) {
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
+bool Layer::setBlur(uint8_t blur) {
+    if (mCurrentState.blur == blur)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.blur = blur;
+    setTransactionFlags(eTransactionNeeded);
+    return true;
+}
 bool Layer::setSize(uint32_t w, uint32_t h) {
     if (mCurrentState.requested.w == w && mCurrentState.requested.h == h)
         return false;
@@ -2186,9 +2195,9 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
             "crop=(%4d,%4d,%4d,%4d), finalCrop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, invalidate=%1d, "
 #ifdef USE_HWC2
-            "alpha=%.3f, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
+            "alpha=%.3f, blur=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
 #else
-            "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
+            "alpha=0x%02x, blur=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
 #endif
             "      client=%p\n",
             s.layerStack, s.z, s.active.transform.tx(), s.active.transform.ty(), s.active.w, s.active.h,
@@ -2197,7 +2206,7 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
             s.finalCrop.left, s.finalCrop.top,
             s.finalCrop.right, s.finalCrop.bottom,
             isOpaque(s), contentDirty,
-            s.alpha, s.flags,
+            s.alpha, s.blur, s.flags,
             s.active.transform[0][0], s.active.transform[0][1],
             s.active.transform[1][0], s.active.transform[1][1],
             client.get());

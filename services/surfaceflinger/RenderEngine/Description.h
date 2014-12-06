@@ -53,6 +53,9 @@ class Description {
 
     bool mColorMatrixEnabled;
     mat4 mColorMatrix;
+    Texture mMaskTexture;
+    bool mMaskTextureEnabled;
+    GLclampf mMaskAlphaThreshold;
 
 public:
     Description();
@@ -67,6 +70,8 @@ public:
     void setProjectionMatrix(const mat4& mtx);
     void setColorMatrix(const mat4& mtx);
     const mat4& getColorMatrix() const;
+    void setMasking(const Texture& maskTexture, float alphaThreshold);
+    void disableMasking();
 
 private:
     bool mUniformsDirty;

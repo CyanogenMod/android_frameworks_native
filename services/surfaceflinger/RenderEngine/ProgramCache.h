@@ -69,6 +69,11 @@ public:
             COLOR_MATRIX_OFF        =       0x00000000,
             COLOR_MATRIX_ON         =       0x00000020,
             COLOR_MATRIX_MASK       =       0x00000020,
+
+            TEXTURE_MASKING_OFF     =       0x00000000,
+            TEXTURE_MASKING_EXT     =       0x00800000,
+            TEXTURE_MASKING_2D      =       0x01000000,
+            TEXTURE_MASKING_MASK    =       0x01800000,
         };
 
         inline Key() : mKey(0) { }
@@ -96,6 +101,12 @@ public:
         }
         inline bool hasColorMatrix() const {
             return (mKey & COLOR_MATRIX_MASK) == COLOR_MATRIX_ON;
+        }
+        inline bool isTextureMasking() const {
+            return (mKey & TEXTURE_MASKING_MASK) != TEXTURE_MASKING_OFF;
+        }
+        inline int getTextureMaskingTarget() const {
+            return (mKey & TEXTURE_MASKING_MASK);
         }
 
         // this is the definition of a friend function -- not a method of class Needs
