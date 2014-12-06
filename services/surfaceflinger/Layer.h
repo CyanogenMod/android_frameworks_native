@@ -57,6 +57,9 @@ class Colorizer;
 class DisplayDevice;
 class GraphicBuffer;
 class SurfaceFlinger;
+#ifdef WITH_UIBLUR
+class LayerBlur;
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -69,6 +72,8 @@ class SurfaceFlinger;
  */
 class Layer : public SurfaceFlingerConsumer::ContentsChangedListener {
     static int32_t sSequence;
+
+    friend class LayerBlur;
 
 public:
     mutable bool contentDirty;
@@ -104,6 +109,7 @@ public:
         Geometry requested;
         uint32_t z;
         uint32_t layerStack;
+        uint8_t blur;
         uint8_t alpha;
         uint8_t flags;
         uint8_t reserved[2];
@@ -129,6 +135,10 @@ public:
     // modify current state
     bool setPosition(float x, float y);
     bool setLayer(uint32_t z);
+    bool setBlur(uint8_t blur);
+    virtual bool setBlurMaskLayer(sp<Layer>& /*maskLayer*/) { return false; }
+    virtual bool setBlurMaskSampling(int32_t /*sampling*/) { return false; }
+    virtual bool setBlurMaskAlphaThreshold(float /*alpha*/) { return false; }
     bool setSize(uint32_t w, uint32_t h);
     bool setAlpha(uint8_t alpha);
     bool setMatrix(const layer_state_t::matrix22_t& matrix);
@@ -185,12 +195,17 @@ public:
      */
     virtual bool isFixedSize() const;
 
+    /*
+     * isBlurLayer - true if this is a LayerBlur instance
+     */
+    virtual bool isBlurLayer() const { return false; }
+
 protected:
     /*
      * onDraw - draws the surface.
      */
     virtual void onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
-            bool useIdentityTransform) const;
+            bool useIdentityTransform);
 
 public:
     // -----------------------------------------------------------------------
@@ -227,9 +242,9 @@ public:
      * draw - performs some global clipping optimizations
      * and calls onDraw().
      */
-    void draw(const sp<const DisplayDevice>& hw, const Region& clip) const;
-    void draw(const sp<const DisplayDevice>& hw, bool useIdentityTransform) const;
-    void draw(const sp<const DisplayDevice>& hw) const;
+    void draw(const sp<const DisplayDevice>& hw, const Region& clip);
+    void draw(const sp<const DisplayDevice>& hw, bool useIdentityTransform);
+    void draw(const sp<const DisplayDevice>& hw);
 
     /*
      * doTransaction - process the transaction. This is a good place to figure

@@ -40,7 +40,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 GLES20RenderEngine::GLES20RenderEngine() :
-        mVpWidth(0), mVpHeight(0) {
+        mVpWidth(0), mVpHeight(0), mProjectionRotation(Transform::ROT_0) {
 
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
@@ -131,6 +131,9 @@ void GLES20RenderEngine::setViewportAndProjection(
     mState.setProjectionMatrix(m);
     mVpWidth = vpw;
     mVpHeight = vph;
+    mProjectionSourceCrop = sourceCrop;
+    mProjectionYSwap = yswap;
+    mProjectionRotation = rotation;
 }
 
 void GLES20RenderEngine::setupLayerBlending(
@@ -394,6 +397,30 @@ void GLES20RenderEngine::endGroup() {
 
 void GLES20RenderEngine::dump(String8& result) {
     RenderEngine::dump(result);
+}
+
+void GLES20RenderEngine::setupLayerMasking(const Texture& maskTexture, float alphaThreshold) {
+    glActiveTexture(GL_TEXTURE0 + 1);
+    GLuint target = maskTexture.getTextureTarget();
+    glBindTexture(target, maskTexture.getTextureName());
+    GLenum filter = GL_NEAREST;
+    if (maskTexture.getFiltering()) {
+        filter = GL_LINEAR;
+    }
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, filter);
+
+    if (alphaThreshold < 0) alphaThreshold = 0;
+    if (alphaThreshold > 1.0f) alphaThreshold = 1.0f;
+
+    mState.setMasking(maskTexture, alphaThreshold);
+    glActiveTexture(GL_TEXTURE0);
+}
+
+void GLES20RenderEngine::disableLayerMasking() {
+    mState.disableMasking();
 }
 
 // ---------------------------------------------------------------------------

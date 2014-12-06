@@ -42,6 +42,9 @@ class GLES20RenderEngine : public RenderEngine {
     GLint mMaxTextureSize;
     GLuint mVpWidth;
     GLuint mVpHeight;
+    Rect mProjectionSourceCrop;
+    bool mProjectionYSwap;
+    Transform::orientation_flags mProjectionRotation;
 
     /*
      * Key is used to retrieve a Group in the cache.
@@ -104,6 +107,9 @@ protected:
     virtual void setupFillWithColor(float r, float g, float b, float a);
     virtual void disableTexturing();
     virtual void disableBlending();
+    virtual void setupLayerMasking(const Texture& maskTexture, float alphaThreshold);
+    virtual void disableLayerMasking();
+
 #ifdef QCOM_BSP
     virtual void startTileComposition(int x , int y, int width,
           int height,bool preserve );
@@ -119,6 +125,11 @@ protected:
 
     virtual size_t getMaxTextureSize() const;
     virtual size_t getMaxViewportDims() const;
+    virtual bool getProjectionYSwap() { return mProjectionYSwap; }
+    virtual size_t getViewportWidth() const { return mVpWidth; }
+    virtual size_t getViewportHeight() const { return mVpHeight; }
+    virtual Rect getProjectionSourceCrop() const { return mProjectionSourceCrop; }
+    virtual Transform::orientation_flags getProjectionRotation() const { return mProjectionRotation; }
 };
 
 // ---------------------------------------------------------------------------

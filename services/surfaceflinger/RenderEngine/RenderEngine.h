@@ -99,9 +99,11 @@ public:
     virtual void setupLayerTexturing(const Texture& texture) = 0;
     virtual void setupLayerBlackedOut() = 0;
     virtual void setupFillWithColor(float r, float g, float b, float a) = 0;
-
     virtual void disableTexturing() = 0;
     virtual void disableBlending() = 0;
+    virtual void setupLayerMasking(const Texture& maskTexture, float alphaThreshold) = 0;
+    virtual void disableLayerMasking() = 0;
+
 #ifdef QCOM_BSP
     virtual void startTileComposition(int x, int y, int width,
           int height, bool preserve){}
@@ -121,6 +123,11 @@ public:
     // queries
     virtual size_t getMaxTextureSize() const = 0;
     virtual size_t getMaxViewportDims() const = 0;
+    virtual bool getProjectionYSwap() { return 0; }
+    virtual size_t getViewportWidth() const { return 1; }
+    virtual size_t getViewportHeight() const { return 1; }
+    virtual Rect getProjectionSourceCrop() const { return Rect(0, 0, 1, 1); }
+    virtual Transform::orientation_flags getProjectionRotation() const { return Transform::ROT_0; }
 
     EGLConfig getEGLConfig() const;
     EGLContext getEGLContext() const;

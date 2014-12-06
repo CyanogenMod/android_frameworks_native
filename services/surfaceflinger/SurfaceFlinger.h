@@ -57,6 +57,8 @@
 #include "DisplayHardware/HWComposer.h"
 #include "Effects/Daltonizer.h"
 
+#include "FrameRateHelper.h"
+
 namespace android {
 
 // ---------------------------------------------------------------------------
@@ -67,6 +69,7 @@ class EventThread;
 class IGraphicBufferAlloc;
 class Layer;
 class LayerDim;
+class LayerBlur;
 class Surface;
 class RenderEngine;
 class EventControlThread;
@@ -146,6 +149,7 @@ private:
     friend class DisplayEventConnection;
     friend class Layer;
     friend class MonitoredProducer;
+    friend class LayerBlur;
 
     // This value is specified in number of frames.  Log frame stats at most
     // every half hour.
@@ -317,6 +321,10 @@ private:
             sp<Layer>* outLayer);
 
     status_t createDimLayer(const sp<Client>& client, const String8& name,
+            uint32_t w, uint32_t h, uint32_t flags, sp<IBinder>* outHandle,
+            sp<IGraphicBufferProducer>* outGbp, sp<Layer>* outLayer);
+
+    status_t createBlurLayer(const sp<Client>& client, const String8& name,
             uint32_t w, uint32_t h, uint32_t flags, sp<IBinder>* outHandle,
             sp<IGraphicBufferProducer>* outGbp, sp<Layer>* outLayer);
 
@@ -551,6 +559,16 @@ private:
 
     mat4 mColorMatrix;
     bool mHasColorMatrix;
+    FrameRateHelper mFrameRateHelper;
+
+    /*
+     * A number that increases on every new frame composition and screen capture.
+     * LayerBlur can speed up it's drawing by caching texture using this variable
+     * if multiple LayerBlur objects draw in one frame composition.
+     * In case of display mirroring, this variable should be increased on every display.
+     */
+    uint32_t mActiveFrameSequence;
+
 #ifdef QCOM_BSP
     // Flag to disable external rotation animation feature.
     bool mDisableExtAnimation;
