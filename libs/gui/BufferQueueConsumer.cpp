@@ -488,7 +488,7 @@ void BufferQueueConsumer::setConsumerName(const String8& name) {
     mConsumerName = name;
 }
 
-status_t BufferQueueConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
+status_t BufferQueueConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) {
     ATRACE_CALL();
     BQ_LOGV("setDefaultBufferFormat: %u", defaultFormat);
     Mutex::Autolock lock(mCore->mMutex);

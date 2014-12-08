@@ -25,16 +25,16 @@ namespace android {
 status_t layer_state_t::write(Parcel& output) const
 {
     output.writeStrongBinder(surface);
-    output.writeInt32(what);
+    output.writeUint32(what);
     output.writeFloat(x);
     output.writeFloat(y);
-    output.writeInt32(z);
-    output.writeInt32(w);
-    output.writeInt32(h);
-    output.writeInt32(layerStack);
+    output.writeUint32(z);
+    output.writeUint32(w);
+    output.writeUint32(h);
+    output.writeUint32(layerStack);
     output.writeFloat(alpha);
-    output.writeInt32(flags);
-    output.writeInt32(mask);
+    output.writeUint32(flags);
+    output.writeUint32(mask);
     *reinterpret_cast<layer_state_t::matrix22_t *>(
             output.writeInplace(sizeof(layer_state_t::matrix22_t))) = matrix;
     output.write(crop);
@@ -45,16 +45,16 @@ status_t layer_state_t::write(Parcel& output) const
 status_t layer_state_t::read(const Parcel& input)
 {
     surface = input.readStrongBinder();
-    what = input.readInt32();
+    what = input.readUint32();
     x = input.readFloat();
     y = input.readFloat();
-    z = input.readInt32();
-    w = input.readInt32();
-    h = input.readInt32();
-    layerStack = input.readInt32();
+    z = input.readUint32();
+    w = input.readUint32();
+    h = input.readUint32();
+    layerStack = input.readUint32();
     alpha = input.readFloat();
-    flags = input.readInt32();
-    mask = input.readInt32();
+    flags = static_cast<uint8_t>(input.readUint32());
+    mask = static_cast<uint8_t>(input.readUint32());
     const void* matrix_data = input.readInplace(sizeof(layer_state_t::matrix22_t));
     if (matrix_data) {
         matrix = *reinterpret_cast<layer_state_t::matrix22_t const *>(matrix_data);
@@ -80,26 +80,26 @@ status_t ComposerState::read(const Parcel& input) {
 status_t DisplayState::write(Parcel& output) const {
     output.writeStrongBinder(token);
     output.writeStrongBinder(IInterface::asBinder(surface));
-    output.writeInt32(what);
-    output.writeInt32(layerStack);
-    output.writeInt32(orientation);
+    output.writeUint32(what);
+    output.writeUint32(layerStack);
+    output.writeUint32(orientation);
     output.write(viewport);
     output.write(frame);
-    output.writeInt32(width);
-    output.writeInt32(height);
+    output.writeUint32(width);
+    output.writeUint32(height);
     return NO_ERROR;
 }
 
 status_t DisplayState::read(const Parcel& input) {
     token = input.readStrongBinder();
     surface = interface_cast<IGraphicBufferProducer>(input.readStrongBinder());
-    what = input.readInt32();
-    layerStack = input.readInt32();
-    orientation = input.readInt32();
+    what = input.readUint32();
+    layerStack = input.readUint32();
+    orientation = input.readUint32();
     input.read(viewport);
     input.read(frame);
-    width = input.readInt32();
-    height = input.readInt32();
+    width = input.readUint32();
+    height = input.readUint32();
     return NO_ERROR;
 }
 
