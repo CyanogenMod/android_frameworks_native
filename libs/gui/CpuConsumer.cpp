@@ -194,7 +194,6 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 status_t CpuConsumer::unlockBuffer(const LockedBuffer &nativeBuffer) {
     Mutex::Autolock _l(mMutex);
     size_t lockedIdx = 0;
-    status_t err;
 
     void *bufPtr = reinterpret_cast<void *>(nativeBuffer.data);
     for (; lockedIdx < static_cast<size_t>(mMaxLockedBuffers); lockedIdx++) {
