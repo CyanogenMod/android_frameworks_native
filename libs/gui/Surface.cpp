@@ -96,8 +96,8 @@ void Surface::setSidebandStream(const sp<NativeHandle>& stream) {
 void Surface::allocateBuffers() {
     uint32_t reqWidth = mReqWidth ? mReqWidth : mUserWidth;
     uint32_t reqHeight = mReqHeight ? mReqHeight : mUserHeight;
-    mGraphicBufferProducer->allocateBuffers(mSwapIntervalZero, mReqWidth,
-            mReqHeight, mReqFormat, mReqUsage);
+    mGraphicBufferProducer->allocateBuffers(mSwapIntervalZero, reqWidth,
+            reqHeight, mReqFormat, mReqUsage);
 }
 
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
@@ -274,7 +274,6 @@ int Surface::cancelBuffer(android_native_buffer_t* buffer,
 
 int Surface::getSlotFromBufferLocked(
         android_native_buffer_t* buffer) const {
-    bool dumpedState = false;
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
         if (mSlots[i].buffer != NULL &&
                 mSlots[i].buffer->handle == buffer->handle) {

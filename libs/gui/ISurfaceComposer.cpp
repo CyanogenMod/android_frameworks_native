@@ -55,7 +55,6 @@ public:
 
     virtual sp<ISurfaceComposerClient> createConnection()
     {
-        uint32_t n;
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         remote()->transact(BnSurfaceComposer::CREATE_CONNECTION, data, &reply);
@@ -64,7 +63,6 @@ public:
 
     virtual sp<IGraphicBufferAlloc> createGraphicBufferAlloc()
     {
-        uint32_t n;
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
         remote()->transact(BnSurfaceComposer::CREATE_GRAPHIC_BUFFER_ALLOC, data, &reply);
