@@ -140,11 +140,12 @@ int main(int argc, char** argv)
 
      //glDrawTexiOES(0, 0, 0, dim, dim);
      
+     const GLfloat fdim = dim;
      const GLfloat vertices[4][2] = {
-             { 0,    0   },
-             { 0,    dim },
-             { dim,  dim },
-             { dim,  0   }
+             { 0,     0    },
+             { 0,     fdim },
+             { fdim,  fdim },
+             { fdim,  0    }
      };
 
      const GLfloat texCoords[4][2] = {
