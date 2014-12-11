@@ -41,7 +41,7 @@ protected:
 };
 
 TEST_F(EGLCacheTest, UninitializedCacheAlwaysMisses) {
-    char buf[4] = { 0xee, 0xee, 0xee, 0xee };
+    uint8_t buf[4] = { 0xee, 0xee, 0xee, 0xee };
     mCache->setBlob("abcd", 4, "efgh", 4);
     ASSERT_EQ(0, mCache->getBlob("abcd", 4, buf, 4));
     ASSERT_EQ(0xee, buf[0]);
@@ -51,7 +51,7 @@ TEST_F(EGLCacheTest, UninitializedCacheAlwaysMisses) {
 }
 
 TEST_F(EGLCacheTest, InitializedCacheAlwaysHits) {
-    char buf[4] = { 0xee, 0xee, 0xee, 0xee };
+    uint8_t buf[4] = { 0xee, 0xee, 0xee, 0xee };
     mCache->initialize(egl_display_t::get(EGL_DEFAULT_DISPLAY));
     mCache->setBlob("abcd", 4, "efgh", 4);
     ASSERT_EQ(4, mCache->getBlob("abcd", 4, buf, 4));
@@ -62,7 +62,7 @@ TEST_F(EGLCacheTest, InitializedCacheAlwaysHits) {
 }
 
 TEST_F(EGLCacheTest, TerminatedCacheAlwaysMisses) {
-    char buf[4] = { 0xee, 0xee, 0xee, 0xee };
+    uint8_t buf[4] = { 0xee, 0xee, 0xee, 0xee };
     mCache->initialize(egl_display_t::get(EGL_DEFAULT_DISPLAY));
     mCache->setBlob("abcd", 4, "efgh", 4);
     mCache->terminate();
@@ -94,7 +94,7 @@ protected:
 };
 
 TEST_F(EGLCacheSerializationTest, ReinitializedCacheContainsValues) {
-    char buf[4] = { 0xee, 0xee, 0xee, 0xee };
+    uint8_t buf[4] = { 0xee, 0xee, 0xee, 0xee };
     mCache->setCacheFilename(mFilename);
     mCache->initialize(egl_display_t::get(EGL_DEFAULT_DISPLAY));
     mCache->setBlob("abcd", 4, "efgh", 4);
