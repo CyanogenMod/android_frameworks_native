@@ -80,9 +80,11 @@ int main(int argc, char** argv)
      // default pack-alignment is 4
      const uint16_t t16[64] = { 0xFFFF, 0, 0xF800, 0, 0x07E0, 0, 0x001F, 0 };
 
+     const GLfloat fh = h;
+     const GLfloat fw2 = w/2;
      const GLfloat vertices[4][2] = {
-             { w/2,  0 },
-             { w/2,  h }
+             { fw2,  0  },
+             { fw2,  fh }
      };
 
      const GLfloat texCoords[4][2] = {

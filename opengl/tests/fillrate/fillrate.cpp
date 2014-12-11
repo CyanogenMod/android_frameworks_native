@@ -91,11 +91,13 @@ int main(int argc, char** argv)
          }
      }
 
+     const GLfloat fh = h;
+     const GLfloat fw = w;
      const GLfloat vertices[4][2] = {
-             { 0,  0 },
-             { 0,  h },
-             { w,  h },
-             { w,  0 }
+             { 0,   0  },
+             { 0,   fh },
+             { fw,  fh },
+             { fw,  0  }
      };
 
      const GLfloat texCoords[4][2] = {

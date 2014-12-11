@@ -118,7 +118,7 @@ static void checkEGLErrors()
         fprintf(stderr, "EGL Error: 0x%04x\n", (int)error);
 }
 
-static int initGraphics(unsigned samples, const WindowSurface& windowSurface)
+static int initGraphics(EGLint samples, const WindowSurface& windowSurface)
 {
     EGLint configAttribs[] = {
             EGL_DEPTH_SIZE, 16,
