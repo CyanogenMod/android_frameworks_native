@@ -179,7 +179,9 @@ HWComposer::HWComposer(
         config.height = mFbDev->height;
         config.xdpi = mFbDev->xdpi;
         config.ydpi = mFbDev->ydpi;
+#ifdef QCOM_BSP
         config.secure = true; //XXX: Assuming primary is always true
+#endif
         config.refresh = nsecs_t(1e9 / mFbDev->fps);
         disp.configs.push_back(config);
         disp.currentConfig = 0;
@@ -351,10 +353,12 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_HEIGHT,
     HWC_DISPLAY_DPI_X,
     HWC_DISPLAY_DPI_Y,
+#ifdef QCOM_BSP
     //To specify if display is secure
     //Primary is considered as secure always
     //HDMI can be secure based on HDCP
     HWC_DISPLAY_SECURE,
+#endif
     HWC_DISPLAY_NO_ATTRIBUTE,
 };
 #define NUM_DISPLAY_ATTRIBUTES (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0])
@@ -410,9 +414,11 @@ status_t HWComposer::queryDisplayProperties(int disp) {
                 case HWC_DISPLAY_DPI_Y:
                     config.ydpi = values[i] / 1000.0f;
                     break;
+#ifdef QCOM_BSP
                 case HWC_DISPLAY_SECURE:
                     config.secure = values[i];
                     break;
+#endif
                 default:
                     ALOG_ASSERT(false, "unknown display attribute[%zu] %#x",
                             i, DISPLAY_ATTRIBUTES[i]);
@@ -524,10 +530,12 @@ float HWComposer::getDpiY(int disp) const {
     return mDisplayData[disp].configs[currentConfig].ydpi;
 }
 
+#ifdef QCOM_BSP
 bool HWComposer::isSecure(int disp) const {
     size_t currentConfig = mDisplayData[disp].currentConfig;
     return mDisplayData[disp].configs[currentConfig].secure;
 }
+#endif
 
 
 nsecs_t HWComposer::getRefreshPeriod(int disp) const {
@@ -1258,9 +1266,15 @@ void HWComposer::dump(String8& result) const {
             result.appendFormat("  Display[%zd] configurations (* current):\n", i);
             for (size_t c = 0; c < disp.configs.size(); ++c) {
                 const DisplayConfig& config(disp.configs[c]);
+#ifdef QCOM_BSP
                 result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, secure=%d refresh=%" PRId64 "\n",
                         c == disp.currentConfig ? "* " : "", c, config.width, config.height,
                         config.xdpi, config.ydpi, config.secure, config.refresh);
+#else
+                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, refresh=%" PRId64 "\n",
+                        c == disp.currentConfig ? "* " : "", c, config.width, config.height,
+                        config.xdpi, config.ydpi, config.refresh);
+#endif
             }
 
             if (disp.list) {
