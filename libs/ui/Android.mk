@@ -41,9 +41,6 @@ endif
 # Executed only on QCOM BSPs
 ifeq ($(TARGET_USES_QCOM_BSP),true)
     LOCAL_CFLAGS += -DQCOM_BSP
-ifeq ($(TARGET_USES_QCOM_BSP_LEGACY),true)
-    LOCAL_CFLAGS += -DQCOM_BSP_LEGACY
-endif
 endif
 
 ifeq ($(BOARD_HAVE_PIXEL_FORMAT_INFO),true)
