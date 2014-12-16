@@ -624,28 +624,6 @@ int create_cache_path(char path[PKG_PATH_MAX], const char *src, const char *inst
     return 0;
 }
 
-static void run_dexopt(int zip_fd, int odex_fd, const char* input_file_name,
-    const char* output_file_name)
-{
-    /* platform-specific flags affecting optimization and verification */
-    char dexopt_flags[PROPERTY_VALUE_MAX];
-    property_get("dalvik.vm.dexopt-flags", dexopt_flags, "");
-    ALOGV("dalvik.vm.dexopt-flags=%s\n", dexopt_flags);
-
-    static const char* DEX_OPT_BIN = "/system/bin/dexopt";
-    static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
-    char zip_num[MAX_INT_LEN];
-    char odex_num[MAX_INT_LEN];
-
-    sprintf(zip_num, "%d", zip_fd);
-    sprintf(odex_num, "%d", odex_fd);
-
-    ALOGV("Running %s in=%s out=%s\n", DEX_OPT_BIN, input_file_name, output_file_name);
-    execl(DEX_OPT_BIN, DEX_OPT_BIN, "--zip", zip_num, odex_num, input_file_name,
-        dexopt_flags, (char*) NULL);
-    ALOGE("execl(%s) failed: %s\n", DEX_OPT_BIN, strerror(errno));
-}
-
 static int split_count(const char *str)
 {
   char *ctx;
@@ -912,22 +890,12 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     struct utimbuf ut;
     struct stat input_stat, dex_stat;
     char out_path[PKG_PATH_MAX];
-    char persist_sys_dalvik_vm_lib[PROPERTY_VALUE_MAX];
     char *end;
     const char *input_file;
     char in_odex_path[PKG_PATH_MAX];
     int res, input_fd=-1, out_fd=-1;
 
     if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
-        return -1;
-    }
-
-    /* The command to run depend on the value of persist.sys.dalvik.vm.lib */
-    property_get("persist.sys.dalvik.vm.lib.2", persist_sys_dalvik_vm_lib, "libart.so");
-
-    if (is_patchoat && strncmp(persist_sys_dalvik_vm_lib, "libart", 6) != 0) {
-        /* We may only patch if we are libart */
-        ALOGE("Patching is only supported in libart\n");
         return -1;
     }
 
@@ -1039,17 +1007,11 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             exit(67);
         }
 
-        if (strncmp(persist_sys_dalvik_vm_lib, "libdvm", 6) == 0) {
-            run_dexopt(input_fd, out_fd, input_file, out_path);
-        } else if (strncmp(persist_sys_dalvik_vm_lib, "libart", 6) == 0) {
-            if (is_patchoat) {
-                run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
-            } else {
-                run_dex2oat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set,
-                            vm_safe_mode);
-            }
+        if (is_patchoat) {
+            run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else {
-            exit(69);   /* Unexpected persist.sys.dalvik.vm.lib value */
+            run_dex2oat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set,
+                        vm_safe_mode);
         }
         exit(68);   /* only get here on exec failure */
     } else {
