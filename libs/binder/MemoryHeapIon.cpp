@@ -84,8 +84,10 @@ uint32_t ion_FlagMask_valid_check(uint32_t flags)
         result |= ION_FLAG_CACHED_NEEDS_SYNC;
     if (flag_mask & MHB_ION_FLAG_PRESERVE_KMAP)
         result |= ION_FLAG_PRESERVE_KMAP;
+#ifdef ION_EXYNOS_VIDEO_MASK
     if (flag_mask & MHB_ION_EXYNOS_VIDEO_MASK)
         result |= ION_EXYNOS_VIDEO_MASK;
+#endif
     if (flag_mask & MHB_ION_EXYNOS_MFC_INPUT_MASK)
         result |= ION_EXYNOS_MFC_INPUT_MASK;
     if (flag_mask & MHB_ION_EXYNOS_MFC_OUTPUT_MASK)
