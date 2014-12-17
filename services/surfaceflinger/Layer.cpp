@@ -477,7 +477,7 @@ void Layer::setGeometry(
 
     // this gives us only the "orientation" component of the transform
     const State& s(getDrawingState());
-    if (!isOpaque(s)) {
+    if (!isOpaque(s) || s.alpha != 0xFF) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
                 HWC_BLENDING_COVERAGE);
