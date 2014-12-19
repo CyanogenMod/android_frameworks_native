@@ -17,7 +17,6 @@
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
-
 ifneq ($(TARGET_USES_64_BIT_BINDER),true)
 ifneq ($(TARGET_IS_64_BIT),true)
 LOCAL_CFLAGS += -DBINDER_IPC_32BIT=1
@@ -26,4 +25,10 @@ endif
 
 LOCAL_MODULE := binderDriverInterfaceTest
 LOCAL_SRC_FILES := binderDriverInterfaceTest.cpp
+include $(BUILD_NATIVE_TEST)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := binderLibTest
+LOCAL_SRC_FILES := binderLibTest.cpp
+LOCAL_SHARED_LIBRARIES := libbinder libutils
 include $(BUILD_NATIVE_TEST)
