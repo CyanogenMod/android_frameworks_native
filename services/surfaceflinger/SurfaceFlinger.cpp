@@ -447,7 +447,7 @@ void SurfaceFlinger::init() {
         DisplayDevice::DisplayType type((DisplayDevice::DisplayType)i);
         // set-up the displays that are already connected
         if (mHwc->isConnected(i) || type==DisplayDevice::DISPLAY_PRIMARY) {
-#ifdef QCOM_BSP
+#if defined(QCOM_BSP) && !defined(APQ8084)
             // query from hwc if the non-virtual display is secure.
             bool isSecure = mHwc->isSecure(i);;
 #else
@@ -643,7 +643,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         info.presentationDeadline =
                 hwConfig.refresh - SF_VSYNC_EVENT_PHASE_OFFSET_NS + 1000000;
 
-#ifdef QCOM_BSP
+#if defined(QCOM_BSP) && !defined(APQ8084)
         // set secure info based on the hwcConfig
         info.secure = hwConfig.secure;
 #else
@@ -861,7 +861,7 @@ void SurfaceFlinger::onHotplugReceived(int type, bool connected) {
     if (uint32_t(type) < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
         Mutex::Autolock _l(mStateLock);
         if (connected) {
-#ifdef QCOM_BSP
+#if defined(QCOM_BSP) && !defined(APQ8084)
             // query from hwc if the connected display is secure
             bool secure = mHwc->isSecure(type);;
 #else
