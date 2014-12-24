@@ -89,6 +89,7 @@
 #endif
 
 #define DISPLAY_COUNT       1
+#define MIN_DIRTYRECT_COUNT 5
 
 /*
  * DEBUG_SCREENSHOTS: set to true to check that screenshots are not all
@@ -193,6 +194,8 @@ SurfaceFlinger::SurfaceFlinger()
     if(mGpuTileRenderEnable)
        ALOGV("DirtyRect optimization enabled for FULL GPU Composition");
     mUnionDirtyRect.clear();
+    mUnionDirtyRectPrev.clear();
+    mDRCount = 0;
 
     property_get("sys.disable_ext_animation", value, "0");
     mDisableExtAnimation = atoi(value) ? true : false;
@@ -2116,10 +2119,20 @@ bool SurfaceFlinger::computeTiledDr(const sp<const DisplayDevice>& hw) {
     HWComposer& hwc(getHwComposer());
 
     /* Compute and return the Union of Dirty Rects.
-     * Return false if the unionDR is fullscreen, as there is no benefit from
-     * preserving full screen.*/
-    return (hwc.canUseTiledDR(id, mUnionDirtyRect) &&
-          (mUnionDirtyRect != fullScreenRect));
+     * Return false in below conditions
+     * 1. if the unionDR is fullscreen, as there is no benefit from preserving full screen.
+     * 2. unionDR is not same for 5 consecutive frames.*/
+
+    bool ret = hwc.canUseTiledDR(id, mUnionDirtyRect);
+    if (mUnionDirtyRect == mUnionDirtyRectPrev) {
+        mDRCount++;
+    } else {
+        mDRCount = 0;
+        mUnionDirtyRectPrev = mUnionDirtyRect;
+    }
+    return (ret &&
+            (mDRCount > MIN_DIRTYRECT_COUNT) &&
+            (mUnionDirtyRect != fullScreenRect));
 
 }
 #endif
