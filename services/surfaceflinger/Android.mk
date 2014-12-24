@@ -13,6 +13,7 @@ LOCAL_SRC_FILES:= \
     FrameTracker.cpp \
     Layer.cpp \
     LayerDim.cpp \
+    LayerBlur.cpp \
     MessageQueue.cpp \
     MonitoredProducer.cpp \
     SurfaceFlinger.cpp \
@@ -35,7 +36,6 @@ LOCAL_SRC_FILES:= \
     RenderEngine/GLES10RenderEngine.cpp \
     RenderEngine/GLES11RenderEngine.cpp \
     RenderEngine/GLES20RenderEngine.cpp
-
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
@@ -94,6 +94,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libui \
 	libgui \
+        libuiblur \
 	libpowermanager
 
 ifeq ($(TARGET_USES_QCOM_BSP), true)
@@ -102,6 +103,8 @@ ifeq ($(TARGET_USES_QCOM_BSP), true)
     LOCAL_SHARED_LIBRARIES += libqdutils
     LOCAL_CFLAGS += -DQCOM_BSP
 endif
+
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/ui
 
 LOCAL_MODULE:= libsurfaceflinger
 
