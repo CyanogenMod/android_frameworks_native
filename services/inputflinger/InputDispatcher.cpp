@@ -3814,18 +3814,6 @@ void InputDispatcher::monitor() {
 }
 
 
-// --- InputDispatcher::Queue ---
-
-template <typename T>
-uint32_t InputDispatcher::Queue<T>::count() const {
-    uint32_t result = 0;
-    for (const T* entry = head; entry; entry = entry->next) {
-        result += 1;
-    }
-    return result;
-}
-
-
 // --- InputDispatcher::InjectionState ---
 
 InputDispatcher::InjectionState::InjectionState(int32_t injectorPid, int32_t injectorUid) :
