@@ -32,15 +32,12 @@ LOCAL_SHARED_LIBRARIES := \
     libinput \
     liblog \
     libutils \
-	libui \
-	libhardware_legacy
+    libui \
+    libhardware_legacy
 
 
 # TODO: Move inputflinger to its own process and mark it hidden
 #LOCAL_CFLAGS += -fvisibility=hidden
-
-LOCAL_C_INCLUDES := \
-    external/openssl/include \
 
 LOCAL_CFLAGS += -Wno-unused-parameter
 
