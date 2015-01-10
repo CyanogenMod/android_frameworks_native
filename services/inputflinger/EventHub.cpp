@@ -858,7 +858,6 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                                     int(iev.time.tv_sec), int(iev.time.tv_usec));
                         }
 
-#ifdef HAVE_POSIX_CLOCKS
                         // Use the time specified in the event instead of the current time
                         // so that downstream code can get more accurate estimates of
                         // event dispatch latency from the time the event is enqueued onto
@@ -909,9 +908,6 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                                         event->when, time, now);
                             }
                         }
-#else
-                        event->when = now;
-#endif
                         event->deviceId = deviceId;
                         event->type = iev.type;
                         event->code = iev.code;
