@@ -19,7 +19,7 @@
 
 #include <pthread.h>
 
-#include "gltrace.pb.h"
+#include "frameworks/native/opengl/libs/GLES_trace/proto/gltrace.pb.h"
 
 namespace android {
 namespace gltrace {

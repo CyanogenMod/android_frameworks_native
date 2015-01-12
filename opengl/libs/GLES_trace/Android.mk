@@ -10,18 +10,18 @@ LOCAL_SRC_FILES := \
     src/gltrace_eglapi.cpp \
     src/gltrace_fixup.cpp \
     src/gltrace_hooks.cpp \
-    src/gltrace.pb.cpp \
-    src/gltrace_transport.cpp
+    src/gltrace_transport.cpp \
+    $(call all-proto-files-under, proto)
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH) \
     $(LOCAL_PATH)/../ \
-    external/protobuf/src \
-    external \
+    external
 
-LOCAL_CFLAGS := -DGOOGLE_PROTOBUF_NO_RTTI
 LOCAL_STATIC_LIBRARIES := liblzf
-LOCAL_SHARED_LIBRARIES := libcutils libutils liblog libprotobuf-cpp-lite
+LOCAL_SHARED_LIBRARIES := libcutils libutils liblog
+
+LOCAL_PROTOC_OPTIMIZE_TYPE := lite
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLES_trace\"
 

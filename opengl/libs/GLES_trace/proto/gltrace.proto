@@ -23,6 +23,8 @@ option java_outer_classname = "GLProtoBuf";
 
 message GLMessage {
     enum Function {
+        option allow_alias = true;
+
         glActiveTexture = 0;
         glAlphaFunc = 1;
         glAlphaFuncx = 2;
