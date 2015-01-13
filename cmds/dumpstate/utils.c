@@ -360,7 +360,7 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
         }
 
         if (timeout_seconds && elapsed / NANOS_PER_SEC > timeout_seconds) {
-            printf("*** %s: Timed out after %ds (killing pid %d)\n", command, (int) elapsed, pid);
+            printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command, (float) elapsed / NANOS_PER_SEC, pid);
             kill(pid, SIGTERM);
             return -1;
         }
