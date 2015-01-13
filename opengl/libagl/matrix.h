@@ -74,7 +74,7 @@ GLfixed vsquare3(GLfixed a, GLfixed b, GLfixed c)
         ); 
     return r;
 
-#elif defined(__mips__)
+#elif defined(__mips__) && !defined(__LP64__) && __mips_isa_rev < 6
 
     GLfixed res;
     int32_t t1,t2,t3;
@@ -160,7 +160,7 @@ static inline GLfixed mla3a( GLfixed a0, GLfixed b0,
         ); 
     return r;
     
-#elif defined(__mips__)
+#elif defined(__mips__)  && !defined(__LP64__) && __mips_isa_rev < 6
 
     GLfixed res;
     int32_t t1,t2;
