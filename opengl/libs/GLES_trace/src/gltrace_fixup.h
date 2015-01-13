@@ -19,7 +19,7 @@
 
 #include <utils/Timers.h>
 
-#include "gltrace.pb.h"
+#include "frameworks/native/opengl/libs/GLES_trace/proto/gltrace.pb.h"
 #include "gltrace_context.h"
 
 namespace android {
