@@ -58,7 +58,7 @@ class BinderDriverInterfaceTestEnv : public ::testing::Environment {
                 BC_ENTER_LOOPER,
             };
             struct binder_write_read bwr = binder_write_read();
-            bwr.write_buffer = (intptr_t)bc;
+            bwr.write_buffer = (uintptr_t)bc;
             bwr.write_size = sizeof(bc);
             ret = ioctl(m_binderFd, BINDER_WRITE_READ, &bwr);
             EXPECT_EQ(0, ret);
@@ -111,7 +111,7 @@ class BinderDriverInterfaceTest : public ::testing::Test {
             uint32_t br[32];
             struct binder_write_read bwr = binder_write_read();
             SCOPED_TRACE("TestReadEmpty");
-            bwr.read_buffer = (intptr_t)br;
+            bwr.read_buffer = (uintptr_t)br;
             bwr.read_size = sizeof(br);
             binderTestIoctlErr1(BINDER_WRITE_READ, &bwr, EAGAIN);
             EXPECT_EQ(0u, bwr.read_consumed);
@@ -206,7 +206,7 @@ TEST_F(BinderDriverInterfaceTest, IncRefsAcquireReleaseDecRefs) {
         0,
     };
     struct binder_write_read bwr = binder_write_read();
-    bwr.write_buffer = (intptr_t)bc;
+    bwr.write_buffer = (uintptr_t)bc;
     bwr.write_size = sizeof(bc);
     binderTestIoctl(BINDER_WRITE_READ, &bwr);
     EXPECT_EQ(sizeof(bc), bwr.write_consumed);
@@ -241,9 +241,9 @@ TEST_F(BinderDriverInterfaceTest, Transaction) {
     } __attribute__((packed)) br;
     struct binder_write_read bwr = binder_write_read();
 
-    bwr.write_buffer = (intptr_t)&bc1;
+    bwr.write_buffer = (uintptr_t)&bc1;
     bwr.write_size = sizeof(bc1);
-    bwr.read_buffer = (intptr_t)&br;
+    bwr.read_buffer = (uintptr_t)&br;
     bwr.read_size = sizeof(br);
 
     {
@@ -283,7 +283,7 @@ TEST_F(BinderDriverInterfaceTest, Transaction) {
             .arg1 = br.arg2.data.ptr.buffer,
         };
 
-        bwr.write_buffer = (intptr_t)&bc2;
+        bwr.write_buffer = (uintptr_t)&bc2;
         bwr.write_size = sizeof(bc2);
         bwr.write_consumed = 0;
         bwr.read_size = 0;
@@ -329,9 +329,9 @@ TEST_F(BinderDriverInterfaceTest, RequestDeathNotification) {
     } __attribute__((packed)) br;
     struct binder_write_read bwr = binder_write_read();
 
-    bwr.write_buffer = (intptr_t)&bc;
+    bwr.write_buffer = (uintptr_t)&bc;
     bwr.write_size = sizeof(bc);
-    bwr.read_buffer = (intptr_t)&br;
+    bwr.read_buffer = (uintptr_t)&br;
     bwr.read_size = sizeof(br);
 
     binderTestIoctl(BINDER_WRITE_READ, &bwr);
