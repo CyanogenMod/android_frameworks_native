@@ -114,7 +114,7 @@ class BinderDriverInterfaceTest : public ::testing::Test {
             bwr.read_buffer = (intptr_t)br;
             bwr.read_size = sizeof(br);
             binderTestIoctlErr1(BINDER_WRITE_READ, &bwr, EAGAIN);
-            EXPECT_EQ(0, bwr.read_consumed);
+            EXPECT_EQ(0u, bwr.read_consumed);
             for (i = 0; i * sizeof(uint32_t) < bwr.read_consumed; i++) {
                 SCOPED_TRACE(testing::Message() << "i = " << i);
                 EXPECT_EQ(BR_NOOP, br[i]);
@@ -264,12 +264,12 @@ TEST_F(BinderDriverInterfaceTest, Transaction) {
     if (bwr.read_consumed > offsetof(typeof(br), cmd2))
         EXPECT_EQ(BR_REPLY, br.cmd2);
     if (bwr.read_consumed >= offsetof(typeof(br), pad)) {
-        EXPECT_EQ(0, br.arg2.target.ptr);
-        EXPECT_EQ(0, br.arg2.cookie);
-        EXPECT_EQ(0, br.arg2.code);
-        EXPECT_EQ(0, br.arg2.flags);
-        EXPECT_EQ(0, br.arg2.data_size);
-        EXPECT_EQ(0, br.arg2.offsets_size);
+        EXPECT_EQ(0u, br.arg2.target.ptr);
+        EXPECT_EQ(0u, br.arg2.cookie);
+        EXPECT_EQ(0u, br.arg2.code);
+        EXPECT_EQ(0u, br.arg2.flags);
+        EXPECT_EQ(0u, br.arg2.data_size);
+        EXPECT_EQ(0u, br.arg2.offsets_size);
 
         SCOPED_TRACE("3rd WriteRead");
 
