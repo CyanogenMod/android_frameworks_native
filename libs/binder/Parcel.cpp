@@ -56,7 +56,7 @@
 #define PAD_SIZE(s) (((s)+3)&~3)
 
 // Note: must be kept in sync with android/os/StrictMode.java's PENALTY_GATHER
-#define STRICT_MODE_PENALTY_GATHER 0x100
+#define STRICT_MODE_PENALTY_GATHER (0x40 << 16)
 
 // Note: must be kept in sync with android/os/Parcel.java's EX_HAS_REPLY_HEADER
 #define EX_HAS_REPLY_HEADER -128
