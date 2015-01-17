@@ -2010,7 +2010,7 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             ++blameCounts[blame.second];
         }
 
-        ALOGI("FD Blame: %d open fds", currentFds.size());
+        ALOGI("FD Blame: %zu open fds", currentFds.size());
         for (auto blame : blameCounts) {
             std::string layers;
             for (auto layer : blame.first) {
