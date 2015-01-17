@@ -90,7 +90,7 @@ else
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden -Werror=format
-LOCAL_CPPFLAGS := -std=c++11
+LOCAL_CPPFLAGS := -std=c++1y
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
@@ -109,6 +109,8 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_MODULE := libsurfaceflinger
 
 LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
+
+include external/libcxx/libcxx.mk
 
 include $(BUILD_SHARED_LIBRARY)
 
