@@ -1439,8 +1439,8 @@ out:
     return rc;
 }
 
-static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap_fd,
-                      uint32_t target_hash, uint32_t overlay_hash)
+static void run_idmap(const char *target_apk, const char *overlay_apk, const char *cache_path,
+                      int idmap_fd, uint32_t target_hash, uint32_t overlay_hash)
 {
     static const char *IDMAP_BIN = "/system/bin/idmap";
     static const size_t MAX_INT_LEN = 32;
@@ -1452,65 +1452,33 @@ static void run_idmap(const char *target_apk, const char *overlay_apk, int idmap
     snprintf(target_hash_str, sizeof(target_hash_str), "%d", target_hash);
     snprintf(overlay_hash_str, sizeof(overlay_hash_str), "%d", overlay_hash);
 
-    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, idmap_str,
+    execl(IDMAP_BIN, IDMAP_BIN, "--fd", target_apk, overlay_apk, cache_path, idmap_str,
             target_hash_str, overlay_hash_str, (char*)NULL);
     ALOGE("execl(%s) failed: %s\n", IDMAP_BIN, strerror(errno));
 }
 
-/* Prints to idmap_path (prefix)/(flat_target)@(flat_overerlay)@(suffix)
- * Note: "Flat" is a string with '/' changed to @
- * Example input:
- *   prefix: /data/resource-cache/
- *   suffix: idmap
- *   overlay_path: /data/app/com.theme.apk
- *   target_path:  /data/app/com.target.apk
- * Example output:
- *   idmap_path: /data/resource-cache/data@app@com.target.apk@data@app@theme.apk@idmap
- */
-static int flatten_path(const char *prefix, const char *suffix,
-        const char *overlay_path, const char *target_path, char *idmap_path, size_t N)
+static int get_idmap_path(const char *prefix, const char *suffix, char *idmap_path, size_t N)
 {
-    if (overlay_path == NULL || idmap_path == NULL || target_path == NULL) {
-        return -1;
-    }
-
-    const size_t len_target_path = strlen(target_path);
-    if (len_target_path < 2 || *target_path != '/') {
-       return -1;
-    }
-
-    const size_t len_overlay_path = strlen(overlay_path);
-    // will access overlay_path + 1 further below; requires absolute path
-    if (len_overlay_path < 2 || *overlay_path != '/') {
-        return -1;
-    }
-    const size_t len_idmap_root = strlen(prefix);
+    if (idmap_path == NULL) return -1;
 
     memset(idmap_path, 0, N);
-    int len = snprintf(idmap_path, N, "%s%s%s%s", prefix, target_path + 1, overlay_path, suffix);
+    int len = snprintf(idmap_path, N, "%s/%s", prefix, suffix);
     if (len < 0 || (size_t)len >= N) {
         return -1; // error or truncated
-    }
-    char *ch = idmap_path + len_idmap_root;
-    while (*ch != '\0') {
-        if (*ch == '/') {
-            *ch = '@';
-        }
-        ++ch;
     }
     return 0;
 }
 
-int idmap(const char *target_apk, const char *overlay_apk, uid_t uid,
-          uint32_t target_hash, uint32_t overlay_hash)
+int idmap(const char *target_apk, const char *overlay_apk, const char *cache_path,
+          uid_t uid, uint32_t target_hash, uint32_t overlay_hash)
 {
-    ALOGV("idmap target_apk=%s overlay_apk=%s uid=%d\n", target_apk, overlay_apk, uid);
+    ALOGD("idmap target_apk=%s overlay_apk=%s cache_path=%s uid=%d\n", target_apk, overlay_apk,
+            cache_path, uid);
 
     int idmap_fd = -1;
     char idmap_path[PATH_MAX];
 
-    if (flatten_path(IDMAP_PREFIX, IDMAP_SUFFIX, overlay_apk, target_apk,
-                idmap_path, sizeof(idmap_path)) == -1) {
+    if (get_idmap_path(cache_path, IDMAP_SUFFIX, idmap_path, sizeof(idmap_path)) == -1) {
         ALOGE("idmap cannot generate idmap path for overlay %s\n", overlay_apk);
         goto fail;
     }
@@ -1547,7 +1515,7 @@ int idmap(const char *target_apk, const char *overlay_apk, uid_t uid,
             exit(1);
         }
 
-        run_idmap(target_apk, overlay_apk, idmap_fd, target_hash, overlay_hash);
+        run_idmap(target_apk, overlay_apk, cache_path, idmap_fd, target_hash, overlay_hash);
         exit(1); /* only if exec call to idmap failed */
     } else {
         int status = wait_child(pid);
