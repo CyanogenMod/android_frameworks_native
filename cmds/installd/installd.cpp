@@ -158,7 +158,7 @@ static int do_linklib(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return idmap(arg[0], arg[1], atoi(arg[2]), atoi(arg[3]), atoi(arg[4]));
+    return idmap(arg[0], arg[1], arg[2], atoi(arg[3]), atoi(arg[4]), atoi(arg[5]));
 }
 
 static int do_aapt(char **arg, char reply[REPLY_MAX] __unused)
@@ -222,7 +222,7 @@ struct cmdinfo cmds[] = {
     { "mkuserdata",           5, do_mk_user_data },
     { "mkuserconfig",         1, do_mk_user_config },
     { "rmuser",               2, do_rm_user },
-    { "idmap",                5, do_idmap },
+    { "idmap",                6, do_idmap },
     { "aapt",                 6, do_aapt },
     { "aapt_with_common",     7, do_aapt_with_common },
     { "restorecondata",       4, do_restorecon_data },
