@@ -59,6 +59,7 @@ public:
             void        clear();
             void        set(const Rect& r);
             void        set(int32_t w, int32_t h);
+            void        set(uint32_t w, uint32_t h);
 
             Region&     orSelf(const Rect& rhs);
             Region&     xorSelf(const Rect& rhs);
