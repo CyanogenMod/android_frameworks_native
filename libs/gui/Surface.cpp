@@ -934,9 +934,13 @@ status_t Surface::lock(
         if (canCopyBack) {
             Mutex::Autolock lock(mMutex);
             Region oldDirtyRegion;
-            for(int i = 0 ; i < NUM_BUFFER_SLOTS; i++ ) {
-                if(i != backBufferSlot && !mSlots[i].dirtyRegion.isEmpty())
-                    oldDirtyRegion.orSelf(mSlots[i].dirtyRegion);
+            if(mSlots[backBufferSlot].dirtyRegion.isEmpty()) {
+                oldDirtyRegion.set(bounds);
+            } else {
+                for(int i = 0 ; i < NUM_BUFFER_SLOTS; i++ ) {
+                    if(i != backBufferSlot && !mSlots[i].dirtyRegion.isEmpty())
+                        oldDirtyRegion.orSelf(mSlots[i].dirtyRegion);
+                }
             }
             const Region copyback(oldDirtyRegion.subtract(newDirtyRegion));
             if (!copyback.isEmpty()) {
