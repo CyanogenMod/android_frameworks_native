@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/sendfile.h>
 #include <time.h>
 #include <zlib.h>
@@ -648,7 +649,7 @@ static void dumpTrace()
         uint8_t *in, *out;
         int result, flush;
 
-        bzero(&zs, sizeof(zs));
+        memset(&zs, 0, sizeof(zs));
         result = deflateInit(&zs, Z_DEFAULT_COMPRESSION);
         if (result != Z_OK) {
             fprintf(stderr, "error initializing zlib: %d\n", result);
