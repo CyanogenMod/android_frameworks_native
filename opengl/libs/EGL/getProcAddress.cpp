@@ -125,9 +125,9 @@ namespace android {
         #define API_ENTRY(_api) __attribute__((noinline)) _api
 
         #define CALL_GL_EXTENSION_API(_api, ...)                    \
-            register unsigned int _t0 asm("t0");                    \
-            register unsigned int _fn asm("t1");                    \
-            register unsigned int _tls asm("v1");                   \
+            register unsigned int _t0 asm("$12");                   \
+            register unsigned int _fn asm("$25");                   \
+            register unsigned int _tls asm("$3");                   \
             asm volatile(                                           \
                 ".set  push\n\t"                                    \
                 ".set  noreorder\n\t"                               \
@@ -157,9 +157,9 @@ namespace android {
         #define API_ENTRY(_api) __attribute__((noinline)) _api
 
         #define CALL_GL_EXTENSION_API(_api, ...)                    \
-            register unsigned int _t0 asm("t0");                    \
-            register unsigned int _fn asm("t1");                    \
-            register unsigned int _tls asm("v1");                   \
+            register unsigned int _t0 asm("$8");                    \
+            register unsigned int _fn asm("$25");                    \
+            register unsigned int _tls asm("$3");                   \
             asm volatile(                                           \
                 ".set  push\n\t"                                    \
                 ".set  noreorder\n\t"                               \
