@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-#if defined(HAVE_PTHREADS)
 #include <sys/resource.h>
-#endif
 
 #include <cutils/sched_policy.h>
 #include <binder/IServiceManager.h>
@@ -39,9 +37,8 @@ int main(int, char**) {
     // instantiate surfaceflinger
     sp<SurfaceFlinger> flinger = new SurfaceFlinger();
 
-#if defined(HAVE_PTHREADS)
     setpriority(PRIO_PROCESS, 0, PRIORITY_URGENT_DISPLAY);
-#endif
+
     set_sched_policy(0, SP_FOREGROUND);
 
     // initialize before clients can connect
