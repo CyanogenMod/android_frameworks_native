@@ -29,21 +29,14 @@
 #include <private/binder/binder_module.h>
 #include <private/binder/Static.h>
 
-#include <sys/ioctl.h>
-#include <signal.h>
 #include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#ifdef HAVE_PTHREADS
 #include <pthread.h>
 #include <sched.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
-#endif
-#ifdef HAVE_WIN32_THREADS
-#include <windows.h>
-#endif
-
+#include <unistd.h>
 
 #if LOG_NDEBUG
 
