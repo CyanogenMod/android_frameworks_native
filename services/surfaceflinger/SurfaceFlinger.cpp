@@ -78,12 +78,6 @@
 #include "RenderEngine/RenderEngine.h"
 #include <cutils/compiler.h>
 
-#include <map>
-#include <set>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #define DISPLAY_COUNT       1
 
 /*
@@ -1813,17 +1807,6 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
     hw->swapBuffers(getHwComposer());
 }
 
-static std::set<int> getOpenFds()
-{
-    std::set<int> fds;
-    for (int fd = 0; fd < 1024; ++fd) {
-        if (fcntl(fd, F_GETFD) != -1 || errno != EBADF) {
-            fds.insert(fd);
-        }
-    }
-    return fds;
-}
-
 bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
 {
     RenderEngine& engine(getRenderEngine());
@@ -1898,8 +1881,6 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
      * and then, render the layers targeted at the framebuffer
      */
 
-    static std::set<std::string> previousLayers;
-    std::set<std::string> currentLayers;
     const Vector< sp<Layer> >& layers(hw->getVisibleLayersSortedByZ());
     const size_t count = layers.size();
     const Transform& tr = hw->getTransform();
@@ -1909,7 +1890,6 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             const sp<Layer>& layer(layers[i]);
             const Region clip(dirty.intersect(tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
-                currentLayers.insert(layer->getName().string());
                 switch (cur->getCompositionType()) {
                     case HWC_CURSOR_OVERLAY:
                     case HWC_OVERLAY: {
@@ -1945,85 +1925,10 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             const Region clip(dirty.intersect(
                     tr.transform(layer->visibleRegion)));
             if (!clip.isEmpty()) {
-                currentLayers.insert(layer->getName().string());
                 layer->draw(hw, clip);
             }
         }
     }
-
-    std::set<std::string> newLayers;
-    for (auto layer : currentLayers) {
-        if (previousLayers.count(layer) == 0) {
-            newLayers.insert(layer);
-        }
-    }
-    std::set<std::string> deletedLayers;
-    for (auto layer : previousLayers) {
-        if (currentLayers.count(layer) == 0) {
-            deletedLayers.insert(layer);
-        }
-    }
-    previousLayers = std::move(currentLayers);
-
-    static std::set<int> previousFds;
-    static std::unordered_map<std::string, std::set<int>> initialFds;
-
-    for (auto layer : newLayers) {
-        initialFds[layer] = previousFds;
-    }
-
-    std::set<int> currentFds = getOpenFds();
-
-    if (!deletedLayers.empty()) {
-        std::unordered_map<int, std::set<std::string>> currentBlame;
-        static std::map<int, std::set<std::string>> persistentBlame;
-        for (auto layer : deletedLayers) {
-            std::vector<int> newFds;
-            auto& layerInitialFds = initialFds[layer];
-            std::set_difference(
-                    currentFds.cbegin(), currentFds.cend(),
-                    layerInitialFds.cbegin(), layerInitialFds.cend(),
-                    std::back_inserter(newFds));
-
-            for (auto fd : newFds) {
-                currentBlame[fd].insert(layer);
-            }
-
-            initialFds.erase(layer);
-        }
-
-        for (auto blame : currentBlame) {
-            persistentBlame[blame.first] = blame.second;
-        }
-
-        auto iter = persistentBlame.cbegin();
-        while (iter != persistentBlame.cend()) {
-            if (currentFds.count(iter->first) == 0) {
-                iter = persistentBlame.erase(iter);
-            } else {
-                ++iter;
-            }
-        }
-
-        std::map<std::set<std::string>, int> blameCounts;
-        for (auto blame : persistentBlame) {
-            ++blameCounts[blame.second];
-        }
-
-        ALOGI("FD Blame: %zu open fds", currentFds.size());
-        for (auto blame : blameCounts) {
-            std::string layers;
-            for (auto layer : blame.first) {
-                if (!layers.empty()) {
-                    layers += ", ";
-                }
-                layers += layer;
-            }
-            ALOGI("  %s: %d", layers.c_str(), blame.second);
-        }
-    }
-
-    previousFds = std::move(currentFds);
 
     // disable scissor at the end of the frame
     engine.disableScissor();
