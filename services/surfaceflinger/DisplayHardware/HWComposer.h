@@ -276,7 +276,7 @@ public:
         uint32_t height;
         float xdpi;
         float ydpi;
-#if defined(QCOM_BSP) && !defined(APQ8084)
+#ifdef QCOM_BSP
         bool secure;
 #endif
         nsecs_t refresh;
@@ -288,7 +288,7 @@ public:
     sp<Fence> getDisplayFence(int disp) const;
     uint32_t getFormat(int disp) const;
     bool isConnected(int disp) const;
-#if defined(QCOM_BSP) && !defined(APQ8084)
+#ifdef QCOM_BSP
     bool isSecure(int disp) const;
 #endif
 
