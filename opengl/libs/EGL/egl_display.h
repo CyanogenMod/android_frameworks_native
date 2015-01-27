@@ -131,7 +131,9 @@ private:
     void leave() { return mHibernation.decWakeCount(HibernationMachine::WEAK); }
 
             uint32_t                    refs;
-    mutable Mutex                       lock;
+            bool                        eglIsInitialized;
+    mutable Mutex                       lock, refLock;
+    mutable Condition                   refCond;
             SortedVector<egl_object_t*> objects;
             String8 mVendorString;
             String8 mVersionString;
