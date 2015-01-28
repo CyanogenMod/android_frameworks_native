@@ -242,7 +242,8 @@ static void dumpstate() {
     for_each_userid(do_dump_settings, NULL);
 
     /* The following have a tendency to get wedged when wifi drivers/fw goes belly-up. */
-    run_command("NETWORK INTERFACES", 10, SU_PATH, "root", "netcfg", NULL);
+
+    run_command("NETWORK INTERFACES", 10, "ip", "link", NULL);
 
     run_command("IPv4 ADDRESSES", 10, "ip", "-4", "addr", "show", NULL);
     run_command("IPv6 ADDRESSES", 10, "ip", "-6", "addr", "show", NULL);
