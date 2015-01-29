@@ -97,6 +97,10 @@ status_t GraphicBufferMapper::lockYCbCr(buffer_handle_t handle,
     ATRACE_CALL();
     status_t err;
 
+    if (mAllocMod->lock_ycbcr == NULL) {
+        return -EINVAL; // do not log failure
+    }
+
     err = mAllocMod->lock_ycbcr(mAllocMod, handle, static_cast<int>(usage),
             bounds.left, bounds.top, bounds.width(), bounds.height(),
             ycbcr);
@@ -144,16 +148,19 @@ status_t GraphicBufferMapper::lockAsyncYCbCr(buffer_handle_t handle,
     ATRACE_CALL();
     status_t err;
 
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
+    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3
+            && mAllocMod->lockAsync_ycbcr != NULL) {
         err = mAllocMod->lockAsync_ycbcr(mAllocMod, handle,
                 static_cast<int>(usage), bounds.left, bounds.top,
                 bounds.width(), bounds.height(), ycbcr, fenceFd);
-    } else {
+    } else if (mAllocMod->lock_ycbcr != NULL) {
         sync_wait(fenceFd, -1);
         close(fenceFd);
         err = mAllocMod->lock_ycbcr(mAllocMod, handle, static_cast<int>(usage),
                 bounds.left, bounds.top, bounds.width(), bounds.height(),
                 ycbcr);
+    } else {
+        return -EINVAL; // do not log failure
     }
 
     ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
