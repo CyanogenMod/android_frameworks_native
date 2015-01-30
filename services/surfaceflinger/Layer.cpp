@@ -529,7 +529,7 @@ void Layer::setGeometry(
 
     // this gives us only the "orientation" component of the transform
     const State& s(getDrawingState());
-#ifdef QCOM_BSP_LEGACY
+#ifdef QCOM_BSP
     if (!isOpaque(s))
 #else
     if (!isOpaque(s) || s.alpha != 0xFF)
