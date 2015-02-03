@@ -95,8 +95,6 @@
 #define DISPLAY_COUNT       1
 #define MIN_DIRTYRECT_COUNT 5
 
-#define DEBUG_FPS           true
-
 /*
  * DEBUG_SCREENSHOTS: set to true to check that screenshots are not all
  * black pixels.
@@ -1364,9 +1362,7 @@ void SurfaceFlinger::postFramebuffer()
     if (flipCount % LOG_FRAME_STATS_PERIOD == 0) {
         logFrameStats();
     }
-    if(DEBUG_FPS && mFrameRateHelper.update()) {
-        ALOGI("FPS: %d", mFrameRateHelper.get());
-    }
+    ALOGV_IF(mFrameRateHelper.update(), "FPS: %d", mFrameRateHelper.get());
 }
 
 void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
