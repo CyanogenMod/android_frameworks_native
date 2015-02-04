@@ -174,8 +174,8 @@ struct MediaImage {
 
     Type mType;
     size_t mNumPlanes;              // number of planes
-    size_t mWidth;                  // width of largest plane
-    size_t mHeight;                 // height of largest plane
+    size_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
+    size_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
     size_t mBitDepth;               // useable bit depth
     struct PlaneInfo {
         size_t mOffset;             // offset of first pixel of the plane in bytes
@@ -194,12 +194,26 @@ struct MediaImage {
 // other than invalid.  The color-format, frame width/height, and stride/
 // slice-height parameters are ones that are associated with a raw video
 // port (input or output), but the stride/slice height parameters may be
-// incorrect.  The component shall fill out the MediaImage structure that
+// incorrect. bUsingNativeBuffers is OMX_TRUE if native android buffers will
+// be used (while specifying this color format).
+//
+// The component shall fill out the MediaImage structure that
 // corresponds to the described raw video format, and the potentially corrected
 // stride and slice-height info.
 //
-// For non-YUV packed planar/semiplanar image formats, the component shall set
-// mNumPlanes to 0, and mType to MEDIA_IMAGE_TYPE_UNKNOWN.
+// The behavior is slightly different if bUsingNativeBuffers is OMX_TRUE,
+// though most implementations can ignore this difference. When using native buffers,
+// the component may change the configured color format to an optimized format.
+// Additionally, when allocating these buffers for flexible usecase, the framework
+// will set the SW_READ/WRITE_OFTEN usage flags. In this case (if bUsingNativeBuffers
+// is OMX_TRUE), the component shall fill out the MediaImage information for the
+// scenario when these SW-readable/writable buffers are locked using gralloc_lock.
+// Note, that these buffers may also be locked using gralloc_lock_ycbcr, which must
+// be supported for vendor-specific formats.
+//
+// For non-YUV packed planar/semiplanar image formats, or if bUsingNativeBuffers
+// is OMX_TRUE and the component does not support this color format with native
+// buffers, the component shall set mNumPlanes to 0, and mType to MEDIA_IMAGE_TYPE_UNKNOWN.
 struct DescribeColorFormatParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -209,6 +223,7 @@ struct DescribeColorFormatParams {
     OMX_U32 nFrameHeight;
     OMX_U32 nStride;
     OMX_U32 nSliceHeight;
+    OMX_BOOL bUsingNativeBuffers;
 
     // output: fill out the MediaImage fields
     MediaImage sMediaImage;
