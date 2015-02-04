@@ -301,6 +301,50 @@ static int64_t nanotime() {
     return (int64_t)ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec;
 }
 
+bool waitpid_with_timeout(pid_t pid, int timeout_seconds, int* status) {
+    sigset_t child_mask, old_mask;
+    sigemptyset(&child_mask);
+    sigaddset(&child_mask, SIGCHLD);
+
+    if (sigprocmask(SIG_BLOCK, &child_mask, &old_mask) == -1) {
+        printf("*** sigprocmask failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    struct timespec ts;
+    ts.tv_sec = timeout_seconds;
+    ts.tv_nsec = 0;
+    int ret = TEMP_FAILURE_RETRY(sigtimedwait(&child_mask, NULL, &ts));
+    int saved_errno = errno;
+    // Set the signals back the way they were.
+    if (sigprocmask(SIG_SETMASK, &old_mask, NULL) == -1) {
+        printf("*** sigprocmask failed: %s\n", strerror(errno));
+        if (ret == 0) {
+            return false;
+        }
+    }
+    if (ret == -1) {
+        errno = saved_errno;
+        if (errno == EAGAIN) {
+            errno = ETIMEDOUT;
+        } else {
+            printf("*** sigtimedwait failed: %s\n", strerror(errno));
+        }
+        return false;
+    }
+
+    pid_t child_pid = waitpid(pid, status, WNOHANG);
+    if (child_pid != pid) {
+        if (child_pid != -1) {
+            printf("*** Waiting for pid %d, got pid %d instead\n", pid, child_pid);
+        } else {
+            printf("*** waitpid failed: %s\n", strerror(errno));
+        }
+        return false;
+    }
+    return true;
+}
+
 /* forks a command and waits for it to finish */
 int run_command(const char *title, int timeout_seconds, const char *command, ...) {
     fflush(stdout);
@@ -345,28 +389,35 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
     }
 
     /* handle parent case */
-    for (;;) {
-        int status;
-        pid_t p = waitpid(pid, &status, WNOHANG);
-        int64_t elapsed = nanotime() - start;
-        if (p == pid) {
-            if (WIFSIGNALED(status)) {
-                printf("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
-            } else if (WIFEXITED(status) && WEXITSTATUS(status) > 0) {
-                printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
+    int status;
+    bool ret = waitpid_with_timeout(pid, timeout_seconds, &status);
+    uint64_t elapsed = nanotime() - start;
+    if (!ret) {
+        if (errno == ETIMEDOUT) {
+            printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command,
+                   (float) elapsed / NANOS_PER_SEC, pid);
+        } else {
+            printf("*** %s: Error after %.4fs (killing pid %d)\n", command,
+                   (float) elapsed / NANOS_PER_SEC, pid);
+        }
+        kill(pid, SIGTERM);
+        if (!waitpid_with_timeout(pid, 5, NULL)) {
+            kill(pid, SIGKILL);
+            if (!waitpid_with_timeout(pid, 5, NULL)) {
+                printf("*** %s: Cannot kill %d even with SIGKILL.\n", command, pid);
             }
-            if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
-            return status;
         }
-
-        if (timeout_seconds && elapsed / NANOS_PER_SEC > timeout_seconds) {
-            printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command, (float) elapsed / NANOS_PER_SEC, pid);
-            kill(pid, SIGTERM);
-            return -1;
-        }
-
-        usleep(100000);  // poll every 0.1 sec
+        return -1;
     }
+
+    if (WIFSIGNALED(status)) {
+        printf("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
+    } else if (WIFEXITED(status) && WEXITSTATUS(status) > 0) {
+        printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
+    }
+    if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
+
+    return status;
 }
 
 size_t num_props = 0;
