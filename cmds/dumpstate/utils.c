@@ -476,8 +476,8 @@ void redirect_to_socket(FILE *redirect, const char *service) {
     close(fd);
 }
 
-/* redirect output to a file, optionally gzipping; returns gzip pid (or -1) */
-pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level) {
+/* redirect output to a file */
+void redirect_to_file(FILE *redirect, char *path) {
     char *chp = path;
 
     /* skip initial slash */
@@ -494,52 +494,15 @@ pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level) {
         }
     }
 
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC,
+                                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", path, strerror(errno));
         exit(1);
     }
 
-    pid_t gzip_pid = -1;
-    if (gzip_level > 0) {
-        int fds[2];
-        if (pipe(fds)) {
-            fprintf(stderr, "pipe: %s\n", strerror(errno));
-            exit(1);
-        }
-
-        fflush(redirect);
-        fflush(stdout);
-
-        gzip_pid = fork();
-        if (gzip_pid < 0) {
-            fprintf(stderr, "fork: %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if (gzip_pid == 0) {
-            dup2(fds[0], STDIN_FILENO);
-            dup2(fd, STDOUT_FILENO);
-
-            close(fd);
-            close(fds[0]);
-            close(fds[1]);
-
-            char level[10];
-            snprintf(level, sizeof(level), "-%d", gzip_level);
-            execlp("gzip", "gzip", level, NULL);
-            fprintf(stderr, "exec(gzip): %s\n", strerror(errno));
-            _exit(-1);
-        }
-
-        close(fd);
-        close(fds[0]);
-        fd = fds[1];
-    }
-
-    dup2(fd, fileno(redirect));
+    TEMP_FAILURE_RETRY(dup2(fd, fileno(redirect)));
     close(fd);
-    return gzip_pid;
 }
 
 static bool should_dump_native_traces(const char* path) {
