@@ -366,7 +366,6 @@ static void usage() {
     fprintf(stderr, "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] [-z]] [-s] [-q]\n"
             "  -o: write to file (instead of stdout)\n"
             "  -d: append date to filename (requires -o)\n"
-            "  -z: gzip output (requires -o)\n"
             "  -p: capture screenshot to filename.png (requires -o)\n"
             "  -s: write output to control socket (for init)\n"
             "  -b: play sound file instead of vibrate, at beginning of job\n"
@@ -389,7 +388,6 @@ static void vibrate(FILE* vibrator, int ms) {
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
     int do_add_date = 0;
-    int do_compress = 0;
     int do_vibrate = 1;
     char* use_outfile = 0;
     int use_socket = 0;
@@ -429,7 +427,6 @@ int main(int argc, char *argv[]) {
             case 's': use_socket = 1;        break;
             case 'v': break;  // compatibility no-op
             case 'q': do_vibrate = 0;        break;
-            case 'z': do_compress = 6;       break;
             case 'p': do_fb = 1;             break;
             case 'B': do_broadcast = 1;      break;
             case '?': printf("\n");
@@ -524,10 +521,9 @@ int main(int argc, char *argv[]) {
             strlcat(screenshot_path, ".png", sizeof(screenshot_path));
         }
         strlcat(path, ".txt", sizeof(path));
-        if (do_compress) strlcat(path, ".gz", sizeof(path));
         strlcpy(tmp_path, path, sizeof(tmp_path));
         strlcat(tmp_path, ".tmp", sizeof(tmp_path));
-        gzip_pid = redirect_to_file(stdout, tmp_path, do_compress);
+        redirect_to_file(stdout, tmp_path);
     }
 
     dumpstate();
