@@ -43,8 +43,8 @@ void print_properties();
 /* redirect output to a service control socket */
 void redirect_to_socket(FILE *redirect, const char *service);
 
-/* redirect output to a file, optionally gzipping; returns gzip pid */
-pid_t redirect_to_file(FILE *redirect, char *path, int gzip_level);
+/* redirect output to a file */
+void redirect_to_file(FILE *redirect, char *path);
 
 /* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
 const char *dump_traces();
