@@ -27,6 +27,7 @@
 #include <utils/AndroidThreads.h>
 #include <utils/RefBase.h>
 #include <utils/Looper.h>
+#include <utils/String8.h>
 
 #include <binder/BinderService.h>
 
@@ -65,6 +66,27 @@ class SensorService :
 {
     friend class BinderService<SensorService>;
 
+    enum Mode {
+       // The regular operating mode where any application can register/unregister/call flush on
+       // sensors.
+       NORMAL = 0,
+       // This mode is used only for testing sensors. Each sensor can be tested in isolation with
+       // the required sampling_rate and maxReportLatency parameters without having to think about
+       // the data rates requested by other applications. End user devices are always expected to be
+       // in NORMAL mode. When this mode is first activated, all active sensors from all connections
+       // are disabled. Calling flush() will return an error. In this mode, only the requests from
+       // selected apps whose package names are whitelisted are allowed (typically CTS apps).  Only
+       // these apps can register/unregister/call flush() on sensors.  If SensorService switches to
+       // NORMAL mode again, all sensors that were previously registered to are activated with the
+       // corresponding paramaters if the application hasn't unregistered for sensors in the mean
+       // time.
+       // NOTE: Non whitelisted app whose sensors were previously deactivated may still receive
+       // events if a whitelisted app requests data from the same sensor.
+       RESTRICTED,
+       // TODO: This mode hasn't been implemented yet.
+       DATA_INJECTION
+    };
+
     static const char* WAKE_LOCK_NAME;
 
     static char const* getServiceName() ANDROID_API { return "sensorservice"; }
@@ -78,7 +100,7 @@ class SensorService :
 
     // ISensorServer interface
     virtual Vector<Sensor> getSensorList();
-    virtual sp<ISensorEventConnection> createSensorEventConnection();
+    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName);
     virtual status_t dump(int fd, const Vector<String16>& args);
 
     class SensorEventConnection : public BnSensorEventConnection, public LooperCallback {
@@ -133,7 +155,6 @@ class SensorService :
         // connection FD may be added to the Looper. The flags to set are determined by the internal
         // state of the connection. FDs are added to the looper when wake-up sensors are registered
         // (to poll for acknowledgements) and when write fails on the socket when there are too many
-        // events (to poll when the FD is available for writing). FDs are removed when there is an
         // error and the other end hangs up or when this client unregisters for this connection.
         void updateLooperRegistration(const sp<Looper>& looper);
         void updateLooperRegistrationLocked(const sp<Looper>& looper);
@@ -169,6 +190,7 @@ class SensorService :
         KeyedVector<int, FlushInfo> mSensorInfo;
         sensors_event_t *mEventCache;
         int mCacheSize, mMaxCacheSize;
+        String8 mPackageName;
 
 #if DEBUG_CONNECTIONS
         int mEventsReceived, mEventsSent, mEventsSentFromCache;
@@ -176,7 +198,7 @@ class SensorService :
 #endif
 
     public:
-        SensorEventConnection(const sp<SensorService>& service, uid_t uid);
+        SensorEventConnection(const sp<SensorService>& service, uid_t uid, String8 packageName);
 
         status_t sendEvents(sensors_event_t const* buffer, size_t count,
                 sensors_event_t* scratch,
@@ -190,6 +212,7 @@ class SensorService :
         void dump(String8& result);
         bool needsWakeLock();
         void resetWakeLockRefCount();
+        String8 getPackageName() const;
 
         uid_t getUid() const { return mUid; }
     };
@@ -208,6 +231,7 @@ class SensorService :
         void addPendingFlushConnection(const sp<SensorEventConnection>& connection);
         void removeFirstPendingFlushConnection();
         SensorEventConnection * getFirstPendingFlushConnection();
+        void clearAllPendingFlushConnections();
     };
 
     class SensorEventAckReceiver : public Thread {
@@ -261,6 +285,11 @@ class SensorService :
     // to the output vector.
     void populateActiveConnections(SortedVector< sp<SensorEventConnection> >* activeConnections);
 
+    // If SensorService is operating in RESTRICTED mode, only select whitelisted packages are
+    // allowed to register for or call flush on sensors. Typically only cts test packages are
+    // allowed.
+    bool isWhiteListedPackage(const String8& packageName);
+
     // constants
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
@@ -282,6 +311,7 @@ class SensorService :
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
     SensorEventConnection const **mMapFlushEventsToConnections;
+    Mode mMode;
 
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;

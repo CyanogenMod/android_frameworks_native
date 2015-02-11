@@ -139,14 +139,14 @@ Sensor const* SensorManager::getDefaultSensor(int type)
     return NULL;
 }
 
-sp<SensorEventQueue> SensorManager::createEventQueue()
+sp<SensorEventQueue> SensorManager::createEventQueue(String8 packageName)
 {
     sp<SensorEventQueue> queue;
 
     Mutex::Autolock _l(mLock);
     while (assertStateLocked() == NO_ERROR) {
         sp<ISensorEventConnection> connection =
-                mSensorServer->createSensorEventConnection();
+                mSensorServer->createSensorEventConnection(packageName);
         if (connection == NULL) {
             // SensorService just died.
             ALOGE("createEventQueue: connection is NULL. SensorService died.");

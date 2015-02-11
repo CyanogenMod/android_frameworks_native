@@ -190,6 +190,7 @@ void SensorService::onFirstRef()
             mSensorEventBuffer = new sensors_event_t[minBufferSize];
             mSensorEventScratch = new sensors_event_t[minBufferSize];
             mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
+            mMode = NORMAL;
 
             mAckReceiver = new SensorEventAckReceiver(this);
             mAckReceiver->run("SensorEventAckReceiver", PRIORITY_URGENT_DISPLAY);
@@ -230,7 +231,7 @@ SensorService::~SensorService()
 
 static const String16 sDump("android.permission.DUMP");
 
-status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
+status_t SensorService::dump(int fd, const Vector<String16>& args)
 {
     String8 result;
     if (!PermissionCache::checkCallingPermission(sDump)) {
@@ -238,6 +239,26 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
                 "can't dump SensorService from pid=%d, uid=%d\n",
                 IPCThreadState::self()->getCallingPid(),
                 IPCThreadState::self()->getCallingUid());
+    } else if (args.size() > 0) {
+        if (args.size() > 1) {
+           return INVALID_OPERATION;
+        }
+        Mutex::Autolock _l(mLock);
+        SensorDevice& dev(SensorDevice::getInstance());
+        if (args[0] == String16("restrict") && mMode == NORMAL) {
+            mMode = RESTRICTED;
+            dev.disableAllSensors();
+            // Clear all pending flush connections for all active sensors. If one of the active
+            // connections has called flush() and the underlying sensor has been disabled before a
+            // flush complete event is returned, we need to remove the connection from this queue.
+            for (size_t i=0 ; i< mActiveSensors.size(); ++i) {
+                mActiveSensors.valueAt(i)->clearAllPendingFlushConnections();
+            }
+        } else if (args[0] == String16("enable") && mMode == RESTRICTED) {
+            mMode = NORMAL;
+            dev.enableAllSensors();
+        }
+        return status_t(NO_ERROR);
     } else {
         Mutex::Autolock _l(mLock);
         result.append("Sensor List:\n");
@@ -341,6 +362,17 @@ status_t SensorService::dump(int fd, const Vector<String16>& /*args*/)
         result.appendFormat("Socket Buffer size = %d events\n",
                             mSocketBufferSize/sizeof(sensors_event_t));
         result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
+        result.appendFormat("Mode :");
+        switch(mMode) {
+           case NORMAL:
+               result.appendFormat(" NORMAL\n");
+               break;
+           case RESTRICTED:
+               result.appendFormat(" RESTRICTED\n");
+               break;
+           case DATA_INJECTION:
+               result.appendFormat(" DATA_INJECTION\n");
+        }
         result.appendFormat("%zd active connections\n", mActiveConnections.size());
 
         for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
@@ -554,7 +586,6 @@ void SensorService::setWakeLockAcquiredLocked(bool acquire) {
     }
 }
 
-
 bool SensorService::isWakeLockAcquired() {
     Mutex::Autolock _l(mLock);
     return mWakeLockAcquired;
@@ -630,7 +661,6 @@ bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
     return sensor != NULL && sensor->getSensor().isWakeUpSensor();
 }
 
-
 SensorService::SensorRecord * SensorService::getSensorRecord(int handle) {
      return mActiveSensors.valueFor(handle);
 }
@@ -655,10 +685,10 @@ Vector<Sensor> SensorService::getSensorList()
     return accessibleSensorList;
 }
 
-sp<ISensorEventConnection> SensorService::createSensorEventConnection()
+sp<ISensorEventConnection> SensorService::createSensorEventConnection(const String8& packageName)
 {
     uid_t uid = IPCThreadState::self()->getCallingUid();
-    sp<SensorEventConnection> result(new SensorEventConnection(this, uid));
+    sp<SensorEventConnection> result(new SensorEventConnection(this, uid, packageName));
     return result;
 }
 
@@ -708,7 +738,7 @@ Sensor SensorService::getSensorFromHandle(int handle) const {
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
-        int handle, nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags)
+        int handle, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs, int reservedFlags)
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
@@ -723,6 +753,10 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     }
 
     Mutex::Autolock _l(mLock);
+    if (mMode == RESTRICTED && !isWhiteListedPackage(connection->getPackageName())) {
+        return INVALID_OPERATION;
+    }
+
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec == 0) {
         rec = new SensorRecord(connection);
@@ -773,7 +807,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
                                 "rate=%" PRId64 " timeout== %" PRId64"",
              handle, reservedFlags, samplingPeriodNs, maxBatchReportLatencyNs);
 
-    status_t err = sensor->batch(connection.get(), handle, reservedFlags, samplingPeriodNs,
+    status_t err = sensor->batch(connection.get(), handle, 0, samplingPeriodNs,
                                  maxBatchReportLatencyNs);
 
     // Call flush() before calling activate() on the sensor. Wait for a first flush complete
@@ -969,6 +1003,11 @@ void SensorService::populateActiveConnections(
     }
 }
 
+bool SensorService::isWhiteListedPackage(const String8& packageName) {
+    // TODO: Come up with a list of packages.
+    return (packageName.find(".cts.") != -1);
+}
+
 // ---------------------------------------------------------------------------
 SensorService::SensorRecord::SensorRecord(
         const sp<SensorEventConnection>& connection)
@@ -1025,12 +1064,16 @@ SensorService::SensorRecord::getFirstPendingFlushConnection() {
     return NULL;
 }
 
+void SensorService::SensorRecord::clearAllPendingFlushConnections() {
+    mPendingFlushConnections.clear();
+}
+
 // ---------------------------------------------------------------------------
 
 SensorService::SensorEventConnection::SensorEventConnection(
-        const sp<SensorService>& service, uid_t uid)
+        const sp<SensorService>& service, uid_t uid, String8 packageName)
     : mService(service), mUid(uid), mWakeLockRefCount(0), mHasLooperCallbacks(false),
-      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0) {
+      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0), mPackageName(packageName) {
     mChannel = new BitTube(mService->mSocketBufferSize);
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
@@ -1062,8 +1105,8 @@ void SensorService::SensorEventConnection::resetWakeLockRefCount() {
 
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
-    result.appendFormat("\t WakeLockRefCount %d | uid %d | cache size %d | max cache size %d\n",
-            mWakeLockRefCount, mUid, mCacheSize, mMaxCacheSize);
+    result.appendFormat("\t%s | WakeLockRefCount %d | uid %d | cache size %d | max cache size %d\n",
+            mPackageName.string(), mWakeLockRefCount, mUid, mCacheSize, mMaxCacheSize);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
         result.appendFormat("\t %s 0x%08x | status: %s | pending flush events %d \n",
@@ -1124,6 +1167,10 @@ bool SensorService::SensorEventConnection::hasOneShotSensors() const {
         }
     }
     return false;
+}
+
+String8 SensorService::SensorEventConnection::getPackageName() const {
+    return mPackageName;
 }
 
 void SensorService::SensorEventConnection::setFirstFlushPending(int32_t handle,
