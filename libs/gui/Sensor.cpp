@@ -204,6 +204,13 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
             mFlags |= SENSOR_FLAG_WAKE_UP;
         }
         break;
+    case SENSOR_TYPE_WRIST_TILT_GESTURE:
+        mStringType = SENSOR_STRING_TYPE_WRIST_TILT_GESTURE;
+        mFlags |= SENSOR_FLAG_SPECIAL_REPORTING_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
+        break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
         if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->stringType) {
