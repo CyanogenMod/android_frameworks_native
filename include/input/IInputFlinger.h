@@ -31,8 +31,6 @@ namespace android {
 class IInputFlinger : public IInterface {
 public:
     DECLARE_META_INTERFACE(InputFlinger);
-
-    virtual status_t doSomething() = 0;
 };
 
 

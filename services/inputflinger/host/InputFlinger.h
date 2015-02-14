@@ -20,10 +20,13 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include "InputHost.h"
+
 #include <cutils/compiler.h>
 #include <input/IInputFlinger.h>
 #include <utils/String8.h>
 #include <utils/String16.h>
+#include <utils/StrongPointer.h>
 
 namespace android {
 
@@ -35,18 +38,14 @@ public:
 
     InputFlinger() ANDROID_API;
 
-    // IBinder interface
-    virtual status_t onTransact(uint32_t code,
-            const Parcel& data, Parcel* reply, uint32_t flags);
     virtual status_t dump(int fd, const Vector<String16>& args);
-
-    // IInputFlinger interface
-    virtual status_t doSomething();
 
 private:
     virtual ~InputFlinger();
 
     void dumpInternal(String8& result);
+
+    sp<InputHostInterface> mHost;
 };
 
 } // namespace android

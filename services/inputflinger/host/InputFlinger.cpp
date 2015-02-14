@@ -16,15 +16,18 @@
 
 #define LOG_TAG "InputFlinger"
 
-#include "InputFlinger.h"
 
 #include <stdint.h>
 #include <unistd.h>
 
 #include <sys/types.h>
 
+#include "InputFlinger.h"
+#include "InputDriver.h"
+
 #include <binder/IPCThreadState.h>
 #include <binder/PermissionCache.h>
+#include <hardware/input.h>
 #include <cutils/log.h>
 #include <private/android_filesystem_config.h>
 
@@ -37,27 +40,11 @@ const String16 sDumpPermission("android.permission.DUMP");
 InputFlinger::InputFlinger() :
         BnInputFlinger() {
     ALOGI("InputFlinger is starting");
+    mHost = new InputHost();
+    mHost->registerInputDriver(new InputDriver(INPUT_INSTANCE_EVDEV));
 }
 
 InputFlinger::~InputFlinger() {
-}
-
-status_t InputFlinger::onTransact(
-        uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags) {
-    switch (code) {
-    case DO_SOMETHING_TRANSACTION:
-        const IPCThreadState* ipc = IPCThreadState::self();
-        const int pid = ipc->getCallingPid();
-        const int uid = ipc->getCallingUid();
-        if (!PermissionCache::checkPermission(sAccessInputFlingerPermission, pid, uid)) {
-            ALOGE("Permission Denial: "
-                    "can't access InputFlinger from pid=%d, uid=%d", pid, uid);
-            return PERMISSION_DENIED;
-        }
-        break;
-    }
-
-    return BnInputFlinger::onTransact(code, data, reply, flags);
 }
 
 status_t InputFlinger::dump(int fd, const Vector<String16>& args) {
@@ -78,12 +65,7 @@ status_t InputFlinger::dump(int fd, const Vector<String16>& args) {
 
 void InputFlinger::dumpInternal(String8& result) {
     result.append("INPUT FLINGER (dumpsys inputflinger)\n");
-    result.append("... nothing here yet...\n");
-}
-
-status_t InputFlinger::doSomething() {
-    ALOGI("Did something...");
-    return OK;
+    mHost->dump(result);
 }
 
 }; // namespace android
