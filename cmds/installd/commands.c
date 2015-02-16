@@ -16,6 +16,7 @@
 
 #include <inttypes.h>
 #include <sys/capability.h>
+#include <sys/file.h>
 #include "installd.h"
 #include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
