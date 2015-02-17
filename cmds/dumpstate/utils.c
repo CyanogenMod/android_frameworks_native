@@ -53,29 +53,6 @@ static const char* native_processes_to_dump[] = {
         NULL,
 };
 
-void for_each_userid(void (*func)(int), const char *header) {
-    DIR *d;
-    struct dirent *de;
-
-    if (header) printf("\n------ %s ------\n", header);
-    func(0);
-
-    if (!(d = opendir("/data/system/users"))) {
-        printf("Failed to open /data/system/users (%s)\n", strerror(errno));
-        return;
-    }
-
-    while ((de = readdir(d))) {
-        int userid;
-        if (de->d_type != DT_DIR || !(userid = atoi(de->d_name))) {
-            continue;
-        }
-        func(userid);
-    }
-
-    closedir(d);
-}
-
 static void __for_each_pid(void (*helper)(int, const char *, void *), const char *header, void *arg) {
     DIR *d;
     struct dirent *de;
@@ -197,22 +174,6 @@ void show_wchan(int pid, int tid, const char *name) {
 
 out_close:
     close(fd);
-    return;
-}
-
-void do_dump_settings(int userid) {
-    char title[255];
-    char dbpath[255];
-    char sql[255];
-    sprintf(title, "SYSTEM SETTINGS (user %d)", userid);
-    if (userid == 0) {
-        strcpy(dbpath, "/data/data/com.android.providers.settings/databases/settings.db");
-        strcpy(sql, "pragma user_version; select * from system; select * from secure; select * from global;");
-    } else {
-        sprintf(dbpath, "/data/system/users/%d/settings.db", userid);
-        strcpy(sql, "pragma user_version; select * from system; select * from secure;");
-    }
-    run_command(title, 20, SU_PATH, "root", "sqlite3", dbpath, sql, NULL);
     return;
 }
 
