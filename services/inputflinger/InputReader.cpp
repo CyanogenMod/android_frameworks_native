@@ -1078,6 +1078,14 @@ void InputDevice::cancelVibrate(int32_t token) {
     }
 }
 
+void InputDevice::cancelTouch(nsecs_t when) {
+    size_t numMappers = mMappers.size();
+    for (size_t i = 0; i < numMappers; i++) {
+        InputMapper* mapper = mMappers[i];
+        mapper->cancelTouch(when);
+    }
+}
+
 int32_t InputDevice::getMetaState() {
     int32_t result = 0;
     size_t numMappers = mMappers.size();
@@ -1786,6 +1794,9 @@ void InputMapper::vibrate(const nsecs_t* pattern, size_t patternSize, ssize_t re
 void InputMapper::cancelVibrate(int32_t token) {
 }
 
+void InputMapper::cancelTouch(nsecs_t when) {
+}
+
 int32_t InputMapper::getMetaState() {
     return 0;
 }
@@ -2133,6 +2144,9 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t keyCode,
                     && mContext->shouldDropVirtualKey(when,
                             getDevice(), keyCode, scanCode)) {
                 return;
+            }
+            if (policyFlags & POLICY_FLAG_GESTURE) {
+                mDevice->cancelTouch(when);
             }
 
             mKeyDowns.push();
@@ -5715,6 +5729,10 @@ void TouchInputMapper::fadePointer() {
     if (mPointerController != NULL) {
         mPointerController->fade(PointerControllerInterface::TRANSITION_GRADUAL);
     }
+}
+
+void TouchInputMapper::cancelTouch(nsecs_t when) {
+    abortPointerUsage(when, 0 /*policyFlags*/);
 }
 
 bool TouchInputMapper::isPointInsideSurface(int32_t x, int32_t y) {
