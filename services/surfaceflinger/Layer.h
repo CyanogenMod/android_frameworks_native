@@ -57,9 +57,7 @@ class Colorizer;
 class DisplayDevice;
 class GraphicBuffer;
 class SurfaceFlinger;
-#ifdef WITH_UIBLUR
 class LayerBlur;
-#endif
 
 // ---------------------------------------------------------------------------
 
