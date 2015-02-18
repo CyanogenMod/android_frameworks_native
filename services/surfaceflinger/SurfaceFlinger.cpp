@@ -71,9 +71,7 @@
 #include "EventThread.h"
 #include "Layer.h"
 #include "LayerDim.h"
-#ifdef WITH_UIBLUR
 #include "LayerBlur.h"
-#endif
 #include "SurfaceFlinger.h"
 
 #include "DisplayHardware/FramebufferSurface.h"
@@ -2762,14 +2760,10 @@ status_t SurfaceFlinger::createBlurLayer(const sp<Client>& client,
         const String8& name, uint32_t w, uint32_t h, uint32_t flags,
         sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp, sp<Layer>* outLayer)
 {
-#ifdef WITH_UIBLUR
     *outLayer = new LayerBlur(this, client, name, w, h, flags);
     *handle = (*outLayer)->getHandle();
     *gbp = (*outLayer)->getProducer();
     return NO_ERROR;
-#else
-    return BAD_VALUE;
-#endif
 }
 
 status_t SurfaceFlinger::onLayerRemoved(const sp<Client>& client, const sp<IBinder>& handle)
