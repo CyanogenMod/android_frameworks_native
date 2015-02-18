@@ -149,9 +149,21 @@ enum {
      * NOTE: If you want a flag to be able to set in a keylayout file, then you must add it to
      * InputEventLabels.h as well. */
 
+    // Indicates that the event should wake the device.
     POLICY_FLAG_WAKE = 0x00000001,
+
+    // Indicates that the key is virtual, such as a capacitive button, and should
+    // generate haptic feedback.  Virtual keys may be suppressed for some time
+    // after a recent touch to prevent accidental activation of virtual keys adjacent
+    // to the touch screen during an edge swipe.
     POLICY_FLAG_VIRTUAL = 0x00000002,
+
+    // Indicates that the key is the special function modifier.
     POLICY_FLAG_FUNCTION = 0x00000004,
+
+    // Indicates that the key represents a special gesture that has been detected by
+    // the touch firmware or driver.  Causes touch events from the same device to be canceled.
+    POLICY_FLAG_GESTURE = 0x00000008,
 
     POLICY_FLAG_RAW_MASK = 0x0000ffff,
 

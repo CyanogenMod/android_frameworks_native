@@ -572,6 +572,7 @@ public:
             const int32_t* keyCodes, uint8_t* outFlags);
     void vibrate(const nsecs_t* pattern, size_t patternSize, ssize_t repeat, int32_t token);
     void cancelVibrate(int32_t token);
+    void cancelTouch(nsecs_t when);
 
     int32_t getMetaState();
 
@@ -973,6 +974,7 @@ public:
     virtual void vibrate(const nsecs_t* pattern, size_t patternSize, ssize_t repeat,
             int32_t token);
     virtual void cancelVibrate(int32_t token);
+    virtual void cancelTouch(nsecs_t when);
 
     virtual int32_t getMetaState();
 
@@ -1191,6 +1193,7 @@ public:
             const int32_t* keyCodes, uint8_t* outFlags);
 
     virtual void fadePointer();
+    virtual void cancelTouch(nsecs_t when);
     virtual void timeoutExpired(nsecs_t when);
 
 protected:
