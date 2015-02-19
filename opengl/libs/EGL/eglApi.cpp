@@ -80,6 +80,7 @@ struct extention_map_t {
 extern char const * const gBuiltinExtensionString =
         "EGL_KHR_get_all_proc_addresses "
         "EGL_ANDROID_presentation_time "
+        "EGL_KHR_swap_buffers_with_damage "
         ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
@@ -100,6 +101,8 @@ extern char const * const gExtensionString  =
         "EGL_ANDROID_image_native_buffer "      // mandatory
         "EGL_KHR_wait_sync "                    // strongly recommended
         "EGL_ANDROID_recordable "               // mandatory
+        "EGL_KHR_partial_update "               // strongly recommended
+        "EGL_EXT_buffer_age "                   // strongly recommended with partial_update
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
@@ -152,6 +155,14 @@ static const extention_map_t sExtensionMap[] = {
     // EGL_ANDROID_presentation_time
     { "eglPresentationTimeANDROID",
             (__eglMustCastToProperFunctionPointerType)&eglPresentationTimeANDROID },
+
+    // EGL_KHR_swap_buffers_with_damage
+    { "eglSwapBuffersWithDamageKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglSwapBuffersWithDamageKHR },
+
+    // EGL_KHR_partial_update
+    { "eglSetDamageRegionKHR",
+            (__eglMustCastToProperFunctionPointerType)&eglSetDamageRegionKHR },
 };
 
 /*
@@ -1021,7 +1032,8 @@ private:
     Mutex mMutex;
 };
 
-EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
+EGLBoolean eglSwapBuffersWithDamageKHR(EGLDisplay dpy, EGLSurface draw,
+        EGLint *rects, EGLint n_rects)
 {
     ATRACE_CALL();
     clearError();
@@ -1080,7 +1092,38 @@ EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
         }
     }
 
-    return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
+    if (n_rects == 0) {
+        return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
+    }
+
+    Vector<android_native_rect_t> androidRects;
+    for (int r = 0; r < n_rects; ++r) {
+        int offset = r * 4;
+        int x = rects[offset];
+        int y = rects[offset + 1];
+        int width = rects[offset + 2];
+        int height = rects[offset + 3];
+        android_native_rect_t androidRect;
+        androidRect.left = x;
+        androidRect.top = y + height;
+        androidRect.right = x + width;
+        androidRect.bottom = y;
+        androidRects.push_back(androidRect);
+    }
+    native_window_set_surface_damage(s->win.get(), androidRects.array(),
+            androidRects.size());
+
+    if (s->cnx->egl.eglSwapBuffersWithDamageKHR) {
+        return s->cnx->egl.eglSwapBuffersWithDamageKHR(dp->disp.dpy, s->surface,
+                rects, n_rects);
+    } else {
+        return s->cnx->egl.eglSwapBuffers(dp->disp.dpy, s->surface);
+    }
+}
+
+EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface surface)
+{
+    return eglSwapBuffersWithDamageKHR(dpy, surface, NULL, 0);
 }
 
 EGLBoolean eglCopyBuffers(  EGLDisplay dpy, EGLSurface surface,
@@ -1568,4 +1611,33 @@ EGLuint64NV eglGetSystemTimeNV()
     }
 
     return setErrorQuiet(EGL_BAD_DISPLAY, 0);
+}
+
+// ----------------------------------------------------------------------------
+// Partial update extension
+// ----------------------------------------------------------------------------
+EGLBoolean eglSetDamageRegionKHR(EGLDisplay dpy, EGLSurface surface,
+        EGLint *rects, EGLint n_rects)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) {
+        setError(EGL_BAD_DISPLAY, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    SurfaceRef _s(dp.get(), surface);
+    if (!_s.get()) {
+        setError(EGL_BAD_SURFACE, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    egl_surface_t const * const s = get_surface(surface);
+    if (s->cnx->egl.eglSetDamageRegionKHR) {
+        return s->cnx->egl.eglSetDamageRegionKHR(dp->disp.dpy, s->surface,
+                rects, n_rects);
+    }
+
+    return EGL_FALSE;
 }

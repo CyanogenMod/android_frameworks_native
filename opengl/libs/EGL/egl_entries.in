@@ -90,3 +90,8 @@ EGL_ENTRY(EGLuint64NV, eglGetSystemTimeNV, void)
 
 EGL_ENTRY(EGLBoolean, eglHibernateProcessIMG, void)
 EGL_ENTRY(EGLBoolean, eglAwakenProcessIMG, void)
+
+/* Partial update extensions */
+
+EGL_ENTRY(EGLBoolean, eglSwapBuffersWithDamageKHR, EGLDisplay, EGLSurface, EGLint *, EGLint)
+EGL_ENTRY(EGLBoolean, eglSetDamageRegionKHR, EGLDisplay, EGLSurface, EGLint *, EGLint)
