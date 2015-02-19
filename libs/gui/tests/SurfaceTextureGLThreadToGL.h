@@ -130,7 +130,7 @@ protected:
         }
 
         // This should be called by GLConsumer on the producer thread.
-        virtual void onFrameAvailable() {
+        virtual void onFrameAvailable(const BufferItem& /* item */) {
             Mutex::Autolock lock(mMutex);
             ALOGV("+onFrameAvailable");
             mFrameAvailable = true;

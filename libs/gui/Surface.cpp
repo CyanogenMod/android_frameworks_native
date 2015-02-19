@@ -193,17 +193,17 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     ATRACE_CALL();
     ALOGV("Surface::dequeueBuffer");
 
-    uint32_t reqWidth;
-    uint32_t reqHeight;
+    int reqW;
+    int reqH;
     bool swapIntervalZero;
-    PixelFormat reqFormat;
+    uint32_t reqFormat;
     uint32_t reqUsage;
 
     {
         Mutex::Autolock lock(mMutex);
 
-        reqWidth = mReqWidth ? mReqWidth : mUserWidth;
-        reqHeight = mReqHeight ? mReqHeight : mUserHeight;
+        reqW = mReqWidth ? mReqWidth : mUserWidth;
+        reqH = mReqHeight ? mReqHeight : mUserHeight;
 
         swapIntervalZero = mSwapIntervalZero;
         reqFormat = mReqFormat;
@@ -213,12 +213,12 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     int buf = -1;
     sp<Fence> fence;
     status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence, swapIntervalZero,
-            reqWidth, reqHeight, reqFormat, reqUsage);
+            reqW, reqH, reqFormat, reqUsage);
 
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d, %d)"
-             "failed: %d", swapIntervalZero, reqWidth, reqHeight, reqFormat,
-             reqUsage, result);
+             "failed: %d", swapIntervalZero, reqW, reqH, reqFormat, reqUsage,
+             result);
         return result;
     }
 
@@ -346,7 +346,7 @@ int Surface::query(int what, int* value) const {
         switch (what) {
             case NATIVE_WINDOW_FORMAT:
                 if (mReqFormat) {
-                    *value = static_cast<int>(mReqFormat);
+                    *value = mReqFormat;
                     return NO_ERROR;
                 }
                 break;
@@ -364,15 +364,13 @@ int Surface::query(int what, int* value) const {
                 *value = NATIVE_WINDOW_SURFACE;
                 return NO_ERROR;
             case NATIVE_WINDOW_DEFAULT_WIDTH:
-                *value = static_cast<int>(
-                        mUserWidth ? mUserWidth : mDefaultWidth);
+                *value = mUserWidth ? mUserWidth : mDefaultWidth;
                 return NO_ERROR;
             case NATIVE_WINDOW_DEFAULT_HEIGHT:
-                *value = static_cast<int>(
-                        mUserHeight ? mUserHeight : mDefaultHeight);
+                *value = mUserHeight ? mUserHeight : mDefaultHeight;
                 return NO_ERROR;
             case NATIVE_WINDOW_TRANSFORM_HINT:
-                *value = static_cast<int>(mTransformHint);
+                *value = mTransformHint;
                 return NO_ERROR;
             case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND: {
                 status_t err = NO_ERROR;
@@ -468,7 +466,7 @@ int Surface::dispatchDisconnect(va_list args) {
 
 int Surface::dispatchSetUsage(va_list args) {
     int usage = va_arg(args, int);
-    return setUsage(static_cast<uint32_t>(usage));
+    return setUsage(usage);
 }
 
 int Surface::dispatchSetCrop(va_list args) {
@@ -478,49 +476,49 @@ int Surface::dispatchSetCrop(va_list args) {
 
 int Surface::dispatchSetBufferCount(va_list args) {
     size_t bufferCount = va_arg(args, size_t);
-    return setBufferCount(static_cast<int32_t>(bufferCount));
+    return setBufferCount(bufferCount);
 }
 
 int Surface::dispatchSetBuffersGeometry(va_list args) {
-    uint32_t width = va_arg(args, uint32_t);
-    uint32_t height = va_arg(args, uint32_t);
-    PixelFormat format = va_arg(args, PixelFormat);
-    int err = setBuffersDimensions(width, height);
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    int f = va_arg(args, int);
+    int err = setBuffersDimensions(w, h);
     if (err != 0) {
         return err;
     }
-    return setBuffersFormat(format);
+    return setBuffersFormat(f);
 }
 
 int Surface::dispatchSetBuffersDimensions(va_list args) {
-    uint32_t width = va_arg(args, uint32_t);
-    uint32_t height = va_arg(args, uint32_t);
-    return setBuffersDimensions(width, height);
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    return setBuffersDimensions(w, h);
 }
 
 int Surface::dispatchSetBuffersUserDimensions(va_list args) {
-    uint32_t width = va_arg(args, uint32_t);
-    uint32_t height = va_arg(args, uint32_t);
-    return setBuffersUserDimensions(width, height);
+    int w = va_arg(args, int);
+    int h = va_arg(args, int);
+    return setBuffersUserDimensions(w, h);
 }
 
 int Surface::dispatchSetBuffersFormat(va_list args) {
-    PixelFormat format = va_arg(args, PixelFormat);
-    return setBuffersFormat(format);
+    int f = va_arg(args, int);
+    return setBuffersFormat(f);
 }
 
 int Surface::dispatchSetScalingMode(va_list args) {
-    int mode = va_arg(args, int);
-    return setScalingMode(mode);
+    int m = va_arg(args, int);
+    return setScalingMode(m);
 }
 
 int Surface::dispatchSetBuffersTransform(va_list args) {
-    uint32_t transform = va_arg(args, uint32_t);
+    int transform = va_arg(args, int);
     return setBuffersTransform(transform);
 }
 
 int Surface::dispatchSetBuffersStickyTransform(va_list args) {
-    uint32_t transform = va_arg(args, uint32_t);
+    int transform = va_arg(args, int);
     return setBuffersStickyTransform(transform);
 }
 
@@ -640,37 +638,46 @@ int Surface::setBufferCount(int bufferCount)
     return err;
 }
 
-int Surface::setBuffersDimensions(uint32_t width, uint32_t height)
+int Surface::setBuffersDimensions(int w, int h)
 {
     ATRACE_CALL();
     ALOGV("Surface::setBuffersDimensions");
 
-    if ((width && !height) || (!width && height))
+    if (w<0 || h<0)
+        return BAD_VALUE;
+
+    if ((w && !h) || (!w && h))
         return BAD_VALUE;
 
     Mutex::Autolock lock(mMutex);
-    mReqWidth = width;
-    mReqHeight = height;
+    mReqWidth = w;
+    mReqHeight = h;
     return NO_ERROR;
 }
 
-int Surface::setBuffersUserDimensions(uint32_t width, uint32_t height)
+int Surface::setBuffersUserDimensions(int w, int h)
 {
     ATRACE_CALL();
     ALOGV("Surface::setBuffersUserDimensions");
 
-    if ((width && !height) || (!width && height))
+    if (w<0 || h<0)
+        return BAD_VALUE;
+
+    if ((w && !h) || (!w && h))
         return BAD_VALUE;
 
     Mutex::Autolock lock(mMutex);
-    mUserWidth = width;
-    mUserHeight = height;
+    mUserWidth = w;
+    mUserHeight = h;
     return NO_ERROR;
 }
 
-int Surface::setBuffersFormat(PixelFormat format)
+int Surface::setBuffersFormat(int format)
 {
     ALOGV("Surface::setBuffersFormat");
+
+    if (format<0)
+        return BAD_VALUE;
 
     Mutex::Autolock lock(mMutex);
     mReqFormat = format;
@@ -697,7 +704,7 @@ int Surface::setScalingMode(int mode)
     return NO_ERROR;
 }
 
-int Surface::setBuffersTransform(uint32_t transform)
+int Surface::setBuffersTransform(int transform)
 {
     ATRACE_CALL();
     ALOGV("Surface::setBuffersTransform");
@@ -706,7 +713,7 @@ int Surface::setBuffersTransform(uint32_t transform)
     return NO_ERROR;
 }
 
-int Surface::setBuffersStickyTransform(uint32_t transform)
+int Surface::setBuffersStickyTransform(int transform)
 {
     ATRACE_CALL();
     ALOGV("Surface::setBuffersStickyTransform");
@@ -740,34 +747,30 @@ static status_t copyBlt(
     // src and dst with, height and format must be identical. no verification
     // is done here.
     status_t err;
-    uint8_t* src_bits = NULL;
-    err = src->lock(GRALLOC_USAGE_SW_READ_OFTEN, reg.bounds(),
-            reinterpret_cast<void**>(&src_bits));
+    uint8_t const * src_bits = NULL;
+    err = src->lock(GRALLOC_USAGE_SW_READ_OFTEN, reg.bounds(), (void**)&src_bits);
     ALOGE_IF(err, "error locking src buffer %s", strerror(-err));
 
     uint8_t* dst_bits = NULL;
-    err = dst->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, reg.bounds(),
-            reinterpret_cast<void**>(&dst_bits));
+    err = dst->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, reg.bounds(), (void**)&dst_bits);
     ALOGE_IF(err, "error locking dst buffer %s", strerror(-err));
 
     Region::const_iterator head(reg.begin());
     Region::const_iterator tail(reg.end());
     if (head != tail && src_bits && dst_bits) {
         const size_t bpp = bytesPerPixel(src->format);
-        const size_t dbpr = static_cast<uint32_t>(dst->stride) * bpp;
-        const size_t sbpr = static_cast<uint32_t>(src->stride) * bpp;
+        const size_t dbpr = dst->stride * bpp;
+        const size_t sbpr = src->stride * bpp;
 
         while (head != tail) {
             const Rect& r(*head++);
-            int32_t h = r.height();
+            ssize_t h = r.height();
             if (h <= 0) continue;
-            size_t size = static_cast<uint32_t>(r.width()) * bpp;
-            uint8_t const * s = src_bits +
-                    static_cast<uint32_t>(r.left + src->stride * r.top) * bpp;
-            uint8_t       * d = dst_bits +
-                    static_cast<uint32_t>(r.left + dst->stride * r.top) * bpp;
+            size_t size = r.width() * bpp;
+            uint8_t const * s = src_bits + (r.left + src->stride * r.top) * bpp;
+            uint8_t       * d = dst_bits + (r.left + dst->stride * r.top) * bpp;
             if (dbpr==sbpr && size==sbpr) {
-                size *= static_cast<size_t>(h);
+                size *= h;
                 h = 1;
             }
             do {

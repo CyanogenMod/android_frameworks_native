@@ -90,8 +90,7 @@ status_t SensorManager::assertStateLocked() const {
 
         mSensors = mSensorServer->getSensorList();
         size_t count = mSensors.size();
-        mSensorList =
-                static_cast<Sensor const**>(malloc(count * sizeof(Sensor*)));
+        mSensorList = (Sensor const**)malloc(count * sizeof(Sensor*));
         for (size_t i=0 ; i<count ; i++) {
             mSensorList[i] = mSensors.array() + i;
         }
@@ -107,10 +106,10 @@ ssize_t SensorManager::getSensorList(Sensor const* const** list) const
     Mutex::Autolock _l(mLock);
     status_t err = assertStateLocked();
     if (err < 0) {
-        return static_cast<ssize_t>(err);
+        return ssize_t(err);
     }
     *list = mSensorList;
-    return static_cast<ssize_t>(mSensors.size());
+    return mSensors.size();
 }
 
 Sensor const* SensorManager::getDefaultSensor(int type)

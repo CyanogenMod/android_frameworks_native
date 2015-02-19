@@ -90,7 +90,7 @@ public:
 
 static LibBinderIPCtStatics gIPCStatics;
 
-// ------------ ServiceManager.cpp
+// ------------ IServiceManager.cpp
 
 Mutex gDefaultServiceManagerLock;
 sp<IServiceManager> gDefaultServiceManager;

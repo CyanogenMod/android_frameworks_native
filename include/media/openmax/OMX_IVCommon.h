@@ -845,7 +845,7 @@ typedef struct OMX_CONFIG_CAPTUREMODETYPE {
 typedef enum OMX_METERINGTYPE {
 
     OMX_MeteringModeAverage,     /**< Center-weighted average metering. */
-    OMX_MeteringModeSpot,  	      /**< Spot (partial) metering. */
+    OMX_MeteringModeSpot,        /**< Spot (partial) metering. */
     OMX_MeteringModeMatrix,      /**< Matrix or evaluative metering. */
 
     OMX_MeteringKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
@@ -860,11 +860,11 @@ typedef struct OMX_CONFIG_EXPOSUREVALUETYPE {
     OMX_METERINGTYPE eMetering;
     OMX_S32 xEVCompensation;      /**< Fixed point value stored as Q16 */
     OMX_U32 nApertureFNumber;     /**< e.g. nApertureFNumber = 2 implies "f/2" - Q16 format */
-    OMX_BOOL bAutoAperture;		/**< Whether aperture number is defined automatically */
+    OMX_BOOL bAutoAperture;       /**< Whether aperture number is defined automatically */
     OMX_U32 nShutterSpeedMsec;    /**< Shutterspeed in milliseconds */
-    OMX_BOOL bAutoShutterSpeed;	/**< Whether shutter speed is defined automatically */
+    OMX_BOOL bAutoShutterSpeed;   /**< Whether shutter speed is defined automatically */
     OMX_U32 nSensitivity;         /**< e.g. nSensitivity = 100 implies "ISO 100" */
-    OMX_BOOL bAutoSensitivity;	/**< Whether sensitivity is defined automatically */
+    OMX_BOOL bAutoSensitivity;    /**< Whether sensitivity is defined automatically */
 } OMX_CONFIG_EXPOSUREVALUETYPE;
 
 /**

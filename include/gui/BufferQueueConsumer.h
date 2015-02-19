@@ -125,8 +125,9 @@ public:
 
     // setDefaultBufferFormat allows the BufferQueue to create
     // GraphicBuffers of a defaultFormat if no format is specified
-    // in dequeueBuffer. The initial default is HAL_PIXEL_FORMAT_RGBA_8888.
-    virtual status_t setDefaultBufferFormat(PixelFormat defaultFormat);
+    // in dequeueBuffer.  Formats are enumerated in graphics.h; the
+    // initial default is HAL_PIXEL_FORMAT_RGBA_8888.
+    virtual status_t setDefaultBufferFormat(uint32_t defaultFormat);
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are

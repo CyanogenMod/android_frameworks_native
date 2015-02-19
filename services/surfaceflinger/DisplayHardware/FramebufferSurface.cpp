@@ -68,7 +68,7 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp,
     mConsumer->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
 }
 
-status_t FramebufferSurface::beginFrame(bool /* mustRecompose */) {
+status_t FramebufferSurface::beginFrame(bool /*mustRecompose*/) {
     return NO_ERROR;
 }
 
@@ -122,7 +122,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
 }
 
 // Overrides ConsumerBase::onFrameAvailable(), does not call base class impl.
-void FramebufferSurface::onFrameAvailable() {
+void FramebufferSurface::onFrameAvailable(const BufferItem& /* item */) {
     sp<GraphicBuffer> buf;
     sp<Fence> acquireFence;
     status_t err = nextBuffer(buf, acquireFence);

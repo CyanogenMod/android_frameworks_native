@@ -38,7 +38,12 @@ BufferQueueProducer::BufferQueueProducer(const sp<BufferQueueCore>& core) :
     mCore(core),
     mSlots(core->mSlots),
     mConsumerName(),
-    mStickyTransform(0) {}
+    mStickyTransform(0),
+    mLastQueueBufferFence(Fence::NO_FENCE),
+    mCallbackMutex(),
+    mNextCallbackTicket(0),
+    mCurrentCallbackTicket(0),
+    mCallbackCondition() {}
 
 BufferQueueProducer::~BufferQueueProducer() {}
 
@@ -245,7 +250,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
 
 status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         sp<android::Fence> *outFence, bool async,
-        uint32_t width, uint32_t height, PixelFormat format, uint32_t usage) {
+        uint32_t width, uint32_t height, uint32_t format, uint32_t usage) {
     ATRACE_CALL();
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
@@ -306,7 +311,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         if ((buffer == NULL) ||
                 (static_cast<uint32_t>(buffer->width) != width) ||
                 (static_cast<uint32_t>(buffer->height) != height) ||
-                (buffer->format != format) ||
+                (static_cast<uint32_t>(buffer->format) != format) ||
                 ((static_cast<uint32_t>(buffer->usage) & usage) != usage))
         {
             mSlots[found].mAcquireCalled = false;
@@ -336,7 +341,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         status_t error;
         BQ_LOGV("dequeueBuffer: allocating a new buffer for slot %d", *outSlot);
         sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                width, height, format, usage, &error));
+                    width, height, format, usage, &error));
         if (graphicBuffer == NULL) {
             BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
             return error;
@@ -522,12 +527,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
     if (fence == NULL) {
         BQ_LOGE("queueBuffer: fence is NULL");
-        // Temporary workaround for b/17946343: soldier-on instead of returning an error. This
-        // prevents the client from dying, at the risk of visible corruption due to hwcomposer
-        // reading the buffer before the producer is done rendering it. Unless the buffer is the
-        // last frame of an animation, the corruption will be transient.
-        fence = Fence::NO_FENCE;
-        // return BAD_VALUE;
+        return BAD_VALUE;
     }
 
     switch (scalingMode) {
@@ -541,7 +541,10 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
     }
 
-    sp<IConsumerListener> listener;
+    sp<IConsumerListener> frameAvailableListener;
+    sp<IConsumerListener> frameReplacedListener;
+    int callbackTicket = 0;
+    BufferItem item;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
 
@@ -579,8 +582,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         BQ_LOGV("queueBuffer: slot=%d/%" PRIu64 " time=%" PRIu64
                 " crop=[%d,%d,%d,%d] transform=%#x scale=%s",
                 slot, mCore->mFrameCounter + 1, timestamp,
-                crop.left, crop.top, crop.right, crop.bottom, transform,
-                BufferItem::scalingModeName(static_cast<uint32_t>(scalingMode)));
+                crop.left, crop.top, crop.right, crop.bottom,
+                transform, BufferItem::scalingModeName(scalingMode));
 
         const sp<GraphicBuffer>& graphicBuffer(mSlots[slot].mGraphicBuffer);
         Rect bufferRect(graphicBuffer->getWidth(), graphicBuffer->getHeight());
@@ -597,15 +600,13 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         ++mCore->mFrameCounter;
         mSlots[slot].mFrameNumber = mCore->mFrameCounter;
 
-        BufferItem item;
         item.mAcquireCalled = mSlots[slot].mAcquireCalled;
         item.mGraphicBuffer = mSlots[slot].mGraphicBuffer;
         item.mCrop = crop;
-        item.mTransform = transform &
-                ~static_cast<uint32_t>(NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
+        item.mTransform = transform & ~NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY;
         item.mTransformToDisplayInverse =
-                (transform & NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY) != 0;
-        item.mScalingMode = static_cast<uint32_t>(scalingMode);
+                bool(transform & NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
+        item.mScalingMode = scalingMode;
         item.mTimestamp = timestamp;
         item.mIsAutoTimestamp = isAutoTimestamp;
         item.mFrameNumber = mCore->mFrameCounter;
@@ -619,7 +620,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             // When the queue is empty, we can ignore mDequeueBufferCannotBlock
             // and simply queue this buffer
             mCore->mQueue.push_back(item);
-            listener = mCore->mConsumerListener;
+            frameAvailableListener = mCore->mConsumerListener;
         } else {
             // When the queue is not empty, we need to look at the front buffer
             // state to see if we need to replace it
@@ -635,9 +636,10 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 }
                 // Overwrite the droppable buffer with the incoming one
                 *front = item;
+                frameReplacedListener = mCore->mConsumerListener;
             } else {
                 mCore->mQueue.push_back(item);
-                listener = mCore->mConsumerListener;
+                frameAvailableListener = mCore->mConsumerListener;
             }
         }
 
@@ -645,15 +647,44 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         mCore->mDequeueCondition.broadcast();
 
         output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
-                mCore->mTransformHint,
-                static_cast<uint32_t>(mCore->mQueue.size()));
+                mCore->mTransformHint, mCore->mQueue.size());
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
+
+        // Take a ticket for the callback functions
+        callbackTicket = mNextCallbackTicket++;
     } // Autolock scope
 
-    // Call back without lock held
-    if (listener != NULL) {
-        listener->onFrameAvailable();
+    // Wait without lock held
+    if (mCore->mConnectedApi == NATIVE_WINDOW_API_EGL) {
+        // Waiting here allows for two full buffers to be queued but not a
+        // third. In the event that frames take varying time, this makes a
+        // small trade-off in favor of latency rather than throughput.
+        mLastQueueBufferFence->waitForever("Throttling EGL Production");
+        mLastQueueBufferFence = fence;
+    }
+
+    // Don't send the GraphicBuffer through the callback, and don't send
+    // the slot number, since the consumer shouldn't need it
+    item.mGraphicBuffer.clear();
+    item.mSlot = BufferItem::INVALID_BUFFER_SLOT;
+
+    // Call back without the main BufferQueue lock held, but with the callback
+    // lock held so we can ensure that callbacks occur in order
+    {
+        Mutex::Autolock lock(mCallbackMutex);
+        while (callbackTicket != mCurrentCallbackTicket) {
+            mCallbackCondition.wait(mCallbackMutex);
+        }
+
+        if (frameAvailableListener != NULL) {
+            frameAvailableListener->onFrameAvailable(item);
+        } else if (frameReplacedListener != NULL) {
+            frameReplacedListener->onFrameReplaced(item);
+        }
+
+        ++mCurrentCallbackTicket;
+        mCallbackCondition.broadcast();
     }
 
     return NO_ERROR;
@@ -705,25 +736,25 @@ int BufferQueueProducer::query(int what, int *outValue) {
     int value;
     switch (what) {
         case NATIVE_WINDOW_WIDTH:
-            value = static_cast<int32_t>(mCore->mDefaultWidth);
+            value = mCore->mDefaultWidth;
             break;
         case NATIVE_WINDOW_HEIGHT:
-            value = static_cast<int32_t>(mCore->mDefaultHeight);
+            value = mCore->mDefaultHeight;
             break;
         case NATIVE_WINDOW_FORMAT:
-            value = static_cast<int32_t>(mCore->mDefaultBufferFormat);
+            value = mCore->mDefaultBufferFormat;
             break;
         case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
             value = mCore->getMinUndequeuedBufferCountLocked(false);
             break;
         case NATIVE_WINDOW_STICKY_TRANSFORM:
-            value = static_cast<int32_t>(mStickyTransform);
+            value = static_cast<int>(mStickyTransform);
             break;
         case NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND:
             value = (mCore->mQueue.size() > 1);
             break;
         case NATIVE_WINDOW_CONSUMER_USAGE_BITS:
-            value = static_cast<int32_t>(mCore->mConsumerUsageBits);
+            value = mCore->mConsumerUsageBits;
             break;
         default:
             return BAD_VALUE;
@@ -771,8 +802,7 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
         case NATIVE_WINDOW_API_CAMERA:
             mCore->mConnectedApi = api;
             output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
-                    mCore->mTransformHint,
-                    static_cast<uint32_t>(mCore->mQueue.size()));
+                    mCore->mTransformHint, mCore->mQueue.size());
 
             // Set up a death notification so that we can disconnect
             // automatically if the remote producer dies
@@ -874,14 +904,14 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
 }
 
 void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
-        uint32_t height, PixelFormat format, uint32_t usage) {
+        uint32_t height, uint32_t format, uint32_t usage) {
     ATRACE_CALL();
     while (true) {
         Vector<int> freeSlots;
         size_t newBufferCount = 0;
         uint32_t allocWidth = 0;
         uint32_t allocHeight = 0;
-        PixelFormat allocFormat = PIXEL_FORMAT_UNKNOWN;
+        uint32_t allocFormat = 0;
         uint32_t allocUsage = 0;
         { // Autolock scope
             Mutex::Autolock lock(mCore->mMutex);
@@ -907,8 +937,7 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
                     currentBufferCount, maxBufferCount);
             if (maxBufferCount <= currentBufferCount)
                 return;
-            newBufferCount =
-                    static_cast<size_t>(maxBufferCount - currentBufferCount);
+            newBufferCount = maxBufferCount - currentBufferCount;
             if (freeSlots.size() < newBufferCount) {
                 BQ_LOGE("allocateBuffers: ran out of free slots");
                 return;
@@ -921,7 +950,7 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
             mCore->mIsAllocating = true;
         } // Autolock scope
 
-        Vector<sp<GraphicBuffer>> buffers;
+        Vector<sp<GraphicBuffer> > buffers;
         for (size_t i = 0; i <  newBufferCount; ++i) {
             status_t result = NO_ERROR;
             sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
@@ -941,8 +970,7 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
             Mutex::Autolock lock(mCore->mMutex);
             uint32_t checkWidth = width > 0 ? width : mCore->mDefaultWidth;
             uint32_t checkHeight = height > 0 ? height : mCore->mDefaultHeight;
-            PixelFormat checkFormat = format != 0 ?
-                    format : mCore->mDefaultBufferFormat;
+            uint32_t checkFormat = format != 0 ? format : mCore->mDefaultBufferFormat;
             uint32_t checkUsage = usage | mCore->mConsumerUsageBits;
             if (checkWidth != allocWidth || checkHeight != allocHeight ||
                 checkFormat != allocFormat || checkUsage != allocUsage) {

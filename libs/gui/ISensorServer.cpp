@@ -45,8 +45,6 @@ public:
     {
     }
 
-    virtual ~BpSensorServer();
-
     virtual Vector<Sensor> getSensorList()
     {
         Parcel data, reply;
@@ -54,7 +52,7 @@ public:
         remote()->transact(GET_SENSOR_LIST, data, &reply);
         Sensor s;
         Vector<Sensor> v;
-        uint32_t n = reply.readUint32();
+        int32_t n = reply.readInt32();
         v.setCapacity(n);
         while (n--) {
             reply.read(s);
@@ -72,10 +70,6 @@ public:
     }
 };
 
-// Out-of-line virtual method definition to trigger vtable emission in this
-// translation unit (see clang warning -Wweak-vtables)
-BpSensorServer::~BpSensorServer() {}
-
 IMPLEMENT_META_INTERFACE(SensorServer, "android.gui.SensorServer");
 
 // ----------------------------------------------------------------------
@@ -88,18 +82,18 @@ status_t BnSensorServer::onTransact(
             CHECK_INTERFACE(ISensorServer, data, reply);
             Vector<Sensor> v(getSensorList());
             size_t n = v.size();
-            reply->writeUint32(static_cast<uint32_t>(n));
-            for (size_t i = 0; i < n; i++) {
+            reply->writeInt32(n);
+            for (size_t i=0 ; i<n ; i++) {
                 reply->write(v[i]);
             }
             return NO_ERROR;
-        }
+        } break;
         case CREATE_SENSOR_EVENT_CONNECTION: {
             CHECK_INTERFACE(ISensorServer, data, reply);
             sp<ISensorEventConnection> connection(createSensorEventConnection());
             reply->writeStrongBinder(IInterface::asBinder(connection));
             return NO_ERROR;
-        }
+        } break;
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

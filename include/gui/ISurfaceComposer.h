@@ -28,6 +28,7 @@
 #include <binder/IInterface.h>
 
 #include <ui/FrameStats.h>
+#include <ui/PixelFormat.h>
 
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposerClient.h>

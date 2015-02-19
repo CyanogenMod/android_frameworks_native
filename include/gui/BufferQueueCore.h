@@ -199,15 +199,15 @@ private:
 
     // mDefaultBufferFormat can be set so it will override the buffer format
     // when it isn't specified in dequeueBuffer.
-    PixelFormat mDefaultBufferFormat;
+    uint32_t mDefaultBufferFormat;
 
     // mDefaultWidth holds the default width of allocated buffers. It is used
     // in dequeueBuffer if a width and height of 0 are specified.
-    uint32_t mDefaultWidth;
+    int mDefaultWidth;
 
     // mDefaultHeight holds the default height of allocated buffers. It is used
     // in dequeueBuffer if a width and height of 0 are specified.
-    uint32_t mDefaultHeight;
+    int mDefaultHeight;
 
     // mDefaultMaxBufferCount is the default limit on the number of buffers that
     // will be allocated at one time. This default limit is set by the consumer.

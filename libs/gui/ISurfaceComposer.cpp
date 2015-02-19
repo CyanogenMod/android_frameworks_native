@@ -51,8 +51,6 @@ public:
     {
     }
 
-    virtual ~BpSurfaceComposer();
-
     virtual sp<ISurfaceComposerClient> createConnection()
     {
         Parcel data, reply;
@@ -76,18 +74,23 @@ public:
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-
-        data.writeUint32(static_cast<uint32_t>(state.size()));
-        for (const auto& s : state) {
-            s.write(data);
+        {
+            Vector<ComposerState>::const_iterator b(state.begin());
+            Vector<ComposerState>::const_iterator e(state.end());
+            data.writeInt32(state.size());
+            for ( ; b != e ; ++b ) {
+                b->write(data);
+            }
         }
-
-        data.writeUint32(static_cast<uint32_t>(displays.size()));
-        for (const auto& d : displays) {
-            d.write(data);
+        {
+            Vector<DisplayState>::const_iterator b(displays.begin());
+            Vector<DisplayState>::const_iterator e(displays.end());
+            data.writeInt32(displays.size());
+            for ( ; b != e ; ++b ) {
+                b->write(data);
+            }
         }
-
-        data.writeUint32(flags);
+        data.writeInt32(flags);
         remote()->transact(BnSurfaceComposer::SET_TRANSACTION_STATE, data, &reply);
     }
 
@@ -110,10 +113,10 @@ public:
         data.writeStrongBinder(display);
         data.writeStrongBinder(IInterface::asBinder(producer));
         data.write(sourceCrop);
-        data.writeUint32(reqWidth);
-        data.writeUint32(reqHeight);
-        data.writeUint32(minLayerZ);
-        data.writeUint32(maxLayerZ);
+        data.writeInt32(reqWidth);
+        data.writeInt32(reqHeight);
+        data.writeInt32(minLayerZ);
+        data.writeInt32(maxLayerZ);
         data.writeInt32(static_cast<int32_t>(useIdentityTransform));
         data.writeInt32(static_cast<int32_t>(rotation));
         remote()->transact(BnSurfaceComposer::CAPTURE_SCREEN, data, &reply);
@@ -221,7 +224,7 @@ public:
         remote()->transact(BnSurfaceComposer::GET_DISPLAY_CONFIGS, data, &reply);
         status_t result = reply.readInt32();
         if (result == NO_ERROR) {
-            size_t numConfigs = reply.readUint32();
+            size_t numConfigs = static_cast<size_t>(reply.readInt32());
             configs->clear();
             configs->resize(numConfigs);
             for (size_t c = 0; c < numConfigs; ++c) {
@@ -284,10 +287,6 @@ public:
     }
 };
 
-// Out-of-line virtual method definition to trigger vtable emission in this
-// translation unit (see clang warning -Wweak-vtables)
-BpSurfaceComposer::~BpSurfaceComposer() {}
-
 IMPLEMENT_META_INTERFACE(SurfaceComposer, "android.ui.ISurfaceComposer");
 
 // ----------------------------------------------------------------------
@@ -310,37 +309,34 @@ status_t BnSurfaceComposer::onTransact(
         }
         case SET_TRANSACTION_STATE: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
-
-            size_t count = data.readUint32();
+            size_t count = data.readInt32();
             if (count > data.dataSize()) {
                 return BAD_VALUE;
             }
             ComposerState s;
             Vector<ComposerState> state;
             state.setCapacity(count);
-            for (size_t i = 0; i < count; i++) {
+            for (size_t i=0 ; i<count ; i++) {
                 if (s.read(data) == BAD_VALUE) {
                     return BAD_VALUE;
                 }
                 state.add(s);
             }
-
-            count = data.readUint32();
+            count = data.readInt32();
             if (count > data.dataSize()) {
                 return BAD_VALUE;
             }
             DisplayState d;
             Vector<DisplayState> displays;
             displays.setCapacity(count);
-            for (size_t i = 0; i < count; i++) {
+            for (size_t i=0 ; i<count ; i++) {
                 if (d.read(data) == BAD_VALUE) {
                     return BAD_VALUE;
                 }
                 displays.add(d);
             }
-
-            uint32_t stateFlags = data.readUint32();
-            setTransactionState(state, displays, stateFlags);
+            uint32_t flags = data.readInt32();
+            setTransactionState(state, displays, flags);
             return NO_ERROR;
         }
         case BOOT_FINISHED: {
@@ -355,12 +351,12 @@ status_t BnSurfaceComposer::onTransact(
                     interface_cast<IGraphicBufferProducer>(data.readStrongBinder());
             Rect sourceCrop;
             data.read(sourceCrop);
-            uint32_t reqWidth = data.readUint32();
-            uint32_t reqHeight = data.readUint32();
-            uint32_t minLayerZ = data.readUint32();
-            uint32_t maxLayerZ = data.readUint32();
+            uint32_t reqWidth = data.readInt32();
+            uint32_t reqHeight = data.readInt32();
+            uint32_t minLayerZ = data.readInt32();
+            uint32_t maxLayerZ = data.readInt32();
             bool useIdentityTransform = static_cast<bool>(data.readInt32());
-            int32_t rotation = data.readInt32();
+            uint32_t rotation = data.readInt32();
 
             status_t res = captureScreen(display, producer,
                     sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
@@ -411,7 +407,7 @@ status_t BnSurfaceComposer::onTransact(
             status_t result = getDisplayConfigs(display, &configs);
             reply->writeInt32(result);
             if (result == NO_ERROR) {
-                reply->writeUint32(static_cast<uint32_t>(configs.size()));
+                reply->writeInt32(static_cast<int32_t>(configs.size()));
                 for (size_t c = 0; c < configs.size(); ++c) {
                     memcpy(reply->writeInplace(sizeof(DisplayInfo)),
                             &configs[c], sizeof(DisplayInfo));
@@ -471,6 +467,8 @@ status_t BnSurfaceComposer::onTransact(
             return BBinder::onTransact(code, data, reply, flags);
         }
     }
+    // should be unreachable
+    return NO_ERROR;
 }
 
 // ----------------------------------------------------------------------------

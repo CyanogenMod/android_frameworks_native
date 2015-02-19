@@ -160,12 +160,12 @@ protected:
     virtual int connect(int api);
     virtual int disconnect(int api);
     virtual int setBufferCount(int bufferCount);
-    virtual int setBuffersDimensions(uint32_t width, uint32_t height);
-    virtual int setBuffersUserDimensions(uint32_t width, uint32_t height);
-    virtual int setBuffersFormat(PixelFormat format);
+    virtual int setBuffersDimensions(int w, int h);
+    virtual int setBuffersUserDimensions(int w, int h);
+    virtual int setBuffersFormat(int format);
     virtual int setScalingMode(int mode);
-    virtual int setBuffersTransform(uint32_t transform);
-    virtual int setBuffersStickyTransform(uint32_t transform);
+    virtual int setBuffersTransform(int transform);
+    virtual int setBuffersStickyTransform(int transform);
     virtual int setBuffersTimestamp(int64_t timestamp);
     virtual int setCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
@@ -211,7 +211,7 @@ private:
 
     // mReqFormat is the buffer pixel format that will be requested at the next
     // deuque operation. It is initialized to PIXEL_FORMAT_RGBA_8888.
-    PixelFormat mReqFormat;
+    uint32_t mReqFormat;
 
     // mReqUsage is the set of buffer usage flags that will be requested
     // at the next deuque operation. It is initialized to 0.
@@ -240,23 +240,23 @@ private:
     // from being set by the compositor.
     uint32_t mStickyTransform;
 
-    // mDefaultWidth is default width of the buffers, regardless of the
-    // native_window_set_buffers_dimensions call.
-    uint32_t mDefaultWidth;
+     // mDefaultWidth is default width of the buffers, regardless of the
+     // native_window_set_buffers_dimensions call.
+     uint32_t mDefaultWidth;
 
-    // mDefaultHeight is default height of the buffers, regardless of the
-    // native_window_set_buffers_dimensions call.
-    uint32_t mDefaultHeight;
+     // mDefaultHeight is default height of the buffers, regardless of the
+     // native_window_set_buffers_dimensions call.
+     uint32_t mDefaultHeight;
 
-    // mUserWidth, if non-zero, is an application-specified override
-    // of mDefaultWidth.  This is lower priority than the width set by
-    // native_window_set_buffers_dimensions.
-    uint32_t mUserWidth;
+     // mUserWidth, if non-zero, is an application-specified override
+     // of mDefaultWidth.  This is lower priority than the width set by
+     // native_window_set_buffers_dimensions.
+     uint32_t mUserWidth;
 
-    // mUserHeight, if non-zero, is an application-specified override
-    // of mDefaultHeight.  This is lower priority than the height set
-    // by native_window_set_buffers_dimensions.
-    uint32_t mUserHeight;
+     // mUserHeight, if non-zero, is an application-specified override
+     // of mDefaultHeight.  This is lower priority than the height set
+     // by native_window_set_buffers_dimensions.
+     uint32_t mUserHeight;
 
     // mTransformHint is the transform probably applied to buffers of this
     // window. this is only a hint, actual transform may differ.

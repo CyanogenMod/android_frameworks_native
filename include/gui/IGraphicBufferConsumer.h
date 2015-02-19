@@ -25,7 +25,6 @@
 #include <utils/Timers.h>
 
 #include <binder/IInterface.h>
-#include <ui/PixelFormat.h>
 #include <ui/Rect.h>
 
 #include <EGL/egl.h>
@@ -281,11 +280,11 @@ public:
 
     // setDefaultBufferFormat allows the BufferQueue to create
     // GraphicBuffers of a defaultFormat if no format is specified
-    // in dequeueBuffer.
-    // The initial default is PIXEL_FORMAT_RGBA_8888.
+    // in dequeueBuffer.  Formats are enumerated in graphics.h; the
+    // initial default is HAL_PIXEL_FORMAT_RGBA_8888.
     //
     // Return of a value other than NO_ERROR means an unknown error has occurred.
-    virtual status_t setDefaultBufferFormat(PixelFormat defaultFormat) = 0;
+    virtual status_t setDefaultBufferFormat(uint32_t defaultFormat) = 0;
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are

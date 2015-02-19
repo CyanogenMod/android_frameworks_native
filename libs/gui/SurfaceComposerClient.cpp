@@ -143,7 +143,7 @@ public:
     status_t setSize(const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
             uint32_t w, uint32_t h);
     status_t setLayer(const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
-            uint32_t z);
+            int32_t z);
     status_t setFlags(const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
             uint32_t flags, uint32_t mask);
     status_t setTransparentRegionHint(
@@ -293,7 +293,7 @@ status_t Composer::setSize(const sp<SurfaceComposerClient>& client,
 }
 
 status_t Composer::setLayer(const sp<SurfaceComposerClient>& client,
-        const sp<IBinder>& id, uint32_t z) {
+        const sp<IBinder>& id, int32_t z) {
     Mutex::Autolock _l(mLock);
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
@@ -395,7 +395,7 @@ DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
         s.what = 0;
         index = mDisplayStates.add(s);
     }
-    return mDisplayStates.editItemAt(static_cast<size_t>(index));
+    return mDisplayStates.editItemAt(index);
 }
 
 void Composer::setDisplaySurface(const sp<IBinder>& token,
@@ -571,7 +571,7 @@ status_t SurfaceComposerClient::setSize(const sp<IBinder>& id, uint32_t w, uint3
     return getComposer().setSize(this, id, w, h);
 }
 
-status_t SurfaceComposerClient::setLayer(const sp<IBinder>& id, uint32_t z) {
+status_t SurfaceComposerClient::setLayer(const sp<IBinder>& id, int32_t z) {
     return getComposer().setLayer(this, id, z);
 }
 
@@ -657,7 +657,7 @@ status_t SurfaceComposerClient::getDisplayInfo(const sp<IBinder>& display,
         return NAME_NOT_FOUND;
     }
 
-    *info = configs[static_cast<size_t>(activeId)];
+    *info = configs[activeId];
     return NO_ERROR;
 }
 

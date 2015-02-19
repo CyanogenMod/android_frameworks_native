@@ -67,9 +67,9 @@ public:
 
     sp<NativeHandle> getSidebandStream() const;
 
-private:
     nsecs_t computeExpectedPresent(const DispSync& dispSync);
 
+private:
     virtual void onSidebandStreamChanged();
 
     wp<ContentsChangedListener> mContentsChangedListener;

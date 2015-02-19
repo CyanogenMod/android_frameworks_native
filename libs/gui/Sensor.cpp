@@ -72,7 +72,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
                   static_cast<int64_t>(hwSensor->maxDelay));
             mMaxDelay = INT_MAX;
         } else {
-            mMaxDelay = static_cast<int32_t>(hwSensor->maxDelay);
+            mMaxDelay = (int32_t) hwSensor->maxDelay;
         }
     } else {
         // For older hals set maxDelay to 0.
@@ -204,6 +204,13 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
             mFlags |= SENSOR_FLAG_WAKE_UP;
         }
         break;
+    case SENSOR_TYPE_WRIST_TILT_GESTURE:
+        mStringType = SENSOR_STRING_TYPE_WRIST_TILT_GESTURE;
+        mFlags |= SENSOR_FLAG_SPECIAL_REPORTING_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
+        break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
         if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->stringType) {
@@ -214,7 +221,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         }
 
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-            mFlags = static_cast<uint32_t>(hwSensor->flags);
+            mFlags = (int32_t) hwSensor->flags;
         } else {
             // This is an OEM defined sensor on an older HAL. Use minDelay to determine the
             // reporting mode of the sensor.
@@ -295,11 +302,11 @@ int32_t Sensor::getVersion() const {
     return mVersion;
 }
 
-uint32_t Sensor::getFifoReservedEventCount() const {
+int32_t Sensor::getFifoReservedEventCount() const {
     return mFifoReservedEventCount;
 }
 
-uint32_t Sensor::getFifoMaxEventCount() const {
+int32_t Sensor::getFifoMaxEventCount() const {
     return mFifoMaxEventCount;
 }
 
@@ -315,7 +322,7 @@ int32_t Sensor::getMaxDelay() const {
     return mMaxDelay;
 }
 
-uint32_t Sensor::getFlags() const {
+int32_t Sensor::getFlags() const {
     return mFlags;
 }
 
@@ -407,7 +414,7 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
 
 void Sensor::flattenString8(void*& buffer, size_t& size,
         const String8& string8) {
-    uint32_t len = static_cast<uint32_t>(string8.length());
+    uint32_t len = string8.length();
     FlattenableUtils::write(buffer, size, len);
     memcpy(static_cast<char*>(buffer), string8.string(), len);
     FlattenableUtils::advance(buffer, size, FlattenableUtils::align<4>(len));

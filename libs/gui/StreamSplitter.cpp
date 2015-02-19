@@ -98,7 +98,7 @@ void StreamSplitter::setName(const String8 &name) {
     mInput->setConsumerName(name);
 }
 
-void StreamSplitter::onFrameAvailable() {
+void StreamSplitter::onFrameAvailable(const BufferItem& /* item */) {
     ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
 
@@ -141,7 +141,7 @@ void StreamSplitter::onFrameAvailable() {
 
     IGraphicBufferProducer::QueueBufferInput queueInput(
             bufferItem.mTimestamp, bufferItem.mIsAutoTimestamp,
-            bufferItem.mCrop, static_cast<int32_t>(bufferItem.mScalingMode),
+            bufferItem.mCrop, bufferItem.mScalingMode,
             bufferItem.mTransform, bufferItem.mIsDroppable,
             bufferItem.mFence);
 

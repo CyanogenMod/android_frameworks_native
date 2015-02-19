@@ -36,6 +36,8 @@ BufferItem::BufferItem() :
     mCrop.makeInvalid();
 }
 
+BufferItem::~BufferItem() {}
+
 BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
     IGraphicBufferConsumer::BufferItem bufferItem;
     bufferItem.mGraphicBuffer = mGraphicBuffer;

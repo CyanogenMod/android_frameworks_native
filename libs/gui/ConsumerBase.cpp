@@ -40,9 +40,9 @@
 
 // Macros for including the ConsumerBase name in log messages
 #define CB_LOGV(x, ...) ALOGV("[%s] " x, mName.string(), ##__VA_ARGS__)
-//#define CB_LOGD(x, ...) ALOGD("[%s] " x, mName.string(), ##__VA_ARGS__)
-//#define CB_LOGI(x, ...) ALOGI("[%s] " x, mName.string(), ##__VA_ARGS__)
-//#define CB_LOGW(x, ...) ALOGW("[%s] " x, mName.string(), ##__VA_ARGS__)
+#define CB_LOGD(x, ...) ALOGD("[%s] " x, mName.string(), ##__VA_ARGS__)
+#define CB_LOGI(x, ...) ALOGI("[%s] " x, mName.string(), ##__VA_ARGS__)
+#define CB_LOGW(x, ...) ALOGW("[%s] " x, mName.string(), ##__VA_ARGS__)
 #define CB_LOGE(x, ...) ALOGE("[%s] " x, mName.string(), ##__VA_ARGS__)
 
 namespace android {
@@ -98,7 +98,7 @@ void ConsumerBase::freeBufferLocked(int slotIndex) {
     mSlots[slotIndex].mFrameNumber = 0;
 }
 
-void ConsumerBase::onFrameAvailable() {
+void ConsumerBase::onFrameAvailable(const BufferItem& item) {
     CB_LOGV("onFrameAvailable");
 
     sp<FrameAvailableListener> listener;
@@ -109,7 +109,7 @@ void ConsumerBase::onFrameAvailable() {
 
     if (listener != NULL) {
         CB_LOGV("actually calling onFrameAvailable");
-        listener->onFrameAvailable();
+        listener->onFrameAvailable(item);
     }
 }
 

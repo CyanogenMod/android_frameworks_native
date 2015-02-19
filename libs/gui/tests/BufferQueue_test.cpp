@@ -67,7 +67,7 @@ protected:
 };
 
 struct DummyConsumer : public BnConsumerListener {
-    virtual void onFrameAvailable() {}
+    virtual void onFrameAvailable(const BufferItem& /* item */) {}
     virtual void onBuffersReleased() {}
     virtual void onSidebandStreamChanged() {}
 };

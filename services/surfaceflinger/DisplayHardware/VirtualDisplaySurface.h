@@ -100,7 +100,7 @@ private:
     virtual status_t requestBuffer(int pslot, sp<GraphicBuffer>* outBuf);
     virtual status_t setBufferCount(int bufferCount);
     virtual status_t dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
-            uint32_t w, uint32_t h, PixelFormat format, uint32_t usage);
+            uint32_t w, uint32_t h, uint32_t format, uint32_t usage);
     virtual status_t detachBuffer(int slot);
     virtual status_t detachNextBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence);
@@ -114,13 +114,13 @@ private:
     virtual status_t disconnect(int api);
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
-            PixelFormat format, uint32_t usage);
+            uint32_t format, uint32_t usage);
 
     //
     // Utility methods
     //
     static Source fbSourceForCompositionType(CompositionType type);
-    status_t dequeueBuffer(Source source, PixelFormat format, uint32_t usage,
+    status_t dequeueBuffer(Source source, uint32_t format, uint32_t usage,
             int* sslot, sp<Fence>* fence);
     void updateQueueBufferOutput(const QueueBufferOutput& qbo);
     void resetPerFrameState();

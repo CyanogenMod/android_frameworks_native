@@ -44,6 +44,7 @@ class BufferItem : public Flattenable<BufferItem> {
     // The default value of mBuf, used to indicate this doesn't correspond to a slot.
     enum { INVALID_BUFFER_SLOT = -1 };
     BufferItem();
+    ~BufferItem();
     operator IGraphicBufferConsumer::BufferItem() const;
 
     static const char* scalingModeName(uint32_t scalingMode);
