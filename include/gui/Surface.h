@@ -310,6 +310,11 @@ private:
 
     // must be accessed from lock/unlock thread only
     Region mDirtyRegion;
+
+#ifdef SURFACE_SKIP_FIRST_DEQUEUE
+    bool mDequeuedOnce;
+#endif
+
 };
 
 }; // namespace android
