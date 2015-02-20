@@ -20,6 +20,7 @@
 
 #include <cutils/compiler.h>
 #include <utils/Log.h>
+#include <gui/BufferItem.h>
 #include <gui/CpuConsumer.h>
 
 #define CC_LOGV(x, ...) ALOGV("[%s] " x, mName.string(), ##__VA_ARGS__)
@@ -67,6 +68,13 @@ status_t CpuConsumer::setDefaultBufferFormat(PixelFormat defaultFormat)
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
+status_t CpuConsumer::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace)
+{
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
+}
+
 static bool isPossiblyYUV(PixelFormat format) {
     switch (static_cast<int>(format)) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
@@ -74,11 +82,9 @@ static bool isPossiblyYUV(PixelFormat format) {
         case HAL_PIXEL_FORMAT_RGB_888:
         case HAL_PIXEL_FORMAT_RGB_565:
         case HAL_PIXEL_FORMAT_BGRA_8888:
-        case HAL_PIXEL_FORMAT_sRGB_A_8888:
-        case HAL_PIXEL_FORMAT_sRGB_X_8888:
         case HAL_PIXEL_FORMAT_Y8:
         case HAL_PIXEL_FORMAT_Y16:
-        case HAL_PIXEL_FORMAT_RAW16: // same as HAL_PIXEL_FORMAT_RAW_SENSOR
+        case HAL_PIXEL_FORMAT_RAW16:
         case HAL_PIXEL_FORMAT_RAW10:
         case HAL_PIXEL_FORMAT_RAW_OPAQUE:
         case HAL_PIXEL_FORMAT_BLOB:
@@ -105,7 +111,7 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
         return NOT_ENOUGH_DATA;
     }
 
-    BufferQueue::BufferItem b;
+    BufferItem b;
 
     Mutex::Autolock _l(mMutex);
 
@@ -200,6 +206,7 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     nativeBuffer->transform   = b.mTransform;
     nativeBuffer->scalingMode = b.mScalingMode;
     nativeBuffer->timestamp   = b.mTimestamp;
+    nativeBuffer->dataSpace   = b.mDataSpace;
     nativeBuffer->frameNumber = b.mFrameNumber;
 
     nativeBuffer->dataCb       = reinterpret_cast<uint8_t*>(ycbcr.cb);

@@ -44,6 +44,7 @@ class BufferItem : public Flattenable<BufferItem> {
     // The default value of mBuf, used to indicate this doesn't correspond to a slot.
     enum { INVALID_BUFFER_SLOT = -1 };
     BufferItem();
+    BufferItem(const IGraphicBufferConsumer::BufferItem& item);
     ~BufferItem();
     operator IGraphicBufferConsumer::BufferItem() const;
 
@@ -78,11 +79,21 @@ class BufferItem : public Flattenable<BufferItem> {
     // automatically when the buffer was queued.
     bool mIsAutoTimestamp;
 
+    // mDataSpace is the current dataSpace value for this buffer slot. This gets
+    // set by queueBuffer each time this slot is queued. The meaning of the
+    // dataSpace is format-dependent.
+    android_dataspace mDataSpace;
+
     // mFrameNumber is the number of the queued frame for this slot.
     uint64_t mFrameNumber;
 
-    // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
-    int mSlot;
+    union {
+        // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
+        int mSlot;
+
+        // mBuf is the former name for mSlot
+        int mBuf;
+    };
 
     // mIsDroppable whether this buffer was queued with the
     // property that it can be replaced by a new buffer for the purpose of

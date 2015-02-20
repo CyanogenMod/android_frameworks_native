@@ -34,6 +34,7 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+class BufferItem;
 class Fence;
 class GraphicBuffer;
 class IConsumerListener;
@@ -85,6 +86,10 @@ public:
         // mIsAutoTimestamp indicates whether mTimestamp was generated
         // automatically when the buffer was queued.
         bool mIsAutoTimestamp;
+
+        // mDataSpace is the current dataSpace for this buffer slot. This gets
+        // set by queueBuffer each time this slot is queued.
+        android_dataspace mDataSpace;
 
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
@@ -143,6 +148,7 @@ public:
     // Return of a negative value means an error has occurred:
     // * INVALID_OPERATION - too many buffers have been acquired
     virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) = 0;
+    virtual status_t acquireBuffer(android::BufferItem* buffer, nsecs_t presentWhen) = 0;
 
     // detachBuffer attempts to remove all ownership of the buffer in the given
     // slot from the buffer queue. If this call succeeds, the slot will be
@@ -286,6 +292,14 @@ public:
     //
     // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setDefaultBufferFormat(PixelFormat defaultFormat) = 0;
+
+    // setDefaultBufferDataSpace is a request to the producer to provide buffers
+    // of the indicated dataSpace. The producer may ignore this request.
+    // The initial default is HAL_DATASPACE_UNKNOWN.
+    //
+    // Return of a value other than NO_ERROR means an unknown error has occurred.
+    virtual status_t setDefaultBufferDataSpace(
+            android_dataspace defaultDataSpace) = 0;
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are

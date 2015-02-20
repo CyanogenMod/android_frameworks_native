@@ -17,6 +17,7 @@
 #define LOG_TAG "StreamSplitter_test"
 //#define LOG_NDEBUG 0
 
+#include <gui/BufferItem.h>
 #include <gui/BufferQueue.h>
 #include <gui/IConsumerListener.h>
 #include <gui/ISurfaceComposer.h>
@@ -111,11 +112,12 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
 
-    IGraphicBufferConsumer::BufferItem item;
+    BufferItem item;
     ASSERT_EQ(OK, outputConsumer->acquireBuffer(&item, 0));
 
     uint32_t* dataOut;
@@ -177,12 +179,13 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
 
     for (int output = 0; output < NUM_OUTPUTS; ++output) {
-        IGraphicBufferConsumer::BufferItem item;
+        BufferItem item;
         ASSERT_EQ(OK, outputConsumers[output]->acquireBuffer(&item, 0));
 
         uint32_t* dataOut;
@@ -234,6 +237,7 @@ TEST_F(StreamSplitterTest, OutputAbandonment) {
     outputConsumer->consumerDisconnect();
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));

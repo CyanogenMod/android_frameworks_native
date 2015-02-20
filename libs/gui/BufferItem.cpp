@@ -28,6 +28,7 @@ BufferItem::BufferItem() :
     mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mTimestamp(0),
     mIsAutoTimestamp(false),
+    mDataSpace(HAL_DATASPACE_UNKNOWN),
     mFrameNumber(0),
     mSlot(INVALID_BUFFER_SLOT),
     mIsDroppable(false),
@@ -35,6 +36,21 @@ BufferItem::BufferItem() :
     mTransformToDisplayInverse(false) {
     mCrop.makeInvalid();
 }
+
+BufferItem::BufferItem(const IGraphicBufferConsumer::BufferItem& item) :
+    mGraphicBuffer(item.mGraphicBuffer),
+    mFence(item.mFence),
+    mCrop(item.mCrop),
+    mTransform(item.mTransform),
+    mScalingMode(item.mScalingMode),
+    mTimestamp(item.mTimestamp),
+    mIsAutoTimestamp(item.mIsAutoTimestamp),
+    mDataSpace(item.mDataSpace),
+    mFrameNumber(item.mFrameNumber),
+    mSlot(item.mBuf),
+    mIsDroppable(item.mIsDroppable),
+    mAcquireCalled(item.mAcquireCalled),
+    mTransformToDisplayInverse(item.mTransformToDisplayInverse) {}
 
 BufferItem::~BufferItem() {}
 
@@ -47,6 +63,7 @@ BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
     bufferItem.mScalingMode = mScalingMode;
     bufferItem.mTimestamp = mTimestamp;
     bufferItem.mIsAutoTimestamp = mIsAutoTimestamp;
+    bufferItem.mDataSpace = mDataSpace;
     bufferItem.mFrameNumber = mFrameNumber;
     bufferItem.mBuf = mSlot;
     bufferItem.mIsDroppable = mIsDroppable;
@@ -61,6 +78,7 @@ size_t BufferItem::getPodSize() const {
             sizeof(mScalingMode) +
             sizeof(mTimestamp) +
             sizeof(mIsAutoTimestamp) +
+            sizeof(mDataSpace) +
             sizeof(mFrameNumber) +
             sizeof(mSlot) +
             sizeof(mIsDroppable) +
@@ -131,6 +149,7 @@ status_t BufferItem::flatten(
     FlattenableUtils::write(buffer, size, mScalingMode);
     FlattenableUtils::write(buffer, size, mTimestamp);
     FlattenableUtils::write(buffer, size, mIsAutoTimestamp);
+    FlattenableUtils::write(buffer, size, mDataSpace);
     FlattenableUtils::write(buffer, size, mFrameNumber);
     FlattenableUtils::write(buffer, size, mSlot);
     FlattenableUtils::write(buffer, size, mIsDroppable);
@@ -173,6 +192,7 @@ status_t BufferItem::unflatten(
     FlattenableUtils::read(buffer, size, mScalingMode);
     FlattenableUtils::read(buffer, size, mTimestamp);
     FlattenableUtils::read(buffer, size, mIsAutoTimestamp);
+    FlattenableUtils::read(buffer, size, mDataSpace);
     FlattenableUtils::read(buffer, size, mFrameNumber);
     FlattenableUtils::read(buffer, size, mSlot);
     FlattenableUtils::read(buffer, size, mIsDroppable);

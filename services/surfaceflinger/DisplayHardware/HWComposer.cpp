@@ -1105,8 +1105,6 @@ static String8 getFormatStr(PixelFormat format) {
     case PIXEL_FORMAT_RGB_888:      return String8("RGB_888");
     case PIXEL_FORMAT_RGB_565:      return String8("RGB_565");
     case PIXEL_FORMAT_BGRA_8888:    return String8("BGRA_8888");
-    case PIXEL_FORMAT_sRGB_A_8888:  return String8("sRGB_A_8888");
-    case PIXEL_FORMAT_sRGB_X_8888:  return String8("sRGB_x_8888");
     case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
                                     return String8("ImplDef");
     default:
