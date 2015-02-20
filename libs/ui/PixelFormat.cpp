@@ -25,8 +25,6 @@ uint32_t bytesPerPixel(PixelFormat format) {
         case PIXEL_FORMAT_RGBA_8888:
         case PIXEL_FORMAT_RGBX_8888:
         case PIXEL_FORMAT_BGRA_8888:
-        case PIXEL_FORMAT_sRGB_A_8888:
-        case PIXEL_FORMAT_sRGB_X_8888:
             return 4;
         case PIXEL_FORMAT_RGB_888:
             return 3;
@@ -57,4 +55,3 @@ uint32_t bitsPerPixel(PixelFormat format) {
 // ----------------------------------------------------------------------------
 }; // namespace android
 // ----------------------------------------------------------------------------
-

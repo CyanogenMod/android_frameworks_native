@@ -57,6 +57,7 @@ namespace {
 // Parameters for a generic "valid" input for queueBuffer.
 const int64_t QUEUE_BUFFER_INPUT_TIMESTAMP = 1384888611;
 const bool QUEUE_BUFFER_INPUT_IS_AUTO_TIMESTAMP = false;
+const android_dataspace QUEUE_BUFFER_INPUT_DATASPACE = HAL_DATASPACE_UNKNOWN;
 const Rect QUEUE_BUFFER_INPUT_RECT = Rect(DEFAULT_WIDTH, DEFAULT_HEIGHT);
 const int QUEUE_BUFFER_INPUT_SCALING_MODE = 0;
 const int QUEUE_BUFFER_INPUT_TRANSFORM = 0;
@@ -126,6 +127,7 @@ protected:
         QueueBufferInputBuilder() {
            timestamp = QUEUE_BUFFER_INPUT_TIMESTAMP;
            isAutoTimestamp = QUEUE_BUFFER_INPUT_IS_AUTO_TIMESTAMP;
+           dataSpace = QUEUE_BUFFER_INPUT_DATASPACE;
            crop = QUEUE_BUFFER_INPUT_RECT;
            scalingMode = QUEUE_BUFFER_INPUT_SCALING_MODE;
            transform = QUEUE_BUFFER_INPUT_TRANSFORM;
@@ -137,6 +139,7 @@ protected:
             return IGraphicBufferProducer::QueueBufferInput(
                     timestamp,
                     isAutoTimestamp,
+                    dataSpace,
                     crop,
                     scalingMode,
                     transform,
@@ -151,6 +154,11 @@ protected:
 
         QueueBufferInputBuilder& setIsAutoTimestamp(bool isAutoTimestamp) {
             this->isAutoTimestamp = isAutoTimestamp;
+            return *this;
+        }
+
+        QueueBufferInputBuilder& setDataSpace(android_dataspace dataSpace) {
+            this->dataSpace = dataSpace;
             return *this;
         }
 
@@ -182,6 +190,7 @@ protected:
     private:
         int64_t timestamp;
         bool isAutoTimestamp;
+        android_dataspace dataSpace;
         Rect crop;
         int scalingMode;
         uint32_t transform;
