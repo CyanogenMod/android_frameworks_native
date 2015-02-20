@@ -176,6 +176,22 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
     return NO_ERROR;
 }
 
+status_t BufferQueueConsumer::acquireBuffer(android::BufferItem* outBuffer,
+        nsecs_t expectedPresent) {
+    if (outBuffer == nullptr) {
+        return BAD_VALUE;
+    }
+
+    BufferItem item;
+    status_t result = acquireBuffer(&item, expectedPresent);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    *outBuffer = item;
+    return NO_ERROR;
+}
+
 status_t BufferQueueConsumer::detachBuffer(int slot) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);
@@ -493,6 +509,15 @@ status_t BufferQueueConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) 
     BQ_LOGV("setDefaultBufferFormat: %u", defaultFormat);
     Mutex::Autolock lock(mCore->mMutex);
     mCore->mDefaultBufferFormat = defaultFormat;
+    return NO_ERROR;
+}
+
+status_t BufferQueueConsumer::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace) {
+    ATRACE_CALL();
+    BQ_LOGV("setDefaultBufferDataSpace: %u", defaultDataSpace);
+    Mutex::Autolock lock(mCore->mMutex);
+    mCore->mDefaultBufferDataSpace = defaultDataSpace;
     return NO_ERROR;
 }
 

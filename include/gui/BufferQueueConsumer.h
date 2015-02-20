@@ -48,6 +48,8 @@ public:
     // is CLOCK_MONOTONIC.
     virtual status_t acquireBuffer(BufferItem* outBuffer,
             nsecs_t expectedPresent);
+    virtual status_t acquireBuffer(android::BufferItem* outBuffer,
+            nsecs_t expectedPresent);
 
     // See IGraphicBufferConsumer::detachBuffer
     virtual status_t detachBuffer(int slot);
@@ -127,6 +129,13 @@ public:
     // GraphicBuffers of a defaultFormat if no format is specified
     // in dequeueBuffer. The initial default is HAL_PIXEL_FORMAT_RGBA_8888.
     virtual status_t setDefaultBufferFormat(PixelFormat defaultFormat);
+
+    // setDefaultBufferDataSpace allows the BufferQueue to create
+    // GraphicBuffers of a defaultDataSpace if no data space is specified
+    // in queueBuffer.
+    // The initial default is HAL_DATASPACE_UNKNOWN
+    virtual status_t setDefaultBufferDataSpace(
+            android_dataspace defaultDataSpace);
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are

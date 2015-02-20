@@ -29,8 +29,9 @@
 #include <EGL/egl.h>
 
 #include <hardware/hardware.h>
-#include <gui/Surface.h>
+#include <gui/BufferItem.h>
 #include <gui/GraphicBufferAlloc.h>
+#include <gui/Surface.h>
 #include <ui/GraphicBuffer.h>
 
 #include "FramebufferSurface.h"
@@ -86,7 +87,7 @@ status_t FramebufferSurface::advanceFrame() {
 status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>& outFence) {
     Mutex::Autolock lock(mMutex);
 
-    BufferQueue::BufferItem item;
+    BufferItem item;
     status_t err = acquireBufferLocked(&item, 0);
     if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
         outBuffer = mCurrentBuffer;
