@@ -1009,6 +1009,12 @@ status_t GLConsumer::setDefaultBufferFormat(uint32_t defaultFormat) {
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
+status_t GLConsumer::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace) {
+    Mutex::Autolock lock(mMutex);
+    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
+}
+
 status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
     usage |= DEFAULT_USAGE_FLAGS;

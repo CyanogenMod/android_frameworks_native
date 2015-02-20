@@ -53,6 +53,7 @@ class CpuConsumer : public ConsumerBase
         uint32_t    transform;
         uint32_t    scalingMode;
         int64_t     timestamp;
+        android_dataspace dataSpace;
         uint64_t    frameNumber;
         // this is the same as format, except for formats that are compatible with
         // a flexible format (e.g. HAL_PIXEL_FORMAT_YCbCr_420_888). In the latter
@@ -90,6 +91,12 @@ class CpuConsumer : public ConsumerBase
     // enumerated in graphics.h; the initial default is
     // HAL_PIXEL_FORMAT_RGBA_8888.
     status_t setDefaultBufferFormat(uint32_t defaultFormat);
+
+    // setDefaultBufferDataSpace allows the BufferQueue to create
+    // GraphicBuffers of a defaultDataSpace if no data space is specified
+    // in queueBuffer.
+    // The initial default is HAL_DATASPACE_UNKNOWN
+    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
 
     // Gets the next graphics buffer from the producer and locks it for CPU use,
     // filling out the passed-in locked buffer structure with the native pointer

@@ -78,6 +78,11 @@ class BufferItem : public Flattenable<BufferItem> {
     // automatically when the buffer was queued.
     bool mIsAutoTimestamp;
 
+    // mDataSpace is the current dataSpace value for this buffer slot. This gets
+    // set by queueBuffer each time this slot is queued. The meaning of the
+    // dataSpace is format-dependent.
+    android_dataspace mDataSpace;
+
     // mFrameNumber is the number of the queued frame for this slot.
     uint64_t mFrameNumber;
 

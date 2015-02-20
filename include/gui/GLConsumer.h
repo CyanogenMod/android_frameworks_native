@@ -198,6 +198,7 @@ public:
     // These functions call the corresponding BufferQueue implementation
     // so the refactoring can proceed smoothly
     status_t setDefaultBufferFormat(uint32_t defaultFormat);
+    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
 

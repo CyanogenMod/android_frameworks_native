@@ -141,6 +141,7 @@ void StreamSplitter::onFrameAvailable(const BufferItem& /* item */) {
 
     IGraphicBufferProducer::QueueBufferInput queueInput(
             bufferItem.mTimestamp, bufferItem.mIsAutoTimestamp,
+            bufferItem.mDataSpace,
             bufferItem.mCrop, bufferItem.mScalingMode,
             bufferItem.mTransform, bufferItem.mIsDroppable,
             bufferItem.mFence);

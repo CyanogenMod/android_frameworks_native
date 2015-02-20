@@ -39,6 +39,7 @@ IGraphicBufferConsumer::BufferItem::BufferItem() :
     mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mTimestamp(0),
     mIsAutoTimestamp(false),
+    mDataSpace(HAL_DATASPACE_UNKNOWN),
     mFrameNumber(0),
     mBuf(INVALID_BUFFER_SLOT),
     mIsDroppable(false),
@@ -53,6 +54,7 @@ size_t IGraphicBufferConsumer::BufferItem::getPodSize() const {
             sizeof(mScalingMode) +
             sizeof(mTimestamp) +
             sizeof(mIsAutoTimestamp) +
+            sizeof(mDataSpace) +
             sizeof(mFrameNumber) +
             sizeof(mBuf) +
             sizeof(mIsDroppable) +
@@ -133,6 +135,7 @@ status_t IGraphicBufferConsumer::BufferItem::flatten(
     FlattenableUtils::write(buffer, size, mScalingMode);
     FlattenableUtils::write(buffer, size, mTimestamp);
     writeBoolAsInt(buffer, size, mIsAutoTimestamp);
+    FlattenableUtils::write(buffer, size, mDataSpace);
     FlattenableUtils::write(buffer, size, mFrameNumber);
     FlattenableUtils::write(buffer, size, mBuf);
     writeBoolAsInt(buffer, size, mIsDroppable);
@@ -175,6 +178,7 @@ status_t IGraphicBufferConsumer::BufferItem::unflatten(
     FlattenableUtils::read(buffer, size, mScalingMode);
     FlattenableUtils::read(buffer, size, mTimestamp);
     mIsAutoTimestamp = readBoolFromInt(buffer, size);
+    FlattenableUtils::read(buffer, size, mDataSpace);
     FlattenableUtils::read(buffer, size, mFrameNumber);
     FlattenableUtils::read(buffer, size, mBuf);
     mIsDroppable = readBoolFromInt(buffer, size);
@@ -200,6 +204,7 @@ enum {
     SET_MAX_ACQUIRED_BUFFER_COUNT,
     SET_CONSUMER_NAME,
     SET_DEFAULT_BUFFER_FORMAT,
+    SET_DEFAULT_BUFFER_DATA_SPACE,
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
     GET_SIDEBAND_STREAM,
@@ -369,6 +374,19 @@ public:
         return reply.readInt32();
     }
 
+    virtual status_t setDefaultBufferDataSpace(
+            android_dataspace defaultDataSpace) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        data.writeInt32(static_cast<int32_t>(defaultDataSpace));
+        status_t result = remote()->transact(SET_DEFAULT_BUFFER_DATA_SPACE,
+                data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        return reply.readInt32();
+    }
+
     virtual status_t setConsumerUsageBits(uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
@@ -523,7 +541,15 @@ status_t BnGraphicBufferConsumer::onTransact(
             status_t result = setDefaultBufferFormat(defaultFormat);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
+        case SET_DEFAULT_BUFFER_DATA_SPACE: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            android_dataspace defaultDataSpace =
+                    static_cast<android_dataspace>(data.readInt32());
+            status_t result = setDefaultBufferDataSpace(defaultDataSpace);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
         case SET_CONSUMER_USAGE_BITS: {
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             uint32_t usage = data.readInt32();

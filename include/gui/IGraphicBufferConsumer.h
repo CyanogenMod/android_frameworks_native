@@ -25,6 +25,7 @@
 #include <utils/Timers.h>
 
 #include <binder/IInterface.h>
+#include <system/graphics.h>
 #include <ui/Rect.h>
 
 #include <EGL/egl.h>
@@ -84,6 +85,10 @@ public:
         // mIsAutoTimestamp indicates whether mTimestamp was generated
         // automatically when the buffer was queued.
         bool mIsAutoTimestamp;
+
+        // mDataSpace is the current dataSpace for this buffer slot. This gets
+        // set by queueBuffer each time this slot is queued.
+        android_dataspace mDataSpace;
 
         // mFrameNumber is the number of the queued frame for this slot.
         uint64_t mFrameNumber;
@@ -285,6 +290,14 @@ public:
     //
     // Return of a value other than NO_ERROR means an unknown error has occurred.
     virtual status_t setDefaultBufferFormat(uint32_t defaultFormat) = 0;
+
+    // setDefaultBufferDataSpace is a request to the producer to provide buffers
+    // of the indicated dataSpace. The producer may ignore this request.
+    // The initial default is HAL_DATASPACE_UNKNOWN.
+    //
+    // Return of a value other than NO_ERROR means an unknown error has occurred.
+    virtual status_t setDefaultBufferDataSpace(
+            android_dataspace defaultDataSpace) = 0;
 
     // setConsumerUsageBits will turn on additional usage bits for dequeueBuffer.
     // These are merged with the bits passed to dequeueBuffer.  The values are

@@ -234,6 +234,7 @@ void VirtualDisplaySurface::onFrameCommitted() {
             status_t result = mSource[SOURCE_SINK]->queueBuffer(sslot,
                     QueueBufferInput(
                         systemTime(), false /* isAutoTimestamp */,
+                        HAL_DATASPACE_UNKNOWN,
                         Rect(mSinkBufferWidth, mSinkBufferHeight),
                         NATIVE_WINDOW_SCALING_MODE_FREEZE, 0 /* transform */,
                         true /* async*/,
@@ -453,12 +454,13 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         // Extract the GLES release fence for HWC to acquire
         int64_t timestamp;
         bool isAutoTimestamp;
+        android_dataspace dataSpace;
         Rect crop;
         int scalingMode;
         uint32_t transform;
         bool async;
-        input.deflate(&timestamp, &isAutoTimestamp, &crop, &scalingMode,
-                &transform, &async, &mFbFence);
+        input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop,
+                &scalingMode, &transform, &async, &mFbFence);
 
         mFbProducerSlot = pslot;
         mOutputFence = mFbFence;

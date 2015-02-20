@@ -146,6 +146,7 @@ private:
     int dispatchLock(va_list args);
     int dispatchUnlockAndPost(va_list args);
     int dispatchSetSidebandStream(va_list args);
+    int dispatchSetBuffersDataSpace(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
@@ -168,6 +169,7 @@ protected:
     virtual int setBuffersTransform(int transform);
     virtual int setBuffersStickyTransform(int transform);
     virtual int setBuffersTimestamp(int64_t timestamp);
+    virtual int setBuffersDataSpace(android_dataspace dataSpace);
     virtual int setCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
 
@@ -222,6 +224,11 @@ private:
     // operation. It defaults to NATIVE_WINDOW_TIMESTAMP_AUTO, which means that
     // a timestamp is auto-generated when queueBuffer is called.
     int64_t mTimestamp;
+
+    // mDataSpace is the buffer dataSpace that will be used for the next buffer
+    // queue operation. It defaults to HAL_DATASPACE_UNKNOWN, which
+    // means that the buffer contains some type of color data.
+    android_dataspace mDataSpace;
 
     // mCrop is the crop rectangle that will be used for the next buffer
     // that gets queued. It is set by calling setCrop.

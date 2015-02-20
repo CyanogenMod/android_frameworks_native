@@ -60,6 +60,7 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultBufferFormat(PIXEL_FORMAT_RGBA_8888),
     mDefaultWidth(1),
     mDefaultHeight(1),
+    mDefaultBufferDataSpace(HAL_DATASPACE_UNKNOWN),
     mDefaultMaxBufferCount(2),
     mMaxAcquiredBufferCount(1),
     mBufferHasBeenQueued(false),

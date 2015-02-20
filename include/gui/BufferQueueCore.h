@@ -209,6 +209,11 @@ private:
     // in dequeueBuffer if a width and height of 0 are specified.
     int mDefaultHeight;
 
+    // mDefaultBufferDataSpace holds the default dataSpace of queued buffers.
+    // It is used in queueBuffer if a dataspace of 0 (HAL_DATASPACE_UNKNOWN)
+    // is specified.
+    android_dataspace mDefaultBufferDataSpace;
+
     // mDefaultMaxBufferCount is the default limit on the number of buffers that
     // will be allocated at one time. This default limit is set by the consumer.
     // The limit (as opposed to the default limit) may be overriden by the
