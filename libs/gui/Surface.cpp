@@ -64,6 +64,7 @@ Surface::Surface(
     mReqFormat = 0;
     mReqUsage = 0;
     mTimestamp = NATIVE_WINDOW_TIMESTAMP_AUTO;
+    mDataSpace = HAL_DATASPACE_UNKNOWN;
     mCrop.clear();
     mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
     mTransform = 0;
@@ -317,8 +318,8 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
-            crop, mScalingMode, mTransform ^ mStickyTransform, mSwapIntervalZero,
-            fence, mStickyTransform);
+            mDataSpace, crop, mScalingMode, mTransform ^ mStickyTransform,
+            mSwapIntervalZero, fence, mStickyTransform);
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -449,6 +450,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_SIDEBAND_STREAM:
         res = dispatchSetSidebandStream(args);
         break;
+    case NATIVE_WINDOW_SET_BUFFERS_DATASPACE:
+        res = dispatchSetBuffersDataSpace(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -544,6 +548,12 @@ int Surface::dispatchSetSidebandStream(va_list args) {
     sp<NativeHandle> sidebandHandle = NativeHandle::create(sH, false);
     setSidebandStream(sidebandHandle);
     return OK;
+}
+
+int Surface::dispatchSetBuffersDataSpace(va_list args) {
+    android_dataspace dataspace =
+            static_cast<android_dataspace>(va_arg(args, int));
+    return setBuffersDataSpace(dataspace);
 }
 
 int Surface::connect(int api) {
@@ -720,6 +730,14 @@ int Surface::setBuffersTimestamp(int64_t timestamp)
     ALOGV("Surface::setBuffersTimestamp");
     Mutex::Autolock lock(mMutex);
     mTimestamp = timestamp;
+    return NO_ERROR;
+}
+
+int Surface::setBuffersDataSpace(android_dataspace dataSpace)
+{
+    ALOGV("Surface::setBuffersDataSpace");
+    Mutex::Autolock lock(mMutex);
+    mDataSpace = dataSpace;
     return NO_ERROR;
 }
 

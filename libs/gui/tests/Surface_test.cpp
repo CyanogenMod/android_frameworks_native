@@ -155,4 +155,26 @@ TEST_F(SurfaceTest, QueryConsumerUsage) {
     ASSERT_EQ(TEST_USAGE_FLAGS, flags);
 }
 
+TEST_F(SurfaceTest, QueryDefaultBuffersDataSpace) {
+    const android_dataspace TEST_DATASPACE = HAL_DATASPACE_SRGB;
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer);
+    sp<CpuConsumer> cpuConsumer = new CpuConsumer(consumer, 1);
+
+    cpuConsumer->setDefaultBufferDataSpace(TEST_DATASPACE);
+
+    sp<Surface> s = new Surface(producer);
+
+    sp<ANativeWindow> anw(s);
+
+    android_dataspace dataSpace;
+
+    int err = anw->query(anw.get(), NATIVE_WINDOW_DEFAULT_DATASPACE,
+            reinterpret_cast<int*>(&dataSpace));
+
+    ASSERT_EQ(NO_ERROR, err);
+    ASSERT_EQ(TEST_DATASPACE, dataSpace);
+}
+
 }
