@@ -490,6 +490,17 @@ void Composer::setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t
     s.what |= DisplayState::eDisplaySizeChanged;
 }
 
+#if defined(MR0_CAMERA_BLOB)
+status_t Composer::setOrientation(int orientation) {
+    sp<ISurfaceComposer> sm(ComposerService::getComposerService());
+    sp<IBinder> token(sm->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
+    DisplayState& s(getDisplayStateLocked(token));
+    s.orientation = orientation;
+    mForceSynchronous = true; // TODO: do we actually still need this?
+    return NO_ERROR;
+}
+#endif
+
 // ---------------------------------------------------------------------------
 
 SurfaceComposerClient::SurfaceComposerClient()
@@ -537,6 +548,32 @@ void SurfaceComposerClient::dispose() {
     }
     mStatus = NO_INIT;
 }
+
+#if defined(MR0_CAMERA_BLOB)
+/* Create ICS/MR0-compatible constructors */
+extern "C" sp<SurfaceControl> _ZN7android21SurfaceComposerClient13createSurfaceERKNS_7String8Ejjij(
+        const String8& name,
+        uint32_t w,
+        uint32_t h,
+        PixelFormat format,
+        uint32_t flags);
+extern "C" sp<SurfaceControl> _ZN7android21SurfaceComposerClient13createSurfaceEijjij(
+        uint32_t display,
+        uint32_t w,
+        uint32_t h,
+        PixelFormat format,
+        uint32_t flags)
+{
+    String8 name;
+    const size_t SIZE = 128;
+    char buffer[SIZE];
+    snprintf(buffer, SIZE, "<pid_%d>", getpid());
+    name.append(buffer);
+
+    return _ZN7android21SurfaceComposerClient13createSurfaceERKNS_7String8Ejjij(name,
+            w, h, format, flags);
+}
+#endif
 
 sp<SurfaceControl> SurfaceComposerClient::createSurface(
         const String8& name,
@@ -681,6 +718,13 @@ status_t SurfaceComposerClient::setMatrix(const sp<IBinder>& id, float dsdx, flo
     return getComposer().setMatrix(this, id, dsdx, dtdx, dsdy, dtdy);
 }
 
+#if defined(MR0_CAMERA_BLOB)
+status_t SurfaceComposerClient::setOrientation(int32_t dpy, int orientation, uint32_t flags)
+{
+    return Composer::getInstance().setOrientation(orientation);
+}
+#endif
+
 // ----------------------------------------------------------------------------
 
 void SurfaceComposerClient::setDisplaySurface(const sp<IBinder>& token,
@@ -752,6 +796,32 @@ status_t SurfaceComposerClient::clearAnimationFrameStats() {
 status_t SurfaceComposerClient::getAnimationFrameStats(FrameStats* outStats) {
     return ComposerService::getComposerService()->getAnimationFrameStats(outStats);
 }
+
+#if defined(ICS_CAMERA_BLOB) || defined(MR0_CAMERA_BLOB)
+status_t SurfaceComposerClient::getDisplayInfo(
+        int32_t displayId, DisplayInfo* info)
+{
+    return getDisplayInfo(getBuiltInDisplay(displayId), info);
+}
+
+ssize_t SurfaceComposerClient::getDisplayWidth(int32_t displayId) {
+    DisplayInfo info;
+    getDisplayInfo(getBuiltInDisplay(displayId), &info);
+    return info.w;
+}
+
+ssize_t SurfaceComposerClient::getDisplayHeight(int32_t displayId) {
+    DisplayInfo info;
+    getDisplayInfo(getBuiltInDisplay(displayId), &info);
+    return info.h;
+}
+
+ssize_t SurfaceComposerClient::getDisplayOrientation(int32_t displayId) {
+    DisplayInfo info;
+    getDisplayInfo(getBuiltInDisplay(displayId), &info);
+    return info.orientation;
+}
+#endif
 
 // ----------------------------------------------------------------------------
 
