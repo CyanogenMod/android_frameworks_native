@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <android/looper.h>
 #include <gui/DisplayEventReceiver.h>
 #include <utils/Looper.h>
 
