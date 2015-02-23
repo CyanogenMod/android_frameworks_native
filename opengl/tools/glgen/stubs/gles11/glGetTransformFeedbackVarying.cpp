@@ -157,7 +157,11 @@ android_glGetTransformFeedbackVarying__IIILjava_nio_IntBuffer_2Ljava_nio_IntBuff
         (GLsizei *)length,
         (GLint *)size,
         (GLenum *)type,
-        (char *)name
+        // The cast below is incorrect. The driver will end up writing to the
+        // address specified by name, which will always crash the process since
+        // it is guaranteed to be in low memory. The additional static_cast
+        // suppresses the warning for now. http://b/19478262
+        (char *)static_cast<uintptr_t>(name)
     );
     if (_typeArray) {
         releasePointer(_env, _typeArray, type, JNI_TRUE);
