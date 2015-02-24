@@ -10,7 +10,6 @@ test_src_files := \
 shared_libraries := \
     libcutils \
     liblog \
-    libandroidfw \
     libutils \
     libhardware \
     libhardware_legacy \
@@ -24,7 +23,7 @@ c_includes := \
     external/skia/include/core
 
 
-module_tags := eng tests
+module_tags := tests
 
 $(foreach file,$(test_src_files), \
     $(eval include $(CLEAR_VARS)) \
