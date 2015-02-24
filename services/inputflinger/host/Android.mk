@@ -1,4 +1,4 @@
-# Copyright (C) 2013 The Android Open Source Project
+# Copyright (C) 2015 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,14 +15,12 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
+LOCAL_CLANG := true
+
 LOCAL_SRC_FILES:= \
-    EventHub.cpp \
-    InputApplication.cpp \
-    InputDispatcher.cpp \
-    InputListener.cpp \
-    InputManager.cpp \
-    InputReader.cpp \
-    InputWindow.cpp
+    InputFlinger.cpp \
+    InputDriver.cpp \
+    InputHost.cpp
 
 LOCAL_SHARED_LIBRARIES := \
     libbinder \
@@ -31,8 +29,7 @@ LOCAL_SHARED_LIBRARIES := \
     libinput \
     liblog \
     libutils \
-    libui \
-    libhardware_legacy
+    libhardware
 
 
 # TODO: Move inputflinger to its own process and mark it hidden
@@ -42,8 +39,24 @@ LOCAL_CFLAGS += -Wno-unused-parameter
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 
-LOCAL_MODULE := libinputflinger
+LOCAL_MODULE := libinputflingerhost
 
 include $(BUILD_SHARED_LIBRARY)
 
-include $(call all-makefiles-under,$(LOCAL_PATH))
+########################################################################
+# build input flinger executable
+include $(CLEAR_VARS)
+
+LOCAL_CLANG := true
+
+LOCAL_SRC_FILES:= \
+	main.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libbinder \
+	libinputflingerhost \
+	libutils
+
+LOCAL_MODULE := inputflinger
+
+include $(BUILD_EXECUTABLE)
