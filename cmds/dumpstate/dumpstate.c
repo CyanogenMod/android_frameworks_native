@@ -239,6 +239,10 @@ static void dumpstate() {
     dump_file("LAST PANIC CONSOLE", "/data/dontpanic/apanic_console");
     dump_file("LAST PANIC THREADS", "/data/dontpanic/apanic_threads");
 
+    /* kernels must set CONFIG_PSTORE_PMSG, slice up pstore with device tree */
+    run_command("LAST LOGCAT", 10, "logcat", "-L", "-v", "threadtime",
+                                             "-b", "all", "-d", "*:v", NULL);
+
     /* The following have a tendency to get wedged when wifi drivers/fw goes belly-up. */
 
     run_command("NETWORK INTERFACES", 10, "ip", "link", NULL);
