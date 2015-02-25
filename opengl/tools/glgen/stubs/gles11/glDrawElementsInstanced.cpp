@@ -32,7 +32,7 @@ android_glDrawElementsInstanced__IIIII
         (GLenum)mode,
         (GLsizei)count,
         (GLenum)type,
-        (GLvoid *)indicesOffset,
+        (GLvoid *)static_cast<uintptr_t>(indicesOffset),
         (GLsizei)instanceCount
     );
 }
