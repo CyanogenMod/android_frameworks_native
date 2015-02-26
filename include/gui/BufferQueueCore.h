@@ -270,6 +270,10 @@ private:
     // mAllowAllocation determines whether dequeueBuffer is allowed to allocate
     // new buffers
     bool mAllowAllocation;
+
+    // mBufferAge tracks the age of the contents of the most recently dequeued
+    // buffer as the number of frames that have elapsed since it was last queued
+    uint64_t mBufferAge;
 }; // class BufferQueueCore
 
 } // namespace android
