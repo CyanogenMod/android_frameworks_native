@@ -30,7 +30,9 @@ typedef void (for_each_tid_func)(int, int, const char *);
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path);
 
-/* prints the contents of the fd */
+/* prints the contents of the fd
+ * fd must have been opened with the flag O_NONBLOCK.
+ */
 int dump_file_from_fd(const char *title, const char *path, int fd);
 
 /* forks a command and waits for it to finish -- terminate args with NULL */

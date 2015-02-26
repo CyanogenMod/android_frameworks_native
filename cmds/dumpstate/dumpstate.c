@@ -64,7 +64,8 @@ static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
     time_t thirty_minutes_ago = time(NULL) - 60*30;
     for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
         snprintf(data[i].name, sizeof(data[i].name), "%s%02zu", TOMBSTONE_FILE_PREFIX, i);
-        int fd = open(data[i].name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+        int fd = TEMP_FAILURE_RETRY(open(data[i].name,
+                                         O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
         struct stat st;
         if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
                 (time_t) st.st_mtime >= thirty_minutes_ago) {
@@ -184,7 +185,8 @@ static void dumpstate() {
     if (!anr_traces_path[0]) {
         printf("*** NO VM TRACES FILE DEFINED (dalvik.vm.stack-trace-file)\n\n");
     } else {
-      int fd = open(anr_traces_path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+      int fd = TEMP_FAILURE_RETRY(open(anr_traces_path,
+                                       O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
       if (fd < 0) {
           printf("*** NO ANR VM TRACES FILE (%s): %s\n\n", anr_traces_path, strerror(errno));
       } else {
