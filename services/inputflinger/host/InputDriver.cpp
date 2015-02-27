@@ -43,6 +43,8 @@ static input_host_callbacks_t kCallbacks = {
     .input_report_definition_declare_usages_bool = input_report_definition_declare_usages_bool,
     .register_device = register_device,
     .input_allocate_report = input_allocate_report,
+    .input_report_set_usage_int = input_report_set_usage_int,
+    .input_report_set_usage_bool = input_report_set_usage_bool,
     .report_event = report_event,
 };
 
@@ -105,6 +107,11 @@ input_device_handle_t* register_device(input_host_t* host,
 input_report_t* input_allocate_report(input_host_t* host, input_report_definition_t* r) {
     return nullptr;
 }
+void input_report_set_usage_int(input_host_t* host, input_report_t* r,
+        input_collection_id_t id, input_usage_t usage, int32_t value, int32_t arity_index) { }
+
+void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
+        input_collection_id_t id, input_usage_t usage, bool value, int32_t arity_index) { }
 
 void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) { }
 

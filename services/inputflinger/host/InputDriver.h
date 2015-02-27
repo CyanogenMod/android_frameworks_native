@@ -90,6 +90,12 @@ void unregister_device(input_host_t* host, input_device_handle_t* handle);
 
 input_report_t* input_allocate_report(input_host_t* host, input_report_definition_t* r);
 
+void input_report_set_usage_int(input_host_t* host, input_report_t* r,
+        input_collection_id_t id, input_usage_t usage, int32_t value, int32_t arity_index);
+
+void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
+        input_collection_id_t id, input_usage_t usage, bool value, int32_t arity_index);
+
 void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report);
 
 }
