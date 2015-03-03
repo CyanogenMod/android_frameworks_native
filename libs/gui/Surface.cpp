@@ -546,9 +546,13 @@ int Surface::dispatchSetSidebandStream(va_list args) {
 }
 
 int Surface::connect(int api) {
+    static sp<IProducerListener> listener = new DummyProducerListener();
+    return connect(api, listener);
+}
+
+int Surface::connect(int api, const sp<IProducerListener>& listener) {
     ATRACE_CALL();
     ALOGV("Surface::connect");
-    static sp<IProducerListener> listener = new DummyProducerListener();
     Mutex::Autolock lock(mMutex);
     IGraphicBufferProducer::QueueBufferOutput output;
     int err = mGraphicBufferProducer->connect(listener, api, mProducerControlledByApp, &output);
