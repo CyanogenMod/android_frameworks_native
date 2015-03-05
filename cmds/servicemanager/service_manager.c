@@ -169,28 +169,26 @@ uint16_t svcmgr_id[] = {
 
 uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid, pid_t spid)
 {
-    struct svcinfo *si;
+    struct svcinfo *si = find_svc(s, len);
+
+    if (!si || !si->handle) {
+        return 0;
+    }
+
+    if (!si->allow_isolated) {
+        // If this service doesn't allow access from isolated processes,
+        // then check the uid to see if it is isolated.
+        uid_t appid = uid % AID_USER;
+        if (appid >= AID_ISOLATED_START && appid <= AID_ISOLATED_END) {
+            return 0;
+        }
+    }
 
     if (!svc_can_find(s, len, spid)) {
-        ALOGE("find_service('%s') uid=%d - PERMISSION DENIED\n",
-             str8(s, len), uid);
         return 0;
     }
-    si = find_svc(s, len);
-    //ALOGI("check_service('%s') handle = %x\n", str8(s, len), si ? si->handle : 0);
-    if (si && si->handle) {
-        if (!si->allow_isolated) {
-            // If this service doesn't allow access from isolated processes,
-            // then check the uid to see if it is isolated.
-            uid_t appid = uid % AID_USER;
-            if (appid >= AID_ISOLATED_START && appid <= AID_ISOLATED_END) {
-                return 0;
-            }
-        }
-        return si->handle;
-    } else {
-        return 0;
-    }
+
+    return si->handle;
 }
 
 int do_add_service(struct binder_state *bs,
