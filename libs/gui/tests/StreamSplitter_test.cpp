@@ -111,6 +111,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
@@ -177,6 +178,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
@@ -234,6 +236,7 @@ TEST_F(StreamSplitterTest, OutputAbandonment) {
     outputConsumer->consumerDisconnect();
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
+            HAL_DATASPACE_UNKNOWN,
             Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
             Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));

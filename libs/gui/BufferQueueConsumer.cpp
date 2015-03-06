@@ -496,6 +496,15 @@ status_t BufferQueueConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) 
     return NO_ERROR;
 }
 
+status_t BufferQueueConsumer::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace) {
+    ATRACE_CALL();
+    BQ_LOGV("setDefaultBufferDataSpace: %u", defaultDataSpace);
+    Mutex::Autolock lock(mCore->mMutex);
+    mCore->mDefaultBufferDataSpace = defaultDataSpace;
+    return NO_ERROR;
+}
+
 status_t BufferQueueConsumer::setConsumerUsageBits(uint32_t usage) {
     ATRACE_CALL();
     BQ_LOGV("setConsumerUsageBits: %#x", usage);

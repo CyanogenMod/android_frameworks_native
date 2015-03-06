@@ -516,14 +516,15 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
     int64_t timestamp;
     bool isAutoTimestamp;
+    android_dataspace dataSpace;
     Rect crop;
     int scalingMode;
     uint32_t transform;
     uint32_t stickyTransform;
     bool async;
     sp<Fence> fence;
-    input.deflate(&timestamp, &isAutoTimestamp, &crop, &scalingMode, &transform,
-            &async, &fence, &stickyTransform);
+    input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop, &scalingMode,
+            &transform, &async, &fence, &stickyTransform);
 
     if (fence == NULL) {
         BQ_LOGE("queueBuffer: fence is NULL");
@@ -579,9 +580,9 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
         }
 
-        BQ_LOGV("queueBuffer: slot=%d/%" PRIu64 " time=%" PRIu64
+        BQ_LOGV("queueBuffer: slot=%d/%" PRIu64 " time=%" PRIu64 " dataSpace=%d"
                 " crop=[%d,%d,%d,%d] transform=%#x scale=%s",
-                slot, mCore->mFrameCounter + 1, timestamp,
+                slot, mCore->mFrameCounter + 1, timestamp, dataSpace,
                 crop.left, crop.top, crop.right, crop.bottom, transform,
                 BufferItem::scalingModeName(static_cast<uint32_t>(scalingMode)));
 
@@ -593,6 +594,11 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             BQ_LOGE("queueBuffer: crop rect is not contained within the "
                     "buffer in slot %d", slot);
             return BAD_VALUE;
+        }
+
+        // Override UNKNOWN dataspace with consumer default
+        if (dataSpace == HAL_DATASPACE_UNKNOWN) {
+            dataSpace = mCore->mDefaultBufferDataSpace;
         }
 
         mSlots[slot].mFence = fence;
@@ -610,6 +616,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         item.mScalingMode = static_cast<uint32_t>(scalingMode);
         item.mTimestamp = timestamp;
         item.mIsAutoTimestamp = isAutoTimestamp;
+        item.mDataSpace = dataSpace;
         item.mFrameNumber = mCore->mFrameCounter;
         item.mSlot = slot;
         item.mFence = fence;
@@ -757,6 +764,9 @@ int BufferQueueProducer::query(int what, int *outValue) {
             break;
         case NATIVE_WINDOW_CONSUMER_USAGE_BITS:
             value = static_cast<int32_t>(mCore->mConsumerUsageBits);
+            break;
+        case NATIVE_WINDOW_DEFAULT_DATASPACE:
+            value = static_cast<int32_t>(mCore->mDefaultBufferDataSpace);
             break;
         default:
             return BAD_VALUE;

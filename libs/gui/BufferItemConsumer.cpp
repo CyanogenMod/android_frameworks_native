@@ -109,4 +109,10 @@ status_t BufferItemConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) {
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
+status_t BufferItemConsumer::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace) {
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
+}
+
 } // namespace android

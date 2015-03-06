@@ -124,7 +124,8 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
     *dataIn = 0x12345678;
     ASSERT_EQ(OK, buffer->unlock());
 
-    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
@@ -150,7 +151,8 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     int slot;
     sp<Fence> fence;
     sp<GraphicBuffer> buf;
-    IGraphicBufferProducer::QueueBufferInput qbi(0, false, Rect(0, 0, 1, 1),
+    IGraphicBufferProducer::QueueBufferInput qbi(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     BufferQueue::BufferItem item;
 
@@ -244,7 +246,8 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     ASSERT_EQ(BAD_VALUE, mProducer->attachBuffer(&newSlot, NULL));
 
     ASSERT_EQ(OK, mProducer->attachBuffer(&newSlot, buffer));
-    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(newSlot, input, &output));
 
@@ -273,7 +276,8 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
             mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
-    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
@@ -338,7 +342,8 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
     *dataIn = 0x12345678;
     ASSERT_EQ(OK, buffer->unlock());
 
-    IGraphicBufferProducer::QueueBufferInput input(0, false, Rect(0, 0, 1, 1),
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
