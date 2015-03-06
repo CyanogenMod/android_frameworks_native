@@ -80,7 +80,8 @@ namespace android {
             kDrmPluginEventProvisionRequired = 1,
             kDrmPluginEventKeyNeeded,
             kDrmPluginEventKeyExpired,
-            kDrmPluginEventVendorDefined
+            kDrmPluginEventVendorDefined,
+            kDrmPluginEventSessionReclaimed
         };
 
         // Drm keys can be for offline content or for online streaming.
