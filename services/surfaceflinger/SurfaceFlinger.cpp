@@ -148,7 +148,11 @@ SurfaceFlinger::SurfaceFlinger()
         mPrimaryHWVsyncEnabled(false),
         mHWVsyncAvailable(false),
         mDaltonize(false),
-        mHasColorMatrix(false)
+        mHasColorMatrix(false),
+        mHasPoweredOff(false),
+        mFrameBuckets(),
+        mTotalTime(0),
+        mLastSwapTime(0)
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -949,8 +953,8 @@ void SurfaceFlinger::postComposition()
         }
     }
 
+    const sp<const DisplayDevice> hw(getDefaultDisplayDevice());
     if (kIgnorePresentFences) {
-        const sp<const DisplayDevice> hw(getDefaultDisplayDevice());
         if (hw->isDisplayOn()) {
             enableHardwareVsync();
         }
@@ -969,6 +973,26 @@ void SurfaceFlinger::postComposition()
         }
         mAnimFrameTracker.advanceFrame();
     }
+
+    if (hw->getPowerMode() == HWC_POWER_MODE_OFF) {
+        return;
+    }
+
+    nsecs_t currentTime = systemTime();
+    if (mHasPoweredOff) {
+        mHasPoweredOff = false;
+    } else {
+        nsecs_t period = mPrimaryDispSync.getPeriod();
+        nsecs_t elapsedTime = currentTime - mLastSwapTime;
+        size_t numPeriods = static_cast<size_t>(elapsedTime / period);
+        if (numPeriods < NUM_BUCKETS - 1) {
+            mFrameBuckets[numPeriods] += elapsedTime;
+        } else {
+            mFrameBuckets[NUM_BUCKETS - 1] += elapsedTime;
+        }
+        mTotalTime += elapsedTime;
+    }
+    mLastSwapTime = currentTime;
 }
 
 void SurfaceFlinger::rebuildLayerStacks() {
@@ -2345,6 +2369,7 @@ void SurfaceFlinger::setPowerModeInternal(const sp<DisplayDevice>& hw,
         }
 
         mVisibleRegionsDirty = true;
+        mHasPoweredOff = true;
         repaintEverything();
     } else if (mode == HWC_POWER_MODE_OFF) {
         if (type == DisplayDevice::DISPLAY_PRIMARY) {
@@ -2443,6 +2468,13 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
                     (args[index] == String16("--dispsync"))) {
                 index++;
                 mPrimaryDispSync.dump(result);
+                dumpAll = false;
+            }
+
+            if ((index < numArgs) &&
+                    (args[index] == String16("--static-screen"))) {
+                index++;
+                dumpStaticScreenStats(result);
                 dumpAll = false;
             }
         }
@@ -2548,6 +2580,23 @@ void SurfaceFlinger::logFrameStats() {
     result.append(config);
 }
 
+void SurfaceFlinger::dumpStaticScreenStats(String8& result) const
+{
+    result.appendFormat("Static screen stats:\n");
+    for (size_t b = 0; b < NUM_BUCKETS - 1; ++b) {
+        float bucketTimeSec = mFrameBuckets[b] / 1e9;
+        float percent = 100.0f *
+                static_cast<float>(mFrameBuckets[b]) / mTotalTime;
+        result.appendFormat("  < %zd frames: %.3f s (%.1f%%)\n",
+                b + 1, bucketTimeSec, percent);
+    }
+    float bucketTimeSec = mFrameBuckets[NUM_BUCKETS - 1] / 1e9;
+    float percent = 100.0f *
+            static_cast<float>(mFrameBuckets[NUM_BUCKETS - 1]) / mTotalTime;
+    result.appendFormat("  %zd+ frames: %.3f s (%.1f%%)\n",
+            NUM_BUCKETS - 1, bucketTimeSec, percent);
+}
+
 void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
         String8& result) const
 {
@@ -2592,6 +2641,11 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
             "present offset %d ns (refresh %" PRId64 " ns)",
         vsyncPhaseOffsetNs, sfVsyncPhaseOffsetNs, PRESENT_TIME_OFFSET_FROM_VSYNC_NS,
         mHwc->getRefreshPeriod(HWC_DISPLAY_PRIMARY));
+    result.append("\n");
+
+    // Dump static screen stats
+    result.append("\n");
+    dumpStaticScreenStats(result);
     result.append("\n");
 
     /*

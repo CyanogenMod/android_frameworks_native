@@ -416,6 +416,8 @@ private:
 
     void logFrameStats();
 
+    void dumpStaticScreenStats(String8& result) const;
+
     /* ------------------------------------------------------------------------
      * Attributes
      */
@@ -493,6 +495,13 @@ private:
 
     mat4 mColorMatrix;
     bool mHasColorMatrix;
+
+    // Static screen stats
+    bool mHasPoweredOff;
+    static const size_t NUM_BUCKETS = 8; // < 1-7, 7+
+    nsecs_t mFrameBuckets[NUM_BUCKETS];
+    nsecs_t mTotalTime;
+    nsecs_t mLastSwapTime;
 };
 
 }; // namespace android
