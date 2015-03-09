@@ -698,7 +698,7 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *pkgname, const char *instruction_set,
-    bool vm_safe_mode)
+    bool vm_safe_mode, bool debuggable)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -816,6 +816,13 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
     }
 
+    // Check whether all apps should be compiled debuggable.
+    if (!debuggable) {
+        debuggable =
+                (property_get("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
+                (prop_buf[0] == '1');
+    }
+
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
     const char* argv[7  // program name, mandatory arguments and the final NULL
@@ -828,6 +835,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                      + (have_dex2oat_compiler_filter_flag ? 1 : 0)
                      + (have_dex2oat_swap_fd ? 1 : 0)
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
+                     + (debuggable ? 1 : 0)
                      + dex2oat_flags_count];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
@@ -861,6 +869,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_swap_fd) {
         argv[i++] = dex2oat_swap_fd;
+    }
+    if (debuggable) {
+        argv[i++] = "--debuggable";
     }
     if (dex2oat_flags_count) {
         i += split(dex2oat_flags, argv + i);
@@ -921,7 +932,7 @@ static bool ShouldUseSwapFileForDexopt() {
 
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set,
-           bool vm_safe_mode, bool is_patchoat)
+           bool vm_safe_mode, bool is_patchoat, bool debuggable)
 {
     struct utimbuf ut;
     struct stat input_stat, dex_stat;
@@ -1069,7 +1080,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else {
             run_dex2oat(input_fd, out_fd, input_file, out_path, swap_fd, pkgname, instruction_set,
-                        vm_safe_mode);
+                        vm_safe_mode, debuggable);
         }
         exit(68);   /* only get here on exec failure */
     } else {
