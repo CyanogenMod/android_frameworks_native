@@ -617,7 +617,11 @@ status_t SurfaceFlinger::getDisplayStats(const sp<IBinder>& /* display */,
 }
 
 int SurfaceFlinger::getActiveConfig(const sp<IBinder>& display) {
-    return getDisplayDevice(display)->getActiveConfig();
+    sp<DisplayDevice> device(getDisplayDevice(display));
+    if (device != NULL) {
+        return device->getActiveConfig();
+    }
+    return BAD_VALUE;
 }
 
 void SurfaceFlinger::setActiveConfigInternal(const sp<DisplayDevice>& hw, int mode) {
