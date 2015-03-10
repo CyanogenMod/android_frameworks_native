@@ -26,7 +26,6 @@
 #include <binder/TextOutput.h>
 
 #include <errno.h>
-#include <utils/CallStack.h>
 #include <utils/Debug.h>
 #include <utils/Log.h>
 #include <utils/String8.h>
@@ -36,8 +35,8 @@
 #include <cutils/ashmem.h>
 
 #include <private/binder/binder_module.h>
+#include <private/binder/Static.h>
 
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +49,8 @@
 
 #define LOG_REFS(...)
 //#define LOG_REFS(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
+#define LOG_ALLOC(...)
+//#define LOG_ALLOC(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
 
 // ---------------------------------------------------------------------------
 
@@ -73,6 +74,10 @@ struct small_flat_data
 };
 
 namespace android {
+
+static pthread_mutex_t gParcelGlobalAllocSizeLock = PTHREAD_MUTEX_INITIALIZER;
+static size_t gParcelGlobalAllocSize = 0;
+static size_t gParcelGlobalAllocCount = 0;
 
 void acquire_object(const sp<ProcessState>& proc,
     const flat_binder_object& obj, const void* who)
@@ -293,12 +298,28 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
 
 Parcel::Parcel()
 {
+    LOG_ALLOC("Parcel %p: constructing", this);
     initState();
 }
 
 Parcel::~Parcel()
 {
     freeDataNoInit();
+    LOG_ALLOC("Parcel %p: destroyed", this);
+}
+
+size_t Parcel::getGlobalAllocSize() {
+    pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+    size_t size = gParcelGlobalAllocSize;
+    pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+    return size;
+}
+
+size_t Parcel::getGlobalAllocCount() {
+    pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+    size_t count = gParcelGlobalAllocCount;
+    pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+    return count;
 }
 
 const uint8_t* Parcel::data() const
@@ -768,29 +789,6 @@ status_t Parcel::writeFileDescriptor(int fd, bool takeOwnership)
 status_t Parcel::writeDupFileDescriptor(int fd)
 {
     int dupFd = dup(fd);
-
-    {   // Temporary extra debug validation for b/17477219: a Parcel recipient is
-        // getting a positive but invalid fd unexpectedly. Trying to track down
-        // where it's coming from.
-        int dupErrno = dupFd < 0 ? errno : 0;
-        int fdFlags = fcntl(fd, F_GETFD);
-        int fdFlagsErrno = fdFlags == -1 ? errno : 0;
-        int dupFlags = fcntl(dupFd, F_GETFD);
-        int dupFlagsErrno = dupFlags == -1 ? errno : 0;
-        if (dupFd < 0 || fdFlags == -1 || dupFlags == -1) {
-            ALOGE("Parcel::writeDupFileDescriptor failed:\n"
-                    "  fd=%d flags=%d err=%d(%s)\n"
-                    "  dupFd=%d dupErr=%d(%s) flags=%d err=%d(%s)",
-                    fd, fdFlags, fdFlagsErrno, strerror(fdFlagsErrno),
-                    dupFd, dupErrno, strerror(dupErrno),
-                    dupFlags, dupFlagsErrno, strerror(dupFlagsErrno));
-            if (fd < 0 || fdFlags == -1) {
-                CallStack(LOG_TAG);
-            }
-            return -errno;
-        }
-    }
-
     if (dupFd < 0) {
         return -errno;
     }
@@ -1305,23 +1303,11 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
 
     status_t err = NO_ERROR;
     for (size_t i=0 ; i<fd_count && err==NO_ERROR ; i++) {
-        int oldfd = this->readFileDescriptor();
-        fds[i] = dup(oldfd);
+        fds[i] = dup(this->readFileDescriptor());
         if (fds[i] < 0) {
-            int dupErrno = errno;
             err = BAD_VALUE;
-            int flags = fcntl(oldfd, F_GETFD);
-            int fcntlErrno = errno;
-            const flat_binder_object* flat = readObject(true);
-            ALOGE("dup failed in Parcel::read, fd %zu of %zu\n"
-                "  dup(%d) = %d [errno: %d (%s)]\n"
-                "  fcntl(%d, F_GETFD) = %d [errno: %d (%s)]\n"
-                "  flat %p type %d",
-                i, fd_count,
-                oldfd, fds[i], dupErrno, strerror(dupErrno),
-                oldfd, flags, fcntlErrno, strerror(fcntlErrno),
-                flat, flat ? flat->type : 0);
-            CallStack(LOG_TAG);
+            ALOGE("dup() failed in Parcel::read, i is %zu, fds[i] is %d, fd_count is %zu, error: %s",
+                i, fds[i], fd_count, strerror(errno));
         }
     }
 
@@ -1525,11 +1511,20 @@ void Parcel::freeData()
 void Parcel::freeDataNoInit()
 {
     if (mOwner) {
+        LOG_ALLOC("Parcel %p: freeing other owner data", this);
         //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
     } else {
+        LOG_ALLOC("Parcel %p: freeing allocated data", this);
         releaseObjects();
-        if (mData) free(mData);
+        if (mData) {
+            LOG_ALLOC("Parcel %p: freeing with %zu capacity", this, mDataCapacity);
+            pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+            gParcelGlobalAllocSize -= mDataCapacity;
+            gParcelGlobalAllocCount--;
+            pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+            free(mData);
+        }
         if (mObjects) free(mObjects);
     }
 }
@@ -1558,6 +1553,11 @@ status_t Parcel::restartWrite(size_t desired)
     releaseObjects();
 
     if (data) {
+        LOG_ALLOC("Parcel %p: restart from %zu to %zu capacity", this, mDataCapacity, desired);
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocSize -= mDataCapacity;
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
         mData = data;
         mDataCapacity = desired;
     }
@@ -1637,6 +1637,12 @@ status_t Parcel::continueWrite(size_t desired)
         mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
         mOwner = NULL;
 
+        LOG_ALLOC("Parcel %p: taking ownership of %zu capacity", this, desired);
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocCount++;
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+
         mData = data;
         mObjects = objects;
         mDataSize = (mDataSize < desired) ? mDataSize : desired;
@@ -1671,6 +1677,12 @@ status_t Parcel::continueWrite(size_t desired)
         if (desired > mDataCapacity) {
             uint8_t* data = (uint8_t*)realloc(mData, desired);
             if (data) {
+                LOG_ALLOC("Parcel %p: continue from %zu to %zu capacity", this, mDataCapacity,
+                        desired);
+                pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+                gParcelGlobalAllocSize += desired;
+                gParcelGlobalAllocSize -= mDataCapacity;
+                pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
                 mData = data;
                 mDataCapacity = desired;
             } else if (desired > mDataCapacity) {
@@ -1701,6 +1713,12 @@ status_t Parcel::continueWrite(size_t desired)
             ALOGE("continueWrite: %zu/%p/%zu/%zu", mDataCapacity, mObjects, mObjectsCapacity, desired);
         }
 
+        LOG_ALLOC("Parcel %p: allocating with %zu capacity", this, desired);
+        pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
+        gParcelGlobalAllocSize += desired;
+        gParcelGlobalAllocCount++;
+        pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
+
         mData = data;
         mDataSize = mDataPos = 0;
         ALOGV("continueWrite Setting data size of %p to %zu", this, mDataSize);
@@ -1713,6 +1731,7 @@ status_t Parcel::continueWrite(size_t desired)
 
 void Parcel::initState()
 {
+    LOG_ALLOC("Parcel %p: initState", this);
     mError = NO_ERROR;
     mData = 0;
     mDataSize = 0;

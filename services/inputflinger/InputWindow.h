@@ -64,11 +64,6 @@ struct InputWindowInfo {
         FLAG_NEEDS_MENU_KEY = 0x40000000,
     };
 
-    // Private Window flags from WindowManager.LayoutParams
-    enum {
-        PRIVATE_FLAG_SYSTEM_ERROR = 0x00000100,
-    };
-
     // Window types from WindowManager.LayoutParams
     enum {
         FIRST_APPLICATION_WINDOW = 1,
@@ -119,7 +114,6 @@ struct InputWindowInfo {
     sp<InputChannel> inputChannel;
     String8 name;
     int32_t layoutParamsFlags;
-    int32_t layoutParamsPrivateFlags;
     int32_t layoutParamsType;
     nsecs_t dispatchingTimeout;
     int32_t frameLeft;

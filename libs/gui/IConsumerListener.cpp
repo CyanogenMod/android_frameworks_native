@@ -21,6 +21,7 @@
 #include <binder/Parcel.h>
 
 #include <gui/IConsumerListener.h>
+#include <gui/BufferItem.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -39,9 +40,10 @@ public:
         : BpInterface<IConsumerListener>(impl) {
     }
 
-    virtual void onFrameAvailable() {
+    virtual void onFrameAvailable(const BufferItem& item) {
         Parcel data, reply;
         data.writeInterfaceToken(IConsumerListener::getInterfaceDescriptor());
+        data.write(item);
         remote()->transact(ON_FRAME_AVAILABLE, data, &reply, IBinder::FLAG_ONEWAY);
     }
 
@@ -66,18 +68,20 @@ status_t BnConsumerListener::onTransact(
     uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
 {
     switch(code) {
-        case ON_FRAME_AVAILABLE:
+        case ON_FRAME_AVAILABLE: {
             CHECK_INTERFACE(IConsumerListener, data, reply);
-            onFrameAvailable();
-            return NO_ERROR;
-        case ON_BUFFER_RELEASED:
+            BufferItem item;
+            data.read(item);
+            onFrameAvailable(item);
+            return NO_ERROR; }
+        case ON_BUFFER_RELEASED: {
             CHECK_INTERFACE(IConsumerListener, data, reply);
             onBuffersReleased();
-            return NO_ERROR;
-        case ON_SIDEBAND_STREAM_CHANGED:
+            return NO_ERROR; }
+        case ON_SIDEBAND_STREAM_CHANGED: {
             CHECK_INTERFACE(IConsumerListener, data, reply);
             onSidebandStreamChanged();
-            return NO_ERROR;
+            return NO_ERROR; }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

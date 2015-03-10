@@ -28,6 +28,8 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+class BufferItem;
+
 // ConsumerListener is the interface through which the BufferQueue notifies
 // the consumer of events that the consumer may wish to react to.  Because
 // the consumer will generally have a mutex that is locked during calls from
@@ -43,11 +45,24 @@ public:
     // frame becomes available for consumption. This means that frames that
     // are queued while in asynchronous mode only trigger the callback if no
     // previous frames are pending. Frames queued while in synchronous mode
-    // always trigger the callback.
+    // always trigger the callback. The item passed to the callback will contain
+    // all of the information about the queued frame except for its
+    // GraphicBuffer pointer, which will always be null.
     //
     // This is called without any lock held and can be called concurrently
     // by multiple threads.
-    virtual void onFrameAvailable() = 0; /* Asynchronous */
+    virtual void onFrameAvailable(const BufferItem& item) = 0; /* Asynchronous */
+
+    // onFrameReplaced is called from queueBuffer if the frame being queued is
+    // replacing an existing slot in the queue. Any call to queueBuffer that
+    // doesn't call onFrameAvailable will call this callback instead. The item
+    // passed to the callback will contain all of the information about the
+    // queued frame except for its GraphicBuffer pointer, which will always be
+    // null.
+    //
+    // This is called without any lock held and can be called concurrently
+    // by multiple threads.
+    virtual void onFrameReplaced(const BufferItem& /* item */) {} /* Asynchronous */
 
     // onBuffersReleased is called to notify the buffer consumer that the
     // BufferQueue has released its references to one or more GraphicBuffers

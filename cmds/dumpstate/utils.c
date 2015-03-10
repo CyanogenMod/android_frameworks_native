@@ -360,7 +360,7 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
         }
 
         if (timeout_seconds && elapsed / NANOS_PER_SEC > timeout_seconds) {
-            printf("*** %s: Timed out after %ds (killing pid %d)\n", command, (int) elapsed, pid);
+            printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command, (float) elapsed / NANOS_PER_SEC, pid);
             kill(pid, SIGTERM);
             return -1;
         }
@@ -619,20 +619,28 @@ const char *dump_traces() {
             if (lseek(fd, 0, SEEK_END) < 0) {
                 fprintf(stderr, "lseek: %s\n", strerror(errno));
             } else {
-                snprintf(data, sizeof(data), "[dump dalvik stack %d: %.3fs elapsed]\n",
+                dprintf(fd, "[dump dalvik stack %d: %.3fs elapsed]\n",
                         pid, (float)(nanotime() - start) / NANOS_PER_SEC);
-                write(fd, data, strlen(data));
             }
         } else if (should_dump_native_traces(data)) {
             /* dump native process if appropriate */
             if (lseek(fd, 0, SEEK_END) < 0) {
                 fprintf(stderr, "lseek: %s\n", strerror(errno));
             } else {
+                static uint16_t timeout_failures = 0;
                 int64_t start = nanotime();
-                dump_backtrace_to_file(pid, fd);
-                snprintf(data, sizeof(data), "[dump native stack %d: %.3fs elapsed]\n",
+
+                /* If 3 backtrace dumps fail in a row, consider debuggerd dead. */
+                if (timeout_failures == 3) {
+                    dprintf(fd, "too many stack dump failures, skipping...\n");
+                } else if (dump_backtrace_to_file_timeout(pid, fd, 20) == -1) {
+                    dprintf(fd, "dumping failed, likely due to a timeout\n");
+                    timeout_failures++;
+                } else {
+                    timeout_failures = 0;
+                }
+                dprintf(fd, "[dump native stack %d: %.3fs elapsed]\n",
                         pid, (float)(nanotime() - start) / NANOS_PER_SEC);
-                write(fd, data, strlen(data));
             }
         }
     }

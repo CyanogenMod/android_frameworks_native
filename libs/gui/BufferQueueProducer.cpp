@@ -38,7 +38,12 @@ BufferQueueProducer::BufferQueueProducer(const sp<BufferQueueCore>& core) :
     mCore(core),
     mSlots(core->mSlots),
     mConsumerName(),
-    mStickyTransform(0) {}
+    mStickyTransform(0),
+    mLastQueueBufferFence(Fence::NO_FENCE),
+    mCallbackMutex(),
+    mNextCallbackTicket(0),
+    mCurrentCallbackTicket(0),
+    mCallbackCondition() {}
 
 BufferQueueProducer::~BufferQueueProducer() {}
 
@@ -524,12 +529,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
     if (fence == NULL) {
         BQ_LOGE("queueBuffer: fence is NULL");
-        // Temporary workaround for b/17946343: soldier-on instead of returning an error. This
-        // prevents the client from dying, at the risk of visible corruption due to hwcomposer
-        // reading the buffer before the producer is done rendering it. Unless the buffer is the
-        // last frame of an animation, the corruption will be transient.
-        fence = Fence::NO_FENCE;
-        // return BAD_VALUE;
+        return BAD_VALUE;
     }
 
     switch (scalingMode) {
@@ -543,7 +543,10 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
     }
 
-    sp<IConsumerListener> listener;
+    sp<IConsumerListener> frameAvailableListener;
+    sp<IConsumerListener> frameReplacedListener;
+    int callbackTicket = 0;
+    BufferItem item;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
 
@@ -599,7 +602,6 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         ++mCore->mFrameCounter;
         mSlots[slot].mFrameNumber = mCore->mFrameCounter;
 
-        BufferItem item;
         item.mAcquireCalled = mSlots[slot].mAcquireCalled;
         item.mGraphicBuffer = mSlots[slot].mGraphicBuffer;
         item.mCrop = crop;
@@ -621,7 +623,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             // When the queue is empty, we can ignore mDequeueBufferCannotBlock
             // and simply queue this buffer
             mCore->mQueue.push_back(item);
-            listener = mCore->mConsumerListener;
+            frameAvailableListener = mCore->mConsumerListener;
         } else {
             // When the queue is not empty, we need to look at the front buffer
             // state to see if we need to replace it
@@ -637,9 +639,10 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 }
                 // Overwrite the droppable buffer with the incoming one
                 *front = item;
+                frameReplacedListener = mCore->mConsumerListener;
             } else {
                 mCore->mQueue.push_back(item);
-                listener = mCore->mConsumerListener;
+                frameAvailableListener = mCore->mConsumerListener;
             }
         }
 
@@ -650,11 +653,41 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 mCore->mTransformHint, mCore->mQueue.size());
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
+
+        // Take a ticket for the callback functions
+        callbackTicket = mNextCallbackTicket++;
     } // Autolock scope
 
-    // Call back without lock held
-    if (listener != NULL) {
-        listener->onFrameAvailable();
+    // Wait without lock held
+    if (mCore->mConnectedApi == NATIVE_WINDOW_API_EGL) {
+        // Waiting here allows for two full buffers to be queued but not a
+        // third. In the event that frames take varying time, this makes a
+        // small trade-off in favor of latency rather than throughput.
+        mLastQueueBufferFence->waitForever("Throttling EGL Production");
+        mLastQueueBufferFence = fence;
+    }
+
+    // Don't send the GraphicBuffer through the callback, and don't send
+    // the slot number, since the consumer shouldn't need it
+    item.mGraphicBuffer.clear();
+    item.mSlot = BufferItem::INVALID_BUFFER_SLOT;
+
+    // Call back without the main BufferQueue lock held, but with the callback
+    // lock held so we can ensure that callbacks occur in order
+    {
+        Mutex::Autolock lock(mCallbackMutex);
+        while (callbackTicket != mCurrentCallbackTicket) {
+            mCallbackCondition.wait(mCallbackMutex);
+        }
+
+        if (frameAvailableListener != NULL) {
+            frameAvailableListener->onFrameAvailable(item);
+        } else if (frameReplacedListener != NULL) {
+            frameReplacedListener->onFrameReplaced(item);
+        }
+
+        ++mCurrentCallbackTicket;
+        mCallbackCondition.broadcast();
     }
 
     return NO_ERROR;

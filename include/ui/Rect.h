@@ -34,6 +34,7 @@ public:
     // because we want the compiler generated versions
 
     inline Rect() {
+      left = right = top = bottom = 0;
     }
 
     inline Rect(int32_t w, int32_t h) {

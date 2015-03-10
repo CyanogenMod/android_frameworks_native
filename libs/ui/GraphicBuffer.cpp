@@ -310,10 +310,23 @@ status_t GraphicBuffer::unflatten(
     const size_t numFds  = buf[8];
     const size_t numInts = buf[9];
 
+    // Limit the maxNumber to be relatively small. The number of fds or ints
+    // should not come close to this number, and the number itself was simply
+    // chosen to be high enough to not cause issues and low enough to prevent
+    // overflow problems.
+    const size_t maxNumber = 4096;
+    if (numFds >= maxNumber || numInts >= (maxNumber - 10)) {
+        width = height = stride = format = usage = 0;
+        handle = NULL;
+        ALOGE("unflatten: numFds or numInts is too large: %d, %d",
+                numFds, numInts);
+        return BAD_VALUE;
+    }
+
     const size_t sizeNeeded = (10 + numInts) * sizeof(int);
     if (size < sizeNeeded) return NO_MEMORY;
 
-    size_t fdCountNeeded = 0;
+    size_t fdCountNeeded = numFds;
     if (count < fdCountNeeded) return NO_MEMORY;
 
     if (handle) {
@@ -328,6 +341,12 @@ status_t GraphicBuffer::unflatten(
         format = buf[4];
         usage  = buf[5];
         native_handle* h = native_handle_create(numFds, numInts);
+        if (!h) {
+            width = height = stride = format = usage = 0;
+            handle = NULL;
+            ALOGE("unflatten: native_handle_create failed");
+            return NO_MEMORY;
+        }
         memcpy(h->data,          fds,     numFds*sizeof(int));
         memcpy(h->data + numFds, &buf[10], numInts*sizeof(int));
         handle = h;

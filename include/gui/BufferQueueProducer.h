@@ -197,6 +197,22 @@ private:
 
     uint32_t mStickyTransform;
 
+    // This saves the fence from the last queueBuffer, such that the
+    // next queueBuffer call can throttle buffer production. The prior
+    // queueBuffer's fence is not nessessarily available elsewhere,
+    // since the previous buffer might have already been acquired.
+    sp<Fence> mLastQueueBufferFence;
+
+    // Take-a-ticket system for ensuring that onFrame* callbacks are called in
+    // the order that frames are queued. While the BufferQueue lock
+    // (mCore->mMutex) is held, a ticket is retained by the producer. After
+    // dropping the BufferQueue lock, the producer must wait on the condition
+    // variable until the current callback ticket matches its retained ticket.
+    Mutex mCallbackMutex;
+    int mNextCallbackTicket; // Protected by mCore->mMutex
+    int mCurrentCallbackTicket; // Protected by mCallbackMutex
+    Condition mCallbackCondition;
+
 }; // class BufferQueueProducer
 
 } // namespace android

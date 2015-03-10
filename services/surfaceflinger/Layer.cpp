@@ -34,6 +34,7 @@
 #include <ui/GraphicBuffer.h>
 #include <ui/PixelFormat.h>
 
+#include <gui/BufferItem.h>
 #include <gui/Surface.h>
 
 #include "clz.h"
@@ -196,9 +197,24 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& /* hw */,
     }
 }
 
-void Layer::onFrameAvailable() {
+void Layer::onFrameAvailable(const BufferItem& item) {
+    // Add this buffer from our internal queue tracker
+    { // Autolock scope
+        Mutex::Autolock lock(mQueueItemLock);
+        mQueueItems.push_back(item);
+    }
+
     android_atomic_inc(&mQueuedFrames);
     mFlinger->signalLayerUpdate();
+}
+
+void Layer::onFrameReplaced(const BufferItem& item) {
+    Mutex::Autolock lock(mQueueItemLock);
+    if (mQueueItems.empty()) {
+        ALOGE("Can't replace a frame on an empty queue");
+        return;
+    }
+    mQueueItems.editItemAt(0) = item;
 }
 
 void Layer::onSidebandStreamChanged() {
@@ -317,12 +333,17 @@ static Rect reduce(const Rect& win, const Region& exclude) {
 
 Rect Layer::computeBounds() const {
     const Layer::State& s(getDrawingState());
+    return computeBounds(s.activeTransparentRegion);
+}
+
+Rect Layer::computeBounds(const Region& activeTransparentRegion) const {
+    const Layer::State& s(getDrawingState());
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
-    return reduce(win, s.activeTransparentRegion);
+    return reduce(win, activeTransparentRegion);
 }
 
 FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
@@ -350,8 +371,12 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     activeCrop.intersect(hw->getViewport(), &activeCrop);
     activeCrop = s.transform.inverse().transform(activeCrop);
 
-    // paranoia: make sure the window-crop is constrained in the
-    // window's bounds
+    // This needs to be here as transform.transform(Rect) computes the
+    // transformed rect and then takes the bounding box of the result before
+    // returning. This means
+    // transform.inverse().transform(transform.transform(Rect)) != Rect
+    // in which case we need to make sure the final rect is clipped to the
+    // display bounds.
     activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
 
     // subtract the transparent region and snap to the bounds
@@ -424,6 +449,33 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
 Transform Layer::computeBufferTransform(const sp<const DisplayDevice>& hw) const
 {
     const State& s(getDrawingState());
+
+    // apply the layer's transform, followed by the display's global transform
+    // here we're guaranteed that the layer's transform preserves rects
+    Region activeTransparentRegion(s.activeTransparentRegion);
+    if (!s.active.crop.isEmpty()) {
+        Rect activeCrop(s.active.crop);
+        activeCrop = s.transform.transform(activeCrop);
+        activeCrop.intersect(hw->getViewport(), &activeCrop);
+        activeCrop = s.transform.inverse().transform(activeCrop);
+        // This needs to be here as transform.transform(Rect) computes the
+        // transformed rect and then takes the bounding box of the result before
+        // returning. This means
+        // transform.inverse().transform(transform.transform(Rect)) != Rect
+        // in which case we need to make sure the final rect is clipped to the
+        // display bounds.
+        activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
+        // mark regions outside the crop as transparent
+        activeTransparentRegion.orSelf(Rect(0, 0, s.active.w, activeCrop.top));
+        activeTransparentRegion.orSelf(Rect(0, activeCrop.bottom,
+                s.active.w, s.active.h));
+        activeTransparentRegion.orSelf(Rect(0, activeCrop.top,
+                activeCrop.left, activeCrop.bottom));
+        activeTransparentRegion.orSelf(Rect(activeCrop.right, activeCrop.top,
+                s.active.w, activeCrop.bottom));
+    }
+    Rect frame(s.transform.transform(computeBounds(activeTransparentRegion)));
+    frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     /*
      * Transformations are applied in this order:
@@ -1162,6 +1214,14 @@ bool Layer::setLayerStack(uint32_t layerStack) {
 // pageflip handling...
 // ----------------------------------------------------------------------------
 
+bool Layer::shouldPresentNow(const DispSync& dispSync) const {
+    Mutex::Autolock lock(mQueueItemLock);
+    nsecs_t expectedPresent =
+            mSurfaceFlingerConsumer->computeExpectedPresent(dispSync);
+    return mQueueItems.empty() ?
+            false : mQueueItems[0].mTimestamp < expectedPresent;
+}
+
 bool Layer::onPreComposition() {
     mRefreshPending = false;
     return mQueuedFrames > 0 || mSidebandStreamChanged;
@@ -1350,6 +1410,12 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             // layer update so we check again at the next opportunity.
             mFlinger->signalLayerUpdate();
             return outDirtyRegion;
+        }
+
+        // Remove this buffer from our internal queue tracker
+        { // Autolock scope
+            Mutex::Autolock lock(mQueueItemLock);
+            mQueueItems.removeAt(0);
         }
 
         // Decrement the queued-frames count.  Signal another event if we

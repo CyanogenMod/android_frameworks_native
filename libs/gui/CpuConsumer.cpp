@@ -67,6 +67,34 @@ status_t CpuConsumer::setDefaultBufferFormat(uint32_t defaultFormat)
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
+static bool isPossiblyYUV(PixelFormat format) {
+    switch ((int)format) {
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_RGBX_8888:
+        case HAL_PIXEL_FORMAT_RGB_888:
+        case HAL_PIXEL_FORMAT_RGB_565:
+        case HAL_PIXEL_FORMAT_BGRA_8888:
+        case HAL_PIXEL_FORMAT_sRGB_A_8888:
+        case HAL_PIXEL_FORMAT_sRGB_X_8888:
+        case HAL_PIXEL_FORMAT_Y8:
+        case HAL_PIXEL_FORMAT_Y16:
+        case HAL_PIXEL_FORMAT_RAW16: // same as HAL_PIXEL_FORMAT_RAW_SENSOR
+        case HAL_PIXEL_FORMAT_RAW10:
+        case HAL_PIXEL_FORMAT_RAW_OPAQUE:
+        case HAL_PIXEL_FORMAT_BLOB:
+        case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+            return false;
+
+        case HAL_PIXEL_FORMAT_YV12:
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        default:
+            return true;
+    }
+}
+
 status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     status_t err;
 
@@ -96,59 +124,51 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     void *bufferPointer = NULL;
     android_ycbcr ycbcr = android_ycbcr();
 
-    if (b.mFence.get()) {
-        if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
-                HAL_PIXEL_FORMAT_YCbCr_420_888) {
+    PixelFormat format = mSlots[buf].mGraphicBuffer->getPixelFormat();
+    PixelFormat flexFormat = format;
+    if (isPossiblyYUV(format)) {
+        if (b.mFence.get()) {
             err = mSlots[buf].mGraphicBuffer->lockAsyncYCbCr(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &ycbcr,
                 b.mFence->dup());
-
-            if (err != OK) {
-                CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
-                        strerror(-err), err);
-                return err;
-            }
-            bufferPointer = ycbcr.y;
         } else {
+            err = mSlots[buf].mGraphicBuffer->lockYCbCr(
+                GraphicBuffer::USAGE_SW_READ_OFTEN,
+                b.mCrop,
+                &ycbcr);
+        }
+        if (err == OK) {
+            bufferPointer = ycbcr.y;
+            flexFormat = HAL_PIXEL_FORMAT_YCbCr_420_888;
+            if (format != HAL_PIXEL_FORMAT_YCbCr_420_888) {
+                CC_LOGV("locking buffer of format %#x as flex YUV", format);
+            }
+        } else if (format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
+            CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
+                    strerror(-err), err);
+            return err;
+        }
+    }
+
+    if (bufferPointer == NULL) { // not flexible YUV
+        if (b.mFence.get()) {
             err = mSlots[buf].mGraphicBuffer->lockAsync(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &bufferPointer,
                 b.mFence->dup());
-
-            if (err != OK) {
-                CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
-                        strerror(-err), err);
-                return err;
-            }
-        }
-    } else {
-        if (mSlots[buf].mGraphicBuffer->getPixelFormat() ==
-                HAL_PIXEL_FORMAT_YCbCr_420_888) {
-            err = mSlots[buf].mGraphicBuffer->lockYCbCr(
-                GraphicBuffer::USAGE_SW_READ_OFTEN,
-                b.mCrop,
-                &ycbcr);
-
-            if (err != OK) {
-                CC_LOGE("Unable to lock YCbCr buffer for CPU reading: %s (%d)",
-                        strerror(-err), err);
-                return err;
-            }
-            bufferPointer = ycbcr.y;
         } else {
             err = mSlots[buf].mGraphicBuffer->lock(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &bufferPointer);
-
-            if (err != OK) {
-                CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
-                        strerror(-err), err);
-                return err;
-            }
+        }
+        if (err != OK) {
+            CC_LOGE("Unable to lock buffer for CPU reading: %s (%d)",
+                    strerror(-err), err);
+            return err;
         }
     }
 
@@ -170,7 +190,8 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
             reinterpret_cast<uint8_t*>(bufferPointer);
     nativeBuffer->width  = mSlots[buf].mGraphicBuffer->getWidth();
     nativeBuffer->height = mSlots[buf].mGraphicBuffer->getHeight();
-    nativeBuffer->format = mSlots[buf].mGraphicBuffer->getPixelFormat();
+    nativeBuffer->format = format;
+    nativeBuffer->flexFormat = flexFormat;
     nativeBuffer->stride = (ycbcr.y != NULL) ?
             ycbcr.ystride :
             mSlots[buf].mGraphicBuffer->getStride();
