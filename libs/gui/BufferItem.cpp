@@ -37,6 +37,21 @@ BufferItem::BufferItem() :
     mCrop.makeInvalid();
 }
 
+BufferItem::BufferItem(const IGraphicBufferConsumer::BufferItem& item) :
+    mGraphicBuffer(item.mGraphicBuffer),
+    mFence(item.mFence),
+    mCrop(item.mCrop),
+    mTransform(item.mTransform),
+    mScalingMode(item.mScalingMode),
+    mTimestamp(item.mTimestamp),
+    mIsAutoTimestamp(item.mIsAutoTimestamp),
+    mDataSpace(item.mDataSpace),
+    mFrameNumber(item.mFrameNumber),
+    mSlot(item.mBuf),
+    mIsDroppable(item.mIsDroppable),
+    mAcquireCalled(item.mAcquireCalled),
+    mTransformToDisplayInverse(item.mTransformToDisplayInverse) {}
+
 BufferItem::~BufferItem() {}
 
 BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
