@@ -158,7 +158,6 @@ protected:
 
     virtual int lockBuffer_DEPRECATED(ANativeWindowBuffer* buffer);
 
-    virtual int connect(int api, const sp<IProducerListener>& listener);
     virtual int connect(int api);
     virtual int disconnect(int api);
     virtual int setBufferCount(int bufferCount);
@@ -176,6 +175,11 @@ protected:
 public:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
+
+    virtual int connect(int api, const sp<IProducerListener>& listener);
+    virtual int detachNextBuffer(ANativeWindowBuffer** outBuffer,
+            sp<Fence>* outFence);
+    virtual int attachBuffer(ANativeWindowBuffer*);
 
 protected:
     enum { NUM_BUFFER_SLOTS = BufferQueue::NUM_BUFFER_SLOTS };
