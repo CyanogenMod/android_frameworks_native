@@ -23,6 +23,7 @@
 #include <binder/Parcel.h>
 #include <binder/IInterface.h>
 
+#include <gui/BufferItem.h>
 #include <gui/IConsumerListener.h>
 #include <gui/IGraphicBufferConsumer.h>
 
@@ -235,6 +236,21 @@ public:
             return result;
         }
         return reply.readInt32();
+    }
+
+    virtual status_t acquireBuffer(android::BufferItem* buffer,
+            nsecs_t presentWhen) {
+        if (buffer == nullptr) {
+            return BAD_VALUE;
+        }
+
+        BufferItem item;
+        status_t result = acquireBuffer(&item, presentWhen);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        *buffer = item;
+        return NO_ERROR;
     }
 
     virtual status_t detachBuffer(int slot) {

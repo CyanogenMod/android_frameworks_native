@@ -34,6 +34,7 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+class BufferItem;
 class Fence;
 class GraphicBuffer;
 class IConsumerListener;
@@ -147,6 +148,7 @@ public:
     // Return of a negative value means an error has occurred:
     // * INVALID_OPERATION - too many buffers have been acquired
     virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) = 0;
+    virtual status_t acquireBuffer(android::BufferItem* buffer, nsecs_t presentWhen) = 0;
 
     // detachBuffer attempts to remove all ownership of the buffer in the given
     // slot from the buffer queue. If this call succeeds, the slot will be
