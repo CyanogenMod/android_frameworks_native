@@ -20,6 +20,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+#include <gui/BufferItem.h>
 #include <gui/IGraphicBufferConsumer.h>
 #include <gui/IGraphicBufferProducer.h>
 #include <gui/StreamSplitter.h>
@@ -123,7 +124,7 @@ void StreamSplitter::onFrameAvailable(const BufferItem& /* item */) {
     ++mOutstandingBuffers;
 
     // Acquire and detach the buffer from the input
-    IGraphicBufferConsumer::BufferItem bufferItem;
+    BufferItem bufferItem;
     status_t status = mInput->acquireBuffer(&bufferItem, /* presentWhen */ 0);
     LOG_ALWAYS_FATAL_IF(status != NO_ERROR,
             "acquiring buffer from input failed (%d)", status);

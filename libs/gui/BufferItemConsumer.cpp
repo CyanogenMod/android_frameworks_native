@@ -19,6 +19,7 @@
 //#define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #include <utils/Log.h>
 
+#include <gui/BufferItem.h>
 #include <gui/BufferItemConsumer.h>
 
 //#define BI_LOGV(x, ...) ALOGV("[%s] " x, mName.string(), ##__VA_ARGS__)
@@ -52,7 +53,7 @@ void BufferItemConsumer::setName(const String8& name) {
     mConsumer->setConsumerName(name);
 }
 
-status_t BufferItemConsumer::acquireBuffer(BufferItem *item,
+status_t BufferItemConsumer::acquireBuffer(BufferQueue::BufferItem *item,
         nsecs_t presentWhen, bool waitForFence) {
     status_t err;
 
@@ -80,6 +81,17 @@ status_t BufferItemConsumer::acquireBuffer(BufferItem *item,
     item->mGraphicBuffer = mSlots[item->mBuf].mGraphicBuffer;
 
     return OK;
+}
+
+status_t BufferItemConsumer::acquireBuffer(android::BufferItem* outItem,
+        nsecs_t presentWhen, bool waitForFence) {
+    BufferQueue::BufferItem item;
+    status_t result = acquireBuffer(&item, presentWhen, waitForFence);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    *outItem = item;
+    return NO_ERROR;
 }
 
 status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
