@@ -1130,7 +1130,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
-                    const IGraphicBufferConsumer::BufferItem& item) {
+                    const BufferItem& item) {
                 if (buf == NULL) {
                     return false;
                 }
