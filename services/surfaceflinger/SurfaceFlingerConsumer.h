@@ -41,13 +41,13 @@ public:
     class BufferRejecter {
         friend class SurfaceFlingerConsumer;
         virtual bool reject(const sp<GraphicBuffer>& buf,
-                const IGraphicBufferConsumer::BufferItem& item) = 0;
+                const BufferItem& item) = 0;
 
     protected:
         virtual ~BufferRejecter() { }
     };
 
-    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item, nsecs_t presentWhen);
+    virtual status_t acquireBufferLocked(BufferItem *item, nsecs_t presentWhen);
 
     // This version of updateTexImage() takes a functor that may be used to
     // reject the newly acquired buffer.  Unlike the GLConsumer version,
