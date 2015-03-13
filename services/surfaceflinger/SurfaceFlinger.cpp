@@ -1945,8 +1945,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         const Region& inDirtyRegion)
 {
 #ifdef MTK_HARDWARE
-    bool isHwcDisplay = hw->getHwcDisplayId() >= 0;
-    if (!isHwcDisplay && inDirtyRegion.isEmpty()) {
+    if (hw->getDisplayType() != HWC_DISPLAY_PRIMARY && inDirtyRegion.isEmpty()) {
         return;
     }
 #endif
