@@ -86,8 +86,13 @@ class BufferItem : public Flattenable<BufferItem> {
     // mFrameNumber is the number of the queued frame for this slot.
     uint64_t mFrameNumber;
 
-    // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
-    int mSlot;
+    union {
+        // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
+        int mSlot;
+
+        // mBuf is the former name for mSlot
+        int mBuf;
+    };
 
     // mIsDroppable whether this buffer was queued with the
     // property that it can be replaced by a new buffer for the purpose of
