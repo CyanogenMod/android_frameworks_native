@@ -200,17 +200,6 @@ status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
     return OK;
 }
 
-status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *outItem,
-        nsecs_t presentWhen) {
-    BufferItem item;
-    status_t result = acquireBufferLocked(&item, presentWhen);
-    if (result != NO_ERROR) {
-        return result;
-    }
-    *outItem = item;
-    return NO_ERROR;
-}
-
 status_t ConsumerBase::addReleaseFence(int slot,
         const sp<GraphicBuffer> graphicBuffer, const sp<Fence>& fence) {
     Mutex::Autolock lock(mMutex);
