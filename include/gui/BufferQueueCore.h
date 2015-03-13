@@ -17,6 +17,7 @@
 #ifndef ANDROID_GUI_BUFFERQUEUECORE_H
 #define ANDROID_GUI_BUFFERQUEUECORE_H
 
+#include <gui/BufferItem.h>
 #include <gui/BufferQueueDefs.h>
 #include <gui/BufferSlot.h>
 
@@ -45,7 +46,6 @@
 
 namespace android {
 
-class BufferItem;
 class IConsumerListener;
 class IGraphicBufferAlloc;
 class IProducerListener;
@@ -58,7 +58,7 @@ class BufferQueueCore : public virtual RefBase {
 public:
     // Used as a placeholder slot number when the value isn't pointing to an
     // existing buffer.
-    enum { INVALID_BUFFER_SLOT = -1 }; // TODO: Extract from IGBC::BufferItem
+    enum { INVALID_BUFFER_SLOT = BufferItem::INVALID_BUFFER_SLOT };
 
     // We reserve two slots in order to guarantee that the producer and
     // consumer can run asynchronously.
