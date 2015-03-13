@@ -76,8 +76,10 @@ class BufferItemConsumer: public ConsumerBase
     //
     // If waitForFence is true, and the acquired BufferItem has a valid fence object,
     // acquireBuffer will wait on the fence with no timeout before returning.
-    status_t acquireBuffer(BufferItem *item, nsecs_t presentWhen,
-        bool waitForFence = true);
+    status_t acquireBuffer(BufferQueue::BufferItem *item, nsecs_t presentWhen,
+            bool waitForFence = true);
+    status_t acquireBuffer(android::BufferItem* item, nsecs_t presentWhen,
+            bool waitForFence = true);
 
     // Returns an acquired buffer to the queue, allowing it to be reused. Since
     // only a fixed number of buffers may be acquired at a time, old buffers

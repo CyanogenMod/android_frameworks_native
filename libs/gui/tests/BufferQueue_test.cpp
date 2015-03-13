@@ -17,6 +17,7 @@
 #define LOG_TAG "BufferQueue_test"
 //#define LOG_NDEBUG 0
 
+#include <gui/BufferItem.h>
 #include <gui/BufferQueue.h>
 #include <gui/IProducerListener.h>
 
@@ -129,7 +130,7 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
-    IGraphicBufferConsumer::BufferItem item;
+    BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
 
     uint32_t* dataOut;
@@ -154,7 +155,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     IGraphicBufferProducer::QueueBufferInput qbi(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
-    BufferQueue::BufferItem item;
+    BufferItem item;
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
@@ -251,7 +252,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(newSlot, input, &output));
 
-    IGraphicBufferConsumer::BufferItem item;
+    BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
 
     uint32_t* dataOut;
@@ -286,7 +287,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
             BufferQueueDefs::NUM_BUFFER_SLOTS)); // Index too high
     ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(0)); // Not acquired
 
-    IGraphicBufferConsumer::BufferItem item;
+    BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
 
     ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
@@ -347,7 +348,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
-    IGraphicBufferConsumer::BufferItem item;
+    BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
     ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
 

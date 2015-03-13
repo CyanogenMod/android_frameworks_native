@@ -20,6 +20,7 @@
 
 #include <cutils/compiler.h>
 #include <utils/Log.h>
+#include <gui/BufferItem.h>
 #include <gui/CpuConsumer.h>
 
 #define CC_LOGV(x, ...) ALOGV("[%s] " x, mName.string(), ##__VA_ARGS__)
@@ -110,7 +111,7 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
         return NOT_ENOUGH_DATA;
     }
 
-    BufferQueue::BufferItem b;
+    BufferItem b;
 
     Mutex::Autolock _l(mMutex);
 

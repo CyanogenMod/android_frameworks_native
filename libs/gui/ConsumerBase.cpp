@@ -27,6 +27,7 @@
 
 #include <hardware/hardware.h>
 
+#include <gui/BufferItem.h>
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
@@ -179,7 +180,7 @@ void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
     }
 }
 
-status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item,
+status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
         nsecs_t presentWhen) {
     status_t err = mConsumer->acquireBuffer(item, presentWhen);
     if (err != NO_ERROR) {
@@ -197,6 +198,17 @@ status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *item,
             item->mBuf, item->mFrameNumber);
 
     return OK;
+}
+
+status_t ConsumerBase::acquireBufferLocked(BufferQueue::BufferItem *outItem,
+        nsecs_t presentWhen) {
+    BufferItem item;
+    status_t result = acquireBufferLocked(&item, presentWhen);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    *outItem = item;
+    return NO_ERROR;
 }
 
 status_t ConsumerBase::addReleaseFence(int slot,
