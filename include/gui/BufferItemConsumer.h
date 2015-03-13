@@ -42,8 +42,6 @@ class BufferItemConsumer: public ConsumerBase
   public:
     typedef ConsumerBase::FrameAvailableListener FrameAvailableListener;
 
-    typedef BufferQueue::BufferItem BufferItem;
-
     enum { DEFAULT_MAX_BUFFERS = -1 };
     enum { INVALID_BUFFER_SLOT = BufferQueue::INVALID_BUFFER_SLOT };
     enum { NO_BUFFER_AVAILABLE = BufferQueue::NO_BUFFER_AVAILABLE };
@@ -76,9 +74,7 @@ class BufferItemConsumer: public ConsumerBase
     //
     // If waitForFence is true, and the acquired BufferItem has a valid fence object,
     // acquireBuffer will wait on the fence with no timeout before returning.
-    status_t acquireBuffer(BufferQueue::BufferItem *item, nsecs_t presentWhen,
-            bool waitForFence = true);
-    status_t acquireBuffer(android::BufferItem* item, nsecs_t presentWhen,
+    status_t acquireBuffer(BufferItem* item, nsecs_t presentWhen,
             bool waitForFence = true);
 
     // Returns an acquired buffer to the queue, allowing it to be reused. Since
