@@ -182,7 +182,7 @@ status_t BufferQueueConsumer::acquireBuffer(android::BufferItem* outBuffer,
         return BAD_VALUE;
     }
 
-    android::BufferItem item;
+    BufferItem item;
     status_t result = acquireBuffer(&item, expectedPresent);
     if (result != NO_ERROR) {
         return result;
