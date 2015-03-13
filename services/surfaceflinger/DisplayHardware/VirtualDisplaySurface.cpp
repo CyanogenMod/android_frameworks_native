@@ -18,6 +18,8 @@
 #include "VirtualDisplaySurface.h"
 #include "HWComposer.h"
 
+#include <gui/BufferItem.h>
+
 // ---------------------------------------------------------------------------
 namespace android {
 // ---------------------------------------------------------------------------
@@ -436,7 +438,7 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         // Now acquire the buffer from the scratch pool -- should be the same
         // slot and fence as we just queued.
         Mutex::Autolock lock(mMutex);
-        BufferQueue::BufferItem item;
+        BufferItem item;
         result = acquireBufferLocked(&item, 0);
         if (result != NO_ERROR)
             return result;
