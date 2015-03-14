@@ -131,6 +131,13 @@ uint32_t getAbsAxisUsage(int32_t axis, uint32_t deviceClasses) {
         }
     }
 
+    // External stylus gets the pressure axis
+    if (deviceClasses & INPUT_DEVICE_CLASS_EXTERNAL_STYLUS) {
+        if (axis == ABS_PRESSURE) {
+            return INPUT_DEVICE_CLASS_EXTERNAL_STYLUS;
+        }
+    }
+
     // Joystick devices get the rest.
     return deviceClasses & INPUT_DEVICE_CLASS_JOYSTICK;
 }
@@ -1185,6 +1192,16 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
             && test_bit(ABS_X, device->absBitmask)
             && test_bit(ABS_Y, device->absBitmask)) {
         device->classes |= INPUT_DEVICE_CLASS_TOUCH;
+    // Is this a BT stylus?
+    } else if ((test_bit(ABS_PRESSURE, device->absBitmask) ||
+                test_bit(BTN_TOUCH, device->keyBitmask))
+            && !test_bit(ABS_X, device->absBitmask)
+            && !test_bit(ABS_Y, device->absBitmask)) {
+        device->classes |= INPUT_DEVICE_CLASS_EXTERNAL_STYLUS;
+        // Keyboard will try to claim some of the buttons but we really want to reserve those so we
+        // can fuse it with the touch screen data, so just take them back. Note this means an
+        // external stylus cannot also be a keyboard device.
+        device->classes &= ~INPUT_DEVICE_CLASS_KEYBOARD;
     }
 
     // See if this device is a joystick.

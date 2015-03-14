@@ -139,7 +139,10 @@ struct InputReaderConfiguration {
         CHANGE_DEVICE_ALIAS = 1 << 5,
 
         // The location calibration matrix changed.
-        TOUCH_AFFINE_TRANSFORMATION = 1 << 6,
+        CHANGE_TOUCH_AFFINE_TRANSFORMATION = 1 << 6,
+
+        // The presence of an external stylus has changed.
+        CHANGE_EXTERNAL_STYLUS_PRESENCE = 1 << 7,
 
         // All devices must be reopened.
         CHANGE_MUST_REOPEN = 1 << 31,
@@ -371,6 +374,31 @@ public:
     virtual void cancelVibrate(int32_t deviceId, int32_t token) = 0;
 };
 
+struct StylusState {
+    /* Time the stylus event was received. */
+    nsecs_t when;
+    /* Pressure as reported by the stylus, normalized to the range [0, 1.0]. */
+    float pressure;
+    /* The state of the stylus buttons as a bitfield (e.g. AMOTION_EVENT_BUTTON_SECONDARY). */
+    uint32_t buttons;
+    /* Which tool type the stylus is currently using (e.g. AMOTION_EVENT_TOOL_TYPE_ERASER). */
+    int32_t toolType;
+
+    void copyFrom(const StylusState& other) {
+        when = other.when;
+        pressure = other.pressure;
+        buttons = other.buttons;
+        toolType = other.toolType;
+    }
+
+    void clear() {
+        when = LLONG_MAX;
+        pressure = 0.f;
+        buttons = 0;
+        toolType = AMOTION_EVENT_TOOL_TYPE_UNKNOWN;
+    }
+};
+
 
 /* Internal interface used by individual input devices to access global input device state
  * and parameters maintained by the input reader.
@@ -391,6 +419,9 @@ public:
 
     virtual void requestTimeoutAtTime(nsecs_t when) = 0;
     virtual int32_t bumpGeneration() = 0;
+
+    virtual void getExternalStylusDevices(Vector<InputDeviceInfo>& outDevices);
+    virtual void dispatchExternalStylusState(const StylusState& outState);
 
     virtual InputReaderPolicyInterface* getPolicy() = 0;
     virtual InputListenerInterface* getListener() = 0;
@@ -458,6 +489,8 @@ protected:
         virtual void fadePointer();
         virtual void requestTimeoutAtTime(nsecs_t when);
         virtual int32_t bumpGeneration();
+        virtual void getExternalStylusDevices(Vector<InputDeviceInfo>& outDevices);
+        virtual void dispatchExternalStylusState(const StylusState& outState);
         virtual InputReaderPolicyInterface* getPolicy();
         virtual InputListenerInterface* getListener();
         virtual EventHubInterface* getEventHub();
@@ -495,6 +528,10 @@ private:
     int32_t mGlobalMetaState;
     void updateGlobalMetaStateLocked();
     int32_t getGlobalMetaStateLocked();
+
+    void notifyExternalStylusPresenceChanged();
+    void getExternalStylusDevicesLocked(Vector<InputDeviceInfo>& outDevices);
+    void dispatchExternalStylusState(const StylusState& state);
 
     void fadePointerLocked();
 
@@ -566,6 +603,7 @@ public:
     void reset(nsecs_t when);
     void process(const RawEvent* rawEvents, size_t count);
     void timeoutExpired(nsecs_t when);
+    void updateExternalStylusState(const StylusState& state);
 
     void getDeviceInfo(InputDeviceInfo* outDeviceInfo);
     int32_t getKeyCodeState(uint32_t sourceMask, int32_t keyCode);
@@ -835,8 +873,20 @@ struct CookedPointerData {
         return pointerCoords[idToIndex[id]];
     }
 
+    inline PointerCoords& editPointerCoordsWithId(uint32_t id) {
+        return pointerCoords[idToIndex[id]];
+    }
+
+    inline PointerProperties& editPointerPropertiesWithId(uint32_t id) {
+        return pointerProperties[idToIndex[id]];
+    }
+
     inline bool isHovering(uint32_t pointerIndex) {
         return hoveringIdBits.hasBit(pointerProperties[pointerIndex].id);
+    }
+
+    inline bool isTouching(uint32_t pointerIndex) {
+        return touchingIdBits.hasBit(pointerProperties[pointerIndex].id);
     }
 };
 
@@ -982,6 +1032,8 @@ public:
 
     virtual int32_t getMetaState();
 
+    virtual void updateExternalStylusState(const StylusState& state);
+
     virtual void fadePointer();
 
 protected:
@@ -993,6 +1045,7 @@ protected:
 
     static void dumpRawAbsoluteAxisInfo(String8& dump,
             const RawAbsoluteAxisInfo& axis, const char* name);
+    static void dumpStylusState(String8& dump, const StylusState& state);
 };
 
 
@@ -1199,6 +1252,7 @@ public:
     virtual void fadePointer();
     virtual void cancelTouch(nsecs_t when);
     virtual void timeoutExpired(nsecs_t when);
+    virtual void updateExternalStylusState(const StylusState& state);
 
 protected:
     CursorButtonAccumulator mCursorButtonAccumulator;
@@ -1338,35 +1392,78 @@ protected:
     // Affine location transformation/calibration
     struct TouchAffineTransformation mAffineTransform;
 
-    // Raw pointer axis information from the driver.
     RawPointerAxes mRawPointerAxes;
 
-    // Raw pointer sample data.
-    RawPointerData mCurrentRawPointerData;
-    RawPointerData mLastRawPointerData;
+    struct RawState {
+        nsecs_t when;
 
-    // Cooked pointer sample data.
-    CookedPointerData mCurrentCookedPointerData;
-    CookedPointerData mLastCookedPointerData;
+        // Raw pointer sample data.
+        RawPointerData rawPointerData;
 
-    // Button state.
-    int32_t mCurrentButtonState;
-    int32_t mLastButtonState;
+        int32_t buttonState;
 
-    // Scroll state.
-    int32_t mCurrentRawVScroll;
-    int32_t mCurrentRawHScroll;
+        // Scroll state.
+        int32_t rawVScroll;
+        int32_t rawHScroll;
 
-    // Id bits used to differentiate fingers, stylus and mouse tools.
-    BitSet32 mCurrentFingerIdBits; // finger or unknown
-    BitSet32 mLastFingerIdBits;
-    BitSet32 mCurrentStylusIdBits; // stylus or eraser
-    BitSet32 mLastStylusIdBits;
-    BitSet32 mCurrentMouseIdBits; // mouse or lens
-    BitSet32 mLastMouseIdBits;
+        void copyFrom(const RawState& other) {
+            when = other.when;
+            rawPointerData.copyFrom(other.rawPointerData);
+            buttonState = other.buttonState;
+            rawVScroll = other.rawVScroll;
+            rawHScroll = other.rawHScroll;
+        }
+
+        void clear() {
+            when = 0;
+            rawPointerData.clear();
+            buttonState = 0;
+            rawVScroll = 0;
+            rawHScroll = 0;
+        }
+    };
+
+    struct CookedState {
+        // Cooked pointer sample data.
+        CookedPointerData cookedPointerData;
+
+        // Id bits used to differentiate fingers, stylus and mouse tools.
+        BitSet32 fingerIdBits;
+        BitSet32 stylusIdBits;
+        BitSet32 mouseIdBits;
+
+        void copyFrom(const CookedState& other) {
+            cookedPointerData.copyFrom(other.cookedPointerData);
+            fingerIdBits = other.fingerIdBits;
+            stylusIdBits = other.stylusIdBits;
+            mouseIdBits = other.mouseIdBits;
+        }
+
+        void clear() {
+            cookedPointerData.clear();
+            fingerIdBits.clear();
+            stylusIdBits.clear();
+            mouseIdBits.clear();
+        }
+    };
+
+    Vector<RawState> mRawStatesPending;
+    RawState mCurrentRawState;
+    CookedState mCurrentCookedState;
+    RawState mLastRawState;
+    CookedState mLastCookedState;
+
+    // State provided by an external stylus
+    StylusState mExternalStylusState;
+    int64_t mExternalStylusId;
+    nsecs_t mExternalStylusDataTimeout;
+    bool mExternalStylusDataPending;
 
     // True if we sent a HOVER_ENTER event.
     bool mSentHoverEnter;
+
+    // Have we assigned pointer IDs for this stream
+    bool mHavePointerIds;
 
     // The time the primary pointer last went down.
     nsecs_t mDownTime;
@@ -1387,11 +1484,13 @@ protected:
     virtual void parseCalibration();
     virtual void resolveCalibration();
     virtual void dumpCalibration(String8& dump);
-    virtual void dumpAffineTransformation(String8& dump);
-    virtual bool hasStylus() const = 0;
     virtual void updateAffineTransformation();
+    virtual void dumpAffineTransformation(String8& dump);
+    virtual void resolveExternalStylusPresence();
+    virtual bool hasStylus() const = 0;
+    virtual bool hasExternalStylus() const;
 
-    virtual void syncTouch(nsecs_t when, bool* outHavePointerIds) = 0;
+    virtual void syncTouch(nsecs_t when, RawState* outState) = 0;
 
 private:
     // The current viewport.
@@ -1436,6 +1535,8 @@ private:
     float mTiltXScale;
     float mTiltYCenter;
     float mTiltYScale;
+
+    bool mExternalStylusConnected;
 
     // Oriented motion ranges for input device info.
     struct OrientedRanges {
@@ -1679,9 +1780,13 @@ private:
     VelocityControl mWheelXVelocityControl;
     VelocityControl mWheelYVelocityControl;
 
+    void resetExternalStylus();
+
     void sync(nsecs_t when);
 
     bool consumeRawTouches(nsecs_t when, uint32_t policyFlags);
+    void processRawTouches(bool timeout);
+    void cookAndDispatch(nsecs_t when);
     void dispatchVirtualKey(nsecs_t when, uint32_t policyFlags,
             int32_t keyEventAction, int32_t keyEventFlags);
 
@@ -1709,6 +1814,10 @@ private:
             bool down, bool hovering);
     void abortPointerSimple(nsecs_t when, uint32_t policyFlags);
 
+    bool assignExternalStylusId(const RawState& state, bool timeout);
+    void applyExternalStylusButtonState(nsecs_t when);
+    void applyExternalStylusTouchState(nsecs_t when);
+
     // Dispatches a motion event.
     // If the changedId is >= 0 and the action is POINTER_DOWN or POINTER_UP, the
     // method will take care of setting the index and transmuting the action to DOWN or UP
@@ -1730,7 +1839,7 @@ private:
     bool isPointInsideSurface(int32_t x, int32_t y);
     const VirtualKey* findVirtualKeyHit(int32_t x, int32_t y);
 
-    void assignPointerIds();
+    static void assignPointerIds(const RawState* last, RawState* current);
 };
 
 
@@ -1743,7 +1852,7 @@ public:
     virtual void process(const RawEvent* rawEvent);
 
 protected:
-    virtual void syncTouch(nsecs_t when, bool* outHavePointerIds);
+    virtual void syncTouch(nsecs_t when, RawState* outState);
     virtual void configureRawPointerAxes();
     virtual bool hasStylus() const;
 
@@ -1761,7 +1870,7 @@ public:
     virtual void process(const RawEvent* rawEvent);
 
 protected:
-    virtual void syncTouch(nsecs_t when, bool* outHavePointerIds);
+    virtual void syncTouch(nsecs_t when, RawState* outState);
     virtual void configureRawPointerAxes();
     virtual bool hasStylus() const;
 
@@ -1771,6 +1880,27 @@ private:
     // Specifies the pointer id bits that are in use, and their associated tracking id.
     BitSet32 mPointerIdBits;
     int32_t mPointerTrackingIdMap[MAX_POINTER_ID + 1];
+};
+
+class ExternalStylusInputMapper : public InputMapper {
+public:
+    ExternalStylusInputMapper(InputDevice* device);
+    virtual ~ExternalStylusInputMapper() = default;
+
+    virtual uint32_t getSources();
+    virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
+    virtual void dump(String8& dump);
+    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void reset(nsecs_t when);
+    virtual void process(const RawEvent* rawEvent);
+    virtual void sync(nsecs_t when);
+
+private:
+    SingleTouchMotionAccumulator mSingleTouchMotionAccumulator;
+    RawAbsoluteAxisInfo mRawPressureAxis;
+    TouchButtonAccumulator mTouchButtonAccumulator;
+
+    StylusState mStylusState;
 };
 
 

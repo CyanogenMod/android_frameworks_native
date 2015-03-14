@@ -777,6 +777,14 @@ private:
     virtual int32_t bumpGeneration() {
         return ++mGeneration;
     }
+
+    virtual void getExternalStylusDevices(Vector<InputDeviceInfo>& outDevices) {
+
+    }
+
+    virtual void dispatchExternalStylusState(const StylusState&) {
+
+    }
 };
 
 

@@ -134,6 +134,9 @@ enum {
     /* The input device has a microphone. */
     INPUT_DEVICE_CLASS_MIC           = 0x00000400,
 
+    /* The input device is an external stylus (has data we want to fuse with touch data). */
+    INPUT_DEVICE_CLASS_EXTERNAL_STYLUS = 0x00000800,
+
     /* The input device is virtual (not a real device, not part of UI configuration). */
     INPUT_DEVICE_CLASS_VIRTUAL       = 0x40000000,
 
