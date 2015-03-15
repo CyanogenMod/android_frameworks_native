@@ -219,6 +219,7 @@ GL_API void GL_APIENTRY glWeightPointerOESBounds(GLint size, GLenum type,
         asm volatile(                                            \
             ".set  push\n\t"                                     \
             ".set  noreorder\n\t"                                \
+            ".set  mips32r2\n\t"                                 \
             "rdhwr %[tls], $29\n\t"                              \
             "lw    %[t0], %[OPENGL_API](%[tls])\n\t"             \
             "beqz  %[t0], 1f\n\t"                                \
