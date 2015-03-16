@@ -96,6 +96,7 @@ public:
     status_t            writeInt32(int32_t val);
     status_t            writeUint32(uint32_t val);
     status_t            writeInt64(int64_t val);
+    status_t            writeUint64(uint64_t val);
     status_t            writeFloat(float val);
     status_t            writeDouble(double val);
     status_t            writeCString(const char* str);
@@ -157,6 +158,8 @@ public:
     status_t            readUint32(uint32_t *pArg) const;
     int64_t             readInt64() const;
     status_t            readInt64(int64_t *pArg) const;
+    uint64_t            readUint64() const;
+    status_t            readUint64(uint64_t *pArg) const;
     float               readFloat() const;
     status_t            readFloat(float *pArg) const;
     double              readDouble() const;
