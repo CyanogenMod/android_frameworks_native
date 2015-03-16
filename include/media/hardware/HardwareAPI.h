@@ -173,17 +173,17 @@ struct MediaImage {
     };
 
     Type mType;
-    size_t mNumPlanes;              // number of planes
-    size_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
-    size_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
-    size_t mBitDepth;               // useable bit depth
+    OMX_U32 mNumPlanes;              // number of planes
+    OMX_U32 mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
+    OMX_U32 mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
+    OMX_U32 mBitDepth;               // useable bit depth
     struct PlaneInfo {
-        size_t mOffset;             // offset of first pixel of the plane in bytes
+        OMX_U32 mOffset;             // offset of first pixel of the plane in bytes
                                     // from buffer offset
-        size_t mColInc;             // column increment in bytes
-        size_t mRowInc;             // row increment in bytes
-        size_t mHorizSubsampling;   // subsampling compared to the largest plane
-        size_t mVertSubsampling;    // subsampling compared to the largest plane
+        OMX_U32 mColInc;             // column increment in bytes
+        OMX_U32 mRowInc;             // row increment in bytes
+        OMX_U32 mHorizSubsampling;   // subsampling compared to the largest plane
+        OMX_U32 mVertSubsampling;    // subsampling compared to the largest plane
     };
     PlaneInfo mPlane[MAX_NUM_PLANES];
 };
