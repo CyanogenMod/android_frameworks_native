@@ -277,4 +277,59 @@ void CpuConsumer::freeBufferLocked(int slotIndex) {
     ConsumerBase::freeBufferLocked(slotIndex);
 }
 
+status_t CpuConsumer::detachNextBuffer(BufferItem* outItem) {
+    if (outItem == NULL) {
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mMutex);
+
+    BufferItem item;
+    status_t result = acquireBufferLocked(&item, 0);
+    if (result != NO_ERROR) {
+        CC_LOGE("%s: Failed to acquire buffer (%d)", __FUNCTION__, result);
+        return result;
+    }
+
+    result = mConsumer->detachBuffer(item.mSlot);
+    if (result != NO_ERROR) {
+        CC_LOGE("%s: Failed to detach buffer (%d)", __FUNCTION__, result);
+        return result;
+    }
+
+    freeBufferLocked(item.mSlot);
+
+    *outItem = item;
+    return NO_ERROR;
+}
+
+status_t CpuConsumer::attachAndReleaseBuffer(const sp<GraphicBuffer>& buffer) {
+    if (buffer == NULL) {
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mMutex);
+
+    int slot = -1;
+    status_t result = mConsumer->attachBuffer(&slot, buffer);
+    if (result != NO_ERROR) {
+        CC_LOGE("%s: Failed to attach buffer (%d)", __FUNCTION__, result);
+        return result;
+    }
+
+    // These behaviors must be kept in sync with
+    // BufferQueueConsumer::attachBuffer
+    mSlots[slot].mGraphicBuffer = buffer;
+    mSlots[slot].mFence = Fence::NO_FENCE;
+    mSlots[slot].mFrameNumber = 0;
+
+    result = releaseBufferLocked(slot, buffer, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
+    if (result != NO_ERROR) {
+        CC_LOGE("%s: Failed to release buffer (%d)", __FUNCTION__, result);
+        return result;
+    }
+
+    return NO_ERROR;
+}
+
 } // namespace android
