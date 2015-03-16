@@ -94,6 +94,15 @@ namespace android {
             kKeyType_Release
         };
 
+        // Enumerate KeyRequestTypes to allow an app to determine the
+        // type of a key request returned from getKeyRequest.
+        enum KeyRequestType {
+            kKeyRequestType_Unknown,
+            kKeyRequestType_Initial,
+            kKeyRequestType_Renewal,
+            kKeyRequestType_Release
+        };
+
         DrmPlugin() {}
         virtual ~DrmPlugin() {}
 
@@ -136,7 +145,8 @@ namespace android {
                           Vector<uint8_t> const &initData,
                           String8 const &mimeType, KeyType keyType,
                           KeyedVector<String8, String8> const &optionalParameters,
-                          Vector<uint8_t> &request, String8 &defaultUrl) = 0;
+                          Vector<uint8_t> &request, String8 &defaultUrl,
+                          KeyRequestType *keyRequestType) = 0;
 
         //
         // After a key response is received by the app, it is provided to the
