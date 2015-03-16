@@ -114,6 +114,20 @@ class CpuConsumer : public ConsumerBase
     // lockNextBuffer.
     status_t unlockBuffer(const LockedBuffer &nativeBuffer);
 
+    // Gets the next buffer from the producer (if any), and transfers ownership
+    // of it from the queue to the caller.
+    //
+    // See IGraphicBufferConsumer::{acquireBuffer,detachBuffer} for possible
+    // error codes.
+    status_t detachNextBuffer(BufferItem* outItem);
+
+    // Transfers ownership of the buffer from the caller to the queue, and
+    // releases the buffer for use by the producer.
+    //
+    // See IGraphicBufferConsumer::{attachBuffer,releaseBuffer} for possible
+    // error codes.
+    status_t attachAndReleaseBuffer(const sp<GraphicBuffer>& buffer);
+
   private:
     // Maximum number of buffers that can be locked at a time
     size_t mMaxLockedBuffers;

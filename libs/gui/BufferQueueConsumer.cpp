@@ -247,12 +247,16 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
     ATRACE_BUFFER_INDEX(*outSlot);
     BQ_LOGV("attachBuffer(C): returning slot %d", *outSlot);
 
+    // If these are modified, they also need to be modified in
+    // CpuConsumer::attachAndReleaseBuffer
     mSlots[*outSlot].mGraphicBuffer = buffer;
+    mSlots[*outSlot].mFence = Fence::NO_FENCE;
+    mSlots[*outSlot].mFrameNumber = 0;
+
+    // Changes to these do not need to be propagated to CpuConsumer
     mSlots[*outSlot].mBufferState = BufferSlot::ACQUIRED;
     mSlots[*outSlot].mAttachedByConsumer = true;
     mSlots[*outSlot].mNeedsCleanupOnRelease = false;
-    mSlots[*outSlot].mFence = Fence::NO_FENCE;
-    mSlots[*outSlot].mFrameNumber = 0;
 
     // mAcquireCalled tells BufferQueue that it doesn't need to send a valid
     // GraphicBuffer pointer on the next acquireBuffer call, which decreases
