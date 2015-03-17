@@ -147,6 +147,7 @@ private:
     int dispatchUnlockAndPost(va_list args);
     int dispatchSetSidebandStream(va_list args);
     int dispatchSetBuffersDataSpace(va_list args);
+    int dispatchSetSurfaceDamage(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
@@ -171,6 +172,7 @@ protected:
     virtual int setBuffersDataSpace(android_dataspace dataSpace);
     virtual int setCrop(Rect const* rect);
     virtual int setUsage(uint32_t reqUsage);
+    virtual void setSurfaceDamage(android_native_rect_t* rects, size_t numRects);
 
 public:
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
@@ -296,7 +298,12 @@ private:
     sp<GraphicBuffer>           mPostedBuffer;
     bool                        mConnectedToCpu;
 
-    // must be accessed from lock/unlock thread only
+    // In the lock/unlock context, this reflects the region that the producer
+    // wished to update and whether the Surface was able to copy the previous
+    // buffer back to allow a partial update.
+    //
+    // In the dequeue/queue context, this reflects the surface damage (the
+    // damage since the last frame) passed in by the producer.
     Region mDirtyRegion;
 };
 

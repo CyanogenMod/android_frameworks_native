@@ -446,7 +446,8 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
          + sizeof(transform)
          + sizeof(stickyTransform)
          + sizeof(async)
-         + fence->getFlattenedSize();
+         + fence->getFlattenedSize()
+         + surfaceDamage.getFlattenedSize();
 }
 
 size_t IGraphicBufferProducer::QueueBufferInput::getFdCount() const {
@@ -467,7 +468,11 @@ status_t IGraphicBufferProducer::QueueBufferInput::flatten(
     FlattenableUtils::write(buffer, size, transform);
     FlattenableUtils::write(buffer, size, stickyTransform);
     FlattenableUtils::write(buffer, size, async);
-    return fence->flatten(buffer, size, fds, count);
+    status_t result = fence->flatten(buffer, size, fds, count);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    return surfaceDamage.flatten(buffer, size);
 }
 
 status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
@@ -497,7 +502,11 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
     FlattenableUtils::read(buffer, size, async);
 
     fence = new Fence();
-    return fence->unflatten(buffer, size, fds, count);
+    status_t result = fence->unflatten(buffer, size, fds, count);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    return surfaceDamage.unflatten(buffer, size);
 }
 
 }; // namespace android
