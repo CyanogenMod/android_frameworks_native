@@ -30,12 +30,18 @@ public:
     BpProducerListener(const sp<IBinder>& impl)
         : BpInterface<IProducerListener>(impl) {}
 
+    virtual ~BpProducerListener();
+
     virtual void onBufferReleased() {
         Parcel data, reply;
         data.writeInterfaceToken(IProducerListener::getInterfaceDescriptor());
         remote()->transact(ON_BUFFER_RELEASED, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
+
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpProducerListener::~BpProducerListener() {}
 
 IMPLEMENT_META_INTERFACE(ProducerListener, "android.gui.IProducerListener")
 

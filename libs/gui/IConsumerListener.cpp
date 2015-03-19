@@ -40,6 +40,8 @@ public:
         : BpInterface<IConsumerListener>(impl) {
     }
 
+    virtual ~BpConsumerListener();
+
     virtual void onFrameAvailable(const BufferItem& item) {
         Parcel data, reply;
         data.writeInterfaceToken(IConsumerListener::getInterfaceDescriptor());
@@ -59,6 +61,10 @@ public:
         remote()->transact(ON_SIDEBAND_STREAM_CHANGED, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
+
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpConsumerListener::~BpConsumerListener() {}
 
 IMPLEMENT_META_INTERFACE(ConsumerListener, "android.gui.IConsumerListener");
 

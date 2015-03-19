@@ -42,14 +42,17 @@ public:
     {
     }
 
-    virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t w, uint32_t h,
-            PixelFormat format, uint32_t usage, status_t* error) {
+    virtual ~BpGraphicBufferAlloc();
+
+    virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t width,
+            uint32_t height, PixelFormat format, uint32_t usage,
+            status_t* error) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferAlloc::getInterfaceDescriptor());
-        data.writeInt32(w);
-        data.writeInt32(h);
-        data.writeInt32(format);
-        data.writeInt32(usage);
+        data.writeUint32(width);
+        data.writeUint32(height);
+        data.writeInt32(static_cast<int32_t>(format));
+        data.writeUint32(usage);
         remote()->transact(CREATE_GRAPHIC_BUFFER, data, &reply);
         sp<GraphicBuffer> graphicBuffer;
         status_t result = reply.readInt32();
@@ -65,6 +68,10 @@ public:
     }
 };
 
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpGraphicBufferAlloc::~BpGraphicBufferAlloc() {}
+
 IMPLEMENT_META_INTERFACE(GraphicBufferAlloc, "android.ui.IGraphicBufferAlloc");
 
 // ----------------------------------------------------------------------
@@ -74,27 +81,26 @@ status_t BnGraphicBufferAlloc::onTransact(
 {
     // codes that don't require permission check
 
-    /* BufferReference just keeps a strong reference to a
-     * GraphicBuffer until it is destroyed (that is, until
-     * no local or remote process have a reference to it).
-     */
+    // BufferReference just keeps a strong reference to a GraphicBuffer until it
+    // is destroyed (that is, until no local or remote process have a reference
+    // to it).
     class BufferReference : public BBinder {
-        sp<GraphicBuffer> buffer;
+        sp<GraphicBuffer> mBuffer;
     public:
-        BufferReference(const sp<GraphicBuffer>& buffer) : buffer(buffer) { }
+        BufferReference(const sp<GraphicBuffer>& buffer) : mBuffer(buffer) {}
     };
 
 
-    switch(code) {
+    switch (code) {
         case CREATE_GRAPHIC_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferAlloc, data, reply);
-            uint32_t w = data.readInt32();
-            uint32_t h = data.readInt32();
-            PixelFormat format = data.readInt32();
-            uint32_t usage = data.readInt32();
+            uint32_t width = data.readUint32();
+            uint32_t height = data.readUint32();
+            PixelFormat format = static_cast<PixelFormat>(data.readInt32());
+            uint32_t usage = data.readUint32();
             status_t error;
             sp<GraphicBuffer> result =
-                    createGraphicBuffer(w, h, format, usage, &error);
+                    createGraphicBuffer(width, height, format, usage, &error);
             reply->writeInt32(error);
             if (result != 0) {
                 reply->write(*result);
@@ -107,7 +113,7 @@ status_t BnGraphicBufferAlloc::onTransact(
                 reply->writeStrongBinder( new BufferReference(result) );
             }
             return NO_ERROR;
-        } break;
+        }
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }

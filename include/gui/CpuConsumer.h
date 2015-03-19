@@ -71,7 +71,7 @@ class CpuConsumer : public ConsumerBase
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies
     // how many buffers can be locked for user access at the same time.
     CpuConsumer(const sp<IGraphicBufferConsumer>& bq,
-            uint32_t maxLockedBuffers, bool controlledByApp = false);
+            size_t maxLockedBuffers, bool controlledByApp = false);
 
     virtual ~CpuConsumer();
 
@@ -86,10 +86,9 @@ class CpuConsumer : public ConsumerBase
     status_t setDefaultBufferSize(uint32_t width, uint32_t height);
 
     // setDefaultBufferFormat allows CpuConsumer's BufferQueue to create buffers
-    // of a defaultFormat if no format is specified by producer. Formats are
-    // enumerated in graphics.h; the initial default is
-    // HAL_PIXEL_FORMAT_RGBA_8888.
-    status_t setDefaultBufferFormat(uint32_t defaultFormat);
+    // of a defaultFormat if no format is specified by producer.
+    // The initial default is PIXEL_FORMAT_RGBA_8888.
+    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
 
     // Gets the next graphics buffer from the producer and locks it for CPU use,
     // filling out the passed-in locked buffer structure with the native pointer
@@ -110,9 +109,9 @@ class CpuConsumer : public ConsumerBase
 
   private:
     // Maximum number of buffers that can be locked at a time
-    uint32_t mMaxLockedBuffers;
+    size_t mMaxLockedBuffers;
 
-    status_t releaseAcquiredBufferLocked(int lockedIdx);
+    status_t releaseAcquiredBufferLocked(size_t lockedIdx);
 
     virtual void freeBufferLocked(int slotIndex);
 
@@ -133,7 +132,7 @@ class CpuConsumer : public ConsumerBase
     Vector<AcquiredBuffer> mAcquiredBuffers;
 
     // Count of currently locked buffers
-    uint32_t mCurrentLockedBuffers;
+    size_t mCurrentLockedBuffers;
 
 };
 
