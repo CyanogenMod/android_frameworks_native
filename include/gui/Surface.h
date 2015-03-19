@@ -157,6 +157,7 @@ protected:
 
     virtual int lockBuffer_DEPRECATED(ANativeWindowBuffer* buffer);
 
+    virtual int connect(int api, const sp<IProducerListener>& listener);
     virtual int connect(int api);
     virtual int disconnect(int api);
     virtual int setBufferCount(int bufferCount);
