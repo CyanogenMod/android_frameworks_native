@@ -440,7 +440,7 @@ int main(int argc, char *argv[]) {
 
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
-    FILE *oom_adj = fopen("/proc/self/oom_adj", "w");
+    FILE *oom_adj = fopen("/proc/self/oom_adj", "we");
     if (oom_adj) {
         fputs("-17", oom_adj);
         fclose(oom_adj);
@@ -473,15 +473,14 @@ int main(int argc, char *argv[]) {
     /* open the vibrator before dropping root */
     FILE *vibrator = 0;
     if (do_vibrate) {
-        vibrator = fopen("/sys/class/timed_output/vibrator/enable", "w");
+        vibrator = fopen("/sys/class/timed_output/vibrator/enable", "we");
         if (vibrator) {
-            fcntl(fileno(vibrator), F_SETFD, FD_CLOEXEC);
             vibrate(vibrator, 150);
         }
     }
 
     /* read /proc/cmdline before dropping root */
-    FILE *cmdline = fopen("/proc/cmdline", "r");
+    FILE *cmdline = fopen("/proc/cmdline", "re");
     if (cmdline != NULL) {
         fgets(cmdline_buf, sizeof(cmdline_buf), cmdline);
         fclose(cmdline);
