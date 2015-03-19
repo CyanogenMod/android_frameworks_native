@@ -104,7 +104,7 @@ static void __for_each_pid(void (*helper)(int, const char *, void *), const char
 
         sprintf(cmdpath,"/proc/%d/cmdline", pid);
         memset(cmdline, 0, sizeof(cmdline));
-        if ((fd = TEMP_FAILURE_RETRY(open(cmdpath, O_RDONLY))) < 0) {
+        if ((fd = TEMP_FAILURE_RETRY(open(cmdpath, O_RDONLY | O_CLOEXEC))) < 0) {
             strcpy(cmdline, "N/A");
         } else {
             read(fd, cmdline, sizeof(cmdline) - 1);
@@ -155,7 +155,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
 
         sprintf(commpath,"/proc/%d/comm", tid);
         memset(comm, 0, sizeof(comm));
-        if ((fd = TEMP_FAILURE_RETRY(open(commpath, O_RDONLY))) < 0) {
+        if ((fd = TEMP_FAILURE_RETRY(open(commpath, O_RDONLY | O_CLOEXEC))) < 0) {
             strcpy(comm, "N/A");
         } else {
             char *c;
@@ -186,7 +186,7 @@ void show_wchan(int pid, int tid, const char *name) {
     memset(buffer, 0, sizeof(buffer));
 
     sprintf(path, "/proc/%d/wchan", tid);
-    if ((fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY))) < 0) {
+    if ((fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC))) < 0) {
         printf("Failed to open '%s' (%s)\n", path, strerror(errno));
         return;
     }
@@ -483,6 +483,7 @@ void redirect_to_socket(FILE *redirect, const char *service) {
         fprintf(stderr, "android_get_control_socket(%s): %s\n", service, strerror(errno));
         exit(1);
     }
+    fcntl(s, F_SETFD, FD_CLOEXEC);
     if (listen(s, 4) < 0) {
         fprintf(stderr, "listen(control socket): %s\n", strerror(errno));
         exit(1);
@@ -519,7 +520,7 @@ void redirect_to_file(FILE *redirect, char *path) {
         }
     }
 
-    int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC,
+    int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
                                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", path, strerror(errno));
@@ -575,7 +576,7 @@ const char *dump_traces() {
     }
 
     /* create a new, empty traces.txt file to receive stack dumps */
-    int fd = TEMP_FAILURE_RETRY(open(traces_path, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW,
+    int fd = TEMP_FAILURE_RETRY(open(traces_path, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW | O_CLOEXEC,
                                      0666));  /* -rw-rw-rw- */
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", traces_path, strerror(errno));
@@ -626,7 +627,7 @@ const char *dump_traces() {
         if (!strncmp(data, "/system/bin/app_process", strlen("/system/bin/app_process"))) {
             /* skip zygote -- it won't dump its stack anyway */
             snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-            int cfd = TEMP_FAILURE_RETRY(open(path, O_RDONLY));
+            int cfd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC));
             len = read(cfd, data, sizeof(data) - 1);
             close(cfd);
             if (len <= 0) {
@@ -711,7 +712,7 @@ error_close_fd:
 void dump_route_tables() {
     const char* const RT_TABLES_PATH = "/data/misc/net/rt_tables";
     dump_file("RT_TABLES", RT_TABLES_PATH);
-    FILE* fp = fopen(RT_TABLES_PATH, "r");
+    FILE* fp = fopen(RT_TABLES_PATH, "re");
     if (!fp) {
         printf("*** %s: %s\n", RT_TABLES_PATH, strerror(errno));
         return;
