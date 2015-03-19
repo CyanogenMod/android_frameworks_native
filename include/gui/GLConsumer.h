@@ -150,7 +150,7 @@ public:
     //
     // The frame number is an incrementing counter set to 0 at the creation of
     // the BufferQueue associated with this consumer.
-    int64_t getFrameNumber();
+    uint64_t getFrameNumber();
 
     // setDefaultBufferSize is used to set the size of buffers returned by
     // requestBuffers when a with and height of zero is requested.
@@ -197,7 +197,7 @@ public:
 
     // These functions call the corresponding BufferQueue implementation
     // so the refactoring can proceed smoothly
-    status_t setDefaultBufferFormat(uint32_t defaultFormat);
+    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
 
@@ -254,7 +254,7 @@ protected:
         return releaseBufferLocked(slot, graphicBuffer, mEglDisplay, eglFence);
     }
 
-    static bool isExternalFormat(uint32_t format);
+    static bool isExternalFormat(PixelFormat format);
 
     // This releases the buffer in the slot referenced by mCurrentTexture,
     // then updates state to refer to the BufferItem, which must be a
@@ -391,7 +391,7 @@ private:
 
     // mCurrentFrameNumber is the frame counter for the current texture.
     // It gets set each time updateTexImage is called.
-    int64_t mCurrentFrameNumber;
+    uint64_t mCurrentFrameNumber;
 
     uint32_t mDefaultWidth, mDefaultHeight;
 

@@ -45,6 +45,8 @@ public:
     {
     }
 
+    virtual ~BpSensorEventConnection();
+
     virtual sp<BitTube> getSensorChannel() const
     {
         Parcel data, reply;
@@ -85,6 +87,10 @@ public:
     }
 };
 
+// Out-of-line virtual method definition to trigger vtable emission in this
+// translation unit (see clang warning -Wweak-vtables)
+BpSensorEventConnection::~BpSensorEventConnection() {}
+
 IMPLEMENT_META_INTERFACE(SensorEventConnection, "android.gui.SensorEventConnection");
 
 // ----------------------------------------------------------------------------
@@ -98,7 +104,7 @@ status_t BnSensorEventConnection::onTransact(
             sp<BitTube> channel(getSensorChannel());
             channel->writeToParcel(reply);
             return NO_ERROR;
-        } break;
+        }
         case ENABLE_DISABLE: {
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
             int handle = data.readInt32();
@@ -110,21 +116,21 @@ status_t BnSensorEventConnection::onTransact(
                                             maxBatchReportLatencyNs, reservedFlags);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case SET_EVENT_RATE: {
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
             int handle = data.readInt32();
-            int ns = data.readInt64();
+            nsecs_t ns = data.readInt64();
             status_t result = setEventRate(handle, ns);
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
         case FLUSH_SENSOR: {
             CHECK_INTERFACE(ISensorEventConnection, data, reply);
             status_t result = flush();
             reply->writeInt32(result);
             return NO_ERROR;
-        } break;
+        }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

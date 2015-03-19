@@ -24,8 +24,8 @@ const char* BufferSlot::bufferStateName(BufferState state) {
         case BufferSlot::QUEUED: return "QUEUED";
         case BufferSlot::FREE: return "FREE";
         case BufferSlot::ACQUIRED: return "ACQUIRED";
-        default: return "Unknown";
     }
+    return "Unknown";
 }
 
 } // namespace android
