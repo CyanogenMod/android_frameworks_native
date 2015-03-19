@@ -899,14 +899,14 @@ Rect GLConsumer::getCurrentCrop() const {
 
         // The crop is too wide
         if (newWidth < currentWidth) {
-            uint32_t dw = (newWidth - currentWidth) / 2;
-            outCrop.left -=dw;
-            outCrop.right += dw;
+            uint32_t dw = (currentWidth - newWidth) / 2;
+            outCrop.left += dw;
+            outCrop.right -= dw;
         // The crop is too tall
         } else if (newHeight < currentHeight) {
-            uint32_t dh = (newHeight - currentHeight) / 2;
-            outCrop.top -= dh;
-            outCrop.bottom += dh;
+            uint32_t dh = (currentHeight - newHeight) / 2;
+            outCrop.top += dh;
+            outCrop.bottom -= dh;
         }
 
         GLC_LOGV("getCurrentCrop final crop [%d,%d,%d,%d]",
