@@ -749,6 +749,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                              (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
                              (strcmp(vold_decrypt, "1") == 0)));
 
+    char use_jit_property[PROPERTY_VALUE_MAX];
+    bool have_jit_property = property_get("debug.usejit", use_jit_property, NULL) > 0;
+    bool use_jit = have_jit_property && strcmp(use_jit_property, "true") == 0;
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
     static const char* RUNTIME_ARG = "--runtime-arg";
@@ -812,6 +816,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         have_dex2oat_relocation_skip_flag = true;
     } else if (vm_safe_mode) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+        have_dex2oat_compiler_filter_flag = true;
+    } else if (use_jit) {
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-at-runtime");
         have_dex2oat_compiler_filter_flag = true;
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
