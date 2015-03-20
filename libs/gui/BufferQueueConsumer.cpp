@@ -176,6 +176,22 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
     return NO_ERROR;
 }
 
+status_t BufferQueueConsumer::acquireBuffer(android::BufferItem* outBuffer,
+        nsecs_t expectedPresent) {
+    if (outBuffer == nullptr) {
+        return BAD_VALUE;
+    }
+
+    BufferItem item;
+    status_t result = acquireBuffer(&item, expectedPresent);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    *outBuffer = item;
+    return NO_ERROR;
+}
+
 status_t BufferQueueConsumer::detachBuffer(int slot) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);

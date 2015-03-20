@@ -29,6 +29,7 @@
 
 #include <hardware/hardware.h>
 
+#include <gui/BufferItem.h>
 #include <gui/GLConsumer.h>
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposer.h>
@@ -210,7 +211,7 @@ status_t GLConsumer::updateTexImage() {
         return err;
     }
 
-    BufferQueue::BufferItem item;
+    BufferItem item;
 
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
@@ -342,7 +343,7 @@ sp<GraphicBuffer> GLConsumer::getDebugTexImageBuffer() {
     return sReleasedTexImageBuffer;
 }
 
-status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
+status_t GLConsumer::acquireBufferLocked(BufferItem *item,
         nsecs_t presentWhen) {
     status_t err = ConsumerBase::acquireBufferLocked(item, presentWhen);
     if (err != NO_ERROR) {
@@ -357,6 +358,17 @@ status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *item,
         mEglSlots[slot].mEglImage = new EglImage(item->mGraphicBuffer);
     }
 
+    return NO_ERROR;
+}
+
+status_t GLConsumer::acquireBufferLocked(BufferQueue::BufferItem *outItem,
+        nsecs_t presentWhen) {
+    BufferItem item;
+    status_t result = acquireBufferLocked(&item, presentWhen);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    *outItem = item;
     return NO_ERROR;
 }
 

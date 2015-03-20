@@ -48,6 +48,8 @@ public:
     // is CLOCK_MONOTONIC.
     virtual status_t acquireBuffer(BufferItem* outBuffer,
             nsecs_t expectedPresent);
+    virtual status_t acquireBuffer(android::BufferItem* outBuffer,
+            nsecs_t expectedPresent);
 
     // See IGraphicBufferConsumer::detachBuffer
     virtual status_t detachBuffer(int slot);
