@@ -96,6 +96,13 @@ class BufferItemConsumer: public ConsumerBase
     // GraphicBuffers of a defaultFormat if no format is specified
     // in dequeueBuffer
     status_t setDefaultBufferFormat(PixelFormat defaultFormat);
+
+    // setDefaultBufferDataSpace allows the BufferQueue to create
+    // GraphicBuffers of a defaultDataSpace if no data space is specified
+    // in queueBuffer.
+    // The initial default is HAL_DATASPACE_UNKNOWN
+    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
+
 };
 
 } // namespace android

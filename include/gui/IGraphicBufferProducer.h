@@ -265,6 +265,7 @@ public:
         inline QueueBufferInput(const Parcel& parcel);
         // timestamp - a monotonically increasing value in nanoseconds
         // isAutoTimestamp - if the timestamp was synthesized at queue time
+        // dataSpace - description of the contents, interpretation depends on format
         // crop - a crop rectangle that's used as a hint to the consumer
         // scalingMode - a set of flags from NATIVE_WINDOW_SCALING_* in <window.h>
         // transform - a set of flags from NATIVE_WINDOW_TRANSFORM_* in <window.h>
@@ -274,17 +275,21 @@ public:
         // sticky - the sticky transform set in Surface (only used by the LEGACY
         //          camera mode).
         inline QueueBufferInput(int64_t timestamp, bool isAutoTimestamp,
-                const Rect& crop, int scalingMode, uint32_t transform, bool async,
-                const sp<Fence>& fence, uint32_t sticky = 0)
-        : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp), crop(crop),
-          scalingMode(scalingMode), transform(transform), stickyTransform(sticky),
-          async(async), fence(fence) { }
+                android_dataspace dataSpace, const Rect& crop, int scalingMode,
+                uint32_t transform, bool async, const sp<Fence>& fence,
+                uint32_t sticky = 0)
+                : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp),
+                  dataSpace(dataSpace), crop(crop), scalingMode(scalingMode),
+                  transform(transform), stickyTransform(sticky),
+                  async(async), fence(fence) { }
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
-                Rect* outCrop, int* outScalingMode, uint32_t* outTransform,
-                bool* outAsync, sp<Fence>* outFence,
+                android_dataspace* outDataSpace,
+                Rect* outCrop, int* outScalingMode,
+                uint32_t* outTransform, bool* outAsync, sp<Fence>* outFence,
                 uint32_t* outStickyTransform = NULL) const {
             *outTimestamp = timestamp;
             *outIsAutoTimestamp = bool(isAutoTimestamp);
+            *outDataSpace = dataSpace;
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
@@ -304,6 +309,7 @@ public:
     private:
         int64_t timestamp;
         int isAutoTimestamp;
+        android_dataspace dataSpace;
         Rect crop;
         int scalingMode;
         uint32_t transform;
