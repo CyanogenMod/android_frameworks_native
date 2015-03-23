@@ -469,6 +469,7 @@ private:
     volatile nsecs_t mDebugInTransaction;
     nsecs_t mLastTransactionTime;
     bool mBootFinished;
+    bool mForceFullDamage;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
