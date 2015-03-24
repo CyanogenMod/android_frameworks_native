@@ -677,6 +677,11 @@ status_t Parcel::writeInt64(int64_t val)
     return writeAligned(val);
 }
 
+status_t Parcel::writeUint64(uint64_t val)
+{
+    return writeAligned(val);
+}
+
 status_t Parcel::writePointer(uintptr_t val)
 {
     return writeAligned<binder_uintptr_t>(val);
@@ -1058,6 +1063,16 @@ status_t Parcel::readInt64(int64_t *pArg) const
 int64_t Parcel::readInt64() const
 {
     return readAligned<int64_t>();
+}
+
+status_t Parcel::readUint64(uint64_t *pArg) const
+{
+    return readAligned(pArg);
+}
+
+uint64_t Parcel::readUint64() const
+{
+    return readAligned<uint64_t>();
 }
 
 status_t Parcel::readPointer(uintptr_t *pArg) const
