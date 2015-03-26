@@ -63,10 +63,11 @@ public:
         return v;
     }
 
-    virtual sp<ISensorEventConnection> createSensorEventConnection()
+    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
+        data.writeString8(packageName);
         remote()->transact(CREATE_SENSOR_EVENT_CONNECTION, data, &reply);
         return interface_cast<ISensorEventConnection>(reply.readStrongBinder());
     }
@@ -96,7 +97,8 @@ status_t BnSensorServer::onTransact(
         }
         case CREATE_SENSOR_EVENT_CONNECTION: {
             CHECK_INTERFACE(ISensorServer, data, reply);
-            sp<ISensorEventConnection> connection(createSensorEventConnection());
+            String8 packageName = data.readString8();
+            sp<ISensorEventConnection> connection(createSensorEventConnection(packageName));
             reply->writeStrongBinder(IInterface::asBinder(connection));
             return NO_ERROR;
         }

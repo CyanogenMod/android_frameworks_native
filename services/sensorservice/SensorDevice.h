@@ -42,6 +42,7 @@ class SensorDevice : public Singleton<SensorDevice> {
     // Struct to store all the parameters(samplingPeriod, maxBatchReportLatency and flags) from
     // batch call. For continous mode clients, maxBatchReportLatency is set to zero.
     struct BatchParams {
+      // TODO: Get rid of flags parameter everywhere.
       int flags;
       nsecs_t batchDelay, batchTimeout;
       BatchParams() : flags(0), batchDelay(0), batchTimeout(0) {}
@@ -65,7 +66,7 @@ class SensorDevice : public Singleton<SensorDevice> {
         // requested by the client.
         KeyedVector<void*, BatchParams> batchParams;
 
-        Info() : bestBatchParams(-1, -1, -1) {}
+        Info() : bestBatchParams(0, -1, -1) {}
         // Sets batch parameters for this ident. Returns error if this ident is not already present
         // in the KeyedVector above.
         status_t setBatchParamsForIdent(void* ident, int flags, int64_t samplingPeriodNs,
@@ -75,10 +76,17 @@ class SensorDevice : public Singleton<SensorDevice> {
         // Removes batchParams for an ident and re-computes bestBatchParams. Returns the index of
         // the removed ident. If index >=0, ident is present and successfully removed.
         ssize_t removeBatchParamsForIdent(void* ident);
+
+        int numActiveClients();
     };
     DefaultKeyedVector<int, Info> mActivationCount;
 
+    // Use this vector to determine which client is activated or deactivated.
+    SortedVector<void *> mDisabledClients;
     SensorDevice();
+
+    bool isClientDisabled(void* ident);
+    bool isClientDisabledLocked(void* ident);
 public:
     ssize_t getSensorList(sensor_t const** list);
     status_t initCheck() const;
@@ -90,6 +98,8 @@ public:
     // Call batch with timeout zero instead of calling setDelay() for newer devices.
     status_t setDelay(void* ident, int handle, int64_t ns);
     status_t flush(void* ident, int handle);
+    void disableAllSensors();
+    void enableAllSensors();
     void autoDisable(void *ident, int handle);
     void dump(String8& result);
 };

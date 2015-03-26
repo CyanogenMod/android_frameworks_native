@@ -40,7 +40,7 @@ namespace android {
 class ISensorServer;
 class Sensor;
 class SensorEventQueue;
-
+class String8;
 // ----------------------------------------------------------------------------
 
 class SensorManager :
@@ -53,7 +53,7 @@ public:
 
     ssize_t getSensorList(Sensor const* const** list) const;
     Sensor const* getDefaultSensor(int type);
-    sp<SensorEventQueue> createEventQueue();
+    sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""));
 
 private:
     // DeathRecipient interface
