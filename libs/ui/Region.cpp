@@ -130,43 +130,42 @@ static void reverseRectsResolvingJunctions(const Rect* begin, const Rect* end,
             // prevIndex can't be -1 here because if endLastSpan is set to a
             // value greater than -1 (allowing the loop to execute),
             // beginLastSpan (and therefore prevIndex) will also be increased
-            const Rect* prev = &dst[static_cast<size_t>(prevIndex)];
-
+            const Rect prev = dst[static_cast<size_t>(prevIndex)];
             if (spanDirection == direction_RTL) {
                 // iterating over previous span RTL, quit if it's too far left
-                if (prev->right <= left) break;
+                if (prev.right <= left) break;
 
-                if (prev->right > left && prev->right < right) {
-                    dst.add(Rect(prev->right, top, right, bottom));
-                    right = prev->right;
+                if (prev.right > left && prev.right < right) {
+                    dst.add(Rect(prev.right, top, right, bottom));
+                    right = prev.right;
                 }
 
-                if (prev->left > left && prev->left < right) {
-                    dst.add(Rect(prev->left, top, right, bottom));
-                    right = prev->left;
+                if (prev.left > left && prev.left < right) {
+                    dst.add(Rect(prev.left, top, right, bottom));
+                    right = prev.left;
                 }
 
                 // if an entry in the previous span is too far right, nothing further left in the
                 // current span will need it
-                if (prev->left >= right) {
+                if (prev.left >= right) {
                     beginLastSpan = prevIndex;
                 }
             } else {
                 // iterating over previous span LTR, quit if it's too far right
-                if (prev->left >= right) break;
+                if (prev.left >= right) break;
 
-                if (prev->left > left && prev->left < right) {
-                    dst.add(Rect(left, top, prev->left, bottom));
-                    left = prev->left;
+                if (prev.left > left && prev.left < right) {
+                    dst.add(Rect(left, top, prev.left, bottom));
+                    left = prev.left;
                 }
 
-                if (prev->right > left && prev->right < right) {
-                    dst.add(Rect(left, top, prev->right, bottom));
-                    left = prev->right;
+                if (prev.right > left && prev.right < right) {
+                    dst.add(Rect(left, top, prev.right, bottom));
+                    left = prev.right;
                 }
                 // if an entry in the previous span is too far left, nothing further right in the
                 // current span will need it
-                if (prev->right <= left) {
+                if (prev.right <= left) {
                     beginLastSpan = prevIndex;
                 }
             }
