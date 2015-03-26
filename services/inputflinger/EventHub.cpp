@@ -1293,7 +1293,10 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
     // Register with epoll.
     struct epoll_event eventItem;
     memset(&eventItem, 0, sizeof(eventItem));
-    eventItem.events = mUsingEpollWakeup ? EPOLLIN : EPOLLIN | EPOLLWAKEUP;
+    eventItem.events = EPOLLIN;
+    if (mUsingEpollWakeup) {
+        eventItem.events |= EPOLLWAKEUP;
+    }
     eventItem.data.u32 = deviceId;
     if (epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &eventItem)) {
         ALOGE("Could not add device fd to epoll instance.  errno=%d", errno);
