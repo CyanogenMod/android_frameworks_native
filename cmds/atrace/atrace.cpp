@@ -35,6 +35,7 @@
 #include <cutils/properties.h>
 
 #include <utils/String8.h>
+#include <utils/Timers.h>
 #include <utils/Trace.h>
 
 using namespace android;
@@ -192,6 +193,9 @@ static const char* k_tracingOnPath =
 static const char* k_tracePath =
     "/sys/kernel/debug/tracing/trace";
 
+static const char* k_traceMarkerPath =
+    "/sys/kernel/debug/tracing/trace_marker";
+
 // Check whether a file exists.
 static bool fileExists(const char* filename) {
     return access(filename, F_OK) != -1;
@@ -252,6 +256,14 @@ static bool writeStr(const char* filename, const char* str)
 static bool appendStr(const char* filename, const char* str)
 {
     return _writeStr(filename, str, O_APPEND|O_WRONLY);
+}
+
+static void writeClockSyncMarker()
+{
+  char buffer[128];
+  float now_in_seconds = systemTime(CLOCK_MONOTONIC) / 1000000000.0f;
+  snprintf(buffer, 128, "trace_event_clock_sync: parent_ts=%f\n", now_in_seconds);
+  writeStr(k_traceMarkerPath, buffer);
 }
 
 // Enable or disable a kernel option by writing a "1" or a "0" into a /sys
@@ -631,6 +643,7 @@ static bool startTrace()
 // Disable tracing in the kernel.
 static void stopTrace()
 {
+    writeClockSyncMarker();
     setTracingEnabled(false);
 }
 
