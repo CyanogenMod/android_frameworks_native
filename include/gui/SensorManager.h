@@ -26,6 +26,7 @@
 #include <utils/RefBase.h>
 #include <utils/Singleton.h>
 #include <utils/Vector.h>
+#include <utils/String8.h>
 
 #include <gui/SensorEventQueue.h>
 
@@ -40,7 +41,6 @@ namespace android {
 class ISensorServer;
 class Sensor;
 class SensorEventQueue;
-class String8;
 // ----------------------------------------------------------------------------
 
 class SensorManager :
