@@ -938,6 +938,42 @@ static bool ShouldUseSwapFileForDexopt() {
     return (strcmp(low_mem_buf, "true") == 0);
 }
 
+/*
+ * Computes the odex file for the given apk_path and instruction_set.
+ * /system/framework/whatever.jar -> /system/framework/oat/<isa>/whatever.odex
+ *
+ * Returns false if it failed to determine the odex file path.
+ */
+static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
+                                     const char *apk_path,
+                                     const char *instruction_set)
+{
+    if (strlen(apk_path) + strlen("oat/") + strlen(instruction_set)
+        + strlen("/") + strlen("odex") + 1 > PKG_PATH_MAX) {
+      ALOGE("apk_path '%s' may be too long to form odex file path.\n", apk_path);
+      return false;
+    }
+
+    strcpy(path, apk_path);
+    char *end = strrchr(path, '/');
+    if (end == NULL) {
+      ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
+      return false;
+    }
+    const char *apk_end = apk_path + (end - path); // strrchr(apk_path, '/');
+
+    strcpy(end + 1, "oat/");       // path = /system/framework/oat/\0
+    strcat(path, instruction_set); // path = /system/framework/oat/<isa>\0
+    strcat(path, apk_end);         // path = /system/framework/oat/<isa>/whatever.jar\0
+    end = strrchr(path, '.');
+    if (end == NULL) {
+      ALOGE("apk_path '%s' has no extension.\n", apk_path);
+      return false;
+    }
+    strcpy(end + 1, "odex");
+    return true;
+}
+
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set,
            bool vm_safe_mode, bool is_patchoat, bool debuggable)
@@ -977,21 +1013,9 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     }
 
     if (is_patchoat) {
-        /* /system/framework/whatever.jar -> /system/framework/<isa>/whatever.odex */
-        strcpy(in_odex_path, apk_path);
-        end = strrchr(in_odex_path, '/');
-        if (end == NULL) {
-            ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
-            return -1;
+        if (!calculate_odex_file_path(in_odex_path, apk_path, instruction_set)) {
+          return -1;
         }
-        const char *apk_end = apk_path + (end - in_odex_path); // strrchr(apk_path, '/');
-        strcpy(end + 1, instruction_set); // in_odex_path now is /system/framework/<isa>\0
-        strcat(in_odex_path, apk_end);
-        end = strrchr(in_odex_path, '.');
-        if (end == NULL) {
-            return -1;
-        }
-        strcpy(end + 1, "odex");
         input_file = in_odex_path;
     } else {
         input_file = apk_path;
