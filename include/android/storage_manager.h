@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup Storage
+ * @{
+ */
+
+/**
+ * @file storage_manager.h
+ */
 
 #ifndef ANDROID_STORAGE_MANAGER_H
 #define ANDROID_STORAGE_MANAGER_H
@@ -25,55 +33,62 @@ extern "C" {
 #endif
 
 struct AStorageManager;
+/**
+ * {@link AStorageManager} manages application OBB storage, a pointer
+ * can be obtained with AStorageManager_new().
+ */
 typedef struct AStorageManager AStorageManager;
 
+/**
+ * The different states of a OBB storage passed to AStorageManager_obbCallbackFunc().
+ */
 enum {
-    /*
+    /**
      * The OBB container is now mounted and ready for use. Can be returned
      * as the status for callbacks made during asynchronous OBB actions.
      */
     AOBB_STATE_MOUNTED = 1,
 
-    /*
+    /**
      * The OBB container is now unmounted and not usable. Can be returned
      * as the status for callbacks made during asynchronous OBB actions.
      */
     AOBB_STATE_UNMOUNTED = 2,
 
-    /*
+    /**
      * There was an internal system error encountered while trying to
      * mount the OBB. Can be returned as the status for callbacks made
      * during asynchronous OBB actions.
      */
     AOBB_STATE_ERROR_INTERNAL = 20,
 
-    /*
+    /**
      * The OBB could not be mounted by the system. Can be returned as the
      * status for callbacks made during asynchronous OBB actions.
      */
     AOBB_STATE_ERROR_COULD_NOT_MOUNT = 21,
 
-    /*
+    /**
      * The OBB could not be unmounted. This most likely indicates that a
      * file is in use on the OBB. Can be returned as the status for
      * callbacks made during asynchronous OBB actions.
      */
     AOBB_STATE_ERROR_COULD_NOT_UNMOUNT = 22,
 
-    /*
+    /**
      * A call was made to unmount the OBB when it was not mounted. Can be
      * returned as the status for callbacks made during asynchronous OBB
      * actions.
      */
     AOBB_STATE_ERROR_NOT_MOUNTED = 23,
 
-    /*
+    /**
      * The OBB has already been mounted. Can be returned as the status for
      * callbacks made during asynchronous OBB actions.
      */
     AOBB_STATE_ERROR_ALREADY_MOUNTED = 24,
 
-    /*
+    /**
      * The current application does not have permission to use this OBB.
      * This could be because the OBB indicates it's owned by a different
      * package. Can be returned as the status for callbacks made during
@@ -94,6 +109,16 @@ void AStorageManager_delete(AStorageManager* mgr);
 
 /**
  * Callback function for asynchronous calls made on OBB files.
+ *
+ * "state" is one of the following constants:
+ * - {@link AOBB_STATE_MOUNTED}
+ * - {@link AOBB_STATE_UNMOUNTED}
+ * - {@link AOBB_STATE_ERROR_INTERNAL}
+ * - {@link AOBB_STATE_ERROR_COULD_NOT_MOUNT}
+ * - {@link AOBB_STATE_ERROR_COULD_NOT_UNMOUNT}
+ * - {@link AOBB_STATE_ERROR_NOT_MOUNTED}
+ * - {@link AOBB_STATE_ERROR_ALREADY_MOUNTED}
+ * - {@link AOBB_STATE_ERROR_PERMISSION_DENIED}
  */
 typedef void (*AStorageManager_obbCallbackFunc)(const char* filename, const int32_t state, void* data);
 
@@ -125,3 +150,5 @@ const char* AStorageManager_getMountedObbPath(AStorageManager* mgr, const char* 
 #endif
 
 #endif      // ANDROID_STORAGE_MANAGER_H
+
+/** @} */

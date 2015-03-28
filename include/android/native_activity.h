@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup NativeActivity Native Activity
+ * @{
+ */
+
+/**
+ * @file native_activity.h
+ */
 
 #ifndef ANDROID_NATIVE_ACTIVITY_H
 #define ANDROID_NATIVE_ACTIVITY_H
@@ -31,6 +39,9 @@
 extern "C" {
 #endif
 
+/**
+ * {@link ANativeActivityCallbacks}
+ */
 struct ANativeActivityCallbacks;
 
 /**
@@ -75,17 +86,17 @@ typedef struct ANativeActivity {
      * Path to this application's internal data directory.
      */
     const char* internalDataPath;
-    
+
     /**
      * Path to this application's external (removable/mountable) data directory.
      */
     const char* externalDataPath;
-    
+
     /**
      * The platform's SDK version code.
      */
     int32_t sdkVersion;
-    
+
     /**
      * This is the native instance of the application.  It is not used by
      * the framework, but can be set by the application to its own instance
@@ -119,13 +130,13 @@ typedef struct ANativeActivityCallbacks {
      * for more information.
      */
     void (*onStart)(ANativeActivity* activity);
-    
+
     /**
      * NativeActivity has resumed.  See Java documentation for Activity.onResume()
      * for more information.
      */
     void (*onResume)(ANativeActivity* activity);
-    
+
     /**
      * Framework is asking NativeActivity to save its current instance state.
      * See Java documentation for Activity.onSaveInstanceState() for more
@@ -136,19 +147,19 @@ typedef struct ANativeActivityCallbacks {
      * entities (pointers to memory, file descriptors, etc).
      */
     void* (*onSaveInstanceState)(ANativeActivity* activity, size_t* outSize);
-    
+
     /**
      * NativeActivity has paused.  See Java documentation for Activity.onPause()
      * for more information.
      */
     void (*onPause)(ANativeActivity* activity);
-    
+
     /**
      * NativeActivity has stopped.  See Java documentation for Activity.onStop()
      * for more information.
      */
     void (*onStop)(ANativeActivity* activity);
-    
+
     /**
      * NativeActivity is being destroyed.  See Java documentation for Activity.onDestroy()
      * for more information.
@@ -160,7 +171,7 @@ typedef struct ANativeActivityCallbacks {
      * for example, to pause a game when it loses input focus.
      */
     void (*onWindowFocusChanged)(ANativeActivity* activity, int hasFocus);
-    
+
     /**
      * The drawing window for this native activity has been created.  You
      * can use the given native window object to start drawing.
@@ -191,13 +202,13 @@ typedef struct ANativeActivityCallbacks {
      * returning from here.
      */
     void (*onNativeWindowDestroyed)(ANativeActivity* activity, ANativeWindow* window);
-    
+
     /**
      * The input queue for this native activity's window has been created.
      * You can use the given input queue to start retrieving input events.
      */
     void (*onInputQueueCreated)(ANativeActivity* activity, AInputQueue* queue);
-    
+
     /**
      * The input queue for this native activity's window is being destroyed.
      * You should no longer try to reference this object upon returning from this
@@ -273,7 +284,17 @@ void ANativeActivity_setWindowFlags(ANativeActivity* activity,
  * API for documentation.
  */
 enum {
+    /**
+     * Implicit request to show the input window, not as the result
+     * of a direct request by the user.
+     */
     ANATIVEACTIVITY_SHOW_SOFT_INPUT_IMPLICIT = 0x0001,
+
+    /**
+     * The user has forced the input method open (such as by
+     * long-pressing menu) so it should not be closed until they
+     * explicitly do so.
+     */
     ANATIVEACTIVITY_SHOW_SOFT_INPUT_FORCED = 0x0002,
 };
 
@@ -290,7 +311,15 @@ void ANativeActivity_showSoftInput(ANativeActivity* activity, uint32_t flags);
  * API for documentation.
  */
 enum {
+    /**
+     * The soft input window should only be hidden if it was not
+     * explicitly shown by the user.
+     */
     ANATIVEACTIVITY_HIDE_SOFT_INPUT_IMPLICIT_ONLY = 0x0001,
+    /**
+     * The soft input window should normally be hidden, unless it was
+     * originally shown with {@link ANATIVEACTIVITY_SHOW_SOFT_INPUT_FORCED}.
+     */
     ANATIVEACTIVITY_HIDE_SOFT_INPUT_NOT_ALWAYS = 0x0002,
 };
 
@@ -308,3 +337,4 @@ void ANativeActivity_hideSoftInput(ANativeActivity* activity, uint32_t flags);
 
 #endif // ANDROID_NATIVE_ACTIVITY_H
 
+/** @} */

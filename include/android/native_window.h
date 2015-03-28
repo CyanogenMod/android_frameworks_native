@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup NativeActivity Native Activity
+ * @{
+ */
+
+/**
+ * @file native_window.h
+ */
+
 #ifndef ANDROID_NATIVE_WINDOW_H
 #define ANDROID_NATIVE_WINDOW_H
 
@@ -23,18 +32,31 @@
 extern "C" {
 #endif
 
-/*
+/**
  * Pixel formats that a window can use.
  */
 enum {
+    /** Red: 8 bits, Green: 8 bits, Blue: 8 bits, Alpha: 8 bits. **/
     WINDOW_FORMAT_RGBA_8888          = 1,
+    /** Red: 8 bits, Green: 8 bits, Blue: 8 bits, Unused: 8 bits. **/
     WINDOW_FORMAT_RGBX_8888          = 2,
+    /** Red: 5 bits, Green: 6 bits, Blue: 5 bits. **/
     WINDOW_FORMAT_RGB_565            = 4,
 };
 
 struct ANativeWindow;
+/**
+ * {@link ANativeWindow} is opaque type that provides access to a native window.
+ *
+ * A pointer can be obtained using ANativeWindow_fromSurface().
+ */
 typedef struct ANativeWindow ANativeWindow;
 
+/**
+ * {@link ANativeWindow} is a struct that represents a windows buffer.
+ *
+ * A pointer can be obtained using ANativeWindow_lock().
+ */
 typedef struct ANativeWindow_Buffer {
     // The number of pixels that are show horizontally.
     int32_t width;
@@ -51,7 +73,7 @@ typedef struct ANativeWindow_Buffer {
 
     // The actual bits.
     void* bits;
-    
+
     // Do not touch.
     uint32_t reserved[6];
 } ANativeWindow_Buffer;
@@ -67,25 +89,25 @@ void ANativeWindow_acquire(ANativeWindow* window);
  */
 void ANativeWindow_release(ANativeWindow* window);
 
-/*
+/**
  * Return the current width in pixels of the window surface.  Returns a
  * negative value on error.
  */
 int32_t ANativeWindow_getWidth(ANativeWindow* window);
 
-/*
+/**
  * Return the current height in pixels of the window surface.  Returns a
  * negative value on error.
  */
 int32_t ANativeWindow_getHeight(ANativeWindow* window);
 
-/*
+/**
  * Return the current pixel format of the window surface.  Returns a
  * negative value on error.
  */
 int32_t ANativeWindow_getFormat(ANativeWindow* window);
 
-/*
+/**
  * Change the format and size of the window buffers.
  *
  * The width and height control the number of pixels in the buffers, not the
@@ -124,3 +146,5 @@ int32_t ANativeWindow_unlockAndPost(ANativeWindow* window);
 #endif
 
 #endif // ANDROID_NATIVE_WINDOW_H
+
+/** @} */
