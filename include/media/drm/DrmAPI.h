@@ -81,7 +81,9 @@ namespace android {
             kDrmPluginEventKeyNeeded,
             kDrmPluginEventKeyExpired,
             kDrmPluginEventVendorDefined,
-            kDrmPluginEventSessionReclaimed
+            kDrmPluginEventSessionReclaimed,
+            kDrmPluginEventExpirationUpdate,
+            kDrmPluginEventKeysChange,
         };
 
         // Drm keys can be for offline content or for online streaming.
@@ -101,6 +103,24 @@ namespace android {
             kKeyRequestType_Initial,
             kKeyRequestType_Renewal,
             kKeyRequestType_Release
+        };
+
+        // Enumerate KeyStatusTypes which indicate the state of a key
+        enum KeyStatusType
+        {
+            kKeyStatusType_Usable,
+            kKeyStatusType_Expired,
+            kKeyStatusType_OutputNotAllowed,
+            kKeyStatusType_StatusPending,
+            kKeyStatusType_InternalError
+        };
+
+        // Used by sendKeysChange to report the usability status of each
+        // key to the app.
+        struct KeyStatus
+        {
+            Vector<uint8_t> mKeyId;
+            KeyStatusType mType;
         };
 
         DrmPlugin() {}
@@ -326,10 +346,17 @@ namespace android {
         }
 
     protected:
-        // Plugins call sendEvent to deliver events to the java app
+        // Plugins call these methods to deliver events to the java app
         void sendEvent(EventType eventType, int extra,
                        Vector<uint8_t> const *sessionId,
                        Vector<uint8_t> const *data);
+
+        void sendExpirationUpdate(Vector<uint8_t> const *sessionId,
+                                  int64_t expiryTimeInMS);
+
+        void sendKeysChange(Vector<uint8_t> const *sessionId,
+                            Vector<DrmPlugin::KeyStatus> const *keyStatusList,
+                            bool hasNewUsableKey);
 
     private:
         Mutex mEventLock;
@@ -342,14 +369,20 @@ namespace android {
     {
     public:
         virtual void sendEvent(DrmPlugin::EventType eventType, int extra,
-                               Vector<uint8_t> const *sesionId,
+                               Vector<uint8_t> const *sessionId,
                                Vector<uint8_t> const *data) = 0;
+
+        virtual void sendExpirationUpdate(Vector<uint8_t> const *sessionId,
+                                          int64_t expiryTimeInMS) = 0;
+
+        virtual void sendKeysChange(Vector<uint8_t> const *sessionId,
+                                    Vector<DrmPlugin::KeyStatus> const *keyStatusList,
+                                    bool hasNewUsableKey) = 0;
     };
 
     inline void DrmPlugin::sendEvent(EventType eventType, int extra,
                                      Vector<uint8_t> const *sessionId,
                                      Vector<uint8_t> const *data) {
-
         mEventLock.lock();
         sp<DrmPluginListener> listener = mListener;
         mEventLock.unlock();
@@ -359,6 +392,28 @@ namespace android {
         }
     }
 
+    inline void DrmPlugin::sendExpirationUpdate(Vector<uint8_t> const *sessionId,
+                                                int64_t expiryTimeInMS) {
+        mEventLock.lock();
+        sp<DrmPluginListener> listener = mListener;
+        mEventLock.unlock();
+
+        if (listener != NULL) {
+            listener->sendExpirationUpdate(sessionId, expiryTimeInMS);
+        }
+    }
+
+    inline void DrmPlugin::sendKeysChange(Vector<uint8_t> const *sessionId,
+                                          Vector<DrmPlugin::KeyStatus> const *keyStatusList,
+                                          bool hasNewUsableKey) {
+        mEventLock.lock();
+        sp<DrmPluginListener> listener = mListener;
+        mEventLock.unlock();
+
+        if (listener != NULL) {
+            listener->sendKeysChange(sessionId, keyStatusList, hasNewUsableKey);
+        }
+    }
 }  // namespace android
 
 #endif // DRM_API_H_

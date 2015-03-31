@@ -68,7 +68,8 @@ struct CryptoPlugin {
     // the resolution of the video being decrypted.  The media player should
     // call this method when the resolution is determined and any time it
     // is subsequently changed.
-    virtual void notifyResolution(uint32_t width, uint32_t height) {}
+
+    virtual void notifyResolution(uint32_t /* width */, uint32_t /* height */) {}
 
     // If the error returned falls into the range
     // ERROR_DRM_VENDOR_MIN..ERROR_DRM_VENDOR_MAX, errorDetailMsg should be
