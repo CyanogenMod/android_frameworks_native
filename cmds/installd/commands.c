@@ -712,6 +712,14 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     bool have_dex2oat_compiler_filter_flag = property_get("dalvik.vm.dex2oat-filter",
                                                           dex2oat_compiler_filter_flag, NULL) > 0;
 
+    char dex2oat_threads_buf[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_threads_flag = property_get("dalvik.vm.dex2oat-threads", dex2oat_threads_buf,
+                                                  NULL) > 0;
+    char dex2oat_threads_arg[PROPERTY_VALUE_MAX + 2];
+    if (have_dex2oat_threads_flag) {
+        sprintf(dex2oat_threads_arg, "-j%s", dex2oat_threads_buf);
+    }
+
     char dex2oat_isa_features_key[PROPERTY_KEY_MAX];
     sprintf(dex2oat_isa_features_key, "dalvik.vm.isa.%s.features", instruction_set);
     char dex2oat_isa_features[PROPERTY_VALUE_MAX];
@@ -803,6 +811,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                + (have_dex2oat_Xms_flag ? 2 : 0)
                + (have_dex2oat_Xmx_flag ? 2 : 0)
                + (have_dex2oat_compiler_filter_flag ? 1 : 0)
+               + (have_dex2oat_threads_flag ? 1 : 0)
                + (have_dex2oat_flags ? 1 : 0)
                + (have_dex2oat_swap_fd ? 1 : 0)];
     int i = 0;
@@ -834,6 +843,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_flags) {
         argv[i++] = dex2oat_flags;
+    }
+    if (have_dex2oat_threads_flag) {
+        argv[i++] = dex2oat_threads_arg;
     }
     if (have_dex2oat_swap_fd) {
         argv[i++] = dex2oat_swap_fd;
