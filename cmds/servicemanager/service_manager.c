@@ -1,10 +1,11 @@
 /* Copyright 2008 The Android Open Source Project
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <private/android_filesystem_config.h>
 
