@@ -37,40 +37,7 @@ BufferItem::BufferItem() :
     mCrop.makeInvalid();
 }
 
-BufferItem::BufferItem(const IGraphicBufferConsumer::BufferItem& item) :
-    mGraphicBuffer(item.mGraphicBuffer),
-    mFence(item.mFence),
-    mCrop(item.mCrop),
-    mTransform(item.mTransform),
-    mScalingMode(item.mScalingMode),
-    mTimestamp(item.mTimestamp),
-    mIsAutoTimestamp(item.mIsAutoTimestamp),
-    mDataSpace(item.mDataSpace),
-    mFrameNumber(item.mFrameNumber),
-    mSlot(item.mBuf),
-    mIsDroppable(item.mIsDroppable),
-    mAcquireCalled(item.mAcquireCalled),
-    mTransformToDisplayInverse(item.mTransformToDisplayInverse) {}
-
 BufferItem::~BufferItem() {}
-
-BufferItem::operator IGraphicBufferConsumer::BufferItem() const {
-    IGraphicBufferConsumer::BufferItem bufferItem;
-    bufferItem.mGraphicBuffer = mGraphicBuffer;
-    bufferItem.mFence = mFence;
-    bufferItem.mCrop = mCrop;
-    bufferItem.mTransform = mTransform;
-    bufferItem.mScalingMode = mScalingMode;
-    bufferItem.mTimestamp = mTimestamp;
-    bufferItem.mIsAutoTimestamp = mIsAutoTimestamp;
-    bufferItem.mDataSpace = mDataSpace;
-    bufferItem.mFrameNumber = mFrameNumber;
-    bufferItem.mBuf = mSlot;
-    bufferItem.mIsDroppable = mIsDroppable;
-    bufferItem.mAcquireCalled = mAcquireCalled;
-    bufferItem.mTransformToDisplayInverse = mTransformToDisplayInverse;
-    return bufferItem;
-}
 
 size_t BufferItem::getPodSize() const {
     size_t c =  sizeof(mCrop) +
