@@ -54,7 +54,17 @@
 
 // ---------------------------------------------------------------------------
 
-#define PAD_SIZE(s) (((s)+3)&~3)
+// This macro should never be used at runtime, as a too large value
+// of s could cause an integer overflow. Instead, you should always
+// use the wrapper function pad_size()
+#define PAD_SIZE_UNSAFE(s) (((s)+3)&~3)
+
+static size_t pad_size(size_t s) {
+    if (s > (SIZE_T_MAX - 3)) {
+        abort();
+    }
+    return PAD_SIZE_UNSAFE(s);
+}
 
 // Note: must be kept in sync with android/os/StrictMode.java's PENALTY_GATHER
 #define STRICT_MODE_PENALTY_GATHER (0x40 << 16)
@@ -355,6 +365,12 @@ size_t Parcel::dataCapacity() const
 
 status_t Parcel::setDataSize(size_t size)
 {
+    if (size > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     status_t err;
     err = continueWrite(size);
     if (err == NO_ERROR) {
@@ -366,18 +382,36 @@ status_t Parcel::setDataSize(size_t size)
 
 void Parcel::setDataPosition(size_t pos) const
 {
+    if (pos > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        abort();
+    }
+
     mDataPos = pos;
     mNextObjectHint = 0;
 }
 
 status_t Parcel::setDataCapacity(size_t size)
 {
+    if (size > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     if (size > mDataCapacity) return continueWrite(size);
     return NO_ERROR;
 }
 
 status_t Parcel::setData(const uint8_t* buffer, size_t len)
 {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     status_t err = restartWrite(len);
     if (err == NO_ERROR) {
         memcpy(const_cast<uint8_t*>(data()), buffer, len);
@@ -399,6 +433,12 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
 
     if (len == 0) {
         return NO_ERROR;
+    }
+
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
     }
 
     // range checks against the source parcel size
@@ -561,6 +601,12 @@ void Parcel::setError(status_t err)
 
 status_t Parcel::finishWrite(size_t len)
 {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     //printf("Finish write of %d\n", len);
     mDataPos += len;
     ALOGV("finishWrite Setting data pos of %p to %zu", this, mDataPos);
@@ -574,6 +620,12 @@ status_t Parcel::finishWrite(size_t len)
 
 status_t Parcel::writeUnpadded(const void* data, size_t len)
 {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     size_t end = mDataPos + len;
     if (end < mDataPos) {
         // integer overflow
@@ -593,6 +645,12 @@ restart_write:
 
 status_t Parcel::write(const void* data, size_t len)
 {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     void* const d = writeInplace(len);
     if (d) {
         memcpy(d, data, len);
@@ -603,7 +661,13 @@ status_t Parcel::write(const void* data, size_t len)
 
 void* Parcel::writeInplace(size_t len)
 {
-    const size_t padded = PAD_SIZE(len);
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return NULL;
+    }
+
+    const size_t padded = pad_size(len);
 
     // sanity check for integer overflow
     if (mDataPos+padded < mDataPos) {
@@ -652,6 +716,12 @@ status_t Parcel::writeUint32(uint32_t val)
 }
 
 status_t Parcel::writeInt32Array(size_t len, const int32_t *val) {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     if (!val) {
         return writeAligned(-1);
     }
@@ -662,6 +732,12 @@ status_t Parcel::writeInt32Array(size_t len, const int32_t *val) {
     return ret;
 }
 status_t Parcel::writeByteArray(size_t len, const uint8_t *val) {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     if (!val) {
         return writeAligned(-1);
     }
@@ -840,6 +916,12 @@ status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
 {
     status_t status;
 
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     if (!mAllowFds || len <= IN_PLACE_BLOB_LIMIT) {
         ALOGV("writeBlob: write in place");
         status = writeInt32(0);
@@ -892,6 +974,12 @@ status_t Parcel::write(const FlattenableHelperInterface& val)
     const size_t len = val.getFlattenedSize();
     const size_t fd_count = val.getFdCount();
 
+    if ((len > INT32_MAX) || (fd_count > INT32_MAX)) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     err = this->writeInt32(len);
     if (err) return err;
 
@@ -899,7 +987,7 @@ status_t Parcel::write(const FlattenableHelperInterface& val)
     if (err) return err;
 
     // payload
-    void* const buf = this->writeInplace(PAD_SIZE(len));
+    void* const buf = this->writeInplace(pad_size(len));
     if (buf == NULL)
         return BAD_VALUE;
 
@@ -973,10 +1061,16 @@ void Parcel::remove(size_t /*start*/, size_t /*amt*/)
 
 status_t Parcel::read(void* outData, size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
-            && len <= PAD_SIZE(len)) {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
+    if ((mDataPos+pad_size(len)) >= mDataPos && (mDataPos+pad_size(len)) <= mDataSize
+            && len <= pad_size(len)) {
         memcpy(outData, mData+mDataPos, len);
-        mDataPos += PAD_SIZE(len);
+        mDataPos += pad_size(len);
         ALOGV("read Setting data pos of %p to %zu", this, mDataPos);
         return NO_ERROR;
     }
@@ -985,10 +1079,16 @@ status_t Parcel::read(void* outData, size_t len) const
 
 const void* Parcel::readInplace(size_t len) const
 {
-    if ((mDataPos+PAD_SIZE(len)) >= mDataPos && (mDataPos+PAD_SIZE(len)) <= mDataSize
-            && len <= PAD_SIZE(len)) {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return NULL;
+    }
+
+    if ((mDataPos+pad_size(len)) >= mDataPos && (mDataPos+pad_size(len)) <= mDataSize
+            && len <= pad_size(len)) {
         const void* data = mData+mDataPos;
-        mDataPos += PAD_SIZE(len);
+        mDataPos += pad_size(len);
         ALOGV("readInplace Setting data pos of %p to %zu", this, mDataPos);
         return data;
     }
@@ -997,7 +1097,7 @@ const void* Parcel::readInplace(size_t len) const
 
 template<class T>
 status_t Parcel::readAligned(T *pArg) const {
-    COMPILE_TIME_ASSERT_FUNCTION_SCOPE(PAD_SIZE(sizeof(T)) == sizeof(T));
+    COMPILE_TIME_ASSERT_FUNCTION_SCOPE(PAD_SIZE_UNSAFE(sizeof(T)) == sizeof(T));
 
     if ((mDataPos+sizeof(T)) <= mDataSize) {
         const void* data = mData+mDataPos;
@@ -1021,7 +1121,7 @@ T Parcel::readAligned() const {
 
 template<class T>
 status_t Parcel::writeAligned(T val) {
-    COMPILE_TIME_ASSERT_FUNCTION_SCOPE(PAD_SIZE(sizeof(T)) == sizeof(T));
+    COMPILE_TIME_ASSERT_FUNCTION_SCOPE(PAD_SIZE_UNSAFE(sizeof(T)) == sizeof(T));
 
     if ((mDataPos+sizeof(val)) <= mDataCapacity) {
 restart_write:
@@ -1162,7 +1262,7 @@ const char* Parcel::readCString() const
         const char* eos = reinterpret_cast<const char*>(memchr(str, 0, avail));
         if (eos) {
             const size_t len = eos - str;
-            mDataPos += PAD_SIZE(len+1);
+            mDataPos += pad_size(len+1);
             ALOGV("readCString Setting data pos of %p to %zu", this, mDataPos);
             return str;
         }
@@ -1321,8 +1421,14 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
     const size_t len = this->readInt32();
     const size_t fd_count = this->readInt32();
 
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     // payload
-    void const* const buf = this->readInplace(PAD_SIZE(len));
+    void const* const buf = this->readInplace(pad_size(len));
     if (buf == NULL)
         return BAD_VALUE;
 
@@ -1561,6 +1667,12 @@ void Parcel::freeDataNoInit()
 
 status_t Parcel::growData(size_t len)
 {
+    if (len > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     size_t newSize = ((mDataSize+len)*3)/2;
     return (newSize <= mDataSize)
             ? (status_t) NO_MEMORY
@@ -1569,6 +1681,12 @@ status_t Parcel::growData(size_t len)
 
 status_t Parcel::restartWrite(size_t desired)
 {
+    if (desired > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     if (mOwner) {
         freeData();
         return continueWrite(desired);
@@ -1609,6 +1727,12 @@ status_t Parcel::restartWrite(size_t desired)
 
 status_t Parcel::continueWrite(size_t desired)
 {
+    if (desired > INT32_MAX) {
+        // don't accept size_t values which may have come from an
+        // inadvertent conversion from a negative int.
+        return BAD_VALUE;
+    }
+
     // If shrinking, first adjust for any objects that appear
     // after the new data size.
     size_t objectsSize = mObjectsSize;
