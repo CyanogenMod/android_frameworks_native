@@ -988,7 +988,7 @@ static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
 
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set,
-           bool vm_safe_mode, bool is_patchoat, bool debuggable)
+           bool vm_safe_mode, bool is_patchoat, bool debuggable, const char* oat_dir)
 {
     struct utimbuf ut;
     struct stat input_stat, dex_stat;
@@ -1003,25 +1003,22 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     // Note: the cache path will require an additional 5 bytes for ".swap", but we'll try to run
     // without a swap file, if necessary.
     if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
+        ALOGE("apk_path too long '%s'\n", apk_path);
         return -1;
     }
 
-    /* Before anything else: is there a .odex file?  If so, we have
-     * precompiled the apk and there is nothing to do here.
-     *
-     * We skip this if we are doing a patchoat.
-     */
-    strcpy(out_path, apk_path);
-    end = strrchr(out_path, '.');
-    if (end != NULL && !is_patchoat) {
-        strcpy(end, ".odex");
-        if (stat(out_path, &dex_stat) == 0) {
-            return 0;
+    if (oat_dir != NULL && oat_dir[0] != '!') {
+        if (validate_apk_path(oat_dir)) {
+            ALOGE("invalid oat_dir '%s'\n", oat_dir);
+            return -1;
         }
-    }
-
-    if (create_cache_path(out_path, apk_path, instruction_set)) {
-        return -1;
+        if (calculate_oat_file_path(out_path, oat_dir, apk_path, instruction_set)) {
+            return -1;
+        }
+    } else {
+        if (create_cache_path(out_path, apk_path, instruction_set)) {
+            return -1;
+        }
     }
 
     if (is_patchoat) {
@@ -1127,8 +1124,14 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
         if (is_patchoat) {
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else {
-            run_dex2oat(input_fd, out_fd, input_file, out_path, swap_fd, pkgname, instruction_set,
-                        vm_safe_mode, debuggable);
+            const char *input_file_name = strrchr(input_file, '/');
+            if (input_file_name == NULL) {
+                input_file_name = input_file;
+            } else {
+                input_file_name++;
+            }
+            run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
+                        instruction_set, vm_safe_mode, debuggable);
         }
         exit(68);   /* only get here on exec failure */
     } else {
@@ -1701,3 +1704,70 @@ int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid)
     return ret;
 }
 
+int create_oat_dir(const char* oat_dir, const char* instruction_set)
+{
+    char oat_instr_dir[PKG_PATH_MAX];
+
+    if (validate_apk_path(oat_dir)) {
+        ALOGE("invalid apk path '%s' (bad prefix)\n", oat_dir);
+        return -1;
+    }
+    if ((mkdir(oat_dir, S_IRWXU|S_IRWXG|S_IXOTH) < 0) && (errno != EEXIST))  {
+        ALOGE("cannot create dir '%s': %s\n", oat_dir, strerror(errno));
+        return -1;
+    }
+    if (chmod(oat_dir, S_IRWXU|S_IRWXG|S_IXOTH) < 0) {
+        ALOGE("cannot chmod dir '%s': %s\n", oat_dir, strerror(errno));
+        return -1;
+    }
+    if (selinux_android_restorecon(oat_dir, 0)) {
+        ALOGE("cannot restorecon dir '%s': %s\n", oat_dir, strerror(errno));
+        return -1;
+    }
+    snprintf(oat_instr_dir, PKG_PATH_MAX, "%s/%s", oat_dir, instruction_set);
+    if ((mkdir(oat_instr_dir, S_IRWXU|S_IRWXG|S_IXOTH) < 0)  && (errno != EEXIST)) {
+        ALOGE("cannot create dir '%s': %s\n", oat_instr_dir, strerror(errno));
+        return -1;
+    }
+    if (chmod(oat_instr_dir, S_IRWXU|S_IRWXG|S_IXOTH) < 0) {
+        ALOGE("cannot chmod dir '%s': %s\n", oat_dir, strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+int rm_package_dir(const char* apk_path)
+{
+    if (validate_apk_path(apk_path)) {
+        ALOGE("invalid apk path '%s' (bad prefix)\n", apk_path);
+        return -1;
+    }
+    return delete_dir_contents(apk_path, 1 /* also_delete_dir */ , NULL /* exclusion_predicate */);
+}
+
+int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
+        const char *instruction_set) {
+    char *file_name_start;
+    char *file_name_end;
+
+    file_name_start = strrchr(apk_path, '/');
+    if (file_name_start == NULL) {
+         ALOGE("apk_path '%s' has no '/'s in it\n", apk_path);
+        return -1;
+    }
+    file_name_end = strrchr(apk_path, '.');
+    if (file_name_end < file_name_start) {
+        ALOGE("apk_path '%s' has no extension\n", apk_path);
+        return -1;
+    }
+
+    // Calculate file_name
+    int file_name_len = file_name_end - file_name_start - 1;
+    char file_name[file_name_len + 1];
+    memcpy(file_name, file_name_start + 1, file_name_len);
+    file_name[file_name_len] = '\0';
+
+    // <apk_parent_dir>/oat/<isa>/<file_name>.odex
+    snprintf(path, PKG_PATH_MAX, "%s/%s/%s.odex", oat_dir, instruction_set, file_name);
+    return 0;
+}
