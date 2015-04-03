@@ -610,6 +610,55 @@ int Surface::disconnect(int api) {
     return err;
 }
 
+int Surface::detachNextBuffer(ANativeWindowBuffer** outBuffer,
+        sp<Fence>* outFence) {
+    ATRACE_CALL();
+    ALOGV("Surface::detachNextBuffer");
+
+    if (outBuffer == NULL || outFence == NULL) {
+        return BAD_VALUE;
+    }
+
+    Mutex::Autolock lock(mMutex);
+
+    sp<GraphicBuffer> buffer(NULL);
+    sp<Fence> fence(NULL);
+    status_t result = mGraphicBufferProducer->detachNextBuffer(
+            &buffer, &fence);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    *outBuffer = buffer.get();
+    if (fence != NULL && fence->isValid()) {
+        *outFence = fence;
+    } else {
+        *outFence = Fence::NO_FENCE;
+    }
+
+    return NO_ERROR;
+}
+
+int Surface::attachBuffer(ANativeWindowBuffer* buffer)
+{
+    ATRACE_CALL();
+    ALOGV("Surface::attachBuffer");
+
+    Mutex::Autolock lock(mMutex);
+
+    sp<GraphicBuffer> graphicBuffer(static_cast<GraphicBuffer*>(buffer));
+    int32_t attachedSlot = -1;
+    status_t result = mGraphicBufferProducer->attachBuffer(
+            &attachedSlot, graphicBuffer);
+    if (result != NO_ERROR) {
+        ALOGE("attachBuffer: IGraphicBufferProducer call failed (%d)", result);
+        return result;
+    }
+    mSlots[attachedSlot].buffer = graphicBuffer;
+
+    return NO_ERROR;
+}
+
 int Surface::setUsage(uint32_t reqUsage)
 {
     ALOGV("Surface::setUsage");
