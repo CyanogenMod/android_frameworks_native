@@ -522,6 +522,7 @@ inline static const char *asString(OMX_INDEXEXTTYPE i, const char *def = "??") {
 //      case OMX_IndexParamSliceSegments:               return "ParamSliceSegments";
         case OMX_IndexConfigAutoFramerateConversion:    return "ConfigAutoFramerateConversion";
         case OMX_IndexConfigPriority:                   return "ConfigPriority";
+        case OMX_IndexConfigOperatingRate:              return "ConfigOperatingRate";
         default:                                        return asString((OMX_INDEXTYPE)i, def);
     }
 }
