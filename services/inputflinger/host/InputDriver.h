@@ -98,6 +98,19 @@ void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
 
 void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report);
 
+input_property_map_t* input_get_device_property_map(input_host_t* host,
+        input_device_identifier_t* id);
+
+input_property_t* input_get_device_property(input_host_t* host, input_property_map_t* map,
+        const char* key);
+
+const char* input_get_property_key(input_host_t* host, input_property_t* property);
+
+const char* input_get_property_value(input_host_t* host, input_property_t* property);
+
+void input_free_device_property(input_host_t* host, input_property_t* property);
+
+void input_free_device_property_map(input_host_t* host, input_property_map_t* map);
 }
 
 } // namespace android

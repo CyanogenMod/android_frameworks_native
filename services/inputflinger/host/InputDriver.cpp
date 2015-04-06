@@ -46,6 +46,12 @@ static input_host_callbacks_t kCallbacks = {
     .input_report_set_usage_int = input_report_set_usage_int,
     .input_report_set_usage_bool = input_report_set_usage_bool,
     .report_event = report_event,
+    .input_get_device_property_map = input_get_device_property_map,
+    .input_get_device_property = input_get_device_property,
+    .input_get_property_key = input_get_property_key,
+    .input_get_property_value = input_get_property_value,
+    .input_free_device_property = input_free_device_property,
+    .input_free_device_property_map = input_free_device_property_map,
 };
 
 InputDriver::InputDriver(const char* name) : mName(String8(name)) {
@@ -115,5 +121,26 @@ void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
 
 void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) { }
 
+input_property_map_t* input_get_device_property_map(input_host_t* host,
+        input_device_identifier_t* id) {
+    return nullptr;
+}
+
+input_property_t* input_get_device_property(input_host_t* host, input_property_map_t* map,
+        const char* key) {
+    return nullptr;
+}
+
+const char* input_get_property_key(input_host_t* host, input_property_t* property) {
+    return nullptr;
+}
+
+const char* input_get_property_value(input_host_t* host, input_property_t* property) {
+    return nullptr;
+}
+
+void input_free_device_property(input_host_t* host, input_property_t* property) { }
+
+void input_free_device_property_map(input_host_t* host, input_property_map_t* map) { }
 
 } // namespace android
