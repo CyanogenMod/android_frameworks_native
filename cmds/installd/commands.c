@@ -30,6 +30,7 @@ dir_rec_t android_app_dir;
 dir_rec_t android_app_private_dir;
 dir_rec_t android_app_lib_dir;
 dir_rec_t android_media_dir;
+dir_rec_t android_mnt_expand_dir;
 dir_rec_array_t android_system_dirs;
 
 int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
