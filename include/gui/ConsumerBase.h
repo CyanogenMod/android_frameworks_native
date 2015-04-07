@@ -76,6 +76,9 @@ public:
     // when a new frame becomes available.
     void setFrameAvailableListener(const wp<FrameAvailableListener>& listener);
 
+    // See IGraphicBufferConsumer::detachBuffer
+    status_t detachBuffer(int slot);
+
 private:
     ConsumerBase(const ConsumerBase&);
     void operator=(const ConsumerBase&);

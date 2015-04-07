@@ -163,6 +163,21 @@ void ConsumerBase::setFrameAvailableListener(
     mFrameAvailableListener = listener;
 }
 
+status_t ConsumerBase::detachBuffer(int slot) {
+    CB_LOGV("detachBuffer");
+    Mutex::Autolock lock(mMutex);
+
+    status_t result = mConsumer->detachBuffer(slot);
+    if (result != NO_ERROR) {
+        CB_LOGE("Failed to detach buffer: %d", result);
+        return result;
+    }
+
+    freeBufferLocked(slot);
+
+    return result;
+}
+
 void ConsumerBase::dump(String8& result) const {
     dump(result, "");
 }
