@@ -146,6 +146,15 @@ int main(int argc, char* const argv[])
                                 break;
                             }
                             data.writeInt32(atoi(argv[optind++]));
+                        } else if (strcmp(argv[optind], "i64") == 0) {
+                            optind++;
+                            if (optind >= argc) {
+                                aerr << "service: no integer supplied for 'i64'" << endl;
+                                wantsUsage = true;
+                                result = 10;
+                                break;
+                            }
+                            data.writeInt64(atoll(argv[optind++]));
                         } else if (strcmp(argv[optind], "s16") == 0) {
                             optind++;
                             if (optind >= argc) {
@@ -155,6 +164,24 @@ int main(int argc, char* const argv[])
                                 break;
                             }
                             data.writeString16(String16(argv[optind++]));
+                        } else if (strcmp(argv[optind], "f") == 0) {
+                            optind++;
+                            if (optind >= argc) {
+                                aerr << "service: no number supplied for 'f'" << endl;
+                                wantsUsage = true;
+                                result = 10;
+                                break;
+                            }
+                            data.writeFloat(atof(argv[optind++]));
+                        } else if (strcmp(argv[optind], "d") == 0) {
+                            optind++;
+                            if (optind >= argc) {
+                                aerr << "service: no number supplied for 'd'" << endl;
+                                wantsUsage = true;
+                                result = 10;
+                                break;
+                            }
+                            data.writeDouble(atof(argv[optind++]));
                         } else if (strcmp(argv[optind], "null") == 0) {
                             optind++;
                             data.writeStrongBinder(NULL);
@@ -272,9 +299,12 @@ int main(int argc, char* const argv[])
         aout << "Usage: service [-h|-?]\n"
                 "       service list\n"
                 "       service check SERVICE\n"
-                "       service call SERVICE CODE [i32 INT | s16 STR] ...\n"
+                "       service call SERVICE CODE [i32 N | i64 N | f N | d N | s16 STR ] ...\n"
                 "Options:\n"
-                "   i32: Write the integer INT into the send parcel.\n"
+                "   i32: Write the 32-bit integer N into the send parcel.\n"
+                "   i64: Write the 64-bit integer N into the send parcel.\n"
+                "   f:   Write the 32-bit single-precision number N into the send parcel.\n"
+                "   d:   Write the 64-bit double-precision number N into the send parcel.\n"
                 "   s16: Write the UTF-16 string STR into the send parcel.\n";
 //                "   intent: Write and Intent int the send parcel. ARGS can be\n"
 //                "       action=STR data=STR type=STR launchFlags=INT component=STR categories=STR[,STR,...]\n";
