@@ -17,6 +17,7 @@
 #ifndef ANDROID_GUI_BUFFERQUEUE_H
 #define ANDROID_GUI_BUFFERQUEUE_H
 
+#include <gui/BufferItem.h>
 #include <gui/BufferQueueDefs.h>
 #include <gui/IGraphicBufferConsumer.h>
 #include <gui/IGraphicBufferProducer.h>
@@ -34,7 +35,7 @@ public:
     // Attempts at runtime to increase the number of buffers past this will fail.
     enum { NUM_BUFFER_SLOTS = BufferQueueDefs::NUM_BUFFER_SLOTS };
     // Used as a placeholder slot# when the value isn't pointing to an existing buffer.
-    enum { INVALID_BUFFER_SLOT = IGraphicBufferConsumer::BufferItem::INVALID_BUFFER_SLOT };
+    enum { INVALID_BUFFER_SLOT = BufferItem::INVALID_BUFFER_SLOT };
     // Alias to <IGraphicBufferConsumer.h> -- please scope from there in future code!
     enum {
         NO_BUFFER_AVAILABLE = IGraphicBufferConsumer::NO_BUFFER_AVAILABLE,
@@ -47,7 +48,6 @@ public:
 
     // for backward source compatibility
     typedef ::android::ConsumerListener ConsumerListener;
-    typedef IGraphicBufferConsumer::BufferItem BufferItem;
 
     // ProxyConsumerListener is a ConsumerListener implementation that keeps a weak
     // reference to the actual consumer object.  It forwards all calls to that
@@ -62,7 +62,7 @@ public:
     public:
         ProxyConsumerListener(const wp<ConsumerListener>& consumerListener);
         virtual ~ProxyConsumerListener();
-        virtual void onFrameAvailable(const android::BufferItem& item);
+        virtual void onFrameAvailable(const BufferItem& item);
         virtual void onBuffersReleased();
         virtual void onSidebandStreamChanged();
     private:
