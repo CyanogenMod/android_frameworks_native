@@ -192,8 +192,8 @@ int validate_apk_path(const char *path);
 
 int append_and_increment(char** dst, const char* src, size_t* dst_size);
 
-char *build_string2(char *s1, char *s2);
-char *build_string3(char *s1, char *s2, char *s3);
+char *build_string2(const char *s1, const char *s2);
+char *build_string3(const char *s1, const char *s2, const char *s3);
 
 int ensure_dir(const char* path, mode_t mode, uid_t uid, gid_t gid);
 int ensure_media_user_dirs(userid_t userid);
@@ -227,7 +227,7 @@ int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
-int restorecon_data();
+int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
 int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
