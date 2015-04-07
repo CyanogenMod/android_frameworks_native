@@ -910,14 +910,14 @@ void finish_cache_collection(cache_t* cache)
  * The path is allowed to have at most one subdirectory and no indirections
  * to top level directories (i.e. have "..").
  */
-static int validate_path(const dir_rec_t* dir, const char* path) {
+static int validate_path(const dir_rec_t* dir, const char* path, int maxSubdirs) {
     size_t dir_len = dir->len;
     const char* subdir = strchr(path + dir_len, '/');
 
     // Only allow the path to have at most one subdirectory.
     if (subdir != NULL) {
         ++subdir;
-        if (strchr(subdir, '/') != NULL) {
+        if ((--maxSubdirs == 0) && strchr(subdir, '/') != NULL) {
             ALOGE("invalid apk path '%s' (subdir?)\n", path);
             return -1;
         }
@@ -942,7 +942,7 @@ int validate_system_app_path(const char* path) {
     for (i = 0; i < android_system_dirs.count; i++) {
         const size_t dir_len = android_system_dirs.dirs[i].len;
         if (!strncmp(path, android_system_dirs.dirs[i].path, dir_len)) {
-            return validate_path(android_system_dirs.dirs + i, path);
+            return validate_path(android_system_dirs.dirs + i, path, 1);
         }
     }
 
@@ -1042,6 +1042,7 @@ int copy_and_append(dir_rec_t* dst, const dir_rec_t* src, const char* suffix) {
 int validate_apk_path(const char *path)
 {
     const dir_rec_t* dir = NULL;
+    int maxSubdirs = 1;
 
     if (!strncmp(path, android_app_dir.path, android_app_dir.len)) {
         dir = &android_app_dir;
@@ -1049,11 +1050,14 @@ int validate_apk_path(const char *path)
         dir = &android_app_private_dir;
     } else if (!strncmp(path, android_asec_dir.path, android_asec_dir.len)) {
         dir = &android_asec_dir;
+    } else if (!strncmp(path, android_mnt_expand_dir.path, android_mnt_expand_dir.len)) {
+        dir = &android_mnt_expand_dir;
+        maxSubdirs = 2;
     } else {
         return -1;
     }
 
-    return validate_path(dir, path);
+    return validate_path(dir, path, maxSubdirs);
 }
 
 int append_and_increment(char** dst, const char* src, size_t* dst_size) {
