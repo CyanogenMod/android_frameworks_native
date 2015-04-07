@@ -61,7 +61,7 @@ int create_pkg_path(char path[PKG_PATH_MAX],
                     userid_t userid)
 {
     size_t userid_len;
-    char* userid_prefix;
+    const char* userid_prefix;
     if (userid == 0) {
         userid_prefix = PRIMARY_USER_PREFIX;
         userid_len = 0;
@@ -106,7 +106,7 @@ int create_user_path(char path[PKG_PATH_MAX],
                     userid_t userid)
 {
     size_t userid_len;
-    char* userid_prefix;
+    const char* userid_prefix;
     if (userid == 0) {
         userid_prefix = PRIMARY_USER_PREFIX;
         userid_len = 0;
@@ -516,7 +516,7 @@ static void* _cache_malloc(cache_t* cache, size_t len)
     int8_t* res = cache->curMemBlockAvail;
     int8_t* nextPos = res + len;
     if (cache->memBlocks == NULL || nextPos > cache->curMemBlockEnd) {
-        int8_t* newBlock = malloc(CACHE_BLOCK_SIZE);
+        int8_t* newBlock = (int8_t*) malloc(CACHE_BLOCK_SIZE);
         if (newBlock == NULL) {
             return NULL;
         }
@@ -1000,7 +1000,7 @@ int get_path_from_string(dir_rec_t* rec, const char* path) {
             // Add space for slash and terminating null.
             size_t dst_size = path_len + 2;
 
-            rec->path = malloc(dst_size);
+            rec->path = (char*) malloc(dst_size);
             if (rec->path == NULL) {
                 return -1;
             }
@@ -1070,13 +1070,13 @@ int append_and_increment(char** dst, const char* src, size_t* dst_size) {
     return 0;
 }
 
-char *build_string2(char *s1, char *s2) {
+char *build_string2(const char *s1, const char *s2) {
     if (s1 == NULL || s2 == NULL) return NULL;
 
     int len_s1 = strlen(s1);
     int len_s2 = strlen(s2);
     int len = len_s1 + len_s2 + 1;
-    char *result = malloc(len);
+    char *result = (char *) malloc(len);
     if (result == NULL) return NULL;
 
     strcpy(result, s1);
@@ -1085,14 +1085,14 @@ char *build_string2(char *s1, char *s2) {
     return result;
 }
 
-char *build_string3(char *s1, char *s2, char *s3) {
+char *build_string3(const char *s1, const char *s2, const char *s3) {
     if (s1 == NULL || s2 == NULL || s3 == NULL) return NULL;
 
     int len_s1 = strlen(s1);
     int len_s2 = strlen(s2);
     int len_s3 = strlen(s3);
     int len = len_s1 + len_s2 + len_s3 + 1;
-    char *result = malloc(len);
+    char *result = (char *) malloc(len);
     if (result == NULL) return NULL;
 
     strcpy(result, s1);
