@@ -17,19 +17,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LOG_TAG "utils_test"
-#include <utils/Log.h>
-
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "installd.h"
-}
+
+#undef LOG_TAG
+#define LOG_TAG "utils_test"
 
 #define TEST_DATA_DIR "/data/"
 #define TEST_APP_DIR "/data/app/"
 #define TEST_APP_PRIVATE_DIR "/data/app-private/"
 #define TEST_ASEC_DIR "/mnt/asec/"
+#define TEST_EXPAND_DIR "/mnt/expand/"
 
 #define TEST_SYSTEM_DIR1 "/system/app/"
 #define TEST_SYSTEM_DIR2 "/vendor/app/"
@@ -49,25 +48,28 @@ namespace android {
 class UtilsTest : public testing::Test {
 protected:
     virtual void SetUp() {
-        android_app_dir.path = TEST_APP_DIR;
+        android_app_dir.path = (char*) TEST_APP_DIR;
         android_app_dir.len = strlen(TEST_APP_DIR);
 
-        android_app_private_dir.path = TEST_APP_PRIVATE_DIR;
+        android_app_private_dir.path = (char*) TEST_APP_PRIVATE_DIR;
         android_app_private_dir.len = strlen(TEST_APP_PRIVATE_DIR);
 
-        android_data_dir.path = TEST_DATA_DIR;
+        android_data_dir.path = (char*) TEST_DATA_DIR;
         android_data_dir.len = strlen(TEST_DATA_DIR);
 
-        android_asec_dir.path = TEST_ASEC_DIR;
+        android_asec_dir.path = (char*) TEST_ASEC_DIR;
         android_asec_dir.len = strlen(TEST_ASEC_DIR);
+
+        android_mnt_expand_dir.path = (char*) TEST_EXPAND_DIR;
+        android_mnt_expand_dir.len = strlen(TEST_EXPAND_DIR);
 
         android_system_dirs.count = 2;
 
         android_system_dirs.dirs = (dir_rec_t*) calloc(android_system_dirs.count, sizeof(dir_rec_t));
-        android_system_dirs.dirs[0].path = TEST_SYSTEM_DIR1;
+        android_system_dirs.dirs[0].path = (char*) TEST_SYSTEM_DIR1;
         android_system_dirs.dirs[0].len = strlen(TEST_SYSTEM_DIR1);
 
-        android_system_dirs.dirs[1].path = TEST_SYSTEM_DIR2;
+        android_system_dirs.dirs[1].path = (char*) TEST_SYSTEM_DIR2;
         android_system_dirs.dirs[1].len = strlen(TEST_SYSTEM_DIR2);
     }
 
@@ -373,7 +375,7 @@ TEST_F(UtilsTest, CreatePkgPathInDir_ProtectedDir) {
     char path[PKG_PATH_MAX];
 
     dir_rec_t dir;
-    dir.path = "/data/app-private/";
+    dir.path = (char*) "/data/app-private/";
     dir.len = strlen(dir.path);
 
     EXPECT_EQ(0, create_pkg_path_in_dir(path, &dir, "com.example.package", ".apk"))
@@ -432,7 +434,7 @@ TEST_F(UtilsTest, CopyAndAppend_Normal) {
     dir_rec_t dst;
     dir_rec_t src;
 
-    src.path = "/data/";
+    src.path = (char*) "/data/";
     src.len = strlen(src.path);
 
     EXPECT_EQ(0, copy_and_append(&dst, &src, "app/"))
