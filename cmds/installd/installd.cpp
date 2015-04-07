@@ -1,16 +1,16 @@
 /*
 ** Copyright 2008, The Android Open Source Project
 **
-** Licensed under the Apache License, Version 2.0 (the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-** Unless required by applicable law or agreed to in writing, software 
-** distributed under the License is distributed on an "AS IS" BASIS, 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-** See the License for the specific language governing permissions and 
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
@@ -40,7 +40,7 @@ static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
 {
     /* apk_path, uid, is_public, pkgname, instruction_set, vm_safe_mode, should_relocate
        debuggable, outputPath */
-    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], atoi(arg[5]), 0, 
+    return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], atoi(arg[5]), 0,
                   atoi(arg[6]), arg[7]);
 }
 
@@ -205,7 +205,7 @@ struct cmdinfo cmds[] = {
 
 static int readx(int s, void *_buf, int count)
 {
-    char *buf = _buf;
+    char *buf = (char *) _buf;
     int n = 0, r;
     if (count < 0) return -1;
     while (n < count) {
@@ -226,7 +226,7 @@ static int readx(int s, void *_buf, int count)
 
 static int writex(int s, const void *_buf, int count)
 {
-    const char *buf = _buf;
+    const char *buf = (const char *) _buf;
     int n = 0, r;
     if (count < 0) return -1;
     while (n < count) {
@@ -353,14 +353,14 @@ int initialize_globals() {
     }
 
     // Get the android external app directory.
-    if (get_path_from_string(&android_mnt_expand_dir, "/mnt/expand") < 0) {
+    if (get_path_from_string(&android_mnt_expand_dir, "/mnt/expand/") < 0) {
         return -1;
     }
 
     // Take note of the system and vendor directories.
     android_system_dirs.count = 4;
 
-    android_system_dirs.dirs = calloc(android_system_dirs.count, sizeof(dir_rec_t));
+    android_system_dirs.dirs = (dir_rec_t*) calloc(android_system_dirs.count, sizeof(dir_rec_t));
     if (android_system_dirs.dirs == NULL) {
         ALOGE("Couldn't allocate array for dirs; aborting\n");
         return -1;
@@ -378,10 +378,10 @@ int initialize_globals() {
     android_system_dirs.dirs[1].path = build_string2(android_root_dir.path, PRIV_APP_SUBDIR);
     android_system_dirs.dirs[1].len = strlen(android_system_dirs.dirs[1].path);
 
-    android_system_dirs.dirs[2].path = "/vendor/app/";
+    android_system_dirs.dirs[2].path = strdup("/vendor/app/");
     android_system_dirs.dirs[2].len = strlen(android_system_dirs.dirs[2].path);
 
-    android_system_dirs.dirs[3].path = "/oem/app/";
+    android_system_dirs.dirs[3].path = strdup("/oem/app/");
     android_system_dirs.dirs[3].len = strlen(android_system_dirs.dirs[3].path);
 
     return 0;
