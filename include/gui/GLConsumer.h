@@ -198,6 +198,7 @@ public:
     // These functions call the corresponding BufferQueue implementation
     // so the refactoring can proceed smoothly
     status_t setDefaultBufferFormat(PixelFormat defaultFormat);
+    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
 
@@ -240,8 +241,8 @@ protected:
 
     // acquireBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase behavior.
-    virtual status_t acquireBufferLocked(BufferQueue::BufferItem *item,
-        nsecs_t presentWhen);
+    virtual status_t acquireBufferLocked(BufferItem *item, nsecs_t presentWhen);
+    virtual status_t acquireBufferLocked(IGraphicBufferConsumer::BufferItem *item, nsecs_t presentWhen);
 
     // releaseBufferLocked overrides the ConsumerBase method to update the
     // mEglSlots array in addition to the ConsumerBase.

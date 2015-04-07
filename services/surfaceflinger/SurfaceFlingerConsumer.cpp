@@ -21,6 +21,8 @@
 
 #include <private/gui/SyncFeatures.h>
 
+#include <gui/BufferItem.h>
+
 #include <utils/Errors.h>
 #include <utils/NativeHandle.h>
 #include <utils/Trace.h>
@@ -47,7 +49,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
         return err;
     }
 
-    BufferQueue::BufferItem item;
+    BufferItem item;
 
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
@@ -101,8 +103,8 @@ status_t SurfaceFlingerConsumer::bindTextureImage()
     return bindTextureImageLocked();
 }
 
-status_t SurfaceFlingerConsumer::acquireBufferLocked(
-        BufferQueue::BufferItem *item, nsecs_t presentWhen) {
+status_t SurfaceFlingerConsumer::acquireBufferLocked(BufferItem* item,
+        nsecs_t presentWhen) {
     status_t result = GLConsumer::acquireBufferLocked(item, presentWhen);
     if (result == NO_ERROR) {
         mTransformToDisplayInverse = item->mTransformToDisplayInverse;

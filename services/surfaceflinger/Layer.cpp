@@ -764,7 +764,6 @@ bool Layer::getOpacityForFormat(uint32_t format) {
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_BGRA_8888:
-        case HAL_PIXEL_FORMAT_sRGB_A_8888:
             return false;
     }
     // in all other case, we have no blending (also for unknown formats)
@@ -1131,7 +1130,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
-                    const IGraphicBufferConsumer::BufferItem& item) {
+                    const BufferItem& item) {
                 if (buf == NULL) {
                     return false;
                 }

@@ -381,20 +381,15 @@ EGLBoolean eglGetConfigAttrib(EGLDisplay dpy, EGLConfig config,
 // Turn linear formats into corresponding sRGB formats when colorspace is
 // EGL_GL_COLORSPACE_SRGB_KHR, or turn sRGB formats into corresponding linear
 // formats when colorspace is EGL_GL_COLORSPACE_LINEAR_KHR. In any cases where
-// the modification isn't possible, the original format is returned.
-static int modifyFormatColorspace(int fmt, EGLint colorspace) {
+// the modification isn't possible, the original dataSpace is returned.
+static android_dataspace modifyBufferDataspace( android_dataspace dataSpace,
+                                                EGLint colorspace) {
     if (colorspace == EGL_GL_COLORSPACE_LINEAR_KHR) {
-        switch (fmt) {
-            case HAL_PIXEL_FORMAT_sRGB_A_8888: return HAL_PIXEL_FORMAT_RGBA_8888;
-            case HAL_PIXEL_FORMAT_sRGB_X_8888: return HAL_PIXEL_FORMAT_RGBX_8888;
-        }
+        return HAL_DATASPACE_SRGB_LINEAR;
     } else if (colorspace == EGL_GL_COLORSPACE_SRGB_KHR) {
-        switch (fmt) {
-            case HAL_PIXEL_FORMAT_RGBA_8888: return HAL_PIXEL_FORMAT_sRGB_A_8888;
-            case HAL_PIXEL_FORMAT_RGBX_8888: return HAL_PIXEL_FORMAT_sRGB_X_8888;
-        }
+        return HAL_DATASPACE_SRGB;
     }
-    return fmt;
+    return dataSpace;
 }
 
 EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
@@ -424,6 +419,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
 
         // by default, just pick RGBA_8888
         EGLint format = HAL_PIXEL_FORMAT_RGBA_8888;
+        android_dataspace dataSpace = HAL_DATASPACE_UNKNOWN;
 
         EGLint a = 0;
         cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_ALPHA_SIZE, &a);
@@ -449,7 +445,7 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
             for (const EGLint* attr = attrib_list; *attr != EGL_NONE; attr += 2) {
                 if (*attr == EGL_GL_COLORSPACE_KHR) {
                     if (ENABLE_EGL_KHR_GL_COLORSPACE) {
-                        format = modifyFormatColorspace(format, *(attr+1));
+                        dataSpace = modifyBufferDataspace(dataSpace, *(attr+1));
                     } else {
                         // Normally we'd pass through unhandled attributes to
                         // the driver. But in case the driver implements this
@@ -467,6 +463,16 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
             int err = native_window_set_buffers_format(window, format);
             if (err != 0) {
                 ALOGE("error setting native window pixel format: %s (%d)",
+                        strerror(-err), err);
+                native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
+                return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
+            }
+        }
+
+        if (dataSpace != 0) {
+            int err = native_window_set_buffers_data_space(window, dataSpace);
+            if (err != 0) {
+                ALOGE("error setting native window pixel dataSpace: %s (%d)",
                         strerror(-err), err);
                 native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
                 return setError(EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);

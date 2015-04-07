@@ -214,10 +214,11 @@ protected:
         ASSERT_EQ(GL_NO_ERROR, glGetError());
     }
 
-    void checkLockedBuffer(PixelFormat format) {
+    void checkLockedBuffer(PixelFormat format, android_dataspace dataSpace) {
         ASSERT_EQ(mLockedBuffer.format, format);
         ASSERT_EQ(mLockedBuffer.width, DISPLAY_WIDTH);
         ASSERT_EQ(mLockedBuffer.height, DISPLAY_HEIGHT);
+        ASSERT_EQ(mLockedBuffer.dataSpace, dataSpace);
     }
 
     static bool withinTolerance(int a, int b) {
@@ -335,7 +336,8 @@ private:
         if (mLockedBuffer.format == outBuffer.format) {
             memcpy(outBuffer.bits, mLockedBuffer.data, bufferSize);
         } else {
-            ASSERT_EQ(mLockedBuffer.format, PIXEL_FORMAT_sRGB_A_8888);
+            ASSERT_EQ(mLockedBuffer.format, PIXEL_FORMAT_RGBA_8888);
+            ASSERT_EQ(mLockedBuffer.dataSpace, HAL_DATASPACE_SRGB);
             ASSERT_EQ(outBuffer.format, PIXEL_FORMAT_RGBA_8888);
             uint8_t* outPointer = reinterpret_cast<uint8_t*>(outBuffer.bits);
             for (int y = 0; y < outBuffer.height; ++y) {
@@ -380,7 +382,8 @@ TEST_F(SRGBTest, GLRenderFromSRGBTexture) {
 
     // Lock
     ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
-    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_RGBA_8888));
+    ASSERT_NO_FATAL_FAILURE(
+        checkLockedBuffer(PIXEL_FORMAT_RGBA_8888, HAL_DATASPACE_UNKNOWN));
 
     // Compare a pixel in the middle of each texture
     int midSRGBOffset = (DISPLAY_HEIGHT / 4) * mLockedBuffer.stride *
@@ -411,7 +414,8 @@ TEST_F(SRGBTest, RenderToSRGBSurface) {
 
     // Lock
     ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
-    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_RGBA_8888));
+    ASSERT_NO_FATAL_FAILURE(
+        checkLockedBuffer(PIXEL_FORMAT_RGBA_8888, HAL_DATASPACE_UNKNOWN));
 
     // Save the values of the middle pixel for later comparison against SRGB
     uint8_t values[PIXEL_SIZE] = {};
@@ -460,7 +464,8 @@ TEST_F(SRGBTest, RenderToSRGBSurface) {
     ASSERT_EQ(NO_ERROR, mCpuConsumer->lockNextBuffer(&mLockedBuffer));
 
     // Make sure we actually got the SRGB buffer on the consumer side
-    ASSERT_NO_FATAL_FAILURE(checkLockedBuffer(PIXEL_FORMAT_sRGB_A_8888));
+    ASSERT_NO_FATAL_FAILURE(
+        checkLockedBuffer(PIXEL_FORMAT_RGBA_8888, HAL_DATASPACE_SRGB));
 
     // Verify that the stored value is the same, accounting for RGB/SRGB
     for (int c = 0; c < PIXEL_SIZE; ++c) {
