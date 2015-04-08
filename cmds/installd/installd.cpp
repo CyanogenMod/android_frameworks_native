@@ -33,7 +33,7 @@ static int do_ping(char **arg __unused, char reply[REPLY_MAX] __unused)
 
 static int do_install(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return install(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]); /* pkgname, uid, gid, seinfo */
+    return install(nullptr, arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]); /* pkgname, uid, gid, seinfo */
 }
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
@@ -61,7 +61,7 @@ static int do_rm_dex(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_remove(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return uninstall(arg[0], atoi(arg[1])); /* pkgname, userid */
+    return uninstall(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
 static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
@@ -71,7 +71,7 @@ static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return fix_uid(arg[0], atoi(arg[1]), atoi(arg[2])); /* pkgname, uid, gid */
+    return fix_uid(nullptr, arg[0], atoi(arg[1]), atoi(arg[2])); /* pkgname, uid, gid */
 }
 
 static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int:free_size */
@@ -81,12 +81,12 @@ static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int
 
 static int do_rm_cache(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_cache(arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_cache(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
 static int do_rm_code_cache(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_code_cache(arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_code_cache(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
 static int do_get_size(char **arg, char reply[REPLY_MAX])
@@ -98,7 +98,7 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     int res = 0;
 
         /* pkgdir, userid, apkpath */
-    res = get_size(arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
+    res = get_size(nullptr, arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
             arg[6], &codesize, &datasize, &cachesize, &asecsize);
 
     /*
@@ -112,12 +112,12 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
 
 static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_user_data(arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_user_data(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
 }
 
 static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return make_user_data(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
+    return make_user_data(nullptr, arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
                              /* pkgname, uid, userid, seinfo */
 }
 
@@ -138,7 +138,7 @@ static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
 
 static int do_linklib(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return linklib(arg[0], arg[1], atoi(arg[2]));
+    return linklib(nullptr, arg[0], arg[1], atoi(arg[2]));
 }
 
 static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
@@ -148,7 +148,7 @@ static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((unused)))
 {
-    return restorecon_data(arg[0], arg[1], atoi(arg[2]));
+    return restorecon_data(nullptr, arg[0], arg[1], atoi(arg[2]));
                              /* pkgName, seinfo, uid*/
 }
 

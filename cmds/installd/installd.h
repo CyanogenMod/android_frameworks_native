@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <string>
 
 #include <cutils/fs.h>
 #include <cutils/sockets.h>
@@ -133,10 +134,8 @@ typedef struct {
 
 /* util.c */
 
-int create_pkg_path_in_dir(char path[PKG_PATH_MAX],
-                                const dir_rec_t* dir,
-                                const char* pkgname,
-                                const char* postfix);
+std::string create_package_data_path(const char* volume_uuid,
+        const char* package_name, userid_t user);
 
 int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *pkgname,
@@ -203,20 +202,20 @@ void remove_profile_file(const char *pkgname);
 
 /* commands.c */
 
-int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo);
-int uninstall(const char *pkgname, userid_t userid);
+int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo);
+int uninstall(const char *uuid, const char *pkgname, userid_t userid);
 int renamepkg(const char *oldpkgname, const char *newpkgname);
-int fix_uid(const char *pkgname, uid_t uid, gid_t gid);
-int delete_user_data(const char *pkgname, userid_t userid);
-int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo);
+int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid);
+int delete_user_data(const char *uuid, const char *pkgname, userid_t userid);
+int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo);
 int make_user_config(userid_t userid);
 int delete_user(userid_t userid);
-int delete_cache(const char *pkgname, userid_t userid);
-int delete_code_cache(const char *pkgname, userid_t userid);
+int delete_cache(const char *uuid, const char *pkgname, userid_t userid);
+int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid);
 int move_dex(const char *src, const char *dst, const char *instruction_set);
 int rm_dex(const char *path, const char *instruction_set);
 int protect(char *pkgname, gid_t gid);
-int get_size(const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
+int get_size(const char *uuid, const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
              const char *fwdlock_apkpath, const char *asecpath, const char *instruction_set,
              int64_t *codesize, int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
 int free_cache(int64_t free_size);
@@ -225,9 +224,9 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char* outputPath);
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
-int linklib(const char* target, const char* source, int userId);
+int linklib(const char *uuid, const char* target, const char* source, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
-int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid);
+int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
 int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,

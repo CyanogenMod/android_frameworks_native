@@ -16,86 +16,69 @@
 
 #include "installd.h"
 
+#include <base/stringprintf.h>
+#include <base/logging.h>
+
 #define CACHE_NOISY(x) //x
 
-int create_pkg_path_in_dir(char path[PKG_PATH_MAX],
-                                const dir_rec_t* dir,
-                                const char* pkgname,
-                                const char* postfix)
-{
-     const size_t postfix_len = strlen(postfix);
+using android::base::StringPrintf;
 
-     const size_t pkgname_len = strlen(pkgname);
-     if (pkgname_len > PKG_NAME_MAX) {
-         return -1;
-     }
-
-     if (is_valid_package_name(pkgname) < 0) {
-         return -1;
-     }
-
-     if ((pkgname_len + dir->len + postfix_len) >= PKG_PATH_MAX) {
-         return -1;
-     }
-
-     char *dst = path;
-     size_t dst_size = PKG_PATH_MAX;
-
-     if (append_and_increment(&dst, dir->path, &dst_size) < 0
-             || append_and_increment(&dst, pkgname, &dst_size) < 0
-             || append_and_increment(&dst, postfix, &dst_size) < 0) {
-         ALOGE("Error building APK path");
-         return -1;
-     }
-
-     return 0;
+/**
+ * Check that given string is valid filename, and that it attempts no
+ * parent or child directory traversal.
+ */
+static bool is_valid_filename(const std::string& name) {
+    if (name.empty() || (name == ".") || (name == "..")
+            || (name.find('/') != std::string::npos)) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 /**
- * Create the package path name for a given package name with a postfix for
- * a certain userid. Returns 0 on success, and -1 on failure.
+ * Create the path name where package data should be stored for the given
+ * volume UUID, package name, and user ID. An empty UUID is assumed to be
+ * internal storage.
  */
-int create_pkg_path(char path[PKG_PATH_MAX],
-                    const char *pkgname,
-                    const char *postfix,
-                    userid_t userid)
-{
-    size_t userid_len;
-    const char* userid_prefix;
-    if (userid == 0) {
-        userid_prefix = PRIMARY_USER_PREFIX;
-        userid_len = 0;
+std::string create_package_data_path(const char* volume_uuid,
+        const char* package_name, userid_t user) {
+    CHECK(is_valid_filename(package_name));
+    CHECK(is_valid_package_name(package_name) == 0);
+
+    if (volume_uuid == nullptr) {
+        if (user == 0) {
+            // /data/data/com.example
+            return StringPrintf("%sdata/%s", android_data_dir.path, package_name);
+        } else {
+            // /data/user/0/com.example
+            return StringPrintf("%suser/%u/%s", android_data_dir.path, user, package_name);
+        }
     } else {
-        userid_prefix = SECONDARY_USER_PREFIX;
-        userid_len = snprintf(NULL, 0, "%d", userid);
+        CHECK(is_valid_filename(volume_uuid));
+
+        // /mnt/expand/uuid/user/0/com.example
+        return StringPrintf("%s%s/user/%u/%s", android_mnt_expand_dir.path,
+                volume_uuid, user, package_name);
     }
+}
 
-    const size_t prefix_len = android_data_dir.len + strlen(userid_prefix)
-            + userid_len + 1 /*slash*/;
-    char prefix[prefix_len + 1];
-
-    char *dst = prefix;
-    size_t dst_size = sizeof(prefix);
-
-    if (append_and_increment(&dst, android_data_dir.path, &dst_size) < 0
-            || append_and_increment(&dst, userid_prefix, &dst_size) < 0) {
-        ALOGE("Error building prefix for APK path");
+int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
+        const char *postfix, userid_t userid) {
+    if (is_valid_package_name(pkgname) != 0) {
+        path[0] = '\0';
         return -1;
     }
 
-    if (userid != 0) {
-        int ret = snprintf(dst, dst_size, "%d/", userid);
-        if (ret < 0 || (size_t) ret != userid_len + 1) {
-            ALOGW("Error appending UID to APK path");
-            return -1;
-        }
+    std::string _tmp(create_package_data_path(nullptr, pkgname, userid) + postfix);
+    const char* tmp = _tmp.c_str();
+    if (strlen(tmp) >= PKG_PATH_MAX) {
+        path[0] = '\0';
+        return -1;
+    } else {
+        strcpy(path, tmp);
+        return 0;
     }
-
-    dir_rec_t dir;
-    dir.path = prefix;
-    dir.len = prefix_len;
-
-    return create_pkg_path_in_dir(path, &dir, pkgname, postfix);
 }
 
 /**
@@ -181,6 +164,10 @@ int create_move_path(char path[PKG_PATH_MAX],
 int is_valid_package_name(const char* pkgname) {
     const char *x = pkgname;
     int alpha = -1;
+
+    if (strlen(pkgname) > PKG_NAME_MAX) {
+        return -1;
+    }
 
     while (*x) {
         if (isalnum(*x) || (*x == '_')) {

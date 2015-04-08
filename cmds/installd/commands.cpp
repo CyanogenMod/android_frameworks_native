@@ -33,11 +33,8 @@ dir_rec_t android_media_dir;
 dir_rec_t android_mnt_expand_dir;
 dir_rec_array_t android_system_dirs;
 
-int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
+int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
 {
-    char pkgdir[PKG_PATH_MAX];
-    char libsymlink[PKG_PATH_MAX];
-    char applibdir[PKG_PATH_MAX];
     struct stat libStat;
 
     if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
@@ -45,20 +42,8 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
         return -1;
     }
 
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, 0)) {
-        ALOGE("cannot create package path\n");
-        return -1;
-    }
-
-    if (create_pkg_path(libsymlink, pkgname, PKG_LIB_POSTFIX, 0)) {
-        ALOGE("cannot create package lib symlink origin path\n");
-        return -1;
-    }
-
-    if (create_pkg_path_in_dir(applibdir, &android_app_lib_dir, pkgname, PKG_DIR_POSTFIX)) {
-        ALOGE("cannot create package lib symlink dest path\n");
-        return -1;
-    }
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, 0));
+    const char* pkgdir = _pkgdir.c_str();
 
     if (mkdir(pkgdir, 0751) < 0) {
         ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
@@ -70,42 +55,14 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
         return -1;
     }
 
-    if (lstat(libsymlink, &libStat) < 0) {
-        if (errno != ENOENT) {
-            ALOGE("couldn't stat lib dir: %s\n", strerror(errno));
-            return -1;
-        }
-    } else {
-        if (S_ISDIR(libStat.st_mode)) {
-            if (delete_dir_contents(libsymlink, 1, NULL) < 0) {
-                ALOGE("couldn't delete lib directory during install for: %s", libsymlink);
-                return -1;
-            }
-        } else if (S_ISLNK(libStat.st_mode)) {
-            if (unlink(libsymlink) < 0) {
-                ALOGE("couldn't unlink lib directory during install for: %s", libsymlink);
-                return -1;
-            }
-        }
-    }
-
     if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(libsymlink);
         unlink(pkgdir);
         return -errno;
     }
 
-    if (symlink(applibdir, libsymlink) < 0) {
-        ALOGE("couldn't symlink directory '%s' -> '%s': %s\n", libsymlink, applibdir,
-                strerror(errno));
-        unlink(pkgdir);
-        return -1;
-    }
-
     if (chown(pkgdir, uid, gid) < 0) {
         ALOGE("cannot chown dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(libsymlink);
         unlink(pkgdir);
         return -1;
     }
@@ -113,12 +70,10 @@ int install(const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
     return 0;
 }
 
-int uninstall(const char *pkgname, userid_t userid)
+int uninstall(const char *uuid, const char *pkgname, userid_t userid)
 {
-    char pkgdir[PKG_PATH_MAX];
-
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
-        return -1;
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, userid));
+    const char* pkgdir = _pkgdir.c_str();
 
     remove_profile_file(pkgname);
 
@@ -143,9 +98,8 @@ int renamepkg(const char *oldpkgname, const char *newpkgname)
     return 0;
 }
 
-int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
+int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)
 {
-    char pkgdir[PKG_PATH_MAX];
     struct stat s;
 
     if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
@@ -153,10 +107,8 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
         return -1;
     }
 
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, 0)) {
-        ALOGE("cannot create package path\n");
-        return -1;
-    }
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, 0));
+    const char* pkgdir = _pkgdir.c_str();
 
     if (stat(pkgdir, &s) < 0) return -1;
 
@@ -179,35 +131,20 @@ int fix_uid(const char *pkgname, uid_t uid, gid_t gid)
     return 0;
 }
 
-int delete_user_data(const char *pkgname, userid_t userid)
+int delete_user_data(const char *uuid, const char *pkgname, userid_t userid)
 {
-    char pkgdir[PKG_PATH_MAX];
-
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid))
-        return -1;
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, userid));
+    const char* pkgdir = _pkgdir.c_str();
 
     return delete_dir_contents(pkgdir, 0, NULL);
 }
 
-int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
+int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
 {
-    char pkgdir[PKG_PATH_MAX];
-    char applibdir[PKG_PATH_MAX];
-    char libsymlink[PKG_PATH_MAX];
     struct stat libStat;
 
-    // Create the data dir for the package
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userid)) {
-        return -1;
-    }
-    if (create_pkg_path(libsymlink, pkgname, PKG_LIB_POSTFIX, userid)) {
-        ALOGE("cannot create package lib symlink origin path\n");
-        return -1;
-    }
-    if (create_pkg_path_in_dir(applibdir, &android_app_lib_dir, pkgname, PKG_DIR_POSTFIX)) {
-        ALOGE("cannot create package lib symlink dest path\n");
-        return -1;
-    }
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, userid));
+    const char* pkgdir = _pkgdir.c_str();
 
     if (mkdir(pkgdir, 0751) < 0) {
         ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
@@ -219,47 +156,14 @@ int make_user_data(const char *pkgname, uid_t uid, userid_t userid, const char* 
         return -errno;
     }
 
-    if (lstat(libsymlink, &libStat) < 0) {
-        if (errno != ENOENT) {
-            ALOGE("couldn't stat lib dir for non-primary: %s\n", strerror(errno));
-            unlink(pkgdir);
-            return -1;
-        }
-    } else {
-        if (S_ISDIR(libStat.st_mode)) {
-            if (delete_dir_contents(libsymlink, 1, NULL) < 0) {
-                ALOGE("couldn't delete lib directory during install for non-primary: %s",
-                        libsymlink);
-                unlink(pkgdir);
-                return -1;
-            }
-        } else if (S_ISLNK(libStat.st_mode)) {
-            if (unlink(libsymlink) < 0) {
-                ALOGE("couldn't unlink lib directory during install for non-primary: %s",
-                        libsymlink);
-                unlink(pkgdir);
-                return -1;
-            }
-        }
-    }
-
     if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
         ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(libsymlink);
         unlink(pkgdir);
         return -errno;
     }
 
-    if (symlink(applibdir, libsymlink) < 0) {
-        ALOGE("couldn't symlink directory for non-primary '%s' -> '%s': %s\n", libsymlink,
-                applibdir, strerror(errno));
-        unlink(pkgdir);
-        return -1;
-    }
-
     if (chown(pkgdir, uid, uid) < 0) {
         ALOGE("cannot chown dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(libsymlink);
         unlink(pkgdir);
         return -errno;
     }
@@ -301,24 +205,23 @@ int delete_user(userid_t userid)
     return status;
 }
 
-int delete_cache(const char *pkgname, userid_t userid)
+int delete_cache(const char *uuid, const char *pkgname, userid_t userid)
 {
-    char cachedir[PKG_PATH_MAX];
-
-    if (create_pkg_path(cachedir, pkgname, CACHE_DIR_POSTFIX, userid))
-        return -1;
+    std::string _cachedir(
+            create_package_data_path(uuid, pkgname, userid) + CACHE_DIR_POSTFIX);
+    const char* cachedir = _cachedir.c_str();
 
     /* delete contents, not the directory, no exceptions */
     return delete_dir_contents(cachedir, 0, NULL);
 }
 
-int delete_code_cache(const char *pkgname, userid_t userid)
+int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid)
 {
-    char codecachedir[PKG_PATH_MAX];
-    struct stat s;
+    std::string _codecachedir(
+            create_package_data_path(uuid, pkgname, userid) + CACHE_DIR_POSTFIX);
+    const char* codecachedir = _codecachedir.c_str();
 
-    if (create_pkg_path(codecachedir, pkgname, CODE_CACHE_DIR_POSTFIX, userid))
-        return -1;
+    struct stat s;
 
     /* it's okay if code cache is missing */
     if (lstat(codecachedir, &s) == -1 && errno == ENOENT) {
@@ -336,6 +239,7 @@ int delete_code_cache(const char *pkgname, userid_t userid)
  * also require that apps constantly modify file metadata even
  * when just reading from the cache, which is pretty awful.
  */
+// TODO: extend to know about other volumes
 int free_cache(int64_t free_size)
 {
     cache_t* cache;
@@ -467,7 +371,7 @@ int rm_dex(const char *path, const char *instruction_set)
     }
 }
 
-int get_size(const char *pkgname, userid_t userid, const char *apkpath,
+int get_size(const char *uuid, const char *pkgname, userid_t userid, const char *apkpath,
              const char *libdirpath, const char *fwdlock_apkpath, const char *asecpath,
              const char *instruction_set, int64_t *_codesize, int64_t *_datasize,
              int64_t *_cachesize, int64_t* _asecsize)
@@ -524,11 +428,10 @@ int get_size(const char *pkgname, userid_t userid, const char *apkpath,
         }
     }
 
-    if (create_pkg_path(path, pkgname, PKG_DIR_POSTFIX, userid)) {
-        goto done;
-    }
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, userid));
+    const char* pkgdir = _pkgdir.c_str();
 
-    d = opendir(path);
+    d = opendir(pkgdir);
     if (d == NULL) {
         goto done;
     }
@@ -1441,21 +1344,16 @@ done:
     return 0;
 }
 
-int linklib(const char* pkgname, const char* asecLibDir, int userId)
+int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId)
 {
-    char pkgdir[PKG_PATH_MAX];
-    char libsymlink[PKG_PATH_MAX];
     struct stat s, libStat;
     int rc = 0;
 
-    if (create_pkg_path(pkgdir, pkgname, PKG_DIR_POSTFIX, userId)) {
-        ALOGE("cannot create package path\n");
-        return -1;
-    }
-    if (create_pkg_path(libsymlink, pkgname, PKG_LIB_POSTFIX, userId)) {
-        ALOGE("cannot create package lib symlink origin path\n");
-        return -1;
-    }
+    std::string _pkgdir(create_package_data_path(uuid, pkgname, userId));
+    std::string _libsymlink(_pkgdir + PKG_LIB_POSTFIX);
+
+    const char* pkgdir = _pkgdir.c_str();
+    const char* libsymlink = _libsymlink.c_str();
 
     if (stat(pkgdir, &s) < 0) return -1;
 
@@ -1624,7 +1522,8 @@ fail:
     return -1;
 }
 
-int restorecon_data(const char* pkgName, const char* seinfo, uid_t uid)
+// TODO: extend to know about other volumes
+int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, uid_t uid)
 {
     struct dirent *entry;
     DIR *d;
