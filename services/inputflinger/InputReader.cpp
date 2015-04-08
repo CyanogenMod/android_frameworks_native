@@ -417,6 +417,11 @@ InputDevice* InputReader::createDeviceLocked(int32_t deviceId, int32_t controlle
         device->setExternal(true);
     }
 
+    // Devices with mics.
+    if (classes & INPUT_DEVICE_CLASS_MIC) {
+        device->setMic(true);
+    }
+
     // Switch-like devices.
     if (classes & INPUT_DEVICE_CLASS_SWITCH) {
         device->addMapper(new SwitchInputMapper(device));
@@ -858,7 +863,7 @@ InputDevice::InputDevice(InputReaderContext* context, int32_t id, int32_t genera
         int32_t controllerNumber, const InputDeviceIdentifier& identifier, uint32_t classes) :
         mContext(context), mId(id), mGeneration(generation), mControllerNumber(controllerNumber),
         mIdentifier(identifier), mClasses(classes),
-        mSources(0), mIsExternal(false), mDropUntilNextSync(false) {
+        mSources(0), mIsExternal(false), mHasMic(false), mDropUntilNextSync(false) {
 }
 
 InputDevice::~InputDevice() {
@@ -877,6 +882,7 @@ void InputDevice::dump(String8& dump) {
             deviceInfo.getDisplayName().string());
     dump.appendFormat(INDENT2 "Generation: %d\n", mGeneration);
     dump.appendFormat(INDENT2 "IsExternal: %s\n", toString(mIsExternal));
+    dump.appendFormat(INDENT2 "HasMic:     %s\n", toString(mHasMic));
     dump.appendFormat(INDENT2 "Sources: 0x%08x\n", deviceInfo.getSources());
     dump.appendFormat(INDENT2 "KeyboardType: %d\n", deviceInfo.getKeyboardType());
 
@@ -1008,8 +1014,7 @@ void InputDevice::timeoutExpired(nsecs_t when) {
 
 void InputDevice::getDeviceInfo(InputDeviceInfo* outDeviceInfo) {
     outDeviceInfo->initialize(mId, mGeneration, mControllerNumber, mIdentifier, mAlias,
-            mIsExternal);
-
+            mIsExternal, mHasMic);
     size_t numMappers = mMappers.size();
     for (size_t i = 0; i < numMappers; i++) {
         InputMapper* mapper = mMappers[i];

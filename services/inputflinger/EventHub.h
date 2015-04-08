@@ -131,6 +131,9 @@ enum {
     /* The input device has a vibrator (supports FF_RUMBLE). */
     INPUT_DEVICE_CLASS_VIBRATOR      = 0x00000200,
 
+    /* The input device has a microphone. */
+    INPUT_DEVICE_CLASS_MIC           = 0x00000400,
+
     /* The input device is virtual (not a real device, not part of UI configuration). */
     INPUT_DEVICE_CLASS_VIRTUAL       = 0x40000000,
 
@@ -394,6 +397,7 @@ private:
     status_t loadKeyMapLocked(Device* device);
 
     bool isExternalDeviceLocked(Device* device);
+    bool deviceHasMicLocked(Device* device);
 
     int32_t getNextControllerNumberLocked(Device* device);
     void releaseControllerNumberLocked(Device* device);

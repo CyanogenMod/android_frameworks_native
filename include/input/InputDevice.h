@@ -73,7 +73,8 @@ public:
     };
 
     void initialize(int32_t id, int32_t generation, int32_t controllerNumber,
-            const InputDeviceIdentifier& identifier, const String8& alias, bool isExternal);
+            const InputDeviceIdentifier& identifier, const String8& alias, bool isExternal,
+            bool hasMic);
 
     inline int32_t getId() const { return mId; }
     inline int32_t getControllerNumber() const { return mControllerNumber; }
@@ -84,6 +85,7 @@ public:
         return mAlias.isEmpty() ? mIdentifier.name : mAlias;
     }
     inline bool isExternal() const { return mIsExternal; }
+    inline bool hasMic() const { return mHasMic; }
     inline uint32_t getSources() const { return mSources; }
 
     const MotionRange* getMotionRange(int32_t axis, uint32_t source) const;
@@ -121,6 +123,7 @@ private:
     InputDeviceIdentifier mIdentifier;
     String8 mAlias;
     bool mIsExternal;
+    bool mHasMic;
     uint32_t mSources;
     int32_t mKeyboardType;
     sp<KeyCharacterMap> mKeyCharacterMap;
