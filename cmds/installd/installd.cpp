@@ -76,7 +76,7 @@ static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int:free_size */
 {
-    return free_cache((int64_t)atoll(arg[0])); /* free_size */
+    return free_cache(nullptr, (int64_t)atoll(arg[0])); /* free_size */
 }
 
 static int do_rm_cache(char **arg, char reply[REPLY_MAX] __unused)
@@ -128,7 +128,7 @@ static int do_mk_user_config(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_rm_user(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_user(atoi(arg[0])); /* userid */
+    return delete_user(nullptr, atoi(arg[0])); /* userid */
 }
 
 static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
@@ -518,7 +518,7 @@ int initialize_directories() {
         version = 2;
     }
 
-    if (ensure_media_user_dirs(0) == -1) {
+    if (ensure_media_user_dirs(nullptr, 0) == -1) {
         ALOGE("Failed to setup media for user 0");
         goto fail;
     }
