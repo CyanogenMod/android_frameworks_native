@@ -83,6 +83,11 @@
 #define PKG_NAME_MAX  128   /* largest allowed package name */
 #define PKG_PATH_MAX  256   /* max size of any path we use */
 
+/* dexopt needed flags matching those in dalvik.system.DexFile */
+#define DEXOPT_DEX2OAT_NEEDED        1
+#define DEXOPT_PATCHOAT_NEEDED       2
+#define DEXOPT_SELF_PATCHOAT_NEEDED  3
+
 /* data structures */
 
 typedef struct {
@@ -221,8 +226,8 @@ int get_size(const char *pkgname, userid_t userid, const char *apkpath, const ch
              int64_t *codesize, int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
 int free_cache(int64_t free_size);
 int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
-           const char *instruction_set, bool vm_safe_mode, bool should_relocate, bool debuggable, 
-           const char* outputPath);
+           const char *instruction_set, int dexopt_needed, bool vm_safe_mode,
+           bool debuggable, const char* oat_dir);
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* target, const char* source, int userId);
