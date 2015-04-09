@@ -26,6 +26,14 @@
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
+static char* parse_null(char* arg) {
+    if (strcmp(arg, "!") == 0) {
+        return nullptr;
+    } else {
+        return arg;
+    }
+}
+
 static int do_ping(char **arg __unused, char reply[REPLY_MAX] __unused)
 {
     return 0;
@@ -33,7 +41,7 @@ static int do_ping(char **arg __unused, char reply[REPLY_MAX] __unused)
 
 static int do_install(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return install(nullptr, arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]); /* pkgname, uid, gid, seinfo */
+    return install(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]); /* uuid, pkgname, uid, gid, seinfo */
 }
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
@@ -61,7 +69,7 @@ static int do_rm_dex(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_remove(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return uninstall(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
+    return uninstall(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
 static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
@@ -71,22 +79,22 @@ static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return fix_uid(nullptr, arg[0], atoi(arg[1]), atoi(arg[2])); /* pkgname, uid, gid */
+    return fix_uid(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3])); /* uuid, pkgname, uid, gid */
 }
 
 static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int:free_size */
 {
-    return free_cache(nullptr, (int64_t)atoll(arg[0])); /* free_size */
+    return free_cache(parse_null(arg[0]), (int64_t)atoll(arg[1])); /* uuid, free_size */
 }
 
 static int do_rm_cache(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_cache(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
 static int do_rm_code_cache(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_code_cache(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_code_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
 static int do_get_size(char **arg, char reply[REPLY_MAX])
@@ -97,9 +105,9 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     int64_t asecsize = 0;
     int res = 0;
 
-        /* pkgdir, userid, apkpath */
-    res = get_size(nullptr, arg[0], atoi(arg[1]), arg[2], arg[3], arg[4], arg[5],
-            arg[6], &codesize, &datasize, &cachesize, &asecsize);
+        /* uuid, pkgdir, userid, apkpath */
+    res = get_size(parse_null(arg[0]), arg[1], atoi(arg[2]), arg[3], arg[4], arg[5], arg[6],
+            arg[7], &codesize, &datasize, &cachesize, &asecsize);
 
     /*
      * Each int64_t can take up 22 characters printed out. Make sure it
@@ -112,13 +120,13 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
 
 static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_user_data(nullptr, arg[0], atoi(arg[1])); /* pkgname, userid */
+    return delete_user_data(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
 static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return make_user_data(nullptr, arg[0], atoi(arg[1]), atoi(arg[2]), arg[3]);
-                             /* pkgname, uid, userid, seinfo */
+    return make_user_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]);
+                             /* uuid, pkgname, uid, userid, seinfo */
 }
 
 static int do_mk_user_config(char **arg, char reply[REPLY_MAX] __unused)
@@ -128,7 +136,7 @@ static int do_mk_user_config(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_rm_user(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return delete_user(nullptr, atoi(arg[0])); /* userid */
+    return delete_user(parse_null(arg[0]), atoi(arg[1])); /* uuid, userid */
 }
 
 static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
@@ -138,7 +146,7 @@ static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
 
 static int do_linklib(char **arg, char reply[REPLY_MAX] __unused)
 {
-    return linklib(nullptr, arg[0], arg[1], atoi(arg[2]));
+    return linklib(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
 }
 
 static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
@@ -148,8 +156,8 @@ static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
 
 static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((unused)))
 {
-    return restorecon_data(nullptr, arg[0], arg[1], atoi(arg[2]));
-                             /* pkgName, seinfo, uid*/
+    return restorecon_data(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
+                             /* uuid, pkgName, seinfo, uid*/
 }
 
 static int do_create_oat_dir(char **arg, char reply[REPLY_MAX] __unused)
@@ -172,26 +180,26 @@ struct cmdinfo {
 
 struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
-    { "install",              4, do_install },
+    { "install",              5, do_install },
     { "dexopt",               9, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "movedex",              3, do_move_dex },
     { "rmdex",                2, do_rm_dex },
-    { "remove",               2, do_remove },
+    { "remove",               3, do_remove },
     { "rename",               2, do_rename },
-    { "fixuid",               3, do_fixuid },
-    { "freecache",            1, do_free_cache },
-    { "rmcache",              2, do_rm_cache },
-    { "rmcodecache",          2, do_rm_code_cache },
-    { "getsize",              7, do_get_size },
-    { "rmuserdata",           2, do_rm_user_data },
+    { "fixuid",               4, do_fixuid },
+    { "freecache",            2, do_free_cache },
+    { "rmcache",              3, do_rm_cache },
+    { "rmcodecache",          3, do_rm_code_cache },
+    { "getsize",              8, do_get_size },
+    { "rmuserdata",           3, do_rm_user_data },
     { "movefiles",            0, do_movefiles },
-    { "linklib",              3, do_linklib },
-    { "mkuserdata",           4, do_mk_user_data },
+    { "linklib",              4, do_linklib },
+    { "mkuserdata",           5, do_mk_user_data },
     { "mkuserconfig",         1, do_mk_user_config },
-    { "rmuser",               1, do_rm_user },
+    { "rmuser",               2, do_rm_user },
     { "idmap",                3, do_idmap },
-    { "restorecondata",       3, do_restorecon_data },
+    { "restorecondata",       4, do_restorecon_data },
     { "createoatdir",         2, do_create_oat_dir },
     { "rmpackagedir",         1, do_rm_package_dir},
 };
