@@ -321,6 +321,7 @@ TEST_F(UtilsTest, CreatePkgPath_LongPkgNameSuccess) {
 
     const char *prefix = TEST_DATA_DIR PRIMARY_USER_PREFIX;
     size_t offset = strlen(prefix);
+
     EXPECT_STREQ(pkgname, path + offset)
              << "Package path should be a really long string of a's";
 }
@@ -369,20 +370,6 @@ TEST_F(UtilsTest, CreatePkgPath_SecondaryUser) {
 
     EXPECT_STREQ(TEST_DATA_DIR SECONDARY_USER_PREFIX "1/com.example.package", path)
             << "Package path should be in /data/user/";
-}
-
-TEST_F(UtilsTest, CreatePkgPathInDir_ProtectedDir) {
-    char path[PKG_PATH_MAX];
-
-    dir_rec_t dir;
-    dir.path = (char*) "/data/app-private/";
-    dir.len = strlen(dir.path);
-
-    EXPECT_EQ(0, create_pkg_path_in_dir(path, &dir, "com.example.package", ".apk"))
-            << "Should successfully create package path.";
-
-    EXPECT_STREQ("/data/app-private/com.example.package.apk", path)
-            << "Package path should be in /data/app-private/";
 }
 
 TEST_F(UtilsTest, CreatePersonaPath_Primary) {
@@ -480,6 +467,16 @@ TEST_F(UtilsTest, AppendAndIncrement_TooBig) {
 
     EXPECT_EQ(-1, append_and_increment(&dstp, src, &dst_size))
             << "String should fail because it's too large to fit";
+}
+
+TEST_F(UtilsTest, CreatePackageDataPath) {
+    EXPECT_EQ("/data/data/com.example", create_package_data_path(nullptr, "com.example", 0));
+    EXPECT_EQ("/data/user/10/com.example", create_package_data_path(nullptr, "com.example", 10));
+
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/0/com.example",
+            create_package_data_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", "com.example", 0));
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/10/com.example",
+            create_package_data_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", "com.example", 10));
 }
 
 }
