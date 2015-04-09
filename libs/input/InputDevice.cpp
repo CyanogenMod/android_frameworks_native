@@ -127,28 +127,31 @@ String8 getInputDeviceConfigurationFilePathByName(
 // --- InputDeviceInfo ---
 
 InputDeviceInfo::InputDeviceInfo() {
-    initialize(-1, 0, -1, InputDeviceIdentifier(), String8(), false);
+    initialize(-1, 0, -1, InputDeviceIdentifier(), String8(), false, false);
 }
 
 InputDeviceInfo::InputDeviceInfo(const InputDeviceInfo& other) :
         mId(other.mId), mGeneration(other.mGeneration), mControllerNumber(other.mControllerNumber),
         mIdentifier(other.mIdentifier), mAlias(other.mAlias), mIsExternal(other.mIsExternal),
-        mSources(other.mSources), mKeyboardType(other.mKeyboardType),
-        mKeyCharacterMap(other.mKeyCharacterMap), mHasVibrator(other.mHasVibrator),
-        mHasButtonUnderPad(other.mHasButtonUnderPad), mMotionRanges(other.mMotionRanges) {
+        mHasMic(other.mHasMic), mSources(other.mSources),
+        mKeyboardType(other.mKeyboardType), mKeyCharacterMap(other.mKeyCharacterMap),
+        mHasVibrator(other.mHasVibrator), mHasButtonUnderPad(other.mHasButtonUnderPad),
+        mMotionRanges(other.mMotionRanges) {
 }
 
 InputDeviceInfo::~InputDeviceInfo() {
 }
 
 void InputDeviceInfo::initialize(int32_t id, int32_t generation, int32_t controllerNumber,
-        const InputDeviceIdentifier& identifier, const String8& alias, bool isExternal) {
+        const InputDeviceIdentifier& identifier, const String8& alias, bool isExternal,
+        bool hasMic) {
     mId = id;
     mGeneration = generation;
     mControllerNumber = controllerNumber;
     mIdentifier = identifier;
     mAlias = alias;
     mIsExternal = isExternal;
+    mHasMic = hasMic;
     mSources = 0;
     mKeyboardType = AINPUT_KEYBOARD_TYPE_NONE;
     mHasVibrator = false;

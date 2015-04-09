@@ -1279,6 +1279,11 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
         return -1;
     }
 
+    // Determine whether the device has a mic.
+    if (deviceHasMicLocked(device)) {
+        device->classes |= INPUT_DEVICE_CLASS_MIC;
+    }
+
     // Determine whether the device is external or internal.
     if (isExternalDeviceLocked(device)) {
         device->classes |= INPUT_DEVICE_CLASS_EXTERNAL;
@@ -1413,6 +1418,16 @@ bool EventHub::isExternalDeviceLocked(Device* device) {
         }
     }
     return device->identifier.bus == BUS_USB || device->identifier.bus == BUS_BLUETOOTH;
+}
+
+bool EventHub::deviceHasMicLocked(Device* device) {
+    if (device->configuration) {
+        bool value;
+        if (device->configuration->tryGetProperty(String8("audio.mic"), value)) {
+            return value;
+        }
+    }
+    return false;
 }
 
 int32_t EventHub::getNextControllerNumberLocked(Device* device) {

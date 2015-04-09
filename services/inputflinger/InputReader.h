@@ -555,6 +555,9 @@ public:
     inline bool isExternal() { return mIsExternal; }
     inline void setExternal(bool external) { mIsExternal = external; }
 
+    inline void setMic(bool hasMic) { mHasMic = hasMic; }
+    inline bool hasMic() const { return mHasMic; }
+
     inline bool isIgnored() { return mMappers.isEmpty(); }
 
     void dump(String8& dump);
@@ -618,6 +621,7 @@ private:
 
     uint32_t mSources;
     bool mIsExternal;
+    bool mHasMic;
     bool mDropUntilNextSync;
 
     typedef int32_t (InputMapper::*GetStateFunc)(uint32_t sourceMask, int32_t code);
