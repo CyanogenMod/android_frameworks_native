@@ -1542,8 +1542,7 @@ fail:
     return -1;
 }
 
-// TODO: extend to know about other volumes
-int restorecon_data(const char* uuid __attribute__((unused)), const char* pkgName,
+int restorecon_data(const char* uuid, const char* pkgName,
                     const char* seinfo, uid_t uid)
 {
     struct dirent *entry;
