@@ -14,14 +14,19 @@
 ** limitations under the License.
 */
 
+#include "installd.h"
+
 #include <inttypes.h>
 #include <sys/capability.h>
 #include <sys/file.h>
-#include "installd.h"
 #include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
 #include <selinux/android.h>
 #include <system/thread_defs.h>
+#include <base/stringprintf.h>
+#include <base/logging.h>
+
+using android::base::StringPrintf;
 
 /* Directory records that are used in execution of commands. */
 dir_rec_t android_data_dir;
@@ -176,26 +181,27 @@ int make_user_config(userid_t userid)
     return 0;
 }
 
-int delete_user(userid_t userid)
+int delete_user(const char *uuid, userid_t userid)
 {
     int status = 0;
 
-    char data_path[PKG_PATH_MAX];
-    if ((create_user_path(data_path, userid) != 0)
-            || (delete_dir_contents(data_path, 1, NULL) != 0)) {
+    std::string data_path(create_data_user_path(uuid, userid));
+    if (delete_dir_contents(data_path.c_str(), 1, NULL) != 0) {
         status = -1;
     }
 
-    char media_path[PATH_MAX];
-    if ((create_user_media_path(media_path, userid) != 0)
-            || (delete_dir_contents(media_path, 1, NULL) != 0)) {
+    std::string media_path(create_data_media_path(uuid, userid));
+    if (delete_dir_contents(media_path.c_str(), 1, NULL) != 0) {
         status = -1;
     }
 
-    char config_path[PATH_MAX];
-    if ((create_user_config_path(config_path, userid) != 0)
-            || (delete_dir_contents(config_path, 1, NULL) != 0)) {
-        status = -1;
+    // Config paths only exist on internal storage
+    if (uuid == nullptr) {
+        char config_path[PATH_MAX];
+        if ((create_user_config_path(config_path, userid) != 0)
+                || (delete_dir_contents(config_path, 1, NULL) != 0)) {
+            status = -1;
+        }
     }
 
     return status;
@@ -235,8 +241,7 @@ int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid)
  * also require that apps constantly modify file metadata even
  * when just reading from the cache, which is pretty awful.
  */
-// TODO: extend to know about other volumes
-int free_cache(int64_t free_size)
+int free_cache(const char *uuid, int64_t free_size)
 {
     cache_t* cache;
     int64_t avail;
@@ -245,7 +250,9 @@ int free_cache(int64_t free_size)
     char tmpdir[PATH_MAX];
     char *dirpos;
 
-    avail = data_disk_free();
+    std::string data_path(create_data_path(uuid));
+
+    avail = data_disk_free(data_path);
     if (avail < 0) return -1;
 
     ALOGI("free_cache(%" PRId64 ") avail %" PRId64 "\n", free_size, avail);
@@ -253,15 +260,16 @@ int free_cache(int64_t free_size)
 
     cache = start_cache_collection();
 
-    // Collect cache files for primary user.
-    if (create_user_path(tmpdir, 0) == 0) {
-        //ALOGI("adding cache files from %s\n", tmpdir);
-        add_cache_files(cache, tmpdir, "cache");
+    // Special case for owner on internal storage
+    if (uuid == nullptr) {
+        std::string _tmpdir(create_data_user_path(nullptr, 0));
+        add_cache_files(cache, _tmpdir.c_str(), "cache");
     }
 
     // Search for other users and add any cache files from them.
-    snprintf(tmpdir, sizeof(tmpdir), "%s%s", android_data_dir.path,
-            SECONDARY_USER_PREFIX);
+    std::string _tmpdir(create_data_path(uuid) + "/" + SECONDARY_USER_PREFIX);
+    strcpy(tmpdir, _tmpdir.c_str());
+
     dirpos = tmpdir + strlen(tmpdir);
     d = opendir(tmpdir);
     if (d != NULL) {
@@ -313,10 +321,10 @@ int free_cache(int64_t free_size)
         closedir(d);
     }
 
-    clear_cache_files(cache, free_size);
+    clear_cache_files(data_path, cache, free_size);
     finish_cache_collection(cache);
 
-    return data_disk_free() >= free_size ? 0 : -1;
+    return data_disk_free(data_path) >= free_size ? 0 : -1;
 }
 
 int move_dex(const char *src, const char *dst, const char *instruction_set)
@@ -1541,9 +1549,6 @@ int restorecon_data(const char* uuid __attribute__((unused)), const char* pkgNam
     struct dirent *entry;
     DIR *d;
     struct stat s;
-    char *userdir;
-    char *primarydir;
-    char *pkgdir;
     int ret = 0;
 
     // SELINUX_ANDROID_RESTORECON_DATADATA flag is set by libselinux. Not needed here.
@@ -1554,26 +1559,20 @@ int restorecon_data(const char* uuid __attribute__((unused)), const char* pkgNam
         return -1;
     }
 
-    if (asprintf(&primarydir, "%s%s%s", android_data_dir.path, PRIMARY_USER_PREFIX, pkgName) < 0) {
-        return -1;
-    }
+    // Special case for owner on internal storage
+    if (uuid == nullptr) {
+        std::string path(create_package_data_path(nullptr, pkgName, 0));
 
-    // Relabel for primary user.
-    if (selinux_android_restorecon_pkgdir(primarydir, seinfo, uid, flags) < 0) {
-        ALOGE("restorecon failed for %s: %s\n", primarydir, strerror(errno));
-        ret |= -1;
-    }
-
-    if (asprintf(&userdir, "%s%s", android_data_dir.path, SECONDARY_USER_PREFIX) < 0) {
-        free(primarydir);
-        return -1;
+        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, flags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << path;
+            ret |= -1;
+        }
     }
 
     // Relabel package directory for all secondary users.
-    d = opendir(userdir);
+    std::string userdir(create_data_path(uuid) + "/" + SECONDARY_USER_PREFIX);
+    d = opendir(userdir.c_str());
     if (d == NULL) {
-        free(primarydir);
-        free(userdir);
         return -1;
     }
 
@@ -1594,25 +1593,18 @@ int restorecon_data(const char* uuid __attribute__((unused)), const char* pkgNam
             continue;
         }
 
-        if (asprintf(&pkgdir, "%s%s/%s", userdir, user, pkgName) < 0) {
+        std::string pkgdir(StringPrintf("%s/%s/%s", userdir.c_str(), user, pkgName));
+        if (stat(pkgdir.c_str(), &s) < 0) {
             continue;
         }
 
-        if (stat(pkgdir, &s) < 0) {
-            free(pkgdir);
-            continue;
-        }
-
-        if (selinux_android_restorecon_pkgdir(pkgdir, seinfo, s.st_uid, flags) < 0) {
-            ALOGE("restorecon failed for %s: %s\n", pkgdir, strerror(errno));
+        if (selinux_android_restorecon_pkgdir(pkgdir.c_str(), seinfo, s.st_uid, flags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << pkgdir;
             ret |= -1;
         }
-        free(pkgdir);
     }
 
     closedir(d);
-    free(primarydir);
-    free(userdir);
     return ret;
 }
 
