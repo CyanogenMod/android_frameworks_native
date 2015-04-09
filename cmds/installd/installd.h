@@ -231,7 +231,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            bool debuggable, const char* oat_dir);
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
-int linklib(const char *uuid, const char* target, const char* source, int userId);
+int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
