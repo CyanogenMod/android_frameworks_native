@@ -372,26 +372,6 @@ TEST_F(UtilsTest, CreatePkgPath_SecondaryUser) {
             << "Package path should be in /data/user/";
 }
 
-TEST_F(UtilsTest, CreatePersonaPath_Primary) {
-    char path[PKG_PATH_MAX];
-
-    EXPECT_EQ(0, create_user_path(path, 0))
-            << "Should successfully build primary user path.";
-
-    EXPECT_STREQ("/data/data/", path)
-            << "Primary user should have correct path";
-}
-
-TEST_F(UtilsTest, CreatePersonaPath_Secondary) {
-    char path[PKG_PATH_MAX];
-
-    EXPECT_EQ(0, create_user_path(path, 1))
-            << "Should successfully build primary user path.";
-
-    EXPECT_STREQ("/data/user/1/", path)
-            << "Primary user should have correct path";
-}
-
 TEST_F(UtilsTest, CreateMovePath_Primary) {
     char path[PKG_PATH_MAX];
 
@@ -467,6 +447,32 @@ TEST_F(UtilsTest, AppendAndIncrement_TooBig) {
 
     EXPECT_EQ(-1, append_and_increment(&dstp, src, &dst_size))
             << "String should fail because it's too large to fit";
+}
+
+TEST_F(UtilsTest, CreateDataPath) {
+    EXPECT_EQ("/data", create_data_path(nullptr));
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b",
+            create_data_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b"));
+}
+
+TEST_F(UtilsTest, CreateDataUserPath) {
+    EXPECT_EQ("/data/data", create_data_user_path(nullptr, 0));
+    EXPECT_EQ("/data/user/10", create_data_user_path(nullptr, 10));
+
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/0",
+            create_data_user_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0));
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/10",
+            create_data_user_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10));
+}
+
+TEST_F(UtilsTest, CreateDataMediaPath) {
+    EXPECT_EQ("/data/media/0", create_data_media_path(nullptr, 0));
+    EXPECT_EQ("/data/media/10", create_data_media_path(nullptr, 10));
+
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/media/0",
+            create_data_media_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0));
+    EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/media/10",
+            create_data_media_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10));
 }
 
 TEST_F(UtilsTest, CreatePackageDataPath) {
