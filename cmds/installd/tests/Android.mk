@@ -8,6 +8,7 @@ test_src_files := \
     installd_utils_test.cpp
 
 shared_libraries := \
+    libbase \
     libutils \
     libcutils \
 
