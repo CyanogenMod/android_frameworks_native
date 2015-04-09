@@ -35,8 +35,6 @@ dir_rec_array_t android_system_dirs;
 
 int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
 {
-    struct stat libStat;
-
     if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
         ALOGE("invalid uid/gid: %d %d\n", uid, gid);
         return -1;
@@ -141,8 +139,6 @@ int delete_user_data(const char *uuid, const char *pkgname, userid_t userid)
 
 int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
 {
-    struct stat libStat;
-
     std::string _pkgdir(create_package_data_path(uuid, pkgname, userid));
     const char* pkgdir = _pkgdir.c_str();
 
@@ -1539,7 +1535,8 @@ fail:
 }
 
 // TODO: extend to know about other volumes
-int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, uid_t uid)
+int restorecon_data(const char* uuid __attribute__((unused)), const char* pkgName,
+                    const char* seinfo, uid_t uid)
 {
     struct dirent *entry;
     DIR *d;
