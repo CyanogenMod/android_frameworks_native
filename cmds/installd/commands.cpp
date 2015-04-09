@@ -988,8 +988,8 @@ static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
 }
 
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
-           const char *pkgname, const char *instruction_set,
-           bool vm_safe_mode, bool is_patchoat, bool debuggable, const char* oat_dir)
+           const char *pkgname, const char *instruction_set, int dexopt_needed,
+           bool vm_safe_mode, bool debuggable, const char* oat_dir)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1021,13 +1021,25 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
         }
     }
 
-    if (is_patchoat) {
-        if (!calculate_odex_file_path(in_odex_path, apk_path, instruction_set)) {
-          return -1;
-        }
-        input_file = in_odex_path;
-    } else {
-        input_file = apk_path;
+    switch (dexopt_needed) {
+        case DEXOPT_DEX2OAT_NEEDED:
+            input_file = apk_path;
+            break;
+
+        case DEXOPT_PATCHOAT_NEEDED:
+            if (!calculate_odex_file_path(in_odex_path, apk_path, instruction_set)) {
+                return -1;
+            }
+            input_file = in_odex_path;
+            break;
+
+        case DEXOPT_SELF_PATCHOAT_NEEDED:
+            input_file = out_path;
+            break;
+
+        default:
+            ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
+            exit(72);
     }
 
     memset(&input_stat, 0, sizeof(input_stat));
@@ -1062,7 +1074,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     }
 
     // Create a swap file if necessary.
-    if (!is_patchoat && ShouldUseSwapFileForDexopt()) {
+    if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
         size_t out_len = strlen(out_path);
         if (out_len + strlen(".swap") + 1 <= PKG_PATH_MAX) {
@@ -1121,9 +1133,10 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             exit(67);
         }
 
-        if (is_patchoat) {
+        if (dexopt_needed == DEXOPT_PATCHOAT_NEEDED
+            || dexopt_needed == DEXOPT_SELF_PATCHOAT_NEEDED) {
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
-        } else {
+        } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
             const char *input_file_name = strrchr(input_file, '/');
             if (input_file_name == NULL) {
                 input_file_name = input_file;
@@ -1132,6 +1145,9 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             }
             run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
                         instruction_set, vm_safe_mode, debuggable);
+        } else {
+            ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
+            exit(73);
         }
         exit(68);   /* only get here on exec failure */
     } else {
