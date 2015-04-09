@@ -139,6 +139,7 @@ typedef struct {
 
 /* util.c */
 
+// TODO: rename to create_data_user_package_path
 std::string create_package_data_path(const char* volume_uuid,
         const char* package_name, userid_t user);
 
@@ -147,10 +148,11 @@ int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *postfix,
                     userid_t userid);
 
-int create_user_path(char path[PKG_PATH_MAX],
-                    userid_t userid);
+std::string create_data_path(const char* volume_uuid);
 
-int create_user_media_path(char path[PKG_PATH_MAX], userid_t userid);
+std::string create_data_user_path(const char* volume_uuid, userid_t userid);
+
+std::string create_data_media_path(const char* volume_uuid, userid_t userid);
 
 int create_user_config_path(char path[PKG_PATH_MAX], userid_t userid);
 
@@ -174,13 +176,13 @@ int copy_dir_files(const char *srcname, const char *dstname, uid_t owner, gid_t 
 
 int lookup_media_dir(char basepath[PATH_MAX], const char *dir);
 
-int64_t data_disk_free();
+int64_t data_disk_free(const std::string& data_path);
 
 cache_t* start_cache_collection();
 
 void add_cache_files(cache_t* cache, const char *basepath, const char *cachedir);
 
-void clear_cache_files(cache_t* cache, int64_t free_size);
+void clear_cache_files(const std::string& data_path, cache_t* cache, int64_t free_size);
 
 void finish_cache_collection(cache_t* cache);
 
@@ -200,7 +202,7 @@ char *build_string2(const char *s1, const char *s2);
 char *build_string3(const char *s1, const char *s2, const char *s3);
 
 int ensure_dir(const char* path, mode_t mode, uid_t uid, gid_t gid);
-int ensure_media_user_dirs(userid_t userid);
+int ensure_media_user_dirs(const char* uuid, userid_t userid);
 int ensure_config_user_dirs(userid_t userid);
 int create_profile_file(const char *pkgname, gid_t gid);
 void remove_profile_file(const char *pkgname);
@@ -214,7 +216,7 @@ int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *uuid, const char *pkgname, userid_t userid);
 int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo);
 int make_user_config(userid_t userid);
-int delete_user(userid_t userid);
+int delete_user(const char *uuid, userid_t userid);
 int delete_cache(const char *uuid, const char *pkgname, userid_t userid);
 int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid);
 int move_dex(const char *src, const char *dst, const char *instruction_set);
@@ -223,7 +225,7 @@ int protect(char *pkgname, gid_t gid);
 int get_size(const char *uuid, const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
              const char *fwdlock_apkpath, const char *asecpath, const char *instruction_set,
              int64_t *codesize, int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
-int free_cache(int64_t free_size);
+int free_cache(const char *uuid, int64_t free_size);
 int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char *instruction_set, int dexopt_needed, bool vm_safe_mode,
            bool debuggable, const char* oat_dir);
