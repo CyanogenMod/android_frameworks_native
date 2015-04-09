@@ -46,21 +46,7 @@ std::string create_package_data_path(const char* volume_uuid,
     CHECK(is_valid_filename(package_name));
     CHECK(is_valid_package_name(package_name) == 0);
 
-    if (volume_uuid == nullptr) {
-        if (user == 0) {
-            // /data/data/com.example
-            return StringPrintf("%sdata/%s", android_data_dir.path, package_name);
-        } else {
-            // /data/user/0/com.example
-            return StringPrintf("%suser/%u/%s", android_data_dir.path, user, package_name);
-        }
-    } else {
-        CHECK(is_valid_filename(volume_uuid));
-
-        // /mnt/expand/uuid/user/0/com.example
-        return StringPrintf("%s%s/user/%u/%s", android_mnt_expand_dir.path,
-                volume_uuid, user, package_name);
-    }
+    return StringPrintf("%s/%s", create_data_user_path(volume_uuid, user).c_str(), package_name);
 }
 
 int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
@@ -81,55 +67,36 @@ int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
     }
 }
 
+std::string create_data_path(const char* volume_uuid) {
+    if (volume_uuid == nullptr) {
+        return "/data";
+    } else {
+        CHECK(is_valid_filename(volume_uuid));
+        return StringPrintf("/mnt/expand/%s", volume_uuid);
+    }
+}
+
 /**
  * Create the path name for user data for a certain userid.
- * Returns 0 on success, and -1 on failure.
  */
-int create_user_path(char path[PKG_PATH_MAX],
-                    userid_t userid)
-{
-    size_t userid_len;
-    const char* userid_prefix;
-    if (userid == 0) {
-        userid_prefix = PRIMARY_USER_PREFIX;
-        userid_len = 0;
+std::string create_data_user_path(const char* volume_uuid, userid_t userid) {
+    std::string data(create_data_path(volume_uuid));
+    if (volume_uuid == nullptr) {
+        if (userid == 0) {
+            return StringPrintf("%s/data", data.c_str());
+        } else {
+            return StringPrintf("%s/user/%u", data.c_str(), userid);
+        }
     } else {
-        userid_prefix = SECONDARY_USER_PREFIX;
-        userid_len = snprintf(NULL, 0, "%d/", userid);
+        return StringPrintf("%s/user/%u", data.c_str(), userid);
     }
-
-    char *dst = path;
-    size_t dst_size = PKG_PATH_MAX;
-
-    if (append_and_increment(&dst, android_data_dir.path, &dst_size) < 0
-            || append_and_increment(&dst, userid_prefix, &dst_size) < 0) {
-        ALOGE("Error building prefix for user path");
-        return -1;
-    }
-
-    if (userid != 0) {
-        if (dst_size < userid_len + 1) {
-            ALOGE("Error building user path");
-            return -1;
-        }
-        int ret = snprintf(dst, dst_size, "%d/", userid);
-        if (ret < 0 || (size_t) ret != userid_len) {
-            ALOGE("Error appending userid to path");
-            return -1;
-        }
-    }
-    return 0;
 }
 
 /**
  * Create the path name for media for a certain userid.
- * Returns 0 on success, and -1 on failure.
  */
-int create_user_media_path(char path[PATH_MAX], userid_t userid) {
-    if (snprintf(path, PATH_MAX, "%s%d", android_media_dir.path, userid) > PATH_MAX) {
-        return -1;
-    }
-    return 0;
+std::string create_data_media_path(const char* volume_uuid, userid_t userid) {
+    return StringPrintf("%s/media/%u", create_data_path(volume_uuid).c_str(), userid);
 }
 
 /**
@@ -459,13 +426,13 @@ int lookup_media_dir(char basepath[PATH_MAX], const char *dir)
     return -1;
 }
 
-int64_t data_disk_free()
+int64_t data_disk_free(const std::string& data_path)
 {
     struct statfs sfs;
-    if (statfs(android_data_dir.path, &sfs) == 0) {
+    if (statfs(data_path.c_str(), &sfs) == 0) {
         return sfs.f_bavail * sfs.f_bsize;
     } else {
-        ALOGE("Couldn't statfs %s: %s\n", android_data_dir.path, strerror(errno));
+        PLOG(ERROR) << "Couldn't statfs " << data_path;
         return -1;
     }
 }
@@ -823,7 +790,7 @@ static int cache_modtime_sort(const void *lhsP, const void *rhsP)
     return lhs->modTime < rhs->modTime ? -1 : (lhs->modTime > rhs->modTime ? 1 : 0);
 }
 
-void clear_cache_files(cache_t* cache, int64_t free_size)
+void clear_cache_files(const std::string& data_path, cache_t* cache, int64_t free_size)
 {
     size_t i;
     int skip = 0;
@@ -848,7 +815,7 @@ void clear_cache_files(cache_t* cache, int64_t free_size)
     for (i=0; i<cache->numFiles; i++) {
         skip++;
         if (skip > 10) {
-            if (data_disk_free() > free_size) {
+            if (data_disk_free(data_path) > free_size) {
                 return;
             }
             skip = 0;
@@ -1090,12 +1057,9 @@ char *build_string3(const char *s1, const char *s2, const char *s3) {
 }
 
 /* Ensure that /data/media directories are prepared for given user. */
-int ensure_media_user_dirs(userid_t userid) {
-    char media_user_path[PATH_MAX];
-
-    // Ensure /data/media/<userid> exists
-    create_user_media_path(media_user_path, userid);
-    if (fs_prepare_dir(media_user_path, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
+int ensure_media_user_dirs(const char* uuid, userid_t userid) {
+    std::string media_user_path(create_data_media_path(uuid, userid));
+    if (fs_prepare_dir(media_user_path.c_str(), 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
         return -1;
     }
 
