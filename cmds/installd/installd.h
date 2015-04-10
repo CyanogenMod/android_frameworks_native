@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <string>
+#include <vector>
 
 #include <cutils/fs.h>
 #include <cutils/sockets.h>
@@ -88,6 +89,8 @@
 #define DEXOPT_DEX2OAT_NEEDED        1
 #define DEXOPT_PATCHOAT_NEEDED       2
 #define DEXOPT_SELF_PATCHOAT_NEEDED  3
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 /* data structures */
 
@@ -154,6 +157,8 @@ std::string create_data_user_path(const char* volume_uuid, userid_t userid);
 
 std::string create_data_media_path(const char* volume_uuid, userid_t userid);
 
+std::vector<userid_t> get_known_users(const char* volume_uuid);
+
 int create_user_config_path(char path[PKG_PATH_MAX], userid_t userid);
 
 int create_move_path(char path[PKG_PATH_MAX],
@@ -214,7 +219,10 @@ int uninstall(const char *uuid, const char *pkgname, userid_t userid);
 int renamepkg(const char *oldpkgname, const char *newpkgname);
 int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *uuid, const char *pkgname, userid_t userid);
-int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo);
+int make_user_data(const char *uuid, const char *pkgname, uid_t uid,
+        userid_t userid, const char* seinfo);
+int move_user_data(const char* from_uuid, const char *to_uuid,
+        const char *package_name, appid_t appid, const char* seinfo);
 int make_user_config(userid_t userid);
 int delete_user(const char *uuid, userid_t userid);
 int delete_cache(const char *uuid, const char *pkgname, userid_t userid);
@@ -237,4 +245,6 @@ int restorecon_data(const char *uuid, const char* pkgName, const char* seinfo, u
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
 int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
+                            const char *instruction_set);
+int move_package_dir(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
                             const char *instruction_set);
