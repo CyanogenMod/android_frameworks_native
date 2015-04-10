@@ -14,13 +14,14 @@
 ** limitations under the License.
 */
 
+#include "installd.h"
+
+#include <base/logging.h>
+
 #include <sys/capability.h>
 #include <sys/prctl.h>
 #include <selinux/android.h>
 #include <selinux/avc.h>
-
-#include "installd.h"
-
 
 #define BUFFER_MAX    1024  /* input buffer for commands */
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
@@ -123,6 +124,12 @@ static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
     return delete_user_data(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
+static int do_mv_user_data(char **arg, char reply[REPLY_MAX] __unused)
+{
+    // from_uuid, to_uuid, pkgname, appid, seinfo
+    return move_user_data(parse_null(arg[0]), parse_null(arg[1]), arg[2], atoi(arg[3]), arg[4]);
+}
+
 static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
 {
     return make_user_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]);
@@ -193,6 +200,7 @@ struct cmdinfo cmds[] = {
     { "rmcodecache",          3, do_rm_code_cache },
     { "getsize",              8, do_get_size },
     { "rmuserdata",           3, do_rm_user_data },
+    { "mvuserdata",           5, do_mv_user_data },
     { "movefiles",            0, do_movefiles },
     { "linklib",              4, do_linklib },
     { "mkuserdata",           5, do_mk_user_data },
@@ -621,46 +629,6 @@ fail:
     return res;
 }
 
-static void drop_privileges() {
-    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
-        ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    if (setgid(AID_INSTALL) < 0) {
-        ALOGE("setgid() can't drop privileges; exiting.\n");
-        exit(1);
-    }
-
-    if (setuid(AID_INSTALL) < 0) {
-        ALOGE("setuid() can't drop privileges; exiting.\n");
-        exit(1);
-    }
-
-    struct __user_cap_header_struct capheader;
-    struct __user_cap_data_struct capdata[2];
-    memset(&capheader, 0, sizeof(capheader));
-    memset(&capdata, 0, sizeof(capdata));
-    capheader.version = _LINUX_CAPABILITY_VERSION_3;
-    capheader.pid = 0;
-
-    capdata[CAP_TO_INDEX(CAP_DAC_OVERRIDE)].permitted |= CAP_TO_MASK(CAP_DAC_OVERRIDE);
-    capdata[CAP_TO_INDEX(CAP_CHOWN)].permitted        |= CAP_TO_MASK(CAP_CHOWN);
-    capdata[CAP_TO_INDEX(CAP_SETUID)].permitted       |= CAP_TO_MASK(CAP_SETUID);
-    capdata[CAP_TO_INDEX(CAP_SETGID)].permitted       |= CAP_TO_MASK(CAP_SETGID);
-    capdata[CAP_TO_INDEX(CAP_FOWNER)].permitted       |= CAP_TO_MASK(CAP_FOWNER);
-
-    capdata[0].effective = capdata[0].permitted;
-    capdata[1].effective = capdata[1].permitted;
-    capdata[0].inheritable = 0;
-    capdata[1].inheritable = 0;
-
-    if (capset(&capheader, &capdata[0]) < 0) {
-        ALOGE("capset failed: %s\n", strerror(errno));
-        exit(1);
-    }
-}
-
 static int log_callback(int type, const char *fmt, ...) {
     va_list ap;
     int priority;
@@ -682,12 +650,15 @@ static int log_callback(int type, const char *fmt, ...) {
     return 0;
 }
 
-int main(const int argc __unused, const char *argv[] __unused) {
+int main(const int argc __unused, char *argv[]) {
     char buf[BUFFER_MAX];
     struct sockaddr addr;
     socklen_t alen;
     int lsocket, s;
     int selinux_enabled = (is_selinux_enabled() > 0);
+
+    setenv("ANDROID_LOG_TAGS", "*:v", 1);
+    android::base::InitLogging(argv);
 
     ALOGI("installd firing up\n");
 
@@ -709,8 +680,6 @@ int main(const int argc __unused, const char *argv[] __unused) {
         ALOGE("Could not open selinux status; exiting.\n");
         exit(1);
     }
-
-    drop_privileges();
 
     lsocket = android_get_control_socket(SOCKET_PATH);
     if (lsocket < 0) {
