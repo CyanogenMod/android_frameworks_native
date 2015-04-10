@@ -99,6 +99,38 @@ std::string create_data_media_path(const char* volume_uuid, userid_t userid) {
     return StringPrintf("%s/media/%u", create_data_path(volume_uuid).c_str(), userid);
 }
 
+std::vector<userid_t> get_known_users(const char* volume_uuid) {
+    std::vector<userid_t> users;
+
+    // We always have an owner
+    users.push_back(0);
+
+    std::string path(create_data_path(volume_uuid) + "/" + SECONDARY_USER_PREFIX);
+    DIR* dir = opendir(path.c_str());
+    if (dir == NULL) {
+        // Unable to discover other users, but at least return owner
+        PLOG(ERROR) << "Failed to opendir " << path;
+        return users;
+    }
+
+    struct dirent* ent;
+    while ((ent = readdir(dir))) {
+        if (ent->d_type != DT_DIR) {
+            continue;
+        }
+
+        char* end;
+        userid_t user = strtol(ent->d_name, &end, 10);
+        if (*end == '\0' && user != 0) {
+            LOG(DEBUG) << "Found valid user " << user;
+            users.push_back(user);
+        }
+    }
+    closedir(dir);
+
+    return users;
+}
+
 /**
  * Create the path name for config for a certain userid.
  * Returns 0 on success, and -1 on failure.

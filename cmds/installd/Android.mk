@@ -12,7 +12,10 @@ LOCAL_MODULE := libinstalld
 LOCAL_MODULE_TAGS := eng tests
 LOCAL_SRC_FILES := $(common_src_files)
 LOCAL_CFLAGS := $(common_cflags)
-LOCAL_SHARED_LIBRARIES := libbase
+LOCAL_SHARED_LIBRARIES := \
+    libbase \
+    liblogwrap \
+
 LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
 LOCAL_CLANG := true
 include $(BUILD_STATIC_LIBRARY)
@@ -30,6 +33,7 @@ LOCAL_SHARED_LIBRARIES := \
     libbase \
     libcutils \
     liblog \
+    liblogwrap \
     libselinux \
 
 LOCAL_STATIC_LIBRARIES := libdiskusage
