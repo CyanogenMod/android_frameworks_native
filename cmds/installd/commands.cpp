@@ -16,15 +16,18 @@
 
 #include "installd.h"
 
+#include <base/stringprintf.h>
+#include <base/logging.h>
+#include <cutils/sched_policy.h>
+#include <diskusage/dirsize.h>
+#include <logwrap/logwrap.h>
+#include <system/thread_defs.h>
+#include <selinux/android.h>
+
 #include <inttypes.h>
 #include <sys/capability.h>
 #include <sys/file.h>
-#include <cutils/sched_policy.h>
-#include <diskusage/dirsize.h>
-#include <selinux/android.h>
-#include <system/thread_defs.h>
-#include <base/stringprintf.h>
-#include <base/logging.h>
+#include <unistd.h>
 
 using android::base::StringPrintf;
 
@@ -37,6 +40,8 @@ dir_rec_t android_app_lib_dir;
 dir_rec_t android_media_dir;
 dir_rec_t android_mnt_expand_dir;
 dir_rec_array_t android_system_dirs;
+
+static const char* kCpPath = "/system/bin/cp";
 
 int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
 {
@@ -170,6 +175,80 @@ int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t us
     }
 
     return 0;
+}
+
+int move_user_data(const char *from_uuid, const char *to_uuid,
+        const char *package_name, appid_t appid, const char* seinfo) {
+    std::vector<userid_t> users = get_known_users(from_uuid);
+
+    // Copy package private data for all known users
+    for (auto user : users) {
+        std::string from(create_package_data_path(from_uuid, package_name, user));
+        std::string to(create_package_data_path(to_uuid, package_name, user));
+        std::string to_user(create_data_user_path(to_uuid, user));
+
+        // Data source may not exist for all users; that's okay
+        if (access(from.c_str(), F_OK) != 0) {
+            LOG(INFO) << "Missing source " << from;
+            continue;
+        }
+
+        std::string user_path(create_data_user_path(to_uuid, user));
+        if (fs_prepare_dir(user_path.c_str(), 0771, AID_SYSTEM, AID_SYSTEM) != 0) {
+            LOG(ERROR) << "Failed to prepare user target " << user_path;
+            goto fail;
+        }
+
+        uid_t uid = multiuser_get_uid(user, appid);
+        if (make_user_data(to_uuid, package_name, uid, user, seinfo) != 0) {
+            LOG(ERROR) << "Failed to create package target " << to;
+            goto fail;
+        }
+
+        char *argv[] = {
+            (char*) kCpPath,
+            (char*) "-F", /* delete any existing destination file first (--remove-destination) */
+            (char*) "-p", /* preserve timestamps, ownership, and permissions */
+            (char*) "-R", /* recurse into subdirectories (DEST must be a directory) */
+            (char*) "-P", /* Do not follow symlinks [default] */
+            (char*) "-d", /* don't dereference symlinks */
+            (char*) from.c_str(),
+            (char*) to_user.c_str()
+        };
+
+        LOG(DEBUG) << "Copying " << from << " to " << to;
+        int rc = android_fork_execvp(ARRAY_SIZE(argv), argv, NULL, false, true);
+
+        if (rc != 0) {
+            LOG(ERROR) << "Failed copying " << from << " to " << to
+                    << ": status " << rc;
+            goto fail;
+        }
+
+        if (restorecon_data(to_uuid, package_name, seinfo, uid) != 0) {
+            LOG(ERROR) << "Failed to restorecon " << to;
+            goto fail;
+        }
+    }
+
+    // Copy successful, so delete old data
+    for (auto user : users) {
+        std::string from(create_package_data_path(from_uuid, package_name, user));
+        if (delete_dir_contents(from.c_str(), 1, NULL) != 0) {
+            LOG(WARNING) << "Failed to delete " << from;
+        }
+    }
+    return 0;
+
+fail:
+    // Nuke everything we might have already copied
+    for (auto user : users) {
+        std::string to(create_package_data_path(to_uuid, package_name, user));
+        if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
+            LOG(WARNING) << "Failed to rollback " << to;
+        }
+    }
+    return -1;
 }
 
 int make_user_config(userid_t userid)
@@ -1592,7 +1671,7 @@ int restorecon_data(const char* uuid, const char* pkgName,
             continue;
         }
 
-        std::string pkgdir(StringPrintf("%s/%s/%s", userdir.c_str(), user, pkgName));
+        std::string pkgdir(StringPrintf("%s%s/%s", userdir.c_str(), user, pkgName));
         if (stat(pkgdir.c_str(), &s) < 0) {
             continue;
         }
