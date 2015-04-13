@@ -399,6 +399,17 @@ void IPCThreadState::flushCommands()
     talkWithDriver(false);
 }
 
+void IPCThreadState::blockUntilThreadAvailable()
+{
+    pthread_mutex_lock(&mProcess->mThreadCountLock);
+    while (mProcess->mExecutingThreadsCount >= mProcess->mMaxThreads) {
+        ALOGW("Waiting for thread to be free. mExecutingThreadsCount=%i mMaxThreads=%i\n",
+                mProcess->mExecutingThreadsCount, mProcess->mMaxThreads);
+        pthread_cond_wait(&mProcess->mThreadCountDecrement, &mProcess->mThreadCountLock);
+    }
+    pthread_mutex_unlock(&mProcess->mThreadCountLock);
+}
+
 status_t IPCThreadState::getAndExecuteCommand()
 {
     status_t result;
@@ -414,7 +425,16 @@ status_t IPCThreadState::getAndExecuteCommand()
                  << getReturnString(cmd) << endl;
         }
 
+        pthread_mutex_lock(&mProcess->mThreadCountLock);
+        mProcess->mExecutingThreadsCount++;
+        pthread_mutex_unlock(&mProcess->mThreadCountLock);
+
         result = executeCommand(cmd);
+
+        pthread_mutex_lock(&mProcess->mThreadCountLock);
+        mProcess->mExecutingThreadsCount--;
+        pthread_cond_broadcast(&mProcess->mThreadCountDecrement);
+        pthread_mutex_unlock(&mProcess->mThreadCountLock);
 
         // After executing the command, ensure that the thread is returned to the
         // foreground cgroup before rejoining the pool.  The driver takes care of

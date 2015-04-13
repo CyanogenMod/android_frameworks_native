@@ -24,6 +24,8 @@
 
 #include <utils/threads.h>
 
+#include <pthread.h>
+
 // ---------------------------------------------------------------------------
 namespace android {
 
@@ -71,25 +73,33 @@ private:
                                 ProcessState(const ProcessState& o);
             ProcessState&       operator=(const ProcessState& o);
             String8             makeBinderThreadName();
-            
+
             struct handle_entry {
                 IBinder* binder;
                 RefBase::weakref_type* refs;
             };
-            
+
             handle_entry*       lookupHandleLocked(int32_t handle);
 
             int                 mDriverFD;
             void*               mVMStart;
-            
+
+            // Protects thread count variable below.
+            pthread_mutex_t     mThreadCountLock;
+            pthread_cond_t      mThreadCountDecrement;
+            // Number of binder threads current executing a command.
+            size_t              mExecutingThreadsCount;
+            // Maximum number for binder threads allowed for this process.
+            size_t              mMaxThreads;
+
     mutable Mutex               mLock;  // protects everything below.
-            
+
             Vector<handle_entry>mHandleToObject;
 
             bool                mManagesContexts;
             context_check_func  mBinderContextCheckFunc;
             void*               mBinderContextUserData;
-            
+
             KeyedVector<String16, sp<IBinder> >
                                 mContexts;
 

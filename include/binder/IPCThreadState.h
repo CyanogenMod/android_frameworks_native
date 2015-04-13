@@ -76,14 +76,18 @@ public:
                                                         BpBinder* proxy); 
 
     static  void                shutdown();
-    
+
     // Call this to disable switching threads to background scheduling when
     // receiving incoming IPC calls.  This is specifically here for the
     // Android system process, since it expects to have background apps calling
     // in to it but doesn't want to acquire locks in its services while in
     // the background.
     static  void                disableBackgroundScheduling(bool disable);
-    
+
+            // Call blocks until the number of executing binder threads is less than
+            // the maximum number of binder threads threads allowed for this process.
+            void                blockUntilThreadAvailable();
+
 private:
                                 IPCThreadState();
                                 ~IPCThreadState();
@@ -101,9 +105,9 @@ private:
             status_t            getAndExecuteCommand();
             status_t            executeCommand(int32_t command);
             void                processPendingDerefs();
-            
+
             void                clearCaller();
-            
+
     static  void                threadDestructor(void *st);
     static  void                freeBuffer(Parcel* parcel,
                                            const uint8_t* data, size_t dataSize,
@@ -114,7 +118,7 @@ private:
     const   pid_t               mMyThreadId;
             Vector<BBinder*>    mPendingStrongDerefs;
             Vector<RefBase::weakref_type*> mPendingWeakDerefs;
-            
+
             Parcel              mIn;
             Parcel              mOut;
             status_t            mLastError;

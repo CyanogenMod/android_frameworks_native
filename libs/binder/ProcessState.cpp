@@ -42,12 +42,13 @@
 #include <sys/stat.h>
 
 #define BINDER_VM_SIZE ((1*1024*1024) - (4096 *2))
+#define DEFAULT_MAX_BINDER_THREADS 15
 
 
 // ---------------------------------------------------------------------------
 
 namespace android {
- 
+
 class PoolThread : public Thread
 {
 public:
@@ -294,7 +295,9 @@ void ProcessState::spawnPooledThread(bool isMain)
 
 status_t ProcessState::setThreadPoolMaxThreadCount(size_t maxThreads) {
     status_t result = NO_ERROR;
-    if (ioctl(mDriverFD, BINDER_SET_MAX_THREADS, &maxThreads) == -1) {
+    if (ioctl(mDriverFD, BINDER_SET_MAX_THREADS, &maxThreads) != -1) {
+        mMaxThreads = maxThreads;
+    } else {
         result = -errno;
         ALOGE("Binder ioctl to set max threads failed: %s", strerror(-result));
     }
@@ -322,7 +325,7 @@ static int open_driver()
             close(fd);
             fd = -1;
         }
-        size_t maxThreads = 15;
+        size_t maxThreads = DEFAULT_MAX_BINDER_THREADS;
         result = ioctl(fd, BINDER_SET_MAX_THREADS, &maxThreads);
         if (result == -1) {
             ALOGE("Binder ioctl to set max threads failed: %s", strerror(errno));
@@ -336,6 +339,10 @@ static int open_driver()
 ProcessState::ProcessState()
     : mDriverFD(open_driver())
     , mVMStart(MAP_FAILED)
+    , mThreadCountLock(PTHREAD_MUTEX_INITIALIZER)
+    , mThreadCountDecrement(PTHREAD_COND_INITIALIZER)
+    , mExecutingThreadsCount(0)
+    , mMaxThreads(DEFAULT_MAX_BINDER_THREADS)
     , mManagesContexts(false)
     , mBinderContextCheckFunc(NULL)
     , mBinderContextUserData(NULL)
