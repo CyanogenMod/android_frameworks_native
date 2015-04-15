@@ -27,6 +27,7 @@
 #include <utils/NativeHandle.h>
 
 #include <ui/Fence.h>
+#include <ui/Region.h>
 
 #include <gui/IProducerListener.h>
 #include <gui/ISurfaceComposer.h>
@@ -320,6 +321,25 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
             mDataSpace, crop, mScalingMode, mTransform ^ mStickyTransform,
             mSwapIntervalZero, fence, mStickyTransform);
+
+    if (mDirtyRegion.bounds() == Rect::INVALID_RECT) {
+        input.setSurfaceDamage(Region::INVALID_REGION);
+    } else {
+        // The surface damage was specified using the OpenGL ES convention of
+        // the origin being in the bottom-left corner. Here we flip to the
+        // convention that the rest of the system uses (top-left corner) by
+        // subtracting all top/bottom coordinates from the buffer height.
+        Region flippedRegion;
+        for (auto rect : mDirtyRegion) {
+            auto top = buffer->height - rect.bottom;
+            auto bottom = buffer->height - rect.top;
+            Rect flippedRect{rect.left, top, rect.right, bottom};
+            flippedRegion.orSelf(flippedRect);
+        }
+
+        input.setSurfaceDamage(flippedRegion);
+    }
+
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
@@ -335,6 +355,9 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     }
 
     mConsumerRunningBehind = (numPendingBuffers >= 2);
+
+    // Clear surface damage back to full-buffer
+    mDirtyRegion = Region::INVALID_REGION;
 
     return err;
 }
@@ -453,6 +476,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_BUFFERS_DATASPACE:
         res = dispatchSetBuffersDataSpace(args);
         break;
+    case NATIVE_WINDOW_SET_SURFACE_DAMAGE:
+        res = dispatchSetSurfaceDamage(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -556,6 +582,13 @@ int Surface::dispatchSetBuffersDataSpace(va_list args) {
     return setBuffersDataSpace(dataspace);
 }
 
+int Surface::dispatchSetSurfaceDamage(va_list args) {
+    android_native_rect_t* rects = va_arg(args, android_native_rect_t*);
+    size_t numRects = va_arg(args, size_t);
+    setSurfaceDamage(rects, numRects);
+    return NO_ERROR;
+}
+
 int Surface::connect(int api) {
     static sp<IProducerListener> listener = new DummyProducerListener();
     return connect(api, listener);
@@ -582,7 +615,13 @@ int Surface::connect(int api, const sp<IProducerListener>& listener) {
     }
     if (!err && api == NATIVE_WINDOW_API_CPU) {
         mConnectedToCpu = true;
+        // Clear the dirty region in case we're switching from a non-CPU API
+        mDirtyRegion.clear();
+    } else if (!err) {
+        // Initialize the dirty region for tracking surface damage
+        mDirtyRegion = Region::INVALID_REGION;
     }
+
     return err;
 }
 
@@ -797,6 +836,27 @@ int Surface::setBuffersDataSpace(android_dataspace dataSpace)
 void Surface::freeAllBuffers() {
     for (int i = 0; i < NUM_BUFFER_SLOTS; i++) {
         mSlots[i].buffer = 0;
+    }
+}
+
+void Surface::setSurfaceDamage(android_native_rect_t* rects, size_t numRects) {
+    ATRACE_CALL();
+    ALOGV("Surface::setSurfaceDamage");
+    Mutex::Autolock lock(mMutex);
+
+    if (numRects == 0) {
+        mDirtyRegion = Region::INVALID_REGION;
+        return;
+    }
+
+    mDirtyRegion.clear();
+    for (size_t r = 0; r < numRects; ++r) {
+        // We intentionally flip top and bottom here, since because they're
+        // specified with a bottom-left origin, top > bottom, which fails
+        // validation in the Region class. We will fix this up when we flip to a
+        // top-left origin in queueBuffer.
+        Rect rect(rects[r].left, rects[r].bottom, rects[r].right, rects[r].top);
+        mDirtyRegion.orSelf(rect);
     }
 }
 

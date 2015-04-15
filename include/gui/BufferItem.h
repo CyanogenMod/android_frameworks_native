@@ -21,6 +21,7 @@
 #include <EGL/eglext.h>
 
 #include <ui/Rect.h>
+#include <ui/Region.h>
 
 #include <system/graphics.h>
 
@@ -106,6 +107,10 @@ class BufferItem : public Flattenable<BufferItem> {
     // Indicates this buffer must be transformed by the inverse transform of the screen
     // it is displayed onto. This is applied after mTransform.
     bool mTransformToDisplayInverse;
+
+    // Describes the portion of the surface that has been modified since the
+    // previous frame
+    Region mSurfaceDamage;
 };
 
 } // namespace android

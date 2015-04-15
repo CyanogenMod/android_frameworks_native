@@ -525,6 +525,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
     sp<Fence> fence;
     input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop, &scalingMode,
             &transform, &async, &fence, &stickyTransform);
+    Region surfaceDamage = input.getSurfaceDamage();
 
     if (fence == NULL) {
         BQ_LOGE("queueBuffer: fence is NULL");
@@ -621,6 +622,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         item.mSlot = slot;
         item.mFence = fence;
         item.mIsDroppable = mCore->mDequeueBufferCannotBlock || async;
+        item.mSurfaceDamage = surfaceDamage;
 
         mStickyTransform = stickyTransform;
 

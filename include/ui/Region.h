@@ -35,6 +35,8 @@ class String8;
 class Region : public LightFlattenable<Region>
 {
 public:
+    static const Region INVALID_REGION;
+
                         Region();
                         Region(const Region& rhs);
     explicit            Region(const Rect& rhs);
