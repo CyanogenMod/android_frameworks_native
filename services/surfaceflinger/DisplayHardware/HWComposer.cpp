@@ -1020,6 +1020,21 @@ public:
         SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
         visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
     }
+    virtual void setSurfaceDamage(const Region& reg) {
+        if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_5)) {
+            return;
+        }
+        hwc_region_t& surfaceDamage = getLayer()->surfaceDamage;
+        // We encode default full-screen damage as INVALID_RECT upstream, but as
+        // 0 rects for HWComposer
+        if (reg.isRect() && reg.getBounds() == Rect::INVALID_RECT) {
+            surfaceDamage.numRects = 0;
+            surfaceDamage.rects = NULL;
+            return;
+        }
+        SharedBuffer const* sb = reg.getSharedBuffer(&surfaceDamage.numRects);
+        surfaceDamage.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
+    }
     virtual void setSidebandStream(const sp<NativeHandle>& stream) {
         ALOG_ASSERT(stream->handle() != NULL);
         getLayer()->compositionType = HWC_SIDEBAND;
@@ -1050,6 +1065,18 @@ public:
         }
 
         getLayer()->acquireFenceFd = -1;
+
+        if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_5)) {
+            return;
+        }
+
+        hwc_region_t& surfaceDamage = getLayer()->surfaceDamage;
+        sb = SharedBuffer::bufferFromData(surfaceDamage.rects);
+        if (sb) {
+            sb->release();
+            surfaceDamage.numRects = 0;
+            surfaceDamage.rects = NULL;
+        }
     }
 };
 
