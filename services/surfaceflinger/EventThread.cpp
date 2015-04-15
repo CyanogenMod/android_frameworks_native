@@ -71,6 +71,11 @@ void EventThread::sendVsyncHintOff() {
     mVsyncHintSent = false;
 }
 
+void EventThread::setPhaseOffset(nsecs_t phaseOffset) {
+    Mutex::Autolock _l(mLock);
+    mVSyncSource->setPhaseOffset(phaseOffset);
+}
+
 void EventThread::sendVsyncHintOnLocked() {
     struct itimerspec ts;
     if(!mVsyncHintSent) {
