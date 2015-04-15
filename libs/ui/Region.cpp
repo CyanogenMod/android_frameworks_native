@@ -753,35 +753,52 @@ void Region::translate(Region& dst, const Region& reg, int dx, int dy)
 // ----------------------------------------------------------------------------
 
 size_t Region::getFlattenedSize() const {
-    return mStorage.size() * sizeof(Rect);
+    return sizeof(uint32_t) + mStorage.size() * sizeof(Rect);
 }
 
 status_t Region::flatten(void* buffer, size_t size) const {
 #if VALIDATE_REGIONS
     validate(*this, "Region::flatten");
 #endif
-    if (size < mStorage.size() * sizeof(Rect)) {
+    if (size < getFlattenedSize()) {
         return NO_MEMORY;
     }
-    Rect* rects = reinterpret_cast<Rect*>(buffer);
-    memcpy(rects, mStorage.array(), mStorage.size() * sizeof(Rect));
+    // Cast to uint32_t since the size of a size_t can vary between 32- and
+    // 64-bit processes
+    FlattenableUtils::write(buffer, size, static_cast<uint32_t>(mStorage.size()));
+    for (auto rect : mStorage) {
+        status_t result = rect.flatten(buffer, size);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        FlattenableUtils::advance(buffer, size, sizeof(rect));
+    }
     return NO_ERROR;
 }
 
 status_t Region::unflatten(void const* buffer, size_t size) {
-    Region result;
-    if (size >= sizeof(Rect)) {
-        Rect const* rects = reinterpret_cast<Rect const*>(buffer);
-        size_t count = size / sizeof(Rect);
-        if (count > 0) {
-            result.mStorage.clear();
-            ssize_t err = result.mStorage.insertAt(0, count);
-            if (err < 0) {
-                return status_t(err);
-            }
-            memcpy(result.mStorage.editArray(), rects, count*sizeof(Rect));
-        }
+    if (size < sizeof(uint32_t)) {
+        return NO_MEMORY;
     }
+
+    uint32_t numRects = 0;
+    FlattenableUtils::read(buffer, size, numRects);
+    if (size < numRects * sizeof(Rect)) {
+        return NO_MEMORY;
+    }
+
+    Region result;
+    result.mStorage.clear();
+    for (size_t r = 0; r < numRects; ++r) {
+        Rect rect;
+        status_t status = rect.unflatten(buffer, size);
+        if (status != NO_ERROR) {
+            return status;
+        }
+        FlattenableUtils::advance(buffer, size, sizeof(rect));
+        result.mStorage.push_back(rect);
+    }
+
 #if VALIDATE_REGIONS
     validate(result, "Region::unflatten");
 #endif
