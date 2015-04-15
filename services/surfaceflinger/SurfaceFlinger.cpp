@@ -145,6 +145,7 @@ SurfaceFlinger::SurfaceFlinger()
         mDebugInTransaction(0),
         mLastTransactionTime(0),
         mBootFinished(false),
+        mForceFullDamage(false),
         mPrimaryHWVsyncEnabled(false),
         mHWVsyncAvailable(false),
         mDaltonize(false),
@@ -1725,12 +1726,17 @@ bool SurfaceFlinger::handlePageFlip()
             frameQueued = true;
             if (layer->shouldPresentNow(mPrimaryDispSync)) {
                 layersWithQueuedFrames.push_back(layer.get());
+            } else {
+                layer->useEmptyDamage();
             }
+        } else {
+            layer->useEmptyDamage();
         }
     }
     for (size_t i = 0, count = layersWithQueuedFrames.size() ; i<count ; i++) {
         Layer* layer = layersWithQueuedFrames[i];
         const Region dirty(layer->latchBuffer(visibleRegions));
+        layer->useSurfaceDamage();
         const Layer::State& s(layer->getDrawingState());
         invalidateLayerStack(s.layerStack, dirty);
     }
@@ -2874,6 +2880,11 @@ status_t SurfaceFlinger::onTransact(
             case 1016: {
                 n = data.readInt32();
                 mPrimaryDispSync.setRefreshSkipCount(n);
+                return NO_ERROR;
+            }
+            case 1017: {
+                n = data.readInt32();
+                mForceFullDamage = static_cast<bool>(n);
                 return NO_ERROR;
             }
         }
