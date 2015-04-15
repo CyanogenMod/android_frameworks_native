@@ -513,6 +513,16 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
     Region visible = tr.transform(visibleRegion.intersect(hw->getViewport()));
     layer.setVisibleRegionScreen(visible);
 
+    // Pass full-surface damage down untouched
+    if (surfaceDamageRegion.isRect() &&
+            surfaceDamageRegion.getBounds() == Rect::INVALID_RECT) {
+        layer.setSurfaceDamage(surfaceDamageRegion);
+    } else {
+        Region surfaceDamage =
+            tr.transform(surfaceDamageRegion.intersect(hw->getViewport()));
+        layer.setSurfaceDamage(surfaceDamage);
+    }
+
     if (mSidebandStream.get()) {
         layer.setSidebandStream(mSidebandStream);
     } else {
@@ -1034,6 +1044,18 @@ bool Layer::setLayerStack(uint32_t layerStack) {
     return true;
 }
 
+void Layer::useSurfaceDamage() {
+    if (mFlinger->mForceFullDamage) {
+        surfaceDamageRegion = Region::INVALID_REGION;
+    } else {
+        surfaceDamageRegion = mSurfaceFlingerConsumer->getSurfaceDamage();
+    }
+}
+
+void Layer::useEmptyDamage() {
+    surfaceDamageRegion.clear();
+}
+
 // ----------------------------------------------------------------------------
 // pageflip handling...
 // ----------------------------------------------------------------------------
@@ -1349,6 +1371,7 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
 
     s.activeTransparentRegion.dump(result, "transparentRegion");
     visibleRegion.dump(result, "visibleRegion");
+    surfaceDamageRegion.dump(result, "surfaceDamageRegion");
     sp<Client> client(mClientRef.promote());
 
     result.appendFormat(            "      "

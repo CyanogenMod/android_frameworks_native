@@ -76,6 +76,7 @@ public:
     Region visibleRegion;
     Region coveredRegion;
     Region visibleNonTransparentRegion;
+    Region surfaceDamageRegion;
 
     // Layer serial number.  This gives layers an explicit ordering, so we
     // have a stable sort order when their layer stack and Z-order are
@@ -136,6 +137,12 @@ public:
     bool setFlags(uint8_t flags, uint8_t mask);
     bool setCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
+
+    // If we have received a new buffer this frame, we will pass its surface
+    // damage down to hardware composer. Otherwise, we must send a region with
+    // one empty rect.
+    void useSurfaceDamage();
+    void useEmptyDamage();
 
     uint32_t getTransactionFlags(uint32_t flags);
     uint32_t setTransactionFlags(uint32_t flags);

@@ -108,12 +108,17 @@ status_t SurfaceFlingerConsumer::acquireBufferLocked(BufferItem* item,
     status_t result = GLConsumer::acquireBufferLocked(item, presentWhen);
     if (result == NO_ERROR) {
         mTransformToDisplayInverse = item->mTransformToDisplayInverse;
+        mSurfaceDamage = item->mSurfaceDamage;
     }
     return result;
 }
 
 bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
     return mTransformToDisplayInverse;
+}
+
+const Region& SurfaceFlingerConsumer::getSurfaceDamage() const {
+    return mSurfaceDamage;
 }
 
 sp<NativeHandle> SurfaceFlingerConsumer::getSidebandStream() const {
