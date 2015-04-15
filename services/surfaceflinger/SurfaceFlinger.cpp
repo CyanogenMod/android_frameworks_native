@@ -324,17 +324,20 @@ public:
     DispSyncSource(DispSync* dispSync, nsecs_t phaseOffset, bool traceVsync,
         const char* label) :
             mValue(0),
-            mPhaseOffset(phaseOffset),
             mTraceVsync(traceVsync),
             mVsyncOnLabel(String8::format("VsyncOn-%s", label)),
             mVsyncEventLabel(String8::format("VSYNC-%s", label)),
-            mDispSync(dispSync) {}
+            mDispSync(dispSync),
+            mCallbackMutex(),
+            mCallback(),
+            mVsyncMutex(),
+            mPhaseOffset(phaseOffset),
+            mEnabled(false) {}
 
     virtual ~DispSyncSource() {}
 
     virtual void setVSyncEnabled(bool enable) {
-        // Do NOT lock the mutex here so as to avoid any mutex ordering issues
-        // with locking it in the onDispSyncEvent callback.
+        Mutex::Autolock lock(mVsyncMutex);
         if (enable) {
             status_t err = mDispSync->addEventListener(mPhaseOffset,
                     static_cast<DispSync::Callback*>(this));
@@ -352,18 +355,54 @@ public:
             }
             //ATRACE_INT(mVsyncOnLabel.string(), 0);
         }
+        mEnabled = enable;
     }
 
     virtual void setCallback(const sp<VSyncSource::Callback>& callback) {
-        Mutex::Autolock lock(mMutex);
+        Mutex::Autolock lock(mCallbackMutex);
         mCallback = callback;
+    }
+
+    virtual void setPhaseOffset(nsecs_t phaseOffset) {
+        Mutex::Autolock lock(mVsyncMutex);
+
+        // Normalize phaseOffset to [0, period)
+        auto period = mDispSync->getPeriod();
+        phaseOffset %= period;
+        if (phaseOffset < 0) {
+            // If we're here, then phaseOffset is in (-period, 0). After this
+            // operation, it will be in (0, period)
+            phaseOffset += period;
+        }
+        mPhaseOffset = phaseOffset;
+
+        // If we're not enabled, we don't need to mess with the listeners
+        if (!mEnabled) {
+            return;
+        }
+
+        // Remove the listener with the old offset
+        status_t err = mDispSync->removeEventListener(
+                static_cast<DispSync::Callback*>(this));
+        if (err != NO_ERROR) {
+            ALOGE("error unregistering vsync callback: %s (%d)",
+                    strerror(-err), err);
+        }
+
+        // Add a listener with the new offset
+        err = mDispSync->addEventListener(mPhaseOffset,
+                static_cast<DispSync::Callback*>(this));
+        if (err != NO_ERROR) {
+            ALOGE("error registering vsync callback: %s (%d)",
+                    strerror(-err), err);
+        }
     }
 
 private:
     virtual void onDispSyncEvent(nsecs_t when) {
         sp<VSyncSource::Callback> callback;
         {
-            Mutex::Autolock lock(mMutex);
+            Mutex::Autolock lock(mCallbackMutex);
             callback = mCallback;
 
             if (mTraceVsync) {
@@ -379,14 +418,18 @@ private:
 
     int mValue;
 
-    const nsecs_t mPhaseOffset;
     const bool mTraceVsync;
     const String8 mVsyncOnLabel;
     const String8 mVsyncEventLabel;
 
     DispSync* mDispSync;
+
+    Mutex mCallbackMutex; // Protects the following
     sp<VSyncSource::Callback> mCallback;
-    Mutex mMutex;
+
+    Mutex mVsyncMutex; // Protects the following
+    nsecs_t mPhaseOffset;
+    bool mEnabled;
 };
 
 void SurfaceFlinger::init() {
@@ -2939,6 +2982,16 @@ status_t SurfaceFlinger::onTransact(
             case 1017: {
                 n = data.readInt32();
                 mForceFullDamage = static_cast<bool>(n);
+                return NO_ERROR;
+            }
+            case 1018: { // Modify Choreographer's phase offset
+                n = data.readInt32();
+                mEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
+                return NO_ERROR;
+            }
+            case 1019: { // Modify SurfaceFlinger's phase offset
+                n = data.readInt32();
+                mSFEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
                 return NO_ERROR;
             }
         }
