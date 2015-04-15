@@ -35,7 +35,7 @@ public:
     SurfaceFlingerConsumer(const sp<IGraphicBufferConsumer>& consumer,
             uint32_t tex)
         : GLConsumer(consumer, tex, GLConsumer::TEXTURE_EXTERNAL, false, false),
-          mTransformToDisplayInverse(false)
+          mTransformToDisplayInverse(false), mSurfaceDamage()
     {}
 
     class BufferRejecter {
@@ -60,6 +60,7 @@ public:
 
     // must be called from SF main thread
     bool getTransformToDisplayInverse() const;
+    const Region& getSurfaceDamage() const;
 
     // Sets the contents changed listener. This should be used instead of
     // ConsumerBase::setFrameAvailableListener().
@@ -78,6 +79,9 @@ private:
     // it is displayed onto. This is applied after GLConsumer::mCurrentTransform.
     // This must be set/read from SurfaceFlinger's main thread.
     bool mTransformToDisplayInverse;
+
+    // The portion of this surface that has changed since the previous frame
+    Region mSurfaceDamage;
 };
 
 // ----------------------------------------------------------------------------
