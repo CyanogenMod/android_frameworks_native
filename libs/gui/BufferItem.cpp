@@ -64,6 +64,8 @@ size_t BufferItem::getFlattenedSize() const {
         c += mFence->getFlattenedSize();
         FlattenableUtils::align<4>(c);
     }
+    c += mSurfaceDamage.getFlattenedSize();
+    FlattenableUtils::align<4>(c);
     return sizeof(int32_t) + c + getPodSize();
 }
 
@@ -105,6 +107,9 @@ status_t BufferItem::flatten(
         size -= FlattenableUtils::align<4>(buffer);
         flags |= 2;
     }
+    status_t err = mSurfaceDamage.flatten(buffer, size);
+    if (err) return err;
+    size -= FlattenableUtils::align<4>(buffer);
 
     // check we have enough space (in case flattening the fence/graphicbuffer lied to us)
     if (size < getPodSize()) {
@@ -148,6 +153,9 @@ status_t BufferItem::unflatten(
         if (err) return err;
         size -= FlattenableUtils::align<4>(buffer);
     }
+    status_t err = mSurfaceDamage.unflatten(buffer, size);
+    if (err) return err;
+    size -= FlattenableUtils::align<4>(buffer);
 
     // check we have enough space
     if (size < getPodSize()) {
