@@ -31,6 +31,8 @@ class Rect : public ARect, public LightFlattenablePod<Rect>
 public:
     typedef ARect::value_type value_type;
 
+    static const Rect INVALID_RECT;
+
     // we don't provide copy-ctor and operator= on purpose
     // because we want the compiler generated versions
 
