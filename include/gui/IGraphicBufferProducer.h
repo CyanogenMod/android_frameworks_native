@@ -28,6 +28,7 @@
 #include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/Rect.h>
+#include <ui/Region.h>
 
 namespace android {
 // ----------------------------------------------------------------------------
@@ -281,7 +282,7 @@ public:
                 : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp),
                   dataSpace(dataSpace), crop(crop), scalingMode(scalingMode),
                   transform(transform), stickyTransform(sticky),
-                  async(async), fence(fence) { }
+                  async(async), fence(fence), surfaceDamage() { }
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
                 android_dataspace* outDataSpace,
                 Rect* outCrop, int* outScalingMode,
@@ -306,6 +307,9 @@ public:
         status_t flatten(void*& buffer, size_t& size, int*& fds, size_t& count) const;
         status_t unflatten(void const*& buffer, size_t& size, int const*& fds, size_t& count);
 
+        const Region& getSurfaceDamage() const { return surfaceDamage; }
+        void setSurfaceDamage(const Region& damage) { surfaceDamage = damage; }
+
     private:
         int64_t timestamp;
         int isAutoTimestamp;
@@ -316,6 +320,7 @@ public:
         uint32_t stickyTransform;
         int async;
         sp<Fence> fence;
+        Region surfaceDamage;
     };
 
     // QueueBufferOutput must be a POD structure

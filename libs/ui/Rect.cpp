@@ -19,6 +19,8 @@
 
 namespace android {
 
+const Rect Rect::INVALID_RECT{0, 0, -1, -1};
+
 static inline int32_t min(int32_t a, int32_t b) {
     return (a < b) ? a : b;
 }
