@@ -219,7 +219,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
                 auto slot = mCore->mFreeBuffers.begin();
                 *found = *slot;
                 mCore->mFreeBuffers.erase(slot);
-            } else if (!mCore->mFreeSlots.empty()) {
+            } else if (mCore->mAllowAllocation && !mCore->mFreeSlots.empty()) {
                 auto slot = mCore->mFreeSlots.begin();
                 // Only return free slots up to the max buffer count
                 if (*slot < maxBufferCount) {
@@ -285,17 +285,39 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         // Enable the usage bits the consumer requested
         usage |= mCore->mConsumerUsageBits;
 
-        int found;
-        status_t status = waitForFreeSlotThenRelock("dequeueBuffer", async,
-                &found, &returnFlags);
-        if (status != NO_ERROR) {
-            return status;
+        const bool useDefaultSize = !width && !height;
+        if (useDefaultSize) {
+            width = mCore->mDefaultWidth;
+            height = mCore->mDefaultHeight;
         }
 
-        // This should not happen
-        if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
-            BQ_LOGE("dequeueBuffer: no available buffer slots");
-            return -EBUSY;
+        int found = BufferItem::INVALID_BUFFER_SLOT;
+        while (found == BufferItem::INVALID_BUFFER_SLOT) {
+            status_t status = waitForFreeSlotThenRelock("dequeueBuffer", async,
+                    &found, &returnFlags);
+            if (status != NO_ERROR) {
+                return status;
+            }
+
+            // This should not happen
+            if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
+                BQ_LOGE("dequeueBuffer: no available buffer slots");
+                return -EBUSY;
+            }
+
+            const sp<GraphicBuffer>& buffer(mSlots[found].mGraphicBuffer);
+
+            // If we are not allowed to allocate new buffers,
+            // waitForFreeSlotThenRelock must have returned a slot containing a
+            // buffer. If this buffer would require reallocation to meet the
+            // requested attributes, we free it and attempt to get another one.
+            if (!mCore->mAllowAllocation) {
+                if (buffer->needsReallocation(width, height, format, usage)) {
+                    mCore->freeBufferLocked(found);
+                    found = BufferItem::INVALID_BUFFER_SLOT;
+                    continue;
+                }
+            }
         }
 
         *outSlot = found;
@@ -303,20 +325,11 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         attachedByConsumer = mSlots[found].mAttachedByConsumer;
 
-        const bool useDefaultSize = !width && !height;
-        if (useDefaultSize) {
-            width = mCore->mDefaultWidth;
-            height = mCore->mDefaultHeight;
-        }
-
         mSlots[found].mBufferState = BufferSlot::DEQUEUED;
 
         const sp<GraphicBuffer>& buffer(mSlots[found].mGraphicBuffer);
         if ((buffer == NULL) ||
-                (static_cast<uint32_t>(buffer->width) != width) ||
-                (static_cast<uint32_t>(buffer->height) != height) ||
-                (buffer->format != format) ||
-                ((static_cast<uint32_t>(buffer->usage) & usage) != usage))
+                buffer->needsReallocation(width, height, format, usage))
         {
             mSlots[found].mAcquireCalled = false;
             mSlots[found].mGraphicBuffer = NULL;
@@ -933,6 +946,12 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
             Mutex::Autolock lock(mCore->mMutex);
             mCore->waitWhileAllocatingLocked();
 
+            if (!mCore->mAllowAllocation) {
+                BQ_LOGE("allocateBuffers: allocation is not allowed for this "
+                        "BufferQueue");
+                return;
+            }
+
             int currentBufferCount = 0;
             for (int slot = 0; slot < BufferQueueDefs::NUM_BUFFER_SLOTS; ++slot) {
                 if (mSlots[slot].mGraphicBuffer != NULL) {
@@ -1025,6 +1044,15 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
             mCore->validateConsistencyLocked();
         } // Autolock scope
     }
+}
+
+status_t BufferQueueProducer::allowAllocation(bool allow) {
+    ATRACE_CALL();
+    BQ_LOGV("allowAllocation: %s", allow ? "true" : "false");
+
+    Mutex::Autolock lock(mCore->mMutex);
+    mCore->mAllowAllocation = allow;
+    return NO_ERROR;
 }
 
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {

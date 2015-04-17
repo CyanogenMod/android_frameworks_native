@@ -266,6 +266,10 @@ private:
     // mIsAllocatingCondition is a condition variable used by producers to wait until mIsAllocating
     // becomes false.
     mutable Condition mIsAllocatingCondition;
+
+    // mAllowAllocation determines whether dequeueBuffer is allowed to allocate
+    // new buffers
+    bool mAllowAllocation;
 }; // class BufferQueueCore
 
 } // namespace android

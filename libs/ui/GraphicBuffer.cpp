@@ -152,6 +152,16 @@ status_t GraphicBuffer::reallocate(uint32_t inWidth, uint32_t inHeight,
     return initSize(inWidth, inHeight, inFormat, inUsage);
 }
 
+bool GraphicBuffer::needsReallocation(uint32_t inWidth, uint32_t inHeight,
+        PixelFormat inFormat, uint32_t inUsage)
+{
+    if (static_cast<int>(inWidth) != width) return true;
+    if (static_cast<int>(inHeight) != height) return true;
+    if (inFormat != format) return true;
+    if ((static_cast<uint32_t>(usage) & inUsage) != inUsage) return true;
+    return false;
+}
+
 status_t GraphicBuffer::initSize(uint32_t inWidth, uint32_t inHeight,
         PixelFormat inFormat, uint32_t inUsage)
 {
