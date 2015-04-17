@@ -70,21 +70,33 @@ class SensorService :
        // The regular operating mode where any application can register/unregister/call flush on
        // sensors.
        NORMAL = 0,
+       // This mode is only used for testing purposes. Not all HALs support this mode. In this
+       // mode, the HAL ignores the sensor data provided by physical sensors and accepts the data
+       // that is injected from the SensorService as if it were the real sensor data. This mode
+       // is primarily used for testing various algorithms like vendor provided SensorFusion,
+       // Step Counter and Step Detector etc. Typically in this mode, there will be a client
+       // (a SensorEventConnection) which will be injecting sensor data into the HAL. Normal apps
+       // can unregister and register for any sensor that supports injection. Registering to sensors
+       // that do not support injection will give an error.
+       // TODO(aakella) : Allow exactly one client to inject sensor data at a time.
+       DATA_INJECTION = 1,
        // This mode is used only for testing sensors. Each sensor can be tested in isolation with
        // the required sampling_rate and maxReportLatency parameters without having to think about
        // the data rates requested by other applications. End user devices are always expected to be
        // in NORMAL mode. When this mode is first activated, all active sensors from all connections
        // are disabled. Calling flush() will return an error. In this mode, only the requests from
        // selected apps whose package names are whitelisted are allowed (typically CTS apps).  Only
-       // these apps can register/unregister/call flush() on sensors.  If SensorService switches to
+       // these apps can register/unregister/call flush() on sensors. If SensorService switches to
        // NORMAL mode again, all sensors that were previously registered to are activated with the
        // corresponding paramaters if the application hasn't unregistered for sensors in the mean
        // time.
        // NOTE: Non whitelisted app whose sensors were previously deactivated may still receive
        // events if a whitelisted app requests data from the same sensor.
-       RESTRICTED,
-       // TODO: This mode hasn't been implemented yet.
-       DATA_INJECTION
+       RESTRICTED = 2
+
+      // State Transitions supported.
+      //     RESTRICTED   <---  NORMAL   ---> DATA_INJECTION
+      //                  --->           <---
     };
 
     static const char* WAKE_LOCK_NAME;
@@ -100,7 +112,9 @@ class SensorService :
 
     // ISensorServer interface
     virtual Vector<Sensor> getSensorList();
-    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName);
+    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
+             int requestedMode);
+    virtual status_t enableDataInjection(int enable);
     virtual status_t dump(int fd, const Vector<String16>& args);
 
     class SensorEventConnection : public BnSensorEventConnection, public LooperCallback {
@@ -177,6 +191,8 @@ class SensorService :
         // mWakeLockRefCount is reset to zero. needsWakeLock method will always return false, if
         // this flag is set.
         bool mDead;
+
+        bool mDataInjectionMode;
         struct FlushInfo {
             // The number of flush complete events dropped for this sensor is stored here.
             // They are sent separately before the next batch of events.
@@ -191,14 +207,14 @@ class SensorService :
         sensors_event_t *mEventCache;
         int mCacheSize, mMaxCacheSize;
         String8 mPackageName;
-
 #if DEBUG_CONNECTIONS
         int mEventsReceived, mEventsSent, mEventsSentFromCache;
         int mTotalAcksNeeded, mTotalAcksReceived;
 #endif
 
     public:
-        SensorEventConnection(const sp<SensorService>& service, uid_t uid, String8 packageName);
+        SensorEventConnection(const sp<SensorService>& service, uid_t uid, String8 packageName,
+                 bool isDataInjectionMode);
 
         status_t sendEvents(sensors_event_t const* buffer, size_t count,
                 sensors_event_t* scratch,
@@ -257,6 +273,7 @@ class SensorService :
             sensors_event_t const* buffer, const int count);
     static bool canAccessSensor(const Sensor& sensor);
     static bool verifyCanAccessSensor(const Sensor& sensor, const char* operation);
+    static bool hasDataInjectionPermissions();
     // SensorService acquires a partial wakelock for delivering events from wake up sensors. This
     // method checks whether all the events from these wake up sensors have been delivered to the
     // corresponding applications, if yes the wakelock is released.
@@ -290,6 +307,10 @@ class SensorService :
     // allowed.
     bool isWhiteListedPackage(const String8& packageName);
 
+    // Reset the state of SensorService to NORMAL mode.
+    status_t resetToNormalMode();
+    status_t resetToNormalModeLocked();
+
     // constants
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
@@ -311,7 +332,7 @@ class SensorService :
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
     SensorEventConnection const **mMapFlushEventsToConnections;
-    Mode mMode;
+    Mode mCurrentOperatingMode;
 
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, sensors_event_t> mLastEventSeen;

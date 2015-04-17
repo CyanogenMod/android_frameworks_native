@@ -64,6 +64,9 @@ namespace android {
  */
 
 const char* SensorService::WAKE_LOCK_NAME = "SensorService";
+// Permissions.
+static const String16 sDataInjectionPermission("android.permission.HARDWARE_TEST");
+static const String16 sDump("android.permission.DUMP");
 
 SensorService::SensorService()
     : mInitCheck(NO_INIT), mSocketBufferSize(SOCKET_BUFFER_SIZE_NON_BATCHED),
@@ -74,7 +77,6 @@ SensorService::SensorService()
 void SensorService::onFirstRef()
 {
     ALOGD("nuSensorService starting...");
-
     SensorDevice& dev(SensorDevice::getInstance());
 
     if (dev.initCheck() == NO_ERROR) {
@@ -190,7 +192,7 @@ void SensorService::onFirstRef()
             mSensorEventBuffer = new sensors_event_t[minBufferSize];
             mSensorEventScratch = new sensors_event_t[minBufferSize];
             mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
-            mMode = NORMAL;
+            mCurrentOperatingMode = NORMAL;
 
             mAckReceiver = new SensorEventAckReceiver(this);
             mAckReceiver->run("SensorEventAckReceiver", PRIORITY_URGENT_DISPLAY);
@@ -229,8 +231,6 @@ SensorService::~SensorService()
         delete mSensorMap.valueAt(i);
 }
 
-static const String16 sDump("android.permission.DUMP");
-
 status_t SensorService::dump(int fd, const Vector<String16>& args)
 {
     String8 result;
@@ -245,8 +245,8 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
         }
         Mutex::Autolock _l(mLock);
         SensorDevice& dev(SensorDevice::getInstance());
-        if (args[0] == String16("restrict") && mMode == NORMAL) {
-            mMode = RESTRICTED;
+        if (args[0] == String16("restrict") && mCurrentOperatingMode == NORMAL) {
+            mCurrentOperatingMode = RESTRICTED;
             dev.disableAllSensors();
             // Clear all pending flush connections for all active sensors. If one of the active
             // connections has called flush() and the underlying sensor has been disabled before a
@@ -254,8 +254,8 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
             for (size_t i=0 ; i< mActiveSensors.size(); ++i) {
                 mActiveSensors.valueAt(i)->clearAllPendingFlushConnections();
             }
-        } else if (args[0] == String16("enable") && mMode == RESTRICTED) {
-            mMode = NORMAL;
+        } else if (args[0] == String16("enable") && mCurrentOperatingMode == RESTRICTED) {
+            mCurrentOperatingMode = NORMAL;
             dev.enableAllSensors();
         }
         return status_t(NO_ERROR);
@@ -363,7 +363,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                             mSocketBufferSize/sizeof(sensors_event_t));
         result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
         result.appendFormat("Mode :");
-        switch(mMode) {
+        switch(mCurrentOperatingMode) {
            case NORMAL:
                result.appendFormat(" NORMAL\n");
                break;
@@ -403,8 +403,9 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
                 sensor->autoDisable(connection.get(), handle);
                 cleanupWithoutDisableLocked(connection, handle);
             }
+
         }
-    }
+   }
 }
 
 bool SensorService::threadLoop()
@@ -685,11 +686,74 @@ Vector<Sensor> SensorService::getSensorList()
     return accessibleSensorList;
 }
 
-sp<ISensorEventConnection> SensorService::createSensorEventConnection(const String8& packageName)
-{
+sp<ISensorEventConnection> SensorService::createSensorEventConnection(const String8& packageName,
+        int requestedMode) {
+    // Only 2 modes supported for a SensorEventConnection ... NORMAL and DATA_INJECTION.
+    if (requestedMode != NORMAL && requestedMode != DATA_INJECTION) {
+        return NULL;
+    }
+    // DATA_INJECTION mode needs to have the required permissions set.
+    if (requestedMode == DATA_INJECTION && !hasDataInjectionPermissions()) {
+        return NULL;
+    }
+
+    Mutex::Autolock _l(mLock);
     uid_t uid = IPCThreadState::self()->getCallingUid();
-    sp<SensorEventConnection> result(new SensorEventConnection(this, uid, packageName));
+    sp<SensorEventConnection> result(new SensorEventConnection(this, uid, packageName,
+            requestedMode == DATA_INJECTION));
+    if (requestedMode == DATA_INJECTION) {
+        if (mActiveConnections.indexOf(result) < 0) {
+            mActiveConnections.add(result);
+        }
+        // Add the associated file descriptor to the Looper for polling whenever there is data to
+        // be injected.
+        result->updateLooperRegistration(mLooper);
+    }
     return result;
+}
+
+status_t SensorService::enableDataInjection(int requestedMode) {
+    if (!hasDataInjectionPermissions()) {
+        return INVALID_OPERATION;
+    }
+    Mutex::Autolock _l(mLock);
+    ALOGD_IF(DEBUG_CONNECTIONS, "SensorService::enableDataInjection %d", requestedMode);
+    SensorDevice& dev(SensorDevice::getInstance());
+    status_t err(NO_ERROR);
+    if (requestedMode == DATA_INJECTION) {
+        if (mCurrentOperatingMode == NORMAL) {
+           dev.disableAllSensors();
+           err = dev.setMode(requestedMode);
+           if (err == NO_ERROR) {
+               mCurrentOperatingMode = DATA_INJECTION;
+           } else {
+               // Re-enable sensors.
+               dev.enableAllSensors();
+           }
+       } else if (mCurrentOperatingMode == DATA_INJECTION) {
+           // Already in DATA_INJECTION mode. Treat this as a no_op.
+           return NO_ERROR;
+       } else {
+           // Transition to data injection mode supported only from NORMAL mode.
+           return INVALID_OPERATION;
+       }
+    } else if (requestedMode == NORMAL && mCurrentOperatingMode != NORMAL) {
+       err = resetToNormalModeLocked();
+    }
+    return err;
+}
+
+status_t SensorService::resetToNormalMode() {
+    Mutex::Autolock _l(mLock);
+    return resetToNormalModeLocked();
+}
+
+status_t SensorService::resetToNormalModeLocked() {
+    SensorDevice& dev(SensorDevice::getInstance());
+    dev.enableAllSensors();
+    status_t err = dev.setMode(NORMAL);
+    mCurrentOperatingMode = NORMAL;
+    return err;
 }
 
 void SensorService::cleanupConnection(SensorEventConnection* c)
@@ -753,7 +817,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     }
 
     Mutex::Autolock _l(mLock);
-    if (mMode == RESTRICTED && !isWhiteListedPackage(connection->getPackageName())) {
+    if (mCurrentOperatingMode == RESTRICTED && !isWhiteListedPackage(connection->getPackageName())) {
         return INVALID_OPERATION;
     }
 
@@ -960,6 +1024,15 @@ bool SensorService::verifyCanAccessSensor(const Sensor& sensor, const char* oper
     }
 }
 
+bool SensorService::hasDataInjectionPermissions() {
+    if (!PermissionCache::checkCallingPermission(sDataInjectionPermission)) {
+        ALOGE("Permission Denial trying to activate data injection without"
+              " the required permission");
+        return false;
+    }
+    return true;
+}
+
 void SensorService::checkWakeLockState() {
     Mutex::Autolock _l(mLock);
     checkWakeLockStateLocked();
@@ -1071,9 +1144,10 @@ void SensorService::SensorRecord::clearAllPendingFlushConnections() {
 // ---------------------------------------------------------------------------
 
 SensorService::SensorEventConnection::SensorEventConnection(
-        const sp<SensorService>& service, uid_t uid, String8 packageName)
+        const sp<SensorService>& service, uid_t uid, String8 packageName, bool isDataInjectionMode)
     : mService(service), mUid(uid), mWakeLockRefCount(0), mHasLooperCallbacks(false),
-      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0), mPackageName(packageName) {
+      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0), mPackageName(packageName),
+      mDataInjectionMode(isDataInjectionMode) {
     mChannel = new BitTube(mService->mSocketBufferSize);
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
@@ -1105,6 +1179,7 @@ void SensorService::SensorEventConnection::resetWakeLockRefCount() {
 
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
+    result.appendFormat("Operating Mode: %s\n", mDataInjectionMode ? "DATA_INJECTION" : "NORMAL");
     result.appendFormat("\t%s | WakeLockRefCount %d | uid %d | cache size %d | max cache size %d\n",
             mPackageName.string(), mWakeLockRefCount, mUid, mCacheSize, mMaxCacheSize);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
@@ -1190,7 +1265,8 @@ void SensorService::SensorEventConnection::updateLooperRegistration(const sp<Loo
 
 void SensorService::SensorEventConnection::updateLooperRegistrationLocked(
         const sp<Looper>& looper) {
-    bool isConnectionActive = mSensorInfo.size() > 0;
+    bool isConnectionActive = (mSensorInfo.size() > 0 && !mDataInjectionMode) ||
+                              mDataInjectionMode;
     // If all sensors are unregistered OR Looper has encountered an error, we
     // can remove the Fd from the Looper if it has been previously added.
     if (!isConnectionActive || mDead) {
@@ -1204,6 +1280,7 @@ void SensorService::SensorEventConnection::updateLooperRegistrationLocked(
 
     int looper_flags = 0;
     if (mCacheSize > 0) looper_flags |= ALOOPER_EVENT_OUTPUT;
+    if (mDataInjectionMode) looper_flags |= ALOOPER_EVENT_INPUT;
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const int handle = mSensorInfo.keyAt(i);
         if (mService->getSensorFromHandle(handle).isWakeUpSensor()) {
@@ -1570,26 +1647,55 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
             updateLooperRegistrationLocked(mService->getLooper());
         }
         mService->checkWakeLockState();
+        if (mDataInjectionMode) {
+            // If the Looper has encountered some error in data injection mode, reset SensorService
+            // back to normal mode.
+            mService->resetToNormalMode();
+            mDataInjectionMode = false;
+        }
         return 1;
     }
 
     if (events & ALOOPER_EVENT_INPUT) {
-        uint32_t numAcks = 0;
-        ssize_t ret = ::recv(fd, &numAcks, sizeof(numAcks), MSG_DONTWAIT);
+        unsigned char buf[sizeof(sensors_event_t)];
+        ssize_t numBytesRead = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
         {
            Mutex::Autolock _l(mConnectionLock);
-           // Sanity check to ensure  there are no read errors in recv, numAcks is always
-           // within the range and not zero. If any of the above don't hold reset mWakeLockRefCount
-           // to zero.
-           if (ret != sizeof(numAcks) || numAcks > mWakeLockRefCount || numAcks == 0) {
-               ALOGE("Looper read error ret=%d numAcks=%d", ret, numAcks);
-               mWakeLockRefCount = 0;
-           } else {
-               mWakeLockRefCount -= numAcks;
-           }
+           if (numBytesRead == sizeof(sensors_event_t)) {
+               if (!mDataInjectionMode) {
+                   ALOGE("Data injected in normal mode, dropping event"
+                         "package=%s uid=%d", mPackageName.string(), mUid);
+                   // Unregister call backs.
+                   return 0;
+               }
+               SensorDevice& dev(SensorDevice::getInstance());
+               sensors_event_t sensor_event;
+               memset(&sensor_event, 0, sizeof(sensor_event));
+               memcpy(&sensor_event, buf, sizeof(sensors_event_t));
+               Sensor sensor = mService->getSensorFromHandle(sensor_event.sensor);
+               sensor_event.type = sensor.getType();
+               dev.injectSensorData(&sensor_event, 1);
 #if DEBUG_CONNECTIONS
-           mTotalAcksReceived += numAcks;
+               ++mEventsReceived;
 #endif
+           } else if (numBytesRead == sizeof(uint32_t)) {
+               uint32_t numAcks = 0;
+               memcpy(&numAcks, buf, sizeof(numBytesRead));
+               // Sanity check to ensure  there are no read errors in recv, numAcks is always
+               // within the range and not zero. If any of the above don't hold reset
+               // mWakeLockRefCount to zero.
+               if (numAcks > 0 && numAcks < mWakeLockRefCount) {
+                   mWakeLockRefCount -= numAcks;
+               } else {
+                   mWakeLockRefCount = 0;
+               }
+#if DEBUG_CONNECTIONS
+               mTotalAcksReceived += numAcks;
+#endif
+           } else {
+               // Read error, reset wakelock refcount.
+               mWakeLockRefCount = 0;
+           }
         }
         // Check if wakelock can be released by sensorservice. mConnectionLock needs to be released
         // here as checkWakeLockState() will need it.

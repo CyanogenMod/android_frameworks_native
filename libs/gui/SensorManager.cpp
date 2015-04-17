@@ -100,8 +100,6 @@ status_t SensorManager::assertStateLocked() const {
     return NO_ERROR;
 }
 
-
-
 ssize_t SensorManager::getSensorList(Sensor const* const** list) const
 {
     Mutex::Autolock _l(mLock);
@@ -139,23 +137,30 @@ Sensor const* SensorManager::getDefaultSensor(int type)
     return NULL;
 }
 
-sp<SensorEventQueue> SensorManager::createEventQueue(String8 packageName)
-{
+sp<SensorEventQueue> SensorManager::createEventQueue(String8 packageName, int mode) {
     sp<SensorEventQueue> queue;
 
     Mutex::Autolock _l(mLock);
     while (assertStateLocked() == NO_ERROR) {
         sp<ISensorEventConnection> connection =
-                mSensorServer->createSensorEventConnection(packageName);
+                mSensorServer->createSensorEventConnection(packageName, mode);
         if (connection == NULL) {
-            // SensorService just died.
-            ALOGE("createEventQueue: connection is NULL. SensorService died.");
-            continue;
+            // SensorService just died or the app doesn't have required permissions.
+            ALOGE("createEventQueue: connection is NULL.");
+            return NULL;
         }
         queue = new SensorEventQueue(connection);
         break;
     }
     return queue;
+}
+
+status_t SensorManager::enableDataInjection(bool enable) {
+    Mutex::Autolock _l(mLock);
+    if (assertStateLocked() == NO_ERROR) {
+        return mSensorServer->enableDataInjection(enable);
+    }
+    return INVALID_OPERATION;
 }
 
 // ----------------------------------------------------------------------------
