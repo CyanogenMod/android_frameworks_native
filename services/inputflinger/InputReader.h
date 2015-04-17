@@ -420,8 +420,8 @@ public:
     virtual void requestTimeoutAtTime(nsecs_t when) = 0;
     virtual int32_t bumpGeneration() = 0;
 
-    virtual void getExternalStylusDevices(Vector<InputDeviceInfo>& outDevices);
-    virtual void dispatchExternalStylusState(const StylusState& outState);
+    virtual void getExternalStylusDevices(Vector<InputDeviceInfo>& outDevices) = 0;
+    virtual void dispatchExternalStylusState(const StylusState& outState) = 0;
 
     virtual InputReaderPolicyInterface* getPolicy() = 0;
     virtual InputListenerInterface* getListener() = 0;
