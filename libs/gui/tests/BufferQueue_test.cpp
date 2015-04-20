@@ -73,6 +73,8 @@ struct DummyConsumer : public BnConsumerListener {
     virtual void onSidebandStreamChanged() {}
 };
 
+static const uint32_t TEST_DATA = 0x12345678u;
+
 // XXX: Tests that fork a process to hold the BufferQueue must run before tests
 // that use a local BufferQueue, or else Binder will get unhappy
 TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
@@ -122,7 +124,7 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
     uint32_t* dataIn;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput input(0, false,
@@ -136,7 +138,7 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
     uint32_t* dataOut;
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
-    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 }
 
@@ -239,7 +241,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     uint32_t* dataIn;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, buffer->unlock());
 
     int newSlot;
@@ -258,7 +260,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     uint32_t* dataOut;
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
-    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 }
 
@@ -297,7 +299,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(
             GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 
     int newSlot;
@@ -317,7 +319,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     uint32_t* dataOut;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
-    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, buffer->unlock());
 }
 
@@ -340,7 +342,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
     uint32_t* dataIn;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput input(0, false,
@@ -360,7 +362,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
     uint32_t* dataOut;
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
-    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 }
 

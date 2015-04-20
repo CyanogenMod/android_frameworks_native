@@ -76,6 +76,8 @@ private:
     int mAllocCount;
 };
 
+static const uint32_t TEST_DATA = 0x12345678u;
+
 TEST_F(StreamSplitterTest, OneInputOneOutput) {
     sp<CountedAllocator> allocator(new CountedAllocator);
 
@@ -108,7 +110,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     uint32_t* dataIn;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
@@ -123,7 +125,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     uint32_t* dataOut;
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
             reinterpret_cast<void**>(&dataOut)));
-    ASSERT_EQ(*dataOut, 0x12345678);
+    ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 
     ASSERT_EQ(OK, outputConsumer->releaseBuffer(item.mBuf, item.mFrameNumber,
@@ -175,7 +177,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     uint32_t* dataIn;
     ASSERT_EQ(OK, buffer->lock(GraphicBuffer::USAGE_SW_WRITE_OFTEN,
             reinterpret_cast<void**>(&dataIn)));
-    *dataIn = 0x12345678;
+    *dataIn = TEST_DATA;
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
@@ -191,7 +193,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
         uint32_t* dataOut;
         ASSERT_EQ(OK, item.mGraphicBuffer->lock(GraphicBuffer::USAGE_SW_READ_OFTEN,
                     reinterpret_cast<void**>(&dataOut)));
-        ASSERT_EQ(*dataOut, 0x12345678);
+        ASSERT_EQ(*dataOut, TEST_DATA);
         ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 
         ASSERT_EQ(OK, outputConsumers[output]->releaseBuffer(item.mBuf,
