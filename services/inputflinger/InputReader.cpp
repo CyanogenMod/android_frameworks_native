@@ -4127,13 +4127,13 @@ void TouchInputMapper::timeoutExpired(nsecs_t when) {
 }
 
 void TouchInputMapper::updateExternalStylusState(const StylusState& state) {
+    mExternalStylusState.copyFrom(state);
     if (mExternalStylusId != -1 || mExternalStylusDataTimeout != LLONG_MAX) {
         // We're either in the middle of a fused stream of data or we're waiting on data before
         // dispatching the initial down, so go ahead and dispatch now that we have fresh stylus
         // data.
         mExternalStylusDataTimeout = LLONG_MAX;
         mExternalStylusDataPending = true;
-        mExternalStylusState.copyFrom(state);
         processRawTouches(false /*timeout*/);
     }
 }
