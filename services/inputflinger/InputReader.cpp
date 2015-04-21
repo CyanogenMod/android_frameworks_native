@@ -6511,6 +6511,11 @@ void ExternalStylusInputMapper::sync(nsecs_t when) {
 
     mStylusState.when = when;
 
+    mStylusState.toolType = mTouchButtonAccumulator.getToolType();
+    if (mStylusState.toolType == AMOTION_EVENT_TOOL_TYPE_UNKNOWN) {
+        mStylusState.toolType = AMOTION_EVENT_TOOL_TYPE_STYLUS;
+    }
+
     int32_t pressure = mSingleTouchMotionAccumulator.getAbsolutePressure();
     if (mRawPressureAxis.valid) {
         mStylusState.pressure = float(pressure) / mRawPressureAxis.maxValue;
@@ -6521,7 +6526,6 @@ void ExternalStylusInputMapper::sync(nsecs_t when) {
     }
 
     mStylusState.buttons = mTouchButtonAccumulator.getButtonState();
-    mStylusState.toolType = mTouchButtonAccumulator.getToolType();
 
     mContext->dispatchExternalStylusState(mStylusState);
 }
