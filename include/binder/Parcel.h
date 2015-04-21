@@ -337,6 +337,12 @@ public:
     public:
         inline void* data() { return mData; }
     };
+
+private:
+    size_t mBlobAshmemSize;
+
+public:
+    size_t getBlobAshmemSize() const;
 };
 
 // ---------------------------------------------------------------------------

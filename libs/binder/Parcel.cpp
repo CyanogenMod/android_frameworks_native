@@ -938,6 +938,8 @@ status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
     int fd = ashmem_create_region("Parcel Blob", len);
     if (fd < 0) return NO_MEMORY;
 
+    mBlobAshmemSize += len;
+
     int result = ashmem_set_prot_region(fd, PROT_READ | PROT_WRITE);
     if (result < 0) {
         status = result;
@@ -1901,6 +1903,7 @@ void Parcel::initState()
     mFdsKnown = true;
     mAllowFds = true;
     mOwner = NULL;
+    mBlobAshmemSize = 0;
 }
 
 void Parcel::scanForFds() const
@@ -1916,6 +1919,11 @@ void Parcel::scanForFds() const
     }
     mHasFds = hasFds;
     mFdsKnown = true;
+}
+
+size_t Parcel::getBlobAshmemSize() const
+{
+    return mBlobAshmemSize;
 }
 
 // --- Parcel::Blob ---
