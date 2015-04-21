@@ -71,7 +71,7 @@ static const size_t MAX_SLOTS = 32;
 
 // Maximum amount of latency to add to touch events while waiting for data from an
 // external stylus.
-static const nsecs_t EXTERNAL_STYLUS_DATA_TIMEOUT = ms2ns(32);
+static const nsecs_t EXTERNAL_STYLUS_DATA_TIMEOUT = ms2ns(72);
 
 // --- Static Functions ---
 
