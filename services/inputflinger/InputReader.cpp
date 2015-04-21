@@ -73,6 +73,13 @@ static const size_t MAX_SLOTS = 32;
 // external stylus.
 static const nsecs_t EXTERNAL_STYLUS_DATA_TIMEOUT = ms2ns(72);
 
+// Maximum amount of time to wait on touch data before pushing out new pressure data.
+static const nsecs_t TOUCH_DATA_TIMEOUT = ms2ns(20);
+
+// Artificial latency on synthetic events created from stylus data without corresponding touch
+// data.
+static const nsecs_t STYLUS_DATA_LATENCY = ms2ns(10);
+
 // --- Static Functions ---
 
 template<typename T>
@@ -2827,7 +2834,7 @@ void TouchInputMapper::dump(String8& dump) {
             toString(mExternalStylusConnected));
     dump.appendFormat(INDENT4 "External Stylus ID: %" PRId64 "\n", mExternalStylusId);
     dump.appendFormat(INDENT4 "External Stylus Data Timeout: %" PRId64 "\n",
-            mExternalStylusDataTimeout);
+            mExternalStylusFusionTimeout);
     dump.append(INDENT3 "External Stylus State:\n");
     dumpStylusState(dump, mExternalStylusState);
 
@@ -3836,8 +3843,13 @@ void TouchInputMapper::reset(nsecs_t when) {
 void TouchInputMapper::resetExternalStylus() {
     mExternalStylusState.clear();
     mExternalStylusId = -1;
-    mExternalStylusDataTimeout = LLONG_MAX;
+    mExternalStylusFusionTimeout = LLONG_MAX;
     mExternalStylusDataPending = false;
+}
+
+void TouchInputMapper::clearStylusDataPendingFlags() {
+    mExternalStylusDataPending = false;
+    mExternalStylusFusionTimeout = LLONG_MAX;
 }
 
 void TouchInputMapper::process(const RawEvent* rawEvent) {
@@ -3915,19 +3927,30 @@ void TouchInputMapper::processRawTouches(bool timeout) {
         }
 
         // All ready to go.
-        mExternalStylusDataPending = false;
+        clearStylusDataPendingFlags();
         mCurrentRawState.copyFrom(next);
+        if (mCurrentRawState.when < mLastRawState.when) {
+            mCurrentRawState.when = mLastRawState.when;
+        }
         cookAndDispatch(mCurrentRawState.when);
     }
     if (count != 0) {
         mRawStatesPending.removeItemsAt(0, count);
     }
 
-    // TODO: If we still have pending stylus data that hasn't been mapped to a touch yet
-    // then set a timeout to synthesize a new touch event with the new data.  Otherwise
-    // we will lose button and pressure information while the touch is stationary.
     if (mExternalStylusDataPending) {
-        ALOGD("STYLUS TODO: Wiggle wiggle wiggle.");
+        if (timeout) {
+            nsecs_t when = mExternalStylusFusionTimeout - STYLUS_DATA_LATENCY;
+            clearStylusDataPendingFlags();
+            mCurrentRawState.copyFrom(mLastRawState);
+#if DEBUG_STYLUS_FUSION
+            ALOGD("Timeout expired, synthesizing event with new stylus data");
+#endif
+            cookAndDispatch(when);
+        } else if (mExternalStylusFusionTimeout == LLONG_MAX) {
+            mExternalStylusFusionTimeout = mExternalStylusState.when + TOUCH_DATA_TIMEOUT;
+            getContext()->requestTimeoutAtTime(mExternalStylusFusionTimeout);
+        }
     }
 }
 
@@ -4086,15 +4109,14 @@ bool TouchInputMapper::assignExternalStylusId(const RawState& state, bool timeou
 #endif
             resetExternalStylus();
         } else {
-            nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-            if (mExternalStylusDataTimeout == LLONG_MAX) {
-                mExternalStylusDataTimeout = now + EXTERNAL_STYLUS_DATA_TIMEOUT;
+            if (mExternalStylusFusionTimeout == LLONG_MAX) {
+                mExternalStylusFusionTimeout = state.when + EXTERNAL_STYLUS_DATA_TIMEOUT;
             }
 #if DEBUG_STYLUS_FUSION
             ALOGD("No stylus data but stylus is connected, requesting timeout "
-                    "(%" PRId64 "ms)", mExternalStylusDataTimeout);
+                    "(%" PRId64 "ms)", mExternalStylusFusionTimeout);
 #endif
-            getContext()->requestTimeoutAtTime(mExternalStylusDataTimeout);
+            getContext()->requestTimeoutAtTime(mExternalStylusFusionTimeout);
             return true;
         }
     }
@@ -4117,22 +4139,20 @@ void TouchInputMapper::timeoutExpired(nsecs_t when) {
             dispatchPointerGestures(when, 0 /*policyFlags*/, true /*isTimeout*/);
         }
     } else if (mDeviceMode == DEVICE_MODE_DIRECT) {
-        if (mExternalStylusDataTimeout < when) {
-            mExternalStylusDataTimeout = LLONG_MAX;
+        if (mExternalStylusFusionTimeout < when) {
             processRawTouches(true /*timeout*/);
-        } else if (mExternalStylusDataTimeout != LLONG_MAX) {
-            getContext()->requestTimeoutAtTime(mExternalStylusDataTimeout);
+        } else if (mExternalStylusFusionTimeout != LLONG_MAX) {
+            getContext()->requestTimeoutAtTime(mExternalStylusFusionTimeout);
         }
     }
 }
 
 void TouchInputMapper::updateExternalStylusState(const StylusState& state) {
     mExternalStylusState.copyFrom(state);
-    if (mExternalStylusId != -1 || mExternalStylusDataTimeout != LLONG_MAX) {
+    if (mExternalStylusId != -1 || mExternalStylusFusionTimeout != LLONG_MAX) {
         // We're either in the middle of a fused stream of data or we're waiting on data before
         // dispatching the initial down, so go ahead and dispatch now that we have fresh stylus
         // data.
-        mExternalStylusDataTimeout = LLONG_MAX;
         mExternalStylusDataPending = true;
         processRawTouches(false /*timeout*/);
     }
@@ -4310,7 +4330,7 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
         // Dispatch move events if any of the remaining pointers moved from their old locations.
         // Although applications receive new locations as part of individual pointer up
         // events, they do not generally handle them except when presented in a move event.
-        if (moveNeeded) {
+        if (moveNeeded && !moveIdBits.isEmpty()) {
             ALOG_ASSERT(moveIdBits.value == dispatchedIdBits.value);
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, 0,
