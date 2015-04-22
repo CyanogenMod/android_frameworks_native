@@ -120,7 +120,6 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
             if (mCore->stillTracking(front)) {
                 // Front buffer is still in mSlots, so mark the slot as free
                 mSlots[front->mSlot].mBufferState = BufferSlot::FREE;
-                mCore->mFreeBuffers.push_back(front->mSlot);
             }
             mCore->mQueue.erase(front);
             front = mCore->mQueue.begin();
@@ -174,8 +173,6 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
 
     ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
 
-    mCore->validateConsistencyLocked();
-
     return NO_ERROR;
 }
 
@@ -202,7 +199,6 @@ status_t BufferQueueConsumer::detachBuffer(int slot) {
 
     mCore->freeBufferLocked(slot);
     mCore->mDequeueCondition.broadcast();
-    mCore->validateConsistencyLocked();
 
     return NO_ERROR;
 }
@@ -221,11 +217,18 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
 
     Mutex::Autolock lock(mCore->mMutex);
 
-    // Make sure we don't have too many acquired buffers
+    // Make sure we don't have too many acquired buffers and find a free slot
+    // to put the buffer into (the oldest if there are multiple).
     int numAcquiredBuffers = 0;
+    int found = BufferQueueCore::INVALID_BUFFER_SLOT;
     for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
         if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
             ++numAcquiredBuffers;
+        } else if (mSlots[s].mBufferState == BufferSlot::FREE) {
+            if (found == BufferQueueCore::INVALID_BUFFER_SLOT ||
+                    mSlots[s].mFrameNumber < mSlots[found].mFrameNumber) {
+                found = s;
+            }
         }
     }
 
@@ -234,17 +237,6 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
                 "(max %d)", numAcquiredBuffers,
                 mCore->mMaxAcquiredBufferCount);
         return INVALID_OPERATION;
-    }
-
-    // Find a free slot to put the buffer into
-    int found = BufferQueueCore::INVALID_BUFFER_SLOT;
-    if (!mCore->mFreeSlots.empty()) {
-        auto slot = mCore->mFreeSlots.begin();
-        found = *slot;
-        mCore->mFreeSlots.erase(slot);
-    } else if (!mCore->mFreeBuffers.empty()) {
-        found = mCore->mFreeBuffers.front();
-        mCore->mFreeBuffers.remove(found);
     }
     if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
         BQ_LOGE("attachBuffer(P): could not find free buffer slot");
@@ -278,8 +270,6 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
     // false, the valid GraphicBuffer pointer will always be sent with acquire
     // for attached buffers.
     mSlots[*outSlot].mAcquireCalled = false;
-
-    mCore->validateConsistencyLocked();
 
     return NO_ERROR;
 }
@@ -321,7 +311,6 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
             mSlots[slot].mEglFence = eglFence;
             mSlots[slot].mFence = releaseFence;
             mSlots[slot].mBufferState = BufferSlot::FREE;
-            mCore->mFreeBuffers.push_back(slot);
             listener = mCore->mConnectedProducerListener;
             BQ_LOGV("releaseBuffer: releasing slot %d", slot);
         } else if (mSlots[slot].mNeedsCleanupOnRelease) {
@@ -336,7 +325,6 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         }
 
         mCore->mDequeueCondition.broadcast();
-        mCore->validateConsistencyLocked();
     } // Autolock scope
 
     // Call back without lock held
