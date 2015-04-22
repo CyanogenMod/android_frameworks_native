@@ -298,12 +298,12 @@ private:
     sp<GraphicBuffer>           mPostedBuffer;
     bool                        mConnectedToCpu;
 
-    // In the lock/unlock context, this reflects the region that the producer
-    // wished to update and whether the Surface was able to copy the previous
-    // buffer back to allow a partial update.
+    // When a CPU producer is attached, this reflects the region that the
+    // producer wished to update as well as whether the Surface was able to copy
+    // the previous buffer back to allow a partial update.
     //
-    // In the dequeue/queue context, this reflects the surface damage (the
-    // damage since the last frame) passed in by the producer.
+    // When a non-CPU producer is attached, this reflects the surface damage
+    // (the change since the previous frame) passed in by the producer.
     Region mDirtyRegion;
 };
 

@@ -322,7 +322,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
             mDataSpace, crop, mScalingMode, mTransform ^ mStickyTransform,
             mSwapIntervalZero, fence, mStickyTransform);
 
-    if (mDirtyRegion.bounds() == Rect::INVALID_RECT) {
+    if (mConnectedToCpu || mDirtyRegion.bounds() == Rect::INVALID_RECT) {
         input.setSurfaceDamage(Region::INVALID_REGION);
     } else {
         // The surface damage was specified using the OpenGL ES convention of
@@ -356,8 +356,10 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
 
     mConsumerRunningBehind = (numPendingBuffers >= 2);
 
-    // Clear surface damage back to full-buffer
-    mDirtyRegion = Region::INVALID_REGION;
+    if (!mConnectedToCpu) {
+        // Clear surface damage back to full-buffer
+        mDirtyRegion = Region::INVALID_REGION;
+    }
 
     return err;
 }
@@ -844,7 +846,7 @@ void Surface::setSurfaceDamage(android_native_rect_t* rects, size_t numRects) {
     ALOGV("Surface::setSurfaceDamage");
     Mutex::Autolock lock(mMutex);
 
-    if (numRects == 0) {
+    if (mConnectedToCpu || numRects == 0) {
         mDirtyRegion = Region::INVALID_REGION;
         return;
     }
