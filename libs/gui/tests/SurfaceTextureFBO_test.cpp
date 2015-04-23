@@ -27,8 +27,10 @@ TEST_F(SurfaceTextureFBOTest, BlitFromCpuFilledBufferToFbo) {
     const int texWidth = 64;
     const int texHeight = 64;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_RGBA_8888));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_RGBA_8888));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
