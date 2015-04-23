@@ -881,11 +881,11 @@ struct CookedPointerData {
         return pointerProperties[idToIndex[id]];
     }
 
-    inline bool isHovering(uint32_t pointerIndex) {
+    inline bool isHovering(uint32_t pointerIndex) const {
         return hoveringIdBits.hasBit(pointerProperties[pointerIndex].id);
     }
 
-    inline bool isTouching(uint32_t pointerIndex) {
+    inline bool isTouching(uint32_t pointerIndex) const {
         return touchingIdBits.hasBit(pointerProperties[pointerIndex].id);
     }
 };
