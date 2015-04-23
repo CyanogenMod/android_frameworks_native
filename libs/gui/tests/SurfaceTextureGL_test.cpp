@@ -28,8 +28,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferNpot) {
     const int texWidth = 64;
     const int texHeight = 66;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_YV12));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
@@ -74,8 +76,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferPow2) {
     const int texWidth = 64;
     const int texHeight = 64;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_YV12));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
@@ -120,8 +124,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferWithCrop) {
     const int texWidth = 64;
     const int texHeight = 66;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_YV12));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
@@ -185,8 +191,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
     enum { numFrames = 1024 };
 
     ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_YV12));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_YV12));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_WRITE_OFTEN));
 
@@ -326,8 +334,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferNpot) {
     const int texWidth = 64;
     const int texHeight = 66;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_RGBA_8888));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_RGBA_8888));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
@@ -368,8 +378,10 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledRGBABufferPow2) {
     const int texWidth = 64;
     const int texHeight = 64;
 
-    ASSERT_EQ(NO_ERROR, native_window_set_buffers_geometry(mANW.get(),
-            texWidth, texHeight, HAL_PIXEL_FORMAT_RGBA_8888));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
+            texWidth, texHeight));
+    ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
+            HAL_PIXEL_FORMAT_RGBA_8888));
     ASSERT_EQ(NO_ERROR, native_window_set_usage(mANW.get(),
             GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
 
