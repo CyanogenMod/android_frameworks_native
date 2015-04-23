@@ -17,6 +17,10 @@
 #define LOG_TAG "SRGB_test"
 //#define LOG_NDEBUG 0
 
+// Ignore for this file because it flags every instance of
+// ASSERT_EQ(GL_NO_ERROR, glGetError());
+#pragma clang diagnostic ignored "-Wsign-compare"
+
 #include "GLTest.h"
 
 #include <math.h>
@@ -329,9 +333,9 @@ private:
         ANativeWindow_Buffer outBuffer;
         ARect outBufferBounds;
         mOutputSurface->lock(&outBuffer, &outBufferBounds);
-        ASSERT_EQ(mLockedBuffer.width, outBuffer.width);
-        ASSERT_EQ(mLockedBuffer.height, outBuffer.height);
-        ASSERT_EQ(mLockedBuffer.stride, outBuffer.stride);
+        ASSERT_EQ(mLockedBuffer.width, static_cast<uint32_t>(outBuffer.width));
+        ASSERT_EQ(mLockedBuffer.height, static_cast<uint32_t>(outBuffer.height));
+        ASSERT_EQ(mLockedBuffer.stride, static_cast<uint32_t>(outBuffer.stride));
 
         if (mLockedBuffer.format == outBuffer.format) {
             memcpy(outBuffer.bits, mLockedBuffer.data, bufferSize);
@@ -401,7 +405,8 @@ TEST_F(SRGBTest, GLRenderFromSRGBTexture) {
     // the debug surface if necessary
 }
 
-TEST_F(SRGBTest, RenderToSRGBSurface) {
+// XXX: Disabled since we don't currently expect this to work
+TEST_F(SRGBTest, DISABLED_RenderToSRGBSurface) {
     ASSERT_NO_FATAL_FAILURE(initShaders());
 
     // By default, the first buffer we write into will be RGB

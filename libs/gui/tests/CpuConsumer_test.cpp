@@ -94,7 +94,7 @@ protected:
             mPendingFrames--;
         }
 
-        virtual void onFrameAvailable() {
+        virtual void onFrameAvailable(const BufferItem&) {
             Mutex::Autolock lock(mMutex);
             mPendingFrames++;
             mCondition.signal();
@@ -125,7 +125,7 @@ protected:
             mPendingFrames--;
         }
 
-        virtual void onFrameAvailable() {
+        virtual void onFrameAvailable(const BufferItem&) {
             Mutex::Autolock lock(mMutex);
             mPendingFrames++;
             mFrameCondition.signal();
@@ -457,9 +457,12 @@ void configureANW(const sp<ANativeWindow>& anw,
         const CpuConsumerTestParams& params,
         int maxBufferSlack) {
     status_t err;
-    err = native_window_set_buffers_geometry(anw.get(),
-            params.width, params.height, params.format);
-    ASSERT_NO_ERROR(err, "set_buffers_geometry error: ");
+    err = native_window_set_buffers_dimensions(anw.get(),
+            params.width, params.height);
+    ASSERT_NO_ERROR(err, "set_buffers_dimensions error: ");
+
+    err = native_window_set_buffers_format(anw.get(), params.format);
+    ASSERT_NO_ERROR(err, "set_buffers_format error: ");
 
     err = native_window_set_usage(anw.get(),
             GRALLOC_USAGE_SW_WRITE_OFTEN);

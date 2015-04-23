@@ -3,6 +3,8 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
+LOCAL_CLANG := true
+
 LOCAL_MODULE := libgui_test
 
 LOCAL_MODULE_TAGS := tests
