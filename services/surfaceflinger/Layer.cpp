@@ -918,7 +918,7 @@ uint32_t Layer::doTransaction(uint32_t flags) {
         const bool resizePending = (c.requested.w != c.active.w) ||
                                    (c.requested.h != c.active.h);
 
-        if (resizePending) {
+        if (resizePending && mSidebandStream == NULL) {
             // don't let Layer::doTransaction update the drawing state
             // if we have a pending resize, unless we are in fixed-size mode.
             // the drawing state will be updated only once we receive a buffer
@@ -927,6 +927,10 @@ uint32_t Layer::doTransaction(uint32_t flags) {
             // in particular, we want to make sure the clip (which is part
             // of the geometry state) is latched together with the size but is
             // latched immediately when no resizing is involved.
+            //
+            // If a sideband stream is attached, however, we want to skip this
+            // optimization so that transactions aren't missed when a buffer
+            // never arrives
 
             flags |= eDontUpdateGeometryState;
         }
