@@ -53,6 +53,7 @@ public:
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage);
+    virtual status_t allowAllocation(bool allow);
     virtual IBinder* onAsBinder();
 
 private:

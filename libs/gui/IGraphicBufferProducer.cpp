@@ -46,6 +46,7 @@ enum {
     DISCONNECT,
     SET_SIDEBAND_STREAM,
     ALLOCATE_BUFFERS,
+    ALLOW_ALLOCATION,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -271,6 +272,18 @@ public:
             ALOGE("allocateBuffers failed to transact: %d", result);
         }
     }
+
+    virtual status_t allowAllocation(bool allow) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(static_cast<int32_t>(allow));
+        status_t result = remote()->transact(ALLOW_ALLOCATION, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -418,7 +431,7 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeInt32(result);
             return NO_ERROR;
         }
-        case ALLOCATE_BUFFERS:
+        case ALLOCATE_BUFFERS: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool async = static_cast<bool>(data.readInt32());
             uint32_t width = data.readUint32();
@@ -427,6 +440,14 @@ status_t BnGraphicBufferProducer::onTransact(
             uint32_t usage = data.readUint32();
             allocateBuffers(async, width, height, format, usage);
             return NO_ERROR;
+        }
+        case ALLOW_ALLOCATION: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool allow = static_cast<bool>(data.readInt32());
+            status_t result = allowAllocation(allow);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

@@ -97,6 +97,9 @@ public:
     status_t reallocate(uint32_t inWidth, uint32_t inHeight,
             PixelFormat inFormat, uint32_t inUsage);
 
+    bool needsReallocation(uint32_t inWidth, uint32_t inHeight,
+            PixelFormat inFormat, uint32_t inUsage);
+
     status_t lock(uint32_t inUsage, void** vaddr);
     status_t lock(uint32_t inUsage, const Rect& rect, void** vaddr);
     // For HAL_PIXEL_FORMAT_YCbCr_420_888

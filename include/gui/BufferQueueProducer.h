@@ -172,6 +172,9 @@ public:
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage);
 
+    // See IGraphicBufferProducer::allowAllocation
+    virtual status_t allowAllocation(bool allow);
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);
