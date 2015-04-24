@@ -30,6 +30,9 @@
 #include <utils/Trace.h>
 #include <utils/Vector.h>
 
+#include <list>
+#include <set>
+
 #define BQ_LOGV(x, ...) ALOGV("[%s] " x, mConsumerName.string(), ##__VA_ARGS__)
 #define BQ_LOGD(x, ...) ALOGD("[%s] " x, mConsumerName.string(), ##__VA_ARGS__)
 #define BQ_LOGI(x, ...) ALOGI("[%s] " x, mConsumerName.string(), ##__VA_ARGS__)
@@ -123,6 +126,10 @@ private:
     // waitWhileAllocatingLocked blocks until mIsAllocating is false.
     void waitWhileAllocatingLocked() const;
 
+    // validateConsistencyLocked ensures that the free lists are in sync with
+    // the information stored in mSlots
+    void validateConsistencyLocked() const;
+
     // mAllocator is the connection to SurfaceFlinger that is used to allocate
     // new GraphicBuffer objects.
     sp<IGraphicBufferAlloc> mAllocator;
@@ -176,6 +183,14 @@ private:
 
     // mQueue is a FIFO of queued buffers used in synchronous mode.
     Fifo mQueue;
+
+    // mFreeSlots contains all of the slots which are FREE and do not currently
+    // have a buffer attached
+    std::set<int> mFreeSlots;
+
+    // mFreeBuffers contains all of the slots which are FREE and currently have
+    // a buffer attached
+    std::list<int> mFreeBuffers;
 
     // mOverrideMaxBufferCount is the limit on the number of buffers that will
     // be allocated at one time. This value is set by the producer by calling
