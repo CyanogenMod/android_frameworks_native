@@ -745,6 +745,15 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
     ALOGE("execv(%s) failed: %s\n", PATCHOAT_BIN, strerror(errno));
 }
 
+static bool check_boolean_property(const char* property_name, bool default_value = false) {
+    char tmp_property_value[PROPERTY_VALUE_MAX];
+    bool have_property = property_get(property_name, tmp_property_value, nullptr) > 0;
+    if (!have_property) {
+        return default_value;
+    }
+    return strcmp(tmp_property_value, "true") == 0;
+}
+
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *pkgname, const char *instruction_set,
     bool vm_safe_mode, bool debuggable)
@@ -805,9 +814,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                              (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
                              (strcmp(vold_decrypt, "1") == 0)));
 
-    char use_jit_property[PROPERTY_VALUE_MAX];
-    bool have_jit_property = property_get("debug.usejit", use_jit_property, NULL) > 0;
-    bool use_jit = have_jit_property && strcmp(use_jit_property, "true") == 0;
+    bool use_jit = check_boolean_property("debug.usejit");
+    bool gen_cfi = check_boolean_property("debug.gencfi");
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
@@ -900,6 +908,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                      + (have_dex2oat_threads_flag ? 1 : 0)
                      + (have_dex2oat_swap_fd ? 1 : 0)
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
+                     + (gen_cfi ? 1 : 0)
                      + (debuggable ? 1 : 0)
                      + dex2oat_flags_count];
     int i = 0;
@@ -937,6 +946,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_swap_fd) {
         argv[i++] = dex2oat_swap_fd;
+    }
+    if (gen_cfi) {
+        argv[i++] = "--include-cfi";
     }
     if (debuggable) {
         argv[i++] = "--debuggable";
