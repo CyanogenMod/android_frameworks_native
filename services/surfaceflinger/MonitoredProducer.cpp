@@ -110,6 +110,10 @@ void MonitoredProducer::allocateBuffers(bool async, uint32_t width,
     mProducer->allocateBuffers(async, width, height, format, usage);
 }
 
+status_t MonitoredProducer::allowAllocation(bool allow) {
+    return mProducer->allowAllocation(allow);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

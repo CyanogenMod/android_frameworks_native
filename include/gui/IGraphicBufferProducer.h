@@ -458,6 +458,18 @@ public:
     // allocated, this function has no effect.
     virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage) = 0;
+
+    // Sets whether dequeueBuffer is allowed to allocate new buffers.
+    //
+    // Normally dequeueBuffer does not discriminate between free slots which
+    // already have an allocated buffer and those which do not, and will
+    // allocate a new buffer if the slot doesn't have a buffer or if the slot's
+    // buffer doesn't match the requested size, format, or usage. This method
+    // allows the producer to restrict the eligible slots to those which already
+    // have an allocated buffer of the correct size, format, and usage. If no
+    // eligible slot is available, dequeueBuffer will block or return an error
+    // as usual.
+    virtual status_t allowAllocation(bool allow) = 0;
 };
 
 // ----------------------------------------------------------------------------
