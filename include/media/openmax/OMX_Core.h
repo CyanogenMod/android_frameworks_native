@@ -503,12 +503,18 @@ typedef enum OMX_EVENTTYPE
     OMX_EventResourcesAcquired,   /**< component has been granted resources and is
                                        automatically starting the state change from
                                        OMX_StateWaitForResources to OMX_StateIdle. */
-   OMX_EventComponentResumed,     /**< Component resumed due to reacquisition of resources */
-   OMX_EventDynamicResourcesAvailable, /**< Component has acquired previously unavailable dynamic resources */
-   OMX_EventPortFormatDetected,      /**< Component has detected a supported format. */
-   OMX_EventKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
-   OMX_EventVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
-   OMX_EventMax = 0x7FFFFFFF
+    OMX_EventComponentResumed,     /**< Component resumed due to reacquisition of resources */
+    OMX_EventDynamicResourcesAvailable, /**< Component has acquired previously unavailable dynamic resources */
+    OMX_EventPortFormatDetected,      /**< Component has detected a supported format. */
+    OMX_EventKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
+    OMX_EventVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+
+    /** Event when tunneled decoder has rendered an output
+     *  nData1 must contain the lower 32-bits of the buffer timestamp
+     *  nData2 must contain the upper 32-bits of the buffer timestamp
+     */
+    OMX_EventOutputRendered = 0x7F000001,
+    OMX_EventMax = 0x7FFFFFFF
 } OMX_EVENTTYPE;
 
 typedef struct OMX_CALLBACKTYPE

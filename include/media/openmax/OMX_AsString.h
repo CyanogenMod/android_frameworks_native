@@ -287,6 +287,7 @@ inline static const char *asString(OMX_EVENTTYPE i, const char *def = "??") {
 //      case OMX_EventComponentResumed:          return "ComponentResumed";
 //      case OMX_EventDynamicResourcesAvailable: return "DynamicResourcesAvailable";
 //      case OMX_EventPortFormatDetected:        return "PortFormatDetected";
+        case OMX_EventOutputRendered:            return "OutputRendered";
         default:                                 return def;
     }
 }
