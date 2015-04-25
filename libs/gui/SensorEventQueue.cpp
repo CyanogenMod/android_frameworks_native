@@ -154,7 +154,7 @@ status_t SensorEventQueue::injectSensorEvent(const ASensorEvent& event) {
    ssize_t size = ::send(mSensorChannel->getFd(), &event, sizeof(event), MSG_NOSIGNAL);
    if (size < 0) {
        ALOGE("injectSensorEvent failure %zd %d", size, mSensorChannel->getFd());
-       return size;
+       return INVALID_OPERATION;
    }
    return NO_ERROR;
 }
