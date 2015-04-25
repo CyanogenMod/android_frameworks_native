@@ -98,9 +98,11 @@ public:
     // Call batch with timeout zero instead of calling setDelay() for newer devices.
     status_t setDelay(void* ident, int handle, int64_t ns);
     status_t flush(void* ident, int handle);
+    status_t setMode(uint32_t mode);
     void disableAllSensors();
     void enableAllSensors();
     void autoDisable(void *ident, int handle);
+    status_t injectSensorData(const sensors_event_t *event, size_t count);
     void dump(String8& result);
 };
 

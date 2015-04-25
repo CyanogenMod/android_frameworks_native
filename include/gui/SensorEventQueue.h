@@ -77,6 +77,8 @@ public:
     status_t flush() const;
     // Send an ack for every wake_up sensor event that is set to WAKE_UP_SENSOR_EVENT_NEEDS_ACK.
     void sendAck(const ASensorEvent* events, int count);
+
+    status_t injectSensorEvent(const ASensorEvent& event);
 private:
     sp<Looper> getLooper() const;
     sp<ISensorEventConnection> mSensorEventConnection;

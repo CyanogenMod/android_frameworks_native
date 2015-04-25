@@ -367,7 +367,7 @@ void SensorDevice::enableAllSensors() {
 
 void SensorDevice::disableAllSensors() {
     Mutex::Autolock _l(mLock);
-    for (size_t i = 0; i< mActivationCount.size(); ++i) {
+   for (size_t i = 0; i< mActivationCount.size(); ++i) {
         const Info& info = mActivationCount.valueAt(i);
         // Check if this sensor has been activated previously and disable it.
         if (info.batchParams.size() > 0) {
@@ -384,6 +384,27 @@ void SensorDevice::disableAllSensors() {
            }
         }
     }
+}
+
+status_t SensorDevice::injectSensorData(const sensors_event_t *injected_sensor_event, size_t count) {
+      ALOGD_IF(DEBUG_CONNECTIONS,
+              "sensor_event handle=%d ts=%lld data=%.2f, %.2f, %.2f %.2f %.2f %.2f",
+               injected_sensor_event->sensor,
+               injected_sensor_event->timestamp, injected_sensor_event->data[0],
+               injected_sensor_event->data[1], injected_sensor_event->data[2],
+               injected_sensor_event->data[3], injected_sensor_event->data[4],
+               injected_sensor_event->data[5]);
+      if (getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_4) {
+          return INVALID_OPERATION;
+      }
+      return mSensorDevice->inject_sensor_data(mSensorDevice, injected_sensor_event);
+}
+
+status_t SensorDevice::setMode(uint32_t mode) {
+     if (getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_4) {
+          return INVALID_OPERATION;
+     }
+     return mSensorModule->set_operation_mode(mode);
 }
 
 // ---------------------------------------------------------------------------

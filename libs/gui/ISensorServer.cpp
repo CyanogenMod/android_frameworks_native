@@ -35,6 +35,7 @@ namespace android {
 enum {
     GET_SENSOR_LIST = IBinder::FIRST_CALL_TRANSACTION,
     CREATE_SENSOR_EVENT_CONNECTION,
+    ENABLE_DATA_INJECTION
 };
 
 class BpSensorServer : public BpInterface<ISensorServer>
@@ -63,13 +64,23 @@ public:
         return v;
     }
 
-    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName)
+    virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
+             int mode)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
         data.writeString8(packageName);
+        data.writeInt32(mode);
         remote()->transact(CREATE_SENSOR_EVENT_CONNECTION, data, &reply);
         return interface_cast<ISensorEventConnection>(reply.readStrongBinder());
+    }
+
+    virtual status_t enableDataInjection(int enable) {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
+        data.writeInt32(enable);
+        remote()->transact(ENABLE_DATA_INJECTION, data, &reply);
+        return reply.readInt32();
     }
 };
 
@@ -98,8 +109,16 @@ status_t BnSensorServer::onTransact(
         case CREATE_SENSOR_EVENT_CONNECTION: {
             CHECK_INTERFACE(ISensorServer, data, reply);
             String8 packageName = data.readString8();
-            sp<ISensorEventConnection> connection(createSensorEventConnection(packageName));
+            int32_t mode = data.readInt32();
+            sp<ISensorEventConnection> connection(createSensorEventConnection(packageName, mode));
             reply->writeStrongBinder(IInterface::asBinder(connection));
+            return NO_ERROR;
+        }
+        case ENABLE_DATA_INJECTION: {
+            CHECK_INTERFACE(ISensorServer, data, reply);
+            int32_t enable = data.readInt32();
+            status_t ret = enableDataInjection(enable);
+            reply->writeInt32(static_cast<int32_t>(ret));
             return NO_ERROR;
         }
     }

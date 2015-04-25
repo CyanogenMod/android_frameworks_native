@@ -149,6 +149,16 @@ status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const 
     return mSensorEventConnection->setEventRate(sensor->getHandle(), ns);
 }
 
+status_t SensorEventQueue::injectSensorEvent(const ASensorEvent& event) {
+   // Blocking call.
+   ssize_t size = ::send(mSensorChannel->getFd(), &event, sizeof(event), MSG_NOSIGNAL);
+   if (size < 0) {
+       ALOGE("injectSensorEvent failure %zd %d", size, mSensorChannel->getFd());
+       return size;
+   }
+   return NO_ERROR;
+}
+
 void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
     for (int i = 0; i < count; ++i) {
         if (events[i].flags & WAKE_UP_SENSOR_EVENT_NEEDS_ACK) {
