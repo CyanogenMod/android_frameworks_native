@@ -4315,7 +4315,7 @@ void TouchInputMapper::cookPointerData() {
             bottom = float(mRawPointerAxes.x.maxValue - rawLeft) * mXScale + mXTranslate;
             top = float(mRawPointerAxes.x.maxValue - rawRight) * mXScale + mXTranslate;
             orientation -= M_PI_2;
-            if (orientation < mOrientedRanges.orientation.min) {
+            if (mOrientedRanges.haveOrientation && orientation < mOrientedRanges.orientation.min) {
                 orientation += (mOrientedRanges.orientation.max - mOrientedRanges.orientation.min);
             }
             break;
@@ -4327,7 +4327,7 @@ void TouchInputMapper::cookPointerData() {
             bottom = float(mRawPointerAxes.y.maxValue - rawTop) * mYScale + mYTranslate;
             top = float(mRawPointerAxes.y.maxValue - rawBottom) * mYScale + mYTranslate;
             orientation -= M_PI;
-            if (orientation < mOrientedRanges.orientation.min) {
+            if (mOrientedRanges.haveOrientation && orientation < mOrientedRanges.orientation.min) {
                 orientation += (mOrientedRanges.orientation.max - mOrientedRanges.orientation.min);
             }
             break;
@@ -4339,7 +4339,7 @@ void TouchInputMapper::cookPointerData() {
             bottom = float(rawRight - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
             top = float(rawLeft - mRawPointerAxes.x.minValue) * mXScale + mXTranslate;
             orientation += M_PI_2;
-            if (orientation > mOrientedRanges.orientation.max) {
+            if (mOrientedRanges.haveOrientation && orientation > mOrientedRanges.orientation.max) {
                 orientation -= (mOrientedRanges.orientation.max - mOrientedRanges.orientation.min);
             }
             break;
