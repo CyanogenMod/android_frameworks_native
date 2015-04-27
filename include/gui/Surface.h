@@ -179,7 +179,7 @@ public:
     virtual int unlockAndPost();
 
     virtual int connect(int api, const sp<IProducerListener>& listener);
-    virtual int detachNextBuffer(ANativeWindowBuffer** outBuffer,
+    virtual int detachNextBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence);
     virtual int attachBuffer(ANativeWindowBuffer*);
 
