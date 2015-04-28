@@ -651,7 +651,7 @@ int Surface::disconnect(int api) {
     return err;
 }
 
-int Surface::detachNextBuffer(ANativeWindowBuffer** outBuffer,
+int Surface::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
         sp<Fence>* outFence) {
     ATRACE_CALL();
     ALOGV("Surface::detachNextBuffer");
@@ -670,7 +670,7 @@ int Surface::detachNextBuffer(ANativeWindowBuffer** outBuffer,
         return result;
     }
 
-    *outBuffer = buffer.get();
+    *outBuffer = buffer;
     if (fence != NULL && fence->isValid()) {
         *outFence = fence;
     } else {
