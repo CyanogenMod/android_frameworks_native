@@ -1767,7 +1767,7 @@ status_t Parcel::continueWrite(size_t desired)
         binder_size_t* objects = NULL;
 
         if (objectsSize) {
-            objects = (binder_size_t*)malloc(objectsSize*sizeof(binder_size_t));
+            objects = (binder_size_t*)calloc(objectsSize, sizeof(binder_size_t));
             if (!objects) {
                 free(data);
 
