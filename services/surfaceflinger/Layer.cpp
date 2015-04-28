@@ -127,6 +127,10 @@ void Layer::onFirstRef() {
     mSurfaceFlingerConsumer->setContentsChangedListener(this);
     mSurfaceFlingerConsumer->setName(mName);
 
+    // Set the shadow queue size to 0 to notify the BufferQueue that we are
+    // shadowing it
+    mSurfaceFlingerConsumer->setShadowQueueSize(0);
+
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
     mSurfaceFlingerConsumer->setDefaultMaxBufferCount(2);
@@ -164,9 +168,10 @@ void Layer::onFrameAvailable(const BufferItem& item) {
     { // Autolock scope
         Mutex::Autolock lock(mQueueItemLock);
         mQueueItems.push_back(item);
+        mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
+        android_atomic_inc(&mQueuedFrames);
     }
 
-    android_atomic_inc(&mQueuedFrames);
     mFlinger->signalLayerUpdate();
 }
 
@@ -1259,13 +1264,38 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             // layer update so we check again at the next opportunity.
             mFlinger->signalLayerUpdate();
             return outDirtyRegion;
+        } else if (updateResult == SurfaceFlingerConsumer::BUFFER_REJECTED) {
+            // If the buffer has been rejected, remove it from the shadow queue
+            // and return early
+            Mutex::Autolock lock(mQueueItemLock);
+
+            // Update the BufferQueue with the new shadow queue size after
+            // dropping this item
+            mQueueItems.removeAt(0);
+            mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
+
+            android_atomic_dec(&mQueuedFrames);
+            return outDirtyRegion;
         }
 
-        // Remove this buffer from our internal queue tracker
         { // Autolock scope
+            auto currentFrameNumber = mSurfaceFlingerConsumer->getFrameNumber();
+
             Mutex::Autolock lock(mQueueItemLock);
+
+            // Remove any stale buffers that have been dropped during
+            // updateTexImage
+            while (mQueueItems[0].mFrameNumber != currentFrameNumber) {
+                mQueueItems.removeAt(0);
+                android_atomic_dec(&mQueuedFrames);
+            }
+
+            // Update the BufferQueue with our new shadow queue size, since we
+            // have removed at least one item
             mQueueItems.removeAt(0);
+            mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
         }
+
 
         // Decrement the queued-frames count.  Signal another event if we
         // have more frames pending.

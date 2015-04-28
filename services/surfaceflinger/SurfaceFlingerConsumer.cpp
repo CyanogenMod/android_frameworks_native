@@ -74,7 +74,7 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
     int buf = item.mBuf;
     if (rejecter && rejecter->reject(mSlots[buf].mGraphicBuffer, item)) {
         releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer, EGL_NO_SYNC_KHR);
-        return NO_ERROR;
+        return BUFFER_REJECTED;
     }
 
     // Release the previous buffer.
@@ -123,6 +123,10 @@ const Region& SurfaceFlingerConsumer::getSurfaceDamage() const {
 
 sp<NativeHandle> SurfaceFlingerConsumer::getSidebandStream() const {
     return mConsumer->getSidebandStream();
+}
+
+void SurfaceFlingerConsumer::setShadowQueueSize(size_t size) {
+    mConsumer->setShadowQueueSize(size);
 }
 
 // We need to determine the time when a buffer acquired now will be
