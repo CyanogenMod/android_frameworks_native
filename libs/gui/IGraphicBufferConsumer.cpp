@@ -414,6 +414,15 @@ status_t BnGraphicBufferConsumer::onTransact(
             reply->writeInt32(result);
             return NO_ERROR;
         }
+        case GET_SIDEBAND_STREAM: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            sp<NativeHandle> stream = getSidebandStream();
+            reply->writeInt32(static_cast<int32_t>(stream != NULL));
+            if (stream != NULL) {
+                reply->writeNativeHandle(stream->handle());
+            }
+            return NO_ERROR;
+        }
         case DUMP: {
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             String8 result = data.readString8();
