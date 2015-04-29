@@ -347,7 +347,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
                     mCore->mFrameCounter + 1 - mSlots[found].mFrameNumber;
         }
 
-        BQ_LOGV("dequeueBuffer: setting buffer age to %llu", mCore->mBufferAge);
+        BQ_LOGV("dequeueBuffer: setting buffer age to %" PRIu64,
+                mCore->mBufferAge);
 
         if (CC_UNLIKELY(mSlots[found].mFence == NULL)) {
             BQ_LOGE("dequeueBuffer: about to return a NULL fence - "
