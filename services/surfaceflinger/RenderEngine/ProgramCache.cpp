@@ -237,10 +237,8 @@ String8 ProgramCache::generateFragmentShader(const Key& needs) {
             // un-premultiply if needed before linearization
             fs << "gl_FragColor.rgb = gl_FragColor.rgb/gl_FragColor.a;";
         }
-        fs << "gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(2.2));";
         fs << "vec4 transformed = colorMatrix * vec4(gl_FragColor.rgb, 1);";
         fs << "gl_FragColor.rgb = transformed.rgb/transformed.a;";
-        fs << "gl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(1.0 / 2.2));";
         if (!needs.isOpaque() && needs.isPremultiplied()) {
             // and re-premultiply if needed after gamma correction
             fs << "gl_FragColor.rgb = gl_FragColor.rgb*gl_FragColor.a;";
