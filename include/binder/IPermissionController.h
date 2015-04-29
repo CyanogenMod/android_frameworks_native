@@ -19,6 +19,7 @@
 #define ANDROID_IPERMISSION_CONTROLLER_H
 
 #include <binder/IInterface.h>
+#include <stdlib.h>
 
 namespace android {
 
@@ -29,11 +30,13 @@ class IPermissionController : public IInterface
 public:
     DECLARE_META_INTERFACE(PermissionController);
 
-    virtual bool                checkPermission(const String16& permission,
-                                                int32_t pid, int32_t uid) = 0;
-    
+    virtual bool checkPermission(const String16& permission, int32_t pid, int32_t uid) = 0;
+
+    virtual void getPackagesForUid(const uid_t uid, Vector<String16> &packages) = 0;
+
     enum {
-        CHECK_PERMISSION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION
+        CHECK_PERMISSION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION,
+        GET_PACKAGES_FOR_UID_TRANSACTION = CHECK_PERMISSION_TRANSACTION + 1
     };
 };
 
