@@ -111,9 +111,9 @@ class SensorService :
     virtual bool threadLoop();
 
     // ISensorServer interface
-    virtual Vector<Sensor> getSensorList();
+    virtual Vector<Sensor> getSensorList(const String16& opPackageName);
     virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
-             int requestedMode);
+             int requestedMode, const String16& opPackageName);
     virtual status_t enableDataInjection(int enable);
     virtual status_t dump(int fd, const Vector<String16>& args);
 
@@ -207,6 +207,7 @@ class SensorService :
         sensors_event_t *mEventCache;
         int mCacheSize, mMaxCacheSize;
         String8 mPackageName;
+        const String16 mOpPackageName;
 #if DEBUG_CONNECTIONS
         int mEventsReceived, mEventsSent, mEventsSentFromCache;
         int mTotalAcksNeeded, mTotalAcksReceived;
@@ -214,7 +215,7 @@ class SensorService :
 
     public:
         SensorEventConnection(const sp<SensorService>& service, uid_t uid, String8 packageName,
-                 bool isDataInjectionMode);
+                 bool isDataInjectionMode, const String16& opPackageName);
 
         status_t sendEvents(sensors_event_t const* buffer, size_t count,
                 sensors_event_t* scratch,
@@ -271,8 +272,8 @@ class SensorService :
             const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
             sensors_event_t const* buffer, const int count);
-    static bool canAccessSensor(const Sensor& sensor);
-    static bool verifyCanAccessSensor(const Sensor& sensor, const char* operation);
+    static bool canAccessSensor(const Sensor& sensor, const char* operation,
+            const String16& opPackageName);
     static bool hasDataInjectionPermissions();
     // SensorService acquires a partial wakelock for delivering events from wake up sensors. This
     // method checks whether all the events from these wake up sensors have been delivered to the
@@ -340,10 +341,13 @@ class SensorService :
 public:
     void cleanupConnection(SensorEventConnection* connection);
     status_t enable(const sp<SensorEventConnection>& connection, int handle,
-                    nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags);
+                    nsecs_t samplingPeriodNs,  nsecs_t maxBatchReportLatencyNs, int reservedFlags,
+                    const String16& opPackageName);
     status_t disable(const sp<SensorEventConnection>& connection, int handle);
-    status_t setEventRate(const sp<SensorEventConnection>& connection, int handle, nsecs_t ns);
-    status_t flushSensor(const sp<SensorEventConnection>& connection);
+    status_t setEventRate(const sp<SensorEventConnection>& connection, int handle, nsecs_t ns,
+                          const String16& opPackageName);
+    status_t flushSensor(const sp<SensorEventConnection>& connection,
+                         const String16& opPackageName);
 };
 
 // ---------------------------------------------------------------------------

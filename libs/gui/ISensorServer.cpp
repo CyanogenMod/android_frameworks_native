@@ -48,10 +48,11 @@ public:
 
     virtual ~BpSensorServer();
 
-    virtual Vector<Sensor> getSensorList()
+    virtual Vector<Sensor> getSensorList(const String16& opPackageName)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
+        data.writeString16(opPackageName);
         remote()->transact(GET_SENSOR_LIST, data, &reply);
         Sensor s;
         Vector<Sensor> v;
@@ -65,12 +66,13 @@ public:
     }
 
     virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
-             int mode)
+             int mode, const String16& opPackageName)
     {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
         data.writeString8(packageName);
         data.writeInt32(mode);
+        data.writeString16(opPackageName);
         remote()->transact(CREATE_SENSOR_EVENT_CONNECTION, data, &reply);
         return interface_cast<ISensorEventConnection>(reply.readStrongBinder());
     }
@@ -98,7 +100,8 @@ status_t BnSensorServer::onTransact(
     switch(code) {
         case GET_SENSOR_LIST: {
             CHECK_INTERFACE(ISensorServer, data, reply);
-            Vector<Sensor> v(getSensorList());
+            const String16& opPackageName = data.readString16();
+            Vector<Sensor> v(getSensorList(opPackageName));
             size_t n = v.size();
             reply->writeUint32(static_cast<uint32_t>(n));
             for (size_t i = 0; i < n; i++) {
@@ -110,7 +113,9 @@ status_t BnSensorServer::onTransact(
             CHECK_INTERFACE(ISensorServer, data, reply);
             String8 packageName = data.readString8();
             int32_t mode = data.readInt32();
-            sp<ISensorEventConnection> connection(createSensorEventConnection(packageName, mode));
+            const String16& opPackageName = data.readString16();
+            sp<ISensorEventConnection> connection(createSensorEventConnection(packageName, mode,
+                    opPackageName));
             reply->writeStrongBinder(IInterface::asBinder(connection));
             return NO_ERROR;
         }
