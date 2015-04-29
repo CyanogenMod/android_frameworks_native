@@ -360,6 +360,7 @@ static void dumpstate() {
     run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
     run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "-c", NULL);
     run_command("CHECKIN USAGESTATS", 30, "dumpsys", "usagestats", "-c", NULL);
+    run_command("CHECKIN PACKAGE", 30, "dumpsys", "package", "--checkin", NULL);
 
     printf("========================================================\n");
     printf("== Running Application Activities\n");
