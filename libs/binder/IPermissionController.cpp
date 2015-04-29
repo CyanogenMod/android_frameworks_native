@@ -48,6 +48,25 @@ public:
         if (reply.readExceptionCode() != 0) return 0;
         return reply.readInt32() != 0;
     }
+
+    virtual void getPackagesForUid(const uid_t uid, Vector<String16>& packages)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IPermissionController::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(GET_PACKAGES_FOR_UID_TRANSACTION, data, &reply);
+        // fail on exception
+        if (reply.readExceptionCode() != 0) {
+            return;
+        }
+        const int32_t size = reply.readInt32();
+        if (size <= 0) {
+            return;
+        }
+        for (int i = 0; i < size; i++) {
+            packages.push(reply.readString16());
+        }
+    }
 };
 
 IMPLEMENT_META_INTERFACE(PermissionController, "android.os.IPermissionController");
@@ -57,7 +76,6 @@ IMPLEMENT_META_INTERFACE(PermissionController, "android.os.IPermissionController
 status_t BnPermissionController::onTransact(
     uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
 {
-    //printf("PermissionController received: "); data.print();
     switch(code) {
         case CHECK_PERMISSION_TRANSACTION: {
             CHECK_INTERFACE(IPermissionController, data, reply);
@@ -69,6 +87,21 @@ status_t BnPermissionController::onTransact(
             reply->writeInt32(res ? 1 : 0);
             return NO_ERROR;
         } break;
+
+        case GET_PACKAGES_FOR_UID_TRANSACTION: {
+            CHECK_INTERFACE(IPermissionController, data, reply);
+            int32_t uid = data.readInt32();
+            Vector<String16> packages;
+            getPackagesForUid(uid, packages);
+            reply->writeNoException();
+            size_t size = packages.size();
+            reply->writeInt32(size);
+            for (size_t i = 0; i < size; i++) {
+                reply->writeString16(packages[i]);
+            }
+            return NO_ERROR;
+        } break;
+
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }
