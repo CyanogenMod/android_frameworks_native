@@ -337,9 +337,17 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             mSlots[found].mEglDisplay = EGL_NO_DISPLAY;
             mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
             mSlots[found].mFence = Fence::NO_FENCE;
+            mCore->mBufferAge = 0;
 
             returnFlags |= BUFFER_NEEDS_REALLOCATION;
+        } else {
+            // We add 1 because that will be the frame number when this buffer
+            // is queued
+            mCore->mBufferAge =
+                    mCore->mFrameCounter + 1 - mSlots[found].mFrameNumber;
         }
+
+        BQ_LOGV("dequeueBuffer: setting buffer age to %llu", mCore->mBufferAge);
 
         if (CC_UNLIKELY(mSlots[found].mFence == NULL)) {
             BQ_LOGE("dequeueBuffer: about to return a NULL fence - "
@@ -783,6 +791,13 @@ int BufferQueueProducer::query(int what, int *outValue) {
             break;
         case NATIVE_WINDOW_DEFAULT_DATASPACE:
             value = static_cast<int32_t>(mCore->mDefaultBufferDataSpace);
+            break;
+        case NATIVE_WINDOW_BUFFER_AGE:
+            if (mCore->mBufferAge > INT32_MAX) {
+                value = 0;
+            } else {
+                value = static_cast<int32_t>(mCore->mBufferAge);
+            }
             break;
         default:
             return BAD_VALUE;
