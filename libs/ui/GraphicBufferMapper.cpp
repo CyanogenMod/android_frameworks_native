@@ -164,6 +164,9 @@ status_t GraphicBufferMapper::lockAsyncYCbCr(buffer_handle_t handle,
                 bounds.left, bounds.top, bounds.width(), bounds.height(),
                 ycbcr);
     } else {
+        if (fenceFd >= 0) {
+            close(fenceFd);
+        }
         return -EINVAL; // do not log failure
     }
 
