@@ -99,6 +99,67 @@ static void dump_dev_files(const char *title, const char *driverpath, const char
     closedir(d);
 }
 
+static bool skip_not_stat(const char *path) {
+    static const char stat[] = "/stat";
+    size_t len = strlen(path);
+    if (path[len - 1] == '/') { /* Directory? */
+        return false;
+    }
+    return strcmp(path + len - sizeof(stat) + 1, stat); /* .../stat? */
+}
+
+static const char mmcblk0[] = "/sys/block/mmcblk0/";
+
+static int dump_stat_from_fd(const char *title __unused, const char *path, int fd) {
+    unsigned long fields[11], read_perf, write_perf;
+    bool z;
+    char *cp, *buffer = NULL;
+    size_t i = 0;
+    FILE *fp = fdopen(fd, "rb");
+    getline(&buffer, &i, fp);
+    fclose(fp);
+    if (!buffer) {
+        return -errno;
+    }
+    i = strlen(buffer);
+    while ((i > 0) && (buffer[i - 1] == '\n')) {
+        buffer[--i] = '\0';
+    }
+    if (!*buffer) {
+        free(buffer);
+        return 0;
+    }
+    z = true;
+    for (cp = buffer, i = 0; i < (sizeof(fields) / sizeof(fields[0])); ++i) {
+        fields[i] = strtol(cp, &cp, 0);
+        if (fields[i] != 0) {
+            z = false;
+        }
+    }
+    if (z) { /* never accessed */
+        free(buffer);
+        return 0;
+    }
+
+    if (!strncmp(path, mmcblk0, sizeof(mmcblk0) - 1)) {
+        path += sizeof(mmcblk0) - 1;
+    }
+
+    printf("%s: %s\n", path, buffer);
+    free(buffer);
+
+    read_perf = 0;
+    if (fields[3]) {
+        read_perf = 512 * fields[2] / fields[3];
+    }
+    write_perf = 0;
+    if (fields[7]) {
+        write_perf = 512 * fields[6] / fields[7];
+    }
+    printf("%s: read: %luKB/s write: %luKB/s\n", path, read_perf, write_perf);
+    return 0;
+}
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
     time_t now = time(NULL);
@@ -133,7 +194,7 @@ static void dumpstate() {
 
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
     run_command("UPTIME", 10, "uptime", NULL);
-    dump_file("MMC PERF", "/sys/block/mmcblk0/stat");
+    dump_files("UPTIME MMC PERF", mmcblk0, skip_not_stat, dump_stat_from_fd);
     dump_file("MEMORY INFO", "/proc/meminfo");
     run_command("CPU INFO", 10, "top", "-n", "1", "-d", "1", "-m", "30", "-t", NULL);
     run_command("PROCRANK", 20, "procrank", NULL);
