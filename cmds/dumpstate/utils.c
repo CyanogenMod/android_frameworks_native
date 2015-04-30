@@ -326,6 +326,75 @@ int dump_file(const char *title, const char *path) {
     return _dump_file_from_fd(title, path, fd);
 }
 
+/* calls skip to gate calling dump_from_fd recursively
+ * in the specified directory. dump_from_fd defaults to
+ * dump_file_from_fd above when set to NULL. skip defaults
+ * to false when set to NULL. dump_from_fd will always be
+ * called with title NULL.
+ */
+int dump_files(const char *title, const char *dir,
+        bool (*skip)(const char *path),
+        int (*dump_from_fd)(const char *title, const char *path, int fd)) {
+    DIR *dirp;
+    struct dirent *d;
+    char *newpath = NULL;
+    char *slash = "/";
+    int fd, retval = 0;
+
+    if (title) {
+        printf("------ %s (%s) ------\n", title, dir);
+    }
+
+    if (dir[strlen(dir) - 1] == '/') {
+        ++slash;
+    }
+    dirp = opendir(dir);
+    if (dirp == NULL) {
+        retval = -errno;
+        fprintf(stderr, "%s: %s\n", dir, strerror(errno));
+        return retval;
+    }
+
+    if (!dump_from_fd) {
+        dump_from_fd = dump_file_from_fd;
+    }
+    for (; ((d = readdir(dirp))); free(newpath), newpath = NULL) {
+        if ((d->d_name[0] == '.')
+         && (((d->d_name[1] == '.') && (d->d_name[2] == '\0'))
+          || (d->d_name[1] == '\0'))) {
+            continue;
+        }
+        asprintf(&newpath, "%s%s%s%s", dir, slash, d->d_name,
+                 (d->d_type == DT_DIR) ? "/" : "");
+        if (!newpath) {
+            retval = -errno;
+            continue;
+        }
+        if (skip && (*skip)(newpath)) {
+            continue;
+        }
+        if (d->d_type == DT_DIR) {
+            int ret = dump_files(NULL, newpath, skip, dump_from_fd);
+            if (ret < 0) {
+                retval = ret;
+            }
+            continue;
+        }
+        fd = TEMP_FAILURE_RETRY(open(newpath, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
+        if (fd < 0) {
+            retval = fd;
+            printf("*** %s: %s\n", newpath, strerror(errno));
+            continue;
+        }
+        (*dump_from_fd)(NULL, newpath, fd);
+    }
+    closedir(dirp);
+    if (title) {
+        printf("\n");
+    }
+    return retval;
+}
+
 /* fd must have been opened with the flag O_NONBLOCK. With this flag set,
  * it's possible to avoid issues where opening the file itself can get
  * stuck.
