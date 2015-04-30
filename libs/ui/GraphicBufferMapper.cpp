@@ -131,8 +131,10 @@ status_t GraphicBufferMapper::lockAsync(buffer_handle_t handle,
                 bounds.left, bounds.top, bounds.width(), bounds.height(),
                 vaddr, fenceFd);
     } else {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
+        if (fenceFd >= 0) {
+            sync_wait(fenceFd, -1);
+            close(fenceFd);
+        }
         err = mAllocMod->lock(mAllocMod, handle, static_cast<int>(usage),
                 bounds.left, bounds.top, bounds.width(), bounds.height(),
                 vaddr);
@@ -154,8 +156,10 @@ status_t GraphicBufferMapper::lockAsyncYCbCr(buffer_handle_t handle,
                 static_cast<int>(usage), bounds.left, bounds.top,
                 bounds.width(), bounds.height(), ycbcr, fenceFd);
     } else if (mAllocMod->lock_ycbcr != NULL) {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
+        if (fenceFd >= 0) {
+            sync_wait(fenceFd, -1);
+            close(fenceFd);
+        }
         err = mAllocMod->lock_ycbcr(mAllocMod, handle, static_cast<int>(usage),
                 bounds.left, bounds.top, bounds.width(), bounds.height(),
                 ycbcr);
