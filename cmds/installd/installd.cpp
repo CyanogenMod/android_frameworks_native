@@ -124,10 +124,10 @@ static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
     return delete_user_data(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
-static int do_mv_user_data(char **arg, char reply[REPLY_MAX] __unused)
+static int do_mv_complete_app(char **arg, char reply[REPLY_MAX] __unused)
 {
-    // from_uuid, to_uuid, pkgname, appid, seinfo
-    return move_user_data(parse_null(arg[0]), parse_null(arg[1]), arg[2], atoi(arg[3]), arg[4]);
+    // from_uuid, to_uuid, package_name, data_app_name, appid, seinfo
+    return move_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3], atoi(arg[4]), arg[5]);
 }
 
 static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
@@ -200,7 +200,7 @@ struct cmdinfo cmds[] = {
     { "rmcodecache",          3, do_rm_code_cache },
     { "getsize",              8, do_get_size },
     { "rmuserdata",           3, do_rm_user_data },
-    { "mvuserdata",           5, do_mv_user_data },
+    { "mvcompleteapp",        6, do_mv_complete_app },
     { "movefiles",            0, do_movefiles },
     { "linklib",              4, do_linklib },
     { "mkuserdata",           5, do_mk_user_data },
