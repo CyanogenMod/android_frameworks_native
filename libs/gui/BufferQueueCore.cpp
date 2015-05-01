@@ -212,6 +212,7 @@ void BufferQueueCore::freeBufferLocked(int slot) {
     }
     mSlots[slot].mBufferState = BufferSlot::FREE;
     mSlots[slot].mAcquireCalled = false;
+    mSlots[slot].mFrameNumber = 0;
 
     // Destroy fence as BufferQueue now takes ownership
     if (mSlots[slot].mEglFence != EGL_NO_SYNC_KHR) {
