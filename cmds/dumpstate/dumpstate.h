@@ -35,6 +35,16 @@ int dump_file(const char *title, const char *path);
  */
 int dump_file_from_fd(const char *title, const char *path, int fd);
 
+/* calls skip to gate calling dump_from_fd recursively
+ * in the specified directory. dump_from_fd defaults to
+ * dump_file_from_fd above when set to NULL. skip defaults
+ * to false when set to NULL. dump_from_fd will always be
+ * called with title NULL.
+ */
+int dump_files(const char *title, const char *dir,
+        bool (*skip)(const char *path),
+        int (*dump_from_fd)(const char *title, const char *path, int fd));
+
 /* forks a command and waits for it to finish -- terminate args with NULL */
 int run_command(const char *title, int timeout_seconds, const char *command, ...);
 
