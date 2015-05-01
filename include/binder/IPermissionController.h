@@ -34,9 +34,12 @@ public:
 
     virtual void getPackagesForUid(const uid_t uid, Vector<String16> &packages) = 0;
 
+    virtual bool isRuntimePermission(const String16& permission) = 0;
+
     enum {
         CHECK_PERMISSION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION,
-        GET_PACKAGES_FOR_UID_TRANSACTION = CHECK_PERMISSION_TRANSACTION + 1
+        GET_PACKAGES_FOR_UID_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION + 1,
+        IS_RUNTIME_PERMISSION_TRANSACTION = IBinder::FIRST_CALL_TRANSACTION + 2
     };
 };
 

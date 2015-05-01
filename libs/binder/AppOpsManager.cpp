@@ -104,4 +104,13 @@ void AppOpsManager::stopWatchingMode(const sp<IAppOpsCallback>& callback) {
     }
 }
 
+int32_t AppOpsManager::permissionToOpCode(const String16& permission) {
+    sp<IAppOpsService> service = getService();
+    if (service != NULL) {
+        return service->permissionToOpCode(permission);
+    }
+    return -1;
+}
+
+
 }; // namespace android

@@ -111,6 +111,17 @@ public:
         if (reply.readExceptionCode() != 0) return NULL;
         return reply.readStrongBinder();
     }
+
+
+    virtual int32_t permissionToOpCode(const String16& permission) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAppOpsService::getInterfaceDescriptor());
+        data.writeString16(permission);
+        remote()->transact(PERMISSION_TO_OP_CODE_TRANSACTION, data, &reply);
+        // fail on exception
+        if (reply.readExceptionCode() != 0) return -1;
+        return reply.readInt32();
+    }
 };
 
 IMPLEMENT_META_INTERFACE(AppOpsService, "com.android.internal.app.IAppOpsService");
@@ -185,6 +196,14 @@ status_t BnAppOpsService::onTransact(
             sp<IBinder> token = getToken(clientToken);
             reply->writeNoException();
             reply->writeStrongBinder(token);
+            return NO_ERROR;
+        } break;
+        case PERMISSION_TO_OP_CODE_TRANSACTION: {
+            CHECK_INTERFACE(IAppOpsService, data, reply);
+            String16 permission = data.readString16();
+            const int32_t opCode = permissionToOpCode(permission);
+            reply->writeNoException();
+            reply->writeInt32(opCode);
             return NO_ERROR;
         } break;
         default:

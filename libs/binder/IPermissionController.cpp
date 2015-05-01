@@ -67,6 +67,17 @@ public:
             packages.push(reply.readString16());
         }
     }
+
+    virtual bool isRuntimePermission(const String16& permission)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IPermissionController::getInterfaceDescriptor());
+        data.writeString16(permission);
+        remote()->transact(IS_RUNTIME_PERMISSION_TRANSACTION, data, &reply);
+        // fail on exception
+        if (reply.readExceptionCode() != 0) return false;
+        return reply.readInt32() != 0;
+    }
 };
 
 IMPLEMENT_META_INTERFACE(PermissionController, "android.os.IPermissionController");
@@ -99,6 +110,15 @@ status_t BnPermissionController::onTransact(
             for (size_t i = 0; i < size; i++) {
                 reply->writeString16(packages[i]);
             }
+            return NO_ERROR;
+        } break;
+
+        case IS_RUNTIME_PERMISSION_TRANSACTION: {
+            CHECK_INTERFACE(IPermissionController, data, reply);
+            String16 permission = data.readString16();
+            const bool res = isRuntimePermission(permission);
+            reply->writeNoException();
+            reply->writeInt32(res ? 1 : 0);
             return NO_ERROR;
         } break;
 

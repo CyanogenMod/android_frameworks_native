@@ -31,6 +31,7 @@
 #include <utils/Singleton.h>
 #include <utils/String16.h>
 
+#include <binder/AppOpsManager.h>
 #include <binder/BinderService.h>
 #include <binder/IServiceManager.h>
 #include <binder/PermissionCache.h>
@@ -156,7 +157,7 @@ void SensorService::onFirstRef()
             // Check if the device really supports batching by looking at the FIFO event
             // counts for each sensor.
             bool batchingSupported = false;
-            for (int i = 0; i < mSensorList.size(); ++i) {
+            for (size_t i = 0; i < mSensorList.size(); ++i) {
                 if (mSensorList[i].getFifoMaxEventCount() > 0) {
                     batchingSupported = true;
                     break;
@@ -666,7 +667,7 @@ SensorService::SensorRecord * SensorService::getSensorRecord(int handle) {
      return mActiveSensors.valueFor(handle);
 }
 
-Vector<Sensor> SensorService::getSensorList()
+Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
 {
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sensors", value, "0");
@@ -675,19 +676,20 @@ Vector<Sensor> SensorService::getSensorList()
     Vector<Sensor> accessibleSensorList;
     for (size_t i = 0; i < initialSensorList.size(); i++) {
         Sensor sensor = initialSensorList[i];
-        if (canAccessSensor(sensor)) {
+        if (canAccessSensor(sensor, "getSensorList", opPackageName)) {
             accessibleSensorList.add(sensor);
         } else {
-            ALOGI("Skipped sensor %s because it requires permission %s",
+            ALOGI("Skipped sensor %s because it requires permission %s and app op %d",
                   sensor.getName().string(),
-                  sensor.getRequiredPermission().string());
+                  sensor.getRequiredPermission().string(),
+                  sensor.getRequiredAppOp());
         }
     }
     return accessibleSensorList;
 }
 
 sp<ISensorEventConnection> SensorService::createSensorEventConnection(const String8& packageName,
-        int requestedMode) {
+        int requestedMode, const String16& opPackageName) {
     // Only 2 modes supported for a SensorEventConnection ... NORMAL and DATA_INJECTION.
     if (requestedMode != NORMAL && requestedMode != DATA_INJECTION) {
         return NULL;
@@ -700,7 +702,7 @@ sp<ISensorEventConnection> SensorService::createSensorEventConnection(const Stri
     Mutex::Autolock _l(mLock);
     uid_t uid = IPCThreadState::self()->getCallingUid();
     sp<SensorEventConnection> result(new SensorEventConnection(this, uid, packageName,
-            requestedMode == DATA_INJECTION));
+            requestedMode == DATA_INJECTION, opPackageName));
     if (requestedMode == DATA_INJECTION) {
         if (mActiveConnections.indexOf(result) < 0) {
             mActiveConnections.add(result);
@@ -802,7 +804,8 @@ Sensor SensorService::getSensorFromHandle(int handle) const {
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
-        int handle, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs, int reservedFlags)
+        int handle, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs, int reservedFlags,
+        const String16& opPackageName)
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
@@ -812,7 +815,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         return BAD_VALUE;
     }
 
-    if (!verifyCanAccessSensor(sensor->getSensor(), "Tried enabling")) {
+    if (!canAccessSensor(sensor->getSensor(), "Tried enabling", opPackageName)) {
         return BAD_VALUE;
     }
 
@@ -950,7 +953,7 @@ status_t SensorService::cleanupWithoutDisableLocked(
 }
 
 status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection,
-        int handle, nsecs_t ns)
+        int handle, nsecs_t ns, const String16& opPackageName)
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
@@ -959,7 +962,7 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
     if (!sensor)
         return BAD_VALUE;
 
-    if (!verifyCanAccessSensor(sensor->getSensor(), "Tried configuring")) {
+    if (!canAccessSensor(sensor->getSensor(), "Tried configuring", opPackageName)) {
         return BAD_VALUE;
     }
 
@@ -974,7 +977,8 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
     return sensor->setDelay(connection.get(), handle, ns);
 }
 
-status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection) {
+status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
+        const String16& opPackageName) {
     if (mInitCheck != NO_ERROR) return mInitCheck;
     SensorDevice& dev(SensorDevice::getInstance());
     const int halVersion = dev.getHalDeviceVersion();
@@ -994,6 +998,10 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection)
             // flush complete event.
             connection->incrementPendingFlushCount(handle);
         } else {
+            if (!canAccessSensor(sensor->getSensor(), "Tried flushing", opPackageName)) {
+                err = INVALID_OPERATION;
+                continue;
+            }
             status_t err_flush = sensor->flush(connection.get(), handle);
             if (err_flush == NO_ERROR) {
                 SensorRecord* rec = mActiveSensors.valueFor(handle);
@@ -1005,23 +1013,42 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection)
     return err;
 }
 
-bool SensorService::canAccessSensor(const Sensor& sensor) {
-    return (sensor.getRequiredPermission().isEmpty()) ||
-            PermissionCache::checkCallingPermission(String16(sensor.getRequiredPermission()));
-}
+bool SensorService::canAccessSensor(const Sensor& sensor, const char* operation,
+        const String16& opPackageName) {
+    const String8& requiredPermission = sensor.getRequiredPermission();
 
-bool SensorService::verifyCanAccessSensor(const Sensor& sensor, const char* operation) {
-    if (canAccessSensor(sensor)) {
+    if (requiredPermission.length() <= 0) {
         return true;
+    }
+
+    bool hasPermission = false;
+
+    // Runtime permissions can't use the cache as they may change.
+    if (sensor.isRequiredPermissionRuntime()) {
+        hasPermission = checkPermission(String16(requiredPermission),
+                IPCThreadState::self()->getCallingPid(), IPCThreadState::self()->getCallingUid());
     } else {
-        String8 errorMessage;
-        errorMessage.appendFormat(
-                "%s a sensor (%s) without holding its required permission: %s",
-                operation,
-                sensor.getName().string(),
-                sensor.getRequiredPermission().string());
+        hasPermission = PermissionCache::checkCallingPermission(String16(requiredPermission));
+    }
+
+    if (!hasPermission) {
+        ALOGE("%s a sensor (%s) without holding its required permission: %s",
+                operation, sensor.getName().string(), sensor.getRequiredPermission().string());
         return false;
     }
+
+    const int32_t opCode = sensor.getRequiredAppOp();
+    if (opCode >= 0) {
+        AppOpsManager appOps;
+        if (appOps.noteOp(opCode, IPCThreadState::self()->getCallingUid(), opPackageName)
+                        != AppOpsManager::MODE_ALLOWED) {
+            ALOGE("%s a sensor (%s) without enabled required app op: %D",
+                    operation, sensor.getName().string(), opCode);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool SensorService::hasDataInjectionPermissions() {
@@ -1144,10 +1171,11 @@ void SensorService::SensorRecord::clearAllPendingFlushConnections() {
 // ---------------------------------------------------------------------------
 
 SensorService::SensorEventConnection::SensorEventConnection(
-        const sp<SensorService>& service, uid_t uid, String8 packageName, bool isDataInjectionMode)
+        const sp<SensorService>& service, uid_t uid, String8 packageName, bool isDataInjectionMode,
+        const String16& opPackageName)
     : mService(service), mUid(uid), mWakeLockRefCount(0), mHasLooperCallbacks(false),
-      mDead(false), mEventCache(NULL), mCacheSize(0), mMaxCacheSize(0), mPackageName(packageName),
-      mDataInjectionMode(isDataInjectionMode) {
+      mDead(false), mDataInjectionMode(isDataInjectionMode), mEventCache(NULL),
+      mCacheSize(0), mMaxCacheSize(0), mPackageName(packageName), mOpPackageName(opPackageName) {
     mChannel = new BitTube(mService->mSocketBufferSize);
 #if DEBUG_CONNECTIONS
     mEventsReceived = mEventsSentFromCache = mEventsSent = 0;
@@ -1205,7 +1233,8 @@ void SensorService::SensorEventConnection::dump(String8& result) {
 
 bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
     Mutex::Autolock _l(mConnectionLock);
-    if (!verifyCanAccessSensor(mService->getSensorFromHandle(handle), "Tried adding")) {
+    if (!canAccessSensor(mService->getSensorFromHandle(handle),
+            "Tried adding", mOpPackageName)) {
         return false;
     }
     if (mSensorInfo.indexOfKey(handle) < 0) {
@@ -1324,7 +1353,7 @@ status_t SensorService::SensorEventConnection::sendEvents(
         sensors_event_t* scratch,
         SensorEventConnection const * const * mapFlushEventsToConnections) {
     // filter out events not for this connection
-    size_t count = 0;
+    int count = 0;
     Mutex::Autolock _l(mConnectionLock);
     if (scratch) {
         size_t i=0;
@@ -1616,7 +1645,7 @@ status_t SensorService::SensorEventConnection::enableDisable(
     status_t err;
     if (enabled) {
         err = mService->enable(this, handle, samplingPeriodNs, maxBatchReportLatencyNs,
-                               reservedFlags);
+                               reservedFlags, mOpPackageName);
 
     } else {
         err = mService->disable(this, handle);
@@ -1627,11 +1656,11 @@ status_t SensorService::SensorEventConnection::enableDisable(
 status_t SensorService::SensorEventConnection::setEventRate(
         int handle, nsecs_t samplingPeriodNs)
 {
-    return mService->setEventRate(this, handle, samplingPeriodNs);
+    return mService->setEventRate(this, handle, samplingPeriodNs, mOpPackageName);
 }
 
 status_t  SensorService::SensorEventConnection::flush() {
-    return  mService->flushSensor(this);
+    return  mService->flushSensor(this, mOpPackageName);
 }
 
 int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* /*data*/) {
@@ -1674,7 +1703,7 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
                memcpy(&sensor_event, buf, sizeof(sensors_event_t));
                Sensor sensor = mService->getSensorFromHandle(sensor_event.sensor);
                sensor_event.type = sensor.getType();
-               dev.injectSensorData(&sensor_event, 1);
+               dev.injectSensorData(&sensor_event);
 #if DEBUG_CONNECTIONS
                ++mEventsReceived;
 #endif
@@ -1714,8 +1743,8 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
 }
 
 int SensorService::SensorEventConnection::computeMaxCacheSizeLocked() const {
-    int fifoWakeUpSensors = 0;
-    int fifoNonWakeUpSensors = 0;
+    size_t fifoWakeUpSensors = 0;
+    size_t fifoNonWakeUpSensors = 0;
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const Sensor& sensor = mService->getSensorFromHandle(mSensorInfo.keyAt(i));
         if (sensor.getFifoReservedEventCount() == sensor.getFifoMaxEventCount()) {

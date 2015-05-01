@@ -193,17 +193,6 @@ typedef ASensorRef const* ASensorList;
 /*****************************************************************************/
 
 /*
- * Get a reference to the sensor manager. ASensorManager is a singleton.
- *
- * Example:
- *
- *     ASensorManager* sensorManager = ASensorManager_getInstance();
- *
- */
-ASensorManager* ASensorManager_getInstance();
-
-
-/*
  * Returns the list of available sensors.
  */
 int ASensorManager_getSensorList(ASensorManager* manager, ASensorList* list);

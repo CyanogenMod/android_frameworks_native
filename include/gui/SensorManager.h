@@ -44,11 +44,10 @@ class SensorEventQueue;
 // ----------------------------------------------------------------------------
 
 class SensorManager :
-    public ASensorManager,
-    public Singleton<SensorManager>
+    public ASensorManager
 {
 public:
-    SensorManager();
+    SensorManager(const String16& opPackageName);
     ~SensorManager();
 
     ssize_t getSensorList(Sensor const* const** list) const;
@@ -68,6 +67,7 @@ private:
     mutable Sensor const** mSensorList;
     mutable Vector<Sensor> mSensors;
     mutable sp<IBinder::DeathRecipient> mDeathObserver;
+    const String16 mOpPackageName;
 };
 
 // ----------------------------------------------------------------------------

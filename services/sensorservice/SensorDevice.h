@@ -102,7 +102,7 @@ public:
     void disableAllSensors();
     void enableAllSensors();
     void autoDisable(void *ident, int handle);
-    status_t injectSensorData(const sensors_event_t *event, size_t count);
+    status_t injectSensorData(const sensors_event_t *event);
     void dump(String8& result);
 };
 
