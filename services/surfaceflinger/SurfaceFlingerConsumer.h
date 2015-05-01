@@ -28,6 +28,8 @@ namespace android {
  */
 class SurfaceFlingerConsumer : public GLConsumer {
 public:
+    static const status_t BUFFER_REJECTED = UNKNOWN_ERROR + 8;
+
     struct ContentsChangedListener: public FrameAvailableListener {
         virtual void onSidebandStreamChanged() = 0;
     };
@@ -67,6 +69,9 @@ public:
     void setContentsChangedListener(const wp<ContentsChangedListener>& listener);
 
     sp<NativeHandle> getSidebandStream() const;
+
+    // See IGraphicBufferConsumer::setShadowQueueSize
+    void setShadowQueueSize(size_t size);
 
     nsecs_t computeExpectedPresent(const DispSync& dispSync);
 

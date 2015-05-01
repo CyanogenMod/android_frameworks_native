@@ -52,6 +52,7 @@ enum {
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
     GET_SIDEBAND_STREAM,
+    SET_SHADOW_QUEUE_SIZE,
     DUMP,
 };
 
@@ -269,6 +270,17 @@ public:
         return stream;
     }
 
+    virtual void setShadowQueueSize(size_t size) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        data.writeInt64(static_cast<int64_t>(size));
+        status_t result = remote()->transact(SET_SHADOW_QUEUE_SIZE, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("setShadowQueueSize failed (%d)", result);
+            return;
+        }
+    }
+
     virtual void dump(String8& result, const char* prefix) const {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
@@ -421,6 +433,12 @@ status_t BnGraphicBufferConsumer::onTransact(
             if (stream != NULL) {
                 reply->writeNativeHandle(stream->handle());
             }
+            return NO_ERROR;
+        }
+        case SET_SHADOW_QUEUE_SIZE: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            size_t size = static_cast<size_t>(data.readInt64());
+            setShadowQueueSize(size);
             return NO_ERROR;
         }
         case DUMP: {

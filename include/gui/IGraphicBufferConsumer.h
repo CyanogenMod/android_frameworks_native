@@ -248,6 +248,11 @@ public:
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const = 0;
 
+    // setShadowQueueSize notifies the BufferQueue that the consumer is
+    // shadowing its queue and allows it to limit the number of buffers it is
+    // permitted to drop during acquire so as to not get out of sync.
+    virtual void setShadowQueueSize(size_t size) = 0;
+
     // dump state into a string
     virtual void dump(String8& result, const char* prefix) const = 0;
 
