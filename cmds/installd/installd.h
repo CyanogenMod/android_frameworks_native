@@ -142,10 +142,6 @@ typedef struct {
 
 /* util.c */
 
-// TODO: rename to create_data_user_package_path
-std::string create_package_data_path(const char* volume_uuid,
-        const char* package_name, userid_t user);
-
 int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *pkgname,
                     const char *postfix,
@@ -153,7 +149,14 @@ int create_pkg_path(char path[PKG_PATH_MAX],
 
 std::string create_data_path(const char* volume_uuid);
 
+std::string create_data_app_path(const char* volume_uuid);
+
+std::string create_data_app_package_path(const char* volume_uuid, const char* package_name);
+
 std::string create_data_user_path(const char* volume_uuid, userid_t userid);
+
+std::string create_data_user_package_path(const char* volume_uuid,
+        userid_t user, const char* package_name);
 
 std::string create_data_media_path(const char* volume_uuid, userid_t userid);
 
@@ -221,8 +224,9 @@ int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *uuid, const char *pkgname, userid_t userid);
 int make_user_data(const char *uuid, const char *pkgname, uid_t uid,
         userid_t userid, const char* seinfo);
-int move_user_data(const char* from_uuid, const char *to_uuid,
-        const char *package_name, appid_t appid, const char* seinfo);
+int move_complete_app(const char* from_uuid, const char *to_uuid,
+        const char *package_name, const char *data_app_name, appid_t appid,
+        const char* seinfo);
 int make_user_config(userid_t userid);
 int delete_user(const char *uuid, userid_t userid);
 int delete_cache(const char *uuid, const char *pkgname, userid_t userid);
@@ -230,9 +234,11 @@ int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid);
 int move_dex(const char *src, const char *dst, const char *instruction_set);
 int rm_dex(const char *path, const char *instruction_set);
 int protect(char *pkgname, gid_t gid);
-int get_size(const char *uuid, const char *pkgname, userid_t userid, const char *apkpath, const char *libdirpath,
-             const char *fwdlock_apkpath, const char *asecpath, const char *instruction_set,
-             int64_t *codesize, int64_t *datasize, int64_t *cachesize, int64_t *asecsize);
+int get_size(const char *uuid, const char *pkgname, int userid,
+        const char *apkpath, const char *libdirpath,
+        const char *fwdlock_apkpath, const char *asecpath,
+        const char *instruction_set, int64_t *codesize, int64_t *datasize,
+        int64_t *cachesize, int64_t *asecsize);
 int free_cache(const char *uuid, int64_t free_size);
 int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char *instruction_set, int dexopt_needed, bool vm_safe_mode,

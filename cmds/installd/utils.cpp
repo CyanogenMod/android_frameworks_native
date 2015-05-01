@@ -37,16 +37,31 @@ static bool is_valid_filename(const std::string& name) {
 }
 
 /**
+ * Create the path name where package app contents should be stored for
+ * the given volume UUID and package name.  An empty UUID is assumed to
+ * be internal storage.
+ */
+std::string create_data_app_package_path(const char* volume_uuid,
+        const char* package_name) {
+    CHECK(is_valid_filename(package_name));
+    CHECK(is_valid_package_name(package_name) == 0);
+
+    return StringPrintf("%s/%s",
+            create_data_app_path(volume_uuid).c_str(), package_name);
+}
+
+/**
  * Create the path name where package data should be stored for the given
  * volume UUID, package name, and user ID. An empty UUID is assumed to be
  * internal storage.
  */
-std::string create_package_data_path(const char* volume_uuid,
-        const char* package_name, userid_t user) {
+std::string create_data_user_package_path(const char* volume_uuid,
+        userid_t user, const char* package_name) {
     CHECK(is_valid_filename(package_name));
     CHECK(is_valid_package_name(package_name) == 0);
 
-    return StringPrintf("%s/%s", create_data_user_path(volume_uuid, user).c_str(), package_name);
+    return StringPrintf("%s/%s",
+            create_data_user_path(volume_uuid, user).c_str(), package_name);
 }
 
 int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
@@ -56,7 +71,7 @@ int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
         return -1;
     }
 
-    std::string _tmp(create_package_data_path(nullptr, pkgname, userid) + postfix);
+    std::string _tmp(create_data_user_package_path(nullptr, userid, pkgname) + postfix);
     const char* tmp = _tmp.c_str();
     if (strlen(tmp) >= PKG_PATH_MAX) {
         path[0] = '\0';
@@ -74,6 +89,13 @@ std::string create_data_path(const char* volume_uuid) {
         CHECK(is_valid_filename(volume_uuid));
         return StringPrintf("/mnt/expand/%s", volume_uuid);
     }
+}
+
+/**
+ * Create the path name for app data.
+ */
+std::string create_data_app_path(const char* volume_uuid) {
+    return StringPrintf("%s/app", create_data_path(volume_uuid).c_str());
 }
 
 /**
