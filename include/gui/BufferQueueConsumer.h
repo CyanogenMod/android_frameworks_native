@@ -148,6 +148,9 @@ public:
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const;
 
+    // See IGraphicBufferConsumer::setShadowQueueSize
+    virtual void setShadowQueueSize(size_t size);
+
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
 
