@@ -87,7 +87,11 @@ public:
         OP_ASSIST_STRUCTURE = 49,
         OP_ASSIST_SCREENSHOT = 50,
         OP_READ_PHONE_STATE = 51,
-        OP_ADD_VOICEMAIL = 52
+        OP_ADD_VOICEMAIL = 52,
+        OP_USE_SIP = 53,
+        OP_PROCESS_OUTGOING_CALLS = 54,
+        OP_USE_FINGERPRINT = 55,
+        OP_BODY_SENSORS = 56
     };
 
     AppOpsManager();
@@ -99,6 +103,7 @@ public:
     void startWatchingMode(int32_t op, const String16& packageName,
             const sp<IAppOpsCallback>& callback);
     void stopWatchingMode(const sp<IAppOpsCallback>& callback);
+    int32_t permissionToOpCode(const String16& permission);
 
 private:
     Mutex mLock;

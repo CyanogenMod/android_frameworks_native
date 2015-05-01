@@ -36,10 +36,8 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-ANDROID_SINGLETON_STATIC_INSTANCE(SensorManager)
-
-SensorManager::SensorManager()
-    : mSensorList(0)
+SensorManager::SensorManager(const String16& opPackageName)
+    : mSensorList(0), mOpPackageName(opPackageName)
 {
     // okay we're not locked here, but it's not needed during construction
     assertStateLocked();
@@ -88,7 +86,7 @@ status_t SensorManager::assertStateLocked() const {
         mDeathObserver = new DeathObserver(*const_cast<SensorManager *>(this));
         IInterface::asBinder(mSensorServer)->linkToDeath(mDeathObserver);
 
-        mSensors = mSensorServer->getSensorList();
+        mSensors = mSensorServer->getSensorList(mOpPackageName);
         size_t count = mSensors.size();
         mSensorList =
                 static_cast<Sensor const**>(malloc(count * sizeof(Sensor*)));
@@ -143,7 +141,7 @@ sp<SensorEventQueue> SensorManager::createEventQueue(String8 packageName, int mo
     Mutex::Autolock _l(mLock);
     while (assertStateLocked() == NO_ERROR) {
         sp<ISensorEventConnection> connection =
-                mSensorServer->createSensorEventConnection(packageName, mode);
+                mSensorServer->createSensorEventConnection(packageName, mode, mOpPackageName);
         if (connection == NULL) {
             // SensorService just died or the app doesn't have required permissions.
             ALOGE("createEventQueue: connection is NULL.");

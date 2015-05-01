@@ -379,14 +379,14 @@ void SensorDevice::disableAllSensors() {
                    sensor_handle, 0);
            // Add all the connections that were registered for this sensor to the disabled
            // clients list.
-           for (int j = 0; j < info.batchParams.size(); ++j) {
+           for (size_t j = 0; j < info.batchParams.size(); ++j) {
                mDisabledClients.add(info.batchParams.keyAt(j));
            }
         }
     }
 }
 
-status_t SensorDevice::injectSensorData(const sensors_event_t *injected_sensor_event, size_t count) {
+status_t SensorDevice::injectSensorData(const sensors_event_t *injected_sensor_event) {
       ALOGD_IF(DEBUG_CONNECTIONS,
               "sensor_event handle=%d ts=%lld data=%.2f, %.2f, %.2f %.2f %.2f %.2f",
                injected_sensor_event->sensor,

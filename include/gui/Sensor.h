@@ -71,6 +71,8 @@ public:
     uint32_t getFifoMaxEventCount() const;
     const String8& getStringType() const;
     const String8& getRequiredPermission() const;
+    bool isRequiredPermissionRuntime() const;
+    int32_t getRequiredAppOp() const;
     int32_t getMaxDelay() const;
     uint32_t getFlags() const;
     bool isWakeUpSensor() const;
@@ -97,6 +99,8 @@ private:
     uint32_t mFifoMaxEventCount;
     String8 mStringType;
     String8 mRequiredPermission;
+    bool mRequiredPermissionRuntime = false;
+    int32_t mRequiredAppOp;
     int32_t mMaxDelay;
     uint32_t mFlags;
     static void flattenString8(void*& buffer, size_t& size, const String8& string8);

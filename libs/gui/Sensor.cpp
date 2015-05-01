@@ -25,6 +25,9 @@
 
 #include <hardware/sensors.h>
 
+#include <binder/AppOpsManager.h>
+#include <binder/IServiceManager.h>
+
 #include <gui/Sensor.h>
 #include <log/log.h>
 
@@ -113,11 +116,13 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         mStringType = SENSOR_STRING_TYPE_GYROSCOPE_UNCALIBRATED;
         mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
         break;
-    case SENSOR_TYPE_HEART_RATE:
+    case SENSOR_TYPE_HEART_RATE: {
         mStringType = SENSOR_STRING_TYPE_HEART_RATE;
         mRequiredPermission = SENSOR_PERMISSION_BODY_SENSORS;
+        AppOpsManager appOps;
+        mRequiredAppOp = appOps.permissionToOpCode(String16(SENSOR_PERMISSION_BODY_SENSORS));
         mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
-        break;
+        } break;
     case SENSOR_TYPE_LIGHT:
         mStringType = SENSOR_STRING_TYPE_LIGHT;
         mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
@@ -252,6 +257,17 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
 
         }
     }
+
+    if (mRequiredPermission.length() > 0) {
+        // If the sensor is protected by a permission we need to know if it is
+        // a runtime one to determine whether we can use the permission cache.
+        sp<IBinder> binder = defaultServiceManager()->getService(String16("permission"));
+        if (binder != 0) {
+            sp<IPermissionController> permCtrl = interface_cast<IPermissionController>(binder);
+            mRequiredPermissionRuntime = permCtrl->isRuntimePermission(
+                    String16(mRequiredPermission));
+        }
+    }
 }
 
 Sensor::~Sensor()
@@ -318,6 +334,14 @@ const String8& Sensor::getRequiredPermission() const {
     return mRequiredPermission;
 }
 
+bool Sensor::isRequiredPermissionRuntime() const {
+    return mRequiredPermissionRuntime;
+}
+
+int32_t Sensor::getRequiredAppOp() const {
+    return mRequiredAppOp;
+}
+
 int32_t Sensor::getMaxDelay() const {
     return mMaxDelay;
 }
@@ -339,7 +363,8 @@ size_t Sensor::getFlattenedSize() const
     size_t fixedSize =
             sizeof(int32_t) * 3 +
             sizeof(float) * 4 +
-            sizeof(int32_t) * 5;
+            sizeof(int32_t) * 6 +
+            sizeof(bool);
 
     size_t variableSize =
             sizeof(uint32_t) + FlattenableUtils::align<4>(mName.length()) +
@@ -369,6 +394,8 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mFifoMaxEventCount);
     flattenString8(buffer, size, mStringType);
     flattenString8(buffer, size, mRequiredPermission);
+    FlattenableUtils::write(buffer, size, mRequiredPermissionRuntime);
+    FlattenableUtils::write(buffer, size, mRequiredAppOp);
     FlattenableUtils::write(buffer, size, mMaxDelay);
     FlattenableUtils::write(buffer, size, mFlags);
     return NO_ERROR;
@@ -407,6 +434,8 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     if (!unflattenString8(buffer, size, mRequiredPermission)) {
         return NO_MEMORY;
     }
+    FlattenableUtils::read(buffer, size, mRequiredPermissionRuntime);
+    FlattenableUtils::read(buffer, size, mRequiredAppOp);
     FlattenableUtils::read(buffer, size, mMaxDelay);
     FlattenableUtils::read(buffer, size, mFlags);
     return NO_ERROR;
