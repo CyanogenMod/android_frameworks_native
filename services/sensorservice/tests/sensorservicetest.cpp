@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <android/sensor.h>
 #include <gui/Sensor.h>
 #include <gui/SensorManager.h>
@@ -25,7 +26,7 @@ using namespace android;
 static nsecs_t sStartTime = 0;
 
 
-int receiver(int fd, int events, void* data)
+int receiver(__unused int fd, __unused int events, void* data)
 {
     sp<SensorEventQueue> q((SensorEventQueue*)data);
     ssize_t n;
@@ -44,7 +45,7 @@ int receiver(int fd, int events, void* data)
             oldTimeStamp = buffer[i].timestamp;
 
             if (buffer[i].type == Sensor::TYPE_ACCELEROMETER) {
-                printf("%lld\t%8f\t%8f\t%8f\t%f\n",
+                printf("%" PRId64 "\t%8f\t%8f\t%8f\t%f\n",
                         buffer[i].timestamp,
                         buffer[i].data[0], buffer[i].data[1], buffer[i].data[2],
                         1.0/t);
@@ -59,9 +60,9 @@ int receiver(int fd, int events, void* data)
 }
 
 
-int main(int argc, char** argv)
+int main()
 {
-    SensorManager& mgr(SensorManager::getInstance());
+    SensorManager mgr(String16("Sensor Service Test"));
 
     Sensor const* const* list;
     ssize_t count = mgr.getSensorList(&list);
