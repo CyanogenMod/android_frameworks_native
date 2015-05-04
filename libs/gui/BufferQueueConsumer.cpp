@@ -306,6 +306,8 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
 
     if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS ||
             releaseFence == NULL) {
+        BQ_LOGE("releaseBuffer: slot %d out of range or fence %p NULL", slot,
+                releaseFence.get());
         return BAD_VALUE;
     }
 
@@ -344,7 +346,7 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
             mSlots[slot].mNeedsCleanupOnRelease = false;
             return STALE_BUFFER_SLOT;
         } else {
-            BQ_LOGV("releaseBuffer: attempted to release buffer slot %d "
+            BQ_LOGE("releaseBuffer: attempted to release buffer slot %d "
                     "but its state was %d", slot, mSlots[slot].mBufferState);
             return BAD_VALUE;
         }
