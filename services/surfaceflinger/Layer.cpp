@@ -1125,6 +1125,10 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
     if (android_atomic_acquire_cas(true, false, &mSidebandStreamChanged) == 0) {
         // mSidebandStreamChanged was true
         mSidebandStream = mSurfaceFlingerConsumer->getSidebandStream();
+        if (mSidebandStream != NULL) {
+            setTransactionFlags(eTransactionNeeded);
+            mFlinger->setTransactionFlags(eTraversalNeeded);
+        }
         recomputeVisibleRegions = true;
 
         const State& s(getDrawingState());
