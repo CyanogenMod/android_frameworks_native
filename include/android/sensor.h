@@ -193,6 +193,30 @@ typedef ASensorRef const* ASensorList;
 /*****************************************************************************/
 
 /*
+ * Get a reference to the sensor manager. ASensorManager is a singleton
+ * per package as different packages may have access to different sensors.
+ *
+ * Deprecated: Use ASensorManager_getInstanceForPackage(const char*) instead.
+ *
+ * Example:
+ *
+ *     ASensorManager* sensorManager = ASensorManager_getInstance();
+ *
+ */
+__attribute__ ((deprecated)) ASensorManager* ASensorManager_getInstance();
+
+/*
+ * Get a reference to the sensor manager. ASensorManager is a singleton
+ * per package as different packages may have access to different sensors.
+ *
+ * Example:
+ *
+ *    ASensorManager* sensorManager = ASensorManager_getInstanceForPackage("foo.bar.baz");
+ *
+ */
+ASensorManager* ASensorManager_getInstanceForPackage(const char* packageName);
+
+/*
  * Returns the list of available sensors.
  */
 int ASensorManager_getSensorList(ASensorManager* manager, ASensorList* list);
