@@ -461,7 +461,7 @@ sp<Fence> HWComposer::getDisplayFence(int disp) const {
 }
 
 uint32_t HWComposer::getFormat(int disp) const {
-    if (uint32_t(disp)>31 || !mAllocatedDisplayIDs.hasBit(disp)) {
+    if (static_cast<uint32_t>(disp) >= MAX_HWC_DISPLAYS || !mAllocatedDisplayIDs.hasBit(disp)) {
         return HAL_PIXEL_FORMAT_RGBA_8888;
     } else {
         return mDisplayData[disp].format;
