@@ -137,6 +137,9 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_kswapd_wake/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/vmscan/mm_vmscan_kswapd_sleep/enable" },
     } },
+    { "regulators",  "Voltage and Current Regulators", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/regulator/enable" },
+    } },
 };
 
 /* Command line options */
