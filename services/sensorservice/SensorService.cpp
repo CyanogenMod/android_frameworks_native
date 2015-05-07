@@ -213,7 +213,7 @@ Sensor SensorService::registerSensor(SensorInterface* s)
     // add to our handle->SensorInterface mapping
     mSensorMap.add(sensor.getHandle(), s);
     // create an entry in the mLastEventSeen array
-    mLastEventSeen.add(sensor.getHandle(), event);
+    mLastEventSeen.add(sensor.getHandle(), NULL);
 
     return sensor;
 }
@@ -239,13 +239,21 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                 "can't dump SensorService from pid=%d, uid=%d\n",
                 IPCThreadState::self()->getCallingPid(),
                 IPCThreadState::self()->getCallingUid());
-    } else if (args.size() > 0) {
+    } else {
         if (args.size() > 1) {
            return INVALID_OPERATION;
         }
         Mutex::Autolock _l(mLock);
         SensorDevice& dev(SensorDevice::getInstance());
-        if (args[0] == String16("restrict") && mCurrentOperatingMode == NORMAL) {
+        if (args.size() == 1 && args[0] == String16("restrict")) {
+            // If already in restricted mode. Ignore.
+            if (mCurrentOperatingMode == RESTRICTED) {
+                return status_t(NO_ERROR);
+            }
+            // If in any mode other than normal, ignore.
+            if (mCurrentOperatingMode != NORMAL) {
+                return INVALID_OPERATION;
+            }
             mCurrentOperatingMode = RESTRICTED;
             dev.disableAllSensors();
             // Clear all pending flush connections for all active sensors. If one of the active
@@ -254,132 +262,107 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
             for (size_t i=0 ; i< mActiveSensors.size(); ++i) {
                 mActiveSensors.valueAt(i)->clearAllPendingFlushConnections();
             }
-        } else if (args[0] == String16("enable") && mCurrentOperatingMode == RESTRICTED) {
-            mCurrentOperatingMode = NORMAL;
-            dev.enableAllSensors();
-        }
-        return status_t(NO_ERROR);
-    } else {
-        Mutex::Autolock _l(mLock);
-        result.append("Sensor List:\n");
-        for (size_t i=0 ; i<mSensorList.size() ; i++) {
-            const Sensor& s(mSensorList[i]);
-            const sensors_event_t& e(mLastEventSeen.valueFor(s.getHandle()));
-            result.appendFormat(
-                    "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
-                    s.getName().string(),
-                    s.getVendor().string(),
-                    s.getVersion(),
-                    s.getStringType().string(),
-                    s.getHandle(),
-                    s.getRequiredPermission().string(),
-                    s.getType());
+            return status_t(NO_ERROR);
+        } else if (args.size() == 1 && args[0] == String16("enable")) {
+            // If currently in restricted mode, reset back to NORMAL mode else ignore.
+            if (mCurrentOperatingMode == RESTRICTED) {
+                mCurrentOperatingMode = NORMAL;
+                dev.enableAllSensors();
+            }
+            return status_t(NO_ERROR);
+        } else {
+            // Default dump the sensor list and debugging information.
+            result.append("Sensor List:\n");
+            for (size_t i=0 ; i<mSensorList.size() ; i++) {
+                const Sensor& s(mSensorList[i]);
+                result.appendFormat(
+                        "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
+                        s.getName().string(),
+                        s.getVendor().string(),
+                        s.getVersion(),
+                        s.getStringType().string(),
+                        s.getHandle(),
+                        s.getRequiredPermission().string(),
+                        s.getType());
 
-            const int reportingMode = s.getReportingMode();
-            if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
-                result.append(" continuous | ");
-            } else if (reportingMode == AREPORTING_MODE_ON_CHANGE) {
-                result.append(" on-change | ");
-            } else if (reportingMode == AREPORTING_MODE_ONE_SHOT) {
-                result.append(" one-shot | ");
-            } else {
-                result.append(" special-trigger | ");
+                const int reportingMode = s.getReportingMode();
+                if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
+                    result.append(" continuous | ");
+                } else if (reportingMode == AREPORTING_MODE_ON_CHANGE) {
+                    result.append(" on-change | ");
+                } else if (reportingMode == AREPORTING_MODE_ONE_SHOT) {
+                    result.append(" one-shot | ");
+                } else {
+                    result.append(" special-trigger | ");
+                }
+
+                if (s.getMaxDelay() > 0) {
+                    result.appendFormat("minRate=%.2fHz | ", 1e6f / s.getMaxDelay());
+                } else {
+                    result.appendFormat("maxDelay=%dus |", s.getMaxDelay());
+                }
+
+                if (s.getMinDelay() > 0) {
+                    result.appendFormat("maxRate=%.2fHz | ", 1e6f / s.getMinDelay());
+                } else {
+                    result.appendFormat("minDelay=%dus |", s.getMinDelay());
+                }
+
+                if (s.getFifoMaxEventCount() > 0) {
+                    result.appendFormat("FifoMax=%d events | ",
+                            s.getFifoMaxEventCount());
+                } else {
+                    result.append("no batching | ");
+                }
+
+                if (s.isWakeUpSensor()) {
+                    result.appendFormat("wakeUp | ");
+                } else {
+                    result.appendFormat("non-wakeUp | ");
+                }
+
+                const CircularBuffer* buf = mLastEventSeen.valueFor(s.getHandle());
+                if (buf != NULL && s.getRequiredPermission().isEmpty()) {
+                    buf->printBuffer(result);
+                } else {
+                    result.append("last=<> \n");
+                }
+                result.append("\n");
+            }
+            SensorFusion::getInstance().dump(result);
+            SensorDevice::getInstance().dump(result);
+
+            result.append("Active sensors:\n");
+            for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
+                int handle = mActiveSensors.keyAt(i);
+                result.appendFormat("%s (handle=0x%08x, connections=%zu)\n",
+                        getSensorName(handle).string(),
+                        handle,
+                        mActiveSensors.valueAt(i)->getNumConnections());
             }
 
-            if (s.getMaxDelay() > 0) {
-                result.appendFormat("minRate=%.2fHz | ", 1e6f / s.getMaxDelay());
-            } else {
-                result.appendFormat("maxDelay=%dus |", s.getMaxDelay());
+            result.appendFormat("Socket Buffer size = %d events\n",
+                                mSocketBufferSize/sizeof(sensors_event_t));
+            result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
+            result.appendFormat("Mode :");
+            switch(mCurrentOperatingMode) {
+               case NORMAL:
+                   result.appendFormat(" NORMAL\n");
+                   break;
+               case RESTRICTED:
+                   result.appendFormat(" RESTRICTED\n");
+                   break;
+               case DATA_INJECTION:
+                   result.appendFormat(" DATA_INJECTION\n");
             }
+            result.appendFormat("%zd active connections\n", mActiveConnections.size());
 
-            if (s.getMinDelay() > 0) {
-                result.appendFormat("maxRate=%.2fHz | ", 1e6f / s.getMinDelay());
-            } else {
-                result.appendFormat("minDelay=%dus |", s.getMinDelay());
-            }
-
-            if (s.getFifoMaxEventCount() > 0) {
-                result.appendFormat("FifoMax=%d events | ",
-                        s.getFifoMaxEventCount());
-            } else {
-                result.append("no batching | ");
-            }
-
-            if (s.isWakeUpSensor()) {
-                result.appendFormat("wakeUp | ");
-            } else {
-                result.appendFormat("non-wakeUp | ");
-            }
-
-            switch (s.getType()) {
-                case SENSOR_TYPE_ROTATION_VECTOR:
-                case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
-                    result.appendFormat(
-                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f, %" PRId64 ">\n",
-                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4], e.timestamp);
-                    break;
-                case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-                case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
-                    result.appendFormat(
-                            "last=<%5.1f,%5.1f,%5.1f,%5.1f,%5.1f,%5.1f, %" PRId64 ">\n",
-                            e.data[0], e.data[1], e.data[2], e.data[3], e.data[4], e.data[5],
-                            e.timestamp);
-                    break;
-                case SENSOR_TYPE_GAME_ROTATION_VECTOR:
-                    result.appendFormat(
-                            "last=<%5.1f,%5.1f,%5.1f,%5.1f, %" PRId64 ">\n",
-                            e.data[0], e.data[1], e.data[2], e.data[3], e.timestamp);
-                    break;
-                case SENSOR_TYPE_SIGNIFICANT_MOTION:
-                case SENSOR_TYPE_STEP_DETECTOR:
-                    result.appendFormat( "last=<%f %" PRId64 ">\n", e.data[0], e.timestamp);
-                    break;
-                case SENSOR_TYPE_STEP_COUNTER:
-                    result.appendFormat( "last=<%" PRIu64 ", %" PRId64 ">\n", e.u64.step_counter,
-                                         e.timestamp);
-                    break;
-                default:
-                    // default to 3 values
-                    result.appendFormat(
-                            "last=<%5.1f,%5.1f,%5.1f, %" PRId64 ">\n",
-                            e.data[0], e.data[1], e.data[2], e.timestamp);
-                    break;
-            }
-            result.append("\n");
-        }
-        SensorFusion::getInstance().dump(result);
-        SensorDevice::getInstance().dump(result);
-
-        result.append("Active sensors:\n");
-        for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
-            int handle = mActiveSensors.keyAt(i);
-            result.appendFormat("%s (handle=0x%08x, connections=%zu)\n",
-                    getSensorName(handle).string(),
-                    handle,
-                    mActiveSensors.valueAt(i)->getNumConnections());
-        }
-
-        result.appendFormat("Socket Buffer size = %d events\n",
-                            mSocketBufferSize/sizeof(sensors_event_t));
-        result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
-        result.appendFormat("Mode :");
-        switch(mCurrentOperatingMode) {
-           case NORMAL:
-               result.appendFormat(" NORMAL\n");
-               break;
-           case RESTRICTED:
-               result.appendFormat(" RESTRICTED\n");
-               break;
-           case DATA_INJECTION:
-               result.appendFormat(" DATA_INJECTION\n");
-        }
-        result.appendFormat("%zd active connections\n", mActiveConnections.size());
-
-        for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
-            sp<SensorEventConnection> connection(mActiveConnections[i].promote());
-            if (connection != 0) {
-                result.appendFormat("Connection Number: %zu \n", i);
-                connection->dump(result);
+            for (size_t i=0 ; i < mActiveConnections.size() ; i++) {
+                sp<SensorEventConnection> connection(mActiveConnections[i].promote());
+                if (connection != 0) {
+                    result.appendFormat("Connection Number: %zu \n", i);
+                    connection->dump(result);
+                }
             }
         }
     }
@@ -609,18 +592,14 @@ bool SensorService::SensorEventAckReceiver::threadLoop() {
 
 void SensorService::recordLastValueLocked(
         const sensors_event_t* buffer, size_t count) {
-    const sensors_event_t* last = NULL;
     for (size_t i = 0; i < count; i++) {
-        const sensors_event_t* event = &buffer[i];
-        if (event->type != SENSOR_TYPE_META_DATA) {
-            if (last && event->sensor != last->sensor) {
-                mLastEventSeen.editValueFor(last->sensor) = *last;
+        if (buffer[i].type != SENSOR_TYPE_META_DATA) {
+            CircularBuffer* &circular_buf = mLastEventSeen.editValueFor(buffer[i].sensor);
+            if (circular_buf == NULL) {
+                circular_buf = new CircularBuffer(buffer[i].type);
             }
-            last = event;
+            circular_buf->addEvent(buffer[i]);
         }
-    }
-    if (last) {
-        mLastEventSeen.editValueFor(last->sensor) = *last;
     }
 }
 
@@ -836,14 +815,24 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ON_CHANGE) {
                 // NOTE: The wake_up flag of this event may get set to
                 // WAKE_UP_SENSOR_EVENT_NEEDS_ACK if this is a wake_up event.
-                sensors_event_t& event(mLastEventSeen.editValueFor(handle));
-                if (event.version == sizeof(sensors_event_t)) {
-                    if (isWakeUpSensorEvent(event) && !mWakeLockAcquired) {
-                        setWakeLockAcquiredLocked(true);
-                    }
-                    connection->sendEvents(&event, 1, NULL);
-                    if (!connection->needsWakeLock() && mWakeLockAcquired) {
-                        checkWakeLockStateLocked();
+                CircularBuffer *circular_buf = mLastEventSeen.valueFor(handle);
+                if (circular_buf) {
+                    sensors_event_t event;
+                    memset(&event, 0, sizeof(event));
+                    // It is unlikely that this buffer is empty as the sensor is already active.
+                    // One possible corner case may be two applications activating an on-change
+                    // sensor at the same time.
+                    if(circular_buf->populateLastEvent(&event)) {
+                        event.sensor = handle;
+                        if (event.version == sizeof(sensors_event_t)) {
+                            if (isWakeUpSensorEvent(event) && !mWakeLockAcquired) {
+                                setWakeLockAcquiredLocked(true);
+                            }
+                            connection->sendEvents(&event, 1, NULL);
+                            if (!connection->needsWakeLock() && mWakeLockAcquired) {
+                                checkWakeLockStateLocked();
+                            }
+                        }
                     }
                 }
             }
@@ -1081,6 +1070,29 @@ bool SensorService::isWhiteListedPackage(const String8& packageName) {
     return (packageName.find(".cts.") != -1);
 }
 
+int SensorService::getNumEventsForSensorType(int sensor_event_type) {
+    switch (sensor_event_type) {
+        case SENSOR_TYPE_ROTATION_VECTOR:
+        case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+            return 5;
+
+        case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+        case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
+            return 6;
+
+        case SENSOR_TYPE_GAME_ROTATION_VECTOR:
+            return 4;
+
+        case SENSOR_TYPE_SIGNIFICANT_MOTION:
+        case SENSOR_TYPE_STEP_DETECTOR:
+        case SENSOR_TYPE_STEP_COUNTER:
+            return 1;
+
+         default:
+            return 3;
+    }
+}
+
 // ---------------------------------------------------------------------------
 SensorService::SensorRecord::SensorRecord(
         const sp<SensorEventConnection>& connection)
@@ -1139,6 +1151,85 @@ SensorService::SensorRecord::getFirstPendingFlushConnection() {
 
 void SensorService::SensorRecord::clearAllPendingFlushConnections() {
     mPendingFlushConnections.clear();
+}
+
+// --------------------------------------------------------------------------
+SensorService::CircularBuffer::CircularBuffer(int sensor_event_type) {
+    mNextInd = 0;
+    mTrimmedSensorEventArr = new TrimmedSensorEvent *[CIRCULAR_BUF_SIZE];
+    mSensorType = sensor_event_type;
+    const int numData = SensorService::getNumEventsForSensorType(mSensorType);
+    for (int i = 0; i < CIRCULAR_BUF_SIZE; ++i) {
+        mTrimmedSensorEventArr[i] = new TrimmedSensorEvent(numData, mSensorType);
+    }
+}
+
+void SensorService::CircularBuffer::addEvent(const sensors_event_t& sensor_event) {
+    TrimmedSensorEvent *curr_event = mTrimmedSensorEventArr[mNextInd];
+    curr_event->mTimestamp = sensor_event.timestamp;
+    if (mSensorType == SENSOR_TYPE_STEP_COUNTER) {
+        curr_event->mStepCounter = sensor_event.u64.step_counter;
+    } else {
+        memcpy(curr_event->mData, sensor_event.data,
+                 sizeof(float) * SensorService::getNumEventsForSensorType(mSensorType));
+    }
+    time_t rawtime = time(NULL);
+    struct tm * timeinfo = localtime(&rawtime);
+    curr_event->mHour = timeinfo->tm_hour;
+    curr_event->mMin = timeinfo->tm_min;
+    curr_event->mSec = timeinfo->tm_sec;
+    mNextInd = (mNextInd + 1) % CIRCULAR_BUF_SIZE;
+}
+
+void SensorService::CircularBuffer::printBuffer(String8& result) const {
+    const int numData = SensorService::getNumEventsForSensorType(mSensorType);
+    int i = mNextInd, eventNum = 1;
+    result.appendFormat("last %d events = < ", CIRCULAR_BUF_SIZE);
+    do {
+        if (mTrimmedSensorEventArr[i]->mTimestamp == -1) {
+            // Sentinel, ignore.
+            i = (i + 1) % CIRCULAR_BUF_SIZE;
+            continue;
+        }
+        result.appendFormat("%d) ", eventNum++);
+        if (mSensorType == SENSOR_TYPE_STEP_COUNTER) {
+            result.appendFormat("%llu,", mTrimmedSensorEventArr[i]->mStepCounter);
+        } else {
+            for (int j = 0; j < numData; ++j) {
+                result.appendFormat("%5.1f,", mTrimmedSensorEventArr[i]->mData[j]);
+            }
+        }
+        result.appendFormat("%lld %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
+                mTrimmedSensorEventArr[i]->mHour, mTrimmedSensorEventArr[i]->mMin,
+                mTrimmedSensorEventArr[i]->mSec);
+        i = (i + 1) % CIRCULAR_BUF_SIZE;
+    } while (i != mNextInd);
+    result.appendFormat(">\n");
+}
+
+bool SensorService::CircularBuffer::populateLastEvent(sensors_event_t *event) {
+    int lastEventInd = (mNextInd - 1 + CIRCULAR_BUF_SIZE) % CIRCULAR_BUF_SIZE;
+    // Check if the buffer is empty.
+    if (mTrimmedSensorEventArr[lastEventInd]->mTimestamp == -1) {
+        return false;
+    }
+    event->version = sizeof(sensors_event_t);
+    event->type = mSensorType;
+    event->timestamp = mTrimmedSensorEventArr[lastEventInd]->mTimestamp;
+    if (mSensorType == SENSOR_TYPE_STEP_COUNTER) {
+          event->u64.step_counter = mTrimmedSensorEventArr[lastEventInd]->mStepCounter;
+    } else {
+        memcpy(event->data, mTrimmedSensorEventArr[lastEventInd]->mData,
+                 sizeof(float) * SensorService::getNumEventsForSensorType(mSensorType));
+    }
+    return true;
+}
+
+SensorService::CircularBuffer::~CircularBuffer() {
+    for (int i = 0; i < CIRCULAR_BUF_SIZE; ++i) {
+        delete mTrimmedSensorEventArr[i];
+    }
+    delete [] mTrimmedSensorEventArr;
 }
 
 // ---------------------------------------------------------------------------

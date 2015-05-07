@@ -79,7 +79,7 @@ void SensorDevice::dump(String8& result)
     sensor_t const* list;
     ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
 
-    result.appendFormat("halVersion %d\n", getHalDeviceVersion());
+    result.appendFormat("halVersion 0x%08x\n", getHalDeviceVersion());
     result.appendFormat("%d h/w sensors:\n", int(count));
 
     Mutex::Autolock _l(mLock);

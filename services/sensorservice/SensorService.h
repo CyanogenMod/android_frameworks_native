@@ -53,6 +53,8 @@
 // For older HALs which don't support batching, use a smaller socket buffer size.
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
+#define CIRCULAR_BUF_SIZE 10
+
 struct sensors_poll_device_t;
 struct sensors_module_t;
 
@@ -257,6 +259,53 @@ class SensorService :
         SensorEventAckReceiver(const sp<SensorService>& service): mService(service) {}
     };
 
+    // sensor_event_t with only the data and the timestamp.
+    struct TrimmedSensorEvent {
+        union {
+            float *mData;
+            uint64_t mStepCounter;
+        };
+        // Timestamp from the sensor_event.
+        int64_t mTimestamp;
+        // HH:MM:SS local time at which this sensor event is read at SensorService. Useful
+        // for debugging.
+        int32_t mHour, mMin, mSec;
+
+        TrimmedSensorEvent(int numData, int sensorType) {
+            mTimestamp = -1;
+            if (sensorType == SENSOR_TYPE_STEP_COUNTER) {
+                mStepCounter = 0;
+            } else {
+                mData = new float[numData];
+                for (int i = 0; i < numData; ++i) {
+                    mData[i] = -1.0;
+                }
+            }
+            mHour = mMin = mSec = 0;
+        }
+
+        ~TrimmedSensorEvent() {
+            delete [] mData;
+        }
+    };
+
+    // A circular buffer of TrimmedSensorEvents. The size of this buffer is typically 10. The
+    // last N events generated from the sensor are stored in this buffer. The buffer is NOT
+    // cleared when the sensor unregisters and as a result one may see very old data in the
+    // dumpsys output but this is WAI.
+    class CircularBuffer {
+        int mNextInd;
+        int mSensorType;
+        TrimmedSensorEvent ** mTrimmedSensorEventArr;
+    public:
+        CircularBuffer(int sensor_event_type);
+        void addEvent(const sensors_event_t& sensor_event);
+        void printBuffer(String8& buffer) const;
+        bool populateLastEvent(sensors_event_t *event);
+        ~CircularBuffer();
+    };
+
+    static int getNumEventsForSensorType(int sensor_event_type);
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
     Sensor getSensorFromHandle(int handle) const;
@@ -335,7 +384,7 @@ class SensorService :
     Mode mCurrentOperatingMode;
 
     // The size of this vector is constant, only the items are mutable
-    KeyedVector<int32_t, sensors_event_t> mLastEventSeen;
+    KeyedVector<int32_t, CircularBuffer *> mLastEventSeen;
 
 public:
     void cleanupConnection(SensorEventConnection* connection);
