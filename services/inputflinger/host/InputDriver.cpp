@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+#include <functional>
 #include <stdint.h>
 #include <sys/types.h>
+#include <unordered_map>
+#include <vector>
 
 #define LOG_TAG "InputDriver"
 
@@ -39,6 +42,7 @@ static input_host_callbacks_t kCallbacks = {
     .create_device_definition = create_device_definition,
     .create_input_report_definition = create_input_report_definition,
     .create_output_report_definition = create_output_report_definition,
+    .free_report_definition = free_report_definition,
     .input_device_definition_add_report = input_device_definition_add_report,
     .input_report_definition_add_collection = input_report_definition_add_collection,
     .input_report_definition_declare_usage_int = input_report_definition_declare_usage_int,
@@ -91,6 +95,38 @@ struct input_device_identifier {
     int32_t     version;
 };
 
+struct input_device_definition {
+    std::vector<input_report_definition*> reportDefs;
+};
+
+struct input_device_handle {
+    input_device_identifier_t* id;
+    input_device_definition_t* def;
+};
+
+struct input_int_usage {
+    input_usage_t usage;
+    int32_t min;
+    int32_t max;
+    float   resolution;
+};
+
+struct input_collection {
+    int32_t arity;
+    std::vector<input_int_usage> intUsages;
+    std::vector<input_usage_t> boolUsages;
+};
+
+struct InputCollectionIdHasher {
+    std::size_t operator()(const input_collection_id& id) const {
+        return std::hash<int>()(static_cast<int>(id));
+    }
+};
+
+struct input_report_definition {
+    std::unordered_map<input_collection_id_t, input_collection, InputCollectionIdHasher> collections;
+};
+
 // HAL wrapper functions
 
 namespace android {
@@ -110,47 +146,70 @@ namespace android {
 }
 
 input_device_definition_t* create_device_definition(input_host_t* host) {
-    return nullptr;
+    return new ::input_device_definition;
 }
 
 input_report_definition_t* create_input_report_definition(input_host_t* host) {
-    return nullptr;
+    return new ::input_report_definition;
 }
 
 input_report_definition_t* create_output_report_definition(input_host_t* host) {
-    return nullptr;
+    return new ::input_report_definition;
+}
+
+void free_report_definition(input_host_t* host, input_report_definition_t* report_def) {
+    delete report_def;
 }
 
 void input_device_definition_add_report(input_host_t* host,
-        input_device_definition_t* d, input_report_definition_t* r) { }
+        input_device_definition_t* d, input_report_definition_t* r) {
+    d->reportDefs.push_back(r);
+}
 
 void input_report_definition_add_collection(input_host_t* host,
-        input_report_definition_t* report, input_collection_id_t id, int32_t arity) { }
+        input_report_definition_t* report, input_collection_id_t id, int32_t arity) {
+    report->collections[id] = {.arity = arity};
+}
 
 void input_report_definition_declare_usage_int(input_host_t* host,
         input_report_definition_t* report, input_collection_id_t id,
-        input_usage_t usage, int32_t min, int32_t max, float resolution) { }
+        input_usage_t usage, int32_t min, int32_t max, float resolution) {
+    if (report->collections.find(id) != report->collections.end()) {
+        report->collections[id].intUsages.push_back({
+                .usage = usage, .min = min, .max = max, .resolution = resolution});
+    }
+}
 
 void input_report_definition_declare_usages_bool(input_host_t* host,
         input_report_definition_t* report, input_collection_id_t id,
-        input_usage_t* usage, size_t usage_count) { }
-
+        input_usage_t* usage, size_t usage_count) {
+    if (report->collections.find(id) != report->collections.end()) {
+        for (size_t i = 0; i < usage_count; ++i) {
+            report->collections[id].boolUsages.push_back(usage[i]);
+        }
+    }
+}
 
 input_device_handle_t* register_device(input_host_t* host,
         input_device_identifier_t* id, input_device_definition_t* d) {
-    return nullptr;
+    ALOGD("Registering device %s with %d input reports", id->name, d->reportDefs.size());
+    return new input_device_handle{ .id = id, .def = d };
 }
 
 input_report_t* input_allocate_report(input_host_t* host, input_report_definition_t* r) {
+    ALOGD("Allocating input report for definition %p", r);
     return nullptr;
 }
+
 void input_report_set_usage_int(input_host_t* host, input_report_t* r,
         input_collection_id_t id, input_usage_t usage, int32_t value, int32_t arity_index) { }
 
 void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
         input_collection_id_t id, input_usage_t usage, bool value, int32_t arity_index) { }
 
-void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) { }
+void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) {
+    ALOGD("report_event %p for handle %p", report, d);
+}
 
 input_property_map_t* input_get_device_property_map(input_host_t* host,
         input_device_identifier_t* id) {
