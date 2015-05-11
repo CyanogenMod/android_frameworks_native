@@ -103,6 +103,7 @@ extern char const * const gExtensionString  =
         "EGL_ANDROID_recordable "               // mandatory
         "EGL_KHR_partial_update "               // strongly recommended
         "EGL_EXT_buffer_age "                   // strongly recommended with partial_update
+        "EGL_KHR_create_context_no_error "
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
