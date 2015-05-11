@@ -379,6 +379,10 @@ public:
 
     inline int32_t getButtonState() const { return mButtonState; }
 
+    inline int32_t setButtonState(int32_t buttonState) { mButtonState = buttonState; }
+
+    inline int32_t getActionButton() const { return mActionButton; }
+
     inline float getXOffset() const { return mXOffset; }
 
     inline float getYOffset() const { return mYOffset; }
@@ -532,6 +536,7 @@ public:
             int32_t deviceId,
             int32_t source,
             int32_t action,
+            int32_t actionButton,
             int32_t flags,
             int32_t edgeFlags,
             int32_t metaState,
@@ -584,6 +589,7 @@ public:
 
 protected:
     int32_t mAction;
+    int32_t mActionButton;
     int32_t mFlags;
     int32_t mEdgeFlags;
     int32_t mMetaState;
