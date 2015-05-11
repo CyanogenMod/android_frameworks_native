@@ -114,6 +114,21 @@ void ConsumerBase::onFrameAvailable(const BufferItem& item) {
     }
 }
 
+void ConsumerBase::onFrameReplaced(const BufferItem &item) {
+    CB_LOGV("onFrameReplaced");
+
+    sp<FrameAvailableListener> listener;
+    {
+        Mutex::Autolock lock(mMutex);
+        listener = mFrameAvailableListener.promote();
+    }
+
+    if (listener != NULL) {
+        CB_LOGV("actually calling onFrameReplaced");
+        listener->onFrameReplaced(item);
+    }
+}
+
 void ConsumerBase::onBuffersReleased() {
     Mutex::Autolock lock(mMutex);
 
