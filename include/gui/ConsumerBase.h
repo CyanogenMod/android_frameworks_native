@@ -38,15 +38,9 @@ class ConsumerBase : public virtual RefBase,
         protected ConsumerListener {
 public:
     struct FrameAvailableListener : public virtual RefBase {
-        // onFrameAvailable() is called each time an additional frame becomes
-        // available for consumption. This means that frames that are queued
-        // while in asynchronous mode only trigger the callback if no previous
-        // frames are pending. Frames queued while in synchronous mode always
-        // trigger the callback.
-        //
-        // This is called without any lock held and can be called concurrently
-        // by multiple threads.
+        // See IConsumerListener::onFrame{Available,Replaced}
         virtual void onFrameAvailable(const BufferItem& item) = 0;
+        virtual void onFrameReplaced(const BufferItem& /* item */) {}
     };
 
     virtual ~ConsumerBase();
@@ -104,14 +98,16 @@ protected:
 
     // Implementation of the IConsumerListener interface.  These
     // calls are used to notify the ConsumerBase of asynchronous events in the
-    // BufferQueue.  The onFrameAvailable and onBuffersReleased methods should
-    // not need to be overridden by derived classes, but if they are overridden
-    // the ConsumerBase implementation must be called from the derived class.
-    // The ConsumerBase version of onSidebandStreamChanged does nothing and can
-    // be overriden by derived classes if they want the notification.
-    virtual void onFrameAvailable(const BufferItem& item);
-    virtual void onBuffersReleased();
-    virtual void onSidebandStreamChanged();
+    // BufferQueue.  The onFrameAvailable, onFrameReplaced, and
+    // onBuffersReleased methods should not need to be overridden by derived
+    // classes, but if they are overridden the ConsumerBase implementation must
+    // be called from the derived class. The ConsumerBase version of
+    // onSidebandStreamChanged does nothing and can be overriden by derived
+    // classes if they want the notification.
+    virtual void onFrameAvailable(const BufferItem& item) override;
+    virtual void onFrameReplaced(const BufferItem& item) override;
+    virtual void onBuffersReleased() override;
+    virtual void onSidebandStreamChanged() override;
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
