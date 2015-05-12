@@ -69,6 +69,12 @@ public:
     // returned.  The presentation time is in nanoseconds, and the time base
     // is CLOCK_MONOTONIC.
     //
+    // If maxFrameNumber is non-zero, it indicates that acquireBuffer should
+    // only return a buffer with a frame number less than or equal to
+    // maxFrameNumber. If no such frame is available (such as when a buffer has
+    // been replaced but the consumer has not received the onFrameReplaced
+    // callback), then PRESENT_LATER will be returned.
+    //
     // Return of NO_ERROR means the operation completed as normal.
     //
     // Return of a positive value means the operation could not be completed
@@ -78,7 +84,8 @@ public:
     //
     // Return of a negative value means an error has occurred:
     // * INVALID_OPERATION - too many buffers have been acquired
-    virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen) = 0;
+    virtual status_t acquireBuffer(BufferItem* buffer, nsecs_t presentWhen,
+            uint64_t maxFrameNumber = 0) = 0;
 
     // detachBuffer attempts to remove all ownership of the buffer in the given
     // slot from the buffer queue. If this call succeeds, the slot will be
@@ -247,11 +254,6 @@ public:
 
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const = 0;
-
-    // setShadowQueueSize notifies the BufferQueue that the consumer is
-    // shadowing its queue and allows it to limit the number of buffers it is
-    // permitted to drop during acquire so as to not get out of sync.
-    virtual void setShadowQueueSize(size_t size) = 0;
 
     // dump state into a string
     virtual void dump(String8& result, const char* prefix) const = 0;

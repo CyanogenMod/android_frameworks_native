@@ -52,7 +52,6 @@ enum {
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
     GET_SIDEBAND_STREAM,
-    SET_SHADOW_QUEUE_SIZE,
     DUMP,
 };
 
@@ -67,10 +66,12 @@ public:
 
     virtual ~BpGraphicBufferConsumer();
 
-    virtual status_t acquireBuffer(BufferItem *buffer, nsecs_t presentWhen) {
+    virtual status_t acquireBuffer(BufferItem *buffer, nsecs_t presentWhen,
+            uint64_t maxFrameNumber) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
         data.writeInt64(presentWhen);
+        data.writeUint64(maxFrameNumber);
         status_t result = remote()->transact(ACQUIRE_BUFFER, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -270,17 +271,6 @@ public:
         return stream;
     }
 
-    virtual void setShadowQueueSize(size_t size) {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
-        data.writeInt64(static_cast<int64_t>(size));
-        status_t result = remote()->transact(SET_SHADOW_QUEUE_SIZE, data, &reply);
-        if (result != NO_ERROR) {
-            ALOGE("setShadowQueueSize failed (%d)", result);
-            return;
-        }
-    }
-
     virtual void dump(String8& result, const char* prefix) const {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
@@ -307,7 +297,8 @@ status_t BnGraphicBufferConsumer::onTransact(
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             BufferItem item;
             int64_t presentWhen = data.readInt64();
-            status_t result = acquireBuffer(&item, presentWhen);
+            uint64_t maxFrameNumber = data.readUint64();
+            status_t result = acquireBuffer(&item, presentWhen, maxFrameNumber);
             status_t err = reply->write(item);
             if (err) return err;
             reply->writeInt32(result);
@@ -433,12 +424,6 @@ status_t BnGraphicBufferConsumer::onTransact(
             if (stream != NULL) {
                 reply->writeNativeHandle(stream->handle());
             }
-            return NO_ERROR;
-        }
-        case SET_SHADOW_QUEUE_SIZE: {
-            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
-            size_t size = static_cast<size_t>(data.readInt64());
-            setShadowQueueSize(size);
             return NO_ERROR;
         }
         case DUMP: {

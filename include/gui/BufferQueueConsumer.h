@@ -47,7 +47,7 @@ public:
     // returned.  The presentation time is in nanoseconds, and the time base
     // is CLOCK_MONOTONIC.
     virtual status_t acquireBuffer(BufferItem* outBuffer,
-            nsecs_t expectedPresent);
+            nsecs_t expectedPresent, uint64_t maxFrameNumber = 0) override;
 
     // See IGraphicBufferConsumer::detachBuffer
     virtual status_t detachBuffer(int slot);
@@ -147,9 +147,6 @@ public:
 
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const;
-
-    // See IGraphicBufferConsumer::setShadowQueueSize
-    virtual void setShadowQueueSize(size_t size);
 
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
