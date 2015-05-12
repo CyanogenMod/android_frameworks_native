@@ -49,13 +49,15 @@ public:
         virtual ~BufferRejecter() { }
     };
 
-    virtual status_t acquireBufferLocked(BufferItem *item, nsecs_t presentWhen);
+    virtual status_t acquireBufferLocked(BufferItem *item, nsecs_t presentWhen,
+            uint64_t maxFrameNumber = 0) override;
 
     // This version of updateTexImage() takes a functor that may be used to
     // reject the newly acquired buffer.  Unlike the GLConsumer version,
     // this does not guarantee that the buffer has been bound to the GL
     // texture.
-    status_t updateTexImage(BufferRejecter* rejecter, const DispSync& dispSync);
+    status_t updateTexImage(BufferRejecter* rejecter, const DispSync& dispSync,
+            uint64_t maxFrameNumber = 0);
 
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
@@ -69,9 +71,6 @@ public:
     void setContentsChangedListener(const wp<ContentsChangedListener>& listener);
 
     sp<NativeHandle> getSidebandStream() const;
-
-    // See IGraphicBufferConsumer::setShadowQueueSize
-    void setShadowQueueSize(size_t size);
 
     nsecs_t computeExpectedPresent(const DispSync& dispSync);
 

@@ -275,12 +275,6 @@ private:
     // buffer as the number of frames that have elapsed since it was last queued
     uint64_t mBufferAge;
 
-    // mConsumerHasShadowQueue determines if acquireBuffer should be more
-    // cautious about dropping buffers so that it always returns a buffer that
-    // is represented in the consumer's shadow queue.
-    bool mConsumerHasShadowQueue;
-    size_t mConsumerShadowQueueSize;
-
 }; // class BufferQueueCore
 
 } // namespace android
