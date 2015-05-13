@@ -86,6 +86,9 @@ LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv1\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
 
+# TODO: This is to work around b/20093774. Remove after root cause is fixed
+LOCAL_LDFLAGS_arm += -Wl,--hash-style,both
+
 include $(BUILD_SHARED_LIBRARY)
 
 
@@ -110,6 +113,9 @@ LOCAL_C_INCLUDES += bionic/libc/private
 LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv2\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
+
+# TODO: This is to work around b/20093774. Remove after root cause is fixed
+LOCAL_LDFLAGS_arm += -Wl,--hash-style,both
 
 # Symlink libGLESv3.so -> libGLESv2.so
 # Platform modules should link against libGLESv2.so (-lGLESv2), but NDK apps
