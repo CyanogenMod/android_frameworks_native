@@ -32,7 +32,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
-        const DispSync& dispSync)
+        const DispSync& dispSync, uint64_t maxFrameNumber)
 {
     ATRACE_CALL();
     ALOGV("updateTexImage");
@@ -54,7 +54,8 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
     // Acquire the next buffer.
     // In asynchronous mode the list is guaranteed to be one buffer
     // deep, while in synchronous mode we use the oldest buffer.
-    err = acquireBufferLocked(&item, computeExpectedPresent(dispSync));
+    err = acquireBufferLocked(&item, computeExpectedPresent(dispSync),
+            maxFrameNumber);
     if (err != NO_ERROR) {
         if (err == BufferQueue::NO_BUFFER_AVAILABLE) {
             err = NO_ERROR;
@@ -104,8 +105,9 @@ status_t SurfaceFlingerConsumer::bindTextureImage()
 }
 
 status_t SurfaceFlingerConsumer::acquireBufferLocked(BufferItem* item,
-        nsecs_t presentWhen) {
-    status_t result = GLConsumer::acquireBufferLocked(item, presentWhen);
+        nsecs_t presentWhen, uint64_t maxFrameNumber) {
+    status_t result = GLConsumer::acquireBufferLocked(item, presentWhen,
+            maxFrameNumber);
     if (result == NO_ERROR) {
         mTransformToDisplayInverse = item->mTransformToDisplayInverse;
         mSurfaceDamage = item->mSurfaceDamage;
@@ -123,10 +125,6 @@ const Region& SurfaceFlingerConsumer::getSurfaceDamage() const {
 
 sp<NativeHandle> SurfaceFlingerConsumer::getSidebandStream() const {
     return mConsumer->getSidebandStream();
-}
-
-void SurfaceFlingerConsumer::setShadowQueueSize(size_t size) {
-    mConsumer->setShadowQueueSize(size);
 }
 
 // We need to determine the time when a buffer acquired now will be

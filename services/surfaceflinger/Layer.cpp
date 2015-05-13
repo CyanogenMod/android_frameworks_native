@@ -80,7 +80,11 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mProtectedByApp(false),
         mHasSurface(false),
         mClientRef(client),
-        mPotentialCursor(false)
+        mPotentialCursor(false),
+        mQueueItemLock(),
+        mQueueItemCondition(),
+        mQueueItems(),
+        mLastFrameNumberReceived(0)
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
@@ -127,10 +131,6 @@ void Layer::onFirstRef() {
     mSurfaceFlingerConsumer->setContentsChangedListener(this);
     mSurfaceFlingerConsumer->setName(mName);
 
-    // Set the shadow queue size to 0 to notify the BufferQueue that we are
-    // shadowing it
-    mSurfaceFlingerConsumer->setShadowQueueSize(0);
-
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
     mSurfaceFlingerConsumer->setDefaultMaxBufferCount(2);
@@ -167,9 +167,28 @@ void Layer::onFrameAvailable(const BufferItem& item) {
     // Add this buffer from our internal queue tracker
     { // Autolock scope
         Mutex::Autolock lock(mQueueItemLock);
+
+        // Reset the frame number tracker when we receive the first buffer after
+        // a frame number reset
+        if (item.mFrameNumber == 1) {
+            mLastFrameNumberReceived = 0;
+        }
+
+        // Ensure that callbacks are handled in order
+        while (item.mFrameNumber != mLastFrameNumberReceived + 1) {
+            status_t result = mQueueItemCondition.waitRelative(mQueueItemLock,
+                    ms2ns(500));
+            if (result != NO_ERROR) {
+                ALOGE("[%s] Timed out waiting on callback", mName.string());
+            }
+        }
+
         mQueueItems.push_back(item);
-        mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
         android_atomic_inc(&mQueuedFrames);
+
+        // Wake up any pending callbacks
+        mLastFrameNumberReceived = item.mFrameNumber;
+        mQueueItemCondition.broadcast();
     }
 
     mFlinger->signalLayerUpdate();
@@ -177,11 +196,25 @@ void Layer::onFrameAvailable(const BufferItem& item) {
 
 void Layer::onFrameReplaced(const BufferItem& item) {
     Mutex::Autolock lock(mQueueItemLock);
+
+    // Ensure that callbacks are handled in order
+    while (item.mFrameNumber != mLastFrameNumberReceived + 1) {
+        status_t result = mQueueItemCondition.waitRelative(mQueueItemLock,
+                ms2ns(500));
+        if (result != NO_ERROR) {
+            ALOGE("[%s] Timed out waiting on callback", mName.string());
+        }
+    }
+
     if (mQueueItems.empty()) {
         ALOGE("Can't replace a frame on an empty queue");
         return;
     }
     mQueueItems.editItemAt(0) = item;
+
+    // Wake up any pending callbacks
+    mLastFrameNumberReceived = item.mFrameNumber;
+    mQueueItemCondition.broadcast();
 }
 
 void Layer::onSidebandStreamChanged() {
@@ -1261,8 +1294,14 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
                 getProducerStickyTransform() != 0);
 
+        uint64_t maxFrameNumber = 0;
+        {
+            Mutex::Autolock lock(mQueueItemLock);
+            maxFrameNumber = mLastFrameNumberReceived;
+        }
+
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,
-                mFlinger->mPrimaryDispSync);
+                mFlinger->mPrimaryDispSync, maxFrameNumber);
         if (updateResult == BufferQueue::PRESENT_LATER) {
             // Producer doesn't want buffer to be displayed yet.  Signal a
             // layer update so we check again at the next opportunity.
@@ -1272,12 +1311,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             // If the buffer has been rejected, remove it from the shadow queue
             // and return early
             Mutex::Autolock lock(mQueueItemLock);
-
-            // Update the BufferQueue with the new shadow queue size after
-            // dropping this item
             mQueueItems.removeAt(0);
-            mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
-
             android_atomic_dec(&mQueuedFrames);
             return outDirtyRegion;
         }
@@ -1294,10 +1328,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                 android_atomic_dec(&mQueuedFrames);
             }
 
-            // Update the BufferQueue with our new shadow queue size, since we
-            // have removed at least one item
             mQueueItems.removeAt(0);
-            mSurfaceFlingerConsumer->setShadowQueueSize(mQueueItems.size());
         }
 
 
