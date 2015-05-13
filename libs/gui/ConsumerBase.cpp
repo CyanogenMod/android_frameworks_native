@@ -211,8 +211,8 @@ void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
 }
 
 status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
-        nsecs_t presentWhen) {
-    status_t err = mConsumer->acquireBuffer(item, presentWhen);
+        nsecs_t presentWhen, uint64_t maxFrameNumber) {
+    status_t err = mConsumer->acquireBuffer(item, presentWhen, maxFrameNumber);
     if (err != NO_ERROR) {
         return err;
     }
