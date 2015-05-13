@@ -1456,7 +1456,7 @@ protected:
     // State provided by an external stylus
     StylusState mExternalStylusState;
     int64_t mExternalStylusId;
-    nsecs_t mExternalStylusDataTimeout;
+    nsecs_t mExternalStylusFusionTimeout;
     bool mExternalStylusDataPending;
 
     // True if we sent a HOVER_ENTER event.
@@ -1781,6 +1781,7 @@ private:
     VelocityControl mWheelYVelocityControl;
 
     void resetExternalStylus();
+    void clearStylusDataPendingFlags();
 
     void sync(nsecs_t when);
 
