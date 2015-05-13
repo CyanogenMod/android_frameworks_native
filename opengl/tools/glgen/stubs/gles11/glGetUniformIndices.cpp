@@ -49,7 +49,7 @@ android_glGetUniformIndices_array
         _exceptionMessage = "not enough space in uniformIndices";
         goto exit;
     }
-    _indices_base = (GLuint*)_env->GetPrimitiveArrayCritical(
+    _indices_base = (GLuint*)_env->GetIntArrayElements(
             uniformIndices_ref, 0);
     _indices = _indices_base + uniformIndicesOffset;
 
@@ -57,8 +57,8 @@ android_glGetUniformIndices_array
 
 exit:
     if (_indices_base) {
-        _env->ReleasePrimitiveArrayCritical(uniformIndices_ref, _indices_base,
-                _exception ? JNI_ABORT : 0);
+        _env->ReleaseIntArrayElements(uniformIndices_ref, (jint*)_indices_base,
+            _exception ? JNI_ABORT : 0);
     }
     for (_i = _count - 1; _i >= 0; _i--) {
         if (_names[_i]) {
@@ -85,7 +85,7 @@ android_glGetUniformIndices_buffer
     jint _count = 0;
     jint _i;
     const char** _names = NULL;
-    jarray _uniformIndicesArray = (jarray)0;
+    jintArray _uniformIndicesArray = (jintArray)0;
     jint _uniformIndicesRemaining;
     jint _uniformIndicesOffset = 0;
     GLuint* _indices = NULL;
@@ -118,11 +118,11 @@ android_glGetUniformIndices_buffer
     }
 
     _indices = (GLuint*)getPointer(_env, uniformIndices_buf,
-            &_uniformIndicesArray, &_uniformIndicesRemaining,
+            (jarray*)&_uniformIndicesArray, &_uniformIndicesRemaining,
             &_uniformIndicesOffset);
     if (!_indices) {
-        _indicesBase = (char*)_env->GetPrimitiveArrayCritical(
-                _uniformIndicesArray, 0);
+        _indicesBase = (char*)_env->GetIntArrayElements(
+            _uniformIndicesArray, 0);
         _indices = (GLuint*)(_indicesBase + _uniformIndicesOffset);
     }
     if (_uniformIndicesRemaining < _count) {
@@ -136,7 +136,8 @@ android_glGetUniformIndices_buffer
 
 exit:
     if (_uniformIndicesArray) {
-        releasePointer(_env, _uniformIndicesArray, _indicesBase, JNI_TRUE);
+        releaseArrayPointer<jintArray, jint*, IntArrayReleaser>(
+            _env, _uniformIndicesArray, (jint*)_indicesBase, JNI_TRUE);
     }
     for (_i = _count - 1; _i >= 0; _i--) {
         if (_names[_i]) {
@@ -151,4 +152,3 @@ exit:
         jniThrowException(_env, _exceptionType, _exceptionMessage);
     }
 }
-

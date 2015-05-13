@@ -26,7 +26,7 @@ android_glGetShaderSource__II_3II_3BI
     }
     _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
     length_base = (GLsizei *)
-        _env->GetPrimitiveArrayCritical(length_ref, (jboolean *)0);
+        _env->GetIntArrayElements(length_ref, (jboolean *)0);
     length = length_base + lengthOffset;
 
     if (!source_ref) {
@@ -43,7 +43,7 @@ android_glGetShaderSource__II_3II_3BI
     }
     _sourceRemaining = _env->GetArrayLength(source_ref) - sourceOffset;
     source_base = (char *)
-        _env->GetPrimitiveArrayCritical(source_ref, (jboolean *)0);
+        _env->GetByteArrayElements(source_ref, (jboolean *)0);
     source = source_base + sourceOffset;
 
     glGetShaderSource(
@@ -55,11 +55,11 @@ android_glGetShaderSource__II_3II_3BI
 
 exit:
     if (source_base) {
-        _env->ReleasePrimitiveArrayCritical(source_ref, source_base,
+        _env->ReleaseByteArrayElements(source_ref, (jbyte*)source_base,
             _exception ? JNI_ABORT: 0);
     }
     if (length_base) {
-        _env->ReleasePrimitiveArrayCritical(length_ref, length_base,
+        _env->ReleaseIntArrayElements(length_ref, (jint*)length_base,
             _exception ? JNI_ABORT: 0);
     }
     if (_exception) {
@@ -71,14 +71,14 @@ exit:
 static void
 android_glGetShaderSource__IILjava_nio_IntBuffer_2B
   (JNIEnv *_env, jobject _this, jint shader, jint bufsize, jobject length_buf, jbyte source) {
-    jarray _array = (jarray) 0;
+    jintArray _array = (jintArray) 0;
     jint _bufferOffset = (jint) 0;
     jint _remaining;
     GLsizei *length = (GLsizei *) 0;
 
-    length = (GLsizei *)getPointer(_env, length_buf, &_array, &_remaining, &_bufferOffset);
+    length = (GLsizei *)getPointer(_env, length_buf, (jarray*)&_array, &_remaining, &_bufferOffset);
     if (length == NULL) {
-        char * _lengthBase = (char *)_env->GetPrimitiveArrayCritical(_array, (jboolean *) 0);
+        char * _lengthBase = (char *)_env->GetIntArrayElements(_array, (jboolean *) 0);
         length = (GLsizei *) (_lengthBase + _bufferOffset);
     }
     glGetShaderSource(
@@ -88,7 +88,7 @@ android_glGetShaderSource__IILjava_nio_IntBuffer_2B
         reinterpret_cast<char *>(source)
     );
     if (_array) {
-        releasePointer(_env, _array, length, JNI_TRUE);
+        releaseArrayPointer<jintArray, jint*, IntArrayReleaser>(_env, _array, (jint*)length, JNI_TRUE);
     }
 }
 

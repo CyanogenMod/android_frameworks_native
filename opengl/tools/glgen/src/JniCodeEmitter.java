@@ -812,6 +812,7 @@ public class JniCodeEmitter {
         List<Integer> stringArgs = new ArrayList<Integer>();
         int numBufferArgs = 0;
         List<String> bufferArgNames = new ArrayList<String>();
+        List<JType> bufferArgTypes = new ArrayList<JType>();
 
         // Emit JNI signature (arguments)
         //
@@ -835,6 +836,7 @@ public class JniCodeEmitter {
                     int cIndex = jfunc.getArgCIndex(i);
                     String cname = cfunc.getArgName(cIndex);
                     bufferArgNames.add(cname);
+                    bufferArgTypes.add(jfunc.getArgType(i));
                     numBufferArgs++;
                 }
             }
@@ -948,12 +950,25 @@ public class JniCodeEmitter {
 
         // Emit a single _array or multiple _XXXArray variables
         if (numBufferArgs == 1) {
+            JType bufferType = bufferArgTypes.get(0);
+            if (bufferType.isTypedBuffer()) {
+                String typedArrayType = getJniType(bufferType.getArrayTypeForTypedBuffer());
+                out.println(indent + typedArrayType + " _array = (" + typedArrayType + ") 0;");
+            } else {
                 out.println(indent + "jarray _array = (jarray) 0;");
-                out.println(indent + "jint _bufferOffset = (jint) 0;");
+            }
+            out.println(indent + "jint _bufferOffset = (jint) 0;");
         } else {
             for (int i = 0; i < numBufferArgs; i++) {
-                out.println(indent + "jarray _" + bufferArgNames.get(i) +
-                            "Array = (jarray) 0;");
+                JType bufferType = bufferArgTypes.get(0);
+                if (bufferType.isTypedBuffer()) {
+                    String typedArrayType = getJniType(bufferType.getArrayTypeForTypedBuffer());
+                    out.println(indent + typedArrayType + " _" + bufferArgNames.get(i) +
+                                "Array = (" + typedArrayType + ") 0;");
+                } else {
+                    out.println(indent + "jarray _" + bufferArgNames.get(i) +
+                                "Array = (jarray) 0;");
+                }
                 out.println(indent + "jint _" + bufferArgNames.get(i) +
                             "BufferOffset = (jint) 0;");
             }
@@ -1135,9 +1150,10 @@ public class JniCodeEmitter {
                                 "_base = (" +
                                 cfunc.getArgType(cIndex).getDeclaration() +
                                 ")");
+                    String arrayGetter = jfunc.getArgType(idx).getArrayGetterForPrimitiveArray();
                     out.println(indent + "    " +
                                 (mUseCPlusPlus ? "_env" : "(*_env)") +
-                                "->GetPrimitiveArrayCritical(" +
+                                "->" + arrayGetter + "(" +
                                 (mUseCPlusPlus ? "" : "_env, ") +
                                 jfunc.getArgName(idx) +
                                 "_ref, (jboolean *)0);");
@@ -1209,7 +1225,7 @@ public class JniCodeEmitter {
                                     cfunc.getArgType(cIndex).getDeclaration() +
                                     ")getPointer(_env, " +
                                     cname +
-                                    "_buf, &" + array + ", &" + remaining + ", &" + bufferOffset +
+                                    "_buf, (jarray*)&" + array + ", &" + remaining + ", &" + bufferOffset +
                                     ");");
                     }
 
@@ -1244,9 +1260,17 @@ public class JniCodeEmitter {
                 } else {
                     out.println(indent + "if (" + cname +" == NULL) {");
                 }
-                out.println(indent + indent + "char * _" + cname + "Base = (char *)_env->GetPrimitiveArrayCritical(" + array + ", (jboolean *) 0);");
-                out.println(indent + indent + cname + " = (" +cfunc.getArgType(cIndex).getDeclaration() +") (_" + cname + "Base + " + bufferOffset + ");");
-                out.println(indent + "}");
+                JType argType = jfunc.getArgType(idx);
+                if (argType.isTypedBuffer()) {
+                    String arrayGetter = argType.getArrayTypeForTypedBuffer().getArrayGetterForPrimitiveArray();
+                    out.println(indent + indent + "char * _" + cname + "Base = (char *)_env->" + arrayGetter + "(" + array + ", (jboolean *) 0);");
+                    out.println(indent + indent + cname + " = (" +cfunc.getArgType(cIndex).getDeclaration() +") (_" + cname + "Base + " + bufferOffset + ");");
+                    out.println(indent + "}");
+                } else {
+                    out.println(indent + indent + "char * _" + cname + "Base = (char *)_env->GetPrimitiveArrayCritical(" + array + ", (jboolean *) 0);");
+                    out.println(indent + indent + cname + " = (" +cfunc.getArgType(cIndex).getDeclaration() +") (_" + cname + "Base + " + bufferOffset + ");");
+                    out.println(indent + "}");
+                }
              }
         }
 
@@ -1336,12 +1360,13 @@ public class JniCodeEmitter {
                     // the need to write back to the Java array
                     out.println(indent +
                                 "if (" + jfunc.getArgName(idx) + "_base) {");
+                    String arrayReleaser = jfunc.getArgType(idx).getArrayReleaserForPrimitiveArray();
                     out.println(indent + indent +
                                 (mUseCPlusPlus ? "_env" : "(*_env)") +
-                                "->ReleasePrimitiveArrayCritical(" +
+                                "->" + arrayReleaser + "(" +
                                 (mUseCPlusPlus ? "" : "_env, ") +
                                 jfunc.getArgName(idx) + "_ref, " +
-                                cfunc.getArgName(cIndex) +
+                                "(j" + jfunc.getArgType(idx).getBaseType() + "*)" + cfunc.getArgName(cIndex) +
                                 "_base,");
                     out.println(indent + indent + indent +
                                 (cfunc.getArgType(cIndex).isConst() ?
@@ -1350,17 +1375,32 @@ public class JniCodeEmitter {
                     out.println(indent + "}");
                 } else if (jfunc.getArgType(idx).isBuffer()) {
                     if (! isPointerFunc) {
+                        JType argType = jfunc.getArgType(idx);
                         String array = numBufferArgs <= 1 ? "_array" :
                             "_" + cfunc.getArgName(cIndex) + "Array";
                         out.println(indent + "if (" + array + ") {");
-                        out.println(indent + indent +
-                                    "releasePointer(_env, " + array + ", " +
-                                    cfunc.getArgName(cIndex) +
-                                    ", " +
-                                    (cfunc.getArgType(cIndex).isConst() ?
-                                     "JNI_FALSE" : (emitExceptionCheck ?
-                                     "_exception ? JNI_FALSE : JNI_TRUE" : "JNI_TRUE")) +
-                                    ");");
+                        if (argType.isTypedBuffer()) {
+                            String arrayReleaser =
+                                argType.getArrayTypeForTypedBuffer().getArrayReleaserForPrimitiveArray();
+                            out.println(indent + indent +
+                                "_env->" + arrayReleaser + "(" + array + ", " +
+                                "(j" + argType.getArrayTypeForTypedBuffer().getBaseType() + "*)" +
+                                cfunc.getArgName(cIndex) +
+                                ", " +
+                                (cfunc.getArgType(cIndex).isConst() ?
+                                    "JNI_ABORT" : (emitExceptionCheck ?
+                                        "_exception ? JNI_ABORT : 0" : "0")) +
+                                ");");
+                        } else {
+                            out.println(indent + indent +
+                                "releasePointer(_env, " + array + ", " +
+                                cfunc.getArgName(cIndex) +
+                                ", " +
+                                (cfunc.getArgType(cIndex).isConst() ?
+                                    "JNI_FALSE" : (emitExceptionCheck ?
+                                        "_exception ? JNI_FALSE : JNI_TRUE" : "JNI_TRUE")) +
+                                ");");
+                        }
                         out.println(indent + "}");
                     }
                 }

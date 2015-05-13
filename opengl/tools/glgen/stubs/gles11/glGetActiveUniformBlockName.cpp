@@ -25,7 +25,7 @@ android_glGetActiveUniformBlockName_III_3II_3BI
         goto exit;
     }
     _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
-    _length_base = (GLsizei*)_env->GetPrimitiveArrayCritical(
+    _length_base = (GLsizei*)_env->GetIntArrayElements(
             length_ref, (jboolean*)0);
     _length = _length_base + lengthOffset;
 
@@ -42,7 +42,7 @@ android_glGetActiveUniformBlockName_III_3II_3BI
         goto exit;
     }
     _nameRemaining = _env->GetArrayLength(name_ref) - nameOffset;
-    _name_base = (GLchar*)_env->GetPrimitiveArrayCritical(
+    _name_base = (GLchar*)_env->GetByteArrayElements(
             name_ref, (jboolean*)0);
     _name = _name_base + nameOffset;
 
@@ -56,11 +56,11 @@ android_glGetActiveUniformBlockName_III_3II_3BI
 
 exit:
     if (_name_base) {
-        _env->ReleasePrimitiveArrayCritical(name_ref, _name_base,
+        _env->ReleaseByteArrayElements(name_ref, (jbyte*)_name_base,
             _exception ? JNI_ABORT: 0);
     }
     if (_length_base) {
-        _env->ReleasePrimitiveArrayCritical(length_ref, _length_base,
+        _env->ReleaseIntArrayElements(length_ref, (jint*)_length_base,
             _exception ? JNI_ABORT: 0);
     }
     if (_exception) {
@@ -124,4 +124,3 @@ android_glGetActiveUniformBlockName_II
     free(name);
     return result;
 }
-
