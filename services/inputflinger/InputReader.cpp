@@ -4076,14 +4076,20 @@ void TouchInputMapper::applyExternalStylusButtonState(nsecs_t when) {
 }
 
 void TouchInputMapper::applyExternalStylusTouchState(nsecs_t when) {
-    CookedPointerData& cpd = mCurrentCookedState.cookedPointerData;
-    if (mExternalStylusId != -1 && cpd.isTouching(mExternalStylusId)) {
-        if (mExternalStylusState.pressure != 0.0f) {
-            PointerCoords& coords = cpd.editPointerCoordsWithId(mExternalStylusId);
-            coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, mExternalStylusState.pressure);
-        }
+    CookedPointerData& currentPointerData = mCurrentCookedState.cookedPointerData;
+    const CookedPointerData& lastPointerData = mLastCookedState.cookedPointerData;
 
-        PointerProperties& properties = cpd.editPointerPropertiesWithId(mExternalStylusId);
+    if (mExternalStylusId != -1 && currentPointerData.isTouching(mExternalStylusId)) {
+        float pressure = mExternalStylusState.pressure;
+        if (pressure == 0.0f && lastPointerData.isTouching(mExternalStylusId)) {
+            const PointerCoords& coords = lastPointerData.pointerCoordsForId(mExternalStylusId);
+            pressure = coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE);
+        }
+        PointerCoords& coords = currentPointerData.editPointerCoordsWithId(mExternalStylusId);
+        coords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, pressure);
+
+        PointerProperties& properties =
+                currentPointerData.editPointerPropertiesWithId(mExternalStylusId);
         if (mExternalStylusState.toolType != AMOTION_EVENT_TOOL_TYPE_UNKNOWN) {
             properties.toolType = mExternalStylusState.toolType;
         }
