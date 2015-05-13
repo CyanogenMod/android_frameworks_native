@@ -416,7 +416,9 @@ private:
 
     // Local copy of the queued contents of the incoming BufferQueue
     mutable Mutex mQueueItemLock;
+    Condition mQueueItemCondition;
     Vector<BufferItem> mQueueItems;
+    uint64_t mLastFrameNumberReceived;
 };
 
 // ---------------------------------------------------------------------------
