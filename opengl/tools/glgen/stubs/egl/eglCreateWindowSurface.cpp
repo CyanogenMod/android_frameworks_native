@@ -41,7 +41,7 @@ not_valid_surface:
 
     _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
     attrib_list_base = (EGLint *)
-        _env->GetPrimitiveArrayCritical(attrib_list_ref, (jboolean *)0);
+        _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
     attrib_list = attrib_list_base + offset;
     attrib_list_sentinel = 0;
     for (int i = _remaining - 1; i >= 0; i--)  {
@@ -66,7 +66,7 @@ not_valid_surface:
 
 exit:
     if (attrib_list_base) {
-        _env->ReleasePrimitiveArrayCritical(attrib_list_ref, attrib_list_base,
+        _env->ReleaseIntArrayElements(attrib_list_ref, attrib_list_base,
             JNI_ABORT);
     }
     if (_exception) {
@@ -123,7 +123,7 @@ not_valid_surface:
 
     _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
     attrib_list_base = (EGLint *)
-        _env->GetPrimitiveArrayCritical(attrib_list_ref, (jboolean *)0);
+        _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
     attrib_list = attrib_list_base + offset;
     attrib_list_sentinel = 0;
     for (int i = _remaining - 1; i >= 0; i--)  {
@@ -148,7 +148,7 @@ not_valid_surface:
 
 exit:
     if (attrib_list_base) {
-        _env->ReleasePrimitiveArrayCritical(attrib_list_ref, attrib_list_base,
+        _env->ReleaseIntArrayElements(attrib_list_ref, attrib_list_base,
             JNI_ABORT);
     }
     if (_exception) {

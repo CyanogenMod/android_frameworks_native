@@ -36,4 +36,3 @@ android_glDrawElementsInstanced__IIIII
         (GLsizei)instanceCount
     );
 }
-

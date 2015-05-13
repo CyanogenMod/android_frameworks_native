@@ -191,6 +191,84 @@ public class JType {
         (baseType.indexOf("Buffer") != -1);
     }
 
+    public JType getArrayTypeForTypedBuffer() {
+      if (!isTypedBuffer()) {
+          throw new RuntimeException("Not typed buffer type " + this);
+      }
+      switch (baseType) {
+        case "java.nio.ByteBuffer":
+          return new JType("byte", false, true);
+        case "java.nio.BooleanBuffer":
+          return new JType("boolean", false, true);
+        case "java.nio.ShortBuffer":
+          return new JType("short", false, true);
+        case "java.nio.CharBuffer":
+          return new JType("char", false, true);
+        case "java.nio.IntBuffer":
+          return new JType("int", false, true);
+        case "java.nio.LongBuffer":
+          return new JType("long", false, true);
+        case "java.nio.FloatBuffer":
+          return new JType("float", false, true);
+        case "java.nio.DoubleBuffer":
+          return new JType("double", false, true);
+        default:
+          throw new RuntimeException("Unknown typed buffer type " + this);
+      }
+    }
+
+    public String getArrayGetterForPrimitiveArray() {
+      if (!isArray() || isClass()) {
+          throw new RuntimeException("Not array type " + this);
+      }
+      switch (baseType) {
+        case "byte":
+          return "GetByteArrayElements";
+        case "boolean":
+          return "GetBooleanArrayElements";
+        case "short":
+          return "GetShortArrayElements";
+        case "char":
+          return "GetCharArrayElements";
+        case "int":
+          return "GetIntArrayElements";
+        case "long":
+          return "GetLongArrayElements";
+        case "float":
+          return "GetFloatArrayElements";
+        case "double":
+          return "GetDoubleArrayElements";
+        default:
+          throw new RuntimeException("Unknown array type " + this);
+      }
+    }
+
+    public String getArrayReleaserForPrimitiveArray() {
+      if (!isArray() || isClass()) {
+          throw new RuntimeException("Not array type " + this);
+      }
+      switch (baseType) {
+        case "byte":
+          return "ReleaseByteArrayElements";
+        case "boolean":
+          return "ReleaseBooleanArrayElements";
+        case "short":
+          return "ReleaseShortArrayElements";
+        case "char":
+          return "ReleaseCharArrayElements";
+        case "int":
+          return "ReleaseIntArrayElements";
+        case "long":
+          return "ReleaseLongArrayElements";
+        case "float":
+          return "ReleaseFloatArrayElements";
+        case "double":
+          return "ReleaseDoubleArrayElements";
+        default:
+          throw new RuntimeException("Unknown array type " + this);
+      }
+    }
+
     public boolean isEGLHandle() {
     return !isPrimitive() &&
         (baseType.startsWith("EGL"));
