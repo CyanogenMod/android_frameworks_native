@@ -1442,10 +1442,10 @@ void TouchButtonAccumulator::process(const RawEvent* rawEvent) {
 uint32_t TouchButtonAccumulator::getButtonState() const {
     uint32_t result = 0;
     if (mBtnStylus) {
-        result |= AMOTION_EVENT_BUTTON_STYLUS_PRIMARY;
+        result |= AMOTION_EVENT_BUTTON_SECONDARY;
     }
     if (mBtnStylus2) {
-        result |= AMOTION_EVENT_BUTTON_STYLUS_SECONDARY;
+        result |= AMOTION_EVENT_BUTTON_TERTIARY;
     }
     return result;
 }
@@ -2547,8 +2547,7 @@ void CursorInputMapper::sync(nsecs_t when) {
     }
     nsecs_t downTime = mDownTime;
     bool buttonsChanged = currentButtonState != lastButtonState;
-    int32_t buttonsPressed = currentButtonState & ~lastButtonState;
-    int32_t buttonsReleased = lastButtonState & ~currentButtonState;
+    bool buttonsPressed = currentButtonState & ~lastButtonState;
 
     float deltaX = mCursorMotionAccumulator.getRelativeX() * mXScale;
     float deltaY = mCursorMotionAccumulator.getRelativeY() * mYScale;
@@ -2624,7 +2623,6 @@ void CursorInputMapper::sync(nsecs_t when) {
     // Send motion event.
     if (downChanged || moved || scrolled || buttonsChanged) {
         int32_t metaState = mContext->getGlobalMetaState();
-        int32_t buttonState = lastButtonState;
         int32_t motionEventAction;
         if (downChanged) {
             motionEventAction = down ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP;
@@ -2634,48 +2632,17 @@ void CursorInputMapper::sync(nsecs_t when) {
             motionEventAction = AMOTION_EVENT_ACTION_HOVER_MOVE;
         }
 
-        if (buttonsReleased) {
-            BitSet32 released(buttonsReleased);
-            while (!released.isEmpty()) {
-                int32_t actionButton = BitSet32::valueForBit(released.clearFirstMarkedBit());
-                buttonState &= ~actionButton;
-                NotifyMotionArgs releaseArgs(when, getDeviceId(), mSource, policyFlags,
-                        AMOTION_EVENT_ACTION_BUTTON_RELEASE, actionButton, 0,
-                        metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
-                        displayId, 1, &pointerProperties, &pointerCoords,
-                        mXPrecision, mYPrecision, downTime);
-                getListener()->notifyMotion(&releaseArgs);
-            }
-        }
-
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                motionEventAction, 0, 0, metaState, currentButtonState,
-                AMOTION_EVENT_EDGE_FLAG_NONE,
+                motionEventAction, 0, metaState, currentButtonState, 0,
                 displayId, 1, &pointerProperties, &pointerCoords,
                 mXPrecision, mYPrecision, downTime);
         getListener()->notifyMotion(&args);
-
-        if (buttonsPressed) {
-            BitSet32 pressed(buttonsPressed);
-            while (!pressed.isEmpty()) {
-                int32_t actionButton = BitSet32::valueForBit(pressed.clearFirstMarkedBit());
-                buttonState |= actionButton;
-                NotifyMotionArgs pressArgs(when, getDeviceId(), mSource, policyFlags,
-                        AMOTION_EVENT_ACTION_BUTTON_PRESS, actionButton, 0,
-                        metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
-                        displayId, 1, &pointerProperties, &pointerCoords,
-                        mXPrecision, mYPrecision, downTime);
-                getListener()->notifyMotion(&pressArgs);
-            }
-        }
-
-        ALOG_ASSERT(buttonState == currentButtonState);
 
         // Send hover move after UP to tell the application that the mouse is hovering now.
         if (motionEventAction == AMOTION_EVENT_ACTION_UP
                 && mPointerController != NULL) {
             NotifyMotionArgs hoverArgs(when, getDeviceId(), mSource, policyFlags,
-                    AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0,
+                    AMOTION_EVENT_ACTION_HOVER_MOVE, 0,
                     metaState, currentButtonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                     displayId, 1, &pointerProperties, &pointerCoords,
                     mXPrecision, mYPrecision, downTime);
@@ -2688,7 +2655,7 @@ void CursorInputMapper::sync(nsecs_t when) {
             pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_HSCROLL, hscroll);
 
             NotifyMotionArgs scrollArgs(when, getDeviceId(), mSource, policyFlags,
-                    AMOTION_EVENT_ACTION_SCROLL, 0, 0, metaState, currentButtonState,
+                    AMOTION_EVENT_ACTION_SCROLL, 0, metaState, currentButtonState,
                     AMOTION_EVENT_EDGE_FLAG_NONE,
                     displayId, 1, &pointerProperties, &pointerCoords,
                     mXPrecision, mYPrecision, downTime);
@@ -2820,7 +2787,8 @@ void TouchInputMapper::dump(String8& dump) {
     dump.appendFormat(INDENT4 "TiltYCenter: %0.3f\n", mTiltYCenter);
     dump.appendFormat(INDENT4 "TiltYScale: %0.3f\n", mTiltYScale);
 
-    dump.appendFormat(INDENT3 "Last Raw Button State: 0x%08x\n", mLastRawState.buttonState);
+    dump.appendFormat(INDENT3 "Last Button State: 0x%08x\n", mLastRawState.buttonState);
+
     dump.appendFormat(INDENT3 "Last Raw Touch: pointerCount=%d\n",
             mLastRawState.rawPointerData.pointerCount);
     for (uint32_t i = 0; i < mLastRawState.rawPointerData.pointerCount; i++) {
@@ -2836,7 +2804,6 @@ void TouchInputMapper::dump(String8& dump) {
                 pointer.toolType, toString(pointer.isHovering));
     }
 
-    dump.appendFormat(INDENT3 "Last Cooked Button State: 0x%08x\n", mLastCookedState.buttonState);
     dump.appendFormat(INDENT3 "Last Cooked Touch: pointerCount=%d\n",
             mLastCookedState.cookedPointerData.pointerCount);
     for (uint32_t i = 0; i < mLastCookedState.cookedPointerData.pointerCount; i++) {
@@ -4027,7 +3994,7 @@ void TouchInputMapper::cookAndDispatch(nsecs_t when) {
 
     // Synthesize key down from raw buttons if needed.
     synthesizeButtonKeys(getContext(), AKEY_EVENT_ACTION_DOWN, when, getDeviceId(), mSource,
-            policyFlags, mLastCookedState.buttonState, mCurrentCookedState.buttonState);
+            policyFlags, mLastRawState.buttonState, mCurrentRawState.buttonState);
 
     // Dispatch the touches either directly or by translation through a pointer on screen.
     if (mDeviceMode == DEVICE_MODE_POINTER) {
@@ -4084,16 +4051,14 @@ void TouchInputMapper::cookAndDispatch(nsecs_t when) {
                     mCurrentCookedState.cookedPointerData.touchingIdBits);
         }
 
-        dispatchButtonRelease(when, policyFlags);
         dispatchHoverExit(when, policyFlags);
         dispatchTouches(when, policyFlags);
         dispatchHoverEnterAndMove(when, policyFlags);
-        dispatchButtonPress(when, policyFlags);
     }
 
     // Synthesize key up from raw buttons if needed.
     synthesizeButtonKeys(getContext(), AKEY_EVENT_ACTION_UP, when, getDeviceId(), mSource,
-            policyFlags, mLastCookedState.buttonState, mCurrentCookedState.buttonState);
+            policyFlags, mLastRawState.buttonState, mCurrentRawState.buttonState);
 
     // Clear some transient state.
     mCurrentRawState.rawVScroll = 0;
@@ -4105,7 +4070,7 @@ void TouchInputMapper::cookAndDispatch(nsecs_t when) {
 }
 
 void TouchInputMapper::applyExternalStylusButtonState(nsecs_t when) {
-    if (mDeviceMode == DEVICE_MODE_DIRECT && hasExternalStylus() && mExternalStylusId != -1) {
+    if (mDeviceMode == DEVICE_MODE_DIRECT && hasExternalStylus()) {
         mCurrentRawState.buttonState |= mExternalStylusState.buttons;
     }
 }
@@ -4317,14 +4282,14 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
     BitSet32 currentIdBits = mCurrentCookedState.cookedPointerData.touchingIdBits;
     BitSet32 lastIdBits = mLastCookedState.cookedPointerData.touchingIdBits;
     int32_t metaState = getContext()->getGlobalMetaState();
-    int32_t buttonState = mCurrentCookedState.buttonState;
+    int32_t buttonState = mCurrentRawState.buttonState;
 
     if (currentIdBits == lastIdBits) {
         if (!currentIdBits.isEmpty()) {
             // No pointer id changes so this is a move event.
             // The listener takes care of batching moves so we don't have to deal with that here.
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_MOVE, 0, 0, metaState, buttonState,
+                    AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState,
                     AMOTION_EVENT_EDGE_FLAG_NONE,
                     mCurrentCookedState.cookedPointerData.pointerProperties,
                     mCurrentCookedState.cookedPointerData.pointerCoords,
@@ -4350,7 +4315,7 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
                 mLastCookedState.cookedPointerData.pointerCoords,
                 mLastCookedState.cookedPointerData.idToIndex,
                 moveIdBits);
-        if (buttonState != mLastCookedState.buttonState) {
+        if (buttonState != mLastRawState.buttonState) {
             moveNeeded = true;
         }
 
@@ -4359,11 +4324,12 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
             uint32_t upId = upIdBits.clearFirstMarkedBit();
 
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_POINTER_UP, 0, 0, metaState, buttonState, 0,
+                    AMOTION_EVENT_ACTION_POINTER_UP, 0, metaState, buttonState, 0,
                     mLastCookedState.cookedPointerData.pointerProperties,
                     mLastCookedState.cookedPointerData.pointerCoords,
                     mLastCookedState.cookedPointerData.idToIndex,
-                    dispatchedIdBits, upId, mOrientedXPrecision, mOrientedYPrecision, mDownTime);
+                    dispatchedIdBits, upId,
+                    mOrientedXPrecision, mOrientedYPrecision, mDownTime);
             dispatchedIdBits.clearBit(upId);
         }
 
@@ -4373,11 +4339,12 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
         if (moveNeeded && !moveIdBits.isEmpty()) {
             ALOG_ASSERT(moveIdBits.value == dispatchedIdBits.value);
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_MOVE, 0, 0, metaState, buttonState, 0,
+                    AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, 0,
                     mCurrentCookedState.cookedPointerData.pointerProperties,
                     mCurrentCookedState.cookedPointerData.pointerCoords,
                     mCurrentCookedState.cookedPointerData.idToIndex,
-                    dispatchedIdBits, -1, mOrientedXPrecision, mOrientedYPrecision, mDownTime);
+                    dispatchedIdBits, -1,
+                    mOrientedXPrecision, mOrientedYPrecision, mDownTime);
         }
 
         // Dispatch pointer down events using the new pointer locations.
@@ -4391,11 +4358,12 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
             }
 
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_POINTER_DOWN, 0, 0, metaState, buttonState, 0,
+                    AMOTION_EVENT_ACTION_POINTER_DOWN, 0, metaState, buttonState, 0,
                     mCurrentCookedState.cookedPointerData.pointerProperties,
                     mCurrentCookedState.cookedPointerData.pointerCoords,
                     mCurrentCookedState.cookedPointerData.idToIndex,
-                    dispatchedIdBits, downId, mOrientedXPrecision, mOrientedYPrecision, mDownTime);
+                    dispatchedIdBits, downId,
+                    mOrientedXPrecision, mOrientedYPrecision, mDownTime);
         }
     }
 }
@@ -4406,7 +4374,7 @@ void TouchInputMapper::dispatchHoverExit(nsecs_t when, uint32_t policyFlags) {
                     || !mCurrentCookedState.cookedPointerData.touchingIdBits.isEmpty())) {
         int32_t metaState = getContext()->getGlobalMetaState();
         dispatchMotion(when, policyFlags, mSource,
-                AMOTION_EVENT_ACTION_HOVER_EXIT, 0, 0, metaState, mLastCookedState.buttonState, 0,
+                AMOTION_EVENT_ACTION_HOVER_EXIT, 0, metaState, mLastRawState.buttonState, 0,
                 mLastCookedState.cookedPointerData.pointerProperties,
                 mLastCookedState.cookedPointerData.pointerCoords,
                 mLastCookedState.cookedPointerData.idToIndex,
@@ -4422,7 +4390,7 @@ void TouchInputMapper::dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFl
         int32_t metaState = getContext()->getGlobalMetaState();
         if (!mSentHoverEnter) {
             dispatchMotion(when, policyFlags, mSource, AMOTION_EVENT_ACTION_HOVER_ENTER,
-                    0, 0, metaState, mCurrentRawState.buttonState, 0,
+                    0, metaState, mCurrentRawState.buttonState, 0,
                     mCurrentCookedState.cookedPointerData.pointerProperties,
                     mCurrentCookedState.cookedPointerData.pointerCoords,
                     mCurrentCookedState.cookedPointerData.idToIndex,
@@ -4432,7 +4400,7 @@ void TouchInputMapper::dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFl
         }
 
         dispatchMotion(when, policyFlags, mSource,
-                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0, metaState,
+                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, metaState,
                 mCurrentRawState.buttonState, 0,
                 mCurrentCookedState.cookedPointerData.pointerProperties,
                 mCurrentCookedState.cookedPointerData.pointerCoords,
@@ -4440,48 +4408,6 @@ void TouchInputMapper::dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFl
                 mCurrentCookedState.cookedPointerData.hoveringIdBits, -1,
                 mOrientedXPrecision, mOrientedYPrecision, mDownTime);
     }
-}
-
-void TouchInputMapper::dispatchButtonRelease(nsecs_t when, uint32_t policyFlags) {
-    BitSet32 releasedButtons(mLastCookedState.buttonState & ~mCurrentCookedState.buttonState);
-    const BitSet32& idBits = findActiveIdBits(mLastCookedState.cookedPointerData);
-    const int32_t metaState = getContext()->getGlobalMetaState();
-    int32_t buttonState = mLastCookedState.buttonState;
-    while (!releasedButtons.isEmpty()) {
-        int32_t actionButton = BitSet32::valueForBit(releasedButtons.clearFirstMarkedBit());
-        buttonState &= ~actionButton;
-        dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_BUTTON_RELEASE, actionButton,
-                    0, metaState, buttonState, 0,
-                    mCurrentCookedState.cookedPointerData.pointerProperties,
-                    mCurrentCookedState.cookedPointerData.pointerCoords,
-                    mCurrentCookedState.cookedPointerData.idToIndex, idBits, -1,
-                    mOrientedXPrecision, mOrientedYPrecision, mDownTime);
-    }
-}
-
-void TouchInputMapper::dispatchButtonPress(nsecs_t when, uint32_t policyFlags) {
-    BitSet32 pressedButtons(mCurrentCookedState.buttonState & ~mLastCookedState.buttonState);
-    const BitSet32& idBits = findActiveIdBits(mCurrentCookedState.cookedPointerData);
-    const int32_t metaState = getContext()->getGlobalMetaState();
-    int32_t buttonState = mLastCookedState.buttonState;
-    while (!pressedButtons.isEmpty()) {
-        int32_t actionButton = BitSet32::valueForBit(pressedButtons.clearFirstMarkedBit());
-        buttonState |= actionButton;
-        dispatchMotion(when, policyFlags, mSource, AMOTION_EVENT_ACTION_BUTTON_PRESS, actionButton,
-                    0, metaState, buttonState, 0,
-                    mCurrentCookedState.cookedPointerData.pointerProperties,
-                    mCurrentCookedState.cookedPointerData.pointerCoords,
-                    mCurrentCookedState.cookedPointerData.idToIndex, idBits, -1,
-                    mOrientedXPrecision, mOrientedYPrecision, mDownTime);
-    }
-}
-
-const BitSet32& TouchInputMapper::findActiveIdBits(const CookedPointerData& cookedPointerData) {
-    if (!cookedPointerData.touchingIdBits.isEmpty()) {
-        return cookedPointerData.touchingIdBits;
-    }
-    return cookedPointerData.hoveringIdBits;
 }
 
 void TouchInputMapper::cookPointerData() {
@@ -4493,12 +4419,6 @@ void TouchInputMapper::cookPointerData() {
             mCurrentRawState.rawPointerData.hoveringIdBits;
     mCurrentCookedState.cookedPointerData.touchingIdBits =
             mCurrentRawState.rawPointerData.touchingIdBits;
-
-    if (mCurrentCookedState.cookedPointerData.pointerCount == 0) {
-        mCurrentCookedState.buttonState = 0;
-    } else {
-        mCurrentCookedState.buttonState = mCurrentRawState.buttonState;
-    }
 
     // Walk through the the active pointers and map device coordinates onto
     // surface coordinates and adjust for display orientation.
@@ -4846,7 +4766,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
 
     // Send events!
     int32_t metaState = getContext()->getGlobalMetaState();
-    int32_t buttonState = mCurrentCookedState.buttonState;
+    int32_t buttonState = mCurrentRawState.buttonState;
 
     // Update last coordinates of pointers that have moved so that we observe the new
     // pointer positions at the same time as other pointers that have just gone up.
@@ -4867,7 +4787,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
                 mPointerGesture.lastGestureProperties,
                 mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
                 movedGestureIdBits);
-        if (buttonState != mLastCookedState.buttonState) {
+        if (buttonState != mLastRawState.buttonState) {
             moveNeeded = true;
         }
     }
@@ -4877,12 +4797,12 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     if (!dispatchedGestureIdBits.isEmpty()) {
         if (cancelPreviousGesture) {
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_CANCEL, 0, 0, metaState, buttonState,
+                    AMOTION_EVENT_ACTION_CANCEL, 0, metaState, buttonState,
                     AMOTION_EVENT_EDGE_FLAG_NONE,
                     mPointerGesture.lastGestureProperties,
                     mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
-                    dispatchedGestureIdBits, -1, 0,
-                    0, mPointerGesture.downTime);
+                    dispatchedGestureIdBits, -1,
+                    0, 0, mPointerGesture.downTime);
 
             dispatchedGestureIdBits.clear();
         } else {
@@ -4897,7 +4817,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
                 uint32_t id = upGestureIdBits.clearFirstMarkedBit();
 
                 dispatchMotion(when, policyFlags, mSource,
-                        AMOTION_EVENT_ACTION_POINTER_UP, 0, 0,
+                        AMOTION_EVENT_ACTION_POINTER_UP, 0,
                         metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                         mPointerGesture.lastGestureProperties,
                         mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
@@ -4912,8 +4832,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     // Send motion events for all pointers that moved.
     if (moveNeeded) {
         dispatchMotion(when, policyFlags, mSource,
-                AMOTION_EVENT_ACTION_MOVE, 0, 0, metaState, buttonState,
-                AMOTION_EVENT_EDGE_FLAG_NONE,
+                AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.currentGestureProperties,
                 mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
                 dispatchedGestureIdBits, -1,
@@ -4933,7 +4852,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
             }
 
             dispatchMotion(when, policyFlags, mSource,
-                    AMOTION_EVENT_ACTION_POINTER_DOWN, 0, 0, metaState, buttonState, 0,
+                    AMOTION_EVENT_ACTION_POINTER_DOWN, 0, metaState, buttonState, 0,
                     mPointerGesture.currentGestureProperties,
                     mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
                     dispatchedGestureIdBits, id,
@@ -4944,7 +4863,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     // Send motion events for hover.
     if (mPointerGesture.currentGestureMode == PointerGesture::HOVER) {
         dispatchMotion(when, policyFlags, mSource,
-                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0,
+                AMOTION_EVENT_ACTION_HOVER_MOVE, 0,
                 metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.currentGestureProperties,
                 mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
@@ -4970,7 +4889,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
         pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_Y, y);
 
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0,
+                AMOTION_EVENT_ACTION_HOVER_MOVE, 0,
                 metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                 mViewport.displayId, 1, &pointerProperties, &pointerCoords,
                 0, 0, mPointerGesture.downTime);
@@ -5001,7 +4920,7 @@ void TouchInputMapper::abortPointerGestures(nsecs_t when, uint32_t policyFlags) 
         int32_t metaState = getContext()->getGlobalMetaState();
         int32_t buttonState = mCurrentRawState.buttonState;
         dispatchMotion(when, policyFlags, mSource,
-                AMOTION_EVENT_ACTION_CANCEL, 0, 0, metaState, buttonState,
+                AMOTION_EVENT_ACTION_CANCEL, 0, metaState, buttonState,
                 AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.lastGestureProperties,
                 mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
@@ -5896,7 +5815,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
         // Send up.
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                 AMOTION_EVENT_ACTION_UP, 0, 0, metaState, mLastRawState.buttonState, 0,
+                 AMOTION_EVENT_ACTION_UP, 0, metaState, mLastRawState.buttonState, 0,
                  mViewport.displayId,
                  1, &mPointerSimple.lastProperties, &mPointerSimple.lastCoords,
                  mOrientedXPrecision, mOrientedYPrecision,
@@ -5909,7 +5828,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
         // Send hover exit.
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                AMOTION_EVENT_ACTION_HOVER_EXIT, 0, 0, metaState, mLastRawState.buttonState, 0,
+                AMOTION_EVENT_ACTION_HOVER_EXIT, 0, metaState, mLastRawState.buttonState, 0,
                 mViewport.displayId,
                 1, &mPointerSimple.lastProperties, &mPointerSimple.lastCoords,
                 mOrientedXPrecision, mOrientedYPrecision,
@@ -5924,7 +5843,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
             // Send down.
             NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                    AMOTION_EVENT_ACTION_DOWN, 0, 0, metaState, mCurrentRawState.buttonState, 0,
+                    AMOTION_EVENT_ACTION_DOWN, 0, metaState, mCurrentRawState.buttonState, 0,
                     mViewport.displayId,
                     1, &mPointerSimple.currentProperties, &mPointerSimple.currentCoords,
                     mOrientedXPrecision, mOrientedYPrecision,
@@ -5934,7 +5853,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
         // Send move.
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                AMOTION_EVENT_ACTION_MOVE, 0, 0, metaState, mCurrentRawState.buttonState, 0,
+                AMOTION_EVENT_ACTION_MOVE, 0, metaState, mCurrentRawState.buttonState, 0,
                 mViewport.displayId,
                 1, &mPointerSimple.currentProperties, &mPointerSimple.currentCoords,
                 mOrientedXPrecision, mOrientedYPrecision,
@@ -5948,7 +5867,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
             // Send hover enter.
             NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                    AMOTION_EVENT_ACTION_HOVER_ENTER, 0, 0, metaState,
+                    AMOTION_EVENT_ACTION_HOVER_ENTER, 0, metaState,
                     mCurrentRawState.buttonState, 0,
                     mViewport.displayId,
                     1, &mPointerSimple.currentProperties, &mPointerSimple.currentCoords,
@@ -5959,7 +5878,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
 
         // Send hover move.
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0, metaState,
+                AMOTION_EVENT_ACTION_HOVER_MOVE, 0, metaState,
                 mCurrentRawState.buttonState, 0,
                 mViewport.displayId,
                 1, &mPointerSimple.currentProperties, &mPointerSimple.currentCoords,
@@ -5981,7 +5900,7 @@ void TouchInputMapper::dispatchPointerSimple(nsecs_t when, uint32_t policyFlags,
         pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_HSCROLL, hscroll);
 
         NotifyMotionArgs args(when, getDeviceId(), mSource, policyFlags,
-                AMOTION_EVENT_ACTION_SCROLL, 0, 0, metaState, mCurrentRawState.buttonState, 0,
+                AMOTION_EVENT_ACTION_SCROLL, 0, metaState, mCurrentRawState.buttonState, 0,
                 mViewport.displayId,
                 1, &mPointerSimple.currentProperties, &pointerCoords,
                 mOrientedXPrecision, mOrientedYPrecision,
@@ -6006,11 +5925,10 @@ void TouchInputMapper::abortPointerSimple(nsecs_t when, uint32_t policyFlags) {
 }
 
 void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32_t source,
-        int32_t action, int32_t actionButton, int32_t flags,
-        int32_t metaState, int32_t buttonState, int32_t edgeFlags,
+        int32_t action, int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
         const PointerProperties* properties, const PointerCoords* coords,
-        const uint32_t* idToIndex, BitSet32 idBits, int32_t changedId,
-        float xPrecision, float yPrecision, nsecs_t downTime) {
+        const uint32_t* idToIndex, BitSet32 idBits,
+        int32_t changedId, float xPrecision, float yPrecision, nsecs_t downTime) {
     PointerCoords pointerCoords[MAX_POINTERS];
     PointerProperties pointerProperties[MAX_POINTERS];
     uint32_t pointerCount = 0;
@@ -6044,7 +5962,7 @@ void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32
     }
 
     NotifyMotionArgs args(when, getDeviceId(), source, policyFlags,
-            action, actionButton, flags, metaState, buttonState, edgeFlags,
+            action, flags, metaState, buttonState, edgeFlags,
             mViewport.displayId, pointerCount, pointerProperties, pointerCoords,
             xPrecision, yPrecision, downTime);
     getListener()->notifyMotion(&args);
@@ -6961,7 +6879,7 @@ void JoystickInputMapper::sync(nsecs_t when, bool force) {
     uint32_t policyFlags = 0;
 
     NotifyMotionArgs args(when, getDeviceId(), AINPUT_SOURCE_JOYSTICK, policyFlags,
-            AMOTION_EVENT_ACTION_MOVE, 0, 0, metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
+            AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
             ADISPLAY_ID_NONE, 1, &pointerProperties, &pointerCoords, 0, 0, 0);
     getListener()->notifyMotion(&args);
 }
