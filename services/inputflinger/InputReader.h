@@ -1432,11 +1432,14 @@ protected:
         BitSet32 stylusIdBits;
         BitSet32 mouseIdBits;
 
+        int32_t buttonState;
+
         void copyFrom(const CookedState& other) {
             cookedPointerData.copyFrom(other.cookedPointerData);
             fingerIdBits = other.fingerIdBits;
             stylusIdBits = other.stylusIdBits;
             mouseIdBits = other.mouseIdBits;
+            buttonState = other.buttonState;
         }
 
         void clear() {
@@ -1444,6 +1447,7 @@ protected:
             fingerIdBits.clear();
             stylusIdBits.clear();
             mouseIdBits.clear();
+            buttonState = 0;
         }
     };
 
@@ -1794,6 +1798,9 @@ private:
     void dispatchTouches(nsecs_t when, uint32_t policyFlags);
     void dispatchHoverExit(nsecs_t when, uint32_t policyFlags);
     void dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFlags);
+    void dispatchButtonRelease(nsecs_t when, uint32_t policyFlags);
+    void dispatchButtonPress(nsecs_t when, uint32_t policyFlags);
+    const BitSet32& findActiveIdBits(const CookedPointerData& cookedPointerData);
     void cookPointerData();
 
     void dispatchPointerUsage(nsecs_t when, uint32_t policyFlags, PointerUsage pointerUsage);
@@ -1824,8 +1831,8 @@ private:
     // method will take care of setting the index and transmuting the action to DOWN or UP
     // it is the first / last pointer to go down / up.
     void dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32_t source,
-            int32_t action, int32_t flags, int32_t metaState, int32_t buttonState,
-            int32_t edgeFlags,
+            int32_t action, int32_t actionButton,
+            int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
             const PointerProperties* properties, const PointerCoords* coords,
             const uint32_t* idToIndex, BitSet32 idBits,
             int32_t changedId, float xPrecision, float yPrecision, nsecs_t downTime);
