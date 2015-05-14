@@ -84,6 +84,7 @@ struct InputMessage {
             int32_t deviceId;
             int32_t source;
             int32_t action;
+            int32_t actionButton;
             int32_t flags;
             int32_t metaState;
             int32_t buttonState;
@@ -95,7 +96,7 @@ struct InputMessage {
             float yPrecision;
             uint32_t pointerCount;
             // Note that PointerCoords requires 8 byte alignment.
-            struct Pointer{
+            struct Pointer {
                 PointerProperties properties;
                 PointerCoords coords;
             } pointers[MAX_POINTERS];
@@ -232,6 +233,7 @@ public:
             int32_t deviceId,
             int32_t source,
             int32_t action,
+            int32_t actionButton,
             int32_t flags,
             int32_t edgeFlags,
             int32_t metaState,
