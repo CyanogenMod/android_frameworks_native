@@ -171,6 +171,11 @@ void ConsumerBase::abandonLocked() {
     mConsumer.clear();
 }
 
+bool ConsumerBase::isAbandoned() {
+    Mutex::Autolock _l(mMutex);
+    return mAbandoned;
+}
+
 void ConsumerBase::setFrameAvailableListener(
         const wp<FrameAvailableListener>& listener) {
     CB_LOGV("setFrameAvailableListener");
