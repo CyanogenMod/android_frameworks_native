@@ -96,7 +96,7 @@ struct InputMessage {
             float yPrecision;
             uint32_t pointerCount;
             // Note that PointerCoords requires 8 byte alignment.
-            struct Pointer{
+            struct Pointer {
                 PointerProperties properties;
                 PointerCoords coords;
             } pointers[MAX_POINTERS];
