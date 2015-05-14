@@ -419,6 +419,7 @@ private:
     Condition mQueueItemCondition;
     Vector<BufferItem> mQueueItems;
     uint64_t mLastFrameNumberReceived;
+    bool mUpdateTexImageFailed; // This is only modified from the main thread
 };
 
 // ---------------------------------------------------------------------------
