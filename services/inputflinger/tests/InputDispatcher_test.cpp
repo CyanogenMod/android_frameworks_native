@@ -150,7 +150,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
 
     // Rejects undefined motion actions.
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            /*action*/ -1, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            /*action*/ -1, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -161,7 +161,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
     // Rejects pointer down with invalid index.
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
             AMOTION_EVENT_ACTION_POINTER_DOWN | (1 << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
-            0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -171,7 +171,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
 
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
             AMOTION_EVENT_ACTION_POINTER_DOWN | (-1 << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
-            0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -182,7 +182,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
     // Rejects pointer up with invalid index.
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
             AMOTION_EVENT_ACTION_POINTER_UP | (1 << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
-            0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -192,7 +192,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
 
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
             AMOTION_EVENT_ACTION_POINTER_UP | (-1 << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
-            0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -202,7 +202,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
 
     // Rejects motion events with invalid number of pointers.
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_DOWN, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            AMOTION_EVENT_ACTION_DOWN, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 0, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -211,7 +211,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
             << "Should reject motion events with 0 pointers.";
 
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_DOWN, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            AMOTION_EVENT_ACTION_DOWN, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ MAX_POINTERS + 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -222,7 +222,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
     // Rejects motion events with invalid pointer ids.
     pointerProperties[0].id = -1;
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_DOWN, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            AMOTION_EVENT_ACTION_DOWN, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -232,7 +232,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
 
     pointerProperties[0].id = MAX_POINTER_ID + 1;
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_DOWN, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            AMOTION_EVENT_ACTION_DOWN, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(
@@ -244,7 +244,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
     pointerProperties[0].id = 1;
     pointerProperties[1].id = 1;
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_DOWN, 0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
+            AMOTION_EVENT_ACTION_DOWN, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 2, pointerProperties, pointerCoords);
     ASSERT_EQ(INPUT_EVENT_INJECTION_FAILED, mDispatcher->injectInputEvent(

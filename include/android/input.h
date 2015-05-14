@@ -305,12 +305,6 @@ enum {
     /* The pointer is not down but has exited the boundaries of a window or view.
      */
     AMOTION_EVENT_ACTION_HOVER_EXIT = 10,
-
-    /* One or more buttons have been pressed. */
-    AMOTION_EVENT_ACTION_BUTTON_PRESS = 11,
-
-    /* One or more buttons have been released. */
-    AMOTION_EVENT_ACTION_BUTTON_RELEASE = 12,
 };
 
 /*
@@ -411,8 +405,6 @@ enum {
     AMOTION_EVENT_BUTTON_TERTIARY = 1 << 2,
     AMOTION_EVENT_BUTTON_BACK = 1 << 3,
     AMOTION_EVENT_BUTTON_FORWARD = 1 << 4,
-    AMOTION_EVENT_BUTTON_STYLUS_PRIMARY = 1 << 5,
-    AMOTION_EVENT_BUTTON_STYLUS_SECONDARY = 1 << 6,
 };
 
 /*
