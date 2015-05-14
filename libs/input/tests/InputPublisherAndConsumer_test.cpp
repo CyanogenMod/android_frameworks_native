@@ -133,6 +133,7 @@ void InputPublisherAndConsumerTest::PublishAndConsumeMotionEvent() {
     const int32_t deviceId = 1;
     const int32_t source = AINPUT_SOURCE_TOUCHSCREEN;
     const int32_t action = AMOTION_EVENT_ACTION_MOVE;
+    const int32_t actionButton = 0;
     const int32_t flags = AMOTION_EVENT_FLAG_WINDOW_IS_OBSCURED;
     const int32_t edgeFlags = AMOTION_EVENT_EDGE_FLAG_TOP;
     const int32_t metaState = AMETA_ALT_LEFT_ON | AMETA_ALT_ON;
@@ -163,8 +164,8 @@ void InputPublisherAndConsumerTest::PublishAndConsumeMotionEvent() {
         pointerCoords[i].setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION, 3.5 * i);
     }
 
-    status = mPublisher->publishMotionEvent(seq, deviceId, source, action, flags, edgeFlags,
-            metaState, buttonState, xOffset, yOffset, xPrecision, yPrecision,
+    status = mPublisher->publishMotionEvent(seq, deviceId, source, action, actionButton,
+            flags, edgeFlags, metaState, buttonState, xOffset, yOffset, xPrecision, yPrecision,
             downTime, eventTime, pointerCount,
             pointerProperties, pointerCoords);
     ASSERT_EQ(OK, status)
@@ -255,7 +256,7 @@ TEST_F(InputPublisherAndConsumerTest, PublishMotionEvent_WhenPointerCountLessTha
     PointerProperties pointerProperties[pointerCount];
     PointerCoords pointerCoords[pointerCount];
 
-    status = mPublisher->publishMotionEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    status = mPublisher->publishMotionEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             pointerCount, pointerProperties, pointerCoords);
     ASSERT_EQ(BAD_VALUE, status)
             << "publisher publishMotionEvent should return BAD_VALUE";
@@ -271,7 +272,7 @@ TEST_F(InputPublisherAndConsumerTest, PublishMotionEvent_WhenPointerCountGreater
         pointerCoords[i].clear();
     }
 
-    status = mPublisher->publishMotionEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    status = mPublisher->publishMotionEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             pointerCount, pointerProperties, pointerCoords);
     ASSERT_EQ(BAD_VALUE, status)
             << "publisher publishMotionEvent should return BAD_VALUE";
