@@ -84,7 +84,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mQueueItemLock(),
         mQueueItemCondition(),
         mQueueItems(),
-        mLastFrameNumberReceived(0)
+        mLastFrameNumberReceived(0),
+        mUpdateTexImageFailed(false)
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
@@ -1313,6 +1314,24 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             Mutex::Autolock lock(mQueueItemLock);
             mQueueItems.removeAt(0);
             android_atomic_dec(&mQueuedFrames);
+            return outDirtyRegion;
+        } else if (updateResult != NO_ERROR || mUpdateTexImageFailed) {
+            // This can occur if something goes wrong when trying to create the
+            // EGLImage for this buffer. If this happens, the buffer has already
+            // been released, so we need to clean up the queue and bug out
+            // early.
+            {
+                Mutex::Autolock lock(mQueueItemLock);
+                mQueueItems.clear();
+                android_atomic_and(0, &mQueuedFrames);
+            }
+
+            // Once we have hit this state, the shadow queue may no longer
+            // correctly reflect the incoming BufferQueue's contents, so even if
+            // updateTexImage starts working, the only safe course of action is
+            // to continue to ignore updates.
+            mUpdateTexImageFailed = true;
+
             return outDirtyRegion;
         }
 
