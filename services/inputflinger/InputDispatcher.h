@@ -504,7 +504,6 @@ private:
         int32_t deviceId;
         uint32_t source;
         int32_t action;
-        int32_t actionButton;
         int32_t flags;
         int32_t metaState;
         int32_t buttonState;
@@ -519,10 +518,10 @@ private:
 
         MotionEntry(nsecs_t eventTime,
                 int32_t deviceId, uint32_t source, uint32_t policyFlags,
-                int32_t action, int32_t actionButton, int32_t flags,
+                int32_t action, int32_t flags,
                 int32_t metaState, int32_t buttonState, int32_t edgeFlags,
-                float xPrecision, float yPrecision, nsecs_t downTime,
-                int32_t displayId, uint32_t pointerCount,
+                float xPrecision, float yPrecision,
+                nsecs_t downTime, int32_t displayId, uint32_t pointerCount,
                 const PointerProperties* pointerProperties, const PointerCoords* pointerCoords,
                 float xOffset, float yOffset);
         virtual void appendDescription(String8& msg) const;
