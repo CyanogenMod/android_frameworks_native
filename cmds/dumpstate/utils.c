@@ -290,7 +290,7 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
             }
         }
     }
-    TEMP_FAILURE_RETRY(close(fd));
+    close(fd);
 
     if (!newline) printf("\n");
     if (title) printf("\n");
