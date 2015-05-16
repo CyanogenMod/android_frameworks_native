@@ -86,6 +86,6 @@ int main() {
     } while (bytes_written != 0 && bytes_to_send > 0);
   }
 
-  TEMP_FAILURE_RETRY(close(s));
+  close(s);
   return 0;
 }
