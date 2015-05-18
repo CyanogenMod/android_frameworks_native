@@ -261,6 +261,10 @@ enum {
      */
     ACONFIGURATION_SCREENLONG_YES = 0x2,
 
+    ACONFIGURATION_SCREENROUND_ANY = 0x00,
+    ACONFIGURATION_SCREENROUND_NO = 0x1,
+    ACONFIGURATION_SCREENROUND_YES = 0x2,
+
     /** UI mode: not specified. */
     ACONFIGURATION_UI_MODE_TYPE_ANY = 0x00,
     /**
@@ -418,6 +422,7 @@ enum {
      * configuration.
      */
     ACONFIGURATION_LAYOUTDIR = 0x4000,
+    ACONFIGURATION_SCREEN_ROUND = 0x8000,
     /**
      * Constant used to to represent MNC (Mobile Network Code) zero.
      * 0 cannot be used, since it is used to represent an undefined MNC.
@@ -592,6 +597,16 @@ int32_t AConfiguration_getScreenLong(AConfiguration* config);
  * Set the current screen long in the configuration.
  */
 void AConfiguration_setScreenLong(AConfiguration* config, int32_t screenLong);
+
+/**
+ * Return the current ACONFIGURATION_SCREENROUND_* set in the configuration.
+ */
+int32_t AConfiguration_getScreenRound(AConfiguration* config);
+
+/**
+ * Set the current screen round in the configuration.
+ */
+void AConfiguration_setScreenRound(AConfiguration* config, int32_t screenRound);
 
 /**
  * Return the current ACONFIGURATION_UI_MODE_TYPE_* set in the configuration.
