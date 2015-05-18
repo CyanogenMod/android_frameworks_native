@@ -86,21 +86,6 @@ class BufferItemConsumer: public ConsumerBase
     status_t releaseBuffer(const BufferItem &item,
             const sp<Fence>& releaseFence = Fence::NO_FENCE);
 
-    // setDefaultBufferSize is used to set the size of buffers returned by
-    // requestBuffers when a with and height of zero is requested.
-    status_t setDefaultBufferSize(uint32_t w, uint32_t h);
-
-    // setDefaultBufferFormat allows the BufferQueue to create
-    // GraphicBuffers of a defaultFormat if no format is specified
-    // in dequeueBuffer
-    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
-
-    // setDefaultBufferDataSpace allows the BufferQueue to create
-    // GraphicBuffers of a defaultDataSpace if no data space is specified
-    // in queueBuffer.
-    // The initial default is HAL_DATASPACE_UNKNOWN
-    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
-
 };
 
 } // namespace android
