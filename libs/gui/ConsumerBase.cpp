@@ -178,6 +178,22 @@ status_t ConsumerBase::detachBuffer(int slot) {
     return result;
 }
 
+status_t ConsumerBase::setDefaultBufferSize(uint32_t width, uint32_t height) {
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferSize(width, height);
+}
+
+status_t ConsumerBase::setDefaultBufferFormat(PixelFormat defaultFormat) {
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferFormat(defaultFormat);
+}
+
+status_t ConsumerBase::setDefaultBufferDataSpace(
+        android_dataspace defaultDataSpace) {
+    Mutex::Autolock _l(mMutex);
+    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
+}
+
 void ConsumerBase::dump(String8& result) const {
     dump(result, "");
 }

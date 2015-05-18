@@ -100,20 +100,4 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
     return err;
 }
 
-status_t BufferItemConsumer::setDefaultBufferSize(uint32_t w, uint32_t h) {
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferSize(w, h);
-}
-
-status_t BufferItemConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) {
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferFormat(defaultFormat);
-}
-
-status_t BufferItemConsumer::setDefaultBufferDataSpace(
-        android_dataspace defaultDataSpace) {
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
-}
-
 } // namespace android
