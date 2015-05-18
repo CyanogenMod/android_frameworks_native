@@ -80,23 +80,6 @@ class CpuConsumer : public ConsumerBase
     // log messages.
     void setName(const String8& name);
 
-    // setDefaultBufferSize is used to set the size of buffers returned by
-    // requestBuffers when a width and height of zero is requested.
-    // A call to setDefaultBufferSize() may trigger requestBuffers() to
-    // be called from the client. Default size is 1x1.
-    status_t setDefaultBufferSize(uint32_t width, uint32_t height);
-
-    // setDefaultBufferFormat allows CpuConsumer's BufferQueue to create buffers
-    // of a defaultFormat if no format is specified by producer.
-    // The initial default is PIXEL_FORMAT_RGBA_8888.
-    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
-
-    // setDefaultBufferDataSpace allows the BufferQueue to create
-    // GraphicBuffers of a defaultDataSpace if no data space is specified
-    // in queueBuffer.
-    // The initial default is HAL_DATASPACE_UNKNOWN
-    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
-
     // Gets the next graphics buffer from the producer and locks it for CPU use,
     // filling out the passed-in locked buffer structure with the native pointer
     // and metadata. Returns BAD_VALUE if no new buffer is available, and

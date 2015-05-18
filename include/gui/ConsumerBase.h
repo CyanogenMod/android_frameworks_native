@@ -76,6 +76,15 @@ public:
     // See IGraphicBufferConsumer::detachBuffer
     status_t detachBuffer(int slot);
 
+    // See IGraphicBufferConsumer::setDefaultBufferSize
+    status_t setDefaultBufferSize(uint32_t width, uint32_t height);
+
+    // See IGraphicBufferConsumer::setDefaultBufferFormat
+    status_t setDefaultBufferFormat(PixelFormat defaultFormat);
+
+    // See IGraphicBufferConsumer::setDefaultBufferDataSpace
+    status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
+
 private:
     ConsumerBase(const ConsumerBase&);
     void operator=(const ConsumerBase&);
