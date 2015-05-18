@@ -78,6 +78,10 @@ enum {
     ACONFIGURATION_SCREENLONG_NO = 0x1,
     ACONFIGURATION_SCREENLONG_YES = 0x2,
 
+    ACONFIGURATION_SCREENROUND_ANY = 0x00,
+    ACONFIGURATION_SCREENROUND_NO = 0x1,
+    ACONFIGURATION_SCREENROUND_YES = 0x2,
+
     ACONFIGURATION_UI_MODE_TYPE_ANY = 0x00,
     ACONFIGURATION_UI_MODE_TYPE_NORMAL = 0x01,
     ACONFIGURATION_UI_MODE_TYPE_DESK = 0x02,
@@ -115,6 +119,7 @@ enum {
     ACONFIGURATION_UI_MODE = 0x1000,
     ACONFIGURATION_SMALLEST_SCREEN_SIZE = 0x2000,
     ACONFIGURATION_LAYOUTDIR = 0x4000,
+    ACONFIGURATION_SCREEN_ROUND = 0x8000,
 
     ACONFIGURATION_MNC_ZERO = 0xffff,
 };
@@ -286,6 +291,16 @@ int32_t AConfiguration_getScreenLong(AConfiguration* config);
  * Set the current screen long in the configuration.
  */
 void AConfiguration_setScreenLong(AConfiguration* config, int32_t screenLong);
+
+/**
+ * Return the current ACONFIGURATION_SCREENROUND_* set in the configuration.
+ */
+int32_t AConfiguration_getScreenRound(AConfiguration* config);
+
+/**
+ * Set the current screen round in the configuration.
+ */
+void AConfiguration_setScreenRound(AConfiguration* config, int32_t screenRound);
 
 /**
  * Return the current ACONFIGURATION_UI_MODE_TYPE_* set in the configuration.
