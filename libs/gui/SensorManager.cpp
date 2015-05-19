@@ -63,16 +63,19 @@ status_t SensorManager::assertStateLocked() const {
     if (mSensorServer == NULL) {
         // try for one second
         const String16 name("sensorservice");
+        status_t err;
         for (int i=0 ; i<4 ; i++) {
-            status_t err = getService(name, &mSensorServer);
+            err = getService(name, &mSensorServer);
             if (err == NAME_NOT_FOUND) {
                 usleep(250000);
                 continue;
             }
-            if (err != NO_ERROR) {
-                return err;
-            }
             break;
+        }
+
+        if (err != NO_ERROR) {
+            ALOGI("find sensorservice failed: %d", err);
+            return err;
         }
 
         class DeathObserver : public IBinder::DeathRecipient {
