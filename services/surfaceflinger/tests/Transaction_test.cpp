@@ -16,6 +16,8 @@
 
 #include <gtest/gtest.h>
 
+#include <android/native_window.h>
+
 #include <binder/IMemory.h>
 
 #include <gui/ISurfaceComposer.h>
@@ -53,21 +55,23 @@ static void fillSurfaceRGBA8(const sp<SurfaceControl>& sc,
 class ScreenCapture : public RefBase {
 public:
     static void captureScreen(sp<ScreenCapture>* sc) {
-        sp<IMemoryHeap> heap;
-        uint32_t w=0, h=0;
-        PixelFormat fmt=0;
+        sp<IGraphicBufferProducer> producer;
+        sp<IGraphicBufferConsumer> consumer;
+        BufferQueue::createBufferQueue(&producer, &consumer);
+        IGraphicBufferProducer::QueueBufferOutput bufferOutput;
+        sp<CpuConsumer> cpuConsumer = new CpuConsumer(consumer, 1);
         sp<ISurfaceComposer> sf(ComposerService::getComposerService());
-        sp<IBinder> display(sf->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
-        ASSERT_EQ(NO_ERROR, sf->captureScreen(display, &heap, &w, &h, &fmt, 0, 0,
-                0, INT_MAX));
-        ASSERT_TRUE(heap != NULL);
-        ASSERT_EQ(PIXEL_FORMAT_RGBA_8888, fmt);
-        *sc = new ScreenCapture(w, h, heap);
+        sp<IBinder> display(sf->getBuiltInDisplay(
+                ISurfaceComposer::eDisplayIdMain));
+        ASSERT_EQ(NO_ERROR, sf->captureScreen(display, producer, Rect(), 0, 0,
+                0, INT_MAX, false));
+        *sc = new ScreenCapture(cpuConsumer);
     }
 
     void checkPixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b) {
-        const uint8_t* img = reinterpret_cast<const uint8_t*>(mHeap->base());
-        const uint8_t* pixel = img + (4 * (y*mWidth + x));
+        ASSERT_EQ(HAL_PIXEL_FORMAT_RGBA_8888, mBuf.format);
+        const uint8_t* img = static_cast<const uint8_t*>(mBuf.data);
+        const uint8_t* pixel = img + (4 * (y * mBuf.stride + x));
         if (r != pixel[0] || g != pixel[1] || b != pixel[2]) {
             String8 err(String8::format("pixel @ (%3d, %3d): "
                     "expected [%3d, %3d, %3d], got [%3d, %3d, %3d]",
@@ -77,15 +81,17 @@ public:
     }
 
 private:
-    ScreenCapture(uint32_t w, uint32_t h, const sp<IMemoryHeap>& heap) :
-        mWidth(w),
-        mHeight(h),
-        mHeap(heap)
-    {}
+    ScreenCapture(const sp<CpuConsumer>& cc) :
+        mCC(cc) {
+        EXPECT_EQ(NO_ERROR, mCC->lockNextBuffer(&mBuf));
+    }
 
-    const uint32_t mWidth;
-    const uint32_t mHeight;
-    sp<IMemoryHeap> mHeap;
+    ~ScreenCapture() {
+        mCC->unlockBuffer(mBuf);
+    }
+
+    sp<CpuConsumer> mCC;
+    CpuConsumer::LockedBuffer mBuf;
 };
 
 class LayerUpdateTest : public ::testing::Test {
