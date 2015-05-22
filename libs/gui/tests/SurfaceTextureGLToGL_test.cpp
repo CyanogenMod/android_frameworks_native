@@ -188,10 +188,10 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
     // This test should have the only reference to buffer 0.
     EXPECT_EQ(1, buffers[0]->getStrongCount());
 
-    // The GLConsumer should hold a single reference to buffer 1 in its
-    // mCurrentBuffer member.  All of the references in the slots should have
-    // been released.
-    EXPECT_EQ(2, buffers[1]->getStrongCount());
+    // The GLConsumer should hold one reference to buffer 1 in its
+    // mCurrentTextureImage member and another reference in mEglSlots. The third
+    // reference is in this test.
+    EXPECT_EQ(3, buffers[1]->getStrongCount());
 }
 
 TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
@@ -235,14 +235,19 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
     ASSERT_EQ(EGL_SUCCESS, eglGetError());
     mProducerEglSurface = EGL_NO_SURFACE;
 
-    EXPECT_EQ(1, buffers[0]->getStrongCount());
     EXPECT_EQ(1, buffers[1]->getStrongCount());
 
     // Depending on how lazily the GL driver dequeues buffers, we may end up
-    // with either two or three total buffers.  If there are three, make sure
-    // the last one was properly down-ref'd.
+    // with either two or three total buffers.  If there are three, each entry
+    // of the buffers array will be unique and there should only be one
+    // reference (the one in this test). If there are two the first and last
+    // element in the array will be equal meaning that buffer representing both
+    // 0 and 2 will have two references (one for 0 and one for 2).
     if (buffers[2] != buffers[0]) {
+        EXPECT_EQ(1, buffers[0]->getStrongCount());
         EXPECT_EQ(1, buffers[2]->getStrongCount());
+    } else {
+        EXPECT_EQ(2, buffers[0]->getStrongCount());
     }
 }
 

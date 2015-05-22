@@ -299,7 +299,7 @@ TEST_F(IGraphicBufferProducerTest, Query_ReturnsError) {
     ASSERT_NO_FATAL_FAILURE(ConnectProducer());
 
     // One past the end of the last 'query' enum value. Update this if we add more enums.
-    const int NATIVE_WINDOW_QUERY_LAST_OFF_BY_ONE = NATIVE_WINDOW_DEFAULT_DATASPACE + 1;
+    const int NATIVE_WINDOW_QUERY_LAST_OFF_BY_ONE = NATIVE_WINDOW_BUFFER_AGE + 1;
 
     int value;
     // What was out of range
