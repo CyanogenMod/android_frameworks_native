@@ -72,7 +72,13 @@ class BufferItem : public Flattenable<BufferItem> {
     // to set by queueBuffer each time this slot is queued. This value
     // is guaranteed to be monotonically increasing for each newly
     // acquired buffer.
-    int64_t mTimestamp;
+    union {
+        int64_t mTimestamp;
+        struct {
+            uint32_t mTimestampLo;
+            uint32_t mTimestampHi;
+        };
+    };
 
     // mIsAutoTimestamp indicates whether mTimestamp was generated
     // automatically when the buffer was queued.
@@ -84,7 +90,13 @@ class BufferItem : public Flattenable<BufferItem> {
     android_dataspace mDataSpace;
 
     // mFrameNumber is the number of the queued frame for this slot.
-    uint64_t mFrameNumber;
+    union {
+        uint64_t mFrameNumber;
+        struct {
+            uint32_t mFrameNumberLo;
+            uint32_t mFrameNumberHi;
+        };
+    };
 
     union {
         // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
