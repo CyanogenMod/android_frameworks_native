@@ -172,7 +172,7 @@ void API_ENTRY(glGetAttachedShaders)(GLuint program, GLsizei maxCount, GLsizei *
 GLint API_ENTRY(glGetAttribLocation)(GLuint program, const GLchar * name) {
     CALL_GL_API_RETURN(glGetAttribLocation, program, name);
 }
-void API_ENTRY(glGetBooleanv)(GLenum pname, GLboolean * data) {
+void API_ENTRY(__glGetBooleanv)(GLenum pname, GLboolean * data) {
     CALL_GL_API(glGetBooleanv, pname, data);
 }
 void API_ENTRY(glGetBufferParameteriv)(GLenum target, GLenum pname, GLint * params) {
@@ -181,13 +181,13 @@ void API_ENTRY(glGetBufferParameteriv)(GLenum target, GLenum pname, GLint * para
 GLenum API_ENTRY(glGetError)(void) {
     CALL_GL_API_RETURN(glGetError);
 }
-void API_ENTRY(glGetFloatv)(GLenum pname, GLfloat * data) {
+void API_ENTRY(__glGetFloatv)(GLenum pname, GLfloat * data) {
     CALL_GL_API(glGetFloatv, pname, data);
 }
 void API_ENTRY(glGetFramebufferAttachmentParameteriv)(GLenum target, GLenum attachment, GLenum pname, GLint * params) {
     CALL_GL_API(glGetFramebufferAttachmentParameteriv, target, attachment, pname, params);
 }
-void API_ENTRY(glGetIntegerv)(GLenum pname, GLint * data) {
+void API_ENTRY(__glGetIntegerv)(GLenum pname, GLint * data) {
     CALL_GL_API(glGetIntegerv, pname, data);
 }
 void API_ENTRY(glGetProgramiv)(GLuint program, GLenum pname, GLint * params) {
@@ -604,7 +604,7 @@ void API_ENTRY(glClearBufferfv)(GLenum buffer, GLint drawbuffer, const GLfloat *
 void API_ENTRY(glClearBufferfi)(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil) {
     CALL_GL_API(glClearBufferfi, buffer, drawbuffer, depth, stencil);
 }
-const GLubyte * API_ENTRY(glGetStringi)(GLenum name, GLuint index) {
+const GLubyte * API_ENTRY(__glGetStringi)(GLenum name, GLuint index) {
     CALL_GL_API_RETURN(glGetStringi, name, index);
 }
 void API_ENTRY(glCopyBufferSubData)(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size) {
@@ -649,7 +649,7 @@ GLenum API_ENTRY(glClientWaitSync)(GLsync sync, GLbitfield flags, GLuint64 timeo
 void API_ENTRY(glWaitSync)(GLsync sync, GLbitfield flags, GLuint64 timeout) {
     CALL_GL_API(glWaitSync, sync, flags, timeout);
 }
-void API_ENTRY(glGetInteger64v)(GLenum pname, GLint64 * data) {
+void API_ENTRY(__glGetInteger64v)(GLenum pname, GLint64 * data) {
     CALL_GL_API(glGetInteger64v, pname, data);
 }
 void API_ENTRY(glGetSynciv)(GLsync sync, GLenum pname, GLsizei bufSize, GLsizei * length, GLint * values) {

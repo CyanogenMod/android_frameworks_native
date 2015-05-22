@@ -292,6 +292,44 @@ const GLubyte * egl_get_string_for_current_context(GLenum name) {
     return (const GLubyte *)c->gl_extensions.string();
 }
 
+const GLubyte * egl_get_string_for_current_context(GLenum name, GLuint index) {
+    // NOTE: returning NULL here will fall-back to the default
+    // implementation.
+
+    EGLContext context = egl_tls_t::getContext();
+    if (context == EGL_NO_CONTEXT)
+        return NULL;
+
+    egl_context_t const * const c = get_context(context);
+    if (c == NULL) // this should never happen, by construction
+        return NULL;
+
+    if (name != GL_EXTENSIONS)
+        return NULL;
+
+    // if index is out of bounds, assume it will be in the default
+    // implementation too, so we don't have to generate a GL error here
+    if (index >= c->tokenized_gl_extensions.size())
+        return NULL;
+
+    return (const GLubyte *)c->tokenized_gl_extensions.itemAt(index).string();
+}
+
+GLint egl_get_num_extensions_for_current_context() {
+    // NOTE: returning -1 here will fall-back to the default
+    // implementation.
+
+    EGLContext context = egl_tls_t::getContext();
+    if (context == EGL_NO_CONTEXT)
+        return -1;
+
+    egl_context_t const * const c = get_context(context);
+    if (c == NULL) // this should never happen, by construction
+        return -1;
+
+    return (GLint)c->tokenized_gl_extensions.size();
+}
+
 // ----------------------------------------------------------------------------
 
 // this mutex protects:

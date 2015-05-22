@@ -86,11 +86,25 @@ def fmtTypeNameList(params):
     return ', '.join(['"%s", %s' % (p[0], p[1]) for p in params])
 
 
-def overrideSymbolName(sym):
-    # The wrapper intercepts glGetString and (sometimes) calls the generated
-    # __glGetString thunk which dispatches to the driver's glGetString
-    if sym == 'glGetString':
-        return '__glGetString'
+def overrideSymbolName(sym, apiname):
+    # The wrapper intercepts various glGet and glGetString functions and
+    # (sometimes) calls the generated thunk which dispatches to the
+    # driver's implementation
+    wrapped_get_syms = {
+        'gles1' : [
+            'glGetString'
+        ],
+        'gles2' : [
+            'glGetString',
+            'glGetStringi',
+            'glGetBooleanv',
+            'glGetFloatv',
+            'glGetIntegerv',
+            'glGetInteger64v',
+        ],
+    }
+    if sym in wrapped_get_syms.get(apiname):
+        return '__' + sym
     else:
         return sym
 
@@ -115,8 +129,8 @@ class TrampolineGen(reg.OutputGenerator):
         print('%s API_ENTRY(%s)(%s) {\n'
               '    %s(%s%s%s);\n'
               '}'
-              % (rtype, overrideSymbolName(fname), fmtParams(params),
-                 call, fname,
+              % (rtype, overrideSymbolName(fname, self.genOpts.apiname),
+                 fmtParams(params), call, fname,
                  ', ' if len(params) > 0 else '',
                  fmtArgs(params)),
               file=self.outFile)

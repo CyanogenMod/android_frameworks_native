@@ -27,6 +27,7 @@
 
 #include <utils/threads.h>
 #include <utils/String8.h>
+#include <utils/Vector.h>
 
 #include <system/window.h>
 
@@ -159,6 +160,7 @@ public:
     egl_connection_t const* cnx;
     int version;
     String8 gl_extensions;
+    Vector<String8> tokenized_gl_extensions;
 };
 
 // ----------------------------------------------------------------------------
