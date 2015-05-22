@@ -3337,8 +3337,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     sp<Surface> sur = new Surface(producer, false);
     ANativeWindow* window = sur.get();
 
-    status_t result = NO_ERROR;
-    if (native_window_api_connect(window, NATIVE_WINDOW_API_EGL) == NO_ERROR) {
+    status_t result = native_window_api_connect(window, NATIVE_WINDOW_API_EGL);
+    if (result == NO_ERROR) {
         uint32_t usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN |
                         GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
 
@@ -3428,7 +3428,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                     result = BAD_VALUE;
                 }
                 // queueBuffer takes ownership of syncFd
-                window->queueBuffer(window, buffer, syncFd);
+                result = window->queueBuffer(window, buffer, syncFd);
             }
         } else {
             result = BAD_VALUE;
