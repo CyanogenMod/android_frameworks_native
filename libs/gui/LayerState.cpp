@@ -38,6 +38,8 @@ status_t layer_state_t::write(Parcel& output) const
     *reinterpret_cast<layer_state_t::matrix22_t *>(
             output.writeInplace(sizeof(layer_state_t::matrix22_t))) = matrix;
     output.write(crop);
+    output.writeStrongBinder(handle);
+    output.writeUint64(frameNumber);
     output.write(transparentRegion);
     return NO_ERROR;
 }
@@ -62,6 +64,8 @@ status_t layer_state_t::read(const Parcel& input)
         return BAD_VALUE;
     }
     input.read(crop);
+    handle = input.readStrongBinder();
+    frameNumber = input.readUint64();
     input.read(transparentRegion);
     return NO_ERROR;
 }

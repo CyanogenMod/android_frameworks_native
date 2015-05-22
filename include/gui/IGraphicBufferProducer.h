@@ -508,6 +508,9 @@ public:
 
     // Returns the name of the connected consumer.
     virtual String8 getConsumerName() const = 0;
+
+    // Returns the number of the next frame which will be dequeued.
+    virtual uint64_t getNextFrameNumber() const = 0;
 };
 
 // ----------------------------------------------------------------------------

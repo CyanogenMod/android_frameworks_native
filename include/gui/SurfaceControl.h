@@ -69,10 +69,15 @@ public:
     status_t    setMatrix(float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setCrop(const Rect& crop);
 
+    // Defers applying any changes made in this transaction until the Layer
+    // identified by handle reaches the given frameNumber
+    status_t deferTransactionUntil(sp<IBinder> handle, uint64_t frameNumber);
+
     static status_t writeSurfaceToParcel(
             const sp<SurfaceControl>& control, Parcel* parcel);
 
     sp<Surface> getSurface() const;
+    sp<IBinder> getHandle() const;
 
     status_t clearLayerFrameStats() const;
     status_t getLayerFrameStats(FrameStats* outStats) const;

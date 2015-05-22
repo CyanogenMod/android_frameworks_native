@@ -36,6 +36,8 @@
 
 #include <private/gui/LayerState.h>
 
+#include <list>
+
 #include "FrameTracker.h"
 #include "Client.h"
 #include "MonitoredProducer.h"
@@ -107,9 +109,17 @@ public:
         uint32_t layerStack;
         uint8_t alpha;
         uint8_t flags;
+        uint8_t mask;
         uint8_t reserved[2];
         int32_t sequence; // changes when visible regions can change
         Transform transform;
+        bool modified;
+
+        // If set, defers this state update until the Layer identified by handle
+        // receives a frame with the given frameNumber
+        sp<IBinder> handle;
+        uint64_t frameNumber;
+
         // the transparentRegion hint is a bit special, it's latched only
         // when we receive a buffer -- this is because it's "content"
         // dependent.
@@ -137,6 +147,7 @@ public:
     bool setFlags(uint8_t flags, uint8_t mask);
     bool setCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
+    void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
 
     // If we have received a new buffer this frame, we will pass its surface
     // damage down to hardware composer. Otherwise, we must send a region with
@@ -152,6 +163,7 @@ public:
     Rect computeBounds(const Region& activeTransparentRegion) const;
     Rect computeBounds() const;
 
+    class Handle;
     sp<IBinder> getHandle();
     sp<IGraphicBufferProducer> getProducer() const;
     const String8& getName() const;
@@ -343,6 +355,10 @@ private:
     virtual void onFrameReplaced(const BufferItem& item) override;
     virtual void onSidebandStreamChanged() override;
 
+    // Move frames made available by item in to a list which will
+    // be signalled at the beginning of the next transaction
+    virtual void markSyncPointsAvailable(const BufferItem& item);
+
     void commitTransaction();
 
     // needsLinearFiltering - true if this surface's state requires filtering
@@ -362,6 +378,56 @@ private:
     // Temporary - Used only for LEGACY camera mode.
     uint32_t getProducerStickyTransform() const;
 
+    // -----------------------------------------------------------------------
+
+    class SyncPoint
+    {
+    public:
+        SyncPoint(uint64_t frameNumber) : mFrameNumber(frameNumber),
+                mFrameIsAvailable(false), mTransactionIsApplied(false) {}
+
+        uint64_t getFrameNumber() const {
+            return mFrameNumber;
+        }
+
+        bool frameIsAvailable() const {
+            return mFrameIsAvailable;
+        }
+
+        void setFrameAvailable() {
+            mFrameIsAvailable = true;
+        }
+
+        bool transactionIsApplied() const {
+            return mTransactionIsApplied;
+        }
+
+        void setTransactionApplied() {
+            mTransactionIsApplied = true;
+        }
+
+    private:
+        const uint64_t mFrameNumber;
+        std::atomic<bool> mFrameIsAvailable;
+        std::atomic<bool> mTransactionIsApplied;
+    };
+
+    std::list<std::shared_ptr<SyncPoint>> mLocalSyncPoints;
+
+    // Guarded by mPendingStateMutex
+    std::list<std::shared_ptr<SyncPoint>> mRemoteSyncPoints;
+
+    void addSyncPoint(std::shared_ptr<SyncPoint> point);
+
+    void pushPendingState();
+    void popPendingState();
+    bool applyPendingStates();
+
+    Mutex mAvailableFrameMutex;
+    std::list<std::shared_ptr<SyncPoint>> mAvailableFrames;
+public:
+    void notifyAvailableFrames();
+private:
 
     // -----------------------------------------------------------------------
 
@@ -377,6 +443,10 @@ private:
     State mCurrentState;
     State mDrawingState;
     volatile int32_t mTransactionFlags;
+
+    // Accessed from main thread and binder threads
+    Mutex mPendingStateMutex;
+    Vector<State> mPendingStates;
 
     // thread-safe
     volatile int32_t mQueuedFrames;

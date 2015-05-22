@@ -158,6 +158,9 @@ public:
             const Rect& crop);
     status_t setLayerStack(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id, uint32_t layerStack);
+    status_t deferTransactionUntil(const sp<SurfaceComposerClient>& client,
+            const sp<IBinder>& id, const sp<IBinder>& handle,
+            uint64_t frameNumber);
 
     void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);
@@ -380,6 +383,20 @@ status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
         return BAD_INDEX;
     s->what |= layer_state_t::eCropChanged;
     s->crop = crop;
+    return NO_ERROR;
+}
+
+status_t Composer::deferTransactionUntil(
+        const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
+        const sp<IBinder>& handle, uint64_t frameNumber) {
+    Mutex::Autolock lock(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s) {
+        return BAD_INDEX;
+    }
+    s->what |= layer_state_t::eDeferTransaction;
+    s->handle = handle;
+    s->frameNumber = frameNumber;
     return NO_ERROR;
 }
 
@@ -607,6 +624,11 @@ status_t SurfaceComposerClient::setLayerStack(const sp<IBinder>& id, uint32_t la
 status_t SurfaceComposerClient::setMatrix(const sp<IBinder>& id, float dsdx, float dtdx,
         float dsdy, float dtdy) {
     return getComposer().setMatrix(this, id, dsdx, dtdx, dsdy, dtdy);
+}
+
+status_t SurfaceComposerClient::deferTransactionUntil(const sp<IBinder>& id,
+        const sp<IBinder>& handle, uint64_t frameNumber) {
+    return getComposer().deferTransactionUntil(this, id, handle, frameNumber);
 }
 
 // ----------------------------------------------------------------------------

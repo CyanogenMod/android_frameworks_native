@@ -52,6 +52,7 @@ struct layer_state_t {
         eFlagsChanged               = 0x00000040,
         eLayerStackChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
+        eDeferTransaction           = 0x00000200
     };
 
     layer_state_t()
@@ -87,6 +88,8 @@ struct layer_state_t {
             uint8_t         reserved;
             matrix22_t      matrix;
             Rect            crop;
+            sp<IBinder>     handle;
+            uint64_t        frameNumber;
             // non POD must be last. see write/read
             Region          transparentRegion;
 };

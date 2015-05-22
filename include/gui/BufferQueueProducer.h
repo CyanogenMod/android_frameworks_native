@@ -170,6 +170,9 @@ public:
     // See IGraphicBufferProducer::getConsumerName
     virtual String8 getConsumerName() const override;
 
+    // See IGraphicBufferProducer::getNextFrameNumber
+    virtual uint64_t getNextFrameNumber() const override;
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

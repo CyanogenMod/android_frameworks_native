@@ -145,6 +145,13 @@ status_t SurfaceControl::setCrop(const Rect& crop) {
     return mClient->setCrop(mHandle, crop);
 }
 
+status_t SurfaceControl::deferTransactionUntil(sp<IBinder> handle,
+        uint64_t frameNumber) {
+    status_t err = validate();
+    if (err < 0) return err;
+    return mClient->deferTransactionUntil(mHandle, handle, frameNumber);
+}
+
 status_t SurfaceControl::clearLayerFrameStats() const {
     status_t err = validate();
     if (err < 0) return err;
@@ -188,6 +195,12 @@ sp<Surface> SurfaceControl::getSurface() const
         mSurfaceData = new Surface(mGraphicBufferProducer, false);
     }
     return mSurfaceData;
+}
+
+sp<IBinder> SurfaceControl::getHandle() const
+{
+    Mutex::Autolock lock(mLock);
+    return mHandle;
 }
 
 // ----------------------------------------------------------------------------
