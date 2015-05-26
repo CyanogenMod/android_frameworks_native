@@ -335,10 +335,14 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
         // the origin being in the bottom-left corner. Here we flip to the
         // convention that the rest of the system uses (top-left corner) by
         // subtracting all top/bottom coordinates from the buffer height.
+        int height = buffer->height;
+        if ((mTransform ^ mStickyTransform) & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            height = buffer->width;
+        }
         Region flippedRegion;
         for (auto rect : mDirtyRegion) {
-            auto top = buffer->height - rect.bottom;
-            auto bottom = buffer->height - rect.top;
+            auto top = height - rect.bottom;
+            auto bottom = height - rect.top;
             Rect flippedRect{rect.left, top, rect.right, bottom};
             flippedRegion.orSelf(flippedRect);
         }
