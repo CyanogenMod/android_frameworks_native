@@ -113,6 +113,18 @@ void egl_context_t::onMakeCurrent(EGLSurface draw, EGLSurface read) {
             temp.append(gl_extensions);
             gl_extensions.setTo(temp);
         }
+
+        // tokenize the supported extensions for the glGetStringi() wrapper
+        exts = gl_extensions.string();
+        while (1) {
+            const char *end = strchr(exts, ' ');
+            if (end == NULL) {
+                tokenized_gl_extensions.push(String8(exts));
+                break;
+            }
+            tokenized_gl_extensions.push(String8(exts, end - exts));
+            exts = end + 1;
+        }
     }
 }
 
