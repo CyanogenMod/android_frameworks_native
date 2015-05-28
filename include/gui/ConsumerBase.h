@@ -56,6 +56,9 @@ public:
     // or by OpenGL ES as a texture) then those buffer will remain allocated.
     void abandon();
 
+    // Returns true if the ConsumerBase is in the 'abandoned' state
+    bool isAbandoned();
+
     // set the name of the ConsumerBase that will be used to identify it in
     // log messages.
     void setName(const String8& name);
