@@ -93,7 +93,7 @@ status_t Client::onTransact(
      const int pid = ipc->getCallingPid();
      const int uid = ipc->getCallingUid();
      const int self_pid = getpid();
-     if (CC_UNLIKELY(pid != self_pid && uid != AID_GRAPHICS && uid != 0)) {
+     if (CC_UNLIKELY(pid != self_pid && uid != AID_GRAPHICS && uid != AID_SYSTEM && uid != 0)) {
          // we're called from a different process, do the real check
          if (!PermissionCache::checkCallingPermission(sAccessSurfaceFlinger))
          {
