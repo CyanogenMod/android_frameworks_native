@@ -815,7 +815,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                              (strcmp(vold_decrypt, "1") == 0)));
 
     bool use_jit = check_boolean_property("debug.usejit");
-    bool gen_cfi = check_boolean_property("debug.gencfi");
+    bool generate_debug_info = check_boolean_property("debug.generate-debug-info");
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
@@ -908,7 +908,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                      + (have_dex2oat_threads_flag ? 1 : 0)
                      + (have_dex2oat_swap_fd ? 1 : 0)
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
-                     + (gen_cfi ? 1 : 0)
+                     + (generate_debug_info ? 1 : 0)
                      + (debuggable ? 1 : 0)
                      + dex2oat_flags_count];
     int i = 0;
@@ -947,8 +947,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_dex2oat_swap_fd) {
         argv[i++] = dex2oat_swap_fd;
     }
-    if (gen_cfi) {
-        argv[i++] = "--include-cfi";
+    if (generate_debug_info) {
+        argv[i++] = "--generate-debug-info";
     }
     if (debuggable) {
         argv[i++] = "--debuggable";
