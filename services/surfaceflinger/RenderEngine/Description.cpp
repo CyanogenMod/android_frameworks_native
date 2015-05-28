@@ -88,5 +88,9 @@ void Description::setColorMatrix(const mat4& mtx) {
     mColorMatrixEnabled = (mtx != identity);
 }
 
+const mat4& Description::getColorMatrix() const {
+    return mColorMatrix;
+}
+
 
 } /* namespace android */
