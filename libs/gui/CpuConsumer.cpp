@@ -56,25 +56,6 @@ void CpuConsumer::setName(const String8& name) {
     mConsumer->setConsumerName(name);
 }
 
-status_t CpuConsumer::setDefaultBufferSize(uint32_t width, uint32_t height)
-{
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferSize(width, height);
-}
-
-status_t CpuConsumer::setDefaultBufferFormat(PixelFormat defaultFormat)
-{
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferFormat(defaultFormat);
-}
-
-status_t CpuConsumer::setDefaultBufferDataSpace(
-        android_dataspace defaultDataSpace)
-{
-    Mutex::Autolock _l(mMutex);
-    return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
-}
-
 static bool isPossiblyYUV(PixelFormat format) {
     switch (static_cast<int>(format)) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
