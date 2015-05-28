@@ -305,13 +305,16 @@ void HWComposer::vsync(int disp, int64_t timestamp) {
 }
 
 void HWComposer::hotplug(int disp, int connected) {
-    if (disp == HWC_DISPLAY_PRIMARY || disp >= VIRTUAL_DISPLAY_ID_BASE) {
+    if (disp >= VIRTUAL_DISPLAY_ID_BASE) {
         ALOGE("hotplug event received for invalid display: disp=%d connected=%d",
                 disp, connected);
         return;
     }
     queryDisplayProperties(disp);
-    mEventHandler.onHotplugReceived(disp, bool(connected));
+    // Do not teardown or recreate the primary display
+    if (disp != HWC_DISPLAY_PRIMARY) {
+        mEventHandler.onHotplugReceived(disp, bool(connected));
+    }
 }
 
 static float getDefaultDensity(uint32_t width, uint32_t height) {
