@@ -384,7 +384,7 @@ status_t Parcel::appendFrom(const Parcel *parcel, size_t offset, size_t len)
     // Count objects in range
     for (int i = 0; i < (int) size; i++) {
         size_t off = objects[i];
-        if ((off >= offset) && (off < offset + len)) {
+        if ((off >= offset) && (off + sizeof(flat_binder_object) <= offset + len)) {
             if (firstIndex == -1) {
                 firstIndex = i;
             }
