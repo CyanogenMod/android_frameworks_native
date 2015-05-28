@@ -30,6 +30,9 @@ namespace android {
 // ----------------------------------------------------------------------------
 
 EGLAPI const GLubyte * egl_get_string_for_current_context(GLenum name);
+EGLAPI const GLubyte * egl_get_string_for_current_context(GLenum name,
+                                                          GLuint index);
+EGLAPI GLint egl_get_num_extensions_for_current_context();
 
 // ----------------------------------------------------------------------------
 }; // namespace android
