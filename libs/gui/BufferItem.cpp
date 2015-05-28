@@ -46,15 +46,16 @@ static void addAligned(size_t& size, T /* value */) {
 }
 
 size_t BufferItem::getPodSize() const {
-    // Must align<8> before writing these fields for this to be correct
     size_t size = 0;
     addAligned(size, mCrop);
     addAligned(size, mTransform);
     addAligned(size, mScalingMode);
-    addAligned(size, mTimestamp);
+    addAligned(size, mTimestampLo);
+    addAligned(size, mTimestampHi);
     addAligned(size, mIsAutoTimestamp);
     addAligned(size, mDataSpace);
-    addAligned(size, mFrameNumber);
+    addAligned(size, mFrameNumberLo);
+    addAligned(size, mFrameNumberHi);
     addAligned(size, mSlot);
     addAligned(size, mIsDroppable);
     addAligned(size, mAcquireCalled);
@@ -126,9 +127,6 @@ status_t BufferItem::flatten(
     if (err) return err;
     FlattenableUtils::advance(buffer, size, mSurfaceDamage.getFlattenedSize());
 
-    // Must align<8> so that getPodSize returns the correct value
-    size -= FlattenableUtils::align<8>(buffer);
-
     // Check we still have enough space
     if (size < getPodSize()) {
         return NO_MEMORY;
@@ -137,10 +135,12 @@ status_t BufferItem::flatten(
     writeAligned(buffer, size, mCrop);
     writeAligned(buffer, size, mTransform);
     writeAligned(buffer, size, mScalingMode);
-    writeAligned(buffer, size, mTimestamp);
+    writeAligned(buffer, size, mTimestampLo);
+    writeAligned(buffer, size, mTimestampHi);
     writeAligned(buffer, size, mIsAutoTimestamp);
     writeAligned(buffer, size, mDataSpace);
-    writeAligned(buffer, size, mFrameNumber);
+    writeAligned(buffer, size, mFrameNumberLo);
+    writeAligned(buffer, size, mFrameNumberHi);
     writeAligned(buffer, size, mSlot);
     writeAligned(buffer, size, mIsDroppable);
     writeAligned(buffer, size, mAcquireCalled);
@@ -183,9 +183,6 @@ status_t BufferItem::unflatten(
     if (err) return err;
     FlattenableUtils::advance(buffer, size, mSurfaceDamage.getFlattenedSize());
 
-    // Must align<8> so that getPodSize returns the correct value
-    size -= FlattenableUtils::align<8>(buffer);
-
     // Check we still have enough space
     if (size < getPodSize()) {
         return NO_MEMORY;
@@ -194,10 +191,12 @@ status_t BufferItem::unflatten(
     readAligned(buffer, size, mCrop);
     readAligned(buffer, size, mTransform);
     readAligned(buffer, size, mScalingMode);
-    readAligned(buffer, size, mTimestamp);
+    readAligned(buffer, size, mTimestampLo);
+    readAligned(buffer, size, mTimestampHi);
     readAligned(buffer, size, mIsAutoTimestamp);
     readAligned(buffer, size, mDataSpace);
-    readAligned(buffer, size, mFrameNumber);
+    readAligned(buffer, size, mFrameNumberLo);
+    readAligned(buffer, size, mFrameNumberHi);
     readAligned(buffer, size, mSlot);
     readAligned(buffer, size, mIsDroppable);
     readAligned(buffer, size, mAcquireCalled);
