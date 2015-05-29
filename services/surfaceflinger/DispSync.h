@@ -140,7 +140,7 @@ private:
     enum { MAX_RESYNC_SAMPLES = 32 };
     enum { MIN_RESYNC_SAMPLES_FOR_UPDATE = 3 };
     enum { NUM_PRESENT_SAMPLES = 8 };
-    enum { MAX_RESYNC_SAMPLES_WITHOUT_PRESENT = 12 };
+    enum { MAX_RESYNC_SAMPLES_WITHOUT_PRESENT = 4 };
 
     // mPeriod is the computed period of the modeled vsync events in
     // nanoseconds.
