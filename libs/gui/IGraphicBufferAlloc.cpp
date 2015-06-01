@@ -59,6 +59,9 @@ public:
         if (result == NO_ERROR) {
             graphicBuffer = new GraphicBuffer();
             result = reply.read(*graphicBuffer);
+            if (result != NO_ERROR) {
+                graphicBuffer.clear();
+            }
             // reply.readStrongBinder();
             // here we don't even have to read the BufferReference from
             // the parcel, it'll die with the parcel.
