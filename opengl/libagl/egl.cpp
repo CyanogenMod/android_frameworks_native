@@ -394,7 +394,13 @@ EGLBoolean egl_window_surface_v2_t::connect()
         depth.width   = width;
         depth.height  = height;
         depth.stride  = depth.width; // use the width here
-        depth.data    = (GGLubyte*)malloc(depth.stride*depth.height*2);
+        uint64_t allocSize = static_cast<uint64_t>(depth.stride) *
+                static_cast<uint64_t>(depth.height) * 2;
+        if (depth.stride < 0 || depth.height > INT_MAX ||
+                allocSize > UINT32_MAX) {
+            return setError(EGL_BAD_ALLOC, EGL_FALSE);
+        }
+        depth.data    = (GGLubyte*)malloc(allocSize);
         if (depth.data == 0) {
             return setError(EGL_BAD_ALLOC, EGL_FALSE);
         }
@@ -548,7 +554,14 @@ EGLBoolean egl_window_surface_v2_t::swapBuffers()
                 depth.width   = width;
                 depth.height  = height;
                 depth.stride  = buffer->stride;
-                depth.data    = (GGLubyte*)malloc(depth.stride*depth.height*2);
+                uint64_t allocSize = static_cast<uint64_t>(depth.stride) *
+                        static_cast<uint64_t>(depth.height) * 2;
+                if (depth.stride < 0 || depth.height > INT_MAX ||
+                        allocSize > UINT32_MAX) {
+                    setError(EGL_BAD_ALLOC, EGL_FALSE);
+                    return EGL_FALSE;
+                }
+                depth.data    = (GGLubyte*)malloc(allocSize);
                 if (depth.data == 0) {
                     setError(EGL_BAD_ALLOC, EGL_FALSE);
                     return EGL_FALSE;
@@ -666,7 +679,14 @@ egl_pixmap_surface_t::egl_pixmap_surface_t(EGLDisplay dpy,
         depth.width   = pixmap->width;
         depth.height  = pixmap->height;
         depth.stride  = depth.width; // use the width here
-        depth.data    = (GGLubyte*)malloc(depth.stride*depth.height*2);
+        uint64_t allocSize = static_cast<uint64_t>(depth.stride) *
+                static_cast<uint64_t>(depth.height) * 2;
+        if (depth.stride < 0 || depth.height > INT_MAX ||
+                allocSize > UINT32_MAX) {
+            setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
+            return;
+        }
+        depth.data    = (GGLubyte*)malloc(allocSize);
         if (depth.data == 0) {
             setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
         }
@@ -746,7 +766,14 @@ egl_pbuffer_surface_t::egl_pbuffer_surface_t(EGLDisplay dpy,
         depth.width   = pbuffer.width;
         depth.height  = pbuffer.height;
         depth.stride  = depth.width; // use the width here
-        depth.data    = (GGLubyte*)malloc(depth.stride*depth.height*2);
+        uint64_t allocSize = static_cast<uint64_t>(depth.stride) *
+                static_cast<uint64_t>(depth.height) * 2;
+        if (depth.stride < 0 || depth.height > INT_MAX ||
+                allocSize > UINT32_MAX) {
+            setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
+            return;
+        }
+        depth.data    = (GGLubyte*)malloc(allocSize);
         if (depth.data == 0) {
             setError(EGL_BAD_ALLOC, EGL_NO_SURFACE);
             return;
