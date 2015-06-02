@@ -89,6 +89,47 @@ public:
         data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
         remote()->transact(NOTE_RESET_AUDIO_TRANSACTION, data, &reply);
     }
+
+    virtual void noteFlashlightOn(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_FLASHLIGHT_ON_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteFlashlightOff(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_FLASHLIGHT_OFF_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteStartCamera(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_START_CAMERA_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteStopCamera(int uid) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        data.writeInt32(uid);
+        remote()->transact(NOTE_STOP_CAMERA_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteResetCamera() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        remote()->transact(NOTE_RESET_CAMERA_TRANSACTION, data, &reply);
+    }
+
+    virtual void noteResetFlashlight() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IBatteryStats::getInterfaceDescriptor());
+        remote()->transact(NOTE_RESET_FLASHLIGHT_TRANSACTION, data, &reply);
+    }
+
 };
 
 IMPLEMENT_META_INTERFACE(BatteryStats, "com.android.internal.app.IBatteryStats");
@@ -152,6 +193,46 @@ status_t BnBatteryStats::onTransact(
         case NOTE_RESET_AUDIO_TRANSACTION: {
             CHECK_INTERFACE(IBatteryStats, data, reply);
             noteResetAudio();
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_FLASHLIGHT_ON_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteFlashlightOn(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_FLASHLIGHT_OFF_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteFlashlightOff(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_START_CAMERA_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStartCamera(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_STOP_CAMERA_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            int uid = data.readInt32();
+            noteStopCamera(uid);
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_RESET_CAMERA_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            noteResetCamera();
+            reply->writeNoException();
+            return NO_ERROR;
+        } break;
+        case NOTE_RESET_FLASHLIGHT_TRANSACTION: {
+            CHECK_INTERFACE(IBatteryStats, data, reply);
+            noteResetFlashlight();
             reply->writeNoException();
             return NO_ERROR;
         } break;
