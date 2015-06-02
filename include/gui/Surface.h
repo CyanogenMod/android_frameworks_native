@@ -101,6 +101,11 @@ public:
      */
     void allocateBuffers();
 
+    /* Sets the generation number on the IGraphicBufferProducer and updates the
+     * generation number on any buffers attached to the Surface after this call.
+     * See IGBP::setGenerationNumber for more information. */
+    status_t setGenerationNumber(uint32_t generationNumber);
+
 protected:
     virtual ~Surface();
 
@@ -305,6 +310,10 @@ private:
     // When a non-CPU producer is attached, this reflects the surface damage
     // (the change since the previous frame) passed in by the producer.
     Region mDirtyRegion;
+
+    // Stores the current generation number. See setGenerationNumber and
+    // IGraphicBufferProducer::setGenerationNumber for more information.
+    uint32_t mGenerationNumber;
 };
 
 }; // namespace android

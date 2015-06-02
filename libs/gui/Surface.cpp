@@ -42,7 +42,8 @@ namespace android {
 Surface::Surface(
         const sp<IGraphicBufferProducer>& bufferProducer,
         bool controlledByApp)
-    : mGraphicBufferProducer(bufferProducer)
+    : mGraphicBufferProducer(bufferProducer),
+      mGenerationNumber(0)
 {
     // Initialize the ANativeWindow function pointers.
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
@@ -100,6 +101,14 @@ void Surface::allocateBuffers() {
     uint32_t reqHeight = mReqHeight ? mReqHeight : mUserHeight;
     mGraphicBufferProducer->allocateBuffers(mSwapIntervalZero, reqWidth,
             reqHeight, mReqFormat, mReqUsage);
+}
+
+status_t Surface::setGenerationNumber(uint32_t generation) {
+    status_t result = mGraphicBufferProducer->setGenerationNumber(generation);
+    if (result == NO_ERROR) {
+        mGenerationNumber = generation;
+    }
+    return result;
 }
 
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
@@ -698,11 +707,14 @@ int Surface::attachBuffer(ANativeWindowBuffer* buffer)
     Mutex::Autolock lock(mMutex);
 
     sp<GraphicBuffer> graphicBuffer(static_cast<GraphicBuffer*>(buffer));
+    uint32_t priorGeneration = graphicBuffer->mGenerationNumber;
+    graphicBuffer->mGenerationNumber = mGenerationNumber;
     int32_t attachedSlot = -1;
     status_t result = mGraphicBufferProducer->attachBuffer(
             &attachedSlot, graphicBuffer);
     if (result != NO_ERROR) {
         ALOGE("attachBuffer: IGraphicBufferProducer call failed (%d)", result);
+        graphicBuffer->mGenerationNumber = priorGeneration;
         return result;
     }
     mSlots[attachedSlot].buffer = graphicBuffer;

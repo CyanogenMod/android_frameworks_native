@@ -177,4 +177,37 @@ TEST_F(SurfaceTest, QueryDefaultBuffersDataSpace) {
     ASSERT_EQ(TEST_DATASPACE, dataSpace);
 }
 
+TEST_F(SurfaceTest, SettingGenerationNumber) {
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer);
+    sp<CpuConsumer> cpuConsumer = new CpuConsumer(consumer, 1);
+    sp<Surface> surface = new Surface(producer);
+    sp<ANativeWindow> window(surface);
+
+    // Allocate a buffer with a generation number of 0
+    ANativeWindowBuffer* buffer;
+    int fenceFd;
+    ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fenceFd));
+    ASSERT_EQ(NO_ERROR, window->cancelBuffer(window.get(), buffer, fenceFd));
+
+    // Detach the buffer and check its generation number
+    sp<GraphicBuffer> graphicBuffer;
+    sp<Fence> fence;
+    ASSERT_EQ(NO_ERROR, surface->detachNextBuffer(&graphicBuffer, &fence));
+    ASSERT_EQ(0U, graphicBuffer->getGenerationNumber());
+
+    ASSERT_EQ(NO_ERROR, surface->setGenerationNumber(1));
+    buffer = static_cast<ANativeWindowBuffer*>(graphicBuffer.get());
+
+    // This should change the generation number of the GraphicBuffer
+    ASSERT_EQ(NO_ERROR, surface->attachBuffer(buffer));
+
+    // Check that the new generation number sticks with the buffer
+    ASSERT_EQ(NO_ERROR, window->cancelBuffer(window.get(), buffer, -1));
+    ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fenceFd));
+    graphicBuffer = static_cast<GraphicBuffer*>(buffer);
+    ASSERT_EQ(1U, graphicBuffer->getGenerationNumber());
+}
+
 }
