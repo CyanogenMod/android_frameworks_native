@@ -103,6 +103,12 @@ struct VideoGrallocMetadata {
     buffer_handle_t hHandle;
 };
 
+// Legacy name for VideoGrallocMetadata struct.
+struct VideoDecoderOutputMetaData {
+    MetadataBufferType eType;               // must be kMetadataBufferTypeGrallocSource
+    buffer_handle_t pHandle;
+};
+
 struct VideoNativeMetadata {
     MetadataBufferType eType;               // must be kMetadataBufferTypeANWBuffer
     struct ANativeWindowBuffer* pBuffer;
