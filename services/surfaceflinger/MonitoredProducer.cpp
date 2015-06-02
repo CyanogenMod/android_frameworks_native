@@ -114,6 +114,10 @@ status_t MonitoredProducer::allowAllocation(bool allow) {
     return mProducer->allowAllocation(allow);
 }
 
+status_t MonitoredProducer::setGenerationNumber(uint32_t generationNumber) {
+    return mProducer->setGenerationNumber(generationNumber);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

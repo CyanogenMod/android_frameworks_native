@@ -110,7 +110,8 @@ public:
     // will be deallocated as stale.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * BAD_VALUE - outSlot or buffer were NULL
+    // * BAD_VALUE - outSlot or buffer were NULL, or the generation number of
+    //               the buffer did not match the buffer queue.
     // * INVALID_OPERATION - cannot attach the buffer because it would cause too
     //                       many buffers to be acquired.
     // * NO_MEMORY - no free slots available

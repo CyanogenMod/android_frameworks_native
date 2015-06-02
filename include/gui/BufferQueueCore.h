@@ -275,6 +275,11 @@ private:
     // buffer as the number of frames that have elapsed since it was last queued
     uint64_t mBufferAge;
 
+    // mGenerationNumber stores the current generation number of the attached
+    // producer. Any attempt to attach a buffer with a different generation
+    // number will fail.
+    uint32_t mGenerationNumber;
+
 }; // class BufferQueueCore
 
 } // namespace android
