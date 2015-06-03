@@ -25,7 +25,9 @@
 #include "InputHost.h"
 
 #include <hardware/input.h>
+#include <input/InputDevice.h>
 #include <utils/Log.h>
+#include <utils/PropertyMap.h>
 #include <utils/String8.h>
 
 #define INDENT2 "    "
@@ -69,13 +71,42 @@ void InputDriver::dump(String8& result) {
     result.appendFormat(INDENT2 "HAL Input Driver (%s)\n", mName.string());
 }
 
+} // namespace android
+
+struct input_property_map {
+    android::PropertyMap* propertyMap;
+};
+
+struct input_property {
+    android::String8 key;
+    android::String8 value;
+};
+
+struct input_device_identifier {
+    const char* name;
+    const char* uniqueId;
+    input_bus_t bus;
+    int32_t     vendorId;
+    int32_t     productId;
+    int32_t     version;
+};
 
 // HAL wrapper functions
 
-input_device_identifier_t* create_device_identifier(input_host_t* host,
+namespace android {
+
+::input_device_identifier_t* create_device_identifier(input_host_t* host,
         const char* name, int32_t product_id, int32_t vendor_id,
         input_bus_t bus, const char* unique_id) {
-    return nullptr;
+    auto identifier = new ::input_device_identifier {
+        .name = name,
+        .productId = product_id,
+        .vendorId = vendor_id,
+        //.bus = bus,
+        .uniqueId = unique_id,
+    };
+    // store this identifier somewhere? in the host?
+    return identifier;
 }
 
 input_device_definition_t* create_device_definition(input_host_t* host) {
@@ -123,24 +154,76 @@ void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* 
 
 input_property_map_t* input_get_device_property_map(input_host_t* host,
         input_device_identifier_t* id) {
+    InputDeviceIdentifier idi;
+    idi.name = id->name;
+    idi.uniqueId = id->uniqueId;
+    idi.bus = id->bus;
+    idi.vendor = id->vendorId;
+    idi.product = id->productId;
+    idi.version = id->version;
+
+    String8 configFile = getInputDeviceConfigurationFilePathByDeviceIdentifier(
+            idi, INPUT_DEVICE_CONFIGURATION_FILE_TYPE_CONFIGURATION);
+    if (configFile.isEmpty()) {
+        ALOGD("No input device configuration file found for device '%s'.",
+                idi.name.string());
+    } else {
+        auto propMap = new input_property_map_t();
+        status_t status = PropertyMap::load(configFile, &propMap->propertyMap);
+        if (status) {
+            ALOGE("Error loading input device configuration file for device '%s'. "
+                    "Using default configuration.",
+                    idi.name.string());
+            delete propMap;
+            return nullptr;
+        }
+        return propMap;
+    }
     return nullptr;
 }
 
 input_property_t* input_get_device_property(input_host_t* host, input_property_map_t* map,
         const char* key) {
+    String8 keyString(key);
+    if (map != nullptr) {
+        if (map->propertyMap->hasProperty(keyString)) {
+            auto prop = new input_property_t();
+            if (!map->propertyMap->tryGetProperty(keyString, prop->value)) {
+                delete prop;
+                return nullptr;
+            }
+            prop->key = keyString;
+            return prop;
+        }
+    }
     return nullptr;
 }
 
 const char* input_get_property_key(input_host_t* host, input_property_t* property) {
+    if (property != nullptr) {
+        return property->key.string();
+    }
     return nullptr;
 }
 
 const char* input_get_property_value(input_host_t* host, input_property_t* property) {
+    if (property != nullptr) {
+        return property->value.string();
+    }
     return nullptr;
 }
 
-void input_free_device_property(input_host_t* host, input_property_t* property) { }
+void input_free_device_property(input_host_t* host, input_property_t* property) {
+    if (property != nullptr) {
+        delete property;
+    }
+}
 
-void input_free_device_property_map(input_host_t* host, input_property_map_t* map) { }
+void input_free_device_property_map(input_host_t* host, input_property_map_t* map) {
+    if (map != nullptr) {
+        delete map->propertyMap;
+        delete map;
+    }
+}
 
 } // namespace android
