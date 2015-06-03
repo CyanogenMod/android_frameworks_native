@@ -886,32 +886,6 @@ status_t Parcel::writeDupFileDescriptor(int fd)
     return err;
 }
 
-// WARNING: This method must stay in sync with
-// Parcelable.Creator<ParcelFileDescriptor> CREATOR
-// in frameworks/base/core/java/android/os/ParcelFileDescriptor.java
-status_t Parcel::writeParcelFileDescriptor(int fd, int commChannel) {
-    status_t status;
-
-    if (fd < 0) {
-        status = writeInt32(0); // ParcelFileDescriptor is null
-        if (status) return status;
-    } else {
-        status = writeInt32(1); // ParcelFileDescriptor is not null
-        if (status) return status;
-        status = writeDupFileDescriptor(fd);
-        if (status) return status;
-        if (commChannel < 0) {
-            status = writeInt32(0); // commChannel is null
-            if (status) return status;
-        } else {
-            status = writeInt32(1); // commChannel is not null
-            if (status) return status;
-            status = writeDupFileDescriptor(commChannel);
-        }
-    }
-    return status;
-}
-
 status_t Parcel::writeBlob(size_t len, WritableBlob* outBlob)
 {
     status_t status;
@@ -1376,23 +1350,6 @@ int Parcel::readFileDescriptor() const
         }
     }
     return BAD_TYPE;
-}
-
-// WARNING: This method must stay in sync with writeToParcel()
-// in frameworks/base/core/java/android/os/ParcelFileDescriptor.java
-int Parcel::readParcelFileDescriptor(int& outCommChannel) const {
-    int fd;
-    outCommChannel = -1;
-
-    if (readInt32() == 0) {
-        fd = -1;
-    } else {
-        fd = readFileDescriptor();
-        if (fd >= 0 && readInt32() != 0) {
-            outCommChannel = readFileDescriptor();
-        }
-    }
-    return fd;
 }
 
 status_t Parcel::readBlob(size_t len, ReadableBlob* outBlob) const
