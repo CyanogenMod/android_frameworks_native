@@ -100,14 +100,11 @@ struct StoreMetaDataInBuffersParams {
 // dynamic buffer handling.
 struct VideoGrallocMetadata {
     MetadataBufferType eType;               // must be kMetadataBufferTypeGrallocSource
-    buffer_handle_t hHandle;
+    buffer_handle_t pHandle;
 };
 
 // Legacy name for VideoGrallocMetadata struct.
-struct VideoDecoderOutputMetaData {
-    MetadataBufferType eType;               // must be kMetadataBufferTypeGrallocSource
-    buffer_handle_t pHandle;
-};
+struct VideoDecoderOutputMetaData : public VideoGrallocMetadata {};
 
 struct VideoNativeMetadata {
     MetadataBufferType eType;               // must be kMetadataBufferTypeANWBuffer
