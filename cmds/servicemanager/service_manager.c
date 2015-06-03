@@ -361,6 +361,7 @@ int main(int argc, char **argv)
 
     selinux_enabled = is_selinux_enabled();
     sehandle = selinux_android_service_context_handle();
+    selinux_status_open(true);
 
     if (selinux_enabled > 0) {
         if (sehandle == NULL) {
