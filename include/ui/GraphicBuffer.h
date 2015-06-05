@@ -94,6 +94,11 @@ public:
     Rect getBounds() const              { return Rect(width, height); }
     uint64_t getId() const              { return mId; }
 
+    uint32_t getGenerationNumber() const { return mGenerationNumber; }
+    void setGenerationNumber(uint32_t generation) {
+        mGenerationNumber = generation;
+    }
+
     status_t reallocate(uint32_t inWidth, uint32_t inHeight,
             PixelFormat inFormat, uint32_t inUsage);
 
@@ -166,6 +171,11 @@ private:
     sp<ANativeWindowBuffer> mWrappedBuffer;
 
     uint64_t mId;
+
+    // Stores the generation number of this buffer. If this number does not
+    // match the BufferQueue's internal generation number (set through
+    // IGBP::setGenerationNumber), attempts to attach the buffer will fail.
+    uint32_t mGenerationNumber;
 };
 
 }; // namespace android

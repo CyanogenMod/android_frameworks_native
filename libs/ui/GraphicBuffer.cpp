@@ -278,7 +278,7 @@ status_t GraphicBuffer::unlockAsync(int *fenceFd)
 }
 
 size_t GraphicBuffer::getFlattenedSize() const {
-    return static_cast<size_t>(10 + (handle ? handle->numInts : 0)) * sizeof(int);
+    return static_cast<size_t>(11 + (handle ? handle->numInts : 0)) * sizeof(int);
 }
 
 size_t GraphicBuffer::getFdCount() const {
@@ -301,15 +301,16 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
     buf[5] = usage;
     buf[6] = static_cast<int32_t>(mId >> 32);
     buf[7] = static_cast<int32_t>(mId & 0xFFFFFFFFull);
-    buf[8] = 0;
+    buf[8] = static_cast<int32_t>(mGenerationNumber);
     buf[9] = 0;
+    buf[10] = 0;
 
     if (handle) {
-        buf[8] = handle->numFds;
-        buf[9] = handle->numInts;
+        buf[9] = handle->numFds;
+        buf[10] = handle->numInts;
         memcpy(fds, handle->data,
                 static_cast<size_t>(handle->numFds) * sizeof(int));
-        memcpy(&buf[10], handle->data + handle->numFds,
+        memcpy(&buf[11], handle->data + handle->numFds,
                 static_cast<size_t>(handle->numInts) * sizeof(int));
     }
 
@@ -325,20 +326,20 @@ status_t GraphicBuffer::flatten(void*& buffer, size_t& size, int*& fds, size_t& 
 
 status_t GraphicBuffer::unflatten(
         void const*& buffer, size_t& size, int const*& fds, size_t& count) {
-    if (size < 8*sizeof(int)) return NO_MEMORY;
+    if (size < 11 * sizeof(int)) return NO_MEMORY;
 
     int const* buf = static_cast<int const*>(buffer);
     if (buf[0] != 'GBFR') return BAD_TYPE;
 
-    const size_t numFds  = static_cast<size_t>(buf[8]);
-    const size_t numInts = static_cast<size_t>(buf[9]);
+    const size_t numFds  = static_cast<size_t>(buf[9]);
+    const size_t numInts = static_cast<size_t>(buf[10]);
 
     // Limit the maxNumber to be relatively small. The number of fds or ints
     // should not come close to this number, and the number itself was simply
     // chosen to be high enough to not cause issues and low enough to prevent
     // overflow problems.
     const size_t maxNumber = 4096;
-    if (numFds >= maxNumber || numInts >= (maxNumber - 10)) {
+    if (numFds >= maxNumber || numInts >= (maxNumber - 11)) {
         width = height = stride = format = usage = 0;
         handle = NULL;
         ALOGE("unflatten: numFds or numInts is too large: %zd, %zd",
@@ -346,7 +347,7 @@ status_t GraphicBuffer::unflatten(
         return BAD_VALUE;
     }
 
-    const size_t sizeNeeded = (10 + numInts) * sizeof(int);
+    const size_t sizeNeeded = (11 + numInts) * sizeof(int);
     if (size < sizeNeeded) return NO_MEMORY;
 
     size_t fdCountNeeded = numFds;
@@ -372,7 +373,7 @@ status_t GraphicBuffer::unflatten(
             return NO_MEMORY;
         }
         memcpy(h->data, fds, numFds * sizeof(int));
-        memcpy(h->data + numFds, &buf[10], numInts * sizeof(int));
+        memcpy(h->data + numFds, &buf[11], numInts * sizeof(int));
         handle = h;
     } else {
         width = height = stride = format = usage = 0;
@@ -381,6 +382,8 @@ status_t GraphicBuffer::unflatten(
 
     mId = static_cast<uint64_t>(buf[6]) << 32;
     mId |= static_cast<uint32_t>(buf[7]);
+
+    mGenerationNumber = static_cast<uint32_t>(buf[8]);
 
     mOwner = ownHandle;
 
