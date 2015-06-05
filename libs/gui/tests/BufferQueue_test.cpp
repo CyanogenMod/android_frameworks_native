@@ -402,4 +402,46 @@ TEST_F(BufferQueueTest, TestDisallowingAllocation) {
             WIDTH * 2, HEIGHT * 2, 0, GRALLOC_USAGE_SW_WRITE_OFTEN));
 }
 
+TEST_F(BufferQueueTest, TestGenerationNumbers) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    ASSERT_EQ(OK, mProducer->setGenerationNumber(1));
+
+    // Get one buffer to play with
+    int slot;
+    sp<Fence> fence;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0, 0));
+
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+
+    // Ensure that the generation number we set propagates to allocated buffers
+    ASSERT_EQ(1U, buffer->getGenerationNumber());
+
+    ASSERT_EQ(OK, mProducer->detachBuffer(slot));
+
+    ASSERT_EQ(OK, mProducer->setGenerationNumber(2));
+
+    // These should fail, since we've changed the generation number on the queue
+    int outSlot;
+    ASSERT_EQ(BAD_VALUE, mProducer->attachBuffer(&outSlot, buffer));
+    ASSERT_EQ(BAD_VALUE, mConsumer->attachBuffer(&outSlot, buffer));
+
+    buffer->setGenerationNumber(2);
+
+    // This should succeed now that we've changed the buffer's generation number
+    ASSERT_EQ(OK, mProducer->attachBuffer(&outSlot, buffer));
+
+    ASSERT_EQ(OK, mProducer->detachBuffer(outSlot));
+
+    // This should also succeed with the new generation number
+    ASSERT_EQ(OK, mConsumer->attachBuffer(&outSlot, buffer));
+}
+
 } // namespace android
