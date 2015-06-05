@@ -557,9 +557,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
             surfaceDamageRegion.getBounds() == Rect::INVALID_RECT) {
         layer.setSurfaceDamage(surfaceDamageRegion);
     } else {
-        Region surfaceDamage =
-            tr.transform(surfaceDamageRegion.intersect(hw->getViewport()));
-        layer.setSurfaceDamage(surfaceDamage);
+        layer.setSurfaceDamage(tr.transform(surfaceDamageRegion));
     }
 
     if (mSidebandStream.get()) {
