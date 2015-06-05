@@ -760,6 +760,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     bool have_dex2oat_swap_fd = false;
     char dex2oat_swap_fd[strlen("--swap-fd=") + MAX_INT_LEN];
 
+    char dex2oat_thread_count[PROPERTY_VALUE_MAX];
+    char dex2oat_thread_count_arg[PROPERTY_VALUE_MAX];
+    bool have_dex2oat_thread_count = property_get("ro.sys.fw.dex2oat_thread_count", dex2oat_thread_count, NULL) > 0;
+
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
     sprintf(oat_fd_arg, "--oat-fd=%d", oat_fd);
@@ -804,6 +808,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
     }
+    if (have_dex2oat_thread_count) {
+        snprintf(dex2oat_thread_count_arg, PROPERTY_VALUE_MAX, "-j%s", dex2oat_thread_count);
+    }
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
@@ -814,6 +821,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                + (have_dex2oat_Xms_flag ? 2 : 0)
                + (have_dex2oat_Xmx_flag ? 2 : 0)
                + (have_dex2oat_compiler_filter_flag ? 1 : 0)
+               + (have_dex2oat_thread_count ? 1 : 0)
                + (have_dex2oat_flags ? 1 : 0)
                + (have_dex2oat_swap_fd ? 1 : 0)];
     int i = 0;
@@ -842,6 +850,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_compiler_filter_flag) {
         argv[i++] = dex2oat_compiler_filter_arg;
+    }
+    if (have_dex2oat_thread_count) {
+        argv[i++] = dex2oat_thread_count_arg;
     }
     if (have_dex2oat_flags) {
         argv[i++] = dex2oat_flags;
