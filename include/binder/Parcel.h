@@ -60,6 +60,7 @@ public:
     status_t            appendFrom(const Parcel *parcel,
                                    size_t start, size_t len);
 
+    bool                allowFds() const;
     bool                pushAllowFds(bool allowFds);
     void                restoreAllowFds(bool lastValue);
 
@@ -132,9 +133,16 @@ public:
 
     // Writes a blob to the parcel.
     // If the blob is small, then it is stored in-place, otherwise it is
-    // transferred by way of an anonymous shared memory region.
+    // transferred by way of an anonymous shared memory region.  Prefer sending
+    // immutable blobs if possible since they may be subsequently transferred between
+    // processes without further copying whereas mutable blobs always need to be copied.
     // The caller should call release() on the blob after writing its contents.
-    status_t            writeBlob(size_t len, WritableBlob* outBlob);
+    status_t            writeBlob(size_t len, bool mutableCopy, WritableBlob* outBlob);
+
+    // Write an existing immutable blob file descriptor to the parcel.
+    // This allows the client to send the same blob to multiple processes
+    // as long as it keeps a dup of the blob file descriptor handy for later.
+    status_t            writeDupImmutableBlobFileDescriptor(int fd);
 
     status_t            writeObject(const flat_binder_object& val, bool nullMetaData);
 
@@ -270,16 +278,19 @@ private:
         Blob();
         ~Blob();
 
+        void clear();
         void release();
         inline size_t size() const { return mSize; }
+        inline int fd() const { return mFd; };
+        inline bool isMutable() const { return mMutable; }
 
     protected:
-        void init(bool mapped, void* data, size_t size);
-        void clear();
+        void init(int fd, void* data, size_t size, bool isMutable);
 
-        bool mMapped;
+        int mFd; // owned by parcel so not closed when released
         void* mData;
         size_t mSize;
+        bool mMutable;
     };
 
     class FlattenableHelperInterface {
@@ -320,6 +331,7 @@ public:
         friend class Parcel;
     public:
         inline const void* data() const { return mData; }
+        inline void* mutableData() { return isMutable() ? mData : NULL; }
     };
 
     class WritableBlob : public Blob {
