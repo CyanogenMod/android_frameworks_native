@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "DummyConsumer.h"
+
 #include <gtest/gtest.h>
 
 #include <binder/IMemory.h>
@@ -208,6 +210,22 @@ TEST_F(SurfaceTest, SettingGenerationNumber) {
     ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fenceFd));
     graphicBuffer = static_cast<GraphicBuffer*>(buffer);
     ASSERT_EQ(1U, graphicBuffer->getGenerationNumber());
+}
+
+TEST_F(SurfaceTest, GetConsumerName) {
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer);
+
+    sp<DummyConsumer> dummyConsumer(new DummyConsumer);
+    consumer->consumerConnect(dummyConsumer, false);
+    consumer->setConsumerName(String8("TestConsumer"));
+
+    sp<Surface> surface = new Surface(producer);
+    sp<ANativeWindow> window(surface);
+    native_window_api_connect(window.get(), NATIVE_WINDOW_API_CPU);
+
+    EXPECT_STREQ("TestConsumer", surface->getConsumerName().string());
 }
 
 }
