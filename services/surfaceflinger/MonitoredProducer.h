@@ -55,6 +55,7 @@ public:
             PixelFormat format, uint32_t usage);
     virtual status_t allowAllocation(bool allow);
     virtual status_t setGenerationNumber(uint32_t generationNumber);
+    virtual String8 getConsumerName() const override;
     virtual IBinder* onAsBinder();
 
 private:
