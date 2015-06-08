@@ -1013,19 +1013,20 @@ status_t Parcel::writeObject(const flat_binder_object& val, bool nullMetaData)
 restart_write:
         *reinterpret_cast<flat_binder_object*>(mData+mDataPos) = val;
 
+        // remember if it's a file descriptor
+        if (val.type == BINDER_TYPE_FD) {
+            if (!mAllowFds) {
+                // fail before modifying our object index
+                return FDS_NOT_ALLOWED;
+            }
+            mHasFds = mFdsKnown = true;
+        }
+
         // Need to write meta-data?
         if (nullMetaData || val.binder != 0) {
             mObjects[mObjectsSize] = mDataPos;
             acquire_object(ProcessState::self(), val, this);
             mObjectsSize++;
-        }
-
-        // remember if it's a file descriptor
-        if (val.type == BINDER_TYPE_FD) {
-            if (!mAllowFds) {
-                return FDS_NOT_ALLOWED;
-            }
-            mHasFds = mFdsKnown = true;
         }
 
         return finishWrite(sizeof(flat_binder_object));
