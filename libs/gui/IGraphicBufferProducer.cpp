@@ -48,7 +48,6 @@ enum {
     ALLOCATE_BUFFERS,
     ALLOW_ALLOCATION,
     SET_GENERATION_NUMBER,
-    GET_CONSUMER_NAME,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -297,17 +296,6 @@ public:
         }
         return result;
     }
-
-    virtual String8 getConsumerName() const {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        status_t result = remote()->transact(GET_CONSUMER_NAME, data, &reply);
-        if (result != NO_ERROR) {
-            ALOGE("getConsumerName failed to transact: %d", result);
-            return String8("TransactFailed");
-        }
-        return reply.readString8();
-    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -477,11 +465,6 @@ status_t BnGraphicBufferProducer::onTransact(
             uint32_t generationNumber = data.readUint32();
             status_t result = setGenerationNumber(generationNumber);
             reply->writeInt32(result);
-            return NO_ERROR;
-        }
-        case GET_CONSUMER_NAME: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            reply->writeString8(getConsumerName());
             return NO_ERROR;
         }
     }

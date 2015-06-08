@@ -178,9 +178,6 @@ public:
     // See IGraphicBufferProducer::setGenerationNumber
     virtual status_t setGenerationNumber(uint32_t generationNumber);
 
-    // See IGraphicBufferProducer::getConsumerName
-    virtual String8 getConsumerName() const override;
-
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

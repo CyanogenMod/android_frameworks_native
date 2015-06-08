@@ -111,10 +111,6 @@ status_t Surface::setGenerationNumber(uint32_t generation) {
     return result;
 }
 
-String8 Surface::getConsumerName() const {
-    return mGraphicBufferProducer->getConsumerName();
-}
-
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
     Surface* c = getSelf(window);
     return c->setSwapInterval(interval);
