@@ -118,6 +118,10 @@ status_t MonitoredProducer::setGenerationNumber(uint32_t generationNumber) {
     return mProducer->setGenerationNumber(generationNumber);
 }
 
+String8 MonitoredProducer::getConsumerName() const {
+    return mProducer->getConsumerName();
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

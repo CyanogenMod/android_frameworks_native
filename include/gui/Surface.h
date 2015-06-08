@@ -106,6 +106,9 @@ public:
      * See IGBP::setGenerationNumber for more information. */
     status_t setGenerationNumber(uint32_t generationNumber);
 
+    // See IGraphicBufferProducer::getConsumerName
+    String8 getConsumerName() const;
+
 protected:
     virtual ~Surface();
 
