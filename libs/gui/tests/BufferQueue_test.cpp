@@ -17,6 +17,8 @@
 #define LOG_TAG "BufferQueue_test"
 //#define LOG_NDEBUG 0
 
+#include "DummyConsumer.h"
+
 #include <gui/BufferItem.h>
 #include <gui/BufferQueue.h>
 #include <gui/IProducerListener.h>
@@ -65,12 +67,6 @@ protected:
 
     sp<IGraphicBufferProducer> mProducer;
     sp<IGraphicBufferConsumer> mConsumer;
-};
-
-struct DummyConsumer : public BnConsumerListener {
-    virtual void onFrameAvailable(const BufferItem& /* item */) {}
-    virtual void onBuffersReleased() {}
-    virtual void onSidebandStreamChanged() {}
 };
 
 static const uint32_t TEST_DATA = 0x12345678u;

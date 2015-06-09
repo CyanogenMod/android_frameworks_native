@@ -535,6 +535,10 @@ status_t VirtualDisplaySurface::setGenerationNumber(uint32_t /* generation */) {
     return INVALID_OPERATION;
 }
 
+String8 VirtualDisplaySurface::getConsumerName() const {
+    return String8("VirtualDisplaySurface");
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;
