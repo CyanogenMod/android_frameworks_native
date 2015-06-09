@@ -510,8 +510,14 @@ typedef enum OMX_EVENTTYPE
     OMX_EventVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
 
     /** Event when tunneled decoder has rendered an output
-     *  nData1 must contain the lower 32-bits of the buffer timestamp
-     *  nData2 must contain the upper 32-bits of the buffer timestamp
+     *  nData1 must contain the number of timestamps returned
+     *  pEventData must point to an array of the OMX_VIDEO_RENDEREVENTTYPE structs containing the
+     *  render-timestamps of each frame. Component may batch rendered timestamps using this event,
+     *  but must signal the event no more than 40ms after the first frame in the batch. The frames
+     *  must be ordered by system timestamp inside and across batches.
+     *
+     *  If component is doing frame-rate conversion, it must signal the render time of each
+     *  converted frame, and must interpolate media timestamps for in-between frames.
      */
     OMX_EventOutputRendered = 0x7F000001,
     OMX_EventMax = 0x7FFFFFFF
