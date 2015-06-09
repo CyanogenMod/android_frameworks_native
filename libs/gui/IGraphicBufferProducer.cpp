@@ -47,6 +47,7 @@ enum {
     SET_SIDEBAND_STREAM,
     ALLOCATE_BUFFERS,
     ALLOW_ALLOCATION,
+    SET_GENERATION_NUMBER,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -284,6 +285,17 @@ public:
         result = reply.readInt32();
         return result;
     }
+
+    virtual status_t setGenerationNumber(uint32_t generationNumber) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeUint32(generationNumber);
+        status_t result = remote()->transact(SET_GENERATION_NUMBER, data, &reply);
+        if (result == NO_ERROR) {
+            result = reply.readInt32();
+        }
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -445,6 +457,13 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool allow = static_cast<bool>(data.readInt32());
             status_t result = allowAllocation(allow);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_GENERATION_NUMBER: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            uint32_t generationNumber = data.readUint32();
+            status_t result = setGenerationNumber(generationNumber);
             reply->writeInt32(result);
             return NO_ERROR;
         }

@@ -175,6 +175,9 @@ public:
     // See IGraphicBufferProducer::allowAllocation
     virtual status_t allowAllocation(bool allow);
 
+    // See IGraphicBufferProducer::setGenerationNumber
+    virtual status_t setGenerationNumber(uint32_t generationNumber);
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

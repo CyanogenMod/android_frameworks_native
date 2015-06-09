@@ -218,8 +218,9 @@ public:
     //
     // Return of a negative value means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
-    // * BAD_VALUE - outSlot or buffer were NULL or invalid combination of
-    //               async mode and buffer count override.
+    // * BAD_VALUE - outSlot or buffer were NULL, invalid combination of
+    //               async mode and buffer count override, or the generation
+    //               number of the buffer did not match the buffer queue.
     // * INVALID_OPERATION - cannot attach the buffer because it would cause
     //                       too many buffers to be dequeued, either because
     //                       the producer already has a single buffer dequeued
@@ -470,6 +471,15 @@ public:
     // eligible slot is available, dequeueBuffer will block or return an error
     // as usual.
     virtual status_t allowAllocation(bool allow) = 0;
+
+    // Sets the current generation number of the BufferQueue.
+    //
+    // This generation number will be inserted into any buffers allocated by the
+    // BufferQueue, and any attempts to attach a buffer with a different
+    // generation number will fail. Buffers already in the queue are not
+    // affected and will retain their current generation number. The generation
+    // number defaults to 0.
+    virtual status_t setGenerationNumber(uint32_t generationNumber) = 0;
 };
 
 // ----------------------------------------------------------------------------
