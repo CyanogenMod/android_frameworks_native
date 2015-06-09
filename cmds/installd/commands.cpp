@@ -1790,6 +1790,31 @@ int rm_package_dir(const char* apk_path)
     return delete_dir_contents(apk_path, 1 /* also_delete_dir */ , NULL /* exclusion_predicate */);
 }
 
+int link_file(const char* relative_path, const char* from_base, const char* to_base) {
+    char from_path[PKG_PATH_MAX];
+    char to_path[PKG_PATH_MAX];
+    snprintf(from_path, PKG_PATH_MAX, "%s/%s", from_base, relative_path);
+    snprintf(to_path, PKG_PATH_MAX, "%s/%s", to_base, relative_path);
+
+    if (validate_apk_path_subdirs(from_path)) {
+        ALOGE("invalid app data sub-path '%s' (bad prefix)\n", from_path);
+        return -1;
+    }
+
+    if (validate_apk_path_subdirs(to_path)) {
+        ALOGE("invalid app data sub-path '%s' (bad prefix)\n", to_path);
+        return -1;
+    }
+
+    const int ret = link(from_path, to_path);
+    if (ret < 0) {
+        ALOGE("link(%s, %s) failed : %s", from_path, to_path, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
 int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
         const char *instruction_set) {
     char *file_name_start;

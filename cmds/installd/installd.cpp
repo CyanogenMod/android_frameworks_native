@@ -179,6 +179,12 @@ static int do_rm_package_dir(char **arg, char reply[REPLY_MAX] __unused)
     return rm_package_dir(arg[0]);
 }
 
+static int do_link_file(char **arg, char reply[REPLY_MAX] __unused)
+{
+    /* relative_path, from_base, to_base */
+    return link_file(arg[0], arg[1], arg[2]);
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -209,7 +215,8 @@ struct cmdinfo cmds[] = {
     { "idmap",                3, do_idmap },
     { "restorecondata",       4, do_restorecon_data },
     { "createoatdir",         2, do_create_oat_dir },
-    { "rmpackagedir",         1, do_rm_package_dir},
+    { "rmpackagedir",         1, do_rm_package_dir },
+    { "linkfile",             3, do_link_file }
 };
 
 static int readx(int s, void *_buf, int count)
