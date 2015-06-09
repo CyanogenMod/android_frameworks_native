@@ -248,6 +248,13 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
         return INVALID_OPERATION;
     }
 
+    if (buffer->getGenerationNumber() != mCore->mGenerationNumber) {
+        BQ_LOGE("attachBuffer: generation number mismatch [buffer %u] "
+                "[queue %u]", buffer->getGenerationNumber(),
+                mCore->mGenerationNumber);
+        return BAD_VALUE;
+    }
+
     // Find a free slot to put the buffer into
     int found = BufferQueueCore::INVALID_BUFFER_SLOT;
     if (!mCore->mFreeSlots.empty()) {

@@ -530,6 +530,11 @@ status_t VirtualDisplaySurface::allowAllocation(bool /* allow */) {
     return INVALID_OPERATION;
 }
 
+status_t VirtualDisplaySurface::setGenerationNumber(uint32_t /* generation */) {
+    ALOGE("setGenerationNumber not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;
