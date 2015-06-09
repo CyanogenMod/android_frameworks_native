@@ -1089,6 +1089,12 @@ status_t BufferQueueProducer::setGenerationNumber(uint32_t generationNumber) {
     return NO_ERROR;
 }
 
+String8 BufferQueueProducer::getConsumerName() const {
+    ATRACE_CALL();
+    BQ_LOGV("getConsumerName: %s", mConsumerName.string());
+    return mConsumerName;
+}
+
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {
     // If we're here, it means that a producer we were connected to died.
     // We're guaranteed that we are still connected to it because we remove

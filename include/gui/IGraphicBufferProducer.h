@@ -480,6 +480,9 @@ public:
     // affected and will retain their current generation number. The generation
     // number defaults to 0.
     virtual status_t setGenerationNumber(uint32_t generationNumber) = 0;
+
+    // Returns the name of the connected consumer.
+    virtual String8 getConsumerName() const = 0;
 };
 
 // ----------------------------------------------------------------------------
