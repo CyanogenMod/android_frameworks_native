@@ -1043,15 +1043,13 @@ int copy_and_append(dir_rec_t* dst, const dir_rec_t* src, const char* suffix) {
 }
 
 /**
- * Check whether path points to a valid path for an APK file. Only one level of
- * subdirectory names is allowed. Returns -1 when an invalid path is encountered
- * and 0 when a valid path is encountered.
+ * Check whether path points to a valid path for an APK file. The path must
+ * begin with a whitelisted prefix path and must be no deeper than |maxSubdirs| within
+ * that path. Returns -1 when an invalid path is encountered and 0 when a valid path
+ * is encountered.
  */
-int validate_apk_path(const char *path)
-{
+static int validate_apk_path_internal(const char *path, int maxSubdirs) {
     const dir_rec_t* dir = NULL;
-    int maxSubdirs = 1;
-
     if (!strncmp(path, android_app_dir.path, android_app_dir.len)) {
         dir = &android_app_dir;
     } else if (!strncmp(path, android_app_private_dir.path, android_app_private_dir.len)) {
@@ -1060,12 +1058,22 @@ int validate_apk_path(const char *path)
         dir = &android_asec_dir;
     } else if (!strncmp(path, android_mnt_expand_dir.path, android_mnt_expand_dir.len)) {
         dir = &android_mnt_expand_dir;
-        maxSubdirs = 2;
+        if (maxSubdirs < 2) {
+            maxSubdirs = 2;
+        }
     } else {
         return -1;
     }
 
     return validate_path(dir, path, maxSubdirs);
+}
+
+int validate_apk_path(const char* path) {
+    return validate_apk_path_internal(path, 1 /* maxSubdirs */);
+}
+
+int validate_apk_path_subdirs(const char* path) {
+    return validate_apk_path_internal(path, 3 /* maxSubdirs */);
 }
 
 int append_and_increment(char** dst, const char* src, size_t* dst_size) {
