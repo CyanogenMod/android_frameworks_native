@@ -203,6 +203,7 @@ int get_path_from_string(dir_rec_t* rec, const char* path);
 int copy_and_append(dir_rec_t* dst, const dir_rec_t* src, const char* suffix);
 
 int validate_apk_path(const char *path);
+int validate_apk_path_subdirs(const char *path);
 
 int append_and_increment(char** dst, const char* src, size_t* dst_size);
 
@@ -254,3 +255,4 @@ int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const 
                             const char *instruction_set);
 int move_package_dir(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
                             const char *instruction_set);
+int link_file(const char *relative_path, const char *from_base, const char *to_base);
