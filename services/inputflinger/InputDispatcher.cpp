@@ -201,7 +201,8 @@ static void dumpRegion(String8& dump, const Region& region) {
 
 InputDispatcher::InputDispatcher(const sp<InputDispatcherPolicyInterface>& policy) :
     mPolicy(policy),
-    mPendingEvent(NULL), mAppSwitchSawKeyDown(false), mAppSwitchDueTime(LONG_LONG_MAX),
+    mPendingEvent(NULL), mLastDropReason(DROP_REASON_NOT_DROPPED),
+    mAppSwitchSawKeyDown(false), mAppSwitchDueTime(LONG_LONG_MAX),
     mNextUnblockedEvent(NULL),
     mDispatchEnabled(false), mDispatchFrozen(false), mInputFilterEnabled(false),
     mInputTargetWaitCause(INPUT_TARGET_WAIT_CAUSE_NONE) {
@@ -397,6 +398,7 @@ void InputDispatcher::dispatchOnceInnerLocked(nsecs_t* nextWakeupTime) {
         if (dropReason != DROP_REASON_NOT_DROPPED) {
             dropInboundEventLocked(mPendingEvent, dropReason);
         }
+        mLastDropReason = dropReason;
 
         releasePendingEventLocked();
         *nextWakeupTime = LONG_LONG_MIN;  // force next poll to wake up immediately
@@ -506,7 +508,9 @@ void InputDispatcher::dropInboundEventLocked(EventEntry* entry, DropReason dropR
         reason = "inbound event was dropped because the policy consumed it";
         break;
     case DROP_REASON_DISABLED:
-        ALOGI("Dropped event because input dispatch is disabled.");
+        if (mLastDropReason != DROP_REASON_DISABLED) {
+            ALOGI("Dropped event because input dispatch is disabled.");
+        }
         reason = "inbound event was dropped because input dispatch is disabled";
         break;
     case DROP_REASON_APP_SWITCH:
