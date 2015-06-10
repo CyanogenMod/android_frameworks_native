@@ -318,6 +318,8 @@ static void dumpstate() {
     run_command("ARP CACHE", 10, "ip", "-4", "neigh", "show", NULL);
     run_command("IPv6 ND CACHE", 10, "ip", "-6", "neigh", "show", NULL);
 
+    run_command("NETWORK DIAGNOSTICS", 10, "dumpsys", "connectivity", "--diag", NULL);
+
     run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
     run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
     run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-nvx", NULL);
