@@ -3266,8 +3266,12 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     ATRACE_CALL();
 
     // get screen geometry
-    const uint32_t hw_w = hw->getWidth();
-    const uint32_t hw_h = hw->getHeight();
+    uint32_t hw_w = hw->getWidth();
+    uint32_t hw_h = hw->getHeight();
+
+    if (rotation & Transform::ROT_90) {
+        std::swap(hw_w, hw_h);
+    }
 
     if ((reqWidth > hw_w) || (reqHeight > hw_h)) {
         ALOGE("size mismatch (%d, %d) > (%d, %d)",
