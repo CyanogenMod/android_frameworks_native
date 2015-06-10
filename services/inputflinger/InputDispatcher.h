@@ -857,6 +857,8 @@ private:
     Queue<EventEntry> mRecentQueue;
     Queue<CommandEntry> mCommandQueue;
 
+    DropReason mLastDropReason;
+
     void dispatchOnceInnerLocked(nsecs_t* nextWakeupTime);
 
     // Enqueues an inbound event.  Returns true if mLooper->wake() should be called.
