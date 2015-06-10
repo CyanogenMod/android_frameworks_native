@@ -68,6 +68,8 @@ input_report_definition_t* create_input_report_definition(input_host_t* host);
 
 input_report_definition_t* create_output_report_definition(input_host_t* host);
 
+void free_report_definition(input_host_t* host, input_report_definition_t* report_def);
+
 void input_device_definition_add_report(input_host_t* host,
         input_device_definition_t* d, input_report_definition_t* r);
 
