@@ -354,6 +354,8 @@ private:
     // mLists[i>0] can be NULL. that display is to be ignored
     struct hwc_display_contents_1*  mLists[MAX_HWC_DISPLAYS];
     DisplayData                     mDisplayData[MAX_HWC_DISPLAYS];
+    // protect mDisplayData from races between prepare and dump
+    mutable Mutex mDisplayLock;
     size_t                          mNumDisplays;
 
     cb_context*                     mCBContext;
