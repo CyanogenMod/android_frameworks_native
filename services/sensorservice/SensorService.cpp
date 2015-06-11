@@ -66,7 +66,7 @@ namespace android {
 
 const char* SensorService::WAKE_LOCK_NAME = "SensorService";
 // Permissions.
-static const String16 sDataInjectionPermission("android.permission.HARDWARE_TEST");
+static const String16 sDataInjectionPermission("android.permission.LOCATION_HARDWARE");
 static const String16 sDump("android.permission.DUMP");
 
 SensorService::SensorService()
