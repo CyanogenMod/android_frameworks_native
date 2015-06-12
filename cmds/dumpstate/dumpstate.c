@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,6 +110,7 @@ static bool skip_not_stat(const char *path) {
 }
 
 static const char mmcblk0[] = "/sys/block/mmcblk0/";
+unsigned long worst_write_perf = 20000; /* in KB/s */
 
 static int dump_stat_from_fd(const char *title __unused, const char *path, int fd) {
     unsigned long fields[11], read_perf, write_perf;
@@ -157,11 +159,111 @@ static int dump_stat_from_fd(const char *title __unused, const char *path, int f
         write_perf = 512 * fields[6] / fields[7];
     }
     printf("%s: read: %luKB/s write: %luKB/s\n", path, read_perf, write_perf);
+    if ((write_perf > 1) && (write_perf < worst_write_perf)) {
+        worst_write_perf = write_perf;
+    }
     return 0;
 }
 
+/* Copied policy from system/core/logd/LogBuffer.cpp */
+
+#define LOG_BUFFER_SIZE (256 * 1024)
+#define LOG_BUFFER_MIN_SIZE (64 * 1024UL)
+#define LOG_BUFFER_MAX_SIZE (256 * 1024 * 1024UL)
+
+static bool valid_size(unsigned long value) {
+    if ((value < LOG_BUFFER_MIN_SIZE) || (LOG_BUFFER_MAX_SIZE < value)) {
+        return false;
+    }
+
+    long pages = sysconf(_SC_PHYS_PAGES);
+    if (pages < 1) {
+        return true;
+    }
+
+    long pagesize = sysconf(_SC_PAGESIZE);
+    if (pagesize <= 1) {
+        pagesize = PAGE_SIZE;
+    }
+
+    // maximum memory impact a somewhat arbitrary ~3%
+    pages = (pages + 31) / 32;
+    unsigned long maximum = pages * pagesize;
+
+    if ((maximum < LOG_BUFFER_MIN_SIZE) || (LOG_BUFFER_MAX_SIZE < maximum)) {
+        return true;
+    }
+
+    return value <= maximum;
+}
+
+static unsigned long property_get_size(const char *key) {
+    unsigned long value;
+    char *cp, property[PROPERTY_VALUE_MAX];
+
+    property_get(key, property, "");
+    value = strtoul(property, &cp, 10);
+
+    switch(*cp) {
+    case 'm':
+    case 'M':
+        value *= 1024;
+    /* FALLTHRU */
+    case 'k':
+    case 'K':
+        value *= 1024;
+    /* FALLTHRU */
+    case '\0':
+        break;
+
+    default:
+        value = 0;
+    }
+
+    if (!valid_size(value)) {
+        value = 0;
+    }
+
+    return value;
+}
+
+/* timeout in ms */
+static unsigned long logcat_timeout(char *name) {
+    static const char global_tuneable[] = "persist.logd.size"; // Settings App
+    static const char global_default[] = "ro.logd.size";       // BoardConfig.mk
+    char key[PROP_NAME_MAX];
+    unsigned long property_size, default_size;
+
+    default_size = property_get_size(global_tuneable);
+    if (!default_size) {
+        default_size = property_get_size(global_default);
+    }
+
+    snprintf(key, sizeof(key), "%s.%s", global_tuneable, name);
+    property_size = property_get_size(key);
+
+    if (!property_size) {
+        snprintf(key, sizeof(key), "%s.%s", global_default, name);
+        property_size = property_get_size(key);
+    }
+
+    if (!property_size) {
+        property_size = default_size;
+    }
+
+    if (!property_size) {
+        property_size = LOG_BUFFER_SIZE;
+    }
+
+    /* Engineering margin is ten-fold our guess */
+    return 10 * (property_size + worst_write_perf) / worst_write_perf;
+}
+
+/* End copy from system/core/logd/LogBuffer.cpp */
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
+    unsigned long timeout;
     time_t now = time(NULL);
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
     char radio[PROPERTY_VALUE_MAX], bootloader[PROPERTY_VALUE_MAX];
@@ -229,9 +331,22 @@ static void dumpstate() {
     }
 
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
-    run_command("SYSTEM LOG", 20, "logcat", "-v", "threadtime", "-d", "*:v", NULL);
-    run_command("EVENT LOG", 20, "logcat", "-b", "events", "-v", "threadtime", "-d", "*:v", NULL);
-    run_command("RADIO LOG", 20, "logcat", "-b", "radio", "-v", "threadtime", "-d", "*:v", NULL);
+    // calculate timeout
+    timeout = logcat_timeout("main") + logcat_timeout("system") + logcat_timeout("crash");
+    if (timeout < 20000) {
+        timeout = 20000;
+    }
+    run_command("SYSTEM LOG", timeout / 1000, "logcat", "-v", "threadtime", "-d", "*:v", NULL);
+    timeout = logcat_timeout("events");
+    if (timeout < 20000) {
+        timeout = 20000;
+    }
+    run_command("EVENT LOG", timeout / 1000, "logcat", "-b", "events", "-v", "threadtime", "-d", "*:v", NULL);
+    timeout = logcat_timeout("radio");
+    if (timeout < 20000) {
+        timeout = 20000;
+    }
+    run_command("RADIO LOG", timeout / 1000, "logcat", "-b", "radio", "-v", "threadtime", "-d", "*:v", NULL);
 
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {
