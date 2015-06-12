@@ -859,6 +859,13 @@ bool InputDispatcher::dispatchMotionLocked(
 
     setInjectionResultLocked(entry, injectionResult);
     if (injectionResult != INPUT_EVENT_INJECTION_SUCCEEDED) {
+        if (injectionResult != INPUT_EVENT_INJECTION_PERMISSION_DENIED) {
+            CancelationOptions::Mode mode(isPointerEvent ?
+                    CancelationOptions::CANCEL_POINTER_EVENTS :
+                    CancelationOptions::CANCEL_NON_POINTER_EVENTS);
+            CancelationOptions options(mode, "input event injection failed");
+            synthesizeCancelationEventsForMonitorsLocked(options);
+        }
         return true;
     }
 
@@ -886,7 +893,7 @@ void InputDispatcher::logOutboundMotionDetailsLocked(const char* prefix, const M
             "edgeFlags=0x%x, xPrecision=%f, yPrecision=%f, downTime=%lld",
             prefix,
             entry->eventTime, entry->deviceId, entry->source, entry->policyFlags,
-            entry->action, entry->actionButton entry->flags,
+            entry->action, entry->actionButton, entry->flags,
             entry->metaState, entry->buttonState,
             entry->edgeFlags, entry->xPrecision, entry->yPrecision,
             entry->downTime);
@@ -2164,6 +2171,13 @@ void InputDispatcher::synthesizeCancelationEventsForAllConnectionsLocked(
     for (size_t i = 0; i < mConnectionsByFd.size(); i++) {
         synthesizeCancelationEventsForConnectionLocked(
                 mConnectionsByFd.valueAt(i), options);
+    }
+}
+
+void InputDispatcher::synthesizeCancelationEventsForMonitorsLocked(
+        const CancelationOptions& options) {
+    for (size_t i = 0; i < mMonitoringChannels.size(); i++) {
+        synthesizeCancelationEventsForInputChannelLocked(mMonitoringChannels[i], options);
     }
 }
 
