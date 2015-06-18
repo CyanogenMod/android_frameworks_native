@@ -89,7 +89,7 @@ void SensorDevice::dump(String8& result)
         result.appendFormat("handle=0x%08x, active-count=%zu, batch_period(ms)={ ", list[i].handle,
                             info.batchParams.size());
         for (size_t j = 0; j < info.batchParams.size(); j++) {
-            BatchParams params = info.batchParams.valueAt(j);
+            const BatchParams& params = info.batchParams.valueAt(j);
             result.appendFormat("%4.1f%s", params.batchDelay / 1e6f,
                                 j < info.batchParams.size() - 1 ? ", " : "");
         }

@@ -54,6 +54,7 @@
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
 #define CIRCULAR_BUF_SIZE 10
+#define SENSOR_REGISTRATIONS_BUF_SIZE 20
 
 struct sensors_poll_device_t;
 struct sensors_module_t;
@@ -272,18 +273,8 @@ class SensorService :
         // for debugging.
         int32_t mHour, mMin, mSec;
 
-        TrimmedSensorEvent(int numData, int sensorType) {
-            mTimestamp = -1;
-            if (sensorType == SENSOR_TYPE_STEP_COUNTER) {
-                mStepCounter = 0;
-            } else {
-                mData = new float[numData];
-                for (int i = 0; i < numData; ++i) {
-                    mData[i] = -1.0;
-                }
-            }
-            mHour = mMin = mSec = 0;
-        }
+        TrimmedSensorEvent(int sensorType);
+        static bool isSentinel(const TrimmedSensorEvent& event);
 
         ~TrimmedSensorEvent() {
             delete [] mData;
@@ -297,6 +288,7 @@ class SensorService :
     class CircularBuffer {
         int mNextInd;
         int mSensorType;
+        int mBufSize;
         TrimmedSensorEvent ** mTrimmedSensorEventArr;
     public:
         CircularBuffer(int sensor_event_type);
@@ -304,6 +296,25 @@ class SensorService :
         void printBuffer(String8& buffer) const;
         bool populateLastEvent(sensors_event_t *event);
         ~CircularBuffer();
+    };
+
+    struct SensorRegistrationInfo {
+        int32_t mSensorHandle;
+        String8 mPackageName;
+        bool mActivated;
+        int32_t mSamplingRateUs;
+        int32_t mMaxReportLatencyUs;
+        int32_t mHour, mMin, mSec;
+
+        SensorRegistrationInfo() : mPackageName() {
+            mSensorHandle = mSamplingRateUs = mMaxReportLatencyUs = INT32_MIN;
+            mHour = mMin = mSec = INT32_MIN;
+            mActivated = false;
+        }
+
+        static bool isSentinel(const SensorRegistrationInfo& info) {
+           return (info.mHour == INT32_MIN && info.mMin == INT32_MIN && info.mSec == INT32_MIN);
+        }
     };
 
     static int getNumEventsForSensorType(int sensor_event_type);
@@ -387,6 +398,8 @@ class SensorService :
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, CircularBuffer *> mLastEventSeen;
 
+    int mNextSensorRegIndex;
+    Vector<SensorRegistrationInfo> mLastNSensorRegistrations;
 public:
     void cleanupConnection(SensorEventConnection* connection);
     status_t enable(const sp<SensorEventConnection>& connection, int handle,
