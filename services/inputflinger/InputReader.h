@@ -1364,6 +1364,9 @@ protected:
     // True if we sent a HOVER_ENTER event.
     bool mSentHoverEnter;
 
+    // Is the current stream of direct touch events aborted
+    bool mCurrentMotionAborted;
+
     // The time the primary pointer last went down.
     nsecs_t mDownTime;
 
@@ -1688,6 +1691,7 @@ private:
 
     void dispatchPointerUsage(nsecs_t when, uint32_t policyFlags, PointerUsage pointerUsage);
     void abortPointerUsage(nsecs_t when, uint32_t policyFlags);
+    void abortTouches(nsecs_t when, uint32_t policyFlags);
 
     void dispatchPointerGestures(nsecs_t when, uint32_t policyFlags, bool isTimeout);
     void abortPointerGestures(nsecs_t when, uint32_t policyFlags);
