@@ -195,9 +195,14 @@ void SensorService::onFirstRef()
             mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
             mCurrentOperatingMode = NORMAL;
 
+            mNextSensorRegIndex = 0;
+            for (int i = 0; i < SENSOR_REGISTRATIONS_BUF_SIZE; ++i) {
+                mLastNSensorRegistrations.push();
+            }
+
+            mInitCheck = NO_ERROR;
             mAckReceiver = new SensorEventAckReceiver(this);
             mAckReceiver->run("SensorEventAckReceiver", PRIORITY_URGENT_DISPLAY);
-            mInitCheck = NO_ERROR;
             run("SensorService", PRIORITY_URGENT_DISPLAY);
         }
     }
@@ -322,11 +327,14 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                     result.appendFormat("non-wakeUp | ");
                 }
 
-                const CircularBuffer* buf = mLastEventSeen.valueFor(s.getHandle());
-                if (buf != NULL && s.getRequiredPermission().isEmpty()) {
-                    buf->printBuffer(result);
-                } else {
-                    result.append("last=<> \n");
+                int bufIndex = mLastEventSeen.indexOfKey(s.getHandle());
+                if (bufIndex >= 0) {
+                    const CircularBuffer* buf = mLastEventSeen.valueAt(bufIndex);
+                    if (buf != NULL && s.getRequiredPermission().isEmpty()) {
+                        buf->printBuffer(result);
+                    } else {
+                        result.append("last=<> \n");
+                    }
                 }
                 result.append("\n");
             }
@@ -344,7 +352,8 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
 
             result.appendFormat("Socket Buffer size = %d events\n",
                                 mSocketBufferSize/sizeof(sensors_event_t));
-            result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" : "not held");
+            result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" :
+                    "not held");
             result.appendFormat("Mode :");
             switch(mCurrentOperatingMode) {
                case NORMAL:
@@ -365,6 +374,34 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                     connection->dump(result);
                 }
             }
+
+            result.appendFormat("Previous Registrations:\n");
+            // Log in the reverse chronological order.
+            int currentIndex = (mNextSensorRegIndex - 1 + SENSOR_REGISTRATIONS_BUF_SIZE) %
+                SENSOR_REGISTRATIONS_BUF_SIZE;
+            const int startIndex = currentIndex;
+            do {
+                const SensorRegistrationInfo& reg_info = mLastNSensorRegistrations[currentIndex];
+                if (SensorRegistrationInfo::isSentinel(reg_info)) {
+                    // Ignore sentinel, proceed to next item.
+                    currentIndex = (currentIndex - 1 + SENSOR_REGISTRATIONS_BUF_SIZE) %
+                        SENSOR_REGISTRATIONS_BUF_SIZE;
+                    continue;
+                }
+                if (reg_info.mActivated) {
+                   result.appendFormat("%02d:%02d:%02d activated package=%s handle=0x%08x "
+                           "samplingRate=%dus maxReportLatency=%dus\n",
+                           reg_info.mHour, reg_info.mMin, reg_info.mSec,
+                           reg_info.mPackageName.string(), reg_info.mSensorHandle,
+                           reg_info.mSamplingRateUs, reg_info.mMaxReportLatencyUs);
+                } else {
+                   result.appendFormat("%02d:%02d:%02d de-activated package=%s handle=0x%08x\n",
+                           reg_info.mHour, reg_info.mMin, reg_info.mSec,
+                           reg_info.mPackageName.string(), reg_info.mSensorHandle);
+                }
+                currentIndex = (currentIndex - 1 + SENSOR_REGISTRATIONS_BUF_SIZE) %
+                        SENSOR_REGISTRATIONS_BUF_SIZE;
+            } while(startIndex != currentIndex);
         }
     }
     write(fd, result.string(), result.size());
@@ -888,6 +925,19 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
 
     if (err == NO_ERROR) {
         connection->updateLooperRegistration(mLooper);
+        SensorRegistrationInfo &reg_info =
+            mLastNSensorRegistrations.editItemAt(mNextSensorRegIndex);
+        reg_info.mSensorHandle = handle;
+        reg_info.mSamplingRateUs = samplingPeriodNs/1000;
+        reg_info.mMaxReportLatencyUs = maxBatchReportLatencyNs/1000;
+        reg_info.mActivated = true;
+        reg_info.mPackageName = connection->getPackageName();
+        time_t rawtime = time(NULL);
+        struct tm * timeinfo = localtime(&rawtime);
+        reg_info.mHour = timeinfo->tm_hour;
+        reg_info.mMin = timeinfo->tm_min;
+        reg_info.mSec = timeinfo->tm_sec;
+        mNextSensorRegIndex = (mNextSensorRegIndex + 1) % SENSOR_REGISTRATIONS_BUF_SIZE;
     }
 
     if (err != NO_ERROR) {
@@ -908,6 +958,20 @@ status_t SensorService::disable(const sp<SensorEventConnection>& connection,
     if (err == NO_ERROR) {
         SensorInterface* sensor = mSensorMap.valueFor(handle);
         err = sensor ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
+
+    }
+    if (err == NO_ERROR) {
+        SensorRegistrationInfo &reg_info =
+            mLastNSensorRegistrations.editItemAt(mNextSensorRegIndex);
+        reg_info.mActivated = false;
+        reg_info.mPackageName= connection->getPackageName();
+        reg_info.mSensorHandle = handle;
+        time_t rawtime = time(NULL);
+        struct tm * timeinfo = localtime(&rawtime);
+        reg_info.mHour = timeinfo->tm_hour;
+        reg_info.mMin = timeinfo->tm_min;
+        reg_info.mSec = timeinfo->tm_sec;
+        mNextSensorRegIndex = (mNextSensorRegIndex + 1) % SENSOR_REGISTRATIONS_BUF_SIZE;
     }
     return err;
 }
@@ -1180,14 +1244,38 @@ void SensorService::SensorRecord::clearAllPendingFlushConnections() {
     mPendingFlushConnections.clear();
 }
 
+
+// ---------------------------------------------------------------------------
+SensorService::TrimmedSensorEvent::TrimmedSensorEvent(int sensorType) {
+    mTimestamp = -1;
+    const int numData = SensorService::getNumEventsForSensorType(sensorType);
+    if (sensorType == SENSOR_TYPE_STEP_COUNTER) {
+        mStepCounter = 0;
+    } else {
+        mData = new float[numData];
+        for (int i = 0; i < numData; ++i) {
+            mData[i] = -1.0;
+        }
+    }
+    mHour = mMin = mSec = INT32_MIN;
+}
+
+bool SensorService::TrimmedSensorEvent::isSentinel(const TrimmedSensorEvent& event) {
+    return (event.mHour == INT32_MIN && event.mMin == INT32_MIN && event.mSec == INT32_MIN);
+}
 // --------------------------------------------------------------------------
 SensorService::CircularBuffer::CircularBuffer(int sensor_event_type) {
     mNextInd = 0;
-    mTrimmedSensorEventArr = new TrimmedSensorEvent *[CIRCULAR_BUF_SIZE];
+    mBufSize = CIRCULAR_BUF_SIZE;
+    if (sensor_event_type == SENSOR_TYPE_STEP_COUNTER ||
+            sensor_event_type == SENSOR_TYPE_SIGNIFICANT_MOTION ||
+            sensor_event_type == SENSOR_TYPE_ACCELEROMETER) {
+        mBufSize = CIRCULAR_BUF_SIZE * 5;
+    }
+    mTrimmedSensorEventArr = new TrimmedSensorEvent *[mBufSize];
     mSensorType = sensor_event_type;
-    const int numData = SensorService::getNumEventsForSensorType(mSensorType);
-    for (int i = 0; i < CIRCULAR_BUF_SIZE; ++i) {
-        mTrimmedSensorEventArr[i] = new TrimmedSensorEvent(numData, mSensorType);
+    for (int i = 0; i < mBufSize; ++i) {
+        mTrimmedSensorEventArr[i] = new TrimmedSensorEvent(mSensorType);
     }
 }
 
@@ -1205,17 +1293,17 @@ void SensorService::CircularBuffer::addEvent(const sensors_event_t& sensor_event
     curr_event->mHour = timeinfo->tm_hour;
     curr_event->mMin = timeinfo->tm_min;
     curr_event->mSec = timeinfo->tm_sec;
-    mNextInd = (mNextInd + 1) % CIRCULAR_BUF_SIZE;
+    mNextInd = (mNextInd + 1) % mBufSize;
 }
 
 void SensorService::CircularBuffer::printBuffer(String8& result) const {
     const int numData = SensorService::getNumEventsForSensorType(mSensorType);
     int i = mNextInd, eventNum = 1;
-    result.appendFormat("last %d events = < ", CIRCULAR_BUF_SIZE);
+    result.appendFormat("last %d events = < ", mBufSize);
     do {
-        if (mTrimmedSensorEventArr[i]->mTimestamp == -1) {
+        if (TrimmedSensorEvent::isSentinel(*mTrimmedSensorEventArr[i])) {
             // Sentinel, ignore.
-            i = (i + 1) % CIRCULAR_BUF_SIZE;
+            i = (i + 1) % mBufSize;
             continue;
         }
         result.appendFormat("%d) ", eventNum++);
@@ -1229,15 +1317,15 @@ void SensorService::CircularBuffer::printBuffer(String8& result) const {
         result.appendFormat("%lld %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
                 mTrimmedSensorEventArr[i]->mHour, mTrimmedSensorEventArr[i]->mMin,
                 mTrimmedSensorEventArr[i]->mSec);
-        i = (i + 1) % CIRCULAR_BUF_SIZE;
+        i = (i + 1) % mBufSize;
     } while (i != mNextInd);
     result.appendFormat(">\n");
 }
 
 bool SensorService::CircularBuffer::populateLastEvent(sensors_event_t *event) {
-    int lastEventInd = (mNextInd - 1 + CIRCULAR_BUF_SIZE) % CIRCULAR_BUF_SIZE;
+    int lastEventInd = (mNextInd - 1 + mBufSize) % mBufSize;
     // Check if the buffer is empty.
-    if (mTrimmedSensorEventArr[lastEventInd]->mTimestamp == -1) {
+    if (TrimmedSensorEvent::isSentinel(*mTrimmedSensorEventArr[lastEventInd])) {
         return false;
     }
     event->version = sizeof(sensors_event_t);
@@ -1253,7 +1341,7 @@ bool SensorService::CircularBuffer::populateLastEvent(sensors_event_t *event) {
 }
 
 SensorService::CircularBuffer::~CircularBuffer() {
-    for (int i = 0; i < CIRCULAR_BUF_SIZE; ++i) {
+    for (int i = 0; i < mBufSize; ++i) {
         delete mTrimmedSensorEventArr[i];
     }
     delete [] mTrimmedSensorEventArr;
@@ -1299,8 +1387,9 @@ void SensorService::SensorEventConnection::resetWakeLockRefCount() {
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
     result.appendFormat("Operating Mode: %s\n", mDataInjectionMode ? "DATA_INJECTION" : "NORMAL");
-    result.appendFormat("\t%s | WakeLockRefCount %d | uid %d | cache size %d | max cache size %d\n",
-            mPackageName.string(), mWakeLockRefCount, mUid, mCacheSize, mMaxCacheSize);
+    result.appendFormat("\t %s | WakeLockRefCount %d | uid %d | cache size %d | "
+            "max cache size %d\n", mPackageName.string(), mWakeLockRefCount, mUid, mCacheSize,
+            mMaxCacheSize);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const FlushInfo& flushInfo = mSensorInfo.valueAt(i);
         result.appendFormat("\t %s 0x%08x | status: %s | pending flush events %d \n",
