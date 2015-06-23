@@ -47,6 +47,10 @@
 #include "../Layer.h"           // needed only for debugging
 #include "../SurfaceFlinger.h"
 
+#ifdef QTI_BSP
+#include <hardware/display_defs.h>
+#endif
+
 namespace android {
 
 #define MIN_HWC_HEADER_VERSION HWC_HEADER_VERSION
@@ -711,13 +715,13 @@ status_t HWComposer::prepare() {
             disp.hasFbComp = false;
             disp.hasOvComp = false;
             if (disp.list) {
-                for (size_t i=0 ; i<disp.list->numHwLayers ; i++) {
-                    hwc_layer_1_t& l = disp.list->hwLayers[i];
+                for (size_t j = 0; j < disp.list->numHwLayers; j++) {
+                    hwc_layer_1_t& l = disp.list->hwLayers[j];
 
                     //ALOGD("prepare: %d, type=%d, handle=%p",
                     //        i, l.compositionType, l.handle);
 
-                    if (l.flags & HWC_SKIP_LAYER) {
+                    if (i == DisplayDevice::DISPLAY_PRIMARY && l.flags & HWC_SKIP_LAYER) {
                         l.compositionType = HWC_FRAMEBUFFER;
                     }
                     if (l.compositionType == HWC_FRAMEBUFFER) {
@@ -1116,6 +1120,18 @@ public:
     }
     virtual void onDisplayed() {
         getLayer()->acquireFenceFd = -1;
+    }
+
+    virtual void setAnimating(bool animating) {
+        if (animating) {
+#ifdef QTI_BSP
+            getLayer()->flags |= HWC_SCREENSHOT_ANIMATOR_LAYER;
+#endif
+        } else {
+#ifdef QTI_BSP
+            getLayer()->flags &= ~HWC_SCREENSHOT_ANIMATOR_LAYER;
+#endif
+        }
     }
 
 protected:
