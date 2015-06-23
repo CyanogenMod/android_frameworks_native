@@ -76,7 +76,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mFiltering(false),
         mNeedsFiltering(false),
         mMesh(Mesh::TRIANGLE_FAN, 4, 2, 2),
-        mSecure(false),
         mProtectedByApp(false),
         mHasSurface(false),
         mClientRef(client),
@@ -96,6 +95,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         layerFlags |= layer_state_t::eLayerHidden;
     if (flags & ISurfaceComposerClient::eOpaque)
         layerFlags |= layer_state_t::eLayerOpaque;
+    if (flags & ISurfaceComposerClient::eSecure)
+        layerFlags |= layer_state_t::eLayerSecure;
 
     if (flags & ISurfaceComposerClient::eNonPremultiplied)
         mPremultipliedAlpha = false;
@@ -256,7 +257,6 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     mFormat = format;
 
     mPotentialCursor = (flags & ISurfaceComposerClient::eCursorWindow) ? true : false;
-    mSecure = (flags & ISurfaceComposerClient::eSecure) ? true : false;
     mProtectedByApp = (flags & ISurfaceComposerClient::eProtectedByApp) ? true : false;
     mCurrentOpacity = getOpacityForFormat(format);
 
@@ -856,6 +856,12 @@ bool Layer::isOpaque(const Layer::State& s) const
     // if the layer has the opaque flag, then we're always opaque,
     // otherwise we use the current buffer's format.
     return ((s.flags & layer_state_t::eLayerOpaque) != 0) || mCurrentOpacity;
+}
+
+bool Layer::isSecure() const
+{
+    const Layer::State& s(mDrawingState);
+    return (s.flags & layer_state_t::eLayerSecure);
 }
 
 bool Layer::isProtected() const
