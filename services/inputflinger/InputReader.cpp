@@ -3104,8 +3104,11 @@ void TouchInputMapper::configureSurface(nsecs_t when, bool* outResetNeeded) {
             && mParameters.hasAssociatedDisplay) {
         mSource = AINPUT_SOURCE_TOUCHSCREEN;
         mDeviceMode = DEVICE_MODE_DIRECT;
-        if (hasStylus() || hasExternalStylus()) {
+        if (hasStylus()) {
             mSource |= AINPUT_SOURCE_STYLUS;
+        }
+        if (hasExternalStylus()) {
+            mSource |= AINPUT_SOURCE_BLUETOOTH_STYLUS;
         }
     } else if (mParameters.deviceType == Parameters::DEVICE_TYPE_TOUCH_NAVIGATION) {
         mSource = AINPUT_SOURCE_TOUCH_NAVIGATION;
