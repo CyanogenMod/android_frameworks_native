@@ -2235,9 +2235,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
             if (layer->setTransparentRegionHint(s.transparentRegion))
                 flags |= eTraversalNeeded;
         }
-        if ((what & layer_state_t::eVisibilityChanged) ||
-                (what & layer_state_t::eOpacityChanged)) {
-            // TODO: should we just use an eFlagsChanged for this?
+        if (what & layer_state_t::eFlagsChanged) {
             if (layer->setFlags(s.flags, s.mask))
                 flags |= eTraversalNeeded;
         }

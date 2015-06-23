@@ -174,7 +174,7 @@ public:
      * isSecure - true if this surface is secure, that is if it prevents
      * screenshots or VNC servers.
      */
-    virtual bool isSecure() const           { return mSecure; }
+    virtual bool isSecure() const;
 
     /*
      * isProtected - true if the layer may contain protected content in the
@@ -402,7 +402,6 @@ private:
     mutable Texture mTexture;
 
     // page-flip thread (currently main thread)
-    bool mSecure; // no screenshots
     bool mProtectedByApp; // application requires protected path to external sink
 
     // protected by mLock
