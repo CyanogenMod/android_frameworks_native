@@ -320,7 +320,7 @@ Rect Layer::getContentCrop() const {
     return crop;
 }
 
-static Rect reduce(const Rect& win, const Region& exclude) {
+Rect Layer::reduce(const Rect& win, const Region& exclude) const{
     if (CC_LIKELY(exclude.isEmpty())) {
         return win;
     }
@@ -494,6 +494,7 @@ void Layer::setGeometry(
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
+    setPosition(hw, layer, s);
     layer.setCrop(computeCrop(hw));
     layer.setPlaneAlpha(s.alpha);
 

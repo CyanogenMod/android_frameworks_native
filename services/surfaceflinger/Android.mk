@@ -34,8 +34,8 @@ LOCAL_SRC_FILES := \
     RenderEngine/Texture.cpp \
     RenderEngine/GLES10RenderEngine.cpp \
     RenderEngine/GLES11RenderEngine.cpp \
-    RenderEngine/GLES20RenderEngine.cpp
-
+    RenderEngine/GLES20RenderEngine.cpp \
+    DisplayUtils.cpp
 
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
@@ -105,6 +105,17 @@ LOCAL_SHARED_LIBRARIES := \
     libui \
     libgui \
     libpowermanager
+
+LOCAL_WHOLE_STATIC_LIBRARIES += libexsurfaceflinger
+
+LOCAL_C_INCLUDES += $(ANDROID_BUILD_TOP)/vendor/qcom/opensource/display-frameworks/native/services/surfaceflinger/
+
+ifeq ($(TARGET_USES_QCOM_BSP), true)
+    LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
+    LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
+    LOCAL_SHARED_LIBRARIES += libqdutils
+    LOCAL_CFLAGS += -DQTI_BSP
+endif
 
 LOCAL_MODULE := libsurfaceflinger
 

@@ -74,7 +74,7 @@ public:
             const sp<SurfaceFlinger>& flinger,
             EventHandler& handler);
 
-    ~HWComposer();
+    virtual ~HWComposer();
 
     status_t initCheck() const;
 
@@ -303,6 +303,11 @@ public:
 
     // for debugging ----------------------------------------------------------
     void dump(String8& out) const;
+
+    /* ------------------------------------------------------------------------
+     * Extensions
+     */
+    virtual inline bool isVDSEnabled() const { return true; };
 
 private:
     void loadHwcModule();
