@@ -383,6 +383,8 @@ public:
 
     inline int32_t getActionButton() const { return mActionButton; }
 
+    inline void setActionButton(int32_t button) { mActionButton = button; }
+
     inline float getXOffset() const { return mXOffset; }
 
     inline float getYOffset() const { return mYOffset; }
