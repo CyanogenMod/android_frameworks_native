@@ -344,7 +344,7 @@ int delete_cache(const char *uuid, const char *pkgname, userid_t userid)
 int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid)
 {
     std::string _codecachedir(
-            create_data_user_package_path(uuid, userid, pkgname) + CACHE_DIR_POSTFIX);
+            create_data_user_package_path(uuid, userid, pkgname) + CODE_CACHE_DIR_POSTFIX);
     const char* codecachedir = _codecachedir.c_str();
 
     struct stat s;
