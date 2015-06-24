@@ -276,6 +276,8 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                 dev.enableAllSensors();
             }
             return status_t(NO_ERROR);
+        } else if (mSensorList.size() == 0) {
+            result.append("No Sensors on the device\n");
         } else {
             // Default dump the sensor list and debugging information.
             result.append("Sensor List:\n");
