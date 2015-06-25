@@ -85,6 +85,7 @@ typedef enum OMX_INDEXEXTTYPE {
     OMX_IndexConfigAutoFramerateConversion,         /**< reference: OMX_CONFIG_BOOLEANTYPE */
     OMX_IndexConfigPriority,                        /**< reference: OMX_PARAM_U32TYPE */
     OMX_IndexConfigOperatingRate,                   /**< reference: OMX_PARAM_U32TYPE in Q16 format for video and in Hz for audio */
+    OMX_IndexParamConsumerUsageBits,                /**< reference: OMX_PARAM_U32TYPE */
 
     /* Time configurations */
     OMX_IndexExtTimeStartUnused = OMX_IndexKhronosExtensions + 0x00900000,

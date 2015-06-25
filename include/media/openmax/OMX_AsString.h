@@ -524,6 +524,7 @@ inline static const char *asString(OMX_INDEXEXTTYPE i, const char *def = "??") {
         case OMX_IndexConfigAutoFramerateConversion:    return "ConfigAutoFramerateConversion";
         case OMX_IndexConfigPriority:                   return "ConfigPriority";
         case OMX_IndexConfigOperatingRate:              return "ConfigOperatingRate";
+        case OMX_IndexParamConsumerUsageBits:           return "ParamConsumerUsageBits";
         default:                                        return asString((OMX_INDEXTYPE)i, def);
     }
 }
