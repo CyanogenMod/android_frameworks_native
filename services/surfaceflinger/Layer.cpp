@@ -551,14 +551,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
     const Transform& tr = hw->getTransform();
     Region visible = tr.transform(visibleRegion.intersect(hw->getViewport()));
     layer.setVisibleRegionScreen(visible);
-
-    // Pass full-surface damage down untouched
-    if (surfaceDamageRegion.isRect() &&
-            surfaceDamageRegion.getBounds() == Rect::INVALID_RECT) {
-        layer.setSurfaceDamage(surfaceDamageRegion);
-    } else {
-        layer.setSurfaceDamage(tr.transform(surfaceDamageRegion));
-    }
+    layer.setSurfaceDamage(surfaceDamageRegion);
 
     if (mSidebandStream.get()) {
         layer.setSidebandStream(mSidebandStream);
