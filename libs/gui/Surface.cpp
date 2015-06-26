@@ -344,20 +344,61 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     if (mConnectedToCpu || mDirtyRegion.bounds() == Rect::INVALID_RECT) {
         input.setSurfaceDamage(Region::INVALID_REGION);
     } else {
-        // The surface damage was specified using the OpenGL ES convention of
-        // the origin being in the bottom-left corner. Here we flip to the
-        // convention that the rest of the system uses (top-left corner) by
-        // subtracting all top/bottom coordinates from the buffer height.
+        // Here we do two things:
+        // 1) The surface damage was specified using the OpenGL ES convention of
+        //    the origin being in the bottom-left corner. Here we flip to the
+        //    convention that the rest of the system uses (top-left corner) by
+        //    subtracting all top/bottom coordinates from the buffer height.
+        // 2) If the buffer is coming in rotated (for example, because the EGL
+        //    implementation is reacting to the transform hint coming back from
+        //    SurfaceFlinger), the surface damage needs to be rotated the
+        //    opposite direction, since it was generated assuming an unrotated
+        //    buffer (the app doesn't know that the EGL implementation is
+        //    reacting to the transform hint behind its back). The
+        //    transformations in the switch statement below apply those
+        //    complementary rotations (e.g., if 90 degrees, rotate 270 degrees).
+
+        int width = buffer->width;
         int height = buffer->height;
-        if ((mTransform ^ mStickyTransform) & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-            height = buffer->width;
+        bool rotated90 = (mTransform ^ mStickyTransform) &
+                NATIVE_WINDOW_TRANSFORM_ROT_90;
+        if (rotated90) {
+            std::swap(width, height);
         }
+
         Region flippedRegion;
         for (auto rect : mDirtyRegion) {
-            auto top = height - rect.bottom;
-            auto bottom = height - rect.top;
-            Rect flippedRect{rect.left, top, rect.right, bottom};
-            flippedRegion.orSelf(flippedRect);
+            int left = rect.left;
+            int right = rect.right;
+            int top = height - rect.bottom; // Flip from OpenGL convention
+            int bottom = height - rect.top; // Flip from OpenGL convention
+            switch (mTransform ^ mStickyTransform) {
+                case NATIVE_WINDOW_TRANSFORM_ROT_90: {
+                    // Rotate 270 degrees
+                    Rect flippedRect{top, width - right, bottom, width - left};
+                    flippedRegion.orSelf(flippedRect);
+                    break;
+                }
+                case NATIVE_WINDOW_TRANSFORM_ROT_180: {
+                    // Rotate 180 degrees
+                    Rect flippedRect{width - right, height - bottom,
+                            width - left, height - top};
+                    flippedRegion.orSelf(flippedRect);
+                    break;
+                }
+                case NATIVE_WINDOW_TRANSFORM_ROT_270: {
+                    // Rotate 90 degrees
+                    Rect flippedRect{height - bottom, left,
+                            height - top, right};
+                    flippedRegion.orSelf(flippedRect);
+                    break;
+                }
+                default: {
+                    Rect flippedRect{left, top, right, bottom};
+                    flippedRegion.orSelf(flippedRect);
+                    break;
+                }
+            }
         }
 
         input.setSurfaceDamage(flippedRegion);
