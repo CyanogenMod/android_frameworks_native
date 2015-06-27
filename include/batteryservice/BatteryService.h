@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * Copyright (C) 2015 The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +65,16 @@ struct BatteryProperties {
     int batteryVoltage;
     int batteryTemperature;
     String8 batteryTechnology;
+
+    bool dockBatterySupported;
+    bool chargerDockAcOnline;
+    int dockBatteryStatus;
+    int dockBatteryHealth;
+    bool dockBatteryPresent;
+    int dockBatteryLevel;
+    int dockBatteryVoltage;
+    int dockBatteryTemperature;
+    String8 dockBatteryTechnology;
 
     status_t writeToParcel(Parcel* parcel) const;
     status_t readFromParcel(Parcel* parcel);
