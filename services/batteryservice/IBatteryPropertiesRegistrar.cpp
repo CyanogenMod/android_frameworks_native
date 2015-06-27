@@ -60,6 +60,22 @@ public:
                 val->readFromParcel(&reply);
             return ret;
         }
+
+        status_t getDockProperty(int id, struct BatteryProperty *val) {
+            Parcel data, reply;
+            data.writeInterfaceToken(IBatteryPropertiesRegistrar::getInterfaceDescriptor());
+            data.writeInt32(id);
+            remote()->transact(GET_DOCK_PROPERTY, data, &reply);
+            int32_t ret = reply.readExceptionCode();
+            if (ret != 0) {
+                return ret;
+            }
+            ret = reply.readInt32();
+            int parcelpresent = reply.readInt32();
+            if (parcelpresent)
+                val->readFromParcel(&reply);
+            return ret;
+        }
 };
 
 IMPLEMENT_META_INTERFACE(BatteryPropertiesRegistrar, "android.os.IBatteryPropertiesRegistrar");
@@ -91,6 +107,18 @@ status_t BnBatteryPropertiesRegistrar::onTransact(uint32_t code,
             int id = data.readInt32();
             struct BatteryProperty val;
             status_t result = getProperty(id, &val);
+            reply->writeNoException();
+            reply->writeInt32(result);
+            reply->writeInt32(1);
+            val.writeToParcel(reply);
+            return OK;
+        }
+
+        case GET_DOCK_PROPERTY: {
+            CHECK_INTERFACE(IBatteryPropertiesRegistrar, data, reply);
+            int id = data.readInt32();
+            struct BatteryProperty val;
+            status_t result = getDockProperty(id, &val);
             reply->writeNoException();
             reply->writeInt32(result);
             reply->writeInt32(1);

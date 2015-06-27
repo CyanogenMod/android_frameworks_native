@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * Copyright (C) 2015 The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +44,27 @@ status_t BatteryProperties::readFromParcel(Parcel* p) {
     batteryTemperature = p->readInt32();
     batteryChargeCounter = p->readInt32();
     batteryTechnology = String8((p->readString16()).string());
+
+    dockBatterySupported = p->readInt32() == 1 ? true : false;
+    if (dockBatterySupported) {
+        chargerDockAcOnline = p->readInt32() == 1 ? true : false;
+        dockBatteryStatus = p->readInt32();
+        dockBatteryHealth = p->readInt32();
+        dockBatteryPresent = p->readInt32() == 1 ? true : false;
+        dockBatteryLevel = p->readInt32();
+        dockBatteryVoltage = p->readInt32();
+        dockBatteryTemperature = p->readInt32();
+        dockBatteryTechnology = String8((p->readString16()).string());
+    } else {
+        chargerDockAcOnline = false;
+        dockBatteryStatus = BATTERY_STATUS_UNKNOWN;
+        dockBatteryHealth = BATTERY_HEALTH_UNKNOWN;
+        dockBatteryPresent = false;
+        dockBatteryLevel = 0;
+        dockBatteryVoltage = 0;
+        dockBatteryTemperature = 0;
+        dockBatteryTechnology = String8(String8::kEmptyString);
+    }
     return OK;
 }
 
@@ -60,6 +82,18 @@ status_t BatteryProperties::writeToParcel(Parcel* p) const {
     p->writeInt32(batteryTemperature);
     p->writeInt32(batteryChargeCounter);
     p->writeString16(String16(batteryTechnology));
+
+    p->writeInt32(dockBatterySupported ? 1 : 0);
+    if (dockBatterySupported) {
+        p->writeInt32(chargerDockAcOnline ? 1 : 0);
+        p->writeInt32(dockBatteryStatus);
+        p->writeInt32(dockBatteryHealth);
+        p->writeInt32(dockBatteryPresent ? 1 : 0);
+        p->writeInt32(dockBatteryLevel);
+        p->writeInt32(dockBatteryVoltage);
+        p->writeInt32(dockBatteryTemperature);
+        p->writeString16(String16(dockBatteryTechnology));
+    }
     return OK;
 }
 
