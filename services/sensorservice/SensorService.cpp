@@ -66,7 +66,6 @@ namespace android {
 
 const char* SensorService::WAKE_LOCK_NAME = "SensorService";
 // Permissions.
-static const String16 sDataInjectionPermission("android.permission.LOCATION_HARDWARE");
 static const String16 sDump("android.permission.DUMP");
 
 SensorService::SensorService()
@@ -246,12 +245,12 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                 IPCThreadState::self()->getCallingPid(),
                 IPCThreadState::self()->getCallingUid());
     } else {
-        if (args.size() > 1) {
+        if (args.size() > 2) {
            return INVALID_OPERATION;
         }
         Mutex::Autolock _l(mLock);
         SensorDevice& dev(SensorDevice::getInstance());
-        if (args.size() == 1 && args[0] == String16("restrict")) {
+        if (args.size() == 2 && args[0] == String16("restrict")) {
             // If already in restricted mode. Ignore.
             if (mCurrentOperatingMode == RESTRICTED) {
                 return status_t(NO_ERROR);
@@ -268,6 +267,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
             for (size_t i=0 ; i< mActiveSensors.size(); ++i) {
                 mActiveSensors.valueAt(i)->clearAllPendingFlushConnections();
             }
+            mWhiteListedPackage.setTo(String8(args[1]));
             return status_t(NO_ERROR);
         } else if (args.size() == 1 && args[0] == String16("enable")) {
             // If currently in restricted mode, reset back to NORMAL mode else ignore.
@@ -275,7 +275,30 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                 mCurrentOperatingMode = NORMAL;
                 dev.enableAllSensors();
             }
+            if (mCurrentOperatingMode == DATA_INJECTION) {
+               resetToNormalModeLocked();
+            }
+            mWhiteListedPackage.clear();
             return status_t(NO_ERROR);
+        } else if (args.size() == 2 && args[0] == String16("data_injection")) {
+            if (mCurrentOperatingMode == NORMAL) {
+                dev.disableAllSensors();
+                status_t err = dev.setMode(DATA_INJECTION);
+                if (err == NO_ERROR) {
+                    mCurrentOperatingMode = DATA_INJECTION;
+                } else {
+                    // Re-enable sensors.
+                    dev.enableAllSensors();
+                }
+                mWhiteListedPackage.setTo(String8(args[1]));
+                return NO_ERROR;
+            } else if (mCurrentOperatingMode == DATA_INJECTION) {
+                // Already in DATA_INJECTION mode. Treat this as a no_op.
+                return NO_ERROR;
+            } else {
+                // Transition to data injection mode supported only from NORMAL mode.
+                return INVALID_OPERATION;
+            }
         } else if (mSensorList.size() == 0) {
             result.append("No Sensors on the device\n");
         } else {
@@ -362,10 +385,10 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                    result.appendFormat(" NORMAL\n");
                    break;
                case RESTRICTED:
-                   result.appendFormat(" RESTRICTED\n");
+                   result.appendFormat(" RESTRICTED : %s\n", mWhiteListedPackage.string());
                    break;
                case DATA_INJECTION:
-                   result.appendFormat(" DATA_INJECTION\n");
+                   result.appendFormat(" DATA_INJECTION : %s\n", mWhiteListedPackage.string());
             }
             result.appendFormat("%zd active connections\n", mActiveConnections.size());
 
@@ -712,12 +735,15 @@ sp<ISensorEventConnection> SensorService::createSensorEventConnection(const Stri
     if (requestedMode != NORMAL && requestedMode != DATA_INJECTION) {
         return NULL;
     }
-    // DATA_INJECTION mode needs to have the required permissions set.
-    if (requestedMode == DATA_INJECTION && !hasDataInjectionPermissions()) {
-        return NULL;
-    }
 
     Mutex::Autolock _l(mLock);
+    // To create a client in DATA_INJECTION mode to inject data, SensorService should already be
+    // operating in DI mode.
+    if (requestedMode == DATA_INJECTION) {
+        if (mCurrentOperatingMode != DATA_INJECTION) return NULL;
+        if (!isWhiteListedPackage(packageName)) return NULL;
+    }
+
     uid_t uid = IPCThreadState::self()->getCallingUid();
     sp<SensorEventConnection> result(new SensorEventConnection(this, uid, packageName,
             requestedMode == DATA_INJECTION, opPackageName));
@@ -732,35 +758,9 @@ sp<ISensorEventConnection> SensorService::createSensorEventConnection(const Stri
     return result;
 }
 
-status_t SensorService::enableDataInjection(int requestedMode) {
-    if (!hasDataInjectionPermissions()) {
-        return INVALID_OPERATION;
-    }
+int SensorService::isDataInjectionEnabled() {
     Mutex::Autolock _l(mLock);
-    ALOGD_IF(DEBUG_CONNECTIONS, "SensorService::enableDataInjection %d", requestedMode);
-    SensorDevice& dev(SensorDevice::getInstance());
-    status_t err(NO_ERROR);
-    if (requestedMode == DATA_INJECTION) {
-        if (mCurrentOperatingMode == NORMAL) {
-           dev.disableAllSensors();
-           err = dev.setMode(requestedMode);
-           if (err == NO_ERROR) {
-               mCurrentOperatingMode = DATA_INJECTION;
-           } else {
-               // Re-enable sensors.
-               dev.enableAllSensors();
-           }
-       } else if (mCurrentOperatingMode == DATA_INJECTION) {
-           // Already in DATA_INJECTION mode. Treat this as a no_op.
-           return NO_ERROR;
-       } else {
-           // Transition to data injection mode supported only from NORMAL mode.
-           return INVALID_OPERATION;
-       }
-    } else if (requestedMode == NORMAL && mCurrentOperatingMode != NORMAL) {
-       err = resetToNormalModeLocked();
-    }
-    return err;
+    return (mCurrentOperatingMode == DATA_INJECTION);
 }
 
 status_t SensorService::resetToNormalMode() {
@@ -838,7 +838,8 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     }
 
     Mutex::Autolock _l(mLock);
-    if (mCurrentOperatingMode == RESTRICTED && !isWhiteListedPackage(connection->getPackageName())) {
+    if ((mCurrentOperatingMode == RESTRICTED || mCurrentOperatingMode == DATA_INJECTION)
+           && !isWhiteListedPackage(connection->getPackageName())) {
         return INVALID_OPERATION;
     }
 
@@ -1106,15 +1107,6 @@ bool SensorService::canAccessSensor(const Sensor& sensor, const char* operation,
     return true;
 }
 
-bool SensorService::hasDataInjectionPermissions() {
-    if (!PermissionCache::checkCallingPermission(sDataInjectionPermission)) {
-        ALOGE("Permission Denial trying to activate data injection without"
-              " the required permission");
-        return false;
-    }
-    return true;
-}
-
 void SensorService::checkWakeLockState() {
     Mutex::Autolock _l(mLock);
     checkWakeLockStateLocked();
@@ -1159,8 +1151,7 @@ void SensorService::populateActiveConnections(
 }
 
 bool SensorService::isWhiteListedPackage(const String8& packageName) {
-    // TODO: Come up with a list of packages.
-    return (packageName.find(".cts.") != -1);
+    return (packageName.contains(mWhiteListedPackage.string()));
 }
 
 int SensorService::getNumEventsForSensorType(int sensor_event_type) {

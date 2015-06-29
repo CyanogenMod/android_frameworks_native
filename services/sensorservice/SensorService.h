@@ -100,6 +100,18 @@ class SensorService :
       // State Transitions supported.
       //     RESTRICTED   <---  NORMAL   ---> DATA_INJECTION
       //                  --->           <---
+
+      // Shell commands to switch modes in SensorService.
+      // 1) Put SensorService in RESTRICTED mode with packageName .cts. If it is already in
+      // restricted mode it is treated as a NO_OP (and packageName is NOT changed).
+      // $ adb shell dumpsys sensorservice restrict .cts.
+      //
+      // 2) Put SensorService in DATA_INJECTION mode with packageName .xts. If it is already in
+      // data_injection mode it is treated as a NO_OP (and packageName is NOT changed).
+      // $ adb shell dumpsys sensorservice data_injection .xts.
+      //
+      // 3) Reset sensorservice back to NORMAL mode.
+      // $ adb shell dumpsys sensorservice enable
     };
 
     static const char* WAKE_LOCK_NAME;
@@ -117,7 +129,7 @@ class SensorService :
     virtual Vector<Sensor> getSensorList(const String16& opPackageName);
     virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
              int requestedMode, const String16& opPackageName);
-    virtual status_t enableDataInjection(int enable);
+    virtual int isDataInjectionEnabled();
     virtual status_t dump(int fd, const Vector<String16>& args);
 
     class SensorEventConnection : public BnSensorEventConnection, public LooperCallback {
@@ -334,7 +346,6 @@ class SensorService :
             sensors_event_t const* buffer, const int count);
     static bool canAccessSensor(const Sensor& sensor, const char* operation,
             const String16& opPackageName);
-    static bool hasDataInjectionPermissions();
     // SensorService acquires a partial wakelock for delivering events from wake up sensors. This
     // method checks whether all the events from these wake up sensors have been delivered to the
     // corresponding applications, if yes the wakelock is released.
@@ -394,6 +405,11 @@ class SensorService :
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
     SensorEventConnection const **mMapFlushEventsToConnections;
     Mode mCurrentOperatingMode;
+    // This packagaName is set when SensorService is in RESTRICTED or DATA_INJECTION mode. Only
+    // applications with this packageName are allowed to activate/deactivate or call flush on
+    // sensors. To run CTS this is can be set to ".cts." and only CTS tests will get access to
+    // sensors.
+    String8 mWhiteListedPackage;
 
     // The size of this vector is constant, only the items are mutable
     KeyedVector<int32_t, CircularBuffer *> mLastEventSeen;
