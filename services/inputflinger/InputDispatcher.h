@@ -1076,6 +1076,7 @@ private:
 
     void synthesizeCancelationEventsForAllConnectionsLocked(
             const CancelationOptions& options);
+    void synthesizeCancelationEventsForMonitorsLocked(const CancelationOptions& options);
     void synthesizeCancelationEventsForInputChannelLocked(const sp<InputChannel>& channel,
             const CancelationOptions& options);
     void synthesizeCancelationEventsForConnectionLocked(const sp<Connection>& connection,
