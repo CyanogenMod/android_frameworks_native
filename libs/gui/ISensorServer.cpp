@@ -77,10 +77,9 @@ public:
         return interface_cast<ISensorEventConnection>(reply.readStrongBinder());
     }
 
-    virtual status_t enableDataInjection(int enable) {
+    virtual int isDataInjectionEnabled() {
         Parcel data, reply;
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
-        data.writeInt32(enable);
         remote()->transact(ENABLE_DATA_INJECTION, data, &reply);
         return reply.readInt32();
     }
@@ -121,8 +120,7 @@ status_t BnSensorServer::onTransact(
         }
         case ENABLE_DATA_INJECTION: {
             CHECK_INTERFACE(ISensorServer, data, reply);
-            int32_t enable = data.readInt32();
-            status_t ret = enableDataInjection(enable);
+            int32_t ret = isDataInjectionEnabled();
             reply->writeInt32(static_cast<int32_t>(ret));
             return NO_ERROR;
         }
