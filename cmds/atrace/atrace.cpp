@@ -92,6 +92,7 @@ static const TracingCategory k_categories[] = {
     { "bionic",     "Bionic C Library", ATRACE_TAG_BIONIC, { } },
     { "power",      "Power Management", ATRACE_TAG_POWER, { } },
     { "pm",         "Package Manager",  ATRACE_TAG_PACKAGE_MANAGER, { } },
+    { "ss",         "System Server",    ATRACE_TAG_SYSTEM_SERVER, { } },
     { "sched",      "CPU Scheduling",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
