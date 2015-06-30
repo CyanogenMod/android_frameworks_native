@@ -174,7 +174,10 @@ public:
     virtual uint64_t getNextFrameNumber() const override;
 
     // See IGraphicBufferProducer::setSingleBufferMode
-    virtual status_t setSingleBufferMode(bool singleBufferMode);
+    virtual status_t setSingleBufferMode(bool singleBufferMode) override;
+
+    // See IGraphicBufferProducer::setDequeueTimeout
+    virtual status_t setDequeueTimeout(nsecs_t timeout) override;
 
 private:
     // This is required by the IBinder::DeathRecipient interface
@@ -215,6 +218,10 @@ private:
     int mNextCallbackTicket; // Protected by mCore->mMutex
     int mCurrentCallbackTicket; // Protected by mCallbackMutex
     Condition mCallbackCondition;
+
+    // Sets how long dequeueBuffer or attachBuffer will block if a buffer or
+    // slot is not yet available.
+    nsecs_t mDequeueTimeout;
 
 }; // class BufferQueueProducer
 

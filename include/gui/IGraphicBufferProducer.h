@@ -177,6 +177,8 @@ public:
     // * WOULD_BLOCK - no buffer is currently available, and blocking is disabled
     //                 since both the producer/consumer are controlled by app
     // * NO_MEMORY - out of memory, cannot allocate the graphics buffer.
+    // * TIMED_OUT - the timeout set by setDequeueTimeout was exceeded while
+    //               waiting for a buffer to become available.
     //
     // All other negative values are an unknown error returned downstream
     // from the graphics allocator (typically errno).
@@ -248,6 +250,8 @@ public:
     // * WOULD_BLOCK - no buffer slot is currently available, and blocking is
     //                 disabled since both the producer/consumer are
     //                 controlled by the app.
+    // * TIMED_OUT - the timeout set by setDequeueTimeout was exceeded while
+    //               waiting for a slot to become available.
     virtual status_t attachBuffer(int* outSlot,
             const sp<GraphicBuffer>& buffer) = 0;
 
@@ -518,6 +522,19 @@ public:
     // and returned to all calls to dequeueBuffer and acquireBuffer. This allows
     // the producer and consumer to simultaneously access the same buffer.
     virtual status_t setSingleBufferMode(bool singleBufferMode) = 0;
+
+    // Sets how long dequeueBuffer will wait for a buffer to become available
+    // before returning an error (TIMED_OUT).
+    //
+    // This timeout also affects the attachBuffer call, which will block if
+    // there is not a free slot available into which the attached buffer can be
+    // placed.
+    //
+    // By default, the BufferQueue will wait forever, which is indicated by a
+    // timeout of -1. If set (to a value other than -1), this will disable
+    // non-blocking mode and its corresponding spare buffer (which is used to
+    // ensure a buffer is always available).
+    virtual status_t setDequeueTimeout(nsecs_t timeout) = 0;
 };
 
 // ----------------------------------------------------------------------------

@@ -535,4 +535,66 @@ TEST_F(BufferQueueTest, TestSingleBufferMode) {
     }
 }
 
+TEST_F(BufferQueueTest, TestTimeouts) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    // Fill up the queue. Since the controlledByApp flags are set to true, this
+    // queue should be in non-blocking mode, and we should be recycling the same
+    // two buffers
+    for (int i = 0; i < 5; ++i) {
+        int slot = BufferQueue::INVALID_BUFFER_SLOT;
+        sp<Fence> fence = Fence::NO_FENCE;
+        auto result = mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0);
+        if (i < 2) {
+            ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+                    result);
+        } else {
+            ASSERT_EQ(OK, result);
+        }
+        sp<GraphicBuffer> buffer;
+        ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+        IGraphicBufferProducer::QueueBufferInput input(0ull, true,
+                HAL_DATASPACE_UNKNOWN, Rect::INVALID_RECT,
+                NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+        IGraphicBufferProducer::QueueBufferOutput output{};
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    }
+
+    const auto TIMEOUT = ms2ns(250);
+    mProducer->setDequeueTimeout(TIMEOUT);
+
+    // Setting a timeout will change the BufferQueue into blocking mode (with
+    // one droppable buffer in the queue and one free from the previous
+    // dequeue/queues), so dequeue and queue two more buffers: one to replace
+    // the current droppable buffer, and a second to max out the buffer count
+    sp<GraphicBuffer> buffer; // Save a buffer to attach later
+    for (int i = 0; i < 2; ++i) {
+        int slot = BufferQueue::INVALID_BUFFER_SLOT;
+        sp<Fence> fence = Fence::NO_FENCE;
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+        IGraphicBufferProducer::QueueBufferInput input(0ull, true,
+                HAL_DATASPACE_UNKNOWN, Rect::INVALID_RECT,
+                NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    }
+
+    int slot = BufferQueue::INVALID_BUFFER_SLOT;
+    sp<Fence> fence = Fence::NO_FENCE;
+    auto startTime = systemTime();
+    ASSERT_EQ(TIMED_OUT, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_GE(systemTime() - startTime, TIMEOUT);
+
+    // We're technically attaching the same buffer multiple times (since we
+    // queued it previously), but that doesn't matter for this test
+    startTime = systemTime();
+    ASSERT_EQ(TIMED_OUT, mProducer->attachBuffer(&slot, buffer));
+    ASSERT_GE(systemTime() - startTime, TIMEOUT);
+}
+
 } // namespace android
