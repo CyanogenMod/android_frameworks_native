@@ -735,9 +735,9 @@ status_t Parcel::writeInt32Array(size_t len, const int32_t *val) {
     }
 
     if (!val) {
-        return writeAligned(-1);
+        return writeInt32(-1);
     }
-    status_t ret = writeAligned(len);
+    status_t ret = writeInt32(static_cast<uint32_t>(len));
     if (ret == NO_ERROR) {
         ret = write(val, len * sizeof(*val));
     }
@@ -751,9 +751,9 @@ status_t Parcel::writeByteArray(size_t len, const uint8_t *val) {
     }
 
     if (!val) {
-        return writeAligned(-1);
+        return writeInt32(-1);
     }
-    status_t ret = writeAligned(len);
+    status_t ret = writeInt32(static_cast<uint32_t>(len));
     if (ret == NO_ERROR) {
         ret = write(val, len * sizeof(*val));
     }
