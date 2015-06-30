@@ -438,6 +438,15 @@ void SurfaceFlinger::init() {
     mEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     eglInitialize(mEGLDisplay, NULL, NULL);
 
+    // start the EventThread
+    sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+            vsyncPhaseOffsetNs, true, "app");
+    mEventThread = new EventThread(vsyncSrc);
+    sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+            sfVsyncPhaseOffsetNs, true, "sf");
+    mSFEventThread = new EventThread(sfVsyncSrc);
+    mEventQueue.setEventThread(mSFEventThread);
+
     // Initialize the H/W composer object.  There may or may not be an
     // actual hardware composer underneath.
     mHwc = new HWComposer(this,
@@ -488,15 +497,6 @@ void SurfaceFlinger::init() {
     // make the GLContext current so that we can create textures when creating Layers
     // (which may happens before we render something)
     getDefaultDisplayDevice()->makeCurrent(mEGLDisplay, mEGLContext);
-
-    // start the EventThread
-    sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
-            vsyncPhaseOffsetNs, true, "app");
-    mEventThread = new EventThread(vsyncSrc);
-    sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
-            sfVsyncPhaseOffsetNs, true, "sf");
-    mSFEventThread = new EventThread(sfVsyncSrc);
-    mEventQueue.setEventThread(mSFEventThread);
 
     mEventControlThread = new EventControlThread(this);
     mEventControlThread->run("EventControl", PRIORITY_URGENT_DISPLAY);
