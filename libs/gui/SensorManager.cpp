@@ -153,12 +153,12 @@ sp<SensorEventQueue> SensorManager::createEventQueue(String8 packageName, int mo
     return queue;
 }
 
-status_t SensorManager::enableDataInjection(bool enable) {
+bool SensorManager::isDataInjectionEnabled() {
     Mutex::Autolock _l(mLock);
     if (assertStateLocked() == NO_ERROR) {
-        return mSensorServer->enableDataInjection(enable);
+        return mSensorServer->isDataInjectionEnabled();
     }
-    return INVALID_OPERATION;
+    return false;
 }
 
 // ----------------------------------------------------------------------------

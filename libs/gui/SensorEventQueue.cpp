@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <linux/errno.h>
 
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -150,13 +151,20 @@ status_t SensorEventQueue::setEventRate(Sensor const* sensor, nsecs_t ns) const 
 }
 
 status_t SensorEventQueue::injectSensorEvent(const ASensorEvent& event) {
-   // Blocking call.
-   ssize_t size = ::send(mSensorChannel->getFd(), &event, sizeof(event), MSG_NOSIGNAL);
-   if (size < 0) {
-       ALOGE("injectSensorEvent failure %zd %d", size, mSensorChannel->getFd());
-       return INVALID_OPERATION;
-   }
-   return NO_ERROR;
+    do {
+        // Blocking call.
+        ssize_t size = ::send(mSensorChannel->getFd(), &event, sizeof(event), MSG_NOSIGNAL);
+        if (size >= 0) {
+            return NO_ERROR;
+        } else if (size < 0 && errno == EAGAIN) {
+            // If send is returning a "Try again" error, sleep for 100ms and try again. In all
+            // other cases log a failure and exit.
+            usleep(100000);
+        } else {
+            ALOGE("injectSensorEvent failure %s %zd", strerror(errno), size);
+            return INVALID_OPERATION;
+        }
+    } while (true);
 }
 
 void SensorEventQueue::sendAck(const ASensorEvent* events, int count) {
