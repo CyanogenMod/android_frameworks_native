@@ -107,7 +107,7 @@ public:
     ssize_t getSensorList(Sensor const* const** list) const;
     Sensor const* getDefaultSensor(int type);
     sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""), int mode = 0);
-    status_t enableDataInjection(bool enable);
+    bool isDataInjectionEnabled();
 
 private:
     // DeathRecipient interface
