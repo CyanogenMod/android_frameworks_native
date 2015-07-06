@@ -418,14 +418,14 @@ private:
             if(this != &rhs) {
                 reset();
                 count = rhs.count;
-                for(int32_t i=0; i<count; i++) {
+                for(int32_t i=0; i<count && count<MAX_LAYER_COUNT; i++) {
                     compType[i] = rhs.compType[i];
                 }
             }
             return *this;
         }
         bool operator== (CompMap &rhs) {
-            if( count != rhs.count)
+            if( count != rhs.count || count>MAX_LAYER_COUNT )
                 return false;
             for(int32_t i=0; i<count; i++) {
                 if(compType[i] != rhs.compType[i])
