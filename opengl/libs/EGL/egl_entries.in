@@ -61,18 +61,18 @@ EGL_ENTRY(EGLBoolean,   eglGetSyncAttribKHR,    EGLDisplay, EGLSyncKHR, EGLint, 
 
 /* EGL_EGLEXT_VERSION 15 */
 
-//    EGL_ENTRY(EGLStreamKHR, eglCreateStreamKHR,     EGLDisplay, const EGLint *)
-//    EGL_ENTRY(EGLBoolean,   eglDestroyStreamKHR,    EGLDisplay, EGLStreamKHR)
-//    EGL_ENTRY(EGLBoolean,   eglStreamAttribKHR,     EGLDisplay, EGLStreamKHR, EGLenum, EGLint)
-//    EGL_ENTRY(EGLBoolean,   eglQueryStreamKHR,      EGLDisplay, EGLStreamKHR, EGLenum, EGLint *)
-//    EGL_ENTRY(EGLBoolean,   eglQueryStreamu64KHR,   EGLDisplay, EGLStreamKHR, EGLenum, EGLuint64KHR *)
-//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerGLTextureExternalKHR,  EGLDisplay, EGLStreamKHR)
-//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerAcquireKHR,            EGLDisplay, EGLStreamKHR)
-//    EGL_ENTRY(EGLBoolean,   eglStreamConsumerReleaseKHR,            EGLDisplay, EGLStreamKHR)
-//    EGL_ENTRY(EGLSurface,   eglCreateStreamProducerSurfaceKHR,      EGLDisplay, EGLConfig, EGLStreamKHR, const EGLint *)
-//    EGL_ENTRY(EGLBoolean,   eglQueryStreamTimeKHR,  EGLDisplay, EGLStreamKHR, EGLenum, EGLTimeKHR*)
-//    EGL_ENTRY(EGLNativeFileDescriptorKHR,   eglGetStreamFileDescriptorKHR,          EGLDisplay, EGLStreamKHR)
-//    EGL_ENTRY(EGLStreamKHR, eglCreateStreamFromFileDescriptorKHR,   EGLDisplay, EGLNativeFileDescriptorKHR)
+EGL_ENTRY(EGLStreamKHR, eglCreateStreamKHR,     EGLDisplay, const EGLint *)
+EGL_ENTRY(EGLBoolean,   eglDestroyStreamKHR,    EGLDisplay, EGLStreamKHR)
+EGL_ENTRY(EGLBoolean,   eglStreamAttribKHR,     EGLDisplay, EGLStreamKHR, EGLenum, EGLint)
+EGL_ENTRY(EGLBoolean,   eglQueryStreamKHR,      EGLDisplay, EGLStreamKHR, EGLenum, EGLint *)
+EGL_ENTRY(EGLBoolean,   eglQueryStreamu64KHR,   EGLDisplay, EGLStreamKHR, EGLenum, EGLuint64KHR *)
+EGL_ENTRY(EGLBoolean,   eglStreamConsumerGLTextureExternalKHR,  EGLDisplay, EGLStreamKHR)
+EGL_ENTRY(EGLBoolean,   eglStreamConsumerAcquireKHR,            EGLDisplay, EGLStreamKHR)
+EGL_ENTRY(EGLBoolean,   eglStreamConsumerReleaseKHR,            EGLDisplay, EGLStreamKHR)
+EGL_ENTRY(EGLSurface,   eglCreateStreamProducerSurfaceKHR,      EGLDisplay, EGLConfig, EGLStreamKHR, const EGLint *)
+EGL_ENTRY(EGLBoolean,   eglQueryStreamTimeKHR,  EGLDisplay, EGLStreamKHR, EGLenum, EGLTimeKHR*)
+EGL_ENTRY(EGLNativeFileDescriptorKHR,   eglGetStreamFileDescriptorKHR,          EGLDisplay, EGLStreamKHR)
+EGL_ENTRY(EGLStreamKHR, eglCreateStreamFromFileDescriptorKHR,   EGLDisplay, EGLNativeFileDescriptorKHR)
 EGL_ENTRY(EGLint,       eglWaitSyncKHR,         EGLDisplay, EGLSyncKHR, EGLint)
 
 /* ANDROID extensions */
