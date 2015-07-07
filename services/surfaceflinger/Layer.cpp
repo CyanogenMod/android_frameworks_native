@@ -1102,10 +1102,21 @@ void Layer::useEmptyDamage() {
 
 bool Layer::shouldPresentNow(const DispSync& dispSync) const {
     Mutex::Autolock lock(mQueueItemLock);
+    if (mQueueItems.empty()) {
+        return false;
+    }
+    auto timestamp = mQueueItems[0].mTimestamp;
     nsecs_t expectedPresent =
             mSurfaceFlingerConsumer->computeExpectedPresent(dispSync);
-    return mQueueItems.empty() ?
-            false : mQueueItems[0].mTimestamp < expectedPresent;
+
+    // Ignore timestamps more than a second in the future
+    bool isPlausible = timestamp < (expectedPresent + s2ns(1));
+    ALOGW_IF(!isPlausible, "[%s] Timestamp %" PRId64 " seems implausible "
+            "relative to expectedPresent %" PRId64, mName.string(), timestamp,
+            expectedPresent);
+
+    bool isDue = timestamp < expectedPresent;
+    return isDue || !isPlausible;
 }
 
 bool Layer::onPreComposition() {
