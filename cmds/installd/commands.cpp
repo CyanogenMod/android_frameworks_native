@@ -177,7 +177,7 @@ int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t us
     return 0;
 }
 
-int move_complete_app(const char *from_uuid, const char *to_uuid,
+int copy_complete_app(const char *from_uuid, const char *to_uuid,
         const char *package_name, const char *data_app_name, appid_t appid,
         const char* seinfo) {
     std::vector<userid_t> users = get_known_users(from_uuid);
@@ -264,19 +264,9 @@ int move_complete_app(const char *from_uuid, const char *to_uuid,
         }
     }
 
-    // Delete old app and data
-    {
-        std::string from(create_data_app_package_path(from_uuid, data_app_name));
-        if (delete_dir_contents(from.c_str(), 1, NULL) != 0) {
-            LOG(WARNING) << "Failed to delete " << from;
-        }
-    }
-    for (auto user : users) {
-        std::string from(create_data_user_package_path(from_uuid, user, package_name));
-        if (delete_dir_contents(from.c_str(), 1, NULL) != 0) {
-            LOG(WARNING) << "Failed to delete " << from;
-        }
-    }
+    // We let the framework scan the new location and persist that before
+    // deleting the data in the old location; this ordering ensures that
+    // we can recover from things like battery pulls.
     return 0;
 
 fail:

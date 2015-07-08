@@ -225,7 +225,7 @@ int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid);
 int delete_user_data(const char *uuid, const char *pkgname, userid_t userid);
 int make_user_data(const char *uuid, const char *pkgname, uid_t uid,
         userid_t userid, const char* seinfo);
-int move_complete_app(const char* from_uuid, const char *to_uuid,
+int copy_complete_app(const char* from_uuid, const char *to_uuid,
         const char *package_name, const char *data_app_name, appid_t appid,
         const char* seinfo);
 int make_user_config(userid_t userid);
