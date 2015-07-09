@@ -350,10 +350,6 @@ ProcessState::ProcessState()
     , mThreadPoolSeq(1)
 {
     if (mDriverFD >= 0) {
-        // XXX Ideally, there should be a specific define for whether we
-        // have mmap (or whether we could possibly have the kernel module
-        // availabla).
-#if !defined(HAVE_WIN32_IPC)
         // mmap the binder, providing a chunk of virtual address space to receive transactions.
         mVMStart = mmap(0, BINDER_VM_SIZE, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, mDriverFD, 0);
         if (mVMStart == MAP_FAILED) {
@@ -362,9 +358,6 @@ ProcessState::ProcessState()
             close(mDriverFD);
             mDriverFD = -1;
         }
-#else
-        mDriverFD = -1;
-#endif
     }
 
     LOG_ALWAYS_FATAL_IF(mDriverFD < 0, "Binder driver could not be opened.  Terminating.");
