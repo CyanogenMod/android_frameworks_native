@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup Bitmap
+ * @{
+ */
+
+/**
+ * @file bitmap.h
+ */
+
 #ifndef ANDROID_BITMAP_H
 #define ANDROID_BITMAP_H
 
@@ -24,33 +33,52 @@
 extern "C" {
 #endif
 
-#define ANDROID_BITMAP_RESULT_SUCCESS            0
-#define ANDROID_BITMAP_RESULT_BAD_PARAMETER     -1
-#define ANDROID_BITMAP_RESULT_JNI_EXCEPTION     -2
-#define ANDROID_BITMAP_RESULT_ALLOCATION_FAILED -3
+/** AndroidBitmap functions result code. */
+enum {
+    /** Operation was successful. */
+    ANDROID_BITMAP_RESULT_SUCCESS           = 0,
+    /** Bad parameter. */
+    ANDROID_BITMAP_RESULT_BAD_PARAMETER     = -1,
+    /** JNI exception occured. */
+    ANDROID_BITMAP_RESULT_JNI_EXCEPTION     = -2,
+    /** Allocation failed. */
+    ANDROID_BITMAP_RESULT_ALLOCATION_FAILED = -3,
+};
 
-/* Backward compatibility: this macro used to be misspelled. */
+/** Backward compatibility: this macro used to be misspelled. */
 #define ANDROID_BITMAP_RESUT_SUCCESS ANDROID_BITMAP_RESULT_SUCCESS
 
+/** Bitmap pixel format. */
 enum AndroidBitmapFormat {
+    /** No format. */
     ANDROID_BITMAP_FORMAT_NONE      = 0,
+    /** Red: 8 bits, Green: 8 bits, Blue: 8 bits, Alpha: 8 bits. **/
     ANDROID_BITMAP_FORMAT_RGBA_8888 = 1,
+    /** Red: 5 bits, Green: 6 bits, Blue: 5 bits. **/
     ANDROID_BITMAP_FORMAT_RGB_565   = 4,
+    /** Red: 4 bits, Green: 4 bits, Blue: 4 bits, Alpha: 4 bits. **/
     ANDROID_BITMAP_FORMAT_RGBA_4444 = 7,
+    /** Deprecated. */
     ANDROID_BITMAP_FORMAT_A_8       = 8,
 };
 
+/** Bitmap info, see AndroidBitmap_getInfo(). */
 typedef struct {
+    /** The bitmap width in pixels. */
     uint32_t    width;
+    /** The bitmap height in pixels. */
     uint32_t    height;
+    /** The number of byte per row. */
     uint32_t    stride;
+    /** The bitmap pixel format. See {@link AndroidBitmapFormat} */
     int32_t     format;
+    /** Unused. */
     uint32_t    flags;      // 0 for now
 } AndroidBitmapInfo;
 
 /**
- * Given a java bitmap object, fill out the AndroidBitmap struct for it.
- * If the call fails, the info parameter will be ignored
+ * Given a java bitmap object, fill out the AndroidBitmapInfo struct for it.
+ * If the call fails, the info parameter will be ignored.
  */
 int AndroidBitmap_getInfo(JNIEnv* env, jobject jbitmap,
                           AndroidBitmapInfo* info);
@@ -71,7 +99,7 @@ int AndroidBitmap_getInfo(JNIEnv* env, jobject jbitmap,
 int AndroidBitmap_lockPixels(JNIEnv* env, jobject jbitmap, void** addrPtr);
 
 /**
- * Call this to balanace a successful call to AndroidBitmap_lockPixels
+ * Call this to balance a successful call to AndroidBitmap_lockPixels.
  */
 int AndroidBitmap_unlockPixels(JNIEnv* env, jobject jbitmap);
 
@@ -80,3 +108,5 @@ int AndroidBitmap_unlockPixels(JNIEnv* env, jobject jbitmap);
 #endif
 
 #endif
+
+/** @} */

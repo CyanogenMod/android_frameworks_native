@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup NativeActivity Native Activity
+ * @{
+ */
+
+/**
+ * @file rect.h
+ */
 
 #ifndef ANDROID_RECT_H
 #define ANDROID_RECT_H
@@ -24,13 +32,24 @@
 extern "C" {
 #endif
 
+/**
+ * {@link ARect} is a struct that represents a rectangular window area.
+ *
+ * It is used with {@link
+ * ANativeActivityCallbacks::onContentRectChanged} event callback and
+ * ANativeWindow_lock() function.
+ */
 typedef struct ARect {
 #ifdef __cplusplus
     typedef int32_t value_type;
 #endif
+    /** left position */
     int32_t left;
+    /** top position */
     int32_t top;
+    /** left position */
     int32_t right;
+    /** bottom position */
     int32_t bottom;
 } ARect;
 
@@ -39,3 +58,5 @@ typedef struct ARect {
 #endif
 
 #endif // ANDROID_RECT_H
+
+/** @} */
