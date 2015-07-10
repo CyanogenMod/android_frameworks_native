@@ -3860,6 +3860,7 @@ void TouchInputMapper::reset(nsecs_t when) {
     mPointerUsage = POINTER_USAGE_NONE;
     mSentHoverEnter = false;
     mHavePointerIds = false;
+    mCurrentMotionAborted = false;
     mDownTime = 0;
 
     mCurrentVirtualKey.down = false;
@@ -4087,11 +4088,17 @@ void TouchInputMapper::cookAndDispatch(nsecs_t when) {
                     mCurrentCookedState.cookedPointerData.touchingIdBits);
         }
 
-        dispatchButtonRelease(when, policyFlags);
-        dispatchHoverExit(when, policyFlags);
-        dispatchTouches(when, policyFlags);
-        dispatchHoverEnterAndMove(when, policyFlags);
-        dispatchButtonPress(when, policyFlags);
+        if (!mCurrentMotionAborted) {
+            dispatchButtonRelease(when, policyFlags);
+            dispatchHoverExit(when, policyFlags);
+            dispatchTouches(when, policyFlags);
+            dispatchHoverEnterAndMove(when, policyFlags);
+            dispatchButtonPress(when, policyFlags);
+        }
+
+        if (mCurrentCookedState.cookedPointerData.pointerCount == 0) {
+            mCurrentMotionAborted = false;
+        }
     }
 
     // Synthesize key up from raw buttons if needed.
@@ -4314,6 +4321,22 @@ void TouchInputMapper::dispatchVirtualKey(nsecs_t when, uint32_t policyFlags,
     NotifyKeyArgs args(when, getDeviceId(), AINPUT_SOURCE_KEYBOARD, policyFlags,
             keyEventAction, keyEventFlags, keyCode, scanCode, metaState, downTime);
     getListener()->notifyKey(&args);
+}
+
+void TouchInputMapper::abortTouches(nsecs_t when, uint32_t policyFlags) {
+    BitSet32 currentIdBits = mCurrentCookedState.cookedPointerData.touchingIdBits;
+    if (!currentIdBits.isEmpty()) {
+        int32_t metaState = getContext()->getGlobalMetaState();
+        int32_t buttonState = mCurrentCookedState.buttonState;
+        dispatchMotion(when, policyFlags, mSource, AMOTION_EVENT_ACTION_CANCEL, 0, 0,
+                metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
+                mCurrentCookedState.cookedPointerData.pointerProperties,
+                mCurrentCookedState.cookedPointerData.pointerCoords,
+                mCurrentCookedState.cookedPointerData.idToIndex,
+                currentIdBits, -1,
+                mOrientedXPrecision, mOrientedYPrecision, mDownTime);
+        mCurrentMotionAborted = true;
+    }
 }
 
 void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
@@ -6089,6 +6112,7 @@ void TouchInputMapper::fadePointer() {
 
 void TouchInputMapper::cancelTouch(nsecs_t when) {
     abortPointerUsage(when, 0 /*policyFlags*/);
+    abortTouches(when, 0 /* policyFlags*/);
 }
 
 bool TouchInputMapper::isPointInsideSurface(int32_t x, int32_t y) {
