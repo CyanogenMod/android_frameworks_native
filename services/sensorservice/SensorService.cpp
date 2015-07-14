@@ -64,7 +64,7 @@ namespace android {
  *
  */
 
-const char* SensorService::WAKE_LOCK_NAME = "SensorService";
+const char* SensorService::WAKE_LOCK_NAME = "SensorService_wakelock";
 // Permissions.
 static const String16 sDump("android.permission.DUMP");
 
@@ -1379,7 +1379,7 @@ void SensorService::SensorEventConnection::resetWakeLockRefCount() {
 
 void SensorService::SensorEventConnection::dump(String8& result) {
     Mutex::Autolock _l(mConnectionLock);
-    result.appendFormat("Operating Mode: %s\n", mDataInjectionMode ? "DATA_INJECTION" : "NORMAL");
+    result.appendFormat("\tOperating Mode: %s\n",mDataInjectionMode ? "DATA_INJECTION" : "NORMAL");
     result.appendFormat("\t %s | WakeLockRefCount %d | uid %d | cache size %d | "
             "max cache size %d\n", mPackageName.string(), mWakeLockRefCount, mUid, mCacheSize,
             mMaxCacheSize);
