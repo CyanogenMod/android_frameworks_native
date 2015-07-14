@@ -167,6 +167,14 @@ static void* load_wrapper(const char* path) {
     return so;
 }
 
+#ifndef EGL_WRAPPER_DIR
+#if defined(__LP64__)
+#define EGL_WRAPPER_DIR "/system/lib64"
+#else
+#define EGL_WRAPPER_DIR "/system/lib"
+#endif
+#endif
+
 void* Loader::open(egl_connection_t* cnx)
 {
     void* dso;
@@ -187,15 +195,10 @@ void* Loader::open(egl_connection_t* cnx)
 
     LOG_ALWAYS_FATAL_IF(!hnd, "couldn't find an OpenGL ES implementation");
 
-#if defined(__LP64__)
-    cnx->libEgl   = load_wrapper("/system/lib64/libEGL.so");
-    cnx->libGles2 = load_wrapper("/system/lib64/libGLESv2.so");
-    cnx->libGles1 = load_wrapper("/system/lib64/libGLESv1_CM.so");
-#else
-    cnx->libEgl   = load_wrapper("/system/lib/libEGL.so");
-    cnx->libGles2 = load_wrapper("/system/lib/libGLESv2.so");
-    cnx->libGles1 = load_wrapper("/system/lib/libGLESv1_CM.so");
-#endif
+    cnx->libEgl   = load_wrapper(EGL_WRAPPER_DIR "/libEGL.so");
+    cnx->libGles2 = load_wrapper(EGL_WRAPPER_DIR "/libGLESv2.so");
+    cnx->libGles1 = load_wrapper(EGL_WRAPPER_DIR "/libGLESv1_CM.so");
+
     LOG_ALWAYS_FATAL_IF(!cnx->libEgl,
             "couldn't load system EGL wrapper libraries");
 
