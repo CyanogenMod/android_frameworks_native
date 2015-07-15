@@ -264,9 +264,27 @@ static bool appendStr(const char* filename, const char* str)
 static void writeClockSyncMarker()
 {
   char buffer[128];
+  int len = 0;
+  int fd = open(k_traceMarkerPath, O_WRONLY);
+  if (fd == -1) {
+      fprintf(stderr, "error opening %s: %s (%d)\n", k_traceMarkerPath,
+              strerror(errno), errno);
+      return;
+  }
   float now_in_seconds = systemTime(CLOCK_MONOTONIC) / 1000000000.0f;
-  snprintf(buffer, 128, "trace_event_clock_sync: parent_ts=%f\n", now_in_seconds);
-  writeStr(k_traceMarkerPath, buffer);
+
+  len = snprintf(buffer, 128, "trace_event_clock_sync: parent_ts=%f\n", now_in_seconds);
+  if (write(fd, buffer, len) != len) {
+      fprintf(stderr, "error writing clock sync marker %s (%d)\n", strerror(errno), errno);
+  }
+
+  int64_t realtime_in_ms = systemTime(CLOCK_REALTIME) / 1000000;
+  len = snprintf(buffer, 128, "trace_event_clock_sync: realtime_ts=%" PRId64 "\n", realtime_in_ms);
+  if (write(fd, buffer, len) != len) {
+      fprintf(stderr, "error writing clock sync marker %s (%d)\n", strerror(errno), errno);
+  }
+
+  close(fd);
 }
 
 // Enable or disable a kernel option by writing a "1" or a "0" into a /sys
@@ -646,7 +664,6 @@ static bool startTrace()
 // Disable tracing in the kernel.
 static void stopTrace()
 {
-    writeClockSyncMarker();
     setTracingEnabled(false);
 }
 
@@ -940,6 +957,7 @@ int main(int argc, char **argv)
         // another.
         ok = clearTrace();
 
+        writeClockSyncMarker();
         if (ok && !async) {
             // Sleep to allow the trace to be captured.
             struct timespec timeLeft;
