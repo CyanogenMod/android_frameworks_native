@@ -314,6 +314,11 @@ public:
      */
     virtual inline bool isVDSEnabled() const { return true; };
 
+    // Extension
+    virtual bool isCompositionTypeBlit(const int32_t /*compType*/) const {
+            return false;
+    };
+
 private:
     void loadHwcModule();
     int loadFbHalModule();
