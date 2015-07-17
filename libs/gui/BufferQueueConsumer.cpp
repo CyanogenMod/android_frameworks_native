@@ -38,155 +38,168 @@ BufferQueueConsumer::~BufferQueueConsumer() {}
 status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         nsecs_t expectedPresent, uint64_t maxFrameNumber) {
     ATRACE_CALL();
-    Mutex::Autolock lock(mCore->mMutex);
 
-    // Check that the consumer doesn't currently have the maximum number of
-    // buffers acquired. We allow the max buffer count to be exceeded by one
-    // buffer so that the consumer can successfully set up the newly acquired
-    // buffer before releasing the old one.
-    int numAcquiredBuffers = 0;
-    for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-        if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
-            ++numAcquiredBuffers;
+    int numDroppedBuffers = 0;
+    sp<IProducerListener> listener;
+    {
+        Mutex::Autolock lock(mCore->mMutex);
+
+        // Check that the consumer doesn't currently have the maximum number of
+        // buffers acquired. We allow the max buffer count to be exceeded by one
+        // buffer so that the consumer can successfully set up the newly acquired
+        // buffer before releasing the old one.
+        int numAcquiredBuffers = 0;
+        for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+            if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
+                ++numAcquiredBuffers;
+            }
         }
-    }
-    if (numAcquiredBuffers >= mCore->mMaxAcquiredBufferCount + 1) {
-        BQ_LOGE("acquireBuffer: max acquired buffer count reached: %d (max %d)",
-                numAcquiredBuffers, mCore->mMaxAcquiredBufferCount);
-        return INVALID_OPERATION;
-    }
+        if (numAcquiredBuffers >= mCore->mMaxAcquiredBufferCount + 1) {
+            BQ_LOGE("acquireBuffer: max acquired buffer count reached: %d (max %d)",
+                    numAcquiredBuffers, mCore->mMaxAcquiredBufferCount);
+            return INVALID_OPERATION;
+        }
 
-    // Check if the queue is empty.
-    // In asynchronous mode the list is guaranteed to be one buffer deep,
-    // while in synchronous mode we use the oldest buffer.
-    if (mCore->mQueue.empty()) {
-        return NO_BUFFER_AVAILABLE;
-    }
+        // Check if the queue is empty.
+        // In asynchronous mode the list is guaranteed to be one buffer deep,
+        // while in synchronous mode we use the oldest buffer.
+        if (mCore->mQueue.empty()) {
+            return NO_BUFFER_AVAILABLE;
+        }
 
-    BufferQueueCore::Fifo::iterator front(mCore->mQueue.begin());
+        BufferQueueCore::Fifo::iterator front(mCore->mQueue.begin());
 
-    // If expectedPresent is specified, we may not want to return a buffer yet.
-    // If it's specified and there's more than one buffer queued, we may want
-    // to drop a buffer.
-    if (expectedPresent != 0) {
-        const int MAX_REASONABLE_NSEC = 1000000000ULL; // 1 second
+        // If expectedPresent is specified, we may not want to return a buffer yet.
+        // If it's specified and there's more than one buffer queued, we may want
+        // to drop a buffer.
+        if (expectedPresent != 0) {
+            const int MAX_REASONABLE_NSEC = 1000000000ULL; // 1 second
 
-        // The 'expectedPresent' argument indicates when the buffer is expected
-        // to be presented on-screen. If the buffer's desired present time is
-        // earlier (less) than expectedPresent -- meaning it will be displayed
-        // on time or possibly late if we show it as soon as possible -- we
-        // acquire and return it. If we don't want to display it until after the
-        // expectedPresent time, we return PRESENT_LATER without acquiring it.
-        //
-        // To be safe, we don't defer acquisition if expectedPresent is more
-        // than one second in the future beyond the desired present time
-        // (i.e., we'd be holding the buffer for a long time).
-        //
-        // NOTE: Code assumes monotonic time values from the system clock
-        // are positive.
+            // The 'expectedPresent' argument indicates when the buffer is expected
+            // to be presented on-screen. If the buffer's desired present time is
+            // earlier (less) than expectedPresent -- meaning it will be displayed
+            // on time or possibly late if we show it as soon as possible -- we
+            // acquire and return it. If we don't want to display it until after the
+            // expectedPresent time, we return PRESENT_LATER without acquiring it.
+            //
+            // To be safe, we don't defer acquisition if expectedPresent is more
+            // than one second in the future beyond the desired present time
+            // (i.e., we'd be holding the buffer for a long time).
+            //
+            // NOTE: Code assumes monotonic time values from the system clock
+            // are positive.
 
-        // Start by checking to see if we can drop frames. We skip this check if
-        // the timestamps are being auto-generated by Surface. If the app isn't
-        // generating timestamps explicitly, it probably doesn't want frames to
-        // be discarded based on them.
-        while (mCore->mQueue.size() > 1 && !mCore->mQueue[0].mIsAutoTimestamp) {
-            const BufferItem& bufferItem(mCore->mQueue[1]);
+            // Start by checking to see if we can drop frames. We skip this check if
+            // the timestamps are being auto-generated by Surface. If the app isn't
+            // generating timestamps explicitly, it probably doesn't want frames to
+            // be discarded based on them.
+            while (mCore->mQueue.size() > 1 && !mCore->mQueue[0].mIsAutoTimestamp) {
+                const BufferItem& bufferItem(mCore->mQueue[1]);
 
-            // If dropping entry[0] would leave us with a buffer that the
-            // consumer is not yet ready for, don't drop it.
-            if (maxFrameNumber && bufferItem.mFrameNumber > maxFrameNumber) {
-                break;
+                // If dropping entry[0] would leave us with a buffer that the
+                // consumer is not yet ready for, don't drop it.
+                if (maxFrameNumber && bufferItem.mFrameNumber > maxFrameNumber) {
+                    break;
+                }
+
+                // If entry[1] is timely, drop entry[0] (and repeat). We apply an
+                // additional criterion here: we only drop the earlier buffer if our
+                // desiredPresent falls within +/- 1 second of the expected present.
+                // Otherwise, bogus desiredPresent times (e.g., 0 or a small
+                // relative timestamp), which normally mean "ignore the timestamp
+                // and acquire immediately", would cause us to drop frames.
+                //
+                // We may want to add an additional criterion: don't drop the
+                // earlier buffer if entry[1]'s fence hasn't signaled yet.
+                nsecs_t desiredPresent = bufferItem.mTimestamp;
+                if (desiredPresent < expectedPresent - MAX_REASONABLE_NSEC ||
+                        desiredPresent > expectedPresent) {
+                    // This buffer is set to display in the near future, or
+                    // desiredPresent is garbage. Either way we don't want to drop
+                    // the previous buffer just to get this on the screen sooner.
+                    BQ_LOGV("acquireBuffer: nodrop desire=%" PRId64 " expect=%"
+                            PRId64 " (%" PRId64 ") now=%" PRId64,
+                            desiredPresent, expectedPresent,
+                            desiredPresent - expectedPresent,
+                            systemTime(CLOCK_MONOTONIC));
+                    break;
+                }
+
+                BQ_LOGV("acquireBuffer: drop desire=%" PRId64 " expect=%" PRId64
+                        " size=%zu",
+                        desiredPresent, expectedPresent, mCore->mQueue.size());
+                if (mCore->stillTracking(front)) {
+                    // Front buffer is still in mSlots, so mark the slot as free
+                    mSlots[front->mSlot].mBufferState = BufferSlot::FREE;
+                    mCore->mFreeBuffers.push_back(front->mSlot);
+                    listener = mCore->mConnectedProducerListener;
+                    ++numDroppedBuffers;
+                }
+                mCore->mQueue.erase(front);
+                front = mCore->mQueue.begin();
             }
 
-            // If entry[1] is timely, drop entry[0] (and repeat). We apply an
-            // additional criterion here: we only drop the earlier buffer if our
-            // desiredPresent falls within +/- 1 second of the expected present.
-            // Otherwise, bogus desiredPresent times (e.g., 0 or a small
-            // relative timestamp), which normally mean "ignore the timestamp
-            // and acquire immediately", would cause us to drop frames.
-            //
-            // We may want to add an additional criterion: don't drop the
-            // earlier buffer if entry[1]'s fence hasn't signaled yet.
-            nsecs_t desiredPresent = bufferItem.mTimestamp;
-            if (desiredPresent < expectedPresent - MAX_REASONABLE_NSEC ||
-                    desiredPresent > expectedPresent) {
-                // This buffer is set to display in the near future, or
-                // desiredPresent is garbage. Either way we don't want to drop
-                // the previous buffer just to get this on the screen sooner.
-                BQ_LOGV("acquireBuffer: nodrop desire=%" PRId64 " expect=%"
-                        PRId64 " (%" PRId64 ") now=%" PRId64,
+            // See if the front buffer is ready to be acquired
+            nsecs_t desiredPresent = front->mTimestamp;
+            bool bufferIsDue = desiredPresent <= expectedPresent ||
+                    desiredPresent > expectedPresent + MAX_REASONABLE_NSEC;
+            bool consumerIsReady = maxFrameNumber > 0 ?
+                    front->mFrameNumber <= maxFrameNumber : true;
+            if (!bufferIsDue || !consumerIsReady) {
+                BQ_LOGV("acquireBuffer: defer desire=%" PRId64 " expect=%" PRId64
+                        " (%" PRId64 ") now=%" PRId64 " frame=%" PRIu64
+                        " consumer=%" PRIu64,
                         desiredPresent, expectedPresent,
                         desiredPresent - expectedPresent,
-                        systemTime(CLOCK_MONOTONIC));
-                break;
+                        systemTime(CLOCK_MONOTONIC),
+                        front->mFrameNumber, maxFrameNumber);
+                return PRESENT_LATER;
             }
 
-            BQ_LOGV("acquireBuffer: drop desire=%" PRId64 " expect=%" PRId64
-                    " size=%zu",
-                    desiredPresent, expectedPresent, mCore->mQueue.size());
-            if (mCore->stillTracking(front)) {
-                // Front buffer is still in mSlots, so mark the slot as free
-                mSlots[front->mSlot].mBufferState = BufferSlot::FREE;
-                mCore->mFreeBuffers.push_back(front->mSlot);
-            }
-            mCore->mQueue.erase(front);
-            front = mCore->mQueue.begin();
-        }
-
-        // See if the front buffer is ready to be acquired
-        nsecs_t desiredPresent = front->mTimestamp;
-        bool bufferIsDue = desiredPresent <= expectedPresent ||
-                desiredPresent > expectedPresent + MAX_REASONABLE_NSEC;
-        bool consumerIsReady = maxFrameNumber > 0 ?
-                front->mFrameNumber <= maxFrameNumber : true;
-        if (!bufferIsDue || !consumerIsReady) {
-            BQ_LOGV("acquireBuffer: defer desire=%" PRId64 " expect=%" PRId64
-                    " (%" PRId64 ") now=%" PRId64 " frame=%" PRIu64
-                    " consumer=%" PRIu64,
-                    desiredPresent, expectedPresent,
+            BQ_LOGV("acquireBuffer: accept desire=%" PRId64 " expect=%" PRId64 " "
+                    "(%" PRId64 ") now=%" PRId64, desiredPresent, expectedPresent,
                     desiredPresent - expectedPresent,
-                    systemTime(CLOCK_MONOTONIC),
-                    front->mFrameNumber, maxFrameNumber);
-            return PRESENT_LATER;
+                    systemTime(CLOCK_MONOTONIC));
         }
 
-        BQ_LOGV("acquireBuffer: accept desire=%" PRId64 " expect=%" PRId64 " "
-                "(%" PRId64 ") now=%" PRId64, desiredPresent, expectedPresent,
-                desiredPresent - expectedPresent,
-                systemTime(CLOCK_MONOTONIC));
+        int slot = front->mSlot;
+        *outBuffer = *front;
+        ATRACE_BUFFER_INDEX(slot);
+
+        BQ_LOGV("acquireBuffer: acquiring { slot=%d/%" PRIu64 " buffer=%p }",
+                slot, front->mFrameNumber, front->mGraphicBuffer->handle);
+        // If the front buffer is still being tracked, update its slot state
+        if (mCore->stillTracking(front)) {
+            mSlots[slot].mAcquireCalled = true;
+            mSlots[slot].mNeedsCleanupOnRelease = false;
+            mSlots[slot].mBufferState = BufferSlot::ACQUIRED;
+            mSlots[slot].mFence = Fence::NO_FENCE;
+        }
+
+        // If the buffer has previously been acquired by the consumer, set
+        // mGraphicBuffer to NULL to avoid unnecessarily remapping this buffer
+        // on the consumer side
+        if (outBuffer->mAcquireCalled) {
+            outBuffer->mGraphicBuffer = NULL;
+        }
+
+        mCore->mQueue.erase(front);
+
+        // We might have freed a slot while dropping old buffers, or the producer
+        // may be blocked waiting for the number of buffers in the queue to
+        // decrease.
+        mCore->mDequeueCondition.broadcast();
+
+        ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
+
+        mCore->validateConsistencyLocked();
     }
 
-    int slot = front->mSlot;
-    *outBuffer = *front;
-    ATRACE_BUFFER_INDEX(slot);
-
-    BQ_LOGV("acquireBuffer: acquiring { slot=%d/%" PRIu64 " buffer=%p }",
-            slot, front->mFrameNumber, front->mGraphicBuffer->handle);
-    // If the front buffer is still being tracked, update its slot state
-    if (mCore->stillTracking(front)) {
-        mSlots[slot].mAcquireCalled = true;
-        mSlots[slot].mNeedsCleanupOnRelease = false;
-        mSlots[slot].mBufferState = BufferSlot::ACQUIRED;
-        mSlots[slot].mFence = Fence::NO_FENCE;
+    if (listener != NULL) {
+        for (int i = 0; i < numDroppedBuffers; ++i) {
+            listener->onBufferReleased();
+        }
     }
-
-    // If the buffer has previously been acquired by the consumer, set
-    // mGraphicBuffer to NULL to avoid unnecessarily remapping this buffer
-    // on the consumer side
-    if (outBuffer->mAcquireCalled) {
-        outBuffer->mGraphicBuffer = NULL;
-    }
-
-    mCore->mQueue.erase(front);
-
-    // We might have freed a slot while dropping old buffers, or the producer
-    // may be blocked waiting for the number of buffers in the queue to
-    // decrease.
-    mCore->mDequeueCondition.broadcast();
-
-    ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
-
-    mCore->validateConsistencyLocked();
 
     return NO_ERROR;
 }
