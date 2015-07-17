@@ -312,6 +312,9 @@ public:
      * Extensions
      */
     virtual inline bool isVDSEnabled() const { return true; };
+    virtual inline bool isCompositionTypeBlit(const int32_t /*compType*/) const {
+            return false;
+    };
 
 private:
     void loadHwcModule();
