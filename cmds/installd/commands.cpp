@@ -257,11 +257,11 @@ int copy_complete_app(const char *from_uuid, const char *to_uuid,
                     << ": status " << rc;
             goto fail;
         }
+    }
 
-        if (restorecon_data(to_uuid, package_name, seinfo, uid) != 0) {
-            LOG(ERROR) << "Failed to restorecon " << to;
-            goto fail;
-        }
+    if (restorecon_data(to_uuid, package_name, seinfo, multiuser_get_uid(0, appid)) != 0) {
+        LOG(ERROR) << "Failed to restorecon";
+        goto fail;
     }
 
     // We let the framework scan the new location and persist that before
