@@ -7,8 +7,9 @@ LOCAL_SRC_FILES:= \
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libutils \
-    libui \
-    libgui
+	libbinder \
+	libui \
+	libgui
 
 LOCAL_MODULE:= test-resize
 
