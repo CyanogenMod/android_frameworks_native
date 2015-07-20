@@ -18,6 +18,8 @@
 
 #include <utils/Log.h>
 
+#include <android/native_window.h>
+
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
@@ -27,8 +29,6 @@
 
 using namespace android;
 
-namespace android {
-
 int main(int argc, char** argv)
 {
     // set up the thread-pool
@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 
     // create a client to surfaceflinger
     sp<SurfaceComposerClient> client = new SurfaceComposerClient();
-    
+
     sp<SurfaceControl> surfaceControl = client->createSurface(String8("resize"),
             160, 240, PIXEL_FORMAT_RGB_565, 0);
 
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     android_memset16((uint16_t*)outBuffer.bits, 0xF800, bpr*outBuffer.height);
     surface->unlockAndPost();
 
-    surface->lock(&outBuffer);
+    surface->lock(&outBuffer, NULL);
     android_memset16((uint16_t*)outBuffer.bits, 0x07E0, bpr*outBuffer.height);
     surface->unlockAndPost();
 
@@ -61,8 +61,7 @@ int main(int argc, char** argv)
     surfaceControl->setSize(320, 240);
     SurfaceComposerClient::closeGlobalTransaction();
 
-    
     IPCThreadState::self()->joinThreadPool();
-    
+
     return 0;
 }
