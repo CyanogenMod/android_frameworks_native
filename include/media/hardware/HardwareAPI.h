@@ -100,7 +100,11 @@ struct StoreMetaDataInBuffersParams {
 // dynamic buffer handling.
 struct VideoGrallocMetadata {
     MetadataBufferType eType;               // must be kMetadataBufferTypeGrallocSource
+#ifdef OMX_ANDROID_COMPILE_AS_32BIT_ON_64BIT_PLATFORMS
+    OMX_PTR pHandle;
+#else
     buffer_handle_t pHandle;
+#endif
 };
 
 // Legacy name for VideoGrallocMetadata struct.
@@ -108,7 +112,11 @@ struct VideoDecoderOutputMetaData : public VideoGrallocMetadata {};
 
 struct VideoNativeMetadata {
     MetadataBufferType eType;               // must be kMetadataBufferTypeANWBuffer
+#ifdef OMX_ANDROID_COMPILE_AS_32BIT_ON_64BIT_PLATFORMS
+    OMX_PTR pBuffer;
+#else
     struct ANativeWindowBuffer* pBuffer;
+#endif
     int nFenceFd;                           // -1 if unused
 };
 
@@ -196,17 +204,17 @@ struct MediaImage {
     };
 
     Type mType;
-    size_t mNumPlanes;              // number of planes
-    size_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
-    size_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
-    size_t mBitDepth;               // useable bit depth
+    uint32_t mNumPlanes;              // number of planes
+    uint32_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
+    uint32_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
+    uint32_t mBitDepth;               // useable bit depth
     struct PlaneInfo {
-        size_t mOffset;             // offset of first pixel of the plane in bytes
-                                    // from buffer offset
-        size_t mColInc;             // column increment in bytes
-        size_t mRowInc;             // row increment in bytes
-        size_t mHorizSubsampling;   // subsampling compared to the largest plane
-        size_t mVertSubsampling;    // subsampling compared to the largest plane
+        uint32_t mOffset;             // offset of first pixel of the plane in bytes
+                                      // from buffer offset
+        uint32_t mColInc;             // column increment in bytes
+        uint32_t mRowInc;             // row increment in bytes
+        uint32_t mHorizSubsampling;   // subsampling compared to the largest plane
+        uint32_t mVertSubsampling;    // subsampling compared to the largest plane
     };
     PlaneInfo mPlane[MAX_NUM_PLANES];
 };
