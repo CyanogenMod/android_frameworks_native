@@ -82,7 +82,7 @@ void SensorService::onFirstRef()
         ssize_t count = dev.getSensorList(&list);
         if (count > 0) {
             ssize_t orientationIndex = -1;
-            bool hasGyro = false;
+            bool hasGyro = false, hasAccel = false, hasMag = false;
             uint32_t virtualSensorsNeeds =
                     (1<<SENSOR_TYPE_GRAVITY) |
                     (1<<SENSOR_TYPE_LINEAR_ACCELERATION) |
@@ -92,6 +92,12 @@ void SensorService::onFirstRef()
             for (ssize_t i=0 ; i<count ; i++) {
                 registerSensor( new HardwareSensor(list[i]) );
                 switch (list[i].type) {
+                    case SENSOR_TYPE_ACCELEROMETER:
+                        hasAccel = true;
+                        break;
+                    case SENSOR_TYPE_MAGNETIC_FIELD:
+                        hasMag = true;
+                        break;
                     case SENSOR_TYPE_ORIENTATION:
                         orientationIndex = i;
                         break;
@@ -115,7 +121,7 @@ void SensorService::onFirstRef()
             // build the sensor list returned to users
             mUserSensorList = mSensorList;
 
-            if (hasGyro) {
+            if (hasGyro && hasAccel && hasMag) {
                 Sensor aSensor;
 
                 // Add Android virtual sensors if they're not already
