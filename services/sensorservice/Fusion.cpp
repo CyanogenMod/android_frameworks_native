@@ -24,28 +24,44 @@ namespace android {
 
 // -----------------------------------------------------------------------
 
+/*==================== BEGIN FUSION SENSOR PARAMETER =========================*/
+
+/* Note:
+ *   If a platform uses software fusion, it is necessary to tune the following
+ *   parameters to fit the hardware sensors prior to release.
+ *
+ *   The DEFAULT_ parameters will be used in FUSION_9AXIS and FUSION_NOMAG mode.
+ *   The GEOMAG_ parameters will be used in FUSION_NOGYRO mode.
+ */
+
 /*
- * gyroVAR gives the measured variance of the gyro's output per
+ * GYRO_VAR gives the measured variance of the gyro's output per
  * Hz (or variance at 1 Hz). This is an "intrinsic" parameter of the gyro,
  * which is independent of the sampling frequency.
  *
  * The variance of gyro's output at a given sampling period can be
  * calculated as:
- *      variance(T) = gyroVAR / T
+ *      variance(T) = GYRO_VAR / T
  *
  * The variance of the INTEGRATED OUTPUT at a given sampling period can be
  * calculated as:
- *       variance_integrate_output(T) = gyroVAR * T
- *
+ *       variance_integrate_output(T) = GYRO_VAR * T
  */
-static const float gyroVAR = 1e-7;      // (rad/s)^2 / Hz
-static const float biasVAR = 1e-8;      // (rad/s)^2 / s (guessed)
+static const float DEFAULT_GYRO_VAR = 1e-7;      // (rad/s)^2 / Hz
+static const float DEFAULT_GYRO_BIAS_VAR = 1e-12;  // (rad/s)^2 / s (guessed)
+static const float GEOMAG_GYRO_VAR = 1e-4;      // (rad/s)^2 / Hz
+static const float GEOMAG_GYRO_BIAS_VAR = 1e-8;  // (rad/s)^2 / s (guessed)
 
 /*
  * Standard deviations of accelerometer and magnetometer
  */
-static const float accSTDEV  = 0.05f;   // m/s^2 (measured 0.08 / CDD 0.05)
-static const float magSTDEV  = 0.5f;    // uT    (measured 0.7  / CDD 0.5)
+static const float DEFAULT_ACC_STDEV  = 0.015f; // m/s^2 (measured 0.08 / CDD 0.05)
+static const float DEFAULT_MAG_STDEV  = 0.1f;   // uT    (measured 0.7  / CDD 0.5)
+static const float GEOMAG_ACC_STDEV  = 0.05f; // m/s^2 (measured 0.08 / CDD 0.05)
+static const float GEOMAG_MAG_STDEV  = 0.1f;   // uT    (measured 0.7  / CDD 0.5)
+
+
+/* ====================== END FUSION SENSOR PARAMETER ========================*/
 
 static const float SYMMETRY_TOLERANCE = 1e-10f;
 
@@ -54,7 +70,8 @@ static const float SYMMETRY_TOLERANCE = 1e-10f;
  * ill-conditioning and div by zeros.
  * Threshhold: 10% of g, in m/s^2
  */
-static const float FREE_FALL_THRESHOLD = 0.981f;
+static const float NOMINAL_GRAVITY = 9.81f;
+static const float FREE_FALL_THRESHOLD = 0.1f * (NOMINAL_GRAVITY);
 static const float FREE_FALL_THRESHOLD_SQ =
         FREE_FALL_THRESHOLD*FREE_FALL_THRESHOLD;
 
@@ -87,6 +104,9 @@ static const float MIN_VALID_CROSS_PRODUCT_MAG = 1.0e-3;
 static const float MIN_VALID_CROSS_PRODUCT_MAG_SQ =
     MIN_VALID_CROSS_PRODUCT_MAG*MIN_VALID_CROSS_PRODUCT_MAG;
 
+static const float W_EPS = 1e-4f;
+static const float SQRT_3 = 1.732f;
+static const float WVEC_EPS = 1e-4f/SQRT_3;
 // -----------------------------------------------------------------------
 
 template <typename TYPE, size_t C, size_t R>
@@ -173,7 +193,7 @@ Fusion::Fusion() {
     init();
 }
 
-void Fusion::init() {
+void Fusion::init(int mode) {
     mInitState = 0;
 
     mGyroRate = 0;
@@ -183,6 +203,19 @@ void Fusion::init() {
     mCount[2] = 0;
 
     mData = 0;
+    mMode = mode;
+
+    if (mMode != FUSION_NOGYRO) { //normal or game rotation
+        mParam.gyroVar = DEFAULT_GYRO_VAR;
+        mParam.gyroBiasVar = DEFAULT_GYRO_BIAS_VAR;
+        mParam.accStdev = DEFAULT_ACC_STDEV;
+        mParam.magStdev = DEFAULT_MAG_STDEV;
+    } else {
+        mParam.gyroVar = GEOMAG_GYRO_VAR;
+        mParam.gyroBiasVar = GEOMAG_GYRO_BIAS_VAR;
+        mParam.accStdev = GEOMAG_ACC_STDEV;
+        mParam.magStdev = GEOMAG_MAG_STDEV;
+    }
 }
 
 void Fusion::initFusion(const vec4_t& q, float dT)
@@ -205,11 +238,11 @@ void Fusion::initFusion(const vec4_t& q, float dT)
     const float dT3 = dT2*dT;
 
     // variance of integrated output at 1/dT Hz (random drift)
-    const float q00 = gyroVAR * dT + 0.33333f * biasVAR * dT3;
+    const float q00 = mParam.gyroVar * dT + 0.33333f * mParam.gyroBiasVar * dT3;
 
     // variance of drift rate ramp
-    const float q11 = biasVAR * dT;
-    const float q10 = 0.5f * biasVAR * dT2;
+    const float q11 = mParam.gyroBiasVar * dT;
+    const float q10 = 0.5f * mParam.gyroBiasVar * dT2;
     const float q01 = q10;
 
     GQGt[0][0] =  q00;      // rad^2
@@ -223,7 +256,9 @@ void Fusion::initFusion(const vec4_t& q, float dT)
 }
 
 bool Fusion::hasEstimate() const {
-    return (mInitState == (MAG|ACC|GYRO));
+    return ((mInitState & MAG) || (mMode == FUSION_NOMAG)) &&
+           ((mInitState & GYRO) || (mMode == FUSION_NOGYRO)) &&
+           (mInitState & ACC);
 }
 
 bool Fusion::checkInitComplete(int what, const vec3_t& d, float dT) {
@@ -234,6 +269,9 @@ bool Fusion::checkInitComplete(int what, const vec3_t& d, float dT) {
         mData[0] += d * (1/length(d));
         mCount[0]++;
         mInitState |= ACC;
+        if (mMode == FUSION_NOGYRO ) {
+            mGyroRate = dT;
+        }
     } else if (what == MAG) {
         mData[1] += d * (1/length(d));
         mCount[1]++;
@@ -242,25 +280,29 @@ bool Fusion::checkInitComplete(int what, const vec3_t& d, float dT) {
         mGyroRate = dT;
         mData[2] += d*dT;
         mCount[2]++;
-        if (mCount[2] == 64) {
-            // 64 samples is good enough to estimate the gyro drift and
-            // doesn't take too much time.
-            mInitState |= GYRO;
-        }
+        mInitState |= GYRO;
     }
 
-    if (mInitState == (MAG|ACC|GYRO)) {
+    if (hasEstimate()) {
         // Average all the values we collected so far
         mData[0] *= 1.0f/mCount[0];
-        mData[1] *= 1.0f/mCount[1];
+        if (mMode != FUSION_NOMAG) {
+            mData[1] *= 1.0f/mCount[1];
+        }
         mData[2] *= 1.0f/mCount[2];
 
         // calculate the MRPs from the data collection, this gives us
         // a rough estimate of our initial state
         mat33_t R;
-        vec3_t up(mData[0]);
-        vec3_t east(cross_product(mData[1], up));
-        east *= 1/length(east);
+        vec3_t  up(mData[0]);
+        vec3_t  east;
+
+        if (mMode != FUSION_NOMAG) {
+            east = normalize(cross_product(mData[1], up));
+        } else {
+            east = getOrthogonal(up);
+        }
+
         vec3_t north(cross_product(up, east));
         R << east << north << up;
         const vec4_t q = matrixToQuat(R);
@@ -278,21 +320,43 @@ void Fusion::handleGyro(const vec3_t& w, float dT) {
     predict(w, dT);
 }
 
-status_t Fusion::handleAcc(const vec3_t& a) {
+status_t Fusion::handleAcc(const vec3_t& a, float dT) {
+    if (!checkInitComplete(ACC, a, dT))
+        return BAD_VALUE;
+
     // ignore acceleration data if we're close to free-fall
-    if (length_squared(a) < FREE_FALL_THRESHOLD_SQ) {
+    const float l = length(a);
+    if (l < FREE_FALL_THRESHOLD) {
         return BAD_VALUE;
     }
 
-    if (!checkInitComplete(ACC, a))
-        return BAD_VALUE;
+    const float l_inv = 1.0f/l;
 
-    const float l = 1/length(a);
-    update(a*l, Ba, accSTDEV*l);
+    if ( mMode == FUSION_NOGYRO ) {
+        //geo mag
+        vec3_t w_dummy;
+        w_dummy = x1; //bias
+        predict(w_dummy, dT);
+    }
+
+    if ( mMode == FUSION_NOMAG) {
+        vec3_t m;
+        m = getRotationMatrix()*Bm;
+        update(m, Bm, mParam.magStdev);
+    }
+
+    vec3_t unityA = a * l_inv;
+    const float d = sqrtf(fabsf(l- NOMINAL_GRAVITY));
+    const float p = l_inv * mParam.accStdev*expf(d);
+
+    update(unityA, Ba, p);
     return NO_ERROR;
 }
 
 status_t Fusion::handleMag(const vec3_t& m) {
+    if (!checkInitComplete(MAG, m))
+        return BAD_VALUE;
+
     // the geomagnetic-field should be between 30uT and 60uT
     // reject if too large to avoid spurious magnetic sources
     const float magFieldSq = length_squared(m);
@@ -303,9 +367,6 @@ status_t Fusion::handleMag(const vec3_t& m) {
         // cross-products below
         return BAD_VALUE;
     }
-
-    if (!checkInitComplete(MAG, m))
-        return BAD_VALUE;
 
     // Orthogonalize the magnetic field to the gravity field, mapping it into
     // tangent to Earth.
@@ -324,10 +385,10 @@ status_t Fusion::handleMag(const vec3_t& m) {
     // then pass it in as the update.
     vec3_t north( cross_product(up, east) );
 
-    const float l = 1 / length(north);
-    north *= l;
+    const float l_inv = 1 / length(north);
+    north *= l_inv;
 
-    update(north, Bm, magSTDEV*l);
+    update(north, Bm,  mParam.magStdev*l_inv);
     return NO_ERROR;
 }
 
@@ -372,8 +433,11 @@ mat34_t Fusion::getF(const vec4_t& q) {
 void Fusion::predict(const vec3_t& w, float dT) {
     const vec4_t q  = x0;
     const vec3_t b  = x1;
-    const vec3_t we = w - b;
+    vec3_t we = w - b;
 
+    if (length(we) < WVEC_EPS) {
+        we = (we[0]>0.f)?WVEC_EPS:-WVEC_EPS;
+    }
     // q(k+1) = O(we)*q(k)
     // --------------------
     //
@@ -406,7 +470,7 @@ void Fusion::predict(const vec3_t& w, float dT) {
     const mat33_t wx2(wx*wx);
     const float lwedT = length(we)*dT;
     const float hlwedT = 0.5f*lwedT;
-    const float ilwe = 1/length(we);
+    const float ilwe = 1.f/length(we);
     const float k0 = (1-cosf(lwedT))*(ilwe*ilwe);
     const float k1 = sinf(lwedT);
     const float k2 = cosf(hlwedT);
@@ -422,6 +486,7 @@ void Fusion::predict(const vec3_t& w, float dT) {
     Phi[1][0] = wx*k0 - I33dT - wx2*(ilwe*ilwe*ilwe)*(lwedT-k1);
 
     x0 = O*q;
+
     if (x0.w < 0)
         x0 = -x0;
 
@@ -466,14 +531,36 @@ void Fusion::update(const vec3_t& z, const vec3_t& Bi, float sigma) {
 
     const vec3_t e(z - Bb);
     const vec3_t dq(K[0]*e);
-    const vec3_t db(K[1]*e);
 
     q += getF(q)*(0.5f*dq);
     x0 = normalize_quat(q);
-    x1 += db;
+
+    if (mMode != FUSION_NOMAG) {
+        const vec3_t db(K[1]*e);
+        x1 += db;
+    }
 
     checkState();
 }
+
+vec3_t Fusion::getOrthogonal(const vec3_t &v) {
+    vec3_t w;
+    if (fabsf(v[0])<= fabsf(v[1]) && fabsf(v[0]) <= fabsf(v[2]))  {
+        w[0]=0.f;
+        w[1] = v[2];
+        w[2] = -v[1];
+    } else if (fabsf(v[1]) <= fabsf(v[2])) {
+        w[0] = v[2];
+        w[1] = 0.f;
+        w[2] = -v[0];
+    }else {
+        w[0] = v[1];
+        w[1] = -v[0];
+        w[2] = 0.f;
+    }
+    return normalize(w);
+}
+
 
 // -----------------------------------------------------------------------
 
