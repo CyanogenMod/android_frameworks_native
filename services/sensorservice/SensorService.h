@@ -46,7 +46,7 @@
 #endif
 
 // ---------------------------------------------------------------------------
-
+#define IGNORE_HARDWARE_FUSION  false
 #define DEBUG_CONNECTIONS   false
 // Max size is 100 KB which is enough to accept a batch of about 1000 events.
 #define MAX_SOCKET_BUFFER_SIZE_BATCHED 100 * 1024

@@ -42,30 +42,52 @@ class SensorFusion : public Singleton<SensorFusion> {
     Sensor mAcc;
     Sensor mMag;
     Sensor mGyro;
-    Fusion mFusion;
-    bool mEnabled;
+
+    Fusion mFusions[NUM_FUSION_MODE]; // normal, no_mag, no_gyro
+
+    bool mEnabled[NUM_FUSION_MODE];
+
+    vec4_t &mAttitude;
+    vec4_t mAttitudes[NUM_FUSION_MODE];
+
+    SortedVector<void*> mClients[3];
+
     float mEstimatedGyroRate;
     nsecs_t mTargetDelayNs;
+
     nsecs_t mGyroTime;
-    vec4_t mAttitude;
-    SortedVector<void*> mClients;
+    nsecs_t mAccTime;
 
     SensorFusion();
 
 public:
     void process(const sensors_event_t& event);
 
-    bool isEnabled() const { return mEnabled; }
-    bool hasEstimate() const { return mFusion.hasEstimate(); }
-    mat33_t getRotationMatrix() const { return mFusion.getRotationMatrix(); }
-    vec4_t getAttitude() const { return mAttitude; }
-    vec3_t getGyroBias() const { return mFusion.getBias(); }
+    bool isEnabled() const {
+        return mEnabled[FUSION_9AXIS] ||
+                mEnabled[FUSION_NOMAG] ||
+                mEnabled[FUSION_NOGYRO];
+    }
+
+    bool hasEstimate(int mode = FUSION_9AXIS) const {
+        return mFusions[mode].hasEstimate();
+    }
+
+    mat33_t getRotationMatrix(int mode = FUSION_9AXIS) const {
+        return mFusions[mode].getRotationMatrix();
+    }
+
+    vec4_t getAttitude(int mode = FUSION_9AXIS) const {
+        return mAttitudes[mode];
+    }
+
+    vec3_t getGyroBias() const { return mFusions[FUSION_9AXIS].getBias(); }
     float getEstimatedRate() const { return mEstimatedGyroRate; }
 
-    status_t activate(void* ident, bool enabled);
-    status_t setDelay(void* ident, int64_t ns);
+    status_t activate(int mode, void* ident, bool enabled);
+    status_t setDelay(int mode, void* ident, int64_t ns);
 
-    float getPowerUsage() const;
+    float getPowerUsage(int mode=FUSION_9AXIS) const;
     int32_t getMinDelay() const;
 
     void dump(String8& result);
