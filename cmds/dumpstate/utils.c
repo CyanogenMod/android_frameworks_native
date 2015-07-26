@@ -642,24 +642,6 @@ const char *dump_traces() {
         return NULL;  // Can't rename old traces.txt -- no permission? -- leave it alone instead
     }
 
-    /* make the directory if necessary */
-    char anr_traces_dir[PATH_MAX];
-    strlcpy(anr_traces_dir, traces_path, sizeof(anr_traces_dir));
-    char *slash = strrchr(anr_traces_dir, '/');
-    if (slash != NULL) {
-        *slash = '\0';
-        if (!mkdir(anr_traces_dir, 0775)) {
-            chown(anr_traces_dir, AID_SYSTEM, AID_SYSTEM);
-            chmod(anr_traces_dir, 0775);
-            if (selinux_android_restorecon(anr_traces_dir, 0) == -1) {
-                fprintf(stderr, "restorecon failed for %s: %s\n", anr_traces_dir, strerror(errno));
-            }
-        } else if (errno != EEXIST) {
-            fprintf(stderr, "mkdir(%s): %s\n", anr_traces_dir, strerror(errno));
-            return NULL;
-        }
-    }
-
     /* create a new, empty traces.txt file to receive stack dumps */
     int fd = TEMP_FAILURE_RETRY(open(traces_path, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW | O_CLOEXEC,
                                      0666));  /* -rw-rw-rw- */
