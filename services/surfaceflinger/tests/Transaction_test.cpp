@@ -249,4 +249,111 @@ TEST_F(LayerUpdateTest, LayerResizeWorks) {
     }
 }
 
+TEST_F(LayerUpdateTest, LayerCropWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before crop");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    Rect cropRect(16, 16, 32, 32);
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setCrop(cropRect));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should crop the foreground surface.
+        SCOPED_TRACE("after crop");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel( 95,  80, 195,  63,  63);
+        sc->checkPixel( 80,  95, 195,  63,  63);
+        sc->checkPixel( 96,  96,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerSetLayerWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before setLayer");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setLayer(INT_MAX - 3));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should hide the foreground surface beneath the background.
+        SCOPED_TRACE("after setLayer");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerShowHideWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before hide");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->hide());
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should hide the foreground surface.
+        SCOPED_TRACE("after hide, before show");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->show());
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should show the foreground surface.
+        SCOPED_TRACE("after show");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerSetAlphaWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before setAlpha");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setAlpha(0.75f));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should set foreground to be 75% opaque.
+        SCOPED_TRACE("after setAlpha");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 162,  63,  96);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
 }
