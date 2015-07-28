@@ -44,7 +44,6 @@ GravitySensor::GravitySensor(sensor_t const* list, size_t count)
 bool GravitySensor::process(sensors_event_t* outEvent,
         const sensors_event_t& event)
 {
-    const static double NS2S = 1.0 / 1000000000.0;
     if (event.type == SENSOR_TYPE_ACCELEROMETER) {
         vec3_t g;
         if (!mSensorFusion.hasEstimate())
