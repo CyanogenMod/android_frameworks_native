@@ -37,7 +37,7 @@ template <typename TYPE, size_t SIZE>
 class vec;
 
 template <typename TYPE, size_t SIZE>
-class vbase;
+struct vbase;
 
 namespace helpers {
 
