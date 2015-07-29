@@ -59,18 +59,23 @@ void SensorManager::sensorManagerDied()
 
 status_t SensorManager::assertStateLocked() const {
     if (mSensorServer == NULL) {
-        // try for one second
         const String16 name("sensorservice");
-        for (int i=0 ; i<4 ; i++) {
+        // try 10 times before giving up ...
+        for (int i = 0; i < 10; ++i) {
             status_t err = getService(name, &mSensorServer);
             if (err == NAME_NOT_FOUND) {
-                usleep(250000);
+                // Sleep for 1 second before retrying.
+                sleep(1);
                 continue;
             }
             if (err != NO_ERROR) {
                 return err;
             }
             break;
+        }
+
+        if (mSensorServer == NULL) {
+            ALOGE("FATAL getsensorservice returned` NULL");
         }
 
         class DeathObserver : public IBinder::DeathRecipient {
