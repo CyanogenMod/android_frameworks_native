@@ -101,6 +101,7 @@ public:
         return *sensorManager;
     }
 
+    SensorManager(const String16& opPackageName);
     ~SensorManager();
 
     ssize_t getSensorList(Sensor const* const** list) const;
@@ -112,7 +113,6 @@ private:
     // DeathRecipient interface
     void sensorManagerDied();
 
-    SensorManager(const String16& opPackageName);
     status_t assertStateLocked() const;
 
 private:
@@ -127,8 +127,6 @@ private:
     const String16 mOpPackageName;
 };
 
-android::Mutex android::SensorManager::sLock;
-std::map<String16, SensorManager*> android::SensorManager::sPackageInstances;
 // ----------------------------------------------------------------------------
 }; // namespace android
 
