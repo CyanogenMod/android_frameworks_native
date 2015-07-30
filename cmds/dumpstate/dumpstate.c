@@ -348,6 +348,8 @@ static void dumpstate() {
     }
     run_command("RADIO LOG", timeout / 1000, "logcat", "-b", "radio", "-v", "threadtime", "-d", "*:v", NULL);
 
+    run_command("LOG STATISTICS", 10, "logcat", "-b", "all", "-S", NULL);
+
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {
         dump_file("VM TRACES JUST NOW", dump_traces_path);
