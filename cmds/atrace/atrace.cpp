@@ -36,6 +36,7 @@
 
 #include <utils/String8.h>
 #include <utils/Timers.h>
+#include <utils/Tokenizer.h>
 #include <utils/Trace.h>
 
 using namespace android;
@@ -149,6 +150,7 @@ static int g_traceBufferSizeKB = 2048;
 static bool g_compress = false;
 static bool g_nohup = false;
 static int g_initialSleepSecs = 0;
+static const char* g_categoriesFile = NULL;
 static const char* g_kernelTraceFuncs = NULL;
 static const char* g_debugAppCmdLine = "";
 
@@ -566,6 +568,52 @@ static bool setKernelTraceFuncs(const char* funcs)
     return ok;
 }
 
+static bool setCategoryEnable(const char* name, bool enable)
+{
+    for (int i = 0; i < NELEM(k_categories); i++) {
+        const TracingCategory& c = k_categories[i];
+        if (strcmp(name, c.name) == 0) {
+            if (isCategorySupported(c)) {
+                g_categoryEnables[i] = enable;
+                return true;
+            } else {
+                if (isCategorySupportedForRoot(c)) {
+                    fprintf(stderr, "error: category \"%s\" requires root "
+                            "privileges.\n", name);
+                } else {
+                    fprintf(stderr, "error: category \"%s\" is not supported "
+                            "on this device.\n", name);
+                }
+                return false;
+            }
+        }
+    }
+    fprintf(stderr, "error: unknown tracing category \"%s\"\n", name);
+    return false;
+}
+
+static bool setCategoriesEnableFromFile(const char* categories_file)
+{
+    if (!categories_file) {
+        return true;
+    }
+    Tokenizer* tokenizer = NULL;
+    if (Tokenizer::open(String8(categories_file), &tokenizer) != NO_ERROR) {
+        return false;
+    }
+    bool ok = true;
+    while (!tokenizer->isEol()) {
+        String8 token = tokenizer->nextToken(" ");
+        if (token.isEmpty()) {
+            tokenizer->skipDelimiters(" ");
+            continue;
+        }
+        ok &= setCategoryEnable(token.string(), true);
+    }
+    delete tokenizer;
+    return ok;
+}
+
 // Set all the kernel tracing settings to the desired state for this trace
 // capture.
 static bool setUpTrace()
@@ -573,6 +621,7 @@ static bool setUpTrace()
     bool ok = true;
 
     // Set up the tracing options.
+    ok &= setCategoriesEnableFromFile(g_categoriesFile);
     ok &= setTraceOverwriteEnable(g_traceOverwrite);
     ok &= setTraceBufferSizeKB(g_traceBufferSizeKB);
     ok &= setGlobalClockEnable(true);
@@ -766,30 +815,6 @@ static void registerSigHandler()
     sigaction(SIGTERM, &sa, NULL);
 }
 
-static bool setCategoryEnable(const char* name, bool enable)
-{
-    for (int i = 0; i < NELEM(k_categories); i++) {
-        const TracingCategory& c = k_categories[i];
-        if (strcmp(name, c.name) == 0) {
-            if (isCategorySupported(c)) {
-                g_categoryEnables[i] = enable;
-                return true;
-            } else {
-                if (isCategorySupportedForRoot(c)) {
-                    fprintf(stderr, "error: category \"%s\" requires root "
-                            "privileges.\n", name);
-                } else {
-                    fprintf(stderr, "error: category \"%s\" is not supported "
-                            "on this device.\n", name);
-                }
-                return false;
-            }
-        }
-    }
-    fprintf(stderr, "error: unknown tracing category \"%s\"\n", name);
-    return false;
-}
-
 static void listSupportedCategories()
 {
     for (int i = 0; i < NELEM(k_categories); i++) {
@@ -809,6 +834,8 @@ static void showHelp(const char *cmd)
                         "separated list of cmdlines\n"
                     "  -b N            use a trace buffer size of N KB\n"
                     "  -c              trace into a circular buffer\n"
+                    "  -f filename     use the categories written in a file as space-separated\n"
+                    "                    values in a line\n"
                     "  -k fname,...    trace the listed kernel functions\n"
                     "  -n              ignore signals\n"
                     "  -s N            sleep for N seconds before tracing [default 0]\n"
@@ -846,7 +873,7 @@ int main(int argc, char **argv)
             {           0,                0, 0,  0 }
         };
 
-        ret = getopt_long(argc, argv, "a:b:ck:ns:t:z",
+        ret = getopt_long(argc, argv, "a:b:cf:k:ns:t:z",
                           long_options, &option_index);
 
         if (ret < 0) {
@@ -870,6 +897,10 @@ int main(int argc, char **argv)
 
             case 'c':
                 g_traceOverwrite = true;
+            break;
+
+            case 'f':
+                g_categoriesFile = optarg;
             break;
 
             case 'k':
