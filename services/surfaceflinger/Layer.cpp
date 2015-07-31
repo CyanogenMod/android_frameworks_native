@@ -1101,6 +1101,10 @@ void Layer::useEmptyDamage() {
 // ----------------------------------------------------------------------------
 
 bool Layer::shouldPresentNow(const DispSync& dispSync) const {
+    if (mSidebandStreamChanged) {
+        return true;
+    }
+
     Mutex::Autolock lock(mQueueItemLock);
     if (mQueueItems.empty()) {
         return false;
