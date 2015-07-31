@@ -731,7 +731,15 @@ enum {
     /** Generic stem key 2 for Wear */
     AKEYCODE_STEM_2 = 266,
     /** Generic stem key 3 for Wear */
-    AKEYCODE_STEM_3 = 267
+    AKEYCODE_STEM_3 = 267,
+    /** Directional Pad Up-Left */
+    AKEYCODE_DPAD_UP_LEFT    = 268,
+    /** Directional Pad Down-Left */
+    AKEYCODE_DPAD_DOWN_LEFT  = 269,
+    /** Directional Pad Up-Right */
+    AKEYCODE_DPAD_UP_RIGHT   = 270,
+    /** Directional Pad Down-Right */
+    AKEYCODE_DPAD_DOWN_RIGHT = 271
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.
