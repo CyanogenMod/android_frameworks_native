@@ -52,6 +52,7 @@
 #include <utils/String8.h>
 #include <utils/String16.h>
 #include <utils/StopWatch.h>
+#include <utils/Timers.h>
 #include <utils/Trace.h>
 
 #include <private/android_filesystem_config.h>
@@ -301,6 +302,10 @@ void SurfaceFlinger::bootFinished()
     // formerly we would just kill the process, but we now ask it to exit so it
     // can choose where to stop the animation.
     property_set("service.bootanim.exit", "1");
+
+    const int LOGTAG_SF_STOP_BOOTANIM = 60110;
+    LOG_EVENT_LONG(LOGTAG_SF_STOP_BOOTANIM,
+                   ns2ms(systemTime(SYSTEM_TIME_MONOTONIC)));
 }
 
 void SurfaceFlinger::deleteTextureAsync(uint32_t texture) {
