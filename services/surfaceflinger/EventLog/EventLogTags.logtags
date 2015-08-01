@@ -36,6 +36,7 @@
 # 60100 - 60199 reserved for surfaceflinger
 
 60100 sf_frame_dur (window|3),(dur0|1),(dur1|1),(dur2|1),(dur3|1),(dur4|1),(dur5|1),(dur6|1)
+60110 sf_stop_bootanim (time|2|3)
 
 # NOTE - the range 1000000-2000000 is reserved for partners and others who
 # want to define their own log tags without conflicting with the core platform.
