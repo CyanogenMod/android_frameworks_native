@@ -26,8 +26,6 @@ uint32_t h;
 // The stateClock starts at zero and increments by 1 every time we draw a frame. It is used to control which phase of the test we are in.
 
 int stateClock;
-const int doLoopStates = 2;
-const int doSingleTestStates = 2;
 bool done;
 
 // Saves the parameters of the test (so we can print them out when we finish the timing.)
