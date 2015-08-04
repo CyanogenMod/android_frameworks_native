@@ -128,7 +128,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     ASSERT_EQ(*dataOut, TEST_DATA);
     ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 
-    ASSERT_EQ(OK, outputConsumer->releaseBuffer(item.mBuf, item.mFrameNumber,
+    ASSERT_EQ(OK, outputConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
             EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
@@ -196,7 +196,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
         ASSERT_EQ(*dataOut, TEST_DATA);
         ASSERT_EQ(OK, item.mGraphicBuffer->unlock());
 
-        ASSERT_EQ(OK, outputConsumers[output]->releaseBuffer(item.mBuf,
+        ASSERT_EQ(OK, outputConsumers[output]->releaseBuffer(item.mSlot,
                     item.mFrameNumber, EGL_NO_DISPLAY, EGL_NO_SYNC_KHR,
                     Fence::NO_FENCE));
     }

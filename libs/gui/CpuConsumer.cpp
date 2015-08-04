@@ -106,22 +106,22 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
         }
     }
 
-    int buf = b.mBuf;
+    int slot = b.mSlot;
 
     void *bufferPointer = NULL;
     android_ycbcr ycbcr = android_ycbcr();
 
-    PixelFormat format = mSlots[buf].mGraphicBuffer->getPixelFormat();
+    PixelFormat format = mSlots[slot].mGraphicBuffer->getPixelFormat();
     PixelFormat flexFormat = format;
     if (isPossiblyYUV(format)) {
         if (b.mFence.get()) {
-            err = mSlots[buf].mGraphicBuffer->lockAsyncYCbCr(
+            err = mSlots[slot].mGraphicBuffer->lockAsyncYCbCr(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &ycbcr,
                 b.mFence->dup());
         } else {
-            err = mSlots[buf].mGraphicBuffer->lockYCbCr(
+            err = mSlots[slot].mGraphicBuffer->lockYCbCr(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &ycbcr);
@@ -141,13 +141,13 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
 
     if (bufferPointer == NULL) { // not flexible YUV
         if (b.mFence.get()) {
-            err = mSlots[buf].mGraphicBuffer->lockAsync(
+            err = mSlots[slot].mGraphicBuffer->lockAsync(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &bufferPointer,
                 b.mFence->dup());
         } else {
-            err = mSlots[buf].mGraphicBuffer->lock(
+            err = mSlots[slot].mGraphicBuffer->lock(
                 GraphicBuffer::USAGE_SW_READ_OFTEN,
                 b.mCrop,
                 &bufferPointer);
@@ -169,19 +169,19 @@ status_t CpuConsumer::lockNextBuffer(LockedBuffer *nativeBuffer) {
     assert(lockedIdx < mMaxLockedBuffers);
 
     AcquiredBuffer &ab = mAcquiredBuffers.editItemAt(lockedIdx);
-    ab.mSlot = buf;
+    ab.mSlot = slot;
     ab.mBufferPointer = bufferPointer;
-    ab.mGraphicBuffer = mSlots[buf].mGraphicBuffer;
+    ab.mGraphicBuffer = mSlots[slot].mGraphicBuffer;
 
     nativeBuffer->data   =
             reinterpret_cast<uint8_t*>(bufferPointer);
-    nativeBuffer->width  = mSlots[buf].mGraphicBuffer->getWidth();
-    nativeBuffer->height = mSlots[buf].mGraphicBuffer->getHeight();
+    nativeBuffer->width  = mSlots[slot].mGraphicBuffer->getWidth();
+    nativeBuffer->height = mSlots[slot].mGraphicBuffer->getHeight();
     nativeBuffer->format = format;
     nativeBuffer->flexFormat = flexFormat;
     nativeBuffer->stride = (ycbcr.y != NULL) ?
             static_cast<uint32_t>(ycbcr.ystride) :
-            mSlots[buf].mGraphicBuffer->getStride();
+            mSlots[slot].mGraphicBuffer->getStride();
 
     nativeBuffer->crop        = b.mCrop;
     nativeBuffer->transform   = b.mTransform;

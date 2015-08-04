@@ -288,8 +288,8 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
 
-    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
-    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(item.mBuf)); // Not acquired
+    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mSlot));
+    ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(item.mSlot)); // Not acquired
 
     uint32_t* dataIn;
     ASSERT_EQ(OK, item.mGraphicBuffer->lock(
@@ -348,7 +348,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
 
     BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, static_cast<nsecs_t>(0)));
-    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mBuf));
+    ASSERT_EQ(OK, mConsumer->detachBuffer(item.mSlot));
 
     int newSlot;
     ASSERT_EQ(OK, mProducer->attachBuffer(&newSlot, item.mGraphicBuffer));

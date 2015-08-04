@@ -78,7 +78,7 @@ status_t BufferItemConsumer::acquireBuffer(BufferItem *item,
         }
     }
 
-    item->mGraphicBuffer = mSlots[item->mBuf].mGraphicBuffer;
+    item->mGraphicBuffer = mSlots[item->mSlot].mGraphicBuffer;
 
     return OK;
 }
@@ -89,9 +89,9 @@ status_t BufferItemConsumer::releaseBuffer(const BufferItem &item,
 
     Mutex::Autolock _l(mMutex);
 
-    err = addReleaseFenceLocked(item.mBuf, item.mGraphicBuffer, releaseFence);
+    err = addReleaseFenceLocked(item.mSlot, item.mGraphicBuffer, releaseFence);
 
-    err = releaseBufferLocked(item.mBuf, item.mGraphicBuffer, EGL_NO_DISPLAY,
+    err = releaseBufferLocked(item.mSlot, item.mGraphicBuffer, EGL_NO_DISPLAY,
             EGL_NO_SYNC_KHR);
     if (err != OK) {
         BI_LOGE("Failed to release buffer: %s (%d)",

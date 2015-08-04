@@ -106,7 +106,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     // releaseBuffer call and we should be in the same state we'd be in if we
     // had released the old buffer first.
     if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT &&
-        item.mBuf != mCurrentBufferSlot) {
+        item.mSlot != mCurrentBufferSlot) {
         // Release the previous buffer.
         err = releaseBufferLocked(mCurrentBufferSlot, mCurrentBuffer,
                 EGL_NO_DISPLAY, EGL_NO_SYNC_KHR);
@@ -115,7 +115,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
             return err;
         }
     }
-    mCurrentBufferSlot = item.mBuf;
+    mCurrentBufferSlot = item.mSlot;
     mCurrentBuffer = mSlots[mCurrentBufferSlot].mGraphicBuffer;
     outFence = item.mFence;
     outBuffer = mCurrentBuffer;
