@@ -37,7 +37,8 @@ protected:
     SurfaceTextureClientTest():
             mEglDisplay(EGL_NO_DISPLAY),
             mEglSurface(EGL_NO_SURFACE),
-            mEglContext(EGL_NO_CONTEXT) {
+            mEglContext(EGL_NO_CONTEXT),
+            mEglConfig(NULL) {
     }
 
     virtual void SetUp() {

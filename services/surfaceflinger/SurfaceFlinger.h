@@ -162,7 +162,7 @@ private:
 
     struct DisplayDeviceState {
         DisplayDeviceState();
-        DisplayDeviceState(DisplayDevice::DisplayType type);
+        DisplayDeviceState(DisplayDevice::DisplayType type, bool isSecure);
         bool isValid() const { return type >= 0; }
         bool isMainDisplay() const { return type == DisplayDevice::DISPLAY_PRIMARY; }
         bool isVirtualDisplay() const { return type >= DisplayDevice::DISPLAY_VIRTUAL; }

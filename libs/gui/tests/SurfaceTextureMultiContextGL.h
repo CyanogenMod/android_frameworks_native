@@ -27,7 +27,8 @@ protected:
     enum { THIRD_TEX_ID = 456 };
 
     SurfaceTextureMultiContextGLTest():
-            mSecondEglContext(EGL_NO_CONTEXT) {
+            mSecondEglContext(EGL_NO_CONTEXT),
+            mThirdEglContext(EGL_NO_CONTEXT) {
     }
 
     virtual void SetUp() {

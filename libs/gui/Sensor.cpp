@@ -38,7 +38,8 @@ namespace android {
 Sensor::Sensor()
     : mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
-      mPower(0), mMinDelay(0), mFifoReservedEventCount(0), mFifoMaxEventCount(0),
+      mPower(0), mMinDelay(0), mVersion(0), mFifoReservedEventCount(0),
+      mFifoMaxEventCount(0), mRequiredAppOp(0),
       mMaxDelay(0), mFlags(0)
 {
 }

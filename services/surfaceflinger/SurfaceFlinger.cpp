@@ -233,9 +233,8 @@ sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName,
     sp<BBinder> token = new DisplayToken(this);
 
     Mutex::Autolock _l(mStateLock);
-    DisplayDeviceState info(DisplayDevice::DISPLAY_VIRTUAL);
+    DisplayDeviceState info(DisplayDevice::DISPLAY_VIRTUAL, secure);
     info.displayName = displayName;
-    info.isSecure = secure;
     mCurrentState.displays.add(token, info);
 
     return token;
@@ -264,9 +263,8 @@ void SurfaceFlinger::createBuiltinDisplayLocked(DisplayDevice::DisplayType type)
     ALOGW_IF(mBuiltinDisplays[type],
             "Overwriting display token for display type %d", type);
     mBuiltinDisplays[type] = new BBinder();
-    DisplayDeviceState info(type);
     // All non-virtual displays are currently considered secure.
-    info.isSecure = true;
+    DisplayDeviceState info(type, true);
     mCurrentState.displays.add(mBuiltinDisplays[type], info);
 }
 
@@ -3109,8 +3107,12 @@ public:
     GraphicProducerWrapper(const sp<IGraphicBufferProducer>& impl)
     :   impl(impl),
         looper(new Looper(true)),
+        result(NO_ERROR),
         exitPending(false),
-        exitRequested(false)
+        exitRequested(false),
+        code(0),
+        data(NULL),
+        reply(NULL)
     {}
 
     // Binder thread
@@ -3506,11 +3508,22 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
-    : type(DisplayDevice::DISPLAY_ID_INVALID), width(0), height(0) {
+    : type(DisplayDevice::DISPLAY_ID_INVALID),
+      layerStack(DisplayDevice::NO_LAYER_STACK),
+      orientation(0),
+      width(0),
+      height(0),
+      isSecure(false) {
 }
 
-SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(DisplayDevice::DisplayType type)
-    : type(type), layerStack(DisplayDevice::NO_LAYER_STACK), orientation(0), width(0), height(0) {
+SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(
+    DisplayDevice::DisplayType type, bool isSecure)
+    : type(type),
+      layerStack(DisplayDevice::NO_LAYER_STACK),
+      orientation(0),
+      width(0),
+      height(0),
+      isSecure(isSecure) {
     viewport.makeInvalid();
     frame.makeInvalid();
 }

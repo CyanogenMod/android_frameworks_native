@@ -310,9 +310,9 @@ status_t Composer::setFlags(const sp<SurfaceComposerClient>& client,
     layer_state_t* s = getLayerStateLocked(client, id);
     if (!s)
         return BAD_INDEX;
-    if (mask & layer_state_t::eLayerOpaque ||
-            mask & layer_state_t::eLayerHidden ||
-            mask & layer_state_t::eLayerSecure) {
+    if ((mask & layer_state_t::eLayerOpaque) ||
+            (mask & layer_state_t::eLayerHidden) ||
+            (mask & layer_state_t::eLayerSecure)) {
         s->what |= layer_state_t::eFlagsChanged;
     }
     s->flags &= ~mask;
