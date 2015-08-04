@@ -118,7 +118,7 @@ void SensorService::onFirstRef()
             // it's safe to instantiate the SensorFusion object here
             // (it wants to be instantiated after h/w sensors have been
             // registered)
-            const SensorFusion& fusion(SensorFusion::getInstance());
+            SensorFusion::getInstance();
 
             // build the sensor list returned to users
             mUserSensorList = mSensorList;
@@ -381,7 +381,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
                         mActiveSensors.valueAt(i)->getNumConnections());
             }
 
-            result.appendFormat("Socket Buffer size = %d events\n",
+            result.appendFormat("Socket Buffer size = %zd events\n",
                                 mSocketBufferSize/sizeof(sensors_event_t));
             result.appendFormat("WakeLock Status: %s \n", mWakeLockAcquired ? "acquired" :
                     "not held");
@@ -1104,7 +1104,7 @@ bool SensorService::canAccessSensor(const Sensor& sensor, const char* operation,
         AppOpsManager appOps;
         if (appOps.noteOp(opCode, IPCThreadState::self()->getCallingUid(), opPackageName)
                         != AppOpsManager::MODE_ALLOWED) {
-            ALOGE("%s a sensor (%s) without enabled required app op: %D",
+            ALOGE("%s a sensor (%s) without enabled required app op: %d",
                     operation, sensor.getName().string(), opCode);
             return false;
         }
@@ -1307,13 +1307,13 @@ void SensorService::CircularBuffer::printBuffer(String8& result) const {
         }
         result.appendFormat("%d) ", eventNum++);
         if (mSensorType == SENSOR_TYPE_STEP_COUNTER) {
-            result.appendFormat("%llu,", mTrimmedSensorEventArr[i]->mStepCounter);
+            result.appendFormat("%" PRIu64 ",", mTrimmedSensorEventArr[i]->mStepCounter);
         } else {
             for (int j = 0; j < numData; ++j) {
                 result.appendFormat("%5.1f,", mTrimmedSensorEventArr[i]->mData[j]);
             }
         }
-        result.appendFormat("%lld %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
+        result.appendFormat("%" PRId64 " %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
                 mTrimmedSensorEventArr[i]->mHour, mTrimmedSensorEventArr[i]->mMin,
                 mTrimmedSensorEventArr[i]->mSec);
         i = (i + 1) % mBufSize;

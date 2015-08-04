@@ -83,7 +83,7 @@ void BatteryService::cleanupImpl(uid_t uid) {
     if (mBatteryStatService != 0) {
         Mutex::Autolock _l(mActivationsLock);
         int64_t identity = IPCThreadState::self()->clearCallingIdentity();
-        for (ssize_t i=0 ; i<mActivations.size() ; i++) {
+        for (size_t i=0 ; i<mActivations.size() ; i++) {
             const Info& info(mActivations[i]);
             if (info.uid == uid) {
                 mBatteryStatService->noteStopSensor(info.uid, info.handle);

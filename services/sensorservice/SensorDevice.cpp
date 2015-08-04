@@ -388,7 +388,7 @@ void SensorDevice::disableAllSensors() {
 
 status_t SensorDevice::injectSensorData(const sensors_event_t *injected_sensor_event) {
       ALOGD_IF(DEBUG_CONNECTIONS,
-              "sensor_event handle=%d ts=%lld data=%.2f, %.2f, %.2f %.2f %.2f %.2f",
+              "sensor_event handle=%d ts=%" PRId64 " data=%.2f, %.2f, %.2f %.2f %.2f %.2f",
                injected_sensor_event->sensor,
                injected_sensor_event->timestamp, injected_sensor_event->data[0],
                injected_sensor_event->data[1], injected_sensor_event->data[2],
