@@ -35,9 +35,11 @@ public:
 
 protected:
     GLTest() :
+            mDisplaySecs(0),
             mEglDisplay(EGL_NO_DISPLAY),
             mEglSurface(EGL_NO_SURFACE),
-            mEglContext(EGL_NO_CONTEXT) {
+            mEglContext(EGL_NO_CONTEXT),
+            mGlConfig(NULL) {
     }
 
     virtual void SetUp();

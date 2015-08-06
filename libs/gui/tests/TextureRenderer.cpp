@@ -28,7 +28,8 @@
 namespace android {
 
 TextureRenderer::TextureRenderer(GLuint texName,
-        const sp<GLConsumer>& st) : mTexName(texName), mST(st) {
+        const sp<GLConsumer>& st) : mTexName(texName), mST(st), mPgm(0),
+        mPositionHandle(-1), mTexSamplerHandle(-1), mTexMatrixHandle(-1) {
 }
 
 void TextureRenderer::SetUp() {

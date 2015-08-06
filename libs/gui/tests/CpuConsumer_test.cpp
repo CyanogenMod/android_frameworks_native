@@ -444,14 +444,6 @@ void checkAnyBuffer(const CpuConsumer::LockedBuffer &buf, int format) {
     }
 }
 
-void fillYV12BufferRect(uint8_t* buf, int w, int h, int stride,
-        const android_native_rect_t& rect);
-
-void fillRGBA8Buffer(uint8_t* buf, int w, int h, int stride);
-
-void fillRGBA8BufferSolid(uint8_t* buf, int w, int h, int stride, uint8_t r,
-        uint8_t g, uint8_t b, uint8_t a);
-
 // Configures the ANativeWindow producer-side interface based on test parameters
 void configureANW(const sp<ANativeWindow>& anw,
         const CpuConsumerTestParams& params,

@@ -74,7 +74,7 @@ private:
  */
 
 FramebufferNativeWindow::FramebufferNativeWindow()
-    : BASE(), fbDev(0), grDev(0), mUpdateOnDemand(false)
+    : BASE(), fbDev(0), grDev(0), mCurrentBufferIndex(0), mUpdateOnDemand(false)
 {
     hw_module_t const* module;
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) == 0) {

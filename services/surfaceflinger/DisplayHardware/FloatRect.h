@@ -29,7 +29,8 @@ public:
     float right;
     float bottom;
 
-    inline FloatRect() { }
+    inline FloatRect()
+        : left(0), top(0), right(0), bottom(0) { }
     inline FloatRect(const Rect& other)
         : left(other.left), top(other.top), right(other.right), bottom(other.bottom) { }
 

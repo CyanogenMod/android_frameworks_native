@@ -119,6 +119,7 @@ void MessageQueue::waitMessage() {
                 continue;
             case Looper::POLL_ERROR:
                 ALOGE("Looper::POLL_ERROR");
+                continue;
             case Looper::POLL_TIMEOUT:
                 // timeout (should not happen)
                 continue;

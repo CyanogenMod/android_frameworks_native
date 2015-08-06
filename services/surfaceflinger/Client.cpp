@@ -134,7 +134,7 @@ status_t Client::createSurface(
                 sp<IBinder>* handle,
                 sp<IGraphicBufferProducer>* gbp)
             : flinger(flinger), client(client),
-              handle(handle), gbp(gbp),
+              handle(handle), gbp(gbp), result(NO_ERROR),
               name(name), w(w), h(h), format(format), flags(flags) {
         }
         status_t getResult() const { return result; }
