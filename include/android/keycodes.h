@@ -739,7 +739,17 @@ enum {
     /** Directional Pad Up-Right */
     AKEYCODE_DPAD_UP_RIGHT   = 270,
     /** Directional Pad Down-Right */
-    AKEYCODE_DPAD_DOWN_RIGHT = 271
+    AKEYCODE_DPAD_DOWN_RIGHT = 271,
+    /** Skip forward media key */
+    AKEYCODE_MEDIA_SKIP_FORWARD = 272,
+    /** Skip backward media key */
+    AKEYCODE_MEDIA_SKIP_BACKWARD = 273,
+    /** Step forward media key.
+     * Steps media forward one from at a time. */
+    AKEYCODE_MEDIA_STEP_FORWARD = 274,
+    /** Step backward media key.
+     * Steps media backward one from at a time. */
+    AKEYCODE_MEDIA_STEP_BACKWARD = 275
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.
