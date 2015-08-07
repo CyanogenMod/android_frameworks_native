@@ -353,7 +353,7 @@ status_t BnSurfaceComposer::onTransact(
             sp<IBinder> display = data.readStrongBinder();
             sp<IGraphicBufferProducer> producer =
                     interface_cast<IGraphicBufferProducer>(data.readStrongBinder());
-            Rect sourceCrop;
+            Rect sourceCrop(Rect::EMPTY_RECT);
             data.read(sourceCrop);
             uint32_t reqWidth = data.readUint32();
             uint32_t reqHeight = data.readUint32();

@@ -20,6 +20,7 @@
 namespace android {
 
 const Rect Rect::INVALID_RECT{0, 0, -1, -1};
+const Rect Rect::EMPTY_RECT{0, 0, 0, 0};
 
 static inline int32_t min(int32_t a, int32_t b) {
     return (a < b) ? a : b;
@@ -110,7 +111,7 @@ Rect Rect::transform(uint32_t xform, int32_t width, int32_t height) const {
 }
 
 Rect Rect::reduce(const Rect& exclude) const {
-    Rect result;
+    Rect result(Rect::EMPTY_RECT);
 
     uint32_t mask = 0;
     mask |= (exclude.left   > left)   ? 1 : 0;

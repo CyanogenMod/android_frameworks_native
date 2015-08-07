@@ -547,7 +547,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
     int64_t timestamp;
     bool isAutoTimestamp;
     android_dataspace dataSpace;
-    Rect crop;
+    Rect crop(Rect::EMPTY_RECT);
     int scalingMode;
     uint32_t transform;
     uint32_t stickyTransform;
@@ -619,7 +619,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         const sp<GraphicBuffer>& graphicBuffer(mSlots[slot].mGraphicBuffer);
         Rect bufferRect(graphicBuffer->getWidth(), graphicBuffer->getHeight());
-        Rect croppedRect;
+        Rect croppedRect(Rect::EMPTY_RECT);
         crop.intersect(bufferRect, &croppedRect);
         if (croppedRect != crop) {
             BQ_LOGE("queueBuffer: crop rect is not contained within the "

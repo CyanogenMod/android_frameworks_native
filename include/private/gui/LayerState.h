@@ -58,11 +58,10 @@ struct layer_state_t {
         :   what(0),
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
-            reserved(0)
+            reserved(0), crop(Rect::INVALID_RECT)
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
         matrix.dsdy = matrix.dtdx = 0.0f;
-        crop.makeInvalid();
     }
 
     status_t    write(Parcel& output) const;
@@ -116,6 +115,8 @@ struct DisplayState {
         eDisplayProjectionChanged   = 0x04,
         eDisplaySizeChanged         = 0x08
     };
+
+    DisplayState();
 
     uint32_t what;
     sp<IBinder> token;

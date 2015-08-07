@@ -67,6 +67,25 @@ class CpuConsumer : public ConsumerBase
         uint8_t    *dataCr;
         uint32_t    chromaStride;
         uint32_t    chromaStep;
+
+        LockedBuffer() :
+            data(NULL),
+            width(0),
+            height(0),
+            format(PIXEL_FORMAT_NONE),
+            stride(0),
+            crop(0, 0, 0, 0),
+            transform(0),
+            scalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
+            timestamp(0),
+            dataSpace(HAL_DATASPACE_UNKNOWN),
+            frameNumber(0),
+            flexFormat(PIXEL_FORMAT_NONE),
+            dataCb(NULL),
+            dataCr(NULL),
+            chromaStride(0),
+            chromaStep(0)
+        {}
     };
 
     // Create a new CPU consumer. The maxLockedBuffers parameter specifies

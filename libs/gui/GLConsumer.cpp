@@ -130,6 +130,7 @@ static bool isEglImageCroppable(const Rect& crop) {
 GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
         uint32_t texTarget, bool useFenceSync, bool isControlledByApp) :
     ConsumerBase(bq, isControlledByApp),
+    mCurrentCrop(Rect::EMPTY_RECT),
     mCurrentTransform(0),
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mCurrentFence(Fence::NO_FENCE),
@@ -157,6 +158,7 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
 GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t texTarget,
         bool useFenceSync, bool isControlledByApp) :
     ConsumerBase(bq, isControlledByApp),
+    mCurrentCrop(Rect::EMPTY_RECT),
     mCurrentTransform(0),
     mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mCurrentFence(Fence::NO_FENCE),
@@ -1083,7 +1085,8 @@ static void mtxMul(float out[16], const float a[16], const float b[16]) {
 GLConsumer::EglImage::EglImage(sp<GraphicBuffer> graphicBuffer) :
     mGraphicBuffer(graphicBuffer),
     mEglImage(EGL_NO_IMAGE_KHR),
-    mEglDisplay(EGL_NO_DISPLAY) {
+    mEglDisplay(EGL_NO_DISPLAY),
+    mCropRect(Rect::EMPTY_RECT) {
 }
 
 GLConsumer::EglImage::~EglImage() {
