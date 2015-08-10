@@ -234,7 +234,7 @@ static int _delete_dir_contents(DIR *d,
                 if ((name[1] == '.') && (name[2] == 0)) continue;
             }
 
-            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
             if (subfd < 0) {
                 ALOGE("Couldn't openat %s: %s\n", name, strerror(errno));
                 result = -1;
@@ -294,7 +294,7 @@ int delete_dir_contents_fd(int dfd, const char *name)
     int fd, res;
     DIR *d;
 
-    fd = openat(dfd, name, O_RDONLY | O_DIRECTORY);
+    fd = openat(dfd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0) {
         ALOGE("Couldn't openat %s: %s\n", name, strerror(errno));
         return -1;
@@ -634,7 +634,7 @@ static int _add_cache_files(cache_t *cache, cache_dir_t *parentDir, const char *
                 if ((name[1] == '.') && (name[2] == 0)) continue;
             }
 
-            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY);
+            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
             if (subfd < 0) {
                 ALOGE("Couldn't openat %s: %s\n", name, strerror(errno));
                 continue;
