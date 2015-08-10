@@ -256,7 +256,7 @@ static int _delete_dir_contents(DIR *d,
                 if ((name[1] == '.') && (name[2] == 0)) continue;
             }
 
-            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY);
+            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
             if (subfd < 0) {
                 ALOGE("Couldn't openat %s: %s\n", name, strerror(errno));
                 result = -1;
