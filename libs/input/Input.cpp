@@ -23,7 +23,7 @@
 #include <input/Input.h>
 #include <input/InputEventLabels.h>
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
 #include <binder/Parcel.h>
 #endif
 
@@ -144,7 +144,7 @@ void PointerCoords::applyOffset(float xOffset, float yOffset) {
     setAxisValue(AMOTION_EVENT_AXIS_Y, getY() + yOffset);
 }
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
 status_t PointerCoords::readFromParcel(Parcel* parcel) {
     bits = parcel->readInt64();
 
@@ -420,7 +420,7 @@ void MotionEvent::transform(const float matrix[9]) {
     }
 }
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
 status_t MotionEvent::readFromParcel(Parcel* parcel) {
     size_t pointerCount = parcel->readInt32();
     size_t sampleCount = parcel->readInt32();
