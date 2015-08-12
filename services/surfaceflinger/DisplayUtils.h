@@ -56,14 +56,21 @@ class DisplayUtils {
                             uint32_t, uint32_t);
     HWComposer* getHWCInstance(const sp<SurfaceFlinger>& flinger,
                             HWComposer::EventHandler& handler);
-    VirtualDisplaySurface* getVDSInstance(HWComposer* hwc, int32_t hwcDisplayId,
-            sp<IGraphicBufferProducer> currentStateSurface, sp<IGraphicBufferProducer> bqProducer,
+    void initVDSInstance(HWComposer* hwc, int32_t hwcDisplayId,
+            sp<IGraphicBufferProducer> currentStateSurface, sp<DisplaySurface> &dispSurface,
+            sp<IGraphicBufferProducer> &producer, sp<IGraphicBufferProducer> bqProducer,
             sp<IGraphicBufferConsumer> bqConsumer, String8 currentStateDisplayName,
-            bool currentStateIsSecure);
+            bool currentStateIsSecure, int currentStateType);
     DisplayUtils();
   private:
     static DisplayUtils* sDisplayUtils;
     static bool sUseExtendedImpls;
+
+    bool createV4L2BasedVirtualDisplay(HWComposer* hwc, int32_t &hwcDisplayId,
+                   sp<DisplaySurface> &dispSurface, sp<IGraphicBufferProducer> &producer,
+                   sp<IGraphicBufferProducer> currentStateSurface,
+                   sp<IGraphicBufferProducer> bqProducer,
+                   sp<IGraphicBufferConsumer> bqConsumer, int currentStateType);
 };
 
 }; // namespace android

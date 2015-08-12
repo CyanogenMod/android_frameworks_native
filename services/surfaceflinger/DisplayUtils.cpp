@@ -33,15 +33,18 @@
 #include <utils/Errors.h>
 #include <utils/Log.h>
 
+#include <gui/Surface.h>
 #include <ui/GraphicBuffer.h>
 
-#include <dlfcn.h>
-
+#include "RenderEngine/RenderEngine.h"
+#include "DisplayHardware/FramebufferSurface.h"
 #include "DisplayUtils.h"
 #include <ExSurfaceFlinger/ExSurfaceFlinger.h>
 #include <ExSurfaceFlinger/ExLayer.h>
 #include <ExSurfaceFlinger/ExHWComposer.h>
 #include <ExSurfaceFlinger/ExVirtualDisplaySurface.h>
+#include <dlfcn.h>
+
 #if QTI_BSP
 #include <gralloc_priv.h>
 #endif
@@ -92,18 +95,70 @@ HWComposer* DisplayUtils::getHWCInstance(
     }
 }
 
-VirtualDisplaySurface* DisplayUtils::getVDSInstance(HWComposer* hwc, int32_t hwcDisplayId,
-        sp<IGraphicBufferProducer> currentStateSurface, sp<IGraphicBufferProducer> bqProducer,
+void DisplayUtils::initVDSInstance(HWComposer* hwc, int32_t hwcDisplayId,
+        sp<IGraphicBufferProducer> currentStateSurface, sp<DisplaySurface> &dispSurface,
+        sp<IGraphicBufferProducer> &producer, sp<IGraphicBufferProducer> bqProducer,
         sp<IGraphicBufferConsumer> bqConsumer, String8 currentStateDisplayName,
-        bool currentStateIsSecure)
+        bool currentStateIsSecure, int currentStateType)
 {
     if(sUseExtendedImpls) {
-        return new ExVirtualDisplaySurface(*hwc, hwcDisplayId, currentStateSurface, bqProducer,
-                bqConsumer, currentStateDisplayName, currentStateIsSecure);
+        if(hwc->isVDSEnabled()) {
+            VirtualDisplaySurface* vds = new ExVirtualDisplaySurface(*hwc, hwcDisplayId,
+                    currentStateSurface, bqProducer, bqConsumer, currentStateDisplayName,
+                    currentStateIsSecure);
+            dispSurface = vds;
+            producer = vds;
+        } else if(!createV4L2BasedVirtualDisplay(hwc, hwcDisplayId, dispSurface, producer,
+                          currentStateSurface, bqProducer, bqConsumer, currentStateType)) {
+            VirtualDisplaySurface* vds = new VirtualDisplaySurface(*hwc, hwcDisplayId,
+                    currentStateSurface, bqProducer, bqConsumer, currentStateDisplayName);
+            dispSurface = vds;
+            producer = vds;
+        }
     } else {
-        return new VirtualDisplaySurface(*hwc, hwcDisplayId, currentStateSurface, bqProducer,
-                bqConsumer, currentStateDisplayName);
+        VirtualDisplaySurface* vds = new VirtualDisplaySurface(*hwc, hwcDisplayId,
+                currentStateSurface, bqProducer, bqConsumer, currentStateDisplayName);
+        dispSurface = vds;
+        producer = vds;
     }
+}
+
+bool DisplayUtils::createV4L2BasedVirtualDisplay(HWComposer* hwc, int32_t &hwcDisplayId,
+                   sp<DisplaySurface> &dispSurface, sp<IGraphicBufferProducer> &producer,
+                   sp<IGraphicBufferProducer> currentStateSurface,
+                   sp<IGraphicBufferProducer> bqProducer, sp<IGraphicBufferConsumer> bqConsumer,
+                   int currentStateType) {
+    char value[PROPERTY_VALUE_MAX];
+    property_get("persist.sys.wfd.virtual", value, "0");
+    int wfdVirtual = atoi(value);
+    if(wfdVirtual && hwcDisplayId > 0) {
+        //Read virtual display properties and create a
+        //rendering surface for it inorder to be handled
+        //by hwc.
+
+        sp<ANativeWindow> mNativeWindow = new Surface(currentStateSurface);
+        ANativeWindow* const window = mNativeWindow.get();
+
+        int format;
+        window->query(window, NATIVE_WINDOW_FORMAT, &format);
+        EGLSurface surface;
+        EGLint w, h;
+        EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        // In M AOSP getEGLConfig() always returns EGL_NO_CONFIG as
+        // EGL_ANDROIDX_no_config_context active now.
+        EGLConfig config = RenderEngine::chooseEglConfig(display, format);
+
+        surface = eglCreateWindowSurface(display, config, window, NULL);
+        eglQuerySurface(display, surface, EGL_WIDTH, &w);
+        eglQuerySurface(display, surface, EGL_HEIGHT, &h);
+        if(hwc->setVirtualDisplayProperties(hwcDisplayId, w, h, format) != NO_ERROR)
+            return false;
+
+        dispSurface = new FramebufferSurface(*hwc, currentStateType, bqConsumer);
+        producer = bqProducer;
+        return true;
+    }
+    return false;
 }
 
 }; // namespace android
