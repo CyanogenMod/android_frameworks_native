@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if HAVE_ANDROID_OS
+#ifdef __ANDROID__
 #include <binder/Parcel.h>
 #endif
 
@@ -557,7 +557,7 @@ void KeyCharacterMap::addLockedMetaKey(Vector<KeyEvent>& outEvents,
     }
 }
 
-#if HAVE_ANDROID_OS
+#ifdef __ANDROID__
 sp<KeyCharacterMap> KeyCharacterMap::readFromParcel(Parcel* parcel) {
     sp<KeyCharacterMap> map = new KeyCharacterMap();
     map->mType = parcel->readInt32();
