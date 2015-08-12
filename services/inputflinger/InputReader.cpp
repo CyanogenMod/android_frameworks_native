@@ -450,6 +450,11 @@ InputDevice* InputReader::createDeviceLocked(int32_t deviceId, int32_t controlle
         device->addMapper(new SwitchInputMapper(device));
     }
 
+    // Scroll wheel-like devices.
+    if (classes & INPUT_DEVICE_CLASS_ROTARY_ENCODER) {
+        device->addMapper(new RotaryEncoderInputMapper(device));
+    }
+
     // Vibrator-like devices.
     if (classes & INPUT_DEVICE_CLASS_VIBRATOR) {
         device->addMapper(new VibratorInputMapper(device));
@@ -2730,6 +2735,92 @@ void CursorInputMapper::fadePointer() {
     }
 }
 
+// --- RotaryEncoderInputMapper ---
+
+RotaryEncoderInputMapper::RotaryEncoderInputMapper(InputDevice* device) :
+        InputMapper(device) {
+    mSource = AINPUT_SOURCE_ROTARY_ENCODER;
+}
+
+RotaryEncoderInputMapper::~RotaryEncoderInputMapper() {
+}
+
+uint32_t RotaryEncoderInputMapper::getSources() {
+    return mSource;
+}
+
+void RotaryEncoderInputMapper::populateDeviceInfo(InputDeviceInfo* info) {
+    InputMapper::populateDeviceInfo(info);
+
+    if (mRotaryEncoderScrollAccumulator.haveRelativeVWheel()) {
+        info->addMotionRange(AMOTION_EVENT_AXIS_SCROLL, mSource, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+    }
+}
+
+void RotaryEncoderInputMapper::dump(String8& dump) {
+    dump.append(INDENT2 "Rotary Encoder Input Mapper:\n");
+    dump.appendFormat(INDENT3 "HaveWheel: %s\n",
+            toString(mRotaryEncoderScrollAccumulator.haveRelativeVWheel()));
+}
+
+void RotaryEncoderInputMapper::configure(nsecs_t when,
+        const InputReaderConfiguration* config, uint32_t changes) {
+    InputMapper::configure(when, config, changes);
+    if (!changes) {
+        mRotaryEncoderScrollAccumulator.configure(getDevice());
+    }
+}
+
+void RotaryEncoderInputMapper::reset(nsecs_t when) {
+    mRotaryEncoderScrollAccumulator.reset(getDevice());
+
+    InputMapper::reset(when);
+}
+
+void RotaryEncoderInputMapper::process(const RawEvent* rawEvent) {
+    mRotaryEncoderScrollAccumulator.process(rawEvent);
+
+    if (rawEvent->type == EV_SYN && rawEvent->code == SYN_REPORT) {
+        sync(rawEvent->when);
+    }
+}
+
+void RotaryEncoderInputMapper::sync(nsecs_t when) {
+    PointerCoords pointerCoords;
+    pointerCoords.clear();
+
+    PointerProperties pointerProperties;
+    pointerProperties.clear();
+    pointerProperties.id = 0;
+    pointerProperties.toolType = AMOTION_EVENT_TOOL_TYPE_UNKNOWN;
+
+    float scroll = mRotaryEncoderScrollAccumulator.getRelativeVWheel();
+    bool scrolled = scroll != 0;
+
+    // This is not a pointer, so it's not associated with a display.
+    int32_t displayId = ADISPLAY_ID_NONE;
+
+    // Moving the rotary encoder should wake the device (if specified).
+    uint32_t policyFlags = 0;
+    if (scrolled && getDevice()->isExternal()) {
+        policyFlags |= POLICY_FLAG_WAKE;
+    }
+
+    // Send motion event.
+    if (scrolled) {
+        int32_t metaState = mContext->getGlobalMetaState();
+        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_SCROLL, scroll);
+
+        NotifyMotionArgs scrollArgs(when, getDeviceId(), mSource, policyFlags,
+                AMOTION_EVENT_ACTION_SCROLL, 0, 0, metaState, 0,
+                AMOTION_EVENT_EDGE_FLAG_NONE,
+                displayId, 1, &pointerProperties, &pointerCoords,
+                0, 0, 0);
+        getListener()->notifyMotion(&scrollArgs);
+    }
+
+    mRotaryEncoderScrollAccumulator.finishSync();
+}
 
 // --- TouchInputMapper ---
 
