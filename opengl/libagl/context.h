@@ -21,7 +21,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <pthread.h>
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
 #include <bionic_tls.h>
 #endif
 
@@ -579,7 +579,7 @@ private:
 // state
 // ----------------------------------------------------------------------------
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
     // We have a dedicated TLS slot in bionic
     inline void setGlThreadSpecific(ogles_context_t *value) {
         __get_tls()[TLS_SLOT_OPENGL] = value;
