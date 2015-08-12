@@ -134,7 +134,7 @@ struct AInputDevice {
 
 namespace android {
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
 class Parcel;
 #endif
 
@@ -217,7 +217,7 @@ struct PointerCoords {
         return getAxisValue(AMOTION_EVENT_AXIS_Y);
     }
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
     status_t readFromParcel(Parcel* parcel);
     status_t writeToParcel(Parcel* parcel) const;
 #endif
@@ -548,7 +548,7 @@ public:
     // Matrix is in row-major form and compatible with SkMatrix.
     void transform(const float matrix[9]);
 
-#ifdef HAVE_ANDROID_OS
+#ifdef __ANDROID__
     status_t readFromParcel(Parcel* parcel);
     status_t writeToParcel(Parcel* parcel) const;
 #endif

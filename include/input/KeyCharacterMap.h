@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#if HAVE_ANDROID_OS
+#ifdef __ANDROID__
 #include <binder/IBinder.h>
 #endif
 
@@ -124,7 +124,7 @@ public:
      * the mapping in some way. */
     status_t mapKey(int32_t scanCode, int32_t usageCode, int32_t* outKeyCode) const;
 
-#if HAVE_ANDROID_OS
+#ifdef __ANDROID__
     /* Reads a key map from a parcel. */
     static sp<KeyCharacterMap> readFromParcel(Parcel* parcel);
 
