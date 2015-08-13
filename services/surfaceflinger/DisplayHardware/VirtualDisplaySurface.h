@@ -99,6 +99,8 @@ private:
     //
     virtual status_t requestBuffer(int pslot, sp<GraphicBuffer>* outBuf);
     virtual status_t setBufferCount(int bufferCount);
+    virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers);
+    virtual status_t setAsyncMode(bool async);
     virtual status_t dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
             uint32_t w, uint32_t h, PixelFormat format, uint32_t usage);
     virtual status_t detachBuffer(int slot);

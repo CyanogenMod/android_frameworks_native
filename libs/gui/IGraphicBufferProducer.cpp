@@ -49,6 +49,8 @@ enum {
     ALLOW_ALLOCATION,
     SET_GENERATION_NUMBER,
     GET_CONSUMER_NAME,
+    SET_MAX_DEQUEUED_BUFFER_COUNT,
+    SET_ASYNC_MODE
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -88,6 +90,34 @@ public:
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(bufferCount);
         status_t result =remote()->transact(SET_BUFFER_COUNT, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
+
+    virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers) {
+        Parcel data, reply;
+        data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(maxDequeuedBuffers);
+        status_t result = remote()->transact(SET_MAX_DEQUEUED_BUFFER_COUNT,
+                data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
+    }
+
+    virtual status_t setAsyncMode(bool async) {
+        Parcel data, reply;
+        data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(async);
+        status_t result = remote()->transact(SET_ASYNC_MODE,
+                data, &reply);
         if (result != NO_ERROR) {
             return result;
         }
@@ -338,6 +368,20 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int bufferCount = data.readInt32();
             int result = setBufferCount(bufferCount);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_MAX_DEQUEUED_BUFFER_COUNT: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            int maxDequeuedBuffers = data.readInt32();
+            int result = setMaxDequeuedBufferCount(maxDequeuedBuffers);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_ASYNC_MODE: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool async = data.readInt32();
+            int result = setAsyncMode(async);
             reply->writeInt32(result);
             return NO_ERROR;
         }

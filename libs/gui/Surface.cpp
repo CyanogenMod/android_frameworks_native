@@ -811,6 +811,39 @@ int Surface::setBufferCount(int bufferCount)
     return err;
 }
 
+int Surface::setMaxDequeuedBufferCount(int maxDequeuedBuffers) {
+    ATRACE_CALL();
+    ALOGV("Surface::setMaxDequeuedBufferCount");
+    Mutex::Autolock lock(mMutex);
+
+    status_t err = mGraphicBufferProducer->setMaxDequeuedBufferCount(
+            maxDequeuedBuffers);
+    ALOGE_IF(err, "IGraphicBufferProducer::setMaxDequeuedBufferCount(%d) "
+            "returned %s", maxDequeuedBuffers, strerror(-err));
+
+    if (err == NO_ERROR) {
+        freeAllBuffers();
+    }
+
+    return err;
+}
+
+int Surface::setAsyncMode(bool async) {
+    ATRACE_CALL();
+    ALOGV("Surface::setAsyncMode");
+    Mutex::Autolock lock(mMutex);
+
+    status_t err = mGraphicBufferProducer->setAsyncMode(async);
+    ALOGE_IF(err, "IGraphicBufferProducer::setAsyncMode(%d) returned %s",
+            async, strerror(-err));
+
+    if (err == NO_ERROR) {
+        freeAllBuffers();
+    }
+
+    return err;
+}
+
 int Surface::setBuffersDimensions(uint32_t width, uint32_t height)
 {
     ATRACE_CALL();

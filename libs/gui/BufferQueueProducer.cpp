@@ -118,6 +118,7 @@ status_t BufferQueueProducer::setBufferCount(int bufferCount) {
         // clear the queue, however, so that currently queued buffers still
         // get displayed.
         mCore->freeAllBuffersLocked();
+        mCore->mMaxDequeuedBufferCount = bufferCount - minBufferSlots + 1;
         mCore->mOverrideMaxBufferCount = bufferCount;
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
@@ -128,6 +129,102 @@ status_t BufferQueueProducer::setBufferCount(int bufferCount) {
         listener->onBuffersReleased();
     }
 
+    return NO_ERROR;
+}
+
+status_t BufferQueueProducer::setMaxDequeuedBufferCount(
+        int maxDequeuedBuffers) {
+    ATRACE_CALL();
+    BQ_LOGV("setMaxDequeuedBufferCount: maxDequeuedBuffers = %d",
+            maxDequeuedBuffers);
+
+    sp<IConsumerListener> listener;
+    { // Autolock scope
+        Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
+
+        if (mCore->mIsAbandoned) {
+            BQ_LOGE("setMaxDequeuedBufferCount: BufferQueue has been "
+                    "abandoned");
+            return NO_INIT;
+        }
+
+        // There must be no dequeued buffers when changing the buffer count.
+        for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+            if (mSlots[s].mBufferState == BufferSlot::DEQUEUED) {
+                BQ_LOGE("setMaxDequeuedBufferCount: buffer owned by producer");
+                return BAD_VALUE;
+            }
+        }
+
+        int bufferCount = mCore->getMinUndequeuedBufferCountLocked(
+                mCore->mAsyncMode);
+        bufferCount += maxDequeuedBuffers;
+
+        if (bufferCount > BufferQueueDefs::NUM_BUFFER_SLOTS) {
+            BQ_LOGE("setMaxDequeuedBufferCount: bufferCount %d too large "
+                    "(max %d)", bufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
+            return BAD_VALUE;
+        }
+
+        const int minBufferSlots = mCore->getMinMaxBufferCountLocked(
+                mCore->mAsyncMode);
+        if (bufferCount < minBufferSlots) {
+            BQ_LOGE("setMaxDequeuedBufferCount: requested buffer count %d is "
+                    "less than minimum %d", bufferCount, minBufferSlots);
+            return BAD_VALUE;
+        }
+
+        // Here we are guaranteed that the producer doesn't have any dequeued
+        // buffers and will release all of its buffer references. We don't
+        // clear the queue, however, so that currently queued buffers still
+        // get displayed.
+        mCore->freeAllBuffersLocked();
+        mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
+        mCore->mOverrideMaxBufferCount = bufferCount;
+        mCore->mDequeueCondition.broadcast();
+        listener = mCore->mConsumerListener;
+    } // Autolock scope
+
+    // Call back without lock held
+    if (listener != NULL) {
+        listener->onBuffersReleased();
+    }
+
+    return NO_ERROR;
+}
+
+status_t BufferQueueProducer::setAsyncMode(bool async) {
+    ATRACE_CALL();
+    BQ_LOGV("setAsyncMode: async = %d", async);
+
+    sp<IConsumerListener> listener;
+    { // Autolock scope
+        Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
+
+        if (mCore->mIsAbandoned) {
+            BQ_LOGE("setAsyncMode: BufferQueue has been abandoned");
+            return NO_INIT;
+        }
+
+        // There must be no dequeued buffers when changing the async mode.
+        for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
+            if (mSlots[s].mBufferState == BufferSlot::DEQUEUED) {
+                BQ_LOGE("setAsyncMode: buffer owned by producer");
+                return BAD_VALUE;
+            }
+        }
+
+        mCore->mAsyncMode = async;
+        mCore->mDequeueCondition.broadcast();
+        listener = mCore->mConsumerListener;
+    } // Autolock scope
+
+    // Call back without lock held
+    if (listener != NULL) {
+        listener->onBuffersReleased();
+    }
     return NO_ERROR;
 }
 
@@ -241,7 +338,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
             // buffer (which could cause us to have to wait here), which is
             // okay, since it is only used to implement an atomic acquire +
             // release (e.g., in GLConsumer::updateTexImage())
-            if (mCore->mDequeueBufferCannotBlock &&
+            if ((mCore->mDequeueBufferCannotBlock || mCore->mAsyncMode) &&
                     (acquiredCount <= mCore->mMaxAcquiredBufferCount)) {
                 return WOULD_BLOCK;
             }
