@@ -39,23 +39,6 @@ public:
     // flags indicating that previously-returned buffers are no longer valid.
     virtual status_t requestBuffer(int slot, sp<GraphicBuffer>* buf);
 
-    // setBufferCount updates the number of available buffer slots.  If this
-    // method succeeds, buffer slots will be both unallocated and owned by
-    // the BufferQueue object (i.e. they are not owned by the producer or
-    // consumer).
-    //
-    // This will fail if the producer has dequeued any buffers, or if
-    // bufferCount is invalid.  bufferCount must generally be a value
-    // between the minimum undequeued buffer count (exclusive) and NUM_BUFFER_SLOTS
-    // (inclusive).  It may also be set to zero (the default) to indicate
-    // that the producer does not wish to set a value.  The minimum value
-    // can be obtained by calling query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
-    // ...).
-    //
-    // This may only be called by the producer.  The consumer will be told
-    // to discard buffers through the onBuffersReleased callback.
-    virtual status_t setBufferCount(int bufferCount);
-
     // see IGraphicsBufferProducer::setMaxDequeuedBufferCount
     virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers);
 

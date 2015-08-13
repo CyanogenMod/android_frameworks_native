@@ -192,13 +192,6 @@ private:
     // a buffer attached
     std::list<int> mFreeBuffers;
 
-    // mOverrideMaxBufferCount is the limit on the number of buffers that will
-    // be allocated at one time. This value is set by the producer by calling
-    // setBufferCount. The default is 0, which means that the producer doesn't
-    // care about the number of buffers in the pool. In that case,
-    // mDefaultMaxBufferCount is used as the limit.
-    int mOverrideMaxBufferCount;
-
     // mDequeueCondition is a condition variable used for dequeueBuffer in
     // synchronous mode.
     mutable Condition mDequeueCondition;
@@ -246,6 +239,13 @@ private:
     // dequeue at one time. It defaults to 1, and can be changed by the producer
     // via setMaxDequeuedBufferCount.
     int mMaxDequeuedBufferCount;
+
+    // mOverrideMaxBufferCount defaults to false and is set to true once the
+    // producer has called setMaxDequeuedBufferCount or setAsyncMode. Once it is
+    // set mDefaultMaxBufferCount is ignored and the max buffer count is
+    // calculated based on mMaxAcquiredBufferCount, mMaxDequeuedBufferCount, and
+    // mAsyncMode.
+    bool mOverrideMaxBufferCount;
 
     // mBufferHasBeenQueued is true once a buffer has been queued. It is reset
     // when something causes all buffers to be freed (e.g., changing the buffer

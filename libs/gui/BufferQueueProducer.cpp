@@ -72,66 +72,6 @@ status_t BufferQueueProducer::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     return NO_ERROR;
 }
 
-status_t BufferQueueProducer::setBufferCount(int bufferCount) {
-    ATRACE_CALL();
-    BQ_LOGV("setBufferCount: count = %d", bufferCount);
-
-    sp<IConsumerListener> listener;
-    { // Autolock scope
-        Mutex::Autolock lock(mCore->mMutex);
-        mCore->waitWhileAllocatingLocked();
-
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("setBufferCount: BufferQueue has been abandoned");
-            return NO_INIT;
-        }
-
-        if (bufferCount > BufferQueueDefs::NUM_BUFFER_SLOTS) {
-            BQ_LOGE("setBufferCount: bufferCount %d too large (max %d)",
-                    bufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
-            return BAD_VALUE;
-        }
-
-        // There must be no dequeued buffers when changing the buffer count.
-        for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-            if (mSlots[s].mBufferState == BufferSlot::DEQUEUED) {
-                BQ_LOGE("setBufferCount: buffer owned by producer");
-                return BAD_VALUE;
-            }
-        }
-
-        if (bufferCount == 0) {
-            mCore->mOverrideMaxBufferCount = 0;
-            mCore->mDequeueCondition.broadcast();
-            return NO_ERROR;
-        }
-
-        const int minBufferSlots = mCore->getMinMaxBufferCountLocked(false);
-        if (bufferCount < minBufferSlots) {
-            BQ_LOGE("setBufferCount: requested buffer count %d is less than "
-                    "minimum %d", bufferCount, minBufferSlots);
-            return BAD_VALUE;
-        }
-
-        // Here we are guaranteed that the producer doesn't have any dequeued
-        // buffers and will release all of its buffer references. We don't
-        // clear the queue, however, so that currently queued buffers still
-        // get displayed.
-        mCore->freeAllBuffersLocked();
-        mCore->mMaxDequeuedBufferCount = bufferCount - minBufferSlots + 1;
-        mCore->mOverrideMaxBufferCount = bufferCount;
-        mCore->mDequeueCondition.broadcast();
-        listener = mCore->mConsumerListener;
-    } // Autolock scope
-
-    // Call back without lock held
-    if (listener != NULL) {
-        listener->onBuffersReleased();
-    }
-
-    return NO_ERROR;
-}
-
 status_t BufferQueueProducer::setMaxDequeuedBufferCount(
         int maxDequeuedBuffers) {
     ATRACE_CALL();
@@ -181,7 +121,7 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
         // get displayed.
         mCore->freeAllBuffersLocked();
         mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
-        mCore->mOverrideMaxBufferCount = bufferCount;
+        mCore->mOverrideMaxBufferCount = true;
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope
@@ -217,6 +157,7 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
         }
 
         mCore->mAsyncMode = async;
+        mCore->mOverrideMaxBufferCount = true;
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope
@@ -238,16 +179,6 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
         }
 
         const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
-        if (async && mCore->mOverrideMaxBufferCount) {
-            // FIXME: Some drivers are manually setting the buffer count
-            // (which they shouldn't), so we do this extra test here to
-            // handle that case. This is TEMPORARY until we get this fixed.
-            if (mCore->mOverrideMaxBufferCount < maxBufferCount) {
-                BQ_LOGE("%s: async mode is invalid with buffer count override",
-                        caller);
-                return BAD_VALUE;
-            }
-        }
 
         // Free up any buffers that are in slots beyond the max buffer count
         for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
@@ -273,31 +204,14 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
             }
         }
 
-        // Producers are not allowed to dequeue more than one buffer if they
-        // did not set a buffer count
-        if (!mCore->mOverrideMaxBufferCount && dequeuedCount) {
-            BQ_LOGE("%s: can't dequeue multiple buffers without setting the "
-                    "buffer count", caller);
+        // Producers are not allowed to dequeue more than
+        // mMaxDequeuedBufferCount buffers.
+        // This check is only done if a buffer has already been queued
+        if (mCore->mBufferHasBeenQueued &&
+                dequeuedCount >= mCore->mMaxDequeuedBufferCount) {
+            BQ_LOGE("%s: attempting to exceed the max dequeued buffer count "
+                    "(%d)", caller, mCore->mMaxDequeuedBufferCount);
             return INVALID_OPERATION;
-        }
-
-        // See whether a buffer has been queued since the last
-        // setBufferCount so we know whether to perform the min undequeued
-        // buffers check below
-        if (mCore->mBufferHasBeenQueued) {
-            // Make sure the producer is not trying to dequeue more buffers
-            // than allowed
-            const int newUndequeuedCount =
-                maxBufferCount - (dequeuedCount + 1);
-            const int minUndequeuedCount =
-                mCore->getMinUndequeuedBufferCountLocked(async);
-            if (newUndequeuedCount < minUndequeuedCount) {
-                BQ_LOGE("%s: min undequeued buffer count (%d) exceeded "
-                        "(dequeued=%d undequeued=%d)",
-                        caller, minUndequeuedCount,
-                        dequeuedCount, newUndequeuedCount);
-                return INVALID_OPERATION;
-            }
         }
 
         *found = BufferQueueCore::INVALID_BUFFER_SLOT;
@@ -683,16 +597,6 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         }
 
         const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
-        if (async && mCore->mOverrideMaxBufferCount) {
-            // FIXME: Some drivers are manually setting the buffer count
-            // (which they shouldn't), so we do this extra test here to
-            // handle that case. This is TEMPORARY until we get this fixed.
-            if (mCore->mOverrideMaxBufferCount < maxBufferCount) {
-                BQ_LOGE("queueBuffer: async mode is invalid with "
-                        "buffer count override");
-                return BAD_VALUE;
-            }
-        }
 
         if (slot < 0 || slot >= maxBufferCount) {
             BQ_LOGE("queueBuffer: slot index %d out of range [0, %d)",

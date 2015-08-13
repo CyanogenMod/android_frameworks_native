@@ -282,10 +282,6 @@ status_t VirtualDisplaySurface::requestBuffer(int pslot,
     return NO_ERROR;
 }
 
-status_t VirtualDisplaySurface::setBufferCount(int bufferCount) {
-    return mSource[SOURCE_SINK]->setBufferCount(bufferCount);
-}
-
 status_t VirtualDisplaySurface::setMaxDequeuedBufferCount(
         int maxDequeuedBuffers) {
     return mSource[SOURCE_SINK]->setMaxDequeuedBufferCount(maxDequeuedBuffers);
