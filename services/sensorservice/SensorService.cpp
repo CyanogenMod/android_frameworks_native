@@ -88,11 +88,14 @@ void SensorService::onFirstRef()
             uint32_t virtualSensorsNeeds =
                     (1<<SENSOR_TYPE_GRAVITY) |
                     (1<<SENSOR_TYPE_LINEAR_ACCELERATION) |
-                    (1<<SENSOR_TYPE_ROTATION_VECTOR);
+                    (1<<SENSOR_TYPE_ROTATION_VECTOR) |
+                    (1<<SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR) |
+                    (1<<SENSOR_TYPE_GAME_ROTATION_VECTOR);
 
             mLastEventSeen.setCapacity(count);
             for (ssize_t i=0 ; i<count ; i++) {
-                registerSensor( new HardwareSensor(list[i]) );
+                bool useThisSensor=true;
+
                 switch (list[i].type) {
                     case SENSOR_TYPE_ACCELEROMETER:
                         hasAccel = true;
@@ -110,8 +113,17 @@ void SensorService::onFirstRef()
                     case SENSOR_TYPE_GRAVITY:
                     case SENSOR_TYPE_LINEAR_ACCELERATION:
                     case SENSOR_TYPE_ROTATION_VECTOR:
-                        virtualSensorsNeeds &= ~(1<<list[i].type);
+                    case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+                    case SENSOR_TYPE_GAME_ROTATION_VECTOR:
+                        if (IGNORE_HARDWARE_FUSION) {
+                            useThisSensor = false;
+                        } else {
+                            virtualSensorsNeeds &= ~(1<<list[i].type);
+                        }
                         break;
+                }
+                if (useThisSensor) {
+                    registerSensor( new HardwareSensor(list[i]) );
                 }
             }
 
@@ -124,23 +136,12 @@ void SensorService::onFirstRef()
             mUserSensorList = mSensorList;
 
             if (hasGyro && hasAccel && hasMag) {
-                Sensor aSensor;
-
                 // Add Android virtual sensors if they're not already
                 // available in the HAL
+                Sensor aSensor;
 
                 aSensor = registerVirtualSensor( new RotationVectorSensor() );
                 if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
-                    mUserSensorList.add(aSensor);
-                }
-
-                aSensor = registerVirtualSensor( new GravitySensor(list, count) );
-                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_GRAVITY)) {
-                    mUserSensorList.add(aSensor);
-                }
-
-                aSensor = registerVirtualSensor( new LinearAccelerationSensor(list, count) );
-                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_LINEAR_ACCELERATION)) {
                     mUserSensorList.add(aSensor);
                 }
 
@@ -151,9 +152,44 @@ void SensorService::onFirstRef()
                     mUserSensorList.replaceAt(aSensor, orientationIndex);
                 }
 
+                aSensor = registerVirtualSensor(
+                                new LinearAccelerationSensor(list, count) );
+                if (virtualSensorsNeeds &
+                            (1<<SENSOR_TYPE_LINEAR_ACCELERATION)) {
+                    mUserSensorList.add(aSensor);
+                }
+
                 // virtual debugging sensors are not added to mUserSensorList
                 registerVirtualSensor( new CorrectedGyroSensor(list, count) );
                 registerVirtualSensor( new GyroDriftSensor() );
+            }
+
+            if (hasAccel && hasGyro) {
+                Sensor aSensor;
+
+                aSensor = registerVirtualSensor(
+                                new GravitySensor(list, count) );
+                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_GRAVITY)) {
+                    mUserSensorList.add(aSensor);
+                }
+
+                aSensor = registerVirtualSensor(
+                                new GameRotationVectorSensor() );
+                if (virtualSensorsNeeds &
+                            (1<<SENSOR_TYPE_GAME_ROTATION_VECTOR)) {
+                    mUserSensorList.add(aSensor);
+                }
+            }
+
+            if (hasAccel && hasMag) {
+                Sensor aSensor;
+
+                aSensor = registerVirtualSensor(
+                                new GeoMagRotationVectorSensor() );
+                if (virtualSensorsNeeds &
+                        (1<<SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR)) {
+                    mUserSensorList.add(aSensor);
+                }
             }
 
             // debugging sensor list
