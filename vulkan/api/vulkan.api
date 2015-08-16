@@ -28,7 +28,7 @@ import platform "platform.api"
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
 define VERSION_MINOR 138
-define VERSION_PATCH 0
+define VERSION_PATCH 2
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME 256
@@ -583,22 +583,21 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 32,
     VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO                     = 33,
     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 34,
-    VK_STRUCTURE_TYPE_LAYER_CREATE_INFO                         = 35,
-    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 36,
-    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 37,
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 38,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 39,
-    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 40,
-    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 41,
-    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO                      = 42,
-    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 43,
-    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE                       = 44,
-    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 45,
-    VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION                    = 46,
-    VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION                       = 47,
-    VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY                        = 48,
-    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 49,
-    VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 50,
+    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 35,
+    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 36,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 37,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 38,
+    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 39,
+    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 40,
+    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO                      = 41,
+    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 42,
+    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE                       = 43,
+    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 44,
+    VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION                    = 45,
+    VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION                       = 46,
+    VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY                        = 47,
+    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 48,
+    VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 49,
 }
 
 enum VkRenderPassContents {
@@ -1004,7 +1003,7 @@ class VkLayerProperties {
     char[VK_MAX_EXTENSION_NAME]                 layerName          /// layer name
     u32                                         specVersion        /// version of the layer specification implemented
     u32                                         implVersion        /// build or release version of the layer's library
-    const char*[VK_MAX_DESCRIPTION]             description        /// Free-form description of the layer
+    char[VK_MAX_DESCRIPTION]                    description        /// Free-form description of the layer
 }
 
 class VkApplicationInfo {
@@ -1275,7 +1274,8 @@ class VkBufferCopy {
 }
 
 class VkSparseMemoryBindInfo {
-    platform.VkDeviceSize                       offset                /// Specified in bytes
+    platform.VkDeviceSize                       rangeOffset           /// Specified in bytes
+    platform.VkDeviceSize                       rangeSize             /// Specified in bytes
     platform.VkDeviceSize                       memOffset             /// Specified in bytes
     VkDeviceMemory                              mem
     VkSparseMemoryBindFlags                     flags
@@ -1851,7 +1851,7 @@ class VkPhysicalDeviceLimits {
     u32                                         viewportSubPixelBits                      /// num bits of subpixel precision for viewport
 
     u32                                         minMemoryMapAlignment                     /// min required alignment of pointers returned by MapMemory (bytes)
-    u32                                         minTexelBufferOffsetAlignment             /// min required alignment for texel buffer offsets (bytes) 
+    u32                                         minTexelBufferOffsetAlignment             /// min required alignment for texel buffer offsets (bytes)
     u32                                         minUniformBufferOffsetAlignment           /// min required alignment for uniform buffer sizes and offsets (bytes)
     u32                                         minStorageBufferOffsetAlignment           /// min required alignment for storage buffer offsets (bytes)
 
@@ -3314,6 +3314,25 @@ cmd VkResult vkAllocDescriptorSets(
         descriptorSet := ?
         descriptorSets[i] = descriptorSet
         State.DescriptorSets[descriptorSet] = new!DescriptorSetObject(device: device)
+    }
+
+    return ?
+}
+
+cmd VkResult vkFreeDescriptorSets(
+        VkDevice                                    device,
+        VkDescriptorPool                            descriptorPool,
+        u32                                         count,
+        const VkDescriptorSet*                      pDescriptorSets) {
+    deviceObject := GetDevice(device)
+    descriptorPoolObject := GetDescriptorPool(descriptorPool)
+
+    descriptorSets := pDescriptorSets[0:count]
+    for i in (0 .. count) {
+        descriptorSet := descriptorSets[i]
+        descriptorSetObject := GetDescriptorSet(descriptorSet)
+        assert(descriptorSetObject.device == device)
+        State.DescriptorSets[descriptorSet] = null
     }
 
     return ?
