@@ -1,0 +1,180 @@
+{{Include "../api/templates/vulkan_common.tmpl"}}
+{{Global "clang-format" (Strings "clang-format" "-style=file")}}
+{{Macro "DefineGlobals" $}}
+{{$ | Macro "get_proc_addr.cpp" | Format (Global "clang-format") | Write "get_proc_addr.cpp"}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Entry point
+-------------------------------------------------------------------------------
+*/}}
+{{define "get_proc_addr.cpp"}}
+/*
+ * Copyright 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+¶
+// This file is generated. Do not edit manually!
+// To regenerate: $ apic template ../api/vulkan.api get_proc_addr.cpp.tmpl
+// Requires apic from https://android.googlesource.com/platform/tools/gpu/.
+¶
+#include <algorithm>
+#include <log/log.h>
+#include "loader.h"
+using namespace vulkan;
+¶
+#define UNLIKELY(expr) __builtin_expect((expr), 0)
+¶
+namespace {
+¶
+struct NameProcEntry {
+    const char* name;
+    PFN_vkVoidFunction proc;
+};
+¶
+struct NameOffsetEntry {
+    const char* name;
+    size_t offset;
+};
+¶
+template <typename TEntry, size_t N>
+const TEntry* FindProcEntry(const TEntry(&table)[N], const char* name) {
+    auto entry = std::lower_bound(
+        table, table + N, name,
+        [](const TEntry& e, const char* n) { return strcmp(e.name, n) < 0; });
+    if (entry != (table + N) && strcmp(entry->name, name) == 0)
+        return entry;
+    return nullptr;
+}
+¶
+const NameProcEntry kInstanceProcTbl[] = {«
+  // clang-format off
+  {{range $f := SortBy (AllCommands $) "FunctionName"}}
+    {{if eq (Macro "Vtbl" $f) "Instance"}}
+      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "FunctionName" $f}})},
+    {{end}}
+  {{end}}
+  // clang-format on
+»};
+¶
+const NameProcEntry kDeviceProcTbl[] = {«
+  // clang-format off
+  {{range $f := SortBy (AllCommands $) "FunctionName"}}
+    {{if eq (Macro "Vtbl" $f) "Device"}}
+      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "FunctionName" $f}})},
+    {{end}}
+  {{end}}
+  // clang-format on
+»};
+¶
+const NameOffsetEntry kInstanceOffsetTbl[] = {«
+  // clang-format off
+  {{range $f := SortBy (AllCommands $) "FunctionName"}}
+    {{if eq (Macro "Vtbl" $f) "Instance"}}
+      {"{{Macro "FunctionName" $f}}", offsetof(InstanceVtbl, {{TrimPrefix "vk" (Macro "FunctionName" $f)}})},
+    {{end}}
+  {{end}}
+  // clang-format on
+»};
+¶
+const NameOffsetEntry kDeviceOffsetTbl[] = {«
+  // clang-format off
+  {{range $f := SortBy (AllCommands $) "FunctionName"}}
+    {{if eq (Macro "Vtbl" $f) "Device"}}
+      {"{{Macro "FunctionName" $f}}", offsetof(DeviceVtbl, {{TrimPrefix "vk" (Macro "FunctionName" $f)}})},
+    {{end}}
+  {{end}}
+  // clang-format on
+»};
+¶
+} // namespace
+¶
+namespace vulkan {
+¶
+PFN_vkVoidFunction GetGlobalInstanceProcAddr(const char* name) {
+    if (strcmp(name, "vkGetDeviceProcAddr") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
+    const NameProcEntry* entry = FindProcEntry(kInstanceProcTbl, name);
+    return entry ? entry->proc : nullptr;
+}
+¶
+PFN_vkVoidFunction GetGlobalDeviceProcAddr(const char* name) {
+    const NameProcEntry* entry = FindProcEntry(kDeviceProcTbl, name);
+    return entry ? entry->proc : nullptr;
+}
+¶
+PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
+                                               const char* name) {
+    const NameOffsetEntry* entry = FindProcEntry(kInstanceOffsetTbl, name);
+    if (!entry)
+        return nullptr;
+    const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
+    return reinterpret_cast<PFN_vkVoidFunction>(
+        const_cast<unsigned char*>(base) + entry->offset);
+}
+¶
+PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
+                                             const char* name) {
+    const NameOffsetEntry* entry = FindProcEntry(kDeviceOffsetTbl, name);
+    if (!entry)
+        return nullptr;
+    const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
+    return reinterpret_cast<PFN_vkVoidFunction>(
+        const_cast<unsigned char*>(base) + entry->offset);
+}
+¶
+bool LoadInstanceVtbl(VkInstance instance,
+                      PFN_vkGetInstanceProcAddr get_proc_addr,
+                      InstanceVtbl& vtbl) {«
+    bool success = true;
+    // clang-format off
+    {{range $f := AllCommands $}}
+      {{if eq (Macro "Vtbl" $f) "Instance"}}
+    vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
+        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+            get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
+    if (UNLIKELY(!vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}})) {
+        ALOGE("missing instance proc: %s", "{{Macro "FunctionName" $f}}");
+        success = false;
+    }
+      {{end}}
+    {{end}}
+    // clang-format on
+    return success;
+»}
+¶
+bool LoadDeviceVtbl(VkDevice device,
+                    PFN_vkGetDeviceProcAddr get_proc_addr,
+                    DeviceVtbl& vtbl) {«
+    bool success = true;
+    // clang-format off
+    {{range $f := AllCommands $}}
+      {{if eq (Macro "Vtbl" $f) "Device"}}
+    vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
+        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+            get_proc_addr(device, "{{Macro "FunctionName" $f}}"));
+    if (UNLIKELY(!vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}})) {
+        ALOGE("missing device proc: %s", "{{Macro "FunctionName" $f}}");
+        success = false;
+    }
+      {{end}}
+    {{end}}
+    // clang-format on
+    return success;
+»}
+¶
+} // namespace vulkan
+¶
+{{end}}

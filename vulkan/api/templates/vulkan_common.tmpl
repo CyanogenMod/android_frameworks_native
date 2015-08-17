@@ -199,3 +199,24 @@
     {{Global $d.Name $d.Expression}}
   {{end}}
 {{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Given a function, return "Global", "Instance", or "Device" depending on which
+  dispatch table the function belongs to.
+-------------------------------------------------------------------------------
+*/}}
+{{define "Vtbl#VkInstance"      }}Instance{{end}}
+{{define "Vtbl#VkPhysicalDevice"}}Instance{{end}}
+{{define "Vtbl#VkDevice"        }}Device{{end}}
+{{define "Vtbl#VkQueue"         }}Device{{end}}
+{{define "Vtbl#VkCmdBuffer"     }}Device{{end}}
+{{define "Vtbl_Default"         }}Global{{end}}
+{{define "Vtbl"}}
+  {{AssertType $ "Function"}}
+
+  {{range $i, $p := $.CallParameters}}
+    {{if not $i}}{{Node "Vtbl" $p}}{{end}}
+  {{end}}
+{{end}}

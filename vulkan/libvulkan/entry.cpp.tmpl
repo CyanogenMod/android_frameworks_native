@@ -1,0 +1,145 @@
+{{Include "../api/templates/vulkan_common.tmpl"}}
+{{Macro "DefineGlobals" $}}
+{{$ | Macro "entry.cpp" | Reflow 4 | Write "entry.cpp"}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Entry point
+-------------------------------------------------------------------------------
+*/}}
+{{define "entry.cpp"}}
+/*
+ * Copyright 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+¶
+// This file is generated. Do not edit manually!
+// To regenerate: $ apic template ../api/vulkan.api entry.cpp.tmpl
+// Requires apic from https://android.googlesource.com/platform/tools/gpu/.
+¶
+#include "loader.h"
+using namespace vulkan;
+¶
+// clang-format off
+¶
+namespace {
+    inline const InstanceVtbl& GetVtbl(VkInstance instance) {
+        return **reinterpret_cast<InstanceVtbl**>(instance);
+    }
+    inline const InstanceVtbl& GetVtbl(VkPhysicalDevice physicalDevice) {
+        return **reinterpret_cast<InstanceVtbl**>(physicalDevice);
+    }
+    inline const DeviceVtbl& GetVtbl(VkDevice device) {
+        return **reinterpret_cast<DeviceVtbl**>(device);
+    }
+    inline const DeviceVtbl& GetVtbl(VkQueue queue) {
+        return **reinterpret_cast<DeviceVtbl**>(queue);
+    }
+    inline const DeviceVtbl& GetVtbl(VkCmdBuffer cmdBuffer) {
+        return **reinterpret_cast<DeviceVtbl**>(cmdBuffer);
+    }
+} // namespace
+¶
+  {{range $f := AllCommands $}}
+    {{if not (GetAnnotation $f "pfn")}}
+      __attribute__((visibility("default")))
+      {{if eq (Macro "IsSpecialEntry" $f.Name) "true"}}
+        {{Macro "EmitSpecialEntry" $f}}
+      {{else}}
+        {{Macro "EmitEntry" $f}}
+      {{end}}
+    {{end}}
+  {{end}}
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Decides whether an entrypoint needs special-case handling. Emits the string
+  "true" if so, nothing otherwise.
+-------------------------------------------------------------------------------
+*/}}
+{{define "IsSpecialEntry"}}
+  {{/* TODO: figure out how to do this in a cleaner or at least multi-line way */}}
+  {{if or (eq $ "vkGetInstanceProcAddr") (or (eq $ "vkGetDeviceProcAddr") (or (eq $ "vkGetDeviceQueue") (eq $ "vkDestroyDevice")))}}
+    true
+  {{end}}
+{{end}}
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits the entrypoint definition for the specified command, which always
+  dispatches statically because the function requires special-case handling.
+-------------------------------------------------------------------------------
+*/}}
+{{define "EmitSpecialEntry"}}
+  {{AssertType $ "Function"}}
+
+  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+    {{if not (IsVoid $.Return.Type)}}return §{{end}}
+    vulkan::{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
+  }
+  ¶
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits the entrypoint definition for the specified command. If the first
+  parameter is a handle to dispatchable object, it dispatches the call through
+  the object's function table. Otherwise, it dispatches statically.
+-------------------------------------------------------------------------------
+*/}}
+{{define "EmitEntry"}}
+  {{AssertType $ "Function"}}
+
+  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+    {{if not (IsVoid $.Return.Type)}}return §{{end}}
+    {{Macro "Dispatch" $}}{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
+  }
+  ¶
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emit the dispatch lookup for a function based on its first parameter.
+-------------------------------------------------------------------------------
+*/}}
+{{define "Dispatch#VkInstance"      }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkPhysicalDevice"}}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkDevice"        }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkQueue"         }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkCmdBuffer"     }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch_Default"         }}vulkan::{{end}}
+{{define "Dispatch"}}
+  {{AssertType $ "Function"}}
+
+  {{range $i, $p := $.CallParameters}}
+    {{if not $i}}{{Node "Dispatch" $p}}{{end}}
+  {{end}}
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits a comma-separated list of C parameter names for the given command.
+-------------------------------------------------------------------------------
+*/}}
+{{define "Arguments"}}
+  {{AssertType $ "Function"}}
+
+  {{ForEach $.CallParameters "ParameterName" | JoinWith ", "}}
+{{end}}
