@@ -189,6 +189,9 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
     EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS+1));
     EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(100));
+
+    EXPECT_EQ(OK, mConsumer->setMaxBufferCount(5));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(5));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
@@ -204,6 +207,28 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(minBufferCount));
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS));
+}
+
+TEST_F(BufferQueueTest, SetMaxBufferCountWithLegalValues_Succeeds) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    mConsumer->consumerConnect(dc, false);
+
+    // Test single buffer mode
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(1));
+}
+
+TEST_F(BufferQueueTest, SetMaxBufferCountWithIllegalValues_ReturnsError) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    mConsumer->consumerConnect(dc, false);
+
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxBufferCount(0));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxBufferCount(
+            BufferQueue::NUM_BUFFER_SLOTS + 1));
+
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(5));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxBufferCount(3));
 }
 
 TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {

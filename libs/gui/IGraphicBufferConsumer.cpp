@@ -43,8 +43,7 @@ enum {
     CONSUMER_DISCONNECT,
     GET_RELEASED_BUFFERS,
     SET_DEFAULT_BUFFER_SIZE,
-    SET_DEFAULT_MAX_BUFFER_COUNT,
-    DISABLE_ASYNC_BUFFER,
+    SET_MAX_BUFFER_COUNT,
     SET_MAX_ACQUIRED_BUFFER_COUNT,
     SET_CONSUMER_NAME,
     SET_DEFAULT_BUFFER_FORMAT,
@@ -172,21 +171,11 @@ public:
         return reply.readInt32();
     }
 
-    virtual status_t setDefaultMaxBufferCount(int bufferCount) {
+    virtual status_t setMaxBufferCount(int bufferCount) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
         data.writeInt32(bufferCount);
-        status_t result = remote()->transact(SET_DEFAULT_MAX_BUFFER_COUNT, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
-        }
-        return reply.readInt32();
-    }
-
-    virtual status_t disableAsyncBuffer() {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
-        status_t result = remote()->transact(DISABLE_ASYNC_BUFFER, data, &reply);
+        status_t result = remote()->transact(SET_MAX_BUFFER_COUNT, data, &reply);
         if (result != NO_ERROR) {
             return result;
         }
@@ -363,16 +352,10 @@ status_t BnGraphicBufferConsumer::onTransact(
             reply->writeInt32(result);
             return NO_ERROR;
         }
-        case SET_DEFAULT_MAX_BUFFER_COUNT: {
+        case SET_MAX_BUFFER_COUNT: {
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             int bufferCount = data.readInt32();
-            status_t result = setDefaultMaxBufferCount(bufferCount);
-            reply->writeInt32(result);
-            return NO_ERROR;
-        }
-        case DISABLE_ASYNC_BUFFER: {
-            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
-            status_t result = disableAsyncBuffer();
+            status_t result = setMaxBufferCount(bufferCount);
             reply->writeInt32(result);
             return NO_ERROR;
         }

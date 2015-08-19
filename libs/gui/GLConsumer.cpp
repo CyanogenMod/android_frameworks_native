@@ -183,12 +183,6 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t texTarget,
     mConsumer->setConsumerUsageBits(DEFAULT_USAGE_FLAGS);
 }
 
-status_t GLConsumer::setDefaultMaxBufferCount(int bufferCount) {
-    Mutex::Autolock lock(mMutex);
-    return mConsumer->setDefaultMaxBufferCount(bufferCount);
-}
-
-
 status_t GLConsumer::setDefaultBufferSize(uint32_t w, uint32_t h)
 {
     Mutex::Autolock lock(mMutex);
@@ -1046,6 +1040,11 @@ status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
 status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
     return mConsumer->setTransformHint(hint);
+}
+
+status_t GLConsumer::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
+    Mutex::Autolock lock(mMutex);
+    return mConsumer->setMaxAcquiredBufferCount(maxAcquiredBuffers);
 }
 
 void GLConsumer::dumpLocked(String8& result, const char* prefix) const

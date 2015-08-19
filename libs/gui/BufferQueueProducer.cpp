@@ -115,13 +115,20 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return BAD_VALUE;
         }
 
+        if (bufferCount > mCore->mMaxBufferCount) {
+            BQ_LOGE("setMaxDequeuedBufferCount: %d dequeued buffers would "
+                    "exceed the maxBufferCount (%d) (maxAcquired %d async %d)",
+                    maxDequeuedBuffers, mCore->mMaxBufferCount,
+                    mCore->mMaxAcquiredBufferCount, mCore->mAsyncMode);
+            return BAD_VALUE;
+        }
+
         // Here we are guaranteed that the producer doesn't have any dequeued
         // buffers and will release all of its buffer references. We don't
         // clear the queue, however, so that currently queued buffers still
         // get displayed.
         mCore->freeAllBuffersLocked();
         mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
-        mCore->mOverrideMaxBufferCount = true;
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope
@@ -156,8 +163,17 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
             }
         }
 
+        if ((mCore->mMaxAcquiredBufferCount + mCore->mMaxDequeuedBufferCount +
+                (async ? 1 : 0)) > mCore->mMaxBufferCount) {
+            BQ_LOGE("setAsyncMode(%d): this call would cause the "
+                    "maxBufferCount (%d) to be exceeded (maxAcquired %d "
+                    "maxDequeued %d)", async,mCore->mMaxBufferCount,
+                    mCore->mMaxAcquiredBufferCount,
+                    mCore->mMaxDequeuedBufferCount);
+            return BAD_VALUE;
+        }
+
         mCore->mAsyncMode = async;
-        mCore->mOverrideMaxBufferCount = true;
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope

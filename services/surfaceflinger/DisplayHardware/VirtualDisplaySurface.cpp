@@ -92,7 +92,6 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mConsumer->setConsumerName(ConsumerBase::mName);
     mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
     mConsumer->setDefaultBufferSize(sinkWidth, sinkHeight);
-    mConsumer->setDefaultMaxBufferCount(2);
 }
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {

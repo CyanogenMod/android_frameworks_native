@@ -112,11 +112,6 @@ public:
     // union fence.
     void setReleaseFence(const sp<Fence>& fence);
 
-    // setDefaultMaxBufferCount sets the default limit on the maximum number
-    // of buffers that will be allocated at one time. The image producer may
-    // override the limit.
-    status_t setDefaultMaxBufferCount(int bufferCount);
-
     // getTransformMatrix retrieves the 4x4 texture coordinate transform matrix
     // associated with the texture image set by the most recent call to
     // updateTexImage.
@@ -201,6 +196,7 @@ public:
     status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
     status_t setConsumerUsageBits(uint32_t usage);
     status_t setTransformHint(uint32_t hint);
+    status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers);
 
     // detachFromContext detaches the GLConsumer from the calling thread's
     // current OpenGL ES context.  This context must be the same as the context
