@@ -3306,6 +3306,12 @@ void SurfaceFlinger::renderScreenImplLocked(
     // make sure to clear all GL error flags
     engine.checkErrors();
 
+    if (DisplayDevice::DISPLAY_PRIMARY == hw->getDisplayType() &&
+                hw->isPanelInverseMounted()) {
+        rotation = (Transform::orientation_flags)
+                (rotation ^ Transform::ROT_180);
+    }
+
     // set-up our viewport
     engine.setViewportAndProjection(
         reqWidth, reqHeight, sourceCrop, hw_h, yswap, rotation);
@@ -3508,8 +3514,16 @@ bool SurfaceFlinger::updateLayerVisibleNonTransparentRegion(const int& /*dpy*/,
     const Layer::State& s(layer->getDrawingState());
 
     // only consider the layers on the given layer stack
-    if (s.layerStack != layerStack)
+    if (s.layerStack != layerStack) {
+        /* set the visible region as empty since we have removed the
+         * layerstack check in rebuildLayerStack() function
+         */
+        Region visibleNonTransRegion;
+        visibleNonTransRegion.set(Rect(0,0));
+        layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+
         return true;
+    }
 
     return false;
 }
