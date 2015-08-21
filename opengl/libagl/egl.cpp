@@ -1346,7 +1346,7 @@ static EGLSurface createPbufferSurface(EGLDisplay dpy, EGLConfig config,
 
     int32_t w = 0;
     int32_t h = 0;
-    while (attrib_list[0]) {
+    while (attrib_list[0] != EGL_NONE) {
         if (attrib_list[0] == EGL_WIDTH)  w = attrib_list[1];
         if (attrib_list[0] == EGL_HEIGHT) h = attrib_list[1];
         attrib_list+=2;
