@@ -58,5 +58,6 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils
 
 LOCAL_MODULE := inputflinger
+LOCAL_INIT_RC := inputflinger.rc
 
 include $(BUILD_EXECUTABLE)
