@@ -24,6 +24,7 @@
 namespace android {
 
 BufferItem::BufferItem() :
+    mCrop(Rect::INVALID_RECT),
     mTransform(0),
     mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
     mTimestamp(0),
@@ -34,7 +35,6 @@ BufferItem::BufferItem() :
     mIsDroppable(false),
     mAcquireCalled(false),
     mTransformToDisplayInverse(false) {
-    mCrop.makeInvalid();
 }
 
 BufferItem::~BufferItem() {}

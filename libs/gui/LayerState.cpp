@@ -77,6 +77,16 @@ status_t ComposerState::read(const Parcel& input) {
 }
 
 
+DisplayState::DisplayState() :
+    what(0),
+    layerStack(0),
+    orientation(eOrientationDefault),
+    viewport(Rect::EMPTY_RECT),
+    frame(Rect::EMPTY_RECT),
+    width(0),
+    height(0) {
+}
+
 status_t DisplayState::write(Parcel& output) const {
     output.writeStrongBinder(token);
     output.writeStrongBinder(IInterface::asBinder(surface));

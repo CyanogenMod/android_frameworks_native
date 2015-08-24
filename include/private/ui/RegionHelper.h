@@ -72,7 +72,7 @@ public:
     }
 
     void operator()(region_rasterizer& rasterizer) {
-        RECT current;
+        RECT current(Rect::EMPTY_RECT);
         do {
             SpannerInner spannerInner(spanner.lhs, spanner.rhs);
             int inside = spanner.next(current.top, current.bottom);

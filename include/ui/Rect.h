@@ -32,13 +32,12 @@ public:
     typedef ARect::value_type value_type;
 
     static const Rect INVALID_RECT;
+    static const Rect EMPTY_RECT;
 
     // we don't provide copy-ctor and operator= on purpose
     // because we want the compiler generated versions
 
-    inline Rect() {
-      left = right = top = bottom = 0;
-    }
+    inline Rect() : Rect(INVALID_RECT) {}
 
     inline Rect(int32_t w, int32_t h) {
         left = top = 0;

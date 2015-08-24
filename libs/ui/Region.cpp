@@ -798,7 +798,7 @@ status_t Region::unflatten(void const* buffer, size_t size) {
     Region result;
     result.mStorage.clear();
     for (size_t r = 0; r < numRects; ++r) {
-        Rect rect;
+        Rect rect(Rect::EMPTY_RECT);
         status_t status = rect.unflatten(buffer, size);
         if (status != NO_ERROR) {
             return status;

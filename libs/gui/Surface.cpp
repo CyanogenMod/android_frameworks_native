@@ -43,6 +43,7 @@ Surface::Surface(
         const sp<IGraphicBufferProducer>& bufferProducer,
         bool controlledByApp)
     : mGraphicBufferProducer(bufferProducer),
+      mCrop(Rect::EMPTY_RECT),
       mGenerationNumber(0)
 {
     // Initialize the ANativeWindow function pointers.
@@ -67,7 +68,6 @@ Surface::Surface(
     mReqUsage = 0;
     mTimestamp = NATIVE_WINDOW_TIMESTAMP_AUTO;
     mDataSpace = HAL_DATASPACE_UNKNOWN;
-    mCrop.clear();
     mScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
     mTransform = 0;
     mStickyTransform = 0;
@@ -332,7 +332,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
 
 
     // Make sure the crop rectangle is entirely inside the buffer.
-    Rect crop;
+    Rect crop(Rect::EMPTY_RECT);
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
@@ -779,7 +779,7 @@ int Surface::setCrop(Rect const* rect)
 {
     ATRACE_CALL();
 
-    Rect realRect;
+    Rect realRect(Rect::EMPTY_RECT);
     if (rect == NULL || rect->isEmpty()) {
         realRect.clear();
     } else {
