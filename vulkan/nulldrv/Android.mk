@@ -3,7 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
 LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing
-LOCAL_CFLAGS += -DLOG_TAG=\"vk_nulldrv\"
+LOCAL_CFLAGS += -DLOG_TAG=\"vknulldrv\"
 LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef
 LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c++98-compat-pedantic \

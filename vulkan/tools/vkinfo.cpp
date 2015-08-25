@@ -1,3 +1,5 @@
+#include <inttypes.h>
+#include <sstream>
 #include <stdlib.h>
 #include <vector>
 
@@ -78,6 +80,7 @@ const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
 
 void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     VkResult result;
+    std::ostringstream strbuf;
 
     VkPhysicalDeviceProperties props;
     result = vkGetPhysicalDeviceProperties(pdev, &props);
@@ -88,6 +91,40 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
            (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
            (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorId,
            props.deviceId);
+
+    VkPhysicalDeviceMemoryProperties mem_props;
+    result = vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
+    if (result != VK_SUCCESS)
+        die("vkGetPhysicalDeviceMemoryProperties", result);
+    for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
+        if ((mem_props.memoryHeaps[heap].flags & VK_MEMORY_HEAP_HOST_LOCAL) !=
+            0)
+            strbuf << "HOST_LOCAL";
+        printf("     Heap %u: 0x%" PRIx64 " %s\n", heap,
+               mem_props.memoryHeaps[heap].size, strbuf.str().c_str());
+        strbuf.str(std::string());
+
+        for (uint32_t type = 0; type < mem_props.memoryTypeCount; type++) {
+            if (mem_props.memoryTypes[type].heapIndex != heap)
+                continue;
+            VkMemoryPropertyFlags flags =
+                mem_props.memoryTypes[type].propertyFlags;
+            if (flags == VK_MEMORY_PROPERTY_DEVICE_ONLY)
+                strbuf << "DEVICE_ONLY";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+                strbuf << "HOST_VISIBLE";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT) != 0)
+                strbuf << " NON_COHERENT";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT) != 0)
+                strbuf << " UNCACHED";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT) != 0)
+                strbuf << " WRITE_COMBINED";
+            if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
+                strbuf << " LAZILY_ALLOCATED";
+            printf("        Type %u: %s\n", type, strbuf.str().c_str());
+            strbuf.str(std::string());
+        }
+    }
 }
 
 }  // namespace

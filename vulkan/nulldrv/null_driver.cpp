@@ -3,6 +3,8 @@
 #include <string.h>
 #include <algorithm>
 
+// #define LOG_NDEBUG 0
+#include <log/log.h>
 #include <utils/Errors.h>
 
 #include "null_driver.h"
@@ -117,6 +119,16 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
 
 namespace null_driver {
 
+// -----------------------------------------------------------------------------
+// Global
+
+VkResult GetGlobalExtensionProperties(const char*,
+                                      uint32_t* count,
+                                      VkExtensionProperties*) {
+    *count = 0;
+    return VK_SUCCESS;
+}
+
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
     PFN_vkVoidFunction proc = LookupInstanceProcAddr(name);
     if (!proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
@@ -128,10 +140,16 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
     return LookupDeviceProcAddr(name);
 }
 
+// -----------------------------------------------------------------------------
+// Instance
+
 VkResult DestroyInstance(VkInstance instance) {
     instance->alloc->pfnFree(instance->alloc->pUserData, instance);
     return VK_SUCCESS;
 }
+
+// -----------------------------------------------------------------------------
+// PhysicalDevice
 
 VkResult EnumeratePhysicalDevices(VkInstance instance,
                                   uint32_t* physical_device_count,
@@ -155,12 +173,22 @@ VkResult GetPhysicalDeviceProperties(VkPhysicalDevice,
     return VK_SUCCESS;
 }
 
-VkResult GetGlobalExtensionProperties(const char*,
-                                      uint32_t* count,
-                                      VkExtensionProperties*) {
-    *count = 0;
+VkResult GetPhysicalDeviceMemoryProperties(
+    VkPhysicalDevice,
+    VkPhysicalDeviceMemoryProperties* properties) {
+    properties->memoryTypeCount = 1;
+    properties->memoryTypes[0].propertyFlags =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    properties->memoryTypes[0].heapIndex = 0;
+    properties->memoryHeapCount = 1;
+    properties->memoryHeaps[0].size =
+        INTPTR_MAX;  // TODO: do something smarter?
+    properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL;
     return VK_SUCCESS;
 }
+
+// -----------------------------------------------------------------------------
+// Device
 
 VkResult CreateDevice(VkPhysicalDevice physical_device,
                       const VkDeviceCreateInfo*,
@@ -201,410 +229,507 @@ VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
 #pragma clang diagnostic ignored "-Wunused-parameter"
 
 VkResult GetPhysicalDeviceQueueCount(VkPhysicalDevice physicalDevice, uint32_t* pCount) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceQueueProperties(VkPhysicalDevice physicalDevice, uint32_t count, VkPhysicalDeviceQueueProperties* pQueueProperties) {
-    return VK_SUCCESS;
-}
-
-VkResult GetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageFormatProperties* pImageFormatProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceLimits(VkPhysicalDevice physicalDevice, VkPhysicalDeviceLimits* pLimits) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetGlobalLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkLayerProperties* pProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueSubmit(VkQueue queue, uint32_t cmdBufferCount, const VkCmdBuffer* pCmdBuffers, VkFence fence) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueWaitIdle(VkQueue queue) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DeviceWaitIdle(VkDevice device) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult AllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, VkDeviceMemory* pMem) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult FreeMemory(VkDevice device, VkDeviceMemory mem) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult MapMemory(VkDevice device, VkDeviceMemory mem, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult UnmapMemory(VkDevice device, VkDeviceMemory mem) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult FlushMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, const VkMappedMemoryRange* pMemRanges) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult InvalidateMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, const VkMappedMemoryRange* pMemRanges) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetBufferMemoryRequirements(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, VkDeviceSize memOffset) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkDeviceSize memOffset) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseImageMemoryBindInfo* pBindInfo) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, VkFence* pFence) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyFence(VkDevice device, VkFence fence) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetFenceStatus(VkDevice device, VkFence fence) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateSemaphore(VkDevice device, const VkSemaphoreCreateInfo* pCreateInfo, VkSemaphore* pSemaphore) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, VkEvent* pEvent) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyEvent(VkDevice device, VkEvent event) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetEventStatus(VkDevice device, VkEvent event) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult SetEvent(VkDevice device, VkEvent event) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetEvent(VkDevice device, VkEvent event) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, VkQueryPool* pQueryPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, VkBuffer* pBuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyBuffer(VkDevice device, VkBuffer buffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, VkBufferView* pView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyBufferView(VkDevice device, VkBufferView bufferView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, VkImage* pImage) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyImage(VkDevice device, VkImage image) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, VkImageView* pView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyImageView(VkDevice device, VkImageView imageView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateAttachmentView(VkDevice device, const VkAttachmentViewCreateInfo* pCreateInfo, VkAttachmentView* pView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyAttachmentView(VkDevice device, VkAttachmentView attachmentView) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* pCreateInfo, VkShaderModule* pShaderModule) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, VkShader* pShader) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyShader(VkDevice device, VkShader shader) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, VkPipelineCache* pPipelineCache) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, void* pData) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult MergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkGraphicsPipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkComputePipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyPipeline(VkDevice device, VkPipeline pipeline) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo* pCreateInfo, VkPipelineLayout* pPipelineLayout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateSampler(VkDevice device, const VkSamplerCreateInfo* pCreateInfo, VkSampler* pSampler) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroySampler(VkDevice device, VkSampler sampler) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayout* pSetLayout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDescriptorPool(VkDevice device, VkDescriptorPoolUsage poolUsage, uint32_t maxSets, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult AllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets, uint32_t* pCount) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult UpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDynamicViewportState(VkDevice device, const VkDynamicViewportStateCreateInfo* pCreateInfo, VkDynamicViewportState* pState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicViewportState(VkDevice device, VkDynamicViewportState dynamicViewportState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDynamicRasterState(VkDevice device, const VkDynamicRasterStateCreateInfo* pCreateInfo, VkDynamicRasterState* pState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicRasterState(VkDevice device, VkDynamicRasterState dynamicRasterState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDynamicColorBlendState(VkDevice device, const VkDynamicColorBlendStateCreateInfo* pCreateInfo, VkDynamicColorBlendState* pState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicColorBlendState(VkDevice device, VkDynamicColorBlendState dynamicColorBlendState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateDynamicDepthStencilState(VkDevice device, const VkDynamicDepthStencilStateCreateInfo* pCreateInfo, VkDynamicDepthStencilState* pState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicDepthStencilState(VkDevice device, VkDynamicDepthStencilState dynamicDepthStencilState) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, VkRenderPass* pRenderPass) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult CreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult BeginCommandBuffer(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult EndCommandBuffer(VkCmdBuffer cmdBuffer) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetCommandBuffer(VkCmdBuffer cmdBuffer, VkCmdBufferResetFlags flags) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
