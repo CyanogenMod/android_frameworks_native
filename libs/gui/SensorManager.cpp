@@ -110,10 +110,20 @@ void SensorManager::sensorManagerDied()
 }
 
 status_t SensorManager::assertStateLocked() const {
+    bool initSensorManager = false;
     if (mSensorServer == NULL) {
-        // try for 10 seconds before giving up ...
+        initSensorManager = true;
+    } else {
+        // Ping binder to check if sensorservice is alive.
+        status_t err = IInterface::asBinder(mSensorServer)->pingBinder();
+        if (err != NO_ERROR) {
+            initSensorManager = true;
+        }
+    }
+    if (initSensorManager) {
+        // try for 300 seconds (60*5(getService() tries for 5 seconds)) before giving up ...
         const String16 name("sensorservice");
-        for (int i = 0;i < 10; i++) {
+        for (int i = 0; i < 60; i++) {
             status_t err = getService(name, &mSensorServer);
             if (err == NAME_NOT_FOUND) {
                 sleep(1);
@@ -135,9 +145,7 @@ status_t SensorManager::assertStateLocked() const {
             DeathObserver(SensorManager& mgr) : mSensorManger(mgr) { }
         };
 
-        if (mSensorServer == NULL) {
-            ALOGE("FATAL getsensorservice returned NULL");
-        }
+        LOG_ALWAYS_FATAL_IF(mSensorServer.get() == NULL, "getService(SensorService) NULL");
 
         mDeathObserver = new DeathObserver(*const_cast<SensorManager *>(this));
         IInterface::asBinder(mSensorServer)->linkToDeath(mDeathObserver);
@@ -146,6 +154,8 @@ status_t SensorManager::assertStateLocked() const {
         size_t count = mSensors.size();
         mSensorList =
                 static_cast<Sensor const**>(malloc(count * sizeof(Sensor*)));
+        LOG_ALWAYS_FATAL_IF(mSensorList == NULL, "mSensorList NULL");
+
         for (size_t i=0 ; i<count ; i++) {
             mSensorList[i] = mSensors.array() + i;
         }
