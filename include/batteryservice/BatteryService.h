@@ -63,6 +63,9 @@ struct BatteryProperties {
     int batteryLevel;
     int batteryVoltage;
     int batteryTemperature;
+    int batteryCurrent;
+    int batteryCycleCount;
+    int batteryFullCharge;
     String8 batteryTechnology;
 
     status_t writeToParcel(Parcel* parcel) const;
