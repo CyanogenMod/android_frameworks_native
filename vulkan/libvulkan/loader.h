@@ -253,9 +253,11 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
                                              const char* name);
 
 bool LoadInstanceVtbl(VkInstance instance,
+                      VkInstance next_instance,
                       PFN_vkGetInstanceProcAddr get_proc_addr,
                       InstanceVtbl& vtbl);
 bool LoadDeviceVtbl(VkDevice device,
+                    VkDevice next_device,
                     PFN_vkGetDeviceProcAddr get_proc_addr,
                     DeviceVtbl& vtbl);
 

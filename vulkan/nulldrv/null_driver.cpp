@@ -120,13 +120,13 @@ hw_module_methods_t nulldrv_module_methods = {.open = OpenDevice};
 __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
     .common =
         {
-         .tag = HARDWARE_MODULE_TAG,
-         .module_api_version = HWVULKAN_MODULE_API_VERSION_0_1,
-         .hal_api_version = HARDWARE_HAL_API_VERSION,
-         .id = HWVULKAN_HARDWARE_MODULE_ID,
-         .name = "Null Vulkan Driver",
-         .author = "The Android Open Source Project",
-         .methods = &nulldrv_module_methods,
+            .tag = HARDWARE_MODULE_TAG,
+            .module_api_version = HWVULKAN_MODULE_API_VERSION_0_1,
+            .hal_api_version = HARDWARE_HAL_API_VERSION,
+            .id = HWVULKAN_HARDWARE_MODULE_ID,
+            .name = "Null Vulkan Driver",
+            .author = "The Android Open Source Project",
+            .methods = &nulldrv_module_methods,
         },
 };
 #pragma clang diagnostic pop
@@ -165,10 +165,10 @@ int CloseDevice(struct hw_device_t* /*device*/) {
 hwvulkan_device_t nulldrv_device = {
     .common =
         {
-         .tag = HARDWARE_DEVICE_TAG,
-         .version = HWVULKAN_DEVICE_API_VERSION_0_1,
-         .module = &HAL_MODULE_INFO_SYM.common,
-         .close = CloseDevice,
+            .tag = HARDWARE_DEVICE_TAG,
+            .version = HWVULKAN_DEVICE_API_VERSION_0_1,
+            .module = &HAL_MODULE_INFO_SYM.common,
+            .close = CloseDevice,
         },
     .GetGlobalExtensionProperties = GetGlobalExtensionProperties,
     .CreateInstance = CreateInstance,

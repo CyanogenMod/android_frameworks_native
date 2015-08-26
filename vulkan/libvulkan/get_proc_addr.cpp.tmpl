@@ -201,12 +201,23 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
 }
 ¶
 bool LoadInstanceVtbl(VkInstance instance,
+                      VkInstance instance_next,
                       PFN_vkGetInstanceProcAddr get_proc_addr,
                       InstanceVtbl& vtbl) {«
     bool success = true;
     // clang-format off
+    vtbl.GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(get_proc_addr(instance_next, "vkGetInstanceProcAddr"));
+    if (UNLIKELY(!vtbl.GetInstanceProcAddr)) {
+        ALOGE("missing instance proc: %s", "vkGetInstanceProcAddr");
+        success = false;
+    }
+    vtbl.CreateInstance = reinterpret_cast<PFN_vkCreateInstance>(get_proc_addr(instance, "vkCreateInstance"));
+    if (UNLIKELY(!vtbl.CreateInstance)) {
+        // This is allowed to fail as the driver doesn't have to return vkCreateInstance when given an instance
+    }
     {{range $f := AllCommands $}}
       {{if eq (Macro "Vtbl" $f) "Instance"}}
+        {{if not (eq (Macro "FunctionName" $f) "vkGetInstanceProcAddr")}}
     vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
         reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
             get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
@@ -214,6 +225,7 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "{{Macro "FunctionName" $f}}");
         success = false;
     }
+        {{end}}
       {{end}}
     {{end}}
     // clang-format on
@@ -221,12 +233,19 @@ bool LoadInstanceVtbl(VkInstance instance,
 »}
 ¶
 bool LoadDeviceVtbl(VkDevice device,
+                    VkDevice device_next,
                     PFN_vkGetDeviceProcAddr get_proc_addr,
                     DeviceVtbl& vtbl) {«
     bool success = true;
     // clang-format off
+    vtbl.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(get_proc_addr(device_next, "vkGetDeviceProcAddr"));
+    if (UNLIKELY(!vtbl.GetDeviceProcAddr)) {
+        ALOGE("missing device proc: %s", "vkGetDeviceProcAddr");
+        success = false;
+    }
     {{range $f := AllCommands $}}
       {{if eq (Macro "Vtbl" $f) "Device"}}
+        {{if not (eq (Macro "FunctionName" $f) "vkGetDeviceProcAddr")}}
     vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
         reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
             get_proc_addr(device, "{{Macro "FunctionName" $f}}"));
@@ -234,6 +253,7 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "{{Macro "FunctionName" $f}}");
         success = false;
     }
+        {{end}}
       {{end}}
     {{end}}
     vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));

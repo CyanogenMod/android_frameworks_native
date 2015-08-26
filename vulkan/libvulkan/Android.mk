@@ -36,7 +36,7 @@ LOCAL_SRC_FILES := \
 	swapchain.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
-LOCAL_SHARED_LIBRARIES := libhardware liblog libsync
+LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libcutils
 
 LOCAL_MODULE := libvulkan
 include $(BUILD_SHARED_LIBRARY)

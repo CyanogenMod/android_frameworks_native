@@ -453,11 +453,22 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
         const_cast<unsigned char*>(base) + entry->offset);
 }
 
+// TODO: remove need for instance_next
 bool LoadInstanceVtbl(VkInstance instance,
+                      VkInstance instance_next,
                       PFN_vkGetInstanceProcAddr get_proc_addr,
                       InstanceVtbl& vtbl) {
     bool success = true;
     // clang-format off
+    vtbl.GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(get_proc_addr(instance_next, "vkGetInstanceProcAddr"));
+    if (UNLIKELY(!vtbl.GetInstanceProcAddr)) {
+        ALOGE("missing instance proc: %s", "vkGetInstanceProcAddr");
+        success = false;
+    }
+    vtbl.CreateInstance = reinterpret_cast<PFN_vkCreateInstance>(get_proc_addr(instance, "vkCreateInstance"));
+    if (UNLIKELY(!vtbl.CreateInstance)) {
+        // This is allowed to fail as the driver doesn't have to return vkCreateInstance when given an instance
+    }
     vtbl.DestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(get_proc_addr(instance, "vkDestroyInstance"));
     if (UNLIKELY(!vtbl.DestroyInstance)) {
         ALOGE("missing instance proc: %s", "vkDestroyInstance");
@@ -466,11 +477,6 @@ bool LoadInstanceVtbl(VkInstance instance,
     vtbl.EnumeratePhysicalDevices = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(get_proc_addr(instance, "vkEnumeratePhysicalDevices"));
     if (UNLIKELY(!vtbl.EnumeratePhysicalDevices)) {
         ALOGE("missing instance proc: %s", "vkEnumeratePhysicalDevices");
-        success = false;
-    }
-    vtbl.GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(get_proc_addr(instance, "vkGetInstanceProcAddr"));
-    if (UNLIKELY(!vtbl.GetInstanceProcAddr)) {
-        ALOGE("missing instance proc: %s", "vkGetInstanceProcAddr");
         success = false;
     }
     vtbl.GetPhysicalDeviceProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceProperties"));
@@ -538,11 +544,12 @@ bool LoadInstanceVtbl(VkInstance instance,
 }
 
 bool LoadDeviceVtbl(VkDevice device,
+                    VkDevice device_next,
                     PFN_vkGetDeviceProcAddr get_proc_addr,
                     DeviceVtbl& vtbl) {
     bool success = true;
     // clang-format off
-    vtbl.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(get_proc_addr(device, "vkGetDeviceProcAddr"));
+    vtbl.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(get_proc_addr(device_next, "vkGetDeviceProcAddr"));
     if (UNLIKELY(!vtbl.GetDeviceProcAddr)) {
         ALOGE("missing device proc: %s", "vkGetDeviceProcAddr");
         success = false;
