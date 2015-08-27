@@ -60,6 +60,15 @@ status_t MonitoredProducer::setBufferCount(int bufferCount) {
     return mProducer->setBufferCount(bufferCount);
 }
 
+status_t MonitoredProducer::setMaxDequeuedBufferCount(
+        int maxDequeuedBuffers) {
+    return mProducer->setMaxDequeuedBufferCount(maxDequeuedBuffers);
+}
+
+status_t MonitoredProducer::setAsyncMode(bool async) {
+    return mProducer->setAsyncMode(async);
+}
+
 status_t MonitoredProducer::dequeueBuffer(int* slot, sp<Fence>* fence,
         bool async, uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
     return mProducer->dequeueBuffer(slot, fence, async, w, h, format, usage);

@@ -286,6 +286,15 @@ status_t VirtualDisplaySurface::setBufferCount(int bufferCount) {
     return mSource[SOURCE_SINK]->setBufferCount(bufferCount);
 }
 
+status_t VirtualDisplaySurface::setMaxDequeuedBufferCount(
+        int maxDequeuedBuffers) {
+    return mSource[SOURCE_SINK]->setMaxDequeuedBufferCount(maxDequeuedBuffers);
+}
+
+status_t VirtualDisplaySurface::setAsyncMode(bool async) {
+    return mSource[SOURCE_SINK]->setAsyncMode(async);
+}
+
 status_t VirtualDisplaySurface::dequeueBuffer(Source source,
         PixelFormat format, uint32_t usage, int* sslot, sp<Fence>* fence) {
     LOG_FATAL_IF(mDisplayId < 0, "mDisplayId=%d but should not be < 0.", mDisplayId);
