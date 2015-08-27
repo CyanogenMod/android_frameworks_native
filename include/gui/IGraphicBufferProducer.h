@@ -102,6 +102,45 @@ public:
     //              * client has one or more buffers dequeued
     virtual status_t setBufferCount(int bufferCount) = 0;
 
+    // setMaxDequeuedBufferCount sets the maximum number of buffers that can be
+    // dequeued by the producer at one time. If this method succeeds, buffer
+    // slots will be both unallocated and owned by the BufferQueue object (i.e.
+    // they are not owned by the producer or consumer). Calling this will also
+    // cause all buffer slots to be emptied. If the caller is caching the
+    // contents of the buffer slots, it should empty that cache after calling
+    // this method.
+    //
+    // This function should not be called when there are any currently dequeued
+    // buffer slots. Doing so will result in a BAD_VALUE error.
+    //
+    // The buffer count should be at least 1 (inclusive), but at most
+    // (NUM_BUFFER_SLOTS - the minimum undequeued buffer count) (exclusive). The
+    // minimum undequeued buffer count can be obtained by calling
+    // query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS).
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
+    // * BAD_VALUE - one of the below conditions occurred:
+    //              * bufferCount was out of range (see above)
+    //              * client has one or more buffers dequeued
+    virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers) = 0;
+
+    // Set the async flag if the producer intends to asynchronously queue
+    // buffers without blocking. Typically this is used for triple-buffering
+    // and/or when the swap interval is set to zero.
+    //
+    // Enabling async mode will internally allocate an additional buffer to
+    // allow for the asynchronous behavior. If it is not enabled queue/dequeue
+    // calls may block.
+    //
+    // This function should not be called when there are any currently dequeued
+    // buffer slots, doing so will result in a BAD_VALUE error.
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned.
+    // * BAD_VALUE - client has one or more buffers dequeued
+    virtual status_t setAsyncMode(bool async) = 0;
+
     // dequeueBuffer requests a new buffer slot for the client to use. Ownership
     // of the slot is transfered to the client, meaning that the server will not
     // use the contents of the buffer associated with that slot.

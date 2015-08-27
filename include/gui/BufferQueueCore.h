@@ -242,6 +242,11 @@ private:
     // the value returned for the MIN_UNDEQUEUED_BUFFERS query to the producer.
     int mMaxAcquiredBufferCount;
 
+    // mMaxDequeuedBufferCount is the number of buffers that the producer may
+    // dequeue at one time. It defaults to 1, and can be changed by the producer
+    // via setMaxDequeuedBufferCount.
+    int mMaxDequeuedBufferCount;
+
     // mBufferHasBeenQueued is true once a buffer has been queued. It is reset
     // when something causes all buffers to be freed (e.g., changing the buffer
     // count).
@@ -279,6 +284,11 @@ private:
     // producer. Any attempt to attach a buffer with a different generation
     // number will fail.
     uint32_t mGenerationNumber;
+
+    // mAsyncMode indicates whether or not async mode is enabled.
+    // In async mode an extra buffer will be allocated to allow the producer to
+    // enqueue buffers without blocking.
+    bool mAsyncMode;
 
 }; // class BufferQueueCore
 

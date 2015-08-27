@@ -569,4 +569,145 @@ TEST_F(IGraphicBufferProducerTest, SetBufferCount_Fails) {
 
 }
 
+TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Succeeds) {
+    int minUndequeuedBuffers;
+    ASSERT_OK(mProducer->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
+            &minUndequeuedBuffers));
+
+    const int minBuffers = 1;
+    const int maxBuffers = BufferQueue::NUM_BUFFER_SLOTS - minUndequeuedBuffers;
+
+    ASSERT_OK(mProducer->setAsyncMode(false)) << "async mode: " << false;
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(minBuffers))
+            << "bufferCount: " << minBuffers;
+
+    std::vector<DequeueBufferResult> dequeueList;
+
+    // Should now be able to dequeue up to minBuffers times
+    for (int i = 0; i < minBuffers; ++i) {
+        DequeueBufferResult result;
+
+        EXPECT_LE(OK,
+                dequeueBuffer(QUEUE_BUFFER_INPUT_ASYNC,
+                              DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FORMAT,
+                              TEST_PRODUCER_USAGE_BITS, &result))
+                << "iteration: " << i << ", slot: " << result.slot;
+
+        dequeueList.push_back(result);
+    }
+
+    // Cancel every buffer, so we can set buffer count again
+    for (auto& result : dequeueList) {
+        mProducer->cancelBuffer(result.slot, result.fence);
+    }
+
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(maxBuffers));
+
+    // Should now be able to dequeue up to maxBuffers times
+    for (int i = 0; i < maxBuffers; ++i) {
+        int dequeuedSlot = -1;
+        sp<Fence> dequeuedFence;
+
+        EXPECT_LE(OK,
+                mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
+                                         QUEUE_BUFFER_INPUT_ASYNC,
+                                         DEFAULT_WIDTH, DEFAULT_HEIGHT,
+                                         DEFAULT_FORMAT,
+                                         TEST_PRODUCER_USAGE_BITS))
+                << "iteration: " << i << ", slot: " << dequeuedSlot;
+    }
+}
+
+TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Fails) {
+    int minUndequeuedBuffers;
+    ASSERT_OK(mProducer->query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
+                               &minUndequeuedBuffers));
+
+    const int minBuffers = 1;
+    const int maxBuffers = BufferQueue::NUM_BUFFER_SLOTS - minUndequeuedBuffers;
+
+    ASSERT_OK(mProducer->setAsyncMode(false)) << "async mode: " << false;
+    // Buffer count was out of range
+    EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(0))
+            << "bufferCount: " << 0;
+    EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(maxBuffers + 1))
+            << "bufferCount: " << maxBuffers + 1;
+
+    // Prerequisite to fail out a valid setBufferCount call
+    {
+        int dequeuedSlot = -1;
+        sp<Fence> dequeuedFence;
+
+        ASSERT_LE(OK,
+                mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
+                                         QUEUE_BUFFER_INPUT_ASYNC,
+                                         DEFAULT_WIDTH, DEFAULT_HEIGHT,
+                                         DEFAULT_FORMAT,
+                                         TEST_PRODUCER_USAGE_BITS))
+                << "slot: " << dequeuedSlot;
+    }
+
+    // Client has one or more buffers dequeued
+    EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(minBuffers))
+            << "bufferCount: " << minBuffers;
+
+    // Abandon buffer queue
+    ASSERT_OK(mConsumer->consumerDisconnect());
+
+    // Fail because the buffer queue was abandoned
+    EXPECT_EQ(NO_INIT, mProducer->setMaxDequeuedBufferCount(minBuffers))
+            << "bufferCount: " << minBuffers;
+
+}
+
+TEST_F(IGraphicBufferProducerTest, SetAsyncMode_Succeeds) {
+    ASSERT_OK(mConsumer->setMaxAcquiredBufferCount(1)) << "maxAcquire: " << 1;
+    ASSERT_OK(mProducer->setAsyncMode(true)) << "async mode: " << true;
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(1)) << "maxDequeue: " << 1;
+
+    int dequeuedSlot = -1;
+    sp<Fence> dequeuedFence;
+    IGraphicBufferProducer::QueueBufferInput input(QUEUE_BUFFER_INPUT_TIMESTAMP,
+            QUEUE_BUFFER_INPUT_IS_AUTO_TIMESTAMP, QUEUE_BUFFER_INPUT_DATASPACE,
+            QUEUE_BUFFER_INPUT_RECT, QUEUE_BUFFER_INPUT_SCALING_MODE,
+            QUEUE_BUFFER_INPUT_TRANSFORM, true, QUEUE_BUFFER_INPUT_FENCE);
+    IGraphicBufferProducer::QueueBufferOutput output;
+    sp<GraphicBuffer> dequeuedBuffer;
+
+    // Should now be able to queue/dequeue as many buffers as we want without
+    // blocking
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_LE(OK, mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
+                true, DEFAULT_WIDTH, DEFAULT_HEIGHT,
+                DEFAULT_FORMAT, TEST_PRODUCER_USAGE_BITS)) << "slot : "
+                << dequeuedSlot;
+        ASSERT_OK(mProducer->requestBuffer(dequeuedSlot, &dequeuedBuffer));
+        ASSERT_OK(mProducer->queueBuffer(dequeuedSlot, input, &output));
+    }
+}
+
+TEST_F(IGraphicBufferProducerTest, SetAsyncMode_Fails) {
+    // Prerequisite to fail out a valid setBufferCount call
+    {
+        int dequeuedSlot = -1;
+        sp<Fence> dequeuedFence;
+
+        ASSERT_LE(OK, mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
+                QUEUE_BUFFER_INPUT_ASYNC, DEFAULT_WIDTH, DEFAULT_HEIGHT,
+                DEFAULT_FORMAT, TEST_PRODUCER_USAGE_BITS)) << "slot: "
+                        << dequeuedSlot;
+    }
+
+    // Client has one or more buffers dequeued
+    EXPECT_EQ(BAD_VALUE, mProducer->setAsyncMode(false)) << "asyncMode: "
+            << false;
+
+    // Abandon buffer queue
+    ASSERT_OK(mConsumer->consumerDisconnect());
+
+    // Fail because the buffer queue was abandoned
+    EXPECT_EQ(NO_INIT, mProducer->setAsyncMode(false)) << "asyncMode: "
+            << false;
+}
+
 } // namespace android

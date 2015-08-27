@@ -145,7 +145,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     IGraphicBufferProducer::QueueBufferOutput qbo;
     mProducer->connect(new DummyProducerListener, NATIVE_WINDOW_API_CPU, false,
             &qbo);
-    mProducer->setBufferCount(4);
+    mProducer->setMaxDequeuedBufferCount(3);
 
     int slot;
     sp<Fence> fence;

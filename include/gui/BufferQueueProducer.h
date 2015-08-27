@@ -56,6 +56,12 @@ public:
     // to discard buffers through the onBuffersReleased callback.
     virtual status_t setBufferCount(int bufferCount);
 
+    // see IGraphicsBufferProducer::setMaxDequeuedBufferCount
+    virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers);
+
+    // see IGraphicsBufferProducer::setAsyncMode
+    virtual status_t setAsyncMode(bool async);
+
     // dequeueBuffer gets the next buffer slot index for the producer to use.
     // If a buffer slot is available then that slot index is written to the
     // location pointed to by the buf argument and a status of OK is returned.

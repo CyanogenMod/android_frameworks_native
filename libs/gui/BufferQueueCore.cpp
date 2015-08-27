@@ -65,6 +65,7 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultBufferDataSpace(HAL_DATASPACE_UNKNOWN),
     mDefaultMaxBufferCount(2),
     mMaxAcquiredBufferCount(1),
+    mMaxDequeuedBufferCount(1),
     mBufferHasBeenQueued(false),
     mFrameCounter(0),
     mTransformHint(0),
@@ -72,7 +73,8 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mIsAllocatingCondition(),
     mAllowAllocation(true),
     mBufferAge(0),
-    mGenerationNumber(0)
+    mGenerationNumber(0),
+    mAsyncMode(false)
 {
     if (allocator == NULL) {
         sp<ISurfaceComposer> composer(ComposerService::getComposerService());
@@ -104,11 +106,12 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
     }
 
     result.appendFormat("%s-BufferQueue mMaxAcquiredBufferCount=%d, "
-            "mDequeueBufferCannotBlock=%d, default-size=[%dx%d], "
-            "default-format=%d, transform-hint=%02x, FIFO(%zu)={%s}\n",
-            prefix, mMaxAcquiredBufferCount, mDequeueBufferCannotBlock,
-            mDefaultWidth, mDefaultHeight, mDefaultBufferFormat, mTransformHint,
-            mQueue.size(), fifo.string());
+            "mMaxDequeuedBufferCount=%d, mDequeueBufferCannotBlock=%d, "
+            "default-size=[%dx%d], default-format=%d, transform-hint=%02x, "
+            "FIFO(%zu)={%s}\n",
+            prefix, mMaxAcquiredBufferCount, mMaxDequeuedBufferCount,
+            mDequeueBufferCannotBlock, mDefaultWidth, mDefaultHeight,
+            mDefaultBufferFormat, mTransformHint, mQueue.size(), fifo.string());
 
     // Trim the free buffers so as to not spam the dump
     int maxBufferCount = 0;
