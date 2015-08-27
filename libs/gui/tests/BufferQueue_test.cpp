@@ -113,7 +113,7 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
 
@@ -125,7 +125,7 @@ TEST_F(BufferQueueTest, BufferQueueInAnotherProcess) {
 
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
     BufferItem item;
@@ -152,12 +152,12 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     sp<GraphicBuffer> buf;
     IGraphicBufferProducer::QueueBufferInput qbi(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     BufferItem item;
 
     for (int i = 0; i < 2; i++) {
         ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-                mProducer->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
+                mProducer->dequeueBuffer(&slot, &fence, 1, 1, 0,
                     GRALLOC_USAGE_SW_READ_OFTEN));
         ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
         ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
@@ -165,7 +165,7 @@ TEST_F(BufferQueueTest, AcquireBuffer_ExceedsMaxAcquireCount_Fails) {
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 1, 1, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 1, 1, 0,
                 GRALLOC_USAGE_SW_READ_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
@@ -248,7 +248,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(BAD_VALUE, mProducer->detachBuffer(slot)); // Not requested
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
@@ -272,7 +272,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnProducerSide) {
     ASSERT_EQ(OK, mProducer->attachBuffer(&newSlot, buffer));
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(newSlot, input, &output));
 
     BufferItem item;
@@ -297,12 +297,12 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
     ASSERT_EQ(BAD_VALUE, mConsumer->detachBuffer(-1)); // Index too low
@@ -333,7 +333,7 @@ TEST_F(BufferQueueTest, DetachAndReattachOnConsumerSide) {
             EGL_NO_SYNC_KHR, Fence::NO_FENCE));
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
 
@@ -356,7 +356,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
 
@@ -368,7 +368,7 @@ TEST_F(BufferQueueTest, MoveFromConsumerToProducer) {
 
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
-            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false, Fence::NO_FENCE);
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
 
     BufferItem item;
@@ -405,13 +405,13 @@ TEST_F(BufferQueueTest, TestDisallowingAllocation) {
     sp<GraphicBuffer> buffer;
     // This should return an error since it would require an allocation
     ASSERT_EQ(OK, mProducer->allowAllocation(false));
-    ASSERT_EQ(WOULD_BLOCK, mProducer->dequeueBuffer(&slot, &fence, false, 0, 0,
+    ASSERT_EQ(WOULD_BLOCK, mProducer->dequeueBuffer(&slot, &fence, 0, 0,
             0, GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     // This should succeed, now that we've lifted the prohibition
     ASSERT_EQ(OK, mProducer->allowAllocation(true));
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
             GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     // Release the previous buffer back to the BufferQueue
@@ -419,7 +419,7 @@ TEST_F(BufferQueueTest, TestDisallowingAllocation) {
 
     // This should fail since we're requesting a different size
     ASSERT_EQ(OK, mProducer->allowAllocation(false));
-    ASSERT_EQ(WOULD_BLOCK, mProducer->dequeueBuffer(&slot, &fence, false,
+    ASSERT_EQ(WOULD_BLOCK, mProducer->dequeueBuffer(&slot, &fence,
             WIDTH * 2, HEIGHT * 2, 0, GRALLOC_USAGE_SW_WRITE_OFTEN));
 }
 
@@ -437,7 +437,7 @@ TEST_F(BufferQueueTest, TestGenerationNumbers) {
     int slot;
     sp<Fence> fence;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0, 0));
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
 
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));

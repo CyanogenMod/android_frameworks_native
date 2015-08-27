@@ -103,7 +103,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, inputProducer->requestBuffer(slot, &buffer));
 
@@ -114,9 +114,8 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
-            HAL_DATASPACE_UNKNOWN,
-            Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
-            Fence::NO_FENCE);
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
 
     BufferItem item;
@@ -132,7 +131,7 @@ TEST_F(StreamSplitterTest, OneInputOneOutput) {
             EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     ASSERT_EQ(1, allocator->getAllocCount());
@@ -170,7 +169,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, inputProducer->requestBuffer(slot, &buffer));
 
@@ -181,9 +180,8 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     ASSERT_EQ(OK, buffer->unlock());
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
-            HAL_DATASPACE_UNKNOWN,
-            Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
-            Fence::NO_FENCE);
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
 
     for (int output = 0; output < NUM_OUTPUTS; ++output) {
@@ -202,7 +200,7 @@ TEST_F(StreamSplitterTest, OneInputMultipleOutputs) {
     }
 
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
 
     ASSERT_EQ(1, allocator->getAllocCount());
@@ -231,7 +229,7 @@ TEST_F(StreamSplitterTest, OutputAbandonment) {
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0, 0,
+            inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
                     GRALLOC_USAGE_SW_WRITE_OFTEN));
     ASSERT_EQ(OK, inputProducer->requestBuffer(slot, &buffer));
 
@@ -239,14 +237,13 @@ TEST_F(StreamSplitterTest, OutputAbandonment) {
     outputConsumer->consumerDisconnect();
 
     IGraphicBufferProducer::QueueBufferInput qbInput(0, false,
-            HAL_DATASPACE_UNKNOWN,
-            Rect(0, 0, 1, 1), NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, false,
-            Fence::NO_FENCE);
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, inputProducer->queueBuffer(slot, qbInput, &qbOutput));
 
     // Input should be abandoned
-    ASSERT_EQ(NO_INIT, inputProducer->dequeueBuffer(&slot, &fence, false, 0, 0,
-            0, GRALLOC_USAGE_SW_WRITE_OFTEN));
+    ASSERT_EQ(NO_INIT, inputProducer->dequeueBuffer(&slot, &fence, 0, 0, 0,
+            GRALLOC_USAGE_SW_WRITE_OFTEN));
 }
 
 } // namespace android

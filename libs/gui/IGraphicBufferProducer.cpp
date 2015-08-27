@@ -111,12 +111,10 @@ public:
         return result;
     }
 
-    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, bool async,
-            uint32_t width, uint32_t height, PixelFormat format,
-            uint32_t usage) {
+    virtual status_t dequeueBuffer(int *buf, sp<Fence>* fence, uint32_t width,
+            uint32_t height, PixelFormat format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(static_cast<int32_t>(async));
         data.writeUint32(width);
         data.writeUint32(height);
         data.writeInt32(static_cast<int32_t>(format));
@@ -281,11 +279,10 @@ public:
         return result;
     }
 
-    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+    virtual void allocateBuffers(uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(static_cast<int32_t>(async));
         data.writeUint32(width);
         data.writeUint32(height);
         data.writeInt32(static_cast<int32_t>(format));
@@ -371,15 +368,14 @@ status_t BnGraphicBufferProducer::onTransact(
         }
         case DEQUEUE_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool async = static_cast<bool>(data.readInt32());
             uint32_t width = data.readUint32();
             uint32_t height = data.readUint32();
             PixelFormat format = static_cast<PixelFormat>(data.readInt32());
             uint32_t usage = data.readUint32();
             int buf = 0;
             sp<Fence> fence;
-            int result = dequeueBuffer(&buf, &fence, async, width, height,
-                    format, usage);
+            int result = dequeueBuffer(&buf, &fence, width, height, format,
+                    usage);
             reply->writeInt32(buf);
             reply->writeInt32(fence != NULL);
             if (fence != NULL) {
@@ -486,12 +482,11 @@ status_t BnGraphicBufferProducer::onTransact(
         }
         case ALLOCATE_BUFFERS: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool async = static_cast<bool>(data.readInt32());
             uint32_t width = data.readUint32();
             uint32_t height = data.readUint32();
             PixelFormat format = static_cast<PixelFormat>(data.readInt32());
             uint32_t usage = data.readUint32();
-            allocateBuffers(async, width, height, format, usage);
+            allocateBuffers(width, height, format, usage);
             return NO_ERROR;
         }
         case ALLOW_ALLOCATION: {
@@ -531,7 +526,6 @@ size_t IGraphicBufferProducer::QueueBufferInput::getFlattenedSize() const {
          + sizeof(scalingMode)
          + sizeof(transform)
          + sizeof(stickyTransform)
-         + sizeof(async)
          + fence->getFlattenedSize()
          + surfaceDamage.getFlattenedSize();
 }
@@ -553,7 +547,6 @@ status_t IGraphicBufferProducer::QueueBufferInput::flatten(
     FlattenableUtils::write(buffer, size, scalingMode);
     FlattenableUtils::write(buffer, size, transform);
     FlattenableUtils::write(buffer, size, stickyTransform);
-    FlattenableUtils::write(buffer, size, async);
     status_t result = fence->flatten(buffer, size, fds, count);
     if (result != NO_ERROR) {
         return result;
@@ -571,8 +564,7 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
             + sizeof(crop)
             + sizeof(scalingMode)
             + sizeof(transform)
-            + sizeof(stickyTransform)
-            + sizeof(async);
+            + sizeof(stickyTransform);
 
     if (size < minNeeded) {
         return NO_MEMORY;
@@ -585,7 +577,6 @@ status_t IGraphicBufferProducer::QueueBufferInput::unflatten(
     FlattenableUtils::read(buffer, size, scalingMode);
     FlattenableUtils::read(buffer, size, transform);
     FlattenableUtils::read(buffer, size, stickyTransform);
-    FlattenableUtils::read(buffer, size, async);
 
     fence = new Fence();
     status_t result = fence->unflatten(buffer, size, fds, count);

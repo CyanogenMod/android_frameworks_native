@@ -101,12 +101,13 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
     }
 
     result.appendFormat("%s-BufferQueue mMaxAcquiredBufferCount=%d, "
-            "mMaxDequeuedBufferCount=%d, mDequeueBufferCannotBlock=%d, "
-            "default-size=[%dx%d], default-format=%d, transform-hint=%02x, "
-            "FIFO(%zu)={%s}\n",
-            prefix, mMaxAcquiredBufferCount, mMaxDequeuedBufferCount,
-            mDequeueBufferCannotBlock, mDefaultWidth, mDefaultHeight,
-            mDefaultBufferFormat, mTransformHint, mQueue.size(), fifo.string());
+            "mMaxDequeuedBufferCount=%d, mDequeueBufferCannotBlock=%d "
+            "mAsyncMode=%d, default-size=[%dx%d], default-format=%d, "
+            "transform-hint=%02x, FIFO(%zu)={%s}\n", prefix,
+            mMaxAcquiredBufferCount, mMaxDequeuedBufferCount,
+            mDequeueBufferCannotBlock, mAsyncMode, mDefaultWidth,
+            mDefaultHeight, mDefaultBufferFormat, mTransformHint, mQueue.size(),
+            fifo.string());
 
     // Trim the free buffers so as to not spam the dump
     int maxBufferCount = 0;
@@ -137,23 +138,23 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
     }
 }
 
-int BufferQueueCore::getMinUndequeuedBufferCountLocked(bool async) const {
+int BufferQueueCore::getMinUndequeuedBufferCountLocked() const {
     // If dequeueBuffer is allowed to error out, we don't have to add an
     // extra buffer.
-    if (mDequeueBufferCannotBlock || async) {
+    if (mAsyncMode || mDequeueBufferCannotBlock) {
         return mMaxAcquiredBufferCount + 1;
     }
 
     return mMaxAcquiredBufferCount;
 }
 
-int BufferQueueCore::getMinMaxBufferCountLocked(bool async) const {
-    return getMinUndequeuedBufferCountLocked(async) + 1;
+int BufferQueueCore::getMinMaxBufferCountLocked() const {
+    return getMinUndequeuedBufferCountLocked() + 1;
 }
 
-int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
+int BufferQueueCore::getMaxBufferCountLocked() const {
     int maxBufferCount = mMaxAcquiredBufferCount + mMaxDequeuedBufferCount +
-            (async ? 1 : 0);
+            (mAsyncMode || mDequeueBufferCannotBlock ? 1 : 0);
 
     // limit maxBufferCount by mMaxBufferCount always
     maxBufferCount = std::min(mMaxBufferCount, maxBufferCount);

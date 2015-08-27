@@ -99,8 +99,8 @@ void Surface::setSidebandStream(const sp<NativeHandle>& stream) {
 void Surface::allocateBuffers() {
     uint32_t reqWidth = mReqWidth ? mReqWidth : mUserWidth;
     uint32_t reqHeight = mReqHeight ? mReqHeight : mUserHeight;
-    mGraphicBufferProducer->allocateBuffers(mSwapIntervalZero, reqWidth,
-            reqHeight, mReqFormat, mReqUsage);
+    mGraphicBufferProducer->allocateBuffers(reqWidth, reqHeight,
+            mReqFormat, mReqUsage);
 }
 
 status_t Surface::setGenerationNumber(uint32_t generation) {
@@ -202,6 +202,7 @@ int Surface::setSwapInterval(int interval) {
         interval = maxSwapInterval;
 
     mSwapIntervalZero = (interval == 0);
+    mGraphicBufferProducer->setAsyncMode(mSwapIntervalZero);
 
     return NO_ERROR;
 }
@@ -212,7 +213,6 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
 
     uint32_t reqWidth;
     uint32_t reqHeight;
-    bool swapIntervalZero;
     PixelFormat reqFormat;
     uint32_t reqUsage;
 
@@ -222,20 +222,19 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
         reqWidth = mReqWidth ? mReqWidth : mUserWidth;
         reqHeight = mReqHeight ? mReqHeight : mUserHeight;
 
-        swapIntervalZero = mSwapIntervalZero;
         reqFormat = mReqFormat;
         reqUsage = mReqUsage;
     } // Drop the lock so that we can still touch the Surface while blocking in IGBP::dequeueBuffer
 
     int buf = -1;
     sp<Fence> fence;
-    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence, swapIntervalZero,
+    status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
             reqWidth, reqHeight, reqFormat, reqUsage);
 
     if (result < 0) {
-        ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(%d, %d, %d, %d, %d)"
-             "failed: %d", swapIntervalZero, reqWidth, reqHeight, reqFormat,
-             reqUsage, result);
+        ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer"
+                "(%d, %d, %d, %d) failed: %d", reqWidth, reqHeight, reqFormat,
+                reqUsage, result);
         return result;
     }
 
@@ -341,7 +340,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
             mDataSpace, crop, mScalingMode, mTransform ^ mStickyTransform,
-            mSwapIntervalZero, fence, mStickyTransform);
+            fence, mStickyTransform);
 
     if (mConnectedToCpu || mDirtyRegion.bounds() == Rect::INVALID_RECT) {
         input.setSurfaceDamage(Region::INVALID_REGION);

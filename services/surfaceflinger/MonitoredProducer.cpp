@@ -66,8 +66,8 @@ status_t MonitoredProducer::setAsyncMode(bool async) {
 }
 
 status_t MonitoredProducer::dequeueBuffer(int* slot, sp<Fence>* fence,
-        bool async, uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
-    return mProducer->dequeueBuffer(slot, fence, async, w, h, format, usage);
+        uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
+    return mProducer->dequeueBuffer(slot, fence, w, h, format, usage);
 }
 
 status_t MonitoredProducer::detachBuffer(int slot) {
@@ -110,9 +110,9 @@ status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {
     return mProducer->setSidebandStream(stream);
 }
 
-void MonitoredProducer::allocateBuffers(bool async, uint32_t width,
-        uint32_t height, PixelFormat format, uint32_t usage) {
-    mProducer->allocateBuffers(async, width, height, format, usage);
+void MonitoredProducer::allocateBuffers(uint32_t width, uint32_t height,
+        PixelFormat format, uint32_t usage) {
+    mProducer->allocateBuffers(width, height, format, usage);
 }
 
 status_t MonitoredProducer::allowAllocation(bool allow) {
