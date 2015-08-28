@@ -56,10 +56,6 @@ status_t MonitoredProducer::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
     return mProducer->requestBuffer(slot, buf);
 }
 
-status_t MonitoredProducer::setBufferCount(int bufferCount) {
-    return mProducer->setBufferCount(bufferCount);
-}
-
 status_t MonitoredProducer::setMaxDequeuedBufferCount(
         int maxDequeuedBuffers) {
     return mProducer->setMaxDequeuedBufferCount(maxDequeuedBuffers);

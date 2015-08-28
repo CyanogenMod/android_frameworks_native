@@ -80,28 +80,6 @@ public:
     //              * buffer specified by the slot is not dequeued
     virtual status_t requestBuffer(int slot, sp<GraphicBuffer>* buf) = 0;
 
-    // setBufferCount sets the number of buffer slots available. Calling this
-    // will also cause all buffer slots to be emptied. The caller should empty
-    // its mirrored copy of the buffer slots when calling this method.
-    //
-    // This function should not be called when there are any dequeued buffer
-    // slots, doing so will result in a BAD_VALUE error returned.
-    //
-    // The buffer count should be at most NUM_BUFFER_SLOTS (inclusive), but at least
-    // the minimum undequeued buffer count (exclusive). The minimum value
-    // can be obtained by calling query(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS).
-    // In particular the range is (minUndequeudBuffers, NUM_BUFFER_SLOTS].
-    //
-    // The buffer count may also be set to 0 (the default), to indicate that
-    // the producer does not wish to set a value.
-    //
-    // Return of a value other than NO_ERROR means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
-    // * BAD_VALUE - one of the below conditions occurred:
-    //              * bufferCount was out of range (see above)
-    //              * client has one or more buffers dequeued
-    virtual status_t setBufferCount(int bufferCount) = 0;
-
     // setMaxDequeuedBufferCount sets the maximum number of buffers that can be
     // dequeued by the producer at one time. If this method succeeds, buffer
     // slots will be both unallocated and owned by the BufferQueue object (i.e.

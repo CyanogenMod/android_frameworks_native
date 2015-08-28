@@ -35,7 +35,6 @@ public:
 
     // From IGraphicBufferProducer
     virtual status_t requestBuffer(int slot, sp<GraphicBuffer>* buf);
-    virtual status_t setBufferCount(int bufferCount);
     virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers);
     virtual status_t setAsyncMode(bool async);
     virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,

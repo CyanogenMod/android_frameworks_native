@@ -55,7 +55,6 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mQueue(),
     mFreeSlots(),
     mFreeBuffers(),
-    mOverrideMaxBufferCount(0),
     mDequeueCondition(),
     mUseAsyncBuffer(true),
     mDequeueBufferCannotBlock(false),
@@ -66,6 +65,7 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mDefaultMaxBufferCount(2),
     mMaxAcquiredBufferCount(1),
     mMaxDequeuedBufferCount(1),
+    mOverrideMaxBufferCount(false),
     mBufferHasBeenQueued(false),
     mFrameCounter(0),
     mTransformHint(0),
@@ -164,9 +164,11 @@ int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
     int minMaxBufferCount = getMinMaxBufferCountLocked(async);
 
     int maxBufferCount = max(mDefaultMaxBufferCount, minMaxBufferCount);
-    if (mOverrideMaxBufferCount != 0) {
-        assert(mOverrideMaxBufferCount >= minMaxBufferCount);
-        maxBufferCount = mOverrideMaxBufferCount;
+    if (mOverrideMaxBufferCount) {
+        int bufferCount = mMaxAcquiredBufferCount + mMaxDequeuedBufferCount +
+                (async ? 1 : 0);
+        assert(bufferCount >= minMaxBufferCount);
+        maxBufferCount = bufferCount;
     }
 
     // Any buffers that are dequeued by the producer or sitting in the queue

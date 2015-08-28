@@ -34,7 +34,6 @@ namespace android {
 
 enum {
     REQUEST_BUFFER = IBinder::FIRST_CALL_TRANSACTION,
-    SET_BUFFER_COUNT,
     DEQUEUE_BUFFER,
     DETACH_BUFFER,
     DETACH_NEXT_BUFFER,
@@ -79,19 +78,6 @@ public:
                 (*buf).clear();
                 return result;
             }
-        }
-        result = reply.readInt32();
-        return result;
-    }
-
-    virtual status_t setBufferCount(int bufferCount)
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(bufferCount);
-        status_t result =remote()->transact(SET_BUFFER_COUNT, data, &reply);
-        if (result != NO_ERROR) {
-            return result;
         }
         result = reply.readInt32();
         return result;
@@ -361,13 +347,6 @@ status_t BnGraphicBufferProducer::onTransact(
             if (buffer != 0) {
                 reply->write(*buffer);
             }
-            reply->writeInt32(result);
-            return NO_ERROR;
-        }
-        case SET_BUFFER_COUNT: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            int bufferCount = data.readInt32();
-            int result = setBufferCount(bufferCount);
             reply->writeInt32(result);
             return NO_ERROR;
         }

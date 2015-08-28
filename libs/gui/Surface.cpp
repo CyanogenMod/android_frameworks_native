@@ -800,13 +800,25 @@ int Surface::setBufferCount(int bufferCount)
     ALOGV("Surface::setBufferCount");
     Mutex::Autolock lock(mMutex);
 
-    status_t err = mGraphicBufferProducer->setBufferCount(bufferCount);
-    ALOGE_IF(err, "IGraphicBufferProducer::setBufferCount(%d) returned %s",
-            bufferCount, strerror(-err));
+    status_t err = NO_ERROR;
+    if (bufferCount == 0) {
+        err = mGraphicBufferProducer->setMaxDequeuedBufferCount(1);
+    } else {
+        int minUndequeuedBuffers = 0;
+        err = mGraphicBufferProducer->query(
+                NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, &minUndequeuedBuffers);
+        if (err == NO_ERROR) {
+            err = mGraphicBufferProducer->setMaxDequeuedBufferCount(
+                    bufferCount - minUndequeuedBuffers);
+        }
+    }
 
     if (err == NO_ERROR) {
         freeAllBuffers();
     }
+
+    ALOGE_IF(err, "IGraphicBufferProducer::setBufferCount(%d) returned %s",
+             bufferCount, strerror(-err));
 
     return err;
 }
