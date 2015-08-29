@@ -59,7 +59,7 @@ extern "C" {
 
 /**
  * Sensor types.
- * (keep in sync with hardware/sensor.h)
+ * (keep in sync with hardware/sensors.h)
  */
 enum {
     /**
@@ -67,9 +67,9 @@ enum {
      * reporting-mode: continuous
      *
      *  All values are in SI units (m/s^2) and measure the acceleration of the
-     *  device minus the force of gravity.
+     *  device including the force of gravity.
      */
-    ASENSOR_TYPE_ACCELEROMETER      = 1,
+    ASENSOR_TYPE_ACCELEROMETER       = 1,
     /**
      * {@link ASENSOR_TYPE_MAGNETIC_FIELD}
      * reporting-mode: continuous
@@ -77,7 +77,7 @@ enum {
      *  All values are in micro-Tesla (uT) and measure the geomagnetic
      *  field in the X, Y and Z axis.
      */
-    ASENSOR_TYPE_MAGNETIC_FIELD     = 2,
+    ASENSOR_TYPE_MAGNETIC_FIELD      = 2,
     /**
      * {@link ASENSOR_TYPE_GYROSCOPE}
      * reporting-mode: continuous
@@ -85,14 +85,14 @@ enum {
      *  All values are in radians/second and measure the rate of rotation
      *  around the X, Y and Z axis.
      */
-    ASENSOR_TYPE_GYROSCOPE          = 4,
+    ASENSOR_TYPE_GYROSCOPE           = 4,
     /**
      * {@link ASENSOR_TYPE_LIGHT}
      * reporting-mode: on-change
      *
      * The light sensor value is returned in SI lux units.
      */
-    ASENSOR_TYPE_LIGHT              = 5,
+    ASENSOR_TYPE_LIGHT               = 5,
     /**
      * {@link ASENSOR_TYPE_PROXIMITY}
      * reporting-mode: on-change
@@ -103,7 +103,15 @@ enum {
      * SENSOR_FLAG_WAKE_UP.
      * The value corresponds to the distance to the nearest object in centimeters.
      */
-    ASENSOR_TYPE_PROXIMITY          = 8
+    ASENSOR_TYPE_PROXIMITY           = 8,
+    /**
+     * {@link ASENSOR_TYPE_LINEAR_ACCELERATION}
+     * reporting-mode: continuous
+     *
+     *  All values are in SI units (m/s^2) and measure the acceleration of the
+     *  device not including the force of gravity.
+     */
+    ASENSOR_TYPE_LINEAR_ACCELERATION = 10
 };
 
 /**
