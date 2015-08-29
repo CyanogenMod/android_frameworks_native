@@ -237,6 +237,55 @@ VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
 }
 
 // -----------------------------------------------------------------------------
+// DeviceMemory
+
+struct DeviceMemory {
+    typedef VkDeviceMemory HandleType;
+    VkDeviceSize size;
+    alignas(16) uint8_t data[0];
+};
+template <>
+struct HandleTraits<VkDeviceMemory> {
+    typedef DeviceMemory* PointerType;
+};
+
+VkResult AllocMemory(VkDevice device,
+                     const VkMemoryAllocInfo* alloc_info,
+                     VkDeviceMemory* mem_handle) {
+    if (SIZE_MAX - sizeof(DeviceMemory) <= alloc_info->allocationSize)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    size_t size = sizeof(DeviceMemory) + size_t(alloc_info->allocationSize);
+    DeviceMemory* mem = static_cast<DeviceMemory*>(
+        alloc->pfnAlloc(alloc->pUserData, size, alignof(DeviceMemory),
+                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!mem)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    mem->size = size;
+    *mem_handle = GetHandleToObject(mem);
+    return VK_SUCCESS;
+}
+
+VkResult FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
+    alloc->pfnFree(alloc->pUserData, mem);
+    return VK_SUCCESS;
+}
+
+VkResult MapMemory(VkDevice,
+                   VkDeviceMemory mem_handle,
+                   VkDeviceSize offset,
+                   VkDeviceSize,
+                   VkMemoryMapFlags,
+                   void** out_ptr) {
+    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
+    *out_ptr = &mem->data[0] + offset;
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
 // Buffer
 
 struct Buffer {
@@ -346,23 +395,7 @@ VkResult DeviceWaitIdle(VkDevice device) {
     return VK_SUCCESS;
 }
 
-VkResult AllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, VkDeviceMemory* pMem) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult FreeMemory(VkDevice device, VkDeviceMemory mem) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult MapMemory(VkDevice device, VkDeviceMemory mem, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult UnmapMemory(VkDevice device, VkDeviceMemory mem) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -382,7 +415,6 @@ VkResult GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDev
 }
 
 VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, VkDeviceSize memOffset) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
