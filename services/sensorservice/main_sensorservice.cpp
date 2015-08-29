@@ -20,6 +20,7 @@
 using namespace android;
 
 int main(int /*argc*/, char** /*argv*/) {
+    signal(SIGPIPE, SIG_IGN);
     SensorService::publishAndJoinThreadPool();
     return 0;
 }
