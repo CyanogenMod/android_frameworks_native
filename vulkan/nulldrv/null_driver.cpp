@@ -119,6 +119,21 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
 
 namespace null_driver {
 
+template <typename HandleT>
+struct HandleTraits {};
+
+template <typename HandleT>
+typename HandleTraits<HandleT>::PointerType GetObjectFromHandle(
+    const HandleT& h) {
+    return reinterpret_cast<typename HandleTraits<HandleT>::PointerType>(
+        uintptr_t(h.handle));
+}
+
+template <typename T>
+typename T::HandleType GetHandleToObject(const T* obj) {
+    return typename T::HandleType(reinterpret_cast<uintptr_t>(obj));
+}
+
 // -----------------------------------------------------------------------------
 // Global
 
@@ -222,6 +237,49 @@ VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
 }
 
 // -----------------------------------------------------------------------------
+// Buffer
+
+struct Buffer {
+    typedef VkBuffer HandleType;
+    VkDeviceSize size;
+};
+template <>
+struct HandleTraits<VkBuffer> {
+    typedef Buffer* PointerType;
+};
+
+VkResult CreateBuffer(VkDevice device,
+                      const VkBufferCreateInfo* create_info,
+                      VkBuffer* buffer_handle) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Buffer* buffer = static_cast<Buffer*>(
+        alloc->pfnAlloc(alloc->pUserData, sizeof(Buffer), alignof(Buffer),
+                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!buffer)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    buffer->size = create_info->size;
+    *buffer_handle = GetHandleToObject(buffer);
+    return VK_SUCCESS;
+}
+
+VkResult GetBufferMemoryRequirements(VkDevice,
+                                     VkBuffer buffer_handle,
+                                     VkMemoryRequirements* requirements) {
+    Buffer* buffer = GetObjectFromHandle(buffer_handle);
+    requirements->size = buffer->size;
+    requirements->alignment = 16;  // allow fast Neon/SSE memcpy
+    requirements->memoryTypeBits = 0x1;
+    return VK_SUCCESS;
+}
+
+VkResult DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Buffer* buffer = GetObjectFromHandle(buffer_handle);
+    alloc->pfnFree(alloc->pUserData, buffer);
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
 // No-op entrypoints
 
 // clang-format off
@@ -319,11 +377,6 @@ VkResult InvalidateMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, c
 }
 
 VkResult GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult GetBufferMemoryRequirements(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -449,16 +502,6 @@ VkResult DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
 }
 
 VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, VkBuffer* pBuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult DestroyBuffer(VkDevice device, VkBuffer buffer) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
