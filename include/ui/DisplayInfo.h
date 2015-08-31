@@ -36,6 +36,7 @@ struct DisplayInfo {
     bool secure;
     nsecs_t appVsyncOffset;
     nsecs_t presentationDeadline;
+    int colorTransform;
 };
 
 /* Display orientations as defined in Surface.java and ISurfaceComposer.h. */
