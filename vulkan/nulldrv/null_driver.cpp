@@ -1,5 +1,6 @@
 #include <hardware/hwvulkan.h>
 
+#include <array>
 #include <string.h>
 #include <algorithm>
 
@@ -29,10 +30,60 @@ struct VkCmdBuffer_T {
     hwvulkan_dispatch_t dispatch;
 };
 
+namespace {
+// Handles for non-dispatchable objects are either pointers, or arbitrary
+// 64-bit non-zero values. We only use pointers when we need to keep state for
+// the object even in a null driver. For the rest, we form a handle as:
+//   [63:63] = 1 to distinguish from pointer handles*
+//   [62:56] = non-zero handle type enum value
+//   [55: 0] = per-handle-type incrementing counter
+// * This works because virtual addresses with the high bit set are reserved
+// for kernel data in all ABIs we run on.
+//
+// We never reclaim handles on vkDestroy*. It's not even necessary for us to
+// have distinct handles for live objects, and practically speaking we won't
+// ever create 2^56 objects of the same type from a single VkDevice in a null
+// driver.
+//
+// Using a namespace here instead of 'enum class' since we want scoped
+// constants but also want implicit conversions to integral types.
+namespace HandleType {
+    enum Enum {
+        kAttachmentView,
+        kBufferView,
+        kCmdPool,
+        kDescriptorPool,
+        kDescriptorSet,
+        kDescriptorSetLayout,
+        kDynamicColorBlendState,
+        kDynamicDepthStencilState,
+        kDynamicRasterState,
+        kDynamicViewportState,
+        kEvent,
+        kFence,
+        kFramebuffer,
+        kImageView,
+        kPipeline,
+        kPipelineCache,
+        kPipelineLayout,
+        kQueryPool,
+        kRenderPass,
+        kSampler,
+        kSemaphore,
+        kShader,
+        kShaderModule,
+
+        kNumTypes
+    };
+} // namespace HandleType
+uint64_t AllocHandle(VkDevice device, HandleType::Enum type);
+} // anonymous namespace
+
 struct VkDevice_T {
     hwvulkan_dispatch_t dispatch;
     VkInstance_T* instance;
     VkQueue_T queue;
+    std::array<uint64_t, HandleType::kNumTypes> next_handle;
 };
 
 // -----------------------------------------------------------------------------
@@ -113,6 +164,15 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
     return reinterpret_cast<VkInstance_T*>(
         reinterpret_cast<uintptr_t>(physical_device) -
         offsetof(VkInstance_T, physical_device));
+}
+
+uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
+    const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
+    ALOGE_IF(device->next_handle[type] == kHandleMask,
+        "non-dispatchable handles of type=%u are about to overflow",
+        type);
+    return (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
+           (device->next_handle[type]++ & kHandleMask);
 }
 
 }  // namespace
@@ -218,6 +278,8 @@ VkResult CreateDevice(VkPhysicalDevice physical_device,
     device->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     device->instance = instance;
     device->queue.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    std::fill(device->next_handle.begin(), device->next_handle.end(),
+              UINT64_C(0));
 
     *out_device = device;
     return VK_SUCCESS;
@@ -325,6 +387,192 @@ VkResult DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Buffer* buffer = GetObjectFromHandle(buffer_handle);
     alloc->pfnFree(alloc->pUserData, buffer);
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
+// No-op types
+
+VkResult CreateAttachmentView(VkDevice device,
+                              const VkAttachmentViewCreateInfo*,
+                              VkAttachmentView* view) {
+    *view = AllocHandle(device, HandleType::kAttachmentView);
+    return VK_SUCCESS;
+}
+
+VkResult CreateBufferView(VkDevice device,
+                          const VkBufferViewCreateInfo*,
+                          VkBufferView* view) {
+    *view = AllocHandle(device, HandleType::kBufferView);
+    return VK_SUCCESS;
+}
+
+VkResult CreateCommandPool(VkDevice device,
+                           const VkCmdPoolCreateInfo*,
+                           VkCmdPool* pool) {
+    *pool = AllocHandle(device, HandleType::kCmdPool);
+    return VK_SUCCESS;
+}
+
+VkResult CreateDescriptorPool(VkDevice device,
+                              VkDescriptorPoolUsage,
+                              uint32_t,
+                              const VkDescriptorPoolCreateInfo*,
+                              VkDescriptorPool* pool) {
+    *pool = AllocHandle(device, HandleType::kDescriptorPool);
+    return VK_SUCCESS;
+}
+
+VkResult AllocDescriptorSets(VkDevice device,
+                             VkDescriptorPool,
+                             VkDescriptorSetUsage,
+                             uint32_t count,
+                             const VkDescriptorSetLayout*,
+                             VkDescriptorSet* sets,
+                             uint32_t* out_count) {
+    for (uint32_t i = 0; i < count; i++)
+        sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+    *out_count = count;
+    return VK_SUCCESS;
+}
+
+VkResult CreateDescriptorSetLayout(VkDevice device,
+                                   const VkDescriptorSetLayoutCreateInfo*,
+                                   VkDescriptorSetLayout* layout) {
+    *layout = AllocHandle(device, HandleType::kDescriptorSetLayout);
+    return VK_SUCCESS;
+}
+
+VkResult CreateDynamicColorBlendState(VkDevice device,
+                                      const VkDynamicColorBlendStateCreateInfo*,
+                                      VkDynamicColorBlendState* state) {
+    *state = AllocHandle(device, HandleType::kDynamicColorBlendState);
+    return VK_SUCCESS;
+}
+
+VkResult CreateDynamicDepthStencilState(
+    VkDevice device,
+    const VkDynamicDepthStencilStateCreateInfo*,
+    VkDynamicDepthStencilState* state) {
+    *state = AllocHandle(device, HandleType::kDynamicDepthStencilState);
+    return VK_SUCCESS;
+}
+
+VkResult CreateDynamicRasterState(VkDevice device,
+                                  const VkDynamicRasterStateCreateInfo*,
+                                  VkDynamicRasterState* state) {
+    *state = AllocHandle(device, HandleType::kDynamicRasterState);
+    return VK_SUCCESS;
+}
+
+VkResult CreateDynamicViewportState(VkDevice device,
+                                    const VkDynamicViewportStateCreateInfo*,
+                                    VkDynamicViewportState* state) {
+    *state = AllocHandle(device, HandleType::kDynamicViewportState);
+    return VK_SUCCESS;
+}
+
+VkResult CreateEvent(VkDevice device,
+                     const VkEventCreateInfo*,
+                     VkEvent* event) {
+    *event = AllocHandle(device, HandleType::kEvent);
+    return VK_SUCCESS;
+}
+
+VkResult CreateFence(VkDevice device,
+                     const VkFenceCreateInfo*,
+                     VkFence* fence) {
+    *fence = AllocHandle(device, HandleType::kFence);
+    return VK_SUCCESS;
+}
+
+VkResult CreateFramebuffer(VkDevice device,
+                           const VkFramebufferCreateInfo*,
+                           VkFramebuffer* framebuffer) {
+    *framebuffer = AllocHandle(device, HandleType::kFramebuffer);
+    return VK_SUCCESS;
+}
+
+VkResult CreateImageView(VkDevice device,
+                         const VkImageViewCreateInfo*,
+                         VkImageView* view) {
+    *view = AllocHandle(device, HandleType::kImageView);
+    return VK_SUCCESS;
+}
+
+VkResult CreateGraphicsPipelines(VkDevice device,
+                                 VkPipelineCache,
+                                 uint32_t count,
+                                 const VkGraphicsPipelineCreateInfo*,
+                                 VkPipeline* pipelines) {
+    for (uint32_t i = 0; i < count; i++)
+        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+    return VK_SUCCESS;
+}
+
+VkResult CreateComputePipelines(VkDevice device,
+                                VkPipelineCache,
+                                uint32_t count,
+                                const VkComputePipelineCreateInfo*,
+                                VkPipeline* pipelines) {
+    for (uint32_t i = 0; i < count; i++)
+        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+    return VK_SUCCESS;
+}
+
+VkResult CreatePipelineCache(VkDevice device,
+                             const VkPipelineCacheCreateInfo*,
+                             VkPipelineCache* cache) {
+    *cache = AllocHandle(device, HandleType::kPipelineCache);
+    return VK_SUCCESS;
+}
+
+VkResult CreatePipelineLayout(VkDevice device,
+                              const VkPipelineLayoutCreateInfo*,
+                              VkPipelineLayout* layout) {
+    *layout = AllocHandle(device, HandleType::kPipelineLayout);
+    return VK_SUCCESS;
+}
+
+VkResult CreateQueryPool(VkDevice device,
+                         const VkQueryPoolCreateInfo*,
+                         VkQueryPool* pool) {
+    *pool = AllocHandle(device, HandleType::kQueryPool);
+    return VK_SUCCESS;
+}
+
+VkResult CreateRenderPass(VkDevice device,
+                          const VkRenderPassCreateInfo*,
+                          VkRenderPass* renderpass) {
+    *renderpass = AllocHandle(device, HandleType::kRenderPass);
+    return VK_SUCCESS;
+}
+
+VkResult CreateSampler(VkDevice device,
+                       const VkSamplerCreateInfo*,
+                       VkSampler* sampler) {
+    *sampler = AllocHandle(device, HandleType::kSampler);
+    return VK_SUCCESS;
+}
+
+VkResult CreateSemaphore(VkDevice device,
+                         const VkSemaphoreCreateInfo*,
+                         VkSemaphore* semaphore) {
+    *semaphore = AllocHandle(device, HandleType::kSemaphore);
+    return VK_SUCCESS;
+}
+
+VkResult CreateShader(VkDevice device,
+                      const VkShaderCreateInfo*,
+                      VkShader* shader) {
+    *shader = AllocHandle(device, HandleType::kShader);
+    return VK_SUCCESS;
+}
+
+VkResult CreateShaderModule(VkDevice device,
+                            const VkShaderModuleCreateInfo*,
+                            VkShaderModule* module) {
+    *module = AllocHandle(device, HandleType::kShaderModule);
     return VK_SUCCESS;
 }
 
@@ -453,13 +701,7 @@ VkResult QueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBi
     return VK_SUCCESS;
 }
 
-VkResult CreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, VkFence* pFence) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyFence(VkDevice device, VkFence fence) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -478,13 +720,7 @@ VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFen
     return VK_SUCCESS;
 }
 
-VkResult CreateSemaphore(VkDevice device, const VkSemaphoreCreateInfo* pCreateInfo, VkSemaphore* pSemaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -498,13 +734,7 @@ VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
     return VK_SUCCESS;
 }
 
-VkResult CreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, VkEvent* pEvent) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyEvent(VkDevice device, VkEvent event) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -523,13 +753,7 @@ VkResult ResetEvent(VkDevice device, VkEvent event) {
     return VK_SUCCESS;
 }
 
-VkResult CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, VkQueryPool* pQueryPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -538,13 +762,7 @@ VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t st
     return VK_SUCCESS;
 }
 
-VkResult CreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, VkBufferView* pView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -563,53 +781,23 @@ VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImage
     return VK_SUCCESS;
 }
 
-VkResult CreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, VkImageView* pView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyImageView(VkDevice device, VkImageView imageView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateAttachmentView(VkDevice device, const VkAttachmentViewCreateInfo* pCreateInfo, VkAttachmentView* pView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyAttachmentView(VkDevice device, VkAttachmentView attachmentView) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* pCreateInfo, VkShaderModule* pShaderModule) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, VkShader* pShader) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyShader(VkDevice device, VkShader shader) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, VkPipelineCache* pPipelineCache) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -628,67 +816,27 @@ VkResult MergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint32_
     return VK_SUCCESS;
 }
 
-VkResult CreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkGraphicsPipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkComputePipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyPipeline(VkDevice device, VkPipeline pipeline) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo* pCreateInfo, VkPipelineLayout* pPipelineLayout) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateSampler(VkDevice device, const VkSamplerCreateInfo* pCreateInfo, VkSampler* pSampler) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroySampler(VkDevice device, VkSampler sampler) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayout* pSetLayout) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateDescriptorPool(VkDevice device, VkDescriptorPoolUsage poolUsage, uint32_t maxSets, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult AllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets, uint32_t* pCount) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -703,63 +851,27 @@ VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, ui
     return VK_SUCCESS;
 }
 
-VkResult CreateDynamicViewportState(VkDevice device, const VkDynamicViewportStateCreateInfo* pCreateInfo, VkDynamicViewportState* pState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyDynamicViewportState(VkDevice device, VkDynamicViewportState dynamicViewportState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateDynamicRasterState(VkDevice device, const VkDynamicRasterStateCreateInfo* pCreateInfo, VkDynamicRasterState* pState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicRasterState(VkDevice device, VkDynamicRasterState dynamicRasterState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateDynamicColorBlendState(VkDevice device, const VkDynamicColorBlendStateCreateInfo* pCreateInfo, VkDynamicColorBlendState* pState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicColorBlendState(VkDevice device, VkDynamicColorBlendState dynamicColorBlendState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateDynamicDepthStencilState(VkDevice device, const VkDynamicDepthStencilStateCreateInfo* pCreateInfo, VkDynamicDepthStencilState* pState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyDynamicDepthStencilState(VkDevice device, VkDynamicDepthStencilState dynamicDepthStencilState) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult CreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, VkRenderPass* pRenderPass) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -768,13 +880,7 @@ VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkEx
     return VK_SUCCESS;
 }
 
-VkResult CreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
