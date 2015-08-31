@@ -48,36 +48,36 @@ namespace {
 // Using a namespace here instead of 'enum class' since we want scoped
 // constants but also want implicit conversions to integral types.
 namespace HandleType {
-    enum Enum {
-        kAttachmentView,
-        kBufferView,
-        kCmdPool,
-        kDescriptorPool,
-        kDescriptorSet,
-        kDescriptorSetLayout,
-        kDynamicColorBlendState,
-        kDynamicDepthStencilState,
-        kDynamicRasterState,
-        kDynamicViewportState,
-        kEvent,
-        kFence,
-        kFramebuffer,
-        kImageView,
-        kPipeline,
-        kPipelineCache,
-        kPipelineLayout,
-        kQueryPool,
-        kRenderPass,
-        kSampler,
-        kSemaphore,
-        kShader,
-        kShaderModule,
+enum Enum {
+    kAttachmentView,
+    kBufferView,
+    kCmdPool,
+    kDescriptorPool,
+    kDescriptorSet,
+    kDescriptorSetLayout,
+    kDynamicColorBlendState,
+    kDynamicDepthStencilState,
+    kDynamicRasterState,
+    kDynamicViewportState,
+    kEvent,
+    kFence,
+    kFramebuffer,
+    kImageView,
+    kPipeline,
+    kPipelineCache,
+    kPipelineLayout,
+    kQueryPool,
+    kRenderPass,
+    kSampler,
+    kSemaphore,
+    kShader,
+    kShaderModule,
 
-        kNumTypes
-    };
-} // namespace HandleType
+    kNumTypes
+};
+}  // namespace HandleType
 uint64_t AllocHandle(VkDevice device, HandleType::Enum type);
-} // anonymous namespace
+}  // anonymous namespace
 
 struct VkDevice_T {
     hwvulkan_dispatch_t dispatch;
@@ -295,6 +295,29 @@ VkResult DestroyDevice(VkDevice device) {
 
 VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
     *queue = &device->queue;
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
+// CmdBuffer
+
+VkResult CreateCommandBuffer(VkDevice device,
+                             const VkCmdBufferCreateInfo*,
+                             VkCmdBuffer* out_cmdbuf) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    VkCmdBuffer_T* cmdbuf = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
+        alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
+        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!cmdbuf)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    cmdbuf->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    *out_cmdbuf = cmdbuf;
+    return VK_SUCCESS;
+}
+
+VkResult DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    alloc->pfnFree(alloc->pUserData, cmdbuf);
     return VK_SUCCESS;
 }
 
@@ -629,7 +652,6 @@ VkResult GetPhysicalDeviceExtensionProperties(VkPhysicalDevice physicalDevice, c
 }
 
 VkResult QueueSubmit(VkQueue queue, uint32_t cmdBufferCount, const VkCmdBuffer* pCmdBuffers, VkFence fence) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -706,7 +728,6 @@ VkResult DestroyFence(VkDevice device, VkFence fence) {
 }
 
 VkResult ResetFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -716,7 +737,6 @@ VkResult GetFenceStatus(VkDevice device, VkFence fence) {
 }
 
 VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -889,23 +909,11 @@ VkResult ResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlag
     return VK_SUCCESS;
 }
 
-VkResult CreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult DestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult BeginCommandBuffer(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
 VkResult EndCommandBuffer(VkCmdBuffer cmdBuffer) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 

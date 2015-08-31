@@ -578,7 +578,7 @@ VkResult vkResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFl
 
 __attribute__((visibility("default")))
 VkResult vkCreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer) {
-    return GetVtbl(device).CreateCommandBuffer(device, pCreateInfo, pCmdBuffer);
+    return vulkan::CreateCommandBuffer(device, pCreateInfo, pCmdBuffer);
 }
 
 __attribute__((visibility("default")))

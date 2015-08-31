@@ -187,6 +187,9 @@ VkResult GetDeviceQueue(VkDevice drv_device,
                         uint32_t family,
                         uint32_t index,
                         VkQueue* out_queue);
+VkResult CreateCommandBuffer(VkDevice device,
+                             const VkCmdBufferCreateInfo* create_info,
+                             VkCmdBuffer* out_cmdbuf);
 VkResult DestroyDevice(VkDevice drv_device);
 
 // -----------------------------------------------------------------------------

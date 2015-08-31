@@ -494,6 +494,7 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
         return GetGlobalDeviceProcAddr(name);
     // For special-case functions we always return the loader entry
     if (strcmp(name, "vkGetDeviceQueue") == 0 ||
+        strcmp(name, "vkCreateCommandBuffer") == 0 ||
         strcmp(name, "vkDestroyDevice") == 0) {
         return GetGlobalDeviceProcAddr(name);
     }
@@ -518,6 +519,27 @@ VkResult GetDeviceQueue(VkDevice drv_device,
     }
     dispatch->vtbl = vtbl;
     *out_queue = queue;
+    return VK_SUCCESS;
+}
+
+VkResult CreateCommandBuffer(VkDevice drv_device,
+                             const VkCmdBufferCreateInfo* create_info,
+                             VkCmdBuffer* out_cmdbuf) {
+    const DeviceVtbl* vtbl = GetVtbl(drv_device);
+    VkCmdBuffer cmdbuf;
+    VkResult result =
+        vtbl->CreateCommandBuffer(drv_device, create_info, &cmdbuf);
+    if (result != VK_SUCCESS)
+        return result;
+    hwvulkan_dispatch_t* dispatch =
+        reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuf);
+    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
+        ALOGE("invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
+              dispatch->magic);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+    dispatch->vtbl = vtbl;
+    *out_cmdbuf = cmdbuf;
     return VK_SUCCESS;
 }
 

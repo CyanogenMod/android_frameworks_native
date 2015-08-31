@@ -73,7 +73,7 @@ namespace {
 */}}
 {{define "IsSpecialEntry"}}
   {{/* TODO: figure out how to do this in a cleaner or at least multi-line way */}}
-  {{if or (eq $ "vkGetInstanceProcAddr") (or (eq $ "vkGetDeviceProcAddr") (or (eq $ "vkGetDeviceQueue") (eq $ "vkDestroyDevice")))}}
+  {{if or (eq $ "vkGetInstanceProcAddr") (or (eq $ "vkGetDeviceProcAddr") (or (eq $ "vkGetDeviceQueue") (or (eq $ "vkCreateCommandBuffer") (eq $ "vkDestroyDevice"))))}}
     true
   {{end}}
 {{end}}
