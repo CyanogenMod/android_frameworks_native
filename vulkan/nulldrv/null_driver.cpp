@@ -1,8 +1,9 @@
 #include <hardware/hwvulkan.h>
 
 #include <array>
-#include <string.h>
 #include <algorithm>
+#include <inttypes.h>
+#include <string.h>
 
 // #define LOG_NDEBUG 0
 #include <log/log.h>
@@ -77,6 +78,9 @@ enum Enum {
 };
 }  // namespace HandleType
 uint64_t AllocHandle(VkDevice device, HandleType::Enum type);
+
+const VkDeviceSize kMaxDeviceMemory = VkDeviceSize(INTPTR_MAX) + 1;
+
 }  // anonymous namespace
 
 struct VkDevice_T {
@@ -169,8 +173,7 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
 uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
     const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
     ALOGE_IF(device->next_handle[type] == kHandleMask,
-        "non-dispatchable handles of type=%u are about to overflow",
-        type);
+             "non-dispatchable handles of type=%u are about to overflow", type);
     return (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
            (device->next_handle[type]++ & kHandleMask);
 }
@@ -256,8 +259,7 @@ VkResult GetPhysicalDeviceMemoryProperties(
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     properties->memoryTypes[0].heapIndex = 0;
     properties->memoryHeapCount = 1;
-    properties->memoryHeaps[0].size =
-        INTPTR_MAX;  // TODO: do something smarter?
+    properties->memoryHeaps[0].size = kMaxDeviceMemory;
     properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL;
     return VK_SUCCESS;
 }
@@ -385,6 +387,11 @@ struct HandleTraits<VkBuffer> {
 VkResult CreateBuffer(VkDevice device,
                       const VkBufferCreateInfo* create_info,
                       VkBuffer* buffer_handle) {
+    ALOGW_IF(create_info->size > kMaxDeviceMemory,
+             "CreateBuffer: requested size 0x%" PRIx64
+             " exceeds max device memory size 0x%" PRIx64,
+             create_info->size, kMaxDeviceMemory);
+
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Buffer* buffer = static_cast<Buffer*>(
         alloc->pfnAlloc(alloc->pUserData, sizeof(Buffer), alignof(Buffer),
