@@ -144,6 +144,7 @@ LOCAL_SRC_FILES:= 		\
 #
 
 LOCAL_MODULE:= libETC1
+LOCAL_MODULE_HOST_OS := darwin linux windows
 
 include $(BUILD_HOST_STATIC_LIBRARY)
 
