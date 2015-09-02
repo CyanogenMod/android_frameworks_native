@@ -421,6 +421,66 @@ VkResult DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
 }
 
 // -----------------------------------------------------------------------------
+// Image
+
+struct Image {
+    typedef VkImage HandleType;
+    VkDeviceSize size;
+};
+template <>
+struct HandleTraits<VkImage> {
+    typedef Image* PointerType;
+};
+
+VkResult CreateImage(VkDevice device,
+                     const VkImageCreateInfo* create_info,
+                     VkImage* image_handle) {
+    if (create_info->imageType != VK_IMAGE_TYPE_2D ||
+        create_info->format != VK_FORMAT_R8G8B8A8_UNORM ||
+        create_info->mipLevels != 1) {
+        ALOGE("CreateImage: not yet implemented: type=%d format=%d mips=%u",
+              create_info->imageType, create_info->format,
+              create_info->mipLevels);
+        return VK_ERROR_UNAVAILABLE;
+    }
+
+    VkDeviceSize size =
+        VkDeviceSize(create_info->extent.width * create_info->extent.height) *
+        create_info->arraySize * create_info->samples * 4u;
+    ALOGW_IF(size > kMaxDeviceMemory,
+             "CreateImage: image size 0x%" PRIx64
+             " exceeds max device memory size 0x%" PRIx64,
+             size, kMaxDeviceMemory);
+
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Image* image = static_cast<Image*>(
+        alloc->pfnAlloc(alloc->pUserData, sizeof(Image), alignof(Image),
+                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!image)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    image->size = size;
+    *image_handle = GetHandleToObject(image);
+    return VK_SUCCESS;
+}
+
+VkResult GetImageMemoryRequirements(VkDevice,
+                                    VkImage image_handle,
+                                    VkMemoryRequirements* requirements) {
+    Image* image = GetObjectFromHandle(image_handle);
+    requirements->size = image->size;
+    requirements->alignment = 16;  // allow fast Neon/SSE memcpy
+    requirements->memoryTypeBits = 0x1;
+    return VK_SUCCESS;
+}
+
+VkResult DestroyImage(VkDevice device, VkImage image_handle) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Image* image = GetObjectFromHandle(image_handle);
+    alloc->pfnFree(alloc->pUserData, image);
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
 // No-op types
 
 VkResult CreateAttachmentView(VkDevice device,
@@ -695,11 +755,6 @@ VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, 
     return VK_SUCCESS;
 }
 
-VkResult GetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkDeviceSize memOffset) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
@@ -790,16 +845,6 @@ VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t st
 }
 
 VkResult DestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    return VK_SUCCESS;
-}
-
-VkResult CreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, VkImage* pImage) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult DestroyImage(VkDevice device, VkImage image) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
