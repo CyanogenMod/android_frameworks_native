@@ -117,6 +117,9 @@ public:
     // does this display have layers handled by GLES
     bool hasGlesComposition(int32_t id) const;
 
+    // does this display support dim layer composition
+    bool hasDimComposition() const { return (mDimComp == 1); }
+
     // get the releaseFence file descriptor for a display's framebuffer layer.
     // the release fence is only valid after commit()
     sp<Fence> getAndResetReleaseFence(int32_t id);
@@ -162,6 +165,7 @@ public:
         virtual sp<Fence> getAndResetReleaseFence() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
+        virtual void setDim() = 0;
         virtual void setIsCursorLayerHint(bool isCursor = true) = 0;
         virtual void setBlending(uint32_t blending) = 0;
         virtual void setTransform(uint32_t transform) = 0;
@@ -379,6 +383,8 @@ private:
 
     // thread-safe
     mutable Mutex mEventControlLock;
+
+    int mDimComp;
 };
 
 // ---------------------------------------------------------------------------

@@ -62,6 +62,15 @@ bool LayerDim::isVisible() const {
     return !(s.flags & layer_state_t::eLayerHidden) && s.alpha;
 }
 
+void LayerDim::setPerFrameData(const sp<const DisplayDevice>& hw,
+        HWComposer::HWCLayerInterface& layer) {
+  HWComposer& hwc = mFlinger->getHwComposer();
+
+  Layer::setPerFrameData(hw, layer);
+  if (hwc.hasDimComposition()) {
+    layer.setDim();
+  }
+}
 
 // ---------------------------------------------------------------------------
 

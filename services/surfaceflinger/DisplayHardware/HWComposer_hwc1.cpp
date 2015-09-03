@@ -190,6 +190,11 @@ HWComposer::HWComposer(
         // we don't have VSYNC support, we need to fake it
         mVSyncThread = new VSyncThread(*this);
     }
+
+    mDimComp = 0;
+    if (mHwc) {
+        mHwc->query(mHwc, HWC_BACKGROUND_LAYER_SUPPORTED, &mDimComp);
+    }
 }
 
 HWComposer::~HWComposer() {
@@ -1004,6 +1009,10 @@ public:
         } else {
             getLayer()->flags &= ~HWC_SKIP_LAYER;
         }
+    }
+    virtual void setDim() {
+        setSkip(false);
+        getLayer()->flags |= 0x80000000;
     }
     virtual void setIsCursorLayerHint(bool isCursor) {
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {

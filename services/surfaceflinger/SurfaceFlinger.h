@@ -143,6 +143,7 @@ private:
     friend class Client;
     friend class DisplayEventConnection;
     friend class Layer;
+    friend class LayerDim;
     friend class MonitoredProducer;
 
     // This value is specified in number of frames.  Log frame stats at most
