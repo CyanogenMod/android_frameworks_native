@@ -17,4 +17,6 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libz \
 
+LOCAL_INIT_RC := atrace.rc
+
 include $(BUILD_EXECUTABLE)
