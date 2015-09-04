@@ -137,6 +137,11 @@ namespace {
 
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         VkInstance* out_instance) {
+    // Assume the loader provided alloc callbacks even if the app didn't.
+    ALOG_ASSERT(
+        !create_info->pAllocCb,
+        "Missing alloc callbacks, loader or app should have provided them");
+
     VkInstance_T* instance =
         static_cast<VkInstance_T*>(create_info->pAllocCb->pfnAlloc(
             create_info->pAllocCb->pUserData, sizeof(VkInstance_T),
@@ -231,7 +236,15 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
 }
 
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
-    return LookupDeviceProcAddr(name);
+    PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
+    if (proc)
+        return proc;
+    if (strcmp(name, "vkImportNativeFenceANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(ImportNativeFenceANDROID);
+    if (strcmp(name, "vkQueueSignalNativeFenceANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            QueueSignalNativeFenceANDROID);
+    return nullptr;
 }
 
 // -----------------------------------------------------------------------------
@@ -1108,6 +1121,16 @@ void CmdEndRenderPass(VkCmdBuffer cmdBuffer) {
 }
 
 void CmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers) {
+}
+
+VkResult ImportNativeFenceANDROID(VkDevice device, VkSemaphore semaphore, int nativeFenceFd) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
+    return VK_SUCCESS;
+}
+
+VkResult QueueSignalNativeFenceANDROID(VkQueue queue, int* pNativeFenceFd) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
+    return VK_SUCCESS;
 }
 
 #pragma clang diagnostic pop

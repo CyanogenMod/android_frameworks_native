@@ -30,7 +30,8 @@ LOCAL_C_INCLUDES := \
 LOCAL_SRC_FILES := \
 	entry.cpp \
 	get_proc_addr.cpp \
-	loader.cpp
+	loader.cpp \
+	swapchain.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 LOCAL_SHARED_LIBRARIES := libhardware liblog

@@ -19,8 +19,17 @@
 
 #define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_ext_khr_swapchain.h>
+#include <vulkan/vk_ext_khr_device_swapchain.h>
+#include <vulkan/vk_ext_android_native_buffer.h>
 
 namespace vulkan {
+
+// TODO(jessehall): The InstanceVtbl and DeviceVtbl both have a set of
+// functions used in the app->layers/loader interface, and a different set of
+// functions used only in the loader->driver interface. We should probably
+// split them into two structures: one used for dispatch of application calls,
+// and one to hold the driver entry points.
 
 struct InstanceVtbl {
     // clang-format off
@@ -43,6 +52,9 @@ struct InstanceVtbl {
     PFN_vkGetPhysicalDeviceExtensionProperties GetPhysicalDeviceExtensionProperties;
     PFN_vkGetPhysicalDeviceLayerProperties GetPhysicalDeviceLayerProperties;
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
+
+    // Layers and loader only, not implemented by drivers
+    PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
     // clang-format on
 };
 
@@ -185,6 +197,20 @@ struct DeviceVtbl {
     PFN_vkCmdNextSubpass CmdNextSubpass;
     PFN_vkCmdEndRenderPass CmdEndRenderPass;
     PFN_vkCmdExecuteCommands CmdExecuteCommands;
+
+    // Layers and loader only, not implemented by drivers
+    PFN_vkGetSurfacePropertiesKHR GetSurfacePropertiesKHR;
+    PFN_vkGetSurfaceFormatsKHR GetSurfaceFormatsKHR;
+    PFN_vkGetSurfacePresentModesKHR GetSurfacePresentModesKHR;
+    PFN_vkCreateSwapchainKHR CreateSwapchainKHR;
+    PFN_vkDestroySwapchainKHR DestroySwapchainKHR;
+    PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR;
+    PFN_vkAcquireNextImageKHR AcquireNextImageKHR;
+    PFN_vkQueuePresentKHR QueuePresentKHR;
+
+    // Implemented only by drivers, not by layers or the loader
+    PFN_vkImportNativeFenceANDROID ImportNativeFenceANDROID;
+    PFN_vkQueueSignalNativeFenceANDROID QueueSignalNativeFenceANDROID;
 };
 
 // -----------------------------------------------------------------------------
@@ -224,6 +250,40 @@ bool LoadInstanceVtbl(VkInstance instance,
 bool LoadDeviceVtbl(VkDevice device,
                     PFN_vkGetDeviceProcAddr get_proc_addr,
                     DeviceVtbl& vtbl);
+
+// -----------------------------------------------------------------------------
+// swapchain.cpp
+
+VkResult GetPhysicalDeviceSurfaceSupportKHR(
+    VkPhysicalDevice pdev,
+    uint32_t queue_family,
+    const VkSurfaceDescriptionKHR* surface_desc,
+    VkBool32* supported);
+VkResult GetSurfacePropertiesKHR(VkDevice device,
+                                 const VkSurfaceDescriptionKHR* surface_desc,
+                                 VkSurfacePropertiesKHR* properties);
+VkResult GetSurfaceFormatsKHR(VkDevice device,
+                              const VkSurfaceDescriptionKHR* surface_desc,
+                              uint32_t* count,
+                              VkSurfaceFormatKHR* formats);
+VkResult GetSurfacePresentModesKHR(VkDevice device,
+                                   const VkSurfaceDescriptionKHR* surface_desc,
+                                   uint32_t* count,
+                                   VkPresentModeKHR* modes);
+VkResult CreateSwapchainKHR(VkDevice device,
+                            const VkSwapchainCreateInfoKHR* create_info,
+                            VkSwapchainKHR* swapchain);
+VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain);
+VkResult GetSwapchainImagesKHR(VkDevice device,
+                               VkSwapchainKHR swapchain,
+                               uint32_t* count,
+                               VkImage* image);
+VkResult AcquireNextImageKHR(VkDevice device,
+                             VkSwapchainKHR swapchain,
+                             uint64_t timeout,
+                             VkSemaphore semaphore,
+                             uint32_t* image_index);
+VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info);
 
 }  // namespace vulkan
 

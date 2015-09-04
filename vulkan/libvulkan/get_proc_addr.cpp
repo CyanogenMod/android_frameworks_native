@@ -370,21 +370,54 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
 namespace vulkan {
 
 PFN_vkVoidFunction GetGlobalInstanceProcAddr(const char* name) {
+    const NameProcEntry* entry = FindProcEntry(kInstanceProcTbl, name);
+    if (entry)
+        return entry->proc;
+    // vkGetDeviceProcAddr must be available at the global/instance level for
+    // bootstrapping
     if (strcmp(name, "vkGetDeviceProcAddr") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
-    const NameProcEntry* entry = FindProcEntry(kInstanceProcTbl, name);
-    return entry ? entry->proc : nullptr;
+    // special-case extension functions until they can be auto-generated
+    if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            vkGetPhysicalDeviceSurfaceSupportKHR);
+    return nullptr;
 }
 
 PFN_vkVoidFunction GetGlobalDeviceProcAddr(const char* name) {
     const NameProcEntry* entry = FindProcEntry(kDeviceProcTbl, name);
-    return entry ? entry->proc : nullptr;
+    if (entry)
+        return entry->proc;
+    // special-case extension functions until they can be auto-generated
+    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePropertiesKHR);
+    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR);
+    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            vkGetSurfacePresentModesKHR);
+    if (strcmp(name, "vkCreateSwapchainKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
+    if (strcmp(name, "vkDestroySwapchainKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
+    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSwapchainImagesKHR);
+    if (strcmp(name, "vkAcquireNextImageKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR);
+    if (strcmp(name, "vkQueuePresentKHR") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
+    return nullptr;
 }
 
 PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
                                                const char* name) {
+    size_t offset;
     const NameOffsetEntry* entry = FindProcEntry(kInstanceOffsetTbl, name);
-    if (!entry)
+    if (entry)
+        offset = entry->offset;
+    else if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
+        offset = offsetof(InstanceVtbl, GetPhysicalDeviceSurfaceSupportKHR);
+    else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return reinterpret_cast<PFN_vkVoidFunction>(
@@ -393,8 +426,27 @@ PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
 
 PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
                                              const char* name) {
+    size_t offset;
     const NameOffsetEntry* entry = FindProcEntry(kDeviceOffsetTbl, name);
-    if (!entry)
+    if (entry)
+        offset = entry->offset;
+    else if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
+        offset = offsetof(DeviceVtbl, GetSurfacePropertiesKHR);
+    else if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
+        offset = offsetof(DeviceVtbl, GetSurfaceFormatsKHR);
+    else if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
+        offset = offsetof(DeviceVtbl, GetSurfacePresentModesKHR);
+    else if (strcmp(name, "vkCreateSwapchainKHR") == 0)
+        offset = offsetof(DeviceVtbl, CreateSwapchainKHR);
+    else if (strcmp(name, "vkDestroySwapchainKHR") == 0)
+        offset = offsetof(DeviceVtbl, DestroySwapchainKHR);
+    else if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
+        offset = offsetof(DeviceVtbl, GetSwapchainImagesKHR);
+    else if (strcmp(name, "vkAcquireNextImageKHR") == 0)
+        offset = offsetof(DeviceVtbl, AcquireNextImageKHR);
+    else if (strcmp(name, "vkQueuePresentKHR") == 0)
+        offset = offsetof(DeviceVtbl, QueuePresentKHR);
+    else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return reinterpret_cast<PFN_vkVoidFunction>(
@@ -1158,6 +1210,16 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.CmdExecuteCommands = reinterpret_cast<PFN_vkCmdExecuteCommands>(get_proc_addr(device, "vkCmdExecuteCommands"));
     if (UNLIKELY(!vtbl.CmdExecuteCommands)) {
         ALOGE("missing device proc: %s", "vkCmdExecuteCommands");
+        success = false;
+    }
+    vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
+    if (UNLIKELY(!vtbl.ImportNativeFenceANDROID)) {
+        ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");
+        success = false;
+    }
+    vtbl.QueueSignalNativeFenceANDROID = reinterpret_cast<PFN_vkQueueSignalNativeFenceANDROID>(get_proc_addr(device, "vkQueueSignalNativeFenceANDROID"));
+    if (UNLIKELY(!vtbl.QueueSignalNativeFenceANDROID)) {
+        ALOGE("missing device proc: %s", "vkQueueSignalNativeFenceANDROID");
         success = false;
     }
     // clang-format on

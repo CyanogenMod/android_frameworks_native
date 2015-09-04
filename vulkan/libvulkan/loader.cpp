@@ -342,6 +342,15 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     }
     dispatch->vtbl = &device->vtbl_storage;
 
+    device->vtbl_storage.GetSurfacePropertiesKHR = GetSurfacePropertiesKHR;
+    device->vtbl_storage.GetSurfaceFormatsKHR = GetSurfaceFormatsKHR;
+    device->vtbl_storage.GetSurfacePresentModesKHR = GetSurfacePresentModesKHR;
+    device->vtbl_storage.CreateSwapchainKHR = CreateSwapchainKHR;
+    device->vtbl_storage.DestroySwapchainKHR = DestroySwapchainKHR;
+    device->vtbl_storage.GetSwapchainImagesKHR = GetSwapchainImagesKHR;
+    device->vtbl_storage.AcquireNextImageKHR = AcquireNextImageKHR;
+    device->vtbl_storage.QueuePresentKHR = QueuePresentKHR;
+
     // TODO: insert device layer entry points into device->vtbl_storage here?
 
     *out_device = drv_device;
@@ -402,6 +411,7 @@ const InstanceVtbl kBottomInstanceFunctions = {
     .GetPhysicalDeviceExtensionProperties = GetPhysicalDeviceExtensionPropertiesBottom,
     .GetPhysicalDeviceLayerProperties = GetPhysicalDeviceLayerPropertiesBottom,
     .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
+    .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
     // clang-format on
 };
 

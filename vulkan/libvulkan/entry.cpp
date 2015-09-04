@@ -800,3 +800,48 @@ __attribute__((visibility("default")))
 void vkCmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers) {
     GetVtbl(cmdBuffer).CmdExecuteCommands(cmdBuffer, cmdBuffersCount, pCmdBuffers);
 }
+
+__attribute__((visibility("default")))
+VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VkSurfaceDescriptionKHR* pSurfaceDescription, VkBool32* pSupported) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, pSurfaceDescription, pSupported);
+}
+
+__attribute__((visibility("default")))
+VkResult vkGetSurfacePropertiesKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, VkSurfacePropertiesKHR* pSurfaceProperties) {
+    return GetVtbl(device).GetSurfacePropertiesKHR(device, pSurfaceDescription, pSurfaceProperties);
+}
+
+__attribute__((visibility("default")))
+VkResult vkGetSurfaceFormatsKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, uint32_t* pCount, VkSurfaceFormatKHR* pSurfaceFormats) {
+    return GetVtbl(device).GetSurfaceFormatsKHR(device, pSurfaceDescription, pCount, pSurfaceFormats);
+}
+
+__attribute__((visibility("default")))
+VkResult vkGetSurfacePresentModesKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, uint32_t* pCount, VkPresentModeKHR* pPresentModes) {
+    return GetVtbl(device).GetSurfacePresentModesKHR(device, pSurfaceDescription, pCount, pPresentModes);
+}
+
+__attribute__((visibility("default")))
+VkResult vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo, VkSwapchainKHR* pSwapchain) {
+    return GetVtbl(device).CreateSwapchainKHR(device, pCreateInfo, pSwapchain);
+}
+
+__attribute__((visibility("default")))
+VkResult vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain) {
+    return GetVtbl(device).DestroySwapchainKHR(device, swapchain);
+}
+
+__attribute__((visibility("default")))
+VkResult vkGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, uint32_t* pCount, VkImage* pSwapchainImages) {
+    return GetVtbl(device).GetSwapchainImagesKHR(device, swapchain, pCount, pSwapchainImages);
+}
+
+__attribute__((visibility("default")))
+VkResult vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, uint32_t* pImageIndex) {
+    return GetVtbl(device).AcquireNextImageKHR(device, swapchain, timeout, semaphore, pImageIndex);
+}
+
+__attribute__((visibility("default")))
+VkResult vkQueuePresentKHR(VkQueue queue, VkPresentInfoKHR* pPresentInfo) {
+    return GetVtbl(queue).QueuePresentKHR(queue, pPresentInfo);
+}

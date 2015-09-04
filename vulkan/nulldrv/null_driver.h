@@ -19,6 +19,7 @@
 
 #define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_ext_android_native_buffer.h>
 
 namespace null_driver {
 
@@ -177,6 +178,9 @@ void CmdBeginRenderPass(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRen
 void CmdNextSubpass(VkCmdBuffer cmdBuffer, VkRenderPassContents contents);
 void CmdEndRenderPass(VkCmdBuffer cmdBuffer);
 void CmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers);
+
+VkResult ImportNativeFenceANDROID(VkDevice device, VkSemaphore semaphore, int nativeFenceFd);
+VkResult QueueSignalNativeFenceANDROID(VkQueue queue, int* pNativeFenceFd);
 // clang-format on
 
 }  // namespace null_driver
