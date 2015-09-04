@@ -26,6 +26,7 @@
 namespace android {
 
 TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -40,6 +41,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, UpdateFromMultipleContextsFails) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextSucceeds) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -55,6 +57,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextSucceeds) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         DetachFromContextSucceedsAfterProducerDisconnect) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -70,6 +73,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenAbandoned) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -82,6 +86,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenAbandoned) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenDetached) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -96,6 +101,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWhenDetached) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoDisplay) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -112,6 +118,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoDisplay) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoContext) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -128,6 +135,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, DetachFromContextFailsWithNoContext) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, UpdateTexImageFailsWhenDetached) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
@@ -139,6 +147,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, UpdateTexImageFailsWhenDetached) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceeds) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -169,6 +178,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceeds) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsAfterProducerDisconnect) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -200,6 +210,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsBeforeUpdateTexImage) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
@@ -230,6 +241,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAbandoned) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -247,6 +259,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAbandoned) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAttached) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -259,6 +272,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWhenAttached) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextFailsWhenAttachedBeforeUpdateTexImage) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Attempt to attach to the primary context.
@@ -266,6 +280,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWithNoDisplay) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -285,6 +300,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextFailsWithNoDisplay) {
 }
 
 TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceedsTwice) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Latch the texture contents on the primary context.
@@ -323,6 +339,7 @@ TEST_F(SurfaceTextureMultiContextGLTest, AttachToContextSucceedsTwice) {
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         AttachToContextSucceedsTwiceBeforeUpdateTexImage) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
 
     // Detach from the primary context.
@@ -361,6 +378,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         UpdateTexImageSucceedsForBufferConsumedBeforeDetach) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
 
     // produce two frames and consume them both on the primary context
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
@@ -387,6 +405,7 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
        AttachAfterDisplayTerminatedSucceeds) {
+    ASSERT_EQ(OK, native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU));
 
     // produce two frames and consume them both on the primary context
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));

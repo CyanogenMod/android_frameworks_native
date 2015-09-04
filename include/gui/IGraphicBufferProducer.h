@@ -74,7 +74,8 @@ public:
     // The slot must be in the range of [0, NUM_BUFFER_SLOTS).
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - one of the two conditions occurred:
     //              * slot was out of range (see above)
     //              * buffer specified by the slot is not dequeued
@@ -170,7 +171,8 @@ public:
     // success.
     //
     // Return of a negative means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - both in async mode and buffer count was less than the
     //               max numbers of buffers that can be allocated at once.
     // * INVALID_OPERATION - cannot attach the buffer because it would cause
@@ -198,7 +200,8 @@ public:
     // requestBuffer).
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - the given slot number is invalid, either because it is
     //               out of the range [0, NUM_BUFFER_SLOTS), or because the slot
     //               it refers to is not currently dequeued and requested.
@@ -218,7 +221,8 @@ public:
     // equivalent to fence from the dequeueBuffer call.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - either outBuffer or outFence were NULL.
     // * NO_MEMORY - no slots were found that were both free and contained a
     //               GraphicBuffer.
@@ -237,7 +241,8 @@ public:
     // success.
     //
     // Return of a negative value means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - outSlot or buffer were NULL, invalid combination of
     //               async mode and buffer count override, or the generation
     //               number of the buffer did not match the buffer queue.
@@ -271,7 +276,8 @@ public:
     // (refer to the documentation below).
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * NO_INIT - the buffer queue has been abandoned.
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
     // * BAD_VALUE - one of the below conditions occurred:
     //              * fence was NULL
     //              * scaling mode was unknown
@@ -384,9 +390,19 @@ public:
     //
     // The buffer is not queued for use by the consumer.
     //
+    // The slot must be in the range of [0, NUM_BUFFER_SLOTS).
+    //
     // The buffer will not be overwritten until the fence signals.  The fence
     // will usually be the one obtained from dequeueBuffer.
-    virtual void cancelBuffer(int slot, const sp<Fence>& fence) = 0;
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned or the producer is not
+    //             connected.
+    // * BAD_VALUE - one of the below conditions occurred:
+    //              * fence was NULL
+    //              * slot index was out of range (see above).
+    //              * the slot was not in the dequeued state
+    virtual status_t cancelBuffer(int slot, const sp<Fence>& fence) = 0;
 
     // query retrieves some information for this surface
     // 'what' tokens allowed are that of NATIVE_WINDOW_* in <window.h>

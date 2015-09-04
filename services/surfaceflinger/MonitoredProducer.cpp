@@ -89,8 +89,8 @@ status_t MonitoredProducer::queueBuffer(int slot, const QueueBufferInput& input,
     return mProducer->queueBuffer(slot, input, output);
 }
 
-void MonitoredProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
-    mProducer->cancelBuffer(slot, fence);
+status_t MonitoredProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
+    return mProducer->cancelBuffer(slot, fence);
 }
 
 int MonitoredProducer::query(int what, int* value) {

@@ -206,12 +206,17 @@ public:
         return result;
     }
 
-    virtual void cancelBuffer(int buf, const sp<Fence>& fence) {
+    virtual status_t cancelBuffer(int buf, const sp<Fence>& fence) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(buf);
         data.write(*fence.get());
-        remote()->transact(CANCEL_BUFFER, data, &reply);
+        status_t result = remote()->transact(CANCEL_BUFFER, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readInt32();
+        return result;
     }
 
     virtual int query(int what, int* value) {
@@ -434,7 +439,8 @@ status_t BnGraphicBufferProducer::onTransact(
             int buf = data.readInt32();
             sp<Fence> fence = new Fence();
             data.read(*fence.get());
-            cancelBuffer(buf, fence);
+            status_t result = cancelBuffer(buf, fence);
+            reply->writeInt32(result);
             return NO_ERROR;
         }
         case QUERY: {

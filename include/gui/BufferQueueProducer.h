@@ -117,7 +117,7 @@ public:
     //
     // The buffer will not be overwritten until the fence signals.  The fence
     // will usually be the one obtained from dequeueBuffer.
-    virtual void cancelBuffer(int slot, const sp<Fence>& fence);
+    virtual status_t cancelBuffer(int slot, const sp<Fence>& fence);
 
     // Query native window attributes.  The "what" values are enumerated in
     // window.h (e.g. NATIVE_WINDOW_FORMAT).
