@@ -421,7 +421,8 @@ void MotionEvent::transform(const float matrix[9]) {
 status_t MotionEvent::readFromParcel(Parcel* parcel) {
     size_t pointerCount = parcel->readInt32();
     size_t sampleCount = parcel->readInt32();
-    if (pointerCount == 0 || pointerCount > MAX_POINTERS || sampleCount == 0) {
+    if (pointerCount == 0 || pointerCount > MAX_POINTERS ||
+            sampleCount == 0 || sampleCount > MAX_SAMPLES) {
         return BAD_VALUE;
     }
 
