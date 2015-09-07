@@ -89,6 +89,9 @@ inline const InstanceVtbl* GetVtbl(VkPhysicalDevice physicalDevice) {
 inline const DeviceVtbl* GetVtbl(VkDevice device) {
     return *reinterpret_cast<DeviceVtbl**>(device);
 }
+inline const DeviceVtbl* GetVtbl(VkQueue queue) {
+    return *reinterpret_cast<DeviceVtbl**>(queue);
+}
 
 void* DefaultAlloc(void*, size_t size, size_t alignment, VkSystemAllocType) {
     return memalign(alignment, size);
@@ -575,6 +578,39 @@ VkResult DestroyDevice(VkDevice drv_device) {
     vtbl->DestroyDevice(drv_device);
     DestroyDevice(device);
     return VK_SUCCESS;
+}
+
+void* AllocDeviceMem(VkDevice device,
+                     size_t size,
+                     size_t align,
+                     VkSystemAllocType type) {
+    const VkAllocCallbacks* alloc_cb =
+        static_cast<Device*>(GetVtbl(device)->device)->alloc;
+    return alloc_cb->pfnAlloc(alloc_cb->pUserData, size, align, type);
+}
+
+void FreeDeviceMem(VkDevice device, void* ptr) {
+    const VkAllocCallbacks* alloc_cb =
+        static_cast<Device*>(GetVtbl(device)->device)->alloc;
+    alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
+}
+
+const DeviceVtbl& GetDriverVtbl(VkDevice device) {
+    // TODO(jessehall): This actually returns the API-level vtbl for the
+    // device, not the driver entry points. Given the current use -- getting
+    // the driver's private swapchain-related functions -- that works, but is
+    // misleading and likely to cause bugs. Fix as part of separating the
+    // loader->driver interface from the app->loader interface.
+    return static_cast<Device*>(GetVtbl(device)->device)->vtbl_storage;
+}
+
+const DeviceVtbl& GetDriverVtbl(VkQueue queue) {
+    // TODO(jessehall): This actually returns the API-level vtbl for the
+    // device, not the driver entry points. Given the current use -- getting
+    // the driver's private swapchain-related functions -- that works, but is
+    // misleading and likely to cause bugs. Fix as part of separating the
+    // loader->driver interface from the app->loader interface.
+    return static_cast<Device*>(GetVtbl(queue)->device)->vtbl_storage;
 }
 
 }  // namespace vulkan

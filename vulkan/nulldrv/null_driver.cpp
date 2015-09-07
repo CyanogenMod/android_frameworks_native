@@ -139,7 +139,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         VkInstance* out_instance) {
     // Assume the loader provided alloc callbacks even if the app didn't.
     ALOG_ASSERT(
-        !create_info->pAllocCb,
+        create_info->pAllocCb,
         "Missing alloc callbacks, loader or app should have provided them");
 
     VkInstance_T* instance =
@@ -695,6 +695,16 @@ VkResult CreateShaderModule(VkDevice device,
     return VK_SUCCESS;
 }
 
+VkResult ImportNativeFenceANDROID(VkDevice, VkSemaphore, int fence) {
+    close(fence);
+    return VK_SUCCESS;
+}
+
+VkResult QueueSignalNativeFenceANDROID(VkQueue, int* fence) {
+    *fence = -1;
+    return VK_SUCCESS;
+}
+
 // -----------------------------------------------------------------------------
 // No-op entrypoints
 
@@ -785,7 +795,6 @@ VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, 
 }
 
 VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkDeviceSize memOffset) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -841,7 +850,6 @@ VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
 }
 
 VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -1121,16 +1129,6 @@ void CmdEndRenderPass(VkCmdBuffer cmdBuffer) {
 }
 
 void CmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers) {
-}
-
-VkResult ImportNativeFenceANDROID(VkDevice device, VkSemaphore semaphore, int nativeFenceFd) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueSignalNativeFenceANDROID(VkQueue queue, int* pNativeFenceFd) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 #pragma clang diagnostic pop

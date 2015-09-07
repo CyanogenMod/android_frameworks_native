@@ -22,10 +22,12 @@ LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef
 LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
-	-Wno-c99-extensions
+	-Wno-c99-extensions \
+	-Wno-zero-length-array
 
 LOCAL_C_INCLUDES := \
-	frameworks/native/vulkan/include
+	frameworks/native/vulkan/include \
+	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
 	entry.cpp \
@@ -34,7 +36,7 @@ LOCAL_SRC_FILES := \
 	swapchain.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
-LOCAL_SHARED_LIBRARIES := libhardware liblog
+LOCAL_SHARED_LIBRARIES := libhardware liblog libsync
 
 LOCAL_MODULE := libvulkan
 include $(BUILD_SHARED_LIBRARY)

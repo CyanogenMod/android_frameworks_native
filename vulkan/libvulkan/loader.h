@@ -234,6 +234,14 @@ VkResult CreateCommandBuffer(VkDevice device,
                              VkCmdBuffer* out_cmdbuf);
 VkResult DestroyDevice(VkDevice drv_device);
 
+void* AllocDeviceMem(VkDevice device,
+                     size_t size,
+                     size_t align,
+                     VkSystemAllocType type);
+void FreeDeviceMem(VkDevice device, void* ptr);
+const DeviceVtbl& GetDriverVtbl(VkDevice device);
+const DeviceVtbl& GetDriverVtbl(VkQueue queue);
+
 // -----------------------------------------------------------------------------
 // get_proc_addr.cpp
 
@@ -272,14 +280,14 @@ VkResult GetSurfacePresentModesKHR(VkDevice device,
                                    VkPresentModeKHR* modes);
 VkResult CreateSwapchainKHR(VkDevice device,
                             const VkSwapchainCreateInfoKHR* create_info,
-                            VkSwapchainKHR* swapchain);
-VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain);
+                            VkSwapchainKHR* swapchain_handle);
+VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle);
 VkResult GetSwapchainImagesKHR(VkDevice device,
-                               VkSwapchainKHR swapchain,
+                               VkSwapchainKHR swapchain_handle,
                                uint32_t* count,
-                               VkImage* image);
+                               VkImage* images);
 VkResult AcquireNextImageKHR(VkDevice device,
-                             VkSwapchainKHR swapchain,
+                             VkSwapchainKHR swapchain_handle,
                              uint64_t timeout,
                              VkSemaphore semaphore,
                              uint32_t* image_index);
