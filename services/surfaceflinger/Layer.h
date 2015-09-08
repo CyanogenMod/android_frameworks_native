@@ -299,7 +299,7 @@ public:
 
     // Updates the transform hint in our SurfaceFlingerConsumer to match
     // the current orientation of the display device.
-    void updateTransformHint(const sp<const DisplayDevice>& hw) const;
+    void updateTransformHint(const sp<const DisplayDevice>& hw) ;
 
     /* ------------------------------------------------------------------------
      * Extensions
@@ -451,6 +451,7 @@ private:
     Vector<BufferItem> mQueueItems;
     uint64_t mLastFrameNumberReceived;
     bool mUpdateTexImageFailed; // This is only modified from the main thread
+    uint32_t mTransformHint;
 };
 
 // ---------------------------------------------------------------------------

@@ -84,7 +84,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mQueueItemCondition(),
         mQueueItems(),
         mLastFrameNumberReceived(0),
-        mUpdateTexImageFailed(false)
+        mUpdateTexImageFailed(false),
+        mTransformHint(0)
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
@@ -753,8 +754,19 @@ void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
      * minimal value)? Or, we could make GL behave like HWC -- but this feel
      * like more of a hack.
      */
-    const Rect win(computeBounds());
-
+    Rect win(s.active.w, s.active.h);
+    if(!s.active.crop.isEmpty()) {
+        win = s.active.crop;
+    }
+#ifdef QTI_BSP
+    win = s.transform.transform(win);
+    win.intersect(hw->getViewport(), &win);
+    win = s.transform.inverse().transform(win);
+    win.intersect(Rect(s.active.w, s.active.h), &win);
+    win = reduce(win, s.activeTransparentRegion);
+#else
+    win = reduce(win, s.activeTransparentRegion);
+#endif
     float left   = float(win.left)   / float(s.active.w);
     float top    = float(win.top)    / float(s.active.h);
     float right  = float(win.right)  / float(s.active.w);
@@ -821,16 +833,49 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
         bool useIdentityTransform) const
 {
     const Layer::State& s(getDrawingState());
-    const Transform tr(useIdentityTransform ?
+    Transform tr(useIdentityTransform ?
             hw->getTransform() : hw->getTransform() * s.transform);
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
         win.intersect(s.active.crop, &win);
     }
-    // subtract the transparent region and snap to the bounds
+#ifdef QTI_BSP
+    win = s.transform.transform(win);
+    win.intersect(hw->getViewport(), &win);
+    win = s.transform.inverse().transform(win);
+    win.intersect(Rect(s.active.w, s.active.h), &win);
     win = reduce(win, s.activeTransparentRegion);
-
+    const Transform bufferOrientation(mCurrentTransform);
+    Transform transform(tr * s.transform * bufferOrientation);
+    if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+        uint32_t invTransform = hw->getOrientationTransform();
+        uint32_t t_orientation = transform.getOrientation();
+        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            bool is_h_flipped = (t_orientation &
+                                 NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
+            bool is_v_flipped = (t_orientation &
+                                 NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
+            if (is_h_flipped != is_v_flipped) {
+                t_orientation ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                        NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            }
+            transform = Transform(t_orientation) * Transform(invTransform);
+        }
+    }
+    const uint32_t orientation = transform.getOrientation();
+    if (!(mTransformHint | mCurrentTransform | orientation)) {
+        tr = hw->getTransform();
+        if (!useIdentityTransform) {
+            win = s.transform.transform(win);
+            win.intersect(hw->getViewport(), &win);
+        }
+    }
+#else
+    win = reduce(win, s.activeTransparentRegion);
+#endif
     Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
     position[0] = tr.transform(win.left,  win.top);
     position[1] = tr.transform(win.left,  win.bottom);
@@ -1451,7 +1496,7 @@ uint32_t Layer::getEffectiveUsage(uint32_t usage) const
     return usage;
 }
 
-void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
+void Layer::updateTransformHint(const sp<const DisplayDevice>& hw)  {
     uint32_t orientation = 0;
     if (!mFlinger->mDebugDisableTransformHint) {
         // The transform hint is used to improve performance, but we can
@@ -1464,6 +1509,7 @@ void Layer::updateTransformHint(const sp<const DisplayDevice>& hw) const {
         }
     }
     mSurfaceFlingerConsumer->setTransformHint(orientation);
+    mTransformHint = orientation;
 }
 
 // ----------------------------------------------------------------------------
