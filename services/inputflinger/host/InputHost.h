@@ -26,15 +26,11 @@
 
 #include "InputDriver.h"
 
-// Declare a concrete type for the HAL
-struct input_host {
-};
-
 namespace android {
 
 class InputDriverInterface;
 
-class InputHostInterface : public input_host_t, public virtual RefBase {
+class InputHostInterface : public virtual RefBase {
 protected:
     InputHostInterface() = default;
     virtual ~InputHostInterface() = default;
