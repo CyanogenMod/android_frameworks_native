@@ -17,6 +17,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
 LOCAL_CPPFLAGS := -std=c++1y -Weverything -Werror
+LOCAL_SANITIZE := integer
 
 # The static constructors and destructors in this library have not been noted to
 # introduce significant overheads
