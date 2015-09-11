@@ -118,7 +118,9 @@ struct VkInstance_T {
         : vtbl(&vtbl_storage),
           alloc(alloc_callbacks),
           num_physical_devices(0),
-          layer_handles(CallbackAllocator<SharedLibraryHandle>(alloc)) {
+          active_layers(
+              CallbackAllocator<std::pair<String, SharedLibraryHandle> >(
+                  alloc)) {
         memset(&vtbl_storage, 0, sizeof(vtbl_storage));
         memset(physical_devices, 0, sizeof(physical_devices));
         memset(&drv.vtbl, 0, sizeof(drv.vtbl));
@@ -133,7 +135,7 @@ struct VkInstance_T {
     uint32_t num_physical_devices;
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
 
-    Vector<SharedLibraryHandle> layer_handles;
+    Vector<std::pair<String, SharedLibraryHandle> > active_layers;
 
     struct Driver {
         // Pointers to driver entry points. Used explicitly by the loader; not
@@ -270,10 +272,6 @@ void FindLayersInDirectory(
             get_layer_properties(&count, &properties[0]);
 
             // Add Layers to potential list
-            // TODO: Add support for multiple layers in 1 so.
-            ALOGW_IF(count > 1,
-                     "More than 1 layer per library file is not currently "
-                     "supported.");
             for (uint32_t i = 0; i < count; ++i) {
                 layer_name_to_handle_map.insert(std::make_pair(
                     String(properties[i].layerName,
@@ -293,7 +291,7 @@ void LoadLayer(Instance* instance,
                const String& name,
                SharedLibraryHandle& layer_handle) {
     ALOGV("Loading layer %s", name.c_str());
-    instance->layer_handles.push_back(layer_handle);
+    instance->active_layers.push_back(std::make_pair(name, layer_handle));
 }
 
 VkResult CreateDeviceNoop(VkPhysicalDevice,
@@ -326,8 +324,8 @@ VkResult DestroyInstanceBottom(VkInstance instance) {
         instance->drv.vtbl.DestroyInstance) {
         instance->drv.vtbl.DestroyInstance(instance->drv.vtbl.instance);
     }
-    for (auto layer_handle : instance->layer_handles) {
-        dlclose(layer_handle);
+    for (auto& layer : instance->active_layers) {
+        dlclose(layer.second);
     }
     const VkAllocCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
@@ -532,7 +530,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     VkLayerLinkedListElem* next_element;
     PFN_vkGetDeviceProcAddr next_get_proc_addr = GetLayerDeviceProcAddr;
     Vector<VkLayerLinkedListElem> elem_list(
-        instance.layer_handles.size(),
+        instance.active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance.alloc));
 
     for (size_t i = elem_list.size(); i > 0; i--) {
@@ -544,13 +542,20 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
+        auto& name_libhandle_pair = instance.active_layers[idx];
         next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-            dlsym(instance.layer_handles[idx], "vkGetDeviceProcAddr"));
+            dlsym(name_libhandle_pair.second,
+                  (name_libhandle_pair.first + "GetDeviceProcAddr").c_str()));
         if (!next_get_proc_addr) {
-            ALOGE("Cannot find vkGetDeviceProcAddr, error is %s", dlerror());
-            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                next_element->get_proc_addr);
+                dlsym(name_libhandle_pair.second, "vkGetDeviceProcAddr"));
+            if (!next_get_proc_addr) {
+                ALOGE("Cannot find vkGetDeviceProcAddr for %s, error is %s",
+                      name_libhandle_pair.first.c_str(), dlerror());
+                next_object = next_element->next_element;
+                next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+                    next_element->get_proc_addr);
+            }
         }
     }
 
@@ -762,7 +767,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     PFN_vkGetInstanceProcAddr next_get_proc_addr =
         kBottomInstanceFunctions.GetInstanceProcAddr;
     Vector<VkLayerLinkedListElem> elem_list(
-        instance->layer_handles.size(),
+        instance->active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance->alloc));
 
     for (size_t i = elem_list.size(); i > 0; i--) {
@@ -774,14 +779,21 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
+        auto& name_libhandle_pair = instance->active_layers[idx];
         next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-            dlsym(instance->layer_handles[idx], "vkGetInstanceProcAddr"));
+            dlsym(name_libhandle_pair.second,
+                  (name_libhandle_pair.first + "GetInstanceProcAddr").c_str()));
         if (!next_get_proc_addr) {
-            ALOGE("Cannot find vkGetInstanceProcAddr for, error is %s",
-                  dlerror());
-            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                next_element->get_proc_addr);
+                dlsym(name_libhandle_pair.second, "vkGetInstanceProcAddr"));
+            if (!next_get_proc_addr) {
+                ALOGE("Cannot find vkGetInstanceProcAddr for %s, error is %s",
+                      name_libhandle_pair.first.c_str(), dlerror());
+                next_object = next_element->next_element;
+                next_get_proc_addr =
+                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+                        next_element->get_proc_addr);
+            }
         }
     }
 
