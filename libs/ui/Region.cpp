@@ -835,18 +835,6 @@ Rect const* Region::getArray(size_t* count) const {
     return begin();
 }
 
-SharedBuffer const* Region::getSharedBuffer(size_t* count) const {
-    // We can get to the SharedBuffer of a Vector<Rect> because Rect has
-    // a trivial destructor.
-    SharedBuffer const* sb = SharedBuffer::bufferFromData(mStorage.array());
-    if (count) {
-        size_t numRects = isRect() ? 1 : mStorage.size() - 1;
-        count[0] = numRects;
-    }
-    sb->acquire();
-    return sb;
-}
-
 // ----------------------------------------------------------------------------
 
 void Region::dump(String8& out, const char* what, uint32_t /* flags */) const
