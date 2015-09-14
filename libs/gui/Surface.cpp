@@ -184,7 +184,9 @@ int Surface::hook_perform(ANativeWindow* window, int operation, ...) {
     va_list args;
     va_start(args, operation);
     Surface* c = getSelf(window);
-    return c->perform(operation, args);
+    int result = c->perform(operation, args);
+    va_end(args);
+    return result;
 }
 
 int Surface::setSwapInterval(int interval) {
