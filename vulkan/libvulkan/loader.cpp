@@ -34,6 +34,7 @@
 #include <cutils/properties.h>
 #include <hardware/hwvulkan.h>
 #include <log/log.h>
+#include <vulkan/vk_debug_report_lunarg.h>
 
 using namespace vulkan;
 
@@ -136,6 +137,7 @@ struct VkInstance_T {
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
 
     Vector<std::pair<String, SharedLibraryHandle> > active_layers;
+    VkDbgMsgCallback message;
 
     struct Driver {
         // Pointers to driver entry points. Used explicitly by the loader; not
@@ -331,6 +333,21 @@ void LoadLayerFromProperty(const char* name, const char* value, void* data) {
               (*instance_layers_pair->layers)[layer_name_str]);
 }
 
+void LogDebugMessageCallback(VkFlags message_flags,
+                             VkDbgObjectType /*obj_type*/,
+                             uint64_t /*src_object*/,
+                             size_t /*location*/,
+                             int32_t message_code,
+                             const char* layer_prefix,
+                             const char* message,
+                             void* /*user_data*/) {
+    if (message_flags & VK_DBG_REPORT_ERROR_BIT) {
+        ALOGE("[%s] Code %d : %s", layer_prefix, message_code, message);
+    } else if (message_flags & VK_DBG_REPORT_WARN_BIT) {
+        ALOGW("[%s] Code %d : %s", layer_prefix, message_code, message);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // "Bottom" functions. These are called at the end of the instance dispatch
 // chain.
@@ -344,6 +361,12 @@ VkResult DestroyInstanceBottom(VkInstance instance) {
     }
     for (auto& layer : instance->active_layers) {
         dlclose(layer.second);
+    }
+    if (instance->message) {
+        PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
+        DebugDestroyMessageCallback = reinterpret_cast<PFN_vkDbgDestroyMsgCallback>(
+            vkGetInstanceProcAddr(instance, "vkDbgDestroyMsgCallback"));
+        DebugDestroyMessageCallback(instance, instance->message);
     }
     const VkAllocCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
@@ -727,6 +750,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
 
     instance->vtbl_storage = kBottomInstanceFunctions;
     instance->vtbl_storage.instance = instance;
+    instance->message = VK_NULL_HANDLE;
 
     // Scan layers
     // TODO: Add more directories to scan
@@ -817,6 +841,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     // Force enable callback extension if required
     bool enable_callback =
         property_get_bool("debug.vulkan.enable_layer_callback", false);
+    bool enable_logging = enable_callback;
     const char* callback_name = "DEBUG_REPORT";
     if (enable_callback) {
         for (uint32_t i = 0; i < create_info->extensionCount; ++i) {
@@ -870,6 +895,15 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
 
         // On failure, CreateInstanceBottom frees the instance struct, so it's
         // already gone at this point. Nothing to do.
+    }
+
+    if (enable_logging) {
+        PFN_vkDbgCreateMsgCallback DebugCreateMessageCallback;
+        DebugCreateMessageCallback = reinterpret_cast<PFN_vkDbgCreateMsgCallback>(
+            vkGetInstanceProcAddr(instance, "vkDbgCreateMsgCallback"));
+        DebugCreateMessageCallback(instance,
+                             VK_DBG_REPORT_ERROR_BIT | VK_DBG_REPORT_WARN_BIT,
+                             LogDebugMessageCallback, NULL, &instance->message);
     }
 
     return result;
