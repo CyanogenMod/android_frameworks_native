@@ -35,6 +35,7 @@
 #include <hardware/hwvulkan.h>
 #include <log/log.h>
 #include <vulkan/vk_debug_report_lunarg.h>
+#include <vulkan/vulkan_loader_data.h>
 
 using namespace vulkan;
 
@@ -753,12 +754,15 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     instance->message = VK_NULL_HANDLE;
 
     // Scan layers
-    // TODO: Add more directories to scan
     UnorderedMap<String, SharedLibraryHandle> layers(
         CallbackAllocator<std::pair<String, SharedLibraryHandle> >(
             instance->alloc));
     CallbackAllocator<char> string_allocator(instance->alloc);
     String dir_name("/data/local/tmp/vulkan/", string_allocator);
+    FindLayersInDirectory(*instance, layers, dir_name);
+    const std::string& path = LoaderData::GetInstance().layer_path;
+    dir_name.assign(path.c_str(), path.size());
+    dir_name.append("/");
     FindLayersInDirectory(*instance, layers, dir_name);
 
     // Load layers

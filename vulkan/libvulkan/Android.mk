@@ -33,7 +33,8 @@ LOCAL_SRC_FILES := \
 	entry.cpp \
 	get_proc_addr.cpp \
 	loader.cpp \
-	swapchain.cpp
+	swapchain.cpp \
+	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
 LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libcutils
