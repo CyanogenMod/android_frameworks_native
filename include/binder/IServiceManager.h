@@ -81,20 +81,6 @@ bool checkCallingPermission(const String16& permission,
                             int32_t* outPid, int32_t* outUid);
 bool checkPermission(const String16& permission, pid_t pid, uid_t uid);
 
-
-// ----------------------------------------------------------------------
-
-class BnServiceManager : public BnInterface<IServiceManager>
-{
-public:
-    virtual status_t    onTransact( uint32_t code,
-                                    const Parcel& data,
-                                    Parcel* reply,
-                                    uint32_t flags = 0);
-};
-
-// ----------------------------------------------------------------------
-
 }; // namespace android
 
 #endif // ANDROID_ISERVICE_MANAGER_H
