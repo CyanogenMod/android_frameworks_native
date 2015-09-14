@@ -72,9 +72,9 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
     // We call the rejecter here, in case the caller has a reason to
     // not accept this buffer.  This is used by SurfaceFlinger to
     // reject buffers which have the wrong size
-    int buf = item.mBuf;
-    if (rejecter && rejecter->reject(mSlots[buf].mGraphicBuffer, item)) {
-        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer, EGL_NO_SYNC_KHR);
+    int slot = item.mSlot;
+    if (rejecter && rejecter->reject(mSlots[slot].mGraphicBuffer, item)) {
+        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer, EGL_NO_SYNC_KHR);
         return BUFFER_REJECTED;
     }
 

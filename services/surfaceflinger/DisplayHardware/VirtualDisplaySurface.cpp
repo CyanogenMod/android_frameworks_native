@@ -447,11 +447,11 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         result = acquireBufferLocked(&item, 0);
         if (result != NO_ERROR)
             return result;
-        VDS_LOGW_IF(item.mBuf != sslot,
+        VDS_LOGW_IF(item.mSlot != sslot,
                 "queueBuffer: acquired sslot %d from SCRATCH after queueing sslot %d",
-                item.mBuf, sslot);
-        mFbProducerSlot = mapSource2ProducerSlot(SOURCE_SCRATCH, item.mBuf);
-        mFbFence = mSlots[item.mBuf].mFence;
+                item.mSlot, sslot);
+        mFbProducerSlot = mapSource2ProducerSlot(SOURCE_SCRATCH, item.mSlot);
+        mFbFence = mSlots[item.mSlot].mFence;
 
     } else {
         LOG_FATAL_IF(mCompositionType != COMPOSITION_GLES,

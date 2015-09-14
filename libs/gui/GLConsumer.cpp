@@ -357,7 +357,7 @@ status_t GLConsumer::acquireBufferLocked(BufferItem *item,
     // before, so any prior EglImage created is using a stale buffer. This
     // replaces any old EglImage with a new one (using the new buffer).
     if (item->mGraphicBuffer != NULL) {
-        int slot = item->mBuf;
+        int slot = item->mSlot;
         mEglSlots[slot].mEglImage = new EglImage(item->mGraphicBuffer);
     }
 
@@ -381,12 +381,12 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
 {
     status_t err = NO_ERROR;
 
-    int buf = item.mBuf;
+    int slot = item.mSlot;
 
     if (!mAttached) {
         GLC_LOGE("updateAndRelease: GLConsumer is not attached to an OpenGL "
                 "ES context");
-        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
                 mEglDisplay, EGL_NO_SYNC_KHR);
         return INVALID_OPERATION;
     }
@@ -394,7 +394,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     // Confirm state.
     err = checkAndUpdateEglStateLocked();
     if (err != NO_ERROR) {
-        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
                 mEglDisplay, EGL_NO_SYNC_KHR);
         return err;
     }
@@ -404,11 +404,11 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     // ConsumerBase.
     // We may have to do this even when item.mGraphicBuffer == NULL (which
     // means the buffer was previously acquired).
-    err = mEglSlots[buf].mEglImage->createIfNeeded(mEglDisplay, item.mCrop);
+    err = mEglSlots[slot].mEglImage->createIfNeeded(mEglDisplay, item.mCrop);
     if (err != NO_ERROR) {
         GLC_LOGW("updateAndRelease: unable to createImage on display=%p slot=%d",
-                mEglDisplay, buf);
-        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+                mEglDisplay, slot);
+        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
                 mEglDisplay, EGL_NO_SYNC_KHR);
         return UNKNOWN_ERROR;
     }
@@ -420,7 +420,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
         // release the old buffer, so instead we just drop the new frame.
         // As we are still under lock since acquireBuffer, it is safe to
         // release by slot.
-        releaseBufferLocked(buf, mSlots[buf].mGraphicBuffer,
+        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
                 mEglDisplay, EGL_NO_SYNC_KHR);
         return err;
     }
@@ -428,7 +428,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     GLC_LOGV("updateAndRelease: (slot=%d buf=%p) -> (slot=%d buf=%p)",
             mCurrentTexture, mCurrentTextureImage != NULL ?
                     mCurrentTextureImage->graphicBufferHandle() : 0,
-            buf, mSlots[buf].mGraphicBuffer->handle);
+            slot, mSlots[slot].mGraphicBuffer->handle);
 
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
@@ -444,8 +444,8 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     }
 
     // Update the GLConsumer state.
-    mCurrentTexture = buf;
-    mCurrentTextureImage = mEglSlots[buf].mEglImage;
+    mCurrentTexture = slot;
+    mCurrentTextureImage = mEglSlots[slot].mEglImage;
     mCurrentCrop = item.mCrop;
     mCurrentTransform = item.mTransform;
     mCurrentScalingMode = item.mScalingMode;

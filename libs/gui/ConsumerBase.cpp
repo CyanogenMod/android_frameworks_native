@@ -239,14 +239,14 @@ status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
     }
 
     if (item->mGraphicBuffer != NULL) {
-        mSlots[item->mBuf].mGraphicBuffer = item->mGraphicBuffer;
+        mSlots[item->mSlot].mGraphicBuffer = item->mGraphicBuffer;
     }
 
-    mSlots[item->mBuf].mFrameNumber = item->mFrameNumber;
-    mSlots[item->mBuf].mFence = item->mFence;
+    mSlots[item->mSlot].mFrameNumber = item->mFrameNumber;
+    mSlots[item->mSlot].mFence = item->mFence;
 
     CB_LOGV("acquireBufferLocked: -> slot=%d/%" PRIu64,
-            item->mBuf, item->mFrameNumber);
+            item->mSlot, item->mFrameNumber);
 
     return OK;
 }
