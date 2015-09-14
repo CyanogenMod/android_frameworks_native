@@ -313,6 +313,24 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
     return loader_device->GetDeviceProcAddr(device, name);
 }
 
+struct InstanceLayersPair {
+    Instance* instance;
+    UnorderedMap<String, SharedLibraryHandle>* layers;
+};
+
+void LoadLayerFromProperty(const char* name, const char* value, void* data) {
+    auto instance_layers_pair = static_cast<InstanceLayersPair*>(data);
+    const char prefix[] = "debug.vulkan.layer.";
+    const size_t prefixlen = sizeof(prefix) - 1;
+    if (value[0] == '\0' || strncmp(name, prefix, prefixlen) != 0)
+        return;
+    String layer_name_str(
+        name + prefixlen,
+        CallbackAllocator<char>(instance_layers_pair->instance->alloc));
+    LoadLayer(instance_layers_pair->instance, layer_name_str,
+              (*instance_layers_pair->layers)[layer_name_str]);
+}
+
 // -----------------------------------------------------------------------------
 // "Bottom" functions. These are called at the end of the instance dispatch
 // chain.
@@ -722,28 +740,23 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     // Load layers
     {
         char layer_prop[PROPERTY_VALUE_MAX];
-        property_get("vulkan.layers", layer_prop, "");
-        // TODO: Find a way to enable a large number but not all of the layers
-        size_t length = strlen(layer_prop);
-        if (length == 1 && layer_prop[0] == '+') {
-            for (auto& layer : layers) {
-                LoadLayer(instance, layer.first, layer.second);
+        property_get("debug.vulkan.layers", layer_prop, "");
+        String layer_name(string_allocator);
+        String layer_prop_str(layer_prop, string_allocator);
+        size_t end, start = 0;
+        while ((end = layer_prop_str.find(':', start)) != std::string::npos) {
+            layer_name = layer_prop_str.substr(start, end - start);
+            auto element = layers.find(layer_name);
+            if (element != layers.end()) {
+                LoadLayer(instance, layer_name, element->second);
+                layers.erase(element);
             }
-        } else {
-            String layer_name(string_allocator);
-            String layer_prop_str(layer_prop, string_allocator);
-            size_t end, start = 0;
-            while ((end = layer_prop_str.find(':', start)) !=
-                   std::string::npos) {
-                layer_name = layer_prop_str.substr(start, end - start);
-                auto element = layers.find(layer_name);
-                if (element != layers.end()) {
-                    LoadLayer(instance, layer_name, element->second);
-                    layers.erase(element);
-                }
-                start = end + 1;
-            }
+            start = end + 1;
         }
+        InstanceLayersPair instance_layers_pair = {.instance = instance,
+                                                   .layers = &layers};
+        property_list(LoadLayerFromProperty,
+                      static_cast<void*>(&instance_layers_pair));
     }
     for (uint32_t i = 0; i < create_info->layerCount; ++i) {
         String layer_name(create_info->ppEnabledLayerNames[i],
