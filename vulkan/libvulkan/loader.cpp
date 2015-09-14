@@ -719,8 +719,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     String dir_name("/data/local/tmp/vulkan/", string_allocator);
     FindLayersInDirectory(*instance, layers, dir_name);
 
-    // TODO: Add auto enabling of the layer extension
-
+    // Load layers
     {
         char layer_prop[PROPERTY_VALUE_MAX];
         property_get("vulkan.layers", layer_prop, "");
@@ -746,7 +745,6 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
             }
         }
     }
-
     for (uint32_t i = 0; i < create_info->layerCount; ++i) {
         String layer_name(create_info->ppEnabledLayerNames[i],
                           string_allocator);
@@ -756,7 +754,6 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
             layers.erase(element);
         }
     }
-
     for (auto& layer : layers) {
         dlclose(layer.second);
     }
@@ -804,8 +801,49 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
+    // Force enable callback extension if required
+    bool enable_callback =
+        property_get_bool("debug.vulkan.enable_layer_callback", false);
+    const char* callback_name = "DEBUG_REPORT";
+    if (enable_callback) {
+        for (uint32_t i = 0; i < create_info->extensionCount; ++i) {
+            if (!strcmp(callback_name,
+                        create_info->ppEnabledExtensionNames[i])) {
+                enable_callback = false;
+                break;
+            }
+        }
+    }
+    if (enable_callback) {
+        uint32_t extension_count = local_create_info.extensionCount;
+        local_create_info.extensionCount++;
+        void* mem = instance->alloc->pfnAlloc(
+            instance->alloc->pUserData,
+            local_create_info.extensionCount * sizeof(char*), alignof(char*),
+            VK_SYSTEM_ALLOC_TYPE_INTERNAL);
+        if (mem) {
+            const char** enabled_extensions = static_cast<const char**>(mem);
+            for (uint32_t i = 0; i < extension_count; ++i) {
+                enabled_extensions[i] =
+                    local_create_info.ppEnabledExtensionNames[i];
+            }
+            enabled_extensions[extension_count] = callback_name;
+            local_create_info.ppEnabledExtensionNames = enabled_extensions;
+        } else {
+            ALOGW("DEBUG_REPORT extension cannot be enabled!");
+            enable_callback = false;
+            local_create_info.extensionCount--;
+        }
+    }
+
     *out_instance = instance;
     result = instance->vtbl_storage.CreateInstance(create_info, out_instance);
+    if (enable_callback) {
+        const char* const* enabled_extensions =
+            local_create_info.ppEnabledExtensionNames;
+        instance->alloc->pfnFree(instance->alloc->pUserData,
+                                 const_cast<char**>(enabled_extensions));
+    }
     if (result <= 0) {
         // For every layer, including the loader top and bottom layers:
         // - If a call to the next CreateInstance fails, the layer must clean
