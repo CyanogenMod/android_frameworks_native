@@ -420,7 +420,7 @@ PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
-    return reinterpret_cast<PFN_vkVoidFunction>(
+    return *reinterpret_cast<PFN_vkVoidFunction*>(
         const_cast<unsigned char*>(base) + entry->offset);
 }
 
@@ -449,7 +449,7 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
-    return reinterpret_cast<PFN_vkVoidFunction>(
+    return *reinterpret_cast<PFN_vkVoidFunction*>(
         const_cast<unsigned char*>(base) + entry->offset);
 }
 
