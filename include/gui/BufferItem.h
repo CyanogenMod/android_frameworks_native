@@ -98,13 +98,8 @@ class BufferItem : public Flattenable<BufferItem> {
         };
     };
 
-    union {
-        // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
-        int mSlot;
-
-        // mBuf is the former name for mSlot
-        int mBuf;
-    };
+    // mSlot is the slot index of this buffer (default INVALID_BUFFER_SLOT).
+    int mSlot;
 
     // mIsDroppable whether this buffer was queued with the
     // property that it can be replaced by a new buffer for the purpose of
