@@ -25,12 +25,23 @@ namespace android {
 
 // ----------------------------------------------------------------------------
 
-// must be kept in sync with interface defined in IPowerManager.aidl
 class IPowerManager : public IInterface
 {
 public:
+    // These transaction IDs must be kept in sync with the method order from
+    // IPowerManager.aidl.
+    enum {
+        ACQUIRE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION,
+        ACQUIRE_WAKE_LOCK_UID = IBinder::FIRST_CALL_TRANSACTION + 1,
+        RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 2,
+        UPDATE_WAKE_LOCK_UIDS = IBinder::FIRST_CALL_TRANSACTION + 3,
+        POWER_HINT = IBinder::FIRST_CALL_TRANSACTION + 4,
+    };
+
     DECLARE_META_INTERFACE(PowerManager);
 
+    // The parcels created by these methods must be kept in sync with the
+    // corresponding methods from IPowerManager.aidl.
     // FIXME remove the bool isOneWay parameters as they are not oneway in the .aidl
     virtual status_t acquireWakeLock(int flags, const sp<IBinder>& lock, const String16& tag,
             const String16& packageName, bool isOneWay = false) = 0;
