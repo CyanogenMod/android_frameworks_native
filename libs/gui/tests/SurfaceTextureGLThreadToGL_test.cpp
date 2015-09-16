@@ -134,8 +134,6 @@ TEST_F(SurfaceTextureGLThreadToGLTest,
         }
     };
 
-    ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
-
     runProducerThread(new PT());
 
     // Allow three frames to be rendered and queued before starting the

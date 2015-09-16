@@ -135,9 +135,8 @@ void Layer::onFirstRef() {
 
 #ifdef TARGET_DISABLE_TRIPLE_BUFFERING
 #warning "disabling triple buffering"
-    mSurfaceFlingerConsumer->setDefaultMaxBufferCount(2);
 #else
-    mSurfaceFlingerConsumer->setDefaultMaxBufferCount(3);
+    mProducer->setMaxDequeuedBufferCount(2);
 #endif
 
     const sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());

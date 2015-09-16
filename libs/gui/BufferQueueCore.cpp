@@ -30,9 +30,6 @@
 #include <gui/ISurfaceComposer.h>
 #include <private/gui/ComposerService.h>
 
-template <typename T>
-static inline T max(T a, T b) { return a > b ? a : b; }
-
 namespace android {
 
 static String8 getUniqueName() {
@@ -56,16 +53,14 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mFreeSlots(),
     mFreeBuffers(),
     mDequeueCondition(),
-    mUseAsyncBuffer(true),
     mDequeueBufferCannotBlock(false),
     mDefaultBufferFormat(PIXEL_FORMAT_RGBA_8888),
     mDefaultWidth(1),
     mDefaultHeight(1),
     mDefaultBufferDataSpace(HAL_DATASPACE_UNKNOWN),
-    mDefaultMaxBufferCount(2),
+    mMaxBufferCount(BufferQueueDefs::NUM_BUFFER_SLOTS),
     mMaxAcquiredBufferCount(1),
     mMaxDequeuedBufferCount(1),
-    mOverrideMaxBufferCount(false),
     mBufferHasBeenQueued(false),
     mFrameCounter(0),
     mTransformHint(0),
@@ -145,10 +140,6 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
 int BufferQueueCore::getMinUndequeuedBufferCountLocked(bool async) const {
     // If dequeueBuffer is allowed to error out, we don't have to add an
     // extra buffer.
-    if (!mUseAsyncBuffer) {
-        return mMaxAcquiredBufferCount;
-    }
-
     if (mDequeueBufferCannotBlock || async) {
         return mMaxAcquiredBufferCount + 1;
     }
@@ -161,15 +152,11 @@ int BufferQueueCore::getMinMaxBufferCountLocked(bool async) const {
 }
 
 int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
-    int minMaxBufferCount = getMinMaxBufferCountLocked(async);
+    int maxBufferCount = mMaxAcquiredBufferCount + mMaxDequeuedBufferCount +
+            (async ? 1 : 0);
 
-    int maxBufferCount = max(mDefaultMaxBufferCount, minMaxBufferCount);
-    if (mOverrideMaxBufferCount) {
-        int bufferCount = mMaxAcquiredBufferCount + mMaxDequeuedBufferCount +
-                (async ? 1 : 0);
-        assert(bufferCount >= minMaxBufferCount);
-        maxBufferCount = bufferCount;
-    }
+    // limit maxBufferCount by mMaxBufferCount always
+    maxBufferCount = std::min(mMaxBufferCount, maxBufferCount);
 
     // Any buffers that are dequeued by the producer or sitting in the queue
     // waiting to be consumed need to have their slots preserved. Such buffers
@@ -183,22 +170,6 @@ int BufferQueueCore::getMaxBufferCountLocked(bool async) const {
     }
 
     return maxBufferCount;
-}
-
-status_t BufferQueueCore::setDefaultMaxBufferCountLocked(int count) {
-    const int minBufferCount = mUseAsyncBuffer ? 2 : 1;
-    if (count < minBufferCount || count > BufferQueueDefs::NUM_BUFFER_SLOTS) {
-        BQ_LOGV("setDefaultMaxBufferCount: invalid count %d, should be in "
-                "[%d, %d]",
-                count, minBufferCount, BufferQueueDefs::NUM_BUFFER_SLOTS);
-        return BAD_VALUE;
-    }
-
-    BQ_LOGV("setDefaultMaxBufferCount: setting count to %d", count);
-    mDefaultMaxBufferCount = count;
-    mDequeueCondition.broadcast();
-
-    return NO_ERROR;
 }
 
 void BufferQueueCore::freeBufferLocked(int slot) {

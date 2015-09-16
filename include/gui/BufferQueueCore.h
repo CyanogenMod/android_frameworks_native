@@ -105,12 +105,6 @@ private:
     // connected, mDequeueCondition must be broadcast.
     int getMaxBufferCountLocked(bool async) const;
 
-    // setDefaultMaxBufferCountLocked sets the maximum number of buffer slots
-    // that will be used if the producer does not override the buffer slot
-    // count. The count must be between 2 and NUM_BUFFER_SLOTS, inclusive. The
-    // initial default is 2.
-    status_t setDefaultMaxBufferCountLocked(int count);
-
     // freeBufferLocked frees the GraphicBuffer and sync resources for the
     // given slot.
     void freeBufferLocked(int slot);
@@ -196,10 +190,6 @@ private:
     // synchronous mode.
     mutable Condition mDequeueCondition;
 
-    // mUseAsyncBuffer indicates whether an extra buffer is used in async mode
-    // to prevent dequeueBuffer from blocking.
-    bool mUseAsyncBuffer;
-
     // mDequeueBufferCannotBlock indicates whether dequeueBuffer is allowed to
     // block. This flag is set during connect when both the producer and
     // consumer are controlled by the application.
@@ -222,11 +212,9 @@ private:
     // is specified.
     android_dataspace mDefaultBufferDataSpace;
 
-    // mDefaultMaxBufferCount is the default limit on the number of buffers that
-    // will be allocated at one time. This default limit is set by the consumer.
-    // The limit (as opposed to the default limit) may be overriden by the
-    // producer.
-    int mDefaultMaxBufferCount;
+    // mMaxBufferCount is the limit on the number of buffers that will be
+    // allocated at one time. This limit can be set by the consumer.
+    int mMaxBufferCount;
 
     // mMaxAcquiredBufferCount is the number of buffers that the consumer may
     // acquire at one time. It defaults to 1, and can be changed by the consumer
@@ -239,13 +227,6 @@ private:
     // dequeue at one time. It defaults to 1, and can be changed by the producer
     // via setMaxDequeuedBufferCount.
     int mMaxDequeuedBufferCount;
-
-    // mOverrideMaxBufferCount defaults to false and is set to true once the
-    // producer has called setMaxDequeuedBufferCount or setAsyncMode. Once it is
-    // set mDefaultMaxBufferCount is ignored and the max buffer count is
-    // calculated based on mMaxAcquiredBufferCount, mMaxDequeuedBufferCount, and
-    // mAsyncMode.
-    bool mOverrideMaxBufferCount;
 
     // mBufferHasBeenQueued is true once a buffer has been queued. It is reset
     // when something causes all buffers to be freed (e.g., changing the buffer

@@ -482,24 +482,29 @@ status_t BufferQueueConsumer::setDefaultBufferSize(uint32_t width,
     return NO_ERROR;
 }
 
-status_t BufferQueueConsumer::setDefaultMaxBufferCount(int bufferCount) {
-    ATRACE_CALL();
-    Mutex::Autolock lock(mCore->mMutex);
-    return mCore->setDefaultMaxBufferCountLocked(bufferCount);
-}
-
-status_t BufferQueueConsumer::disableAsyncBuffer() {
+status_t BufferQueueConsumer::setMaxBufferCount(int bufferCount) {
     ATRACE_CALL();
 
+    if (bufferCount < 1 || bufferCount > BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("setMaxBufferCount: invalid count %d", bufferCount);
+        return BAD_VALUE;
+    }
+
     Mutex::Autolock lock(mCore->mMutex);
 
-    if (mCore->mConsumerListener != NULL) {
-        BQ_LOGE("disableAsyncBuffer: consumer already connected");
+    if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("setMaxBufferCount: producer is already connected");
         return INVALID_OPERATION;
     }
 
-    BQ_LOGV("disableAsyncBuffer");
-    mCore->mUseAsyncBuffer = false;
+    if (bufferCount < mCore->mMaxAcquiredBufferCount) {
+        BQ_LOGE("setMaxBufferCount: invalid buffer count (%d) less than"
+                "mMaxAcquiredBufferCount (%d)", bufferCount,
+                mCore->mMaxAcquiredBufferCount);
+        return BAD_VALUE;
+    }
+
+    mCore->mMaxBufferCount = bufferCount;
     return NO_ERROR;
 }
 
@@ -519,6 +524,15 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
     if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
         BQ_LOGE("setMaxAcquiredBufferCount: producer is already connected");
         return INVALID_OPERATION;
+    }
+
+    if ((maxAcquiredBuffers + mCore->mMaxDequeuedBufferCount +
+            (mCore->mAsyncMode ? 1 : 0)) > mCore->mMaxBufferCount) {
+        BQ_LOGE("setMaxAcquiredBufferCount: %d acquired buffers would exceed "
+                "the maxBufferCount (%d) (maxDequeued %d async %d)",
+                maxAcquiredBuffers, mCore->mMaxBufferCount,
+                mCore->mMaxDequeuedBufferCount, mCore->mAsyncMode);
+        return BAD_VALUE;
     }
 
     BQ_LOGV("setMaxAcquiredBufferCount: %d", maxAcquiredBuffers);

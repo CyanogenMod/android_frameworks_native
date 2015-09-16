@@ -100,20 +100,8 @@ public:
     // is 1x1.
     virtual status_t setDefaultBufferSize(uint32_t width, uint32_t height);
 
-    // setDefaultMaxBufferCount sets the default value for the maximum buffer
-    // count (the initial default is 2). If the producer has requested a
-    // buffer count using setBufferCount, the default buffer count will only
-    // take effect if the producer sets the count back to zero.
-    //
-    // The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
-    virtual status_t setDefaultMaxBufferCount(int bufferCount);
-
-    // disableAsyncBuffer disables the extra buffer used in async mode
-    // (when both producer and consumer have set their "isControlledByApp"
-    // flag) and has dequeueBuffer() return WOULD_BLOCK instead.
-    //
-    // This can only be called before connect().
-    virtual status_t disableAsyncBuffer();
+    // see IGraphicBufferConsumer::setMaxBufferCount
+    virtual status_t setMaxBufferCount(int bufferCount);
 
     // setMaxAcquiredBufferCount sets the maximum number of buffers that can
     // be acquired by the consumer at one time (default 1).  This call will

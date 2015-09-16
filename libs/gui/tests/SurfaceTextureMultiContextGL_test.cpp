@@ -361,7 +361,6 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
         UpdateTexImageSucceedsForBufferConsumedBeforeDetach) {
-    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
 
     // produce two frames and consume them both on the primary context
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));
@@ -388,7 +387,6 @@ TEST_F(SurfaceTextureMultiContextGLTest,
 
 TEST_F(SurfaceTextureMultiContextGLTest,
        AttachAfterDisplayTerminatedSucceeds) {
-    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
 
     // produce two frames and consume them both on the primary context
     ASSERT_NO_FATAL_FAILURE(produceOneRGBA8Frame(mANW));

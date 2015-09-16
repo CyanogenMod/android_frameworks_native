@@ -188,32 +188,28 @@ public:
     // * BAD_VALUE - either w or h was zero
     virtual status_t setDefaultBufferSize(uint32_t w, uint32_t h) = 0;
 
-    // setDefaultMaxBufferCount sets the default value for the maximum buffer
-    // count (the initial default is 2). If the producer has requested a
-    // buffer count using setBufferCount, the default buffer count will only
-    // take effect if the producer sets the count back to zero.
+    // setMaxBufferCount sets the maximum value for the number of buffers used
+    // in the buffer queue (the initial default is NUM_BUFFER_SLOTS). If a call
+    // to setMaxAcquiredBufferCount (by the consumer), or a call to setAsyncMode
+    // or setMaxDequeuedBufferCount (by the producer), would cause this value to
+    // be exceeded then that call will fail. This call will fail if a producer
+    // is connected to the BufferQueue.
     //
-    // The count must be between 2 and NUM_BUFFER_SLOTS, inclusive.
+    // The count must be between 1 and NUM_BUFFER_SLOTS, inclusive. The count
+    // cannot be less than maxAcquiredBufferCount.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * BAD_VALUE - bufferCount was out of range (see above).
-    virtual status_t setDefaultMaxBufferCount(int bufferCount) = 0;
-
-    // disableAsyncBuffer disables the extra buffer used in async mode
-    // (when both producer and consumer have set their "isControlledByApp"
-    // flag) and has dequeueBuffer() return WOULD_BLOCK instead.
-    //
-    // This can only be called before consumerConnect().
-    //
-    // Return of a value other than NO_ERROR means an error has occurred:
-    // * INVALID_OPERATION - attempting to call this after consumerConnect.
-    virtual status_t disableAsyncBuffer() = 0;
+    // * INVALID_OPERATION - attempting to call this after a producer connected.
+    virtual status_t setMaxBufferCount(int bufferCount) = 0;
 
     // setMaxAcquiredBufferCount sets the maximum number of buffers that can
     // be acquired by the consumer at one time (default 1).  This call will
     // fail if a producer is connected to the BufferQueue.
     //
-    // maxAcquiredBuffers must be (inclusive) between 1 and MAX_MAX_ACQUIRED_BUFFERS.
+    // maxAcquiredBuffers must be (inclusive) between 1 and
+    // MAX_MAX_ACQUIRED_BUFFERS. It also cannot cause the maxBufferCount value
+    // to be exceeded.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * BAD_VALUE - maxAcquiredBuffers was out of range (see above).

@@ -190,7 +190,6 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
     enum { texHeight = 16 };
     enum { numFrames = 1024 };
 
-    ASSERT_EQ(NO_ERROR, mST->setDefaultMaxBufferCount(2));
     ASSERT_EQ(NO_ERROR, native_window_set_buffers_dimensions(mANW.get(),
             texWidth, texHeight));
     ASSERT_EQ(NO_ERROR, native_window_set_buffers_format(mANW.get(),
@@ -657,8 +656,6 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
         status_t mDequeueError;
         Mutex mMutex;
     };
-
-    ASSERT_EQ(OK, mST->setDefaultMaxBufferCount(2));
 
     sp<Thread> pt(new ProducerThread(mANW));
     pt->run();
