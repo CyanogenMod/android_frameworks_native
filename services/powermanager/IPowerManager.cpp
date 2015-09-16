@@ -27,15 +27,6 @@
 
 namespace android {
 
-// must be kept in sync with IPowerManager.aidl
-enum {
-    ACQUIRE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION,
-    ACQUIRE_WAKE_LOCK_UID = IBinder::FIRST_CALL_TRANSACTION + 1,
-    RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 2,
-    UPDATE_WAKE_LOCK_UIDS = IBinder::FIRST_CALL_TRANSACTION + 3,
-    POWER_HINT = IBinder::FIRST_CALL_TRANSACTION + 4,
-};
-
 class BpPowerManager : public BpInterface<IPowerManager>
 {
 public:
