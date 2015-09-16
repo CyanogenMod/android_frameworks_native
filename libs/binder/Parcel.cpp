@@ -350,13 +350,11 @@ size_t Parcel::dataSize() const
 
 size_t Parcel::dataAvail() const
 {
-    // TODO: decide what to do about the possibility that this can
-    // report an available-data size that exceeds a Java int's max
-    // positive value, causing havoc.  Fortunately this will only
-    // happen if someone constructs a Parcel containing more than two
-    // gigabytes of data, which on typical phone hardware is simply
-    // not possible.
-    return dataSize() - dataPosition();
+    size_t result = dataSize() - dataPosition();
+    if (result > INT32_MAX) {
+        abort();
+    }
+    return result;
 }
 
 size_t Parcel::dataPosition() const
