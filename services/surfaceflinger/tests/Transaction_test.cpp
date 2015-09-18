@@ -24,9 +24,12 @@
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
 #include <private/gui/ComposerService.h>
+#include <private/gui/LayerState.h>
 
 #include <utils/String8.h>
 #include <ui/DisplayInfo.h>
+
+#include <math.h>
 
 namespace android {
 
@@ -38,8 +41,8 @@ static void fillSurfaceRGBA8(const sp<SurfaceControl>& sc,
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ(NO_ERROR, s->lock(&outBuffer, NULL));
     uint8_t* img = reinterpret_cast<uint8_t*>(outBuffer.bits);
-    for (uint32_t y = 0; y < outBuffer.height; y++) {
-        for (uint32_t x = 0; x < outBuffer.width; x++) {
+    for (int y = 0; y < outBuffer.height; y++) {
+        for (int x = 0; x < outBuffer.width; x++) {
             uint8_t* pixel = img + (4 * (y*outBuffer.stride + x));
             pixel[0] = r;
             pixel[1] = g;
@@ -76,7 +79,7 @@ public:
             String8 err(String8::format("pixel @ (%3d, %3d): "
                     "expected [%3d, %3d, %3d], got [%3d, %3d, %3d]",
                     x, y, r, g, b, pixel[0], pixel[1], pixel[2]));
-            EXPECT_EQ(String8(), err);
+            EXPECT_EQ(String8(), err) << err.string();
         }
     }
 
@@ -133,6 +136,8 @@ protected:
         fillSurfaceRGBA8(mSyncSurfaceControl, 31, 31, 31);
 
         SurfaceComposerClient::openGlobalTransaction();
+
+        mComposerClient->setDisplayLayerStack(display, 0);
 
         ASSERT_EQ(NO_ERROR, mBGSurfaceControl->setLayer(INT_MAX-2));
         ASSERT_EQ(NO_ERROR, mBGSurfaceControl->show());
@@ -352,6 +357,79 @@ TEST_F(LayerUpdateTest, LayerSetAlphaWorks) {
         ScreenCapture::captureScreen(&sc);
         sc->checkPixel( 24,  24,  63,  63, 195);
         sc->checkPixel( 75,  75, 162,  63,  96);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerSetLayerStackWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before setLayerStack");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setLayerStack(1));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should hide the foreground surface since it goes to a different
+        // layer stack.
+        SCOPED_TRACE("after setLayerStack");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerSetFlagsWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before setFlags");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setFlags(
+            layer_state_t::eLayerHidden, layer_state_t::eLayerHidden));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should hide the foreground surface
+        SCOPED_TRACE("after setFlags");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+}
+
+TEST_F(LayerUpdateTest, LayerSetMatrixWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before setMatrix");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 91,  96, 195,  63,  63);
+        sc->checkPixel( 96, 101, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setMatrix(M_SQRT1_2, M_SQRT1_2,
+            -M_SQRT1_2, M_SQRT1_2));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        SCOPED_TRACE("after setMatrix");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 91,  96, 195,  63,  63);
+        sc->checkPixel( 96,  91,  63,  63, 195);
         sc->checkPixel(145, 145,  63,  63, 195);
     }
 }
