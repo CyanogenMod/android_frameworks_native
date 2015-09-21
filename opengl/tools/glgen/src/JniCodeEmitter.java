@@ -673,7 +673,7 @@ public class JniCodeEmitter {
                         "\";");
         cStream.println();
 
-        cStream.println("static JNINativeMethod methods[] = {");
+        cStream.println("static const JNINativeMethod methods[] = {");
 
         cStream.println("{\"_nativeClassInit\", \"()V\", (void*)nativeClassInit },");
 
