@@ -26,17 +26,56 @@
 #include <utils/RefBase.h>
 #include <utils/String8.h>
 
+// Declare a concrete type for the HAL
+struct input_host {
+};
+
 namespace android {
 
-class InputHostInterface;
-
-class InputDriverInterface : public virtual RefBase {
+class InputDriverInterface : public input_host_t, public virtual RefBase {
 protected:
     InputDriverInterface() = default;
     virtual ~InputDriverInterface() = default;
 
 public:
-    virtual void init(InputHostInterface* host) = 0;
+    virtual void init() = 0;
+
+    virtual input_device_identifier_t* createDeviceIdentifier(
+            const char* name, int32_t productId, int32_t vendorId,
+            input_bus_t bus, const char* uniqueId) = 0;
+    virtual input_device_definition_t* createDeviceDefinition() = 0;
+    virtual input_report_definition_t* createInputReportDefinition() = 0;
+    virtual input_report_definition_t* createOutputReportDefinition() = 0;
+    virtual void freeReportDefinition(input_report_definition_t* reportDef) = 0;
+
+    virtual void inputDeviceDefinitionAddReport(input_device_definition_t* d,
+            input_report_definition_t* r) = 0;
+    virtual void inputReportDefinitionAddCollection(input_report_definition_t* report,
+            input_collection_id_t id, int32_t arity) = 0;
+    virtual void inputReportDefinitionDeclareUsageInt(input_report_definition_t* report,
+            input_collection_id_t id, input_usage_t usage, int32_t min, int32_t max,
+            float resolution) = 0;
+    virtual void inputReportDefinitionDeclareUsagesBool(input_report_definition_t* report,
+            input_collection_id_t id, input_usage_t* usage, size_t usageCount) = 0;
+
+    virtual input_device_handle_t* registerDevice(input_device_identifier_t* id,
+            input_device_definition_t* d) = 0;
+    virtual void unregisterDevice(input_device_handle_t* handle) = 0;
+
+    virtual input_report_t* inputAllocateReport(input_report_definition_t* r) = 0;
+    virtual void inputReportSetUsageInt(input_report_t* r, input_collection_id_t id,
+            input_usage_t usage, int32_t value, int32_t arity_index) = 0;
+    virtual void inputReportSetUsageBool(input_report_t* r, input_collection_id_t id,
+            input_usage_t usage, bool value, int32_t arity_index) = 0;
+    virtual void reportEvent(input_device_handle_t* d, input_report_t* report) = 0;
+
+    virtual input_property_map_t* inputGetDevicePropertyMap(input_device_identifier_t* id) = 0;
+    virtual input_property_t* inputGetDeviceProperty(input_property_map_t* map,
+            const char* key) = 0;
+    virtual const char* inputGetPropertyKey(input_property_t* property) = 0;
+    virtual const char* inputGetPropertyValue(input_property_t* property) = 0;
+    virtual void inputFreeDeviceProperty(input_property_t* property) = 0;
+    virtual void inputFreeDevicePropertyMap(input_property_map_t* map) = 0;
 
     virtual void dump(String8& result) = 0;
 };
@@ -46,7 +85,44 @@ public:
     InputDriver(const char* name);
     virtual ~InputDriver() = default;
 
-    virtual void init(InputHostInterface* host) override;
+    virtual void init() override;
+
+    virtual input_device_identifier_t* createDeviceIdentifier(
+            const char* name, int32_t productId, int32_t vendorId,
+            input_bus_t bus, const char* uniqueId) override;
+    virtual input_device_definition_t* createDeviceDefinition() override;
+    virtual input_report_definition_t* createInputReportDefinition() override;
+    virtual input_report_definition_t* createOutputReportDefinition() override;
+    virtual void freeReportDefinition(input_report_definition_t* reportDef) override;
+
+    virtual void inputDeviceDefinitionAddReport(input_device_definition_t* d,
+            input_report_definition_t* r) override;
+    virtual void inputReportDefinitionAddCollection(input_report_definition_t* report,
+            input_collection_id_t id, int32_t arity) override;
+    virtual void inputReportDefinitionDeclareUsageInt(input_report_definition_t* report,
+            input_collection_id_t id, input_usage_t usage, int32_t min, int32_t max,
+            float resolution) override;
+    virtual void inputReportDefinitionDeclareUsagesBool(input_report_definition_t* report,
+            input_collection_id_t id, input_usage_t* usage, size_t usageCount) override;
+
+    virtual input_device_handle_t* registerDevice(input_device_identifier_t* id,
+            input_device_definition_t* d) override;
+    virtual void unregisterDevice(input_device_handle_t* handle) override;
+
+    virtual input_report_t* inputAllocateReport(input_report_definition_t* r) override;
+    virtual void inputReportSetUsageInt(input_report_t* r, input_collection_id_t id,
+            input_usage_t usage, int32_t value, int32_t arity_index) override;
+    virtual void inputReportSetUsageBool(input_report_t* r, input_collection_id_t id,
+            input_usage_t usage, bool value, int32_t arity_index) override;
+    virtual void reportEvent(input_device_handle_t* d, input_report_t* report) override;
+
+    virtual input_property_map_t* inputGetDevicePropertyMap(input_device_identifier_t* id) override;
+    virtual input_property_t* inputGetDeviceProperty(input_property_map_t* map,
+            const char* key) override;
+    virtual const char* inputGetPropertyKey(input_property_t* property) override;
+    virtual const char* inputGetPropertyValue(input_property_t* property) override;
+    virtual void inputFreeDeviceProperty(input_property_t* property) override;
+    virtual void inputFreeDevicePropertyMap(input_property_map_t* map) override;
 
     virtual void dump(String8& result) override;
 

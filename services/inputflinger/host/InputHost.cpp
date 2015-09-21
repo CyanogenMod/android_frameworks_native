@@ -28,7 +28,7 @@ namespace android {
 
 void InputHost::registerInputDriver(InputDriverInterface* driver) {
     LOG_ALWAYS_FATAL_IF(driver == nullptr, "Cannot register a nullptr as an InputDriver!");
-    driver->init(this);
+    driver->init();
     mDrivers.push_back(driver);
 }
 
