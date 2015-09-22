@@ -449,6 +449,9 @@ void configureANW(const sp<ANativeWindow>& anw,
         const CpuConsumerTestParams& params,
         int maxBufferSlack) {
     status_t err;
+    err = native_window_api_connect(anw.get(), NATIVE_WINDOW_API_CPU);
+    ASSERT_NO_ERROR(err, "connect error: ");
+
     err = native_window_set_buffers_dimensions(anw.get(),
             params.width, params.height);
     ASSERT_NO_ERROR(err, "set_buffers_dimensions error: ");

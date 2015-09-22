@@ -100,6 +100,8 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     ASSERT_EQ(NO_ERROR, sf->captureScreen(display, producer, Rect(),
             64, 64, 0, 0x7fffffff, false));
 
+    ASSERT_EQ(NO_ERROR, native_window_api_connect(anw.get(),
+            NATIVE_WINDOW_API_CPU));
     // Set the PROTECTED usage bit and verify that the screenshot fails.  Note
     // that we need to dequeue a buffer in order for it to actually get
     // allocated in SurfaceFlinger.
@@ -190,6 +192,8 @@ TEST_F(SurfaceTest, SettingGenerationNumber) {
     // Allocate a buffer with a generation number of 0
     ANativeWindowBuffer* buffer;
     int fenceFd;
+    ASSERT_EQ(NO_ERROR, native_window_api_connect(window.get(),
+            NATIVE_WINDOW_API_CPU));
     ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fenceFd));
     ASSERT_EQ(NO_ERROR, window->cancelBuffer(window.get(), buffer, fenceFd));
 

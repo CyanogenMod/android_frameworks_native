@@ -57,6 +57,11 @@ status_t BufferQueueProducer::requestBuffer(int slot, sp<GraphicBuffer>* buf) {
         return NO_INIT;
     }
 
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("requestBuffer: BufferQueue has no connected producer");
+        return NO_INIT;
+    }
+
     if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
         BQ_LOGE("requestBuffer: slot index %d out of range [0, %d)",
                 slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
@@ -286,6 +291,16 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
         mConsumerName = mCore->mConsumerName;
+
+        if (mCore->mIsAbandoned) {
+            BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
+            return NO_INIT;
+        }
+
+        if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+            BQ_LOGE("dequeueBuffer: BufferQueue has no connected producer");
+            return NO_INIT;
+        }
     } // Autolock scope
 
     BQ_LOGV("dequeueBuffer: async=%s w=%u h=%u format=%#x, usage=%#x",
@@ -453,6 +468,11 @@ status_t BufferQueueProducer::detachBuffer(int slot) {
         return NO_INIT;
     }
 
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("detachBuffer(P): BufferQueue has no connected producer");
+        return NO_INIT;
+    }
+
     if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
         BQ_LOGE("detachBuffer(P): slot index %d out of range [0, %d)",
                 slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
@@ -487,12 +507,18 @@ status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
     }
 
     Mutex::Autolock lock(mCore->mMutex);
-    mCore->waitWhileAllocatingLocked();
 
     if (mCore->mIsAbandoned) {
         BQ_LOGE("detachNextBuffer: BufferQueue has been abandoned");
         return NO_INIT;
     }
+
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("detachNextBuffer: BufferQueue has no connected producer");
+        return NO_INIT;
+    }
+
+    mCore->waitWhileAllocatingLocked();
 
     if (mCore->mFreeBuffers.empty()) {
         return NO_MEMORY;
@@ -524,7 +550,16 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
     }
 
     Mutex::Autolock lock(mCore->mMutex);
-    mCore->waitWhileAllocatingLocked();
+
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("attachBuffer(P): BufferQueue has been abandoned");
+        return NO_INIT;
+    }
+
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("attachBuffer(P): BufferQueue has no connected producer");
+        return NO_INIT;
+    }
 
     if (buffer->getGenerationNumber() != mCore->mGenerationNumber) {
         BQ_LOGE("attachBuffer: generation number mismatch [buffer %u] "
@@ -532,6 +567,8 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
                 mCore->mGenerationNumber);
         return BAD_VALUE;
     }
+
+    mCore->waitWhileAllocatingLocked();
 
     status_t returnFlags = NO_ERROR;
     int found;
@@ -609,6 +646,11 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         if (mCore->mIsAbandoned) {
             BQ_LOGE("queueBuffer: BufferQueue has been abandoned");
+            return NO_INIT;
+        }
+
+        if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+            BQ_LOGE("queueBuffer: BufferQueue has no connected producer");
             return NO_INIT;
         }
 
@@ -748,27 +790,32 @@ status_t BufferQueueProducer::queueBuffer(int slot,
     return NO_ERROR;
 }
 
-void BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
+status_t BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
     ATRACE_CALL();
     BQ_LOGV("cancelBuffer: slot %d", slot);
     Mutex::Autolock lock(mCore->mMutex);
 
     if (mCore->mIsAbandoned) {
         BQ_LOGE("cancelBuffer: BufferQueue has been abandoned");
-        return;
+        return NO_INIT;
+    }
+
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("cancelBuffer: BufferQueue has no connected producer");
+        return NO_INIT;
     }
 
     if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
         BQ_LOGE("cancelBuffer: slot index %d out of range [0, %d)",
                 slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
-        return;
+        return BAD_VALUE;
     } else if (mSlots[slot].mBufferState != BufferSlot::DEQUEUED) {
         BQ_LOGE("cancelBuffer: slot %d is not owned by the producer "
                 "(state = %d)", slot, mSlots[slot].mBufferState);
-        return;
+        return BAD_VALUE;
     } else if (fence == NULL) {
         BQ_LOGE("cancelBuffer: fence is NULL");
-        return;
+        return BAD_VALUE;
     }
 
     mCore->mFreeBuffers.push_front(slot);
@@ -776,6 +823,8 @@ void BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
     mSlots[slot].mFence = fence;
     mCore->mDequeueCondition.broadcast();
     mCore->validateConsistencyLocked();
+
+    return NO_ERROR;
 }
 
 int BufferQueueProducer::query(int what, int *outValue) {

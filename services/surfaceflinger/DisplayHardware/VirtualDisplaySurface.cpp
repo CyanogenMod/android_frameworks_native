@@ -476,7 +476,8 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
     return NO_ERROR;
 }
 
-void VirtualDisplaySurface::cancelBuffer(int pslot, const sp<Fence>& fence) {
+status_t VirtualDisplaySurface::cancelBuffer(int pslot,
+        const sp<Fence>& fence) {
     if (mDisplayId < 0)
         return mSource[SOURCE_SINK]->cancelBuffer(mapProducer2SourceSlot(SOURCE_SINK, pslot), fence);
 

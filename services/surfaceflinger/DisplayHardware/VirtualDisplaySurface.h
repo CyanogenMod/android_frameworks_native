@@ -108,7 +108,7 @@ private:
     virtual status_t attachBuffer(int* slot, const sp<GraphicBuffer>& buffer);
     virtual status_t queueBuffer(int pslot,
             const QueueBufferInput& input, QueueBufferOutput* output);
-    virtual void cancelBuffer(int pslot, const sp<Fence>& fence);
+    virtual status_t cancelBuffer(int pslot, const sp<Fence>& fence);
     virtual int query(int what, int* value);
     virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output);

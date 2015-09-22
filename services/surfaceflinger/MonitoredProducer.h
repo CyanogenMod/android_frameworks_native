@@ -46,7 +46,7 @@ public:
             const sp<GraphicBuffer>& buffer);
     virtual status_t queueBuffer(int slot, const QueueBufferInput& input,
             QueueBufferOutput* output);
-    virtual void cancelBuffer(int slot, const sp<Fence>& fence);
+    virtual status_t cancelBuffer(int slot, const sp<Fence>& fence);
     virtual int query(int what, int* value);
     virtual status_t connect(const sp<IProducerListener>& token, int api,
             bool producerControlledByApp, QueueBufferOutput* output);
