@@ -55,6 +55,9 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= $(deviceSources)
 
+LOCAL_CLANG := true
+LOCAL_SANITIZE := integer
+
 LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libcutils \
