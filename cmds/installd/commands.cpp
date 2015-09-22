@@ -1081,14 +1081,6 @@ static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
     return true;
 }
 
-static bool IsPostBootComplete() {
-    char dev_bootcomplete_prop_buf[PROPERTY_VALUE_MAX];
-    if (property_get("dev.bootcomplete", dev_bootcomplete_prop_buf, "0") > 0) {
-        return (strcmp(dev_bootcomplete_prop_buf, "1") == 0);
-    }
-    return false;
-}
-
 static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
     if (set_to_bg) {
         if (set_sched_policy(0, SP_BACKGROUND) < 0) {
@@ -1104,7 +1096,7 @@ static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
 
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set, int dexopt_needed,
-           bool vm_safe_mode, bool debuggable, const char* oat_dir)
+           bool vm_safe_mode, bool debuggable, const char* oat_dir, bool boot_complete)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1113,7 +1105,6 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     const char *input_file;
     char in_odex_path[PKG_PATH_MAX];
     int res, input_fd=-1, out_fd=-1, swap_fd=-1;
-    bool post_bootcomplete = IsPostBootComplete();
 
     // Early best-effort check whether we can fit the the path into our buffers.
     // Note: the cache path will require an additional 5 bytes for ".swap", but we'll try to run
@@ -1236,7 +1227,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             ALOGE("capset failed: %s\n", strerror(errno));
             exit(66);
         }
-        SetDex2OatAndPatchOatScheduling(post_bootcomplete);
+        SetDex2OatAndPatchOatScheduling(boot_complete);
         if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
             exit(67);
@@ -1253,7 +1244,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
                 input_file_name++;
             }
             run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
-                        instruction_set, vm_safe_mode, debuggable, post_bootcomplete);
+                        instruction_set, vm_safe_mode, debuggable, boot_complete);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);
