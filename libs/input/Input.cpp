@@ -452,7 +452,8 @@ status_t MotionEvent::readFromParcel(Parcel* parcel) {
         properties.toolType = parcel->readInt32();
     }
 
-    while (sampleCount-- > 0) {
+    while (sampleCount > 0) {
+        sampleCount--;
         mSampleEventTimes.push(parcel->readInt64());
         for (size_t i = 0; i < pointerCount; i++) {
             mSamplePointerCoords.push();
