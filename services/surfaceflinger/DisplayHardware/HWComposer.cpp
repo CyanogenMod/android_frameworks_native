@@ -1036,12 +1036,10 @@ public:
         }
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
-        // Region::getSharedBuffer creates a reference to the underlying
-        // SharedBuffer of this Region, this reference is freed
-        // in onDisplayed()
         hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
-        SharedBuffer const* sb = reg.getSharedBuffer(&visibleRegion.numRects);
-        visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
+        mVisibleRegion = reg;
+        visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(
+                mVisibleRegion.getArray(&visibleRegion.numRects));
     }
     virtual void setSurfaceDamage(const Region& reg) {
         if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_5)) {
@@ -1055,8 +1053,9 @@ public:
             surfaceDamage.rects = NULL;
             return;
         }
-        SharedBuffer const* sb = reg.getSharedBuffer(&surfaceDamage.numRects);
-        surfaceDamage.rects = reinterpret_cast<hwc_rect_t const *>(sb->data());
+        mSurfaceDamage = reg;
+        surfaceDamage.rects = reinterpret_cast<hwc_rect_t const *>(
+                mSurfaceDamage.getArray(&surfaceDamage.numRects));
     }
     virtual void setSidebandStream(const sp<NativeHandle>& stream) {
         ALOG_ASSERT(stream->handle() != NULL);
@@ -1078,29 +1077,15 @@ public:
         }
     }
     virtual void onDisplayed() {
-        hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
-        SharedBuffer const* sb = SharedBuffer::bufferFromData(visibleRegion.rects);
-        if (sb) {
-            sb->release();
-            // not technically needed but safer
-            visibleRegion.numRects = 0;
-            visibleRegion.rects = NULL;
-        }
-
         getLayer()->acquireFenceFd = -1;
-
-        if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_5)) {
-            return;
-        }
-
-        hwc_region_t& surfaceDamage = getLayer()->surfaceDamage;
-        sb = SharedBuffer::bufferFromData(surfaceDamage.rects);
-        if (sb) {
-            sb->release();
-            surfaceDamage.numRects = 0;
-            surfaceDamage.rects = NULL;
-        }
     }
+
+protected:
+    // We need to hold "copies" of these for memory management purposes. The
+    // actual hwc_layer_1_t holds pointers to the memory within. Vector<>
+    // internally doesn't copy the memory unless one of the copies is modified.
+    Region mVisibleRegion;
+    Region mSurfaceDamage;
 };
 
 /*
