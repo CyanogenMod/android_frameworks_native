@@ -46,7 +46,8 @@ static const nsecs_t ASSUME_POINTER_STOPPED_TIME = 40 * NANOS_PER_MS;
 
 static float vectorDot(const float* a, const float* b, uint32_t m) {
     float r = 0;
-    while (m--) {
+    while (m) {
+        m--;
         r += *(a++) * *(b++);
     }
     return r;
@@ -54,7 +55,8 @@ static float vectorDot(const float* a, const float* b, uint32_t m) {
 
 static float vectorNorm(const float* a, uint32_t m) {
     float r = 0;
-    while (m--) {
+    while (m) {
+        m--;
         float t = *(a++);
         r += t * t;
     }
@@ -511,7 +513,8 @@ static bool solveLeastSquares(const float* x, const float* y,
     for (uint32_t h = 0; h < m; h++) {
         wy[h] = y[h] * w[h];
     }
-    for (uint32_t i = n; i-- != 0; ) {
+    for (uint32_t i = n; i != 0; ) {
+        i--;
         outB[i] = vectorDot(&q[i][0], wy, m);
         for (uint32_t j = n - 1; j > i; j--) {
             outB[i] -= r[i][j] * outB[j];
