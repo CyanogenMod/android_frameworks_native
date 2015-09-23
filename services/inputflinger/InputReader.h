@@ -1469,9 +1469,6 @@ protected:
     // Have we assigned pointer IDs for this stream
     bool mHavePointerIds;
 
-    // Is the current stream of direct touch events aborted
-    bool mCurrentMotionAborted;
-
     // The time the primary pointer last went down.
     nsecs_t mDownTime;
 
@@ -1805,7 +1802,6 @@ private:
     void dispatchButtonPress(nsecs_t when, uint32_t policyFlags);
     const BitSet32& findActiveIdBits(const CookedPointerData& cookedPointerData);
     void cookPointerData();
-    void abortTouches(nsecs_t when, uint32_t policyFlags);
 
     void dispatchPointerUsage(nsecs_t when, uint32_t policyFlags, PointerUsage pointerUsage);
     void abortPointerUsage(nsecs_t when, uint32_t policyFlags);

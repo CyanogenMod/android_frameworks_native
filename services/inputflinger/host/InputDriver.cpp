@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-#include <functional>
 #include <stdint.h>
 #include <sys/types.h>
-#include <unordered_map>
-#include <vector>
 
 #define LOG_TAG "InputDriver"
 
@@ -28,9 +25,7 @@
 #include "InputHost.h"
 
 #include <hardware/input.h>
-#include <input/InputDevice.h>
 #include <utils/Log.h>
-#include <utils/PropertyMap.h>
 #include <utils/String8.h>
 
 #define INDENT2 "    "
@@ -42,7 +37,6 @@ static input_host_callbacks_t kCallbacks = {
     .create_device_definition = create_device_definition,
     .create_input_report_definition = create_input_report_definition,
     .create_output_report_definition = create_output_report_definition,
-    .free_report_definition = free_report_definition,
     .input_device_definition_add_report = input_device_definition_add_report,
     .input_report_definition_add_collection = input_report_definition_add_collection,
     .input_report_definition_declare_usage_int = input_report_definition_declare_usage_int,
@@ -75,214 +69,78 @@ void InputDriver::dump(String8& result) {
     result.appendFormat(INDENT2 "HAL Input Driver (%s)\n", mName.string());
 }
 
-} // namespace android
-
-struct input_property_map {
-    android::PropertyMap* propertyMap;
-};
-
-struct input_property {
-    android::String8 key;
-    android::String8 value;
-};
-
-struct input_device_identifier {
-    const char* name;
-    const char* uniqueId;
-    input_bus_t bus;
-    int32_t     vendorId;
-    int32_t     productId;
-    int32_t     version;
-};
-
-struct input_device_definition {
-    std::vector<input_report_definition*> reportDefs;
-};
-
-struct input_device_handle {
-    input_device_identifier_t* id;
-    input_device_definition_t* def;
-};
-
-struct input_int_usage {
-    input_usage_t usage;
-    int32_t min;
-    int32_t max;
-    float   resolution;
-};
-
-struct input_collection {
-    int32_t arity;
-    std::vector<input_int_usage> intUsages;
-    std::vector<input_usage_t> boolUsages;
-};
-
-struct InputCollectionIdHasher {
-    std::size_t operator()(const input_collection_id& id) const {
-        return std::hash<int>()(static_cast<int>(id));
-    }
-};
-
-struct input_report_definition {
-    std::unordered_map<input_collection_id_t, input_collection, InputCollectionIdHasher> collections;
-};
 
 // HAL wrapper functions
 
-namespace android {
-
-::input_device_identifier_t* create_device_identifier(input_host_t* host,
+input_device_identifier_t* create_device_identifier(input_host_t* host,
         const char* name, int32_t product_id, int32_t vendor_id,
         input_bus_t bus, const char* unique_id) {
-    auto identifier = new ::input_device_identifier {
-        .name = name,
-        .productId = product_id,
-        .vendorId = vendor_id,
-        //.bus = bus,
-        .uniqueId = unique_id,
-    };
-    // store this identifier somewhere? in the host?
-    return identifier;
-}
-
-input_device_definition_t* create_device_definition(input_host_t* host) {
-    return new ::input_device_definition;
-}
-
-input_report_definition_t* create_input_report_definition(input_host_t* host) {
-    return new ::input_report_definition;
-}
-
-input_report_definition_t* create_output_report_definition(input_host_t* host) {
-    return new ::input_report_definition;
-}
-
-void free_report_definition(input_host_t* host, input_report_definition_t* report_def) {
-    delete report_def;
-}
-
-void input_device_definition_add_report(input_host_t* host,
-        input_device_definition_t* d, input_report_definition_t* r) {
-    d->reportDefs.push_back(r);
-}
-
-void input_report_definition_add_collection(input_host_t* host,
-        input_report_definition_t* report, input_collection_id_t id, int32_t arity) {
-    report->collections[id] = {.arity = arity};
-}
-
-void input_report_definition_declare_usage_int(input_host_t* host,
-        input_report_definition_t* report, input_collection_id_t id,
-        input_usage_t usage, int32_t min, int32_t max, float resolution) {
-    if (report->collections.find(id) != report->collections.end()) {
-        report->collections[id].intUsages.push_back({
-                .usage = usage, .min = min, .max = max, .resolution = resolution});
-    }
-}
-
-void input_report_definition_declare_usages_bool(input_host_t* host,
-        input_report_definition_t* report, input_collection_id_t id,
-        input_usage_t* usage, size_t usage_count) {
-    if (report->collections.find(id) != report->collections.end()) {
-        for (size_t i = 0; i < usage_count; ++i) {
-            report->collections[id].boolUsages.push_back(usage[i]);
-        }
-    }
-}
-
-input_device_handle_t* register_device(input_host_t* host,
-        input_device_identifier_t* id, input_device_definition_t* d) {
-    ALOGD("Registering device %s with %d input reports", id->name, d->reportDefs.size());
-    return new input_device_handle{ .id = id, .def = d };
-}
-
-input_report_t* input_allocate_report(input_host_t* host, input_report_definition_t* r) {
-    ALOGD("Allocating input report for definition %p", r);
     return nullptr;
 }
 
+input_device_definition_t* create_device_definition(input_host_t* host) {
+    return nullptr;
+}
+
+input_report_definition_t* create_input_report_definition(input_host_t* host) {
+    return nullptr;
+}
+
+input_report_definition_t* create_output_report_definition(input_host_t* host) {
+    return nullptr;
+}
+
+void input_device_definition_add_report(input_host_t* host,
+        input_device_definition_t* d, input_report_definition_t* r) { }
+
+void input_report_definition_add_collection(input_host_t* host,
+        input_report_definition_t* report, input_collection_id_t id, int32_t arity) { }
+
+void input_report_definition_declare_usage_int(input_host_t* host,
+        input_report_definition_t* report, input_collection_id_t id,
+        input_usage_t usage, int32_t min, int32_t max, float resolution) { }
+
+void input_report_definition_declare_usages_bool(input_host_t* host,
+        input_report_definition_t* report, input_collection_id_t id,
+        input_usage_t* usage, size_t usage_count) { }
+
+
+input_device_handle_t* register_device(input_host_t* host,
+        input_device_identifier_t* id, input_device_definition_t* d) {
+    return nullptr;
+}
+
+input_report_t* input_allocate_report(input_host_t* host, input_report_definition_t* r) {
+    return nullptr;
+}
 void input_report_set_usage_int(input_host_t* host, input_report_t* r,
         input_collection_id_t id, input_usage_t usage, int32_t value, int32_t arity_index) { }
 
 void input_report_set_usage_bool(input_host_t* host, input_report_t* r,
         input_collection_id_t id, input_usage_t usage, bool value, int32_t arity_index) { }
 
-void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) {
-    ALOGD("report_event %p for handle %p", report, d);
-}
+void report_event(input_host_t* host, input_device_handle_t* d, input_report_t* report) { }
 
 input_property_map_t* input_get_device_property_map(input_host_t* host,
         input_device_identifier_t* id) {
-    InputDeviceIdentifier idi;
-    idi.name = id->name;
-    idi.uniqueId = id->uniqueId;
-    idi.bus = id->bus;
-    idi.vendor = id->vendorId;
-    idi.product = id->productId;
-    idi.version = id->version;
-
-    String8 configFile = getInputDeviceConfigurationFilePathByDeviceIdentifier(
-            idi, INPUT_DEVICE_CONFIGURATION_FILE_TYPE_CONFIGURATION);
-    if (configFile.isEmpty()) {
-        ALOGD("No input device configuration file found for device '%s'.",
-                idi.name.string());
-    } else {
-        auto propMap = new input_property_map_t();
-        status_t status = PropertyMap::load(configFile, &propMap->propertyMap);
-        if (status) {
-            ALOGE("Error loading input device configuration file for device '%s'. "
-                    "Using default configuration.",
-                    idi.name.string());
-            delete propMap;
-            return nullptr;
-        }
-        return propMap;
-    }
     return nullptr;
 }
 
 input_property_t* input_get_device_property(input_host_t* host, input_property_map_t* map,
         const char* key) {
-    String8 keyString(key);
-    if (map != nullptr) {
-        if (map->propertyMap->hasProperty(keyString)) {
-            auto prop = new input_property_t();
-            if (!map->propertyMap->tryGetProperty(keyString, prop->value)) {
-                delete prop;
-                return nullptr;
-            }
-            prop->key = keyString;
-            return prop;
-        }
-    }
     return nullptr;
 }
 
 const char* input_get_property_key(input_host_t* host, input_property_t* property) {
-    if (property != nullptr) {
-        return property->key.string();
-    }
     return nullptr;
 }
 
 const char* input_get_property_value(input_host_t* host, input_property_t* property) {
-    if (property != nullptr) {
-        return property->value.string();
-    }
     return nullptr;
 }
 
-void input_free_device_property(input_host_t* host, input_property_t* property) {
-    if (property != nullptr) {
-        delete property;
-    }
-}
+void input_free_device_property(input_host_t* host, input_property_t* property) { }
 
-void input_free_device_property_map(input_host_t* host, input_property_map_t* map) {
-    if (map != nullptr) {
-        delete map->propertyMap;
-        delete map;
-    }
-}
+void input_free_device_property_map(input_host_t* host, input_property_map_t* map) { }
 
 } // namespace android
