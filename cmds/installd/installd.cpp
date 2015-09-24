@@ -48,9 +48,9 @@ static int do_install(char **arg, char reply[REPLY_MAX] __unused)
 static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
 {
     /* apk_path, uid, is_public, pkgname, instruction_set,
-     * dexopt_needed, vm_safe_mode, debuggable, oat_dir */
+     * dexopt_needed, vm_safe_mode, debuggable, oat_dir, boot_complete */
     return dexopt(arg[0], atoi(arg[1]), atoi(arg[2]), arg[3], arg[4], atoi(arg[5]),
-                  atoi(arg[6]), atoi(arg[7]), arg[8]);
+                  atoi(arg[6]), atoi(arg[7]), arg[8], atoi(arg[9]));
 }
 
 static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] __unused)
@@ -194,7 +194,7 @@ struct cmdinfo {
 struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
     { "install",              5, do_install },
-    { "dexopt",               9, do_dexopt },
+    { "dexopt",               10, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "movedex",              3, do_move_dex },
     { "rmdex",                2, do_rm_dex },
