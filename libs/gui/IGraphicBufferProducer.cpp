@@ -348,7 +348,7 @@ status_t BnGraphicBufferProducer::onTransact(
             uint32_t height = data.readUint32();
             PixelFormat format = static_cast<PixelFormat>(data.readInt32());
             uint32_t usage = data.readUint32();
-            int buf;
+            int buf = 0;
             sp<Fence> fence;
             int result = dequeueBuffer(&buf, &fence, async, width, height,
                     format, usage);
@@ -416,7 +416,7 @@ status_t BnGraphicBufferProducer::onTransact(
         }
         case QUERY: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            int value;
+            int value = 0;
             int what = data.readInt32();
             int res = query(what, &value);
             reply->writeInt32(value);
