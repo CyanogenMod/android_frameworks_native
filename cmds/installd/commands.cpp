@@ -746,7 +746,7 @@ static bool check_boolean_property(const char* property_name, bool default_value
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *pkgname, const char *instruction_set,
-    bool vm_safe_mode, bool debuggable, bool post_bootcomplete)
+    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool use_jit)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -807,7 +807,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                              (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
                              (strcmp(vold_decrypt, "1") == 0)));
 
-    bool use_jit = check_boolean_property("debug.usejit");
     bool generate_debug_info = check_boolean_property("debug.generate-debug-info");
 
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
@@ -861,6 +860,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         }
     }
 
+    // use the JIT if either it's specified as a dexopt flag or if the property is set
+    use_jit = use_jit || check_boolean_property("debug.usejit");
     if (have_dex2oat_Xms_flag) {
         sprintf(dex2oat_Xms_arg, "-Xms%s", dex2oat_Xms_flag);
     }
@@ -1095,6 +1096,7 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
+    bool use_jit = (dexopt_flags & DEXOPT_USEJIT) != 0;
 
     if ((dexopt_flags & ~DEXOPT_MASK) != 0) {
         LOG_FATAL("dexopt flags contains unknown fields\n");
@@ -1238,7 +1240,7 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
                 input_file_name++;
             }
             run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
-                        instruction_set, vm_safe_mode, debuggable, boot_complete);
+                        instruction_set, vm_safe_mode, debuggable, boot_complete, use_jit);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);
