@@ -1043,9 +1043,8 @@ static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
     }
 }
 
-int dexopt(const char *apk_path, uid_t uid, bool is_public,
-           const char *pkgname, const char *instruction_set, int dexopt_needed,
-           bool vm_safe_mode, bool debuggable, const char* oat_dir, bool boot_complete)
+int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *instruction_set,
+           int dexopt_needed, const char* oat_dir, int dexopt_flags)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1054,6 +1053,14 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
     const char *input_file;
     char in_odex_path[PKG_PATH_MAX];
     int res, input_fd=-1, out_fd=-1, swap_fd=-1;
+    bool is_public = (dexopt_flags & DEXOPT_PUBLIC) != 0;
+    bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
+    bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
+    bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
+
+    if ((dexopt_flags & DEXOPT_MASK) != 0) {
+        LOG_FATAL("dexopt flags contains unknown fields\n");
+    }
 
     // Early best-effort check whether we can fit the the path into our buffers.
     // Note: the cache path will require an additional 5 bytes for ".swap", but we'll try to run
