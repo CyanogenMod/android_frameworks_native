@@ -90,6 +90,16 @@
 #define DEXOPT_PATCHOAT_NEEDED       2
 #define DEXOPT_SELF_PATCHOAT_NEEDED  3
 
+/****************************************************************************
+ * IMPORTANT: These values are passed from Java code. Keep them in sync with
+ * frameworks/base/services/core/java/com/android/server/pm/Installer.java
+ ***************************************************************************/
+#define DEXOPT_PUBLIC       (1 << 1)
+#define DEXOPT_SAFEMODE     (1 << 2)
+#define DEXOPT_DEBUGGABLE   (1 << 3)
+#define DEXOPT_BOOTCOMPLETE (1 << 4)
+#define DEXOPT_MASK (DEXOPT_PUBLIC | DEXOPT_SAFEMODE | DEXOPT_DEBUGGABLE | DEXOPT_BOOTCOMPLETE)
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 /* data structures */
@@ -241,9 +251,8 @@ int get_size(const char *uuid, const char *pkgname, int userid,
         const char *instruction_set, int64_t *codesize, int64_t *datasize,
         int64_t *cachesize, int64_t *asecsize);
 int free_cache(const char *uuid, int64_t free_size);
-int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
-           const char *instruction_set, int dexopt_needed, bool vm_safe_mode,
-           bool debuggable, const char* oat_dir, bool boot_complete);
+int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *instruction_set,
+           int dexopt_needed, const char* oat_dir, int dexopt_flags);
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
