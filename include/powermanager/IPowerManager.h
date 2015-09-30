@@ -31,11 +31,23 @@ public:
     // These transaction IDs must be kept in sync with the method order from
     // IPowerManager.aidl.
     enum {
-        ACQUIRE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION,
-        ACQUIRE_WAKE_LOCK_UID = IBinder::FIRST_CALL_TRANSACTION + 1,
-        RELEASE_WAKE_LOCK = IBinder::FIRST_CALL_TRANSACTION + 2,
-        UPDATE_WAKE_LOCK_UIDS = IBinder::FIRST_CALL_TRANSACTION + 3,
-        POWER_HINT = IBinder::FIRST_CALL_TRANSACTION + 4,
+        ACQUIRE_WAKE_LOCK            = IBinder::FIRST_CALL_TRANSACTION,
+        ACQUIRE_WAKE_LOCK_UID        = IBinder::FIRST_CALL_TRANSACTION + 1,
+        RELEASE_WAKE_LOCK            = IBinder::FIRST_CALL_TRANSACTION + 2,
+        UPDATE_WAKE_LOCK_UIDS        = IBinder::FIRST_CALL_TRANSACTION + 3,
+        POWER_HINT                   = IBinder::FIRST_CALL_TRANSACTION + 4,
+        UPDATE_WAKE_LOCK_SOURCE      = IBinder::FIRST_CALL_TRANSACTION + 5,
+        IS_WAKE_LOCK_LEVEL_SUPPORTED = IBinder::FIRST_CALL_TRANSACTION + 6,
+        USER_ACTIVITY                = IBinder::FIRST_CALL_TRANSACTION + 7,
+        WAKE_UP                      = IBinder::FIRST_CALL_TRANSACTION + 8,
+        GO_TO_SLEEP                  = IBinder::FIRST_CALL_TRANSACTION + 9,
+        NAP                          = IBinder::FIRST_CALL_TRANSACTION + 10,
+        IS_INTERACTIVE               = IBinder::FIRST_CALL_TRANSACTION + 11,
+        IS_POWER_SAVE_MODE           = IBinder::FIRST_CALL_TRANSACTION + 12,
+        SET_POWER_SAVE_MODE          = IBinder::FIRST_CALL_TRANSACTION + 13,
+        REBOOT                       = IBinder::FIRST_CALL_TRANSACTION + 14,
+        SHUTDOWN                     = IBinder::FIRST_CALL_TRANSACTION + 15,
+        CRASH                        = IBinder::FIRST_CALL_TRANSACTION + 16,
     };
 
     DECLARE_META_INTERFACE(PowerManager);
@@ -50,8 +62,11 @@ public:
     virtual status_t releaseWakeLock(const sp<IBinder>& lock, int flags, bool isOneWay = false) = 0;
     virtual status_t updateWakeLockUids(const sp<IBinder>& lock, int len, const int *uids,
             bool isOneWay = false) = 0;
-    // oneway in the .aidl
     virtual status_t powerHint(int hintId, int data) = 0;
+    virtual status_t goToSleep(int64_t event_time_ms, int reason, int flags) = 0;
+    virtual status_t reboot(bool confirm, const String16& reason, bool wait) = 0;
+    virtual status_t shutdown(bool confirm, const String16& reason, bool wait) = 0;
+    virtual status_t crash(const String16& message) = 0;
 };
 
 // ----------------------------------------------------------------------------
