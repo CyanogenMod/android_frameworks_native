@@ -44,6 +44,9 @@
 #include <DisplayHardware/ExHWComposer.h>
 #include <DisplayHardware/ExVirtualDisplaySurface.h>
 #include <dlfcn.h>
+#if QTI_BSP
+#include <gralloc_priv.h>
+#endif
 
 namespace android {
 
@@ -155,6 +158,18 @@ bool DisplayUtils::createV4L2BasedVirtualDisplay(HWComposer* hwc, int32_t &hwcDi
         return true;
     }
     return false;
+}
+
+bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
+    // on AOSP builds with QTI_BSP disabled, we should allocate hwc display id for virtual display
+    int flag_mask = 0xffffffff;
+
+#if QTI_BSP
+    // Reserve hardware acceleration for WFD use-case
+    flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+#endif
+
+    return (usage & flag_mask);
 }
 
 }; // namespace android
