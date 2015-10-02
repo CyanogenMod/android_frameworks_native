@@ -19,7 +19,7 @@
 # is not perfect but better than nothing.
 #
 
-glBufferData nullAllowed check data size
+glBufferData nullAllowed data check data size
 glBufferSubData check data size
 # glCompressedTexImage2D
 # glCompressedTexSubImage2D
@@ -45,7 +45,7 @@ glGenRenderbuffers check renderbuffers n
 glGenTextures check textures n
 // glGetActiveAttrib
 // glGetActiveUniform
-glGetAttachedShaders nullAllowed check count 1 check shaders maxcount
+glGetAttachedShaders nullAllowed count check count 1 check shaders maxcount
 // glGetBooleanv
 glGetBufferParameter check params 1
 glGetClipPlanef check eqn 4
@@ -57,8 +57,10 @@ glGetFramebufferAttachmentParameterivOES check params 1
 // glGetIntegerv
 glGetLight ifcheck params 3 pname GL_SPOT_DIRECTION ifcheck params 4 pname GL_AMBIENT,GL_DIFFUSE,GL_SPECULAR,GL_EMISSION
 glGetMaterial ifcheck params 4 pname GL_AMBIENT,GL_DIFFUSE,GL_SPECULAR,GL_EMISSION,GL_AMBIENT_AND_DIFFUSE
+glGetProgramBinary nullAllowed length
 // glGetProgramInfoLog
 glGetProgramiv check params 1
+glGetProgramResourceiv nullAllowed length
 glGetRenderbufferParameteriv check params 1
 glGetRenderbufferParameterivOES check params 1
 // glGetShaderInfoLog
@@ -66,6 +68,7 @@ glGetShaderiv check params 1
 glGetShaderPrecisionFormat check range 1 check precision 1
 // glGetShaderSource
 // glGetString
+glGetSynciv nullAllowed length
 glGetTexEnv ifcheck params 4 pname GL_TEXTURE_ENV_COLOR
 glGetTexGen ifcheck params 4 pname GL_OBJECT_PLANE,GL_EYE_PLANE
 glGetTexParameter check params 1
@@ -76,15 +79,17 @@ glLightModel ifcheck params 4 pname GL_LIGHT_MODEL_AMBIENT
 glLoadMatrix check m 16
 glMaterial ifcheck params 4 pname GL_AMBIENT,GL_DIFFUSE,GL_SPECULAR,GL_EMISSION,GL_AMBIENT_AND_DIFFUSE
 glMultMatrix check m 16
+glObjectLabelKHR nullAllowed label
 glPointParameter check params 1
 glQueryMatrixxOES check mantissa 16 check exponent 16 return -1
 # glReadPixels
 glShaderBinary check binary length
 // glShaderSource
 glTexEnv ifcheck params 4 pname GL_TEXTURE_ENV_COLOR
-glTexImage2D nullAllowed
+glTexImage2D nullAllowed pixels
+glTexImage3D nullAllowed pixels
 glTexParameter check params 1
-glTexSubImage2D nullAllowed
+glTexSubImage2D nullAllowed pixels
 glUniform1 check v count
 glUniform2 check v count*2
 glUniform3 check v count*3

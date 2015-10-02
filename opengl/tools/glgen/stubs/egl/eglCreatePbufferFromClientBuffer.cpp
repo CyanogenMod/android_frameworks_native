@@ -13,34 +13,30 @@ android_eglCreatePbufferFromClientBuffer
     jint _remaining;
     EGLint *attrib_list = (EGLint *) 0;
 
-    if (!attrib_list_ref) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "attrib_list == null";
-        goto exit;
-    }
-    if (offset < 0) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "offset < 0";
-        goto exit;
-    }
-    _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
-    attrib_list_base = (EGLint *)
-        _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
-    attrib_list = attrib_list_base + offset;
-    attrib_list_sentinel = false;
-    for (int i = _remaining - 1; i >= 0; i--)  {
-        if (attrib_list[i] == EGL_NONE){
-            attrib_list_sentinel = true;
-            break;
+    if (attrib_list_ref) {
+        if (offset < 0) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "offset < 0";
+            goto exit;
         }
-    }
-    if (attrib_list_sentinel == false) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "attrib_list must contain EGL_NONE!";
-        goto exit;
+        _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
+        attrib_list_base = (EGLint *)
+            _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
+        attrib_list = attrib_list_base + offset;
+        attrib_list_sentinel = false;
+        for (int i = _remaining - 1; i >= 0; i--)  {
+            if (attrib_list[i] == EGL_NONE){
+                attrib_list_sentinel = true;
+                break;
+            }
+        }
+        if (attrib_list_sentinel == false) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "attrib_list must contain EGL_NONE!";
+            goto exit;
+        }
     }
 
     _returnValue = eglCreatePbufferFromClientBuffer(

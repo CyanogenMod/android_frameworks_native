@@ -12,22 +12,18 @@ android_glGetActiveUniformBlockName_III_3II_3BI
     jint _nameRemaining;
     GLchar* _name = (GLchar*)0;
 
-    if (!length_ref) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "length == null";
-        goto exit;
+    if (length_ref) {
+        if (lengthOffset < 0) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "lengthOffset < 0";
+            goto exit;
+        }
+        _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
+        _length_base = (GLsizei*)_env->GetIntArrayElements(
+                length_ref, (jboolean*)0);
+        _length = _length_base + lengthOffset;
     }
-    if (lengthOffset < 0) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "lengthOffset < 0";
-        goto exit;
-    }
-    _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
-    _length_base = (GLsizei*)_env->GetIntArrayElements(
-            length_ref, (jboolean*)0);
-    _length = _length_base + lengthOffset;
 
     if (!name_ref) {
         _exception = 1;
