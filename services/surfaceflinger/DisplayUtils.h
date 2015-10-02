@@ -61,6 +61,7 @@ class DisplayUtils {
             sp<IGraphicBufferProducer> &producer, sp<IGraphicBufferProducer> bqProducer,
             sp<IGraphicBufferConsumer> bqConsumer, String8 currentStateDisplayName,
             bool currentStateIsSecure, int currentStateType);
+    bool canAllocateHwcDisplayIdForVDS(int usage);
     DisplayUtils();
   private:
     static DisplayUtils* sDisplayUtils;
