@@ -144,8 +144,7 @@ void StreamSplitter::onFrameAvailable(const BufferItem& /* item */) {
             bufferItem.mTimestamp, bufferItem.mIsAutoTimestamp,
             bufferItem.mDataSpace, bufferItem.mCrop,
             static_cast<int32_t>(bufferItem.mScalingMode),
-            bufferItem.mTransform, bufferItem.mIsDroppable,
-            bufferItem.mFence);
+            bufferItem.mTransform, bufferItem.mFence);
 
     // Attach and queue the buffer to each of the outputs
     Vector<sp<IGraphicBufferProducer> >::iterator output = mOutputs.begin();

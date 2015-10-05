@@ -81,7 +81,7 @@ public:
     // In both cases, the producer will need to call requestBuffer to get a
     // GraphicBuffer handle for the returned slot.
     virtual status_t dequeueBuffer(int *outSlot, sp<Fence>* outFence,
-            bool async, uint32_t width, uint32_t height, PixelFormat format,
+            uint32_t width, uint32_t height, PixelFormat format,
             uint32_t usage);
 
     // See IGraphicBufferProducer::detachBuffer
@@ -158,7 +158,7 @@ public:
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
 
     // See IGraphicBufferProducer::allocateBuffers
-    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+    virtual void allocateBuffers(uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage);
 
     // See IGraphicBufferProducer::allowAllocation
@@ -179,8 +179,8 @@ private:
     // mode (producer and consumer controlled by the application). If it blocks,
     // it will release mCore->mMutex while blocked so that other operations on
     // the BufferQueue may succeed.
-    status_t waitForFreeSlotThenRelock(const char* caller, bool async,
-            int* found, status_t* returnFlags) const;
+    status_t waitForFreeSlotThenRelock(const char* caller, int* found,
+            status_t* returnFlags) const;
 
     sp<BufferQueueCore> mCore;
 

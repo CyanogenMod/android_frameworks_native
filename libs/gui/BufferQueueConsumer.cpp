@@ -527,11 +527,13 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
     }
 
     if ((maxAcquiredBuffers + mCore->mMaxDequeuedBufferCount +
-            (mCore->mAsyncMode ? 1 : 0)) > mCore->mMaxBufferCount) {
+            (mCore->mAsyncMode || mCore->mDequeueBufferCannotBlock ? 1 : 0)) >
+            mCore->mMaxBufferCount) {
         BQ_LOGE("setMaxAcquiredBufferCount: %d acquired buffers would exceed "
                 "the maxBufferCount (%d) (maxDequeued %d async %d)",
                 maxAcquiredBuffers, mCore->mMaxBufferCount,
-                mCore->mMaxDequeuedBufferCount, mCore->mAsyncMode);
+                mCore->mMaxDequeuedBufferCount, mCore->mAsyncMode ||
+                mCore->mDequeueBufferCannotBlock);
         return BAD_VALUE;
     }
 

@@ -102,8 +102,7 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             }
         }
 
-        int bufferCount = mCore->getMinUndequeuedBufferCountLocked(
-                mCore->mAsyncMode);
+        int bufferCount = mCore->getMinUndequeuedBufferCountLocked();
         bufferCount += maxDequeuedBuffers;
 
         if (bufferCount > BufferQueueDefs::NUM_BUFFER_SLOTS) {
@@ -112,8 +111,7 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return BAD_VALUE;
         }
 
-        const int minBufferSlots = mCore->getMinMaxBufferCountLocked(
-                mCore->mAsyncMode);
+        const int minBufferSlots = mCore->getMinMaxBufferCountLocked();
         if (bufferCount < minBufferSlots) {
             BQ_LOGE("setMaxDequeuedBufferCount: requested buffer count %d is "
                     "less than minimum %d", bufferCount, minBufferSlots);
@@ -122,9 +120,10 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
 
         if (bufferCount > mCore->mMaxBufferCount) {
             BQ_LOGE("setMaxDequeuedBufferCount: %d dequeued buffers would "
-                    "exceed the maxBufferCount (%d) (maxAcquired %d async %d)",
-                    maxDequeuedBuffers, mCore->mMaxBufferCount,
-                    mCore->mMaxAcquiredBufferCount, mCore->mAsyncMode);
+                    "exceed the maxBufferCount (%d) (maxAcquired %d async %d "
+                    "mDequeuedBufferCannotBlock %d)", maxDequeuedBuffers,
+                    mCore->mMaxBufferCount, mCore->mMaxAcquiredBufferCount,
+                    mCore->mAsyncMode, mCore->mDequeueBufferCannotBlock);
             return BAD_VALUE;
         }
 
@@ -169,12 +168,14 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
         }
 
         if ((mCore->mMaxAcquiredBufferCount + mCore->mMaxDequeuedBufferCount +
-                (async ? 1 : 0)) > mCore->mMaxBufferCount) {
+                (async || mCore->mDequeueBufferCannotBlock ? 1 : 0)) >
+                mCore->mMaxBufferCount) {
             BQ_LOGE("setAsyncMode(%d): this call would cause the "
                     "maxBufferCount (%d) to be exceeded (maxAcquired %d "
-                    "maxDequeued %d)", async,mCore->mMaxBufferCount,
-                    mCore->mMaxAcquiredBufferCount,
-                    mCore->mMaxDequeuedBufferCount);
+                    "maxDequeued %d mDequeueBufferCannotBlock %d)", async,
+                    mCore->mMaxBufferCount, mCore->mMaxAcquiredBufferCount,
+                    mCore->mMaxDequeuedBufferCount,
+                    mCore->mDequeueBufferCannotBlock);
             return BAD_VALUE;
         }
 
@@ -191,7 +192,7 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
 }
 
 status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
-        bool async, int* found, status_t* returnFlags) const {
+        int* found, status_t* returnFlags) const {
     bool tryAgain = true;
     while (tryAgain) {
         if (mCore->mIsAbandoned) {
@@ -199,7 +200,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
             return NO_INIT;
         }
 
-        const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+        const int maxBufferCount = mCore->getMaxBufferCountLocked();
 
         // Free up any buffers that are in slots beyond the max buffer count
         for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
@@ -285,8 +286,8 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
 }
 
 status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
-        sp<android::Fence> *outFence, bool async,
-        uint32_t width, uint32_t height, PixelFormat format, uint32_t usage) {
+        sp<android::Fence> *outFence, uint32_t width, uint32_t height,
+        PixelFormat format, uint32_t usage) {
     ATRACE_CALL();
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
@@ -303,8 +304,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         }
     } // Autolock scope
 
-    BQ_LOGV("dequeueBuffer: async=%s w=%u h=%u format=%#x, usage=%#x",
-            async ? "true" : "false", width, height, format, usage);
+    BQ_LOGV("dequeueBuffer: w=%u h=%u format=%#x, usage=%#x", width, height,
+            format, usage);
 
     if ((width && !height) || (!width && height)) {
         BQ_LOGE("dequeueBuffer: invalid size: w=%u h=%u", width, height);
@@ -335,8 +336,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         int found = BufferItem::INVALID_BUFFER_SLOT;
         while (found == BufferItem::INVALID_BUFFER_SLOT) {
-            status_t status = waitForFreeSlotThenRelock("dequeueBuffer", async,
-                    &found, &returnFlags);
+            status_t status = waitForFreeSlotThenRelock("dequeueBuffer", &found,
+                    &returnFlags);
             if (status != NO_ERROR) {
                 return status;
             }
@@ -572,11 +573,8 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
 
     status_t returnFlags = NO_ERROR;
     int found;
-    // TODO: Should we provide an async flag to attachBuffer? It seems
-    // unlikely that buffers which we are attaching to a BufferQueue will
-    // be asynchronous (droppable), but it may not be impossible.
-    status_t status = waitForFreeSlotThenRelock("attachBuffer(P)", false,
-            &found, &returnFlags);
+    status_t status = waitForFreeSlotThenRelock("attachBuffer(P)", &found,
+            &returnFlags);
     if (status != NO_ERROR) {
         return status;
     }
@@ -615,10 +613,9 @@ status_t BufferQueueProducer::queueBuffer(int slot,
     int scalingMode;
     uint32_t transform;
     uint32_t stickyTransform;
-    bool async;
     sp<Fence> fence;
     input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop, &scalingMode,
-            &transform, &async, &fence, &stickyTransform);
+            &transform, &fence, &stickyTransform);
     Region surfaceDamage = input.getSurfaceDamage();
 
     if (fence == NULL) {
@@ -654,7 +651,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return NO_INIT;
         }
 
-        const int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+        const int maxBufferCount = mCore->getMaxBufferCountLocked();
 
         if (slot < 0 || slot >= maxBufferCount) {
             BQ_LOGE("queueBuffer: slot index %d out of range [0, %d)",
@@ -710,7 +707,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         item.mFrameNumber = mCore->mFrameCounter;
         item.mSlot = slot;
         item.mFence = fence;
-        item.mIsDroppable = mCore->mDequeueBufferCannotBlock || async;
+        item.mIsDroppable = mCore->mAsyncMode ||
+                mCore->mDequeueBufferCannotBlock;
         item.mSurfaceDamage = surfaceDamage;
 
         mStickyTransform = stickyTransform;
@@ -853,7 +851,7 @@ int BufferQueueProducer::query(int what, int *outValue) {
             value = static_cast<int32_t>(mCore->mDefaultBufferFormat);
             break;
         case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
-            value = mCore->getMinUndequeuedBufferCountLocked(false);
+            value = mCore->getMinUndequeuedBufferCountLocked();
             break;
         case NATIVE_WINDOW_STICKY_TRANSFORM:
             value = static_cast<int32_t>(mStickyTransform);
@@ -943,8 +941,8 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
     }
 
     mCore->mBufferHasBeenQueued = false;
-    mCore->mDequeueBufferCannotBlock =
-            mCore->mConsumerControlledByApp && producerControlledByApp;
+    mCore->mDequeueBufferCannotBlock =  mCore->mConsumerControlledByApp &&
+            producerControlledByApp;
     mCore->mAllowAllocation = true;
 
     return status;
@@ -1023,8 +1021,8 @@ status_t BufferQueueProducer::setSidebandStream(const sp<NativeHandle>& stream) 
     return NO_ERROR;
 }
 
-void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
-        uint32_t height, PixelFormat format, uint32_t usage) {
+void BufferQueueProducer::allocateBuffers(uint32_t width, uint32_t height,
+        PixelFormat format, uint32_t usage) {
     ATRACE_CALL();
     while (true) {
         Vector<int> freeSlots;
@@ -1058,7 +1056,7 @@ void BufferQueueProducer::allocateBuffers(bool async, uint32_t width,
                 }
             }
 
-            int maxBufferCount = mCore->getMaxBufferCountLocked(async);
+            int maxBufferCount = mCore->getMaxBufferCountLocked();
             BQ_LOGV("allocateBuffers: allocating from %d buffers up to %d buffers",
                     currentBufferCount, maxBufferCount);
             if (maxBufferCount <= currentBufferCount)

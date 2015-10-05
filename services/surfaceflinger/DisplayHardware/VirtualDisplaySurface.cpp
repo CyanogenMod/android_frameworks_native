@@ -92,6 +92,7 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mConsumer->setConsumerName(ConsumerBase::mName);
     mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
     mConsumer->setDefaultBufferSize(sinkWidth, sinkHeight);
+    sink->setAsyncMode(true);
 }
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {
@@ -238,7 +239,6 @@ void VirtualDisplaySurface::onFrameCommitted() {
                         HAL_DATASPACE_UNKNOWN,
                         Rect(mSinkBufferWidth, mSinkBufferHeight),
                         NATIVE_WINDOW_SCALING_MODE_FREEZE, 0 /* transform */,
-                        true /* async*/,
                         outFence),
                     &qbo);
             if (result == NO_ERROR) {
@@ -293,10 +293,8 @@ status_t VirtualDisplaySurface::setAsyncMode(bool async) {
 status_t VirtualDisplaySurface::dequeueBuffer(Source source,
         PixelFormat format, uint32_t usage, int* sslot, sp<Fence>* fence) {
     LOG_FATAL_IF(mDisplayId < 0, "mDisplayId=%d but should not be < 0.", mDisplayId);
-    // Don't let a slow consumer block us
-    bool async = (source == SOURCE_SINK);
 
-    status_t result = mSource[source]->dequeueBuffer(sslot, fence, async,
+    status_t result = mSource[source]->dequeueBuffer(sslot, fence,
             mSinkBufferWidth, mSinkBufferHeight, format, usage);
     if (result < 0)
         return result;
@@ -335,16 +333,15 @@ status_t VirtualDisplaySurface::dequeueBuffer(Source source,
     return result;
 }
 
-status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool async,
+status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence,
         uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) {
     if (mDisplayId < 0)
-        return mSource[SOURCE_SINK]->dequeueBuffer(pslot, fence, async, w, h, format, usage);
+        return mSource[SOURCE_SINK]->dequeueBuffer(pslot, fence, w, h, format, usage);
 
     VDS_LOGW_IF(mDbgState != DBG_STATE_PREPARED,
             "Unexpected dequeueBuffer() in %s state", dbgStateStr());
     mDbgState = DBG_STATE_GLES;
 
-    VDS_LOGW_IF(!async, "EGL called dequeueBuffer with !async despite eglSwapInterval(0)");
     VDS_LOGV("dequeueBuffer %dx%d fmt=%d usage=%#x", w, h, format, usage);
 
     status_t result = NO_ERROR;
@@ -464,9 +461,8 @@ status_t VirtualDisplaySurface::queueBuffer(int pslot,
         Rect crop;
         int scalingMode;
         uint32_t transform;
-        bool async;
         input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop,
-                &scalingMode, &transform, &async, &mFbFence);
+                &scalingMode, &transform, &mFbFence);
 
         mFbProducerSlot = pslot;
         mOutputFence = mFbFence;
@@ -525,9 +521,8 @@ status_t VirtualDisplaySurface::setSidebandStream(const sp<NativeHandle>& /*stre
     return INVALID_OPERATION;
 }
 
-void VirtualDisplaySurface::allocateBuffers(bool /* async */,
-        uint32_t /* width */, uint32_t /* height */, PixelFormat /* format */,
-        uint32_t /* usage */) {
+void VirtualDisplaySurface::allocateBuffers(uint32_t /* width */,
+        uint32_t /* height */, PixelFormat /* format */, uint32_t /* usage */) {
     // TODO: Should we actually allocate buffers for a virtual display?
 }
 

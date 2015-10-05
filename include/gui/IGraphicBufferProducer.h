@@ -147,9 +147,6 @@ public:
     // fence signals. If the fence is Fence::NO_FENCE, the buffer may be written
     // immediately.
     //
-    // The async parameter sets whether we're in asynchronous mode for this
-    // dequeueBuffer() call.
-    //
     // The width and height parameters must be no greater than the minimum of
     // GL_MAX_VIEWPORT_DIMS and GL_MAX_TEXTURE_SIZE (see: glGetIntegerv).
     // An error due to invalid dimensions might not be reported until
@@ -187,8 +184,8 @@ public:
     //
     // All other negative values are an unknown error returned downstream
     // from the graphics allocator (typically errno).
-    virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, bool async,
-            uint32_t w, uint32_t h, PixelFormat format, uint32_t usage) = 0;
+    virtual status_t dequeueBuffer(int* slot, sp<Fence>* fence, uint32_t w,
+            uint32_t h, PixelFormat format, uint32_t usage) = 0;
 
     // detachBuffer attempts to remove all ownership of the buffer in the given
     // slot from the buffer queue. If this call succeeds, the slot will be
@@ -297,23 +294,21 @@ public:
         // crop - a crop rectangle that's used as a hint to the consumer
         // scalingMode - a set of flags from NATIVE_WINDOW_SCALING_* in <window.h>
         // transform - a set of flags from NATIVE_WINDOW_TRANSFORM_* in <window.h>
-        // async - if the buffer is queued in asynchronous mode
         // fence - a fence that the consumer must wait on before reading the buffer,
         //         set this to Fence::NO_FENCE if the buffer is ready immediately
         // sticky - the sticky transform set in Surface (only used by the LEGACY
         //          camera mode).
         inline QueueBufferInput(int64_t timestamp, bool isAutoTimestamp,
                 android_dataspace dataSpace, const Rect& crop, int scalingMode,
-                uint32_t transform, bool async, const sp<Fence>& fence,
-                uint32_t sticky = 0)
+                uint32_t transform, const sp<Fence>& fence, uint32_t sticky = 0)
                 : timestamp(timestamp), isAutoTimestamp(isAutoTimestamp),
                   dataSpace(dataSpace), crop(crop), scalingMode(scalingMode),
-                  transform(transform), stickyTransform(sticky),
-                  async(async), fence(fence), surfaceDamage() { }
+                  transform(transform), stickyTransform(sticky), fence(fence),
+                  surfaceDamage() { }
         inline void deflate(int64_t* outTimestamp, bool* outIsAutoTimestamp,
                 android_dataspace* outDataSpace,
                 Rect* outCrop, int* outScalingMode,
-                uint32_t* outTransform, bool* outAsync, sp<Fence>* outFence,
+                uint32_t* outTransform, sp<Fence>* outFence,
                 uint32_t* outStickyTransform = NULL) const {
             *outTimestamp = timestamp;
             *outIsAutoTimestamp = bool(isAutoTimestamp);
@@ -321,7 +316,6 @@ public:
             *outCrop = crop;
             *outScalingMode = scalingMode;
             *outTransform = transform;
-            *outAsync = bool(async);
             *outFence = fence;
             if (outStickyTransform != NULL) {
                 *outStickyTransform = stickyTransform;
@@ -345,7 +339,6 @@ public:
         int scalingMode;
         uint32_t transform;
         uint32_t stickyTransform;
-        int async;
         sp<Fence> fence;
         Region surfaceDamage;
     };
@@ -381,8 +374,8 @@ public:
         uint32_t numPendingBuffers;
     };
 
-    virtual status_t queueBuffer(int slot,
-            const QueueBufferInput& input, QueueBufferOutput* output) = 0;
+    virtual status_t queueBuffer(int slot, const QueueBufferInput& input,
+            QueueBufferOutput* output) = 0;
 
     // cancelBuffer indicates that the client does not wish to fill in the
     // buffer associated with slot and transfers ownership of the slot back to
@@ -493,7 +486,7 @@ public:
     // allocated. This is most useful to avoid an allocation delay during
     // dequeueBuffer. If there are already the maximum number of buffers
     // allocated, this function has no effect.
-    virtual void allocateBuffers(bool async, uint32_t width, uint32_t height,
+    virtual void allocateBuffers(uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage) = 0;
 
     // Sets whether dequeueBuffer is allowed to allocate new buffers.

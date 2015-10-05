@@ -85,25 +85,25 @@ private:
     // getMinUndequeuedBufferCountLocked returns the minimum number of buffers
     // that must remain in a state other than DEQUEUED. The async parameter
     // tells whether we're in asynchronous mode.
-    int getMinUndequeuedBufferCountLocked(bool async) const;
+    int getMinUndequeuedBufferCountLocked() const;
 
     // getMinMaxBufferCountLocked returns the minimum number of buffers allowed
     // given the current BufferQueue state. The async parameter tells whether
     // we're in asynchonous mode.
-    int getMinMaxBufferCountLocked(bool async) const;
+    int getMinMaxBufferCountLocked() const;
 
     // getMaxBufferCountLocked returns the maximum number of buffers that can be
     // allocated at once. This value depends on the following member variables:
     //
-    //     mDequeueBufferCannotBlock
+    //     mMaxDequeuedBufferCount
     //     mMaxAcquiredBufferCount
-    //     mDefaultMaxBufferCount
-    //     mOverrideMaxBufferCount
-    //     async parameter
+    //     mMaxBufferCount
+    //     mAsyncMode
+    //     mDequeueBufferCannotBlock
     //
     // Any time one of these member variables is changed while a producer is
     // connected, mDequeueCondition must be broadcast.
-    int getMaxBufferCountLocked(bool async) const;
+    int getMaxBufferCountLocked() const;
 
     // freeBufferLocked frees the GraphicBuffer and sync resources for the
     // given slot.
