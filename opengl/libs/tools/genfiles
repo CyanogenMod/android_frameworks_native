@@ -40,8 +40,6 @@ cat /tmp/gl_entries.in \
         | awk -F, '!_[$2]++' \
             > ../entries.in
 
-./gltracegen ../entries.in >../trace.in
-
 cat ../../include/GLES/gl.h \
     ../../include/GLES/glext.h \
     ../../include/GLES2/gl2ext.h \
