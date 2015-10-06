@@ -113,14 +113,10 @@ public:
     // allow for the asynchronous behavior. If it is not enabled queue/dequeue
     // calls may block.
     //
-    // This function should not be called when there are any currently dequeued
-    // buffer slots, doing so will result in a BAD_VALUE error.
-    //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
-    // * BAD_VALUE - one of the below conditions occurred:
-    //     * client has one or more buffers dequeued
-    //     * this call would cause the maxBufferCount value to be exceeded
+    // * BAD_VALUE - this call would cause the maxBufferCount value to be
+    //               exceeded
     virtual status_t setAsyncMode(bool async) = 0;
 
     // dequeueBuffer requests a new buffer slot for the client to use. Ownership

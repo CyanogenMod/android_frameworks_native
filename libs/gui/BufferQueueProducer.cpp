@@ -159,14 +159,6 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
             return NO_INIT;
         }
 
-        // There must be no dequeued buffers when changing the async mode.
-        for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-            if (mSlots[s].mBufferState == BufferSlot::DEQUEUED) {
-                BQ_LOGE("setAsyncMode: buffer owned by producer");
-                return BAD_VALUE;
-            }
-        }
-
         if ((mCore->mMaxAcquiredBufferCount + mCore->mMaxDequeuedBufferCount +
                 (async || mCore->mDequeueBufferCannotBlock ? 1 : 0)) >
                 mCore->mMaxBufferCount) {
