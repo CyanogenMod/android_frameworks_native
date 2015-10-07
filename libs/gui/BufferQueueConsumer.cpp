@@ -203,10 +203,14 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
                     (mCore->mSingleBufferCache.transform &
                     NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY) != 0;
             outBuffer->mSurfaceDamage = Region::INVALID_REGION;
+            outBuffer->mSingleBufferMode = true;
+            outBuffer->mQueuedBuffer = false;
         } else {
             slot = front->mSlot;
             *outBuffer = *front;
         }
+
+        outBuffer->mSingleBufferMode = mCore->mSingleBufferMode;
 
         ATRACE_BUFFER_INDEX(slot);
 

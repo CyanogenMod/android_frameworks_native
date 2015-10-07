@@ -744,6 +744,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 mCore->mDequeueBufferCannotBlock ||
                 (mCore->mSingleBufferMode && mCore->mSingleBufferSlot == slot);
         item.mSurfaceDamage = surfaceDamage;
+        item.mSingleBufferMode = mCore->mSingleBufferMode;
+        item.mQueuedBuffer = true;
 
         mStickyTransform = stickyTransform;
 

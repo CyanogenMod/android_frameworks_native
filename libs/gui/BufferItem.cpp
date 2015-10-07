@@ -37,7 +37,9 @@ BufferItem::BufferItem() :
     mIsDroppable(false),
     mAcquireCalled(false),
     mTransformToDisplayInverse(false),
-    mSurfaceDamage() {
+    mSurfaceDamage(),
+    mSingleBufferMode(false),
+    mQueuedBuffer(true) {
 }
 
 BufferItem::~BufferItem() {}

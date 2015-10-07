@@ -32,7 +32,8 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
-        const DispSync& dispSync, uint64_t maxFrameNumber)
+        const DispSync& dispSync, bool* singleBufferMode, bool* queuedBuffer,
+        uint64_t maxFrameNumber)
 {
     ATRACE_CALL();
     ALOGV("updateTexImage");
@@ -68,7 +69,6 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
         return err;
     }
 
-
     // We call the rejecter here, in case the caller has a reason to
     // not accept this buffer.  This is used by SurfaceFlinger to
     // reject buffers which have the wrong size
@@ -76,6 +76,14 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
     if (rejecter && rejecter->reject(mSlots[slot].mGraphicBuffer, item)) {
         releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer, EGL_NO_SYNC_KHR);
         return BUFFER_REJECTED;
+    }
+
+    if (singleBufferMode) {
+        *singleBufferMode = item.mSingleBufferMode;
+    }
+
+    if (queuedBuffer) {
+        *queuedBuffer = item.mQueuedBuffer;
     }
 
     // Release the previous buffer.

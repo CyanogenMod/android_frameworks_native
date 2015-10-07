@@ -306,7 +306,8 @@ public:
     /*
      * Returns if a frame is queued.
      */
-    bool hasQueuedFrame() const { return mQueuedFrames > 0 || mSidebandStreamChanged; }
+    bool hasQueuedFrame() const { return mQueuedFrames > 0 ||
+            mSidebandStreamChanged || mSingleBufferMode; }
 
     // -----------------------------------------------------------------------
 
@@ -489,6 +490,8 @@ private:
     Vector<BufferItem> mQueueItems;
     uint64_t mLastFrameNumberReceived;
     bool mUpdateTexImageFailed; // This is only modified from the main thread
+
+    bool mSingleBufferMode;
 };
 
 // ---------------------------------------------------------------------------
