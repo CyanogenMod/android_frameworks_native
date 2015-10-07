@@ -424,6 +424,11 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
                     mCurrentTextureImage->graphicBufferHandle() : 0,
             slot, mSlots[slot].mGraphicBuffer->handle);
 
+    // Hang onto the pointer so that it isn't freed in the call to
+    // releaseBufferLocked() if we're in single buffer mode and both buffers are
+    // the same.
+    sp<EglImage> nextTextureImage = mEglSlots[slot].mEglImage;
+
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
         status_t status = releaseBufferLocked(
@@ -439,7 +444,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
 
     // Update the GLConsumer state.
     mCurrentTexture = slot;
-    mCurrentTextureImage = mEglSlots[slot].mEglImage;
+    mCurrentTextureImage = nextTextureImage;
     mCurrentCrop = item.mCrop;
     mCurrentTransform = item.mTransform;
     mCurrentScalingMode = item.mScalingMode;

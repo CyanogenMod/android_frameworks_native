@@ -550,6 +550,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_SURFACE_DAMAGE:
         res = dispatchSetSurfaceDamage(args);
         break;
+    case NATIVE_WINDOW_SET_SINGLE_BUFFER_MODE:
+        res = dispatchSetSingleBufferMode(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -657,6 +660,12 @@ int Surface::dispatchSetSurfaceDamage(va_list args) {
     android_native_rect_t* rects = va_arg(args, android_native_rect_t*);
     size_t numRects = va_arg(args, size_t);
     setSurfaceDamage(rects, numRects);
+    return NO_ERROR;
+}
+
+int Surface::dispatchSetSingleBufferMode(va_list args) {
+    bool singleBufferMode = va_arg(args, int);
+    setSingleBufferMode(singleBufferMode);
     return NO_ERROR;
 }
 
@@ -857,6 +866,19 @@ int Surface::setAsyncMode(bool async) {
     if (err == NO_ERROR) {
         freeAllBuffers();
     }
+
+    return err;
+}
+
+int Surface::setSingleBufferMode(bool singleBufferMode) {
+    ATRACE_CALL();
+    ALOGV("Surface::setSingleBufferMode (%d)", singleBufferMode);
+    Mutex::Autolock lock(mMutex);
+
+    status_t err = mGraphicBufferProducer->setSingleBufferMode(
+            singleBufferMode);
+    ALOGE_IF(err, "IGraphicsBufferProducer::setSingleBufferMode(%d) returned"
+            "%s", singleBufferMode, strerror(-err));
 
     return err;
 }

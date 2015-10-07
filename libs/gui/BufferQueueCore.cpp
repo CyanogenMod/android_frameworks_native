@@ -69,7 +69,11 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mAllowAllocation(true),
     mBufferAge(0),
     mGenerationNumber(0),
-    mAsyncMode(false)
+    mAsyncMode(false),
+    mSingleBufferMode(false),
+    mSingleBufferSlot(INVALID_BUFFER_SLOT),
+    mSingleBufferCache(Rect::INVALID_RECT, 0, NATIVE_WINDOW_SCALING_MODE_FREEZE,
+            HAL_DATASPACE_UNKNOWN)
 {
     if (allocator == NULL) {
         sp<ISurfaceComposer> composer(ComposerService::getComposerService());
@@ -113,7 +117,7 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
     int maxBufferCount = 0;
     for (int s = BufferQueueDefs::NUM_BUFFER_SLOTS - 1; s >= 0; --s) {
         const BufferSlot& slot(mSlots[s]);
-        if (slot.mBufferState != BufferSlot::FREE ||
+        if (!slot.mBufferState.isFree() ||
                 slot.mGraphicBuffer != NULL) {
             maxBufferCount = s + 1;
             break;
@@ -124,9 +128,9 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
         const BufferSlot& slot(mSlots[s]);
         const sp<GraphicBuffer>& buffer(slot.mGraphicBuffer);
         result.appendFormat("%s%s[%02d:%p] state=%-8s", prefix,
-                (slot.mBufferState == BufferSlot::ACQUIRED) ? ">" : " ",
+                (slot.mBufferState.isAcquired()) ? ">" : " ",
                 s, buffer.get(),
-                BufferSlot::bufferStateName(slot.mBufferState));
+                slot.mBufferState.string());
 
         if (buffer != NULL) {
             result.appendFormat(", %p [%4ux%4u:%4u,%3X]", buffer->handle,
@@ -164,8 +168,8 @@ int BufferQueueCore::getMaxBufferCountLocked() const {
     // will temporarily keep the max buffer count up until the slots no longer
     // need to be preserved.
     for (int s = maxBufferCount; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-        BufferSlot::BufferState state = mSlots[s].mBufferState;
-        if (state == BufferSlot::QUEUED || state == BufferSlot::DEQUEUED) {
+        BufferState state = mSlots[s].mBufferState;
+        if (state.isQueued() || state.isDequeued()) {
             maxBufferCount = s + 1;
         }
     }
@@ -173,14 +177,14 @@ int BufferQueueCore::getMaxBufferCountLocked() const {
     return maxBufferCount;
 }
 
-void BufferQueueCore::freeBufferLocked(int slot) {
+void BufferQueueCore::freeBufferLocked(int slot, bool validate) {
     BQ_LOGV("freeBufferLocked: slot %d", slot);
     bool hadBuffer = mSlots[slot].mGraphicBuffer != NULL;
     mSlots[slot].mGraphicBuffer.clear();
-    if (mSlots[slot].mBufferState == BufferSlot::ACQUIRED) {
+    if (mSlots[slot].mBufferState.isAcquired()) {
         mSlots[slot].mNeedsCleanupOnRelease = true;
     }
-    if (mSlots[slot].mBufferState != BufferSlot::FREE) {
+    if (!mSlots[slot].mBufferState.isFree()) {
         mFreeSlots.insert(slot);
     } else if (hadBuffer) {
         // If the slot was FREE, but we had a buffer, we need to move this slot
@@ -188,7 +192,6 @@ void BufferQueueCore::freeBufferLocked(int slot) {
         mFreeBuffers.remove(slot);
         mFreeSlots.insert(slot);
     }
-    mSlots[slot].mBufferState = BufferSlot::FREE;
     mSlots[slot].mAcquireCalled = false;
     mSlots[slot].mFrameNumber = 0;
 
@@ -198,14 +201,19 @@ void BufferQueueCore::freeBufferLocked(int slot) {
         mSlots[slot].mEglFence = EGL_NO_SYNC_KHR;
     }
     mSlots[slot].mFence = Fence::NO_FENCE;
-    validateConsistencyLocked();
+    if (validate) {
+        validateConsistencyLocked();
+    }
 }
 
 void BufferQueueCore::freeAllBuffersLocked() {
     mBufferHasBeenQueued = false;
     for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-        freeBufferLocked(s);
+        freeBufferLocked(s, false);
+        mSlots[s].mBufferState.reset();
     }
+    mSingleBufferSlot = INVALID_BUFFER_SLOT;
+    validateConsistencyLocked();
 }
 
 bool BufferQueueCore::stillTracking(const BufferItem* item) const {
@@ -238,7 +246,8 @@ void BufferQueueCore::validateConsistencyLocked() const {
         bool isInFreeBuffers =
                 std::find(mFreeBuffers.cbegin(), mFreeBuffers.cend(), slot) !=
                 mFreeBuffers.cend();
-        if (mSlots[slot].mBufferState == BufferSlot::FREE) {
+        if (mSlots[slot].mBufferState.isFree() &&
+                !mSlots[slot].mBufferState.isShared()) {
             if (mSlots[slot].mGraphicBuffer == NULL) {
                 if (!isInFreeSlots) {
                     BQ_LOGE("Slot %d is FREE but is not in mFreeSlots", slot);
@@ -262,13 +271,13 @@ void BufferQueueCore::validateConsistencyLocked() const {
             }
         } else {
             if (isInFreeSlots) {
-                BQ_LOGE("Slot %d is in mFreeSlots but is not FREE (%d)",
-                        slot, mSlots[slot].mBufferState);
+                BQ_LOGE("Slot %d is in mFreeSlots but is not FREE (%s)",
+                        slot, mSlots[slot].mBufferState.string());
                 usleep(PAUSE_TIME);
             }
             if (isInFreeBuffers) {
-                BQ_LOGE("Slot %d is in mFreeBuffers but is not FREE (%d)",
-                        slot, mSlots[slot].mBufferState);
+                BQ_LOGE("Slot %d is in mFreeBuffers but is not FREE (%s)",
+                        slot, mSlots[slot].mBufferState.string());
                 usleep(PAUSE_TIME);
             }
         }

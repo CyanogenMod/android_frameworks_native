@@ -547,6 +547,10 @@ uint64_t VirtualDisplaySurface::getNextFrameNumber() const {
     return 0;
 }
 
+status_t VirtualDisplaySurface::setSingleBufferMode(bool singleBufferMode) {
+    return mSource[SOURCE_SINK]->setSingleBufferMode(singleBufferMode);
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

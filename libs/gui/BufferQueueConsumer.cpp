@@ -50,7 +50,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         // buffer before releasing the old one.
         int numAcquiredBuffers = 0;
         for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-            if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
+            if (mSlots[s].mBufferState.isAcquired()) {
                 ++numAcquiredBuffers;
             }
         }
@@ -60,10 +60,13 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
             return INVALID_OPERATION;
         }
 
-        // Check if the queue is empty.
+        bool sharedBufferAvailable = mCore->mSingleBufferMode &&
+                mCore->mSingleBufferSlot !=
+                BufferQueueCore::INVALID_BUFFER_SLOT;
+
         // In asynchronous mode the list is guaranteed to be one buffer deep,
         // while in synchronous mode we use the oldest buffer.
-        if (mCore->mQueue.empty()) {
+        if (mCore->mQueue.empty() && !sharedBufferAvailable) {
             return NO_BUFFER_AVAILABLE;
         }
 
@@ -72,7 +75,9 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         // If expectedPresent is specified, we may not want to return a buffer yet.
         // If it's specified and there's more than one buffer queued, we may want
         // to drop a buffer.
-        if (expectedPresent != 0) {
+        // Skip this if we're in single buffer mode and the queue is empty,
+        // since in that case we'll just return the shared buffer.
+        if (expectedPresent != 0 && !mCore->mQueue.empty()) {
             const int MAX_REASONABLE_NSEC = 1000000000ULL; // 1 second
 
             // The 'expectedPresent' argument indicates when the buffer is expected
@@ -130,8 +135,19 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
                         desiredPresent, expectedPresent, mCore->mQueue.size());
                 if (mCore->stillTracking(front)) {
                     // Front buffer is still in mSlots, so mark the slot as free
-                    mSlots[front->mSlot].mBufferState = BufferSlot::FREE;
-                    mCore->mFreeBuffers.push_back(front->mSlot);
+                    mSlots[front->mSlot].mBufferState.freeQueued();
+
+                    // After leaving single buffer mode, the shared buffer will
+                    // still be around. Mark it as no longer shared if this
+                    // operation causes it to be free.
+                    if (!mCore->mSingleBufferMode &&
+                            mSlots[front->mSlot].mBufferState.isFree()) {
+                        mSlots[front->mSlot].mBufferState.mShared = false;
+                    }
+                    // Don't put the shared buffer on the free list.
+                    if (!mSlots[front->mSlot].mBufferState.isShared()) {
+                        mCore->mFreeBuffers.push_back(front->mSlot);
+                    }
                     listener = mCore->mConnectedProducerListener;
                     ++numDroppedBuffers;
                 }
@@ -162,17 +178,52 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
                     systemTime(CLOCK_MONOTONIC));
         }
 
-        int slot = front->mSlot;
-        *outBuffer = *front;
+        int slot = BufferQueueCore::INVALID_BUFFER_SLOT;
+
+        if (sharedBufferAvailable && mCore->mQueue.empty()) {
+            // make sure the buffer has finished allocating before acquiring it
+            mCore->waitWhileAllocatingLocked();
+
+            slot = mCore->mSingleBufferSlot;
+
+            // Recreate the BufferItem for the shared buffer from the data that
+            // was cached when it was last queued.
+            outBuffer->mGraphicBuffer = mSlots[slot].mGraphicBuffer;
+            outBuffer->mFence = Fence::NO_FENCE;
+            outBuffer->mCrop = mCore->mSingleBufferCache.crop;
+            outBuffer->mTransform = mCore->mSingleBufferCache.transform &
+                    ~static_cast<uint32_t>(
+                    NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
+            outBuffer->mScalingMode = mCore->mSingleBufferCache.scalingMode;
+            outBuffer->mDataSpace = mCore->mSingleBufferCache.dataspace;
+            outBuffer->mFrameNumber = mCore->mFrameCounter;
+            outBuffer->mSlot = slot;
+            outBuffer->mAcquireCalled = mSlots[slot].mAcquireCalled;
+            outBuffer->mTransformToDisplayInverse =
+                    (mCore->mSingleBufferCache.transform &
+                    NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY) != 0;
+            outBuffer->mSurfaceDamage = Region::INVALID_REGION;
+        } else {
+            slot = front->mSlot;
+            *outBuffer = *front;
+        }
+
         ATRACE_BUFFER_INDEX(slot);
 
         BQ_LOGV("acquireBuffer: acquiring { slot=%d/%" PRIu64 " buffer=%p }",
-                slot, front->mFrameNumber, front->mGraphicBuffer->handle);
+                slot, outBuffer->mFrameNumber, outBuffer->mGraphicBuffer->handle);
         // If the front buffer is still being tracked, update its slot state
-        if (mCore->stillTracking(front)) {
+        if (mCore->stillTracking(outBuffer)) {
             mSlots[slot].mAcquireCalled = true;
             mSlots[slot].mNeedsCleanupOnRelease = false;
-            mSlots[slot].mBufferState = BufferSlot::ACQUIRED;
+            // Don't decrease the queue count if the BufferItem wasn't
+            // previously in the queue. This happens in single buffer mode when
+            // the queue is empty and the BufferItem is created above.
+            if (mCore->mQueue.empty()) {
+                mSlots[slot].mBufferState.acquireNotInQueue();
+            } else {
+                mSlots[slot].mBufferState.acquire();
+            }
             mSlots[slot].mFence = Fence::NO_FENCE;
         }
 
@@ -207,24 +258,31 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
 status_t BufferQueueConsumer::detachBuffer(int slot) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);
-    BQ_LOGV("detachBuffer(C): slot %d", slot);
+    BQ_LOGV("detachBuffer: slot %d", slot);
     Mutex::Autolock lock(mCore->mMutex);
 
     if (mCore->mIsAbandoned) {
-        BQ_LOGE("detachBuffer(C): BufferQueue has been abandoned");
+        BQ_LOGE("detachBuffer: BufferQueue has been abandoned");
         return NO_INIT;
     }
 
-    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
-        BQ_LOGE("detachBuffer(C): slot index %d out of range [0, %d)",
-                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
-        return BAD_VALUE;
-    } else if (mSlots[slot].mBufferState != BufferSlot::ACQUIRED) {
-        BQ_LOGE("detachBuffer(C): slot %d is not owned by the consumer "
-                "(state = %d)", slot, mSlots[slot].mBufferState);
+    if (mCore->mSingleBufferMode) {
+        BQ_LOGE("detachBuffer: detachBuffer not allowed in single buffer"
+                "mode");
         return BAD_VALUE;
     }
 
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("detachBuffer: slot index %d out of range [0, %d)",
+                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
+        return BAD_VALUE;
+    } else if (!mSlots[slot].mBufferState.isAcquired()) {
+        BQ_LOGE("detachBuffer: slot %d is not owned by the consumer "
+                "(state = %s)", slot, mSlots[slot].mBufferState.string());
+        return BAD_VALUE;
+    }
+
+    mSlots[slot].mBufferState.detachConsumer();
     mCore->freeBufferLocked(slot);
     mCore->mDequeueCondition.broadcast();
     mCore->validateConsistencyLocked();
@@ -237,25 +295,31 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
     ATRACE_CALL();
 
     if (outSlot == NULL) {
-        BQ_LOGE("attachBuffer(P): outSlot must not be NULL");
+        BQ_LOGE("attachBuffer: outSlot must not be NULL");
         return BAD_VALUE;
     } else if (buffer == NULL) {
-        BQ_LOGE("attachBuffer(P): cannot attach NULL buffer");
+        BQ_LOGE("attachBuffer: cannot attach NULL buffer");
         return BAD_VALUE;
     }
 
     Mutex::Autolock lock(mCore->mMutex);
 
+    if (mCore->mSingleBufferMode) {
+        BQ_LOGE("attachBuffer: cannot attach a buffer in single buffer"
+                "mode");
+        return BAD_VALUE;
+    }
+
     // Make sure we don't have too many acquired buffers
     int numAcquiredBuffers = 0;
     for (int s = 0; s < BufferQueueDefs::NUM_BUFFER_SLOTS; ++s) {
-        if (mSlots[s].mBufferState == BufferSlot::ACQUIRED) {
+        if (mSlots[s].mBufferState.isAcquired()) {
             ++numAcquiredBuffers;
         }
     }
 
     if (numAcquiredBuffers >= mCore->mMaxAcquiredBufferCount + 1) {
-        BQ_LOGE("attachBuffer(P): max acquired buffer count reached: %d "
+        BQ_LOGE("attachBuffer: max acquired buffer count reached: %d "
                 "(max %d)", numAcquiredBuffers,
                 mCore->mMaxAcquiredBufferCount);
         return INVALID_OPERATION;
@@ -279,16 +343,16 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
         mCore->mFreeBuffers.remove(found);
     }
     if (found == BufferQueueCore::INVALID_BUFFER_SLOT) {
-        BQ_LOGE("attachBuffer(P): could not find free buffer slot");
+        BQ_LOGE("attachBuffer: could not find free buffer slot");
         return NO_MEMORY;
     }
 
     *outSlot = found;
     ATRACE_BUFFER_INDEX(*outSlot);
-    BQ_LOGV("attachBuffer(C): returning slot %d", *outSlot);
+    BQ_LOGV("attachBuffer: returning slot %d", *outSlot);
 
     mSlots[*outSlot].mGraphicBuffer = buffer;
-    mSlots[*outSlot].mBufferState = BufferSlot::ACQUIRED;
+    mSlots[*outSlot].mBufferState.attachConsumer();
     mSlots[*outSlot].mAttachedByConsumer = true;
     mSlots[*outSlot].mNeedsCleanupOnRelease = false;
     mSlots[*outSlot].mFence = Fence::NO_FENCE;
@@ -334,38 +398,45 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         Mutex::Autolock lock(mCore->mMutex);
 
         // If the frame number has changed because the buffer has been reallocated,
-        // we can ignore this releaseBuffer for the old buffer
-        if (frameNumber != mSlots[slot].mFrameNumber) {
+        // we can ignore this releaseBuffer for the old buffer.
+        // Ignore this for the shared buffer where the frame number can easily
+        // get out of sync due to the buffer being queued and acquired at the
+        // same time.
+        if (frameNumber != mSlots[slot].mFrameNumber &&
+                !mSlots[slot].mBufferState.isShared()) {
             return STALE_BUFFER_SLOT;
         }
 
-        // Make sure this buffer hasn't been queued while acquired by the consumer
-        BufferQueueCore::Fifo::iterator current(mCore->mQueue.begin());
-        while (current != mCore->mQueue.end()) {
-            if (current->mSlot == slot) {
-                BQ_LOGE("releaseBuffer: buffer slot %d pending release is "
-                        "currently queued", slot);
-                return BAD_VALUE;
-            }
-            ++current;
-        }
 
-        if (mSlots[slot].mBufferState == BufferSlot::ACQUIRED) {
+        if (mSlots[slot].mBufferState.isAcquired()) {
             mSlots[slot].mEglDisplay = eglDisplay;
             mSlots[slot].mEglFence = eglFence;
             mSlots[slot].mFence = releaseFence;
-            mSlots[slot].mBufferState = BufferSlot::FREE;
-            mCore->mFreeBuffers.push_back(slot);
+            mSlots[slot].mBufferState.release();
+
+            // After leaving single buffer mode, the shared buffer will
+            // still be around. Mark it as no longer shared if this
+            // operation causes it to be free.
+            if (!mCore->mSingleBufferMode &&
+                    mSlots[slot].mBufferState.isFree()) {
+                mSlots[slot].mBufferState.mShared = false;
+            }
+            // Don't put the shared buffer on the free list.
+            if (!mSlots[slot].mBufferState.isShared()) {
+                mCore->mFreeBuffers.push_back(slot);
+            }
+
             listener = mCore->mConnectedProducerListener;
             BQ_LOGV("releaseBuffer: releasing slot %d", slot);
         } else if (mSlots[slot].mNeedsCleanupOnRelease) {
             BQ_LOGV("releaseBuffer: releasing a stale buffer slot %d "
-                    "(state = %d)", slot, mSlots[slot].mBufferState);
+                    "(state = %s)", slot, mSlots[slot].mBufferState.string());
             mSlots[slot].mNeedsCleanupOnRelease = false;
             return STALE_BUFFER_SLOT;
         } else {
             BQ_LOGE("releaseBuffer: attempted to release buffer slot %d "
-                    "but its state was %d", slot, mSlots[slot].mBufferState);
+                    "but its state was %s", slot,
+                    mSlots[slot].mBufferState.string());
             return BAD_VALUE;
         }
 
@@ -386,17 +457,17 @@ status_t BufferQueueConsumer::connect(
     ATRACE_CALL();
 
     if (consumerListener == NULL) {
-        BQ_LOGE("connect(C): consumerListener may not be NULL");
+        BQ_LOGE("connect: consumerListener may not be NULL");
         return BAD_VALUE;
     }
 
-    BQ_LOGV("connect(C): controlledByApp=%s",
+    BQ_LOGV("connect: controlledByApp=%s",
             controlledByApp ? "true" : "false");
 
     Mutex::Autolock lock(mCore->mMutex);
 
     if (mCore->mIsAbandoned) {
-        BQ_LOGE("connect(C): BufferQueue has been abandoned");
+        BQ_LOGE("connect: BufferQueue has been abandoned");
         return NO_INIT;
     }
 
@@ -409,12 +480,12 @@ status_t BufferQueueConsumer::connect(
 status_t BufferQueueConsumer::disconnect() {
     ATRACE_CALL();
 
-    BQ_LOGV("disconnect(C)");
+    BQ_LOGV("disconnect");
 
     Mutex::Autolock lock(mCore->mMutex);
 
     if (mCore->mConsumerListener == NULL) {
-        BQ_LOGE("disconnect(C): no consumer is connected");
+        BQ_LOGE("disconnect: no consumer is connected");
         return BAD_VALUE;
     }
 

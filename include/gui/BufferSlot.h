@@ -29,11 +29,153 @@ namespace android {
 
 class Fence;
 
+// BufferState tracks the states in which a buffer slot can be.
+struct BufferState {
+
+    // All slots are initially FREE (not dequeued, queued, acquired, or shared).
+    BufferState()
+    : mDequeueCount(0),
+      mQueueCount(0),
+      mAcquireCount(0),
+      mShared(false) {
+    }
+
+    uint32_t mDequeueCount;
+    uint32_t mQueueCount;
+    uint32_t mAcquireCount;
+    bool mShared;
+
+    // A buffer can be in one of five states, represented as below:
+    //
+    //         | mShared | mDequeueCount | mQueueCount | mAcquireCount |
+    // --------|---------|---------------|-------------|---------------|
+    // FREE    |  false  |       0       |      0      |       0       |
+    // DEQUEUED|  false  |       1       |      0      |       0       |
+    // QUEUED  |  false  |       0       |      1      |       0       |
+    // ACQUIRED|  false  |       0       |      0      |       1       |
+    // SHARED  |  true   |      any      |     any     |      any      |
+    //
+    // FREE indicates that the buffer is available to be dequeued by the
+    // producer. The slot is "owned" by BufferQueue. It transitions to DEQUEUED
+    // when dequeueBuffer is called.
+    //
+    // DEQUEUED indicates that the buffer has been dequeued by the producer, but
+    // has not yet been queued or canceled. The producer may modify the
+    // buffer's contents as soon as the associated release fence is signaled.
+    // The slot is "owned" by the producer. It can transition to QUEUED (via
+    // queueBuffer or attachBuffer) or back to FREE (via cancelBuffer or
+    // detachBuffer).
+    //
+    // QUEUED indicates that the buffer has been filled by the producer and
+    // queued for use by the consumer. The buffer contents may continue to be
+    // modified for a finite time, so the contents must not be accessed until
+    // the associated fence is signaled. The slot is "owned" by BufferQueue. It
+    // can transition to ACQUIRED (via acquireBuffer) or to FREE (if another
+    // buffer is queued in asynchronous mode).
+    //
+    // ACQUIRED indicates that the buffer has been acquired by the consumer. As
+    // with QUEUED, the contents must not be accessed by the consumer until the
+    // acquire fence is signaled. The slot is "owned" by the consumer. It
+    // transitions to FREE when releaseBuffer (or detachBuffer) is called. A
+    // detached buffer can also enter the ACQUIRED state via attachBuffer.
+    //
+    // SHARED indicates that this buffer is being used in single-buffer
+    // mode. It can be in any combination of the other states at the same time,
+    // except for FREE (since that excludes being in any other state). It can
+    // also be dequeued, queued, or acquired multiple times.
+
+    inline bool isFree() const {
+        return !isAcquired() && !isDequeued() && !isQueued();
+    }
+
+    inline bool isDequeued() const {
+        return mDequeueCount > 0;
+    }
+
+    inline bool isQueued() const {
+        return mQueueCount > 0;
+    }
+
+    inline bool isAcquired() const {
+        return mAcquireCount > 0;
+    }
+
+    inline bool isShared() const {
+        return mShared;
+    }
+
+    inline void reset() {
+        *this = BufferState();
+    }
+
+    const char* string() const;
+
+    inline void dequeue() {
+        mDequeueCount++;
+    }
+
+    inline void detachProducer() {
+        if (mDequeueCount > 0) {
+            mDequeueCount--;
+        }
+    }
+
+    inline void attachProducer() {
+        mDequeueCount++;
+    }
+
+    inline void queue() {
+        if (mDequeueCount > 0) {
+            mDequeueCount--;
+        }
+        mQueueCount++;
+    }
+
+    inline void cancel() {
+        if (mDequeueCount > 0) {
+            mDequeueCount--;
+        }
+    }
+
+    inline void freeQueued() {
+        if (mQueueCount > 0) {
+            mQueueCount--;
+        }
+    }
+
+    inline void acquire() {
+        if (mQueueCount > 0) {
+            mQueueCount--;
+        }
+        mAcquireCount++;
+    }
+
+    inline void acquireNotInQueue() {
+        mAcquireCount++;
+    }
+
+    inline void release() {
+        if (mAcquireCount > 0) {
+            mAcquireCount--;
+        }
+    }
+
+    inline void detachConsumer() {
+        if (mAcquireCount > 0) {
+            mAcquireCount--;
+        }
+    }
+
+    inline void attachConsumer() {
+        mAcquireCount++;
+    }
+};
+
 struct BufferSlot {
 
     BufferSlot()
     : mEglDisplay(EGL_NO_DISPLAY),
-      mBufferState(BufferSlot::FREE),
+      mBufferState(),
       mRequestBufferCalled(false),
       mFrameNumber(0),
       mEglFence(EGL_NO_SYNC_KHR),
@@ -48,47 +190,6 @@ struct BufferSlot {
 
     // mEglDisplay is the EGLDisplay used to create EGLSyncKHR objects.
     EGLDisplay mEglDisplay;
-
-    // BufferState represents the different states in which a buffer slot
-    // can be.  All slots are initially FREE.
-    enum BufferState {
-        // FREE indicates that the buffer is available to be dequeued
-        // by the producer.  The buffer may be in use by the consumer for
-        // a finite time, so the buffer must not be modified until the
-        // associated fence is signaled.
-        //
-        // The slot is "owned" by BufferQueue.  It transitions to DEQUEUED
-        // when dequeueBuffer is called.
-        FREE = 0,
-
-        // DEQUEUED indicates that the buffer has been dequeued by the
-        // producer, but has not yet been queued or canceled.  The
-        // producer may modify the buffer's contents as soon as the
-        // associated ready fence is signaled.
-        //
-        // The slot is "owned" by the producer.  It can transition to
-        // QUEUED (via queueBuffer) or back to FREE (via cancelBuffer).
-        DEQUEUED = 1,
-
-        // QUEUED indicates that the buffer has been filled by the
-        // producer and queued for use by the consumer.  The buffer
-        // contents may continue to be modified for a finite time, so
-        // the contents must not be accessed until the associated fence
-        // is signaled.
-        //
-        // The slot is "owned" by BufferQueue.  It can transition to
-        // ACQUIRED (via acquireBuffer) or to FREE (if another buffer is
-        // queued in asynchronous mode).
-        QUEUED = 2,
-
-        // ACQUIRED indicates that the buffer has been acquired by the
-        // consumer.  As with QUEUED, the contents must not be accessed
-        // by the consumer until the fence is signaled.
-        //
-        // The slot is "owned" by the consumer.  It transitions to FREE
-        // when releaseBuffer is called.
-        ACQUIRED = 3
-    };
 
     static const char* bufferStateName(BufferState state);
 

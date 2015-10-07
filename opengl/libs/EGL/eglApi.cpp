@@ -1186,6 +1186,14 @@ EGLBoolean eglSurfaceAttrib(
         return setError(EGL_BAD_SURFACE, EGL_FALSE);
 
     egl_surface_t const * const s = get_surface(surface);
+
+    //XXX: temporary hack for the EGL hook-up for single buffer mode
+    if (attribute == EGL_RENDER_BUFFER && (value == EGL_BACK_BUFFER ||
+            value == EGL_SINGLE_BUFFER)) {
+        return (native_window_set_single_buffer_mode(s->win.get(),
+                value == EGL_SINGLE_BUFFER)) ? EGL_TRUE : EGL_FALSE;
+    }
+
     if (s->cnx->egl.eglSurfaceAttrib) {
         return s->cnx->egl.eglSurfaceAttrib(
                 dp->disp.dpy, s->surface, attribute, value);
