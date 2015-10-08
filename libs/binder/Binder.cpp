@@ -20,6 +20,7 @@
 #include <utils/misc.h>
 #include <binder/BpBinder.h>
 #include <binder/IInterface.h>
+#include <binder/IResultReceiver.h>
 #include <binder/Parcel.h>
 
 #include <stdio.h>
@@ -57,6 +58,19 @@ BpBinder* IBinder::remoteBinder()
 bool IBinder::checkSubclass(const void* /*subclassID*/) const
 {
     return false;
+}
+
+
+status_t IBinder::shellCommand(int /*in*/, int out, int /*err*/, Vector<String16>& /*args*/,
+    const sp<IResultReceiver>& resultReceiver)
+{
+    if (out >= 0) {
+        dprintf(out, "Shell commands not supported.\n");
+    }
+    if (resultReceiver != NULL) {
+        resultReceiver->send(INVALID_OPERATION);
+    }
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +143,7 @@ status_t BBinder::unlinkToDeath(
     return INVALID_OPERATION;
 }
 
-    status_t BBinder::dump(int /*fd*/, const Vector<String16>& /*args*/)
+status_t BBinder::dump(int /*fd*/, const Vector<String16>& /*args*/)
 {
     return NO_ERROR;
 }
@@ -202,6 +216,21 @@ status_t BBinder::onTransact(
                args.add(data.readString16());
             }
             return dump(fd, args);
+        }
+
+        case SHELL_COMMAND_TRANSACTION: {
+            int in = data.readFileDescriptor();
+            int out = data.readFileDescriptor();
+            int err = data.readFileDescriptor();
+            int argc = data.readInt32();
+            Vector<String16> args;
+            for (int i = 0; i < argc && data.dataAvail() > 0; i++) {
+               args.add(data.readString16());
+            }
+            sp<IResultReceiver> resultReceiver = IResultReceiver::asInterface(
+                    data.readStrongBinder());
+
+            return shellCommand(in, out, err, args, resultReceiver);
         }
 
         case SYSPROPS_TRANSACTION: {

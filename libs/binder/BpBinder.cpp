@@ -20,6 +20,7 @@
 #include <binder/BpBinder.h>
 
 #include <binder/IPCThreadState.h>
+#include <binder/IResultReceiver.h>
 #include <utils/Log.h>
 
 #include <stdio.h>
@@ -154,6 +155,23 @@ status_t BpBinder::dump(int fd, const Vector<String16>& args)
     }
     status_t err = transact(DUMP_TRANSACTION, send, &reply);
     return err;
+}
+
+status_t BpBinder::shellCommand(int in, int out, int err, Vector<String16>& args,
+    const sp<IResultReceiver>& resultReceiver)
+{
+    Parcel send;
+    Parcel reply;
+    send.writeFileDescriptor(in);
+    send.writeFileDescriptor(out);
+    send.writeFileDescriptor(err);
+    const size_t numArgs = args.size();
+    send.writeInt32(numArgs);
+    for (size_t i = 0; i < numArgs; i++) {
+        send.writeString16(args[i]);
+    }
+    send.writeStrongBinder(resultReceiver != NULL ? IInterface::asBinder(resultReceiver) : NULL);
+    return transact(SHELL_COMMAND_TRANSACTION, send, &reply);
 }
 
 status_t BpBinder::transact(

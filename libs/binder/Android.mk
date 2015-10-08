@@ -27,6 +27,7 @@ sources := \
     IPCThreadState.cpp \
     IPermissionController.cpp \
     IProcessInfoService.cpp \
+    IResultReceiver.cpp \
     ProcessInfoService.cpp \
     IServiceManager.cpp \
     MemoryDealer.cpp \
