@@ -277,12 +277,12 @@ void FindLayersInDirectory(Instance& instance, const String& dir_name) {
             }
 
             // Get Layers in so
-            PFN_vkGetGlobalLayerProperties get_layer_properties =
-                reinterpret_cast<PFN_vkGetGlobalLayerProperties>(
-                    dlsym(layer_handle, "vkGetGlobalLayerProperties"));
+            PFN_vkEnumerateInstanceLayerProperties get_layer_properties =
+                reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
+                    dlsym(layer_handle, "vkEnumerateInstanceLayerProperties"));
             if (!get_layer_properties) {
                 ALOGE(
-                    "%s failed to find vkGetGlobalLayerProperties with "
+                    "%s failed to find vkEnumerateInstanceLayerProperties with "
                     "error %s; Skipping",
                     entry->d_name, dlerror());
                 dlclose(layer_handle);
@@ -507,7 +507,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
 // "Bottom" functions. These are called at the end of the instance dispatch
 // chain.
 
-VkResult DestroyInstanceBottom(VkInstance instance) {
+void DestroyInstanceBottom(VkInstance instance) {
     // These checks allow us to call DestroyInstanceBottom from any error path
     // in CreateInstanceBottom, before the driver instance is fully initialized.
     if (instance->drv.vtbl.instance != VK_NULL_HANDLE &&
@@ -528,7 +528,6 @@ VkResult DestroyInstanceBottom(VkInstance instance) {
     const VkAllocCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
     alloc->pfnFree(alloc->pUserData, instance);
-    return VK_SUCCESS;
 }
 
 VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
@@ -640,16 +639,11 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
     VkImageType type,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
+    VkImageCreateFlags flags,
     VkImageFormatProperties* properties) {
     return GetVtbl(pdev)
         ->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
-            pdev, format, type, tiling, usage, properties);
-}
-
-VkResult GetPhysicalDeviceLimitsBottom(VkPhysicalDevice pdev,
-                                       VkPhysicalDeviceLimits* limits) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceLimits(pdev, limits);
+            pdev, format, type, tiling, usage, flags, properties);
 }
 
 VkResult GetPhysicalDevicePropertiesBottom(
@@ -659,18 +653,13 @@ VkResult GetPhysicalDevicePropertiesBottom(
         ->instance->drv.vtbl.GetPhysicalDeviceProperties(pdev, properties);
 }
 
-VkResult GetPhysicalDeviceQueueCountBottom(VkPhysicalDevice pdev,
-                                           uint32_t* count) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceQueueCount(pdev, count);
-}
-
-VkResult GetPhysicalDeviceQueuePropertiesBottom(
+VkResult GetPhysicalDeviceQueueFamilyPropertiesBottom(
     VkPhysicalDevice pdev,
-    uint32_t count,
-    VkPhysicalDeviceQueueProperties* properties) {
-    return GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceQueueProperties(
-        pdev, count, properties);
+    uint32_t* pCount,
+    VkQueueFamilyProperties* properties) {
+    return GetVtbl(pdev)
+        ->instance->drv.vtbl.GetPhysicalDeviceQueueFamilyProperties(
+            pdev, pCount, properties);
 }
 
 VkResult GetPhysicalDeviceMemoryPropertiesBottom(
@@ -775,21 +764,20 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceExtensionPropertiesBottom(
+VkResult EnumerateDeviceExtensionPropertiesBottom(
     VkPhysicalDevice pdev,
     const char* layer_name,
     uint32_t* properties_count,
     VkExtensionProperties* properties) {
     // TODO: what are we supposed to do with layer_name here?
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceExtensionProperties(
-            pdev, layer_name, properties_count, properties);
+    return GetVtbl(pdev)->instance->drv.vtbl.EnumerateDeviceExtensionProperties(
+        pdev, layer_name, properties_count, properties);
 }
 
-VkResult GetPhysicalDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
-                                                uint32_t* properties_count,
-                                                VkLayerProperties* properties) {
-    return GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceLayerProperties(
+VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
+                                              uint32_t* properties_count,
+                                              VkLayerProperties* properties) {
+    return GetVtbl(pdev)->instance->drv.vtbl.EnumerateDeviceLayerProperties(
         pdev, properties_count, properties);
 }
 
@@ -820,14 +808,12 @@ const InstanceVtbl kBottomInstanceFunctions = {
     .GetPhysicalDeviceFeatures = GetPhysicalDeviceFeaturesBottom,
     .GetPhysicalDeviceFormatProperties = GetPhysicalDeviceFormatPropertiesBottom,
     .GetPhysicalDeviceImageFormatProperties = GetPhysicalDeviceImageFormatPropertiesBottom,
-    .GetPhysicalDeviceLimits = GetPhysicalDeviceLimitsBottom,
     .GetPhysicalDeviceProperties = GetPhysicalDevicePropertiesBottom,
-    .GetPhysicalDeviceQueueCount = GetPhysicalDeviceQueueCountBottom,
-    .GetPhysicalDeviceQueueProperties = GetPhysicalDeviceQueuePropertiesBottom,
+    .GetPhysicalDeviceQueueFamilyProperties = GetPhysicalDeviceQueueFamilyPropertiesBottom,
     .GetPhysicalDeviceMemoryProperties = GetPhysicalDeviceMemoryPropertiesBottom,
     .CreateDevice = CreateDeviceBottom,
-    .GetPhysicalDeviceExtensionProperties = GetPhysicalDeviceExtensionPropertiesBottom,
-    .GetPhysicalDeviceLayerProperties = GetPhysicalDeviceLayerPropertiesBottom,
+    .EnumerateDeviceExtensionProperties = EnumerateDeviceExtensionPropertiesBottom,
+    .EnumerateDeviceLayerProperties = EnumerateDeviceLayerPropertiesBottom,
     .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
     .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
     // clang-format on
@@ -858,30 +844,27 @@ PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char* name) {
 
 namespace vulkan {
 
-VkResult GetGlobalExtensionProperties(const char* /*layer_name*/,
-                                      uint32_t* count,
-                                      VkExtensionProperties* /*properties*/) {
-    if (!count)
-        return VK_ERROR_INVALID_POINTER;
+VkResult EnumerateInstanceExtensionProperties(
+    const char* /*layer_name*/,
+    uint32_t* count,
+    VkExtensionProperties* /*properties*/) {
     if (!EnsureInitialized())
-        return VK_ERROR_UNAVAILABLE;
+        return VK_ERROR_INITIALIZATION_FAILED;
 
     // TODO: not yet implemented
-    ALOGW("vkGetGlobalExtensionProperties not implemented");
+    ALOGW("vkEnumerateInstanceExtensionProperties not implemented");
 
     *count = 0;
     return VK_SUCCESS;
 }
 
-VkResult GetGlobalLayerProperties(uint32_t* count,
-                                  VkLayerProperties* /*properties*/) {
-    if (!count)
-        return VK_ERROR_INVALID_POINTER;
+VkResult EnumerateInstanceLayerProperties(uint32_t* count,
+                                          VkLayerProperties* /*properties*/) {
     if (!EnsureInitialized())
-        return VK_ERROR_UNAVAILABLE;
+        return VK_ERROR_INITIALIZATION_FAILED;
 
     // TODO: not yet implemented
-    ALOGW("vkGetGlobalLayerProperties not implemented");
+    ALOGW("vkEnumerateInstanceLayerProperties not implemented");
 
     *count = 0;
     return VK_SUCCESS;
@@ -892,7 +875,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     VkResult result;
 
     if (!EnsureInitialized())
-        return VK_ERROR_UNAVAILABLE;
+        return VK_ERROR_INITIALIZATION_FAILED;
 
     VkInstanceCreateInfo local_create_info = *create_info;
     if (!local_create_info.pAllocCb)

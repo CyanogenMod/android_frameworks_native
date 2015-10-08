@@ -61,7 +61,8 @@ typedef union {
 typedef struct hwvulkan_device_t {
     struct hw_device_t common;
 
-    PFN_vkGetGlobalExtensionProperties GetGlobalExtensionProperties;
+    PFN_vkEnumerateInstanceExtensionProperties
+        EnumerateInstanceExtensionProperties;
     PFN_vkCreateInstance CreateInstance;
     PFN_vkGetInstanceProcAddr GetInstanceProcAddr;
 } hwvulkan_device_t;

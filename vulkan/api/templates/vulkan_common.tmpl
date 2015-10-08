@@ -137,7 +137,7 @@
 {{define "Parameter"}}
   {{AssertType $ "Parameter"}}
 
-  {{Macro "ParameterType" $}} {{$.Name}}{{Macro "ArrayPostfix" $}}
+  {{if GetAnnotation $ "readonly"}}const {{end}}{{Macro "ParameterType" $}} {{$.Name}}{{Macro "ArrayPostfix" $}}
 {{end}}
 
 

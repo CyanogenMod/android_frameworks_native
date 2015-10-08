@@ -27,6 +27,11 @@
 
 using namespace vulkan;
 
+// TODO(jessehall): Currently we don't have a good error code for when a native
+// window operation fails. Just returning INITIALIZATION_FAILED for now. Later
+// versions (post SDK 0.9) of the API/extension have a better error code.
+// When updating to that version, audit all error returns.
+
 namespace {
 
 // ----------------------------------------------------------------------------
@@ -118,8 +123,11 @@ VkResult GetPhysicalDeviceSurfaceSupportKHR(
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
 #pragma clang diagnostic ignored "-Wsign-conversion"
-    if (surface_desc->sType != VK_STRUCTURE_TYPE_SURFACE_DESCRIPTION_WINDOW_KHR)
-        return VK_ERROR_INVALID_VALUE;
+    ALOGE_IF(
+        surface_desc->sType != VK_STRUCTURE_TYPE_SURFACE_DESCRIPTION_WINDOW_KHR,
+        "vkGetPhysicalDeviceSurfaceSupportKHR: pSurfaceDescription->sType=%#x "
+        "not supported",
+        surface_desc->sType);
 #pragma clang diagnostic pop
 
     const VkSurfaceDescriptionWindowKHR* window_desc =
@@ -170,7 +178,7 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
     } else if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     int width, height;
@@ -180,7 +188,7 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
               strerror(-err), err);
         if (disconnect)
             native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
     err = window->query(window, NATIVE_WINDOW_DEFAULT_HEIGHT, &height);
     if (err != 0) {
@@ -188,7 +196,7 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
               strerror(-err), err);
         if (disconnect)
             native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     if (disconnect)
@@ -311,7 +319,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_api_connect() failed: %s (%d)", strerror(-err),
               err);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     err = native_window_set_buffers_dimensions(window.get(),
@@ -324,7 +332,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
               create_info->imageExtent.width, create_info->imageExtent.height,
               strerror(-err), err);
         native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t min_undequeued_buffers;
@@ -335,7 +343,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         // errors and translate them to valid Vulkan result codes?
         ALOGE("window->query failed: %s (%d)", strerror(-err), err);
         native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
     uint32_t num_images =
         (create_info->minImageCount - 1) + min_undequeued_buffers;
@@ -346,7 +354,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         ALOGE("native_window_set_buffer_count failed: %s (%d)", strerror(-err),
               err);
         native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     // TODO(jessehall): Do we need to call modify native_window_set_usage()
@@ -401,7 +409,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
             // TODO(jessehall): Improve error reporting. Can we enumerate
             // possible errors and translate them to valid Vulkan result codes?
             ALOGE("dequeueBuffer[%u] failed: %s (%d)", i, strerror(-err), err);
-            result = VK_ERROR_UNKNOWN;
+            result = VK_ERROR_INITIALIZATION_FAILED;
             break;
         }
         img.buffer = InitSharedPtr(device, buffer);
@@ -517,7 +525,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("dequeueBuffer failed: %s (%d)", strerror(-err), err);
-        return VK_ERROR_UNKNOWN;
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t idx;
@@ -582,19 +590,9 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
         Swapchain& swapchain =
             *SwapchainFromHandle(present_info->swapchains[sc]);
         uint32_t image_idx = present_info->imageIndices[sc];
+        Swapchain::Image& img = swapchain.images[image_idx];
         VkResult result;
         int err;
-
-        if (image_idx >= swapchain.num_images ||
-            !swapchain.images[image_idx].dequeued) {
-            ALOGE(
-                "invalid image index or image not acquired: swapchain=%u "
-                "index=%u",
-                sc, image_idx);
-            final_result = VK_ERROR_INVALID_VALUE;
-            continue;
-        }
-        Swapchain::Image& img = swapchain.images[image_idx];
 
         int fence = -1;
         result = driver_vtbl.QueueSignalNativeFenceANDROID(queue, &fence);
@@ -616,7 +614,7 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
             // I guess?
             ALOGE("queueBuffer failed: %s (%d)", strerror(-err), err);
             if (final_result == VK_SUCCESS)
-                final_result = VK_ERROR_UNKNOWN;
+                final_result = VK_ERROR_INITIALIZATION_FAILED;
             continue;
         }
 

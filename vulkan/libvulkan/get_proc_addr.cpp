@@ -51,18 +51,16 @@ const NameProcEntry kInstanceProcTbl[] = {
     // clang-format off
     {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDevice)},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyInstance)},
+    {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(vkEnumerateDeviceExtensionProperties)},
+    {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(vkEnumerateDeviceLayerProperties)},
     {"vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices)},
     {"vkGetInstanceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(vkGetInstanceProcAddr)},
-    {"vkGetPhysicalDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceExtensionProperties)},
     {"vkGetPhysicalDeviceFeatures", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceFeatures)},
     {"vkGetPhysicalDeviceFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceFormatProperties)},
     {"vkGetPhysicalDeviceImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceImageFormatProperties)},
-    {"vkGetPhysicalDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceLayerProperties)},
-    {"vkGetPhysicalDeviceLimits", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceLimits)},
     {"vkGetPhysicalDeviceMemoryProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceMemoryProperties)},
     {"vkGetPhysicalDeviceProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceProperties)},
-    {"vkGetPhysicalDeviceQueueCount", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceQueueCount)},
-    {"vkGetPhysicalDeviceQueueProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceQueueProperties)},
+    {"vkGetPhysicalDeviceQueueFamilyProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceQueueFamilyProperties)},
     {"vkGetPhysicalDeviceSparseImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceSparseImageFormatProperties)},
     // clang-format on
 };
@@ -77,10 +75,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCmdBeginQuery", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginQuery)},
     {"vkCmdBeginRenderPass", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginRenderPass)},
     {"vkCmdBindDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindDescriptorSets)},
-    {"vkCmdBindDynamicColorBlendState", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindDynamicColorBlendState)},
-    {"vkCmdBindDynamicDepthStencilState", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindDynamicDepthStencilState)},
-    {"vkCmdBindDynamicRasterState", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindDynamicRasterState)},
-    {"vkCmdBindDynamicViewportState", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindDynamicViewportState)},
     {"vkCmdBindIndexBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindIndexBuffer)},
     {"vkCmdBindPipeline", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindPipeline)},
     {"vkCmdBindVertexBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindVertexBuffers)},
@@ -110,11 +104,19 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCmdResetEvent", reinterpret_cast<PFN_vkVoidFunction>(vkCmdResetEvent)},
     {"vkCmdResetQueryPool", reinterpret_cast<PFN_vkVoidFunction>(vkCmdResetQueryPool)},
     {"vkCmdResolveImage", reinterpret_cast<PFN_vkVoidFunction>(vkCmdResolveImage)},
+    {"vkCmdSetBlendConstants", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetBlendConstants)},
+    {"vkCmdSetDepthBias", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetDepthBias)},
+    {"vkCmdSetDepthBounds", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetDepthBounds)},
     {"vkCmdSetEvent", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetEvent)},
+    {"vkCmdSetLineWidth", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetLineWidth)},
+    {"vkCmdSetScissor", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetScissor)},
+    {"vkCmdSetStencilCompareMask", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetStencilCompareMask)},
+    {"vkCmdSetStencilReference", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetStencilReference)},
+    {"vkCmdSetStencilWriteMask", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetStencilWriteMask)},
+    {"vkCmdSetViewport", reinterpret_cast<PFN_vkVoidFunction>(vkCmdSetViewport)},
     {"vkCmdUpdateBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCmdUpdateBuffer)},
     {"vkCmdWaitEvents", reinterpret_cast<PFN_vkVoidFunction>(vkCmdWaitEvents)},
     {"vkCmdWriteTimestamp", reinterpret_cast<PFN_vkVoidFunction>(vkCmdWriteTimestamp)},
-    {"vkCreateAttachmentView", reinterpret_cast<PFN_vkVoidFunction>(vkCreateAttachmentView)},
     {"vkCreateBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBuffer)},
     {"vkCreateBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBufferView)},
     {"vkCreateCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateCommandBuffer)},
@@ -122,10 +124,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateComputePipelines", reinterpret_cast<PFN_vkVoidFunction>(vkCreateComputePipelines)},
     {"vkCreateDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDescriptorPool)},
     {"vkCreateDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDescriptorSetLayout)},
-    {"vkCreateDynamicColorBlendState", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDynamicColorBlendState)},
-    {"vkCreateDynamicDepthStencilState", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDynamicDepthStencilState)},
-    {"vkCreateDynamicRasterState", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDynamicRasterState)},
-    {"vkCreateDynamicViewportState", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDynamicViewportState)},
     {"vkCreateEvent", reinterpret_cast<PFN_vkVoidFunction>(vkCreateEvent)},
     {"vkCreateFence", reinterpret_cast<PFN_vkVoidFunction>(vkCreateFence)},
     {"vkCreateFramebuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateFramebuffer)},
@@ -140,7 +138,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSemaphore)},
     {"vkCreateShader", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShader)},
     {"vkCreateShaderModule", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShaderModule)},
-    {"vkDestroyAttachmentView", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyAttachmentView)},
     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBuffer)},
     {"vkDestroyBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBufferView)},
     {"vkDestroyCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandBuffer)},
@@ -148,10 +145,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDestroyDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorPool)},
     {"vkDestroyDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorSetLayout)},
     {"vkDestroyDevice", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDevice)},
-    {"vkDestroyDynamicColorBlendState", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDynamicColorBlendState)},
-    {"vkDestroyDynamicDepthStencilState", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDynamicDepthStencilState)},
-    {"vkDestroyDynamicRasterState", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDynamicRasterState)},
-    {"vkDestroyDynamicViewportState", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDynamicViewportState)},
     {"vkDestroyEvent", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyEvent)},
     {"vkDestroyFence", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyFence)},
     {"vkDestroyFramebuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyFramebuffer)},
@@ -210,18 +203,16 @@ const NameOffsetEntry kInstanceOffsetTbl[] = {
     // clang-format off
     {"vkCreateDevice", offsetof(InstanceVtbl, CreateDevice)},
     {"vkDestroyInstance", offsetof(InstanceVtbl, DestroyInstance)},
+    {"vkEnumerateDeviceExtensionProperties", offsetof(InstanceVtbl, EnumerateDeviceExtensionProperties)},
+    {"vkEnumerateDeviceLayerProperties", offsetof(InstanceVtbl, EnumerateDeviceLayerProperties)},
     {"vkEnumeratePhysicalDevices", offsetof(InstanceVtbl, EnumeratePhysicalDevices)},
     {"vkGetInstanceProcAddr", offsetof(InstanceVtbl, GetInstanceProcAddr)},
-    {"vkGetPhysicalDeviceExtensionProperties", offsetof(InstanceVtbl, GetPhysicalDeviceExtensionProperties)},
     {"vkGetPhysicalDeviceFeatures", offsetof(InstanceVtbl, GetPhysicalDeviceFeatures)},
     {"vkGetPhysicalDeviceFormatProperties", offsetof(InstanceVtbl, GetPhysicalDeviceFormatProperties)},
     {"vkGetPhysicalDeviceImageFormatProperties", offsetof(InstanceVtbl, GetPhysicalDeviceImageFormatProperties)},
-    {"vkGetPhysicalDeviceLayerProperties", offsetof(InstanceVtbl, GetPhysicalDeviceLayerProperties)},
-    {"vkGetPhysicalDeviceLimits", offsetof(InstanceVtbl, GetPhysicalDeviceLimits)},
     {"vkGetPhysicalDeviceMemoryProperties", offsetof(InstanceVtbl, GetPhysicalDeviceMemoryProperties)},
     {"vkGetPhysicalDeviceProperties", offsetof(InstanceVtbl, GetPhysicalDeviceProperties)},
-    {"vkGetPhysicalDeviceQueueCount", offsetof(InstanceVtbl, GetPhysicalDeviceQueueCount)},
-    {"vkGetPhysicalDeviceQueueProperties", offsetof(InstanceVtbl, GetPhysicalDeviceQueueProperties)},
+    {"vkGetPhysicalDeviceQueueFamilyProperties", offsetof(InstanceVtbl, GetPhysicalDeviceQueueFamilyProperties)},
     {"vkGetPhysicalDeviceSparseImageFormatProperties", offsetof(InstanceVtbl, GetPhysicalDeviceSparseImageFormatProperties)},
     // clang-format on
 };
@@ -236,10 +227,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCmdBeginQuery", offsetof(DeviceVtbl, CmdBeginQuery)},
     {"vkCmdBeginRenderPass", offsetof(DeviceVtbl, CmdBeginRenderPass)},
     {"vkCmdBindDescriptorSets", offsetof(DeviceVtbl, CmdBindDescriptorSets)},
-    {"vkCmdBindDynamicColorBlendState", offsetof(DeviceVtbl, CmdBindDynamicColorBlendState)},
-    {"vkCmdBindDynamicDepthStencilState", offsetof(DeviceVtbl, CmdBindDynamicDepthStencilState)},
-    {"vkCmdBindDynamicRasterState", offsetof(DeviceVtbl, CmdBindDynamicRasterState)},
-    {"vkCmdBindDynamicViewportState", offsetof(DeviceVtbl, CmdBindDynamicViewportState)},
     {"vkCmdBindIndexBuffer", offsetof(DeviceVtbl, CmdBindIndexBuffer)},
     {"vkCmdBindPipeline", offsetof(DeviceVtbl, CmdBindPipeline)},
     {"vkCmdBindVertexBuffers", offsetof(DeviceVtbl, CmdBindVertexBuffers)},
@@ -269,11 +256,19 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCmdResetEvent", offsetof(DeviceVtbl, CmdResetEvent)},
     {"vkCmdResetQueryPool", offsetof(DeviceVtbl, CmdResetQueryPool)},
     {"vkCmdResolveImage", offsetof(DeviceVtbl, CmdResolveImage)},
+    {"vkCmdSetBlendConstants", offsetof(DeviceVtbl, CmdSetBlendConstants)},
+    {"vkCmdSetDepthBias", offsetof(DeviceVtbl, CmdSetDepthBias)},
+    {"vkCmdSetDepthBounds", offsetof(DeviceVtbl, CmdSetDepthBounds)},
     {"vkCmdSetEvent", offsetof(DeviceVtbl, CmdSetEvent)},
+    {"vkCmdSetLineWidth", offsetof(DeviceVtbl, CmdSetLineWidth)},
+    {"vkCmdSetScissor", offsetof(DeviceVtbl, CmdSetScissor)},
+    {"vkCmdSetStencilCompareMask", offsetof(DeviceVtbl, CmdSetStencilCompareMask)},
+    {"vkCmdSetStencilReference", offsetof(DeviceVtbl, CmdSetStencilReference)},
+    {"vkCmdSetStencilWriteMask", offsetof(DeviceVtbl, CmdSetStencilWriteMask)},
+    {"vkCmdSetViewport", offsetof(DeviceVtbl, CmdSetViewport)},
     {"vkCmdUpdateBuffer", offsetof(DeviceVtbl, CmdUpdateBuffer)},
     {"vkCmdWaitEvents", offsetof(DeviceVtbl, CmdWaitEvents)},
     {"vkCmdWriteTimestamp", offsetof(DeviceVtbl, CmdWriteTimestamp)},
-    {"vkCreateAttachmentView", offsetof(DeviceVtbl, CreateAttachmentView)},
     {"vkCreateBuffer", offsetof(DeviceVtbl, CreateBuffer)},
     {"vkCreateBufferView", offsetof(DeviceVtbl, CreateBufferView)},
     {"vkCreateCommandBuffer", offsetof(DeviceVtbl, CreateCommandBuffer)},
@@ -281,10 +276,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCreateComputePipelines", offsetof(DeviceVtbl, CreateComputePipelines)},
     {"vkCreateDescriptorPool", offsetof(DeviceVtbl, CreateDescriptorPool)},
     {"vkCreateDescriptorSetLayout", offsetof(DeviceVtbl, CreateDescriptorSetLayout)},
-    {"vkCreateDynamicColorBlendState", offsetof(DeviceVtbl, CreateDynamicColorBlendState)},
-    {"vkCreateDynamicDepthStencilState", offsetof(DeviceVtbl, CreateDynamicDepthStencilState)},
-    {"vkCreateDynamicRasterState", offsetof(DeviceVtbl, CreateDynamicRasterState)},
-    {"vkCreateDynamicViewportState", offsetof(DeviceVtbl, CreateDynamicViewportState)},
     {"vkCreateEvent", offsetof(DeviceVtbl, CreateEvent)},
     {"vkCreateFence", offsetof(DeviceVtbl, CreateFence)},
     {"vkCreateFramebuffer", offsetof(DeviceVtbl, CreateFramebuffer)},
@@ -299,7 +290,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCreateSemaphore", offsetof(DeviceVtbl, CreateSemaphore)},
     {"vkCreateShader", offsetof(DeviceVtbl, CreateShader)},
     {"vkCreateShaderModule", offsetof(DeviceVtbl, CreateShaderModule)},
-    {"vkDestroyAttachmentView", offsetof(DeviceVtbl, DestroyAttachmentView)},
     {"vkDestroyBuffer", offsetof(DeviceVtbl, DestroyBuffer)},
     {"vkDestroyBufferView", offsetof(DeviceVtbl, DestroyBufferView)},
     {"vkDestroyCommandBuffer", offsetof(DeviceVtbl, DestroyCommandBuffer)},
@@ -307,10 +297,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkDestroyDescriptorPool", offsetof(DeviceVtbl, DestroyDescriptorPool)},
     {"vkDestroyDescriptorSetLayout", offsetof(DeviceVtbl, DestroyDescriptorSetLayout)},
     {"vkDestroyDevice", offsetof(DeviceVtbl, DestroyDevice)},
-    {"vkDestroyDynamicColorBlendState", offsetof(DeviceVtbl, DestroyDynamicColorBlendState)},
-    {"vkDestroyDynamicDepthStencilState", offsetof(DeviceVtbl, DestroyDynamicDepthStencilState)},
-    {"vkDestroyDynamicRasterState", offsetof(DeviceVtbl, DestroyDynamicRasterState)},
-    {"vkDestroyDynamicViewportState", offsetof(DeviceVtbl, DestroyDynamicViewportState)},
     {"vkDestroyEvent", offsetof(DeviceVtbl, DestroyEvent)},
     {"vkDestroyFence", offsetof(DeviceVtbl, DestroyFence)},
     {"vkDestroyFramebuffer", offsetof(DeviceVtbl, DestroyFramebuffer)},
@@ -453,7 +439,6 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
         const_cast<unsigned char*>(base) + entry->offset);
 }
 
-// TODO: remove need for instance_next
 bool LoadInstanceVtbl(VkInstance instance,
                       VkInstance instance_next,
                       PFN_vkGetInstanceProcAddr get_proc_addr,
@@ -484,14 +469,9 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceProperties");
         success = false;
     }
-    vtbl.GetPhysicalDeviceQueueCount = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueCount>(get_proc_addr(instance, "vkGetPhysicalDeviceQueueCount"));
-    if (UNLIKELY(!vtbl.GetPhysicalDeviceQueueCount)) {
-        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceQueueCount");
-        success = false;
-    }
-    vtbl.GetPhysicalDeviceQueueProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceQueueProperties"));
-    if (UNLIKELY(!vtbl.GetPhysicalDeviceQueueProperties)) {
-        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceQueueProperties");
+    vtbl.GetPhysicalDeviceQueueFamilyProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceQueueFamilyProperties"));
+    if (UNLIKELY(!vtbl.GetPhysicalDeviceQueueFamilyProperties)) {
+        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceQueueFamilyProperties");
         success = false;
     }
     vtbl.GetPhysicalDeviceMemoryProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceMemoryProperties"));
@@ -514,24 +494,19 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceImageFormatProperties");
         success = false;
     }
-    vtbl.GetPhysicalDeviceLimits = reinterpret_cast<PFN_vkGetPhysicalDeviceLimits>(get_proc_addr(instance, "vkGetPhysicalDeviceLimits"));
-    if (UNLIKELY(!vtbl.GetPhysicalDeviceLimits)) {
-        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceLimits");
-        success = false;
-    }
     vtbl.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(get_proc_addr(instance, "vkCreateDevice"));
     if (UNLIKELY(!vtbl.CreateDevice)) {
         ALOGE("missing instance proc: %s", "vkCreateDevice");
         success = false;
     }
-    vtbl.GetPhysicalDeviceLayerProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceLayerProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceLayerProperties"));
-    if (UNLIKELY(!vtbl.GetPhysicalDeviceLayerProperties)) {
-        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceLayerProperties");
+    vtbl.EnumerateDeviceLayerProperties = reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(get_proc_addr(instance, "vkEnumerateDeviceLayerProperties"));
+    if (UNLIKELY(!vtbl.EnumerateDeviceLayerProperties)) {
+        ALOGE("missing instance proc: %s", "vkEnumerateDeviceLayerProperties");
         success = false;
     }
-    vtbl.GetPhysicalDeviceExtensionProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceExtensionProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceExtensionProperties"));
-    if (UNLIKELY(!vtbl.GetPhysicalDeviceExtensionProperties)) {
-        ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceExtensionProperties");
+    vtbl.EnumerateDeviceExtensionProperties = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(get_proc_addr(instance, "vkEnumerateDeviceExtensionProperties"));
+    if (UNLIKELY(!vtbl.EnumerateDeviceExtensionProperties)) {
+        ALOGE("missing instance proc: %s", "vkEnumerateDeviceExtensionProperties");
         success = false;
     }
     vtbl.GetPhysicalDeviceSparseImageFormatProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties>(get_proc_addr(instance, "vkGetPhysicalDeviceSparseImageFormatProperties"));
@@ -784,16 +759,6 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkDestroyImageView");
         success = false;
     }
-    vtbl.CreateAttachmentView = reinterpret_cast<PFN_vkCreateAttachmentView>(get_proc_addr(device, "vkCreateAttachmentView"));
-    if (UNLIKELY(!vtbl.CreateAttachmentView)) {
-        ALOGE("missing device proc: %s", "vkCreateAttachmentView");
-        success = false;
-    }
-    vtbl.DestroyAttachmentView = reinterpret_cast<PFN_vkDestroyAttachmentView>(get_proc_addr(device, "vkDestroyAttachmentView"));
-    if (UNLIKELY(!vtbl.DestroyAttachmentView)) {
-        ALOGE("missing device proc: %s", "vkDestroyAttachmentView");
-        success = false;
-    }
     vtbl.CreateShaderModule = reinterpret_cast<PFN_vkCreateShaderModule>(get_proc_addr(device, "vkCreateShaderModule"));
     if (UNLIKELY(!vtbl.CreateShaderModule)) {
         ALOGE("missing device proc: %s", "vkCreateShaderModule");
@@ -914,46 +879,6 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkUpdateDescriptorSets");
         success = false;
     }
-    vtbl.CreateDynamicViewportState = reinterpret_cast<PFN_vkCreateDynamicViewportState>(get_proc_addr(device, "vkCreateDynamicViewportState"));
-    if (UNLIKELY(!vtbl.CreateDynamicViewportState)) {
-        ALOGE("missing device proc: %s", "vkCreateDynamicViewportState");
-        success = false;
-    }
-    vtbl.DestroyDynamicViewportState = reinterpret_cast<PFN_vkDestroyDynamicViewportState>(get_proc_addr(device, "vkDestroyDynamicViewportState"));
-    if (UNLIKELY(!vtbl.DestroyDynamicViewportState)) {
-        ALOGE("missing device proc: %s", "vkDestroyDynamicViewportState");
-        success = false;
-    }
-    vtbl.CreateDynamicRasterState = reinterpret_cast<PFN_vkCreateDynamicRasterState>(get_proc_addr(device, "vkCreateDynamicRasterState"));
-    if (UNLIKELY(!vtbl.CreateDynamicRasterState)) {
-        ALOGE("missing device proc: %s", "vkCreateDynamicRasterState");
-        success = false;
-    }
-    vtbl.DestroyDynamicRasterState = reinterpret_cast<PFN_vkDestroyDynamicRasterState>(get_proc_addr(device, "vkDestroyDynamicRasterState"));
-    if (UNLIKELY(!vtbl.DestroyDynamicRasterState)) {
-        ALOGE("missing device proc: %s", "vkDestroyDynamicRasterState");
-        success = false;
-    }
-    vtbl.CreateDynamicColorBlendState = reinterpret_cast<PFN_vkCreateDynamicColorBlendState>(get_proc_addr(device, "vkCreateDynamicColorBlendState"));
-    if (UNLIKELY(!vtbl.CreateDynamicColorBlendState)) {
-        ALOGE("missing device proc: %s", "vkCreateDynamicColorBlendState");
-        success = false;
-    }
-    vtbl.DestroyDynamicColorBlendState = reinterpret_cast<PFN_vkDestroyDynamicColorBlendState>(get_proc_addr(device, "vkDestroyDynamicColorBlendState"));
-    if (UNLIKELY(!vtbl.DestroyDynamicColorBlendState)) {
-        ALOGE("missing device proc: %s", "vkDestroyDynamicColorBlendState");
-        success = false;
-    }
-    vtbl.CreateDynamicDepthStencilState = reinterpret_cast<PFN_vkCreateDynamicDepthStencilState>(get_proc_addr(device, "vkCreateDynamicDepthStencilState"));
-    if (UNLIKELY(!vtbl.CreateDynamicDepthStencilState)) {
-        ALOGE("missing device proc: %s", "vkCreateDynamicDepthStencilState");
-        success = false;
-    }
-    vtbl.DestroyDynamicDepthStencilState = reinterpret_cast<PFN_vkDestroyDynamicDepthStencilState>(get_proc_addr(device, "vkDestroyDynamicDepthStencilState"));
-    if (UNLIKELY(!vtbl.DestroyDynamicDepthStencilState)) {
-        ALOGE("missing device proc: %s", "vkDestroyDynamicDepthStencilState");
-        success = false;
-    }
     vtbl.CreateFramebuffer = reinterpret_cast<PFN_vkCreateFramebuffer>(get_proc_addr(device, "vkCreateFramebuffer"));
     if (UNLIKELY(!vtbl.CreateFramebuffer)) {
         ALOGE("missing device proc: %s", "vkCreateFramebuffer");
@@ -1024,24 +949,49 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkCmdBindPipeline");
         success = false;
     }
-    vtbl.CmdBindDynamicViewportState = reinterpret_cast<PFN_vkCmdBindDynamicViewportState>(get_proc_addr(device, "vkCmdBindDynamicViewportState"));
-    if (UNLIKELY(!vtbl.CmdBindDynamicViewportState)) {
-        ALOGE("missing device proc: %s", "vkCmdBindDynamicViewportState");
+    vtbl.CmdSetViewport = reinterpret_cast<PFN_vkCmdSetViewport>(get_proc_addr(device, "vkCmdSetViewport"));
+    if (UNLIKELY(!vtbl.CmdSetViewport)) {
+        ALOGE("missing device proc: %s", "vkCmdSetViewport");
         success = false;
     }
-    vtbl.CmdBindDynamicRasterState = reinterpret_cast<PFN_vkCmdBindDynamicRasterState>(get_proc_addr(device, "vkCmdBindDynamicRasterState"));
-    if (UNLIKELY(!vtbl.CmdBindDynamicRasterState)) {
-        ALOGE("missing device proc: %s", "vkCmdBindDynamicRasterState");
+    vtbl.CmdSetScissor = reinterpret_cast<PFN_vkCmdSetScissor>(get_proc_addr(device, "vkCmdSetScissor"));
+    if (UNLIKELY(!vtbl.CmdSetScissor)) {
+        ALOGE("missing device proc: %s", "vkCmdSetScissor");
         success = false;
     }
-    vtbl.CmdBindDynamicColorBlendState = reinterpret_cast<PFN_vkCmdBindDynamicColorBlendState>(get_proc_addr(device, "vkCmdBindDynamicColorBlendState"));
-    if (UNLIKELY(!vtbl.CmdBindDynamicColorBlendState)) {
-        ALOGE("missing device proc: %s", "vkCmdBindDynamicColorBlendState");
+    vtbl.CmdSetLineWidth = reinterpret_cast<PFN_vkCmdSetLineWidth>(get_proc_addr(device, "vkCmdSetLineWidth"));
+    if (UNLIKELY(!vtbl.CmdSetLineWidth)) {
+        ALOGE("missing device proc: %s", "vkCmdSetLineWidth");
         success = false;
     }
-    vtbl.CmdBindDynamicDepthStencilState = reinterpret_cast<PFN_vkCmdBindDynamicDepthStencilState>(get_proc_addr(device, "vkCmdBindDynamicDepthStencilState"));
-    if (UNLIKELY(!vtbl.CmdBindDynamicDepthStencilState)) {
-        ALOGE("missing device proc: %s", "vkCmdBindDynamicDepthStencilState");
+    vtbl.CmdSetDepthBias = reinterpret_cast<PFN_vkCmdSetDepthBias>(get_proc_addr(device, "vkCmdSetDepthBias"));
+    if (UNLIKELY(!vtbl.CmdSetDepthBias)) {
+        ALOGE("missing device proc: %s", "vkCmdSetDepthBias");
+        success = false;
+    }
+    vtbl.CmdSetBlendConstants = reinterpret_cast<PFN_vkCmdSetBlendConstants>(get_proc_addr(device, "vkCmdSetBlendConstants"));
+    if (UNLIKELY(!vtbl.CmdSetBlendConstants)) {
+        ALOGE("missing device proc: %s", "vkCmdSetBlendConstants");
+        success = false;
+    }
+    vtbl.CmdSetDepthBounds = reinterpret_cast<PFN_vkCmdSetDepthBounds>(get_proc_addr(device, "vkCmdSetDepthBounds"));
+    if (UNLIKELY(!vtbl.CmdSetDepthBounds)) {
+        ALOGE("missing device proc: %s", "vkCmdSetDepthBounds");
+        success = false;
+    }
+    vtbl.CmdSetStencilCompareMask = reinterpret_cast<PFN_vkCmdSetStencilCompareMask>(get_proc_addr(device, "vkCmdSetStencilCompareMask"));
+    if (UNLIKELY(!vtbl.CmdSetStencilCompareMask)) {
+        ALOGE("missing device proc: %s", "vkCmdSetStencilCompareMask");
+        success = false;
+    }
+    vtbl.CmdSetStencilWriteMask = reinterpret_cast<PFN_vkCmdSetStencilWriteMask>(get_proc_addr(device, "vkCmdSetStencilWriteMask"));
+    if (UNLIKELY(!vtbl.CmdSetStencilWriteMask)) {
+        ALOGE("missing device proc: %s", "vkCmdSetStencilWriteMask");
+        success = false;
+    }
+    vtbl.CmdSetStencilReference = reinterpret_cast<PFN_vkCmdSetStencilReference>(get_proc_addr(device, "vkCmdSetStencilReference"));
+    if (UNLIKELY(!vtbl.CmdSetStencilReference)) {
+        ALOGE("missing device proc: %s", "vkCmdSetStencilReference");
         success = false;
     }
     vtbl.CmdBindDescriptorSets = reinterpret_cast<PFN_vkCmdBindDescriptorSets>(get_proc_addr(device, "vkCmdBindDescriptorSets"));
