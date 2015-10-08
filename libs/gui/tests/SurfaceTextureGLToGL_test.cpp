@@ -33,6 +33,8 @@ TEST_F(SurfaceTextureGLToGLTest, TransformHintGetsRespected) {
     // to 2, and max acquired already defaults to 1.
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(2));
 
+    SetUpWindowAndContext();
+
     // Do the producer side of things
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
             mProducerEglSurface, mProducerEglContext));
@@ -84,6 +86,8 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
     // This test requires 3 buffers to complete run on a single thread.
     // Set max dequeued to 2, and max acquired already defaults to 1.
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(2));
+
+    SetUpWindowAndContext();
 
     // Do the producer side of things
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
@@ -152,6 +156,7 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromGLFilledRGBABufferPow2) {
 }
 
 TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
+    SetUpWindowAndContext();
     sp<GraphicBuffer> buffers[2];
 
     // This test requires async mode to run on a single thread.
@@ -197,6 +202,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
 }
 
 TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
+    SetUpWindowAndContext();
     sp<GraphicBuffer> buffers[3];
 
     // This test requires async mode to run on a single thread.
@@ -254,6 +260,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceAfterAbandonUnrefsBuffers) {
 }
 
 TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentBeforeConsumerDeathUnrefsBuffers) {
+    SetUpWindowAndContext();
     sp<GraphicBuffer> buffer;
 
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
@@ -291,6 +298,7 @@ TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentBeforeConsumerDeathUnrefsBuffers)
 }
 
 TEST_F(SurfaceTextureGLToGLTest, EglMakeCurrentAfterConsumerDeathUnrefsBuffers) {
+    SetUpWindowAndContext();
     sp<GraphicBuffer> buffer;
 
     EXPECT_TRUE(eglMakeCurrent(mEglDisplay, mProducerEglSurface,
@@ -334,6 +342,8 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromUserSizedGLFilledBuffer) {
     // This test requires 3 buffers to complete run on a single thread.
     // Set max dequeued to 2, and max acquired already defaults to 1.
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(2));
+
+    SetUpWindowAndContext();
 
     // Set the user buffer size.
     native_window_set_buffers_user_dimensions(mANW.get(), texWidth, texHeight);
@@ -392,6 +402,8 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedUserSizedGLFilledBuffer)
     // This test requires 3 buffers to complete run on a single thread.
     // Set max dequeued to 2, and max acquired already defaults to 1.
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(2));
+
+    SetUpWindowAndContext();
 
     // Set the transform hint.
     mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);
@@ -454,6 +466,8 @@ TEST_F(SurfaceTextureGLToGLTest, TexturingFromPreRotatedGLFilledBuffer) {
     // This test requires 3 buffers to complete run on a single thread.
     // Set max dequeued to 2, and max acquired already defaults to 1.
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(2));
+
+    SetUpWindowAndContext();
 
     // Set the transform hint.
     mST->setTransformHint(NATIVE_WINDOW_TRANSFORM_ROT_90);

@@ -34,7 +34,9 @@ protected:
 
     virtual void SetUp() {
         SurfaceTextureGLTest::SetUp();
+    }
 
+    void SetUpWindowAndContext() {
         mProducerEglSurface = eglCreateWindowSurface(mEglDisplay, mGlConfig,
                 mANW.get(), NULL);
         ASSERT_EQ(EGL_SUCCESS, eglGetError());

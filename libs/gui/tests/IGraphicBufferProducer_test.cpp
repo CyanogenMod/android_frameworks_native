@@ -616,10 +616,6 @@ TEST_F(IGraphicBufferProducerTest, SetAsyncMode_Fails) {
                 TEST_PRODUCER_USAGE_BITS))) << "slot: " << dequeuedSlot;
     }
 
-    // Client has one or more buffers dequeued
-    EXPECT_EQ(BAD_VALUE, mProducer->setAsyncMode(false)) << "asyncMode: "
-            << false;
-
     // Abandon buffer queue
     ASSERT_OK(mConsumer->consumerDisconnect());
 
