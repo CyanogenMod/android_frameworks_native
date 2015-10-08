@@ -518,8 +518,9 @@ private:
         return false;
     }
 
-    virtual status_t mapKey(int32_t deviceId, int32_t scanCode, int32_t usageCode,
-            int32_t* outKeycode, uint32_t* outFlags) const {
+    virtual status_t mapKey(int32_t deviceId,
+            int32_t scanCode, int32_t usageCode, int32_t metaState,
+            int32_t* outKeycode, int32_t *outMetaState, uint32_t* outFlags) const {
         Device* device = getDevice(deviceId);
         if (device) {
             const KeyInfo* key = getKey(device, scanCode, usageCode);
@@ -529,6 +530,9 @@ private:
                 }
                 if (outFlags) {
                     *outFlags = key->flags;
+                }
+                if (outMetaState) {
+                    *outMetaState = metaState;
                 }
                 return OK;
             }
