@@ -176,6 +176,11 @@ static int32_t setEphemeralMetaState(int32_t mask, bool down, int32_t oldMetaSta
                 ~(mask | AMETA_ALT_ON | AMETA_SHIFT_ON | AMETA_CTRL_ON | AMETA_META_ON);
     }
 
+    return normalizeMetaState(newMetaState);
+}
+
+int32_t normalizeMetaState(int32_t oldMetaState) {
+    int32_t newMetaState = oldMetaState;
     if (newMetaState & (AMETA_ALT_LEFT_ON | AMETA_ALT_RIGHT_ON)) {
         newMetaState |= AMETA_ALT_ON;
     }
