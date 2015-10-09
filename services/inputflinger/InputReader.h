@@ -1305,8 +1305,8 @@ protected:
         bool hasButtonUnderPad;
 
         enum GestureMode {
-            GESTURE_MODE_POINTER,
-            GESTURE_MODE_SPOTS,
+            GESTURE_MODE_SINGLE_TOUCH,
+            GESTURE_MODE_MULTI_TOUCH,
         };
         GestureMode gestureMode;
 
