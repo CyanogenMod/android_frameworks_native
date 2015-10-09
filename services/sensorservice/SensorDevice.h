@@ -104,6 +104,7 @@ public:
     void autoDisable(void *ident, int handle);
     status_t injectSensorData(const sensors_event_t *event);
     void dump(String8& result);
+    status_t setSensorPhysicalData(const char* physicaldata);
 };
 
 // ---------------------------------------------------------------------------

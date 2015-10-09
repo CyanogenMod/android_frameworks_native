@@ -35,7 +35,8 @@ namespace android {
 enum {
     GET_SENSOR_LIST = IBinder::FIRST_CALL_TRANSACTION,
     CREATE_SENSOR_EVENT_CONNECTION,
-    ENABLE_DATA_INJECTION
+    ENABLE_DATA_INJECTION,
+    SET_SENSOR_PHYSICAL_DATA,
 };
 
 class BpSensorServer : public BpInterface<ISensorServer>
@@ -83,6 +84,16 @@ public:
         remote()->transact(ENABLE_DATA_INJECTION, data, &reply);
         return reply.readInt32();
     }
+
+    virtual status_t setSensorPhysicalData(const char* physicaldata)
+    {
+        Parcel data, reply;
+        //ALOGD("ISensorManager::SetSensorPhysicalData(%s)",physicaldata);
+        data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
+        data.writeCString(physicaldata);
+        remote()->transact(SET_SENSOR_PHYSICAL_DATA, data, &reply);
+        return reply.readInt32();
+     }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -122,6 +133,14 @@ status_t BnSensorServer::onTransact(
             CHECK_INTERFACE(ISensorServer, data, reply);
             int32_t ret = isDataInjectionEnabled();
             reply->writeInt32(static_cast<int32_t>(ret));
+            return NO_ERROR;
+        }
+        case SET_SENSOR_PHYSICAL_DATA: {
+            CHECK_INTERFACE(ISensorServer, data, reply);
+            const char* physicaldata = data.readCString();
+            //ALOGD("ISensorManager, BnSensorServer::onTransact, physicaldata is: (%s)",physicaldata);
+            status_t result = setSensorPhysicalData(physicaldata);
+            reply->writeInt32(result);
             return NO_ERROR;
         }
     }
