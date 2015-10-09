@@ -1,0 +1,19 @@
+frameworks/native/vulkan/patches
+================================
+Each subdirectory corresponds to a sequence of patches. These are
+"virtual branches": we only have one shared branch, so these let us
+share experimental or auxiliary changes without disturbing the main
+branch.
+
+To apply:
+$ cd <somewhere in target git repo>
+$ git am $VULKAN_PATCHES/$PATCH_DIR/*
+
+
+frameworks_base-apk_library_dir
+-------------------------------
+This branch is for frameworks/base. It modifies the framework to
+inform the Vulkan loader, during activity startup, where the
+activity's native library directory. The loader will search this
+directory for layer libraries. Without this change, layers will only
+be loaded from a global location under /data.
