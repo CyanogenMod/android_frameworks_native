@@ -84,7 +84,9 @@ class SurfaceFlinger : public BnSurfaceComposer,
                        private HWComposer::EventHandler
 {
 public:
+#ifdef QTI_BSP
     friend class ExSurfaceFlinger;
+#endif
 
     static char const* getServiceName() ANDROID_API {
         return "SurfaceFlinger";

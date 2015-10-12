@@ -71,7 +71,9 @@ class Layer : public SurfaceFlingerConsumer::ContentsChangedListener {
     static int32_t sSequence;
 
 public:
+#ifdef QTI_BSP
     friend class ExLayer;
+#endif
     mutable bool contentDirty;
     // regions below are in window-manager space
     Region visibleRegion;
