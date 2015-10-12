@@ -351,8 +351,7 @@ static void dumpstate() {
 
     run_command("LOG STATISTICS", 10, "logcat", "-b", "all", "-S", NULL);
 
-    // raft disabled as per http://b/24159112
-    // run_command("RAFT LOGS", 300, SU_PATH, "root", "logcompressor", "-r", RAFT_DIR, NULL);
+    run_command("RAFT LOGS", 300, SU_PATH, "root", "logcompressor", "-r", RAFT_DIR, NULL);
 
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {
