@@ -355,28 +355,34 @@ void DeactivateLayer(TObject* object,
     pthread_mutex_unlock(&instance->layer_lock);
 }
 
-struct InstanceDevicePair {
+struct InstanceNamesPair {
     Instance* instance;
-    Device* device;
+    Vector<String>* layer_names;
 };
 
-void ActivateLayerFromProperty(const char* name,
+void SetLayerNamesFromProperty(const char* name,
                                const char* value,
                                void* data) {
     const char prefix[] = "debug.vulkan.layer.";
     const size_t prefixlen = sizeof(prefix) - 1;
     if (value[0] == '\0' || strncmp(name, prefix, prefixlen) != 0)
         return;
-    auto instance_device_pair = static_cast<InstanceDevicePair*>(data);
-    Instance* instance = instance_device_pair->instance;
-    Device* device = instance_device_pair->device;
-    String layer_name_str(name + prefixlen,
-                          CallbackAllocator<char>(instance->alloc));
-    if (device) {
-        ActivateLayer(device, instance, layer_name_str);
-    } else {
-        ActivateLayer(instance, instance, layer_name_str);
+    const char* number_str = name + prefixlen;
+    long layer_number = strtol(number_str, nullptr, 10);
+    if (layer_number <= 0 || layer_number == LONG_MAX) {
+        ALOGW("Cannot use a layer at number %ld from string %s", layer_number,
+              number_str);
+        return;
     }
+    auto instance_names_pair = static_cast<InstanceNamesPair*>(data);
+    Vector<String>* layer_names = instance_names_pair->layer_names;
+    Instance* instance = instance_names_pair->instance;
+    size_t layer_size = static_cast<size_t>(layer_number);
+    if (layer_size > layer_names->size()) {
+        layer_names->resize(layer_size,
+                            String(CallbackAllocator<char>(instance->alloc)));
+    }
+    (*layer_names)[layer_size - 1] = value;
 }
 
 template <class TInfo, class TObject>
@@ -400,13 +406,14 @@ void ActivateAllLayers(TInfo create_info, Instance* instance, TObject* object) {
             }
             start = end + 1;
         }
-        InstanceDevicePair instance_device_pair = {.instance = instance,
-                                                   .device = 0};
-        if (create_info->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO) {
-            instance_device_pair.device = reinterpret_cast<Device*>(object);
+        Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
+        InstanceNamesPair instance_names_pair = {.instance = instance,
+                                                 .layer_names = &layer_names};
+        property_list(SetLayerNamesFromProperty,
+                      static_cast<void*>(&instance_names_pair));
+        for (auto layer_name_element : layer_names) {
+            ActivateLayer(object, instance, layer_name_element);
         }
-        property_list(ActivateLayerFromProperty,
-                      static_cast<void*>(&instance_device_pair));
     }
     // Load app layers
     for (uint32_t i = 0; i < create_info->layerCount; ++i) {
