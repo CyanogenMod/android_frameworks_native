@@ -83,7 +83,6 @@ RenderEngine* RenderEngine::create(EGLDisplay display, int hwcFormat) {
             EGL_CONTEXT_CLIENT_VERSION, contextClientVersion,      // MUST be first
 #ifdef EGL_IMG_context_priority
 #ifdef HAS_CONTEXT_PRIORITY
-#warning "using EGL_IMG_context_priority"
             EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
 #endif
 #endif
