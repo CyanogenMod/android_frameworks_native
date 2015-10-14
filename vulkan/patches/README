@@ -12,8 +12,15 @@ $ git am $VULKAN_PATCHES/$PATCH_DIR/*
 
 frameworks_base-apk_library_dir
 -------------------------------
-This branch is for frameworks/base. It modifies the framework to
+This branch is for $TOP/frameworks/base. It modifies the framework to
 inform the Vulkan loader, during activity startup, where the
 activity's native library directory. The loader will search this
 directory for layer libraries. Without this change, layers will only
 be loaded from a global location under /data.
+
+
+build-install_libvulkan
+-----------------------
+This branch is for $TOP/build. It adds libvulkan.so to the base
+PRODUCT_PACKAGES variable, so it will be built and installed on the system
+partition by default.
