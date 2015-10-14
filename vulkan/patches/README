@@ -17,11 +17,3 @@ inform the Vulkan loader, during activity startup, where the
 activity's native library directory. The loader will search this
 directory for layer libraries. Without this change, layers will only
 be loaded from a global location under /data.
-
-
-sdk-0.9
--------
-This branch contains experimental support for the sdk-0.9. Changes to
-the core API up to version 0.170.2 are complete, but not tested much
-yet. These patches are probably missing changes to the swapchain
-extensions.
