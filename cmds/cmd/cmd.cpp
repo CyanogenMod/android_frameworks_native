@@ -90,6 +90,7 @@ int main(int argc, char* const argv[])
     }
 
     // TODO: block until a result is returned to MyResultReceiver.
-    service->shellCommand(STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO, args, new MyResultReceiver());
+    IBinder::shellCommand(service, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO, args,
+            new MyResultReceiver());
     return 0;
 }

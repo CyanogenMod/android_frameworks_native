@@ -157,23 +157,6 @@ status_t BpBinder::dump(int fd, const Vector<String16>& args)
     return err;
 }
 
-status_t BpBinder::shellCommand(int in, int out, int err, Vector<String16>& args,
-    const sp<IResultReceiver>& resultReceiver)
-{
-    Parcel send;
-    Parcel reply;
-    send.writeFileDescriptor(in);
-    send.writeFileDescriptor(out);
-    send.writeFileDescriptor(err);
-    const size_t numArgs = args.size();
-    send.writeInt32(numArgs);
-    for (size_t i = 0; i < numArgs; i++) {
-        send.writeString16(args[i]);
-    }
-    send.writeStrongBinder(resultReceiver != NULL ? IInterface::asBinder(resultReceiver) : NULL);
-    return transact(SHELL_COMMAND_TRANSACTION, send, &reply);
-}
-
 status_t BpBinder::transact(
     uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
 {
