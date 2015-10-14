@@ -245,6 +245,11 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     }
 
+    // Set DATA_INJECTION flag here. Defined in HAL 1_4.
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_4) {
+        mFlags |= (hwSensor->flags & DATA_INJECTION_MASK);
+    }
+
     // For the newer HALs log errors if reporting mask flags are set incorrectly.
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
         // Wake-up flag is set here.
