@@ -61,16 +61,21 @@ bool IBinder::checkSubclass(const void* /*subclassID*/) const
 }
 
 
-status_t IBinder::shellCommand(int /*in*/, int out, int /*err*/, Vector<String16>& /*args*/,
-    const sp<IResultReceiver>& resultReceiver)
+status_t IBinder::shellCommand(const sp<IBinder>& target, int in, int out, int err,
+    Vector<String16>& args, const sp<IResultReceiver>& resultReceiver)
 {
-    if (out >= 0) {
-        dprintf(out, "Shell commands not supported.\n");
+    Parcel send;
+    Parcel reply;
+    send.writeFileDescriptor(in);
+    send.writeFileDescriptor(out);
+    send.writeFileDescriptor(err);
+    const size_t numArgs = args.size();
+    send.writeInt32(numArgs);
+    for (size_t i = 0; i < numArgs; i++) {
+        send.writeString16(args[i]);
     }
-    if (resultReceiver != NULL) {
-        resultReceiver->send(INVALID_OPERATION);
-    }
-    return NO_ERROR;
+    send.writeStrongBinder(resultReceiver != NULL ? IInterface::asBinder(resultReceiver) : NULL);
+    return target->transact(SHELL_COMMAND_TRANSACTION, send, &reply);
 }
 
 // ---------------------------------------------------------------------------
@@ -230,7 +235,11 @@ status_t BBinder::onTransact(
             sp<IResultReceiver> resultReceiver = IResultReceiver::asInterface(
                     data.readStrongBinder());
 
-            return shellCommand(in, out, err, args, resultReceiver);
+            // XXX can't add virtuals until binaries are updated.
+            //return shellCommand(in, out, err, args, resultReceiver);
+            if (resultReceiver != NULL) {
+                resultReceiver->send(INVALID_OPERATION);
+            }
         }
 
         case SYSPROPS_TRANSACTION: {
