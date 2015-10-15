@@ -2962,15 +2962,15 @@ void TouchInputMapper::configureParameters() {
     // multitouch.  The spot-based presentation relies on being able to accurately
     // locate two or more fingers on the touch pad.
     mParameters.gestureMode = getEventHub()->hasInputProperty(getDeviceId(), INPUT_PROP_SEMI_MT)
-            ? Parameters::GESTURE_MODE_POINTER : Parameters::GESTURE_MODE_SPOTS;
+            ? Parameters::GESTURE_MODE_SINGLE_TOUCH : Parameters::GESTURE_MODE_MULTI_TOUCH;
 
     String8 gestureModeString;
     if (getDevice()->getConfiguration().tryGetProperty(String8("touch.gestureMode"),
             gestureModeString)) {
-        if (gestureModeString == "pointer") {
-            mParameters.gestureMode = Parameters::GESTURE_MODE_POINTER;
-        } else if (gestureModeString == "spots") {
-            mParameters.gestureMode = Parameters::GESTURE_MODE_SPOTS;
+        if (gestureModeString == "single-touch") {
+            mParameters.gestureMode = Parameters::GESTURE_MODE_SINGLE_TOUCH;
+        } else if (gestureModeString == "multi-touch") {
+            mParameters.gestureMode = Parameters::GESTURE_MODE_MULTI_TOUCH;
         } else if (gestureModeString != "default") {
             ALOGW("Invalid value for touch.gestureMode: '%s'", gestureModeString.string());
         }
@@ -3038,11 +3038,11 @@ void TouchInputMapper::dumpParameters(String8& dump) {
     dump.append(INDENT3 "Parameters:\n");
 
     switch (mParameters.gestureMode) {
-    case Parameters::GESTURE_MODE_POINTER:
-        dump.append(INDENT4 "GestureMode: pointer\n");
+    case Parameters::GESTURE_MODE_SINGLE_TOUCH:
+        dump.append(INDENT4 "GestureMode: single-touch\n");
         break;
-    case Parameters::GESTURE_MODE_SPOTS:
-        dump.append(INDENT4 "GestureMode: spots\n");
+    case Parameters::GESTURE_MODE_MULTI_TOUCH:
+        dump.append(INDENT4 "GestureMode: multi-touch\n");
         break;
     default:
         assert(false);
@@ -4838,14 +4838,17 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     }
 
     // Update the pointer presentation and spots.
-    if (mParameters.gestureMode == Parameters::GESTURE_MODE_SPOTS) {
-        mPointerController->setPresentation(PointerControllerInterface::PRESENTATION_SPOT);
+    if (mParameters.gestureMode == Parameters::GESTURE_MODE_MULTI_TOUCH) {
+        mPointerController->setPresentation(PointerControllerInterface::PRESENTATION_POINTER);
         if (finishPreviousGesture || cancelPreviousGesture) {
             mPointerController->clearSpots();
         }
-        mPointerController->setSpots(mPointerGesture.currentGestureCoords,
-                mPointerGesture.currentGestureIdToIndex,
-                mPointerGesture.currentGestureIdBits);
+
+        if (mPointerGesture.currentGestureMode == PointerGesture::FREEFORM) {
+            mPointerController->setSpots(mPointerGesture.currentGestureCoords,
+                     mPointerGesture.currentGestureIdToIndex,
+                     mPointerGesture.currentGestureIdBits);
+        }
     } else {
         mPointerController->setPresentation(PointerControllerInterface::PRESENTATION_POINTER);
     }
@@ -4854,9 +4857,8 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     switch (mPointerGesture.currentGestureMode) {
     case PointerGesture::NEUTRAL:
     case PointerGesture::QUIET:
-        if (mParameters.gestureMode == Parameters::GESTURE_MODE_SPOTS
-                && (mPointerGesture.lastGestureMode == PointerGesture::SWIPE
-                        || mPointerGesture.lastGestureMode == PointerGesture::FREEFORM)) {
+        if (mParameters.gestureMode == Parameters::GESTURE_MODE_MULTI_TOUCH
+                && mPointerGesture.lastGestureMode == PointerGesture::FREEFORM) {
             // Remind the user of where the pointer is after finishing a gesture with spots.
             mPointerController->unfade(PointerControllerInterface::TRANSITION_GRADUAL);
         }
@@ -4866,15 +4868,15 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     case PointerGesture::BUTTON_CLICK_OR_DRAG:
     case PointerGesture::HOVER:
     case PointerGesture::PRESS:
+    case PointerGesture::SWIPE:
         // Unfade the pointer when the current gesture manipulates the
         // area directly under the pointer.
         mPointerController->unfade(PointerControllerInterface::TRANSITION_IMMEDIATE);
         break;
-    case PointerGesture::SWIPE:
     case PointerGesture::FREEFORM:
         // Fade the pointer when the current gesture manipulates a different
         // area and there are spots to guide the user experience.
-        if (mParameters.gestureMode == Parameters::GESTURE_MODE_SPOTS) {
+        if (mParameters.gestureMode == Parameters::GESTURE_MODE_MULTI_TOUCH) {
             mPointerController->fade(PointerControllerInterface::TRANSITION_GRADUAL);
         } else {
             mPointerController->unfade(PointerControllerInterface::TRANSITION_IMMEDIATE);
