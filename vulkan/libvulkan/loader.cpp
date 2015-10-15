@@ -469,19 +469,20 @@ void FreeAllocatedCreateInfo(T& local_create_info,
         const_cast<char**>(local_create_info.ppEnabledExtensionNames));
 }
 
-void LogDebugMessageCallback(VkFlags message_flags,
-                             VkDbgObjectType /*obj_type*/,
-                             uint64_t /*src_object*/,
-                             size_t /*location*/,
-                             int32_t message_code,
-                             const char* layer_prefix,
-                             const char* message,
-                             void* /*user_data*/) {
+VkBool32 LogDebugMessageCallback(VkFlags message_flags,
+                                 VkDbgObjectType /*obj_type*/,
+                                 uint64_t /*src_object*/,
+                                 size_t /*location*/,
+                                 int32_t message_code,
+                                 const char* layer_prefix,
+                                 const char* message,
+                                 void* /*user_data*/) {
     if (message_flags & VK_DBG_REPORT_ERROR_BIT) {
         ALOGE("[%s] Code %d : %s", layer_prefix, message_code, message);
     } else if (message_flags & VK_DBG_REPORT_WARN_BIT) {
         ALOGW("[%s] Code %d : %s", layer_prefix, message_code, message);
     }
+    return false;
 }
 
 VkResult CreateDeviceNoop(VkPhysicalDevice,
