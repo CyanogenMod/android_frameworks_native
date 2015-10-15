@@ -786,6 +786,21 @@ status_t Parcel::writeByteArray(size_t len, const uint8_t *val) {
     return ret;
 }
 
+status_t Parcel::writeBool(bool val)
+{
+    return writeInt32(int32_t(val));
+}
+
+status_t Parcel::writeChar(char16_t val)
+{
+    return writeInt32(int32_t(val));
+}
+
+status_t Parcel::writeByte(int8_t val)
+{
+    return writeInt32(int32_t(val));
+}
+
 status_t Parcel::writeInt64(int64_t val)
 {
     return writeAligned(val);
@@ -1276,6 +1291,44 @@ intptr_t Parcel::readIntPtr() const
     return readAligned<intptr_t>();
 }
 
+status_t Parcel::readBool(bool *pArg) const
+{
+    int32_t tmp;
+    status_t ret = readInt32(&tmp);
+    *pArg = (tmp != 0);
+    return ret;
+}
+
+bool Parcel::readBool() const
+{
+    return readInt32() != 0;
+}
+
+status_t Parcel::readChar(char16_t *pArg) const
+{
+    int32_t tmp;
+    status_t ret = readInt32(&tmp);
+    *pArg = char16_t(tmp);
+    return ret;
+}
+
+char16_t Parcel::readChar() const
+{
+    return char16_t(readInt32());
+}
+
+status_t Parcel::readByte(int8_t *pArg) const
+{
+    int32_t tmp;
+    status_t ret = readInt32(&tmp);
+    *pArg = int8_t(tmp);
+    return ret;
+}
+
+int8_t Parcel::readByte() const
+{
+    return int8_t(readInt32());
+}
 
 const char* Parcel::readCString() const
 {
