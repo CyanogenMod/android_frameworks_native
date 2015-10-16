@@ -50,6 +50,7 @@ static const char* native_processes_to_dump[] = {
         "/system/bin/mediaserver",
         "/system/bin/sdcard",
         "/system/bin/surfaceflinger",
+        "/system/bin/vehicle_network_service",
         NULL,
 };
 
