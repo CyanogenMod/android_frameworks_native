@@ -38,15 +38,14 @@ typedef struct hwvulkan_module_t {
  * implementation-defined data). On return from the creation function, the
  * 'magic' field must contain HWVULKAN_DISPATCH_MAGIC; the loader will overwrite
  * the 'vtbl' field.
+ *
+ * NOTE: The magic value and the layout of hwvulkan_dispatch_t match the LunarG
+ * loader used on platforms, to avoid pointless annoying differences for
+ * multi-platform drivers. Don't change them without a good reason. If there is
+ * an opportunity to change it, using a magic value that doesn't leave the
+ * upper 32-bits zero on 64-bit platforms would be nice.
  */
-#if defined(__LP64__)
-#define HWVULKAN_DISPATCH_MAGIC UINT64_C(0xCA11AB1E00C0DE00)
-#elif defined(__ILP32__)
-#define HWVULKAN_DISPATCH_MAGIC UINT32_C(0xCA11AB1E)
-#else
-#error "unknown pointer size?!"
-#endif
-
+#define HWVULKAN_DISPATCH_MAGIC 0x01CDC0DE
 typedef union {
     uintptr_t magic;
     const void* vtbl;
