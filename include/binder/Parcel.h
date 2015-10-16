@@ -108,6 +108,9 @@ public:
     status_t            writeWeakBinder(const wp<IBinder>& val);
     status_t            writeInt32Array(size_t len, const int32_t *val);
     status_t            writeByteArray(size_t len, const uint8_t *val);
+    status_t            writeBool(bool val);
+    status_t            writeChar(char16_t val);
+    status_t            writeByte(int8_t val);
 
     template<typename T>
     status_t            write(const Flattenable<T>& val);
@@ -169,6 +172,12 @@ public:
     status_t            readDouble(double *pArg) const;
     intptr_t            readIntPtr() const;
     status_t            readIntPtr(intptr_t *pArg) const;
+    bool                readBool() const;
+    status_t            readBool(bool *pArg) const;
+    char16_t            readChar() const;
+    status_t            readChar(char16_t *pArg) const;
+    int8_t              readByte() const;
+    status_t            readByte(int8_t *pArg) const;
 
     const char*         readCString() const;
     String8             readString8() const;
