@@ -27,11 +27,12 @@ LOCAL_SRC_FILES:= 	       \
 	EGL/egl_object.cpp     \
 	EGL/egl.cpp 	       \
 	EGL/eglApi.cpp 	       \
+	EGL/trace.cpp              \
 	EGL/getProcAddress.cpp.arm \
 	EGL/Loader.cpp 	       \
 #
 
-LOCAL_SHARED_LIBRARIES += libcutils libutils liblog 
+LOCAL_SHARED_LIBRARIES += libcutils libutils liblog libGLES_trace
 LOCAL_MODULE:= libEGL
 LOCAL_LDFLAGS += -Wl,--exclude-libs=ALL
 LOCAL_SHARED_LIBRARIES += libdl
@@ -41,6 +42,7 @@ LOCAL_C_INCLUDES += bionic/libc/private
 LOCAL_CFLAGS += -DLOG_TAG=\"libEGL\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -fvisibility=hidden
+LOCAL_CFLAGS += -DEGL_TRACE=1
 
 ifeq ($(BOARD_ALLOW_EGL_HIBERNATION),true)
   LOCAL_CFLAGS += -DBOARD_ALLOW_EGL_HIBERNATION
