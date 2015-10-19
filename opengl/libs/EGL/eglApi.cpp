@@ -39,7 +39,6 @@
 #include <utils/Trace.h>
 
 #include "../egl_impl.h"
-#include "../glestrace.h"
 #include "../hooks.h"
 
 #include "egl_display.h"
@@ -231,8 +230,6 @@ static void(*findProcAddress(const char* name,
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 extern EGLBoolean egl_init_drivers();
 extern const __eglMustCastToProperFunctionPointerType gExtensionForwarders[MAX_NUMBER_OF_GL_EXTENSIONS];
-extern int getEGLDebugLevel();
-extern void setEGLDebugLevel(int level);
 extern gl_hooks_t gHooksTrace;
 
 } // namespace android;
@@ -674,10 +671,6 @@ EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
             }
             egl_context_t* c = new egl_context_t(dpy, context, config, cnx,
                     version);
-#if EGL_TRACE
-            if (getEGLDebugLevel() > 0)
-                GLTrace_eglCreateContext(version, c);
-#endif
             return c;
         }
     }
@@ -783,10 +776,6 @@ EGLBoolean eglMakeCurrent(  EGLDisplay dpy, EGLSurface draw,
         if (c) {
             setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
             egl_tls_t::setContext(ctx);
-#if EGL_TRACE
-            if (getEGLDebugLevel() > 0)
-                GLTrace_eglMakeCurrent(c->version, c->cnx->hooks[c->version], ctx);
-#endif
             _c.acquire();
             _r.acquire();
             _d.acquire();
@@ -971,10 +960,6 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
                 "no more slots for eglGetProcAddress(\"%s\")",
                 procname);
 
-#if EGL_TRACE
-        gl_hooks_t *debugHooks = GLTrace_getGLHooks();
-#endif
-
         if (!addr && (slot < MAX_NUMBER_OF_GL_EXTENSIONS)) {
             bool found = false;
 
@@ -984,10 +969,6 @@ __eglMustCastToProperFunctionPointerType eglGetProcAddress(const char *procname)
                 addr =
                 cnx->hooks[egl_connection_t::GLESv1_INDEX]->ext.extensions[slot] =
                 cnx->hooks[egl_connection_t::GLESv2_INDEX]->ext.extensions[slot] =
-#if EGL_TRACE
-                debugHooks->ext.extensions[slot] =
-                gHooksTrace.ext.extensions[slot] =
-#endif
                         cnx->egl.eglGetProcAddress(procname);
                 if (addr) found = true;
             }
@@ -1078,34 +1059,6 @@ EGLBoolean eglSwapBuffersWithDamageKHR(EGLDisplay dpy, EGLSurface draw,
     SurfaceRef _s(dp.get(), draw);
     if (!_s.get())
         return setError(EGL_BAD_SURFACE, EGL_FALSE);
-
-#if EGL_TRACE
-    gl_hooks_t const *trace_hooks = getGLTraceThreadSpecific();
-    if (getEGLDebugLevel() > 0) {
-        if (trace_hooks == NULL) {
-            if (GLTrace_start() < 0) {
-                ALOGE("Disabling Tracer for OpenGL ES");
-                setEGLDebugLevel(0);
-            } else {
-                // switch over to the trace version of hooks
-                EGLContext ctx = egl_tls_t::getContext();
-                egl_context_t * const c = get_context(ctx);
-                if (c) {
-                    setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
-                    GLTrace_eglMakeCurrent(c->version, c->cnx->hooks[c->version], ctx);
-                }
-            }
-        }
-
-        GLTrace_eglSwapBuffers(dpy, draw);
-    } else if (trace_hooks != NULL) {
-        // tracing is now disabled, so switch back to the non trace version
-        EGLContext ctx = egl_tls_t::getContext();
-        egl_context_t * const c = get_context(ctx);
-        if (c) setGLHooksThreadSpecific(c->cnx->hooks[c->version]);
-        GLTrace_stop();
-    }
-#endif
 
     egl_surface_t const * const s = get_surface(draw);
 
@@ -1355,11 +1308,6 @@ EGLenum eglQueryAPI(void)
 EGLBoolean eglReleaseThread(void)
 {
     clearError();
-
-#if EGL_TRACE
-    if (getEGLDebugLevel() > 0)
-        GLTrace_eglReleaseThread();
-#endif
 
     // If there is context bound to the thread, release it
     egl_display_t::loseCurrent(get_context(getContext()));
