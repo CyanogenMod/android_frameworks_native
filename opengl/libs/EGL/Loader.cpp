@@ -28,6 +28,8 @@
 
 #include <EGL/egl.h>
 
+#include "../glestrace.h"
+
 #include "egldefs.h"
 #include "Loader.h"
 
@@ -156,6 +158,7 @@ Loader::Loader()
 }
 
 Loader::~Loader() {
+    GLTrace_stop();
 }
 
 static void* load_wrapper(const char* path) {
