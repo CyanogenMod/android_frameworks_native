@@ -224,6 +224,7 @@ void LayerBlur::onDraw(const sp<const DisplayDevice>& hw, const Region& /*clip*/
 bool LayerBlur::captureScreen(const sp<const DisplayDevice>& hw, FBO& fbo, Texture& texture, int width, int height) {
     ATRACE_CALL();
     ensureFbo(fbo, width, height, texture.getTextureName());
+    Transform::orientation_flags rotation = Transform::ROT_0;
     if(fbo.fbo == 0) {
         ALOGE("captureScreen(). fbo.fbo == 0");
         return false;
@@ -237,6 +238,8 @@ bool LayerBlur::captureScreen(const sp<const DisplayDevice>& hw, FBO& fbo, Textu
             texture.getTextureName(), 0);
 
     mFlinger->getRenderEngine().clearWithColor(0.0f, 0.0f, 0.0f, 1.0f);
+    if (hw->isPanelInverseMounted())
+        rotation =  Transform::ROT_180;
     mFlinger->renderScreenImplLocked(
                 hw,
                 Rect(0,0,width,height),
@@ -244,7 +247,7 @@ bool LayerBlur::captureScreen(const sp<const DisplayDevice>& hw, FBO& fbo, Textu
                 0, getDrawingState().z-1,
                 false,
                 false,
-                Transform::ROT_0);
+                rotation);
 
     glBindFramebuffer(GL_FRAMEBUFFER, savedFramebuffer);
 
