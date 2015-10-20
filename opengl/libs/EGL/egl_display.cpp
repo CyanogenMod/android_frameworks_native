@@ -38,8 +38,6 @@ static char const * const sClientApiString  = "OpenGL_ES";
 extern char const * const gBuiltinExtensionString;
 extern char const * const gExtensionString;
 
-extern void initEglTraceLevel();
-extern void initEglDebugLevel();
 extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 
 // ----------------------------------------------------------------------------
@@ -138,15 +136,6 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
 
     {
         Mutex::Autolock _l(lock);
-
-#if EGL_TRACE
-
-        // Called both at early_init time and at this time. (Early_init is pre-zygote, so
-        // the information from that call may be stale.)
-        initEglTraceLevel();
-        initEglDebugLevel();
-
-#endif
 
         setGLHooksThreadSpecific(&gHooksNoContext);
 
