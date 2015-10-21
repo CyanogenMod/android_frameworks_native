@@ -138,7 +138,7 @@ static char* typetostring(uint32_t type, char* out,
         *pos = 0;
         return pos;
     }
-    
+
     if( fullContext ) {
         *pos++ = '0';
         *pos++ = 'x';
@@ -167,21 +167,21 @@ void printHexData(int32_t indent, const void *buf, size_t length,
     if (func == NULL) func = defaultPrintFunc;
 
     size_t offset;
-    
+
     unsigned char *pos = (unsigned char *)buf;
-    
+
     if (pos == NULL) {
         if (singleLineBytesCutoff < 0) func(cookie, "\n");
         func(cookie, "(NULL)");
         return;
     }
-    
+
     if (length == 0) {
         if (singleLineBytesCutoff < 0) func(cookie, "\n");
         func(cookie, "(empty)");
         return;
     }
-    
+
     if ((int32_t)length < 0) {
         if (singleLineBytesCutoff < 0) func(cookie, "\n");
         char buf[64];
@@ -189,12 +189,12 @@ void printHexData(int32_t indent, const void *buf, size_t length,
         func(cookie, buf);
         return;
     }
-    
+
     char buffer[256];
     static const size_t maxBytesPerLine = (sizeof(buffer)-1-11-4)/(3+1);
-    
+
     if (bytesPerLine > maxBytesPerLine) bytesPerLine = maxBytesPerLine;
-    
+
     const bool oneLine = (int32_t)length <= singleLineBytesCutoff;
     bool newLine = false;
     if (cStyle) {
@@ -205,7 +205,7 @@ void printHexData(int32_t indent, const void *buf, size_t length,
         func(cookie, "\n");
         newLine = true;
     }
-    
+
     for (offset = 0; ; offset += bytesPerLine, pos += bytesPerLine) {
         long remain = length;
 
@@ -217,21 +217,20 @@ void printHexData(int32_t indent, const void *buf, size_t length,
 
         size_t index;
         size_t word;
-        
+
         for (word = 0; word < bytesPerLine; ) {
 
             const size_t startIndex = word+(alignment-(alignment?1:0));
-            const ssize_t dir = -1;
 
             for (index = 0; index < alignment || (alignment == 0 && index < bytesPerLine); index++) {
-            
+
                 if (!cStyle) {
                     if (index == 0 && word > 0 && alignment > 0) {
                         *c++ = ' ';
                     }
-                
+
                     if (remain-- > 0) {
-                        const unsigned char val = *(pos+startIndex+(index*dir));
+                        const unsigned char val = *(pos+startIndex-index);
                         *c++ = makehexdigit(val>>4);
                         *c++ = makehexdigit(val);
                     } else if (!oneLine) {
@@ -248,14 +247,14 @@ void printHexData(int32_t indent, const void *buf, size_t length,
                             *c++ = '0';
                             *c++ = 'x';
                         }
-                        const unsigned char val = *(pos+startIndex+(index*dir));
+                        const unsigned char val = *(pos+startIndex-index);
                         *c++ = makehexdigit(val>>4);
                         *c++ = makehexdigit(val);
                         remain--;
                     }
                 }
             }
-            
+
             word += index;
         }
 
@@ -272,7 +271,7 @@ void printHexData(int32_t indent, const void *buf, size_t length,
                     *c++ = ' ';
                 }
             }
-            
+
             *c++ = '\'';
             if (length > bytesPerLine) *c++ = '\n';
         } else {
@@ -284,7 +283,7 @@ void printHexData(int32_t indent, const void *buf, size_t length,
         *c = 0;
         func(cookie, buffer);
         newLine = true;
-        
+
         if (length <= bytesPerLine) break;
         length -= bytesPerLine;
     }
