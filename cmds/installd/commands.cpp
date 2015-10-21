@@ -598,7 +598,7 @@ static bool check_boolean_property(const char* property_name, bool default_value
     return strcmp(tmp_property_value, "true") == 0;
 }
 
-static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
+static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *instruction_set,
     bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool extract_only,
     const std::vector<int>& profile_files_fd, const std::vector<int>& reference_profile_files_fd) {
@@ -684,6 +684,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char dex2oat_compiler_filter_arg[strlen("--compiler-filter=") + kPropertyValueMax];
     bool have_dex2oat_swap_fd = false;
     char dex2oat_swap_fd[strlen("--swap-fd=") + MAX_INT_LEN];
+    bool have_dex2oat_image_fd = false;
+    char dex2oat_image_fd[strlen("--app-image-fd=") + MAX_INT_LEN];
 
     sprintf(zip_fd_arg, "--zip-fd=%d", zip_fd);
     sprintf(zip_location_arg, "--zip-location=%s", input_file_name);
@@ -695,6 +697,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (swap_fd >= 0) {
         have_dex2oat_swap_fd = true;
         sprintf(dex2oat_swap_fd, "--swap-fd=%d", swap_fd);
+    }
+    if (image_fd >= 0) {
+        have_dex2oat_image_fd = true;
+        sprintf(dex2oat_image_fd, "--app-image-fd=%d", image_fd);
     }
 
     if (have_dex2oat_Xms_flag) {
@@ -746,6 +752,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                      + (have_dex2oat_compiler_filter_flag ? 1 : 0)
                      + (have_dex2oat_threads_flag ? 1 : 0)
                      + (have_dex2oat_swap_fd ? 1 : 0)
+                     + (have_dex2oat_image_fd ? 1 : 0)
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
                      + (generate_debug_info ? 1 : 0)
                      + (debuggable ? 1 : 0)
@@ -781,6 +788,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_swap_fd) {
         argv[i++] = dex2oat_swap_fd;
+    }
+    if (have_dex2oat_image_fd) {
+        argv[i++] = dex2oat_image_fd;
     }
     if (generate_debug_info) {
         argv[i++] = "--generate-debug-info";
@@ -964,6 +974,37 @@ static void open_profile_files(const char* volume_uuid, uid_t uid, const char* p
     }
 }
 
+static void trim_extension(char* path) {
+  // Trim the extension.
+  int pos = strlen(path);
+  for (; pos >= 0 && path[pos] != '.'; --pos) {}
+  if (pos >= 0) {
+      path[pos] = '\0';  // Trim extension
+  }
+}
+
+static int open_with_extension(char* file_name, const char* extension) {
+    if (strlen(file_name) + strlen(extension) + 1 <= PKG_PATH_MAX) {
+        strcat(file_name, extension);
+        unlink(file_name);
+        return open(file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
+    }
+    return -1;
+}
+
+static bool set_permissions_and_ownership(int fd, bool is_public, int uid, const char* path) {
+    if (fchmod(fd,
+               S_IRUSR|S_IWUSR|S_IRGRP |
+               (is_public ? S_IROTH : 0)) < 0) {
+        ALOGE("installd cannot chmod '%s' during dexopt\n", path);
+        return false;
+    } else if (fchown(fd, AID_SYSTEM, uid) < 0) {
+        ALOGE("installd cannot chown '%s' during dexopt\n", path);
+        return false;
+    }
+    return true;
+}
+
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
            int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* volume_uuid,
            bool use_profiles)
@@ -972,9 +1013,10 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     struct stat input_stat;
     char out_path[PKG_PATH_MAX];
     char swap_file_name[PKG_PATH_MAX];
+    char image_path[PKG_PATH_MAX];
     const char *input_file;
     char in_odex_path[PKG_PATH_MAX];
-    int res, input_fd=-1, out_fd=-1, swap_fd=-1;
+    int res, input_fd=-1, out_fd=-1, image_fd=-1, swap_fd=-1;
     bool is_public = (dexopt_flags & DEXOPT_PUBLIC) != 0;
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
@@ -1053,40 +1095,35 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         ALOGE("installd cannot open '%s' for output during dexopt\n", out_path);
         goto fail;
     }
-    if (fchmod(out_fd,
-               S_IRUSR|S_IWUSR|S_IRGRP |
-               (is_public ? S_IROTH : 0)) < 0) {
-        ALOGE("installd cannot chmod '%s' during dexopt\n", out_path);
-        goto fail;
-    }
-    if (fchown(out_fd, AID_SYSTEM, uid) < 0) {
-        ALOGE("installd cannot chown '%s' during dexopt\n", out_path);
+    if (!set_permissions_and_ownership(out_fd, is_public, uid, out_path)) {
         goto fail;
     }
 
     // Create a swap file if necessary.
     if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
-        size_t out_len = strlen(out_path);
-        if (out_len + strlen(".swap") + 1 <= PKG_PATH_MAX) {
-            strcpy(swap_file_name, out_path);
-            strcpy(swap_file_name + strlen(out_path), ".swap");
-            unlink(swap_file_name);
-            swap_fd = open(swap_file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
-            if (swap_fd < 0) {
-                // Could not create swap file. Optimistically go on and hope that we can compile
-                // without it.
-                ALOGE("installd could not create '%s' for swap during dexopt\n", swap_file_name);
-            } else {
-                // Immediately unlink. We don't really want to hit flash.
-                unlink(swap_file_name);
-            }
+        strcpy(swap_file_name, out_path);
+        swap_fd = open_with_extension(swap_file_name, ".swap");
+        if (swap_fd < 0) {
+            // Could not create swap file. Optimistically go on and hope that we can compile
+            // without it.
+            ALOGE("installd could not create '%s' for swap during dexopt\n", swap_file_name);
         } else {
-            // Swap file path is too long. Try to run without.
-            ALOGE("installd could not create swap file for path %s during dexopt\n", out_path);
+            // Immediately unlink. We don't really want to hit flash.
+            unlink(swap_file_name);
         }
     }
 
+    strcpy(image_path, out_path);
+    trim_extension(image_path);
+    image_fd = open_with_extension(image_path, ".art");
+    if (image_fd < 0) {
+        // Could not create swap file. Optimistically go on and hope that we can compile
+        // without it.
+        ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
+    } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
+        image_fd = -1;
+    }
     ALOGV("DexInv: --- BEGIN '%s' ---\n", input_file);
 
     pid_t pid;
@@ -1121,7 +1158,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             || dexopt_needed == DEXOPT_SELF_PATCHOAT_NEEDED) {
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
-            run_dex2oat(input_fd, out_fd, input_file, out_path, swap_fd,
+            run_dex2oat(input_fd, out_fd, image_fd, input_file, out_path, swap_fd,
                         instruction_set, vm_safe_mode, debuggable, boot_complete, extract_only,
                         profile_files_fd, reference_profile_files_fd);
         } else {
@@ -1145,12 +1182,15 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
 
     close(out_fd);
     close(input_fd);
-    if (swap_fd != -1) {
+    if (swap_fd >= 0) {
         close(swap_fd);
     }
     if (use_profiles != 0) {
         close_all_fds(profile_files_fd, "profile_files_fd");
         close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
+    }
+    if (image_fd >= 0) {
+        close(image_fd);
     }
     return 0;
 
@@ -1165,6 +1205,12 @@ fail:
     if (use_profiles != 0) {
         close_all_fds(profile_files_fd, "profile_files_fd");
         close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
+    }
+    if (swap_fd >= 0) {
+        close(swap_fd);
+    }
+    if (image_fd >= 0) {
+        close(image_fd);
     }
     return -1;
 }
