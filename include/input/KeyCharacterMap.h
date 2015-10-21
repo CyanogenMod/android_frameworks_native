@@ -31,6 +31,9 @@
 #include <utils/Unicode.h>
 #include <utils/RefBase.h>
 
+// Maximum number of keys supported by KeyCharacterMaps
+#define MAX_KEYS 8192
+
 namespace android {
 
 /**
