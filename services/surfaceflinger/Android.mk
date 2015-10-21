@@ -109,7 +109,8 @@ LOCAL_SHARED_LIBRARIES := \
 
 ifeq ($(TARGET_USES_QCOM_BSP), true)
     LOCAL_WHOLE_STATIC_LIBRARIES += libexsurfaceflinger
-    LOCAL_C_INCLUDES += $(ANDROID_BUILD_TOP)/vendor/qcom/opensource/display-frameworks/native/services/surfaceflinger/
+    LOCAL_C_INCLUDES += vendor/qcom/opensource/display-frameworks/native/services/surfaceflinger
+    LOCAL_C_INCLUDES += vendor/qcom/opensource/display-frameworks/include
     LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/libgralloc
     LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/libqdutils
     LOCAL_SHARED_LIBRARIES += libqdutils
