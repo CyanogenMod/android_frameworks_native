@@ -607,6 +607,10 @@ sp<KeyCharacterMap> KeyCharacterMap::readFromParcel(Parcel* parcel) {
     if (parcel->errorCheck()) {
         return NULL;
     }
+    if (numKeys > MAX_KEYS) {
+        ALOGE("Too many keys in KeyCharacterMap (%d > %d)", numKeys, MAX_KEYS);
+        return NULL;
+    }
 
     for (size_t i = 0; i < numKeys; i++) {
         int32_t keyCode = parcel->readInt32();
