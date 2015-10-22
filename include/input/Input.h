@@ -111,6 +111,11 @@ enum {
 #define MAX_POINTERS 16
 
 /*
+ * Maximum number of samples supported per motion event.
+ */
+#define MAX_SAMPLES UINT16_MAX
+
+/*
  * Maximum pointer id value supported in a motion event.
  * Smallest pointer id is 0.
  * (This is limited by our use of BitSet32 to track pointer assignments.)
