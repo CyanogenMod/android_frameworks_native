@@ -85,7 +85,7 @@ enum {
 /*
  * Maximum number of samples supported per motion event.
  */
-#define MAX_SAMPLES UINT16_MAX
+#define MAX_SAMPLES 65535
 
 /*
  * Maximum pointer id value supported in a motion event.
