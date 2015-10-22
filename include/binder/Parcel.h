@@ -371,10 +371,10 @@ public:
     };
 
 private:
-    size_t mBlobAshmemSize;
     size_t mOpenAshmemSize;
 
 public:
+    // TODO: Remove once ABI can be changed.
     size_t getBlobAshmemSize() const;
     size_t getOpenAshmemSize() const;
 };
@@ -444,9 +444,9 @@ inline TextOutput& operator<<(TextOutput& to, const Parcel& parcel)
 
 // Generic acquire and release of objects.
 void acquire_object(const sp<ProcessState>& proc,
-                    const flat_binder_object& obj, const void* who, size_t* outAshmemSize);
+                    const flat_binder_object& obj, const void* who);
 void release_object(const sp<ProcessState>& proc,
-                    const flat_binder_object& obj, const void* who, size_t* outAshmemSize);
+                    const flat_binder_object& obj, const void* who);
 
 void flatten_binder(const sp<ProcessState>& proc,
                     const sp<IBinder>& binder, flat_binder_object* out);

@@ -124,10 +124,12 @@ void acquire_object(const sp<ProcessState>& proc,
         }
         case BINDER_TYPE_FD: {
             if (obj.cookie != 0) {
-                // If we own an ashmem fd, keep track of how much memory it refers to.
-                int size = ashmem_get_size_region(obj.handle);
-                if (size > 0) {
-                    *outAshmemSize += size;
+                if (outAshmemSize != NULL) {
+                    // If we own an ashmem fd, keep track of how much memory it refers to.
+                    int size = ashmem_get_size_region(obj.handle);
+                    if (size > 0) {
+                        *outAshmemSize += size;
+                    }
                 }
             }
             return;
@@ -137,7 +139,13 @@ void acquire_object(const sp<ProcessState>& proc,
     ALOGD("Invalid object type 0x%08x", obj.type);
 }
 
-void release_object(const sp<ProcessState>& proc,
+void acquire_object(const sp<ProcessState>& proc,
+    const flat_binder_object& obj, const void* who)
+{
+    acquire_object(proc, obj, who, NULL);
+}
+
+static void release_object(const sp<ProcessState>& proc,
     const flat_binder_object& obj, const void* who, size_t* outAshmemSize)
 {
     switch (obj.type) {
@@ -165,19 +173,27 @@ void release_object(const sp<ProcessState>& proc,
             return;
         }
         case BINDER_TYPE_FD: {
-            if (obj.cookie != 0) {
-                int size = ashmem_get_size_region(obj.handle);
-                if (size > 0) {
-                    *outAshmemSize -= size;
-                }
+            if (outAshmemSize != NULL) {
+                if (obj.cookie != 0) {
+                    int size = ashmem_get_size_region(obj.handle);
+                    if (size > 0) {
+                        *outAshmemSize -= size;
+                    }
 
-                close(obj.handle);
+                    close(obj.handle);
+                }
             }
             return;
         }
     }
 
     ALOGE("Invalid object type 0x%08x", obj.type);
+}
+
+void release_object(const sp<ProcessState>& proc,
+    const flat_binder_object& obj, const void* who)
+{
+    release_object(proc, obj, who, NULL);
 }
 
 inline static status_t finish_flatten_binder(
@@ -1131,8 +1147,6 @@ status_t Parcel::writeBlob(size_t len, bool mutableCopy, WritableBlob* outBlob)
     ALOGV("writeBlob: write to ashmem");
     int fd = ashmem_create_region("Parcel Blob", len);
     if (fd < 0) return NO_MEMORY;
-
-    mBlobAshmemSize += len;
 
     int result = ashmem_set_prot_region(fd, PROT_READ | PROT_WRITE);
     if (result < 0) {
@@ -2383,7 +2397,6 @@ void Parcel::initState()
     mFdsKnown = true;
     mAllowFds = true;
     mOwner = NULL;
-    mBlobAshmemSize = 0;
     mOpenAshmemSize = 0;
 }
 
@@ -2404,7 +2417,10 @@ void Parcel::scanForFds() const
 
 size_t Parcel::getBlobAshmemSize() const
 {
-    return mBlobAshmemSize;
+    // This used to return the size of all blobs that were written to ashmem, now we're returning
+    // the ashmem currently referenced by this Parcel, which should be equivalent.
+    // TODO: Remove method once ABI can be changed.
+    return mOpenAshmemSize;
 }
 
 size_t Parcel::getOpenAshmemSize() const
