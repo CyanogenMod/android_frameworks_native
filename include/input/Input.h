@@ -27,6 +27,7 @@
 #include <utils/Timers.h>
 #include <utils/RefBase.h>
 #include <utils/String8.h>
+#include <stdint.h>
 
 /*
  * Additional private constants not defined in ndk/ui/input.h.
