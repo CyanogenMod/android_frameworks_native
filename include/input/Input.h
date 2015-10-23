@@ -28,6 +28,7 @@
 #include <utils/String8.h>
 #include <utils/Timers.h>
 #include <utils/Vector.h>
+#include <stdint.h>
 
 /*
  * Additional private constants not defined in ndk/ui/input.h.
