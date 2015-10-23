@@ -19,6 +19,7 @@
 #include "HWComposer.h"
 
 #include <gui/BufferItem.h>
+#include <gui/IProducerListener.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -93,9 +94,12 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
     mConsumer->setDefaultBufferSize(sinkWidth, sinkHeight);
     sink->setAsyncMode(true);
+    IGraphicBufferProducer::QueueBufferOutput output;
+    mSource[SOURCE_SCRATCH]->connect(NULL, NATIVE_WINDOW_API_EGL, false, &output);
 }
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {
+    mSource[SOURCE_SCRATCH]->disconnect(NATIVE_WINDOW_API_EGL);
 }
 
 status_t VirtualDisplaySurface::beginFrame(bool mustRecompose) {
