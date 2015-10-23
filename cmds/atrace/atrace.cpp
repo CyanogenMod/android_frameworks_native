@@ -152,6 +152,9 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_locked/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_unlock/enable" },
     } },
+    { "pagecache",  "Page cache", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/filemap/enable" },
+    } },
 };
 
 /* Command line options */
