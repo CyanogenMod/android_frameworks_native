@@ -74,7 +74,7 @@ class CpuConsumer : public ConsumerBase
             height(0),
             format(PIXEL_FORMAT_NONE),
             stride(0),
-            crop(0, 0, 0, 0),
+            crop(Rect::EMPTY_RECT),
             transform(0),
             scalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
             timestamp(0),
