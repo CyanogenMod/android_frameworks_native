@@ -17,6 +17,7 @@
 #ifndef ANDROID_SF_FLOAT_RECT
 #define ANDROID_SF_FLOAT_RECT
 
+#include <ui/Rect.h>
 #include <utils/TypeHelpers.h>
 
 namespace android {
