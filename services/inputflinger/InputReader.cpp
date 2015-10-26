@@ -16,7 +16,7 @@
 
 #define LOG_TAG "InputReader"
 
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 
 // Log debug messages for each raw event received from the EventHub.
 #define DEBUG_RAW_EVENTS 0
