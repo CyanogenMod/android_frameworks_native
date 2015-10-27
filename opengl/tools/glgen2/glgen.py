@@ -56,35 +56,32 @@ AEP_EXTENSIONS = [
 def nonestr(s):
     return s if s else ""
 
-
-def parseTypedName(elem):
-    type = [nonestr(elem.text)]
+def parseProto(elem):
+    type = nonestr(elem.text)
     name = None
     for subelem in elem:
         text = nonestr(subelem.text)
-        tail = nonestr(subelem.tail)
         if subelem.tag == 'name':
             name = text
-            break
         else:
-            type.extend([text, tail])
-    return (''.join(type).strip(), name)
+            type += text
+            type += nonestr(subelem.tail)
+    return (type.strip(), name)
 
+def parseParam(elem):
+    name = elem.find('name').text
+    declaration = ''.join(elem.itertext())
+    return (name, declaration)
 
-# Format a list of (type, name) tuples as a C-style parameter list
+# Format a list of (type, declaration) tuples as a C-style parameter list
 def fmtParams(params):
     if not params:
         return 'void'
-    return ', '.join(['%s %s' % (p[0], p[1]) for p in params])
-
-# Format a list of (type, name) tuples as a C-style argument list
-def fmtArgs(params):
     return ', '.join(p[1] for p in params)
 
-# Format a list of (type, name) tuples as comma-separated '"type", name'
-def fmtTypeNameList(params):
-    return ', '.join(['"%s", %s' % (p[0], p[1]) for p in params])
-
+# Format a list of (type, declaration) tuples as a C-style argument list
+def fmtArgs(params):
+    return ', '.join(p[0] for p in params)
 
 def overrideSymbolName(sym, apiname):
     # The wrapper intercepts various glGet and glGetString functions and
@@ -122,9 +119,8 @@ class TrampolineGen(reg.OutputGenerator):
     def genCmd(self, cmd, name):
         reg.OutputGenerator.genCmd(self, cmd, name)
 
-        rtype, fname = parseTypedName(cmd.elem.find('proto'))
-        params = [parseTypedName(p) for p in cmd.elem.findall('param')]
-
+        rtype, fname = parseProto(cmd.elem.find('proto'))
+        params = [parseParam(p) for p in cmd.elem.findall('param')]
         call = 'CALL_GL_API' if rtype == 'void' else 'CALL_GL_API_RETURN'
         print('%s API_ENTRY(%s)(%s) {\n'
               '    %s(%s%s%s);\n'
@@ -138,7 +134,7 @@ class TrampolineGen(reg.OutputGenerator):
 
 
 # Collect all API prototypes across all families, remove duplicates,
-# emit to entries.in and trace.in files.
+# emit to entries.in and enums.in files.
 class ApiGenerator(reg.OutputGenerator):
     def __init__(self):
         reg.OutputGenerator.__init__(self, sys.stderr, sys.stderr, None)
@@ -147,8 +143,8 @@ class ApiGenerator(reg.OutputGenerator):
 
     def genCmd(self, cmd, name):
         reg.OutputGenerator.genCmd(self, cmd, name)
-        rtype, fname = parseTypedName(cmd.elem.find('proto'))
-        params = [parseTypedName(p) for p in cmd.elem.findall('param')]
+        rtype, fname = parseProto(cmd.elem.find('proto'))
+        params = [parseParam(p) for p in cmd.elem.findall('param')]
         self.cmds.append({'rtype': rtype, 'name': fname, 'params': params})
 
     def genEnum(self, enuminfo, name):
@@ -199,26 +195,6 @@ class ApiGenerator(reg.OutputGenerator):
                   % (cmd['rtype'], cmd['name'], fmtParams(cmd['params'])),
                   file=outfile)
 
-    # Write traces.in
-    def writeTrace(self, outfile):
-        for cmd in self.cmds:
-            if cmd['rtype'] == 'void':
-                ret = '_VOID('
-            else:
-                ret = '(%s, ' % cmd['rtype']
-
-            params = cmd['params']
-            if len(params) > 0:
-                typeNameList = ', ' + fmtTypeNameList(params)
-            else:
-                typeNameList = ''
-
-            print('TRACE_GL%s%s, (%s), (%s), %d%s)'
-                  % (ret, cmd['name'],
-                     fmtParams(params), fmtArgs(params),
-                     len(params), typeNameList),
-                  file=outfile)
-
     # Write enums.in
     def writeEnums(self, outfile):
         for enum in self.enums.iteritems():
@@ -232,8 +208,8 @@ class SpecGenerator(reg.OutputGenerator):
 
     def genCmd(self, cmd, name):
         reg.OutputGenerator.genCmd(self, cmd, name)
-        rtype, fname = parseTypedName(cmd.elem.find('proto'))
-        params = [parseTypedName(p) for p in cmd.elem.findall('param')]
+        rtype, fname = parseProto(cmd.elem.find('proto'))
+        params = [parseParam(p) for p in cmd.elem.findall('param')]
 
         print('%s %s ( %s )' % (rtype, fname, fmtParams(params)),
               file=self.outFile)
@@ -295,8 +271,6 @@ if __name__ == '__main__':
     apigen.finish()
     with open('../../libs/entries.in', 'w') as f:
         apigen.writeEntries(f)
-    with open('../../libs/trace.in', 'w') as f:
-        apigen.writeTrace(f)
     with open('../../libs/enums.in', 'w') as f:
         apigen.writeEnums(f)
 
