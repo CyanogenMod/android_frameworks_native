@@ -146,15 +146,21 @@ private:
     // number of nanoseconds from time 0 to the first vsync event.
     nsecs_t mPhase;
 
+    // mReferenceTime is the reference time of the modeled vsync events.
+    // It is the nanosecond timestamp of the first vsync event after a resync.
+    nsecs_t mReferenceTime;
+
     // mError is the computed model error.  It is based on the difference
     // between the estimated vsync event times and those observed in the
     // mPresentTimes array.
     nsecs_t mError;
 
+    // Whether we have updated the vsync event model since the last resync.
+    bool mModelUpdated;
+
     // These member variables are the state used during the resynchronization
     // process to store information about the hardware vsync event times used
     // to compute the model.
-    nsecs_t mResyncReferenceTime;
     nsecs_t mResyncSamples[MAX_RESYNC_SAMPLES];
     size_t mFirstResyncSample;
     size_t mNumResyncSamples;

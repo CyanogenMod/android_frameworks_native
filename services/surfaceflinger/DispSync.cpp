@@ -57,15 +57,17 @@ public:
             mStop(false),
             mPeriod(0),
             mPhase(0),
+            mReferenceTime(0),
             mWakeupLatency(0) {
     }
 
     virtual ~DispSyncThread() {}
 
-    void updateModel(nsecs_t period, nsecs_t phase) {
+    void updateModel(nsecs_t period, nsecs_t phase, nsecs_t referenceTime) {
         Mutex::Autolock lock(mMutex);
         mPeriod = period;
         mPhase = phase;
+        mReferenceTime = referenceTime;
         mCond.signal();
     }
 
@@ -247,7 +249,7 @@ private:
             ref = lastEventTime;
         }
 
-        nsecs_t phase = mPhase + listener.mPhase;
+        nsecs_t phase = mReferenceTime + mPhase + listener.mPhase;
         nsecs_t t = (((ref - phase) / mPeriod) + 1) * mPeriod + phase;
 
         if (t - listener.mLastEventTime < mPeriod / 2) {
@@ -267,6 +269,7 @@ private:
 
     nsecs_t mPeriod;
     nsecs_t mPhase;
+    nsecs_t mReferenceTime;
     nsecs_t mWakeupLatency;
 
     Vector<EventListener> mEventListeners;
@@ -315,9 +318,11 @@ DispSync::~DispSync() {}
 void DispSync::reset() {
     Mutex::Autolock lock(mMutex);
 
+    mPhase = 0;
+    mReferenceTime = 0;
+    mModelUpdated = false;
     mNumResyncSamples = 0;
     mFirstResyncSample = 0;
-    mResyncReferenceTime = 0;
     mNumResyncSamplesSincePresent = 0;
     resetErrorLocked();
 }
@@ -343,12 +348,13 @@ bool DispSync::addPresentFence(const sp<Fence>& fence) {
 
     updateErrorLocked();
 
-    return mPeriod == 0 || mError > kErrorThreshold;
+    return !mModelUpdated || mError > kErrorThreshold;
 }
 
 void DispSync::beginResync() {
     Mutex::Autolock lock(mMutex);
 
+    mModelUpdated = false;
     mNumResyncSamples = 0;
 }
 
@@ -358,7 +364,8 @@ bool DispSync::addResyncSample(nsecs_t timestamp) {
     size_t idx = (mFirstResyncSample + mNumResyncSamples) % MAX_RESYNC_SAMPLES;
     mResyncSamples[idx] = timestamp;
     if (mNumResyncSamples == 0) {
-        mResyncReferenceTime = timestamp;
+        mPhase = 0;
+        mReferenceTime = timestamp;
     }
 
     if (mNumResyncSamples < MAX_RESYNC_SAMPLES) {
@@ -382,7 +389,7 @@ bool DispSync::addResyncSample(nsecs_t timestamp) {
         return mThread->hasAnyEventListeners();
     }
 
-    return mPeriod == 0 || mError > kErrorThreshold;
+    return !mModelUpdated || mError > kErrorThreshold;
 }
 
 void DispSync::endResync() {
@@ -411,7 +418,8 @@ void DispSync::setPeriod(nsecs_t period) {
     Mutex::Autolock lock(mMutex);
     mPeriod = period;
     mPhase = 0;
-    mThread->updateModel(mPeriod, mPhase);
+    mReferenceTime = 0;
+    mThread->updateModel(mPeriod, mPhase, mReferenceTime);
 }
 
 nsecs_t DispSync::getPeriod() {
@@ -436,7 +444,7 @@ void DispSync::updateModelLocked() {
         double scale = 2.0 * M_PI / double(mPeriod);
         for (size_t i = 0; i < mNumResyncSamples; i++) {
             size_t idx = (mFirstResyncSample + i) % MAX_RESYNC_SAMPLES;
-            nsecs_t sample = mResyncSamples[idx] - mResyncReferenceTime;
+            nsecs_t sample = mResyncSamples[idx] - mReferenceTime;
             double samplePhase = double(sample % mPeriod) * scale;
             sampleAvgX += cos(samplePhase);
             sampleAvgY += sin(samplePhase);
@@ -459,12 +467,13 @@ void DispSync::updateModelLocked() {
         // Artificially inflate the period if requested.
         mPeriod += mPeriod * mRefreshSkipCount;
 
-        mThread->updateModel(mPeriod, mPhase);
+        mThread->updateModel(mPeriod, mPhase, mReferenceTime);
+        mModelUpdated = true;
     }
 }
 
 void DispSync::updateErrorLocked() {
-    if (mPeriod == 0) {
+    if (!mModelUpdated) {
         return;
     }
 
@@ -476,7 +485,7 @@ void DispSync::updateErrorLocked() {
     nsecs_t sqErrSum = 0;
 
     for (size_t i = 0; i < NUM_PRESENT_SAMPLES; i++) {
-        nsecs_t sample = mPresentTimes[i] - mResyncReferenceTime;
+        nsecs_t sample = mPresentTimes[i] - mReferenceTime;
         if (sample > mPhase) {
             nsecs_t sampleErr = (sample - mPhase) % period;
             if (sampleErr > period / 2) {
@@ -510,7 +519,8 @@ void DispSync::resetErrorLocked() {
 nsecs_t DispSync::computeNextRefresh(int periodOffset) const {
     Mutex::Autolock lock(mMutex);
     nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-    return (((now - mPhase) / mPeriod) + periodOffset + 1) * mPeriod + mPhase;
+    nsecs_t phase = mReferenceTime + mPhase;
+    return (((now - phase) / mPeriod) + periodOffset + 1) * mPeriod + phase;
 }
 
 void DispSync::dump(String8& result) const {
