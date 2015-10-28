@@ -154,6 +154,7 @@ private:
     // These member variables are the state used during the resynchronization
     // process to store information about the hardware vsync event times used
     // to compute the model.
+    nsecs_t mResyncReferenceTime;
     nsecs_t mResyncSamples[MAX_RESYNC_SAMPLES];
     size_t mFirstResyncSample;
     size_t mNumResyncSamples;
