@@ -386,7 +386,7 @@ void SetLayerNamesFromProperty(const char* name,
 }
 
 template <class TInfo, class TObject>
-void ActivateAllLayers(TInfo create_info, Instance* instance, TObject* object) {
+VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* object) {
     ALOG_ASSERT(create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO ||
                     create_info->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                 "Cannot activate layers for unknown object %p", object);
@@ -421,12 +421,16 @@ void ActivateAllLayers(TInfo create_info, Instance* instance, TObject* object) {
                           string_allocator);
         auto element = instance->layers.find(layer_name);
         if (element == instance->layers.end()) {
-            ALOGW("Cannot activate layer %s as it was not found.",
-                  layer_name.c_str());
+            ALOGE("requested %s layer '%s' not present",
+                create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO ?
+                    "instance" : "device",
+                layer_name.c_str());
+            return VK_ERROR_LAYER_NOT_PRESENT;
         } else {
             ActivateLayer(object, instance, layer_name);
         }
     }
+    return VK_SUCCESS;
 }
 
 template <class TCreateInfo>
@@ -683,6 +687,12 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Device* device = new (mem) Device(&instance);
 
+    result = ActivateAllLayers(create_info, &instance, device);
+    if (result != VK_SUCCESS) {
+        DestroyDevice(device);
+        return result;
+    }
+
     VkDevice drv_device;
     result = instance.drv.vtbl.CreateDevice(pdev, create_info, &drv_device);
     if (result != VK_SUCCESS) {
@@ -711,8 +721,6 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     device->vtbl_storage.GetSwapchainImagesKHR = GetSwapchainImagesKHR;
     device->vtbl_storage.AcquireNextImageKHR = AcquireNextImageKHR;
     device->vtbl_storage.QueuePresentKHR = QueuePresentKHR;
-
-    ActivateAllLayers(create_info, &instance, device);
 
     void* base_object = static_cast<void*>(drv_device);
     void* next_object = base_object;
@@ -904,7 +912,11 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     dir_name.append("/");
     FindLayersInDirectory(*instance, dir_name);
 
-    ActivateAllLayers(create_info, instance, instance);
+    result = ActivateAllLayers(create_info, instance, instance);
+    if (result != VK_SUCCESS) {
+        DestroyInstanceBottom(instance);
+        return result;
+    }
 
     void* base_object = static_cast<void*>(instance);
     void* next_object = base_object;
