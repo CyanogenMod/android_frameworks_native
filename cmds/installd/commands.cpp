@@ -1724,6 +1724,7 @@ static void run_aapt(const char *source_apk, const char *internal_path,
                               "-I", common_res_path,
                               "-r", resapk_str,
                               "-x", pkgId_str,
+                              "-f",
                               (char*)NULL);
     } else {
         execl(AAPT_BIN, AAPT_BIN, "package",
@@ -1734,6 +1735,7 @@ static void run_aapt(const char *source_apk, const char *internal_path,
                               "-I", FRAMEWORK_RES,
                               "-r", resapk_str,
                               "-x", pkgId_str,
+                              "-f",
                               (char*)NULL);
     }
     ALOGE("execl(%s) failed: %s\n", AAPT_BIN, strerror(errno));
