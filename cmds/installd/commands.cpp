@@ -1744,8 +1744,7 @@ static void run_aapt(const char *source_apk, const char *internal_path,
 int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid,
          int pkgId, int min_sdk_version, const char *common_res_path)
 {
-    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d, \
-            min_sdk_version=%d, common_res_path=%s",
+    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d,min_sdk_version=%d, common_res_path=%s",
             source_apk, internal_path, out_restable, uid, pkgId, min_sdk_version, common_res_path);
     static const int PARENT_READ_PIPE = 0;
     static const int CHILD_WRITE_PIPE = 1;
@@ -1754,7 +1753,12 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
     char restable_path[PATH_MAX];
     char resapk_path[PATH_MAX];
 
+    // create pipes for redirecting STDERR to a buffer that can be displayed in logcat
     int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        pipefd[0] = pipefd[1] = -1;
+    }
+
     pid_t pid = fork();
 
     // get file descriptor for resources.arsc
@@ -1778,9 +1782,6 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
         goto fail;
     }
 
-    if (pipe(pipefd) != 0) {
-        pipefd[0] = pipefd[1] = -1;
-    }
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         if (setgid(uid) != 0) {
