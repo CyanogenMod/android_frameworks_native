@@ -257,58 +257,63 @@ void DestroyDevice(Device* device) {
 }
 
 void FindLayersInDirectory(Instance& instance, const String& dir_name) {
-    DIR* directory;
-    struct dirent* entry;
-    if ((directory = opendir(dir_name.c_str()))) {
-        Vector<VkLayerProperties> properties(
-            CallbackAllocator<VkLayerProperties>(instance.alloc));
-        while ((entry = readdir(directory))) {
-            size_t length = strlen(entry->d_name);
-            if (strncmp(entry->d_name, "libVKLayer", 10) != 0 ||
-                strncmp(entry->d_name + length - 3, ".so", 3) != 0)
-                continue;
-            // Open so
-            SharedLibraryHandle layer_handle = dlopen(
-                (dir_name + entry->d_name).c_str(), RTLD_NOW | RTLD_LOCAL);
-            if (!layer_handle) {
-                ALOGE("%s failed to load with error %s; Skipping",
-                      entry->d_name, dlerror());
-                continue;
-            }
-
-            // Get Layers in so
-            PFN_vkEnumerateInstanceLayerProperties get_layer_properties =
-                reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
-                    dlsym(layer_handle, "vkEnumerateInstanceLayerProperties"));
-            if (!get_layer_properties) {
-                ALOGE(
-                    "%s failed to find vkEnumerateInstanceLayerProperties with "
-                    "error %s; Skipping",
-                    entry->d_name, dlerror());
-                dlclose(layer_handle);
-                continue;
-            }
-            uint32_t count;
-            get_layer_properties(&count, nullptr);
-
-            properties.resize(count);
-            get_layer_properties(&count, &properties[0]);
-
-            // Add Layers to potential list
-            for (uint32_t i = 0; i < count; ++i) {
-                String layer_name(properties[i].layerName,
-                                  CallbackAllocator<char>(instance.alloc));
-                LayerData layer_data = {dir_name + entry->d_name, 0, 0};
-                instance.layers.insert(std::make_pair(layer_name, layer_data));
-                ALOGV("Found layer %s", properties[i].layerName);
-            }
-            dlclose(layer_handle);
-        }
-        closedir(directory);
-    } else {
-        ALOGE("Failed to Open Directory %s: %s (%d)", dir_name.c_str(),
-              strerror(errno), errno);
+    DIR* directory = opendir(dir_name.c_str());
+    if (!directory) {
+        android_LogPriority log_priority =
+            (errno == ENOENT) ? ANDROID_LOG_VERBOSE : ANDROID_LOG_ERROR;
+        LOG_PRI(log_priority, LOG_TAG,
+                "failed to open layer directory '%s': %s (%d)",
+                dir_name.c_str(), strerror(errno), errno);
+        return;
     }
+
+    Vector<VkLayerProperties> properties(
+        CallbackAllocator<VkLayerProperties>(instance.alloc));
+    struct dirent* entry;
+    while ((entry = readdir(directory))) {
+        size_t length = strlen(entry->d_name);
+        if (strncmp(entry->d_name, "libVKLayer", 10) != 0 ||
+            strncmp(entry->d_name + length - 3, ".so", 3) != 0)
+            continue;
+        // Open so
+        SharedLibraryHandle layer_handle =
+            dlopen((dir_name + entry->d_name).c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (!layer_handle) {
+            ALOGE("%s failed to load with error %s; Skipping", entry->d_name,
+                  dlerror());
+            continue;
+        }
+
+        // Get Layers in so
+        PFN_vkEnumerateInstanceLayerProperties get_layer_properties =
+            reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
+                dlsym(layer_handle, "vkEnumerateInstanceLayerProperties"));
+        if (!get_layer_properties) {
+            ALOGE(
+                "%s failed to find vkEnumerateInstanceLayerProperties with "
+                "error %s; Skipping",
+                entry->d_name, dlerror());
+            dlclose(layer_handle);
+            continue;
+        }
+        uint32_t count;
+        get_layer_properties(&count, nullptr);
+
+        properties.resize(count);
+        get_layer_properties(&count, &properties[0]);
+
+        // Add Layers to potential list
+        for (uint32_t i = 0; i < count; ++i) {
+            String layer_name(properties[i].layerName,
+                              CallbackAllocator<char>(instance.alloc));
+            LayerData layer_data = {dir_name + entry->d_name, 0, 0};
+            instance.layers.insert(std::make_pair(layer_name, layer_data));
+            ALOGV("Found layer %s", properties[i].layerName);
+        }
+        dlclose(layer_handle);
+    }
+
+    closedir(directory);
 }
 
 template <class TObject>
