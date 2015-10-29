@@ -543,6 +543,10 @@ String8 VirtualDisplaySurface::getConsumerName() const {
     return String8("VirtualDisplaySurface");
 }
 
+uint64_t VirtualDisplaySurface::getNextFrameNumber() const {
+    return 0;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

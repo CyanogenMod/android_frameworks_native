@@ -109,6 +109,9 @@ public:
     // See IGraphicBufferProducer::getConsumerName
     String8 getConsumerName() const;
 
+    // See IGraphicBufferProducer::getNextFrameNumber
+    uint64_t getNextFrameNumber() const;
+
 protected:
     virtual ~Surface();
 

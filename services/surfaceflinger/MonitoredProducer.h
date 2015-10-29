@@ -57,6 +57,7 @@ public:
     virtual status_t allowAllocation(bool allow);
     virtual status_t setGenerationNumber(uint32_t generationNumber);
     virtual String8 getConsumerName() const override;
+    virtual uint64_t getNextFrameNumber() const override;
     virtual IBinder* onAsBinder();
 
 private:

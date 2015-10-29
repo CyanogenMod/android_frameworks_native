@@ -1326,6 +1326,11 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
     const LayerVector& currentLayers(mCurrentState.layersSortedByZ);
     const size_t count = currentLayers.size();
 
+    // Notify all layers of available frames
+    for (size_t i = 0; i < count; ++i) {
+        currentLayers[i]->notifyAvailableFrames();
+    }
+
     /*
      * Traversal of the children
      * (perform the transaction for each of them if needed)
@@ -2279,6 +2284,11 @@ uint32_t SurfaceFlinger::setClientStateLocked(
                 // AND transaction (list changed)
                 flags |= eTransactionNeeded|eTraversalNeeded;
             }
+        }
+        if (what & layer_state_t::eDeferTransaction) {
+            layer->deferTransactionUntil(s.handle, s.frameNumber);
+            // We don't trigger a traversal here because if no other state is
+            // changed, we don't want this to cause any more work
         }
     }
     return flags;

@@ -66,6 +66,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mName("unnamed"),
         mFormat(PIXEL_FORMAT_NONE),
         mTransactionFlags(0),
+        mPendingStateMutex(),
+        mPendingStates(),
         mQueuedFrames(0),
         mSidebandStreamChanged(false),
         mCurrentTransform(0),
@@ -164,6 +166,20 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& /* hw */,
     }
 }
 
+void Layer::markSyncPointsAvailable(const BufferItem& item) {
+    auto pointIter = mLocalSyncPoints.begin();
+    while (pointIter != mLocalSyncPoints.end()) {
+        if ((*pointIter)->getFrameNumber() == item.mFrameNumber) {
+            auto syncPoint = *pointIter;
+            pointIter = mLocalSyncPoints.erase(pointIter);
+            Mutex::Autolock lock(mAvailableFrameMutex);
+            mAvailableFrames.push_back(std::move(syncPoint));
+        } else {
+            ++pointIter;
+        }
+    }
+}
+
 void Layer::onFrameAvailable(const BufferItem& item) {
     // Add this buffer from our internal queue tracker
     { // Autolock scope
@@ -192,30 +208,36 @@ void Layer::onFrameAvailable(const BufferItem& item) {
         mQueueItemCondition.broadcast();
     }
 
+    markSyncPointsAvailable(item);
+
     mFlinger->signalLayerUpdate();
 }
 
 void Layer::onFrameReplaced(const BufferItem& item) {
-    Mutex::Autolock lock(mQueueItemLock);
+    { // Autolock scope
+        Mutex::Autolock lock(mQueueItemLock);
 
-    // Ensure that callbacks are handled in order
-    while (item.mFrameNumber != mLastFrameNumberReceived + 1) {
-        status_t result = mQueueItemCondition.waitRelative(mQueueItemLock,
-                ms2ns(500));
-        if (result != NO_ERROR) {
-            ALOGE("[%s] Timed out waiting on callback", mName.string());
+        // Ensure that callbacks are handled in order
+        while (item.mFrameNumber != mLastFrameNumberReceived + 1) {
+            status_t result = mQueueItemCondition.waitRelative(mQueueItemLock,
+                    ms2ns(500));
+            if (result != NO_ERROR) {
+                ALOGE("[%s] Timed out waiting on callback", mName.string());
+            }
         }
+
+        if (mQueueItems.empty()) {
+            ALOGE("Can't replace a frame on an empty queue");
+            return;
+        }
+        mQueueItems.editItemAt(0) = item;
+
+        // Wake up any pending callbacks
+        mLastFrameNumberReceived = item.mFrameNumber;
+        mQueueItemCondition.broadcast();
     }
 
-    if (mQueueItems.empty()) {
-        ALOGE("Can't replace a frame on an empty queue");
-        return;
-    }
-    mQueueItems.editItemAt(0) = item;
-
-    // Wake up any pending callbacks
-    mLastFrameNumberReceived = item.mFrameNumber;
-    mQueueItemCondition.broadcast();
+    markSyncPointsAvailable(item);
 }
 
 void Layer::onSidebandStreamChanged() {
@@ -266,6 +288,22 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     return NO_ERROR;
 }
 
+/*
+ * The layer handle is just a BBinder object passed to the client
+ * (remote process) -- we don't keep any reference on our side such that
+ * the dtor is called when the remote side let go of its reference.
+ *
+ * LayerCleaner ensures that mFlinger->onLayerDestroyed() is called for
+ * this layer when the handle is destroyed.
+ */
+class Layer::Handle : public BBinder, public LayerCleaner {
+    public:
+        Handle(const sp<SurfaceFlinger>& flinger, const sp<Layer>& layer)
+            : LayerCleaner(flinger, layer), owner(layer) {}
+
+        wp<Layer> owner;
+};
+
 sp<IBinder> Layer::getHandle() {
     Mutex::Autolock _l(mLock);
 
@@ -273,23 +311,6 @@ sp<IBinder> Layer::getHandle() {
             "Layer::getHandle() has already been called");
 
     mHasSurface = true;
-
-    /*
-     * The layer handle is just a BBinder object passed to the client
-     * (remote process) -- we don't keep any reference on our side such that
-     * the dtor is called when the remote side let go of its reference.
-     *
-     * LayerCleaner ensures that mFlinger->onLayerDestroyed() is called for
-     * this layer when the handle is destroyed.
-     */
-
-    class Handle : public BBinder, public LayerCleaner {
-        wp<const Layer> mOwner;
-    public:
-        Handle(const sp<SurfaceFlinger>& flinger, const sp<Layer>& layer)
-            : LayerCleaner(flinger, layer), mOwner(layer) {
-        }
-    };
 
     return new Handle(mFlinger, this);
 }
@@ -781,6 +802,24 @@ uint32_t Layer::getProducerStickyTransform() const {
     return static_cast<uint32_t>(producerStickyTransform);
 }
 
+void Layer::addSyncPoint(std::shared_ptr<SyncPoint> point) {
+    uint64_t headFrameNumber = 0;
+    {
+        Mutex::Autolock lock(mQueueItemLock);
+        if (!mQueueItems.empty()) {
+            headFrameNumber = mQueueItems[0].mFrameNumber;
+        } else {
+            headFrameNumber = mLastFrameNumberReceived;
+        }
+    }
+
+    if (point->getFrameNumber() <= headFrameNumber) {
+        point->setFrameAvailable();
+    } else {
+        mLocalSyncPoints.push_back(std::move(point));
+    }
+}
+
 void Layer::setFiltering(bool filtering) {
     mFiltering = filtering;
 }
@@ -895,8 +934,102 @@ void Layer::setVisibleNonTransparentRegion(const Region&
 // transaction
 // ----------------------------------------------------------------------------
 
+void Layer::pushPendingState() {
+    if (!mCurrentState.modified) {
+        return;
+    }
+
+    Mutex::Autolock lock(mPendingStateMutex);
+
+    // If this transaction is waiting on the receipt of a frame, generate a sync
+    // point and send it to the remote layer.
+    if (mCurrentState.handle != nullptr) {
+        sp<Handle> handle = static_cast<Handle*>(mCurrentState.handle.get());
+        sp<Layer> handleLayer = handle->owner.promote();
+        if (handleLayer == nullptr) {
+            ALOGE("[%s] Unable to promote Layer handle", mName.string());
+            // If we can't promote the layer we are intended to wait on,
+            // then it is expired or otherwise invalid. Allow this transaction
+            // to be applied as per normal (no synchronization).
+            mCurrentState.handle = nullptr;
+        }
+
+        auto syncPoint = std::make_shared<SyncPoint>(mCurrentState.frameNumber);
+        handleLayer->addSyncPoint(syncPoint);
+        mRemoteSyncPoints.push_back(std::move(syncPoint));
+
+        // Wake us up to check if the frame has been received
+        setTransactionFlags(eTransactionNeeded);
+    }
+    mPendingStates.push_back(mCurrentState);
+}
+
+void Layer::popPendingState() {
+    auto oldFlags = mCurrentState.flags;
+    mCurrentState = mPendingStates[0];
+    mCurrentState.flags = (oldFlags & ~mCurrentState.mask) | 
+            (mCurrentState.flags & mCurrentState.mask);
+
+    mPendingStates.removeAt(0);
+}
+
+bool Layer::applyPendingStates() {
+    Mutex::Autolock lock(mPendingStateMutex);
+
+    bool stateUpdateAvailable = false;
+    while (!mPendingStates.empty()) {
+        if (mPendingStates[0].handle != nullptr) {
+            if (mRemoteSyncPoints.empty()) {
+                // If we don't have a sync point for this, apply it anyway. It
+                // will be visually wrong, but it should keep us from getting
+                // into too much trouble.
+                ALOGE("[%s] No local sync point found", mName.string());
+                popPendingState();
+                stateUpdateAvailable = true;
+                continue;
+            }
+
+            if (mRemoteSyncPoints.front()->frameIsAvailable()) {
+                // Apply the state update
+                popPendingState();
+                stateUpdateAvailable = true;
+
+                // Signal our end of the sync point and then dispose of it
+                mRemoteSyncPoints.front()->setTransactionApplied();
+                mRemoteSyncPoints.pop_front();
+            }
+            break;
+        } else {
+            popPendingState();
+            stateUpdateAvailable = true;
+        }
+    }
+
+    // If we still have pending updates, wake SurfaceFlinger back up and point
+    // it at this layer so we can process them
+    if (!mPendingStates.empty()) {
+        setTransactionFlags(eTransactionNeeded);
+        mFlinger->setTransactionFlags(eTraversalNeeded);
+    }
+
+    mCurrentState.modified = false;
+    return stateUpdateAvailable;
+}
+
+void Layer::notifyAvailableFrames() {
+    Mutex::Autolock lock(mAvailableFrameMutex);
+    for (auto frame : mAvailableFrames) {
+        frame->setFrameAvailable();
+    }
+}
+
 uint32_t Layer::doTransaction(uint32_t flags) {
     ATRACE_CALL();
+
+    pushPendingState();
+    if (!applyPendingStates()) {
+        return 0;
+    }
 
     const Layer::State& s(getDrawingState());
     const Layer::State& c(getCurrentState());
@@ -1017,6 +1150,7 @@ bool Layer::setPosition(float x, float y) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.transform.set(x, y);
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1025,6 +1159,7 @@ bool Layer::setLayer(uint32_t z) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.z = z;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1033,6 +1168,7 @@ bool Layer::setSize(uint32_t w, uint32_t h) {
         return false;
     mCurrentState.requested.w = w;
     mCurrentState.requested.h = h;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1041,6 +1177,7 @@ bool Layer::setAlpha(uint8_t alpha) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.alpha = alpha;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1048,11 +1185,13 @@ bool Layer::setMatrix(const layer_state_t::matrix22_t& matrix) {
     mCurrentState.sequence++;
     mCurrentState.transform.set(
             matrix.dsdx, matrix.dsdy, matrix.dtdx, matrix.dtdy);
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
 bool Layer::setTransparentRegionHint(const Region& transparent) {
     mCurrentState.requestedTransparentRegion = transparent;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1062,6 +1201,8 @@ bool Layer::setFlags(uint8_t flags, uint8_t mask) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.flags = newFlags;
+    mCurrentState.mask = mask;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1070,6 +1211,7 @@ bool Layer::setCrop(const Rect& crop) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.requested.crop = crop;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1079,8 +1221,20 @@ bool Layer::setLayerStack(uint32_t layerStack) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.layerStack = layerStack;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
+}
+
+void Layer::deferTransactionUntil(const sp<IBinder>& handle,
+        uint64_t frameNumber) {
+    mCurrentState.handle = handle;
+    mCurrentState.frameNumber = frameNumber;
+    // We don't set eTransactionNeeded, because just receiving a deferral
+    // request without any other state updates shouldn't actually induce a delay
+    mCurrentState.modified = true;
+    pushPendingState();
+    mCurrentState.modified = false;
 }
 
 void Layer::useSurfaceDamage() {
@@ -1307,9 +1461,35 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                 getProducerStickyTransform() != 0);
 
         uint64_t maxFrameNumber = 0;
+        uint64_t headFrameNumber = 0;
         {
             Mutex::Autolock lock(mQueueItemLock);
             maxFrameNumber = mLastFrameNumberReceived;
+            if (!mQueueItems.empty()) {
+                headFrameNumber = mQueueItems[0].mFrameNumber;
+            }
+        }
+
+        bool availableFramesEmpty = true;
+        {
+            Mutex::Autolock lock(mAvailableFrameMutex);
+            availableFramesEmpty = mAvailableFrames.empty();
+        }
+        if (!availableFramesEmpty) {
+            Mutex::Autolock lock(mAvailableFrameMutex);
+            bool matchingFramesFound = false;
+            bool allTransactionsApplied = true;
+            for (auto& frame : mAvailableFrames) {
+                if (headFrameNumber != frame->getFrameNumber()) {
+                    break;
+                }
+                matchingFramesFound = true;
+                allTransactionsApplied &= frame->transactionIsApplied();
+            }
+            if (matchingFramesFound && !allTransactionsApplied) {
+                mFlinger->signalLayerUpdate();
+                return outDirtyRegion;
+            }
         }
 
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,
@@ -1366,6 +1546,15 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         // have more frames pending.
         if (android_atomic_dec(&mQueuedFrames) > 1) {
             mFlinger->signalLayerUpdate();
+        }
+
+        if (!availableFramesEmpty) {
+            Mutex::Autolock lock(mAvailableFrameMutex);
+            auto frameNumber = mSurfaceFlingerConsumer->getFrameNumber();
+            while (!mAvailableFrames.empty() &&
+                    frameNumber == mAvailableFrames.front()->getFrameNumber()) {
+                mAvailableFrames.pop_front();
+            }
         }
 
         if (updateResult != NO_ERROR) {

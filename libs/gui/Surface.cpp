@@ -111,6 +111,10 @@ status_t Surface::setGenerationNumber(uint32_t generation) {
     return result;
 }
 
+uint64_t Surface::getNextFrameNumber() const {
+    return mGraphicBufferProducer->getNextFrameNumber();
+}
+
 String8 Surface::getConsumerName() const {
     return mGraphicBufferProducer->getConsumerName();
 }

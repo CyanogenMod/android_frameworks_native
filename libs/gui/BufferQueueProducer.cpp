@@ -1151,6 +1151,14 @@ String8 BufferQueueProducer::getConsumerName() const {
     return mConsumerName;
 }
 
+uint64_t BufferQueueProducer::getNextFrameNumber() const {
+    ATRACE_CALL();
+
+    Mutex::Autolock lock(mCore->mMutex);
+    uint64_t nextFrameNumber = mCore->mFrameCounter + 1;
+    return nextFrameNumber;
+}
+
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {
     // If we're here, it means that a producer we were connected to died.
     // We're guaranteed that we are still connected to it because we remove

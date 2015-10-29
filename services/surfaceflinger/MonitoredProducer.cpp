@@ -127,6 +127,10 @@ String8 MonitoredProducer::getConsumerName() const {
     return mProducer->getConsumerName();
 }
 
+uint64_t MonitoredProducer::getNextFrameNumber() const {
+    return mProducer->getNextFrameNumber();
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }
