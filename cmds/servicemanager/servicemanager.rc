@@ -5,6 +5,7 @@ service servicemanager /system/bin/servicemanager
     critical
     onrestart restart healthd
     onrestart restart zygote
+    onrestart restart audioserver
     onrestart restart media
     onrestart restart surfaceflinger
     onrestart restart inputflinger
