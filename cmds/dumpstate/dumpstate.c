@@ -314,8 +314,7 @@ static void dumpstate() {
     dump_file("KERNEL SYNC", "/d/sync");
 
     run_command("PROCESSES", 10, "ps", "-P", NULL);
-    run_command("PROCESSES AND THREADS", 10, "ps", "-t", "-p", "-P", NULL);
-    run_command("PROCESSES (SELINUX LABELS)", 10, "ps", "-Z", NULL);
+    run_command("PROCESSES AND THREADS", 10, "ps", "-Z", "-t", "-p", "-P", NULL);
     run_command("LIBRANK", 10, "librank", NULL);
 
     do_dmesg();
