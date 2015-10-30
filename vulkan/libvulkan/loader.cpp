@@ -1058,7 +1058,7 @@ VkResult GetDeviceQueue(VkDevice drv_device,
         return result;
     hwvulkan_dispatch_t* dispatch =
         reinterpret_cast<hwvulkan_dispatch_t*>(queue);
-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC && dispatch->vtbl != &vtbl) {
+    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC && dispatch->vtbl != vtbl) {
         ALOGE("invalid VkQueue dispatch magic: 0x%" PRIxPTR, dispatch->magic);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
