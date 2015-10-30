@@ -178,25 +178,21 @@ EGLBoolean egl_display_t::initialize(EGLint *major, EGLint *minor) {
 
         mExtensionString.setTo(gBuiltinExtensionString);
         char const* start = gExtensionString;
-        char const* end;
         do {
-            // find the space separating this extension for the next one
-            end = strchr(start, ' ');
-            if (end) {
-                // length of the extension string
-                const size_t len = end - start;
-                if (len) {
-                    // NOTE: we could avoid the copy if we had strnstr.
-                    const String8 ext(start, len);
-                    if (findExtension(disp.queryString.extensions, ext.string(),
-                            len)) {
-                        mExtensionString.append(start, len+1);
-                    }
+            // length of the extension name
+            size_t len = strcspn(start, " ");
+            if (len) {
+                // NOTE: we could avoid the copy if we had strnstr.
+                const String8 ext(start, len);
+                if (findExtension(disp.queryString.extensions, ext.string(),
+                        len)) {
+                    mExtensionString.append(ext + " ");
                 }
-                // process the next extension string, and skip the space.
-                start = end + 1;
+                // advance to the next extension name, skipping the space.
+                start += len;
+                start += (*start == ' ') ? 1 : 0;
             }
-        } while (end);
+        } while (*start != '\0');
 
         egl_cache_t::get()->initialize(this);
 
