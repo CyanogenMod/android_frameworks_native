@@ -25,6 +25,8 @@ glBufferSubData check data size
 # glCompressedTexSubImage2D
 glClipPlanef check eqn 4
 glClipPlanex check eqn 4
+glDebugMessageControl check ids count
+glDebugMessageInsert check message length
 glDeleteBuffers check buffers n
 glDeleteFramebuffers check framebuffers n
 glDeleteFramebuffersOES check framebuffers n
@@ -32,6 +34,8 @@ glDeleteRenderbuffers check renderbuffers n
 glDeleteRenderbuffersOES check renderbuffers n
 glDeleteTextures check textures n
 glDrawElements check_AIOOBE indices count
+glDrawElementsBaseVertex check_AIOOBE indices count-basevertex
+glDrawRangeElementsBaseVertex check_AIOOBE indices count-basevertex
 glDrawTexfvOES check coords 5
 glDrawTexivOES check coords 5
 glDrawTexsvOES check coords 5
@@ -72,6 +76,9 @@ glGetSynciv nullAllowed length
 glGetTexEnv ifcheck params 4 pname GL_TEXTURE_ENV_COLOR
 glGetTexGen ifcheck params 4 pname GL_OBJECT_PLANE,GL_EYE_PLANE
 glGetTexParameter check params 1
+glGetnUniformfv check params bufSize
+glGetnUniformiv check params bufSize
+glGetnUniformuiv check params bufSize
 glGetUniform check params 1
 glGetVertexAttrib ifcheck params 4 pname GL_CURRENT_VERTEX_ATTRIB
 glLight ifcheck params 3 pname GL_SPOT_DIRECTION ifcheck params 4 pname GL_AMBIENT,GL_DIFFUSE,GL_SPECULAR,GL_EMISSION
@@ -80,9 +87,12 @@ glLoadMatrix check m 16
 glMaterial ifcheck params 4 pname GL_AMBIENT,GL_DIFFUSE,GL_SPECULAR,GL_EMISSION,GL_AMBIENT_AND_DIFFUSE
 glMultMatrix check m 16
 glObjectLabelKHR nullAllowed label
+glObjectLabel nullAllowed label check label length
 glPointParameter check params 1
+glPushDebugGroup check message length
 glQueryMatrixxOES check mantissa 16 check exponent 16 return -1
 # glReadPixels
+glReadnPixels check data bufSize
 glShaderBinary check binary length
 // glShaderSource
 glTexEnv ifcheck params 4 pname GL_TEXTURE_ENV_COLOR

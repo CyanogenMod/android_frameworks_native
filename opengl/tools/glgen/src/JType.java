@@ -44,7 +44,7 @@ public class JType {
     typeMapping.put(new CType("GLuint"), new JType("int"));
     typeMapping.put(new CType("void"), new JType("void"));
     typeMapping.put(new CType("GLubyte", true, true), new JType("String", false, false));
-    typeMapping.put(new CType("char", false, true), new JType("byte"));
+    typeMapping.put(new CType("char"), new JType("byte"));
     typeMapping.put(new CType("char", true, true), new JType("String", false, false));
     typeMapping.put(new CType("GLchar", true, true), new JType("String", false, false));
     typeMapping.put(new CType("int"), new JType("int"));
@@ -74,6 +74,8 @@ public class JType {
     typeMapping.put(new CType("GLvoid", false, true),
             new JType("java.nio.Buffer", true, false));
     typeMapping.put(new CType("void", false, true),
+            new JType("java.nio.Buffer", true, false));
+    typeMapping.put(new CType("void", true, true),
             new JType("java.nio.Buffer", true, false));
     typeMapping.put(new CType("GLeglImageOES", false, false),
             new JType("java.nio.Buffer", true, false));
@@ -110,6 +112,8 @@ public class JType {
 
     // Typed pointers map to arrays + offsets
     arrayTypeMapping.put(new CType("char", false, true),
+            new JType("byte", false, true));
+    arrayTypeMapping.put(new CType("GLchar", false, true),
             new JType("byte", false, true));
     arrayTypeMapping.put(new CType("GLboolean", false, true),
             new JType("boolean", false, true));

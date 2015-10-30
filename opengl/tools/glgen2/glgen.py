@@ -287,7 +287,12 @@ if __name__ == '__main__':
             emitversions        = None,
             defaultExtensions   = None,
             addExtensions       = '^({})$'.format('|'.join(AEP_EXTENSIONS)),
-            filename            = '../glgen/specs/gles11/GLES31Ext.spec')]
+            filename            = '../glgen/specs/gles11/GLES31Ext.spec'),
+        reg.GeneratorOptions(
+            apiname             = 'gles2',
+            profile             = 'common',
+            versions            = '3\.2',
+            filename            = '../glgen/specs/gles11/GLES32.spec')]
     # SpecGenerator creates a good starting point, but the CFunc.java parser is
     # so terrible that the .spec file needs a lot of manual massaging before
     # it works. Commenting this out to avoid accidentally overwriting all the
