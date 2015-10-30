@@ -246,9 +246,8 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
 // -----------------------------------------------------------------------------
 // Instance
 
-VkResult DestroyInstance(VkInstance instance) {
+void DestroyInstance(VkInstance instance) {
     instance->alloc->pfnFree(instance->alloc->pUserData, instance);
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -328,12 +327,11 @@ VkResult CreateDevice(VkPhysicalDevice physical_device,
     return VK_SUCCESS;
 }
 
-VkResult DestroyDevice(VkDevice device) {
+void DestroyDevice(VkDevice device) {
     if (!device)
-        return VK_SUCCESS;
+        return;
     const VkAllocCallbacks* alloc = device->instance->alloc;
     alloc->pfnFree(alloc->pUserData, device);
-    return VK_SUCCESS;
 }
 
 VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
@@ -358,10 +356,9 @@ VkResult CreateCommandBuffer(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
+void DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     alloc->pfnFree(alloc->pUserData, cmdbuf);
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -395,11 +392,10 @@ VkResult AllocMemory(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
+void FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     DeviceMemory* mem = GetObjectFromHandle(mem_handle);
     alloc->pfnFree(alloc->pUserData, mem);
-    return VK_SUCCESS;
 }
 
 VkResult MapMemory(VkDevice,
@@ -454,11 +450,10 @@ VkResult GetBufferMemoryRequirements(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
+void DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Buffer* buffer = GetObjectFromHandle(buffer_handle);
     alloc->pfnFree(alloc->pUserData, buffer);
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -514,11 +509,10 @@ VkResult GetImageMemoryRequirements(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult DestroyImage(VkDevice device, VkImage image_handle) {
+void DestroyImage(VkDevice device, VkImage image_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Image* image = GetObjectFromHandle(image_handle);
     alloc->pfnFree(alloc->pUserData, image);
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -550,11 +544,9 @@ VkResult AllocDescriptorSets(VkDevice device,
                              VkDescriptorSetUsage,
                              uint32_t count,
                              const VkDescriptorSetLayout*,
-                             VkDescriptorSet* sets,
-                             uint32_t* out_count) {
+                             VkDescriptorSet* sets) {
     for (uint32_t i = 0; i < count; i++)
         sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
-    *out_count = count;
     return VK_SUCCESS;
 }
 
@@ -696,12 +688,7 @@ VkResult GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFo
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageFormatProperties* pImageFormatProperties) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult GetPhysicalDeviceLimits(VkPhysicalDevice physicalDevice, VkPhysicalDeviceLimits* pLimits) {
+VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -735,8 +722,7 @@ VkResult DeviceWaitIdle(VkDevice device) {
     return VK_SUCCESS;
 }
 
-VkResult UnmapMemory(VkDevice device, VkDeviceMemory mem) {
-    return VK_SUCCESS;
+void UnmapMemory(VkDevice device, VkDeviceMemory mem) {
 }
 
 VkResult FlushMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, const VkMappedMemoryRange* pMemRanges) {
@@ -787,8 +773,7 @@ VkResult QueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBi
     return VK_SUCCESS;
 }
 
-VkResult DestroyFence(VkDevice device, VkFence fence) {
-    return VK_SUCCESS;
+void DestroyFence(VkDevice device, VkFence fence) {
 }
 
 VkResult ResetFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences) {
@@ -804,8 +789,7 @@ VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFen
     return VK_SUCCESS;
 }
 
-VkResult DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
-    return VK_SUCCESS;
+void DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
 }
 
 VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
@@ -817,8 +801,7 @@ VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
     return VK_SUCCESS;
 }
 
-VkResult DestroyEvent(VkDevice device, VkEvent event) {
-    return VK_SUCCESS;
+void DestroyEvent(VkDevice device, VkEvent event) {
 }
 
 VkResult GetEventStatus(VkDevice device, VkEvent event) {
@@ -836,8 +819,7 @@ VkResult ResetEvent(VkDevice device, VkEvent event) {
     return VK_SUCCESS;
 }
 
-VkResult DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
-    return VK_SUCCESS;
+void DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
 }
 
 VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
@@ -845,8 +827,7 @@ VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t st
     return VK_SUCCESS;
 }
 
-VkResult DestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    return VK_SUCCESS;
+void DestroyBufferView(VkDevice device, VkBufferView bufferView) {
 }
 
 VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
@@ -854,20 +835,16 @@ VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImage
     return VK_SUCCESS;
 }
 
-VkResult DestroyImageView(VkDevice device, VkImageView imageView) {
-    return VK_SUCCESS;
+void DestroyImageView(VkDevice device, VkImageView imageView) {
 }
 
-VkResult DestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
-    return VK_SUCCESS;
+void DestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
 }
 
-VkResult DestroyShader(VkDevice device, VkShader shader) {
-    return VK_SUCCESS;
+void DestroyShader(VkDevice device, VkShader shader) {
 }
 
-VkResult DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
-    return VK_SUCCESS;
+void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
 }
 
 size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
@@ -885,24 +862,19 @@ VkResult MergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint32_
     return VK_SUCCESS;
 }
 
-VkResult DestroyPipeline(VkDevice device, VkPipeline pipeline) {
-    return VK_SUCCESS;
+void DestroyPipeline(VkDevice device, VkPipeline pipeline) {
 }
 
-VkResult DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
-    return VK_SUCCESS;
+void DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
 }
 
-VkResult DestroySampler(VkDevice device, VkSampler sampler) {
-    return VK_SUCCESS;
+void DestroySampler(VkDevice device, VkSampler sampler) {
 }
 
-VkResult DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
-    return VK_SUCCESS;
+void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
 }
 
-VkResult DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    return VK_SUCCESS;
+void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
 }
 
 VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
@@ -910,9 +882,8 @@ VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
     return VK_SUCCESS;
 }
 
-VkResult UpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
+void UpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets) {
@@ -920,12 +891,10 @@ VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, ui
     return VK_SUCCESS;
 }
 
-VkResult DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
-    return VK_SUCCESS;
+void DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
 }
 
-VkResult DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
-    return VK_SUCCESS;
+void DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
 }
 
 VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
@@ -933,8 +902,7 @@ VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkEx
     return VK_SUCCESS;
 }
 
-VkResult DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
-    return VK_SUCCESS;
+void DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
 }
 
 VkResult ResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags) {
@@ -994,10 +962,10 @@ void CmdBindIndexBuffer(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize off
 void CmdBindVertexBuffers(VkCmdBuffer cmdBuffer, uint32_t startBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {
 }
 
-void CmdDraw(VkCmdBuffer cmdBuffer, uint32_t firstVertex, uint32_t vertexCount, uint32_t firstInstance, uint32_t instanceCount) {
+void CmdDraw(VkCmdBuffer cmdBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 }
 
-void CmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t firstIndex, uint32_t indexCount, int32_t vertexOffset, uint32_t firstInstance, uint32_t instanceCount) {
+void CmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) {
 }
 
 void CmdDrawIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
