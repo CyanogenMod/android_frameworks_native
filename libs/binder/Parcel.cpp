@@ -745,25 +745,25 @@ restart_write:
 
 status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 {
+    status_t status;
     if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
+        status = BAD_VALUE;
+        return status;
     }
 
-    status_t status = writeInt32(val.size());
-
+    status = writeInt32(val.size());
     if (status != OK) {
         return status;
     }
 
-    for (const auto& item : val) {
-        status = writeByte(item);
-
-        if (status != OK) {
-            return status;
-        }
+    void* data = writeInplace(val.size());
+    if (!data) {
+        status = BAD_VALUE;
+        return status;
     }
 
-    return OK;
+    memcpy(data, val.data(), val.size());
+    return status;
 }
 
 status_t Parcel::writeInt32Vector(const std::vector<int32_t>& val)
@@ -1367,21 +1367,19 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
         return status;
     }
 
-    if (size < 0) {
-        return BAD_VALUE;
+    if (size < 0 || size_t(size) > dataAvail()) {
+        status = BAD_VALUE;
+        return status;
     }
-
+    const void* data = readInplace(size);
+    if (!data) {
+        status = BAD_VALUE;
+        return status;
+    }
     val->resize(size);
+    memcpy(val->data(), data, size);
 
-    for (auto& v : *val) {
-        status = readByte(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return status;
 }
 
 status_t Parcel::readInt32Vector(std::vector<int32_t>* val) const {
