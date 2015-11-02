@@ -117,14 +117,25 @@ void GLES20RenderEngine::setViewportAndProjection(
     mVpHeight = vph;
 }
 
+#ifdef USE_HWC2
+void GLES20RenderEngine::setupLayerBlending(bool premultipliedAlpha,
+        bool opaque, float alpha) {
+#else
 void GLES20RenderEngine::setupLayerBlending(
     bool premultipliedAlpha, bool opaque, int alpha) {
+#endif
 
     mState.setPremultipliedAlpha(premultipliedAlpha);
     mState.setOpaque(opaque);
+#ifdef USE_HWC2
+    mState.setPlaneAlpha(alpha);
+
+    if (alpha < 1.0f || !opaque) {
+#else
     mState.setPlaneAlpha(alpha / 255.0f);
 
     if (alpha < 0xFF || !opaque) {
+#endif
         glEnable(GL_BLEND);
         glBlendFunc(premultipliedAlpha ? GL_ONE : GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     } else {
@@ -132,14 +143,26 @@ void GLES20RenderEngine::setupLayerBlending(
     }
 }
 
+#ifdef USE_HWC2
+void GLES20RenderEngine::setupDimLayerBlending(float alpha) {
+#else
 void GLES20RenderEngine::setupDimLayerBlending(int alpha) {
+#endif
     mState.setPlaneAlpha(1.0f);
     mState.setPremultipliedAlpha(true);
     mState.setOpaque(false);
+#ifdef USE_HWC2
+    mState.setColor(0, 0, 0, alpha);
+#else
     mState.setColor(0, 0, 0, alpha/255.0f);
+#endif
     mState.disableTexture();
 
+#ifdef USE_HWC2
+    if (alpha == 1.0f) {
+#else
     if (alpha == 0xFF) {
+#endif
         glDisable(GL_BLEND);
     } else {
         glEnable(GL_BLEND);

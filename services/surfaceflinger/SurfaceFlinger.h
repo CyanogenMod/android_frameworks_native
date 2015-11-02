@@ -119,7 +119,11 @@ public:
 
     // enable/disable h/w composer event
     // TODO: this should be made accessible only to EventThread
+#ifdef USE_HWC2
+    void setVsyncEnabled(int disp, int enabled);
+#else
     void eventControl(int disp, int event, int enabled);
+#endif
 
     // called on the main thread by MessageQueue when an internal message
     // is received
@@ -361,8 +365,9 @@ private:
     // region of all screens presenting this layer stack.
     void invalidateLayerStack(uint32_t layerStack, const Region& dirty);
 
-    // allocate a h/w composer display id
+#ifndef USE_HWC2
     int32_t allocateHwcDisplayId(DisplayDevice::DisplayType type);
+#endif
 
     /* ------------------------------------------------------------------------
      * H/W composer
@@ -458,8 +463,15 @@ private:
     // don't need synchronization
     State mDrawingState;
     bool mVisibleRegionsDirty;
+#ifndef USE_HWC2
     bool mHwWorkListDirty;
+#else
+    bool mGeometryInvalid;
+#endif
     bool mAnimCompositionPending;
+#ifdef USE_HWC2
+    std::vector<sp<Layer>> mLayersWithQueuedFrames;
+#endif
 
     // this may only be written from the main thread with mStateLock held
     // it may be read from other threads with mStateLock held

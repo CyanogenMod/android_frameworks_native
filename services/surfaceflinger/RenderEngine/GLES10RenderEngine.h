@@ -30,7 +30,12 @@ namespace android {
 class GLES10RenderEngine : public GLES11RenderEngine {
     virtual ~GLES10RenderEngine();
 protected:
+#ifdef USE_HWC2
+    virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque,
+            float alpha) override;
+#else
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha);
+#endif
 };
 
 // ---------------------------------------------------------------------------

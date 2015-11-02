@@ -110,7 +110,7 @@ public:
     // when the current buffer is released by updateTexImage(). Multiple
     // fences can be set for a given buffer; they will be merged into a single
     // union fence.
-    void setReleaseFence(const sp<Fence>& fence);
+    virtual void setReleaseFence(const sp<Fence>& fence);
 
     // getTransformMatrix retrieves the 4x4 texture coordinate transform matrix
     // associated with the texture image set by the most recent call to
