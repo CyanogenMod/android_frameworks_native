@@ -393,6 +393,13 @@ int ASensorManager_destroyEventQueue(ASensorManager* manager, ASensorEventQueue*
 /*****************************************************************************/
 
 /**
+ * Enable the selected sensor with a specified sampling period and max batch report latency.
+ * Returns a negative error code on failure.
+ */
+int ASensorEventQueue_registerSensor(ASensorEventQueue* queue, ASensor const* sensor,
+        int32_t samplingPeriodUs, int maxBatchReportLatencyUs);
+
+/**
  * Enable the selected sensor. Returns a negative error code on failure.
  */
 int ASensorEventQueue_enableSensor(ASensorEventQueue* queue, ASensor const* sensor);
