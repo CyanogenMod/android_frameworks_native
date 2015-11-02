@@ -313,7 +313,6 @@ static void dumpstate() {
     dump_file("KERNEL CPUFREQ", "/sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state");
     dump_file("KERNEL SYNC", "/d/sync");
 
-    run_command("PROCESSES", 10, "ps", "-P", NULL);
     run_command("PROCESSES AND THREADS", 10, "ps", "-Z", "-t", "-p", "-P", NULL);
     run_command("LIBRANK", 10, "librank", NULL);
 
