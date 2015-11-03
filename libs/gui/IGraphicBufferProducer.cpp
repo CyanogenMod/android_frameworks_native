@@ -322,7 +322,7 @@ status_t BnGraphicBufferProducer::onTransact(
             uint32_t h      = data.readInt32();
             uint32_t format = data.readInt32();
             uint32_t usage  = data.readInt32();
-            int buf;
+            int buf = 0;
             sp<Fence> fence;
             int result = dequeueBuffer(&buf, &fence, async, w, h, format, usage);
             reply->writeInt32(buf);
@@ -362,7 +362,7 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer = new GraphicBuffer();
             data.read(*buffer.get());
-            int slot;
+            int slot = 0;
             int result = attachBuffer(&slot, buffer);
             reply->writeInt32(slot);
             reply->writeInt32(result);
@@ -389,7 +389,7 @@ status_t BnGraphicBufferProducer::onTransact(
         } break;
         case QUERY: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            int value;
+            int value = 0;
             int what = data.readInt32();
             int res = query(what, &value);
             reply->writeInt32(value);
