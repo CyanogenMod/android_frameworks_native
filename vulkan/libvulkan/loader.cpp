@@ -494,9 +494,7 @@ VkBool32 LogDebugMessageCallback(VkFlags message_flags,
     return false;
 }
 
-VkResult CreateDeviceNoop(VkPhysicalDevice,
-                          const VkDeviceCreateInfo*,
-                          VkDevice*) {
+VkResult Noop(...) {
     return VK_SUCCESS;
 }
 
@@ -505,7 +503,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
         return reinterpret_cast<PFN_vkVoidFunction>(GetLayerDeviceProcAddr);
     }
     if (strcmp(name, "vkCreateDevice") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateDeviceNoop);
+        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
     }
     if (!device)
         return GetGlobalDeviceProcAddr(name);
@@ -524,16 +522,16 @@ void DestroyInstanceBottom(VkInstance instance) {
         instance->drv.vtbl.DestroyInstance) {
         instance->drv.vtbl.DestroyInstance(instance->drv.vtbl.instance);
     }
-    for (auto it = instance->active_layers.begin();
-         it != instance->active_layers.end(); ++it) {
-        DeactivateLayer(instance, instance, it);
-    }
     if (instance->message) {
         PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
         DebugDestroyMessageCallback =
             reinterpret_cast<PFN_vkDbgDestroyMsgCallback>(
                 vkGetInstanceProcAddr(instance, "vkDbgDestroyMsgCallback"));
         DebugDestroyMessageCallback(instance, instance->message);
+    }
+    for (auto it = instance->active_layers.begin();
+         it != instance->active_layers.end(); ++it) {
+        DeactivateLayer(instance, instance, it);
     }
     const VkAllocCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
@@ -832,10 +830,6 @@ const InstanceVtbl kBottomInstanceFunctions = {
     .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
     // clang-format on
 };
-
-VkResult Noop(...) {
-    return VK_SUCCESS;
-}
 
 PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char* name) {
     // TODO: Possibly move this into the instance table
