@@ -1071,6 +1071,56 @@ status_t Parcel::writeStrongBinder(const sp<IBinder>& val)
     return flatten_binder(ProcessState::self(), val, this);
 }
 
+status_t Parcel::writeStrongBinderVector(const std::vector<sp<IBinder>>& val)
+{
+    if (val.size() > std::numeric_limits<int32_t>::max()) {
+        return BAD_VALUE;
+    }
+
+    status_t status = writeInt32(val.size());
+
+    if (status != OK) {
+        return status;
+    }
+
+    for (const auto& item : val) {
+        status = writeStrongBinder(item);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
+status_t Parcel::readStrongBinderVector(std::vector<sp<IBinder>>* val) const {
+    val->clear();
+
+    int32_t size;
+    status_t status = readInt32(&size);
+
+    if (status != OK) {
+        return status;
+    }
+
+    if (size < 0) {
+        return BAD_VALUE;
+    }
+
+    val->resize(size);
+
+    for (auto& v : *val) {
+        status = readStrongBinder(&v);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
 status_t Parcel::writeWeakBinder(const wp<IBinder>& val)
 {
     return flatten_binder(ProcessState::self(), val, this);
