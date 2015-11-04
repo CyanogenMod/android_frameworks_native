@@ -588,14 +588,24 @@ VkResult AcquireNextImageKHR(VkDevice device,
     }
 
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
-    result =
-        driver_vtbl.ImportNativeFenceANDROID(device, semaphore, fence_clone);
+    if (driver_vtbl.AcquireImageANDROID) {
+        result = driver_vtbl.AcquireImageANDROID(
+            device, swapchain.images[idx].image, fence_clone, semaphore);
+    } else {
+        ALOG_ASSERT(driver_vtbl.ImportNativeFenceANDROID,
+                    "Have neither vkAcquireImageANDROID nor "
+                    "vkImportNativeFenceANDROID");
+        result = driver_vtbl.ImportNativeFenceANDROID(device, semaphore,
+                                                      fence_clone);
+    }
     if (result != VK_SUCCESS) {
-        // NOTE: we're relying on ImportNativeFenceANDROID to close
-        // fence_clone, even if the call fails. We could close it ourselves on
-        // failure, but that would create a race condition if the driver closes
-        // it on a failure path. We must assume one of: the driver *always*
-        // closes it even on failure, or *never* closes it on failure.
+        // NOTE: we're relying on AcquireImageANDROID to close fence_clone,
+        // even if the call fails. We could close it ourselves on failure, but
+        // that would create a race condition if the driver closes it on a
+        // failure path: some other thread might create an fd with the same
+        // number between the time the driver closes it and the time we close
+        // it. We must assume one of: the driver *always* closes it even on
+        // failure, or *never* closes it on failure.
         swapchain.window->cancelBuffer(swapchain.window.get(), buffer, fence);
         swapchain.images[idx].dequeued = false;
         swapchain.images[idx].dequeue_fence = -1;
@@ -627,9 +637,17 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
         int err;
 
         int fence = -1;
-        result = driver_vtbl.QueueSignalNativeFenceANDROID(queue, &fence);
+        if (driver_vtbl.QueueSignalReleaseImageANDROID) {
+            result = driver_vtbl.QueueSignalReleaseImageANDROID(
+                queue, img.image, &fence);
+        } else {
+            ALOG_ASSERT(driver_vtbl.QueueSignalNativeFenceANDROID,
+                        "Have neither vkQueueSignalReleaseImageANDROID nor "
+                        "vkQueueSignalNativeFenceANDROID");
+            result = driver_vtbl.QueueSignalNativeFenceANDROID(queue, &fence);
+        }
         if (result != VK_SUCCESS) {
-            ALOGE("vkQueueSignalNativeFenceANDROID failed: %d", result);
+            ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
             if (final_result == VK_SUCCESS)
                 final_result = result;
             // TODO(jessehall): What happens to the buffer here? Does the app

@@ -263,14 +263,26 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGW("missing device proc: %s", "vkGetSwapchainGrallocUsageANDROID");
         // success = false;
     }
-    vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
-    if (UNLIKELY(!vtbl.ImportNativeFenceANDROID)) {
-        ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");
-        success = false;
+    vtbl.AcquireImageANDROID = reinterpret_cast<PFN_vkAcquireImageANDROID>(get_proc_addr(device, "vkAcquireImageANDROID"));
+    if (UNLIKELY(!vtbl.AcquireImageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");
+        ALOGW("missing device proc: %s", "vkAcquireImageANDROID");
+        // success = false;
     }
+    vtbl.QueueSignalReleaseImageANDROID = reinterpret_cast<PFN_vkQueueSignalReleaseImageANDROID>(get_proc_addr(device, "vkQueueSignalReleaseImageANDROID"));
+    if (UNLIKELY(!vtbl.QueueSignalReleaseImageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkQueueSignalReleaseImageANDROID");
+        ALOGW("missing device proc: %s", "vkQueueSignalReleaseImageANDROID");
+        // success = false;
+    }
+    // TODO(jessehall): these are deprecated; remove when drivers have been updated
+    vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
     vtbl.QueueSignalNativeFenceANDROID = reinterpret_cast<PFN_vkQueueSignalNativeFenceANDROID>(get_proc_addr(device, "vkQueueSignalNativeFenceANDROID"));
-    if (UNLIKELY(!vtbl.QueueSignalNativeFenceANDROID)) {
-        ALOGE("missing device proc: %s", "vkQueueSignalNativeFenceANDROID");
+    if (!((!vtbl.AcquireImageANDROID && !vtbl.QueueSignalReleaseImageANDROID && vtbl.ImportNativeFenceANDROID && vtbl.QueueSignalNativeFenceANDROID) ||
+          (vtbl.AcquireImageANDROID && vtbl.QueueSignalReleaseImageANDROID && !vtbl.ImportNativeFenceANDROID && !vtbl.QueueSignalNativeFenceANDROID))) {
+        ALOGE("driver doesn't support exactly one of old- or new-style VK_EXT_ANDROID_native_buffer commands");
         success = false;
     }
     // clang-format on

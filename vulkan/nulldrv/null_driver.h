@@ -173,8 +173,8 @@ void CmdEndRenderPass(VkCmdBuffer cmdBuffer);
 void CmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers);
 
 VkResult GetSwapchainGrallocUsageANDROID(VkDevice device, VkFormat format, VkImageUsageFlags imageUsage, int* grallocUsage);
-VkResult ImportNativeFenceANDROID(VkDevice device, VkSemaphore semaphore, int nativeFenceFd);
-VkResult QueueSignalNativeFenceANDROID(VkQueue queue, int* pNativeFenceFd);
+VkResult AcquireImageANDROID(VkDevice device, VkImage image, int nativeFenceFd, VkSemaphore semaphore);
+VkResult QueueSignalReleaseImageANDROID(VkQueue queue, VkImage image, int* pNativeFenceFd);
 // clang-format on
 
 }  // namespace null_driver

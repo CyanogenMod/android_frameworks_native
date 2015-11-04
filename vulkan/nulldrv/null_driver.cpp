@@ -238,11 +238,11 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
     if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(
             GetSwapchainGrallocUsageANDROID);
-    if (strcmp(name, "vkImportNativeFenceANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(ImportNativeFenceANDROID);
-    if (strcmp(name, "vkQueueSignalNativeFenceANDROID") == 0)
+    if (strcmp(name, "vkAcquireImageANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(AcquireImageANDROID);
+    if (strcmp(name, "vkQueueSignalReleaseImageANDROID") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(
-            QueueSignalNativeFenceANDROID);
+            QueueSignalReleaseImageANDROID);
     return nullptr;
 }
 
@@ -673,12 +673,12 @@ VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult ImportNativeFenceANDROID(VkDevice, VkSemaphore, int fence) {
+VkResult AcquireImageANDROID(VkDevice, VkImage, int fence, VkSemaphore) {
     close(fence);
     return VK_SUCCESS;
 }
 
-VkResult QueueSignalNativeFenceANDROID(VkQueue, int* fence) {
+VkResult QueueSignalReleaseImageANDROID(VkQueue, VkImage, int* fence) {
     *fence = -1;
     return VK_SUCCESS;
 }

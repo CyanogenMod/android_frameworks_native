@@ -203,6 +203,8 @@ struct DeviceVtbl {
 
     // Implemented only by drivers, not by layers or the loader
     PFN_vkGetSwapchainGrallocUsageANDROID GetSwapchainGrallocUsageANDROID;
+    PFN_vkAcquireImageANDROID AcquireImageANDROID;
+    PFN_vkQueueSignalReleaseImageANDROID QueueSignalReleaseImageANDROID;
     PFN_vkImportNativeFenceANDROID ImportNativeFenceANDROID;
     PFN_vkQueueSignalNativeFenceANDROID QueueSignalNativeFenceANDROID;
 };
