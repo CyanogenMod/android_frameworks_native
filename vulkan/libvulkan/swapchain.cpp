@@ -335,6 +335,17 @@ VkResult CreateSwapchainKHR(VkDevice device,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
+    err = native_window_set_scaling_mode(
+        window.get(), NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_set_scaling_mode(SCALE_TO_WINDOW) failed: %s (%d)",
+              strerror(-err), err);
+        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
     uint32_t min_undequeued_buffers;
     err = window->query(window.get(), NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
                         reinterpret_cast<int*>(&min_undequeued_buffers));
