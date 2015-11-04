@@ -235,6 +235,9 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
     PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
     if (proc)
         return proc;
+    if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            GetSwapchainGrallocUsageANDROID);
     if (strcmp(name, "vkImportNativeFenceANDROID") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(ImportNativeFenceANDROID);
     if (strcmp(name, "vkQueueSignalNativeFenceANDROID") == 0)
@@ -658,6 +661,15 @@ VkResult CreateShaderModule(VkDevice device,
                             const VkShaderModuleCreateInfo*,
                             VkShaderModule* module) {
     *module = AllocHandle(device, HandleType::kShaderModule);
+    return VK_SUCCESS;
+}
+
+VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
+                                         VkFormat,
+                                         VkImageUsageFlags,
+                                         int* grallocUsage) {
+    // The null driver never reads or writes the gralloc buffer
+    *grallocUsage = 0;
     return VK_SUCCESS;
 }
 

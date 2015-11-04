@@ -306,6 +306,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
     // -- Configure the native window --
     // Failure paths from here on need to disconnect the window.
 
+    const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
+
     std::shared_ptr<ANativeWindow> window = InitSharedPtr(
         device, static_cast<ANativeWindow*>(
                     reinterpret_cast<const VkSurfaceDescriptionWindowKHR*>(
@@ -368,8 +370,28 @@ VkResult CreateSwapchainKHR(VkDevice device,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    // TODO(jessehall): Do we need to call modify native_window_set_usage()
-    // based on create_info->imageUsageFlags?
+    int gralloc_usage = 0;
+    // TODO(jessehall): Remove conditional once all drivers have been updated
+    if (driver_vtbl.GetSwapchainGrallocUsageANDROID) {
+        result = driver_vtbl.GetSwapchainGrallocUsageANDROID(
+            device, create_info->imageFormat, create_info->imageUsageFlags,
+            &gralloc_usage);
+        if (result != VK_SUCCESS) {
+            ALOGE("vkGetSwapchainGrallocUsageANDROID failed: %d", result);
+            native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
+            return VK_ERROR_INITIALIZATION_FAILED;
+        }
+    } else {
+        gralloc_usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
+    }
+    err = native_window_set_usage(window.get(), gralloc_usage);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_set_usage failed: %s (%d)", strerror(-err), err);
+        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
 
     // -- Allocate our Swapchain object --
     // After this point, we must deallocate the swapchain on error.
@@ -410,7 +432,6 @@ VkResult CreateSwapchainKHR(VkDevice device,
         .pQueueFamilyIndices = create_info->pQueueFamilyIndices,
     };
 
-    const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     for (uint32_t i = 0; i < num_images; i++) {
         Swapchain::Image& img = swapchain->images[i];
 

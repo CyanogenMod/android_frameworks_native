@@ -1169,6 +1169,13 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkCmdExecuteCommands");
         success = false;
     }
+    vtbl.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(device, "vkGetSwapchainGrallocUsageANDROID"));
+    if (UNLIKELY(!vtbl.GetSwapchainGrallocUsageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkGetSwapchainGrallocUsageANDROID");
+        ALOGW("missing device proc: %s", "vkGetSwapchainGrallocUsageANDROID");
+        // success = false;
+    }
     vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
     if (UNLIKELY(!vtbl.ImportNativeFenceANDROID)) {
         ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");

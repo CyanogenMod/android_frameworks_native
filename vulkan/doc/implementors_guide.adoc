@@ -2,7 +2,7 @@
 = Vulkan on Android Implementor's Guide =
 :toc: right
 :numbered:
-:revnumber: 1
+:revnumber: 2
 
 This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.
 
@@ -50,6 +50,18 @@ Our goal is to allow layers to be ported with only build-environment changes bet
 == Window System Integration ==
 
 The +vk_wsi_swapchin+ and +vk_wsi_device_swapchain+ extensions will primarily be implemented by the platform and live in +libvulkan.so+. The +VkSwapchain+ object and all interaction with +ANativeWindow+ will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver's +vkGetDeviceProcAddr+ functions, after passing through any enabled layers.
+
+Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling
+[source,c]
+----
+VkResult VKAPI vkGetSwapchainGrallocUsageANDROID(
+    VkDevice            device,
+    VkFormat            format,
+    VkImageUsageFlags   imageUsage,
+    int*                grallocUsage
+);
+----
+The +format+ and +imageUsage+ parameters are taken from the +VkSwapchainCreateInfoKHR+ structure. The driver should fill +*grallocUsage+ with the gralloc usage flags it requires for that format and usage. These will be combined with the usage flags requested by the swapchain consumer when allocating buffers.
 
 +VkNativeBufferANDROID+ is a +vkCreateImage+ extension structure for creating an image backed by a gralloc buffer. This structure is provided to +vkCreateImage+ in the +VkImageCreateInfo+ structure chain. Calls to +vkCreateImage+ with this structure will happen during the first call to +vkGetSwapChainInfoWSI(.. VK_SWAP_CHAIN_INFO_TYPE_IMAGES_WSI ..)+. The WSI implementation will allocate the number of native buffers requested for the swapchain, then create a +VkImage+ for each one.
 

@@ -795,9 +795,22 @@ Injected layers, like framerate, social network, or game launcher overlays, whic
 <h2 id="_window_system_integration">2. Window System Integration</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>The <span class="monospaced">vk_wsi_swapchin</span> and <span class="monospaced">vk_wsi_device_swapchain</span> extensions will primarily be implemented by the platform and live in <span class="monospaced">libvulkan.so</span>. The <span class="monospaced">VkSwapchain</span> object and all interaction with <span class="monospaced">ANativeWindow</span> will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver&#8217;s <span class="monospaced">vkGetDeviceProcAddr</span> functions, after passing through any enabled layers.</p></div>
+<div class="paragraph"><p>Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.6
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>VkResult <span style="color: #008080">VKAPI</span> <span style="font-weight: bold"><span style="color: #000000">vkGetSwapchainGrallocUsageANDROID</span></span><span style="color: #990000">(</span>
+    <span style="color: #008080">VkDevice</span>            device<span style="color: #990000">,</span>
+    <span style="color: #008080">VkFormat</span>            format<span style="color: #990000">,</span>
+    <span style="color: #008080">VkImageUsageFlags</span>   imageUsage<span style="color: #990000">,</span>
+    <span style="color: #009900">int</span><span style="color: #990000">*</span>                grallocUsage
+<span style="color: #990000">);</span></tt></pre></div></div>
+<div class="paragraph"><p>The <span class="monospaced">format</span> and <span class="monospaced">imageUsage</span> parameters are taken from the <span class="monospaced">VkSwapchainCreateInfoKHR</span> structure. The driver should fill <span class="monospaced">*grallocUsage</span> with the gralloc usage flags it requires for that format and usage. These will be combined with the usage flags requested by the swapchain consumer when allocating buffers.</p></div>
 <div class="paragraph"><p><span class="monospaced">VkNativeBufferANDROID</span> is a <span class="monospaced">vkCreateImage</span> extension structure for creating an image backed by a gralloc buffer. This structure is provided to <span class="monospaced">vkCreateImage</span> in the <span class="monospaced">VkImageCreateInfo</span> structure chain. Calls to <span class="monospaced">vkCreateImage</span> with this structure will happen during the first call to <span class="monospaced">vkGetSwapChainInfoWSI(.. VK_SWAP_CHAIN_INFO_TYPE_IMAGES_WSI ..)</span>. The WSI implementation will allocate the number of native buffers requested for the swapchain, then create a <span class="monospaced">VkImage</span> for each one.</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.8
+<div class="content"><!-- Generator: GNU source-highlight 3.1.6
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -832,7 +845,7 @@ http://www.gnu.org/software/src-highlite -->
 </div></div>
 <div class="paragraph"><p><span class="monospaced">vkImportNativeFenceANDROID</span> imports an externally-signalled native fence into an existing <span class="monospaced">VkSemaphore</span> object:</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.8
+<div class="content"><!-- Generator: GNU source-highlight 3.1.6
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -845,7 +858,7 @@ http://www.gnu.org/software/src-highlite -->
 will be in the signalled state when this function returns. The driver takes ownership of the fence fd and is responsible for closing it when the <span class="monospaced">VkSemaphore</span> is destroyed, when a different native fence is imported, or any other condition that replaces the <span class="monospaced">VkSemaphore</span>'s underlying synchronization object. If <span class="monospaced">fenceFd</span> is -1, the <span class="monospaced">VkSemaphore</span> will be considered signalled immediately, but it can still be passed to <span class="monospaced">vkQueueWaitSemaphore</span>.</p></div>
 <div class="paragraph"><p><span class="monospaced">vkQueueSignalNativeFenceANDROID</span> creates a native fence and schedules it to be signalled when prior work on the queue has completed.</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.8
+<div class="content"><!-- Generator: GNU source-highlight 3.1.6
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -899,7 +912,7 @@ Deferred support for multiple drivers
 <div id="footer">
 <div id="footer-text">
 Version 1<br>
-Last updated 2015-08-16 23:34:58 PDT
+Last updated 2015-11-04 09:13:11 PST
 </div>
 </div>
 </body>

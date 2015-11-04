@@ -202,6 +202,7 @@ struct DeviceVtbl {
     PFN_vkQueuePresentKHR QueuePresentKHR;
 
     // Implemented only by drivers, not by layers or the loader
+    PFN_vkGetSwapchainGrallocUsageANDROID GetSwapchainGrallocUsageANDROID;
     PFN_vkImportNativeFenceANDROID ImportNativeFenceANDROID;
     PFN_vkQueueSignalNativeFenceANDROID QueueSignalNativeFenceANDROID;
 };
