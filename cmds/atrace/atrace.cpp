@@ -99,6 +99,7 @@ static const TracingCategory k_categories[] = {
     } },
     { "irq",        "IRQ Events",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/irq/enable" },
+        { OPT,      "/sys/kernel/debug/tracing/events/ipi/enable" },
     } },
     { "freq",       "CPU Frequency",    0, {
         { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable" },
