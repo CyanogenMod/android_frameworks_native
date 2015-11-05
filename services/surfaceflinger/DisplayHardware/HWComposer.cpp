@@ -341,9 +341,19 @@ static const uint32_t DISPLAY_ATTRIBUTES[] = {
     HWC_DISPLAY_HEIGHT,
     HWC_DISPLAY_DPI_X,
     HWC_DISPLAY_DPI_Y,
+    HWC_DISPLAY_COLOR_TRANSFORM,
     HWC_DISPLAY_NO_ATTRIBUTE,
 };
 #define NUM_DISPLAY_ATTRIBUTES (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0])
+
+static const uint32_t PRE_HWC15_DISPLAY_ATTRIBUTES[] = {
+    HWC_DISPLAY_VSYNC_PERIOD,
+    HWC_DISPLAY_WIDTH,
+    HWC_DISPLAY_HEIGHT,
+    HWC_DISPLAY_DPI_X,
+    HWC_DISPLAY_DPI_Y,
+    HWC_DISPLAY_NO_ATTRIBUTE,
+};
 
 status_t HWComposer::queryDisplayProperties(int disp) {
 
@@ -372,6 +382,12 @@ status_t HWComposer::queryDisplayProperties(int disp) {
     for (size_t c = 0; c < numConfigs; ++c) {
         err = mHwc->getDisplayAttributes(mHwc, disp, configs[c],
                 DISPLAY_ATTRIBUTES, values);
+        // If this is a pre-1.5 HWC, it may not know about color transform, so
+        // try again with a smaller set of attributes
+        if (err != NO_ERROR) {
+            err = mHwc->getDisplayAttributes(mHwc, disp, configs[c],
+                    PRE_HWC15_DISPLAY_ATTRIBUTES, values);
+        }
         if (err != NO_ERROR) {
             // we can't get this display's info. turn it off.
             mDisplayData[disp].connected = false;
@@ -395,6 +411,9 @@ status_t HWComposer::queryDisplayProperties(int disp) {
                     break;
                 case HWC_DISPLAY_DPI_Y:
                     config.ydpi = values[i] / 1000.0f;
+                    break;
+                case HWC_DISPLAY_COLOR_TRANSFORM:
+                    config.colorTransform = values[i];
                     break;
                 default:
                     ALOG_ASSERT(false, "unknown display attribute[%zu] %#x",
@@ -1195,9 +1214,11 @@ void HWComposer::dump(String8& result) const {
             result.appendFormat("  Display[%zd] configurations (* current):\n", i);
             for (size_t c = 0; c < disp.configs.size(); ++c) {
                 const DisplayConfig& config(disp.configs[c]);
-                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f, refresh=%" PRId64 "\n",
-                        c == disp.currentConfig ? "* " : "", c, config.width, config.height,
-                        config.xdpi, config.ydpi, config.refresh);
+                result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f"
+                        ", refresh=%" PRId64 ", colorTransform=%d\n",
+                        c == disp.currentConfig ? "* " : "", c,
+                        config.width, config.height, config.xdpi, config.ydpi,
+                        config.refresh, config.colorTransform);
             }
 
             if (disp.list) {

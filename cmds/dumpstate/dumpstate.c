@@ -434,8 +434,6 @@ static void dumpstate() {
     run_command("ARP CACHE", 10, "ip", "-4", "neigh", "show", NULL);
     run_command("IPv6 ND CACHE", 10, "ip", "-6", "neigh", "show", NULL);
 
-    run_command("NETWORK DIAGNOSTICS", 10, "dumpsys", "connectivity", "--diag", NULL);
-
     run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
     run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
     run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-nvx", NULL);
@@ -447,25 +445,29 @@ static void dumpstate() {
             SU_PATH, "root", "wpa_cli", "IFNAME=wlan0", "list_networks", NULL);
 
 #ifdef FWDUMP_bcmdhd
-    run_command("DUMP WIFI INTERNAL COUNTERS", 20,
+    run_command("ND OFFLOAD TABLE", 5,
+            SU_PATH, "root", "wlutil", "nd_hostip", NULL);
+
+    run_command("DUMP WIFI INTERNAL COUNTERS (1)", 20,
             SU_PATH, "root", "wlutil", "counters", NULL);
+
+    run_command("ND OFFLOAD STATUS (1)", 5,
+            SU_PATH, "root", "wlutil", "nd_status", NULL);
+
 #endif
     dump_file("INTERRUPTS (1)", "/proc/interrupts");
 
-    property_get("dhcp.wlan0.gateway", network, "");
-    if (network[0])
-        run_command("PING GATEWAY", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
-    property_get("dhcp.wlan0.dns1", network, "");
-    if (network[0])
-        run_command("PING DNS1", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
-    property_get("dhcp.wlan0.dns2", network, "");
-    if (network[0])
-        run_command("PING DNS2", 10, "ping", "-c", "3", "-i", ".5", network, NULL);
+    run_command("NETWORK DIAGNOSTICS", 10, "dumpsys", "connectivity", "--diag", NULL);
+
 #ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI STATUS", 20,
             SU_PATH, "root", "dhdutil", "-i", "wlan0", "dump", NULL);
-    run_command("DUMP WIFI INTERNAL COUNTERS", 20,
+
+    run_command("DUMP WIFI INTERNAL COUNTERS (2)", 20,
             SU_PATH, "root", "wlutil", "counters", NULL);
+
+    run_command("ND OFFLOAD STATUS (2)", 5,
+            SU_PATH, "root", "wlutil", "nd_status", NULL);
 #endif
     dump_file("INTERRUPTS (2)", "/proc/interrupts");
 

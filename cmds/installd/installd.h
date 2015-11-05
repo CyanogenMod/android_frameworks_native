@@ -243,7 +243,7 @@ int get_size(const char *uuid, const char *pkgname, int userid,
 int free_cache(const char *uuid, int64_t free_size);
 int dexopt(const char *apk_path, uid_t uid, bool is_public, const char *pkgName,
            const char *instruction_set, int dexopt_needed, bool vm_safe_mode,
-           bool debuggable, const char* oat_dir);
+           bool debuggable, const char* oat_dir, bool boot_complete);
 int mark_boot_complete(const char *instruction_set);
 int movefiles();
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);

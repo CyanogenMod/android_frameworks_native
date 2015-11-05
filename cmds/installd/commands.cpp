@@ -746,7 +746,7 @@ static bool check_boolean_property(const char* property_name, bool default_value
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *pkgname, const char *instruction_set,
-    bool vm_safe_mode, bool debuggable)
+    bool vm_safe_mode, bool debuggable, bool post_bootcomplete)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -770,8 +770,24 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                                                           dex2oat_compiler_filter_flag, NULL) > 0;
 
     char dex2oat_threads_buf[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_threads_flag = property_get("dalvik.vm.dex2oat-threads", dex2oat_threads_buf,
-                                                  NULL) > 0;
+    bool have_dex2oat_threads_flag = false;
+    if (!post_bootcomplete) {
+        have_dex2oat_threads_flag = property_get("dalvik.vm.boot-dex2oat-threads",
+                                                 dex2oat_threads_buf,
+                                                 NULL) > 0;
+        // If there's no boot property, fall back to the image property.
+        if (!have_dex2oat_threads_flag) {
+            have_dex2oat_threads_flag = property_get("dalvik.vm.image-dex2oat-threads",
+                                                     dex2oat_threads_buf,
+                                                     NULL) > 0;
+        }
+        // If there's neither, fall back to the default property.
+    }
+    if (!have_dex2oat_threads_flag) {
+        have_dex2oat_threads_flag = property_get("dalvik.vm.dex2oat-threads",
+                                                 dex2oat_threads_buf,
+                                                 NULL) > 0;
+    }
     char dex2oat_threads_arg[PROPERTY_VALUE_MAX + 2];
     if (have_dex2oat_threads_flag) {
         sprintf(dex2oat_threads_arg, "-j%s", dex2oat_threads_buf);
@@ -1065,9 +1081,22 @@ static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
     return true;
 }
 
+static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
+    if (set_to_bg) {
+        if (set_sched_policy(0, SP_BACKGROUND) < 0) {
+            ALOGE("set_sched_policy failed: %s\n", strerror(errno));
+            exit(70);
+        }
+        if (setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_BACKGROUND) < 0) {
+            ALOGE("setpriority failed: %s\n", strerror(errno));
+            exit(71);
+        }
+    }
+}
+
 int dexopt(const char *apk_path, uid_t uid, bool is_public,
            const char *pkgname, const char *instruction_set, int dexopt_needed,
-           bool vm_safe_mode, bool debuggable, const char* oat_dir)
+           bool vm_safe_mode, bool debuggable, const char* oat_dir, bool boot_complete)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1198,14 +1227,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
             ALOGE("capset failed: %s\n", strerror(errno));
             exit(66);
         }
-        if (set_sched_policy(0, SP_BACKGROUND) < 0) {
-            ALOGE("set_sched_policy failed: %s\n", strerror(errno));
-            exit(70);
-        }
-        if (setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_BACKGROUND) < 0) {
-            ALOGE("setpriority failed: %s\n", strerror(errno));
-            exit(71);
-        }
+        SetDex2OatAndPatchOatScheduling(boot_complete);
         if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
             exit(67);
@@ -1222,7 +1244,7 @@ int dexopt(const char *apk_path, uid_t uid, bool is_public,
                 input_file_name++;
             }
             run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
-                        instruction_set, vm_safe_mode, debuggable);
+                        instruction_set, vm_safe_mode, debuggable, boot_complete);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);

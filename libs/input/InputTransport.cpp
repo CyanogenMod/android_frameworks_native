@@ -51,6 +51,10 @@ static const nsecs_t RESAMPLE_LATENCY = 5 * NANOS_PER_MS;
 // Minimum time difference between consecutive samples before attempting to resample.
 static const nsecs_t RESAMPLE_MIN_DELTA = 2 * NANOS_PER_MS;
 
+// Maximum time difference between consecutive samples before attempting to resample
+// by extrapolation.
+static const nsecs_t RESAMPLE_MAX_DELTA = 20 * NANOS_PER_MS;
+
 // Maximum time to predict forward from the last known state, to avoid predicting too
 // far into the future.  This time is further bounded by 50% of the last time delta.
 static const nsecs_t RESAMPLE_MAX_PREDICTION = 8 * NANOS_PER_MS;
@@ -724,7 +728,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         nsecs_t delta = future.eventTime - current->eventTime;
         if (delta < RESAMPLE_MIN_DELTA) {
 #if DEBUG_RESAMPLING
-            ALOGD("Not resampled, delta time is %lld ns.", delta);
+            ALOGD("Not resampled, delta time is too small: %lld ns.", delta);
 #endif
             return;
         }
@@ -736,7 +740,12 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         nsecs_t delta = current->eventTime - other->eventTime;
         if (delta < RESAMPLE_MIN_DELTA) {
 #if DEBUG_RESAMPLING
-            ALOGD("Not resampled, delta time is %lld ns.", delta);
+            ALOGD("Not resampled, delta time is too small: %lld ns.", delta);
+#endif
+            return;
+        } else if (delta > RESAMPLE_MAX_DELTA) {
+#if DEBUG_RESAMPLING
+            ALOGD("Not resampled, delta time is too large: %lld ns.", delta);
 #endif
             return;
         }

@@ -36,6 +36,58 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+android::Mutex android::SensorManager::sLock;
+std::map<String16, SensorManager*> android::SensorManager::sPackageInstances;
+
+SensorManager& SensorManager::getInstanceForPackage(const String16& packageName) {
+    Mutex::Autolock _l(sLock);
+    SensorManager* sensorManager;
+    std::map<String16, SensorManager*>::iterator iterator =
+        sPackageInstances.find(packageName);
+
+    if (iterator != sPackageInstances.end()) {
+        sensorManager = iterator->second;
+    } else {
+        String16 opPackageName = packageName;
+
+        // It is possible that the calling code has no access to the package name.
+        // In this case we will get the packages for the calling UID and pick the
+        // first one for attributing the app op. This will work correctly for
+        // runtime permissions as for legacy apps we will toggle the app op for
+        // all packages in the UID. The caveat is that the operation may be attributed
+        // to the wrong package and stats based on app ops may be slightly off.
+        if (opPackageName.size() <= 0) {
+            sp<IBinder> binder = defaultServiceManager()->getService(String16("permission"));
+            if (binder != 0) {
+                const uid_t uid = IPCThreadState::self()->getCallingUid();
+                Vector<String16> packages;
+                interface_cast<IPermissionController>(binder)->getPackagesForUid(uid, packages);
+                if (!packages.isEmpty()) {
+                    opPackageName = packages[0];
+                } else {
+                    ALOGE("No packages for calling UID");
+                }
+            } else {
+                ALOGE("Cannot get permission service");
+            }
+        }
+
+        sensorManager = new SensorManager(opPackageName);
+
+        // If we had no package name, we looked it up from the UID and the sensor
+        // manager instance we created should also be mapped to the empty package
+        // name, to avoid looking up the packages for a UID and get the same result.
+        if (packageName.size() <= 0) {
+            sPackageInstances.insert(std::make_pair(String16(), sensorManager));
+        }
+
+        // Stash the per package sensor manager.
+        sPackageInstances.insert(std::make_pair(opPackageName, sensorManager));
+    }
+
+    return *sensorManager;
+}
+
 SensorManager::SensorManager(const String16& opPackageName)
     : mSensorList(0), mOpPackageName(opPackageName)
 {
@@ -58,13 +110,23 @@ void SensorManager::sensorManagerDied()
 }
 
 status_t SensorManager::assertStateLocked() const {
+    bool initSensorManager = false;
     if (mSensorServer == NULL) {
-        // try for one second
+        initSensorManager = true;
+    } else {
+        // Ping binder to check if sensorservice is alive.
+        status_t err = IInterface::asBinder(mSensorServer)->pingBinder();
+        if (err != NO_ERROR) {
+            initSensorManager = true;
+        }
+    }
+    if (initSensorManager) {
+        // try for 300 seconds (60*5(getService() tries for 5 seconds)) before giving up ...
         const String16 name("sensorservice");
-        for (int i=0 ; i<4 ; i++) {
+        for (int i = 0; i < 60; i++) {
             status_t err = getService(name, &mSensorServer);
             if (err == NAME_NOT_FOUND) {
-                usleep(250000);
+                sleep(1);
                 continue;
             }
             if (err != NO_ERROR) {
@@ -83,6 +145,8 @@ status_t SensorManager::assertStateLocked() const {
             DeathObserver(SensorManager& mgr) : mSensorManger(mgr) { }
         };
 
+        LOG_ALWAYS_FATAL_IF(mSensorServer.get() == NULL, "getService(SensorService) NULL");
+
         mDeathObserver = new DeathObserver(*const_cast<SensorManager *>(this));
         IInterface::asBinder(mSensorServer)->linkToDeath(mDeathObserver);
 
@@ -90,6 +154,8 @@ status_t SensorManager::assertStateLocked() const {
         size_t count = mSensors.size();
         mSensorList =
                 static_cast<Sensor const**>(malloc(count * sizeof(Sensor*)));
+        LOG_ALWAYS_FATAL_IF(mSensorList == NULL, "mSensorList NULL");
+
         for (size_t i=0 ; i<count ; i++) {
             mSensorList[i] = mSensors.array() + i;
         }
