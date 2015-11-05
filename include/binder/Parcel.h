@@ -125,6 +125,8 @@ public:
     status_t            writeCharVector(const std::vector<char16_t>& val);
     status_t            writeString16Vector(const std::vector<String16>& val);
 
+    status_t            writeStrongBinderVector(const std::vector<sp<IBinder>>& val);
+
     template<typename T>
     status_t            write(const Flattenable<T>& val);
 
@@ -202,7 +204,9 @@ public:
     wp<IBinder>         readWeakBinder() const;
 
     template<typename T>
-    status_t readStrongBinder(sp<T>* val) const;
+    status_t            readStrongBinder(sp<T>* val) const;
+
+    status_t            readStrongBinderVector(std::vector<sp<IBinder>>* val) const;
 
     status_t            readByteVector(std::vector<int8_t>* val) const;
     status_t            readInt32Vector(std::vector<int32_t>* val) const;
