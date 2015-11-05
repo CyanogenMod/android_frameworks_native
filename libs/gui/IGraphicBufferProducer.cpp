@@ -50,7 +50,8 @@ enum {
     GET_CONSUMER_NAME,
     SET_MAX_DEQUEUED_BUFFER_COUNT,
     SET_ASYNC_MODE,
-    GET_NEXT_FRAME_NUMBER
+    GET_NEXT_FRAME_NUMBER,
+    SET_SINGLE_BUFFER_MODE
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -339,6 +340,19 @@ public:
         uint64_t frameNumber = reply.readUint64();
         return frameNumber;
     }
+
+    virtual status_t setSingleBufferMode(bool singleBufferMode) {
+        Parcel data, reply;
+        data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(singleBufferMode);
+        status_t result = remote()->transact(SET_SINGLE_BUFFER_MODE, data,
+                &reply);
+        if (result == NO_ERROR) {
+            result = reply.readInt32();
+        }
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -525,6 +539,13 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             uint64_t frameNumber = getNextFrameNumber();
             reply->writeUint64(frameNumber);
+            return NO_ERROR;
+        }
+        case SET_SINGLE_BUFFER_MODE: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            bool singleBufferMode = data.readInt32();
+            status_t result = setSingleBufferMode(singleBufferMode);
+            reply->writeInt32(result);
             return NO_ERROR;
         }
     }

@@ -59,7 +59,7 @@ struct layer_state_t {
         :   what(0),
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
-            reserved(0), crop(Rect::INVALID_RECT)
+            reserved(0), crop(Rect::INVALID_RECT), frameNumber(0)
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
         matrix.dsdy = matrix.dtdx = 0.0f;

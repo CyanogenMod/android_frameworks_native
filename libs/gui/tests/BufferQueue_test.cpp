@@ -465,4 +465,74 @@ TEST_F(BufferQueueTest, TestGenerationNumbers) {
     ASSERT_EQ(OK, mConsumer->attachBuffer(&outSlot, buffer));
 }
 
+TEST_F(BufferQueueTest, TestSingleBufferMode) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+
+    // Get a buffer
+    int singleSlot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+
+    // Queue the buffer
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+
+    // Repeatedly acquire and release a buffer from the consumer side, it should
+    // always return the same one.
+    BufferItem item;
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(singleSlot, item.mSlot);
+        ASSERT_EQ(0, item.mTimestamp);
+        ASSERT_EQ(false, item.mIsAutoTimestamp);
+        ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
+        ASSERT_EQ(Rect(0, 0, 1, 1), item.mCrop);
+        ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
+        ASSERT_EQ(0, item.mTransform);
+        ASSERT_EQ(Fence::NO_FENCE, item.mFence);
+
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+    }
+
+    // Repeatedly queue and dequeue a buffer from the producer side, it should
+    // always return the same one.
+    int slot;
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(singleSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    }
+
+    // Repeatedly acquire and release a buffer from the consumer side, it should
+    // always return the same one. First grabbing them from the queue and then
+    // when the queue is empty, returning the single buffer.
+    for (int i = 0; i < 10; i++) {
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(singleSlot, item.mSlot);
+        ASSERT_EQ(0, item.mTimestamp);
+        ASSERT_EQ(false, item.mIsAutoTimestamp);
+        ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
+        ASSERT_EQ(Rect(0, 0, 1, 1), item.mCrop);
+        ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
+        ASSERT_EQ(0, item.mTransform);
+        ASSERT_EQ(Fence::NO_FENCE, item.mFence);
+
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+    }
+}
+
 } // namespace android

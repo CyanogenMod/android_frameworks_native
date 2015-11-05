@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 The Android Open Source Project
+ * Copyright 2015 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,29 @@
 
 namespace android {
 
-const char* BufferSlot::bufferStateName(BufferState state) {
-    switch (state) {
-        case BufferSlot::DEQUEUED: return "DEQUEUED";
-        case BufferSlot::QUEUED: return "QUEUED";
-        case BufferSlot::FREE: return "FREE";
-        case BufferSlot::ACQUIRED: return "ACQUIRED";
+
+const char* BufferState::string() const {
+
+    if (isShared()) {
+        return "SHARED";
     }
-    return "Unknown";
+
+    if (isFree()) {
+        return "FREE";
+    }
+
+    if (isAcquired()) {
+        return "ACQUIRED";
+    }
+
+    if (isDequeued()) {
+        return "DEQUEUED";
+    }
+
+    if (isQueued()) {
+        return "QUEUED";
+    }
+    return "UNKNOWN";
 }
 
 } // namespace android

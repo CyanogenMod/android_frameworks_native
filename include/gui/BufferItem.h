@@ -118,6 +118,13 @@ class BufferItem : public Flattenable<BufferItem> {
     // Describes the portion of the surface that has been modified since the
     // previous frame
     Region mSurfaceDamage;
+
+    // Indicates that the BufferQueue is in single buffer mode
+    bool mSingleBufferMode;
+
+    // Indicates that this buffer was queued by the producer. When in single
+    // buffer mode acquire() can return a BufferItem that wasn't in the queue.
+    bool mQueuedBuffer;
 };
 
 } // namespace android

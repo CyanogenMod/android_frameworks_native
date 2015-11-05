@@ -159,6 +159,7 @@ private:
     int dispatchSetSidebandStream(va_list args);
     int dispatchSetBuffersDataSpace(va_list args);
     int dispatchSetSurfaceDamage(va_list args);
+    int dispatchSetSingleBufferMode(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
@@ -188,6 +189,7 @@ protected:
 public:
     virtual int setMaxDequeuedBufferCount(int maxDequeuedBuffers);
     virtual int setAsyncMode(bool async);
+    virtual int setSingleBufferMode(bool singleBufferMode);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
 

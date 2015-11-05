@@ -59,6 +59,7 @@ public:
     virtual String8 getConsumerName() const override;
     virtual uint64_t getNextFrameNumber() const override;
     virtual IBinder* onAsBinder();
+    virtual status_t setSingleBufferMode(bool singleBufferMode);
 
 private:
     sp<IGraphicBufferProducer> mProducer;

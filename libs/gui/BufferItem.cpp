@@ -24,6 +24,8 @@
 namespace android {
 
 BufferItem::BufferItem() :
+    mGraphicBuffer(NULL),
+    mFence(NULL),
     mCrop(Rect::INVALID_RECT),
     mTransform(0),
     mScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
@@ -34,7 +36,10 @@ BufferItem::BufferItem() :
     mSlot(INVALID_BUFFER_SLOT),
     mIsDroppable(false),
     mAcquireCalled(false),
-    mTransformToDisplayInverse(false) {
+    mTransformToDisplayInverse(false),
+    mSurfaceDamage(),
+    mSingleBufferMode(false),
+    mQueuedBuffer(true) {
 }
 
 BufferItem::~BufferItem() {}

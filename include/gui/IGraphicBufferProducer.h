@@ -511,6 +511,13 @@ public:
 
     // Returns the number of the next frame which will be dequeued.
     virtual uint64_t getNextFrameNumber() const = 0;
+
+    // Used to enable/disable single buffer mode.
+    //
+    // In single buffer mode the last buffer that was dequeued will be cached
+    // and returned to all calls to dequeueBuffer and acquireBuffer. This allows
+    // the producer and consumer to simultaneously access the same buffer.
+    virtual status_t setSingleBufferMode(bool singleBufferMode) = 0;
 };
 
 // ----------------------------------------------------------------------------

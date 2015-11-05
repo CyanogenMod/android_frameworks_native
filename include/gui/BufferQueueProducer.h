@@ -173,6 +173,9 @@ public:
     // See IGraphicBufferProducer::getNextFrameNumber
     virtual uint64_t getNextFrameNumber() const override;
 
+    // See IGraphicBufferProducer::setSingleBufferMode
+    virtual status_t setSingleBufferMode(bool singleBufferMode);
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

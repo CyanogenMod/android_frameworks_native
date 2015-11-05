@@ -131,6 +131,10 @@ uint64_t MonitoredProducer::getNextFrameNumber() const {
     return mProducer->getNextFrameNumber();
 }
 
+status_t MonitoredProducer::setSingleBufferMode(bool singleBufferMode) {
+    return mProducer->setSingleBufferMode(singleBufferMode);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

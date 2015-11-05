@@ -107,10 +107,10 @@ private:
 
     // freeBufferLocked frees the GraphicBuffer and sync resources for the
     // given slot.
-    void freeBufferLocked(int slot);
+    void freeBufferLocked(int slot, bool validate = true);
 
     // freeAllBuffersLocked frees the GraphicBuffer and sync resources for
-    // all slots.
+    // all slots, even if they're currently dequeued, queued, or acquired.
     void freeAllBuffersLocked();
 
     // stillTracking returns true iff the buffer item is still being tracked
@@ -270,6 +270,32 @@ private:
     // In async mode an extra buffer will be allocated to allow the producer to
     // enqueue buffers without blocking.
     bool mAsyncMode;
+
+    // mSingleBufferMode indicates whether or not single buffer mode is enabled.
+    // In single buffer mode, the last buffer that was dequeued is cached and
+    // returned to all calls to dequeueBuffer and acquireBuffer. This allows the
+    // consumer and producer to access the same buffer simultaneously.
+    bool mSingleBufferMode;
+
+    // When single buffer mode is enabled, this tracks which slot contains the
+    // shared buffer.
+    int mSingleBufferSlot;
+
+    // Cached data about the shared buffer in single buffer mode
+    struct SingleBufferCache {
+        SingleBufferCache(Rect _crop, uint32_t _transform, int _scalingMode,
+                android_dataspace _dataspace)
+        : crop(_crop),
+          transform(_transform),
+          scalingMode(_scalingMode),
+          dataspace(_dataspace) {
+        };
+
+        Rect crop;
+        uint32_t transform;
+        uint32_t scalingMode;
+        android_dataspace dataspace;
+    } mSingleBufferCache;
 
 }; // class BufferQueueCore
 

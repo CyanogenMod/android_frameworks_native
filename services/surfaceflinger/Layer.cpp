@@ -1254,7 +1254,7 @@ void Layer::useEmptyDamage() {
 // ----------------------------------------------------------------------------
 
 bool Layer::shouldPresentNow(const DispSync& dispSync) const {
-    if (mSidebandStreamChanged) {
+    if (mSidebandStreamChanged || mSingleBufferMode) {
         return true;
     }
 
@@ -1278,7 +1278,7 @@ bool Layer::shouldPresentNow(const DispSync& dispSync) const {
 
 bool Layer::onPreComposition() {
     mRefreshPending = false;
-    return mQueuedFrames > 0 || mSidebandStreamChanged;
+    return mQueuedFrames > 0 || mSidebandStreamChanged || mSingleBufferMode;
 }
 
 void Layer::onPostComposition() {
@@ -1335,7 +1335,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
     }
 
     Region outDirtyRegion;
-    if (mQueuedFrames > 0) {
+    if (mQueuedFrames > 0 || mSingleBufferMode) {
 
         // if we've already called updateTexImage() without going through
         // a composition step, we have to skip this layer at this point
@@ -1492,8 +1492,14 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             }
         }
 
+        // This boolean is used to make sure that SurfaceFlinger's shadow copy
+        // of the buffer queue isn't modified when the buffer queue is returning
+        // BufferItem's that weren't actually queued. This can happen in single
+        // buffer mode.
+        bool queuedBuffer = false;
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,
-                mFlinger->mPrimaryDispSync, maxFrameNumber);
+                mFlinger->mPrimaryDispSync, &mSingleBufferMode, &queuedBuffer,
+                maxFrameNumber);
         if (updateResult == BufferQueue::PRESENT_LATER) {
             // Producer doesn't want buffer to be displayed yet.  Signal a
             // layer update so we check again at the next opportunity.
@@ -1502,16 +1508,18 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         } else if (updateResult == SurfaceFlingerConsumer::BUFFER_REJECTED) {
             // If the buffer has been rejected, remove it from the shadow queue
             // and return early
-            Mutex::Autolock lock(mQueueItemLock);
-            mQueueItems.removeAt(0);
-            android_atomic_dec(&mQueuedFrames);
+            if (queuedBuffer) {
+                Mutex::Autolock lock(mQueueItemLock);
+                mQueueItems.removeAt(0);
+                android_atomic_dec(&mQueuedFrames);
+            }
             return outDirtyRegion;
         } else if (updateResult != NO_ERROR || mUpdateTexImageFailed) {
             // This can occur if something goes wrong when trying to create the
             // EGLImage for this buffer. If this happens, the buffer has already
             // been released, so we need to clean up the queue and bug out
             // early.
-            {
+            if (queuedBuffer) {
                 Mutex::Autolock lock(mQueueItemLock);
                 mQueueItems.clear();
                 android_atomic_and(0, &mQueuedFrames);
@@ -1526,7 +1534,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             return outDirtyRegion;
         }
 
-        { // Autolock scope
+        if (queuedBuffer) {
+            // Autolock scope
             auto currentFrameNumber = mSurfaceFlingerConsumer->getFrameNumber();
 
             Mutex::Autolock lock(mQueueItemLock);
@@ -1544,7 +1553,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         // Decrement the queued-frames count.  Signal another event if we
         // have more frames pending.
-        if (android_atomic_dec(&mQueuedFrames) > 1) {
+        if ((queuedBuffer && android_atomic_dec(&mQueuedFrames) > 1)
+                || mSingleBufferMode) {
             mFlinger->signalLayerUpdate();
         }
 
