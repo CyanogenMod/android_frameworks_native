@@ -68,7 +68,9 @@ ANDROID_SINGLETON_STATIC_INSTANCE( Loader )
  *  -1   -> not running inside the emulator
  *   0   -> running inside the emulator, but GPU emulation not supported
  *   1   -> running inside the emulator, GPU emulation is supported
- *          through the "emulation" config.
+ *          through the "emulation" host-side OpenGL ES implementation.
+ *   2   -> running inside the emulator, GPU emulation is supported
+ *          through a guest-side vendor driver's OpenGL ES implementation.
  */
 static int
 checkGlesEmulationStatus(void)
@@ -275,6 +277,30 @@ void *Loader::load_driver(const char* kind,
     public:
         static String8 find(const char* kind) {
             String8 result;
+            int emulationStatus = checkGlesEmulationStatus();
+            switch (emulationStatus) {
+                case 0:
+                    ALOGD("Emulator without GPU support detected. "
+                          "Fallback to legacy software renderer.");
+#if defined(__LP64__)
+                    result.setTo("/system/lib64/egl/libGLES_android.so");
+#else
+                    result.setTo("/system/lib/egl/libGLES_android.so");
+#endif
+                    return result;
+                case 1:
+                    // Use host-side OpenGL through the "emulation" library
+#if defined(__LP64__)
+                    result.appendFormat("/system/lib64/egl/lib%s_emulation.so", kind);
+#else
+                    result.appendFormat("/system/lib/egl/lib%s_emulation.so", kind);
+#endif
+                    return result;
+                default:
+                    // Not in emulator, or use other guest-side implementation
+                    break;
+            }
+
             String8 pattern;
             pattern.appendFormat("lib%s", kind);
             const char* const searchPaths[] = {
@@ -319,20 +345,6 @@ void *Loader::load_driver(const char* kind,
     private:
         static bool find(String8& result,
                 const String8& pattern, const char* const search, bool exact) {
-
-            // in the emulator case, we just return the hardcoded name
-            // of the software renderer.
-            if (checkGlesEmulationStatus() == 0) {
-                ALOGD("Emulator without GPU support detected. "
-                      "Fallback to software renderer.");
-#if defined(__LP64__)
-                result.setTo("/system/lib64/egl/libGLES_android.so");
-#else
-                result.setTo("/system/lib/egl/libGLES_android.so");
-#endif
-                return true;
-            }
-
             if (exact) {
                 String8 absolutePath;
                 absolutePath.appendFormat("%s/%s.so", search, pattern.string());
