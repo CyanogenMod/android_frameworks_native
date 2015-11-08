@@ -1061,6 +1061,8 @@ static int validate_apk_path_internal(const char *path, int maxSubdirs) {
         if (maxSubdirs < 2) {
             maxSubdirs = 2;
         }
+    } else if (!strncmp(path, android_prebundled_dir.path, android_prebundled_dir.len)) {
+        dir = &android_prebundled_dir;
     } else {
         return -1;
     }

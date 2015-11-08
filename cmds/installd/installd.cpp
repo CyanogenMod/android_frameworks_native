@@ -385,6 +385,12 @@ int initialize_globals() {
         return -1;
     }
 
+    // Get the android external app directory.
+    if (get_path_from_string(&android_prebundled_dir, PREBUNDLED_APP_PREFIX) < 0) {
+        return -1;
+    }
+
+
     // Take note of the system and vendor directories.
     android_system_dirs.count = 4;
 

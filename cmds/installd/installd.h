@@ -92,6 +92,8 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
+#define PREBUNDLED_APP_PREFIX   "/vendor/bundled-app/"
+
 /* data structures */
 
 typedef struct {
@@ -111,6 +113,7 @@ extern dir_rec_t android_data_dir;
 extern dir_rec_t android_asec_dir;
 extern dir_rec_t android_media_dir;
 extern dir_rec_t android_mnt_expand_dir;
+extern dir_rec_t android_prebundled_dir;
 extern dir_rec_array_t android_system_dirs;
 
 typedef struct cache_dir_struct {
