@@ -72,11 +72,6 @@ static int do_remove(char **arg, char reply[REPLY_MAX] __unused)
     return uninstall(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
-static int do_rename(char **arg, char reply[REPLY_MAX] __unused)
-{
-    return renamepkg(arg[0], arg[1]); /* oldpkgname, newpkgname */
-}
-
 static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
 {
     return fix_uid(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3])); /* uuid, pkgname, uid, gid */
@@ -198,7 +193,6 @@ struct cmdinfo cmds[] = {
     { "movedex",              3, do_move_dex },
     { "rmdex",                2, do_rm_dex },
     { "remove",               3, do_remove },
-    { "rename",               2, do_rename },
     { "fixuid",               4, do_fixuid },
     { "freecache",            2, do_free_cache },
     { "rmcache",              3, do_rm_cache },

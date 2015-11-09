@@ -43,36 +43,40 @@ dir_rec_array_t android_system_dirs;
 
 static const char* kCpPath = "/system/bin/cp";
 
-int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo)
-{
+int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo) {
     if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
         ALOGE("invalid uid/gid: %d %d\n", uid, gid);
         return -1;
     }
 
-    std::string _pkgdir(create_data_user_package_path(uuid, 0, pkgname));
-    const char* pkgdir = _pkgdir.c_str();
+    std::string ce_package_path(create_data_user_package_path(uuid, 0, pkgname));
+    std::string de_package_path(create_data_user_de_package_path(uuid, 0, pkgname));
 
-    if (mkdir(pkgdir, 0751) < 0) {
-        ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
+    const char* c_ce_package_path = ce_package_path.c_str();
+    const char* c_de_package_path = de_package_path.c_str();
+
+    if (fs_prepare_dir(c_ce_package_path, 0751, uid, gid) == -1) {
+        PLOG(ERROR) << "Failed to prepare " << ce_package_path;
+        unlink(c_ce_package_path);
         return -1;
     }
-    if (chmod(pkgdir, 0751) < 0) {
-        ALOGE("cannot chmod dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
+    if (selinux_android_setfilecon(c_ce_package_path, pkgname, seinfo, uid) < 0) {
+        PLOG(ERROR) << "Failed to setfilecon " << ce_package_path;
+        unlink(c_ce_package_path);
         return -1;
     }
 
-    if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
-        ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
-    }
-
-    if (chown(pkgdir, uid, gid) < 0) {
-        ALOGE("cannot chown dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -1;
+    if (property_get_bool("vold.has_fbe", false)) {
+        if (fs_prepare_dir(c_de_package_path, 0751, uid, gid) == -1) {
+            PLOG(ERROR) << "Failed to prepare " << de_package_path;
+            unlink(c_de_package_path);
+            return -1;
+        }
+        if (selinux_android_setfilecon(c_de_package_path, pkgname, seinfo, uid) < 0) {
+            PLOG(ERROR) << "Failed to setfilecon " << de_package_path;
+            unlink(c_de_package_path);
+            return -1;
+        }
     }
 
     return 0;
@@ -87,23 +91,6 @@ int uninstall(const char *uuid, const char *pkgname, userid_t userid)
 
     /* delete contents AND directory, no exceptions */
     return delete_dir_contents(pkgdir, 1, NULL);
-}
-
-int renamepkg(const char *oldpkgname, const char *newpkgname)
-{
-    char oldpkgdir[PKG_PATH_MAX];
-    char newpkgdir[PKG_PATH_MAX];
-
-    if (create_pkg_path(oldpkgdir, oldpkgname, PKG_DIR_POSTFIX, 0))
-        return -1;
-    if (create_pkg_path(newpkgdir, newpkgname, PKG_DIR_POSTFIX, 0))
-        return -1;
-
-    if (rename(oldpkgdir, newpkgdir) < 0) {
-        ALOGE("cannot rename dir '%s' to '%s': %s\n", oldpkgdir, newpkgdir, strerror(errno));
-        return -errno;
-    }
-    return 0;
 }
 
 int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)

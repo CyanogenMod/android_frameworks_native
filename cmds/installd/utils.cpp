@@ -64,6 +64,15 @@ std::string create_data_user_package_path(const char* volume_uuid,
             create_data_user_path(volume_uuid, user).c_str(), package_name);
 }
 
+std::string create_data_user_de_package_path(const char* volume_uuid,
+        userid_t user, const char* package_name) {
+    CHECK(is_valid_filename(package_name));
+    CHECK(is_valid_package_name(package_name) == 0);
+
+    return StringPrintf("%s/%s",
+            create_data_user_de_path(volume_uuid, user).c_str(), package_name);
+}
+
 int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
         const char *postfix, userid_t userid) {
     if (is_valid_package_name(pkgname) != 0) {
@@ -112,6 +121,14 @@ std::string create_data_user_path(const char* volume_uuid, userid_t userid) {
     } else {
         return StringPrintf("%s/user/%u", data.c_str(), userid);
     }
+}
+
+/**
+ * Create the path name for device encrypted user data for a certain userid.
+ */
+std::string create_data_user_de_path(const char* volume_uuid, userid_t userid) {
+    std::string data(create_data_path(volume_uuid));
+    return StringPrintf("%s/user_de/%u", data.c_str(), userid);
 }
 
 /**

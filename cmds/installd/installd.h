@@ -171,9 +171,13 @@ std::string create_data_app_path(const char* volume_uuid);
 
 std::string create_data_app_package_path(const char* volume_uuid, const char* package_name);
 
+// TODO: finish refactoring to "_ce"
 std::string create_data_user_path(const char* volume_uuid, userid_t userid);
+std::string create_data_user_de_path(const char* volume_uuid, userid_t userid);
 
 std::string create_data_user_package_path(const char* volume_uuid,
+        userid_t user, const char* package_name);
+std::string create_data_user_de_package_path(const char* volume_uuid,
         userid_t user, const char* package_name);
 
 std::string create_data_media_path(const char* volume_uuid, userid_t userid);
