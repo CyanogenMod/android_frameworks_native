@@ -694,7 +694,7 @@ int main(int argc, char *argv[]) {
 
     /* switch to non-root user and group */
     gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
-            AID_MOUNT, AID_INET, AID_NET_BW_STATS };
+            AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
     if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
         ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
         return -1;
