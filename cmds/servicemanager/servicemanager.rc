@@ -1,7 +1,7 @@
 service servicemanager /system/bin/servicemanager
     class core
     user system
-    group system
+    group system readproc
     critical
     onrestart restart healthd
     onrestart restart zygote
