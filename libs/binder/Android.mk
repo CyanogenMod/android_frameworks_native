@@ -36,6 +36,7 @@ sources := \
     PermissionCache.cpp \
     ProcessState.cpp \
     Static.cpp \
+    Status.cpp \
     TextOutput.cpp \
 
 LOCAL_PATH:= $(call my-dir)
