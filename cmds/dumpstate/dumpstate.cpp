@@ -229,7 +229,7 @@ static unsigned long property_get_size(const char *key) {
 }
 
 /* timeout in ms */
-static unsigned long logcat_timeout(char *name) {
+static unsigned long logcat_timeout(const char *name) {
     static const char global_tuneable[] = "persist.logd.size"; // Settings App
     static const char global_default[] = "ro.logd.size";       // BoardConfig.mk
     char key[PROP_NAME_MAX];

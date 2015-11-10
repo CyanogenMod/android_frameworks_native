@@ -24,6 +24,10 @@
 
 #define SU_PATH "/system/xbin/su"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (for_each_pid_func)(int, const char *);
 typedef void (for_each_tid_func)(int, int, const char *);
 
@@ -83,5 +87,9 @@ void play_sound(const char *path);
 
 /* Implemented by libdumpstate_board to dump board-specific info */
 void dumpstate_board();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _DUMPSTATE_H_ */
