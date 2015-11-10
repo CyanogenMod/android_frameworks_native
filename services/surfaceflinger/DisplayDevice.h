@@ -173,7 +173,6 @@ public:
      */
     uint32_t getPageFlipCount() const;
     void dump(String8& result) const;
-    int getHardwareOrientation();
 
 private:
     /*
@@ -218,7 +217,6 @@ private:
             int w, int h, Transform* tr);
 
     uint32_t mLayerStack;
-    int mHardwareOrientation;
     int mOrientation;
     // user-provided visible area of the layer stack
     Rect mViewport;
