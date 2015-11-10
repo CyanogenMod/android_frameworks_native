@@ -14,18 +14,32 @@ android_eglCreateWindowSurface
     EGLint *attrib_list = (EGLint *) 0;
     android::sp<ANativeWindow> window;
 
-    if (!attrib_list_ref) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "attrib_list == null";
-        goto exit;
+    if (attrib_list_ref) {
+        if (offset < 0) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "offset < 0";
+            goto exit;
+        }
+        _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
+        attrib_list_base = (EGLint *)
+            _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
+        attrib_list = attrib_list_base + offset;
+        attrib_list_sentinel = 0;
+        for (int i = _remaining - 1; i >= 0; i--)  {
+            if (*((EGLint*)(attrib_list + i)) == EGL_NONE){
+                attrib_list_sentinel = 1;
+                break;
+            }
+        }
+        if (attrib_list_sentinel == 0) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "attrib_list must contain EGL_NONE!";
+            goto exit;
+        }
     }
-    if (offset < 0) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "offset < 0";
-        goto exit;
-    }
+
     if (win == NULL) {
 not_valid_surface:
         _exception = 1;
@@ -38,24 +52,6 @@ not_valid_surface:
 
     if (window == NULL)
         goto not_valid_surface;
-
-    _remaining = _env->GetArrayLength(attrib_list_ref) - offset;
-    attrib_list_base = (EGLint *)
-        _env->GetIntArrayElements(attrib_list_ref, (jboolean *)0);
-    attrib_list = attrib_list_base + offset;
-    attrib_list_sentinel = 0;
-    for (int i = _remaining - 1; i >= 0; i--)  {
-        if (*((EGLint*)(attrib_list + i)) == EGL_NONE){
-            attrib_list_sentinel = 1;
-            break;
-        }
-    }
-    if (attrib_list_sentinel == 0) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "attrib_list must contain EGL_NONE!";
-        goto exit;
-    }
 
     _returnValue = eglCreateWindowSurface(
         (EGLDisplay)dpy_native,

@@ -12,22 +12,18 @@ android_glGetShaderSource__II_3II_3BI
     jint _sourceRemaining;
     char *source = (char *) 0;
 
-    if (!length_ref) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "length == null";
-        goto exit;
+    if (length_ref) {
+        if (lengthOffset < 0) {
+            _exception = 1;
+            _exceptionType = "java/lang/IllegalArgumentException";
+            _exceptionMessage = "lengthOffset < 0";
+            goto exit;
+        }
+        _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
+        length_base = (GLsizei *)
+            _env->GetIntArrayElements(length_ref, (jboolean *)0);
+        length = length_base + lengthOffset;
     }
-    if (lengthOffset < 0) {
-        _exception = 1;
-        _exceptionType = "java/lang/IllegalArgumentException";
-        _exceptionMessage = "lengthOffset < 0";
-        goto exit;
-    }
-    _lengthRemaining = _env->GetArrayLength(length_ref) - lengthOffset;
-    length_base = (GLsizei *)
-        _env->GetIntArrayElements(length_ref, (jboolean *)0);
-    length = length_base + lengthOffset;
 
     if (!source_ref) {
         _exception = 1;
