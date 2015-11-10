@@ -338,6 +338,39 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
     return BAD_TYPE;
 }
 
+namespace {
+
+template<typename T>
+status_t readTypedVector(std::vector<T>* val, const Parcel* p,
+                         status_t(Parcel::*read_func)(T*) const) {
+    val->clear();
+
+    int32_t size;
+    status_t status = p->readInt32(&size);
+
+    if (status != OK) {
+        return status;
+    }
+
+    if (size < 0) {
+        return UNEXPECTED_NULL;
+    }
+
+    val->resize(size);
+
+    for (auto& v: *val) {
+        status = (p->*read_func)(&v);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
+}  // namespace
+
 // ---------------------------------------------------------------------------
 
 Parcel::Parcel()
@@ -1095,30 +1128,7 @@ status_t Parcel::writeStrongBinderVector(const std::vector<sp<IBinder>>& val)
 }
 
 status_t Parcel::readStrongBinderVector(std::vector<sp<IBinder>>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v : *val) {
-        status = readStrongBinder(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readStrongBinder);
 }
 
 status_t Parcel::writeWeakBinder(const wp<IBinder>& val)
@@ -1417,10 +1427,15 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
         return status;
     }
 
-    if (size < 0 || size_t(size) > dataAvail()) {
+    if (size < 0) {
+        status = UNEXPECTED_NULL;
+        return status;
+    }
+    if (size_t(size) > dataAvail()) {
         status = BAD_VALUE;
         return status;
     }
+
     const void* data = readInplace(size);
     if (!data) {
         status = BAD_VALUE;
@@ -1433,111 +1448,19 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
 }
 
 status_t Parcel::readInt32Vector(std::vector<int32_t>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v: *val) {
-        status = readInt32(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readInt32);
 }
 
 status_t Parcel::readInt64Vector(std::vector<int64_t>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v : *val) {
-        status = readInt64(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readInt64);
 }
 
 status_t Parcel::readFloatVector(std::vector<float>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v : *val) {
-        status = readFloat(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readFloat);
 }
 
 status_t Parcel::readDoubleVector(std::vector<double>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v : *val) {
-        status = readDouble(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readDouble);
 }
 
 status_t Parcel::readBoolVector(std::vector<bool>* val) const {
@@ -1551,7 +1474,7 @@ status_t Parcel::readBoolVector(std::vector<bool>* val) const {
     }
 
     if (size < 0) {
-        return BAD_VALUE;
+        return UNEXPECTED_NULL;
     }
 
     val->resize(size);
@@ -1573,61 +1496,11 @@ status_t Parcel::readBoolVector(std::vector<bool>* val) const {
 }
 
 status_t Parcel::readCharVector(std::vector<char16_t>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->resize(size);
-
-    for (auto& v : *val) {
-        status = readChar(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readChar);
 }
 
 status_t Parcel::readString16Vector(std::vector<String16>* val) const {
-    val->clear();
-
-    int32_t size;
-    status_t status = readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return BAD_VALUE;
-    }
-
-    val->reserve(size);
-
-    while (size-- > 0) {
-        const char16_t *data;
-        size_t size;
-        data = readString16Inplace(&size);
-
-        if (data == nullptr) {
-            return UNKNOWN_ERROR;
-        }
-
-        val->emplace_back(data, size);
-    }
-
-    return OK;
+    return readTypedVector(val, this, &Parcel::readString16);
 }
 
 
@@ -1834,7 +1707,7 @@ status_t Parcel::readString16(String16* pArg) const
         return 0;
     } else {
         *pArg = String16();
-        return UNKNOWN_ERROR;
+        return UNEXPECTED_NULL;
     }
 }
 
