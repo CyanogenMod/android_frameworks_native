@@ -42,6 +42,13 @@ int main(int, char**) {
 
     set_sched_policy(0, SP_FOREGROUND);
 
+#ifdef ENABLE_CPUSETS
+    // Put most SurfaceFlinger threads in the system-background cpuset
+    // Keeps us from unnecessarily using big cores
+    // Do this after the binder thread pool init
+    set_cpuset_policy(0, SP_SYSTEM);
+#endif
+
     // initialize before clients can connect
     flinger->init();
 
