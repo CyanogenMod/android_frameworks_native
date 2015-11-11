@@ -726,7 +726,6 @@ int main(int argc, char *argv[]) {
 
     /* redirect output if needed */
     char path[PATH_MAX], tmp_path[PATH_MAX];
-    pid_t gzip_pid = -1;
 
     if (!use_socket && use_outfile) {
         strlcpy(path, use_outfile, sizeof(path));
@@ -757,10 +756,9 @@ int main(int argc, char *argv[]) {
         fclose(vibrator);
     }
 
-    /* wait for gzip to finish, otherwise it might get killed when we exit */
-    if (gzip_pid > 0) {
+    /* close output if needed */
+    if (!use_socket && use_outfile) {
         fclose(stdout);
-        waitpid(gzip_pid, NULL, 0);
     }
 
     /* rename the (now complete) .tmp file to its final location */
