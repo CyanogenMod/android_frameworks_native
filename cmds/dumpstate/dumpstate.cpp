@@ -18,9 +18,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <memory>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <sys/capability.h>
 #include <sys/prctl.h>
@@ -30,6 +32,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <base/stringprintf.h>
 #include <cutils/properties.h>
 
 #include "private/android_filesystem_config.h"
@@ -38,12 +41,16 @@
 #include <cutils/log.h>
 
 #include "dumpstate.h"
+#include "ScopedFd.h"
+#include "ziparchive/zip_writer.h"
+
+using android::base::StringPrintf;
 
 /* read before root is shed */
 static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
-static char screenshot_path[PATH_MAX] = "";
+static std::string screenshot_path;
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
@@ -323,10 +330,11 @@ static void dumpstate() {
     for_each_pid(do_showmap, "SMAPS OF ALL PROCESSES");
     for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
-    if (screenshot_path[0]) {
+    if (!screenshot_path.empty()) {
         ALOGI("taking screenshot\n");
-        run_command(NULL, 10, "/system/bin/screencap", "-p", screenshot_path, NULL);
-        ALOGI("wrote screenshot: %s\n", screenshot_path);
+        const char *args[] = { "/system/bin/screencap", "-p", screenshot_path.c_str(), NULL };
+        run_command_always(NULL, 10, args);
+        ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
     }
 
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
@@ -587,6 +595,7 @@ static void usage() {
     fprintf(stderr, "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] [-z]] [-s] [-q]\n"
             "  -o: write to file (instead of stdout)\n"
             "  -d: append date to filename (requires -o)\n"
+            "  -z: generates zipped file (requires -o)\n"
             "  -p: capture screenshot to filename.png (requires -o)\n"
             "  -s: write output to control socket (for init)\n"
             "  -b: play sound file instead of vibrate, at beginning of job\n"
@@ -606,9 +615,71 @@ static void vibrate(FILE* vibrator, int ms) {
     fflush(vibrator);
 }
 
+/* generates a zipfile on 'path' with an entry with the contents of 'tmp_path'
+   and removes the temporary file.
+ */
+static bool generate_zip_file(std::string tmp_path, std::string path,
+                             std::string entry_name, time_t entry_time) {
+    std::unique_ptr<FILE, int(*)(FILE*)> file(fopen(path.c_str(), "wb"), fclose);
+    if (!file) {
+        ALOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
+        return false;
+    }
+
+    ZipWriter writer(file.get());
+    int32_t err = writer.StartEntryWithTime(entry_name.c_str(), ZipWriter::kCompress, entry_time);
+    if (err) {
+        ALOGE("writer.StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    ScopedFd fd(TEMP_FAILURE_RETRY(open(tmp_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
+    if (fd.get() == -1) {
+        ALOGE("open(%s): %s\n", tmp_path.c_str(), strerror(errno));
+        return false;
+    }
+
+    while (1) {
+        std::vector<uint8_t> buffer(65536);
+        ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd.get(), buffer.data(), sizeof(buffer)));
+        if (bytes_read == 0) {
+            break;
+        } else if (bytes_read == -1) {
+            ALOGE("read(%s): %s\n", tmp_path.c_str(), strerror(errno));
+            return false;
+       }
+       err = writer.WriteBytes(buffer.data(), bytes_read);
+       if (err) {
+           ALOGE("writer.WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
+           return false;
+       }
+    }
+
+    err = writer.FinishEntry();
+    if (err) {
+        ALOGE("writer.FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    err = writer.Finish();
+    if (err) {
+        ALOGE("writer.Finish(): %s\n", ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    if (remove(tmp_path.c_str())) {
+        ALOGE("remove(%s): %s\n", tmp_path.c_str(), strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
     int do_add_date = 0;
+    int do_zip_file = 0;
     int do_vibrate = 1;
     char* use_outfile = 0;
     int use_socket = 0;
@@ -644,6 +715,7 @@ int main(int argc, char *argv[]) {
     while ((c = getopt(argc, argv, "dho:svqzpB")) != -1) {
         switch (c) {
             case 'd': do_add_date = 1;       break;
+            case 'z': do_zip_file = 1;       break;
             case 'o': use_outfile = optarg;  break;
             case 's': use_socket = 1;        break;
             case 'v': break;  // compatibility no-op
@@ -657,6 +729,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if ((do_zip_file || do_add_date) && !use_outfile) {
+        usage();
+        exit(1);
+    }
+
+
     // If we are going to use a socket, do it as early as possible
     // to avoid timeouts from bugreport.
     if (use_socket) {
@@ -664,17 +742,17 @@ int main(int argc, char *argv[]) {
     }
 
     /* open the vibrator before dropping root */
-    FILE *vibrator = 0;
+    std::unique_ptr<FILE, int(*)(FILE*)> vibrator(NULL, fclose);
     if (do_vibrate) {
-        vibrator = fopen("/sys/class/timed_output/vibrator/enable", "we");
+        vibrator.reset(fopen("/sys/class/timed_output/vibrator/enable", "we"));
         if (vibrator) {
-            vibrate(vibrator, 150);
+            vibrate(vibrator.get(), 150);
         }
     }
 
     /* read /proc/cmdline before dropping root */
     FILE *cmdline = fopen("/proc/cmdline", "re");
-    if (cmdline != NULL) {
+    if (cmdline) {
         fgets(cmdline_buf, sizeof(cmdline_buf), cmdline);
         fclose(cmdline);
     }
@@ -725,24 +803,34 @@ int main(int argc, char *argv[]) {
     }
 
     /* redirect output if needed */
-    char path[PATH_MAX], tmp_path[PATH_MAX];
+    std::string text_path, zip_path, tmp_path, entry_name;
+
+    /* pointer to the actual path, be it zip or text */
+    std::string path;
+
+    time_t now = time(NULL);
 
     if (!use_socket && use_outfile) {
-        strlcpy(path, use_outfile, sizeof(path));
+        text_path = use_outfile;
         if (do_add_date) {
             char date[80];
-            time_t now = time(NULL);
             strftime(date, sizeof(date), "-%Y-%m-%d-%H-%M-%S", localtime(&now));
-            strlcat(path, date, sizeof(path));
+            text_path += date;
         }
         if (do_fb) {
-            strlcpy(screenshot_path, path, sizeof(screenshot_path));
-            strlcat(screenshot_path, ".png", sizeof(screenshot_path));
+            screenshot_path = text_path + ".png";
         }
-        strlcat(path, ".txt", sizeof(path));
-        strlcpy(tmp_path, path, sizeof(tmp_path));
-        strlcat(tmp_path, ".tmp", sizeof(tmp_path));
-        redirect_to_file(stdout, tmp_path);
+        zip_path = text_path + ".zip";
+        text_path += ".txt";
+        tmp_path = text_path + ".tmp";
+        entry_name = basename(text_path.c_str());
+
+        ALOGD("Temporary path: %s\ntext path: %s\nzip path: %s\nzip entry: %s",
+              tmp_path.c_str(), text_path.c_str(), zip_path.c_str(), entry_name.c_str());
+        /* TODO: rather than generating a text file now and zipping it later,
+           it would be more efficient to redirect stdout to the zip entry
+           directly, but the libziparchive doesn't support that option yet. */
+        redirect_to_file(stdout, const_cast<char*>(tmp_path.c_str()));
     }
 
     dumpstate();
@@ -750,10 +838,9 @@ int main(int argc, char *argv[]) {
     /* done */
     if (vibrator) {
         for (int i = 0; i < 3; i++) {
-            vibrate(vibrator, 75);
+            vibrate(vibrator.get(), 75);
             usleep((75 + 50) * 1000);
         }
-        fclose(vibrator);
     }
 
     /* close output if needed */
@@ -761,19 +848,40 @@ int main(int argc, char *argv[]) {
         fclose(stdout);
     }
 
-    /* rename the (now complete) .tmp file to its final location */
-    if (use_outfile && rename(tmp_path, path)) {
-        fprintf(stderr, "rename(%s, %s): %s\n", tmp_path, path, strerror(errno));
+    /* rename or zip the (now complete) .tmp file to its final location */
+    if (use_outfile) {
+        bool do_text_file = true;
+        if (do_zip_file) {
+            path = zip_path;
+            if (generate_zip_file(tmp_path, zip_path, entry_name, now)) {
+                ALOGE("Failed to generate zip file; sending text bugreport instead\n");
+                do_text_file = true;
+            } else {
+                do_text_file = false;
+            }
+        }
+        if (do_text_file) {
+            path = text_path;
+            if (rename(tmp_path.c_str(), text_path.c_str())) {
+                ALOGE("rename(%s, %s): %s\n", tmp_path.c_str(), text_path.c_str(), strerror(errno));
+                path.clear();
+            }
+        }
     }
 
     /* tell activity manager we're done */
     if (do_broadcast && use_outfile && do_fb) {
-        const char *args[] = { "/system/bin/am", "broadcast", "--user", "0",
-                "-a", "android.intent.action.BUGREPORT_FINISHED",
-                "--es", "android.intent.extra.BUGREPORT", path,
-                "--es", "android.intent.extra.SCREENSHOT", screenshot_path,
-                "--receiver-permission", "android.permission.DUMP", NULL };
-        run_command_always(NULL, 5, args);
+        if (!path.empty()) {
+            ALOGI("Final bugreport path: %s\n", path.c_str());
+            const char *args[] = { "/system/bin/am", "broadcast", "--user", "0",
+                  "-a", "android.intent.action.BUGREPORT_FINISHED",
+                  "--es", "android.intent.extra.BUGREPORT", path.c_str(),
+                  "--es", "android.intent.extra.SCREENSHOT", screenshot_path.c_str(),
+                  "--receiver-permission", "android.permission.DUMP", NULL };
+            run_command_always(NULL, 5, args);
+        } else {
+            ALOGE("Skipping broadcast because bugreport could not be generated\n");
+        }
     }
 
     ALOGI("done\n");
