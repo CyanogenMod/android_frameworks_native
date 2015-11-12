@@ -23,9 +23,10 @@
 
 #ifdef _DUMPSTATE_DRY_RUN_
 #define ON_DRY_RUN_RETURN(X) return X
-#endif
-#ifndef _DUMPSTATE_DRY_RUN_
+#define ON_DRY_RUN(code) code
+#else
 #define ON_DRY_RUN_RETURN(X)
+#define ON_DRY_RUN(code)
 #endif
 
 

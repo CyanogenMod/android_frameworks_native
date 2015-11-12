@@ -247,11 +247,16 @@ void do_showmap(int pid, const char *name) {
 }
 
 static int _dump_file_from_fd(const char *title, const char *path, int fd) {
-    if (title) printf("------ %s (%s", title, path);
-
     if (title) {
+        printf("------ %s (%s", title, path);
+
         struct stat st;
-        if (memcmp(path, "/proc/", 6) && memcmp(path, "/sys/", 5) && !fstat(fd, &st)) {
+        // Only show the modification time of non-device files.
+        size_t path_len = strlen(path);
+        if ((path_len < 6 || memcmp(path, "/proc/", 6)) &&
+                (path_len < 5 || memcmp(path, "/sys/", 5)) &&
+                (path_len < 3 || memcmp(path, "/d/", 3)) &&
+                !fstat(fd, &st)) {
             char stamp[80];
             time_t mtime = st.st_mtime;
             strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", localtime(&mtime));
@@ -259,6 +264,7 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
         }
         printf(") ------\n");
     }
+    ON_DRY_RUN({ close(fd); return 0; });
 
     bool newline = false;
     fd_set read_set;
@@ -305,9 +311,6 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
 
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path) {
-    if (title) printf("------ %s (%s) ------\n", title, path);
-    ON_DRY_RUN_RETURN(0);
-
     int fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
     if (fd < 0) {
         int err = errno;
@@ -393,13 +396,14 @@ int dump_files(const char *title, const char *dir,
  * stuck.
  */
 int dump_file_from_fd(const char *title, const char *path, int fd) {
-    ON_DRY_RUN_RETURN(0);
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) {
         printf("*** %s: failed to get flags on fd %d: %s\n", path, fd, strerror(errno));
+        close(fd);
         return -1;
     } else if (!(flags & O_NONBLOCK)) {
         printf("*** %s: fd must have O_NONBLOCK set.\n", path);
+        close(fd);
         return -1;
     }
     return _dump_file_from_fd(title, path, fd);
