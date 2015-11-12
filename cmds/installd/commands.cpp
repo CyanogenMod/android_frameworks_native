@@ -14,33 +14,40 @@
 ** limitations under the License.
 */
 
-#include "installd.h"
+#include "commands.h"
+
+#include <errno.h>
+#include <inttypes.h>
+#include <stdlib.h>
+#include <sys/capability.h>
+#include <sys/file.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <android-base/stringprintf.h>
 #include <android-base/logging.h>
+#include <cutils/fs.h>
+#include <cutils/log.h>               // TODO: Move everything to base/logging.
 #include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
 #include <logwrap/logwrap.h>
-#include <system/thread_defs.h>
+#include <private/android_filesystem_config.h>
 #include <selinux/android.h>
+#include <system/thread_defs.h>
 
-#include <inttypes.h>
-#include <sys/capability.h>
-#include <sys/file.h>
-#include <unistd.h>
+#include <globals.h>
+#include <installd_deps.h>
+#include <utils.h>
+
+#ifndef LOG_TAG
+#define LOG_TAG "installd"
+#endif
 
 using android::base::StringPrintf;
 
-/* Directory records that are used in execution of commands. */
-dir_rec_t android_data_dir;
-dir_rec_t android_asec_dir;
-dir_rec_t android_app_dir;
-dir_rec_t android_app_private_dir;
-dir_rec_t android_app_ephemeral_dir;
-dir_rec_t android_app_lib_dir;
-dir_rec_t android_media_dir;
-dir_rec_t android_mnt_expand_dir;
-dir_rec_array_t android_system_dirs;
+namespace android {
+namespace installd {
 
 static const char* kCpPath = "/system/bin/cp";
 
@@ -420,8 +427,8 @@ int move_dex(const char *src, const char *dst, const char *instruction_set)
         return -1;
     }
 
-    if (create_cache_path(src_dex, src, instruction_set)) return -1;
-    if (create_cache_path(dst_dex, dst, instruction_set)) return -1;
+    if (!create_cache_path(src_dex, src, instruction_set)) return -1;
+    if (!create_cache_path(dst_dex, dst, instruction_set)) return -1;
 
     ALOGV("move %s -> %s\n", src_dex, dst_dex);
     if (rename(src_dex, dst_dex) < 0) {
@@ -441,7 +448,7 @@ int rm_dex(const char *path, const char *instruction_set)
         return -1;
     }
 
-    if (create_cache_path(dex_path, path, instruction_set)) return -1;
+    if (!create_cache_path(dex_path, path, instruction_set)) return -1;
 
     ALOGV("unlink %s\n", dex_path);
     if (unlink(dex_path) < 0) {
@@ -495,7 +502,7 @@ int get_size(const char *uuid, const char *pkgname, int userid, const char *apkp
     }
 
     /* count the cached dexfile as code */
-    if (!create_cache_path(path, apkpath, instruction_set)) {
+    if (create_cache_path(path, apkpath, instruction_set)) {
         if (stat(path, &s) == 0) {
             codesize += stat_size(&s);
         }
@@ -589,51 +596,11 @@ int get_size(const char *uuid, const char *pkgname, int userid, const char *apkp
     return 0;
 }
 
-int create_cache_path(char path[PKG_PATH_MAX], const char *src, const char *instruction_set)
-{
-    char *tmp;
-    int srclen;
-    int dstlen;
-
-    srclen = strlen(src);
-
-        /* demand that we are an absolute path */
-    if ((src == 0) || (src[0] != '/') || strstr(src,"..")) {
-        return -1;
-    }
-
-    if (srclen > PKG_PATH_MAX) {        // XXX: PKG_NAME_MAX?
-        return -1;
-    }
-
-    dstlen = srclen + strlen(DALVIK_CACHE_PREFIX) +
-        strlen(instruction_set) +
-        strlen(DALVIK_CACHE_POSTFIX) + 2;
-
-    if (dstlen > PKG_PATH_MAX) {
-        return -1;
-    }
-
-    sprintf(path,"%s%s/%s%s",
-            DALVIK_CACHE_PREFIX,
-            instruction_set,
-            src + 1, /* skip the leading / */
-            DALVIK_CACHE_POSTFIX);
-
-    for(tmp = path + strlen(DALVIK_CACHE_PREFIX) + strlen(instruction_set) + 1; *tmp; tmp++) {
-        if (*tmp == '/') {
-            *tmp = '@';
-        }
-    }
-
-    return 0;
-}
-
 static int split_count(const char *str)
 {
   char *ctx;
   int count = 0;
-  char buf[PROPERTY_VALUE_MAX];
+  char buf[kPropertyValueMax];
 
   strncpy(buf, str, sizeof(buf));
   char *pBuf = buf;
@@ -662,7 +629,7 @@ static int split(char *buf, const char **argv)
 }
 
 static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name, const char *pkgname __unused, const char *instruction_set)
+    const char* output_file_name, const char *pkgname ATTRIBUTE_UNUSED, const char *instruction_set)
 {
     static const int MAX_INT_LEN = 12;      // '-'+10dig+'\0' -OR- 0x+8dig
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
@@ -702,8 +669,8 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 }
 
 static bool check_boolean_property(const char* property_name, bool default_value = false) {
-    char tmp_property_value[PROPERTY_VALUE_MAX];
-    bool have_property = property_get(property_name, tmp_property_value, nullptr) > 0;
+    char tmp_property_value[kPropertyValueMax];
+    bool have_property = get_property(property_name, tmp_property_value, nullptr) > 0;
     if (!have_property) {
         return default_value;
     }
@@ -722,50 +689,50 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         return;
     }
 
-    char dex2oat_Xms_flag[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_Xms_flag = property_get("dalvik.vm.dex2oat-Xms", dex2oat_Xms_flag, NULL) > 0;
+    char dex2oat_Xms_flag[kPropertyValueMax];
+    bool have_dex2oat_Xms_flag = get_property("dalvik.vm.dex2oat-Xms", dex2oat_Xms_flag, NULL) > 0;
 
-    char dex2oat_Xmx_flag[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_Xmx_flag = property_get("dalvik.vm.dex2oat-Xmx", dex2oat_Xmx_flag, NULL) > 0;
+    char dex2oat_Xmx_flag[kPropertyValueMax];
+    bool have_dex2oat_Xmx_flag = get_property("dalvik.vm.dex2oat-Xmx", dex2oat_Xmx_flag, NULL) > 0;
 
-    char dex2oat_compiler_filter_flag[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_compiler_filter_flag = property_get("dalvik.vm.dex2oat-filter",
+    char dex2oat_compiler_filter_flag[kPropertyValueMax];
+    bool have_dex2oat_compiler_filter_flag = get_property("dalvik.vm.dex2oat-filter",
                                                           dex2oat_compiler_filter_flag, NULL) > 0;
 
-    char dex2oat_threads_buf[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_threads_flag = property_get(post_bootcomplete
+    char dex2oat_threads_buf[kPropertyValueMax];
+    bool have_dex2oat_threads_flag = get_property(post_bootcomplete
                                                       ? "dalvik.vm.dex2oat-threads"
                                                       : "dalvik.vm.boot-dex2oat-threads",
                                                   dex2oat_threads_buf,
                                                   NULL) > 0;
-    char dex2oat_threads_arg[PROPERTY_VALUE_MAX + 2];
+    char dex2oat_threads_arg[kPropertyValueMax + 2];
     if (have_dex2oat_threads_flag) {
         sprintf(dex2oat_threads_arg, "-j%s", dex2oat_threads_buf);
     }
 
-    char dex2oat_isa_features_key[PROPERTY_KEY_MAX];
+    char dex2oat_isa_features_key[kPropertyKeyMax];
     sprintf(dex2oat_isa_features_key, "dalvik.vm.isa.%s.features", instruction_set);
-    char dex2oat_isa_features[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_isa_features = property_get(dex2oat_isa_features_key,
+    char dex2oat_isa_features[kPropertyValueMax];
+    bool have_dex2oat_isa_features = get_property(dex2oat_isa_features_key,
                                                   dex2oat_isa_features, NULL) > 0;
 
-    char dex2oat_isa_variant_key[PROPERTY_KEY_MAX];
+    char dex2oat_isa_variant_key[kPropertyKeyMax];
     sprintf(dex2oat_isa_variant_key, "dalvik.vm.isa.%s.variant", instruction_set);
-    char dex2oat_isa_variant[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_isa_variant = property_get(dex2oat_isa_variant_key,
+    char dex2oat_isa_variant[kPropertyValueMax];
+    bool have_dex2oat_isa_variant = get_property(dex2oat_isa_variant_key,
                                                  dex2oat_isa_variant, NULL) > 0;
 
     const char *dex2oat_norelocation = "-Xnorelocate";
     bool have_dex2oat_relocation_skip_flag = false;
 
-    char dex2oat_flags[PROPERTY_VALUE_MAX];
-    int dex2oat_flags_count = property_get("dalvik.vm.dex2oat-flags",
+    char dex2oat_flags[kPropertyValueMax];
+    int dex2oat_flags_count = get_property("dalvik.vm.dex2oat-flags",
                                  dex2oat_flags, NULL) <= 0 ? 0 : split_count(dex2oat_flags);
     ALOGV("dalvik.vm.dex2oat-flags=%s\n", dex2oat_flags);
 
     // If we booting without the real /data, don't spend time compiling.
-    char vold_decrypt[PROPERTY_VALUE_MAX];
-    bool have_vold_decrypt = property_get("vold.decrypt", vold_decrypt, "") > 0;
+    char vold_decrypt[kPropertyValueMax];
+    bool have_vold_decrypt = get_property("vold.decrypt", vold_decrypt, "") > 0;
     bool skip_compilation = (have_vold_decrypt &&
                              (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
                              (strcmp(vold_decrypt, "1") == 0)));
@@ -783,11 +750,11 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char oat_fd_arg[strlen("--oat-fd=") + MAX_INT_LEN];
     char oat_location_arg[strlen("--oat-location=") + PKG_PATH_MAX];
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
-    char instruction_set_variant_arg[strlen("--instruction-set-variant=") + PROPERTY_VALUE_MAX];
-    char instruction_set_features_arg[strlen("--instruction-set-features=") + PROPERTY_VALUE_MAX];
-    char dex2oat_Xms_arg[strlen("-Xms") + PROPERTY_VALUE_MAX];
-    char dex2oat_Xmx_arg[strlen("-Xmx") + PROPERTY_VALUE_MAX];
-    char dex2oat_compiler_filter_arg[strlen("--compiler-filter=") + PROPERTY_VALUE_MAX];
+    char instruction_set_variant_arg[strlen("--instruction-set-variant=") + kPropertyValueMax];
+    char instruction_set_features_arg[strlen("--instruction-set-features=") + kPropertyValueMax];
+    char dex2oat_Xms_arg[strlen("-Xms") + kPropertyValueMax];
+    char dex2oat_Xmx_arg[strlen("-Xmx") + kPropertyValueMax];
+    char dex2oat_compiler_filter_arg[strlen("--compiler-filter=") + kPropertyValueMax];
     bool have_dex2oat_swap_fd = false;
     char dex2oat_swap_fd[strlen("--swap-fd=") + MAX_INT_LEN];
 
@@ -827,9 +794,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
 
     // Check whether all apps should be compiled debuggable.
     if (!debuggable) {
-        char prop_buf[PROPERTY_VALUE_MAX];
+        char prop_buf[kPropertyValueMax];
         debuggable =
-                (property_get("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
+                (get_property("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
                 (prop_buf[0] == '1');
     }
 
@@ -897,32 +864,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     ALOGE("execv(%s) failed: %s\n", DEX2OAT_BIN, strerror(errno));
 }
 
-static int wait_child(pid_t pid)
-{
-    int status;
-    pid_t got_pid;
-
-    while (1) {
-        got_pid = waitpid(pid, &status, 0);
-        if (got_pid == -1 && errno == EINTR) {
-            printf("waitpid interrupted, retrying\n");
-        } else {
-            break;
-        }
-    }
-    if (got_pid != pid) {
-        ALOGW("waitpid failed: wanted %d, got %d: %s\n",
-            (int) pid, (int) got_pid, strerror(errno));
-        return 1;
-    }
-
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        return 0;
-    } else {
-        return status;      /* always nonzero */
-    }
-}
-
 /*
  * Whether dexopt should use a swap file when compiling an APK.
  *
@@ -944,8 +885,8 @@ static bool ShouldUseSwapFileForDexopt() {
     }
 
     // Check the "override" property. If it exists, return value == "true".
-    char dex2oat_prop_buf[PROPERTY_VALUE_MAX];
-    if (property_get("dalvik.vm.dex2oat-swap", dex2oat_prop_buf, "") > 0) {
+    char dex2oat_prop_buf[kPropertyValueMax];
+    if (get_property("dalvik.vm.dex2oat-swap", dex2oat_prop_buf, "") > 0) {
         if (strcmp(dex2oat_prop_buf, "true") == 0) {
             return true;
         } else {
@@ -967,42 +908,6 @@ static bool ShouldUseSwapFileForDexopt() {
 
     // Default value must be false here.
     return kDefaultProvideSwapFile;
-}
-
-/*
- * Computes the odex file for the given apk_path and instruction_set.
- * /system/framework/whatever.jar -> /system/framework/oat/<isa>/whatever.odex
- *
- * Returns false if it failed to determine the odex file path.
- */
-static bool calculate_odex_file_path(char path[PKG_PATH_MAX],
-                                     const char *apk_path,
-                                     const char *instruction_set)
-{
-    if (strlen(apk_path) + strlen("oat/") + strlen(instruction_set)
-        + strlen("/") + strlen("odex") + 1 > PKG_PATH_MAX) {
-      ALOGE("apk_path '%s' may be too long to form odex file path.\n", apk_path);
-      return false;
-    }
-
-    strcpy(path, apk_path);
-    char *end = strrchr(path, '/');
-    if (end == NULL) {
-      ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
-      return false;
-    }
-    const char *apk_end = apk_path + (end - path); // strrchr(apk_path, '/');
-
-    strcpy(end + 1, "oat/");       // path = /system/framework/oat/\0
-    strcat(path, instruction_set); // path = /system/framework/oat/<isa>\0
-    strcat(path, apk_end);         // path = /system/framework/oat/<isa>/whatever.jar\0
-    end = strrchr(path, '.');
-    if (end == NULL) {
-      ALOGE("apk_path '%s' has no extension.\n", apk_path);
-      return false;
-    }
-    strcpy(end + 1, "odex");
-    return true;
 }
 
 static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
@@ -1051,11 +956,11 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
             ALOGE("invalid oat_dir '%s'\n", oat_dir);
             return -1;
         }
-        if (calculate_oat_file_path(out_path, oat_dir, apk_path, instruction_set)) {
+        if (!calculate_oat_file_path(out_path, oat_dir, apk_path, instruction_set)) {
             return -1;
         }
     } else {
-        if (create_cache_path(out_path, apk_path, instruction_set)) {
+        if (!create_cache_path(out_path, apk_path, instruction_set)) {
             return -1;
         }
     }
@@ -1212,7 +1117,11 @@ fail:
 int mark_boot_complete(const char* instruction_set)
 {
   char boot_marker_path[PKG_PATH_MAX];
-  sprintf(boot_marker_path,"%s%s/.booting", DALVIK_CACHE_PREFIX, instruction_set);
+  sprintf(boot_marker_path,
+          "%s/%s/%s/.booting",
+          android_data_dir.path,
+          DALVIK_CACHE,
+          instruction_set);
 
   ALOGV("mark_boot_complete : %s", boot_marker_path);
   if (unlink(boot_marker_path) != 0) {
@@ -1750,29 +1659,5 @@ int link_file(const char* relative_path, const char* from_base, const char* to_b
     return 0;
 }
 
-int calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir, const char *apk_path,
-        const char *instruction_set) {
-    char *file_name_start;
-    char *file_name_end;
-
-    file_name_start = strrchr(apk_path, '/');
-    if (file_name_start == NULL) {
-         ALOGE("apk_path '%s' has no '/'s in it\n", apk_path);
-        return -1;
-    }
-    file_name_end = strrchr(apk_path, '.');
-    if (file_name_end < file_name_start) {
-        ALOGE("apk_path '%s' has no extension\n", apk_path);
-        return -1;
-    }
-
-    // Calculate file_name
-    int file_name_len = file_name_end - file_name_start - 1;
-    char file_name[file_name_len + 1];
-    memcpy(file_name, file_name_start + 1, file_name_len);
-    file_name[file_name_len] = '\0';
-
-    // <apk_parent_dir>/oat/<isa>/<file_name>.odex
-    snprintf(path, PKG_PATH_MAX, "%s/%s/%s.odex", oat_dir, instruction_set, file_name);
-    return 0;
-}
+}  // namespace installd
+}  // namespace android

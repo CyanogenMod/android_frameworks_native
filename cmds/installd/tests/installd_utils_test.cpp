@@ -19,7 +19,9 @@
 
 #include <gtest/gtest.h>
 
-#include "installd.h"
+#include <commands.h>
+#include <globals.h>
+#include <utils.h>
 
 #undef LOG_TAG
 #define LOG_TAG "utils_test"
@@ -44,6 +46,7 @@
         "shared_prefs_shared_prefs_shared_prefs_shared_prefs_shared_prefs_shared_prefs_"
 
 namespace android {
+namespace installd {
 
 class UtilsTest : public testing::Test {
 protected:
@@ -319,8 +322,8 @@ TEST_F(UtilsTest, CreatePkgPath_LongPkgNameSuccess) {
     EXPECT_EQ(0, create_pkg_path(path, pkgname, "", 0))
             << "Should successfully be able to create package name.";
 
-    const char *prefix = TEST_DATA_DIR PRIMARY_USER_PREFIX;
-    size_t offset = strlen(prefix);
+    std::string prefix = std::string(TEST_DATA_DIR) + PRIMARY_USER_PREFIX;
+    size_t offset = prefix.length();
 
     EXPECT_STREQ(pkgname, path + offset)
              << "Package path should be a really long string of a's";
@@ -358,7 +361,10 @@ TEST_F(UtilsTest, CreatePkgPath_PrimaryUser) {
     EXPECT_EQ(0, create_pkg_path(path, "com.example.package", "", 0))
             << "Should return error because postfix is too long.";
 
-    EXPECT_STREQ(TEST_DATA_DIR PRIMARY_USER_PREFIX "com.example.package", path)
+    std::string p = std::string(TEST_DATA_DIR)
+                    + PRIMARY_USER_PREFIX
+                    + "com.example.package";
+    EXPECT_STREQ(p.c_str(), path)
             << "Package path should be in /data/data/";
 }
 
@@ -368,7 +374,10 @@ TEST_F(UtilsTest, CreatePkgPath_SecondaryUser) {
     EXPECT_EQ(0, create_pkg_path(path, "com.example.package", "", 1))
             << "Should successfully create package path.";
 
-    EXPECT_STREQ(TEST_DATA_DIR SECONDARY_USER_PREFIX "1/com.example.package", path)
+    std::string p = std::string(TEST_DATA_DIR)
+                    + SECONDARY_USER_PREFIX
+                    + "1/com.example.package";
+    EXPECT_STREQ(p.c_str(), path)
             << "Package path should be in /data/user/";
 }
 
@@ -499,4 +508,5 @@ TEST_F(UtilsTest, CreateDataUserPackagePath) {
             create_data_user_package_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10, "com.example"));
 }
 
-}
+}  // namespace installd
+}  // namespace android

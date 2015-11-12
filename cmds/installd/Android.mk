@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
-common_src_files := commands.cpp utils.cpp
+common_src_files := commands.cpp globals.cpp utils.cpp
 common_cflags := -Wall -Werror
 
 #
@@ -41,3 +41,7 @@ LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
 LOCAL_INIT_RC := installd.rc
 LOCAL_CLANG := true
 include $(BUILD_EXECUTABLE)
+
+# Tests.
+
+include $(LOCAL_PATH)/tests/Android.mk

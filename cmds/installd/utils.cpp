@@ -14,14 +14,37 @@
 ** limitations under the License.
 */
 
-#include "installd.h"
+#include "utils.h"
 
-#include <android-base/stringprintf.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#if defined(__APPLE__)
+#include <sys/mount.h>
+#else
+#include <sys/statfs.h>
+#endif
+
 #include <android-base/logging.h>
+#include <android-base/stringprintf.h>
+#include <cutils/fs.h>
+#include <cutils/log.h>
+#include <private/android_filesystem_config.h>
 
+#include "globals.h"  // extern variables.
+
+#ifndef LOG_TAG
+#define LOG_TAG "installd"
+#endif
 #define CACHE_NOISY(x) //x
 
 using android::base::StringPrintf;
+
+namespace android {
+namespace installd {
 
 /**
  * Check that given string is valid filename, and that it attempts no
@@ -184,7 +207,7 @@ int create_user_config_path(char path[PATH_MAX], userid_t userid) {
 int create_move_path(char path[PKG_PATH_MAX],
     const char* pkgname,
     const char* leaf,
-    userid_t userid __unused)
+    userid_t userid ATTRIBUTE_UNUSED)
 {
     if ((android_data_dir.len + strlen(PRIMARY_USER_PREFIX) + strlen(pkgname) + strlen(leaf) + 1)
             >= PKG_PATH_MAX) {
@@ -1170,3 +1193,32 @@ int ensure_config_user_dirs(userid_t userid) {
 
    return 0;
 }
+
+int wait_child(pid_t pid)
+{
+    int status;
+    pid_t got_pid;
+
+    while (1) {
+        got_pid = waitpid(pid, &status, 0);
+        if (got_pid == -1 && errno == EINTR) {
+            printf("waitpid interrupted, retrying\n");
+        } else {
+            break;
+        }
+    }
+    if (got_pid != pid) {
+        ALOGW("waitpid failed: wanted %d, got %d: %s\n",
+            (int) pid, (int) got_pid, strerror(errno));
+        return 1;
+    }
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return 0;
+    } else {
+        return status;      /* always nonzero */
+    }
+}
+
+}  // namespace installd
+}  // namespace android
