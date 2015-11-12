@@ -770,11 +770,12 @@ int main(int argc, char *argv[]) {
 
     /* tell activity manager we're done */
     if (do_broadcast && use_outfile && do_fb) {
-        run_command(NULL, 5, "/system/bin/am", "broadcast", "--user", "0",
+        const char *args[] = { "/system/bin/am", "broadcast", "--user", "0",
                 "-a", "android.intent.action.BUGREPORT_FINISHED",
                 "--es", "android.intent.extra.BUGREPORT", path,
                 "--es", "android.intent.extra.SCREENSHOT", screenshot_path,
-                "--receiver-permission", "android.permission.DUMP", NULL);
+                "--receiver-permission", "android.permission.DUMP", NULL };
+        run_command_always(NULL, 5, args);
     }
 
     ALOGI("done\n");

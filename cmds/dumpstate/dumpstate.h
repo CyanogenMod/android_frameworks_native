@@ -17,6 +17,18 @@
 #ifndef _DUMPSTATE_H_
 #define _DUMPSTATE_H_
 
+/* When defined, skips the real dumps and just print the section headers.
+   Useful when debugging dumpstate itself. */
+//#define _DUMPSTATE_DRY_RUN_
+
+#ifdef _DUMPSTATE_DRY_RUN_
+#define ON_DRY_RUN_RETURN(X) return X
+#endif
+#ifndef _DUMPSTATE_DRY_RUN_
+#define ON_DRY_RUN_RETURN(X)
+#endif
+
+
 #include <time.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -51,6 +63,11 @@ int dump_files(const char *title, const char *dir,
 
 /* forks a command and waits for it to finish -- terminate args with NULL */
 int run_command(const char *title, int timeout_seconds, const char *command, ...);
+
+/* forks a command and waits for it to finish
+   first element of args is the command, and last must be NULL.
+   command is always ran, even when _DUMPSTATE_DRY_RUN_ is defined. */
+int run_command_always(const char *title, int timeout_seconds, const char *args[]);
 
 /* prints all the system properties */
 void print_properties();
