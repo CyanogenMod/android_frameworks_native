@@ -84,6 +84,7 @@ type u32 VkSampleMask
 @nonDispatchHandle type u64 VkFramebuffer
 @nonDispatchHandle type u64 VkRenderPass
 @nonDispatchHandle type u64 VkPipelineCache
+@nonDispatchHandle type u64 VkSwapchainKHR
 
 
 /////////////
@@ -635,6 +636,44 @@ enum VkDynamicState {
     VK_DYNAMIC_STATE_STENCIL_REFERENCE                      = 0x00000008,
 }
 
+//////////////////
+//  Extensions  //
+//////////////////
+
+@extension("VK_EXT_KHR_swapchain")
+enum VkSurfaceTransformKHR {
+    VK_SURFACE_TRANSFORM_NONE_KHR                           = 0x00000000,
+    VK_SURFACE_TRANSFORM_ROT90_KHR                          = 0x00000001,
+    VK_SURFACE_TRANSFORM_ROT180_KHR                         = 0x00000002,
+    VK_SURFACE_TRANSFORM_ROT270_KHR                         = 0x00000003,
+    VK_SURFACE_TRANSFORM_HMIRROR_KHR                        = 0x00000004,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_KHR                  = 0x00000005,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_KHR                 = 0x00000006,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_KHR                 = 0x00000007,
+    VK_SURFACE_TRANSFORM_INHERIT_KHR                        = 0x00000008,
+}
+
+@extension("VK_EXT_KHR_swapchain")
+enum VkPlatformKHR {
+    VK_PLATFORM_WIN32_KHR                                   = 0x00000000,
+    VK_PLATFORM_X11_KHR                                     = 0x00000001,
+    VK_PLATFORM_XCB_KHR                                     = 0x00000002,
+    VK_PLATFORM_ANDROID_KHR                                 = 0x00000003,
+    VK_PLATFORM_WAYLAND_KHR                                 = 0x00000004,
+    VK_PLATFORM_MIR_KHR                                     = 0x00000005,
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+enum VkPresentModeKHR {
+    VK_PRESENT_MODE_IMMEDIATE_KHR                           = 0x00000000,
+    VK_PRESENT_MODE_MAILBOX_KHR                             = 0x00000001,
+    VK_PRESENT_MODE_FIFO_KHR                                = 0x00000002,
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+enum VkColorSpaceKHR {
+    VK_COLORSPACE_SRGB_NONLINEAR_KHR                        = 0x00000000,
+}
 
 /////////////////
 //  Bitfields  //
@@ -927,6 +966,22 @@ bitfield VkStencilFaceFlags {
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
 }
 
+//////////////////
+//  Extensions  //
+//////////////////
+
+@extension("VK_EXT_KHR_swapchain")
+bitfield VkSurfaceTransformFlagsKHR {
+    VK_SURFACE_TRANSFORM_NONE_BIT_KHR                       = 0x00000001,
+    VK_SURFACE_TRANSFORM_ROT90_BIT_KHR                      = 0x00000002,
+    VK_SURFACE_TRANSFORM_ROT180_BIT_KHR                     = 0x00000004,
+    VK_SURFACE_TRANSFORM_ROT270_BIT_KHR                     = 0x00000008,
+    VK_SURFACE_TRANSFORM_HMIRROR_BIT_KHR                    = 0x00000010,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_BIT_KHR              = 0x00000020,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_BIT_KHR             = 0x00000040,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_BIT_KHR             = 0x00000080,
+    VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                    = 0x00000100,
+}
 
 //////////////////
 //  Structures  //
@@ -1937,6 +1992,72 @@ class VkDispatchIndirectCmd {
     u32                                         z
 }
 
+//////////////////
+//  Extensions  //
+//////////////////
+
+@extension("VK_EXT_KHR_device_swapchain")
+class VkSurfacePropertiesKHR {
+    u32                                     minImageCount
+    u32                                     maxImageCount
+    VkExtent2D                              currentExtent
+    VkExtent2D                              minImageExtent
+    VkExtent2D                              maxImageExtent
+    VkSurfaceTransformFlagsKHR              supportedTransforms
+    VkSurfaceTransformKHR                   currentTransform
+    u32                                     maxImageArraySize
+    VkImageUsageFlags                       supportedUsageFlags
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+class VkSurfaceFormatKHR {
+    VkFormat                                format
+    VkColorSpaceKHR                         colorSpace
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+class VkSwapchainCreateInfoKHR {
+    VkStructureType                          sType
+    const void*                              pNext
+    const VkSurfaceDescriptionKHR*           pSurfaceDescription
+    u32                                      minImageCount
+    VkFormat                                 imageFormat
+    VkColorSpaceKHR                          imageColorSpace
+    VkExtent2D                               imageExtent
+    VkImageUsageFlags                        imageUsageFlags
+    VkSurfaceTransformKHR                    preTransform
+    u32                                      imageArraySize
+    VkSharingMode                            sharingMode
+    u32                                      queueFamilyCount
+    const u32*                               pQueueFamilyIndices
+    VkPresentModeKHR                         presentMode
+    VkSwapchainKHR                           oldSwapchain
+    VkBool32                                 clipped
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+class VkPresentInfoKHR {
+    VkStructureType                          sType
+    const void*                              pNext
+    u32                                      swapchainCount
+    const VkSwapchainKHR*                    swapchains
+    const u32*                               imageIndices
+}
+
+@extension("VK_EXT_KHR_swapchain")
+class VkSurfaceDescriptionKHR {
+    VkStructureType                          sType
+    const void*                              pNext
+}
+
+@extension("VK_EXT_KHR_swapchain")
+class VkSurfaceDescriptionWindowKHR {
+    VkStructureType                         sType
+    const void*                             pNext
+    VkPlatformKHR                           platform
+    void*                                   pPlatformHandle
+    void*                                   pPlatformWindow
+}
 
 ////////////////
 //  Commands  //
@@ -4210,6 +4331,155 @@ cmd void vkCmdExecuteCommands(
     }
 }
 
+////////////////
+// Extensions //
+////////////////
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkGetSurfacePropertiesKHR(
+        VkDevice                                 device,
+        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
+        VkSurfacePropertiesKHR*                  pSurfaceProperties) {
+    deviceObject := GetDevice(device)
+
+    surfaceProperties := ?
+    pSurfaceProperties[0] = surfaceProperties
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkGetSurfaceFormatsKHR(
+        VkDevice                                 device,
+        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
+        u32*                                     pCount,
+        VkSurfaceFormatKHR*                      pSurfaceFormats) {
+    deviceObject := GetDevice(device)
+
+    count := as!u32(?)
+    pCount[0] = count
+    surfaceFormats := pSurfaceFormats[0:count]
+
+    for i in (0 .. count) {
+        surfaceFormat := ?
+        surfaceFormats[i] = surfaceFormat
+    }
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkGetSurfacePresentModesKHR(
+        VkDevice                                 device,
+        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
+        u32*                                     pCount,
+        VkPresentModeKHR*                        pPresentModes) {
+    deviceObject := GetDevice(device)
+
+    count := as!u32(?)
+    pCount[0] = count
+    presentModes := pPresentModes[0:count]
+
+    for i in (0 .. count) {
+        presentMode := ?
+        presentModes[i] = presentMode
+    }
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkCreateSwapchainKHR(
+        VkDevice                                 device,
+        const VkSwapchainCreateInfoKHR*          pCreateInfo,
+        VkSwapchainKHR*                          pSwapchain) {
+    //assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
+    deviceObject := GetDevice(device)
+
+    swapchain := ?
+    pSwapchain[0] = swapchain
+    State.Swapchains[swapchain] = new!SwapchainObject(device: device)
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkDestroySwapchainKHR(
+        VkDevice                                 device,
+        VkSwapchainKHR                           swapchain) {
+    deviceObject := GetDevice(device)
+    swapchainObject := GetSwapchain(swapchain)
+    assert(swapchainObject.device == device)
+
+    State.Swapchains[swapchain] = null
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkGetSwapchainImagesKHR(
+        VkDevice                                 device,
+        VkSwapchainKHR                           swapchain,
+        u32*                                     pCount,
+        VkImage*                                 pSwapchainImages) {
+    deviceObject := GetDevice(device)
+
+    count := as!u32(?)
+    pCount[0] = count
+    swapchainImages := pSwapchainImages[0:count]
+
+    for i in (0 .. count) {
+        swapchainImage := ?
+        swapchainImages[i] = swapchainImage
+        if !(swapchainImage in State.Images) {
+            State.Images[swapchainImage] = new!ImageObject(device: device)
+        }
+    }
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkAcquireNextImageKHR(
+        VkDevice                                 device,
+        VkSwapchainKHR                           swapchain,
+        u64                                      timeout,
+        VkSemaphore                              semaphore,
+        u32*                                     pImageIndex) {
+    deviceObject := GetDevice(device)
+    swapchainObject := GetSwapchain(swapchain)
+
+    imageIndex := ?
+    pImageIndex[0] = imageIndex
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_device_swapchain")
+cmd VkResult vkQueuePresentKHR(
+        VkQueue                                  queue,
+        VkPresentInfoKHR*                        pPresentInfo) {
+    queueObject := GetQueue(queue)
+
+    presentInfo := ?
+    pPresentInfo[0] = presentInfo
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_swapchain")
+cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
+        VkPhysicalDevice                        physicalDevice,
+        u32                                     queueFamilyIndex,
+        const VkSurfaceDescriptionKHR*          pSurfaceDescription,
+        VkBool32*                               pSupported) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+
+    supported := ?
+    pSupported[0] = supported
+
+    return ?
+}
 
 ////////////////
 // Validation //
@@ -4254,6 +4524,7 @@ StateObject State
     map!(VkRenderPass,               ref!RenderPassObject)               RenderPasses
     map!(VkPipelineCache,            ref!PipelineCacheObject)            PipelineCaches
     map!(VkCmdPool,                  ref!CmdPoolObject)                  CmdPools
+    map!(VkSwapchainKHR,             ref!SwapchainObject)                Swapchains
 }
 
 @internal class InstanceObject {
@@ -4369,6 +4640,10 @@ StateObject State
 }
 
 @internal class CmdPoolObject {
+    VkDevice      device
+}
+
+@internal class SwapchainObject {
     VkDevice      device
 }
 
@@ -4500,4 +4775,9 @@ macro ref!PipelineCacheObject GetPipelineCache(VkPipelineCache pipelineCache) {
 macro ref!CmdPoolObject GetCmdPool(VkCmdPool cmdPool) {
     assert(cmdPool in State.CmdPools)
     return State.CmdPools[cmdPool]
+}
+
+macro ref!SwapchainObject GetSwapchain(VkSwapchainKHR swapchain) {
+    assert(swapchain in State.Swapchains)
+    return State.Swapchains[swapchain]
 }

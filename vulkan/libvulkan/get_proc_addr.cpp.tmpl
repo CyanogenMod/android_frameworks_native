@@ -66,7 +66,7 @@ struct NameOffsetEntry {
 };
 ¶
 template <typename TEntry, size_t N>
-const TEntry* FindProcEntry(const TEntry(&table)[N], const char* name) {
+const TEntry* FindProcEntry(const TEntry (&table)[N], const char* name) {
     auto entry = std::lower_bound(
         table, table + N, name,
         [](const TEntry& e, const char* n) { return strcmp(e.name, n) < 0; });
@@ -126,9 +126,6 @@ PFN_vkVoidFunction GetGlobalInstanceProcAddr(const char* name) {
     // vkGetDeviceProcAddr must be available at the global/instance level for bootstrapping
     if (strcmp(name, "vkGetDeviceProcAddr") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceSurfaceSupportKHR);
     return nullptr;
 }
 ¶
@@ -136,23 +133,6 @@ PFN_vkVoidFunction GetGlobalDeviceProcAddr(const char* name) {
     const NameProcEntry* entry = FindProcEntry(kDeviceProcTbl, name);
     if (entry)
         return entry->proc;
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePropertiesKHR);
-    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR);
-    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePresentModesKHR);
-    if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
-    if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
-    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSwapchainImagesKHR);
-    if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR);
-    if (strcmp(name, "vkQueuePresentKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
     return nullptr;
 }
 ¶
@@ -162,8 +142,6 @@ PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kInstanceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        offset = offsetof(InstanceVtbl, GetPhysicalDeviceSurfaceSupportKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
@@ -177,22 +155,6 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kDeviceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePropertiesKHR);
-    else if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfaceFormatsKHR);
-    else if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePresentModesKHR);
-    else if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, CreateSwapchainKHR);
-    else if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, DestroySwapchainKHR);
-    else if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSwapchainImagesKHR);
-    else if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        offset = offsetof(DeviceVtbl, AcquireNextImageKHR);
-    else if (strcmp(name, "vkQueuePresentKHR") == 0)
-        offset = offsetof(DeviceVtbl, QueuePresentKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
@@ -218,6 +180,7 @@ bool LoadInstanceVtbl(VkInstance instance,
     {{range $f := AllCommands $}}
       {{if eq (Macro "Vtbl" $f) "Instance"}}
         {{if not (eq (Macro "FunctionName" $f) "vkGetInstanceProcAddr")}}
+          {{if not (GetAnnotation $f "extension")}}
     vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
         reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
             get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
@@ -225,6 +188,16 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "{{Macro "FunctionName" $f}}");
         success = false;
     }
+          {{end}}
+        {{end}}
+      {{end}}
+    {{end}}
+    {{range $f := AllCommands $}}
+      {{if eq (Macro "Vtbl" $f) "Instance"}}
+        {{if (GetAnnotation $f "extension")}}
+    vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
+        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+            get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
         {{end}}
       {{end}}
     {{end}}

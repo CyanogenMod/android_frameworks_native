@@ -38,7 +38,7 @@ struct NameOffsetEntry {
 };
 
 template <typename TEntry, size_t N>
-const TEntry* FindProcEntry(const TEntry(&table)[N], const char* name) {
+const TEntry* FindProcEntry(const TEntry (&table)[N], const char* name) {
     auto entry = std::lower_bound(
         table, table + N, name,
         [](const TEntry& e, const char* n) { return strcmp(e.name, n) < 0; });
@@ -62,11 +62,13 @@ const NameProcEntry kInstanceProcTbl[] = {
     {"vkGetPhysicalDeviceProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceProperties)},
     {"vkGetPhysicalDeviceQueueFamilyProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceQueueFamilyProperties)},
     {"vkGetPhysicalDeviceSparseImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceSparseImageFormatProperties)},
+    {"vkGetPhysicalDeviceSurfaceSupportKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceSurfaceSupportKHR)},
     // clang-format on
 };
 
 const NameProcEntry kDeviceProcTbl[] = {
     // clang-format off
+    {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR)},
     {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkAllocDescriptorSets)},
     {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(vkAllocMemory)},
     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer)},
@@ -138,6 +140,7 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSemaphore)},
     {"vkCreateShader", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShader)},
     {"vkCreateShaderModule", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShaderModule)},
+    {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR)},
     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBuffer)},
     {"vkDestroyBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBufferView)},
     {"vkDestroyCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandBuffer)},
@@ -159,6 +162,7 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDestroySemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySemaphore)},
     {"vkDestroyShader", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyShader)},
     {"vkDestroyShaderModule", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyShaderModule)},
+    {"vkDestroySwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR)},
     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkDeviceWaitIdle)},
     {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkEndCommandBuffer)},
     {"vkFlushMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(vkFlushMappedMemoryRanges)},
@@ -177,12 +181,17 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkGetPipelineCacheSize", reinterpret_cast<PFN_vkVoidFunction>(vkGetPipelineCacheSize)},
     {"vkGetQueryPoolResults", reinterpret_cast<PFN_vkVoidFunction>(vkGetQueryPoolResults)},
     {"vkGetRenderAreaGranularity", reinterpret_cast<PFN_vkVoidFunction>(vkGetRenderAreaGranularity)},
+    {"vkGetSurfaceFormatsKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR)},
+    {"vkGetSurfacePresentModesKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePresentModesKHR)},
+    {"vkGetSurfacePropertiesKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePropertiesKHR)},
+    {"vkGetSwapchainImagesKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetSwapchainImagesKHR)},
     {"vkInvalidateMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(vkInvalidateMappedMemoryRanges)},
     {"vkMapMemory", reinterpret_cast<PFN_vkVoidFunction>(vkMapMemory)},
     {"vkMergePipelineCaches", reinterpret_cast<PFN_vkVoidFunction>(vkMergePipelineCaches)},
     {"vkQueueBindSparseBufferMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseBufferMemory)},
     {"vkQueueBindSparseImageMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageMemory)},
     {"vkQueueBindSparseImageOpaqueMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageOpaqueMemory)},
+    {"vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR)},
     {"vkQueueSignalSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSignalSemaphore)},
     {"vkQueueSubmit", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit)},
     {"vkQueueWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkQueueWaitIdle)},
@@ -214,11 +223,13 @@ const NameOffsetEntry kInstanceOffsetTbl[] = {
     {"vkGetPhysicalDeviceProperties", offsetof(InstanceVtbl, GetPhysicalDeviceProperties)},
     {"vkGetPhysicalDeviceQueueFamilyProperties", offsetof(InstanceVtbl, GetPhysicalDeviceQueueFamilyProperties)},
     {"vkGetPhysicalDeviceSparseImageFormatProperties", offsetof(InstanceVtbl, GetPhysicalDeviceSparseImageFormatProperties)},
+    {"vkGetPhysicalDeviceSurfaceSupportKHR", offsetof(InstanceVtbl, GetPhysicalDeviceSurfaceSupportKHR)},
     // clang-format on
 };
 
 const NameOffsetEntry kDeviceOffsetTbl[] = {
     // clang-format off
+    {"vkAcquireNextImageKHR", offsetof(DeviceVtbl, AcquireNextImageKHR)},
     {"vkAllocDescriptorSets", offsetof(DeviceVtbl, AllocDescriptorSets)},
     {"vkAllocMemory", offsetof(DeviceVtbl, AllocMemory)},
     {"vkBeginCommandBuffer", offsetof(DeviceVtbl, BeginCommandBuffer)},
@@ -290,6 +301,7 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCreateSemaphore", offsetof(DeviceVtbl, CreateSemaphore)},
     {"vkCreateShader", offsetof(DeviceVtbl, CreateShader)},
     {"vkCreateShaderModule", offsetof(DeviceVtbl, CreateShaderModule)},
+    {"vkCreateSwapchainKHR", offsetof(DeviceVtbl, CreateSwapchainKHR)},
     {"vkDestroyBuffer", offsetof(DeviceVtbl, DestroyBuffer)},
     {"vkDestroyBufferView", offsetof(DeviceVtbl, DestroyBufferView)},
     {"vkDestroyCommandBuffer", offsetof(DeviceVtbl, DestroyCommandBuffer)},
@@ -311,6 +323,7 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkDestroySemaphore", offsetof(DeviceVtbl, DestroySemaphore)},
     {"vkDestroyShader", offsetof(DeviceVtbl, DestroyShader)},
     {"vkDestroyShaderModule", offsetof(DeviceVtbl, DestroyShaderModule)},
+    {"vkDestroySwapchainKHR", offsetof(DeviceVtbl, DestroySwapchainKHR)},
     {"vkDeviceWaitIdle", offsetof(DeviceVtbl, DeviceWaitIdle)},
     {"vkEndCommandBuffer", offsetof(DeviceVtbl, EndCommandBuffer)},
     {"vkFlushMappedMemoryRanges", offsetof(DeviceVtbl, FlushMappedMemoryRanges)},
@@ -329,12 +342,17 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkGetPipelineCacheSize", offsetof(DeviceVtbl, GetPipelineCacheSize)},
     {"vkGetQueryPoolResults", offsetof(DeviceVtbl, GetQueryPoolResults)},
     {"vkGetRenderAreaGranularity", offsetof(DeviceVtbl, GetRenderAreaGranularity)},
+    {"vkGetSurfaceFormatsKHR", offsetof(DeviceVtbl, GetSurfaceFormatsKHR)},
+    {"vkGetSurfacePresentModesKHR", offsetof(DeviceVtbl, GetSurfacePresentModesKHR)},
+    {"vkGetSurfacePropertiesKHR", offsetof(DeviceVtbl, GetSurfacePropertiesKHR)},
+    {"vkGetSwapchainImagesKHR", offsetof(DeviceVtbl, GetSwapchainImagesKHR)},
     {"vkInvalidateMappedMemoryRanges", offsetof(DeviceVtbl, InvalidateMappedMemoryRanges)},
     {"vkMapMemory", offsetof(DeviceVtbl, MapMemory)},
     {"vkMergePipelineCaches", offsetof(DeviceVtbl, MergePipelineCaches)},
     {"vkQueueBindSparseBufferMemory", offsetof(DeviceVtbl, QueueBindSparseBufferMemory)},
     {"vkQueueBindSparseImageMemory", offsetof(DeviceVtbl, QueueBindSparseImageMemory)},
     {"vkQueueBindSparseImageOpaqueMemory", offsetof(DeviceVtbl, QueueBindSparseImageOpaqueMemory)},
+    {"vkQueuePresentKHR", offsetof(DeviceVtbl, QueuePresentKHR)},
     {"vkQueueSignalSemaphore", offsetof(DeviceVtbl, QueueSignalSemaphore)},
     {"vkQueueSubmit", offsetof(DeviceVtbl, QueueSubmit)},
     {"vkQueueWaitIdle", offsetof(DeviceVtbl, QueueWaitIdle)},
@@ -363,10 +381,6 @@ PFN_vkVoidFunction GetGlobalInstanceProcAddr(const char* name) {
     // bootstrapping
     if (strcmp(name, "vkGetDeviceProcAddr") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            vkGetPhysicalDeviceSurfaceSupportKHR);
     return nullptr;
 }
 
@@ -374,24 +388,6 @@ PFN_vkVoidFunction GetGlobalDeviceProcAddr(const char* name) {
     const NameProcEntry* entry = FindProcEntry(kDeviceProcTbl, name);
     if (entry)
         return entry->proc;
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePropertiesKHR);
-    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR);
-    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            vkGetSurfacePresentModesKHR);
-    if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
-    if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
-    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSwapchainImagesKHR);
-    if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR);
-    if (strcmp(name, "vkQueuePresentKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
     return nullptr;
 }
 
@@ -401,13 +397,11 @@ PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kInstanceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        offset = offsetof(InstanceVtbl, GetPhysicalDeviceSurfaceSupportKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return *reinterpret_cast<PFN_vkVoidFunction*>(
-               const_cast<unsigned char*>(base) + offset);
+        const_cast<unsigned char*>(base) + offset);
 }
 
 PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
@@ -416,27 +410,11 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kDeviceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePropertiesKHR);
-    else if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfaceFormatsKHR);
-    else if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePresentModesKHR);
-    else if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, CreateSwapchainKHR);
-    else if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, DestroySwapchainKHR);
-    else if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSwapchainImagesKHR);
-    else if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        offset = offsetof(DeviceVtbl, AcquireNextImageKHR);
-    else if (strcmp(name, "vkQueuePresentKHR") == 0)
-        offset = offsetof(DeviceVtbl, QueuePresentKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return *reinterpret_cast<PFN_vkVoidFunction*>(
-               const_cast<unsigned char*>(base) + offset);
+        const_cast<unsigned char*>(base) + offset);
 }
 
 bool LoadInstanceVtbl(VkInstance instance,
@@ -514,6 +492,7 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceSparseImageFormatProperties");
         success = false;
     }
+    vtbl.GetPhysicalDeviceSurfaceSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(get_proc_addr(instance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
     // clang-format on
     return success;
 }
@@ -1167,6 +1146,46 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.CmdExecuteCommands = reinterpret_cast<PFN_vkCmdExecuteCommands>(get_proc_addr(device, "vkCmdExecuteCommands"));
     if (UNLIKELY(!vtbl.CmdExecuteCommands)) {
         ALOGE("missing device proc: %s", "vkCmdExecuteCommands");
+        success = false;
+    }
+    vtbl.GetSurfacePropertiesKHR = reinterpret_cast<PFN_vkGetSurfacePropertiesKHR>(get_proc_addr(device, "vkGetSurfacePropertiesKHR"));
+    if (UNLIKELY(!vtbl.GetSurfacePropertiesKHR)) {
+        ALOGE("missing device proc: %s", "vkGetSurfacePropertiesKHR");
+        success = false;
+    }
+    vtbl.GetSurfaceFormatsKHR = reinterpret_cast<PFN_vkGetSurfaceFormatsKHR>(get_proc_addr(device, "vkGetSurfaceFormatsKHR"));
+    if (UNLIKELY(!vtbl.GetSurfaceFormatsKHR)) {
+        ALOGE("missing device proc: %s", "vkGetSurfaceFormatsKHR");
+        success = false;
+    }
+    vtbl.GetSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetSurfacePresentModesKHR>(get_proc_addr(device, "vkGetSurfacePresentModesKHR"));
+    if (UNLIKELY(!vtbl.GetSurfacePresentModesKHR)) {
+        ALOGE("missing device proc: %s", "vkGetSurfacePresentModesKHR");
+        success = false;
+    }
+    vtbl.CreateSwapchainKHR = reinterpret_cast<PFN_vkCreateSwapchainKHR>(get_proc_addr(device, "vkCreateSwapchainKHR"));
+    if (UNLIKELY(!vtbl.CreateSwapchainKHR)) {
+        ALOGE("missing device proc: %s", "vkCreateSwapchainKHR");
+        success = false;
+    }
+    vtbl.DestroySwapchainKHR = reinterpret_cast<PFN_vkDestroySwapchainKHR>(get_proc_addr(device, "vkDestroySwapchainKHR"));
+    if (UNLIKELY(!vtbl.DestroySwapchainKHR)) {
+        ALOGE("missing device proc: %s", "vkDestroySwapchainKHR");
+        success = false;
+    }
+    vtbl.GetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(get_proc_addr(device, "vkGetSwapchainImagesKHR"));
+    if (UNLIKELY(!vtbl.GetSwapchainImagesKHR)) {
+        ALOGE("missing device proc: %s", "vkGetSwapchainImagesKHR");
+        success = false;
+    }
+    vtbl.AcquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(get_proc_addr(device, "vkAcquireNextImageKHR"));
+    if (UNLIKELY(!vtbl.AcquireNextImageKHR)) {
+        ALOGE("missing device proc: %s", "vkAcquireNextImageKHR");
+        success = false;
+    }
+    vtbl.QueuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(get_proc_addr(device, "vkQueuePresentKHR"));
+    if (UNLIKELY(!vtbl.QueuePresentKHR)) {
+        ALOGE("missing device proc: %s", "vkQueuePresentKHR");
         success = false;
     }
     vtbl.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(device, "vkGetSwapchainGrallocUsageANDROID"));

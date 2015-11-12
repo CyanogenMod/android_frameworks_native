@@ -505,6 +505,31 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
     if (strcmp(name, "vkCreateDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(Noop);
     }
+    // WSI extensions are not in the driver so return the loader functions
+    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfacePropertiesKHR);
+    }
+    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfaceFormatsKHR);
+    }
+    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfacePresentModesKHR);
+    }
+    if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR);
+    }
+    if (strcmp(name, "vkDestroySwapchainKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(DestroySwapchainKHR);
+    }
+    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(GetSwapchainImagesKHR);
+    }
+    if (strcmp(name, "vkAcquireNextImageKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(AcquireNextImageKHR);
+    }
+    if (strcmp(name, "vkQueuePresentKHR") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(QueuePresentKHR);
+    }
     if (!device)
         return GetGlobalDeviceProcAddr(name);
     Device* loader_device = reinterpret_cast<Device*>(GetVtbl(device)->device);
@@ -716,15 +741,6 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     }
     dispatch->vtbl = &device->vtbl_storage;
 
-    device->vtbl_storage.GetSurfacePropertiesKHR = GetSurfacePropertiesKHR;
-    device->vtbl_storage.GetSurfaceFormatsKHR = GetSurfaceFormatsKHR;
-    device->vtbl_storage.GetSurfacePresentModesKHR = GetSurfacePresentModesKHR;
-    device->vtbl_storage.CreateSwapchainKHR = CreateSwapchainKHR;
-    device->vtbl_storage.DestroySwapchainKHR = DestroySwapchainKHR;
-    device->vtbl_storage.GetSwapchainImagesKHR = GetSwapchainImagesKHR;
-    device->vtbl_storage.AcquireNextImageKHR = AcquireNextImageKHR;
-    device->vtbl_storage.QueuePresentKHR = QueuePresentKHR;
-
     void* base_object = static_cast<void*>(drv_device);
     void* next_object = base_object;
     VkLayerLinkedListElem* next_element;
@@ -771,6 +787,15 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
             device->vtbl_storage.GetDeviceProcAddr(drv_device,
                                                    "vkCreateDevice"));
     layer_createDevice(pdev, create_info, &drv_device);
+
+    // TODO(mlentine) : This is needed to use WSI layer validation. Remove this
+    // when new version of layer initialization exits.
+    if (!LoadDeviceVtbl(static_cast<VkDevice>(base_object),
+                        static_cast<VkDevice>(next_object), next_get_proc_addr,
+                        device->vtbl_storage)) {
+        DestroyDevice(device);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
 
     *out_device = drv_device;
     return VK_SUCCESS;
