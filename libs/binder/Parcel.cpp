@@ -750,6 +750,46 @@ restart_write:
     return NULL;
 }
 
+namespace {
+
+template<typename T, typename U>
+status_t unsafeWriteTypedVector(const std::vector<T>& val, Parcel* p,
+                                status_t(Parcel::*write_func)(U)) {
+    if (val.size() > std::numeric_limits<int32_t>::max()) {
+        return BAD_VALUE;
+    }
+
+    status_t status = p->writeInt32(val.size());
+
+    if (status != OK) {
+        return status;
+    }
+
+    for (const auto& item : val) {
+        status = (p->*write_func)(item);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
+template<typename T>
+status_t writeTypedVector(const std::vector<T>& val, Parcel* p,
+                          status_t(Parcel::*write_func)(const T&)) {
+    return unsafeWriteTypedVector(val, p, write_func);
+}
+
+template<typename T>
+status_t writeTypedVector(const std::vector<T>& val, Parcel* p,
+                          status_t(Parcel::*write_func)(T)) {
+    return unsafeWriteTypedVector(val, p, write_func);
+}
+
+}  // namespace
+
 status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 {
     status_t status;
@@ -775,163 +815,37 @@ status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 
 status_t Parcel::writeInt32Vector(const std::vector<int32_t>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeInt32(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeInt32);
 }
 
 status_t Parcel::writeInt64Vector(const std::vector<int64_t>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeInt64(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeInt64);
 }
 
 status_t Parcel::writeFloatVector(const std::vector<float>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeFloat(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeFloat);
 }
 
 status_t Parcel::writeDoubleVector(const std::vector<double>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeDouble(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeDouble);
 }
 
 status_t Parcel::writeBoolVector(const std::vector<bool>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeBool(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeBool);
 }
 
 status_t Parcel::writeCharVector(const std::vector<char16_t>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeChar(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeChar);
 }
 
 status_t Parcel::writeString16Vector(const std::vector<String16>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeString16(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeString16);
 }
 
 status_t Parcel::writeInt32(int32_t val)
@@ -1080,25 +994,7 @@ status_t Parcel::writeStrongBinder(const sp<IBinder>& val)
 
 status_t Parcel::writeStrongBinderVector(const std::vector<sp<IBinder>>& val)
 {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = writeStrongBinder(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
+    return writeTypedVector(val, this, &Parcel::writeStrongBinder);
 }
 
 status_t Parcel::readStrongBinderVector(std::vector<sp<IBinder>>* val) const {
