@@ -86,7 +86,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mQueueItemCondition(),
         mQueueItems(),
         mLastFrameNumberReceived(0),
-        mUpdateTexImageFailed(false)
+        mUpdateTexImageFailed(false),
+        mSingleBufferMode(false)
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
