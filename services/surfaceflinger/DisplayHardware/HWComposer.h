@@ -181,6 +181,7 @@ public:
         virtual void setAcquireFenceFd(int fenceFd) = 0;
         virtual void setPlaneAlpha(uint8_t alpha) = 0;
         virtual void onDisplayed() = 0;
+        virtual void setAnimating(bool animating)= 0;
     };
 
     /*
