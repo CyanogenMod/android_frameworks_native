@@ -103,11 +103,12 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:= 		\
-	GLES2/gl2.cpp.arm 	\
+LOCAL_SRC_FILES:= \
+	GLES2/gl2.cpp   \
 #
 
 LOCAL_CLANG := false
+LOCAL_ARM_MODE := arm
 LOCAL_SHARED_LIBRARIES += libcutils libutils liblog libEGL
 LOCAL_MODULE:= libGLESv2
 
@@ -122,14 +123,32 @@ LOCAL_CFLAGS += -fvisibility=hidden
 # TODO: This is to work around b/20093774. Remove after root cause is fixed
 LOCAL_LDFLAGS_arm += -Wl,--hash-style,both
 
-# Symlink libGLESv3.so -> libGLESv2.so
-# Platform modules should link against libGLESv2.so (-lGLESv2), but NDK apps
-# will be linked against libGLESv3.so.
-# Note we defer the evaluation of the LOCAL_POST_INSTALL_CMD,
-# so $(LOCAL_INSTALLED_MODULE) will be expanded to correct value,
-# even for both 32-bit and 64-bit installed files in multilib build.
-LOCAL_POST_INSTALL_CMD = \
-    $(hide) ln -sf $(notdir $(LOCAL_INSTALLED_MODULE)) $(dir $(LOCAL_INSTALLED_MODULE))libGLESv3.so
+include $(BUILD_SHARED_LIBRARY)
+
+###############################################################################
+# Build the wrapper OpenGL ES 3.x library (this is just different name for v2)
+#
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES:= \
+	GLES2/gl2.cpp   \
+#
+
+LOCAL_CLANG := false
+LOCAL_ARM_MODE := arm
+LOCAL_SHARED_LIBRARIES += libcutils libutils liblog libEGL
+LOCAL_MODULE:= libGLESv3
+LOCAL_SHARED_LIBRARIES += libdl
+# we need to access the private Bionic header <bionic_tls.h>
+LOCAL_C_INCLUDES += bionic/libc/private
+
+LOCAL_CFLAGS += -DLOG_TAG=\"libGLESv3\"
+LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CFLAGS += -fvisibility=hidden
+
+# TODO: This is to work around b/20093774. Remove after root cause is fixed
+LOCAL_LDFLAGS_arm += -Wl,--hash-style,both
 
 include $(BUILD_SHARED_LIBRARY)
 
