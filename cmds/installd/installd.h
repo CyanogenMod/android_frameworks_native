@@ -196,6 +196,9 @@ int is_valid_package_name(const char* pkgname);
 int create_cache_path(char path[PKG_PATH_MAX], const char *src,
                       const char *instruction_set);
 
+int delete_dir_contents(const std::string& pathname);
+int delete_dir_contents_and_dir(const std::string& pathname);
+
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
                         int (*exclusion_predicate)(const char *name, const int is_dir));

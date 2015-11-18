@@ -49,46 +49,17 @@ int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const c
         return -1;
     }
 
-    std::string ce_package_path(create_data_user_package_path(uuid, 0, pkgname));
-    std::string de_package_path(create_data_user_de_package_path(uuid, 0, pkgname));
-
-    const char* c_ce_package_path = ce_package_path.c_str();
-    const char* c_de_package_path = de_package_path.c_str();
-
-    if (fs_prepare_dir(c_ce_package_path, 0751, uid, gid) == -1) {
-        PLOG(ERROR) << "Failed to prepare " << ce_package_path;
-        unlink(c_ce_package_path);
-        return -1;
-    }
-    if (selinux_android_setfilecon(c_ce_package_path, pkgname, seinfo, uid) < 0) {
-        PLOG(ERROR) << "Failed to setfilecon " << ce_package_path;
-        unlink(c_ce_package_path);
-        return -1;
-    }
-
-    if (property_get_bool("vold.has_fbe", false)) {
-        if (fs_prepare_dir(c_de_package_path, 0751, uid, gid) == -1) {
-            PLOG(ERROR) << "Failed to prepare " << de_package_path;
-            unlink(c_de_package_path);
-            return -1;
-        }
-        if (selinux_android_setfilecon(c_de_package_path, pkgname, seinfo, uid) < 0) {
-            PLOG(ERROR) << "Failed to setfilecon " << de_package_path;
-            unlink(c_de_package_path);
-            return -1;
-        }
-    }
-
-    return 0;
+    return make_user_data(uuid, pkgname, uid, 0, seinfo);
 }
 
-int uninstall(const char *uuid, const char *pkgname, userid_t userid)
-{
-    std::string _pkgdir(create_data_user_package_path(uuid, userid, pkgname));
-    const char* pkgdir = _pkgdir.c_str();
+int uninstall(const char *uuid, const char *pkgname, userid_t userid) {
+    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
+    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
 
-    /* delete contents AND directory, no exceptions */
-    return delete_dir_contents(pkgdir, 1, NULL);
+    int res = 0;
+    res |= delete_dir_contents_and_dir(ce_package_path);
+    res |= delete_dir_contents_and_dir(de_package_path);
+    return res;
 }
 
 int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)
@@ -100,6 +71,7 @@ int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)
         return -1;
     }
 
+    // TODO: handle user_de paths
     std::string _pkgdir(create_data_user_package_path(uuid, 0, pkgname));
     const char* pkgdir = _pkgdir.c_str();
 
@@ -124,39 +96,44 @@ int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)
     return 0;
 }
 
-int delete_user_data(const char *uuid, const char *pkgname, userid_t userid)
-{
-    std::string _pkgdir(create_data_user_package_path(uuid, userid, pkgname));
-    const char* pkgdir = _pkgdir.c_str();
+int delete_user_data(const char *uuid, const char *pkgname, userid_t userid) {
+    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
+    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
 
-    return delete_dir_contents(pkgdir, 0, NULL);
+    int res = 0;
+    res |= delete_dir_contents(ce_package_path);
+    res |= delete_dir_contents(de_package_path);
+    return res;
 }
 
-int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid, const char* seinfo)
-{
-    std::string _pkgdir(create_data_user_package_path(uuid, userid, pkgname));
-    const char* pkgdir = _pkgdir.c_str();
+int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid,
+        const char* seinfo) {
+    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
+    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
 
-    if (mkdir(pkgdir, 0751) < 0) {
-        ALOGE("cannot create dir '%s': %s\n", pkgdir, strerror(errno));
-        return -errno;
-    }
-    if (chmod(pkgdir, 0751) < 0) {
-        ALOGE("cannot chmod dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
-    }
+    const char* c_ce_package_path = ce_package_path.c_str();
+    const char* c_de_package_path = de_package_path.c_str();
 
-    if (selinux_android_setfilecon(pkgdir, pkgname, seinfo, uid) < 0) {
-        ALOGE("cannot setfilecon dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
+    if (fs_prepare_dir(c_ce_package_path, 0751, uid, uid) == -1) {
+        PLOG(ERROR) << "Failed to prepare " << ce_package_path;
+        unlink(c_ce_package_path);
+        return -1;
+    }
+    if (selinux_android_setfilecon(c_ce_package_path, pkgname, seinfo, uid) < 0) {
+        PLOG(ERROR) << "Failed to setfilecon " << ce_package_path;
+        unlink(c_ce_package_path);
+        return -1;
     }
 
-    if (chown(pkgdir, uid, uid) < 0) {
-        ALOGE("cannot chown dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
+    if (fs_prepare_dir(c_de_package_path, 0751, uid, uid) == -1) {
+        PLOG(ERROR) << "Failed to prepare " << de_package_path;
+        unlink(c_de_package_path);
+        return -1;
+    }
+    if (selinux_android_setfilecon(c_de_package_path, pkgname, seinfo, uid) < 0) {
+        PLOG(ERROR) << "Failed to setfilecon " << de_package_path;
+        unlink(c_de_package_path);
+        return -1;
     }
 
     return 0;
@@ -200,6 +177,7 @@ int copy_complete_app(const char *from_uuid, const char *to_uuid,
     }
 
     // Copy private data for all known users
+    // TODO: handle user_de paths
     for (auto user : users) {
         std::string from(create_data_user_package_path(from_uuid, user, package_name));
         std::string to(create_data_user_package_path(to_uuid, user, package_name));
@@ -280,30 +258,27 @@ int make_user_config(userid_t userid)
     return 0;
 }
 
-int delete_user(const char *uuid, userid_t userid)
-{
-    int status = 0;
+int delete_user(const char *uuid, userid_t userid) {
+    int res = 0;
 
     std::string data_path(create_data_user_path(uuid, userid));
-    if (delete_dir_contents(data_path.c_str(), 1, NULL) != 0) {
-        status = -1;
-    }
-
+    std::string data_de_path(create_data_user_de_path(uuid, userid));
     std::string media_path(create_data_media_path(uuid, userid));
-    if (delete_dir_contents(media_path.c_str(), 1, NULL) != 0) {
-        status = -1;
-    }
+
+    res |= delete_dir_contents_and_dir(data_path);
+    res |= delete_dir_contents_and_dir(data_de_path);
+    res |= delete_dir_contents_and_dir(media_path);
 
     // Config paths only exist on internal storage
     if (uuid == nullptr) {
         char config_path[PATH_MAX];
         if ((create_user_config_path(config_path, userid) != 0)
                 || (delete_dir_contents(config_path, 1, NULL) != 0)) {
-            status = -1;
+            res = -1;
         }
     }
 
-    return status;
+    return res;
 }
 
 int delete_cache(const char *uuid, const char *pkgname, userid_t userid)
@@ -546,6 +521,7 @@ int get_size(const char *uuid, const char *pkgname, int userid, const char *apkp
     }
 
     for (auto user : users) {
+        // TODO: handle user_de directories
         std::string _pkgdir(create_data_user_package_path(uuid, user, pkgname));
         const char* pkgdir = _pkgdir.c_str();
 
@@ -1681,13 +1657,8 @@ fail:
     return -1;
 }
 
-int restorecon_data(const char* uuid, const char* pkgName,
-                    const char* seinfo, uid_t uid)
-{
-    struct dirent *entry;
-    DIR *d;
-    struct stat s;
-    int ret = 0;
+int restorecon_data(const char* uuid, const char* pkgName, const char* seinfo, appid_t appid) {
+    int res = 0;
 
     // SELINUX_ANDROID_RESTORECON_DATADATA flag is set by libselinux. Not needed here.
     unsigned int flags = SELINUX_ANDROID_RESTORECON_RECURSE;
@@ -1697,53 +1668,25 @@ int restorecon_data(const char* uuid, const char* pkgName,
         return -1;
     }
 
-    // Special case for owner on internal storage
-    if (uuid == nullptr) {
-        std::string path(create_data_user_package_path(nullptr, 0, pkgName));
+    // Relabel package directory for all users
+    std::vector<userid_t> users = get_known_users(uuid);
+    for (auto user : users) {
+        uid_t uid = multiuser_get_uid(user, appid);
 
-        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, flags) < 0) {
-            PLOG(ERROR) << "restorecon failed for " << path;
-            ret |= -1;
+        std::string ce_package_path(create_data_user_package_path(uuid, user, pkgName));
+        std::string de_package_path(create_data_user_de_package_path(uuid, user, pkgName));
+
+        if (selinux_android_restorecon_pkgdir(ce_package_path.c_str(), seinfo, uid, flags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << ce_package_path;
+            res = -1;
+        }
+        if (selinux_android_restorecon_pkgdir(de_package_path.c_str(), seinfo, uid, flags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << de_package_path;
+            res = -1;
         }
     }
 
-    // Relabel package directory for all secondary users.
-    std::string userdir(create_data_path(uuid) + "/" + SECONDARY_USER_PREFIX);
-    d = opendir(userdir.c_str());
-    if (d == NULL) {
-        return -1;
-    }
-
-    while ((entry = readdir(d))) {
-        if (entry->d_type != DT_DIR) {
-            continue;
-        }
-
-        const char *user = entry->d_name;
-        // Ignore "." and ".."
-        if (!strcmp(user, ".") || !strcmp(user, "..")) {
-            continue;
-        }
-
-        // user directories start with a number
-        if (user[0] < '0' || user[0] > '9') {
-            ALOGE("Expecting numbered directory during restorecon. Instead got '%s'.", user);
-            continue;
-        }
-
-        std::string pkgdir(StringPrintf("%s%s/%s", userdir.c_str(), user, pkgName));
-        if (stat(pkgdir.c_str(), &s) < 0) {
-            continue;
-        }
-
-        if (selinux_android_restorecon_pkgdir(pkgdir.c_str(), seinfo, s.st_uid, flags) < 0) {
-            PLOG(ERROR) << "restorecon failed for " << pkgdir;
-            ret |= -1;
-        }
-    }
-
-    closedir(d);
-    return ret;
+    return res;
 }
 
 int create_oat_dir(const char* oat_dir, const char* instruction_set)

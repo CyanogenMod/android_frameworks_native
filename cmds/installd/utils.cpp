@@ -305,6 +305,14 @@ static int _delete_dir_contents(DIR *d,
     return result;
 }
 
+int delete_dir_contents(const std::string& pathname) {
+    return delete_dir_contents(pathname.c_str(), 0, NULL);
+}
+
+int delete_dir_contents_and_dir(const std::string& pathname) {
+    return delete_dir_contents(pathname.c_str(), 1, NULL);
+}
+
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
                         int (*exclusion_predicate)(const char*, const int))
