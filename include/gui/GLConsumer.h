@@ -253,10 +253,25 @@ protected:
 
     static bool isExternalFormat(PixelFormat format);
 
+    struct PendingRelease {
+        PendingRelease() : isPending(false), currentTexture(-1),
+                graphicBuffer(), display(nullptr), fence(nullptr) {}
+
+        bool isPending;
+        int currentTexture;
+        sp<GraphicBuffer> graphicBuffer;
+        EGLDisplay display;
+        EGLSyncKHR fence;
+    };
+
     // This releases the buffer in the slot referenced by mCurrentTexture,
     // then updates state to refer to the BufferItem, which must be a
-    // newly-acquired buffer.
-    status_t updateAndReleaseLocked(const BufferItem& item);
+    // newly-acquired buffer. If pendingRelease is not null, the parameters
+    // which would have been passed to releaseBufferLocked upon the successful
+    // completion of the method will instead be returned to the caller, so that
+    // it may call releaseBufferLocked itself later.
+    status_t updateAndReleaseLocked(const BufferItem& item,
+            PendingRelease* pendingRelease = nullptr);
 
     // Binds mTexName and the current buffer to mTexTarget.  Uses
     // mCurrentTexture if it's set, mCurrentTextureImage if not.  If the

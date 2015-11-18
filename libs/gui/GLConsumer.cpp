@@ -370,7 +370,8 @@ status_t GLConsumer::releaseBufferLocked(int buf,
     return err;
 }
 
-status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
+status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item,
+        PendingRelease* pendingRelease)
 {
     status_t err = NO_ERROR;
 
@@ -432,14 +433,23 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
 
     // release old buffer
     if (mCurrentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
-        status_t status = releaseBufferLocked(
-                mCurrentTexture, mCurrentTextureImage->graphicBuffer(),
-                mEglDisplay, mEglSlots[mCurrentTexture].mEglFence);
-        if (status < NO_ERROR) {
-            GLC_LOGE("updateAndRelease: failed to release buffer: %s (%d)",
-                   strerror(-status), status);
-            err = status;
-            // keep going, with error raised [?]
+        if (pendingRelease == nullptr) {
+            status_t status = releaseBufferLocked(
+                    mCurrentTexture, mCurrentTextureImage->graphicBuffer(),
+                    mEglDisplay, mEglSlots[mCurrentTexture].mEglFence);
+            if (status < NO_ERROR) {
+                GLC_LOGE("updateAndRelease: failed to release buffer: %s (%d)",
+                        strerror(-status), status);
+                err = status;
+                // keep going, with error raised [?]
+            }
+        } else {
+            pendingRelease->currentTexture = mCurrentTexture;
+            pendingRelease->graphicBuffer =
+                    mCurrentTextureImage->graphicBuffer();
+            pendingRelease->display = mEglDisplay;
+            pendingRelease->fence = mEglSlots[mCurrentTexture].mEglFence;
+            pendingRelease->isPending = true;
         }
     }
 
