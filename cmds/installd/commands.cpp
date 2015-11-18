@@ -87,8 +87,6 @@ int uninstall(const char *uuid, const char *pkgname, userid_t userid)
     std::string _pkgdir(create_data_user_package_path(uuid, userid, pkgname));
     const char* pkgdir = _pkgdir.c_str();
 
-    remove_profile_file(pkgname);
-
     /* delete contents AND directory, no exceptions */
     return delete_dir_contents(pkgdir, 1, NULL);
 }
@@ -732,7 +730,7 @@ static bool check_boolean_property(const char* property_name, bool default_value
 }
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
-    const char* output_file_name, int swap_fd, const char *pkgname, const char *instruction_set,
+    const char* output_file_name, int swap_fd, const char *instruction_set,
     bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool use_jit)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
@@ -742,9 +740,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
               instruction_set, MAX_INSTRUCTION_SET_LEN);
         return;
     }
-
-    char prop_buf[PROPERTY_VALUE_MAX];
-    bool profiler = (property_get("dalvik.vm.profiler", prop_buf, "0") > 0) && (prop_buf[0] == '1');
 
     char dex2oat_Xms_flag[PROPERTY_VALUE_MAX];
     bool have_dex2oat_Xms_flag = property_get("dalvik.vm.dex2oat-Xms", dex2oat_Xms_flag, NULL) > 0;
@@ -809,8 +804,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     char instruction_set_arg[strlen("--instruction-set=") + MAX_INSTRUCTION_SET_LEN];
     char instruction_set_variant_arg[strlen("--instruction-set-variant=") + PROPERTY_VALUE_MAX];
     char instruction_set_features_arg[strlen("--instruction-set-features=") + PROPERTY_VALUE_MAX];
-    char profile_file_arg[strlen("--profile-file=") + PKG_PATH_MAX];
-    char top_k_profile_threshold_arg[strlen("--top-k-profile-threshold=") + PROPERTY_VALUE_MAX];
     char dex2oat_Xms_arg[strlen("-Xms") + PROPERTY_VALUE_MAX];
     char dex2oat_Xmx_arg[strlen("-Xmx") + PROPERTY_VALUE_MAX];
     char dex2oat_compiler_filter_arg[strlen("--compiler-filter=") + PROPERTY_VALUE_MAX];
@@ -827,24 +820,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (swap_fd >= 0) {
         have_dex2oat_swap_fd = true;
         sprintf(dex2oat_swap_fd, "--swap-fd=%d", swap_fd);
-    }
-
-    bool have_profile_file = false;
-    bool have_top_k_profile_threshold = false;
-    if (profiler && (strcmp(pkgname, "*") != 0)) {
-        char profile_file[PKG_PATH_MAX];
-        snprintf(profile_file, sizeof(profile_file), "%s/%s",
-                 DALVIK_CACHE_PREFIX "profiles", pkgname);
-        struct stat st;
-        if ((stat(profile_file, &st) == 0) && (st.st_size > 0)) {
-            sprintf(profile_file_arg, "--profile-file=%s", profile_file);
-            have_profile_file = true;
-            if (property_get("dalvik.vm.profile.top-k-thr", prop_buf, NULL) > 0) {
-                snprintf(top_k_profile_threshold_arg, sizeof(top_k_profile_threshold_arg),
-                         "--top-k-profile-threshold=%s", prop_buf);
-                have_top_k_profile_threshold = true;
-            }
-        }
     }
 
     // use the JIT if either it's specified as a dexopt flag or if the property is set
@@ -871,6 +846,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
 
     // Check whether all apps should be compiled debuggable.
     if (!debuggable) {
+        char prop_buf[PROPERTY_VALUE_MAX];
         debuggable =
                 (property_get("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
                 (prop_buf[0] == '1');
@@ -881,8 +857,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* argv[7  // program name, mandatory arguments and the final NULL
                      + (have_dex2oat_isa_variant ? 1 : 0)
                      + (have_dex2oat_isa_features ? 1 : 0)
-                     + (have_profile_file ? 1 : 0)
-                     + (have_top_k_profile_threshold ? 1 : 0)
                      + (have_dex2oat_Xms_flag ? 2 : 0)
                      + (have_dex2oat_Xmx_flag ? 2 : 0)
                      + (have_dex2oat_compiler_filter_flag ? 1 : 0)
@@ -904,12 +878,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     }
     if (have_dex2oat_isa_features) {
         argv[i++] = instruction_set_features_arg;
-    }
-    if (have_profile_file) {
-        argv[i++] = profile_file_arg;
-    }
-    if (have_top_k_profile_threshold) {
-        argv[i++] = top_k_profile_threshold_arg;
     }
     if (have_dex2oat_Xms_flag) {
         argv[i++] = RUNTIME_ARG;
@@ -1158,11 +1126,6 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
         goto fail;
     }
 
-    // Create profile file if there is a package name present.
-    if (strcmp(pkgname, "*") != 0) {
-        create_profile_file(pkgname, uid);
-    }
-
     // Create a swap file if necessary.
     if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
@@ -1226,7 +1189,7 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
             } else {
                 input_file_name++;
             }
-            run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd, pkgname,
+            run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd,
                         instruction_set, vm_safe_mode, debuggable, boot_complete, use_jit);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
