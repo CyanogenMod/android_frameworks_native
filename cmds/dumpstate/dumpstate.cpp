@@ -853,7 +853,7 @@ int main(int argc, char *argv[]) {
         bool do_text_file = true;
         if (do_zip_file) {
             path = zip_path;
-            if (generate_zip_file(tmp_path, zip_path, entry_name, now)) {
+            if (!generate_zip_file(tmp_path, zip_path, entry_name, now)) {
                 ALOGE("Failed to generate zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
