@@ -58,7 +58,8 @@ int uninstall(const char *uuid, const char *pkgname, userid_t userid) {
 
     int res = 0;
     res |= delete_dir_contents_and_dir(ce_package_path);
-    res |= delete_dir_contents_and_dir(de_package_path);
+    // TODO: include result once 25796509 is fixed
+    delete_dir_contents_and_dir(de_package_path);
     return res;
 }
 
@@ -102,7 +103,8 @@ int delete_user_data(const char *uuid, const char *pkgname, userid_t userid) {
 
     int res = 0;
     res |= delete_dir_contents(ce_package_path);
-    res |= delete_dir_contents(de_package_path);
+    // TODO: include result once 25796509 is fixed
+    delete_dir_contents(de_package_path);
     return res;
 }
 
@@ -128,12 +130,14 @@ int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t us
     if (fs_prepare_dir(c_de_package_path, 0751, uid, uid) == -1) {
         PLOG(ERROR) << "Failed to prepare " << de_package_path;
         unlink(c_de_package_path);
-        return -1;
+        // TODO: include result once 25796509 is fixed
+        return 0;
     }
     if (selinux_android_setfilecon(c_de_package_path, pkgname, seinfo, uid) < 0) {
         PLOG(ERROR) << "Failed to setfilecon " << de_package_path;
         unlink(c_de_package_path);
-        return -1;
+        // TODO: include result once 25796509 is fixed
+        return 0;
     }
 
     return 0;
@@ -1682,7 +1686,7 @@ int restorecon_data(const char* uuid, const char* pkgName, const char* seinfo, a
         }
         if (selinux_android_restorecon_pkgdir(de_package_path.c_str(), seinfo, uid, flags) < 0) {
             PLOG(ERROR) << "restorecon failed for " << de_package_path;
-            res = -1;
+            // TODO: include result once 25796509 is fixed
         }
     }
 
