@@ -211,12 +211,41 @@ static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSE
     return destroy_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
 }
 
-static int do_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
+static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+  // Time to fork and run otapreopt.
+  pid_t pid = fork();
+  if (pid == 0) {
+    const char* argv[1 + 9 + 1];
+    argv[0] = "/system/bin/otapreopt";
+    for (size_t i = 1; i <= 9; ++i) {
+      argv[i] = arg[i - 1];
+    }
+    argv[10] = nullptr;
+
+    execv(argv[0], (char * const *)argv);
+    ALOGE("execv(OTAPREOPT) failed: %s\n", strerror(errno));
+    exit(99);
+  } else {
+    int res = wait_child(pid);
+    if (res == 0) {
+      ALOGV("DexInv: --- END OTAPREOPT (success) ---\n");
+    } else {
+      ALOGE("DexInv: --- END OTAPREOPT --- status=0x%04x, process failed\n", res);
+    }
+    return res;
+  }
+}
+
+static int do_dexopt(char **arg, char reply[REPLY_MAX])
 {
+    int dexopt_flags = atoi(arg[6]);
+    if ((dexopt_flags & DEXOPT_OTA) != 0) {
+      return do_ota_dexopt(arg, reply);
+    }
     /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags, volume_uuid,
             use_profiles */
     return dexopt(arg[0], atoi(arg[1]), arg[2], arg[3], atoi(arg[4]),
-                  arg[5], atoi(arg[6]), parse_null(arg[7]), (atoi(arg[8]) == 0 ? false : true));
+                  arg[5], dexopt_flags, parse_null(arg[7]), (atoi(arg[8]) == 0 ? false : true));
 }
 
 static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
