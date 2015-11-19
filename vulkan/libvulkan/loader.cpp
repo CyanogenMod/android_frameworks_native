@@ -348,12 +348,9 @@ void ActivateLayer(TObject* object, Instance* instance, const String& name) {
     object->active_layers.push_back(element);
 }
 
-template <class TObject>
-void DeactivateLayer(TObject* object,
-                     Instance* instance,
+void DeactivateLayer(Instance* instance,
                      Vector<LayerMapIterator>::iterator& element) {
     LayerMapIterator& layer_map_data = *element;
-    object->active_layers.erase(element);
     LayerData& layer_data = layer_map_data->second;
     pthread_mutex_lock(&instance->layer_lock);
     layer_data.ref_count--;
@@ -556,7 +553,7 @@ void DestroyInstanceBottom(VkInstance instance) {
     }
     for (auto it = instance->active_layers.begin();
          it != instance->active_layers.end(); ++it) {
-        DeactivateLayer(instance, instance, it);
+        DeactivateLayer(instance, it);
     }
     const VkAllocCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
@@ -1117,9 +1114,8 @@ VkResult DestroyDevice(VkDevice drv_device) {
     Device* device = static_cast<Device*>(vtbl->device);
     for (auto it = device->active_layers.begin();
          it != device->active_layers.end(); ++it) {
-        DeactivateLayer(device, device->instance, it);
+        DeactivateLayer(device->instance, it);
     }
-    device->active_layers.clear();
     vtbl->DestroyDevice(drv_device);
     DestroyDevice(device);
     return VK_SUCCESS;
