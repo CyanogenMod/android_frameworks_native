@@ -1053,7 +1053,7 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool use_jit = (dexopt_flags & DEXOPT_USEJIT) != 0;
 
-    if ((dexopt_flags & DEXOPT_MASK) != 0) {
+    if ((dexopt_flags & ~DEXOPT_MASK) != 0) {
         LOG_FATAL("dexopt flags contains unknown fields\n");
     }
 
