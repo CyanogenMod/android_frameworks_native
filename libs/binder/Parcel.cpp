@@ -80,6 +80,8 @@ struct small_flat_data
 
 namespace android {
 
+using android::base::unique_fd;
+
 static pthread_mutex_t gParcelGlobalAllocSizeLock = PTHREAD_MUTEX_INITIALIZER;
 static size_t gParcelGlobalAllocSize = 0;
 static size_t gParcelGlobalAllocCount = 0;
@@ -1071,10 +1073,18 @@ status_t Parcel::writeDupFileDescriptor(int fd)
         return -errno;
     }
     status_t err = writeFileDescriptor(dupFd, true /*takeOwnership*/);
-    if (err) {
+    if (err != OK) {
         close(dupFd);
     }
     return err;
+}
+
+status_t Parcel::writeUniqueFileDescriptor(const unique_fd& fd) {
+    return writeDupFileDescriptor(fd.get());
+}
+
+status_t Parcel::writeUniqueFileDescriptorVector(const std::vector<unique_fd>& val) {
+    return writeTypedVector(val, this, &Parcel::writeUniqueFileDescriptor);
 }
 
 status_t Parcel::writeBlob(size_t len, bool mutableCopy, WritableBlob* outBlob)
@@ -1678,14 +1688,34 @@ native_handle* Parcel::readNativeHandle() const
 int Parcel::readFileDescriptor() const
 {
     const flat_binder_object* flat = readObject(true);
-    if (flat) {
-        switch (flat->type) {
-            case BINDER_TYPE_FD:
-                //ALOGI("Returning file descriptor %ld from parcel %p", flat->handle, this);
-                return flat->handle;
-        }
+
+    if (flat && flat->type == BINDER_TYPE_FD) {
+        return flat->handle;
     }
+
     return BAD_TYPE;
+}
+
+status_t Parcel::readUniqueFileDescriptor(unique_fd* val) const
+{
+    int got = readFileDescriptor();
+
+    if (got == BAD_TYPE) {
+        return BAD_TYPE;
+    }
+
+    val->reset(dup(got));
+
+    if (val->get() < 0) {
+        return BAD_VALUE;
+    }
+
+    return OK;
+}
+
+
+status_t Parcel::readUniqueFileDescriptorVector(std::vector<unique_fd>* val) const {
+    return readTypedVector(val, this, &Parcel::readUniqueFileDescriptor);
 }
 
 status_t Parcel::readBlob(size_t len, ReadableBlob* outBlob) const
