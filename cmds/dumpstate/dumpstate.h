@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <vector>
 
 #define SU_PATH "/system/xbin/su"
 
@@ -69,6 +70,9 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
    first element of args is the command, and last must be NULL.
    command is always ran, even when _DUMPSTATE_DRY_RUN_ is defined. */
 int run_command_always(const char *title, int timeout_seconds, const char *args[]);
+
+/* sends a broadcast using Activity Manager */
+void send_broadcast(const std::string& action, const std::vector<std::string>& args);
 
 /* prints all the system properties */
 void print_properties();

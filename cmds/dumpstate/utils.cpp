@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
@@ -31,6 +32,7 @@
 #include <sys/klog.h>
 #include <time.h>
 #include <unistd.h>
+#include <vector>
 #include <sys/prctl.h>
 
 #include <cutils/debugger.h>
@@ -477,8 +479,8 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
 
 /* forks a command and waits for it to finish */
 int run_command_always(const char *title, int timeout_seconds, const char *args[]) {
-    const char *command = args[0];
 
+    const char *command = args[0];
     uint64_t start = nanotime();
     pid_t pid = fork();
 
@@ -536,6 +538,22 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
 
     return status;
+}
+
+void send_broadcast(const std::string& action, const std::vector<std::string>& args) {
+    if (args.size() > 1000) {
+        fprintf(stderr, "send_broadcast: too many arguments (%d)\n", args.size());
+        return;
+    }
+    const char *am_args[1024] = { "/system/bin/am", "broadcast", "--user", "0",
+                                  "-a", action.c_str() };
+    size_t am_index = 5; // Starts at the index of last initial value above.
+    for (const std::string& arg : args) {
+        am_args[++am_index] = arg.c_str();
+    }
+    // Always terminate with NULL.
+    am_args[am_index + 1] = NULL;
+    run_command_always(NULL, 5, am_args);
 }
 
 size_t num_props = 0;
