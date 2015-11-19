@@ -320,6 +320,9 @@ template <class TObject>
 void ActivateLayer(TObject* object, Instance* instance, const String& name) {
     // If object has layer, do nothing
     auto element = instance->layers.find(name);
+    if (element == instance->layers.end()) {
+        return;
+    }
     if (std::find(object->active_layers.begin(), object->active_layers.end(),
                   element) != object->active_layers.end()) {
         ALOGW("Layer %s already activated; skipping", name.c_str());
@@ -405,10 +408,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
         size_t end, start = 0;
         while ((end = layer_prop_str.find(':', start)) != std::string::npos) {
             layer_name = layer_prop_str.substr(start, end - start);
-            auto element = instance->layers.find(layer_name);
-            if (element != instance->layers.end()) {
-                ActivateLayer(object, instance, layer_name);
-            }
+            ActivateLayer(object, instance, layer_name);
             start = end + 1;
         }
         Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
