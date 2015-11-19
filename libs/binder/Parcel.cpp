@@ -931,6 +931,14 @@ status_t Parcel::writeWeakBinder(const wp<IBinder>& val)
     return flatten_binder(ProcessState::self(), val, this);
 }
 
+status_t Parcel::writeParcelable(const Parcelable& parcelable) {
+    status_t status = writeInt32(1);  // parcelable is not null.
+    if (status != OK) {
+        return status;
+    }
+    return parcelable.writeToParcel(this);
+}
+
 status_t Parcel::writeNativeHandle(const native_handle* handle)
 {
     if (!handle || handle->version != sizeof(native_handle))
@@ -1541,6 +1549,18 @@ wp<IBinder> Parcel::readWeakBinder() const
     wp<IBinder> val;
     unflatten_binder(ProcessState::self(), *this, &val);
     return val;
+}
+
+status_t Parcel::readParcelable(Parcelable* parcelable) const {
+    int32_t have_parcelable = 0;
+    status_t status = readInt32(&have_parcelable);
+    if (status != OK) {
+        return status;
+    }
+    if (!have_parcelable) {
+        return UNEXPECTED_NULL;
+    }
+    return parcelable->readFromParcel(this);
 }
 
 int32_t Parcel::readExceptionCode() const
