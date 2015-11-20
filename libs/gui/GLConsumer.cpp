@@ -408,15 +408,17 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     }
 
     // Do whatever sync ops we need to do before releasing the old slot.
-    err = syncForReleaseLocked(mEglDisplay);
-    if (err != NO_ERROR) {
-        // Release the buffer we just acquired.  It's not safe to
-        // release the old buffer, so instead we just drop the new frame.
-        // As we are still under lock since acquireBuffer, it is safe to
-        // release by slot.
-        releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
-                mEglDisplay, EGL_NO_SYNC_KHR);
-        return err;
+    if (!item.mSingleBufferMode || slot != mCurrentTexture) {
+        err = syncForReleaseLocked(mEglDisplay);
+        if (err != NO_ERROR) {
+            // Release the buffer we just acquired.  It's not safe to
+            // release the old buffer, so instead we just drop the new frame.
+            // As we are still under lock since acquireBuffer, it is safe to
+            // release by slot.
+            releaseBufferLocked(slot, mSlots[slot].mGraphicBuffer,
+                    mEglDisplay, EGL_NO_SYNC_KHR);
+            return err;
+        }
     }
 
     GLC_LOGV("updateAndRelease: (slot=%d buf=%p) -> (slot=%d buf=%p)",
