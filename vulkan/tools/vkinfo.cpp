@@ -32,7 +32,6 @@ namespace {
     switch (result) {
         // clang-format off
         case VK_SUCCESS: result_str = "VK_SUCCESS"; break;
-        case VK_UNSUPPORTED: result_str = "VK_UNSUPPORTED"; break;
         case VK_NOT_READY: result_str = "VK_NOT_READY"; break;
         case VK_TIMEOUT: result_str = "VK_TIMEOUT"; break;
         case VK_EVENT_SET: result_str = "VK_EVENT_SET"; break;

@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 180
+define VERSION_MINOR 181
 define VERSION_PATCH 0
 
 // API limits
@@ -133,13 +133,6 @@ enum VkImageViewType {
     VK_IMAGE_VIEW_TYPE_1D_ARRAY                             = 0x00000004,
     VK_IMAGE_VIEW_TYPE_2D_ARRAY                             = 0x00000005,
     VK_IMAGE_VIEW_TYPE_CUBE_ARRAY                           = 0x00000006,
-}
-
-enum VkImageAspect {
-    VK_IMAGE_ASPECT_COLOR                                   = 0x00000000,
-    VK_IMAGE_ASPECT_DEPTH                                   = 0x00000001,
-    VK_IMAGE_ASPECT_STENCIL                                 = 0x00000002,
-    VK_IMAGE_ASPECT_METADATA                                = 0x00000003,
 }
 
 enum VkCmdBufferLevel {
@@ -535,16 +528,6 @@ enum VkFormat {
     VK_FORMAT_B10G10R10A2_SINT                              = 0x000000AD,
 }
 
-/// Shader stage enumerant
-enum VkShaderStage {
-    VK_SHADER_STAGE_VERTEX                                  = 0x00000000,
-    VK_SHADER_STAGE_TESSELLATION_CONTROL                    = 0x00000001,
-    VK_SHADER_STAGE_TESSELLATION_EVALUATION                 = 0x00000002,
-    VK_SHADER_STAGE_GEOMETRY                                = 0x00000003,
-    VK_SHADER_STAGE_FRAGMENT                                = 0x00000004,
-    VK_SHADER_STAGE_COMPUTE                                 = 0x00000005,
-}
-
 /// Structure type enumerant
 enum VkStructureType {
     VK_STRUCTURE_TYPE_APPLICATION_INFO                          = 0,
@@ -606,12 +589,11 @@ enum VkRenderPassContents {
 enum VkResult {
     // Return codes for successful operation execution (positive values)
     VK_SUCCESS                                              = 0x00000000,
-    VK_UNSUPPORTED                                          = 0x00000001,
-    VK_NOT_READY                                            = 0x00000002,
-    VK_TIMEOUT                                              = 0x00000003,
-    VK_EVENT_SET                                            = 0x00000004,
-    VK_EVENT_RESET                                          = 0x00000005,
-    VK_INCOMPLETE                                           = 0x00000006,
+    VK_NOT_READY                                            = 0x00000001,
+    VK_TIMEOUT                                              = 0x00000002,
+    VK_EVENT_SET                                            = 0x00000003,
+    VK_EVENT_RESET                                          = 0x00000004,
+    VK_INCOMPLETE                                           = 0x00000005,
 
     // Error codes (negative values)
     VK_ERROR_OUT_OF_HOST_MEMORY                             = 0xFFFFFFFF,
@@ -856,13 +838,11 @@ bitfield VkEventCreateFlags {
 bitfield VkCmdBufferCreateFlags {
 }
 
-/// Command buffer optimization flags
-bitfield VkCmdBufferOptimizeFlags {
-    VK_CMD_BUFFER_OPTIMIZE_SMALL_BATCH_BIT                  = 0x00000001,
-    VK_CMD_BUFFER_OPTIMIZE_PIPELINE_SWITCH_BIT              = 0x00000002,
-    VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT              = 0x00000004,
-    VK_CMD_BUFFER_OPTIMIZE_DESCRIPTOR_SET_SWITCH_BIT        = 0x00000008,
-    VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT          = 0x00000010,  /// Only one call to the secondary command buffer will exist at any given time
+/// Command buffer usage flags
+bitfield VkCmdBufferUsageFlags {
+    VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT                 = 0x00000001,
+    VK_CMD_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT            = 0x00000002,
+    VK_CMD_BUFFER_USAGE_SIMULTANEOUS_USE_BIT                = 0x00000004,
 }
 
 /// Pipeline statistics flags
@@ -1022,9 +1002,10 @@ class VkRect2D {
     VkExtent2D                                  extent
 }
 
-class VkRect3D {
-    VkOffset3D                                  offset
-    VkExtent3D                                  extent
+class VkClearRect {
+    VkRect2D                                    rect
+    u32                                         baseArrayLayer
+    u32                                         numLayers
 }
 
 class VkChannelMapping {
@@ -1140,7 +1121,7 @@ class VkMemoryRequirements {
 }
 
 class VkSparseImageFormatProperties {
-    VkImageAspect                               aspect
+    VkImageAspectFlags                          aspect
     VkExtent3D                                  imageGranularity
     VkSparseImageFormatFlags                    flags
 }
@@ -1180,9 +1161,15 @@ class VkFormatProperties {
 class VkImageFormatProperties {
     VkExtent3D                                  maxExtent                  /// max image dimensions for this resource type
     u32                                         maxMipLevels               /// max number of mipmap levels for this resource type
-    u32                                         maxArraySize               /// max array size for this resource type
+    u32                                         maxArrayLayers             /// max array layers for this resource type
     VkSampleCountFlags                          sampleCounts               /// supported sample counts for this resource type
     VkDeviceSize                                maxResourceSize            /// max size (in bytes) of this resource type
+}
+
+class VkDescriptorImageInfo {
+    VkSampler                                   sampler
+    VkImageView                                 imageView
+    VkImageLayout                               imageLayout
 }
 
 class VkDescriptorBufferInfo {
@@ -1191,12 +1178,11 @@ class VkDescriptorBufferInfo {
     VkDeviceSize                                range                      /// Size in bytes of the buffer resource for this descriptor update.
 }
 
+@union
 class VkDescriptorInfo {
-    VkBufferView                                bufferView                 /// Buffer view to write to the descriptor (in case it's a buffer descriptor, otherwise should be VK_NULL_HANDLE)
-    VkSampler                                   sampler                    /// Sampler to write to the descriptor (in case it's a SAMPLER or COMBINED_IMAGE_SAMPLER descriptor, otherwise should be VK_NULL_HANDLE)
-    VkImageView                                 imageView                  /// Image view to write to the descriptor (in case it's a SAMPLED_IMAGE, STORAGE_IMAGE, COMBINED_IMAGE_SAMPLER, or INPUT_ATTACHMENT descriptor, otherwise should be VK_NULL_HANDLE)
-    VkImageLayout                               imageLayout                /// Layout the image is expected to be in when accessed using this descriptor (only used if imageView is not VK_NULL_HANDLE)
+    VkDescriptorImageInfo                       imageInfo
     VkDescriptorBufferInfo                      bufferInfo                 /// Raw buffer, size and offset for UNIFORM_BUFFER[_DYNAMIC] or STORAGE_BUFFER[_DYNAMIC] descriptor types. Ignored otherwise.
+    VkBufferView                                texelBufferView
 }
 
 class VkWriteDescriptorSet {
@@ -1243,7 +1229,7 @@ class VkBufferViewCreateInfo {
 }
 
 class VkImageSubresource {
-    VkImageAspect                               aspect
+    VkImageAspectFlags                          aspect
     u32                                         mipLevel
     u32                                         arrayLayer
 }
@@ -1251,9 +1237,9 @@ class VkImageSubresource {
 class VkImageSubresourceRange {
     VkImageAspectFlags                          aspectMask
     u32                                         baseMipLevel
-    u32                                         mipLevels
+    u32                                         numLevels
     u32                                         baseArrayLayer
-    u32                                         arraySize
+    u32                                         numLayers
 }
 
 class VkMemoryBarrier {
@@ -1295,7 +1281,7 @@ class VkImageCreateInfo {
     VkFormat                                    format
     VkExtent3D                                  extent
     u32                                         mipLevels
-    u32                                         arraySize
+    u32                                         arrayLayers
     u32                                         samples
     VkImageTiling                               tiling
     VkImageUsageFlags                           usage                      /// Image usage flags
@@ -1348,10 +1334,10 @@ class VkSparseImageMemoryBindInfo {
 }
 
 class VkImageSubresourceCopy {
-    VkImageAspect                               aspect
+    VkImageAspectFlags                          aspect
     u32                                         mipLevel
-    u32                                         arrayLayer
-    u32                                         arraySize
+    u32                                         baseArrayLayer
+    u32                                         numLayers
 }
 
 class VkImageCopy {
@@ -1402,7 +1388,7 @@ class VkShaderCreateInfo {
     VkShaderModule                              module             /// Module containing entry point
     const char*                                 pName              /// Null-terminated entry point name
     VkShaderCreateFlags                         flags              /// Reserved
-    VkShaderStage                               stage
+    VkShaderStageFlags                          stage
 }
 
 class VkDescriptorSetLayoutBinding {
@@ -1449,7 +1435,7 @@ class VkSpecializationInfo {
 class VkPipelineShaderStageCreateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
     const void*                                 pNext              /// Pointer to next structure
-    VkShaderStage                               stage
+    VkShaderStageFlags                          stage
     VkShader                                    shader
     const VkSpecializationInfo*                 pSpecializationInfo
 }
@@ -1668,7 +1654,7 @@ class VkCmdBufferCreateInfo {
 class VkCmdBufferBeginInfo {
     VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO
     const void*                                 pNext       /// Pointer to next structure
-    VkCmdBufferOptimizeFlags                    flags       /// Command buffer optimization flags
+    VkCmdBufferUsageFlags                       flags       /// Command buffer usage flags
     VkRenderPass                                renderPass  /// Render pass for secondary command buffers
     u32                                         subpass
     VkFramebuffer                               framebuffer /// Framebuffer for secondary command buffers
@@ -4056,7 +4042,7 @@ cmd void vkCmdClearAttachments(
         u32                                         attachmentCount,
         const VkClearAttachment*                    pAttachments,
         u32                                         rectCount,
-        const VkRect3D*                             pRects) {
+        const VkClearRect*                          pRects) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
     rects := pRects[0:rectCount]

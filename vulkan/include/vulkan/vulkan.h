@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 180, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 181, 0)
 
 
 #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
@@ -139,12 +139,11 @@ VK_DEFINE_NONDISP_HANDLE(VkCmdPool)
 
 typedef enum {
     VK_SUCCESS = 0,
-    VK_UNSUPPORTED = 1,
-    VK_NOT_READY = 2,
-    VK_TIMEOUT = 3,
-    VK_EVENT_SET = 4,
-    VK_EVENT_RESET = 5,
-    VK_INCOMPLETE = 6,
+    VK_NOT_READY = 1,
+    VK_TIMEOUT = 2,
+    VK_EVENT_SET = 3,
+    VK_EVENT_RESET = 4,
+    VK_INCOMPLETE = 5,
     VK_ERROR_OUT_OF_HOST_MEMORY = -1,
     VK_ERROR_OUT_OF_DEVICE_MEMORY = -2,
     VK_ERROR_INITIALIZATION_FAILED = -3,
@@ -439,17 +438,6 @@ typedef enum {
 } VkPhysicalDeviceType;
 
 typedef enum {
-    VK_IMAGE_ASPECT_COLOR = 0,
-    VK_IMAGE_ASPECT_DEPTH = 1,
-    VK_IMAGE_ASPECT_STENCIL = 2,
-    VK_IMAGE_ASPECT_METADATA = 3,
-    VK_IMAGE_ASPECT_BEGIN_RANGE = VK_IMAGE_ASPECT_COLOR,
-    VK_IMAGE_ASPECT_END_RANGE = VK_IMAGE_ASPECT_METADATA,
-    VK_IMAGE_ASPECT_NUM = (VK_IMAGE_ASPECT_METADATA - VK_IMAGE_ASPECT_COLOR + 1),
-    VK_IMAGE_ASPECT_MAX_ENUM = 0x7FFFFFFF
-} VkImageAspect;
-
-typedef enum {
     VK_QUERY_TYPE_OCCLUSION = 0,
     VK_QUERY_TYPE_PIPELINE_STATISTICS = 1,
     VK_QUERY_TYPE_BEGIN_RANGE = VK_QUERY_TYPE_OCCLUSION,
@@ -509,19 +497,6 @@ typedef enum {
     VK_CHANNEL_SWIZZLE_NUM = (VK_CHANNEL_SWIZZLE_A - VK_CHANNEL_SWIZZLE_ZERO + 1),
     VK_CHANNEL_SWIZZLE_MAX_ENUM = 0x7FFFFFFF
 } VkChannelSwizzle;
-
-typedef enum {
-    VK_SHADER_STAGE_VERTEX = 0,
-    VK_SHADER_STAGE_TESSELLATION_CONTROL = 1,
-    VK_SHADER_STAGE_TESSELLATION_EVALUATION = 2,
-    VK_SHADER_STAGE_GEOMETRY = 3,
-    VK_SHADER_STAGE_FRAGMENT = 4,
-    VK_SHADER_STAGE_COMPUTE = 5,
-    VK_SHADER_STAGE_BEGIN_RANGE = VK_SHADER_STAGE_VERTEX,
-    VK_SHADER_STAGE_END_RANGE = VK_SHADER_STAGE_COMPUTE,
-    VK_SHADER_STAGE_NUM = (VK_SHADER_STAGE_COMPUTE - VK_SHADER_STAGE_VERTEX + 1),
-    VK_SHADER_STAGE_MAX_ENUM = 0x7FFFFFFF
-} VkShaderStage;
 
 typedef enum {
     VK_VERTEX_INPUT_STEP_RATE_VERTEX = 0,
@@ -905,6 +880,13 @@ typedef VkFlags VkMemoryHeapFlags;
 typedef VkFlags VkMemoryMapFlags;
 
 typedef enum {
+    VK_IMAGE_ASPECT_COLOR_BIT = 0x00000001,
+    VK_IMAGE_ASPECT_DEPTH_BIT = 0x00000002,
+    VK_IMAGE_ASPECT_STENCIL_BIT = 0x00000004,
+    VK_IMAGE_ASPECT_METADATA_BIT = 0x00000008,
+} VkImageAspectFlagBits;
+
+typedef enum {
     VK_SPARSE_IMAGE_FMT_SINGLE_MIPTAIL_BIT = 0x00000001,
     VK_SPARSE_IMAGE_FMT_ALIGNED_MIP_SIZE_BIT = 0x00000002,
     VK_SPARSE_IMAGE_FMT_NONSTD_BLOCK_SIZE_BIT = 0x00000004,
@@ -966,13 +948,6 @@ typedef enum {
     VK_BUFFER_CREATE_SPARSE_ALIASED_BIT = 0x00000004,
 } VkBufferCreateFlagBits;
 typedef VkFlags VkBufferCreateFlags;
-
-typedef enum {
-    VK_IMAGE_ASPECT_COLOR_BIT = 0x00000001,
-    VK_IMAGE_ASPECT_DEPTH_BIT = 0x00000002,
-    VK_IMAGE_ASPECT_STENCIL_BIT = 0x00000004,
-    VK_IMAGE_ASPECT_METADATA_BIT = 0x00000008,
-} VkImageAspectFlagBits;
 typedef VkFlags VkImageAspectFlags;
 
 typedef enum {
@@ -982,6 +957,16 @@ typedef enum {
 typedef VkFlags VkImageViewCreateFlags;
 typedef VkFlags VkShaderModuleCreateFlags;
 typedef VkFlags VkShaderCreateFlags;
+
+typedef enum {
+    VK_SHADER_STAGE_VERTEX_BIT = 0x00000001,
+    VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT = 0x00000002,
+    VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT = 0x00000004,
+    VK_SHADER_STAGE_GEOMETRY_BIT = 0x00000008,
+    VK_SHADER_STAGE_FRAGMENT_BIT = 0x00000010,
+    VK_SHADER_STAGE_COMPUTE_BIT = 0x00000020,
+    VK_SHADER_STAGE_ALL = 0x7FFFFFFF,
+} VkShaderStageFlagBits;
 
 typedef enum {
     VK_CHANNEL_R_BIT = 0x00000001,
@@ -997,16 +982,6 @@ typedef enum {
     VK_PIPELINE_CREATE_DERIVATIVE_BIT = 0x00000004,
 } VkPipelineCreateFlagBits;
 typedef VkFlags VkPipelineCreateFlags;
-
-typedef enum {
-    VK_SHADER_STAGE_VERTEX_BIT = 0x00000001,
-    VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT = 0x00000002,
-    VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT = 0x00000004,
-    VK_SHADER_STAGE_GEOMETRY_BIT = 0x00000008,
-    VK_SHADER_STAGE_FRAGMENT_BIT = 0x00000010,
-    VK_SHADER_STAGE_COMPUTE_BIT = 0x00000020,
-    VK_SHADER_STAGE_ALL = 0x7FFFFFFF,
-} VkShaderStageFlagBits;
 typedef VkFlags VkShaderStageFlags;
 
 typedef enum {
@@ -1071,13 +1046,11 @@ typedef VkFlags VkCmdPoolResetFlags;
 typedef VkFlags VkCmdBufferCreateFlags;
 
 typedef enum {
-    VK_CMD_BUFFER_OPTIMIZE_SMALL_BATCH_BIT = 0x00000001,
-    VK_CMD_BUFFER_OPTIMIZE_PIPELINE_SWITCH_BIT = 0x00000002,
-    VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT = 0x00000004,
-    VK_CMD_BUFFER_OPTIMIZE_DESCRIPTOR_SET_SWITCH_BIT = 0x00000008,
-    VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT = 0x00000010,
-} VkCmdBufferOptimizeFlagBits;
-typedef VkFlags VkCmdBufferOptimizeFlags;
+    VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 0x00000001,
+    VK_CMD_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT = 0x00000002,
+    VK_CMD_BUFFER_USAGE_SIMULTANEOUS_USE_BIT = 0x00000004,
+} VkCmdBufferUsageFlagBits;
+typedef VkFlags VkCmdBufferUsageFlags;
 
 typedef enum {
     VK_CMD_BUFFER_RESET_RELEASE_RESOURCES_BIT = 0x00000001,
@@ -1204,7 +1177,7 @@ typedef struct {
 typedef struct {
     VkExtent3D                                  maxExtent;
     uint32_t                                    maxMipLevels;
-    uint32_t                                    maxArraySize;
+    uint32_t                                    maxArrayLayers;
     VkSampleCountFlags                          sampleCounts;
     VkDeviceSize                                maxResourceSize;
 } VkImageFormatProperties;
@@ -1414,7 +1387,7 @@ typedef struct {
 } VkMemoryRequirements;
 
 typedef struct {
-    VkImageAspect                               aspect;
+    VkImageAspectFlagBits                       aspect;
     VkExtent3D                                  imageGranularity;
     VkSparseImageFormatFlags                    flags;
 } VkSparseImageFormatProperties;
@@ -1436,7 +1409,7 @@ typedef struct {
 } VkSparseMemoryBindInfo;
 
 typedef struct {
-    VkImageAspect                               aspect;
+    VkImageAspectFlagBits                       aspect;
     uint32_t                                    mipLevel;
     uint32_t                                    arrayLayer;
 } VkImageSubresource;
@@ -1509,7 +1482,7 @@ typedef struct {
     VkFormat                                    format;
     VkExtent3D                                  extent;
     uint32_t                                    mipLevels;
-    uint32_t                                    arraySize;
+    uint32_t                                    arrayLayers;
     uint32_t                                    samples;
     VkImageTiling                               tiling;
     VkImageUsageFlags                           usage;
@@ -1537,9 +1510,9 @@ typedef struct {
 typedef struct {
     VkImageAspectFlags                          aspectMask;
     uint32_t                                    baseMipLevel;
-    uint32_t                                    mipLevels;
+    uint32_t                                    numLevels;
     uint32_t                                    baseArrayLayer;
-    uint32_t                                    arraySize;
+    uint32_t                                    numLayers;
 } VkImageSubresourceRange;
 
 typedef struct {
@@ -1567,7 +1540,7 @@ typedef struct {
     VkShaderModule                              module;
     const char*                                 pName;
     VkShaderCreateFlags                         flags;
-    VkShaderStage                               stage;
+    VkShaderStageFlagBits                       stage;
 } VkShaderCreateInfo;
 
 typedef struct {
@@ -1594,7 +1567,7 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkShaderStage                               stage;
+    VkShaderStageFlagBits                       stage;
     VkShader                                    shader;
     const VkSpecializationInfo*                 pSpecializationInfo;
 } VkPipelineShaderStageCreateInfo;
@@ -1840,17 +1813,21 @@ typedef struct {
 } VkDescriptorPoolCreateInfo;
 
 typedef struct {
+    VkSampler                                   sampler;
+    VkImageView                                 imageView;
+    VkImageLayout                               imageLayout;
+} VkDescriptorImageInfo;
+
+typedef struct {
     VkBuffer                                    buffer;
     VkDeviceSize                                offset;
     VkDeviceSize                                range;
 } VkDescriptorBufferInfo;
 
-typedef struct {
-    VkBufferView                                bufferView;
-    VkSampler                                   sampler;
-    VkImageView                                 imageView;
-    VkImageLayout                               imageLayout;
+typedef union {
+    VkDescriptorImageInfo                       imageInfo;
     VkDescriptorBufferInfo                      bufferInfo;
+    VkBufferView                                texelBufferView;
 } VkDescriptorInfo;
 
 typedef struct {
@@ -1962,7 +1939,7 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkCmdBufferOptimizeFlags                    flags;
+    VkCmdBufferUsageFlags                       flags;
     VkRenderPass                                renderPass;
     uint32_t                                    subpass;
     VkFramebuffer                               framebuffer;
@@ -1975,10 +1952,10 @@ typedef struct {
 } VkBufferCopy;
 
 typedef struct {
-    VkImageAspect                               aspect;
+    VkImageAspectFlags                          aspect;
     uint32_t                                    mipLevel;
-    uint32_t                                    arrayLayer;
-    uint32_t                                    arraySize;
+    uint32_t                                    baseArrayLayer;
+    uint32_t                                    numLayers;
 } VkImageSubresourceCopy;
 
 typedef struct {
@@ -2030,9 +2007,10 @@ typedef struct {
 } VkClearAttachment;
 
 typedef struct {
-    VkOffset3D                                  offset;
-    VkExtent3D                                  extent;
-} VkRect3D;
+    VkRect2D                                    rect;
+    uint32_t                                    baseArrayLayer;
+    uint32_t                                    numLayers;
+} VkClearRect;
 
 typedef struct {
     VkImageSubresourceCopy                      srcSubresource;
@@ -2234,7 +2212,7 @@ typedef void (VKAPI *PFN_vkCmdUpdateBuffer)(VkCmdBuffer cmdBuffer, VkBuffer dest
 typedef void (VKAPI *PFN_vkCmdFillBuffer)(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize fillSize, uint32_t data);
 typedef void (VKAPI *PFN_vkCmdClearColorImage)(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
 typedef void (VKAPI *PFN_vkCmdClearDepthStencilImage)(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
-typedef void (VKAPI *PFN_vkCmdClearAttachments)(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkRect3D* pRects);
+typedef void (VKAPI *PFN_vkCmdClearAttachments)(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects);
 typedef void (VKAPI *PFN_vkCmdResolveImage)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageResolve* pRegions);
 typedef void (VKAPI *PFN_vkCmdSetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
 typedef void (VKAPI *PFN_vkCmdResetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
@@ -2932,7 +2910,7 @@ void VKAPI vkCmdClearAttachments(
     uint32_t                                    attachmentCount,
     const VkClearAttachment*                    pAttachments,
     uint32_t                                    rectCount,
-    const VkRect3D*                             pRects);
+    const VkClearRect*                          pRects);
 
 void VKAPI vkCmdResolveImage(
     VkCmdBuffer                                 cmdBuffer,

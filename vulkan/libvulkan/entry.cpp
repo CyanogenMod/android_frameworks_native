@@ -682,7 +682,7 @@ void vkCmdClearDepthStencilImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLa
 }
 
 __attribute__((visibility("default")))
-void vkCmdClearAttachments(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkRect3D* pRects) {
+void vkCmdClearAttachments(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects) {
     GetVtbl(cmdBuffer).CmdClearAttachments(cmdBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 

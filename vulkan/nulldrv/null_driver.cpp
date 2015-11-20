@@ -473,12 +473,12 @@ VkResult CreateImage(VkDevice device,
         ALOGE("CreateImage: not yet implemented: type=%d format=%d mips=%u",
               create_info->imageType, create_info->format,
               create_info->mipLevels);
-        return VK_UNSUPPORTED;
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
 
     VkDeviceSize size =
         VkDeviceSize(create_info->extent.width * create_info->extent.height) *
-        create_info->arraySize * create_info->samples * 4u;
+        create_info->arrayLayers * create_info->samples * 4u;
     ALOGW_IF(size > kMaxDeviceMemory,
              "CreateImage: image size 0x%" PRIx64
              " exceeds max device memory size 0x%" PRIx64,
@@ -1003,7 +1003,7 @@ void CmdClearColorImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imag
 void CmdClearDepthStencilImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
 }
 
-void CmdClearAttachments(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkRect3D* pRects) {
+void CmdClearAttachments(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects) {
 }
 
 void CmdResolveImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) {

@@ -421,7 +421,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         .format = VK_FORMAT_R8G8B8A8_UNORM,  // TODO(jessehall)
         .extent = {0, 0, 1},
         .mipLevels = 1,
-        .arraySize = 1,
+        .arrayLayers = 1,
         .samples = 1,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = create_info->imageUsageFlags,
