@@ -1058,12 +1058,6 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
     if (strcmp(name, "vkDestroyDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
     }
-    // For special-case functions we always return the loader entry
-    if (strcmp(name, "vkGetDeviceQueue") == 0 ||
-        strcmp(name, "vkCreateCommandBuffer") == 0 ||
-        strcmp(name, "vkDestroyDevice") == 0) {
-        return GetGlobalDeviceProcAddr(name);
-    }
     return GetSpecificDeviceProcAddr(GetVtbl(device), name);
 }
 
