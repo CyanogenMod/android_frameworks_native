@@ -103,6 +103,7 @@ static const TracingCategory k_categories[] = {
     { "freq",       "CPU Frequency",    0, {
         { REQ,      "/sys/kernel/debug/tracing/events/power/cpu_frequency/enable" },
         { OPT,      "/sys/kernel/debug/tracing/events/power/clock_set_rate/enable" },
+        { OPT,      "/sys/kernel/debug/tracing/events/power/cpu_frequency_limits/enable" },
     } },
     { "membus",     "Memory Bus Utilization", 0, {
         { REQ,      "/sys/kernel/debug/tracing/events/memory_bus/enable" },
