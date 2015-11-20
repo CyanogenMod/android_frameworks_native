@@ -41,10 +41,10 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 174, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 177, 0)
 
 
-#if defined(__cplusplus) && (_MSC_VER >= 1800 || __cplusplus >= 201103L)
+#if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
     #define VK_NULL_HANDLE nullptr
 #else
     #define VK_NULL_HANDLE 0
@@ -711,10 +711,10 @@ typedef enum {
     VK_TEX_ADDRESS_MODE_CLAMP = 2,
     VK_TEX_ADDRESS_MODE_MIRROR_ONCE = 3,
     VK_TEX_ADDRESS_MODE_CLAMP_BORDER = 4,
-    VK_TEX_ADDRESS_BEGIN_RANGE = VK_TEX_ADDRESS_MODE_WRAP,
-    VK_TEX_ADDRESS_END_RANGE = VK_TEX_ADDRESS_MODE_CLAMP_BORDER,
-    VK_TEX_ADDRESS_NUM = (VK_TEX_ADDRESS_MODE_CLAMP_BORDER - VK_TEX_ADDRESS_MODE_WRAP + 1),
-    VK_TEX_ADDRESS_MAX_ENUM = 0x7FFFFFFF
+    VK_TEX_ADDRESS_MODE_BEGIN_RANGE = VK_TEX_ADDRESS_MODE_WRAP,
+    VK_TEX_ADDRESS_MODE_END_RANGE = VK_TEX_ADDRESS_MODE_CLAMP_BORDER,
+    VK_TEX_ADDRESS_MODE_NUM = (VK_TEX_ADDRESS_MODE_CLAMP_BORDER - VK_TEX_ADDRESS_MODE_WRAP + 1),
+    VK_TEX_ADDRESS_MODE_MAX_ENUM = 0x7FFFFFFF
 } VkTexAddressMode;
 
 typedef enum {
@@ -893,8 +893,7 @@ typedef enum {
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000001,
     VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT = 0x00000002,
     VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT = 0x00000004,
-    VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT = 0x00000008,
-    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
+    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000008,
 } VkMemoryPropertyFlagBits;
 typedef VkFlags VkMemoryPropertyFlags;
 
@@ -1013,10 +1012,6 @@ typedef enum {
     VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT = 0x00000001,
 } VkAttachmentDescriptionFlagBits;
 typedef VkFlags VkAttachmentDescriptionFlags;
-
-typedef enum {
-    VK_SUBPASS_DESCRIPTION_NO_OVERDRAW_BIT = 0x00000001,
-} VkSubpassDescriptionFlagBits;
 typedef VkFlags VkSubpassDescriptionFlags;
 
 typedef enum {
@@ -1336,7 +1331,7 @@ typedef struct {
 typedef struct {
     VkQueueFlags                                queueFlags;
     uint32_t                                    queueCount;
-    VkBool32                                    supportsTimestamps;
+    uint32_t                                    timestampValidBits;
 } VkQueueFamilyProperties;
 
 typedef struct {
@@ -1684,6 +1679,8 @@ typedef struct {
     VkBool32                                    sampleShadingEnable;
     float                                       minSampleShading;
     const VkSampleMask*                         pSampleMask;
+    VkBool32                                    alphaToCoverageEnable;
+    VkBool32                                    alphaToOneEnable;
 } VkPipelineMultisampleStateCreateInfo;
 
 typedef struct {
@@ -1724,8 +1721,6 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkBool32                                    alphaToCoverageEnable;
-    VkBool32                                    alphaToOneEnable;
     VkBool32                                    logicOpEnable;
     VkLogicOp                                   logicOp;
     uint32_t                                    attachmentCount;

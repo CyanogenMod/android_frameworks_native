@@ -124,8 +124,6 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
                 strbuf << " NON_COHERENT";
             if ((flags & VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT) != 0)
                 strbuf << " UNCACHED";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT) != 0)
-                strbuf << " WRITE_COMBINED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
             printf("       Type %u: %s\n", type, strbuf.str().c_str());
@@ -154,9 +152,9 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
             queue_flags &= ~flag;
             sep = "+";
         }
-        printf("     Queue Family %u: %2ux %s timestamps:%s\n", family,
+        printf("     Queue Family %u: %2ux %s timestamps:%ub\n", family,
                qprops.queueCount, strbuf.str().c_str(),
-               qprops.supportsTimestamps ? "YES" : "NO");
+               qprops.timestampValidBits);
         strbuf.str(std::string());
     }
 }

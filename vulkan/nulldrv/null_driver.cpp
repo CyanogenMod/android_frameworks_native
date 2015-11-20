@@ -288,7 +288,7 @@ VkResult GetPhysicalDeviceQueueFamilyProperties(
         properties->queueFlags =
             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_DMA_BIT;
         properties->queueCount = 1;
-        properties->supportsTimestamps = VK_FALSE;
+        properties->timestampValidBits = 64;
     }
     *count = 1;
     return VK_SUCCESS;
