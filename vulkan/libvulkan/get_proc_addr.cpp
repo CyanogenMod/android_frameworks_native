@@ -81,9 +81,8 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCmdBindPipeline", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindPipeline)},
     {"vkCmdBindVertexBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBindVertexBuffers)},
     {"vkCmdBlitImage", reinterpret_cast<PFN_vkVoidFunction>(vkCmdBlitImage)},
-    {"vkCmdClearColorAttachment", reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearColorAttachment)},
+    {"vkCmdClearAttachments", reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearAttachments)},
     {"vkCmdClearColorImage", reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearColorImage)},
-    {"vkCmdClearDepthStencilAttachment", reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilAttachment)},
     {"vkCmdClearDepthStencilImage", reinterpret_cast<PFN_vkVoidFunction>(vkCmdClearDepthStencilImage)},
     {"vkCmdCopyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCmdCopyBuffer)},
     {"vkCmdCopyBufferToImage", reinterpret_cast<PFN_vkVoidFunction>(vkCmdCopyBufferToImage)},
@@ -242,9 +241,8 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCmdBindPipeline", offsetof(DeviceVtbl, CmdBindPipeline)},
     {"vkCmdBindVertexBuffers", offsetof(DeviceVtbl, CmdBindVertexBuffers)},
     {"vkCmdBlitImage", offsetof(DeviceVtbl, CmdBlitImage)},
-    {"vkCmdClearColorAttachment", offsetof(DeviceVtbl, CmdClearColorAttachment)},
+    {"vkCmdClearAttachments", offsetof(DeviceVtbl, CmdClearAttachments)},
     {"vkCmdClearColorImage", offsetof(DeviceVtbl, CmdClearColorImage)},
-    {"vkCmdClearDepthStencilAttachment", offsetof(DeviceVtbl, CmdClearDepthStencilAttachment)},
     {"vkCmdClearDepthStencilImage", offsetof(DeviceVtbl, CmdClearDepthStencilImage)},
     {"vkCmdCopyBuffer", offsetof(DeviceVtbl, CmdCopyBuffer)},
     {"vkCmdCopyBufferToImage", offsetof(DeviceVtbl, CmdCopyBufferToImage)},
@@ -1063,14 +1061,9 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkCmdClearDepthStencilImage");
         success = false;
     }
-    vtbl.CmdClearColorAttachment = reinterpret_cast<PFN_vkCmdClearColorAttachment>(get_proc_addr(device, "vkCmdClearColorAttachment"));
-    if (UNLIKELY(!vtbl.CmdClearColorAttachment)) {
-        ALOGE("missing device proc: %s", "vkCmdClearColorAttachment");
-        success = false;
-    }
-    vtbl.CmdClearDepthStencilAttachment = reinterpret_cast<PFN_vkCmdClearDepthStencilAttachment>(get_proc_addr(device, "vkCmdClearDepthStencilAttachment"));
-    if (UNLIKELY(!vtbl.CmdClearDepthStencilAttachment)) {
-        ALOGE("missing device proc: %s", "vkCmdClearDepthStencilAttachment");
+    vtbl.CmdClearAttachments = reinterpret_cast<PFN_vkCmdClearAttachments>(get_proc_addr(device, "vkCmdClearAttachments"));
+    if (UNLIKELY(!vtbl.CmdClearAttachments)) {
+        ALOGE("missing device proc: %s", "vkCmdClearAttachments");
         success = false;
     }
     vtbl.CmdResolveImage = reinterpret_cast<PFN_vkCmdResolveImage>(get_proc_addr(device, "vkCmdResolveImage"));

@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 170, 2)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 174, 0)
 
 
 #if defined(__cplusplus) && (_MSC_VER >= 1800 || __cplusplus >= 201103L)
@@ -511,8 +511,8 @@ typedef enum {
 
 typedef enum {
     VK_SHADER_STAGE_VERTEX = 0,
-    VK_SHADER_STAGE_TESS_CONTROL = 1,
-    VK_SHADER_STAGE_TESS_EVALUATION = 2,
+    VK_SHADER_STAGE_TESSELLATION_CONTROL = 1,
+    VK_SHADER_STAGE_TESSELLATION_EVALUATION = 2,
     VK_SHADER_STAGE_GEOMETRY = 3,
     VK_SHADER_STAGE_FRAGMENT = 4,
     VK_SHADER_STAGE_COMPUTE = 5,
@@ -924,17 +924,17 @@ typedef VkFlags VkSemaphoreCreateFlags;
 typedef VkFlags VkEventCreateFlags;
 
 typedef enum {
-    VK_QUERY_PIPELINE_STATISTIC_IA_VERTICES_BIT = 0x00000001,
-    VK_QUERY_PIPELINE_STATISTIC_IA_PRIMITIVES_BIT = 0x00000002,
-    VK_QUERY_PIPELINE_STATISTIC_VS_INVOCATIONS_BIT = 0x00000004,
-    VK_QUERY_PIPELINE_STATISTIC_GS_INVOCATIONS_BIT = 0x00000008,
-    VK_QUERY_PIPELINE_STATISTIC_GS_PRIMITIVES_BIT = 0x00000010,
-    VK_QUERY_PIPELINE_STATISTIC_C_INVOCATIONS_BIT = 0x00000020,
-    VK_QUERY_PIPELINE_STATISTIC_C_PRIMITIVES_BIT = 0x00000040,
-    VK_QUERY_PIPELINE_STATISTIC_FS_INVOCATIONS_BIT = 0x00000080,
-    VK_QUERY_PIPELINE_STATISTIC_TCS_PATCHES_BIT = 0x00000100,
-    VK_QUERY_PIPELINE_STATISTIC_TES_INVOCATIONS_BIT = 0x00000200,
-    VK_QUERY_PIPELINE_STATISTIC_CS_INVOCATIONS_BIT = 0x00000400,
+    VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT = 0x00000001,
+    VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT = 0x00000002,
+    VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT = 0x00000004,
+    VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT = 0x00000008,
+    VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT = 0x00000010,
+    VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT = 0x00000020,
+    VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT = 0x00000040,
+    VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT = 0x00000080,
+    VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT = 0x00000100,
+    VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT = 0x00000200,
+    VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT = 0x00000400,
 } VkQueryPipelineStatisticFlagBits;
 typedef VkFlags VkQueryPipelineStatisticFlags;
 
@@ -1000,8 +1000,8 @@ typedef VkFlags VkPipelineCreateFlags;
 
 typedef enum {
     VK_SHADER_STAGE_VERTEX_BIT = 0x00000001,
-    VK_SHADER_STAGE_TESS_CONTROL_BIT = 0x00000002,
-    VK_SHADER_STAGE_TESS_EVALUATION_BIT = 0x00000004,
+    VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT = 0x00000002,
+    VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT = 0x00000004,
     VK_SHADER_STAGE_GEOMETRY_BIT = 0x00000008,
     VK_SHADER_STAGE_FRAGMENT_BIT = 0x00000010,
     VK_SHADER_STAGE_COMPUTE_BIT = 0x00000020,
@@ -1024,8 +1024,8 @@ typedef enum {
     VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT = 0x00000002,
     VK_PIPELINE_STAGE_VERTEX_INPUT_BIT = 0x00000004,
     VK_PIPELINE_STAGE_VERTEX_SHADER_BIT = 0x00000008,
-    VK_PIPELINE_STAGE_TESS_CONTROL_SHADER_BIT = 0x00000010,
-    VK_PIPELINE_STAGE_TESS_EVALUATION_SHADER_BIT = 0x00000020,
+    VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT = 0x00000010,
+    VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT = 0x00000020,
     VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT = 0x00000040,
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT = 0x00000080,
     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT = 0x00000100,
@@ -1150,7 +1150,7 @@ typedef struct {
     VkBool32                                    dualSourceBlend;
     VkBool32                                    logicOp;
     VkBool32                                    multiDrawIndirect;
-    VkBool32                                    depthClip;
+    VkBool32                                    depthClamp;
     VkBool32                                    depthBiasClamp;
     VkBool32                                    fillModeNonSolid;
     VkBool32                                    depthBounds;
@@ -1246,14 +1246,14 @@ typedef struct {
     uint32_t                                    maxVertexInputAttributeOffset;
     uint32_t                                    maxVertexInputBindingStride;
     uint32_t                                    maxVertexOutputComponents;
-    uint32_t                                    maxTessGenLevel;
-    uint32_t                                    maxTessPatchSize;
-    uint32_t                                    maxTessControlPerVertexInputComponents;
-    uint32_t                                    maxTessControlPerVertexOutputComponents;
-    uint32_t                                    maxTessControlPerPatchOutputComponents;
-    uint32_t                                    maxTessControlTotalOutputComponents;
-    uint32_t                                    maxTessEvaluationInputComponents;
-    uint32_t                                    maxTessEvaluationOutputComponents;
+    uint32_t                                    maxTessellationGenLevel;
+    uint32_t                                    maxTessellationPatchSize;
+    uint32_t                                    maxTessellationControlPerVertexInputComponents;
+    uint32_t                                    maxTessellationControlPerVertexOutputComponents;
+    uint32_t                                    maxTessellationControlPerPatchOutputComponents;
+    uint32_t                                    maxTessellationControlTotalOutputComponents;
+    uint32_t                                    maxTessellationEvaluationInputComponents;
+    uint32_t                                    maxTessellationEvaluationOutputComponents;
     uint32_t                                    maxGeometryShaderInvocations;
     uint32_t                                    maxGeometryInputComponents;
     uint32_t                                    maxGeometryOutputComponents;
@@ -1366,7 +1366,7 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    uint32_t                                    queueRecordCount;
+    uint32_t                                    requestedQueueCount;
     const VkDeviceQueueCreateInfo*              pRequestedQueues;
     uint32_t                                    layerCount;
     const char*const*                           ppEnabledLayerNames;
@@ -1665,7 +1665,7 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkBool32                                    depthClipEnable;
+    VkBool32                                    depthClampEnable;
     VkBool32                                    rasterizerDiscardEnable;
     VkFillMode                                  fillMode;
     VkCullMode                                  cullMode;
@@ -2013,6 +2013,17 @@ typedef struct {
     uint32_t                                    stencil;
 } VkClearDepthStencilValue;
 
+typedef union {
+    VkClearColorValue                           color;
+    VkClearDepthStencilValue                    depthStencil;
+} VkClearValue;
+
+typedef struct {
+    VkImageAspectFlags                          aspectMask;
+    uint32_t                                    colorAttachment;
+    VkClearValue                                clearValue;
+} VkClearAttachment;
+
 typedef struct {
     VkOffset3D                                  offset;
     VkExtent3D                                  extent;
@@ -2025,11 +2036,6 @@ typedef struct {
     VkOffset3D                                  destOffset;
     VkExtent3D                                  extent;
 } VkImageResolve;
-
-typedef union {
-    VkClearColorValue                           color;
-    VkClearDepthStencilValue                    depthStencil;
-} VkClearValue;
 
 typedef struct {
     VkStructureType                             sType;
@@ -2223,8 +2229,7 @@ typedef void (VKAPI *PFN_vkCmdUpdateBuffer)(VkCmdBuffer cmdBuffer, VkBuffer dest
 typedef void (VKAPI *PFN_vkCmdFillBuffer)(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize fillSize, uint32_t data);
 typedef void (VKAPI *PFN_vkCmdClearColorImage)(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
 typedef void (VKAPI *PFN_vkCmdClearDepthStencilImage)(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
-typedef void (VKAPI *PFN_vkCmdClearColorAttachment)(VkCmdBuffer cmdBuffer, uint32_t colorAttachment, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rectCount, const VkRect3D* pRects);
-typedef void (VKAPI *PFN_vkCmdClearDepthStencilAttachment)(VkCmdBuffer cmdBuffer, VkImageAspectFlags aspectMask, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rectCount, const VkRect3D* pRects);
+typedef void (VKAPI *PFN_vkCmdClearAttachments)(VkCmdBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkRect3D* pRects);
 typedef void (VKAPI *PFN_vkCmdResolveImage)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageResolve* pRegions);
 typedef void (VKAPI *PFN_vkCmdSetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
 typedef void (VKAPI *PFN_vkCmdResetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
@@ -2916,19 +2921,10 @@ void VKAPI vkCmdClearDepthStencilImage(
     uint32_t                                    rangeCount,
     const VkImageSubresourceRange*              pRanges);
 
-void VKAPI vkCmdClearColorAttachment(
+void VKAPI vkCmdClearAttachments(
     VkCmdBuffer                                 cmdBuffer,
-    uint32_t                                    colorAttachment,
-    VkImageLayout                               imageLayout,
-    const VkClearColorValue*                    pColor,
-    uint32_t                                    rectCount,
-    const VkRect3D*                             pRects);
-
-void VKAPI vkCmdClearDepthStencilAttachment(
-    VkCmdBuffer                                 cmdBuffer,
-    VkImageAspectFlags                          aspectMask,
-    VkImageLayout                               imageLayout,
-    const VkClearDepthStencilValue*             pDepthStencil,
+    uint32_t                                    attachmentCount,
+    const VkClearAttachment*                    pAttachments,
     uint32_t                                    rectCount,
     const VkRect3D*                             pRects);
 

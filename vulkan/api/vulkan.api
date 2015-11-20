@@ -27,8 +27,8 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 170
-define VERSION_PATCH 2
+define VERSION_MINOR 174
+define VERSION_PATCH 0
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME 256
@@ -538,8 +538,8 @@ enum VkFormat {
 /// Shader stage enumerant
 enum VkShaderStage {
     VK_SHADER_STAGE_VERTEX                                  = 0x00000000,
-    VK_SHADER_STAGE_TESS_CONTROL                            = 0x00000001,
-    VK_SHADER_STAGE_TESS_EVALUATION                         = 0x00000002,
+    VK_SHADER_STAGE_TESSELLATION_CONTROL                    = 0x00000001,
+    VK_SHADER_STAGE_TESSELLATION_EVALUATION                 = 0x00000002,
     VK_SHADER_STAGE_GEOMETRY                                = 0x00000003,
     VK_SHADER_STAGE_FRAGMENT                                = 0x00000004,
     VK_SHADER_STAGE_COMPUTE                                 = 0x00000005,
@@ -750,8 +750,8 @@ bitfield VkBufferCreateFlags {
 /// Shader stage flags
 bitfield VkShaderStageFlags {
     VK_SHADER_STAGE_VERTEX_BIT                              = 0x00000001,
-    VK_SHADER_STAGE_TESS_CONTROL_BIT                        = 0x00000002,
-    VK_SHADER_STAGE_TESS_EVALUATION_BIT                     = 0x00000004,
+    VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT                = 0x00000002,
+    VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT             = 0x00000004,
     VK_SHADER_STAGE_GEOMETRY_BIT                            = 0x00000008,
     VK_SHADER_STAGE_FRAGMENT_BIT                            = 0x00000010,
     VK_SHADER_STAGE_COMPUTE_BIT                             = 0x00000020,
@@ -867,17 +867,17 @@ bitfield VkCmdBufferOptimizeFlags {
 
 /// Pipeline statistics flags
 bitfield VkQueryPipelineStatisticFlags {
-    VK_QUERY_PIPELINE_STATISTIC_IA_VERTICES_BIT             = 0x00000001,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_IA_PRIMITIVES_BIT           = 0x00000002,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_VS_INVOCATIONS_BIT          = 0x00000004,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_GS_INVOCATIONS_BIT          = 0x00000008,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_GS_PRIMITIVES_BIT           = 0x00000010,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_C_INVOCATIONS_BIT           = 0x00000020,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_C_PRIMITIVES_BIT            = 0x00000040,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_FS_INVOCATIONS_BIT          = 0x00000080,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_TCS_PATCHES_BIT             = 0x00000100,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_TES_INVOCATIONS_BIT         = 0x00000200,  /// Optional
-    VK_QUERY_PIPELINE_STATISTIC_CS_INVOCATIONS_BIT          = 0x00000400,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT                     = 0x00000001,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT                   = 0x00000002,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT                   = 0x00000004,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT                 = 0x00000008,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT                  = 0x00000010,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT                        = 0x00000020,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT                         = 0x00000040,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT                 = 0x00000080,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT         = 0x00000100,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT  = 0x00000200,  /// Optional
+    VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT                  = 0x00000400,  /// Optional
 }
 
 /// Memory mapping flags
@@ -910,8 +910,8 @@ bitfield VkPipelineStageFlags {
     VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT                     = 0x00000002,  /// Draw/DispatchIndirect command fetch
     VK_PIPELINE_STAGE_VERTEX_INPUT_BIT                      = 0x00000004,  /// Vertex/index fetch
     VK_PIPELINE_STAGE_VERTEX_SHADER_BIT                     = 0x00000008,  /// Vertex shading
-    VK_PIPELINE_STAGE_TESS_CONTROL_SHADER_BIT               = 0x00000010,  /// Tessellation control shading
-    VK_PIPELINE_STAGE_TESS_EVALUATION_SHADER_BIT            = 0x00000020,  /// Tessellation evaluation shading
+    VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT       = 0x00000010,  /// Tessellation control shading
+    VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT    = 0x00000020,  /// Tessellation evaluation shading
     VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT                   = 0x00000040,  /// Geometry shading
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT                   = 0x00000080,  /// Fragment shading
     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT              = 0x00000100,  /// Early fragment (depth/stencil) tests
@@ -1085,7 +1085,7 @@ class VkDeviceQueueCreateInfo {
 class VkDeviceCreateInfo {
     VkStructureType                             sType                      /// Should be VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
     const void*                                 pNext                      /// Pointer to next structure
-    u32                                         queueRecordCount
+    u32                                         requestedQueueRecordCount
     const VkDeviceQueueCreateInfo*              pRequestedQueues
     u32                                         layerCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
@@ -1503,7 +1503,7 @@ class VkPipelineViewportStateCreateInfo {
 class VkPipelineRasterStateCreateInfo {
     VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO
     const void*                                 pNext      /// Pointer to next structure
-    VkBool32                                    depthClipEnable
+    VkBool32                                    depthClampEnable
     VkBool32                                    rasterizerDiscardEnable
     VkFillMode                                  fillMode                   /// optional (GL45)
     VkCullMode                                  cullMode
@@ -1696,6 +1696,12 @@ class VkClearValue {
     VkClearDepthStencilValue                    depthStencil
 }
 
+class VkClearAttachment {
+    VkImageAspectFlags                          aspectMask
+    u32                                         colorAttachment
+    VkClearValue                                clearValue
+}
+
 class VkAttachmentDescription {
     VkStructureType                             sType           /// Must be VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION
     const void*                                 pNext           /// Pointer to next structure
@@ -1776,7 +1782,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    dualSourceBlend                           /// blend operations which take two sources
     VkBool32                                    logicOp                                   /// logic operations
     VkBool32                                    multiDrawIndirect                         /// multi draw indirect
-    VkBool32                                    depthClip                                 /// depth clipping
+    VkBool32                                    depthClamp                                /// depth clamping
     VkBool32                                    depthBiasClamp                            /// depth bias clamping
     VkBool32                                    fillModeNonSolid                          /// point and wireframe fill modes
     VkBool32                                    depthBounds                               /// depth bounds test
@@ -1857,14 +1863,14 @@ class VkPhysicalDeviceLimits {
     u32                                         maxVertexInputBindingStride               /// max vertex input binding stride
     u32                                         maxVertexOutputComponents                 /// max num of output components written by vertex shader
     /// tessellation control stage limits
-    u32                                         maxTessGenLevel                           /// max level supported by tess primitive generator
-    u32                                         maxTessPatchSize                          /// max patch size (vertices)
-    u32                                         maxTessControlPerVertexInputComponents    /// max num of input components per-vertex in TCS
-    u32                                         maxTessControlPerVertexOutputComponents   /// max num of output components per-vertex in TCS
-    u32                                         maxTessControlPerPatchOutputComponents    /// max num of output components per-patch in TCS
-    u32                                         maxTessControlTotalOutputComponents       /// max total num of per-vertex and per-patch output components in TCS
-    u32                                         maxTessEvaluationInputComponents          /// max num of input components per vertex in TES
-    u32                                         maxTessEvaluationOutputComponents         /// max num of output components per vertex in TES
+    u32                                         maxTessellationGenLevel                         /// max level supported by tess primitive generator
+    u32                                         maxTessellationPatchSize                        /// max patch size (vertices)
+    u32                                         maxTessellationControlPerVertexInputComponents  /// max num of input components per-vertex in TCS
+    u32                                         maxTessellationControlPerVertexOutputComponents /// max num of output components per-vertex in TCS
+    u32                                         maxTessellationControlPerPatchOutputComponents  /// max num of output components per-patch in TCS
+    u32                                         maxTessellationControlTotalOutputComponents     /// max total num of per-vertex and per-patch output components in TCS
+    u32                                         maxTessellationEvaluationInputComponents        /// max num of input components per vertex in TES
+    u32                                         maxTessellationEvaluationOutputComponents       /// max num of output components per vertex in TES
     /// geometry stage limits
     u32                                         maxGeometryShaderInvocations              /// max invocation count supported in geometry shader
     u32                                         maxGeometryInputComponents                /// max num of input components read in geometry stage
@@ -4063,30 +4069,10 @@ cmd void vkCmdClearDepthStencilImage(
 }
 
 @threadSafety("app")
-cmd void vkCmdClearColorAttachment(
+cmd void vkCmdClearAttachments(
         VkCmdBuffer                                 cmdBuffer,
-        u32                                         colorAttachment,
-        VkImageLayout                               imageLayout,
-        const VkClearColorValue*                    pColor,
-        u32                                         rectCount,
-        const VkRect3D*                             pRects) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-
-    rects := pRects[0:rectCount]
-    for i in (0 .. rectCount) {
-        rect := rects[i]
-    }
-
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
-}
-
-@threadSafety("app")
-cmd void vkCmdClearDepthStencilAttachment(
-        VkCmdBuffer                                 cmdBuffer,
-        VkImageAspectFlags                          aspectMask,
-        VkImageLayout                               imageLayout,
-        const VkClearDepthStencilValue*             pDepthStencil,
+        u32                                         attachmentCount,
+        const VkClearAttachment*                    pAttachments,
         u32                                         rectCount,
         const VkRect3D*                             pRects) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)

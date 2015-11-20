@@ -173,8 +173,7 @@ struct DeviceVtbl {
     PFN_vkCmdFillBuffer CmdFillBuffer;
     PFN_vkCmdClearColorImage CmdClearColorImage;
     PFN_vkCmdClearDepthStencilImage CmdClearDepthStencilImage;
-    PFN_vkCmdClearColorAttachment CmdClearColorAttachment;
-    PFN_vkCmdClearDepthStencilAttachment CmdClearDepthStencilAttachment;
+    PFN_vkCmdClearAttachments CmdClearAttachments;
     PFN_vkCmdResolveImage CmdResolveImage;
     PFN_vkCmdSetEvent CmdSetEvent;
     PFN_vkCmdResetEvent CmdResetEvent;
