@@ -132,8 +132,8 @@ void vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queue
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueSubmit(VkQueue queue, uint32_t cmdBufferCount, const VkCmdBuffer* pCmdBuffers, VkFence fence) {
-    return GetVtbl(queue).QueueSubmit(queue, cmdBufferCount, pCmdBuffers, fence);
+VkResult vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmitInfo, VkFence fence) {
+    return GetVtbl(queue).QueueSubmit(queue, submitCount, pSubmitInfo, fence);
 }
 
 __attribute__((visibility("default")))

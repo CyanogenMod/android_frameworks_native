@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 179
+define VERSION_MINOR 180
 define VERSION_PATCH 0
 
 // API limits
@@ -1056,6 +1056,15 @@ class VkLayerProperties {
     u32                                         specVersion        /// version of the layer specification implemented
     u32                                         implVersion        /// build or release version of the layer's library
     char[VK_MAX_DESCRIPTION]                    description        /// Free-form description of the layer
+}
+
+class VkSubmitInfo {
+    u32                                         waitSemCount
+    const VkSemaphore*                          pWaitSemaphores
+    u32                                         cmdBufferCount
+    const VkCmdBuffer*                          pCommandBuffers
+    u32                                         signalSemCount
+    const VkSemaphore*                          pSignalSemaphores
 }
 
 class VkApplicationInfo {
@@ -2348,8 +2357,8 @@ cmd void vkGetDeviceQueue(
 @threadSafety("app")
 cmd VkResult vkQueueSubmit(
         VkQueue                                     queue,
-        u32                                         cmdBufferCount,
-        const VkCmdBuffer*                          pCmdBuffers,
+        u32                                         submitCount,
+        const VkSubmitInfo*                         pSubmitInfo,
         VkFence                                     fence) {
     queueObject := GetQueue(queue)
 
@@ -2358,15 +2367,15 @@ cmd VkResult vkQueueSubmit(
         assert(fenceObject.device == queueObject.device)
     }
 
-    cmdBuffers := pCmdBuffers[0:cmdBufferCount]
-    for i in (0 .. cmdBufferCount) {
-        cmdBuffer := cmdBuffers[i]
-        cmdBufferObject := GetCmdBuffer(cmdBuffer)
-        assert(cmdBufferObject.device == queueObject.device)
-
-        validate("QueueCheck", cmdBufferObject.queueFlags in queueObject.flags,
-            "vkQueueSubmit: enqueued cmdBuffer requires missing queue capabilities.")
-    }
+    // cmdBuffers := pCmdBuffers[0:cmdBufferCount]
+    // for i in (0 .. cmdBufferCount) {
+    //    cmdBuffer := cmdBuffers[i]
+    //    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    //    assert(cmdBufferObject.device == queueObject.device)
+    //
+    //    validate("QueueCheck", cmdBufferObject.queueFlags in queueObject.flags,
+    //        "vkQueueSubmit: enqueued cmdBuffer requires missing queue capabilities.")
+    // }
 
     return ?
 }

@@ -709,7 +709,7 @@ VkResult EnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, con
     return VK_SUCCESS;
 }
 
-VkResult QueueSubmit(VkQueue queue, uint32_t cmdBufferCount, const VkCmdBuffer* pCmdBuffers, VkFence fence) {
+VkResult QueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmitInfo, VkFence fence) {
     return VK_SUCCESS;
 }
 
