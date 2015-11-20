@@ -953,11 +953,12 @@ void Layer::pushPendingState() {
             // then it is expired or otherwise invalid. Allow this transaction
             // to be applied as per normal (no synchronization).
             mCurrentState.handle = nullptr;
+        } else {
+            auto syncPoint = std::make_shared<SyncPoint>(
+                    mCurrentState.frameNumber);
+            handleLayer->addSyncPoint(syncPoint);
+            mRemoteSyncPoints.push_back(std::move(syncPoint));
         }
-
-        auto syncPoint = std::make_shared<SyncPoint>(mCurrentState.frameNumber);
-        handleLayer->addSyncPoint(syncPoint);
-        mRemoteSyncPoints.push_back(std::move(syncPoint));
 
         // Wake us up to check if the frame has been received
         setTransactionFlags(eTransactionNeeded);
