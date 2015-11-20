@@ -296,6 +296,22 @@ private:
     template<class T>
     status_t            writeAligned(T val);
 
+    template<typename T, typename U>
+    status_t            unsafeReadTypedVector(std::vector<T>* val,
+                                              status_t(Parcel::*read_func)(U*) const) const;
+    template<typename T>
+    status_t            readTypedVector(std::vector<T>* val,
+                                        status_t(Parcel::*read_func)(T*) const) const;
+    template<typename T, typename U>
+    status_t            unsafeWriteTypedVector(const std::vector<T>& val,
+                                               status_t(Parcel::*write_func)(U));
+    template<typename T>
+    status_t            writeTypedVector(const std::vector<T>& val,
+                                         status_t(Parcel::*write_func)(const T&));
+    template<typename T>
+    status_t            writeTypedVector(const std::vector<T>& val,
+                                         status_t(Parcel::*write_func)(T));
+
     status_t            mError;
     uint8_t*            mData;
     size_t              mDataSize;
@@ -456,6 +472,77 @@ status_t Parcel::readStrongBinder(sp<T>* val) const {
     }
 
     return ret;
+}
+
+template<typename T, typename U>
+status_t Parcel::unsafeReadTypedVector(
+        std::vector<T>* val, status_t(Parcel::*read_func)(U*) const) const {
+    val->clear();
+
+    int32_t size;
+    status_t status = this->readInt32(&size);
+
+    if (status != OK) {
+        return status;
+    }
+
+    if (size < 0) {
+        return UNEXPECTED_NULL;
+    }
+
+    val->resize(size);
+
+    for (auto& v: *val) {
+        status = (this->*read_func)(&v);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
+template<typename T>
+status_t Parcel::readTypedVector(std::vector<T>* val,
+                                 status_t(Parcel::*read_func)(T*) const) const {
+    return unsafeReadTypedVector(val, read_func);
+}
+
+template<typename T, typename U>
+status_t Parcel::unsafeWriteTypedVector(const std::vector<T>& val,
+                                        status_t(Parcel::*write_func)(U)) {
+    if (val.size() > std::numeric_limits<int32_t>::max()) {
+        return BAD_VALUE;
+    }
+
+    status_t status = this->writeInt32(val.size());
+
+    if (status != OK) {
+        return status;
+    }
+
+    for (const auto& item : val) {
+        status = (this->*write_func)(item);
+
+        if (status != OK) {
+            return status;
+        }
+    }
+
+    return OK;
+}
+
+template<typename T>
+status_t Parcel::writeTypedVector(const std::vector<T>& val,
+                          status_t(Parcel::*write_func)(const T&)) {
+    return unsafeWriteTypedVector(val, write_func);
+}
+
+template<typename T>
+status_t Parcel::writeTypedVector(const std::vector<T>& val,
+                          status_t(Parcel::*write_func)(T)) {
+    return unsafeWriteTypedVector(val, write_func);
 }
 
 // ---------------------------------------------------------------------------
