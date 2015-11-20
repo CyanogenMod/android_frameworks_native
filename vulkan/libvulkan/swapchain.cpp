@@ -311,8 +311,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     std::shared_ptr<ANativeWindow> window = InitSharedPtr(
         device, static_cast<ANativeWindow*>(
                     reinterpret_cast<const VkSurfaceDescriptionWindowKHR*>(
-                        create_info->pSurfaceDescription)
-                        ->pPlatformWindow));
+                        create_info->pSurfaceDescription)->pPlatformWindow));
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     err = native_window_api_connect(window.get(), NATIVE_WINDOW_API_EGL);

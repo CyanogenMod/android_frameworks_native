@@ -67,33 +67,33 @@ PFN_vkVoidFunction vkGetInstanceProcAddr(VkInstance instance, const char* pName)
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties* pProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceProperties(physicalDevice, pProperties);
+void vkGetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties* pProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceProperties(physicalDevice, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pCount, pQueueFamilyProperties);
+void vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pCount, pQueueFamilyProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties);
+void vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceFeatures(physicalDevice, pFeatures);
+void vkGetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceFeatures(physicalDevice, pFeatures);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties);
+void vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
+void vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
 }
 
 __attribute__((visibility("default")))
@@ -127,8 +127,8 @@ VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, c
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue) {
-    return vulkan::GetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
+void vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue) {
+    vulkan::GetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
 }
 
 __attribute__((visibility("default")))
@@ -177,13 +177,13 @@ VkResult vkInvalidateMappedMemoryRanges(VkDevice device, uint32_t memRangeCount,
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
-    return GetVtbl(device).GetDeviceMemoryCommitment(device, memory, pCommittedMemoryInBytes);
+void vkGetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
+    GetVtbl(device).GetDeviceMemoryCommitment(device, memory, pCommittedMemoryInBytes);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetBufferMemoryRequirements(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) {
-    return GetVtbl(device).GetBufferMemoryRequirements(device, buffer, pMemoryRequirements);
+void vkGetBufferMemoryRequirements(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) {
+    GetVtbl(device).GetBufferMemoryRequirements(device, buffer, pMemoryRequirements);
 }
 
 __attribute__((visibility("default")))
@@ -192,8 +192,8 @@ VkResult vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements) {
-    return GetVtbl(device).GetImageMemoryRequirements(device, image, pMemoryRequirements);
+void vkGetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements) {
+    GetVtbl(device).GetImageMemoryRequirements(device, image, pMemoryRequirements);
 }
 
 __attribute__((visibility("default")))
@@ -202,13 +202,13 @@ VkResult vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, V
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
-    return GetVtbl(device).GetImageSparseMemoryRequirements(device, image, pNumRequirements, pSparseMemoryRequirements);
+void vkGetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+    GetVtbl(device).GetImageSparseMemoryRequirements(device, image, pNumRequirements, pSparseMemoryRequirements);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, pNumProperties, pProperties);
+void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, pNumProperties, pProperties);
 }
 
 __attribute__((visibility("default")))
@@ -342,8 +342,8 @@ void vkDestroyImage(VkDevice device, VkImage image) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
-    return GetVtbl(device).GetImageSubresourceLayout(device, image, pSubresource, pLayout);
+void vkGetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
+    GetVtbl(device).GetImageSubresourceLayout(device, image, pSubresource, pLayout);
 }
 
 __attribute__((visibility("default")))
@@ -392,8 +392,8 @@ size_t vkGetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, void* pData) {
-    return GetVtbl(device).GetPipelineCacheData(device, pipelineCache, pData);
+VkResult vkGetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData) {
+    return GetVtbl(device).GetPipelineCacheData(device, pipelineCache, dataSize, pData);
 }
 
 __attribute__((visibility("default")))
@@ -497,8 +497,8 @@ void vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
-    return GetVtbl(device).GetRenderAreaGranularity(device, renderPass, pGranularity);
+void vkGetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
+    GetVtbl(device).GetRenderAreaGranularity(device, renderPass, pGranularity);
 }
 
 __attribute__((visibility("default")))

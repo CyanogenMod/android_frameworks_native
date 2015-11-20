@@ -221,10 +221,10 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device, const char* name);
-VkResult GetDeviceQueue(VkDevice drv_device,
-                        uint32_t family,
-                        uint32_t index,
-                        VkQueue* out_queue);
+void GetDeviceQueue(VkDevice drv_device,
+                    uint32_t family,
+                    uint32_t index,
+                    VkQueue* out_queue);
 VkResult CreateCommandBuffer(VkDevice device,
                              const VkCmdBufferCreateInfo* create_info,
                              VkCmdBuffer* out_cmdbuf);

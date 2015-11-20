@@ -265,8 +265,8 @@ VkResult EnumeratePhysicalDevices(VkInstance instance,
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceProperties(VkPhysicalDevice,
-                                     VkPhysicalDeviceProperties* properties) {
+void GetPhysicalDeviceProperties(VkPhysicalDevice,
+                                 VkPhysicalDeviceProperties* properties) {
     properties->apiVersion = VK_API_VERSION;
     properties->driverVersion = VK_MAKE_VERSION(0, 0, 1);
     properties->vendorId = 0;
@@ -275,26 +275,22 @@ VkResult GetPhysicalDeviceProperties(VkPhysicalDevice,
     strcpy(properties->deviceName, "Android Vulkan Null Driver");
     memset(properties->pipelineCacheUUID, 0,
            sizeof(properties->pipelineCacheUUID));
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceQueueFamilyProperties(
+void GetPhysicalDeviceQueueFamilyProperties(
     VkPhysicalDevice,
     uint32_t* count,
     VkQueueFamilyProperties* properties) {
     if (properties) {
-        if (*count < 1)
-            return VK_INCOMPLETE;
         properties->queueFlags =
             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_DMA_BIT;
         properties->queueCount = 1;
         properties->timestampValidBits = 64;
     }
     *count = 1;
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceMemoryProperties(
+void GetPhysicalDeviceMemoryProperties(
     VkPhysicalDevice,
     VkPhysicalDeviceMemoryProperties* properties) {
     properties->memoryTypeCount = 1;
@@ -304,7 +300,6 @@ VkResult GetPhysicalDeviceMemoryProperties(
     properties->memoryHeapCount = 1;
     properties->memoryHeaps[0].size = kMaxDeviceMemory;
     properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL_BIT;
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -337,9 +332,8 @@ void DestroyDevice(VkDevice device) {
     alloc->pfnFree(alloc->pUserData, device);
 }
 
-VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
+void GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
     *queue = &device->queue;
-    return VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------
@@ -443,14 +437,13 @@ VkResult CreateBuffer(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult GetBufferMemoryRequirements(VkDevice,
-                                     VkBuffer buffer_handle,
-                                     VkMemoryRequirements* requirements) {
+void GetBufferMemoryRequirements(VkDevice,
+                                 VkBuffer buffer_handle,
+                                 VkMemoryRequirements* requirements) {
     Buffer* buffer = GetObjectFromHandle(buffer_handle);
     requirements->size = buffer->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
-    return VK_SUCCESS;
 }
 
 void DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
@@ -502,14 +495,13 @@ VkResult CreateImage(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult GetImageMemoryRequirements(VkDevice,
-                                    VkImage image_handle,
-                                    VkMemoryRequirements* requirements) {
+void GetImageMemoryRequirements(VkDevice,
+                                VkImage image_handle,
+                                VkMemoryRequirements* requirements) {
     Image* image = GetObjectFromHandle(image_handle);
     requirements->size = image->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
-    return VK_SUCCESS;
 }
 
 void DestroyImage(VkDevice device, VkImage image_handle) {
@@ -690,19 +682,16 @@ VkResult QueueSignalReleaseImageANDROID(VkQueue, VkImage, int* fence) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 
-VkResult GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
+void GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
+void GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+void GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult EnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
@@ -747,9 +736,8 @@ VkResult InvalidateMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, c
     return VK_SUCCESS;
 }
 
-VkResult GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
+void GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, VkDeviceSize memOffset) {
@@ -760,14 +748,12 @@ VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkD
     return VK_SUCCESS;
 }
 
-VkResult GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+void GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult QueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
@@ -842,9 +828,8 @@ VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t st
 void DestroyBufferView(VkDevice device, VkBufferView bufferView) {
 }
 
-VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
+void GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 void DestroyImageView(VkDevice device, VkImageView imageView) {
@@ -864,7 +849,7 @@ size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
     return VK_SUCCESS;
 }
 
-VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, void* pData) {
+VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -909,9 +894,8 @@ void DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
 void DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
 }
 
-VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
+void GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 void DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {

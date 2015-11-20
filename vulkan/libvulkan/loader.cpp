@@ -649,21 +649,19 @@ VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceFeaturesBottom(VkPhysicalDevice pdev,
-                                         VkPhysicalDeviceFeatures* features) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceFeatures(pdev, features);
+void GetPhysicalDeviceFeaturesBottom(VkPhysicalDevice pdev,
+                                     VkPhysicalDeviceFeatures* features) {
+    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFeatures(pdev, features);
 }
 
-VkResult GetPhysicalDeviceFormatPropertiesBottom(
-    VkPhysicalDevice pdev,
-    VkFormat format,
-    VkFormatProperties* properties) {
-    return GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFormatProperties(
+void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
+                                             VkFormat format,
+                                             VkFormatProperties* properties) {
+    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFormatProperties(
         pdev, format, properties);
 }
 
-VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
+void GetPhysicalDeviceImageFormatPropertiesBottom(
     VkPhysicalDevice pdev,
     VkFormat format,
     VkImageType type,
@@ -671,31 +669,28 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
     VkImageUsageFlags usage,
     VkImageCreateFlags flags,
     VkImageFormatProperties* properties) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
-            pdev, format, type, tiling, usage, flags, properties);
+    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
+        pdev, format, type, tiling, usage, flags, properties);
 }
 
-VkResult GetPhysicalDevicePropertiesBottom(
-    VkPhysicalDevice pdev,
-    VkPhysicalDeviceProperties* properties) {
-    return GetVtbl(pdev)
+void GetPhysicalDevicePropertiesBottom(VkPhysicalDevice pdev,
+                                       VkPhysicalDeviceProperties* properties) {
+    GetVtbl(pdev)
         ->instance->drv.vtbl.GetPhysicalDeviceProperties(pdev, properties);
 }
 
-VkResult GetPhysicalDeviceQueueFamilyPropertiesBottom(
+void GetPhysicalDeviceQueueFamilyPropertiesBottom(
     VkPhysicalDevice pdev,
     uint32_t* pCount,
     VkQueueFamilyProperties* properties) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceQueueFamilyProperties(
-            pdev, pCount, properties);
+    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceQueueFamilyProperties(
+        pdev, pCount, properties);
 }
 
-VkResult GetPhysicalDeviceMemoryPropertiesBottom(
+void GetPhysicalDeviceMemoryPropertiesBottom(
     VkPhysicalDevice pdev,
     VkPhysicalDeviceMemoryProperties* properties) {
-    return GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceMemoryProperties(
+    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceMemoryProperties(
         pdev, properties);
 }
 
@@ -815,7 +810,7 @@ VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
         pdev, properties_count, properties);
 }
 
-VkResult GetPhysicalDeviceSparseImageFormatPropertiesBottom(
+void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
     VkPhysicalDevice pdev,
     VkFormat format,
     VkImageType type,
@@ -824,7 +819,7 @@ VkResult GetPhysicalDeviceSparseImageFormatPropertiesBottom(
     VkImageTiling tiling,
     uint32_t* properties_count,
     VkSparseImageFormatProperties* properties) {
-    return GetVtbl(pdev)
+    GetVtbl(pdev)
         ->instance->drv.vtbl.GetPhysicalDeviceSparseImageFormatProperties(
             pdev, format, type, samples, usage, tiling, properties_count,
             properties);
@@ -1061,25 +1056,20 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
     return GetSpecificDeviceProcAddr(GetVtbl(device), name);
 }
 
-VkResult GetDeviceQueue(VkDevice drv_device,
-                        uint32_t family,
-                        uint32_t index,
-                        VkQueue* out_queue) {
+void GetDeviceQueue(VkDevice drv_device,
+                    uint32_t family,
+                    uint32_t index,
+                    VkQueue* out_queue) {
     VkResult result;
     VkQueue queue;
     const DeviceVtbl* vtbl = GetVtbl(drv_device);
-    result = vtbl->GetDeviceQueue(drv_device, family, index, &queue);
-    if (result != VK_SUCCESS)
-        return result;
+    vtbl->GetDeviceQueue(drv_device, family, index, &queue);
     hwvulkan_dispatch_t* dispatch =
         reinterpret_cast<hwvulkan_dispatch_t*>(queue);
-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC && dispatch->vtbl != vtbl) {
+    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC && dispatch->vtbl != vtbl)
         ALOGE("invalid VkQueue dispatch magic: 0x%" PRIxPTR, dispatch->magic);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
     dispatch->vtbl = vtbl;
     *out_queue = queue;
-    return VK_SUCCESS;
 }
 
 VkResult CreateCommandBuffer(VkDevice drv_device,

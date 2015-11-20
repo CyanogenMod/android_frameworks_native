@@ -31,7 +31,7 @@ struct NameProcEntry {
 };
 
 template <size_t N>
-PFN_vkVoidFunction LookupProcAddr(const NameProcEntry (&table)[N],
+PFN_vkVoidFunction LookupProcAddr(const NameProcEntry(&table)[N],
                                   const char* name) {
     auto entry = std::lower_bound(table, table + N, name,
                                   [](const NameProcEntry& e, const char* n) {

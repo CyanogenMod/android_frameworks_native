@@ -90,9 +90,7 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     std::ostringstream strbuf;
 
     VkPhysicalDeviceProperties props;
-    result = vkGetPhysicalDeviceProperties(pdev, &props);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceProperties", result);
+    vkGetPhysicalDeviceProperties(pdev, &props);
     printf("  %u: \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", idx,
            props.deviceName, VkPhysicalDeviceTypeStr(props.deviceType),
            (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
@@ -100,9 +98,7 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
            props.deviceId);
 
     VkPhysicalDeviceMemoryProperties mem_props;
-    result = vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceMemoryProperties", result);
+    vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
     for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
         if ((mem_props.memoryHeaps[heap].flags &
              VK_MEMORY_HEAP_HOST_LOCAL_BIT) != 0)
@@ -132,16 +128,12 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     }
 
     uint32_t num_queue_families;
-    result = vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
-                                                      nullptr);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceQueueFamilyProperties (count)", result);
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
+                                             nullptr);
     std::vector<VkQueueFamilyProperties> queue_family_properties(
         num_queue_families);
-    result = vkGetPhysicalDeviceQueueFamilyProperties(
-        pdev, &num_queue_families, queue_family_properties.data());
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceQueueFamilyProperties (values)", result);
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
+                                             queue_family_properties.data());
     for (uint32_t family = 0; family < num_queue_families; family++) {
         const VkQueueFamilyProperties& qprops = queue_family_properties[family];
         const char* sep = "";

@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 177
+define VERSION_MINOR 179
 define VERSION_PATCH 0
 
 // API limits
@@ -621,7 +621,8 @@ enum VkResult {
     VK_ERROR_MEMORY_MAP_FAILED                              = 0xFFFFFFFB,
     VK_ERROR_LAYER_NOT_PRESENT                              = 0xFFFFFFFA,
     VK_ERROR_EXTENSION_NOT_PRESENT                          = 0xFFFFFFF9,
-    VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF8,
+    VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
+    VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
 }
 
 enum VkDynamicState {
@@ -2157,18 +2158,16 @@ cmd PFN_vkVoidFunction vkGetInstanceProcAddr(
     return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceProperties(
+cmd void vkGetPhysicalDeviceProperties(
         VkPhysicalDevice                            physicalDevice,
         VkPhysicalDeviceProperties*                 pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     properties := ?
     pProperties[0] = properties
-
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceQueueFamilyProperties(
+cmd void vkGetPhysicalDeviceQueueFamilyProperties(
         VkPhysicalDevice                            physicalDevice,
         u32*                                        pCount,
         VkQueueFamilyProperties*                    pQueueFamilyProperties) {
@@ -2187,32 +2186,27 @@ cmd VkResult vkGetPhysicalDeviceQueueFamilyProperties(
     //     count := ?
     //     pCount[0] = count
     // }
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceMemoryProperties(
+cmd void vkGetPhysicalDeviceMemoryProperties(
         VkPhysicalDevice                            physicalDevice,
         VkPhysicalDeviceMemoryProperties*           pMemoryProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     memoryProperties := ?
     pMemoryProperties[0] = memoryProperties
-
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceFeatures(
+cmd void vkGetPhysicalDeviceFeatures(
         VkPhysicalDevice                            physicalDevice,
         VkPhysicalDeviceFeatures*                   pFeatures) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     features := ?
     pFeatures[0] = features
-
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceFormatProperties(
+cmd void vkGetPhysicalDeviceFormatProperties(
         VkPhysicalDevice                            physicalDevice,
         VkFormat                                    format,
         VkFormatProperties*                         pFormatProperties) {
@@ -2220,11 +2214,9 @@ cmd VkResult vkGetPhysicalDeviceFormatProperties(
 
     formatProperties := ?
     pFormatProperties[0] = formatProperties
-
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceImageFormatProperties(
+cmd void vkGetPhysicalDeviceImageFormatProperties(
         VkPhysicalDevice                            physicalDevice,
         VkFormat                                    format,
         VkImageType                                 type,
@@ -2236,8 +2228,6 @@ cmd VkResult vkGetPhysicalDeviceImageFormatProperties(
 
     imageFormatProperties := ?
     pImageFormatProperties[0] = imageFormatProperties
-
-    return ?
 }
 
 
@@ -2340,7 +2330,7 @@ cmd VkResult vkEnumerateDeviceExtensionProperties(
 // Queue functions
 
 @threadSafety("system")
-cmd VkResult vkGetDeviceQueue(
+cmd void vkGetDeviceQueue(
         VkDevice                                    device,
         u32                                         queueFamilyIndex,
         u32                                         queueIndex,
@@ -2353,8 +2343,6 @@ cmd VkResult vkGetDeviceQueue(
     if !(queue in State.Queues) {
         State.Queues[queue] = new!QueueObject(device: device)
     }
-
-    return ?
 }
 
 @threadSafety("app")
@@ -2499,7 +2487,7 @@ cmd VkResult vkInvalidateMappedMemoryRanges(
 
 // Memory management API functions
 
-cmd VkResult vkGetDeviceMemoryCommitment(
+cmd void vkGetDeviceMemoryCommitment(
         VkDevice                                    device,
         VkDeviceMemory                              memory,
         VkDeviceSize*                               pCommittedMemoryInBytes) {
@@ -2512,19 +2500,15 @@ cmd VkResult vkGetDeviceMemoryCommitment(
 
     committedMemoryInBytes := ?
     pCommittedMemoryInBytes[0] = committedMemoryInBytes
-
-    return ?
 }
 
-cmd VkResult vkGetBufferMemoryRequirements(
+cmd void vkGetBufferMemoryRequirements(
         VkDevice                                    device,
         VkBuffer                                    buffer,
         VkMemoryRequirements*                       pMemoryRequirements) {
     deviceObject := GetDevice(device)
     bufferObject := GetBuffer(buffer)
     assert(bufferObject.device == device)
-
-    return ?
 }
 
 cmd VkResult vkBindBufferMemory(
@@ -2554,15 +2538,13 @@ cmd VkResult vkBindBufferMemory(
     return ?
 }
 
-cmd VkResult vkGetImageMemoryRequirements(
+cmd void vkGetImageMemoryRequirements(
         VkDevice                                    device,
         VkImage                                     image,
         VkMemoryRequirements*                       pMemoryRequirements) {
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
-
-    return ?
 }
 
 cmd VkResult vkBindImageMemory(
@@ -2592,7 +2574,7 @@ cmd VkResult vkBindImageMemory(
     return ?
 }
 
-cmd VkResult vkGetImageSparseMemoryRequirements(
+cmd void vkGetImageSparseMemoryRequirements(
         VkDevice                                    device,
         VkImage                                     image,
         u32*                                        pNumRequirements,
@@ -2600,11 +2582,9 @@ cmd VkResult vkGetImageSparseMemoryRequirements(
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
-
-    return ?
 }
 
-cmd VkResult vkGetPhysicalDeviceSparseImageFormatProperties(
+cmd void vkGetPhysicalDeviceSparseImageFormatProperties(
         VkPhysicalDevice                            physicalDevice,
         VkFormat                                    format,
         VkImageType                                 type,
@@ -2614,8 +2594,6 @@ cmd VkResult vkGetPhysicalDeviceSparseImageFormatProperties(
         u32*                                        pNumProperties,
         VkSparseImageFormatProperties*              pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
-
-    return ?
 }
 
 cmd VkResult vkQueueBindSparseBufferMemory(
@@ -2985,7 +2963,7 @@ cmd void vkDestroyImage(
     State.Images[image] = null
 }
 
-cmd VkResult vkGetImageSubresourceLayout(
+cmd void vkGetImageSubresourceLayout(
         VkDevice                                    device,
         VkImage                                     image,
         const VkImageSubresource*                   pSubresource,
@@ -2993,8 +2971,6 @@ cmd VkResult vkGetImageSubresourceLayout(
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
-
-    return ?
 }
 
 
@@ -3122,6 +3098,7 @@ cmd platform.size_t vkGetPipelineCacheSize(
 cmd VkResult vkGetPipelineCacheData(
         VkDevice                                    device,
         VkPipelineCache                             pipelineCache,
+        platform.size_t                             dataSize,
         void*                                       pData) {
     deviceObject := GetDevice(device)
     pipelineCacheObject := GetPipelineCache(pipelineCache)
@@ -3458,7 +3435,7 @@ cmd void vkDestroyRenderPass(
     State.RenderPasses[renderPass] = null
 }
 
-cmd VkResult vkGetRenderAreaGranularity(
+cmd void vkGetRenderAreaGranularity(
         VkDevice                                    device,
         VkRenderPass                                renderPass,
         VkExtent2D*                                 pGranularity) {
@@ -3467,8 +3444,6 @@ cmd VkResult vkGetRenderAreaGranularity(
 
     granularity := ?
     pGranularity[0] = granularity
-
-    return ?
 }
 
 // Command pool functions
