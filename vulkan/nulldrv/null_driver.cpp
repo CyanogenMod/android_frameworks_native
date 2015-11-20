@@ -339,23 +339,41 @@ void GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
 // -----------------------------------------------------------------------------
 // CmdBuffer
 
-VkResult CreateCommandBuffer(VkDevice device,
-                             const VkCmdBufferCreateInfo*,
-                             VkCmdBuffer* out_cmdbuf) {
+VkResult AllocCommandBuffers(VkDevice device,
+                             const VkCmdBufferAllocInfo* alloc_info,
+                             VkCmdBuffer* cmdbufs) {
+    VkResult result = VK_SUCCESS;
     const VkAllocCallbacks* alloc = device->instance->alloc;
-    VkCmdBuffer_T* cmdbuf = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
-        alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
-        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
-    if (!cmdbuf)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    cmdbuf->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-    *out_cmdbuf = cmdbuf;
-    return VK_SUCCESS;
+
+    std::fill(cmdbufs, cmdbufs + alloc_info->count, nullptr);
+    for (uint32_t i = 0; i < alloc_info->count; i++) {
+        cmdbufs[i] = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
+            alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
+            VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+        if (!cmdbufs[i]) {
+            result = VK_ERROR_OUT_OF_HOST_MEMORY;
+            break;
+        }
+        cmdbufs[i]->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    }
+    if (result != VK_SUCCESS) {
+        for (uint32_t i = 0; i < alloc_info->count; i++) {
+            if (!cmdbufs[i])
+                break;
+            alloc->pfnFree(alloc->pUserData, cmdbufs[i]);
+        }
+    }
+
+    return result;
 }
 
-void DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
+void FreeCommandBuffers(VkDevice device,
+                        VkCmdPool,
+                        uint32_t count,
+                        const VkCmdBuffer* cmdbufs) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
-    alloc->pfnFree(alloc->pUserData, cmdbuf);
+    for (uint32_t i = 0; i < count; i++)
+        alloc->pfnFree(alloc->pUserData, cmdbufs[i]);
 }
 
 // -----------------------------------------------------------------------------
@@ -535,13 +553,10 @@ VkResult CreateDescriptorPool(VkDevice device,
 }
 
 VkResult AllocDescriptorSets(VkDevice device,
-                             VkDescriptorPool,
-                             VkDescriptorSetUsage,
-                             uint32_t count,
-                             const VkDescriptorSetLayout*,
-                             VkDescriptorSet* sets) {
-    for (uint32_t i = 0; i < count; i++)
-        sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+                             const VkDescriptorSetAllocInfo* alloc_info,
+                             VkDescriptorSet* descriptor_sets) {
+    for (uint32_t i = 0; i < alloc_info->count; i++)
+        descriptor_sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
     return VK_SUCCESS;
 }
 
@@ -874,7 +889,7 @@ void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descripto
 void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
 }
 
-VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }

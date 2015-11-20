@@ -1047,8 +1047,8 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
     if (strcmp(name, "vkGetDeviceQueue") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue);
     }
-    if (strcmp(name, "vkCreateCommandBuffer") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateCommandBuffer);
+    if (strcmp(name, "vkAllocCommandBuffers") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(AllocCommandBuffers);
     }
     if (strcmp(name, "vkDestroyDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
@@ -1072,24 +1072,21 @@ void GetDeviceQueue(VkDevice drv_device,
     *out_queue = queue;
 }
 
-VkResult CreateCommandBuffer(VkDevice drv_device,
-                             const VkCmdBufferCreateInfo* create_info,
-                             VkCmdBuffer* out_cmdbuf) {
-    const DeviceVtbl* vtbl = GetVtbl(drv_device);
-    VkCmdBuffer cmdbuf;
-    VkResult result =
-        vtbl->CreateCommandBuffer(drv_device, create_info, &cmdbuf);
+VkResult AllocCommandBuffers(VkDevice device,
+                             const VkCmdBufferAllocInfo* alloc_info,
+                             VkCmdBuffer* cmdbuffers) {
+    const DeviceVtbl* vtbl = GetVtbl(device);
+    VkResult result = vtbl->AllocCommandBuffers(device, alloc_info, cmdbuffers);
     if (result != VK_SUCCESS)
         return result;
-    hwvulkan_dispatch_t* dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuf);
-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
-        ALOGE("invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
-              dispatch->magic);
-        return VK_ERROR_INITIALIZATION_FAILED;
+    for (uint32_t i = 0; i < alloc_info->count; i++) {
+        hwvulkan_dispatch_t* dispatch =
+            reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuffers[i]);
+        ALOGE_IF(dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
+                 "invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
+                 dispatch->magic);
+        dispatch->vtbl = vtbl;
     }
-    dispatch->vtbl = vtbl;
-    *out_cmdbuf = cmdbuf;
     return VK_SUCCESS;
 }
 

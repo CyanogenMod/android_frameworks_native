@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 181, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 183, 0)
 
 
 #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
@@ -169,7 +169,7 @@ typedef enum {
     VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO = 6,
     VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO = 7,
     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO = 8,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO = 9,
+    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO = 9,
     VK_STRUCTURE_TYPE_EVENT_CREATE_INFO = 10,
     VK_STRUCTURE_TYPE_FENCE_CREATE_INFO = 11,
     VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO = 12,
@@ -207,9 +207,10 @@ typedef enum {
     VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO = 44,
     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO = 45,
     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO = 46,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO = 47,
     VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-    VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    VK_STRUCTURE_TYPE_NUM = (VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
+    VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO,
+    VK_STRUCTURE_TYPE_NUM = (VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
     VK_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } VkStructureType;
 
@@ -725,24 +726,6 @@ typedef enum {
 } VkDescriptorType;
 
 typedef enum {
-    VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT = 0,
-    VK_DESCRIPTOR_POOL_USAGE_DYNAMIC = 1,
-    VK_DESCRIPTOR_POOL_USAGE_BEGIN_RANGE = VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT,
-    VK_DESCRIPTOR_POOL_USAGE_END_RANGE = VK_DESCRIPTOR_POOL_USAGE_DYNAMIC,
-    VK_DESCRIPTOR_POOL_USAGE_NUM = (VK_DESCRIPTOR_POOL_USAGE_DYNAMIC - VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT + 1),
-    VK_DESCRIPTOR_POOL_USAGE_MAX_ENUM = 0x7FFFFFFF
-} VkDescriptorPoolUsage;
-
-typedef enum {
-    VK_DESCRIPTOR_SET_USAGE_ONE_SHOT = 0,
-    VK_DESCRIPTOR_SET_USAGE_STATIC = 1,
-    VK_DESCRIPTOR_SET_USAGE_BEGIN_RANGE = VK_DESCRIPTOR_SET_USAGE_ONE_SHOT,
-    VK_DESCRIPTOR_SET_USAGE_END_RANGE = VK_DESCRIPTOR_SET_USAGE_STATIC,
-    VK_DESCRIPTOR_SET_USAGE_NUM = (VK_DESCRIPTOR_SET_USAGE_STATIC - VK_DESCRIPTOR_SET_USAGE_ONE_SHOT + 1),
-    VK_DESCRIPTOR_SET_USAGE_MAX_ENUM = 0x7FFFFFFF
-} VkDescriptorSetUsage;
-
-typedef enum {
     VK_ATTACHMENT_LOAD_OP_LOAD = 0,
     VK_ATTACHMENT_LOAD_OP_CLEAR = 1,
     VK_ATTACHMENT_LOAD_OP_DONT_CARE = 2,
@@ -985,6 +968,12 @@ typedef VkFlags VkPipelineCreateFlags;
 typedef VkFlags VkShaderStageFlags;
 
 typedef enum {
+    VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT = 0x00000001,
+} VkDescriptorPoolCreateFlagBits;
+typedef VkFlags VkDescriptorPoolCreateFlags;
+typedef VkFlags VkDescriptorPoolResetFlags;
+
+typedef enum {
     VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT = 0x00000001,
 } VkAttachmentDescriptionFlagBits;
 typedef VkFlags VkAttachmentDescriptionFlags;
@@ -1043,7 +1032,6 @@ typedef enum {
     VK_CMD_POOL_RESET_RELEASE_RESOURCES_BIT = 0x00000001,
 } VkCmdPoolResetFlagBits;
 typedef VkFlags VkCmdPoolResetFlags;
-typedef VkFlags VkCmdBufferCreateFlags;
 
 typedef enum {
     VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 0x00000001,
@@ -1125,6 +1113,9 @@ typedef struct {
     VkBool32                                    depthBounds;
     VkBool32                                    wideLines;
     VkBool32                                    largePoints;
+    VkBool32                                    alphaToOne;
+    VkBool32                                    multiViewport;
+    VkBool32                                    samplerAnisotropy;
     VkBool32                                    textureCompressionETC2;
     VkBool32                                    textureCompressionASTC_LDR;
     VkBool32                                    textureCompressionBC;
@@ -1150,7 +1141,6 @@ typedef struct {
     VkBool32                                    shaderInt16;
     VkBool32                                    shaderResourceResidency;
     VkBool32                                    shaderResourceMinLOD;
-    VkBool32                                    alphaToOne;
     VkBool32                                    sparseBinding;
     VkBool32                                    sparseResidencyBuffer;
     VkBool32                                    sparseResidencyImage2D;
@@ -1190,14 +1180,13 @@ typedef struct {
     uint32_t                                    maxImageArrayLayers;
     VkSampleCountFlags                          sampleCounts;
     uint32_t                                    maxTexelBufferSize;
-    uint32_t                                    maxUniformBufferSize;
-    uint32_t                                    maxStorageBufferSize;
+    uint32_t                                    maxUniformBufferRange;
+    uint32_t                                    maxStorageBufferRange;
     uint32_t                                    maxPushConstantsSize;
     uint32_t                                    maxMemoryAllocationCount;
     VkDeviceSize                                bufferImageGranularity;
     VkDeviceSize                                sparseAddressSpaceSize;
     uint32_t                                    maxBoundDescriptorSets;
-    uint32_t                                    maxDescriptorSets;
     uint32_t                                    maxPerStageDescriptorSamplers;
     uint32_t                                    maxPerStageDescriptorUniformBuffers;
     uint32_t                                    maxPerStageDescriptorStorageBuffers;
@@ -1229,8 +1218,8 @@ typedef struct {
     uint32_t                                    maxGeometryOutputVertices;
     uint32_t                                    maxGeometryTotalOutputComponents;
     uint32_t                                    maxFragmentInputComponents;
-    uint32_t                                    maxFragmentOutputBuffers;
-    uint32_t                                    maxFragmentDualSourceBuffers;
+    uint32_t                                    maxFragmentOutputAttachments;
+    uint32_t                                    maxFragmentDualSourceAttachments;
     uint32_t                                    maxFragmentCombinedOutputResources;
     uint32_t                                    maxComputeSharedMemorySize;
     uint32_t                                    maxComputeWorkGroupCount[3];
@@ -1252,9 +1241,9 @@ typedef struct {
     uint32_t                                    minTexelBufferOffsetAlignment;
     uint32_t                                    minUniformBufferOffsetAlignment;
     uint32_t                                    minStorageBufferOffsetAlignment;
-    uint32_t                                    minTexelOffset;
+    int32_t                                     minTexelOffset;
     uint32_t                                    maxTexelOffset;
-    uint32_t                                    minTexelGatherOffset;
+    int32_t                                     minTexelGatherOffset;
     uint32_t                                    maxTexelGatherOffset;
     float                                       minInterpolationOffset;
     float                                       maxInterpolationOffset;
@@ -1275,6 +1264,7 @@ typedef struct {
     uint32_t                                    maxClipDistances;
     uint32_t                                    maxCullDistances;
     uint32_t                                    maxCombinedClipAndCullDistances;
+    uint32_t                                    discreteQueuePriorities;
     float                                       pointSizeRange[2];
     float                                       lineWidthRange[2];
     float                                       pointSizeGranularity;
@@ -1330,6 +1320,7 @@ typedef struct {
     const void*                                 pNext;
     uint32_t                                    queueFamilyIndex;
     uint32_t                                    queueCount;
+    const float*                                pQueuePriorities;
 } VkDeviceQueueCreateInfo;
 
 typedef struct {
@@ -1806,11 +1797,19 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkDescriptorPoolUsage                       poolUsage;
+    VkDescriptorPoolCreateFlags                 flags;
     uint32_t                                    maxSets;
     uint32_t                                    count;
     const VkDescriptorTypeCount*                pTypeCount;
 } VkDescriptorPoolCreateInfo;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                 pNext;
+    VkDescriptorPool                            descriptorPool;
+    uint32_t                                    count;
+    const VkDescriptorSetLayout*                pSetLayouts;
+} VkDescriptorSetAllocInfo;
 
 typedef struct {
     VkSampler                                   sampler;
@@ -1824,12 +1823,6 @@ typedef struct {
     VkDeviceSize                                range;
 } VkDescriptorBufferInfo;
 
-typedef union {
-    VkDescriptorImageInfo                       imageInfo;
-    VkDescriptorBufferInfo                      bufferInfo;
-    VkBufferView                                texelBufferView;
-} VkDescriptorInfo;
-
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
@@ -1838,7 +1831,9 @@ typedef struct {
     uint32_t                                    destArrayElement;
     uint32_t                                    count;
     VkDescriptorType                            descriptorType;
-    const VkDescriptorInfo*                     pDescriptors;
+    const VkDescriptorImageInfo*                pImageInfo;
+    const VkDescriptorBufferInfo*               pBufferInfo;
+    const VkBufferView*                         pTexelBufferView;
 } VkWriteDescriptorSet;
 
 typedef struct {
@@ -1933,8 +1928,8 @@ typedef struct {
     const void*                                 pNext;
     VkCmdPool                                   cmdPool;
     VkCmdBufferLevel                            level;
-    VkCmdBufferCreateFlags                      flags;
-} VkCmdBufferCreateInfo;
+    uint32_t                                    count;
+} VkCmdBufferAllocInfo;
 
 typedef struct {
     VkStructureType                             sType;
@@ -2167,8 +2162,8 @@ typedef VkResult (VKAPI *PFN_vkCreateDescriptorSetLayout)(VkDevice device, const
 typedef void (VKAPI *PFN_vkDestroyDescriptorSetLayout)(VkDevice device, VkDescriptorSetLayout descriptorSetLayout);
 typedef VkResult (VKAPI *PFN_vkCreateDescriptorPool)(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool);
 typedef void (VKAPI *PFN_vkDestroyDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool);
-typedef VkResult (VKAPI *PFN_vkResetDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool);
-typedef VkResult (VKAPI *PFN_vkAllocDescriptorSets)(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets);
+typedef VkResult (VKAPI *PFN_vkResetDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags);
+typedef VkResult (VKAPI *PFN_vkAllocDescriptorSets)(VkDevice device, const VkDescriptorSetAllocInfo* pAllocInfo, VkDescriptorSet* pDescriptorSets);
 typedef VkResult (VKAPI *PFN_vkFreeDescriptorSets)(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets);
 typedef void (VKAPI *PFN_vkUpdateDescriptorSets)(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies);
 typedef VkResult (VKAPI *PFN_vkCreateFramebuffer)(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer);
@@ -2179,8 +2174,8 @@ typedef void (VKAPI *PFN_vkGetRenderAreaGranularity)(VkDevice device, VkRenderPa
 typedef VkResult (VKAPI *PFN_vkCreateCommandPool)(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool);
 typedef void (VKAPI *PFN_vkDestroyCommandPool)(VkDevice device, VkCmdPool cmdPool);
 typedef VkResult (VKAPI *PFN_vkResetCommandPool)(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags);
-typedef VkResult (VKAPI *PFN_vkCreateCommandBuffer)(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer);
-typedef void (VKAPI *PFN_vkDestroyCommandBuffer)(VkDevice device, VkCmdBuffer commandBuffer);
+typedef VkResult (VKAPI *PFN_vkAllocCommandBuffers)(VkDevice device, const VkCmdBufferAllocInfo* pAllocInfo, VkCmdBuffer* pCmdBuffers);
+typedef void (VKAPI *PFN_vkFreeCommandBuffers)(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers);
 typedef VkResult (VKAPI *PFN_vkBeginCommandBuffer)(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo);
 typedef VkResult (VKAPI *PFN_vkEndCommandBuffer)(VkCmdBuffer cmdBuffer);
 typedef VkResult (VKAPI *PFN_vkResetCommandBuffer)(VkCmdBuffer cmdBuffer, VkCmdBufferResetFlags flags);
@@ -2641,14 +2636,12 @@ void VKAPI vkDestroyDescriptorPool(
 
 VkResult VKAPI vkResetDescriptorPool(
     VkDevice                                    device,
-    VkDescriptorPool                            descriptorPool);
+    VkDescriptorPool                            descriptorPool,
+    VkDescriptorPoolResetFlags                  flags);
 
 VkResult VKAPI vkAllocDescriptorSets(
     VkDevice                                    device,
-    VkDescriptorPool                            descriptorPool,
-    VkDescriptorSetUsage                        setUsage,
-    uint32_t                                    count,
-    const VkDescriptorSetLayout*                pSetLayouts,
+    const VkDescriptorSetAllocInfo*             pAllocInfo,
     VkDescriptorSet*                            pDescriptorSets);
 
 VkResult VKAPI vkFreeDescriptorSets(
@@ -2701,14 +2694,16 @@ VkResult VKAPI vkResetCommandPool(
     VkCmdPool                                   cmdPool,
     VkCmdPoolResetFlags                         flags);
 
-VkResult VKAPI vkCreateCommandBuffer(
+VkResult VKAPI vkAllocCommandBuffers(
     VkDevice                                    device,
-    const VkCmdBufferCreateInfo*                pCreateInfo,
-    VkCmdBuffer*                                pCmdBuffer);
+    const VkCmdBufferAllocInfo*                 pAllocInfo,
+    VkCmdBuffer*                                pCmdBuffers);
 
-void VKAPI vkDestroyCommandBuffer(
+void VKAPI vkFreeCommandBuffers(
     VkDevice                                    device,
-    VkCmdBuffer                                 commandBuffer);
+    VkCmdPool                                   cmdPool,
+    uint32_t                                    count,
+    const VkCmdBuffer*                          pCommandBuffers);
 
 VkResult VKAPI vkBeginCommandBuffer(
     VkCmdBuffer                                 cmdBuffer,

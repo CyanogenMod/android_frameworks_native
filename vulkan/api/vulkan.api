@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 181
+define VERSION_MINOR 183
 define VERSION_PATCH 0
 
 // API limits
@@ -161,16 +161,6 @@ enum VkDescriptorType {
     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC               = 0x00000008,
     VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC               = 0x00000009,
     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT                     = 0x0000000a,
-}
-
-enum VkDescriptorPoolUsage {
-    VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT                       = 0x00000000,
-    VK_DESCRIPTOR_POOL_USAGE_DYNAMIC                        = 0x00000001,
-}
-
-enum VkDescriptorSetUsage {
-    VK_DESCRIPTOR_SET_USAGE_ONE_SHOT                        = 0x00000000,
-    VK_DESCRIPTOR_SET_USAGE_STATIC                          = 0x00000001,
 }
 
 enum VkQueryType {
@@ -539,7 +529,7 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 6,
     VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 7,
     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 8,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO                    = 9,
+    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO                     = 9,
     VK_STRUCTURE_TYPE_EVENT_CREATE_INFO                         = 10,
     VK_STRUCTURE_TYPE_FENCE_CREATE_INFO                         = 11,
     VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO                     = 12,
@@ -577,6 +567,7 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 44,
     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 45,
     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 46,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 47,
 }
 
 enum VkRenderPassContents {
@@ -741,6 +732,15 @@ bitfield VkShaderStageFlags {
     VK_SHADER_STAGE_ALL                                     = 0x7FFFFFFF,
 }
 
+/// Descriptor pool create flags
+bitfield VkDescriptorPoolCreateFlags {
+    VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT       = 0x00000001,
+}
+
+/// Descriptor pool reset flags
+bitfield VkDescriptorPoolResetFlags {
+}
+
 /// Image usage flags
 bitfield VkImageUsageFlags {
     VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT                      = 0x00000001,    /// Can be used as a source of transfer operations
@@ -832,10 +832,6 @@ bitfield VkShaderCreateFlags {
 
 /// Event creation flags
 bitfield VkEventCreateFlags {
-}
-
-/// Command buffer creation flags
-bitfield VkCmdBufferCreateFlags {
 }
 
 /// Command buffer usage flags
@@ -1069,6 +1065,7 @@ class VkDeviceQueueCreateInfo {
     const void*                                 pNext                     /// Pointer to next structure
     u32                                         queueFamilyIndex
     u32                                         queueCount
+    const f32*                                  pQueuePriorities
 }
 
 class VkDeviceCreateInfo {
@@ -1178,13 +1175,6 @@ class VkDescriptorBufferInfo {
     VkDeviceSize                                range                      /// Size in bytes of the buffer resource for this descriptor update.
 }
 
-@union
-class VkDescriptorInfo {
-    VkDescriptorImageInfo                       imageInfo
-    VkDescriptorBufferInfo                      bufferInfo                 /// Raw buffer, size and offset for UNIFORM_BUFFER[_DYNAMIC] or STORAGE_BUFFER[_DYNAMIC] descriptor types. Ignored otherwise.
-    VkBufferView                                texelBufferView
-}
-
 class VkWriteDescriptorSet {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     const void*                                 pNext                      /// Pointer to next structure
@@ -1193,7 +1183,9 @@ class VkWriteDescriptorSet {
     u32                                         destArrayElement           /// Array element within the destination binding to write
     u32                                         count                      /// Number of descriptors to write (determines the size of the array pointed by <pDescriptors>)
     VkDescriptorType                            descriptorType             /// Descriptor type to write (determines which fields of the array pointed by <pDescriptors> are going to be used)
-    const VkDescriptorInfo*                     pDescriptors               /// Array of info structures describing the descriptors to write
+    const VkDescriptorImageInfo*                pImageInfo
+    const VkDescriptorBufferInfo*               pBufferInfo
+    const VkBufferView*                         pTexelBufferView
 }
 
 class VkCopyDescriptorSet {
@@ -1413,10 +1405,18 @@ class VkDescriptorTypeCount {
 class VkDescriptorPoolCreateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
     const void*                                 pNext              /// Pointer to next structure
-    VkDescriptorPoolUsage                       poolUsage
+    VkDescriptorPoolCreateFlags                 flags
     u32                                         maxSets
     u32                                         count
     const VkDescriptorTypeCount*                pTypeCount
+}
+
+class VkDescriptorSetAllocInfo {
+    VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO
+    const void*                                 pNext              /// Pointer to next structure
+    VkDescriptorPool                            descriptorPool
+    u32                                         count
+    const VkDescriptorSetLayout*                pSetLayouts
 }
 
 class VkSpecializationMapEntry {
@@ -1643,12 +1643,12 @@ class VkCmdPoolCreateInfo {
     VkCmdPoolCreateFlags                        flags            /// Command pool creation flags
 }
 
-class VkCmdBufferCreateInfo {
-    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO
+class VkCmdBufferAllocInfo {
+    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO
     const void*                                 pNext      /// Pointer to next structure
     VkCmdPool                                   cmdPool
     VkCmdBufferLevel                            level
-    VkCmdBufferCreateFlags                      flags      /// Command buffer creation flags
+    u32                                         count
 }
 
 class VkCmdBufferBeginInfo {
@@ -1782,6 +1782,9 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    depthBounds                               /// depth bounds test
     VkBool32                                    wideLines                                 /// lines with width greater than 1
     VkBool32                                    largePoints                               /// points with size greater than 1
+    VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
+    VkBool32                                    multiViewport
+    VkBool32                                    samplerAnisotropy
     VkBool32                                    textureCompressionETC2                    /// ETC texture compression formats
     VkBool32                                    textureCompressionASTC_LDR                /// ASTC LDR texture compression formats
     VkBool32                                    textureCompressionBC                      /// BC1-7 texture compressed formats
@@ -1807,7 +1810,6 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    shaderInt16                               /// 16-bit integers in shaders
     VkBool32                                    shaderResourceResidency                   /// shader can use texture operations that return resource residency information (requires sparseNonResident support)
     VkBool32                                    shaderResourceMinLOD                      /// shader can use texture operations that specify minimum resource LOD
-    VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
     VkBool32                                    sparseBinding                             /// Sparse resources support: Resource memory can be managed at opaque page level rather than object level
     VkBool32                                    sparseResidencyBuffer                     /// Sparse resources support: GPU can access partially resident buffers
     VkBool32                                    sparseResidencyImage2D                    /// Sparse resources support: GPU can access partially resident 2D (non-MSAA non-DepthStencil) images
@@ -1828,8 +1830,8 @@ class VkPhysicalDeviceLimits {
     u32                                         maxImageArrayLayers                       /// max layers for image arrays
     VkSampleCountFlags                          sampleCounts                              /// sample counts supported for all images supporting rendering and sampling
     u32                                         maxTexelBufferSize                        /// max texel buffer size (bytes)
-    u32                                         maxUniformBufferSize                      /// max uniform buffer size (bytes)
-    u32                                         maxStorageBufferSize                      /// max storage buffer size (bytes)
+    u32                                         maxUniformBufferRange                     /// max uniform buffer size (bytes)
+    u32                                         maxStorageBufferRange                     /// max storage buffer size (bytes)
     u32                                         maxPushConstantsSize                      /// max size of the push constants pool (bytes)
     /// memory limits
     u32                                         maxMemoryAllocationCount                  /// max number of device memory allocations supported
@@ -1837,7 +1839,6 @@ class VkPhysicalDeviceLimits {
     VkDeviceSize                                sparseAddressSpaceSize                    /// Total address space available for sparse allocations (bytes)
     /// descriptor set limits
     u32                                         maxBoundDescriptorSets                    /// max number of descriptors sets that can be bound to a pipeline
-    u32                                         maxDescriptorSets                         /// max number of allocated descriptor sets
     u32                                         maxPerStageDescriptorSamplers             /// max num of samplers allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorUniformBuffers       /// max num of uniform buffers allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorStorageBuffers       /// max num of storage buffers allowed per-stage in a descriptor set
@@ -1873,8 +1874,8 @@ class VkPhysicalDeviceLimits {
     u32                                         maxGeometryTotalOutputComponents          /// max total num of components (all vertices) written in geometry stage
     /// fragment stage limits
     u32                                         maxFragmentInputComponents                /// max num of input compontents read in fragment stage
-    u32                                         maxFragmentOutputBuffers                  /// max num of output buffers written in fragment stage
-    u32                                         maxFragmentDualSourceBuffers              /// max num of output buffers written when using dual source blending
+    u32                                         maxFragmentOutputAttachments              /// max num of output attachments written in fragment stage
+    u32                                         maxFragmentDualSourceAttachments          /// max num of output attachments written when using dual source blending
     u32                                         maxFragmentCombinedOutputResources        /// max total num of storage buffers, storage images and output buffers
     /// compute stage limits
     u32                                         maxComputeSharedMemorySize                /// max total storage size of work group local storage (bytes)
@@ -1903,9 +1904,9 @@ class VkPhysicalDeviceLimits {
     u32                                         minUniformBufferOffsetAlignment           /// min required alignment for uniform buffer sizes and offsets (bytes)
     u32                                         minStorageBufferOffsetAlignment           /// min required alignment for storage buffer offsets (bytes)
 
-    u32                                         minTexelOffset                            /// min texel offset for OpTextureSampleOffset
+    s32                                         minTexelOffset                            /// min texel offset for OpTextureSampleOffset
     u32                                         maxTexelOffset                            /// max texel offset for OpTextureSampleOffset
-    u32                                         minTexelGatherOffset                      /// min texel offset for OpTextureGatherOffset
+    s32                                         minTexelGatherOffset                      /// min texel offset for OpTextureGatherOffset
     u32                                         maxTexelGatherOffset                      /// max texel offset for OpTextureGatherOffset
     f32                                         minInterpolationOffset                    /// furthest negative offset for interpolateAtOffset
     f32                                         maxInterpolationOffset                    /// furthest positive offset for interpolateAtOffset
@@ -1930,6 +1931,8 @@ class VkPhysicalDeviceLimits {
     u32                                         maxClipDistances                          /// max number of clip distances
     u32                                         maxCullDistances                          /// max number of cull distances
     u32                                         maxCombinedClipAndCullDistances           /// max combined number of user clipping
+
+    u32                                         discreteQueuePriorities
 
     f32[2]                                      pointSizeRange                            /// range (min,max) of supported point sizes
     f32[2]                                      lineWidthRange                            /// range (min,max) of supported line widths
@@ -3294,7 +3297,8 @@ cmd void vkDestroyDescriptorPool(
 @threadSafety("app")
 cmd VkResult vkResetDescriptorPool(
         VkDevice                                    device,
-        VkDescriptorPool                            descriptorPool) {
+        VkDescriptorPool                            descriptorPool,
+        VkDescriptorPoolResetFlags                  flags) {
     deviceObject := GetDevice(device)
     descriptorPoolObject := GetDescriptorPool(descriptorPool)
     assert(descriptorPoolObject.device == device)
@@ -3305,23 +3309,21 @@ cmd VkResult vkResetDescriptorPool(
 @threadSafety("app")
 cmd VkResult vkAllocDescriptorSets(
         VkDevice                                    device,
-        VkDescriptorPool                            descriptorPool,
-        VkDescriptorSetUsage                        setUsage,
-        u32                                         count,
-        const VkDescriptorSetLayout*                pSetLayouts,
+        const VkDescriptorSetAllocInfo*             pAllocInfo,
         VkDescriptorSet*                            pDescriptorSets) {
     deviceObject := GetDevice(device)
-    descriptorPoolObject := GetDescriptorPool(descriptorPool)
+    allocInfo := pAllocInfo[0]
+    descriptorPoolObject := GetDescriptorPool(allocInfo.descriptorPool)
 
-    setLayouts := pSetLayouts[0:count]
-    for i in (0 .. count) {
+    setLayouts := allocInfo.pSetLayouts[0:allocInfo.count]
+    for i in (0 .. allocInfo.count) {
         setLayout := setLayouts[i]
         setLayoutObject := GetDescriptorSetLayout(setLayout)
         assert(setLayoutObject.device == device)
     }
 
-    descriptorSets := pDescriptorSets[0:count]
-    for i in (0 .. count) {
+    descriptorSets := pDescriptorSets[0:allocInfo.count]
+    for i in (0 .. allocInfo.count) {
         descriptorSet := ?
         descriptorSets[i] = descriptorSet
         State.DescriptorSets[descriptorSet] = new!DescriptorSetObject(device: device)
@@ -3497,29 +3499,38 @@ macro void unbindCmdBuffer(VkCmdBuffer cmdBuffer, any obj, VkDeviceMemory mem) {
 }
 
 @threadSafety("system")
-cmd VkResult vkCreateCommandBuffer(
+cmd VkResult vkAllocCommandBuffers(
         VkDevice                                    device,
-        const VkCmdBufferCreateInfo*                pCreateInfo,
-        VkCmdBuffer*                                pCmdBuffer) {
-    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO)
+        const VkCmdBufferAllocInfo*                 pAllocInfo,
+        VkCmdBuffer*                                pCmdBuffers) {
+    assert(pAllocInfo[0].sType == VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO)
 
-    cmdBuffer := ?
-    pCmdBuffer[0] = cmdBuffer
-    State.CmdBuffers[cmdBuffer] = new!CmdBufferObject(device: device)
+    count := pAllocInfo[0].count
+    cmdBuffers := pCmdBuffers[0:count]
+    for i in (0 .. count) {
+        cmdBuffer := ?
+        cmdBuffers[i] = cmdBuffer
+        State.CmdBuffers[cmdBuffer] = new!CmdBufferObject(device: device)
+    }
 
     return ?
 }
 
 @threadSafety("system")
-cmd void vkDestroyCommandBuffer(
+cmd void vkFreeCommandBuffers(
         VkDevice                                    device,
-        VkCmdBuffer                                 commandBuffer) {
+        VkCmdPool                                   cmdPool,
+        u32                                         count,
+        const VkCmdBuffer*                          pCommandBuffers) {
     deviceObject := GetDevice(device)
-    cmdBufferObject := GetCmdBuffer(commandBuffer)
-    assert(cmdBufferObject.device == device)
 
-    // TODO: iterate over boundObjects and clear memory bindings
-    State.CmdBuffers[commandBuffer] = null
+    cmdBuffers := pCommandBuffers[0:count]
+    for i in (0 .. count) {
+        cmdBufferObject := GetCmdBuffer(cmdBuffers[i])
+        assert(cmdBufferObject.device == device)
+        // TODO: iterate over boundObjects and clear memory bindings
+        State.CmdBuffers[cmdBuffers[i]] = null
+    }
 }
 
 @threadSafety("app")

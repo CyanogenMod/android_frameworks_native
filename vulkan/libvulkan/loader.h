@@ -131,8 +131,8 @@ struct DeviceVtbl {
     PFN_vkCreateCommandPool CreateCommandPool;
     PFN_vkDestroyCommandPool DestroyCommandPool;
     PFN_vkResetCommandPool ResetCommandPool;
-    PFN_vkCreateCommandBuffer CreateCommandBuffer;
-    PFN_vkDestroyCommandBuffer DestroyCommandBuffer;
+    PFN_vkAllocCommandBuffers AllocCommandBuffers;
+    PFN_vkFreeCommandBuffers FreeCommandBuffers;
 
     PFN_vkQueueSubmit QueueSubmit;
     PFN_vkQueueWaitIdle QueueWaitIdle;
@@ -225,9 +225,9 @@ void GetDeviceQueue(VkDevice drv_device,
                     uint32_t family,
                     uint32_t index,
                     VkQueue* out_queue);
-VkResult CreateCommandBuffer(VkDevice device,
-                             const VkCmdBufferCreateInfo* create_info,
-                             VkCmdBuffer* out_cmdbuf);
+VkResult AllocCommandBuffers(VkDevice device,
+                             const VkCmdBufferAllocInfo* alloc_info,
+                             VkCmdBuffer* cmdbuffers);
 VkResult DestroyDevice(VkDevice drv_device);
 
 void* AllocDeviceMem(VkDevice device,

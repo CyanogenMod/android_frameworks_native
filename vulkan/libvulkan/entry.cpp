@@ -457,13 +457,13 @@ void vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    return GetVtbl(device).ResetDescriptorPool(device, descriptorPool);
+VkResult vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags) {
+    return GetVtbl(device).ResetDescriptorPool(device, descriptorPool, flags);
 }
 
 __attribute__((visibility("default")))
-VkResult vkAllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets) {
-    return GetVtbl(device).AllocDescriptorSets(device, descriptorPool, setUsage, count, pSetLayouts, pDescriptorSets);
+VkResult vkAllocDescriptorSets(VkDevice device, const VkDescriptorSetAllocInfo* pAllocInfo, VkDescriptorSet* pDescriptorSets) {
+    return GetVtbl(device).AllocDescriptorSets(device, pAllocInfo, pDescriptorSets);
 }
 
 __attribute__((visibility("default")))
@@ -517,13 +517,13 @@ VkResult vkResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFl
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer) {
-    return vulkan::CreateCommandBuffer(device, pCreateInfo, pCmdBuffer);
+VkResult vkAllocCommandBuffers(VkDevice device, const VkCmdBufferAllocInfo* pAllocInfo, VkCmdBuffer* pCmdBuffers) {
+    return GetVtbl(device).AllocCommandBuffers(device, pAllocInfo, pCmdBuffers);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
-    GetVtbl(device).DestroyCommandBuffer(device, commandBuffer);
+void vkFreeCommandBuffers(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers) {
+    GetVtbl(device).FreeCommandBuffers(device, cmdPool, count, pCommandBuffers);
 }
 
 __attribute__((visibility("default")))

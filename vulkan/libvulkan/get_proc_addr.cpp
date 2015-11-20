@@ -69,6 +69,7 @@ const NameProcEntry kInstanceProcTbl[] = {
 const NameProcEntry kDeviceProcTbl[] = {
     // clang-format off
     {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR)},
+    {"vkAllocCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkAllocCommandBuffers)},
     {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkAllocDescriptorSets)},
     {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(vkAllocMemory)},
     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer)},
@@ -120,7 +121,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCmdWriteTimestamp", reinterpret_cast<PFN_vkVoidFunction>(vkCmdWriteTimestamp)},
     {"vkCreateBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBuffer)},
     {"vkCreateBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBufferView)},
-    {"vkCreateCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateCommandBuffer)},
     {"vkCreateCommandPool", reinterpret_cast<PFN_vkVoidFunction>(vkCreateCommandPool)},
     {"vkCreateComputePipelines", reinterpret_cast<PFN_vkVoidFunction>(vkCreateComputePipelines)},
     {"vkCreateDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDescriptorPool)},
@@ -142,7 +142,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR)},
     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBuffer)},
     {"vkDestroyBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBufferView)},
-    {"vkDestroyCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandBuffer)},
     {"vkDestroyCommandPool", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandPool)},
     {"vkDestroyDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorPool)},
     {"vkDestroyDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorSetLayout)},
@@ -165,6 +164,7 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkDeviceWaitIdle)},
     {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkEndCommandBuffer)},
     {"vkFlushMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(vkFlushMappedMemoryRanges)},
+    {"vkFreeCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkFreeCommandBuffers)},
     {"vkFreeDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkFreeDescriptorSets)},
     {"vkFreeMemory", reinterpret_cast<PFN_vkVoidFunction>(vkFreeMemory)},
     {"vkGetBufferMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(vkGetBufferMemoryRequirements)},
@@ -229,6 +229,7 @@ const NameOffsetEntry kInstanceOffsetTbl[] = {
 const NameOffsetEntry kDeviceOffsetTbl[] = {
     // clang-format off
     {"vkAcquireNextImageKHR", offsetof(DeviceVtbl, AcquireNextImageKHR)},
+    {"vkAllocCommandBuffers", offsetof(DeviceVtbl, AllocCommandBuffers)},
     {"vkAllocDescriptorSets", offsetof(DeviceVtbl, AllocDescriptorSets)},
     {"vkAllocMemory", offsetof(DeviceVtbl, AllocMemory)},
     {"vkBeginCommandBuffer", offsetof(DeviceVtbl, BeginCommandBuffer)},
@@ -280,7 +281,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCmdWriteTimestamp", offsetof(DeviceVtbl, CmdWriteTimestamp)},
     {"vkCreateBuffer", offsetof(DeviceVtbl, CreateBuffer)},
     {"vkCreateBufferView", offsetof(DeviceVtbl, CreateBufferView)},
-    {"vkCreateCommandBuffer", offsetof(DeviceVtbl, CreateCommandBuffer)},
     {"vkCreateCommandPool", offsetof(DeviceVtbl, CreateCommandPool)},
     {"vkCreateComputePipelines", offsetof(DeviceVtbl, CreateComputePipelines)},
     {"vkCreateDescriptorPool", offsetof(DeviceVtbl, CreateDescriptorPool)},
@@ -302,7 +302,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCreateSwapchainKHR", offsetof(DeviceVtbl, CreateSwapchainKHR)},
     {"vkDestroyBuffer", offsetof(DeviceVtbl, DestroyBuffer)},
     {"vkDestroyBufferView", offsetof(DeviceVtbl, DestroyBufferView)},
-    {"vkDestroyCommandBuffer", offsetof(DeviceVtbl, DestroyCommandBuffer)},
     {"vkDestroyCommandPool", offsetof(DeviceVtbl, DestroyCommandPool)},
     {"vkDestroyDescriptorPool", offsetof(DeviceVtbl, DestroyDescriptorPool)},
     {"vkDestroyDescriptorSetLayout", offsetof(DeviceVtbl, DestroyDescriptorSetLayout)},
@@ -325,6 +324,7 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkDeviceWaitIdle", offsetof(DeviceVtbl, DeviceWaitIdle)},
     {"vkEndCommandBuffer", offsetof(DeviceVtbl, EndCommandBuffer)},
     {"vkFlushMappedMemoryRanges", offsetof(DeviceVtbl, FlushMappedMemoryRanges)},
+    {"vkFreeCommandBuffers", offsetof(DeviceVtbl, FreeCommandBuffers)},
     {"vkFreeDescriptorSets", offsetof(DeviceVtbl, FreeDescriptorSets)},
     {"vkFreeMemory", offsetof(DeviceVtbl, FreeMemory)},
     {"vkGetBufferMemoryRequirements", offsetof(DeviceVtbl, GetBufferMemoryRequirements)},
@@ -896,14 +896,14 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkResetCommandPool");
         success = false;
     }
-    vtbl.CreateCommandBuffer = reinterpret_cast<PFN_vkCreateCommandBuffer>(get_proc_addr(device, "vkCreateCommandBuffer"));
-    if (UNLIKELY(!vtbl.CreateCommandBuffer)) {
-        ALOGE("missing device proc: %s", "vkCreateCommandBuffer");
+    vtbl.AllocCommandBuffers = reinterpret_cast<PFN_vkAllocCommandBuffers>(get_proc_addr(device, "vkAllocCommandBuffers"));
+    if (UNLIKELY(!vtbl.AllocCommandBuffers)) {
+        ALOGE("missing device proc: %s", "vkAllocCommandBuffers");
         success = false;
     }
-    vtbl.DestroyCommandBuffer = reinterpret_cast<PFN_vkDestroyCommandBuffer>(get_proc_addr(device, "vkDestroyCommandBuffer"));
-    if (UNLIKELY(!vtbl.DestroyCommandBuffer)) {
-        ALOGE("missing device proc: %s", "vkDestroyCommandBuffer");
+    vtbl.FreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(get_proc_addr(device, "vkFreeCommandBuffers"));
+    if (UNLIKELY(!vtbl.FreeCommandBuffers)) {
+        ALOGE("missing device proc: %s", "vkFreeCommandBuffers");
         success = false;
     }
     vtbl.BeginCommandBuffer = reinterpret_cast<PFN_vkBeginCommandBuffer>(get_proc_addr(device, "vkBeginCommandBuffer"));
