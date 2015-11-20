@@ -336,39 +336,6 @@ status_t unflatten_binder(const sp<ProcessState>& proc,
     return BAD_TYPE;
 }
 
-namespace {
-
-template<typename T>
-status_t readTypedVector(std::vector<T>* val, const Parcel* p,
-                         status_t(Parcel::*read_func)(T*) const) {
-    val->clear();
-
-    int32_t size;
-    status_t status = p->readInt32(&size);
-
-    if (status != OK) {
-        return status;
-    }
-
-    if (size < 0) {
-        return UNEXPECTED_NULL;
-    }
-
-    val->resize(size);
-
-    for (auto& v: *val) {
-        status = (p->*read_func)(&v);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
-}
-
-}  // namespace
-
 // ---------------------------------------------------------------------------
 
 Parcel::Parcel()
@@ -776,46 +743,6 @@ restart_write:
     return NULL;
 }
 
-namespace {
-
-template<typename T, typename U>
-status_t unsafeWriteTypedVector(const std::vector<T>& val, Parcel* p,
-                                status_t(Parcel::*write_func)(U)) {
-    if (val.size() > std::numeric_limits<int32_t>::max()) {
-        return BAD_VALUE;
-    }
-
-    status_t status = p->writeInt32(val.size());
-
-    if (status != OK) {
-        return status;
-    }
-
-    for (const auto& item : val) {
-        status = (p->*write_func)(item);
-
-        if (status != OK) {
-            return status;
-        }
-    }
-
-    return OK;
-}
-
-template<typename T>
-status_t writeTypedVector(const std::vector<T>& val, Parcel* p,
-                          status_t(Parcel::*write_func)(const T&)) {
-    return unsafeWriteTypedVector(val, p, write_func);
-}
-
-template<typename T>
-status_t writeTypedVector(const std::vector<T>& val, Parcel* p,
-                          status_t(Parcel::*write_func)(T)) {
-    return unsafeWriteTypedVector(val, p, write_func);
-}
-
-}  // namespace
-
 status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 {
     status_t status;
@@ -841,37 +768,37 @@ status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 
 status_t Parcel::writeInt32Vector(const std::vector<int32_t>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeInt32);
+    return writeTypedVector(val, &Parcel::writeInt32);
 }
 
 status_t Parcel::writeInt64Vector(const std::vector<int64_t>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeInt64);
+    return writeTypedVector(val, &Parcel::writeInt64);
 }
 
 status_t Parcel::writeFloatVector(const std::vector<float>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeFloat);
+    return writeTypedVector(val, &Parcel::writeFloat);
 }
 
 status_t Parcel::writeDoubleVector(const std::vector<double>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeDouble);
+    return writeTypedVector(val, &Parcel::writeDouble);
 }
 
 status_t Parcel::writeBoolVector(const std::vector<bool>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeBool);
+    return writeTypedVector(val, &Parcel::writeBool);
 }
 
 status_t Parcel::writeCharVector(const std::vector<char16_t>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeChar);
+    return writeTypedVector(val, &Parcel::writeChar);
 }
 
 status_t Parcel::writeString16Vector(const std::vector<String16>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeString16);
+    return writeTypedVector(val, &Parcel::writeString16);
 }
 
 status_t Parcel::writeInt32(int32_t val)
@@ -1020,11 +947,11 @@ status_t Parcel::writeStrongBinder(const sp<IBinder>& val)
 
 status_t Parcel::writeStrongBinderVector(const std::vector<sp<IBinder>>& val)
 {
-    return writeTypedVector(val, this, &Parcel::writeStrongBinder);
+    return writeTypedVector(val, &Parcel::writeStrongBinder);
 }
 
 status_t Parcel::readStrongBinderVector(std::vector<sp<IBinder>>* val) const {
-    return readTypedVector(val, this, &Parcel::readStrongBinder);
+    return readTypedVector(val, &Parcel::readStrongBinder);
 }
 
 status_t Parcel::writeWeakBinder(const wp<IBinder>& val)
@@ -1345,19 +1272,19 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
 }
 
 status_t Parcel::readInt32Vector(std::vector<int32_t>* val) const {
-    return readTypedVector(val, this, &Parcel::readInt32);
+    return readTypedVector(val, &Parcel::readInt32);
 }
 
 status_t Parcel::readInt64Vector(std::vector<int64_t>* val) const {
-    return readTypedVector(val, this, &Parcel::readInt64);
+    return readTypedVector(val, &Parcel::readInt64);
 }
 
 status_t Parcel::readFloatVector(std::vector<float>* val) const {
-    return readTypedVector(val, this, &Parcel::readFloat);
+    return readTypedVector(val, &Parcel::readFloat);
 }
 
 status_t Parcel::readDoubleVector(std::vector<double>* val) const {
-    return readTypedVector(val, this, &Parcel::readDouble);
+    return readTypedVector(val, &Parcel::readDouble);
 }
 
 status_t Parcel::readBoolVector(std::vector<bool>* val) const {
@@ -1393,11 +1320,11 @@ status_t Parcel::readBoolVector(std::vector<bool>* val) const {
 }
 
 status_t Parcel::readCharVector(std::vector<char16_t>* val) const {
-    return readTypedVector(val, this, &Parcel::readChar);
+    return readTypedVector(val, &Parcel::readChar);
 }
 
 status_t Parcel::readString16Vector(std::vector<String16>* val) const {
-    return readTypedVector(val, this, &Parcel::readString16);
+    return readTypedVector(val, &Parcel::readString16);
 }
 
 
