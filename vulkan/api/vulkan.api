@@ -4335,6 +4335,20 @@ cmd void vkCmdExecuteCommands(
 // Extensions //
 ////////////////
 
+@extension("VK_EXT_KHR_swapchain")
+cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
+        VkPhysicalDevice                        physicalDevice,
+        u32                                     queueFamilyIndex,
+        const VkSurfaceDescriptionKHR*          pSurfaceDescription,
+        VkBool32*                               pSupported) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+
+    supported := ?
+    pSupported[0] = supported
+
+    return ?
+}
+
 @extension("VK_EXT_KHR_device_swapchain")
 cmd VkResult vkGetSurfacePropertiesKHR(
         VkDevice                                 device,
@@ -4467,19 +4481,6 @@ cmd VkResult vkQueuePresentKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
-cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
-        VkPhysicalDevice                        physicalDevice,
-        u32                                     queueFamilyIndex,
-        const VkSurfaceDescriptionKHR*          pSurfaceDescription,
-        VkBool32*                               pSupported) {
-    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
-
-    supported := ?
-    pSupported[0] = supported
-
-    return ?
-}
 
 ////////////////
 // Validation //

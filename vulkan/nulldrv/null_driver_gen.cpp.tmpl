@@ -76,8 +76,10 @@ PFN_vkVoidFunction LookupProcAddr(const NameProcEntry (&table)[N], const char* n
 const NameProcEntry kInstanceProcTbl[] = {«
   // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if eq (Macro "Vtbl" $f) "Instance"}}
-      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+    {{if not (GetAnnotation $f "extension")}}
+      {{if eq (Macro "Vtbl" $f) "Instance"}}
+        {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+      {{end}}
     {{end}}
   {{end}}
   // clang-format on
@@ -86,8 +88,10 @@ const NameProcEntry kInstanceProcTbl[] = {«
 const NameProcEntry kDeviceProcTbl[] = {«
   // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if eq (Macro "Vtbl" $f) "Device"}}
-      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+    {{if not (GetAnnotation $f "extension")}}
+      {{if eq (Macro "Vtbl" $f) "Device"}}
+        {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+      {{end}}
     {{end}}
   {{end}}
   // clang-format on
