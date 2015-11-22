@@ -307,8 +307,8 @@ void vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
-    return GetVtbl(device).GetQueryPoolResults(device, queryPool, startQuery, queryCount, pDataSize, pData, flags);
+VkResult vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) {
+    return GetVtbl(device).GetQueryPoolResults(device, queryPool, startQuery, queryCount, dataSize, pData, stride, flags);
 }
 
 __attribute__((visibility("default")))
@@ -387,13 +387,8 @@ void vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
 }
 
 __attribute__((visibility("default")))
-size_t vkGetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
-    return GetVtbl(device).GetPipelineCacheSize(device, pipelineCache);
-}
-
-__attribute__((visibility("default")))
-VkResult vkGetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData) {
-    return GetVtbl(device).GetPipelineCacheData(device, pipelineCache, dataSize, pData);
+VkResult vkGetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData) {
+    return GetVtbl(device).GetPipelineCacheData(device, pipelineCache, pDataSize, pData);
 }
 
 __attribute__((visibility("default")))
@@ -562,8 +557,8 @@ void vkCmdSetLineWidth(VkCmdBuffer cmdBuffer, float lineWidth) {
 }
 
 __attribute__((visibility("default")))
-void vkCmdSetDepthBias(VkCmdBuffer cmdBuffer, float depthBias, float depthBiasClamp, float slopeScaledDepthBias) {
-    GetVtbl(cmdBuffer).CmdSetDepthBias(cmdBuffer, depthBias, depthBiasClamp, slopeScaledDepthBias);
+void vkCmdSetDepthBias(VkCmdBuffer cmdBuffer, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor) {
+    GetVtbl(cmdBuffer).CmdSetDepthBias(cmdBuffer, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
 }
 
 __attribute__((visibility("default")))
@@ -732,8 +727,8 @@ void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, V
 }
 
 __attribute__((visibility("default")))
-void vkCmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
-    GetVtbl(cmdBuffer).CmdCopyQueryPoolResults(cmdBuffer, queryPool, startQuery, queryCount, destBuffer, destOffset, destStride, flags);
+void vkCmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize stride, VkQueryResultFlags flags) {
+    GetVtbl(cmdBuffer).CmdCopyQueryPoolResults(cmdBuffer, queryPool, startQuery, queryCount, destBuffer, destOffset, stride, flags);
 }
 
 __attribute__((visibility("default")))

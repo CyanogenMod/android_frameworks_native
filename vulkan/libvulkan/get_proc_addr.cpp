@@ -179,7 +179,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkGetImageSparseMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(vkGetImageSparseMemoryRequirements)},
     {"vkGetImageSubresourceLayout", reinterpret_cast<PFN_vkVoidFunction>(vkGetImageSubresourceLayout)},
     {"vkGetPipelineCacheData", reinterpret_cast<PFN_vkVoidFunction>(vkGetPipelineCacheData)},
-    {"vkGetPipelineCacheSize", reinterpret_cast<PFN_vkVoidFunction>(vkGetPipelineCacheSize)},
     {"vkGetQueryPoolResults", reinterpret_cast<PFN_vkVoidFunction>(vkGetQueryPoolResults)},
     {"vkGetRenderAreaGranularity", reinterpret_cast<PFN_vkVoidFunction>(vkGetRenderAreaGranularity)},
     {"vkGetSurfaceFormatsKHR", reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR)},
@@ -341,7 +340,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkGetImageSparseMemoryRequirements", offsetof(DeviceVtbl, GetImageSparseMemoryRequirements)},
     {"vkGetImageSubresourceLayout", offsetof(DeviceVtbl, GetImageSubresourceLayout)},
     {"vkGetPipelineCacheData", offsetof(DeviceVtbl, GetPipelineCacheData)},
-    {"vkGetPipelineCacheSize", offsetof(DeviceVtbl, GetPipelineCacheSize)},
     {"vkGetQueryPoolResults", offsetof(DeviceVtbl, GetQueryPoolResults)},
     {"vkGetRenderAreaGranularity", offsetof(DeviceVtbl, GetRenderAreaGranularity)},
     {"vkGetSurfaceFormatsKHR", offsetof(DeviceVtbl, GetSurfaceFormatsKHR)},
@@ -770,11 +768,6 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.DestroyPipelineCache = reinterpret_cast<PFN_vkDestroyPipelineCache>(get_proc_addr(device, "vkDestroyPipelineCache"));
     if (UNLIKELY(!vtbl.DestroyPipelineCache)) {
         ALOGE("missing device proc: %s", "vkDestroyPipelineCache");
-        success = false;
-    }
-    vtbl.GetPipelineCacheSize = reinterpret_cast<PFN_vkGetPipelineCacheSize>(get_proc_addr(device, "vkGetPipelineCacheSize"));
-    if (UNLIKELY(!vtbl.GetPipelineCacheSize)) {
-        ALOGE("missing device proc: %s", "vkGetPipelineCacheSize");
         success = false;
     }
     vtbl.GetPipelineCacheData = reinterpret_cast<PFN_vkGetPipelineCacheData>(get_proc_addr(device, "vkGetPipelineCacheData"));

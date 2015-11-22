@@ -79,7 +79,7 @@ VkResult SetEvent(VkDevice device, VkEvent event);
 VkResult ResetEvent(VkDevice device, VkEvent event);
 VkResult CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, VkQueryPool* pQueryPool);
 void DestroyQueryPool(VkDevice device, VkQueryPool queryPool);
-VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags);
+VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags);
 VkResult CreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, VkBuffer* pBuffer);
 void DestroyBuffer(VkDevice device, VkBuffer buffer);
 VkResult CreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, VkBufferView* pView);
@@ -95,8 +95,7 @@ VkResult CreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, Vk
 void DestroyShader(VkDevice device, VkShader shader);
 VkResult CreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, VkPipelineCache* pPipelineCache);
 void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache);
-size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache);
-VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData);
+VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData);
 VkResult MergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches);
 VkResult CreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkGraphicsPipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines);
 VkResult CreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkComputePipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines);

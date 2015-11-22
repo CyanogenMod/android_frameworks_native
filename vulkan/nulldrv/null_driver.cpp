@@ -835,7 +835,7 @@ VkResult ResetEvent(VkDevice device, VkEvent event) {
 void DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
 }
 
-VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
+VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -859,12 +859,7 @@ void DestroyShader(VkDevice device, VkShader shader) {
 void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
 }
 
-size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData) {
+VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }

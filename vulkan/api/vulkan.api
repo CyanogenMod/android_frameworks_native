@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 183
+define VERSION_MINOR 184
 define VERSION_PATCH 0
 
 // API limits
@@ -929,7 +929,7 @@ bitfield VkImageAspectFlags {
 
 /// Sparse memory bind flags
 bitfield VkSparseMemoryBindFlags {
-    VK_SPARSE_MEMORY_BIND_REPLICATE_64KIB_BLOCK_BIT         = 0x00000001,  /// Replicate the first 64 KiB memory block to the entire bind rage
+    VK_SPARSE_MEMORY_BIND_REPLICATE_BLOCK_BIT               = 0x00000001,
 }
 
 /// Sparse image memory requirements flags
@@ -1433,7 +1433,7 @@ class VkShaderModuleCreateInfo {
     VkStructureType                             sType                  /// Must be VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
     const void*                                 pNext                  /// Pointer to next structure
     platform.size_t                             codeSize               /// Specified in bytes
-    const void*                                 pCode                  /// Binary code of size codeSize
+    const u32*                                  pCode                  /// Binary code of size codeSize
     VkShaderModuleCreateFlags                   flags                  /// Reserved
 }
 
@@ -1566,9 +1566,9 @@ class VkPipelineRasterStateCreateInfo {
     VkCullMode                                  cullMode
     VkFrontFace                                 frontFace
     VkBool32                                    depthBiasEnable
-    f32                                         depthBias
+    f32                                         depthBiasConstantFactor
     f32                                         depthBiasClamp
-    f32                                         slopeScaledDepthBias
+    f32                                         depthBiasSlopeFactor
     f32                                         lineWidth
 }
 
@@ -1844,6 +1844,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    fillModeNonSolid                          /// point and wireframe fill modes
     VkBool32                                    depthBounds                               /// depth bounds test
     VkBool32                                    wideLines                                 /// lines with width greater than 1
+    VkBool32                                    strictLines
     VkBool32                                    largePoints                               /// points with size greater than 1
     VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
     VkBool32                                    multiViewport
@@ -1989,7 +1990,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxStorageImageSamples                    /// max num of samples for a storage image
     u32                                         maxSampleMaskWords                        /// max num of sample mask words
 
-    u64                                         timestampFrequency                        /// 1/clock_tick_granularity for timestamp queries
+    f32                                         timestampPeriod
 
     u32                                         maxClipDistances                          /// max number of clip distances
     u32                                         maxCullDistances                          /// max number of cull distances
@@ -2001,6 +2002,9 @@ class VkPhysicalDeviceLimits {
     f32[2]                                      lineWidthRange                            /// range (min,max) of supported line widths
     f32                                         pointSizeGranularity                      /// granularity of supported point sizes
     f32                                         lineWidthGranularity                      /// granularity of supported line widths
+
+    u32                                         recommendedBufferCopyOffsetAlignment
+    u32                                         recommendedBufferCopyRowPitchAlignment
 }
 
 class VkPhysicalDeviceSparseProperties {
@@ -2982,15 +2986,14 @@ cmd VkResult vkGetQueryPoolResults(
         VkQueryPool                                 queryPool,
         u32                                         startQuery,
         u32                                         queryCount,
-        platform.size_t*                            pDataSize,
+        platform.size_t                             dataSize,
         void*                                       pData,
+        VkDeviceSize                                stride,
         VkQueryResultFlags                          flags) {
     deviceObject := GetDevice(device)
     queryPoolObject := GetQueryPool(queryPool)
     assert(queryPoolObject.device == device)
 
-    dataSize := ?
-    pDataSize[0] = dataSize
     data := pData[0:dataSize]
 
     return ?
@@ -3209,20 +3212,10 @@ cmd void vkDestroyPipelineCache(
     State.PipelineCaches[pipelineCache] = null
 }
 
-cmd platform.size_t vkGetPipelineCacheSize(
-        VkDevice                                    device,
-        VkPipelineCache                             pipelineCache) {
-    deviceObject := GetDevice(device)
-    pipelineCacheObject := GetPipelineCache(pipelineCache)
-    assert(pipelineCacheObject.device == device)
-
-    return ?
-}
-
 cmd VkResult vkGetPipelineCacheData(
         VkDevice                                    device,
         VkPipelineCache                             pipelineCache,
-        platform.size_t                             dataSize,
+        platform.size_t*                            pDataSize,
         void*                                       pData) {
     deviceObject := GetDevice(device)
     pipelineCacheObject := GetPipelineCache(pipelineCache)
@@ -3741,9 +3734,9 @@ cmd void vkCmdSetLineWidth(
 @threadSafety("app")
 cmd void vkCmdSetDepthBias(
         VkCmdBuffer                                 cmdBuffer,
-        f32                                         depthBias,
+        f32                                         depthBiasConstantFactor,
         f32                                         depthBiasClamp,
-        f32                                         slopeScaledDepthBias) {
+        f32                                         depthBiasSlopeFactor) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
     cmdBufferObject.queueFlags = queueFlags
@@ -4357,7 +4350,7 @@ cmd void vkCmdCopyQueryPoolResults(
         u32                                         queryCount,
         VkBuffer                                    destBuffer,
         VkDeviceSize                                destOffset,
-        VkDeviceSize                                destStride,
+        VkDeviceSize                                stride,
         VkQueryResultFlags                          flags) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     queryPoolObject := GetQueryPool(queryPool)

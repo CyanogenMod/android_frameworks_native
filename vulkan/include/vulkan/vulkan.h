@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 183, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 184, 0)
 
 
 #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
@@ -85,7 +85,7 @@ extern "C" {
 #else
     #define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T { uint64_t handle; } obj;
 #endif
-        
+
 
 
 typedef uint32_t VkBool32;
@@ -877,7 +877,7 @@ typedef enum {
 typedef VkFlags VkSparseImageFormatFlags;
 
 typedef enum {
-    VK_SPARSE_MEMORY_BIND_REPLICATE_64KIB_BLOCK_BIT = 0x00000001,
+    VK_SPARSE_MEMORY_BIND_REPLICATE_BLOCK_BIT = 0x00000001,
 } VkSparseMemoryBindFlagBits;
 typedef VkFlags VkSparseMemoryBindFlags;
 
@@ -1112,6 +1112,7 @@ typedef struct {
     VkBool32                                    fillModeNonSolid;
     VkBool32                                    depthBounds;
     VkBool32                                    wideLines;
+    VkBool32                                    strictLines;
     VkBool32                                    largePoints;
     VkBool32                                    alphaToOne;
     VkBool32                                    multiViewport;
@@ -1260,7 +1261,7 @@ typedef struct {
     uint32_t                                    maxSampledImageIntegerSamples;
     uint32_t                                    maxStorageImageSamples;
     uint32_t                                    maxSampleMaskWords;
-    uint64_t                                    timestampFrequency;
+    float                                       timestampPeriod;
     uint32_t                                    maxClipDistances;
     uint32_t                                    maxCullDistances;
     uint32_t                                    maxCombinedClipAndCullDistances;
@@ -1269,6 +1270,8 @@ typedef struct {
     float                                       lineWidthRange[2];
     float                                       pointSizeGranularity;
     float                                       lineWidthGranularity;
+    uint32_t                                    recommendedBufferCopyOffsetAlignment;
+    uint32_t                                    recommendedBufferCopyRowPitchAlignment;
 } VkPhysicalDeviceLimits;
 
 typedef struct {
@@ -1521,7 +1524,7 @@ typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
     size_t                                      codeSize;
-    const void*                                 pCode;
+    const uint32_t*                             pCode;
     VkShaderModuleCreateFlags                   flags;
 } VkShaderModuleCreateInfo;
 
@@ -1640,9 +1643,9 @@ typedef struct {
     VkCullMode                                  cullMode;
     VkFrontFace                                 frontFace;
     VkBool32                                    depthBiasEnable;
-    float                                       depthBias;
+    float                                       depthBiasConstantFactor;
     float                                       depthBiasClamp;
-    float                                       slopeScaledDepthBias;
+    float                                       depthBiasSlopeFactor;
     float                                       lineWidth;
 } VkPipelineRasterStateCreateInfo;
 
@@ -2132,7 +2135,7 @@ typedef VkResult (VKAPI *PFN_vkSetEvent)(VkDevice device, VkEvent event);
 typedef VkResult (VKAPI *PFN_vkResetEvent)(VkDevice device, VkEvent event);
 typedef VkResult (VKAPI *PFN_vkCreateQueryPool)(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, VkQueryPool* pQueryPool);
 typedef void (VKAPI *PFN_vkDestroyQueryPool)(VkDevice device, VkQueryPool queryPool);
-typedef VkResult (VKAPI *PFN_vkGetQueryPoolResults)(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags);
+typedef VkResult (VKAPI *PFN_vkGetQueryPoolResults)(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags);
 typedef VkResult (VKAPI *PFN_vkCreateBuffer)(VkDevice device, const VkBufferCreateInfo* pCreateInfo, VkBuffer* pBuffer);
 typedef void (VKAPI *PFN_vkDestroyBuffer)(VkDevice device, VkBuffer buffer);
 typedef VkResult (VKAPI *PFN_vkCreateBufferView)(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, VkBufferView* pView);
@@ -2148,8 +2151,7 @@ typedef VkResult (VKAPI *PFN_vkCreateShader)(VkDevice device, const VkShaderCrea
 typedef void (VKAPI *PFN_vkDestroyShader)(VkDevice device, VkShader shader);
 typedef VkResult (VKAPI *PFN_vkCreatePipelineCache)(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, VkPipelineCache* pPipelineCache);
 typedef void (VKAPI *PFN_vkDestroyPipelineCache)(VkDevice device, VkPipelineCache pipelineCache);
-typedef size_t (VKAPI *PFN_vkGetPipelineCacheSize)(VkDevice device, VkPipelineCache pipelineCache);
-typedef VkResult (VKAPI *PFN_vkGetPipelineCacheData)(VkDevice device, VkPipelineCache pipelineCache, size_t dataSize, void* pData);
+typedef VkResult (VKAPI *PFN_vkGetPipelineCacheData)(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData);
 typedef VkResult (VKAPI *PFN_vkMergePipelineCaches)(VkDevice device, VkPipelineCache destCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches);
 typedef VkResult (VKAPI *PFN_vkCreateGraphicsPipelines)(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkGraphicsPipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines);
 typedef VkResult (VKAPI *PFN_vkCreateComputePipelines)(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkComputePipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines);
@@ -2183,7 +2185,7 @@ typedef void (VKAPI *PFN_vkCmdBindPipeline)(VkCmdBuffer cmdBuffer, VkPipelineBin
 typedef void (VKAPI *PFN_vkCmdSetViewport)(VkCmdBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports);
 typedef void (VKAPI *PFN_vkCmdSetScissor)(VkCmdBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors);
 typedef void (VKAPI *PFN_vkCmdSetLineWidth)(VkCmdBuffer cmdBuffer, float lineWidth);
-typedef void (VKAPI *PFN_vkCmdSetDepthBias)(VkCmdBuffer cmdBuffer, float depthBias, float depthBiasClamp, float slopeScaledDepthBias);
+typedef void (VKAPI *PFN_vkCmdSetDepthBias)(VkCmdBuffer cmdBuffer, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor);
 typedef void (VKAPI *PFN_vkCmdSetBlendConstants)(VkCmdBuffer cmdBuffer, const float blendConst[4]);
 typedef void (VKAPI *PFN_vkCmdSetDepthBounds)(VkCmdBuffer cmdBuffer, float minDepthBounds, float maxDepthBounds);
 typedef void (VKAPI *PFN_vkCmdSetStencilCompareMask)(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilCompareMask);
@@ -2217,7 +2219,7 @@ typedef void (VKAPI *PFN_vkCmdBeginQuery)(VkCmdBuffer cmdBuffer, VkQueryPool que
 typedef void (VKAPI *PFN_vkCmdEndQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
 typedef void (VKAPI *PFN_vkCmdResetQueryPool)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
 typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, VkBuffer destBuffer, VkDeviceSize destOffset);
-typedef void (VKAPI *PFN_vkCmdCopyQueryPoolResults)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags);
+typedef void (VKAPI *PFN_vkCmdCopyQueryPoolResults)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize stride, VkQueryResultFlags flags);
 typedef void (VKAPI *PFN_vkCmdPushConstants)(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values);
 typedef void (VKAPI *PFN_vkCmdBeginRenderPass)(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents);
 typedef void (VKAPI *PFN_vkCmdNextSubpass)(VkCmdBuffer cmdBuffer, VkRenderPassContents contents);
@@ -2491,8 +2493,9 @@ VkResult VKAPI vkGetQueryPoolResults(
     VkQueryPool                                 queryPool,
     uint32_t                                    startQuery,
     uint32_t                                    queryCount,
-    size_t*                                     pDataSize,
+    size_t                                      dataSize,
     void*                                       pData,
+    VkDeviceSize                                stride,
     VkQueryResultFlags                          flags);
 
 VkResult VKAPI vkCreateBuffer(
@@ -2564,14 +2567,10 @@ void VKAPI vkDestroyPipelineCache(
     VkDevice                                    device,
     VkPipelineCache                             pipelineCache);
 
-size_t VKAPI vkGetPipelineCacheSize(
-    VkDevice                                    device,
-    VkPipelineCache                             pipelineCache);
-
 VkResult VKAPI vkGetPipelineCacheData(
     VkDevice                                    device,
     VkPipelineCache                             pipelineCache,
-    size_t                                      dataSize,
+    size_t*                                     pDataSize,
     void*                                       pData);
 
 VkResult VKAPI vkMergePipelineCaches(
@@ -2737,9 +2736,9 @@ void VKAPI vkCmdSetLineWidth(
 
 void VKAPI vkCmdSetDepthBias(
     VkCmdBuffer                                 cmdBuffer,
-    float                                       depthBias,
+    float                                       depthBiasConstantFactor,
     float                                       depthBiasClamp,
-    float                                       slopeScaledDepthBias);
+    float                                       depthBiasSlopeFactor);
 
 void VKAPI vkCmdSetBlendConstants(
     VkCmdBuffer                                 cmdBuffer,
@@ -2973,7 +2972,7 @@ void VKAPI vkCmdCopyQueryPoolResults(
     uint32_t                                    queryCount,
     VkBuffer                                    destBuffer,
     VkDeviceSize                                destOffset,
-    VkDeviceSize                                destStride,
+    VkDeviceSize                                stride,
     VkQueryResultFlags                          flags);
 
 void VKAPI vkCmdPushConstants(
@@ -3317,8 +3316,8 @@ typedef struct {
 
 
 
-#define vk_ext_khr_x11_surface 1
 #ifdef VK_USE_PLATFORM_X11_KHR
+#define vk_ext_khr_x11_surface 1
 #include <X11/Xlib.h>
 
 #define VK_EXT_KHR_X11_SURFACE_REVISION   1
@@ -3337,8 +3336,8 @@ VkResult VKAPI vkCreateX11SurfaceKHR(
 #endif
 #endif /* VK_USE_PLATFORM_X11_KHR */
 
-#define vk_ext_khr_xcb_surface 1
 #ifdef VK_USE_PLATFORM_XCB_KHR
+#define vk_ext_khr_xcb_surface 1
 #include <xcb/xcb.h>
 
 #define VK_EXT_KHR_XCB_SURFACE_REVISION   1
@@ -3357,8 +3356,8 @@ VkResult VKAPI vkCreateXcbSurfaceKHR(
 #endif
 #endif /* VK_USE_PLATFORM_XCB_KHR */
 
-#define vk_ext_khr_wayland_surface 1
 #ifdef VK_USE_PLATFORM_WAYLAND_KHR
+#define vk_ext_khr_wayland_surface 1
 #include <wayland-client.h>
 
 #define VK_EXT_KHR_WAYLAND_SURFACE_REVISION 1
@@ -3376,8 +3375,8 @@ VkResult VKAPI vkCreateWaylandSurfaceKHR(
 #endif
 #endif /* VK_USE_PLATFORM_WAYLAND_KHR */
 
-#define vk_ext_khr_mir_surface 1
 #ifdef VK_USE_PLATFORM_MIR_KHR
+#define vk_ext_khr_mir_surface 1
 #include <mir_toolkit/client_types.h>
 
 #define VK_EXT_KHR_MIR_SURFACE_REVISION   1
@@ -3395,8 +3394,8 @@ VkResult VKAPI vkCreateMirSurfaceKHR(
 #endif
 #endif /* VK_USE_PLATFORM_MIR_KHR */
 
-#define vk_ext_khr_android_surface 1
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
+#define vk_ext_khr_android_surface 1
 #include <android/native_window.h>
 
 #define VK_EXT_KHR_ANDROID_SURFACE_REVISION 1
@@ -3415,8 +3414,8 @@ VkResult VKAPI vkCreateAndroidSurfaceKHR(
 #endif
 #endif /* VK_USE_PLATFORM_ANDROID_KHR */
 
-#define vk_ext_khr_win32_surface 1
 #ifdef VK_USE_PLATFORM_WIN32_KHR
+#define vk_ext_khr_win32_surface 1
 #include <windows.h>
 
 #define VK_EXT_KHR_WIN32_SURFACE_REVISION 1
