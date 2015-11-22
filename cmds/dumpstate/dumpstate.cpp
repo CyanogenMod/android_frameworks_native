@@ -601,7 +601,7 @@ static void usage() {
             "  -b: play sound file instead of vibrate, at beginning of job\n"
             "  -e: play sound file instead of vibrate, at end of job\n"
             "  -q: disable vibrate\n"
-            "  -B: send broadcast when finished (requires -o and -p)\n"
+            "  -B: send broadcast when finished (requires -o)\n"
                 );
 }
 
@@ -729,7 +729,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if ((do_zip_file || do_add_date) && !use_outfile) {
+    if ((do_zip_file || do_add_date || do_broadcast) && !use_outfile) {
         usage();
         exit(1);
     }
@@ -870,15 +870,19 @@ int main(int argc, char *argv[]) {
     }
 
     /* tell activity manager we're done */
-    if (do_broadcast && use_outfile && do_fb) {
+    if (do_broadcast && use_outfile) {
         if (!path.empty()) {
             ALOGI("Final bugreport path: %s\n", path.c_str());
-            const char *args[] = { "/system/bin/am", "broadcast", "--user", "0",
-                  "-a", "android.intent.action.BUGREPORT_FINISHED",
-                  "--es", "android.intent.extra.BUGREPORT", path.c_str(),
-                  "--es", "android.intent.extra.SCREENSHOT", screenshot_path.c_str(),
-                  "--receiver-permission", "android.permission.DUMP", NULL };
-            run_command_always(NULL, 5, args);
+            std::vector<std::string> am_args = {
+                 "--receiver-permission", "android.permission.DUMP",
+                 "--es", "android.intent.extra.BUGREPORT", path
+            };
+            if (do_fb) {
+                am_args.push_back("--es");
+                am_args.push_back("android.intent.extra.SCREENSHOT");
+                am_args.push_back(screenshot_path);
+            }
+            send_broadcast("android.intent.action.BUGREPORT_FINISHED", am_args);
         } else {
             ALOGE("Skipping broadcast because bugreport could not be generated\n");
         }
