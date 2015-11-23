@@ -98,6 +98,7 @@ static const TracingCategory k_categories[] = {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
         { OPT,      "/sys/kernel/debug/tracing/events/sched/sched_blocked_reason/enable" },
+        { OPT,      "/sys/kernel/debug/tracing/events/sched/sched_cpu_hotplug/enable" },
     } },
     { "irq",        "IRQ Events",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/irq/enable" },
