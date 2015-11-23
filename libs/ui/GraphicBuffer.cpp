@@ -113,7 +113,11 @@ void GraphicBuffer::free_handle()
         GraphicBufferAllocator& allocator(GraphicBufferAllocator::get());
         allocator.free(handle);
     }
+
+#ifndef EXYNOS4_ENHANCEMENTS
     handle = NULL;
+#endif
+
     mWrappedBuffer = 0;
 }
 
