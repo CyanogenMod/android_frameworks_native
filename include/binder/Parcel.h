@@ -28,6 +28,7 @@
 #include <linux/binder.h>
 
 #include <binder/IInterface.h>
+#include <binder/Parcelable.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -128,6 +129,10 @@ public:
     status_t            writeStrongBinderVector(const std::vector<sp<IBinder>>& val);
 
     template<typename T>
+    status_t            writeParcelableVector(const std::vector<T>& val);
+    status_t            writeParcelable(const Parcelable& parcelable);
+
+    template<typename T>
     status_t            write(const Flattenable<T>& val);
 
     template<typename T>
@@ -202,6 +207,10 @@ public:
     sp<IBinder>         readStrongBinder() const;
     status_t            readStrongBinder(sp<IBinder>* val) const;
     wp<IBinder>         readWeakBinder() const;
+
+    template<typename T>
+    status_t            readParcelableVector(std::vector<T>* val) const;
+    status_t            readParcelable(Parcelable* parcelable) const;
 
     template<typename T>
     status_t            readStrongBinder(sp<T>* val) const;
@@ -543,6 +552,16 @@ template<typename T>
 status_t Parcel::writeTypedVector(const std::vector<T>& val,
                           status_t(Parcel::*write_func)(T)) {
     return unsafeWriteTypedVector(val, write_func);
+}
+
+template<typename T>
+status_t Parcel::readParcelableVector(std::vector<T>* val) const {
+    return unsafeReadTypedVector(val, &Parcel::readParcelable);
+}
+
+template<typename T>
+status_t Parcel::writeParcelableVector(const std::vector<T>& val) {
+    return unsafeWriteTypedVector(val, &Parcel::writeParcelable);
 }
 
 // ---------------------------------------------------------------------------
