@@ -1079,6 +1079,8 @@ static int validate_apk_path_internal(const char *path, int maxSubdirs) {
         dir = &android_app_dir;
     } else if (!strncmp(path, android_app_private_dir.path, android_app_private_dir.len)) {
         dir = &android_app_private_dir;
+    } else if (!strncmp(path, android_app_ephemeral_dir.path, android_app_ephemeral_dir.len)) {
+        dir = &android_app_ephemeral_dir;
     } else if (!strncmp(path, android_asec_dir.path, android_asec_dir.len)) {
         dir = &android_asec_dir;
     } else if (!strncmp(path, android_mnt_expand_dir.path, android_mnt_expand_dir.len)) {

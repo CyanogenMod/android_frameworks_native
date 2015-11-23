@@ -36,6 +36,7 @@ dir_rec_t android_data_dir;
 dir_rec_t android_asec_dir;
 dir_rec_t android_app_dir;
 dir_rec_t android_app_private_dir;
+dir_rec_t android_app_ephemeral_dir;
 dir_rec_t android_app_lib_dir;
 dir_rec_t android_media_dir;
 dir_rec_t android_mnt_expand_dir;
