@@ -602,6 +602,7 @@ static void usage() {
             "  -e: play sound file instead of vibrate, at end of job\n"
             "  -q: disable vibrate\n"
             "  -B: send broadcast when finished (requires -o)\n"
+            "  -P: send broadacast when started and update system properties on progress (requires -o and -B)\n"
                 );
 }
 
@@ -712,16 +713,17 @@ int main(int argc, char *argv[]) {
 
     /* parse arguments */
     int c;
-    while ((c = getopt(argc, argv, "dho:svqzpB")) != -1) {
+    while ((c = getopt(argc, argv, "dho:svqzpPB")) != -1) {
         switch (c) {
-            case 'd': do_add_date = 1;       break;
-            case 'z': do_zip_file = 1;       break;
-            case 'o': use_outfile = optarg;  break;
-            case 's': use_socket = 1;        break;
+            case 'd': do_add_date = 1;          break;
+            case 'z': do_zip_file = 1;          break;
+            case 'o': use_outfile = optarg;     break;
+            case 's': use_socket = 1;           break;
             case 'v': break;  // compatibility no-op
-            case 'q': do_vibrate = 0;        break;
-            case 'p': do_fb = 1;             break;
-            case 'B': do_broadcast = 1;      break;
+            case 'q': do_vibrate = 0;           break;
+            case 'p': do_fb = 1;                break;
+            case 'P': do_update_progress = 1;   break;
+            case 'B': do_broadcast = 1;         break;
             case '?': printf("\n");
             case 'h':
                 usage();
@@ -729,16 +731,63 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if ((do_zip_file || do_add_date || do_broadcast) && !use_outfile) {
+    if ((do_zip_file || do_add_date || do_update_progress || do_broadcast) && !use_outfile) {
         usage();
         exit(1);
     }
 
+    if (do_update_progress && !do_broadcast) {
+        usage();
+        exit(1);
+    }
 
     // If we are going to use a socket, do it as early as possible
     // to avoid timeouts from bugreport.
     if (use_socket) {
         redirect_to_socket(stdout, "dumpstate");
+    }
+
+    /* redirect output if needed */
+    std::string text_path, zip_path, tmp_path, entry_name;
+
+    /* pointer to the actual path, be it zip or text */
+    std::string path;
+
+    time_t now = time(NULL);
+
+    bool is_redirecting = !use_socket && use_outfile;
+
+    if (is_redirecting) {
+        text_path = use_outfile;
+        if (do_add_date) {
+            char date[80];
+            strftime(date, sizeof(date), "-%Y-%m-%d-%H-%M-%S", localtime(&now));
+            text_path += date;
+        }
+        if (do_fb) {
+            screenshot_path = text_path + ".png";
+        }
+        zip_path = text_path + ".zip";
+        text_path += ".txt";
+        tmp_path = text_path + ".tmp";
+        entry_name = basename(text_path.c_str());
+
+        ALOGD("Temporary path: %s\ntext path: %s\nzip path: %s\nzip entry: %s",
+              tmp_path.c_str(), text_path.c_str(), zip_path.c_str(), entry_name.c_str());
+
+        if (do_update_progress) {
+            if (!entry_name.empty()) {
+                std::vector<std::string> am_args = {
+                     "--receiver-permission", "android.permission.DUMP",
+                     "--es", "android.intent.extra.NAME", entry_name,
+                     "--ei", "android.intent.extra.PID", std::to_string(getpid()),
+                     "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
+                };
+                send_broadcast("android.intent.action.BUGREPORT_STARTED", am_args);
+            } else {
+                ALOGE("Skipping started broadcast because entry name could not be inferred\n");
+            }
+        }
     }
 
     /* open the vibrator before dropping root */
@@ -802,29 +851,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    /* redirect output if needed */
-    std::string text_path, zip_path, tmp_path, entry_name;
-
-    /* pointer to the actual path, be it zip or text */
-    std::string path;
-
-    time_t now = time(NULL);
-
-    if (!use_socket && use_outfile) {
-        text_path = use_outfile;
-        if (do_add_date) {
-            char date[80];
-            strftime(date, sizeof(date), "-%Y-%m-%d-%H-%M-%S", localtime(&now));
-            text_path += date;
-        }
-        if (do_fb) {
-            screenshot_path = text_path + ".png";
-        }
-        zip_path = text_path + ".zip";
-        text_path += ".txt";
-        tmp_path = text_path + ".tmp";
-        entry_name = basename(text_path.c_str());
-
+    if (is_redirecting) {
         ALOGD("Temporary path: %s\ntext path: %s\nzip path: %s\nzip entry: %s",
               tmp_path.c_str(), text_path.c_str(), zip_path.c_str(), entry_name.c_str());
         /* TODO: rather than generating a text file now and zipping it later,
@@ -844,7 +871,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* close output if needed */
-    if (!use_socket && use_outfile) {
+    if (is_redirecting) {
         fclose(stdout);
     }
 
@@ -870,11 +897,12 @@ int main(int argc, char *argv[]) {
     }
 
     /* tell activity manager we're done */
-    if (do_broadcast && use_outfile) {
+    if (do_broadcast) {
         if (!path.empty()) {
             ALOGI("Final bugreport path: %s\n", path.c_str());
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP",
+                 "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--es", "android.intent.extra.BUGREPORT", path
             };
             if (do_fb) {
@@ -884,7 +912,7 @@ int main(int argc, char *argv[]) {
             }
             send_broadcast("android.intent.action.BUGREPORT_FINISHED", am_args);
         } else {
-            ALOGE("Skipping broadcast because bugreport could not be generated\n");
+            ALOGE("Skipping finished broadcast because bugreport could not be generated\n");
         }
     }
 

@@ -45,6 +45,28 @@ extern "C" {
 typedef void (for_each_pid_func)(int, const char *);
 typedef void (for_each_tid_func)(int, int, const char *);
 
+/* Estimated total weight of bugreport generation.
+ *
+ * Each section contributes to the total weight by an individual weight, so the overall progress
+ * can be calculated by dividing the all completed weight by the total weight.
+ *
+ * This value is defined empirically and it need to be adjusted as more sections are added.
+ * It does not need to match the exact sum of all sections, but it should to be more than it,
+ * otherwise the calculated progress would be more than 100%.
+ */
+static const int WEIGHT_TOTAL = 4000;
+
+/* Most simple commands have 10 as timeout, so 5 is a good estimate */
+static const int WEIGHT_FILE = 5;
+
+/*
+ * TOOD: the dumpstate internal state is getting fragile; for example, this variable is defined
+ * here, declared at utils.cpp, and used on utils.cpp and dumpstate.cpp.
+ * It would be better to take advantage of the C++ migration and encapsulate the state in an object,
+ * but that will be better handled in a major C++ refactoring, which would also get rid of other C
+ * idioms (like using std::string instead of char*, removing varargs, etc...) */
+extern int do_update_progress;
+
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path);
 
@@ -73,6 +95,9 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
 
 /* sends a broadcast using Activity Manager */
 void send_broadcast(const std::string& action, const std::vector<std::string>& args);
+
+/* updates the overall progress of dumpstate by the given weight increment */
+void update_progress(int weight);
 
 /* prints all the system properties */
 void print_properties();
