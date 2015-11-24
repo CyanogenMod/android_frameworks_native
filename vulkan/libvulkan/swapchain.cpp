@@ -90,7 +90,7 @@ VkSurfaceKHR HandleFromSurface(Surface* surface) {
 }
 
 Surface* SurfaceFromHandle(VkSurfaceKHR handle) {
-    return reinterpret_cast<Surface*>(handle.handle);
+    return reinterpret_cast<Surface*>(handle);
 }
 
 struct Swapchain {
@@ -118,7 +118,7 @@ VkSwapchainKHR HandleFromSwapchain(Swapchain* swapchain) {
 }
 
 Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
-    return reinterpret_cast<Swapchain*>(handle.handle);
+    return reinterpret_cast<Swapchain*>(handle);
 }
 
 }  // anonymous namespace

@@ -712,8 +712,8 @@ void vkCmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t 
 }
 
 __attribute__((visibility("default")))
-void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
-    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, pipelineStage, destBuffer, destOffset);
+void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
+    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, pipelineStage, queryPool, slot);
 }
 
 __attribute__((visibility("default")))

@@ -79,8 +79,6 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
             return "DMA";
         case VK_QUEUE_SPARSE_MEMMGR_BIT:
             return "SPARSE";
-        case VK_QUEUE_EXTENDED_BIT:
-            return "EXT";
     }
 }
 

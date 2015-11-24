@@ -41,49 +41,20 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 185, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 186, 0)
 
 
-#if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
-    #define VK_NULL_HANDLE nullptr
-#else
-    #define VK_NULL_HANDLE 0
-#endif
+#define VK_NULL_HANDLE 0
+
 
 
 #define VK_DEFINE_HANDLE(obj) typedef struct obj##_T* obj;
 
 
-#if defined(__cplusplus)
-    #if ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
-        // The bool operator only works if there are no implicit conversions from an obj to
-        // a bool-compatible type, which can then be used to unintentionally violate type safety.
-        // C++11 and above supports the "explicit" keyword on conversion operators to stop this
-        // from happening. Otherwise users of C++ below C++11 won't get direct access to evaluating
-        // the object handle as a bool in expressions like:
-        //     if (obj) vkDestroy(obj);
-        #define VK_NONDISP_HANDLE_OPERATOR_BOOL() explicit operator bool() const { return handle != 0; }
-        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
-            explicit obj(uint64_t x) : handle(x) { } \
-            obj(decltype(nullptr)) : handle(0) { }
-    #else
-        #define VK_NONDISP_HANDLE_OPERATOR_BOOL()
-        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
-            obj(uint64_t x) : handle(x) { }
-    #endif
-    #define VK_DEFINE_NONDISP_HANDLE(obj) \
-        struct obj { \
-            obj() : handle(0) { } \
-            VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
-            obj& operator =(uint64_t x) { handle = x; return *this; } \
-            bool operator==(const obj& other) const { return handle == other.handle; } \
-            bool operator!=(const obj& other) const { return handle != other.handle; } \
-            bool operator!() const { return !handle; } \
-            VK_NONDISP_HANDLE_OPERATOR_BOOL() \
-            uint64_t handle; \
-        };
+#if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
+        #define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T *obj;
 #else
-    #define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T { uint64_t handle; } obj;
+        #define VK_DEFINE_NONDISP_HANDLE(obj) typedef uint64_t obj;
 #endif
 
 
@@ -441,9 +412,10 @@ typedef enum {
 typedef enum {
     VK_QUERY_TYPE_OCCLUSION = 0,
     VK_QUERY_TYPE_PIPELINE_STATISTICS = 1,
+    VK_QUERY_TYPE_TIMESTAMP = 2,
     VK_QUERY_TYPE_BEGIN_RANGE = VK_QUERY_TYPE_OCCLUSION,
-    VK_QUERY_TYPE_END_RANGE = VK_QUERY_TYPE_PIPELINE_STATISTICS,
-    VK_QUERY_TYPE_NUM = (VK_QUERY_TYPE_PIPELINE_STATISTICS - VK_QUERY_TYPE_OCCLUSION + 1),
+    VK_QUERY_TYPE_END_RANGE = VK_QUERY_TYPE_TIMESTAMP,
+    VK_QUERY_TYPE_NUM = (VK_QUERY_TYPE_TIMESTAMP - VK_QUERY_TYPE_OCCLUSION + 1),
     VK_QUERY_TYPE_MAX_ENUM = 0x7FFFFFFF
 } VkQueryType;
 
@@ -834,7 +806,6 @@ typedef enum {
     VK_QUEUE_COMPUTE_BIT = 0x00000002,
     VK_QUEUE_DMA_BIT = 0x00000004,
     VK_QUEUE_SPARSE_MEMMGR_BIT = 0x00000008,
-    VK_QUEUE_EXTENDED_BIT = 0x40000000,
 } VkQueueFlagBits;
 typedef VkFlags VkQueueFlags;
 
@@ -2206,7 +2177,7 @@ typedef void (VKAPI *PFN_vkCmdPipelineBarrier)(VkCmdBuffer cmdBuffer, VkPipeline
 typedef void (VKAPI *PFN_vkCmdBeginQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
 typedef void (VKAPI *PFN_vkCmdEndQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
 typedef void (VKAPI *PFN_vkCmdResetQueryPool)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
-typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset);
+typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot);
 typedef void (VKAPI *PFN_vkCmdCopyQueryPoolResults)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize stride, VkQueryResultFlags flags);
 typedef void (VKAPI *PFN_vkCmdPushConstants)(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values);
 typedef void (VKAPI *PFN_vkCmdBeginRenderPass)(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents);
@@ -2942,8 +2913,8 @@ void VKAPI vkCmdResetQueryPool(
 void VKAPI vkCmdWriteTimestamp(
     VkCmdBuffer                                 cmdBuffer,
     VkPipelineStageFlagBits                     pipelineStage,
-    VkBuffer                                    destBuffer,
-    VkDeviceSize                                destOffset);
+    VkQueryPool                                 queryPool,
+    uint32_t                                    slot);
 
 void VKAPI vkCmdCopyQueryPoolResults(
     VkCmdBuffer                                 cmdBuffer,

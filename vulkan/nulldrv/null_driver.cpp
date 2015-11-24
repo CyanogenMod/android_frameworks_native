@@ -199,20 +199,15 @@ uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
 
 namespace null_driver {
 
-template <typename HandleT>
-struct HandleTraits {};
-
-template <typename HandleT>
-typename HandleTraits<HandleT>::PointerType GetObjectFromHandle(
-    const HandleT& h) {
-    return reinterpret_cast<typename HandleTraits<HandleT>::PointerType>(
-        uintptr_t(h.handle));
-}
-
-template <typename T>
-typename T::HandleType GetHandleToObject(const T* obj) {
-    return typename T::HandleType(reinterpret_cast<uintptr_t>(obj));
-}
+#define DEFINE_OBJECT_HANDLE_CONVERSION(T)              \
+    T* Get##T##FromHandle(Vk##T h);                     \
+    T* Get##T##FromHandle(Vk##T h) {                    \
+        return reinterpret_cast<T*>(uintptr_t(h));      \
+    }                                                   \
+    Vk##T GetHandleTo##T(const T* obj);                 \
+    Vk##T GetHandleTo##T(const T* obj) {                \
+        return Vk##T(reinterpret_cast<uintptr_t>(obj)); \
+    }
 
 // -----------------------------------------------------------------------------
 // Global
@@ -384,10 +379,7 @@ struct DeviceMemory {
     VkDeviceSize size;
     alignas(16) uint8_t data[0];
 };
-template <>
-struct HandleTraits<VkDeviceMemory> {
-    typedef DeviceMemory* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(DeviceMemory)
 
 VkResult AllocMemory(VkDevice device,
                      const VkMemoryAllocInfo* alloc_info,
@@ -403,13 +395,13 @@ VkResult AllocMemory(VkDevice device,
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     mem->size = size;
-    *mem_handle = GetHandleToObject(mem);
+    *mem_handle = GetHandleToDeviceMemory(mem);
     return VK_SUCCESS;
 }
 
 void FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
+    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
     alloc->pfnFree(alloc->pUserData, mem);
 }
 
@@ -419,7 +411,7 @@ VkResult MapMemory(VkDevice,
                    VkDeviceSize,
                    VkMemoryMapFlags,
                    void** out_ptr) {
-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
+    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
     *out_ptr = &mem->data[0] + offset;
     return VK_SUCCESS;
 }
@@ -431,10 +423,7 @@ struct Buffer {
     typedef VkBuffer HandleType;
     VkDeviceSize size;
 };
-template <>
-struct HandleTraits<VkBuffer> {
-    typedef Buffer* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(Buffer)
 
 VkResult CreateBuffer(VkDevice device,
                       const VkBufferCreateInfo* create_info,
@@ -451,14 +440,14 @@ VkResult CreateBuffer(VkDevice device,
     if (!buffer)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     buffer->size = create_info->size;
-    *buffer_handle = GetHandleToObject(buffer);
+    *buffer_handle = GetHandleToBuffer(buffer);
     return VK_SUCCESS;
 }
 
 void GetBufferMemoryRequirements(VkDevice,
                                  VkBuffer buffer_handle,
                                  VkMemoryRequirements* requirements) {
-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
+    Buffer* buffer = GetBufferFromHandle(buffer_handle);
     requirements->size = buffer->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
@@ -466,7 +455,7 @@ void GetBufferMemoryRequirements(VkDevice,
 
 void DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
+    Buffer* buffer = GetBufferFromHandle(buffer_handle);
     alloc->pfnFree(alloc->pUserData, buffer);
 }
 
@@ -477,10 +466,7 @@ struct Image {
     typedef VkImage HandleType;
     VkDeviceSize size;
 };
-template <>
-struct HandleTraits<VkImage> {
-    typedef Image* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(Image)
 
 VkResult CreateImage(VkDevice device,
                      const VkImageCreateInfo* create_info,
@@ -509,14 +495,14 @@ VkResult CreateImage(VkDevice device,
     if (!image)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     image->size = size;
-    *image_handle = GetHandleToObject(image);
+    *image_handle = GetHandleToImage(image);
     return VK_SUCCESS;
 }
 
 void GetImageMemoryRequirements(VkDevice,
                                 VkImage image_handle,
                                 VkMemoryRequirements* requirements) {
-    Image* image = GetObjectFromHandle(image_handle);
+    Image* image = GetImageFromHandle(image_handle);
     requirements->size = image->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
@@ -524,7 +510,7 @@ void GetImageMemoryRequirements(VkDevice,
 
 void DestroyImage(VkDevice device, VkImage image_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
-    Image* image = GetObjectFromHandle(image_handle);
+    Image* image = GetImageFromHandle(image_handle);
     alloc->pfnFree(alloc->pUserData, image);
 }
 
@@ -1031,7 +1017,7 @@ void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot) {
 void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
 }
 
-void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
+void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
 }
 
 void CmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
