@@ -45,6 +45,46 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
+@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_REVISION                     19
+@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_EXTENSION_NUMBER             1
+@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_EXTENSION_NAME               "VK_EXT_KHR_surface"
+
+@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_REVISION                 59
+@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
+@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_EXT_KHR_swapchain"
+
+@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_REVISION                     16
+@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_EXTENSION_NUMBER             3
+@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_EXTENSION_NAME               "VK_EXT_KHR_display"
+
+@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_REVISION           14
+@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_EXTENSION_NUMBER   4
+@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_EXTENSION_NAME     "VK_EXT_KHR_display_swapchain"
+
+@extension("VK_EXT_KHR_x11_surface") define VK_EXT_KHR_X11_SURFACE_REVISION             1
+@extension("VK_EXT_KHR_x11_surface") define VK_EXT_KHR_X11_SURFACE_NUMBER               4
+@extension("VK_EXT_KHR_x11_surface") define VK_EXT_KHR_X11_SURFACE_NAME                 "VK_EXT_KHR_x11_surface"
+
+@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_REVISION             1
+@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_NUMBER               6
+@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_NAME                 "VK_EXT_KHR_xcb_surface"
+
+@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_REVISION     1
+@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_NUMBER       7
+@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_NAME         "VK_EXT_KHR_wayland_surface"
+
+@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_REVISION             1
+@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_NUMBER               8
+@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_NAME                 "VK_EXT_KHR_mir_surface"
+
+@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_REVISION     1
+@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_NUMBER       8
+@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_NAME         "VK_EXT_KHR_android_surface"
+
+@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_REVISION         1
+@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_NUMBER           9
+@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_NAME             "VK_EXT_KHR_win32_surface"
+
 
 /////////////
 //  Types  //
@@ -84,7 +124,13 @@ type u32 VkSampleMask
 @nonDispatchHandle type u64 VkFramebuffer
 @nonDispatchHandle type u64 VkRenderPass
 @nonDispatchHandle type u64 VkPipelineCache
-@nonDispatchHandle type u64 VkSwapchainKHR
+
+@extension("VK_EXT_KHR_surface")    @nonDispatchHandle type u64 VkSurfaceKHR
+
+@extension("VK_EXT_KHR_swapchain")  @nonDispatchHandle type u64 VkSwapchainKHR
+
+@extension("VK_EXT_KHR_display")    @nonDispatchHandle type u64 VkDisplayKHR
+@extension("VK_EXT_KHR_display")    @nonDispatchHandle type u64 VkDisplayModeKHR
 
 
 /////////////
@@ -101,6 +147,9 @@ enum VkImageLayout {
     VK_IMAGE_LAYOUT_TRANSFER_SOURCE_OPTIMAL                 = 0x00000006,   /// Optimal layout when image is used only as source of transfer operations
     VK_IMAGE_LAYOUT_TRANSFER_DESTINATION_OPTIMAL            = 0x00000007,   /// Optimal layout when image is used only as destination of transfer operations
     VK_IMAGE_LAYOUT_PREINITIALIZED                          = 0x00000008,   /// Initial layout used when the data is populated by the CPU
+
+    //@extension("VK_EXT_KHR_swapchain")
+    VK_IMAGE_LAYOUT_PRESENT_SOURCE_KHR                      = 0xc0000802,
 }
 
 enum VkAttachmentLoadOp {
@@ -568,6 +617,17 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 45,
     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 46,
     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 47,
+
+    //@extension("VK_EXT_KHR_swapchain")
+    VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 0xc0000801,
+
+    //@extension("VK_EXT_KHR_display")
+    VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR              = 0xc0000c00,
+    VK_STRUCTURE_TYPE_SURFACE_DESCRIPTION_DISPLAY_PLAN_KHR      = 0xc0000c01,
+
+    //@extension("VK_EXT_KHR_display_swapchain")
+    VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR         = 0xc0001000,
+    VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 0xc0001001,
 }
 
 enum VkRenderPassContents {
@@ -586,6 +646,9 @@ enum VkResult {
     VK_EVENT_RESET                                          = 0x00000004,
     VK_INCOMPLETE                                           = 0x00000005,
 
+    //@extension("VK_EXT_KHR_swapchain")
+    VK_SUBOPTIMAL_KHR                                       = 0x40000403,
+
     // Error codes (negative values)
     VK_ERROR_OUT_OF_HOST_MEMORY                             = 0xFFFFFFFF,
     VK_ERROR_OUT_OF_DEVICE_MEMORY                           = 0xFFFFFFFE,
@@ -596,6 +659,16 @@ enum VkResult {
     VK_ERROR_EXTENSION_NOT_PRESENT                          = 0xFFFFFFF9,
     VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
     VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
+
+    //@extension("VK_EXT_KHR_swapchain")
+    VK_ERROR_OUT_OF_DATE_KHR                                = 0xC0000804,
+
+    //@extension("VK_EXT_KHR_display_swapchain")
+    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC0001002,
+
+    //@extension("VK_EXT_KHR_android_surface")
+    VK_ERROR_INVALID_ANDROID_WINDOW_KHR                     = 0xC002400,
+    VK_ERROR_ANDROID_WINDOW_IN_USE_KHR                      = 0xC002401,
 }
 
 enum VkDynamicState {
@@ -610,11 +683,7 @@ enum VkDynamicState {
     VK_DYNAMIC_STATE_STENCIL_REFERENCE                      = 0x00000008,
 }
 
-//////////////////
-//  Extensions  //
-//////////////////
-
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_EXT_KHR_surface")
 enum VkSurfaceTransformKHR {
     VK_SURFACE_TRANSFORM_NONE_KHR                           = 0x00000000,
     VK_SURFACE_TRANSFORM_ROT90_KHR                          = 0x00000001,
@@ -628,23 +697,13 @@ enum VkSurfaceTransformKHR {
 }
 
 @extension("VK_EXT_KHR_swapchain")
-enum VkPlatformKHR {
-    VK_PLATFORM_WIN32_KHR                                   = 0x00000000,
-    VK_PLATFORM_X11_KHR                                     = 0x00000001,
-    VK_PLATFORM_XCB_KHR                                     = 0x00000002,
-    VK_PLATFORM_ANDROID_KHR                                 = 0x00000003,
-    VK_PLATFORM_WAYLAND_KHR                                 = 0x00000004,
-    VK_PLATFORM_MIR_KHR                                     = 0x00000005,
-}
-
-@extension("VK_EXT_KHR_device_swapchain")
 enum VkPresentModeKHR {
     VK_PRESENT_MODE_IMMEDIATE_KHR                           = 0x00000000,
     VK_PRESENT_MODE_MAILBOX_KHR                             = 0x00000001,
     VK_PRESENT_MODE_FIFO_KHR                                = 0x00000002,
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 enum VkColorSpaceKHR {
     VK_COLORSPACE_SRGB_NONLINEAR_KHR                        = 0x00000000,
 }
@@ -941,10 +1000,6 @@ bitfield VkStencilFaceFlags {
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
 }
 
-//////////////////
-//  Extensions  //
-//////////////////
-
 @extension("VK_EXT_KHR_swapchain")
 bitfield VkSurfaceTransformFlagsKHR {
     VK_SURFACE_TRANSFORM_NONE_BIT_KHR                       = 0x00000001,
@@ -957,6 +1012,14 @@ bitfield VkSurfaceTransformFlagsKHR {
     VK_SURFACE_TRANSFORM_HMIRROR_ROT270_BIT_KHR             = 0x00000080,
     VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                    = 0x00000100,
 }
+
+@extension("VK_EXT_KHR_display")
+bitfield VkDisplayPlaneAlphaFlagsKHR {
+    VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR                   = 0x00000001,
+    VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR                = 0x00000002,
+    VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_PREMULTIPLIED_BIT_KHR  = 0x00000004,
+}
+
 
 //////////////////
 //  Structures  //
@@ -1995,72 +2058,135 @@ class VkDispatchIndirectCmd {
     u32                                         z
 }
 
-//////////////////
-//  Extensions  //
-//////////////////
-
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 class VkSurfacePropertiesKHR {
-    u32                                     minImageCount
-    u32                                     maxImageCount
-    VkExtent2D                              currentExtent
-    VkExtent2D                              minImageExtent
-    VkExtent2D                              maxImageExtent
-    VkSurfaceTransformFlagsKHR              supportedTransforms
-    VkSurfaceTransformKHR                   currentTransform
-    u32                                     maxImageArraySize
-    VkImageUsageFlags                       supportedUsageFlags
+    u32                                         minImageCount
+    u32                                         maxImageCount
+    VkExtent2D                                  currentExtent
+    VkExtent2D                                  minImageExtent
+    VkExtent2D                                  maxImageExtent
+    VkSurfaceTransformFlagsKHR                  supportedTransforms
+    VkSurfaceTransformKHR                       currentTransform
+    u32                                         maxImageArraySize
+    VkImageUsageFlags                           supportedUsageFlags
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 class VkSurfaceFormatKHR {
-    VkFormat                                format
-    VkColorSpaceKHR                         colorSpace
+    VkFormat                                    format
+    VkColorSpaceKHR                             colorSpace
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 class VkSwapchainCreateInfoKHR {
-    VkStructureType                          sType
-    const void*                              pNext
-    const VkSurfaceDescriptionKHR*           pSurfaceDescription
-    u32                                      minImageCount
-    VkFormat                                 imageFormat
-    VkColorSpaceKHR                          imageColorSpace
-    VkExtent2D                               imageExtent
-    VkImageUsageFlags                        imageUsageFlags
-    VkSurfaceTransformKHR                    preTransform
-    u32                                      imageArraySize
-    VkSharingMode                            sharingMode
-    u32                                      queueFamilyCount
-    const u32*                               pQueueFamilyIndices
-    VkPresentModeKHR                         presentMode
-    VkSwapchainKHR                           oldSwapchain
-    VkBool32                                 clipped
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkSurfaceKHR                                surface
+    u32                                         minImageCount
+    VkFormat                                    imageFormat
+    VkColorSpaceKHR                             imageColorSpace
+    VkExtent2D                                  imageExtent
+    VkImageUsageFlags                           imageUsageFlags
+    VkSurfaceTransformKHR                       preTransform
+    u32                                         imageArraySize
+    VkSharingMode                               sharingMode
+    u32                                         queueFamilyCount
+    const u32*                                  pQueueFamilyIndices
+    VkPresentModeKHR                            presentMode
+    VkSwapchainKHR                              oldSwapchain
+    VkBool32                                    clipped
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 class VkPresentInfoKHR {
-    VkStructureType                          sType
-    const void*                              pNext
-    u32                                      swapchainCount
-    const VkSwapchainKHR*                    swapchains
-    const u32*                               imageIndices
+    VkStructureType                             sType
+    const void*                                 pNext
+    u32                                         swapchainCount
+    const VkSwapchainKHR*                       swapchains
+    const u32*                                  imageIndices
 }
 
-@extension("VK_EXT_KHR_swapchain")
-class VkSurfaceDescriptionKHR {
-    VkStructureType                          sType
-    const void*                              pNext
+@extension("VK_EXT_KHR_display")
+class VkDisplayPropertiesKHR {
+    VkDisplayKHR                                display
+    const char*                                 displayName
+    VkExtent2D                                  physicalDimensions
+    VkExtent2D                                  physicalResolution
+    VkSurfaceTransformFlagsKHR                  supportedTransforms
+    u32                                         planeCount
+    VkBool32                                    planeReorderPossible
 }
 
-@extension("VK_EXT_KHR_swapchain")
-class VkSurfaceDescriptionWindowKHR {
-    VkStructureType                         sType
-    const void*                             pNext
-    VkPlatformKHR                           platform
-    void*                                   pPlatformHandle
-    void*                                   pPlatformWindow
+@extension("VK_EXT_KHR_display")
+class VkDisplayTimingKHR {
+    u32                                         pixelClock
+    VkExtent2D                                  visibleRegion
+    VkExtent2D                                  totalRegion
+    VkExtent2D                                  physicalDimensions
+    u32                                         hSyncStart
+    u32                                         hSyncEnd
+    u32                                         vSyncStart
+    u32                                         vSyncEnd
+    VkBool32                                    interlaced
+    VkBool32                                    doublescan
+    VkBool32                                    hSyncPos
+    VkBool32                                    vSyncPos
 }
+
+@extension("VK_EXT_KHR_display")
+class VkDisplayModePropertiesKHR {
+    VkDisplayModeKHR                            displayMode
+    VkDisplayTimingKHR                          timing
+}
+
+@extension("VK_EXT_KHR_display")
+class VkDisplayModeCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkDisplayTimingKHR                          timing
+}
+
+@extension("VK_EXT_KHR_display")
+class VkDisplayPlanePropertiesKHR {
+    VkDisplayPlaneAlphaFlagsKHR                 supportedAlpha
+    VkOffset2D                                  minSrcPosition
+    VkOffset2D                                  maxSrcPosition
+    VkExtent2D                                  minSrcExtent
+    VkExtent2D                                  maxSrcExtent
+    VkOffset2D                                  minDstPosition
+    VkOffset2D                                  maxDstPosition
+    VkExtent2D                                  minDstExtent
+    VkExtent2D                                  maxDstExtent
+}
+
+@extension("VK_EXT_KHR_display")
+class VkSurfaceDescriptionDisplayPlaneKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkDisplayModeKHR                            displayMode
+    u32                                         planeIndex
+    u32                                         planeStackIndex
+    VkSurfaceTransformKHR                       transform
+    f32                                         globalAlpha
+    VkDisplayPlaneAlphaFlagsKHR                 alphaMode
+    VkExtent2D                                  imageSize
+}
+
+@extension("VK_EXT_KHR_display_swapchain")
+class VkDisplaySwapchainCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo
+}
+
+@extension("VK_EXT_KHR_display_swapchain")
+class VkDisplayPresentInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkRect2D                                    srcRect
+    VkRect2D                                    dstRect
+}
+
 
 ////////////////
 //  Commands  //
@@ -4296,29 +4422,34 @@ cmd void vkCmdExecuteCommands(
     }
 }
 
-////////////////
-// Extensions //
-////////////////
+@extension("VK_EXT_KHR_surface")
+cmd void vkDestroySurfaceKHR(
+        VkInstance                                  instance,
+        VkSurfaceKHR                                surface) {
+    instanceObject := GetInstance(instance)
+    surfaceObject := GetSurface(surface)
+    assert(surfaceObject.instance == instance)
 
-@extension("VK_EXT_KHR_swapchain")
-cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
-        VkPhysicalDevice                        physicalDevice,
-        u32                                     queueFamilyIndex,
-        const VkSurfaceDescriptionKHR*          pSurfaceDescription,
-        VkBool32*                               pSupported) {
-    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
-
-    supported := ?
-    pSupported[0] = supported
-
-    return ?
+    State.Surfaces[surface] = null
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_surface")
+cmd VkBool32 vkGetPhysicalDeviceSurfaceSupportKHR(
+        VkPhysicalDevice                            physicalDevice,
+        u32                                         queueFamilyIndex,
+        VkSurfaceKHR                                surface) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+
+    //supported := ?
+
+    return ?//supported
+}
+
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkGetSurfacePropertiesKHR(
-        VkDevice                                 device,
-        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
-        VkSurfacePropertiesKHR*                  pSurfaceProperties) {
+        VkDevice                                    device,
+        VkSurfaceKHR                                surface,
+        VkSurfacePropertiesKHR*                     pSurfaceProperties) {
     deviceObject := GetDevice(device)
 
     surfaceProperties := ?
@@ -4327,12 +4458,12 @@ cmd VkResult vkGetSurfacePropertiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkGetSurfaceFormatsKHR(
-        VkDevice                                 device,
-        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
-        u32*                                     pCount,
-        VkSurfaceFormatKHR*                      pSurfaceFormats) {
+        VkDevice                                    device,
+        VkSurfaceKHR                                surface,
+        u32*                                        pCount,
+        VkSurfaceFormatKHR*                         pSurfaceFormats) {
     deviceObject := GetDevice(device)
 
     count := as!u32(?)
@@ -4347,12 +4478,12 @@ cmd VkResult vkGetSurfaceFormatsKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkGetSurfacePresentModesKHR(
-        VkDevice                                 device,
-        const VkSurfaceDescriptionKHR*           pSurfaceDescription,
-        u32*                                     pCount,
-        VkPresentModeKHR*                        pPresentModes) {
+        VkDevice                                    device,
+        VkSurfaceKHR                                surface,
+        u32*                                        pCount,
+        VkPresentModeKHR*                           pPresentModes) {
     deviceObject := GetDevice(device)
 
     count := as!u32(?)
@@ -4367,12 +4498,12 @@ cmd VkResult vkGetSurfacePresentModesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkCreateSwapchainKHR(
         VkDevice                                 device,
         const VkSwapchainCreateInfoKHR*          pCreateInfo,
         VkSwapchainKHR*                          pSwapchain) {
-    //assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
+    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
     deviceObject := GetDevice(device)
 
     swapchain := ?
@@ -4382,8 +4513,8 @@ cmd VkResult vkCreateSwapchainKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
-cmd VkResult vkDestroySwapchainKHR(
+@extension("VK_EXT_KHR_swapchain")
+cmd void vkDestroySwapchainKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain) {
     deviceObject := GetDevice(device)
@@ -4391,11 +4522,9 @@ cmd VkResult vkDestroySwapchainKHR(
     assert(swapchainObject.device == device)
 
     State.Swapchains[swapchain] = null
-
-    return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkGetSwapchainImagesKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain,
@@ -4410,20 +4539,19 @@ cmd VkResult vkGetSwapchainImagesKHR(
     for i in (0 .. count) {
         swapchainImage := ?
         swapchainImages[i] = swapchainImage
-        if !(swapchainImage in State.Images) {
-            State.Images[swapchainImage] = new!ImageObject(device: device)
-        }
+        State.Images[swapchainImage] = new!ImageObject(device: device)
     }
 
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkAcquireNextImageKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain,
         u64                                      timeout,
         VkSemaphore                              semaphore,
+        VkFence                                  fence,
         u32*                                     pImageIndex) {
     deviceObject := GetDevice(device)
     swapchainObject := GetSwapchain(swapchain)
@@ -4434,7 +4562,7 @@ cmd VkResult vkAcquireNextImageKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_device_swapchain")
+@extension("VK_EXT_KHR_swapchain")
 cmd VkResult vkQueuePresentKHR(
         VkQueue                                  queue,
         VkPresentInfoKHR*                        pPresentInfo) {
@@ -4443,6 +4571,107 @@ cmd VkResult vkQueuePresentKHR(
     presentInfo := ?
     pPresentInfo[0] = presentInfo
 
+    return ?
+}
+
+@extension("VK_EXT_KHR_display")
+cmd VkResult vkGetPhysicalDeviceDisplayPropertiesKHR(
+        VkPhysicalDevice                        physicalDevice,
+        u32*                                    count,
+        VkDisplayPropertiesKHR*                 pProperties) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+    return ?
+}
+
+@extension("VK_EXT_KHR_display")
+cmd VkResult vkGetDisplayModePropertiesKHR(
+        VkPhysicalDevice                        physicalDevice,
+        VkDisplayKHR                            display,
+        u32*                                    pCount,
+        VkDisplayModePropertiesKHR*             pModeProperties) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+    return ?
+}
+
+@extension("VK_EXT_KHR_display")
+cmd VkResult vkCreateDisplayModeKHR(
+        VkPhysicalDevice                        physicalDevice,
+        VkDisplayKHR                            display,
+        const VkDisplayModeCreateInfoKHR*       pCreateInfo,
+        VkDisplayModeKHR*                       pMode) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+    return ?
+}
+
+@extension("VK_EXT_KHR_display")
+cmd VkResult vkGetDisplayPlanePropertiesKHR(
+        VkPhysicalDevice                        physicalDevice,
+        VkDisplayKHR                            display,
+        VkDisplayModeKHR                        mode,
+        u32                                     planeIndex,
+        VkDisplayPlanePropertiesKHR*            pProperties) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+    return ?
+}
+
+@extension("VK_EXT_KHR_x11_surface")
+cmd VkResult vkCreateX11SurfaceKHR(
+        VkInstance                              instance,
+        platform.Display*                       dpy,
+        platform.Window                         root,
+        platform.Window                         window,
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
+    return ?
+}
+
+@extension("VK_EXT_KHR_xcb_surface")
+cmd VkResult vkCreateXCBSurfaceKHR(
+        VkInstance                              instance,
+        platform.xcb_connection_t*              connection,
+        platform.xcb_window_t                   root,
+        platform.xcb_window_t                   window,
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
+    return ?
+}
+
+@extension("VK_EXT_KHR_wayland_surface")
+cmd VkResult vkCreateWaylandSurfaceKHR(
+        VkInstance                              instance,
+        platform.wl_display*                    display,
+        platform.wl_surface*                    surface,
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
+    return ?
+}
+
+@extension("VK_EXT_KHR_mir_surface")
+cmd VkResult vkCreateMirSurfaceKHR(
+        VkInstance                              instance,
+        platform.MirConnection*                 connection,
+        platform.MirSurface*                    mirSurface,
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
+    return ?
+}
+
+@extension("VK_EXT_KHR_android_surface")
+cmd VkResult vkCreateAndroidSurfaceKHR(
+        VkInstance                              instance,
+        platform.ANativeWindow*                 window
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
+    return ?
+}
+
+@extension("VK_EXT_KHR_win32_surface")
+cmd VkResult vkCreateWin32SurfaceKHR(
+        VkInstance                              instance,
+        platform.HINSTANCE                      hinstance,
+        platform.HWND                           hwnd,
+        VkSurfaceKHR*                           pSurface) {
+    instanceObject := GetInstance(instance)
     return ?
 }
 
@@ -4490,6 +4719,7 @@ StateObject State
     map!(VkRenderPass,               ref!RenderPassObject)               RenderPasses
     map!(VkPipelineCache,            ref!PipelineCacheObject)            PipelineCaches
     map!(VkCmdPool,                  ref!CmdPoolObject)                  CmdPools
+    map!(VkSurfaceKHR,               ref!SurfaceObject)                  Surfaces
     map!(VkSwapchainKHR,             ref!SwapchainObject)                Swapchains
 }
 
@@ -4607,6 +4837,10 @@ StateObject State
 
 @internal class CmdPoolObject {
     VkDevice      device
+}
+
+@internal class SurfaceObject {
+    VkInstance    instance
 }
 
 @internal class SwapchainObject {
@@ -4741,6 +4975,11 @@ macro ref!PipelineCacheObject GetPipelineCache(VkPipelineCache pipelineCache) {
 macro ref!CmdPoolObject GetCmdPool(VkCmdPool cmdPool) {
     assert(cmdPool in State.CmdPools)
     return State.CmdPools[cmdPool]
+}
+
+macro ref!SurfaceObject GetSurface(VkSurfaceKHR surface) {
+    assert(surface in State.Surfaces)
+    return State.Surfaces[surface]
 }
 
 macro ref!SwapchainObject GetSwapchain(VkSwapchainKHR swapchain) {

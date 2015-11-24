@@ -49,8 +49,10 @@ const TEntry* FindProcEntry(const TEntry (&table)[N], const char* name) {
 
 const NameProcEntry kInstanceProcTbl[] = {
     // clang-format off
+    {"vkCreateAndroidSurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(vkCreateAndroidSurfaceKHR)},
     {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDevice)},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyInstance)},
+    {"vkDestroySurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySurfaceKHR)},
     {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(vkEnumerateDeviceExtensionProperties)},
     {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(vkEnumerateDeviceLayerProperties)},
     {"vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices)},
@@ -209,8 +211,10 @@ const NameProcEntry kDeviceProcTbl[] = {
 
 const NameOffsetEntry kInstanceOffsetTbl[] = {
     // clang-format off
+    {"vkCreateAndroidSurfaceKHR", offsetof(InstanceVtbl, CreateAndroidSurfaceKHR)},
     {"vkCreateDevice", offsetof(InstanceVtbl, CreateDevice)},
     {"vkDestroyInstance", offsetof(InstanceVtbl, DestroyInstance)},
+    {"vkDestroySurfaceKHR", offsetof(InstanceVtbl, DestroySurfaceKHR)},
     {"vkEnumerateDeviceExtensionProperties", offsetof(InstanceVtbl, EnumerateDeviceExtensionProperties)},
     {"vkEnumerateDeviceLayerProperties", offsetof(InstanceVtbl, EnumerateDeviceLayerProperties)},
     {"vkEnumeratePhysicalDevices", offsetof(InstanceVtbl, EnumeratePhysicalDevices)},
@@ -490,7 +494,9 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "vkGetPhysicalDeviceSparseImageFormatProperties");
         success = false;
     }
+    vtbl.DestroySurfaceKHR = reinterpret_cast<PFN_vkDestroySurfaceKHR>(get_proc_addr(instance, "vkDestroySurfaceKHR"));
     vtbl.GetPhysicalDeviceSurfaceSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(get_proc_addr(instance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
+    vtbl.CreateAndroidSurfaceKHR = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(get_proc_addr(instance, "vkCreateAndroidSurfaceKHR"));
     // clang-format on
     return success;
 }

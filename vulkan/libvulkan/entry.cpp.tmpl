@@ -69,7 +69,7 @@ namespace {
 } // namespace
 ¶
   {{range $f := AllCommands $}}
-    {{if not (GetAnnotation $f "pfn")}}
+    {{if and (not (GetAnnotation $f "pfn")) (Macro "IsExportedEntry" $f)}}
       __attribute__((visibility("default")))
       {{if eq (Macro "IsSpecialEntry" $f.Name) "true"}}
         {{Macro "EmitSpecialEntry" $f}}
@@ -79,6 +79,25 @@ namespace {
     {{end}}
   {{end}}
 
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Decides whether an entrypoint should be exported from the Android Vulkan
+  library. Entrypoints in the core API and in mandatory extensions are
+  exported.
+-------------------------------------------------------------------------------
+*/}}
+{{define "IsExportedEntry"}}
+  {{AssertType $ "Function"}}
+  {{$ext := GetAnnotation $ "extension"}}
+  {{if $ext}}
+    {{$extval := index $ext.Arguments 0}}
+    {{if      eq $extval "VK_EXT_KHR_surface"}}true
+    {{else if eq $extval "VK_EXT_KHR_swapchain"}}true
+    {{else if eq $extval "VK_EXT_KHR_android_surface"}}true{{end}}
+  {{else}}true{{end}}
 {{end}}
 
 
@@ -94,6 +113,7 @@ namespace {
     true
   {{end}}
 {{end}}
+
 
 {{/*
 -------------------------------------------------------------------------------

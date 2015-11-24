@@ -18,9 +18,8 @@
 #define LIBVULKAN_LOADER_H 1
 
 #define VK_PROTOTYPES
+#define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_khr_swapchain.h>
-#include <vulkan/vk_ext_khr_device_swapchain.h>
 #include <vulkan/vk_ext_android_native_buffer.h>
 
 namespace vulkan {
@@ -52,6 +51,8 @@ struct InstanceVtbl {
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
 
     // Layers and loader only, not implemented by drivers
+    PFN_vkCreateAndroidSurfaceKHR CreateAndroidSurfaceKHR;
+    PFN_vkDestroySurfaceKHR DestroySurfaceKHR;
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
     // clang-format on
 };
@@ -230,11 +231,16 @@ VkResult AllocCommandBuffers(VkDevice device,
                              VkCmdBuffer* cmdbuffers);
 VkResult DestroyDevice(VkDevice drv_device);
 
-void* AllocDeviceMem(VkDevice device,
-                     size_t size,
-                     size_t align,
-                     VkSystemAllocType type);
-void FreeDeviceMem(VkDevice device, void* ptr);
+void* AllocMem(VkInstance instance,
+               size_t size,
+               size_t align,
+               VkSystemAllocType type);
+void FreeMem(VkInstance instance, void* ptr);
+void* AllocMem(VkDevice device,
+               size_t size,
+               size_t align,
+               VkSystemAllocType type);
+void FreeMem(VkDevice device, void* ptr);
 const DeviceVtbl& GetDriverVtbl(VkDevice device);
 const DeviceVtbl& GetDriverVtbl(VkQueue queue);
 
@@ -260,20 +266,22 @@ bool LoadDeviceVtbl(VkDevice device,
 // -----------------------------------------------------------------------------
 // swapchain.cpp
 
-VkResult GetPhysicalDeviceSurfaceSupportKHR(
-    VkPhysicalDevice pdev,
-    uint32_t queue_family,
-    const VkSurfaceDescriptionKHR* surface_desc,
-    VkBool32* supported);
+VkResult CreateAndroidSurfaceKHR(VkInstance instance,
+                                 ANativeWindow* window,
+                                 VkSurfaceKHR* surface);
+void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
+VkBool32 GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
+                                            uint32_t queue_family,
+                                            VkSurfaceKHR surface);
 VkResult GetSurfacePropertiesKHR(VkDevice device,
-                                 const VkSurfaceDescriptionKHR* surface_desc,
+                                 VkSurfaceKHR surface,
                                  VkSurfacePropertiesKHR* properties);
 VkResult GetSurfaceFormatsKHR(VkDevice device,
-                              const VkSurfaceDescriptionKHR* surface_desc,
+                              VkSurfaceKHR surface,
                               uint32_t* count,
                               VkSurfaceFormatKHR* formats);
 VkResult GetSurfacePresentModesKHR(VkDevice device,
-                                   const VkSurfaceDescriptionKHR* surface_desc,
+                                   VkSurfaceKHR surface,
                                    uint32_t* count,
                                    VkPresentModeKHR* modes);
 VkResult CreateSwapchainKHR(VkDevice device,

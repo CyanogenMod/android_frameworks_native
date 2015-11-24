@@ -49,43 +49,55 @@ struct NativeBaseDeleter {
     void operator()(T* obj) { obj->common.decRef(&obj->common); }
 };
 
-template <typename T>
+template <typename T, typename Host>
 class VulkanAllocator {
    public:
     typedef T value_type;
 
-    explicit VulkanAllocator(VkDevice device) : device_(device) {}
+    explicit VulkanAllocator(Host host) : host_(host) {}
 
     template <typename U>
-    explicit VulkanAllocator(const VulkanAllocator<U>& other)
-        : device_(other.device_) {}
+    explicit VulkanAllocator(const VulkanAllocator<U, Host>& other)
+        : host_(other.host_) {}
 
     T* allocate(size_t n) const {
-        return static_cast<T*>(AllocDeviceMem(
-            device_, n * sizeof(T), alignof(T), VK_SYSTEM_ALLOC_TYPE_INTERNAL));
+        return static_cast<T*>(AllocMem(host_, n * sizeof(T), alignof(T),
+                                        VK_SYSTEM_ALLOC_TYPE_INTERNAL));
     }
-    void deallocate(T* p, size_t) const { return FreeDeviceMem(device_, p); }
+    void deallocate(T* p, size_t) const { return FreeMem(host_, p); }
 
    private:
-    template <typename U>
+    template <typename U, typename H>
     friend class VulkanAllocator;
-    VkDevice device_;
+    Host host_;
 };
 
-template <typename T>
-std::shared_ptr<T> InitSharedPtr(VkDevice device, T* obj) {
+template <typename T, typename Host>
+std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
     obj->common.incRef(&obj->common);
     return std::shared_ptr<T>(obj, NativeBaseDeleter<T>(),
-                              VulkanAllocator<T>(device));
+                              VulkanAllocator<T, Host>(host));
 }
 
 // ----------------------------------------------------------------------------
 
-struct Swapchain {
-    Swapchain(std::shared_ptr<ANativeWindow> window_, uint32_t num_images_)
-        : window(window_), num_images(num_images_) {}
-
+struct Surface {
     std::shared_ptr<ANativeWindow> window;
+};
+
+VkSurfaceKHR HandleFromSurface(Surface* surface) {
+    return VkSurfaceKHR(reinterpret_cast<uint64_t>(surface));
+}
+
+Surface* SurfaceFromHandle(VkSurfaceKHR handle) {
+    return reinterpret_cast<Surface*>(handle.handle);
+}
+
+struct Swapchain {
+    Swapchain(Surface& surface_, uint32_t num_images_)
+        : surface(surface_), num_images(num_images_) {}
+
+    Surface& surface;
     uint32_t num_images;
 
     struct Image {
@@ -113,94 +125,68 @@ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
 
 namespace vulkan {
 
-VkResult GetPhysicalDeviceSurfaceSupportKHR(
-    VkPhysicalDevice /*pdev*/,
-    uint32_t /*queue_family*/,
-    const VkSurfaceDescriptionKHR* surface_desc,
-    VkBool32* supported) {
-// TODO(jessehall): Fix the header, preferrably upstream, so values added to
-// existing enums don't trigger warnings like this.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wold-style-cast"
-#pragma clang diagnostic ignored "-Wsign-conversion"
-    ALOGE_IF(
-        surface_desc->sType != VK_STRUCTURE_TYPE_SURFACE_DESCRIPTION_WINDOW_KHR,
-        "vkGetPhysicalDeviceSurfaceSupportKHR: pSurfaceDescription->sType=%#x "
-        "not supported",
-        surface_desc->sType);
-#pragma clang diagnostic pop
+VkResult CreateAndroidSurfaceKHR(VkInstance instance,
+                                 ANativeWindow* window,
+                                 VkSurfaceKHR* out_surface) {
+    void* mem = AllocMem(instance, sizeof(Surface), alignof(Surface),
+                         VK_SYSTEM_ALLOC_TYPE_API_OBJECT);
+    if (!mem)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    Surface* surface = new (mem) Surface;
 
-    const VkSurfaceDescriptionWindowKHR* window_desc =
-        reinterpret_cast<const VkSurfaceDescriptionWindowKHR*>(surface_desc);
+    surface->window = InitSharedPtr(instance, window);
 
-    // TODO(jessehall): Also check whether the physical device exports the
-    // VK_EXT_ANDROID_native_buffer extension. For now, assume it does.
-    *supported = (window_desc->platform == VK_PLATFORM_ANDROID_KHR &&
-                  !window_desc->pPlatformHandle &&
-                  static_cast<ANativeWindow*>(window_desc->pPlatformWindow)
-                          ->common.magic == ANDROID_NATIVE_WINDOW_MAGIC);
+    // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
+    int err =
+        native_window_api_connect(surface->window.get(), NATIVE_WINDOW_API_EGL);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_api_connect() failed: %s (%d)", strerror(-err),
+              err);
+        surface->~Surface();
+        FreeMem(instance, surface);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
 
+    *out_surface = HandleFromSurface(surface);
     return VK_SUCCESS;
 }
 
+void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
+    Surface* surface = SurfaceFromHandle(surface_handle);
+    if (!surface)
+        return;
+    native_window_api_disconnect(surface->window.get(), NATIVE_WINDOW_API_EGL);
+    surface->~Surface();
+    FreeMem(instance, surface);
+}
+
+VkBool32 GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
+                                            uint32_t /*queue_family*/,
+                                            VkSurfaceKHR /*surface*/) {
+    return VK_TRUE;
+}
+
 VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
-                                 const VkSurfaceDescriptionKHR* surface_desc,
+                                 VkSurfaceKHR surface,
                                  VkSurfacePropertiesKHR* properties) {
-    const VkSurfaceDescriptionWindowKHR* window_desc =
-        reinterpret_cast<const VkSurfaceDescriptionWindowKHR*>(surface_desc);
-    ANativeWindow* window =
-        static_cast<ANativeWindow*>(window_desc->pPlatformWindow);
-
     int err;
-
-    // TODO(jessehall): Currently the window must be connected for several
-    // queries -- including default dimensions -- to work, since Surface caches
-    // the queried values at connect() and queueBuffer(), and query() returns
-    // those cached values.
-    //
-    // The proposed refactoring to create a VkSurface object (bug 14596) will
-    // give us a place to connect once per window. If that doesn't end up
-    // happening, we'll probably need to maintain an internal list of windows
-    // that have swapchains created for them, search that list here, and
-    // only temporarily connect if the window doesn't have a swapchain.
-
-    bool disconnect = true;
-    err = native_window_api_connect(window, NATIVE_WINDOW_API_EGL);
-    if (err == -EINVAL) {
-        // This is returned if the window is already connected, among other
-        // things. We'll just assume we're already connected and charge ahead.
-        // See TODO above, this is not cool.
-        ALOGW(
-            "vkGetSurfacePropertiesKHR: native_window_api_connect returned "
-            "-EINVAL, assuming already connected");
-        err = 0;
-        disconnect = false;
-    } else if (err != 0) {
-        // TODO(jessehall): Improve error reporting. Can we enumerate possible
-        // errors and translate them to valid Vulkan result codes?
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
+    ANativeWindow* window = SurfaceFromHandle(surface)->window.get();
 
     int width, height;
     err = window->query(window, NATIVE_WINDOW_DEFAULT_WIDTH, &width);
     if (err != 0) {
         ALOGE("NATIVE_WINDOW_DEFAULT_WIDTH query failed: %s (%d)",
               strerror(-err), err);
-        if (disconnect)
-            native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     err = window->query(window, NATIVE_WINDOW_DEFAULT_HEIGHT, &height);
     if (err != 0) {
         ALOGE("NATIVE_WINDOW_DEFAULT_WIDTH query failed: %s (%d)",
               strerror(-err), err);
-        if (disconnect)
-            native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
-
-    if (disconnect)
-        native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
 
     properties->currentExtent = VkExtent2D{width, height};
 
@@ -238,13 +224,14 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
 }
 
 VkResult GetSurfaceFormatsKHR(VkDevice /*device*/,
-                              const VkSurfaceDescriptionKHR* /*surface_desc*/,
+                              VkSurfaceKHR /*surface*/,
                               uint32_t* count,
                               VkSurfaceFormatKHR* formats) {
-    // TODO(jessehall): Fill out the set of supported formats. Open question
-    // whether we should query the driver for support -- how does it know what
-    // the consumer can support? Should we support formats that don't
-    // correspond to gralloc formats?
+    // TODO(jessehall): Fill out the set of supported formats. Longer term, add
+    // a new gralloc method to query whether a (format, usage) pair is
+    // supported, and check that for each gralloc format that corresponds to a
+    // Vulkan format. Shorter term, just add a few more formats to the ones
+    // hardcoded below.
 
     const VkSurfaceFormatKHR kFormats[] = {
         {VK_FORMAT_R8G8B8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
@@ -262,11 +249,10 @@ VkResult GetSurfaceFormatsKHR(VkDevice /*device*/,
     return result;
 }
 
-VkResult GetSurfacePresentModesKHR(
-    VkDevice /*device*/,
-    const VkSurfaceDescriptionKHR* /*surface_desc*/,
-    uint32_t* count,
-    VkPresentModeKHR* modes) {
+VkResult GetSurfacePresentModesKHR(VkDevice /*device*/,
+                                   VkSurfaceKHR /*surface*/,
+                                   uint32_t* count,
+                                   VkPresentModeKHR* modes) {
     const VkPresentModeKHR kModes[] = {
         VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR,
     };
@@ -304,26 +290,11 @@ VkResult CreateSwapchainKHR(VkDevice device,
              "present modes other than FIFO are not yet implemented");
 
     // -- Configure the native window --
-    // Failure paths from here on need to disconnect the window.
 
+    Surface& surface = *SurfaceFromHandle(create_info->surface);
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
 
-    std::shared_ptr<ANativeWindow> window = InitSharedPtr(
-        device, static_cast<ANativeWindow*>(
-                    reinterpret_cast<const VkSurfaceDescriptionWindowKHR*>(
-                        create_info->pSurfaceDescription)->pPlatformWindow));
-
-    // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
-    err = native_window_api_connect(window.get(), NATIVE_WINDOW_API_EGL);
-    if (err != 0) {
-        // TODO(jessehall): Improve error reporting. Can we enumerate possible
-        // errors and translate them to valid Vulkan result codes?
-        ALOGE("native_window_api_connect() failed: %s (%d)", strerror(-err),
-              err);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    err = native_window_set_buffers_dimensions(window.get(),
+    err = native_window_set_buffers_dimensions(surface.window.get(),
                                                create_info->imageExtent.width,
                                                create_info->imageExtent.height);
     if (err != 0) {
@@ -332,40 +303,37 @@ VkResult CreateSwapchainKHR(VkDevice device,
         ALOGE("native_window_set_buffers_dimensions(%d,%d) failed: %s (%d)",
               create_info->imageExtent.width, create_info->imageExtent.height,
               strerror(-err), err);
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     err = native_window_set_scaling_mode(
-        window.get(), NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
+        surface.window.get(), NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_set_scaling_mode(SCALE_TO_WINDOW) failed: %s (%d)",
               strerror(-err), err);
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t min_undequeued_buffers;
-    err = window->query(window.get(), NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
-                        reinterpret_cast<int*>(&min_undequeued_buffers));
+    err = surface.window->query(
+        surface.window.get(), NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
+        reinterpret_cast<int*>(&min_undequeued_buffers));
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("window->query failed: %s (%d)", strerror(-err), err);
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     uint32_t num_images =
         (create_info->minImageCount - 1) + min_undequeued_buffers;
-    err = native_window_set_buffer_count(window.get(), num_images);
+    err = native_window_set_buffer_count(surface.window.get(), num_images);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_set_buffer_count failed: %s (%d)", strerror(-err),
               err);
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
@@ -377,31 +345,27 @@ VkResult CreateSwapchainKHR(VkDevice device,
             &gralloc_usage);
         if (result != VK_SUCCESS) {
             ALOGE("vkGetSwapchainGrallocUsageANDROID failed: %d", result);
-            native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
             return VK_ERROR_INITIALIZATION_FAILED;
         }
     } else {
         gralloc_usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
     }
-    err = native_window_set_usage(window.get(), gralloc_usage);
+    err = native_window_set_usage(surface.window.get(), gralloc_usage);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_set_usage failed: %s (%d)", strerror(-err), err);
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     // -- Allocate our Swapchain object --
     // After this point, we must deallocate the swapchain on error.
 
-    void* mem = AllocDeviceMem(device, sizeof(Swapchain), alignof(Swapchain),
-                               VK_SYSTEM_ALLOC_TYPE_API_OBJECT);
-    if (!mem) {
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
+    void* mem = AllocMem(device, sizeof(Swapchain), alignof(Swapchain),
+                         VK_SYSTEM_ALLOC_TYPE_API_OBJECT);
+    if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
-    Swapchain* swapchain = new (mem) Swapchain(window, num_images);
+    Swapchain* swapchain = new (mem) Swapchain(surface, num_images);
 
     // -- Dequeue all buffers and create a VkImage for each --
     // Any failures during or after this must cancel the dequeued buffers.
@@ -435,7 +399,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
         Swapchain::Image& img = swapchain->images[i];
 
         ANativeWindowBuffer* buffer;
-        err = window->dequeueBuffer(window.get(), &buffer, &img.dequeue_fence);
+        err = surface.window->dequeueBuffer(surface.window.get(), &buffer,
+                                            &img.dequeue_fence);
         if (err != 0) {
             // TODO(jessehall): Improve error reporting. Can we enumerate
             // possible errors and translate them to valid Vulkan result codes?
@@ -469,8 +434,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
     for (uint32_t i = 0; i < num_images; i++) {
         Swapchain::Image& img = swapchain->images[i];
         if (img.dequeued) {
-            window->cancelBuffer(window.get(), img.buffer.get(),
-                                 img.dequeue_fence);
+            surface.window->cancelBuffer(surface.window.get(), img.buffer.get(),
+                                         img.dequeue_fence);
             img.dequeue_fence = -1;
             img.dequeued = false;
         }
@@ -481,9 +446,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
     }
 
     if (result != VK_SUCCESS) {
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
         swapchain->~Swapchain();
-        FreeDeviceMem(device, swapchain);
+        FreeMem(device, swapchain);
         return result;
     }
 
@@ -494,7 +458,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
 VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
-    const std::shared_ptr<ANativeWindow>& window = swapchain->window;
+    const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
 
     for (uint32_t i = 0; i < swapchain->num_images; i++) {
         Swapchain::Image& img = swapchain->images[i];
@@ -509,9 +473,8 @@ VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
         }
     }
 
-    native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
     swapchain->~Swapchain();
-    FreeDeviceMem(device, swapchain);
+    FreeMem(device, swapchain);
 
     return VK_SUCCESS;
 }
@@ -541,6 +504,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
                              VkSemaphore semaphore,
                              uint32_t* image_index) {
     Swapchain& swapchain = *SwapchainFromHandle(swapchain_handle);
+    ANativeWindow* window = swapchain.surface.window.get();
     VkResult result;
     int err;
 
@@ -550,8 +514,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
 
     ANativeWindowBuffer* buffer;
     int fence;
-    err = swapchain.window->dequeueBuffer(swapchain.window.get(), &buffer,
-                                          &fence);
+    err = window->dequeueBuffer(window, &buffer, &fence);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
@@ -569,7 +532,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
     }
     if (idx == swapchain.num_images) {
         ALOGE("dequeueBuffer returned unrecognized buffer");
-        swapchain.window->cancelBuffer(swapchain.window.get(), buffer, fence);
+        window->cancelBuffer(window, buffer, fence);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
         return VK_ERROR_OUT_OF_DATE_KHR;
@@ -605,7 +568,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
         // number between the time the driver closes it and the time we close
         // it. We must assume one of: the driver *always* closes it even on
         // failure, or *never* closes it on failure.
-        swapchain.window->cancelBuffer(swapchain.window.get(), buffer, fence);
+        window->cancelBuffer(window, buffer, fence);
         swapchain.images[idx].dequeued = false;
         swapchain.images[idx].dequeue_fence = -1;
         return result;
@@ -630,6 +593,7 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
     for (uint32_t sc = 0; sc < present_info->swapchainCount; sc++) {
         Swapchain& swapchain =
             *SwapchainFromHandle(present_info->swapchains[sc]);
+        ANativeWindow* window = swapchain.surface.window.get();
         uint32_t image_idx = present_info->imageIndices[sc];
         Swapchain::Image& img = swapchain.images[image_idx];
         VkResult result;
@@ -656,8 +620,7 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
             continue;
         }
 
-        err = swapchain.window->queueBuffer(swapchain.window.get(),
-                                            img.buffer.get(), fence);
+        err = window->queueBuffer(window, img.buffer.get(), fence);
         if (err != 0) {
             // TODO(jessehall): What now? We should probably cancel the buffer,
             // I guess?

@@ -3002,6 +3002,438 @@ void VKAPI vkCmdExecuteCommands(
     const VkCmdBuffer*                          pCmdBuffers);
 #endif
 
+#define vk_ext_khr_surface 1
+VK_DEFINE_NONDISP_HANDLE(VkSurfaceKHR)
+
+#define VK_EXT_KHR_SURFACE_REVISION       19
+#define VK_EXT_KHR_SURFACE_EXTENSION_NUMBER 1
+#define VK_EXT_KHR_SURFACE_EXTENSION_NAME "VK_EXT_KHR_surface"
+
+typedef void (VKAPI *PFN_vkDestroySurfaceKHR)(VkInstance  instance, VkSurfaceKHR  surface);
+typedef VkBool32 (VKAPI *PFN_vkGetPhysicalDeviceSurfaceSupportKHR)(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface);
+
+#ifdef VK_PROTOTYPES
+void VKAPI vkDestroySurfaceKHR(
+    VkInstance                                   instance,
+    VkSurfaceKHR                                 surface);
+
+VkBool32 VKAPI vkGetPhysicalDeviceSurfaceSupportKHR(
+    VkPhysicalDevice                            physicalDevice,
+    uint32_t                                    queueFamilyIndex,
+    VkSurfaceKHR                                surface);
+#endif
+
+#define vk_ext_khr_swapchain 1
+VK_DEFINE_NONDISP_HANDLE(VkSwapchainKHR)
+
+#define VK_EXT_KHR_SWAPCHAIN_REVISION     59
+#define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NUMBER 2
+#define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NAME "VK_EXT_KHR_swapchain"
+#define VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000800)
+#define VK_STRUCTURE_TYPE_PRESENT_INFO_KHR ((VkStructureType)(int)0xc0000801)
+#define VK_IMAGE_LAYOUT_PRESENT_SOURCE_KHR ((VkImageLayout)(int)0xc0000802)
+#define VK_SUBOPTIMAL_KHR                 ((VkResult)(int)0x40000403)
+#define VK_ERROR_OUT_OF_DATE_KHR          ((VkResult)(int)0xc0000804)
+
+
+typedef enum {
+    VK_SURFACE_TRANSFORM_NONE_KHR = 0,
+    VK_SURFACE_TRANSFORM_ROT90_KHR = 1,
+    VK_SURFACE_TRANSFORM_ROT180_KHR = 2,
+    VK_SURFACE_TRANSFORM_ROT270_KHR = 3,
+    VK_SURFACE_TRANSFORM_HMIRROR_KHR = 4,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_KHR = 5,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_KHR = 6,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_KHR = 7,
+    VK_SURFACE_TRANSFORM_INHERIT_KHR = 8,
+    VK_SURFACE_TRANSFORM_BEGIN_RANGE = VK_SURFACE_TRANSFORM_NONE_KHR,
+    VK_SURFACE_TRANSFORM_END_RANGE = VK_SURFACE_TRANSFORM_INHERIT_KHR,
+    VK_SURFACE_TRANSFORM_NUM = (VK_SURFACE_TRANSFORM_INHERIT_KHR - VK_SURFACE_TRANSFORM_NONE_KHR + 1),
+    VK_SURFACE_TRANSFORM_MAX_ENUM = 0x7FFFFFFF
+} VkSurfaceTransformKHR;
+
+typedef enum {
+    VK_COLORSPACE_SRGB_NONLINEAR_KHR = 0,
+    VK_COLORSPACE_BEGIN_RANGE = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+    VK_COLORSPACE_END_RANGE = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+    VK_COLORSPACE_NUM = (VK_COLORSPACE_SRGB_NONLINEAR_KHR - VK_COLORSPACE_SRGB_NONLINEAR_KHR + 1),
+    VK_COLORSPACE_MAX_ENUM = 0x7FFFFFFF
+} VkColorSpaceKHR;
+
+typedef enum {
+    VK_PRESENT_MODE_IMMEDIATE_KHR = 0,
+    VK_PRESENT_MODE_MAILBOX_KHR = 1,
+    VK_PRESENT_MODE_FIFO_KHR = 2,
+    VK_PRESENT_MODE_BEGIN_RANGE = VK_PRESENT_MODE_IMMEDIATE_KHR,
+    VK_PRESENT_MODE_END_RANGE = VK_PRESENT_MODE_FIFO_KHR,
+    VK_PRESENT_MODE_NUM = (VK_PRESENT_MODE_FIFO_KHR - VK_PRESENT_MODE_IMMEDIATE_KHR + 1),
+    VK_PRESENT_MODE_MAX_ENUM = 0x7FFFFFFF
+} VkPresentModeKHR;
+
+
+typedef enum {
+    VK_SURFACE_TRANSFORM_NONE_BIT_KHR = 0x00000001,
+    VK_SURFACE_TRANSFORM_ROT90_BIT_KHR = 0x00000002,
+    VK_SURFACE_TRANSFORM_ROT180_BIT_KHR = 0x00000004,
+    VK_SURFACE_TRANSFORM_ROT270_BIT_KHR = 0x00000008,
+    VK_SURFACE_TRANSFORM_HMIRROR_BIT_KHR = 0x00000010,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_BIT_KHR = 0x00000020,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_BIT_KHR = 0x00000040,
+    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_BIT_KHR = 0x00000080,
+    VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR = 0x00000100,
+} VkSurfaceTransformFlagBitsKHR;
+typedef VkFlags VkSurfaceTransformFlagsKHR;
+
+typedef struct {
+    uint32_t                                    minImageCount;
+    uint32_t                                    maxImageCount;
+    VkExtent2D                                  currentExtent;
+    VkExtent2D                                  minImageExtent;
+    VkExtent2D                                  maxImageExtent;
+    VkSurfaceTransformFlagsKHR                  supportedTransforms;
+    VkSurfaceTransformKHR                       currentTransform;
+    uint32_t                                    maxImageArraySize;
+    VkImageUsageFlags                           supportedUsageFlags;
+} VkSurfacePropertiesKHR;
+
+typedef struct {
+    VkFormat                                    format;
+    VkColorSpaceKHR                             colorSpace;
+} VkSurfaceFormatKHR;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    VkSurfaceKHR                                surface;
+    uint32_t                                    minImageCount;
+    VkFormat                                    imageFormat;
+    VkColorSpaceKHR                             imageColorSpace;
+    VkExtent2D                                  imageExtent;
+    VkImageUsageFlags                           imageUsageFlags;
+    VkSurfaceTransformKHR                       preTransform;
+    uint32_t                                    imageArraySize;
+    VkSharingMode                               sharingMode;
+    uint32_t                                    queueFamilyCount;
+    const uint32_t*                             pQueueFamilyIndices;
+    VkPresentModeKHR                            presentMode;
+    VkSwapchainKHR                              oldSwapchain;
+    VkBool32                                    clipped;
+} VkSwapchainCreateInfoKHR;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    uint32_t                                    swapchainCount;
+    const VkSwapchainKHR*                       swapchains;
+    const uint32_t*                             imageIndices;
+} VkPresentInfoKHR;
+
+
+typedef VkResult (VKAPI *PFN_vkGetSurfacePropertiesKHR)(VkDevice  device, VkSurfaceKHR  surface, VkSurfacePropertiesKHR*  pSurfaceProperties);
+typedef VkResult (VKAPI *PFN_vkGetSurfaceFormatsKHR)(VkDevice  device, VkSurfaceKHR  surface, uint32_t*  pCount, VkSurfaceFormatKHR*  pSurfaceFormats);
+typedef VkResult (VKAPI *PFN_vkGetSurfacePresentModesKHR)(VkDevice  device, VkSurfaceKHR  surface, uint32_t*  pCount, VkPresentModeKHR*  pPresentModes);
+typedef VkResult (VKAPI *PFN_vkCreateSwapchainKHR)(VkDevice  device, const VkSwapchainCreateInfoKHR*  pCreateInfo, VkSwapchainKHR*  pSwapchain);
+typedef void (VKAPI *PFN_vkDestroySwapchainKHR)(VkDevice  device, VkSwapchainKHR  swapchain);
+typedef VkResult (VKAPI *PFN_vkGetSwapchainImagesKHR)(VkDevice  device, VkSwapchainKHR  swapchain, uint32_t*  pCount, VkImage*  pSwapchainImages);
+typedef VkResult (VKAPI *PFN_vkAcquireNextImageKHR)(VkDevice  device, VkSwapchainKHR  swapchain, uint64_t  timeout, VkSemaphore  semaphore, VkFence  fence, uint32_t*  pImageIndex);
+typedef VkResult (VKAPI *PFN_vkQueuePresentKHR)(VkQueue  queue, VkPresentInfoKHR*  pPresentInfo);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkGetSurfacePropertiesKHR(
+    VkDevice                                     device,
+    VkSurfaceKHR                                 surface,
+    VkSurfacePropertiesKHR*                      pSurfaceProperties);
+
+VkResult VKAPI vkGetSurfaceFormatsKHR(
+    VkDevice                                     device,
+    VkSurfaceKHR                                 surface,
+    uint32_t*                                    pCount,
+    VkSurfaceFormatKHR*                          pSurfaceFormats);
+
+VkResult VKAPI vkGetSurfacePresentModesKHR(
+    VkDevice                                     device,
+    VkSurfaceKHR                                 surface,
+    uint32_t*                                    pCount,
+    VkPresentModeKHR*                            pPresentModes);
+
+VkResult VKAPI vkCreateSwapchainKHR(
+    VkDevice                                     device,
+    const VkSwapchainCreateInfoKHR*              pCreateInfo,
+    VkSwapchainKHR*                              pSwapchain);
+
+void VKAPI vkDestroySwapchainKHR(
+    VkDevice                                     device,
+    VkSwapchainKHR                               swapchain);
+
+VkResult VKAPI vkGetSwapchainImagesKHR(
+    VkDevice                                     device,
+    VkSwapchainKHR                               swapchain,
+    uint32_t*                                    pCount,
+    VkImage*                                     pSwapchainImages);
+
+VkResult VKAPI vkAcquireNextImageKHR(
+    VkDevice                                     device,
+    VkSwapchainKHR                               swapchain,
+    uint64_t                                     timeout,
+    VkSemaphore                                  semaphore,
+    VkFence                                      fence,
+    uint32_t*                                    pImageIndex);
+
+VkResult VKAPI vkQueuePresentKHR(
+    VkQueue                                      queue,
+    VkPresentInfoKHR*                            pPresentInfo);
+#endif
+
+#define vk_ext_khr_display 1
+VK_DEFINE_NONDISP_HANDLE(VkDisplayKHR)
+VK_DEFINE_NONDISP_HANDLE(VkDisplayModeKHR)
+
+#define VK_EXT_KHR_DISPLAY_REVISION       16
+#define VK_EXT_KHR_DISPLAY_EXTENSION_NUMBER 3
+#define VK_EXT_KHR_DISPLAY_EXTENSION_NAME "VK_EXT_KHR_display"
+#define VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000c00)
+#define VK_STRUCTURE_TYPE_SURFACE_DESCRIPTION_DISPLAY_PLANE_KHR ((VkStructureType)(int)0xc0000c01)
+
+
+typedef enum {
+    VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR = 0x00000001,
+    VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR = 0x00000002,
+    VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_PREMULTIPLIED_BIT_KHR = 0x00000004,
+} VkDisplayPlaneAlphaFlagBitsKHR;
+typedef VkFlags VkDisplayPlaneAlphaFlagsKHR;
+
+typedef struct {
+    VkDisplayKHR                                display;
+    const char*                                   displayName;
+    VkExtent2D                                  physicalDimensions;
+    VkExtent2D                                  physicalResolution;
+    VkSurfaceTransformFlagsKHR                  supportedTransforms;
+    uint32_t                                    planeCount;
+    VkBool32                                    planeReorderPossible;
+} VkDisplayPropertiesKHR;
+
+typedef struct {
+    uint32_t                                    pixelClock;
+    VkExtent2D                                  visibleRegion;
+    VkExtent2D                                  totalRegion;
+    VkExtent2D                                  physicalDimensions;
+    uint32_t                                    hSyncStart;
+    uint32_t                                    hSyncEnd;
+    uint32_t                                    vSyncStart;
+    uint32_t                                    vSyncEnd;
+    VkBool32                                    interlaced;
+    VkBool32                                    doublescan;
+    VkBool32                                    hSyncPos;
+    VkBool32                                    vSyncPos;
+} VkDisplayTimingKHR;
+
+typedef struct {
+    VkDisplayModeKHR                            displayMode;
+    VkDisplayTimingKHR                          timing;
+} VkDisplayModePropertiesKHR;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    VkDisplayTimingKHR                          timing;
+} VkDisplayModeCreateInfoKHR;
+
+typedef struct {
+    VkDisplayPlaneAlphaFlagsKHR                 supportedAlpha;
+    VkOffset2D                                  minSrcPosition;
+    VkOffset2D                                  maxSrcPosition;
+    VkExtent2D                                  minSrcExtent;
+    VkExtent2D                                  maxSrcExtent;
+    VkOffset2D                                  minDstPosition;
+    VkOffset2D                                  maxDstPosition;
+    VkExtent2D                                  minDstExtent;
+    VkExtent2D                                  maxDstExtent;
+} VkDisplayPlanePropertiesKHR;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    VkDisplayModeKHR                            displayMode;
+    uint32_t                                    planeIndex;
+    uint32_t                                    planeStackIndex;
+    VkSurfaceTransformKHR                       transform;
+    float                                       globalAlpha;
+    VkDisplayPlaneAlphaFlagsKHR                 alphaMode;
+    VkExtent2D                                  imageSize;
+} VkSurfaceDescriptionDisplayPlaneKHR;
+
+
+typedef VkResult (VKAPI *PFN_vkGetPhysicalDeviceDisplayPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkDisplayPropertiesKHR* pProperties);
+typedef VkResult (VKAPI *PFN_vkGetDisplayModePropertiesKHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, uint32_t* pCount, VkDisplayModePropertiesKHR* pModeProperties);
+typedef VkResult (VKAPI *PFN_vkCreateDisplayModeKHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, const VkDisplayModeCreateInfoKHR*pCreateInfo, VkDisplayModeKHR* pMode);
+typedef VkResult (VKAPI *PFN_vkGetDisplayPlanePropertiesKHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, VkDisplayModeKHR mode, uint32_t planeIndex, VkDisplayPlanePropertiesKHR* pProperties);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkGetPhysicalDeviceDisplayPropertiesKHR(
+    VkPhysicalDevice                            physicalDevice,
+    uint32_t*                                   pCount,
+    VkDisplayPropertiesKHR*                     pProperties);
+
+VkResult VKAPI vkGetDisplayModePropertiesKHR(
+    VkPhysicalDevice                            physicalDevice,
+    VkDisplayKHR                                display,
+    uint32_t*                                   pCount,
+    VkDisplayModePropertiesKHR*                 pModeProperties);
+
+VkResult VKAPI vkCreateDisplayModeKHR(
+    VkPhysicalDevice                            physicalDevice,
+    VkDisplayKHR                                display,
+    const VkDisplayModeCreateInfoKHR*           pCreateInfo,
+    VkDisplayModeKHR*                           pMode);
+
+VkResult VKAPI vkGetDisplayPlanePropertiesKHR(
+    VkPhysicalDevice                            physicalDevice,
+    VkDisplayKHR                                display,
+    VkDisplayModeKHR                            mode,
+    uint32_t                                    planeIndex,
+    VkDisplayPlanePropertiesKHR*                pProperties);
+#endif
+
+#define vk_ext_khr_display_swapchain 1
+#define VK_EXT_KHR_DISPLAY_SWAPCHAIN_REVISION 4
+#define VK_EXT_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
+#define VK_EXT_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME "VK_EXT_KHR_display_swapchain"
+#define VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0001000)
+#define VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR ((VkStructureType)(int)0xc0001001)
+#define VK_ERROR_INCOMPATIBLE_DISPLAY_KHR ((VkResult)(int)0xc0001002)
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo;
+} VkDisplaySwapchainCreateInfoKHR;
+
+typedef struct {
+    VkStructureType                             sType;
+    const void*                                   pNext;
+    VkRect2D                                    srcRect;
+    VkRect2D                                    dstRect;
+} VkDisplayPresentInfoKHR;
+
+
+
+#define vk_ext_khr_x11_surface 1
+#ifdef VK_USE_PLATFORM_X11_KHR
+#include <X11/Xlib.h>
+
+#define VK_EXT_KHR_X11_SURFACE_REVISION   1
+#define VK_EXT_KHR_X11_SURFACE_EXTENSION_NUMBER 5
+#define VK_EXT_KHR_X11_SURFACE_EXTENSION_NAME "VK_EXT_KHR_x11_surface"
+
+typedef VkResult (VKAPI *PFN_vkCreateX11SurfaceKHR)(VkInstance instance, Display* dpy, Window root, Window window, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateX11SurfaceKHR(
+    VkInstance                                  instance,
+    Display*                                    dpy,
+    Window                                      root,
+    Window                                      window,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_X11_KHR */
+
+#define vk_ext_khr_xcb_surface 1
+#ifdef VK_USE_PLATFORM_XCB_KHR
+#include <xcb/xcb.h>
+
+#define VK_EXT_KHR_XCB_SURFACE_REVISION   1
+#define VK_EXT_KHR_XCB_SURFACE_EXTENSION_NUMBER 6
+#define VK_EXT_KHR_XCB_SURFACE_EXTENSION_NAME "VK_EXT_KHR_xcb_surface"
+
+typedef VkResult (VKAPI *PFN_vkCreateXcbSurfaceKHR)(VkInstance instance, xcb_connection_t* connection, xcb_window_t root, xcb_window_t window, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateXcbSurfaceKHR(
+    VkInstance                                  instance,
+    xcb_connection_t*                           connection,
+    xcb_window_t                                root,
+    xcb_window_t                                window,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_XCB_KHR */
+
+#define vk_ext_khr_wayland_surface 1
+#ifdef VK_USE_PLATFORM_WAYLAND_KHR
+#include <wayland-client.h>
+
+#define VK_EXT_KHR_WAYLAND_SURFACE_REVISION 1
+#define VK_EXT_KHR_WAYLAND_SURFACE_EXTENSION_NUMBER 7
+#define VK_EXT_KHR_WAYLAND_SURFACE_EXTENSION_NAME "VK_EXT_KHR_wayland_surface"
+
+typedef VkResult (VKAPI *PFN_vkCreateWaylandSurfaceKHR)(VkInstance instance, struct wl_display* display, struct wl_surface* surface, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateWaylandSurfaceKHR(
+    VkInstance                                  instance,
+    struct wl_display*                          display,
+    struct wl_surface*                          surface,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_WAYLAND_KHR */
+
+#define vk_ext_khr_mir_surface 1
+#ifdef VK_USE_PLATFORM_MIR_KHR
+#include <mir_toolkit/client_types.h>
+
+#define VK_EXT_KHR_MIR_SURFACE_REVISION   1
+#define VK_EXT_KHR_MIR_SURFACE_EXTENSION_NUMBER 8
+#define VK_EXT_KHR_MIR_SURFACE_EXTENSION_NAME "VK_EXT_KHR_mir_surface"
+
+typedef VkResult (VKAPI *PFN_vkCreateMirSurfaceKHR)(VkInstance instance, MirConnection* connection, MirSurface* mirSurface, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateMirSurfaceKHR(
+    VkInstance                                  instance,
+    MirConnection*                              connection,
+    MirSurface*                                 mirSurface,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_MIR_KHR */
+
+#define vk_ext_khr_android_surface 1
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#include <android/native_window.h>
+
+#define VK_EXT_KHR_ANDROID_SURFACE_REVISION 1
+#define VK_EXT_KHR_ANDROID_SURFACE_EXTENSION_NUMBER 9
+#define VK_EXT_KHR_ANDROID_SURFACE_EXTENSION_NAME "VK_EXT_KHR_android_surface"
+#define VK_ERROR_INVALID_ANDROID_WINDOW_KHR ((VkResult)(int)0xc0002400)
+#define VK_ERROR_ANDROID_WINDOW_IN_USE_KHR ((VkResult)(int)0xc0002401)
+
+typedef VkResult (VKAPI *PFN_vkCreateAndroidSurfaceKHR)(VkInstance instance, ANativeWindow* window, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateAndroidSurfaceKHR(
+    VkInstance                                  instance,
+    ANativeWindow*                              window,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_ANDROID_KHR */
+
+#define vk_ext_khr_win32_surface 1
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+#include <windows.h>
+
+#define VK_EXT_KHR_WIN32_SURFACE_REVISION 1
+#define VK_EXT_KHR_WIN32_SURFACE_EXTENSION_NUMBER 10
+#define VK_EXT_KHR_WIN32_SURFACE_EXTENSION_NAME "VK_EXT_KHR_win32_surface"
+
+typedef VkResult (VKAPI *PFN_vkCreateWin32SurfaceKHR)(VkInstance instance, HINSTANCE hinstance, HWND hwnd, VkSurfaceKHR* pSurface);
+
+#ifdef VK_PROTOTYPES
+VkResult VKAPI vkCreateWin32SurfaceKHR(
+    VkInstance                                  instance,
+    HINSTANCE                                   hinstance,
+    HWND                                        hwnd,
+    VkSurfaceKHR*                               pSurface);
+#endif
+#endif /* VK_USE_PLATFORM_WIN32_KHR */
+
 #ifdef __cplusplus
 }
 #endif

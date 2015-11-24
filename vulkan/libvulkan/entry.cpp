@@ -762,23 +762,28 @@ void vkCmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VkSurfaceDescriptionKHR* pSurfaceDescription, VkBool32* pSupported) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, pSurfaceDescription, pSupported);
+void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface) {
+    GetVtbl(instance).DestroySurfaceKHR(instance, surface);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfacePropertiesKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, VkSurfacePropertiesKHR* pSurfaceProperties) {
-    return GetVtbl(device).GetSurfacePropertiesKHR(device, pSurfaceDescription, pSurfaceProperties);
+VkBool32 vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfaceFormatsKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, uint32_t* pCount, VkSurfaceFormatKHR* pSurfaceFormats) {
-    return GetVtbl(device).GetSurfaceFormatsKHR(device, pSurfaceDescription, pCount, pSurfaceFormats);
+VkResult vkGetSurfacePropertiesKHR(VkDevice device, VkSurfaceKHR surface, VkSurfacePropertiesKHR* pSurfaceProperties) {
+    return GetVtbl(device).GetSurfacePropertiesKHR(device, surface, pSurfaceProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfacePresentModesKHR(VkDevice device, const VkSurfaceDescriptionKHR* pSurfaceDescription, uint32_t* pCount, VkPresentModeKHR* pPresentModes) {
-    return GetVtbl(device).GetSurfacePresentModesKHR(device, pSurfaceDescription, pCount, pPresentModes);
+VkResult vkGetSurfaceFormatsKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pCount, VkSurfaceFormatKHR* pSurfaceFormats) {
+    return GetVtbl(device).GetSurfaceFormatsKHR(device, surface, pCount, pSurfaceFormats);
+}
+
+__attribute__((visibility("default")))
+VkResult vkGetSurfacePresentModesKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pCount, VkPresentModeKHR* pPresentModes) {
+    return GetVtbl(device).GetSurfacePresentModesKHR(device, surface, pCount, pPresentModes);
 }
 
 __attribute__((visibility("default")))
@@ -787,8 +792,8 @@ VkResult vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* p
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain) {
-    return GetVtbl(device).DestroySwapchainKHR(device, swapchain);
+void vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain) {
+    GetVtbl(device).DestroySwapchainKHR(device, swapchain);
 }
 
 __attribute__((visibility("default")))
@@ -797,11 +802,16 @@ VkResult vkGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, uint
 }
 
 __attribute__((visibility("default")))
-VkResult vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, uint32_t* pImageIndex) {
-    return GetVtbl(device).AcquireNextImageKHR(device, swapchain, timeout, semaphore, pImageIndex);
+VkResult vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex) {
+    return GetVtbl(device).AcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex);
 }
 
 __attribute__((visibility("default")))
 VkResult vkQueuePresentKHR(VkQueue queue, VkPresentInfoKHR* pPresentInfo) {
     return GetVtbl(queue).QueuePresentKHR(queue, pPresentInfo);
+}
+
+__attribute__((visibility("default")))
+VkResult vkCreateAndroidSurfaceKHR(VkInstance instance, struct ANativeWindow* window, VkSurfaceKHR* pSurface) {
+    return GetVtbl(instance).CreateAndroidSurfaceKHR(instance, window, pSurface);
 }

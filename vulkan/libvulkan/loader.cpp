@@ -1102,16 +1102,29 @@ VkResult DestroyDevice(VkDevice drv_device) {
     return VK_SUCCESS;
 }
 
-void* AllocDeviceMem(VkDevice device,
-                     size_t size,
-                     size_t align,
-                     VkSystemAllocType type) {
+void* AllocMem(VkInstance instance,
+               size_t size,
+               size_t align,
+               VkSystemAllocType type) {
+    const VkAllocCallbacks* alloc_cb = instance->alloc;
+    return alloc_cb->pfnAlloc(alloc_cb->pUserData, size, align, type);
+}
+
+void FreeMem(VkInstance instance, void* ptr) {
+    const VkAllocCallbacks* alloc_cb = instance->alloc;
+    alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
+}
+
+void* AllocMem(VkDevice device,
+               size_t size,
+               size_t align,
+               VkSystemAllocType type) {
     const VkAllocCallbacks* alloc_cb =
         static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
     return alloc_cb->pfnAlloc(alloc_cb->pUserData, size, align, type);
 }
 
-void FreeDeviceMem(VkDevice device, void* ptr) {
+void FreeMem(VkDevice device, void* ptr) {
     const VkAllocCallbacks* alloc_cb =
         static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
     alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
