@@ -27,13 +27,14 @@ sources := \
     IPCThreadState.cpp \
     IPermissionController.cpp \
     IProcessInfoService.cpp \
-    ProcessInfoService.cpp \
     IServiceManager.cpp \
-    MemoryDealer.cpp \
     MemoryBase.cpp \
+    MemoryDealer.cpp \
     MemoryHeapBase.cpp \
     Parcel.cpp \
     PermissionCache.cpp \
+    PersistableBundle.cpp \
+    ProcessInfoService.cpp \
     ProcessState.cpp \
     Static.cpp \
     Status.cpp \
