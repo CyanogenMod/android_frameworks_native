@@ -666,8 +666,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
     RenderEngine& engine(mFlinger->getRenderEngine());
-
-    if (!blackOutLayer || canAllowGPUForProtected()) {
+    if (!blackOutLayer ||
+            ((hw->getDisplayType() == HWC_DISPLAY_PRIMARY) && canAllowGPUForProtected())) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
 
