@@ -216,6 +216,7 @@ VkResult EnumerateInstanceExtensionProperties(
 VkResult EnumerateInstanceLayerProperties(uint32_t* count,
                                           VkLayerProperties* properties);
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+                        const VkAllocCallbacks* pAllocator,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device, const char* name);
@@ -226,17 +227,17 @@ void GetDeviceQueue(VkDevice drv_device,
 VkResult AllocCommandBuffers(VkDevice device,
                              const VkCmdBufferAllocInfo* alloc_info,
                              VkCmdBuffer* cmdbuffers);
-VkResult DestroyDevice(VkDevice drv_device);
+VkResult DestroyDevice(VkDevice drv_device, const VkAllocCallbacks* pAllocator);
 
 void* AllocMem(VkInstance instance,
                size_t size,
                size_t align,
-               VkSystemAllocType type);
+               VkSystemAllocScope scope);
 void FreeMem(VkInstance instance, void* ptr);
 void* AllocMem(VkDevice device,
                size_t size,
                size_t align,
-               VkSystemAllocType type);
+               VkSystemAllocScope scope);
 void FreeMem(VkDevice device, void* ptr);
 const DeviceVtbl& GetDriverVtbl(VkDevice device);
 const DeviceVtbl& GetDriverVtbl(VkQueue queue);

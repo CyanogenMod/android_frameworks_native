@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 186
+define VERSION_MINOR 188
 define VERSION_PATCH 0
 
 // API limits
@@ -364,12 +364,16 @@ enum VkLogicOp {
     VK_LOGIC_OP_SET                                         = 0x0000000f,
 }
 
-enum VkSystemAllocType {
-    VK_SYSTEM_ALLOC_TYPE_API_OBJECT                         = 0x00000000,
-    VK_SYSTEM_ALLOC_TYPE_INTERNAL                           = 0x00000001,
-    VK_SYSTEM_ALLOC_TYPE_INTERNAL_TEMP                      = 0x00000002,
-    VK_SYSTEM_ALLOC_TYPE_INTERNAL_SHADER                    = 0x00000003,
-    VK_SYSTEM_ALLOC_TYPE_DEBUG                              = 0x00000004,
+enum VkSystemAllocScope {
+    VK_SYSTEM_ALLOC_SCOPE_FUNCTION                          = 0x00000000,
+    VK_SYSTEM_ALLOC_SCOPE_OBJECT                            = 0x00000001,
+    VK_SYSTEM_ALLOC_SCOPE_CACHE                             = 0x00000002,
+    VK_SYSTEM_ALLOC_SCOPE_DEVICE                            = 0x00000003,
+    VK_SYSTEM_ALLOC_SCOPE_INSTANCE                          = 0x00000004,
+}
+
+enum VkInternalAllocType {
+    VK_INTERNAL_ALLOC_TYPE_EXECUTABLE                       = 0x00000000,
 }
 
 enum VkPhysicalDeviceType {
@@ -613,6 +617,9 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 45,
     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 46,
     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 47,
+    VK_STRUCTURE_TYPE_SUBMIT_INFO                               = 48,
+    VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO                = 49,
+    VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO                  = 50,
 
     //@extension("VK_EXT_KHR_swapchain")
     VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 0xc0000801,
@@ -697,6 +704,7 @@ enum VkPresentModeKHR {
     VK_PRESENT_MODE_IMMEDIATE_KHR                           = 0x00000000,
     VK_PRESENT_MODE_MAILBOX_KHR                             = 0x00000001,
     VK_PRESENT_MODE_FIFO_KHR                                = 0x00000002,
+    VK_PRESENT_MODE_FIFO_RELAXED_KHR                        = 0x00000003,
 }
 
 @extension("VK_EXT_KHR_swapchain")
@@ -1135,11 +1143,13 @@ class VkLayerProperties {
 }
 
 class VkSubmitInfo {
-    u32                                         waitSemCount
+    VkStructureType                             sType              /// Type of structure. Should be VK_STRUCTURE_TYPE_SUBMIT_INFO
+    const void*                                 pNext              /// Next structure in chain
+    u32                                         waitSemaphoreCount
     const VkSemaphore*                          pWaitSemaphores
-    u32                                         cmdBufferCount
+    u32                                         commandBufferCount
     const VkCmdBuffer*                          pCommandBuffers
-    u32                                         signalSemCount
+    u32                                         signalSemaphoreCount
     const VkSemaphore*                          pSignalSemaphores
 }
 
@@ -1156,14 +1166,17 @@ class VkApplicationInfo {
 class VkAllocCallbacks {
     void*                                       pUserData
     PFN_vkAllocFunction                         pfnAlloc
+    PFN_vkReallocFunction                       pfnRealloc
     PFN_vkFreeFunction                          pfnFree
+    PFN_vkInternalAllocNotification             pfnInternalAlloc
+    PFN_vkInternalFreeNotification              pfnInternalFree
 }
 
 class VkDeviceQueueCreateInfo {
     VkStructureType                             sStype                    /// Should be VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
     const void*                                 pNext                     /// Pointer to next structure
     u32                                         queueFamilyIndex
-    u32                                         queueCount
+    u32                                         queuePriorityCount
     const f32*                                  pQueuePriorities
 }
 
@@ -1172,9 +1185,9 @@ class VkDeviceCreateInfo {
     const void*                                 pNext                      /// Pointer to next structure
     u32                                         requestedQueueRecordCount
     const VkDeviceQueueCreateInfo*              pRequestedQueues
-    u32                                         layerCount
+    u32                                         enabledLayerNameCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         extensionCount
+    u32                                         enabledExtensionNameCount
     const char* const*                          ppEnabledExtensionNames
     const VkPhysicalDeviceFeatures*             pEnabledFeatures
 }
@@ -1183,10 +1196,9 @@ class VkInstanceCreateInfo {
     VkStructureType                             sType                      /// Should be VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
     const void*                                 pNext                      /// Pointer to next structure
     const VkApplicationInfo*                    pAppInfo
-    const VkAllocCallbacks*                     pAllocCb
-    u32                                         layerCount
+    u32                                         enabledLayerNameCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         extensionCount
+    u32                                         enabledExtensionNameCount
     const char* const*                          ppEnabledExtensionNames    /// Extension names to be enabled
 }
 
@@ -1280,7 +1292,7 @@ class VkWriteDescriptorSet {
     VkDescriptorSet                             destSet                    /// Destination descriptor set
     u32                                         destBinding                /// Binding within the destination descriptor set to write
     u32                                         destArrayElement           /// Array element within the destination binding to write
-    u32                                         count                      /// Number of descriptors to write (determines the size of the array pointed by <pDescriptors>)
+    u32                                         descriptorCount            /// Number of descriptors to write (determines the size of the array pointed by <pDescriptors>)
     VkDescriptorType                            descriptorType             /// Descriptor type to write (determines which fields of the array pointed by <pDescriptors> are going to be used)
     const VkDescriptorImageInfo*                pImageInfo
     const VkDescriptorBufferInfo*               pBufferInfo
@@ -1296,7 +1308,7 @@ class VkCopyDescriptorSet {
     VkDescriptorSet                             destSet                    /// Destination descriptor set
     u32                                         destBinding                /// Binding within the destination descriptor set to copy to
     u32                                         destArrayElement           /// Array element within the destination binding to copy to
-    u32                                         count                      /// Number of descriptors to copy
+    u32                                         descriptorCount            /// Number of descriptors to copy
 }
 
 class VkBufferCreateInfo {
@@ -1306,7 +1318,7 @@ class VkBufferCreateInfo {
     VkBufferUsageFlags                          usage                      /// Buffer usage flags
     VkBufferCreateFlags                         flags                      /// Buffer creation flags
     VkSharingMode                               sharingMode
-    u32                                         queueFamilyCount
+    u32                                         queueFamilyIndexCount
     const u32*                                  pQueueFamilyIndices
 }
 
@@ -1378,7 +1390,7 @@ class VkImageCreateInfo {
     VkImageUsageFlags                           usage                      /// Image usage flags
     VkImageCreateFlags                          flags                      /// Image creation flags
     VkSharingMode                               sharingMode                /// Cross-queue-family sharing mode
-    u32                                         queueFamilyCount           /// Number of queue families to share across
+    u32                                         queueFamilyIndexCount      /// Number of queue families to share across
     const u32*                                  pQueueFamilyIndices        /// Array of queue family indices to share across
     VkImageLayout                               initialLayout              /// Initial image layout for all subresources
 }
@@ -1492,13 +1504,13 @@ class VkDescriptorSetLayoutBinding {
 class VkDescriptorSetLayoutCreateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
     const void*                                 pNext              /// Pointer to next structure
-    u32                                         count              /// Number of bindings in the descriptor set layout
-    const VkDescriptorSetLayoutBinding*         pBinding           /// Array of descriptor set layout bindings
+    u32                                         bindingCount       /// Number of bindings in the descriptor set layout
+    const VkDescriptorSetLayoutBinding*         pBindings          /// Array of descriptor set layout bindings
 }
 
 class VkDescriptorTypeCount {
     VkDescriptorType                            type
-    u32                                         count
+    u32                                         descriptorCount
 }
 
 class VkDescriptorPoolCreateInfo {
@@ -1506,15 +1518,15 @@ class VkDescriptorPoolCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorPoolCreateFlags                 flags
     u32                                         maxSets
-    u32                                         count
-    const VkDescriptorTypeCount*                pTypeCount
+    u32                                         typeCount
+    const VkDescriptorTypeCount*                pTypeCounts
 }
 
 class VkDescriptorSetAllocInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorPool                            descriptorPool
-    u32                                         count
+    u32                                         setCount
     const VkDescriptorSetLayout*                pSetLayouts
 }
 
@@ -1562,11 +1574,11 @@ class VkVertexInputAttributeDescription {
 }
 
 class VkPipelineVertexInputStateCreateInfo {
-    VkStructureType                             sType          /// Should be VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
-    const void*                                 pNext          /// Pointer to next structure
-    u32                                         bindingCount   /// number of bindings
+    VkStructureType                             sType                           /// Should be VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    const void*                                 pNext                           /// Pointer to next structure
+    u32                                         vertexBindingDescriptionCount   /// number of bindings
     const VkVertexInputBindingDescription*      pVertexBindingDescriptions
-    u32                                         attributeCount /// number of attributes
+    u32                                         vertexAttributeDescriptionCount /// number of attributes
     const VkVertexInputAttributeDescription*    pVertexAttributeDescriptions
 }
 
@@ -1702,14 +1714,14 @@ class VkPipelineCacheCreateInfo {
 
 class VkPushConstantRange {
     VkShaderStageFlags                          stageFlags   /// Which stages use the range
-    u32                                         start        /// Start of the range, in bytes
-    u32                                         length       /// Length of the range, in bytes
+    u32                                         offset       /// Start of the range, in bytes
+    u32                                         size        /// Length of the range, in bytes
 }
 
 class VkPipelineLayoutCreateInfo {
     VkStructureType                             sType                   /// Must be VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
     const void*                                 pNext                   /// Pointer to next structure
-    u32                                         descriptorSetCount      /// Number of descriptor sets interfaced by the pipeline
+    u32                                         setLayoutCount          /// Number of descriptor sets interfaced by the pipeline
     const VkDescriptorSetLayout*                pSetLayouts             /// Array of <setCount> number of descriptor set layout objects defining the layout of the
     u32                                         pushConstantRangeCount  /// Number of push-constant ranges used by the pipeline
     const VkPushConstantRange*                  pPushConstantRanges     /// Array of pushConstantRangeCount number of ranges used by various shader stages
@@ -1746,7 +1758,7 @@ class VkCmdBufferAllocInfo {
     const void*                                 pNext      /// Pointer to next structure
     VkCmdPool                                   cmdPool
     VkCmdBufferLevel                            level
-    u32                                         count
+    u32                                         bufferCount
 }
 
 class VkCmdBufferBeginInfo {
@@ -1818,13 +1830,13 @@ class VkSubpassDescription {
     const void*                                 pNext              /// Pointer to next structure
     VkPipelineBindPoint                         pipelineBindPoint  /// Must be VK_PIPELINE_BIND_POINT_GRAPHICS for now
     VkSubpassDescriptionFlags                   flags
-    u32                                         inputCount
+    u32                                         inputAttachmentCount
     const VkAttachmentReference*                pInputAttachments
-    u32                                         colorCount
+    u32                                         colorAttachmentCount
     const VkAttachmentReference*                pColorAttachments
     const VkAttachmentReference*                pResolveAttachments
     VkAttachmentReference                       depthStencilAttachment
-    u32                                         preserveCount
+    u32                                         preserveAttachmentCount
     const VkAttachmentReference*                pPreserveAttachments
 }
 
@@ -1879,7 +1891,6 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    fillModeNonSolid                          /// point and wireframe fill modes
     VkBool32                                    depthBounds                               /// depth bounds test
     VkBool32                                    wideLines                                 /// lines with width greater than 1
-    VkBool32                                    strictLines
     VkBool32                                    largePoints                               /// points with size greater than 1
     VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
     VkBool32                                    multiViewport
@@ -1988,7 +1999,6 @@ class VkPhysicalDeviceLimits {
 
     u32                                         maxDrawIndexedIndexValue                  /// max index value for indexed draw calls (for 32-bit indices)
     u32                                         maxDrawIndirectInstanceCount              /// max instance count for indirect draw calls
-    VkBool32                                    primitiveRestartForPatches                /// is primitive restart supported for PATCHES
 
     f32                                         maxSamplerLodBias                         /// max absolute sampler level of detail bias
     f32                                         maxSamplerAnisotropy                      /// max degree of sampler anisotropy
@@ -2037,6 +2047,7 @@ class VkPhysicalDeviceLimits {
     f32[2]                                      lineWidthRange                            /// range (min,max) of supported line widths
     f32                                         pointSizeGranularity                      /// granularity of supported point sizes
     f32                                         lineWidthGranularity                      /// granularity of supported line widths
+    VkBool32                                    strictLines
 
     u32                                         recommendedBufferCopyOffsetAlignment
     u32                                         recommendedBufferCopyRowPitchAlignment
@@ -2129,7 +2140,7 @@ class VkSwapchainCreateInfoKHR {
     VkSurfaceTransformKHR                       preTransform
     u32                                         imageArraySize
     VkSharingMode                               sharingMode
-    u32                                         queueFamilyCount
+    u32                                         queueFamilyIndexCount
     const u32*                                  pQueueFamilyIndices
     VkPresentModeKHR                            presentMode
     VkSwapchainKHR                              oldSwapchain
@@ -2141,7 +2152,7 @@ class VkPresentInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
     u32                                         swapchainCount
-    const VkSwapchainKHR*                       swapchains
+    const VkSwapchainKHR*                       pSwapchains
     const u32*                                  imageIndices
 }
 
@@ -2242,7 +2253,17 @@ class VkDisplayPresentInfoKHR {
         void*                                       pUserData,
         platform.size_t                             size,
         platform.size_t                             alignment,
-        VkSystemAllocType                           allocType) {
+        VkSystemAllocScope                          allocScope) {
+    return ?
+}
+
+@external type void* PFN_vkReallocFunction
+@pfn cmd void* vkReallocFunction(
+        void*                                       pUserData,
+        void*                                       pOriginal,
+        platform.size_t                             size,
+        platform.size_t                             alignment,
+        VkSystemAllocScope                          allocScope) {
     return ?
 }
 
@@ -2252,12 +2273,28 @@ class VkDisplayPresentInfoKHR {
         void*                                       pMem) {
 }
 
+@external type void* PFN_vkInternalAllocNotification
+@pfn cmd void vkInternalAllocNotification(
+        void*                                       pUserData,
+        platform.size_t                             size,
+        VkInternalAllocType                         allocType,
+        VkSystemAllocScope                          allocScope) {
+}
+
+@external type void* PFN_vkInternalFreeNotification
+@pfn cmd void vkInternalFreeNotification(
+        void*                                       pUserData,
+        platform.size_t                             size,
+        VkInternalAllocType                         allocType,
+        VkSystemAllocScope                          allocScope) {
+}
 
 // Global functions
 
 @threadSafety("system")
 cmd VkResult vkCreateInstance(
         const VkInstanceCreateInfo*                 pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkInstance*                                 pInstance) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
 
@@ -2265,15 +2302,16 @@ cmd VkResult vkCreateInstance(
     pInstance[0] = instance
     State.Instances[instance] = new!InstanceObject()
 
-    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.layerCount]
-    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.extensionCount]
+    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.enabledLayerNameCount]
+    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.enabledExtensionNameCount]
 
     return ?
 }
 
 @threadSafety("system")
 cmd void vkDestroyInstance(
-        VkInstance                                  instance) {
+        VkInstance                                  instance,
+        const VkAllocCallbacks*                     pAllocator) {
     instanceObject := GetInstance(instance)
 
     State.Instances[instance] = null
@@ -2332,7 +2370,7 @@ cmd void vkGetPhysicalDeviceProperties(
 
 cmd void vkGetPhysicalDeviceQueueFamilyProperties(
         VkPhysicalDevice                            physicalDevice,
-        u32*                                        pCount,
+        u32*                                        pQueueFamilyPropertyCount,
         VkQueueFamilyProperties*                    pQueueFamilyProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     // TODO: Figure out how to express fetch-count-or-properties
@@ -2400,6 +2438,7 @@ cmd void vkGetPhysicalDeviceImageFormatProperties(
 cmd VkResult vkCreateDevice(
         VkPhysicalDevice                            physicalDevice,
         const VkDeviceCreateInfo*                   pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkDevice*                                   pDevice) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
@@ -2413,7 +2452,8 @@ cmd VkResult vkCreateDevice(
 
 @threadSafety("system")
 cmd void vkDestroyDevice(
-        VkDevice                                    device) {
+        VkDevice                                    device,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
 
     State.Devices[device] = null
@@ -2423,10 +2463,10 @@ cmd void vkDestroyDevice(
 // Extension discovery functions
 
 cmd VkResult vkEnumerateInstanceLayerProperties(
-        u32*                                        pCount,
+        u32*                                        pPropertyCount,
         VkLayerProperties*                          pProperties) {
     count := as!u32(?)
-    pCount[0] = count
+    pPropertyCount[0] = count
 
     properties := pProperties[0:count]
     for i in (0 .. count) {
@@ -2439,10 +2479,10 @@ cmd VkResult vkEnumerateInstanceLayerProperties(
 
 cmd VkResult vkEnumerateInstanceExtensionProperties(
         const char*                                 pLayerName,
-        u32*                                        pCount,
+        u32*                                        pPropertyCount,
         VkExtensionProperties*                      pProperties) {
     count := as!u32(?)
-    pCount[0] = count
+    pPropertyCount[0] = count
 
     properties := pProperties[0:count]
     for i in (0 .. count) {
@@ -2455,11 +2495,11 @@ cmd VkResult vkEnumerateInstanceExtensionProperties(
 
 cmd VkResult vkEnumerateDeviceLayerProperties(
         VkPhysicalDevice                            physicalDevice,
-        u32*                                        pCount,
+        u32*                                        pPropertyCount,
         VkLayerProperties*                          pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     count := as!u32(?)
-    pCount[0] = count
+    pPropertyCount[0] = count
 
     properties := pProperties[0:count]
     for i in (0 .. count) {
@@ -2473,12 +2513,12 @@ cmd VkResult vkEnumerateDeviceLayerProperties(
 cmd VkResult vkEnumerateDeviceExtensionProperties(
         VkPhysicalDevice                            physicalDevice,
         const char*                                 pLayerName,
-        u32*                                        pCount,
+        u32*                                        pPropertyCount,
         VkExtensionProperties*                      pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     count := as!u32(?)
-    pCount[0] = count
+    pPropertyCount[0] = count
 
     properties := pProperties[0:count]
     for i in (0 .. count) {
@@ -2557,6 +2597,7 @@ cmd VkResult vkDeviceWaitIdle(
 cmd VkResult vkAllocMemory(
         VkDevice                                    device,
         const VkMemoryAllocInfo*                    pAllocInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkDeviceMemory*                             pMem) {
     assert(pAllocInfo.sType == VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO)
     deviceObject := GetDevice(device)
@@ -2573,7 +2614,8 @@ cmd VkResult vkAllocMemory(
 @threadSafety("system")
 cmd void vkFreeMemory(
         VkDevice                                    device,
-        VkDeviceMemory                              mem) {
+        VkDeviceMemory                              mem,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     memObject := GetDeviceMemory(mem)
     assert(memObject.device == device)
@@ -2740,7 +2782,7 @@ cmd VkResult vkBindImageMemory(
 cmd void vkGetImageSparseMemoryRequirements(
         VkDevice                                    device,
         VkImage                                     image,
-        u32*                                        pNumRequirements,
+        u32*                                        pSparseMemoryRequirementCount,
         VkSparseImageMemoryRequirements*            pSparseMemoryRequirements) {
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
@@ -2754,7 +2796,7 @@ cmd void vkGetPhysicalDeviceSparseImageFormatProperties(
         u32                                         samples,
         VkImageUsageFlags                           usage,
         VkImageTiling                               tiling,
-        u32*                                        pNumProperties,
+        u32*                                        pPropertyCount,
         VkSparseImageFormatProperties*              pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 }
@@ -2762,7 +2804,7 @@ cmd void vkGetPhysicalDeviceSparseImageFormatProperties(
 cmd VkResult vkQueueBindSparseBufferMemory(
         VkQueue                                     queue,
         VkBuffer                                    buffer,
-        u32                                         numBindings,
+        u32                                         bindInfoCount,
         const VkSparseMemoryBindInfo*               pBindInfo) {
     queueObject := GetQueue(queue)
     bufferObject := GetBuffer(buffer)
@@ -2774,7 +2816,7 @@ cmd VkResult vkQueueBindSparseBufferMemory(
 cmd VkResult vkQueueBindSparseImageOpaqueMemory(
         VkQueue                                     queue,
         VkImage                                     image,
-        u32                                         numBindings,
+        u32                                         bindInfoCount,
         const VkSparseMemoryBindInfo*               pBindInfo) {
     queueObject := GetQueue(queue)
     imageObject := GetImage(image)
@@ -2783,11 +2825,10 @@ cmd VkResult vkQueueBindSparseImageOpaqueMemory(
     return ?
 }
 
-
 cmd VkResult vkQueueBindSparseImageMemory(
         VkQueue                                     queue,
         VkImage                                     image,
-        u32                                         numBindings,
+        u32                                         bindInfoCount,
         const VkSparseImageMemoryBindInfo*          pBindInfo) {
     queueObject := GetQueue(queue)
     imageObject := GetImage(image)
@@ -2802,6 +2843,7 @@ cmd VkResult vkQueueBindSparseImageMemory(
 cmd VkResult vkCreateFence(
         VkDevice                                    device,
         const VkFenceCreateInfo*                    pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkFence*                                    pFence) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -2817,7 +2859,8 @@ cmd VkResult vkCreateFence(
 @threadSafety("system")
 cmd void vkDestroyFence(
         VkDevice                                    device,
-        VkFence                                     fence) {
+        VkFence                                     fence,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     fenceObject := GetFence(fence)
     assert(fenceObject.device == device)
@@ -2880,6 +2923,7 @@ cmd VkResult vkWaitForFences(
 cmd VkResult vkCreateSemaphore(
         VkDevice                                    device,
         const VkSemaphoreCreateInfo*                pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkSemaphore*                                pSemaphore) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -2894,7 +2938,8 @@ cmd VkResult vkCreateSemaphore(
 @threadSafety("system")
 cmd void vkDestroySemaphore(
         VkDevice                                    device,
-        VkSemaphore                                 semaphore) {
+        VkSemaphore                                 semaphore,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     semaphoreObject := GetSemaphore(semaphore)
     assert(semaphoreObject.device == device)
@@ -2909,6 +2954,7 @@ cmd void vkDestroySemaphore(
 cmd VkResult vkCreateEvent(
         VkDevice                                    device,
         const VkEventCreateInfo*                    pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkEvent*                                    pEvent) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_EVENT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -2923,7 +2969,8 @@ cmd VkResult vkCreateEvent(
 @threadSafety("system")
 cmd void vkDestroyEvent(
         VkDevice                                    device,
-        VkEvent                                     event) {
+        VkEvent                                     event,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     eventObject := GetEvent(event)
     assert(eventObject.device == device)
@@ -2971,6 +3018,7 @@ cmd VkResult vkResetEvent(
 cmd VkResult vkCreateQueryPool(
         VkDevice                                    device,
         const VkQueryPoolCreateInfo*                pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkQueryPool*                                pQueryPool) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -2985,7 +3033,8 @@ cmd VkResult vkCreateQueryPool(
 @threadSafety("system")
 cmd void vkDestroyQueryPool(
         VkDevice                                    device,
-        VkQueryPool                                 queryPool) {
+        VkQueryPool                                 queryPool,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     queryPoolObject := GetQueryPool(queryPool)
     assert(queryPoolObject.device == device)
@@ -3018,6 +3067,7 @@ cmd VkResult vkGetQueryPoolResults(
 cmd VkResult vkCreateBuffer(
         VkDevice                                    device,
         const VkBufferCreateInfo*                   pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkBuffer*                                   pBuffer) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3032,7 +3082,8 @@ cmd VkResult vkCreateBuffer(
 @threadSafety("system")
 cmd void vkDestroyBuffer(
         VkDevice                                    device,
-        VkBuffer                                    buffer) {
+        VkBuffer                                    buffer,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     bufferObject := GetBuffer(buffer)
     assert(bufferObject.device == device)
@@ -3048,6 +3099,7 @@ cmd void vkDestroyBuffer(
 cmd VkResult vkCreateBufferView(
         VkDevice                                    device,
         const VkBufferViewCreateInfo*               pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkBufferView*                               pView) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3065,7 +3117,8 @@ cmd VkResult vkCreateBufferView(
 @threadSafety("system")
 cmd void vkDestroyBufferView(
         VkDevice                                    device,
-        VkBufferView                                bufferView) {
+        VkBufferView                                bufferView,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     bufferViewObject := GetBufferView(bufferView)
     assert(bufferViewObject.device == device)
@@ -3080,6 +3133,7 @@ cmd void vkDestroyBufferView(
 cmd VkResult vkCreateImage(
         VkDevice                                    device,
         const VkImageCreateInfo*                    pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkImage*                                    pImage) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3094,7 +3148,8 @@ cmd VkResult vkCreateImage(
 @threadSafety("system")
 cmd void vkDestroyImage(
         VkDevice                                    device,
-        VkImage                                     image) {
+        VkImage                                     image,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
@@ -3120,6 +3175,7 @@ cmd void vkGetImageSubresourceLayout(
 cmd VkResult vkCreateImageView(
         VkDevice                                    device,
         const VkImageViewCreateInfo*                pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkImageView*                                pView) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3137,7 +3193,8 @@ cmd VkResult vkCreateImageView(
 @threadSafety("system")
 cmd void vkDestroyImageView(
         VkDevice                                    device,
-        VkImageView                                 imageView) {
+        VkImageView                                 imageView,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     imageViewObject := GetImageView(imageView)
     assert(imageViewObject.device == device)
@@ -3151,6 +3208,7 @@ cmd void vkDestroyImageView(
 cmd VkResult vkCreateShaderModule(
         VkDevice                                    device,
         const VkShaderModuleCreateInfo*             pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkShaderModule*                             pShaderModule) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3164,7 +3222,8 @@ cmd VkResult vkCreateShaderModule(
 
 cmd void vkDestroyShaderModule(
         VkDevice                                    device,
-        VkShaderModule                              shaderModule) {
+        VkShaderModule                              shaderModule,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     shaderModuleObject := GetShaderModule(shaderModule)
     assert(shaderModuleObject.device == device)
@@ -3176,6 +3235,7 @@ cmd void vkDestroyShaderModule(
 cmd VkResult vkCreateShader(
         VkDevice                                    device,
         const VkShaderCreateInfo*                   pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkShader*                                   pShader) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SHADER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3190,7 +3250,8 @@ cmd VkResult vkCreateShader(
 @threadSafety("system")
 cmd void vkDestroyShader(
         VkDevice                                    device,
-        VkShader                                    shader) {
+        VkShader                                    shader,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     shaderObject := GetShader(shader)
     assert(shaderObject.device == device)
@@ -3204,6 +3265,7 @@ cmd void vkDestroyShader(
 cmd VkResult vkCreatePipelineCache(
         VkDevice                                    device,
         const VkPipelineCacheCreateInfo*            pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkPipelineCache*                            pPipelineCache) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3217,7 +3279,8 @@ cmd VkResult vkCreatePipelineCache(
 
 cmd void vkDestroyPipelineCache(
         VkDevice                                    device,
-        VkPipelineCache                             pipelineCache) {
+        VkPipelineCache                             pipelineCache,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     pipelineCacheObject := GetPipelineCache(pipelineCache)
     assert(pipelineCacheObject.device == device)
@@ -3259,8 +3322,9 @@ cmd VkResult vkMergePipelineCaches(
 cmd VkResult vkCreateGraphicsPipelines(
         VkDevice                                    device,
         VkPipelineCache                             pipelineCache,
-        u32                                         count,
+        u32                                         createInfoCount,
         const VkGraphicsPipelineCreateInfo*         pCreateInfos,
+        const VkAllocCallbacks*                     pAllocator,
         VkPipeline*                                 pPipelines) {
     deviceObject := GetDevice(device)
     if pipelineCache != NULL_HANDLE {
@@ -3268,9 +3332,9 @@ cmd VkResult vkCreateGraphicsPipelines(
         assert(pipelineCacheObject.device == device)
     }
 
-    createInfos := pCreateInfos[0:count]
-    pipelines := pPipelines[0:count]
-    for i in (0 .. count) {
+    createInfos := pCreateInfos[0:createInfoCount]
+    pipelines := pPipelines[0:createInfoCount]
+    for i in (0 .. createInfoCount) {
         pipeline := ?
         pipelines[i] = pipeline
         State.Pipelines[pipeline] = new!PipelineObject(device: device)
@@ -3282,8 +3346,9 @@ cmd VkResult vkCreateGraphicsPipelines(
 cmd VkResult vkCreateComputePipelines(
         VkDevice                                    device,
         VkPipelineCache                             pipelineCache,
-        u32                                         count,
+        u32                                         createInfoCount,
         const VkComputePipelineCreateInfo*          pCreateInfos,
+        const VkAllocCallbacks*                     pAllocator,
         VkPipeline*                                 pPipelines) {
     deviceObject := GetDevice(device)
     if pipelineCache != NULL_HANDLE {
@@ -3291,9 +3356,9 @@ cmd VkResult vkCreateComputePipelines(
         assert(pipelineCacheObject.device == device)
     }
 
-    createInfos := pCreateInfos[0:count]
-    pipelines := pPipelines[0:count]
-    for i in (0 .. count) {
+    createInfos := pCreateInfos[0:createInfoCount]
+    pipelines := pPipelines[0:createInfoCount]
+    for i in (0 .. createInfoCount) {
         pipeline := ?
         pipelines[i] = pipeline
         State.Pipelines[pipeline] = new!PipelineObject(device: device)
@@ -3305,7 +3370,8 @@ cmd VkResult vkCreateComputePipelines(
 @threadSafety("system")
 cmd void vkDestroyPipeline(
         VkDevice                                    device,
-        VkPipeline                                  pipeline) {
+        VkPipeline                                  pipeline,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     pipelineObjects := GetPipeline(pipeline)
     assert(pipelineObjects.device == device)
@@ -3320,6 +3386,7 @@ cmd void vkDestroyPipeline(
 cmd VkResult vkCreatePipelineLayout(
         VkDevice                                    device,
         const VkPipelineLayoutCreateInfo*           pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkPipelineLayout*                           pPipelineLayout) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3334,7 +3401,8 @@ cmd VkResult vkCreatePipelineLayout(
 @threadSafety("system")
 cmd void vkDestroyPipelineLayout(
         VkDevice                                    device,
-        VkPipelineLayout                            pipelineLayout) {
+        VkPipelineLayout                            pipelineLayout,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     pipelineLayoutObjects := GetPipelineLayout(pipelineLayout)
     assert(pipelineLayoutObjects.device == device)
@@ -3349,6 +3417,7 @@ cmd void vkDestroyPipelineLayout(
 cmd VkResult vkCreateSampler(
         VkDevice                                    device,
         const VkSamplerCreateInfo*                  pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkSampler*                                  pSampler) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3363,7 +3432,8 @@ cmd VkResult vkCreateSampler(
 @threadSafety("system")
 cmd void vkDestroySampler(
         VkDevice                                    device,
-        VkSampler                                   sampler) {
+        VkSampler                                   sampler,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     samplerObject := GetSampler(sampler)
     assert(samplerObject.device == device)
@@ -3378,6 +3448,7 @@ cmd void vkDestroySampler(
 cmd VkResult vkCreateDescriptorSetLayout(
         VkDevice                                    device,
         const VkDescriptorSetLayoutCreateInfo*      pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkDescriptorSetLayout*                      pSetLayout) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3392,7 +3463,8 @@ cmd VkResult vkCreateDescriptorSetLayout(
 @threadSafety("system")
 cmd void vkDestroyDescriptorSetLayout(
         VkDevice                                    device,
-        VkDescriptorSetLayout                       descriptorSetLayout) {
+        VkDescriptorSetLayout                       descriptorSetLayout,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     descriptorSetLayoutObject := GetDescriptorSetLayout(descriptorSetLayout)
     assert(descriptorSetLayoutObject.device == device)
@@ -3403,7 +3475,8 @@ cmd void vkDestroyDescriptorSetLayout(
 @threadSafety("system")
 cmd VkResult vkCreateDescriptorPool(
         VkDevice                                    device,
-        const VkDescriptorPoolCreateInfo*           pCreateInfo
+        const VkDescriptorPoolCreateInfo*           pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkDescriptorPool*                           pDescriptorPool) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3418,7 +3491,8 @@ cmd VkResult vkCreateDescriptorPool(
 @threadSafety("system")
 cmd void vkDestroyDescriptorPool(
         VkDevice                                    device,
-        VkDescriptorPool                            descriptorPool) {
+        VkDescriptorPool                            descriptorPool,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     descriptorPoolObject := GetDescriptorPool(descriptorPool)
     assert(descriptorPoolObject.device == device)
@@ -3447,15 +3521,15 @@ cmd VkResult vkAllocDescriptorSets(
     allocInfo := pAllocInfo[0]
     descriptorPoolObject := GetDescriptorPool(allocInfo.descriptorPool)
 
-    setLayouts := allocInfo.pSetLayouts[0:allocInfo.count]
-    for i in (0 .. allocInfo.count) {
+    setLayouts := allocInfo.pSetLayouts[0:allocInfo.setCount]
+    for i in (0 .. allocInfo.setCount) {
         setLayout := setLayouts[i]
         setLayoutObject := GetDescriptorSetLayout(setLayout)
         assert(setLayoutObject.device == device)
     }
 
-    descriptorSets := pDescriptorSets[0:allocInfo.count]
-    for i in (0 .. allocInfo.count) {
+    descriptorSets := pDescriptorSets[0:allocInfo.setCount]
+    for i in (0 .. allocInfo.setCount) {
         descriptorSet := ?
         descriptorSets[i] = descriptorSet
         State.DescriptorSets[descriptorSet] = new!DescriptorSetObject(device: device)
@@ -3467,13 +3541,13 @@ cmd VkResult vkAllocDescriptorSets(
 cmd VkResult vkFreeDescriptorSets(
         VkDevice                                    device,
         VkDescriptorPool                            descriptorPool,
-        u32                                         count,
+        u32                                         descriptorSetCount,
         const VkDescriptorSet*                      pDescriptorSets) {
     deviceObject := GetDevice(device)
     descriptorPoolObject := GetDescriptorPool(descriptorPool)
 
-    descriptorSets := pDescriptorSets[0:count]
-    for i in (0 .. count) {
+    descriptorSets := pDescriptorSets[0:descriptorSetCount]
+    for i in (0 .. descriptorSetCount) {
         descriptorSet := descriptorSets[i]
         descriptorSetObject := GetDescriptorSet(descriptorSet)
         assert(descriptorSetObject.device == device)
@@ -3513,6 +3587,7 @@ cmd void vkUpdateDescriptorSets(
 cmd VkResult vkCreateFramebuffer(
         VkDevice                                    device,
         const VkFramebufferCreateInfo*              pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkFramebuffer*                              pFramebuffer) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3527,7 +3602,8 @@ cmd VkResult vkCreateFramebuffer(
 @threadSafety("system")
 cmd void vkDestroyFramebuffer(
         VkDevice                                    device,
-        VkFramebuffer                               framebuffer) {
+        VkFramebuffer                               framebuffer,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     framebufferObject := GetFramebuffer(framebuffer)
     assert(framebufferObject.device == device)
@@ -3542,6 +3618,7 @@ cmd void vkDestroyFramebuffer(
 cmd VkResult vkCreateRenderPass(
         VkDevice                                    device,
         const VkRenderPassCreateInfo*               pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkRenderPass*                               pRenderPass) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3556,7 +3633,8 @@ cmd VkResult vkCreateRenderPass(
 @threadSafety("system")
 cmd void vkDestroyRenderPass(
         VkDevice                                    device,
-        VkRenderPass                                renderPass) {
+        VkRenderPass                                renderPass,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     renderPassObject := GetRenderPass(renderPass)
     assert(renderPassObject.device == device)
@@ -3580,6 +3658,7 @@ cmd void vkGetRenderAreaGranularity(
 cmd VkResult vkCreateCommandPool(
         VkDevice                                    device,
         const VkCmdPoolCreateInfo*                  pCreateInfo,
+        const VkAllocCallbacks*                     pAllocator,
         VkCmdPool*                                  pCmdPool) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3593,7 +3672,8 @@ cmd VkResult vkCreateCommandPool(
 
 cmd void vkDestroyCommandPool(
         VkDevice                                    device,
-        VkCmdPool                                   cmdPool) {
+        VkCmdPool                                   cmdPool,
+        const VkAllocCallbacks*                     pAllocator) {
     deviceObject := GetDevice(device)
     cmdPoolObject := GetCmdPool(cmdPool)
     assert(cmdPoolObject.device == device)
@@ -3637,7 +3717,7 @@ cmd VkResult vkAllocCommandBuffers(
         VkCmdBuffer*                                pCmdBuffers) {
     assert(pAllocInfo[0].sType == VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO)
 
-    count := pAllocInfo[0].count
+    count := pAllocInfo[0].bufferCount
     cmdBuffers := pCmdBuffers[0:count]
     for i in (0 .. count) {
         cmdBuffer := ?
@@ -3652,12 +3732,12 @@ cmd VkResult vkAllocCommandBuffers(
 cmd void vkFreeCommandBuffers(
         VkDevice                                    device,
         VkCmdPool                                   cmdPool,
-        u32                                         count,
+        u32                                         commandBufferCount,
         const VkCmdBuffer*                          pCommandBuffers) {
     deviceObject := GetDevice(device)
 
-    cmdBuffers := pCommandBuffers[0:count]
-    for i in (0 .. count) {
+    cmdBuffers := pCommandBuffers[0:commandBufferCount]
+    for i in (0 .. commandBufferCount) {
         cmdBufferObject := GetCmdBuffer(cmdBuffers[i])
         assert(cmdBufferObject.device == device)
         // TODO: iterate over boundObjects and clear memory bindings
@@ -3804,14 +3884,14 @@ cmd void vkCmdBindDescriptorSets(
         VkPipelineBindPoint                         pipelineBindPoint,
         VkPipelineLayout                            layout,
         u32                                         firstSet,
-        u32                                         setCount,
+        u32                                         descriptorSetCount,
         const VkDescriptorSet*                      pDescriptorSets,
         u32                                         dynamicOffsetCount,
         const u32*                                  pDynamicOffsets) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
-    descriptorSets := pDescriptorSets[0:setCount]
-    for i in (0 .. setCount) {
+    descriptorSets := pDescriptorSets[0:descriptorSetCount]
+    for i in (0 .. descriptorSetCount) {
         descriptorSet := descriptorSets[i]
         descriptorSetObject := GetDescriptorSet(descriptorSet)
         assert(cmdBufferObject.device == descriptorSetObject.device)
@@ -3898,7 +3978,7 @@ cmd void vkCmdDrawIndirect(
         VkCmdBuffer                                 cmdBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset,
-        u32                                         count,
+        u32                                         drawCount,
         u32                                         stride) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     bufferObject := GetBuffer(buffer)
@@ -3914,7 +3994,7 @@ cmd void vkCmdDrawIndexedIndirect(
         VkCmdBuffer                                 cmdBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset,
-        u32                                         count,
+        u32                                         drawCount,
         u32                                         stride) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     bufferObject := GetBuffer(buffer)
@@ -4348,8 +4428,8 @@ cmd void vkCmdPushConstants(
         VkCmdBuffer                                 cmdBuffer,
         VkPipelineLayout                            layout,
         VkShaderStageFlags                          stageFlags,
-        u32                                         start,
-        u32                                         length,
+        u32                                         offset,
+        u32                                         size,
         const void*                                 values) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     layoutObject := GetPipelineLayout(layout)
@@ -4438,12 +4518,12 @@ cmd VkResult vkGetSurfacePropertiesKHR(
 cmd VkResult vkGetSurfaceFormatsKHR(
         VkDevice                                    device,
         VkSurfaceKHR                                surface,
-        u32*                                        pCount,
+        u32*                                        pSurfaceFormatCount,
         VkSurfaceFormatKHR*                         pSurfaceFormats) {
     deviceObject := GetDevice(device)
 
     count := as!u32(?)
-    pCount[0] = count
+    pSurfaceFormatCount[0] = count
     surfaceFormats := pSurfaceFormats[0:count]
 
     for i in (0 .. count) {
@@ -4458,12 +4538,12 @@ cmd VkResult vkGetSurfaceFormatsKHR(
 cmd VkResult vkGetSurfacePresentModesKHR(
         VkDevice                                    device,
         VkSurfaceKHR                                surface,
-        u32*                                        pCount,
+        u32*                                        pPresentModeCount,
         VkPresentModeKHR*                           pPresentModes) {
     deviceObject := GetDevice(device)
 
     count := as!u32(?)
-    pCount[0] = count
+    pPresentModeCount[0] = count
     presentModes := pPresentModes[0:count]
 
     for i in (0 .. count) {
@@ -4504,12 +4584,12 @@ cmd void vkDestroySwapchainKHR(
 cmd VkResult vkGetSwapchainImagesKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain,
-        u32*                                     pCount,
+        u32*                                     pSwapchainImageCount,
         VkImage*                                 pSwapchainImages) {
     deviceObject := GetDevice(device)
 
     count := as!u32(?)
-    pCount[0] = count
+    pSwapchainImageCount[0] = count
     swapchainImages := pSwapchainImages[0:count]
 
     for i in (0 .. count) {
@@ -4553,7 +4633,7 @@ cmd VkResult vkQueuePresentKHR(
 @extension("VK_EXT_KHR_display")
 cmd VkResult vkGetPhysicalDeviceDisplayPropertiesKHR(
         VkPhysicalDevice                        physicalDevice,
-        u32*                                    count,
+        u32*                                    pPropertyCount,
         VkDisplayPropertiesKHR*                 pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     return ?
@@ -4563,8 +4643,8 @@ cmd VkResult vkGetPhysicalDeviceDisplayPropertiesKHR(
 cmd VkResult vkGetDisplayModePropertiesKHR(
         VkPhysicalDevice                        physicalDevice,
         VkDisplayKHR                            display,
-        u32*                                    pCount,
-        VkDisplayModePropertiesKHR*             pModeProperties) {
+        u32*                                    pPropertyCount,
+        VkDisplayModePropertiesKHR*             pProperties) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     return ?
 }

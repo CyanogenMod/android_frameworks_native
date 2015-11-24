@@ -42,13 +42,13 @@ namespace {
 } // namespace
 
 __attribute__((visibility("default")))
-VkResult vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, VkInstance* pInstance) {
-    return vulkan::CreateInstance(pCreateInfo, pInstance);
+VkResult vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkInstance* pInstance) {
+    return vulkan::CreateInstance(pCreateInfo, pAllocator, pInstance);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyInstance(VkInstance instance) {
-    GetVtbl(instance).DestroyInstance(instance);
+void vkDestroyInstance(VkInstance instance, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(instance).DestroyInstance(instance, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -72,8 +72,8 @@ void vkGetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice, VkPhysicalDe
 }
 
 __attribute__((visibility("default")))
-void vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties) {
-    GetVtbl(physicalDevice).GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pCount, pQueueFamilyProperties);
+void vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties* pQueueFamilyProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
 }
 
 __attribute__((visibility("default")))
@@ -97,33 +97,33 @@ void vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, V
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo, VkDevice* pDevice) {
-    return GetVtbl(physicalDevice).CreateDevice(physicalDevice, pCreateInfo, pDevice);
+VkResult vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkDevice* pDevice) {
+    return GetVtbl(physicalDevice).CreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyDevice(VkDevice device) {
-    vulkan::DestroyDevice(device);
+void vkDestroyDevice(VkDevice device, const VkAllocCallbacks* pAllocator) {
+    vulkan::DestroyDevice(device, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkEnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
-    return vulkan::EnumerateInstanceLayerProperties(pCount, pProperties);
+VkResult vkEnumerateInstanceLayerProperties(uint32_t* pPropertyCount, VkLayerProperties* pProperties) {
+    return vulkan::EnumerateInstanceLayerProperties(pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
-    return vulkan::EnumerateInstanceExtensionProperties(pLayerName, pCount, pProperties);
+VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties) {
+    return vulkan::EnumerateInstanceExtensionProperties(pLayerName, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkLayerProperties* pProperties) {
-    return GetVtbl(physicalDevice).EnumerateDeviceLayerProperties(physicalDevice, pCount, pProperties);
+VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkLayerProperties* pProperties) {
+    return GetVtbl(physicalDevice).EnumerateDeviceLayerProperties(physicalDevice, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
-    return GetVtbl(physicalDevice).EnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pCount, pProperties);
+VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties) {
+    return GetVtbl(physicalDevice).EnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))
@@ -147,13 +147,13 @@ VkResult vkDeviceWaitIdle(VkDevice device) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkAllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, VkDeviceMemory* pMem) {
-    return GetVtbl(device).AllocMemory(device, pAllocInfo, pMem);
+VkResult vkAllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, const VkAllocCallbacks* pAllocator, VkDeviceMemory* pMem) {
+    return GetVtbl(device).AllocMemory(device, pAllocInfo, pAllocator, pMem);
 }
 
 __attribute__((visibility("default")))
-void vkFreeMemory(VkDevice device, VkDeviceMemory mem) {
-    GetVtbl(device).FreeMemory(device, mem);
+void vkFreeMemory(VkDevice device, VkDeviceMemory mem, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).FreeMemory(device, mem, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -202,38 +202,38 @@ VkResult vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, V
 }
 
 __attribute__((visibility("default")))
-void vkGetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
-    GetVtbl(device).GetImageSparseMemoryRequirements(device, image, pNumRequirements, pSparseMemoryRequirements);
+void vkGetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+    GetVtbl(device).GetImageSparseMemoryRequirements(device, image, pSparseMemoryRequirementCount, pSparseMemoryRequirements);
 }
 
 __attribute__((visibility("default")))
-void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
-    GetVtbl(physicalDevice).GetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, pNumProperties, pProperties);
+void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties) {
+    GetVtbl(physicalDevice).GetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseBufferMemory(queue, buffer, numBindings, pBindInfo);
+VkResult vkQueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t bindInfoCount, const VkSparseMemoryBindInfo* pBindInfo) {
+    return GetVtbl(queue).QueueBindSparseBufferMemory(queue, buffer, bindInfoCount, pBindInfo);
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseImageOpaqueMemory(queue, image, numBindings, pBindInfo);
+VkResult vkQueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t bindInfoCount, const VkSparseMemoryBindInfo* pBindInfo) {
+    return GetVtbl(queue).QueueBindSparseImageOpaqueMemory(queue, image, bindInfoCount, pBindInfo);
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseImageMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseImageMemory(queue, image, numBindings, pBindInfo);
+VkResult vkQueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t bindInfoCount, const VkSparseImageMemoryBindInfo* pBindInfo) {
+    return GetVtbl(queue).QueueBindSparseImageMemory(queue, image, bindInfoCount, pBindInfo);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, VkFence* pFence) {
-    return GetVtbl(device).CreateFence(device, pCreateInfo, pFence);
+VkResult vkCreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkFence* pFence) {
+    return GetVtbl(device).CreateFence(device, pCreateInfo, pAllocator, pFence);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyFence(VkDevice device, VkFence fence) {
-    GetVtbl(device).DestroyFence(device, fence);
+void vkDestroyFence(VkDevice device, VkFence fence, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyFence(device, fence, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -252,23 +252,23 @@ VkResult vkWaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pF
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateSemaphore(VkDevice device, const VkSemaphoreCreateInfo* pCreateInfo, VkSemaphore* pSemaphore) {
-    return GetVtbl(device).CreateSemaphore(device, pCreateInfo, pSemaphore);
+VkResult vkCreateSemaphore(VkDevice device, const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkSemaphore* pSemaphore) {
+    return GetVtbl(device).CreateSemaphore(device, pCreateInfo, pAllocator, pSemaphore);
 }
 
 __attribute__((visibility("default")))
-void vkDestroySemaphore(VkDevice device, VkSemaphore semaphore) {
-    GetVtbl(device).DestroySemaphore(device, semaphore);
+void vkDestroySemaphore(VkDevice device, VkSemaphore semaphore, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroySemaphore(device, semaphore, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, VkEvent* pEvent) {
-    return GetVtbl(device).CreateEvent(device, pCreateInfo, pEvent);
+VkResult vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkEvent* pEvent) {
+    return GetVtbl(device).CreateEvent(device, pCreateInfo, pAllocator, pEvent);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyEvent(VkDevice device, VkEvent event) {
-    GetVtbl(device).DestroyEvent(device, event);
+void vkDestroyEvent(VkDevice device, VkEvent event, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyEvent(device, event, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -287,13 +287,13 @@ VkResult vkResetEvent(VkDevice device, VkEvent event) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, VkQueryPool* pQueryPool) {
-    return GetVtbl(device).CreateQueryPool(device, pCreateInfo, pQueryPool);
+VkResult vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkQueryPool* pQueryPool) {
+    return GetVtbl(device).CreateQueryPool(device, pCreateInfo, pAllocator, pQueryPool);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
-    GetVtbl(device).DestroyQueryPool(device, queryPool);
+void vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyQueryPool(device, queryPool, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -302,33 +302,33 @@ VkResult vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t 
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, VkBuffer* pBuffer) {
-    return GetVtbl(device).CreateBuffer(device, pCreateInfo, pBuffer);
+VkResult vkCreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkBuffer* pBuffer) {
+    return GetVtbl(device).CreateBuffer(device, pCreateInfo, pAllocator, pBuffer);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyBuffer(VkDevice device, VkBuffer buffer) {
-    GetVtbl(device).DestroyBuffer(device, buffer);
+void vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyBuffer(device, buffer, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, VkBufferView* pView) {
-    return GetVtbl(device).CreateBufferView(device, pCreateInfo, pView);
+VkResult vkCreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkBufferView* pView) {
+    return GetVtbl(device).CreateBufferView(device, pCreateInfo, pAllocator, pView);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    GetVtbl(device).DestroyBufferView(device, bufferView);
+void vkDestroyBufferView(VkDevice device, VkBufferView bufferView, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyBufferView(device, bufferView, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, VkImage* pImage) {
-    return GetVtbl(device).CreateImage(device, pCreateInfo, pImage);
+VkResult vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkImage* pImage) {
+    return GetVtbl(device).CreateImage(device, pCreateInfo, pAllocator, pImage);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyImage(VkDevice device, VkImage image) {
-    GetVtbl(device).DestroyImage(device, image);
+void vkDestroyImage(VkDevice device, VkImage image, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyImage(device, image, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -337,43 +337,43 @@ void vkGetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSu
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, VkImageView* pView) {
-    return GetVtbl(device).CreateImageView(device, pCreateInfo, pView);
+VkResult vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkImageView* pView) {
+    return GetVtbl(device).CreateImageView(device, pCreateInfo, pAllocator, pView);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyImageView(VkDevice device, VkImageView imageView) {
-    GetVtbl(device).DestroyImageView(device, imageView);
+void vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyImageView(device, imageView, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* pCreateInfo, VkShaderModule* pShaderModule) {
-    return GetVtbl(device).CreateShaderModule(device, pCreateInfo, pShaderModule);
+VkResult vkCreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkShaderModule* pShaderModule) {
+    return GetVtbl(device).CreateShaderModule(device, pCreateInfo, pAllocator, pShaderModule);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
-    GetVtbl(device).DestroyShaderModule(device, shaderModule);
+void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyShaderModule(device, shaderModule, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, VkShader* pShader) {
-    return GetVtbl(device).CreateShader(device, pCreateInfo, pShader);
+VkResult vkCreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkShader* pShader) {
+    return GetVtbl(device).CreateShader(device, pCreateInfo, pAllocator, pShader);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyShader(VkDevice device, VkShader shader) {
-    GetVtbl(device).DestroyShader(device, shader);
+void vkDestroyShader(VkDevice device, VkShader shader, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyShader(device, shader, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, VkPipelineCache* pPipelineCache) {
-    return GetVtbl(device).CreatePipelineCache(device, pCreateInfo, pPipelineCache);
+VkResult vkCreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkPipelineCache* pPipelineCache) {
+    return GetVtbl(device).CreatePipelineCache(device, pCreateInfo, pAllocator, pPipelineCache);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
-    GetVtbl(device).DestroyPipelineCache(device, pipelineCache);
+void vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyPipelineCache(device, pipelineCache, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -387,58 +387,58 @@ VkResult vkMergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint3
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkGraphicsPipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
-    return GetVtbl(device).CreateGraphicsPipelines(device, pipelineCache, count, pCreateInfos, pPipelines);
+VkResult vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocCallbacks* pAllocator, VkPipeline* pPipelines) {
+    return GetVtbl(device).CreateGraphicsPipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t count, const VkComputePipelineCreateInfo* pCreateInfos, VkPipeline* pPipelines) {
-    return GetVtbl(device).CreateComputePipelines(device, pipelineCache, count, pCreateInfos, pPipelines);
+VkResult vkCreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocCallbacks* pAllocator, VkPipeline* pPipelines) {
+    return GetVtbl(device).CreateComputePipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyPipeline(VkDevice device, VkPipeline pipeline) {
-    GetVtbl(device).DestroyPipeline(device, pipeline);
+void vkDestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyPipeline(device, pipeline, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo* pCreateInfo, VkPipelineLayout* pPipelineLayout) {
-    return GetVtbl(device).CreatePipelineLayout(device, pCreateInfo, pPipelineLayout);
+VkResult vkCreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout) {
+    return GetVtbl(device).CreatePipelineLayout(device, pCreateInfo, pAllocator, pPipelineLayout);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
-    GetVtbl(device).DestroyPipelineLayout(device, pipelineLayout);
+void vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyPipelineLayout(device, pipelineLayout, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateSampler(VkDevice device, const VkSamplerCreateInfo* pCreateInfo, VkSampler* pSampler) {
-    return GetVtbl(device).CreateSampler(device, pCreateInfo, pSampler);
+VkResult vkCreateSampler(VkDevice device, const VkSamplerCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkSampler* pSampler) {
+    return GetVtbl(device).CreateSampler(device, pCreateInfo, pAllocator, pSampler);
 }
 
 __attribute__((visibility("default")))
-void vkDestroySampler(VkDevice device, VkSampler sampler) {
-    GetVtbl(device).DestroySampler(device, sampler);
+void vkDestroySampler(VkDevice device, VkSampler sampler, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroySampler(device, sampler, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayout* pSetLayout) {
-    return GetVtbl(device).CreateDescriptorSetLayout(device, pCreateInfo, pSetLayout);
+VkResult vkCreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout) {
+    return GetVtbl(device).CreateDescriptorSetLayout(device, pCreateInfo, pAllocator, pSetLayout);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
-    GetVtbl(device).DestroyDescriptorSetLayout(device, descriptorSetLayout);
+void vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyDescriptorSetLayout(device, descriptorSetLayout, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool) {
-    return GetVtbl(device).CreateDescriptorPool(device, pCreateInfo, pDescriptorPool);
+VkResult vkCreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool) {
+    return GetVtbl(device).CreateDescriptorPool(device, pCreateInfo, pAllocator, pDescriptorPool);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    GetVtbl(device).DestroyDescriptorPool(device, descriptorPool);
+void vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyDescriptorPool(device, descriptorPool, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -452,8 +452,8 @@ VkResult vkAllocDescriptorSets(VkDevice device, const VkDescriptorSetAllocInfo* 
 }
 
 __attribute__((visibility("default")))
-VkResult vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets) {
-    return GetVtbl(device).FreeDescriptorSets(device, descriptorPool, count, pDescriptorSets);
+VkResult vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets) {
+    return GetVtbl(device).FreeDescriptorSets(device, descriptorPool, descriptorSetCount, pDescriptorSets);
 }
 
 __attribute__((visibility("default")))
@@ -462,23 +462,23 @@ void vkUpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteD
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer) {
-    return GetVtbl(device).CreateFramebuffer(device, pCreateInfo, pFramebuffer);
+VkResult vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkFramebuffer* pFramebuffer) {
+    return GetVtbl(device).CreateFramebuffer(device, pCreateInfo, pAllocator, pFramebuffer);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
-    GetVtbl(device).DestroyFramebuffer(device, framebuffer);
+void vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyFramebuffer(device, framebuffer, pAllocator);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, VkRenderPass* pRenderPass) {
-    return GetVtbl(device).CreateRenderPass(device, pCreateInfo, pRenderPass);
+VkResult vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkRenderPass* pRenderPass) {
+    return GetVtbl(device).CreateRenderPass(device, pCreateInfo, pAllocator, pRenderPass);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
-    GetVtbl(device).DestroyRenderPass(device, renderPass);
+void vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyRenderPass(device, renderPass, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -487,13 +487,13 @@ void vkGetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExte
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool) {
-    return GetVtbl(device).CreateCommandPool(device, pCreateInfo, pCmdPool);
+VkResult vkCreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, const VkAllocCallbacks* pAllocator, VkCmdPool* pCmdPool) {
+    return GetVtbl(device).CreateCommandPool(device, pCreateInfo, pAllocator, pCmdPool);
 }
 
 __attribute__((visibility("default")))
-void vkDestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
-    GetVtbl(device).DestroyCommandPool(device, cmdPool);
+void vkDestroyCommandPool(VkDevice device, VkCmdPool cmdPool, const VkAllocCallbacks* pAllocator) {
+    GetVtbl(device).DestroyCommandPool(device, cmdPool, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -507,8 +507,8 @@ VkResult vkAllocCommandBuffers(VkDevice device, const VkCmdBufferAllocInfo* pAll
 }
 
 __attribute__((visibility("default")))
-void vkFreeCommandBuffers(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers) {
-    GetVtbl(device).FreeCommandBuffers(device, cmdPool, count, pCommandBuffers);
+void vkFreeCommandBuffers(VkDevice device, VkCmdPool cmdPool, uint32_t commandBufferCount, const VkCmdBuffer* pCommandBuffers) {
+    GetVtbl(device).FreeCommandBuffers(device, cmdPool, commandBufferCount, pCommandBuffers);
 }
 
 __attribute__((visibility("default")))
@@ -577,8 +577,8 @@ void vkCmdSetStencilReference(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask
 }
 
 __attribute__((visibility("default")))
-void vkCmdBindDescriptorSets(VkCmdBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t setCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) {
-    GetVtbl(cmdBuffer).CmdBindDescriptorSets(cmdBuffer, pipelineBindPoint, layout, firstSet, setCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
+void vkCmdBindDescriptorSets(VkCmdBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) {
+    GetVtbl(cmdBuffer).CmdBindDescriptorSets(cmdBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 }
 
 __attribute__((visibility("default")))
@@ -602,13 +602,13 @@ void vkCmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t indexCount, uint32_t insta
 }
 
 __attribute__((visibility("default")))
-void vkCmdDrawIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
-    GetVtbl(cmdBuffer).CmdDrawIndirect(cmdBuffer, buffer, offset, count, stride);
+void vkCmdDrawIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) {
+    GetVtbl(cmdBuffer).CmdDrawIndirect(cmdBuffer, buffer, offset, drawCount, stride);
 }
 
 __attribute__((visibility("default")))
-void vkCmdDrawIndexedIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
-    GetVtbl(cmdBuffer).CmdDrawIndexedIndirect(cmdBuffer, buffer, offset, count, stride);
+void vkCmdDrawIndexedIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) {
+    GetVtbl(cmdBuffer).CmdDrawIndexedIndirect(cmdBuffer, buffer, offset, drawCount, stride);
 }
 
 __attribute__((visibility("default")))
@@ -722,8 +722,8 @@ void vkCmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uin
 }
 
 __attribute__((visibility("default")))
-void vkCmdPushConstants(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values) {
-    GetVtbl(cmdBuffer).CmdPushConstants(cmdBuffer, layout, stageFlags, start, length, values);
+void vkCmdPushConstants(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* values) {
+    GetVtbl(cmdBuffer).CmdPushConstants(cmdBuffer, layout, stageFlags, offset, size, values);
 }
 
 __attribute__((visibility("default")))
@@ -762,13 +762,13 @@ VkResult vkGetSurfacePropertiesKHR(VkDevice device, VkSurfaceKHR surface, VkSurf
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfaceFormatsKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pCount, VkSurfaceFormatKHR* pSurfaceFormats) {
-    return GetVtbl(device).GetSurfaceFormatsKHR(device, surface, pCount, pSurfaceFormats);
+VkResult vkGetSurfaceFormatsKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pSurfaceFormatCount, VkSurfaceFormatKHR* pSurfaceFormats) {
+    return GetVtbl(device).GetSurfaceFormatsKHR(device, surface, pSurfaceFormatCount, pSurfaceFormats);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfacePresentModesKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pCount, VkPresentModeKHR* pPresentModes) {
-    return GetVtbl(device).GetSurfacePresentModesKHR(device, surface, pCount, pPresentModes);
+VkResult vkGetSurfacePresentModesKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) {
+    return GetVtbl(device).GetSurfacePresentModesKHR(device, surface, pPresentModeCount, pPresentModes);
 }
 
 __attribute__((visibility("default")))
@@ -782,8 +782,8 @@ void vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, uint32_t* pCount, VkImage* pSwapchainImages) {
-    return GetVtbl(device).GetSwapchainImagesKHR(device, swapchain, pCount, pSwapchainImages);
+VkResult vkGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages) {
+    return GetVtbl(device).GetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages);
 }
 
 __attribute__((visibility("default")))

@@ -158,13 +158,12 @@ int main(int /*argc*/, char const* /*argv*/ []) {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = nullptr,
         .pAppInfo = nullptr,
-        .pAllocCb = nullptr,
-        .layerCount = 0,
+        .enabledLayerNameCount = 0,
         .ppEnabledLayerNames = nullptr,
-        .extensionCount = 0,
+        .enabledExtensionNameCount = 0,
         .ppEnabledExtensionNames = nullptr,
     };
-    result = vkCreateInstance(&create_info, &instance);
+    result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS)
         die("vkCreateInstance", result);
 
@@ -189,7 +188,7 @@ int main(int /*argc*/, char const* /*argv*/ []) {
     for (uint32_t i = 0; i < physical_devices.size(); i++)
         DumpPhysicalDevice(i, physical_devices[i]);
 
-    vkDestroyInstance(instance);
+    vkDestroyInstance(instance, nullptr);
 
     return 0;
 }

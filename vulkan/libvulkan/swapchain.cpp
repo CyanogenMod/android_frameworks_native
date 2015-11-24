@@ -49,6 +49,19 @@ struct NativeBaseDeleter {
     void operator()(T* obj) { obj->common.decRef(&obj->common); }
 };
 
+template <typename Host>
+struct AllocScope {};
+
+template <>
+struct AllocScope<VkInstance> {
+    static const VkSystemAllocScope kScope = VK_SYSTEM_ALLOC_SCOPE_INSTANCE;
+};
+
+template <>
+struct AllocScope<VkDevice> {
+    static const VkSystemAllocScope kScope = VK_SYSTEM_ALLOC_SCOPE_DEVICE;
+};
+
 template <typename T, typename Host>
 class VulkanAllocator {
    public:
@@ -62,7 +75,7 @@ class VulkanAllocator {
 
     T* allocate(size_t n) const {
         return static_cast<T*>(AllocMem(host_, n * sizeof(T), alignof(T),
-                                        VK_SYSTEM_ALLOC_TYPE_INTERNAL));
+                                        AllocScope<Host>::kScope));
     }
     void deallocate(T* p, size_t) const { return FreeMem(host_, p); }
 
@@ -129,7 +142,7 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
                                  ANativeWindow* window,
                                  VkSurfaceKHR* out_surface) {
     void* mem = AllocMem(instance, sizeof(Surface), alignof(Surface),
-                         VK_SYSTEM_ALLOC_TYPE_API_OBJECT);
+                         VK_SYSTEM_ALLOC_SCOPE_OBJECT);
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Surface* surface = new (mem) Surface;
@@ -362,7 +375,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     // After this point, we must deallocate the swapchain on error.
 
     void* mem = AllocMem(device, sizeof(Swapchain), alignof(Swapchain),
-                         VK_SYSTEM_ALLOC_TYPE_API_OBJECT);
+                         VK_SYSTEM_ALLOC_SCOPE_OBJECT);
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Swapchain* swapchain = new (mem) Swapchain(surface, num_images);
@@ -391,7 +404,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         .usage = create_info->imageUsageFlags,
         .flags = 0,
         .sharingMode = create_info->sharingMode,
-        .queueFamilyCount = create_info->queueFamilyCount,
+        .queueFamilyIndexCount = create_info->queueFamilyIndexCount,
         .pQueueFamilyIndices = create_info->pQueueFamilyIndices,
     };
 
@@ -418,7 +431,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
         image_native_buffer.format = img.buffer->format;
         image_native_buffer.usage = img.buffer->usage;
 
-        result = driver_vtbl.CreateImage(device, &image_create, &img.image);
+        result =
+            driver_vtbl.CreateImage(device, &image_create, nullptr, &img.image);
         if (result != VK_SUCCESS) {
             ALOGD("vkCreateImage w/ native buffer failed: %u", result);
             break;
@@ -441,7 +455,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
         }
         if (result != VK_SUCCESS) {
             if (img.image)
-                driver_vtbl.DestroyImage(device, img.image);
+                driver_vtbl.DestroyImage(device, img.image, nullptr);
         }
     }
 
@@ -469,7 +483,7 @@ VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
             img.dequeued = false;
         }
         if (img.image) {
-            driver_vtbl.DestroyImage(device, img.image);
+            driver_vtbl.DestroyImage(device, img.image, nullptr);
         }
     }
 
@@ -592,7 +606,7 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
     VkResult final_result = VK_SUCCESS;
     for (uint32_t sc = 0; sc < present_info->swapchainCount; sc++) {
         Swapchain& swapchain =
-            *SwapchainFromHandle(present_info->swapchains[sc]);
+            *SwapchainFromHandle(present_info->pSwapchains[sc]);
         ANativeWindow* window = swapchain.surface.window.get();
         uint32_t image_idx = present_info->imageIndices[sc];
         Swapchain::Image& img = swapchain.images[image_idx];
