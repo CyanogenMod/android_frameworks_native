@@ -713,7 +713,8 @@ enum VkColorSpaceKHR {
 /////////////////
 
 /// Queue capabilities
-bitfield VkQueueFlags {
+type VkFlags VkQueueFlags
+bitfield VkQueueFlagBits {
     VK_QUEUE_GRAPHICS_BIT                                   = 0x00000001,    /// Queue supports graphics operations
     VK_QUEUE_COMPUTE_BIT                                    = 0x00000002,    /// Queue supports compute operations
     VK_QUEUE_DMA_BIT                                        = 0x00000004,    /// Queue supports DMA operations
@@ -722,7 +723,8 @@ bitfield VkQueueFlags {
 }
 
 /// Memory properties passed into vkAllocMemory().
-bitfield VkMemoryPropertyFlags {
+type VkFlags VkMemoryPropertyFlags
+bitfield VkMemoryPropertyFlagBits {
     VK_MEMORY_PROPERTY_DEVICE_ONLY                          = 0x00000000,    /// If otherwise stated, then allocate memory on device
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT                     = 0x00000001,    /// Memory should be mappable by host
     VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT                = 0x00000002,    /// Memory may not have i/o coherency so vkFlushMappedMemoryRanges and vkInvalidateMappedMemoryRanges must be used flush/invalidate host cache
@@ -732,12 +734,14 @@ bitfield VkMemoryPropertyFlags {
 }
 
 /// Memory heap flags
-bitfield VkMemoryHeapFlags {
+type VkFlags VkMemoryHeapFlags
+bitfield VkMemoryHeapFlagBits {
     VK_MEMORY_HEAP_HOST_LOCAL_BIT                           = 0x00000001,    /// If set, heap represents host memory
 }
 
 /// Memory output flags passed to resource transition commands
-bitfield VkMemoryOutputFlags {
+type VkFlags VkMemoryOutputFlags
+bitfield VkMemoryOutputFlagBits {
     VK_MEMORY_OUTPUT_HOST_WRITE_BIT                         = 0x00000001,    /// Controls output coherency of host writes
     VK_MEMORY_OUTPUT_SHADER_WRITE_BIT                       = 0x00000002,    /// Controls output coherency of generic shader writes
     VK_MEMORY_OUTPUT_COLOR_ATTACHMENT_BIT                   = 0x00000004,    /// Controls output coherency of color attachment writes
@@ -746,7 +750,8 @@ bitfield VkMemoryOutputFlags {
 }
 
 /// Memory input flags passed to resource transition commands
-bitfield VkMemoryInputFlags {
+type VkFlags VkMemoryInputFlags
+bitfield VkMemoryInputFlagBits {
     VK_MEMORY_INPUT_HOST_READ_BIT                           = 0x00000001,    /// Controls input coherency of host reads
     VK_MEMORY_INPUT_INDIRECT_COMMAND_BIT                    = 0x00000002,    /// Controls input coherency of indirect command reads
     VK_MEMORY_INPUT_INDEX_FETCH_BIT                         = 0x00000004,    /// Controls input coherency of index fetches
@@ -760,7 +765,8 @@ bitfield VkMemoryInputFlags {
 }
 
 /// Buffer usage flags
-bitfield VkBufferUsageFlags {
+type VkFlags VkBufferUsageFlags
+bitfield VkBufferUsageFlagBits {
     VK_BUFFER_USAGE_TRANSFER_SOURCE_BIT                     = 0x00000001,    /// Can be used as a source of transfer operations
     VK_BUFFER_USAGE_TRANSFER_DESTINATION_BIT                = 0x00000002,    /// Can be used as a destination of transfer operations
     VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT                = 0x00000004,    /// Can be used as TBO
@@ -773,14 +779,16 @@ bitfield VkBufferUsageFlags {
 }
 
 /// Buffer creation flags
-bitfield VkBufferCreateFlags {
+type VkFlags VkBufferCreateFlags
+bitfield VkBufferCreateFlagBits {
     VK_BUFFER_CREATE_SPARSE_BINDING_BIT                     = 0x00000001,    /// Buffer should support sparse backing
     VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT                   = 0x00000002,    /// Buffer should support sparse backing with partial residency
     VK_BUFFER_CREATE_SPARSE_ALIASED_BIT                     = 0x00000004,    /// Buffer should support constent data access to physical memory blocks mapped into multiple locations of sparse buffers
 }
 
 /// Shader stage flags
-bitfield VkShaderStageFlags {
+type VkFlags VkShaderStageFlags
+bitfield VkShaderStageFlagBits {
     VK_SHADER_STAGE_VERTEX_BIT                              = 0x00000001,
     VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT                = 0x00000002,
     VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT             = 0x00000004,
@@ -792,16 +800,19 @@ bitfield VkShaderStageFlags {
 }
 
 /// Descriptor pool create flags
-bitfield VkDescriptorPoolCreateFlags {
+type VkFlags VkDescriptorPoolCreateFlags
+bitfield VkDescriptorPoolCreateFlagBits {
     VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT       = 0x00000001,
 }
 
 /// Descriptor pool reset flags
-bitfield VkDescriptorPoolResetFlags {
+type VkFlags VkDescriptorPoolResetFlags
+bitfield VkDescriptorPoolResetFlagBits {
 }
 
 /// Image usage flags
-bitfield VkImageUsageFlags {
+type VkFlags VkImageUsageFlags
+bitfield VkImageUsageFlagBits {
     VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT                      = 0x00000001,    /// Can be used as a source of transfer operations
     VK_IMAGE_USAGE_TRANSFER_DESTINATION_BIT                 = 0x00000002,    /// Can be used as a destination of transfer operations
     VK_IMAGE_USAGE_SAMPLED_BIT                              = 0x00000004,    /// Can be sampled from (SAMPLED_IMAGE and COMBINED_IMAGE_SAMPLER descriptor types)
@@ -813,7 +824,8 @@ bitfield VkImageUsageFlags {
 }
 
 /// Image creation flags
-bitfield VkImageCreateFlags {
+type VkFlags VkImageCreateFlags
+bitfield VkImageCreateFlagBits {
     VK_IMAGE_CREATE_SPARSE_BINDING_BIT                      = 0x00000001,    /// Image should support sparse backing
     VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT                    = 0x00000002,    /// Image should support sparse backing with partial residency
     VK_IMAGE_CREATE_SPARSE_ALIASED_BIT                      = 0x00000004,    /// Image should support constent data access to physical memory blocks mapped into multiple locations of sparse images
@@ -822,20 +834,23 @@ bitfield VkImageCreateFlags {
 }
 
 /// Framebuffer attachment view creation flags
-bitfield VkImageViewCreateFlags {
+type VkFlags VkImageViewCreateFlags
+bitfield VkImageViewCreateFlagBits {
     VK_IMAGE_VIEW_CREATE_READ_ONLY_DEPTH_BIT                = 0x00000001,
     VK_IMAGE_VIEW_CREATE_READ_ONLY_STENCIL_BIT              = 0x00000002,
 }
 
 /// Pipeline creation flags
-bitfield VkPipelineCreateFlags {
+type VkFlags VkPipelineCreateFlags
+bitfield VkPipelineCreateFlagBits {
     VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT             = 0x00000001,
     VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT                = 0x00000002,
     VK_PIPELINE_CREATE_DERIVATIVE_BIT                       = 0x00000004,
 }
 
 /// Channel flags
-bitfield VkChannelFlags {
+type VkFlags VkChannelFlags
+bitfield VkChannelFlagBits {
     VK_CHANNEL_R_BIT                                        = 0x00000001,
     VK_CHANNEL_G_BIT                                        = 0x00000002,
     VK_CHANNEL_B_BIT                                        = 0x00000004,
@@ -843,16 +858,19 @@ bitfield VkChannelFlags {
 }
 
 /// Fence creation flags
-bitfield VkFenceCreateFlags {
+type VkFlags VkFenceCreateFlags
+bitfield VkFenceCreateFlagBits {
     VK_FENCE_CREATE_SIGNALED_BIT                            = 0x00000001,
 }
 
 /// Semaphore creation flags
-bitfield VkSemaphoreCreateFlags {
+type VkFlags VkSemaphoreCreateFlags
+bitfield VkSemaphoreCreateFlagBits {
 }
 
 /// Format capability flags
-bitfield VkFormatFeatureFlags {
+type VkFlags VkFormatFeatureFlags
+bitfield VkFormatFeatureFlagBits {
     VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT                     = 0x00000001,    /// Format can be used for sampled images (SAMPLED_IMAGE and COMBINED_IMAGE_SAMPLER descriptor types)
     VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT                     = 0x00000002,    /// Format can be used for storage images (STORAGE_IMAGE descriptor type)
     VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT              = 0x00000004,    /// Format supports atomic operations in case it's used for storage images
@@ -868,12 +886,14 @@ bitfield VkFormatFeatureFlags {
 }
 
 /// Query control flags
-bitfield VkQueryControlFlags {
+type VkFlags VkQueryControlFlags
+bitfield VkQueryControlFlagBits {
     VK_QUERY_CONTROL_CONSERVATIVE_BIT                       = 0x00000001,    /// Allow conservative results to be collected by the query
 }
 
 /// Query result flags
-bitfield VkQueryResultFlags {
+type VkFlags VkQueryResultFlags
+bitfield VkQueryResultFlagBits {
     VK_QUERY_RESULT_DEFAULT                                 = 0x00000000,   /// Results of the queries are immediately written to the destination buffer as 32-bit values
     VK_QUERY_RESULT_64_BIT                                  = 0x00000001,   /// Results of the queries are written to the destination buffer as 64-bit values
     VK_QUERY_RESULT_WAIT_BIT                                = 0x00000002,   /// Results of the queries are waited on before proceeding with the result copy
@@ -882,26 +902,31 @@ bitfield VkQueryResultFlags {
 }
 
 /// Shader module creation flags
-bitfield VkShaderModuleCreateFlags {
+type VkFlags VkShaderModuleCreateFlags
+bitfield VkShaderModuleCreateFlagBits {
 }
 
 /// Shader creation flags
-bitfield VkShaderCreateFlags {
+type VkFlags VkShaderCreateFlags
+bitfield VkShaderCreateFlagBits {
 }
 
 /// Event creation flags
-bitfield VkEventCreateFlags {
+type VkFlags VkEventCreateFlags
+bitfield VkEventCreateFlagBits {
 }
 
 /// Command buffer usage flags
-bitfield VkCmdBufferUsageFlags {
+type VkFlags VkCmdBufferUsageFlags
+bitfield VkCmdBufferUsageFlagBits {
     VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT                 = 0x00000001,
     VK_CMD_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT            = 0x00000002,
     VK_CMD_BUFFER_USAGE_SIMULTANEOUS_USE_BIT                = 0x00000004,
 }
 
 /// Pipeline statistics flags
-bitfield VkQueryPipelineStatisticFlags {
+type VkFlags VkQueryPipelineStatisticFlags
+bitfield VkQueryPipelineStatisticFlagBits {
     VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT                     = 0x00000001,  /// Optional
     VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT                   = 0x00000002,  /// Optional
     VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT                   = 0x00000004,  /// Optional
@@ -916,11 +941,13 @@ bitfield VkQueryPipelineStatisticFlags {
 }
 
 /// Memory mapping flags
-bitfield VkMemoryMapFlags {
+type VkFlags VkMemoryMapFlags
+bitfield VkMemoryMapFlagBits {
 }
 
 /// Bitfield of image aspects
-bitfield VkImageAspectFlags {
+type VkFlags VkImageAspectFlags
+bitfield VkImageAspectFlagBits {
     VK_IMAGE_ASPECT_COLOR_BIT                               = 0x00000001,
     VK_IMAGE_ASPECT_DEPTH_BIT                               = 0x00000002,
     VK_IMAGE_ASPECT_STENCIL_BIT                             = 0x00000004,
@@ -928,19 +955,22 @@ bitfield VkImageAspectFlags {
 }
 
 /// Sparse memory bind flags
-bitfield VkSparseMemoryBindFlags {
+type VkFlags VkSparseMemoryBindFlags
+bitfield VkSparseMemoryBindFlagBits {
     VK_SPARSE_MEMORY_BIND_REPLICATE_BLOCK_BIT               = 0x00000001,
 }
 
 /// Sparse image memory requirements flags
-bitfield VkSparseImageFormatFlags {
+type VkFlags VkSparseImageFormatFlags
+bitfield VkSparseImageFormatFlagBits {
     VK_SPARSE_IMAGE_FMT_SINGLE_MIPTAIL_BIT                  = 0x00000001,  /// Image uses a single miptail region for all array slices
     VK_SPARSE_IMAGE_FMT_ALIGNED_MIP_SIZE_BIT                = 0x00000002,  /// Image requires mip levels to be an exact multiple of the sparse iamge block size for non-mip-tail levels.
     VK_SPARSE_IMAGE_FMT_NONSTD_BLOCK_SIZE_BIT               = 0x00000004,  /// Image uses a non-standard sparse block size
 }
 
 /// Pipeline stages
-bitfield VkPipelineStageFlags {
+type VkFlags VkPipelineStageFlags
+bitfield VkPipelineStageFlagBits {
     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT                       = 0x00000001,  /// Before subsequent commands are processed
     VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT                     = 0x00000002,  /// Draw/DispatchIndirect command fetch
     VK_PIPELINE_STAGE_VERTEX_INPUT_BIT                      = 0x00000004,  /// Vertex/index fetch
@@ -961,30 +991,36 @@ bitfield VkPipelineStageFlags {
 }
 
 /// Render pass attachment description flags
-bitfield VkAttachmentDescriptionFlags {
+type VkFlags VkAttachmentDescriptionFlags
+bitfield VkAttachmentDescriptionFlagBits {
     VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT                 = 0x00000001,  /// The attachment may alias physical memory of another attachment in the same renderpass
 }
 
 /// Subpass description flags
-bitfield VkSubpassDescriptionFlags {
+type VkFlags VkSubpassDescriptionFlags
+bitfield VkSubpassDescriptionFlagBits {
 }
 
 /// Command pool creation flags
-bitfield VkCmdPoolCreateFlags {
+type VkFlags VkCmdPoolCreateFlags
+bitfield VkCmdPoolCreateFlagBits {
     VK_CMD_POOL_CREATE_TRANSIENT_BIT                        = 0x00000001,  /// Command buffers have a short lifetime
     VK_CMD_POOL_CREATE_RESET_COMMAND_BUFFER_BIT             = 0x00000002,  /// Command buffers may release their memory individually
 }
 
 /// Command pool reset flags
-bitfield VkCmdPoolResetFlags {
+type VkFlags VkCmdPoolResetFlags
+bitfield VkCmdPoolResetFlagBits {
     VK_CMD_POOL_RESET_RELEASE_RESOURCES_BIT                 = 0x00000001,  /// Release resources owned by the pool
 }
 
-bitfield VkCmdBufferResetFlags {
+type VkFlags VkCmdBufferResetFlags
+bitfield VkCmdBufferResetFlagBits {
     VK_CMD_BUFFER_RESET_RELEASE_RESOURCES_BIT               = 0x00000001,  /// Release resources owned by the buffer
 }
 
-bitfield VkSampleCountFlags {
+type VkFlags VkSampleCountFlags
+bitfield VkSampleCountFlagBits {
     VK_SAMPLE_COUNT_1_BIT                                   = 0x00000001,
     VK_SAMPLE_COUNT_2_BIT                                   = 0x00000002,
     VK_SAMPLE_COUNT_4_BIT                                   = 0x00000004,
@@ -994,14 +1030,17 @@ bitfield VkSampleCountFlags {
     VK_SAMPLE_COUNT_64_BIT                                  = 0x00000040,
 }
 
-bitfield VkStencilFaceFlags {
+type VkFlags VkStencilFaceFlags
+bitfield VkStencilFaceFlagBits {
     VK_STENCIL_FACE_NONE                                    = 0x00000000,   /// No faces
     VK_STENCIL_FACE_FRONT_BIT                               = 0x00000001,   /// Front face
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
 }
 
 @extension("VK_EXT_KHR_swapchain")
-bitfield VkSurfaceTransformFlagsKHR {
+type VkFlags VkSurfaceTransformFlagsKHR
+@extension("VK_EXT_KHR_swapchain")
+bitfield VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_NONE_BIT_KHR                       = 0x00000001,
     VK_SURFACE_TRANSFORM_ROT90_BIT_KHR                      = 0x00000002,
     VK_SURFACE_TRANSFORM_ROT180_BIT_KHR                     = 0x00000004,
@@ -1014,7 +1053,9 @@ bitfield VkSurfaceTransformFlagsKHR {
 }
 
 @extension("VK_EXT_KHR_display")
-bitfield VkDisplayPlaneAlphaFlagsKHR {
+type VkFlags VkDisplayPlaneAlphaFlagsKHR
+@extension("VK_EXT_KHR_display")
+bitfield VkDisplayPlaneAlphaFlagBitsKHR {
     VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR                   = 0x00000001,
     VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR                = 0x00000002,
     VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_PREMULTIPLIED_BIT_KHR  = 0x00000004,
@@ -1181,7 +1222,7 @@ class VkMemoryRequirements {
 }
 
 class VkSparseImageFormatProperties {
-    VkImageAspectFlags                          aspect
+    VkImageAspectFlagBits                       aspect
     VkExtent3D                                  imageGranularity
     VkSparseImageFormatFlags                    flags
 }
@@ -1284,7 +1325,7 @@ class VkBufferViewCreateInfo {
 }
 
 class VkImageSubresource {
-    VkImageAspectFlags                          aspect
+    VkImageAspectFlagBits                       aspect
     u32                                         mipLevel
     u32                                         arrayLayer
 }
@@ -1443,7 +1484,7 @@ class VkShaderCreateInfo {
     VkShaderModule                              module             /// Module containing entry point
     const char*                                 pName              /// Null-terminated entry point name
     VkShaderCreateFlags                         flags              /// Reserved
-    VkShaderStageFlags                          stage
+    VkShaderStageFlagBits                       stage
 }
 
 class VkDescriptorSetLayoutBinding {
@@ -2774,7 +2815,7 @@ cmd VkResult vkCreateFence(
     fence := ?
     pFence[0] = fence
     State.Fences[fence] = new!FenceObject(
-        device: device, signaled: (pCreateInfo.flags == VK_FENCE_CREATE_SIGNALED_BIT))
+        device: device, signaled: (pCreateInfo.flags == as!VkFenceCreateFlags(VK_FENCE_CREATE_SIGNALED_BIT)))
 
     return ?
 }
@@ -3695,11 +3736,11 @@ cmd void vkCmdBindPipeline(
     pipelineObject := GetPipeline(pipeline)
     assert(cmdBufferObject.device == pipelineObject.device)
 
-    queueFlags := cmdBufferObject.queueFlags | switch (pipelineBindPoint) {
+    queue := switch (pipelineBindPoint) {
         case VK_PIPELINE_BIND_POINT_COMPUTE:  VK_QUEUE_COMPUTE_BIT
         case VK_PIPELINE_BIND_POINT_GRAPHICS: VK_QUEUE_GRAPHICS_BIT
     }
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, queue)
 }
 
 @threadSafety("app")
@@ -3708,8 +3749,7 @@ cmd void vkCmdSetViewport(
         u32                                         viewportCount,
         const VkViewport*                           pViewports) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3718,8 +3758,7 @@ cmd void vkCmdSetScissor(
         u32                                         scissorCount,
         const VkRect2D*                             pScissors) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3727,8 +3766,7 @@ cmd void vkCmdSetLineWidth(
         VkCmdBuffer                                 cmdBuffer,
         f32                                         lineWidth) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3738,8 +3776,7 @@ cmd void vkCmdSetDepthBias(
         f32                                         depthBiasClamp,
         f32                                         depthBiasSlopeFactor) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3750,8 +3787,7 @@ cmd void vkCmdSetBlendConstants(
         // having to modify the AST and semantic model.
         @readonly f32[4]                            blendConst) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3760,8 +3796,7 @@ cmd void vkCmdSetDepthBounds(
         f32                                         minDepthBounds,
         f32                                         maxDepthBounds) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3770,8 +3805,7 @@ cmd void vkCmdSetStencilCompareMask(
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilCompareMask) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3780,8 +3814,7 @@ cmd void vkCmdSetStencilWriteMask(
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilWriteMask) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3790,8 +3823,7 @@ cmd void vkCmdSetStencilReference(
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilReference) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3818,11 +3850,11 @@ cmd void vkCmdBindDescriptorSets(
         dynamicOffset := dynamicOffsets[i]
     }
 
-    queueFlags := cmdBufferObject.queueFlags | switch (pipelineBindPoint) {
+    queue := switch (pipelineBindPoint) {
         case VK_PIPELINE_BIND_POINT_COMPUTE:  VK_QUEUE_COMPUTE_BIT
         case VK_PIPELINE_BIND_POINT_GRAPHICS: VK_QUEUE_GRAPHICS_BIT
     }
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, queue)
 }
 
 @threadSafety("app")
@@ -3837,8 +3869,7 @@ cmd void vkCmdBindIndexBuffer(
 
     bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3862,8 +3893,7 @@ cmd void vkCmdBindVertexBuffers(
         bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
     }
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3875,8 +3905,7 @@ cmd void vkCmdDraw(
         u32                                         firstInstance) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3889,8 +3918,7 @@ cmd void vkCmdDrawIndexed(
         u32                                         firstInstance) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3906,8 +3934,7 @@ cmd void vkCmdDrawIndirect(
 
     bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3923,8 +3950,7 @@ cmd void vkCmdDrawIndexedIndirect(
 
     bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -3935,8 +3961,7 @@ cmd void vkCmdDispatch(
         u32                                         z) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_COMPUTE_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
 }
 
 @threadSafety("app")
@@ -3950,8 +3975,7 @@ cmd void vkCmdDispatchIndirect(
 
     bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_COMPUTE_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
 }
 
 @threadSafety("app")
@@ -3975,8 +3999,7 @@ cmd void vkCmdCopyBuffer(
     bindCmdBuffer(cmdBuffer, srcBuffer, srcBufferObject.mem)
     bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4002,8 +4025,7 @@ cmd void vkCmdCopyImage(
     bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
     bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4030,8 +4052,7 @@ cmd void vkCmdBlitImage(
     bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
     bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -4056,8 +4077,7 @@ cmd void vkCmdCopyBufferToImage(
     bindCmdBuffer(cmdBuffer, srcBuffer, srcBufferObject.mem)
     bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4082,8 +4102,7 @@ cmd void vkCmdCopyImageToBuffer(
     bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
     bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4101,8 +4120,7 @@ cmd void vkCmdUpdateBuffer(
 
     bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4116,8 +4134,7 @@ cmd void vkCmdFillBuffer(
     destBufferObject := GetBuffer(destBuffer)
     assert(cmdBufferObject.device == destBufferObject.device)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_DMA_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
@@ -4139,8 +4156,7 @@ cmd void vkCmdClearColorImage(
 
     bindCmdBuffer(cmdBuffer, image, imageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -4162,8 +4178,7 @@ cmd void vkCmdClearDepthStencilImage(
 
     bindCmdBuffer(cmdBuffer, image, imageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -4180,8 +4195,7 @@ cmd void vkCmdClearAttachments(
         rect := rects[i]
     }
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -4207,8 +4221,7 @@ cmd void vkCmdResolveImage(
     bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
     bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
@@ -4382,8 +4395,7 @@ cmd void vkCmdBeginRenderPass(
     assert(cmdBufferObject.device == renderPassObject.device)
     assert(cmdBufferObject.device == framebufferObject.device)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 cmd void vkCmdNextSubpass(
@@ -4397,8 +4409,7 @@ cmd void vkCmdEndRenderPass(
         VkCmdBuffer                                 cmdBuffer) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
 
-    queueFlags := cmdBufferObject.queueFlags | VK_QUEUE_GRAPHICS_BIT
-    cmdBufferObject.queueFlags = queueFlags
+    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 cmd void vkCmdExecuteCommands(
@@ -4978,4 +4989,8 @@ macro ref!SurfaceObject GetSurface(VkSurfaceKHR surface) {
 macro ref!SwapchainObject GetSwapchain(VkSwapchainKHR swapchain) {
     assert(swapchain in State.Swapchains)
     return State.Swapchains[swapchain]
+}
+
+macro VkQueueFlags AddQueueFlag(VkQueueFlags flags, VkQueueFlagBits bit) {
+    return as!VkQueueFlags(as!u32(flags) | as!u32(bit))
 }
