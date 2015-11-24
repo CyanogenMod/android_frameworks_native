@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 184, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 185, 0)
 
 
 #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
@@ -770,15 +770,6 @@ typedef enum {
     VK_INDEX_TYPE_NUM = (VK_INDEX_TYPE_UINT32 - VK_INDEX_TYPE_UINT16 + 1),
     VK_INDEX_TYPE_MAX_ENUM = 0x7FFFFFFF
 } VkIndexType;
-
-typedef enum {
-    VK_TIMESTAMP_TYPE_TOP = 0,
-    VK_TIMESTAMP_TYPE_BOTTOM = 1,
-    VK_TIMESTAMP_TYPE_BEGIN_RANGE = VK_TIMESTAMP_TYPE_TOP,
-    VK_TIMESTAMP_TYPE_END_RANGE = VK_TIMESTAMP_TYPE_BOTTOM,
-    VK_TIMESTAMP_TYPE_NUM = (VK_TIMESTAMP_TYPE_BOTTOM - VK_TIMESTAMP_TYPE_TOP + 1),
-    VK_TIMESTAMP_TYPE_MAX_ENUM = 0x7FFFFFFF
-} VkTimestampType;
 
 typedef enum {
     VK_RENDER_PASS_CONTENTS_INLINE = 0,
@@ -1561,7 +1552,6 @@ typedef struct {
 typedef struct {
     VkStructureType                             sType;
     const void*                                 pNext;
-    VkShaderStageFlagBits                       stage;
     VkShader                                    shader;
     const VkSpecializationInfo*                 pSpecializationInfo;
 } VkPipelineShaderStageCreateInfo;
@@ -2126,8 +2116,6 @@ typedef VkResult (VKAPI *PFN_vkGetFenceStatus)(VkDevice device, VkFence fence);
 typedef VkResult (VKAPI *PFN_vkWaitForFences)(VkDevice device, uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
 typedef VkResult (VKAPI *PFN_vkCreateSemaphore)(VkDevice device, const VkSemaphoreCreateInfo* pCreateInfo, VkSemaphore* pSemaphore);
 typedef void (VKAPI *PFN_vkDestroySemaphore)(VkDevice device, VkSemaphore semaphore);
-typedef VkResult (VKAPI *PFN_vkQueueSignalSemaphore)(VkQueue queue, VkSemaphore semaphore);
-typedef VkResult (VKAPI *PFN_vkQueueWaitSemaphore)(VkQueue queue, VkSemaphore semaphore);
 typedef VkResult (VKAPI *PFN_vkCreateEvent)(VkDevice device, const VkEventCreateInfo* pCreateInfo, VkEvent* pEvent);
 typedef void (VKAPI *PFN_vkDestroyEvent)(VkDevice device, VkEvent event);
 typedef VkResult (VKAPI *PFN_vkGetEventStatus)(VkDevice device, VkEvent event);
@@ -2218,7 +2206,7 @@ typedef void (VKAPI *PFN_vkCmdPipelineBarrier)(VkCmdBuffer cmdBuffer, VkPipeline
 typedef void (VKAPI *PFN_vkCmdBeginQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
 typedef void (VKAPI *PFN_vkCmdEndQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
 typedef void (VKAPI *PFN_vkCmdResetQueryPool)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
-typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, VkBuffer destBuffer, VkDeviceSize destOffset);
+typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset);
 typedef void (VKAPI *PFN_vkCmdCopyQueryPoolResults)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize stride, VkQueryResultFlags flags);
 typedef void (VKAPI *PFN_vkCmdPushConstants)(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values);
 typedef void (VKAPI *PFN_vkCmdBeginRenderPass)(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents);
@@ -2448,14 +2436,6 @@ VkResult VKAPI vkCreateSemaphore(
 
 void VKAPI vkDestroySemaphore(
     VkDevice                                    device,
-    VkSemaphore                                 semaphore);
-
-VkResult VKAPI vkQueueSignalSemaphore(
-    VkQueue                                     queue,
-    VkSemaphore                                 semaphore);
-
-VkResult VKAPI vkQueueWaitSemaphore(
-    VkQueue                                     queue,
     VkSemaphore                                 semaphore);
 
 VkResult VKAPI vkCreateEvent(
@@ -2961,7 +2941,7 @@ void VKAPI vkCmdResetQueryPool(
 
 void VKAPI vkCmdWriteTimestamp(
     VkCmdBuffer                                 cmdBuffer,
-    VkTimestampType                             timestampType,
+    VkPipelineStageFlagBits                     pipelineStage,
     VkBuffer                                    destBuffer,
     VkDeviceSize                                destOffset);
 

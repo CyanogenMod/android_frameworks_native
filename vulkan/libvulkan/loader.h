@@ -139,8 +139,6 @@ struct DeviceVtbl {
     PFN_vkQueueBindSparseBufferMemory QueueBindSparseBufferMemory;
     PFN_vkQueueBindSparseImageOpaqueMemory QueueBindSparseImageOpaqueMemory;
     PFN_vkQueueBindSparseImageMemory QueueBindSparseImageMemory;
-    PFN_vkQueueSignalSemaphore QueueSignalSemaphore;
-    PFN_vkQueueWaitSemaphore QueueWaitSemaphore;
 
     PFN_vkBeginCommandBuffer BeginCommandBuffer;
     PFN_vkEndCommandBuffer EndCommandBuffer;

@@ -262,16 +262,6 @@ void vkDestroySemaphore(VkDevice device, VkSemaphore semaphore) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    return GetVtbl(queue).QueueSignalSemaphore(queue, semaphore);
-}
-
-__attribute__((visibility("default")))
-VkResult vkQueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    return GetVtbl(queue).QueueWaitSemaphore(queue, semaphore);
-}
-
-__attribute__((visibility("default")))
 VkResult vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, VkEvent* pEvent) {
     return GetVtbl(device).CreateEvent(device, pCreateInfo, pEvent);
 }
@@ -722,8 +712,8 @@ void vkCmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t 
 }
 
 __attribute__((visibility("default")))
-void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, VkBuffer destBuffer, VkDeviceSize destOffset) {
-    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, timestampType, destBuffer, destOffset);
+void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
+    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, pipelineStage, destBuffer, destOffset);
 }
 
 __attribute__((visibility("default")))

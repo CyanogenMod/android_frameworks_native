@@ -192,10 +192,8 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkQueueBindSparseImageMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageMemory)},
     {"vkQueueBindSparseImageOpaqueMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageOpaqueMemory)},
     {"vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR)},
-    {"vkQueueSignalSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSignalSemaphore)},
     {"vkQueueSubmit", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit)},
     {"vkQueueWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkQueueWaitIdle)},
-    {"vkQueueWaitSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkQueueWaitSemaphore)},
     {"vkResetCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkResetCommandBuffer)},
     {"vkResetCommandPool", reinterpret_cast<PFN_vkVoidFunction>(vkResetCommandPool)},
     {"vkResetDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkResetDescriptorPool)},
@@ -353,10 +351,8 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkQueueBindSparseImageMemory", offsetof(DeviceVtbl, QueueBindSparseImageMemory)},
     {"vkQueueBindSparseImageOpaqueMemory", offsetof(DeviceVtbl, QueueBindSparseImageOpaqueMemory)},
     {"vkQueuePresentKHR", offsetof(DeviceVtbl, QueuePresentKHR)},
-    {"vkQueueSignalSemaphore", offsetof(DeviceVtbl, QueueSignalSemaphore)},
     {"vkQueueSubmit", offsetof(DeviceVtbl, QueueSubmit)},
     {"vkQueueWaitIdle", offsetof(DeviceVtbl, QueueWaitIdle)},
-    {"vkQueueWaitSemaphore", offsetof(DeviceVtbl, QueueWaitSemaphore)},
     {"vkResetCommandBuffer", offsetof(DeviceVtbl, ResetCommandBuffer)},
     {"vkResetCommandPool", offsetof(DeviceVtbl, ResetCommandPool)},
     {"vkResetDescriptorPool", offsetof(DeviceVtbl, ResetDescriptorPool)},
@@ -643,16 +639,6 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.DestroySemaphore = reinterpret_cast<PFN_vkDestroySemaphore>(get_proc_addr(device, "vkDestroySemaphore"));
     if (UNLIKELY(!vtbl.DestroySemaphore)) {
         ALOGE("missing device proc: %s", "vkDestroySemaphore");
-        success = false;
-    }
-    vtbl.QueueSignalSemaphore = reinterpret_cast<PFN_vkQueueSignalSemaphore>(get_proc_addr(device, "vkQueueSignalSemaphore"));
-    if (UNLIKELY(!vtbl.QueueSignalSemaphore)) {
-        ALOGE("missing device proc: %s", "vkQueueSignalSemaphore");
-        success = false;
-    }
-    vtbl.QueueWaitSemaphore = reinterpret_cast<PFN_vkQueueWaitSemaphore>(get_proc_addr(device, "vkQueueWaitSemaphore"));
-    if (UNLIKELY(!vtbl.QueueWaitSemaphore)) {
-        ALOGE("missing device proc: %s", "vkQueueWaitSemaphore");
         success = false;
     }
     vtbl.CreateEvent = reinterpret_cast<PFN_vkCreateEvent>(get_proc_addr(device, "vkCreateEvent"));

@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 184
+define VERSION_MINOR 185
 define VERSION_PATCH 0
 
 // API limits
@@ -215,11 +215,6 @@ enum VkDescriptorType {
 enum VkQueryType {
     VK_QUERY_TYPE_OCCLUSION                                 = 0x00000000,
     VK_QUERY_TYPE_PIPELINE_STATISTICS                       = 0x00000001, /// Optional
-}
-
-enum VkTimestampType {
-    VK_TIMESTAMP_TYPE_TOP                                   = 0x00000000,
-    VK_TIMESTAMP_TYPE_BOTTOM                                = 0x00000001,
 }
 
 enum VkBorderColor {
@@ -1539,7 +1534,6 @@ class VkSpecializationInfo {
 class VkPipelineShaderStageCreateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
     const void*                                 pNext              /// Pointer to next structure
-    VkShaderStageFlags                          stage
     VkShader                                    shader
     const VkSpecializationInfo*                 pSpecializationInfo
 }
@@ -2906,28 +2900,6 @@ cmd void vkDestroySemaphore(
     assert(semaphoreObject.device == device)
 
     State.Semaphores[semaphore] = null
-}
-
-@threadSafety("app")
-cmd VkResult vkQueueSignalSemaphore(
-        VkQueue                                     queue,
-        VkSemaphore                                 semaphore) {
-    queueObject := GetQueue(queue)
-    semaphoreObject := GetSemaphore(semaphore)
-    assert(queueObject.device == semaphoreObject.device)
-
-    return ?
-}
-
-@threadSafety("system")
-cmd VkResult vkQueueWaitSemaphore(
-        VkQueue                                     queue,
-        VkSemaphore                                 semaphore) {
-    queueObject := GetQueue(queue)
-    semaphoreObject := GetSemaphore(semaphore)
-    assert(queueObject.device == semaphoreObject.device)
-
-    return ?
 }
 
 
@@ -4347,7 +4319,7 @@ cmd void vkCmdResetQueryPool(
 @threadSafety("app")
 cmd void vkCmdWriteTimestamp(
         VkCmdBuffer                                 cmdBuffer,
-        VkTimestampType                             timestampType,
+        VkPipelineStageFlagBits                     pipelineStage,
         VkBuffer                                    destBuffer,
         VkDeviceSize                                destOffset) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)

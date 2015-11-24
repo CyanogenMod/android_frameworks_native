@@ -805,15 +805,6 @@ VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFen
 void DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
 }
 
-VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    return VK_SUCCESS;
-}
-
 void DestroyEvent(VkDevice device, VkEvent event) {
 }
 
@@ -1040,7 +1031,7 @@ void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot) {
 void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
 }
 
-void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, VkBuffer destBuffer, VkDeviceSize destOffset) {
+void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
 }
 
 void CmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
