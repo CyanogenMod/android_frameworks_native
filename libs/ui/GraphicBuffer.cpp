@@ -113,7 +113,7 @@ void GraphicBuffer::free_handle()
         allocator.free(handle);
     }
 
-#ifndef EXYNOS4_ENHANCEMENTS
+#ifndef EGL_NEEDS_HANDLE
     handle = NULL;
 #endif
 
