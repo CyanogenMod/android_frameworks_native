@@ -267,6 +267,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         }
     }
 
+#ifndef NO_SENSOR_PERMISSION_CHECK
     if (mRequiredPermission.length() > 0) {
         // If the sensor is protected by a permission we need to know if it is
         // a runtime one to determine whether we can use the permission cache.
@@ -277,6 +278,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
                     String16(mRequiredPermission));
         }
     }
+#endif
 }
 
 Sensor::~Sensor()
