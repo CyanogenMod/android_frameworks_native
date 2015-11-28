@@ -322,7 +322,7 @@ static void dumpstate() {
     dump_file("KERNEL SYNC", "/d/sync");
 
     run_command("PROCESSES AND THREADS", 10, "ps", "-Z", "-t", "-p", "-P", NULL);
-    run_command("LIBRANK", 10, "librank", NULL);
+    run_command("LIBRANK", 10, SU_PATH, "root", "librank", NULL);
 
     do_dmesg();
 
