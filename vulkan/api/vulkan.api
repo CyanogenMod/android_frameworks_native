@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 188
+define VERSION_MINOR 189
 define VERSION_PATCH 0
 
 // API limits
@@ -256,23 +256,23 @@ enum VkIndexType {
     VK_INDEX_TYPE_UINT32                                    = 0x00000001,
 }
 
-enum VkTexFilter {
-    VK_TEX_FILTER_NEAREST                                   = 0x00000000,
-    VK_TEX_FILTER_LINEAR                                    = 0x00000001,
+enum VkFilter {
+    VK_FILTER_NEAREST                                       = 0x00000000,
+    VK_FILTER_LINEAR                                        = 0x00000001,
 }
 
-enum VkTexMipmapMode {
-    VK_TEX_MIPMAP_MODE_BASE                                 = 0x00000000,   /// Always choose base level
-    VK_TEX_MIPMAP_MODE_NEAREST                              = 0x00000001,   /// Choose nearest mip level
-    VK_TEX_MIPMAP_MODE_LINEAR                               = 0x00000002,   /// Linear filter between mip levels
+enum VkSamplerMipmapMode {
+    VK_SAMPLER_MIPMAP_MODE_BASE                             = 0x00000000,   /// Always choose base level
+    VK_SAMPLER_MIPMAP_MODE_NEAREST                          = 0x00000001,   /// Choose nearest mip level
+    VK_SAMPLER_MIPMAP_MODE_LINEAR                           = 0x00000002,   /// Linear filter between mip levels
 }
 
-enum VkTexAddressMode {
-    VK_TEX_ADDRESS_MODE_WRAP                                = 0x00000000,
-    VK_TEX_ADDRESS_MODE_MIRROR                              = 0x00000001,
-    VK_TEX_ADDRESS_MODE_CLAMP                               = 0x00000002,
-    VK_TEX_ADDRESS_MODE_MIRROR_ONCE                         = 0x00000003,
-    VK_TEX_ADDRESS_MODE_CLAMP_BORDER                        = 0x00000004,
+enum VkSamplerAddressMode {
+    VK_SAMPLER_ADDRESS_MODE_WRAP                            = 0x00000000,
+    VK_SAMPLER_ADDRESS_MODE_MIRROR                          = 0x00000001,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP                           = 0x00000002,
+    VK_SAMPLER_ADDRESS_MODE_MIRROR_ONCE                     = 0x00000003,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER                    = 0x00000004,
 }
 
 enum VkCompareOp {
@@ -1730,12 +1730,12 @@ class VkPipelineLayoutCreateInfo {
 class VkSamplerCreateInfo {
     VkStructureType                             sType          /// Must be VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
     const void*                                 pNext          /// Pointer to next structure
-    VkTexFilter                                 magFilter      /// Filter mode for magnification
-    VkTexFilter                                 minFilter      /// Filter mode for minifiation
-    VkTexMipmapMode                             mipMode        /// Mipmap selection mode
-    VkTexAddressMode                            addressModeU
-    VkTexAddressMode                            addressModeV
-    VkTexAddressMode                            addressModeW
+    VkFilter                                    magFilter      /// Filter mode for magnification
+    VkFilter                                    minFilter      /// Filter mode for minifiation
+    VkSamplerMipmapMode                         mipmapMode     /// Mipmap selection mode
+    VkSamplerAddressMode                        addressModeU
+    VkSamplerAddressMode                        addressModeV
+    VkSamplerAddressMode                        addressModeW
     f32                                         mipLodBias
     f32                                         maxAnisotropy
     VkBool32                                    compareEnable
@@ -4089,7 +4089,7 @@ cmd void vkCmdBlitImage(
         VkImageLayout                               destImageLayout,
         u32                                         regionCount,
         const VkImageBlit*                          pRegions,
-        VkTexFilter                                 filter) {
+        VkFilter                                    filter) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     srcImageObject := GetImage(srcImage)
     destImageObject := GetImage(destImage)
