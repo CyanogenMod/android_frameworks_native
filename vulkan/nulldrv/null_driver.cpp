@@ -129,6 +129,7 @@ __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
 
 namespace {
 
+VKAPI_ATTR
 VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
                         const VkAllocationCallbacks* allocator,
                         VkInstance* out_instance) {
@@ -212,6 +213,7 @@ namespace null_driver {
 // -----------------------------------------------------------------------------
 // Global
 
+VKAPI_ATTR
 VkResult EnumerateInstanceExtensionProperties(const char*,
                                               uint32_t* count,
                                               VkExtensionProperties*) {
@@ -219,6 +221,7 @@ VkResult EnumerateInstanceExtensionProperties(const char*,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
     PFN_vkVoidFunction proc = LookupInstanceProcAddr(name);
     if (!proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
@@ -226,6 +229,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
     return proc;
 }
 
+VKAPI_ATTR
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
     PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
     if (proc)

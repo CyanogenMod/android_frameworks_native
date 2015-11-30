@@ -215,10 +215,10 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
     return *reinterpret_cast<DeviceVtbl**>(queue);
 }
 
-void* DefaultAllocate(void*,
-                      size_t size,
-                      size_t alignment,
-                      VkSystemAllocationScope) {
+VKAPI_ATTR void* DefaultAllocate(void*,
+                                 size_t size,
+                                 size_t alignment,
+                                 VkSystemAllocationScope) {
     void* ptr = nullptr;
     // Vulkan requires 'alignment' to be a power of two, but posix_memalign
     // additionally requires that it be at least sizeof(void*).
@@ -227,11 +227,11 @@ void* DefaultAllocate(void*,
                : nullptr;
 }
 
-void* DefaultReallocate(void*,
-                        void* ptr,
-                        size_t size,
-                        size_t alignment,
-                        VkSystemAllocationScope) {
+VKAPI_ATTR void* DefaultReallocate(void*,
+                                   void* ptr,
+                                   size_t size,
+                                   size_t alignment,
+                                   VkSystemAllocationScope) {
     if (size == 0) {
         free(ptr);
         return nullptr;
@@ -257,7 +257,7 @@ void* DefaultReallocate(void*,
     return new_ptr;
 }
 
-void DefaultFree(void*, void* pMem) {
+VKAPI_ATTR void DefaultFree(void*, void* pMem) {
     free(pMem);
 }
 
@@ -522,6 +522,7 @@ void FreeAllocatedCreateInfo(T& local_create_info,
         const_cast<char**>(local_create_info.ppEnabledExtensionNames));
 }
 
+VKAPI_ATTR
 VkBool32 LogDebugMessageCallback(VkFlags message_flags,
                                  VkDbgObjectType /*obj_type*/,
                                  uint64_t /*src_object*/,
@@ -542,7 +543,8 @@ VkResult Noop(...) {
     return VK_SUCCESS;
 }
 
-PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
+VKAPI_ATTR PFN_vkVoidFunction
+GetLayerDeviceProcAddr(VkDevice device, const char* name) {
     if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(GetLayerDeviceProcAddr);
     }
@@ -575,6 +577,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
 // "Bottom" functions. These are called at the end of the instance dispatch
 // chain.
 
+VKAPI_ATTR
 void DestroyInstanceBottom(VkInstance instance,
                            const VkAllocationCallbacks* allocator) {
     // These checks allow us to call DestroyInstanceBottom from any error path
@@ -600,6 +603,7 @@ void DestroyInstanceBottom(VkInstance instance,
     alloc->pfnFree(alloc->pUserData, instance);
 }
 
+VKAPI_ATTR
 VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
                               const VkAllocationCallbacks* allocator,
                               VkInstance* instance_ptr) {
@@ -677,6 +681,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
                                         uint32_t* pdev_count,
                                         VkPhysicalDevice* pdevs) {
@@ -690,11 +695,13 @@ VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 void GetPhysicalDeviceFeaturesBottom(VkPhysicalDevice pdev,
                                      VkPhysicalDeviceFeatures* features) {
     GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFeatures(pdev, features);
 }
 
+VKAPI_ATTR
 void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
                                              VkFormat format,
                                              VkFormatProperties* properties) {
@@ -702,6 +709,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
         pdev, format, properties);
 }
 
+VKAPI_ATTR
 VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
     VkPhysicalDevice pdev,
     VkFormat format,
@@ -715,12 +723,14 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
             pdev, format, type, tiling, usage, flags, properties);
 }
 
+VKAPI_ATTR
 void GetPhysicalDevicePropertiesBottom(VkPhysicalDevice pdev,
                                        VkPhysicalDeviceProperties* properties) {
     GetVtbl(pdev)
         ->instance->drv.vtbl.GetPhysicalDeviceProperties(pdev, properties);
 }
 
+VKAPI_ATTR
 void GetPhysicalDeviceQueueFamilyPropertiesBottom(
     VkPhysicalDevice pdev,
     uint32_t* pCount,
@@ -729,6 +739,7 @@ void GetPhysicalDeviceQueueFamilyPropertiesBottom(
         pdev, pCount, properties);
 }
 
+VKAPI_ATTR
 void GetPhysicalDeviceMemoryPropertiesBottom(
     VkPhysicalDevice pdev,
     VkPhysicalDeviceMemoryProperties* properties) {
@@ -736,6 +747,7 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
         pdev, properties);
 }
 
+VKAPI_ATTR
 VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
                             const VkDeviceCreateInfo* create_info,
                             const VkAllocationCallbacks* allocator,
@@ -844,6 +856,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult EnumerateDeviceExtensionPropertiesBottom(
     VkPhysicalDevice pdev,
     const char* layer_name,
@@ -854,6 +867,7 @@ VkResult EnumerateDeviceExtensionPropertiesBottom(
         pdev, layer_name, properties_count, properties);
 }
 
+VKAPI_ATTR
 VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
                                               uint32_t* properties_count,
                                               VkLayerProperties* properties) {
@@ -861,6 +875,7 @@ VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
         pdev, properties_count, properties);
 }
 
+VKAPI_ATTR
 void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
     VkPhysicalDevice pdev,
     VkFormat format,
@@ -876,7 +891,8 @@ void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
             properties);
 }
 
-PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char*);
+VKAPI_ATTR PFN_vkVoidFunction
+GetInstanceProcAddrBottom(VkInstance, const char*);
 
 const InstanceVtbl kBottomInstanceFunctions = {
     // clang-format off
@@ -902,6 +918,7 @@ const InstanceVtbl kBottomInstanceFunctions = {
     // clang-format on
 };
 
+VKAPI_ATTR
 PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char* name) {
     // TODO: Possibly move this into the instance table
     // TODO: Possibly register the callbacks in the loader

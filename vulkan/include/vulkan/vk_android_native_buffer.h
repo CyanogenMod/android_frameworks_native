@@ -47,39 +47,39 @@ typedef struct {
     int                         usage;
 } VkNativeBufferANDROID;
 
-typedef VkResult (VKAPI *PFN_vkGetSwapchainGrallocUsageANDROID)(VkDevice device, VkFormat format, VkImageUsageFlags imageUsage, int* grallocUsage);
-typedef VkResult (VKAPI *PFN_vkAcquireImageANDROID)(VkDevice device, VkImage image, int nativeFenceFd, VkSemaphore semaphore);
-typedef VkResult (VKAPI *PFN_vkQueueSignalReleaseImageANDROID)(VkQueue queue, VkImage image, int* pNativeFenceFd);
+typedef VkResult (VKAPI_PTR *PFN_vkGetSwapchainGrallocUsageANDROID)(VkDevice device, VkFormat format, VkImageUsageFlags imageUsage, int* grallocUsage);
+typedef VkResult (VKAPI_PTR *PFN_vkAcquireImageANDROID)(VkDevice device, VkImage image, int nativeFenceFd, VkSemaphore semaphore);
+typedef VkResult (VKAPI_PTR *PFN_vkQueueSignalReleaseImageANDROID)(VkQueue queue, VkImage image, int* pNativeFenceFd);
 // -- DEPRECATED --
-typedef VkResult (VKAPI *PFN_vkImportNativeFenceANDROID)(VkDevice device, VkSemaphore semaphore, int nativeFenceFd);
-typedef VkResult (VKAPI *PFN_vkQueueSignalNativeFenceANDROID)(VkQueue queue, int* pNativeFenceFd);
+typedef VkResult (VKAPI_PTR *PFN_vkImportNativeFenceANDROID)(VkDevice device, VkSemaphore semaphore, int nativeFenceFd);
+typedef VkResult (VKAPI_PTR *PFN_vkQueueSignalNativeFenceANDROID)(VkQueue queue, int* pNativeFenceFd);
 // ----------------
 
 #ifdef VK_PROTOTYPES
-VkResult VKAPI vkGetSwapchainGrallocUsageANDROID(
+VKAPI_ATTR VkResult VKAPI_CALL vkGetSwapchainGrallocUsageANDROID(
     VkDevice            device,
     VkFormat            format,
     VkImageUsageFlags   imageUsage,
     int*                grallocUsage
 );
-VkResult VKAPI vkAcquireImageANDROID(
+VKAPI_ATTR VkResult VKAPI_CALL vkAcquireImageANDROID(
     VkDevice            device,
     VkImage             image,
     int                 nativeFenceFd,
     VkSemaphore         semaphore
 );
-VkResult VKAPI vkQueueSignalReleaseImageANDROID(
+VKAPI_ATTR VkResult VKAPI_CALL vkQueueSignalReleaseImageANDROID(
     VkQueue             queue,
     VkImage             image,
     int*                pNativeFenceFd
 );
 // -- DEPRECATED --
-VkResult VKAPI vkImportNativeFenceANDROID(
+VKAPI_ATTR VkResult VKAPI_CALL vkImportNativeFenceANDROID(
     VkDevice            device,
     VkSemaphore         semaphore,
     int                 nativeFenceFd
 );
-VkResult VKAPI vkQueueSignalNativeFenceANDROID(
+VKAPI_ATTR VkResult VKAPI_CALL vkQueueSignalNativeFenceANDROID(
     VkQueue             queue,
     int*                pNativeFenceFd
 );

@@ -141,6 +141,7 @@ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
 
 namespace vulkan {
 
+VKAPI_ATTR
 VkResult CreateAndroidSurfaceKHR(VkInstance instance,
                                  ANativeWindow* window,
                                  VkSurfaceKHR* out_surface) {
@@ -169,6 +170,7 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
     Surface* surface = SurfaceFromHandle(surface_handle);
     if (!surface)
@@ -178,6 +180,7 @@ void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
     FreeMem(instance, surface);
 }
 
+VKAPI_ATTR
 VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
                                             uint32_t /*queue_family*/,
                                             VkSurfaceKHR /*surface*/,
@@ -186,6 +189,7 @@ VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
     VkPhysicalDevice /*pdev*/,
     VkSurfaceKHR surface,
@@ -242,6 +246,7 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice /*pdev*/,
                                             VkSurfaceKHR /*surface*/,
                                             uint32_t* count,
@@ -268,6 +273,7 @@ VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice /*pdev*/,
     return result;
 }
 
+VKAPI_ATTR
 VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice /*pdev*/,
                                                  VkSurfaceKHR /*surface*/,
                                                  uint32_t* count,
@@ -287,6 +293,7 @@ VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice /*pdev*/,
     return result;
 }
 
+VKAPI_ATTR
 VkResult CreateSwapchainKHR(VkDevice device,
                             const VkSwapchainCreateInfoKHR* create_info,
                             VkSwapchainKHR* swapchain_handle) {
@@ -475,6 +482,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
@@ -499,6 +507,7 @@ VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult GetSwapchainImagesKHR(VkDevice,
                                VkSwapchainKHR swapchain_handle,
                                uint32_t* count,
@@ -518,6 +527,7 @@ VkResult GetSwapchainImagesKHR(VkDevice,
     return result;
 }
 
+VKAPI_ATTR
 VkResult AcquireNextImageKHR(VkDevice device,
                              VkSwapchainKHR swapchain_handle,
                              uint64_t timeout,
@@ -598,6 +608,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"

@@ -124,7 +124,7 @@ namespace {
 {{define "EmitSpecialEntry"}}
   {{AssertType $ "Function"}}
 
-  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+  VKAPI_ATTR {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
     {{if not (IsVoid $.Return.Type)}}return §{{end}}
     vulkan::{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
   }
@@ -142,7 +142,7 @@ namespace {
 {{define "EmitEntry"}}
   {{AssertType $ "Function"}}
 
-  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+  VKAPI_ATTR {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
     {{if not (IsVoid $.Return.Type)}}return §{{end}}
     {{Macro "Dispatch" $}}{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
   }

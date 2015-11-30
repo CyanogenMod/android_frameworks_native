@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 203
+define VERSION_MINOR 204
 define VERSION_PATCH 0
 
 // API limits
@@ -2110,6 +2110,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxPerStageDescriptorStorageBuffers       /// max num of storage buffers allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorSampledImages        /// max num of sampled images allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorStorageImages        /// max num of storage images allowed per-stage in a descriptor set
+    u32                                         maxPerStageDescriptorInputAttachments
     u32                                         maxDescriptorSetSamplers                  /// max num of samplers allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetUniformBuffers            /// max num of uniform buffers allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetUniformBuffersDynamic     /// max num of dynamic uniform buffers allowed in all stages in a descriptor set
@@ -2117,6 +2118,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxDescriptorSetStorageBuffersDynamic     /// max num of dynamic storage buffers allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetSampledImages             /// max num of sampled images allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetStorageImages             /// max num of storage images allowed in all stages in a descriptor set
+    u32                                         maxDescriptorSetInputAttachments
     /// vertex stage limits
     u32                                         maxVertexInputAttributes                  /// max num of vertex input attribute slots
     u32                                         maxVertexInputBindings                    /// max num of vertex input binding slots
@@ -2318,7 +2320,7 @@ class VkPresentInfoKHR {
     u32                                         swapchainCount
     const VkSwapchainKHR*                       pSwapchains
     const u32*                                  imageIndices
-    const VkResult*                             pResults
+    VkResult*                                   pResults
 }
 
 @extension("VK_KHR_display")

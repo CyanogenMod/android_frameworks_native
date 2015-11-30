@@ -261,40 +261,45 @@ bool LoadDeviceVtbl(VkDevice device,
 // -----------------------------------------------------------------------------
 // swapchain.cpp
 
-VkResult CreateAndroidSurfaceKHR(VkInstance instance,
-                                 ANativeWindow* window,
-                                 VkSurfaceKHR* surface);
-void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
-VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
-                                            uint32_t queue_family,
-                                            VkSurfaceKHR surface,
-                                            VkBool32* pSupported);
-VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
-    VkPhysicalDevice pdev,
-    VkSurfaceKHR surface,
-    VkSurfaceCapabilitiesKHR* capabilities);
-VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice pdev,
-                                            VkSurfaceKHR surface,
-                                            uint32_t* count,
-                                            VkSurfaceFormatKHR* formats);
-VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice pdev,
-                                                 VkSurfaceKHR surface,
-                                                 uint32_t* count,
-                                                 VkPresentModeKHR* modes);
-VkResult CreateSwapchainKHR(VkDevice device,
-                            const VkSwapchainCreateInfoKHR* create_info,
-                            VkSwapchainKHR* swapchain_handle);
-VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle);
-VkResult GetSwapchainImagesKHR(VkDevice device,
-                               VkSwapchainKHR swapchain_handle,
-                               uint32_t* count,
-                               VkImage* images);
-VkResult AcquireNextImageKHR(VkDevice device,
-                             VkSwapchainKHR swapchain_handle,
-                             uint64_t timeout,
-                             VkSemaphore semaphore,
-                             uint32_t* image_index);
-VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info);
+VKAPI_ATTR VkResult CreateAndroidSurfaceKHR(VkInstance instance,
+                                            ANativeWindow* window,
+                                            VkSurfaceKHR* surface);
+VKAPI_ATTR void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
+                                                       uint32_t queue_family,
+                                                       VkSurfaceKHR surface,
+                                                       VkBool32* pSupported);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice pdev,
+                                        VkSurfaceKHR surface,
+                                        VkSurfaceCapabilitiesKHR* capabilities);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice pdev,
+                                   VkSurfaceKHR surface,
+                                   uint32_t* count,
+                                   VkSurfaceFormatKHR* formats);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice pdev,
+                                        VkSurfaceKHR surface,
+                                        uint32_t* count,
+                                        VkPresentModeKHR* modes);
+VKAPI_ATTR VkResult
+CreateSwapchainKHR(VkDevice device,
+                   const VkSwapchainCreateInfoKHR* create_info,
+                   VkSwapchainKHR* swapchain_handle);
+VKAPI_ATTR VkResult
+DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle);
+VKAPI_ATTR VkResult GetSwapchainImagesKHR(VkDevice device,
+                                          VkSwapchainKHR swapchain_handle,
+                                          uint32_t* count,
+                                          VkImage* images);
+VKAPI_ATTR VkResult AcquireNextImageKHR(VkDevice device,
+                                        VkSwapchainKHR swapchain_handle,
+                                        uint64_t timeout,
+                                        VkSemaphore semaphore,
+                                        uint32_t* image_index);
+VKAPI_ATTR VkResult
+QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info);
 
 }  // namespace vulkan
 
