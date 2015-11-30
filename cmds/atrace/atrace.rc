@@ -16,6 +16,7 @@ on boot
     chown root shell /sys/kernel/debug/tracing/events/power/cpu_frequency/enable
     chown root shell /sys/kernel/debug/tracing/events/power/cpu_idle/enable
     chown root shell /sys/kernel/debug/tracing/events/power/clock_set_rate/enable
+    chown root shell /sys/kernel/debug/tracing/events/power/cpu_frequency_limits/enable
     chown root shell /sys/kernel/debug/tracing/events/cpufreq_interactive/enable
     chown root shell /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
     chown root shell /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
@@ -39,6 +40,7 @@ on boot
     chmod 0664 /sys/kernel/debug/tracing/events/power/cpu_frequency/enable
     chmod 0664 /sys/kernel/debug/tracing/events/power/cpu_idle/enable
     chmod 0664 /sys/kernel/debug/tracing/events/power/clock_set_rate/enable
+    chmod 0664 /sys/kernel/debug/tracing/events/power/cpu_frequency_limits/enable
     chmod 0664 /sys/kernel/debug/tracing/events/cpufreq_interactive/enable
     chmod 0664 /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
     chmod 0664 /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
