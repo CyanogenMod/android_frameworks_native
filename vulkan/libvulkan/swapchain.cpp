@@ -37,7 +37,8 @@ namespace {
 // ----------------------------------------------------------------------------
 // These functions/classes form an adaptor that allows objects to be refcounted
 // by both android::sp<> and std::shared_ptr<> simultaneously, and delegates
-// allocation of the shared_ptr<> control structure to VkAllocCallbacks. The
+// allocation of the shared_ptr<> control structure to VkAllocationCallbacks.
+// The
 // platform holds a reference to the ANativeWindow using its embedded reference
 // count, and the ANativeWindow implementation holds references to the
 // ANativeWindowBuffers using their embedded reference counts, so the
@@ -54,12 +55,14 @@ struct AllocScope {};
 
 template <>
 struct AllocScope<VkInstance> {
-    static const VkSystemAllocScope kScope = VK_SYSTEM_ALLOC_SCOPE_INSTANCE;
+    static const VkSystemAllocationScope kScope =
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE;
 };
 
 template <>
 struct AllocScope<VkDevice> {
-    static const VkSystemAllocScope kScope = VK_SYSTEM_ALLOC_SCOPE_DEVICE;
+    static const VkSystemAllocationScope kScope =
+        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE;
 };
 
 template <typename T, typename Host>
@@ -142,7 +145,7 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
                                  ANativeWindow* window,
                                  VkSurfaceKHR* out_surface) {
     void* mem = AllocMem(instance, sizeof(Surface), alignof(Surface),
-                         VK_SYSTEM_ALLOC_SCOPE_OBJECT);
+                         VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Surface* surface = new (mem) Surface;
@@ -231,9 +234,9 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
     // - VK_IMAGE_USAGE_DEPTH_STENCIL_BIT: definitely not
     // - VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT: definitely not
     capabilities->supportedUsageFlags =
-        VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT |
-        VK_IMAGE_USAGE_TRANSFER_DESTINATION_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
         VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
     return VK_SUCCESS;
@@ -378,7 +381,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     // After this point, we must deallocate the swapchain on error.
 
     void* mem = AllocMem(device, sizeof(Swapchain), alignof(Swapchain),
-                         VK_SYSTEM_ALLOC_SCOPE_OBJECT);
+                         VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Swapchain* swapchain = new (mem) Swapchain(surface, num_images);

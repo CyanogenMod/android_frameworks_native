@@ -157,7 +157,7 @@ int main(int /*argc*/, char const* /*argv*/ []) {
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = nullptr,
-        .pAppInfo = nullptr,
+        .pApplicationInfo = nullptr,
         .enabledLayerNameCount = 0,
         .ppEnabledLayerNames = nullptr,
         .enabledExtensionNameCount = 0,

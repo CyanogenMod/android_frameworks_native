@@ -83,7 +83,7 @@ typedef enum {
 
 #define VK_DEBUG_REPORT_EXTENSION_NAME "DEBUG_REPORT"
 
-VK_DEFINE_NONDISP_HANDLE(VkDbgMsgCallback)
+VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDbgMsgCallback)
 
 // ------------------------------------------------------------------------------------------------
 // Enumerations

@@ -67,9 +67,9 @@ const NameProcEntry kInstanceProcTbl[] = {
 
 const NameProcEntry kDeviceProcTbl[] = {
     // clang-format off
-    {"vkAllocCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocCommandBuffers>(AllocCommandBuffers))},
-    {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocDescriptorSets>(AllocDescriptorSets))},
-    {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocMemory>(AllocMemory))},
+    {"vkAllocateCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateCommandBuffers>(AllocateCommandBuffers))},
+    {"vkAllocateDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateDescriptorSets>(AllocateDescriptorSets))},
+    {"vkAllocateMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateMemory>(AllocateMemory))},
     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkBeginCommandBuffer>(BeginCommandBuffer))},
     {"vkBindBufferMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkBindBufferMemory>(BindBufferMemory))},
     {"vkBindImageMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkBindImageMemory>(BindImageMemory))},

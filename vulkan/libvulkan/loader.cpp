@@ -58,10 +58,10 @@ typedef struct VkLayerLinkedListElem_ {
 // Define Handle typedef to be void* as returned from dlopen.
 typedef void* SharedLibraryHandle;
 
-// Standard-library allocator that delegates to VkAllocCallbacks.
+// Standard-library allocator that delegates to VkAllocationCallbacks.
 //
 // TODO(jessehall): This class currently always uses
-// VK_SYSTEM_ALLOC_SCOPE_INSTANCE. The scope to use could be a template
+// VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE. The scope to use could be a template
 // parameter or a constructor parameter. The former would help catch bugs
 // where we use the wrong scope, e.g. adding a command-scope string to an
 // instance-scope vector. But that might also be pretty annoying to deal with.
@@ -70,7 +70,7 @@ class CallbackAllocator {
    public:
     typedef T value_type;
 
-    CallbackAllocator(const VkAllocCallbacks* alloc_input)
+    CallbackAllocator(const VkAllocationCallbacks* alloc_input)
         : alloc(alloc_input) {}
 
     template <class T2>
@@ -78,8 +78,9 @@ class CallbackAllocator {
         : alloc(other.alloc) {}
 
     T* allocate(std::size_t n) {
-        void* mem = alloc->pfnAlloc(alloc->pUserData, n * sizeof(T), alignof(T),
-                                    VK_SYSTEM_ALLOC_SCOPE_INSTANCE);
+        void* mem =
+            alloc->pfnAllocation(alloc->pUserData, n * sizeof(T), alignof(T),
+                                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
         return static_cast<T*>(mem);
     }
 
@@ -87,7 +88,7 @@ class CallbackAllocator {
         alloc->pfnFree(alloc->pUserData, array);
     }
 
-    const VkAllocCallbacks* alloc;
+    const VkAllocationCallbacks* alloc;
 };
 // These are needed in order to move Strings
 template <class T>
@@ -136,7 +137,7 @@ typedef UnorderedMap<String, LayerData>::iterator LayerMapIterator;
 }  // namespace
 
 struct VkInstance_T {
-    VkInstance_T(const VkAllocCallbacks* alloc_callbacks)
+    VkInstance_T(const VkAllocationCallbacks* alloc_callbacks)
         : vtbl(&vtbl_storage),
           alloc(alloc_callbacks),
           num_physical_devices(0),
@@ -155,7 +156,7 @@ struct VkInstance_T {
     InstanceVtbl* vtbl;
     InstanceVtbl vtbl_storage;
 
-    const VkAllocCallbacks* alloc;
+    const VkAllocationCallbacks* alloc;
     uint32_t num_physical_devices;
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
 
@@ -214,7 +215,10 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
     return *reinterpret_cast<DeviceVtbl**>(queue);
 }
 
-void* DefaultAlloc(void*, size_t size, size_t alignment, VkSystemAllocScope) {
+void* DefaultAllocate(void*,
+                      size_t size,
+                      size_t alignment,
+                      VkSystemAllocationScope) {
     void* ptr = nullptr;
     // Vulkan requires 'alignment' to be a power of two, but posix_memalign
     // additionally requires that it be at least sizeof(void*).
@@ -223,11 +227,11 @@ void* DefaultAlloc(void*, size_t size, size_t alignment, VkSystemAllocScope) {
                : nullptr;
 }
 
-void* DefaultRealloc(void*,
-                     void* ptr,
-                     size_t size,
-                     size_t alignment,
-                     VkSystemAllocScope) {
+void* DefaultReallocate(void*,
+                        void* ptr,
+                        size_t size,
+                        size_t alignment,
+                        VkSystemAllocationScope) {
     if (size == 0) {
         free(ptr);
         return nullptr;
@@ -257,10 +261,10 @@ void DefaultFree(void*, void* pMem) {
     free(pMem);
 }
 
-const VkAllocCallbacks kDefaultAllocCallbacks = {
+const VkAllocationCallbacks kDefaultAllocCallbacks = {
     .pUserData = nullptr,
-    .pfnAlloc = DefaultAlloc,
-    .pfnRealloc = DefaultRealloc,
+    .pfnAllocation = DefaultAllocate,
+    .pfnReallocation = DefaultReallocate,
     .pfnFree = DefaultFree,
 };
 
@@ -293,7 +297,7 @@ bool EnsureInitialized() {
 }
 
 void DestroyDevice(Device* device) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
+    const VkAllocationCallbacks* alloc = device->instance->alloc;
     device->~Device();
     alloc->pfnFree(alloc->pUserData, device);
 }
@@ -480,7 +484,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
 template <class TCreateInfo>
 bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                               const char* extension_name,
-                              const VkAllocCallbacks* alloc) {
+                              const VkAllocationCallbacks* alloc) {
     for (uint32_t i = 0; i < local_create_info.enabledExtensionNameCount; ++i) {
         if (!strcmp(extension_name,
                     local_create_info.ppEnabledExtensionNames[i])) {
@@ -489,10 +493,10 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
     }
     uint32_t extension_count = local_create_info.enabledExtensionNameCount;
     local_create_info.enabledExtensionNameCount++;
-    void* mem = alloc->pfnAlloc(
+    void* mem = alloc->pfnAllocation(
         alloc->pUserData,
         local_create_info.enabledExtensionNameCount * sizeof(char*),
-        alignof(char*), VK_SYSTEM_ALLOC_SCOPE_INSTANCE);
+        alignof(char*), VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
     if (mem) {
         const char** enabled_extensions = static_cast<const char**>(mem);
         for (uint32_t i = 0; i < extension_count; ++i) {
@@ -512,7 +516,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
 
 template <class T>
 void FreeAllocatedCreateInfo(T& local_create_info,
-                             const VkAllocCallbacks* alloc) {
+                             const VkAllocationCallbacks* alloc) {
     alloc->pfnFree(
         alloc->pUserData,
         const_cast<char**>(local_create_info.ppEnabledExtensionNames));
@@ -572,7 +576,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
 // chain.
 
 void DestroyInstanceBottom(VkInstance instance,
-                           const VkAllocCallbacks* allocator) {
+                           const VkAllocationCallbacks* allocator) {
     // These checks allow us to call DestroyInstanceBottom from any error path
     // in CreateInstanceBottom, before the driver instance is fully initialized.
     if (instance->drv.vtbl.instance != VK_NULL_HANDLE &&
@@ -591,13 +595,13 @@ void DestroyInstanceBottom(VkInstance instance,
          it != instance->active_layers.end(); ++it) {
         DeactivateLayer(instance, it);
     }
-    const VkAllocCallbacks* alloc = instance->alloc;
+    const VkAllocationCallbacks* alloc = instance->alloc;
     instance->~VkInstance_T();
     alloc->pfnFree(alloc->pUserData, instance);
 }
 
 VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
-                              const VkAllocCallbacks* allocator,
+                              const VkAllocationCallbacks* allocator,
                               VkInstance* instance_ptr) {
     Instance* instance = *instance_ptr;
     VkResult result;
@@ -733,7 +737,7 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
 
 VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
                             const VkDeviceCreateInfo* create_info,
-                            const VkAllocCallbacks* allocator,
+                            const VkAllocationCallbacks* allocator,
                             VkDevice* out_device) {
     Instance& instance = *static_cast<Instance*>(GetVtbl(pdev)->instance);
     VkResult result;
@@ -745,9 +749,9 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
             allocator = &kDefaultAllocCallbacks;
     }
 
-    void* mem =
-        allocator->pfnAlloc(allocator->pUserData, sizeof(Device),
-                            alignof(Device), VK_SYSTEM_ALLOC_SCOPE_DEVICE);
+    void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Device),
+                                         alignof(Device),
+                                         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Device* device = new (mem) Device(&instance);
@@ -945,7 +949,7 @@ VkResult EnumerateInstanceLayerProperties(uint32_t* count,
 }
 
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
-                        const VkAllocCallbacks* allocator,
+                        const VkAllocationCallbacks* allocator,
                         VkInstance* out_instance) {
     VkResult result;
 
@@ -958,9 +962,9 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     VkInstanceCreateInfo local_create_info = *create_info;
     create_info = &local_create_info;
 
-    void* instance_mem =
-        allocator->pfnAlloc(allocator->pUserData, sizeof(Instance),
-                            alignof(Instance), VK_SYSTEM_ALLOC_SCOPE_INSTANCE);
+    void* instance_mem = allocator->pfnAllocation(
+        allocator->pUserData, sizeof(Instance), alignof(Instance),
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
     if (!instance_mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Instance* instance = new (instance_mem) Instance(allocator);
@@ -1125,17 +1129,17 @@ void GetDeviceQueue(VkDevice drv_device,
 }
 
 VkResult AllocCommandBuffers(VkDevice device,
-                             const VkCmdBufferAllocInfo* alloc_info,
-                             VkCmdBuffer* cmdbuffers) {
+                             const VkCommandBufferAllocateInfo* alloc_info,
+                             VkCommandBuffer* cmdbufs) {
     const DeviceVtbl* vtbl = GetVtbl(device);
-    VkResult result = vtbl->AllocCommandBuffers(device, alloc_info, cmdbuffers);
+    VkResult result = vtbl->AllocateCommandBuffers(device, alloc_info, cmdbufs);
     if (result != VK_SUCCESS)
         return result;
     for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
         hwvulkan_dispatch_t* dispatch =
-            reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuffers[i]);
+            reinterpret_cast<hwvulkan_dispatch_t*>(cmdbufs[i]);
         ALOGE_IF(dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
-                 "invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
+                 "invalid VkCommandBuffer dispatch magic: 0x%" PRIxPTR,
                  dispatch->magic);
         dispatch->vtbl = vtbl;
     }
@@ -1143,7 +1147,7 @@ VkResult AllocCommandBuffers(VkDevice device,
 }
 
 VkResult DestroyDevice(VkDevice drv_device,
-                       const VkAllocCallbacks* /*allocator*/) {
+                       const VkAllocationCallbacks* /*allocator*/) {
     const DeviceVtbl* vtbl = GetVtbl(drv_device);
     Device* device = static_cast<Device*>(vtbl->device);
     for (auto it = device->active_layers.begin();
@@ -1158,27 +1162,27 @@ VkResult DestroyDevice(VkDevice drv_device,
 void* AllocMem(VkInstance instance,
                size_t size,
                size_t align,
-               VkSystemAllocScope scope) {
-    const VkAllocCallbacks* alloc_cb = instance->alloc;
-    return alloc_cb->pfnAlloc(alloc_cb->pUserData, size, align, scope);
+               VkSystemAllocationScope scope) {
+    const VkAllocationCallbacks* alloc_cb = instance->alloc;
+    return alloc_cb->pfnAllocation(alloc_cb->pUserData, size, align, scope);
 }
 
 void FreeMem(VkInstance instance, void* ptr) {
-    const VkAllocCallbacks* alloc_cb = instance->alloc;
+    const VkAllocationCallbacks* alloc_cb = instance->alloc;
     alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
 }
 
 void* AllocMem(VkDevice device,
                size_t size,
                size_t align,
-               VkSystemAllocScope scope) {
-    const VkAllocCallbacks* alloc_cb =
+               VkSystemAllocationScope scope) {
+    const VkAllocationCallbacks* alloc_cb =
         static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
-    return alloc_cb->pfnAlloc(alloc_cb->pUserData, size, align, scope);
+    return alloc_cb->pfnAllocation(alloc_cb->pUserData, size, align, scope);
 }
 
 void FreeMem(VkDevice device, void* ptr) {
-    const VkAllocCallbacks* alloc_cb =
+    const VkAllocationCallbacks* alloc_cb =
         static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
     alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
 }

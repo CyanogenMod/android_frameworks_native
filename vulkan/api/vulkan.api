@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 194
+define VERSION_MINOR 196
 define VERSION_PATCH 0
 
 // API limits
@@ -100,11 +100,11 @@ type u32 VkSampleMask
 @dispatchHandle type u64 VkPhysicalDevice
 @dispatchHandle type u64 VkDevice
 @dispatchHandle type u64 VkQueue
-@dispatchHandle type u64 VkCmdBuffer
+@dispatchHandle type u64 VkCommandBuffer
 
 /// Non dispatchable handle types.
 @nonDispatchHandle type u64 VkDeviceMemory
-@nonDispatchHandle type u64 VkCmdPool
+@nonDispatchHandle type u64 VkCommandPool
 @nonDispatchHandle type u64 VkBuffer
 @nonDispatchHandle type u64 VkBufferView
 @nonDispatchHandle type u64 VkImage
@@ -144,12 +144,12 @@ enum VkImageLayout {
     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL        = 0x00000003,   /// Optimal layout when image is only used for depth/stencil attachment read/write
     VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL         = 0x00000004,   /// Optimal layout when image is used for read only depth/stencil attachment and shader access
     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL                = 0x00000005,   /// Optimal layout when image is used for read only shader access
-    VK_IMAGE_LAYOUT_TRANSFER_SOURCE_OPTIMAL                 = 0x00000006,   /// Optimal layout when image is used only as source of transfer operations
-    VK_IMAGE_LAYOUT_TRANSFER_DESTINATION_OPTIMAL            = 0x00000007,   /// Optimal layout when image is used only as destination of transfer operations
+    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL                    = 0x00000006,   /// Optimal layout when image is used only as source of transfer operations
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL                    = 0x00000007,   /// Optimal layout when image is used only as destination of transfer operations
     VK_IMAGE_LAYOUT_PREINITIALIZED                          = 0x00000008,   /// Initial layout used when the data is populated by the CPU
 
     //@extension("VK_EXT_KHR_swapchain")
-    VK_IMAGE_LAYOUT_PRESENT_SOURCE_KHR                      = 0xc0000802,
+    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR                         = 0xc0000802,
 }
 
 enum VkAttachmentLoadOp {
@@ -184,9 +184,9 @@ enum VkImageViewType {
     VK_IMAGE_VIEW_TYPE_CUBE_ARRAY                           = 0x00000006,
 }
 
-enum VkCmdBufferLevel {
-    VK_CMD_BUFFER_LEVEL_PRIMARY                             = 0x00000000,
-    VK_CMD_BUFFER_LEVEL_SECONDARY                           = 0x00000001,
+enum VkCommandBufferLevel {
+    VK_COMMAND_BUFFER_LEVEL_PRIMARY                         = 0x00000000,
+    VK_COMMAND_BUFFER_LEVEL_SECONDARY                       = 0x00000001,
 }
 
 enum VkChannelSwizzle {
@@ -240,10 +240,10 @@ enum VkPrimitiveTopology {
     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST                     = 0x00000003,
     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP                    = 0x00000004,
     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN                      = 0x00000005,
-    VK_PRIMITIVE_TOPOLOGY_LINE_LIST_ADJ                     = 0x00000006,
-    VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_ADJ                    = 0x00000007,
-    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_ADJ                 = 0x00000008,
-    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_ADJ                = 0x00000009,
+    VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY          = 0x00000006,
+    VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY         = 0x00000007,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY      = 0x00000008,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY     = 0x00000009,
     VK_PRIMITIVE_TOPOLOGY_PATCH                             = 0x0000000a,
 }
 
@@ -280,10 +280,10 @@ enum VkCompareOp {
     VK_COMPARE_OP_NEVER                                     = 0x00000000,
     VK_COMPARE_OP_LESS                                      = 0x00000001,
     VK_COMPARE_OP_EQUAL                                     = 0x00000002,
-    VK_COMPARE_OP_LESS_EQUAL                                = 0x00000003,
+    VK_COMPARE_OP_LESS_OR_EQUAL                             = 0x00000003,
     VK_COMPARE_OP_GREATER                                   = 0x00000004,
     VK_COMPARE_OP_NOT_EQUAL                                 = 0x00000005,
-    VK_COMPARE_OP_GREATER_EQUAL                             = 0x00000006,
+    VK_COMPARE_OP_GREATER_OR_EQUAL                          = 0x00000006,
     VK_COMPARE_OP_ALWAYS                                    = 0x00000007,
 }
 
@@ -294,8 +294,8 @@ enum VkFillMode {
 }
 
 enum VkFrontFace {
-    VK_FRONT_FACE_CCW                                       = 0x00000000,
-    VK_FRONT_FACE_CW                                        = 0x00000001,
+    VK_FRONT_FACE_COUNTER_CLOCKWISE                         = 0x00000000,
+    VK_FRONT_FACE_CLOCKWISE                                 = 0x00000001,
 }
 
 enum VkBlend {
@@ -303,12 +303,12 @@ enum VkBlend {
     VK_BLEND_ONE                                            = 0x00000001,
     VK_BLEND_SRC_COLOR                                      = 0x00000002,
     VK_BLEND_ONE_MINUS_SRC_COLOR                            = 0x00000003,
-    VK_BLEND_DEST_COLOR                                     = 0x00000004,
-    VK_BLEND_ONE_MINUS_DEST_COLOR                           = 0x00000005,
+    VK_BLEND_DST_COLOR                                      = 0x00000004,
+    VK_BLEND_ONE_MINUS_DST_COLOR                            = 0x00000005,
     VK_BLEND_SRC_ALPHA                                      = 0x00000006,
     VK_BLEND_ONE_MINUS_SRC_ALPHA                            = 0x00000007,
-    VK_BLEND_DEST_ALPHA                                     = 0x00000008,
-    VK_BLEND_ONE_MINUS_DEST_ALPHA                           = 0x00000009,
+    VK_BLEND_DST_ALPHA                                      = 0x00000008,
+    VK_BLEND_ONE_MINUS_DST_ALPHA                            = 0x00000009,
     VK_BLEND_CONSTANT_COLOR                                 = 0x0000000a,
     VK_BLEND_ONE_MINUS_CONSTANT_COLOR                       = 0x0000000b,
     VK_BLEND_CONSTANT_ALPHA                                 = 0x0000000c,
@@ -332,11 +332,11 @@ enum VkStencilOp {
     VK_STENCIL_OP_KEEP                                      = 0x00000000,
     VK_STENCIL_OP_ZERO                                      = 0x00000001,
     VK_STENCIL_OP_REPLACE                                   = 0x00000002,
-    VK_STENCIL_OP_INC_CLAMP                                 = 0x00000003,
-    VK_STENCIL_OP_DEC_CLAMP                                 = 0x00000004,
+    VK_STENCIL_OP_INCREMENT_AND_CLAMP                       = 0x00000003,
+    VK_STENCIL_OP_DECREMENT_AND_CLAMP                       = 0x00000004,
     VK_STENCIL_OP_INVERT                                    = 0x00000005,
-    VK_STENCIL_OP_INC_WRAP                                  = 0x00000006,
-    VK_STENCIL_OP_DEC_WRAP                                  = 0x00000007,
+    VK_STENCIL_OP_INCREMENT_AND_WRAP                        = 0x00000006,
+    VK_STENCIL_OP_DECREMENT_AND_WRAP                        = 0x00000007,
 }
 
 enum VkLogicOp {
@@ -345,11 +345,11 @@ enum VkLogicOp {
     VK_LOGIC_OP_AND_REVERSE                                 = 0x00000002,
     VK_LOGIC_OP_COPY                                        = 0x00000003,
     VK_LOGIC_OP_AND_INVERTED                                = 0x00000004,
-    VK_LOGIC_OP_NOOP                                        = 0x00000005,
+    VK_LOGIC_OP_NO_OP                                       = 0x00000005,
     VK_LOGIC_OP_XOR                                         = 0x00000006,
     VK_LOGIC_OP_OR                                          = 0x00000007,
     VK_LOGIC_OP_NOR                                         = 0x00000008,
-    VK_LOGIC_OP_EQUIV                                       = 0x00000009,
+    VK_LOGIC_OP_EQUIVALENT                                  = 0x00000009,
     VK_LOGIC_OP_INVERT                                      = 0x0000000a,
     VK_LOGIC_OP_OR_REVERSE                                  = 0x0000000b,
     VK_LOGIC_OP_COPY_INVERTED                               = 0x0000000c,
@@ -358,16 +358,16 @@ enum VkLogicOp {
     VK_LOGIC_OP_SET                                         = 0x0000000f,
 }
 
-enum VkSystemAllocScope {
-    VK_SYSTEM_ALLOC_SCOPE_FUNCTION                          = 0x00000000,
-    VK_SYSTEM_ALLOC_SCOPE_OBJECT                            = 0x00000001,
-    VK_SYSTEM_ALLOC_SCOPE_CACHE                             = 0x00000002,
-    VK_SYSTEM_ALLOC_SCOPE_DEVICE                            = 0x00000003,
-    VK_SYSTEM_ALLOC_SCOPE_INSTANCE                          = 0x00000004,
+enum VkSystemAllocationScope {
+    VK_SYSTEM_ALLOCATION_SCOPE_FUNCTION                     = 0x00000000,
+    VK_SYSTEM_ALLOCATION_SCOPE_OBJECT                       = 0x00000001,
+    VK_SYSTEM_ALLOCATION_SCOPE_CACHE                        = 0x00000002,
+    VK_SYSTEM_ALLOCATION_SCOPE_DEVICE                       = 0x00000003,
+    VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE                     = 0x00000004,
 }
 
-enum VkInternalAllocType {
-    VK_INTERNAL_ALLOC_TYPE_EXECUTABLE                       = 0x00000000,
+enum VkInternalAllocationType {
+    VK_INTERNAL_ALLOCATION_TYPE_EXECUTABLE                  = 0x00000000,
 }
 
 enum VkPhysicalDeviceType {
@@ -603,9 +603,9 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 37,
     VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 38,
     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 39,
-    VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 40,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO                     = 41,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO                     = 42,
+    VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO                  = 40,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOC_INFO                 = 41,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 42,
     VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 43,
     VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 44,
     VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 45,
@@ -627,7 +627,7 @@ enum VkStructureType {
 
 enum VkRenderPassContents {
     VK_RENDER_PASS_CONTENTS_INLINE                          = 0x00000000,
-    VK_RENDER_PASS_CONTENTS_SECONDARY_CMD_BUFFERS           = 0x00000001,
+    VK_RENDER_PASS_CONTENTS_SECONDARY_COMMAND_BUFFERS       = 0x00000001,
 }
 
 @lastUnused(-8)
@@ -765,8 +765,8 @@ bitfield VkMemoryInputFlagBits {
 /// Buffer usage flags
 type VkFlags VkBufferUsageFlags
 bitfield VkBufferUsageFlagBits {
-    VK_BUFFER_USAGE_TRANSFER_SOURCE_BIT                     = 0x00000001,    /// Can be used as a source of transfer operations
-    VK_BUFFER_USAGE_TRANSFER_DESTINATION_BIT                = 0x00000002,    /// Can be used as a destination of transfer operations
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT                        = 0x00000001,    /// Can be used as a source of transfer operations
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT                        = 0x00000002,    /// Can be used as a destination of transfer operations
     VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT                = 0x00000004,    /// Can be used as TBO
     VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT                = 0x00000008,    /// Can be used as IBO
     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT                      = 0x00000010,    /// Can be used as UBO
@@ -812,8 +812,8 @@ type VkFlags VkDescriptorPoolResetFlags
 /// Image usage flags
 type VkFlags VkImageUsageFlags
 bitfield VkImageUsageFlagBits {
-    VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT                      = 0x00000001,    /// Can be used as a source of transfer operations
-    VK_IMAGE_USAGE_TRANSFER_DESTINATION_BIT                 = 0x00000002,    /// Can be used as a destination of transfer operations
+    VK_IMAGE_USAGE_TRANSFER_SRC_BIT                         = 0x00000001,    /// Can be used as a source of transfer operations
+    VK_IMAGE_USAGE_TRANSFER_DST_BIT                         = 0x00000002,    /// Can be used as a destination of transfer operations
     VK_IMAGE_USAGE_SAMPLED_BIT                              = 0x00000004,    /// Can be sampled from (SAMPLED_IMAGE and COMBINED_IMAGE_SAMPLER descriptor types)
     VK_IMAGE_USAGE_STORAGE_BIT                              = 0x00000008,    /// Can be used as storage image (STORAGE_IMAGE descriptor type)
     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT                     = 0x00000010,    /// Can be used as framebuffer color attachment
@@ -878,8 +878,8 @@ bitfield VkFormatFeatureFlagBits {
     VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT                  = 0x00000080,    /// Format can be used for color attachment images
     VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT            = 0x00000100,    /// Format supports blending in case it's used for color attachment images
     VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT          = 0x00000200,    /// Format can be used for depth/stencil attachment images
-    VK_FORMAT_FEATURE_BLIT_SOURCE_BIT                       = 0x00000400,    /// Format can be used as the source image of blits with vkCmdBlitImage
-    VK_FORMAT_FEATURE_BLIT_DESTINATION_BIT                  = 0x00000800,    /// Format can be used as the destination image of blits with vkCmdBlitImage
+    VK_FORMAT_FEATURE_BLIT_SRC_BIT                          = 0x00000400,    /// Format can be used as the source image of blits with vkCommandBlitImage
+    VK_FORMAT_FEATURE_BLIT_DST_BIT                          = 0x00000800,    /// Format can be used as the destination image of blits with vkCommandBlitImage
 }
 
 /// Query control flags
@@ -914,11 +914,11 @@ type VkFlags VkEventCreateFlags
 //}
 
 /// Command buffer usage flags
-type VkFlags VkCmdBufferUsageFlags
-bitfield VkCmdBufferUsageFlagBits {
-    VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT                 = 0x00000001,
-    VK_CMD_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT            = 0x00000002,
-    VK_CMD_BUFFER_USAGE_SIMULTANEOUS_USE_BIT                = 0x00000004,
+type VkFlags VkCommandBufferUsageFlags
+bitfield VkCommandBufferUsageFlagBits {
+    VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT             = 0x00000001,
+    VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT        = 0x00000002,
+    VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT            = 0x00000004,
 }
 
 /// Pipeline statistics flags
@@ -999,21 +999,21 @@ bitfield VkSubpassDescriptionFlagBits {
 }
 
 /// Command pool creation flags
-type VkFlags VkCmdPoolCreateFlags
-bitfield VkCmdPoolCreateFlagBits {
-    VK_CMD_POOL_CREATE_TRANSIENT_BIT                        = 0x00000001,  /// Command buffers have a short lifetime
-    VK_CMD_POOL_CREATE_RESET_COMMAND_BUFFER_BIT             = 0x00000002,  /// Command buffers may release their memory individually
+type VkFlags VkCommandPoolCreateFlags
+bitfield VkCommandPoolCreateFlagBits {
+    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT                    = 0x00000001,  /// Command buffers have a short lifetime
+    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT         = 0x00000002,  /// Command buffers may release their memory individually
 }
 
 /// Command pool reset flags
-type VkFlags VkCmdPoolResetFlags
-bitfield VkCmdPoolResetFlagBits {
-    VK_CMD_POOL_RESET_RELEASE_RESOURCES_BIT                 = 0x00000001,  /// Release resources owned by the pool
+type VkFlags VkCommandPoolResetFlags
+bitfield VkCommandPoolResetFlagBits {
+    VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT             = 0x00000001,  /// Release resources owned by the pool
 }
 
-type VkFlags VkCmdBufferResetFlags
-bitfield VkCmdBufferResetFlagBits {
-    VK_CMD_BUFFER_RESET_RELEASE_RESOURCES_BIT               = 0x00000001,  /// Release resources owned by the buffer
+type VkFlags VkCommandBufferResetFlags
+bitfield VkCommandBufferResetFlagBits {
+    VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT           = 0x00000001,  /// Release resources owned by the buffer
 }
 
 type VkFlags VkSampleCountFlags
@@ -1095,9 +1095,9 @@ type VkFlags VkPipelineViewportStateCreateFlags
 //bitfield VkPipelineViewportStateCreateFlagBits {
 //}
 
-/// Raster state creation flags
-type VkFlags VkPipelineRasterStateCreateFlags
-//bitfield VkPipelineRasterStateCreateFlagBits {
+/// Rasterization state creation flags
+type VkFlags VkPipelineRasterizationStateCreateFlags
+//bitfield VkPipelineRasterizationStateCreateFlagBits {
 //}
 
 /// Multisample state creation flags
@@ -1233,7 +1233,7 @@ class VkRect2D {
 class VkClearRect {
     VkRect2D                                    rect
     u32                                         baseArrayLayer
-    u32                                         numLayers
+    u32                                         layerCount
 }
 
 class VkChannelMapping {
@@ -1256,15 +1256,15 @@ class VkPhysicalDeviceProperties {
 }
 
 class VkExtensionProperties {
-    char[VK_MAX_EXTENSION_NAME]                 extName            /// extension name
+    char[VK_MAX_EXTENSION_NAME]                 extensionName      /// extension name
     u32                                         specVersion        /// version of the extension specification implemented
 }
 
 class VkLayerProperties {
-    char[VK_MAX_EXTENSION_NAME]                 layerName          /// layer name
-    u32                                         specVersion        /// version of the layer specification implemented
-    u32                                         implVersion        /// build or release version of the layer's library
-    char[VK_MAX_DESCRIPTION]                    description        /// Free-form description of the layer
+    char[VK_MAX_EXTENSION_NAME]                 layerName               /// layer name
+    u32                                         specVersion             /// version of the layer specification implemented
+    u32                                         implementationVersion   /// build or release version of the layer's library
+    char[VK_MAX_DESCRIPTION]                    description             /// Free-form description of the layer
 }
 
 class VkSubmitInfo {
@@ -1273,7 +1273,7 @@ class VkSubmitInfo {
     u32                                         waitSemaphoreCount
     const VkSemaphore*                          pWaitSemaphores
     u32                                         commandBufferCount
-    const VkCmdBuffer*                          pCommandBuffers
+    const VkCommandBuffer*                      pCommandBuffers
     u32                                         signalSemaphoreCount
     const VkSemaphore*                          pSignalSemaphores
 }
@@ -1281,19 +1281,19 @@ class VkSubmitInfo {
 class VkApplicationInfo {
     VkStructureType                             sType              /// Type of structure. Should be VK_STRUCTURE_TYPE_APPLICATION_INFO
     const void*                                 pNext              /// Next structure in chain
-    const char*                                 pAppName
-    u32                                         appVersion
+    const char*                                 pApplicationName
+    u32                                         applicationVersion
     const char*                                 pEngineName
     u32                                         engineVersion
     u32                                         apiVersion
 }
 
-class VkAllocCallbacks {
+class VkAllocationCallbacks {
     void*                                       pUserData
-    PFN_vkAllocFunction                         pfnAlloc
-    PFN_vkReallocFunction                       pfnRealloc
+    PFN_vkAllocationFunction                    pfnAllocation
+    PFN_vkReallocationFunction                  pfnReallocation
     PFN_vkFreeFunction                          pfnFree
-    PFN_vkInternalAllocNotification             pfnInternalAlloc
+    PFN_vkInternalAllocationNotification        pfnInternalAllocation
     PFN_vkInternalFreeNotification              pfnInternalFree
 }
 
@@ -1323,7 +1323,7 @@ class VkInstanceCreateInfo {
     VkStructureType                             sType                      /// Should be VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
     const void*                                 pNext                      /// Pointer to next structure
     VkInstanceCreateFlags                       flags
-    const VkApplicationInfo*                    pAppInfo
+    const VkApplicationInfo*                    pApplicationInfo
     u32                                         enabledLayerNameCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
     u32                                         enabledExtensionNameCount
@@ -1343,7 +1343,7 @@ class VkPhysicalDeviceMemoryProperties {
     VkMemoryHeap[VK_MAX_MEMORY_HEAPS]           memoryHeaps
 }
 
-class VkMemoryAllocInfo {
+class VkMemoryAllocateInfo {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO
     const void*                                 pNext                      /// Pointer to next structure
     VkDeviceSize                                allocationSize             /// Size of memory allocation
@@ -1383,7 +1383,7 @@ class VkMemoryHeap {
 class VkMappedMemoryRange {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE
     const void*                                 pNext                      /// Pointer to next structure
-    VkDeviceMemory                              mem                        /// Mapped memory object
+    VkDeviceMemory                              memory                     /// Mapped memory object
     VkDeviceSize                                offset                     /// Offset within the mapped memory the range starts from
     VkDeviceSize                                size                       /// Size of the range within the mapped memory
 }
@@ -1417,9 +1417,9 @@ class VkDescriptorBufferInfo {
 class VkWriteDescriptorSet {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     const void*                                 pNext                      /// Pointer to next structure
-    VkDescriptorSet                             destSet                    /// Destination descriptor set
-    u32                                         destBinding                /// Binding within the destination descriptor set to write
-    u32                                         destArrayElement           /// Array element within the destination binding to write
+    VkDescriptorSet                             dstSet                     /// Destination descriptor set
+    u32                                         dstBinding                 /// Binding within the destination descriptor set to write
+    u32                                         dstArrayElement            /// Array element within the destination binding to write
     u32                                         descriptorCount            /// Number of descriptors to write (determines the size of the array pointed by <pDescriptors>)
     VkDescriptorType                            descriptorType             /// Descriptor type to write (determines which fields of the array pointed by <pDescriptors> are going to be used)
     const VkDescriptorImageInfo*                pImageInfo
@@ -1433,9 +1433,9 @@ class VkCopyDescriptorSet {
     VkDescriptorSet                             srcSet                     /// Source descriptor set
     u32                                         srcBinding                 /// Binding within the source descriptor set to copy from
     u32                                         srcArrayElement            /// Array element within the source binding to copy from
-    VkDescriptorSet                             destSet                    /// Destination descriptor set
-    u32                                         destBinding                /// Binding within the destination descriptor set to copy to
-    u32                                         destArrayElement           /// Array element within the destination binding to copy to
+    VkDescriptorSet                             dstSet                     /// Destination descriptor set
+    u32                                         dstBinding                 /// Binding within the destination descriptor set to copy to
+    u32                                         dstArrayElement            /// Array element within the destination binding to copy to
     u32                                         descriptorCount            /// Number of descriptors to copy
 }
 
@@ -1469,9 +1469,9 @@ class VkImageSubresource {
 class VkImageSubresourceRange {
     VkImageAspectFlags                          aspectMask
     u32                                         baseMipLevel
-    u32                                         numLevels
+    u32                                         levelCount
     u32                                         baseArrayLayer
-    u32                                         numLayers
+    u32                                         layerCount
 }
 
 class VkMemoryBarrier {
@@ -1487,7 +1487,7 @@ class VkBufferMemoryBarrier {
     VkMemoryOutputFlags                         outputMask                 /// Outputs the barrier should sync
     VkMemoryInputFlags                          inputMask                  /// Inputs the barrier should sync to
     u32                                         srcQueueFamilyIndex        /// Queue family to transition ownership from
-    u32                                         destQueueFamilyIndex       /// Queue family to transition ownership to
+    u32                                         dstQueueFamilyIndex        /// Queue family to transition ownership to
     VkBuffer                                    buffer                     /// Buffer to sync
     VkDeviceSize                                offset                     /// Offset within the buffer to sync
     VkDeviceSize                                size                       /// Amount of bytes to sync
@@ -1501,7 +1501,7 @@ class VkImageMemoryBarrier {
     VkImageLayout                               oldLayout                  /// Current layout of the image
     VkImageLayout                               newLayout                  /// New layout to transition the image to
     u32                                         srcQueueFamilyIndex        /// Queue family to transition ownership from
-    u32                                         destQueueFamilyIndex       /// Queue family to transition ownership to
+    u32                                         dstQueueFamilyIndex        /// Queue family to transition ownership to
     VkImage                                     image                      /// Image to sync
     VkImageSubresourceRange                     subresourceRange           /// Subresource range to sync
 }
@@ -1544,15 +1544,15 @@ class VkImageViewCreateInfo {
 
 class VkBufferCopy {
     VkDeviceSize                                srcOffset              /// Specified in bytes
-    VkDeviceSize                                destOffset             /// Specified in bytes
+    VkDeviceSize                                dstOffset              /// Specified in bytes
     VkDeviceSize                                size                   /// Specified in bytes
 }
 
 class VkSparseMemoryBind {
     VkDeviceSize                                resourceOffset        /// Specified in bytes
     VkDeviceSize                                size                  /// Specified in bytes
-    VkDeviceMemory                              mem
-    VkDeviceSize                                memOffset             /// Specified in bytes
+    VkDeviceMemory                              memory
+    VkDeviceSize                                memoryOffset          /// Specified in bytes
     VkSparseMemoryBindFlags                     flags
 }
 
@@ -1560,8 +1560,8 @@ class VkSparseImageMemoryBind {
     VkImageSubresource                          subresource
     VkOffset3D                                  offset
     VkExtent3D                                  extent
-    VkDeviceMemory                              mem
-    VkDeviceSize                                memOffset             /// Specified in bytes
+    VkDeviceMemory                              memory
+    VkDeviceSize                                memoryOffset          /// Specified in bytes
     VkSparseMemoryBindFlags                     flags
 }
 
@@ -1602,14 +1602,14 @@ class VkImageSubresourceCopy {
     VkImageAspectFlags                          aspect
     u32                                         mipLevel
     u32                                         baseArrayLayer
-    u32                                         numLayers
+    u32                                         layerCount
 }
 
 class VkImageCopy {
     VkImageSubresourceCopy                      srcSubresource
     VkOffset3D                                  srcOffset             /// Specified in pixels for both compressed and uncompressed images
-    VkImageSubresourceCopy                      destSubresource
-    VkOffset3D                                  destOffset            /// Specified in pixels for both compressed and uncompressed images
+    VkImageSubresourceCopy                      dstSubresource
+    VkOffset3D                                  dstOffset             /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  extent                /// Specified in pixels for both compressed and uncompressed images
 }
 
@@ -1617,9 +1617,9 @@ class VkImageBlit {
     VkImageSubresourceCopy                      srcSubresource
     VkOffset3D                                  srcOffset              /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  srcExtent              /// Specified in pixels for both compressed and uncompressed images
-    VkImageSubresourceCopy                      destSubresource
-    VkOffset3D                                  destOffset             /// Specified in pixels for both compressed and uncompressed images
-    VkExtent3D                                  destExtent             /// Specified in pixels for both compressed and uncompressed images
+    VkImageSubresourceCopy                      dstSubresource
+    VkOffset3D                                  dstOffset              /// Specified in pixels for both compressed and uncompressed images
+    VkExtent3D                                  dstExtent              /// Specified in pixels for both compressed and uncompressed images
 }
 
 class VkBufferImageCopy {
@@ -1634,8 +1634,8 @@ class VkBufferImageCopy {
 class VkImageResolve {
     VkImageSubresourceCopy                      srcSubresource
     VkOffset3D                                  srcOffset
-    VkImageSubresourceCopy                      destSubresource
-    VkOffset3D                                  destOffset
+    VkImageSubresourceCopy                      dstSubresource
+    VkOffset3D                                  dstOffset
     VkExtent3D                                  extent
 }
 
@@ -1685,7 +1685,7 @@ class VkDescriptorPoolCreateInfo {
     const VkDescriptorTypeCount*                pTypeCounts
 }
 
-class VkDescriptorSetAllocInfo {
+class VkDescriptorSetAllocateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorPool                            descriptorPool
@@ -1772,10 +1772,10 @@ class VkPipelineViewportStateCreateInfo {
     const VkRect2D*                             pScissors
 }
 
-class VkPipelineRasterStateCreateInfo {
+class VkPipelineRasterizationStateCreateInfo {
     VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO
     const void*                                 pNext      /// Pointer to next structure
-    VkPipelineRasterStateCreateFlags            flags
+    VkPipelineRasterizationStateCreateFlags     flags
     VkBool32                                    depthClampEnable
     VkBool32                                    rasterizerDiscardEnable
     VkFillMode                                  fillMode                   /// optional (GL45)
@@ -1792,7 +1792,7 @@ class VkPipelineMultisampleStateCreateInfo {
     VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
     const void*                                 pNext      /// Pointer to next structure
     VkPipelineMultisampleStateCreateFlags       flags
-    u32                                         rasterSamples              /// Number of samples used for rasterization
+    u32                                         rasterizationSamples       /// Number of samples used for rasterization
     VkBool32                                    sampleShadingEnable        /// optional (GL45)
     f32                                         minSampleShading           /// optional (GL45)
     const VkSampleMask*                         pSampleMask
@@ -1803,10 +1803,10 @@ class VkPipelineMultisampleStateCreateInfo {
 class VkPipelineColorBlendAttachmentState {
     VkBool32                                    blendEnable
     VkBlend                                     srcBlendColor
-    VkBlend                                     destBlendColor
+    VkBlend                                     dstBlendColor
     VkBlendOp                                   blendOpColor
     VkBlend                                     srcBlendAlpha
-    VkBlend                                     destBlendAlpha
+    VkBlend                                     dstBlendAlpha
     VkBlendOp                                   blendOpAlpha
     VkChannelFlags                              channelWriteMask
 }
@@ -1865,7 +1865,7 @@ class VkGraphicsPipelineCreateInfo {
     const VkPipelineInputAssemblyStateCreateInfo*   pInputAssemblyState
     const VkPipelineTessellationStateCreateInfo*    pTessellationState
     const VkPipelineViewportStateCreateInfo*        pViewportState
-    const VkPipelineRasterStateCreateInfo*          pRasterState
+    const VkPipelineRasterizationStateCreateInfo*   pRasterizationState
     const VkPipelineMultisampleStateCreateInfo*     pMultisampleState
     const VkPipelineDepthStencilStateCreateInfo*    pDepthStencilState
     const VkPipelineColorBlendStateCreateInfo*      pColorBlendState
@@ -1883,7 +1883,6 @@ class VkPipelineCacheCreateInfo {
     VkPipelineCacheCreateFlags                  flags
     platform.size_t                             initialDataSize       /// Size of initial data to populate cache, in bytes
     const void*                                 pInitialData          /// Initial data to populate cache
-    platform.size_t                             maxSize               /// Maximum size cache can grow to, in bytes. If zero, then the cache may grow without bound.
 }
 
 class VkPushConstantRange {
@@ -1922,25 +1921,25 @@ class VkSamplerCreateInfo {
     VkBool32                                    unnormalizedCoordinates
 }
 
-class VkCmdPoolCreateInfo {
-    VkStructureType                             sType            /// Must be VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO
+class VkCommandPoolCreateInfo {
+    VkStructureType                             sType            /// Must be VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
     const void*                                 pNext            /// Pointer to next structure
-    VkCmdPoolCreateFlags                        flags            /// Command pool creation flags
+    VkCommandPoolCreateFlags                    flags            /// Command pool creation flags
     u32                                         queueFamilyIndex
 }
 
-class VkCmdBufferAllocInfo {
-    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO
+class VkCommandBufferAllocateInfo {
+    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOC_INFO
     const void*                                 pNext      /// Pointer to next structure
-    VkCmdPool                                   cmdPool
-    VkCmdBufferLevel                            level
+    VkCommandPool                               commandPool
+    VkCommandBufferLevel                        level
     u32                                         bufferCount
 }
 
-class VkCmdBufferBeginInfo {
-    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO
+class VkCommandBufferBeginInfo {
+    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     const void*                                 pNext       /// Pointer to next structure
-    VkCmdBufferUsageFlags                       flags       /// Command buffer usage flags
+    VkCommandBufferUsageFlags                   flags       /// Command buffer usage flags
     VkRenderPass                                renderPass  /// Render pass for secondary command buffers
     u32                                         subpass
     VkFramebuffer                               framebuffer /// Framebuffer for secondary command buffers
@@ -2014,9 +2013,9 @@ class VkSubpassDescription {
 
 class VkSubpassDependency {
     u32                                         srcSubpass
-    u32                                         destSubpass
+    u32                                         dstSubpass
     VkPipelineStageFlags                        srcStageMask
-    VkPipelineStageFlags                        destStageMask
+    VkPipelineStageFlags                        dstStageMask
     VkMemoryOutputFlags                         outputMask
     VkMemoryInputFlags                          inputMask
     VkDependencyFlags                           dependencyFlags
@@ -2054,7 +2053,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    geometryShader                            /// geometry stage
     VkBool32                                    tessellationShader                        /// tessellation control and evaluation stage
     VkBool32                                    sampleRateShading                         /// per-sample shading and interpolation
-    VkBool32                                    dualSourceBlend                           /// blend operations which take two sources
+    VkBool32                                    dualSrcBlend                              /// blend operations which take two sources
     VkBool32                                    logicOp                                   /// logic operations
     VkBool32                                    multiDrawIndirect                         /// multi draw indirect
     VkBool32                                    depthClamp                                /// depth clamping
@@ -2136,7 +2135,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxVertexInputBindingStride               /// max vertex input binding stride
     u32                                         maxVertexOutputComponents                 /// max num of output components written by vertex shader
     /// tessellation control stage limits
-    u32                                         maxTessellationGenLevel                         /// max level supported by tess primitive generator
+    u32                                         maxTessellationGenerationLevel                  /// max level supported by tess primitive generator
     u32                                         maxTessellationPatchSize                        /// max patch size (vertices)
     u32                                         maxTessellationControlPerVertexInputComponents  /// max num of input components per-vertex in TCS
     u32                                         maxTessellationControlPerVertexOutputComponents /// max num of output components per-vertex in TCS
@@ -2153,7 +2152,7 @@ class VkPhysicalDeviceLimits {
     /// fragment stage limits
     u32                                         maxFragmentInputComponents                /// max num of input compontents read in fragment stage
     u32                                         maxFragmentOutputAttachments              /// max num of output attachments written in fragment stage
-    u32                                         maxFragmentDualSourceAttachments          /// max num of output attachments written when using dual source blending
+    u32                                         maxFragmentDualSrcAttachments             /// max num of output attachments written when using dual source blending
     u32                                         maxFragmentCombinedOutputResources        /// max total num of storage buffers, storage images and output buffers
     /// compute stage limits
     u32                                         maxComputeSharedMemorySize                /// max total storage size of work group local storage (bytes)
@@ -2258,14 +2257,14 @@ class VkFramebufferCreateInfo {
     u32                                         layers
 }
 
-class VkDrawIndirectCmd {
+class VkDrawIndirectCommand {
     u32                                         vertexCount
     u32                                         instanceCount
     u32                                         firstVertex
     u32                                         firstInstance
 }
 
-class VkDrawIndexedIndirectCmd {
+class VkDrawIndexedIndirectCommand {
     u32                                         indexCount
     u32                                         instanceCount
     u32                                         firstIndex
@@ -2273,7 +2272,7 @@ class VkDrawIndexedIndirectCmd {
     u32                                         firstInstance
 }
 
-class VkDispatchIndirectCmd {
+class VkDispatchIndirectCommand {
     u32                                         x
     u32                                         y
     u32                                         z
@@ -2420,45 +2419,45 @@ class VkDisplayPresentInfoKHR {
 @pfn cmd void vkVoidFunction() {
 }
 
-@external type void* PFN_vkAllocFunction
-@pfn cmd void* vkAllocFunction(
+@external type void* PFN_vkAllocationFunction
+@pfn cmd void* vkAllocationFunction(
         void*                                       pUserData,
         platform.size_t                             size,
         platform.size_t                             alignment,
-        VkSystemAllocScope                          allocScope) {
+        VkSystemAllocationScope                     allocationScope) {
     return ?
 }
 
-@external type void* PFN_vkReallocFunction
-@pfn cmd void* vkReallocFunction(
+@external type void* PFN_vkReallocationFunction
+@pfn cmd void* vkReallocationFunction(
         void*                                       pUserData,
         void*                                       pOriginal,
         platform.size_t                             size,
         platform.size_t                             alignment,
-        VkSystemAllocScope                          allocScope) {
+        VkSystemAllocationScope                     allocationScope) {
     return ?
 }
 
 @external type void* PFN_vkFreeFunction
 @pfn cmd void vkFreeFunction(
         void*                                       pUserData,
-        void*                                       pMem) {
+        void*                                       pMemory) {
 }
 
-@external type void* PFN_vkInternalAllocNotification
-@pfn cmd void vkInternalAllocNotification(
+@external type void* PFN_vkInternalAllocationNotification
+@pfn cmd void vkInternalAllocationNotification(
         void*                                       pUserData,
         platform.size_t                             size,
-        VkInternalAllocType                         allocType,
-        VkSystemAllocScope                          allocScope) {
+        VkInternalAllocationType                    allocationType,
+        VkSystemAllocationScope                     allocationScope) {
 }
 
 @external type void* PFN_vkInternalFreeNotification
 @pfn cmd void vkInternalFreeNotification(
         void*                                       pUserData,
         platform.size_t                             size,
-        VkInternalAllocType                         allocType,
-        VkSystemAllocScope                          allocScope) {
+        VkInternalAllocationType                    allocationType,
+        VkSystemAllocationScope                     allocationScope) {
 }
 
 // Global functions
@@ -2466,7 +2465,7 @@ class VkDisplayPresentInfoKHR {
 @threadSafety("system")
 cmd VkResult vkCreateInstance(
         const VkInstanceCreateInfo*                 pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkInstance*                                 pInstance) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
 
@@ -2483,7 +2482,7 @@ cmd VkResult vkCreateInstance(
 @threadSafety("system")
 cmd void vkDestroyInstance(
         VkInstance                                  instance,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     instanceObject := GetInstance(instance)
 
     State.Instances[instance] = null
@@ -2610,7 +2609,7 @@ cmd void vkGetPhysicalDeviceImageFormatProperties(
 cmd VkResult vkCreateDevice(
         VkPhysicalDevice                            physicalDevice,
         const VkDeviceCreateInfo*                   pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkDevice*                                   pDevice) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
@@ -2625,7 +2624,7 @@ cmd VkResult vkCreateDevice(
 @threadSafety("system")
 cmd void vkDestroyDevice(
         VkDevice                                    device,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
 
     State.Devices[device] = null
@@ -2733,14 +2732,14 @@ cmd VkResult vkQueueSubmit(
         assert(fenceObject.device == queueObject.device)
     }
 
-    // cmdBuffers := pCmdBuffers[0:cmdBufferCount]
-    // for i in (0 .. cmdBufferCount) {
-    //    cmdBuffer := cmdBuffers[i]
-    //    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    //    assert(cmdBufferObject.device == queueObject.device)
+    // commandBuffers := pcommandBuffers[0:commandBufferCount]
+    // for i in (0 .. commandBufferCount) {
+    //    commandBuffer := commandBuffers[i]
+    //    commandBufferObject := GetCommandBuffer(commandBuffer)
+    //    assert(commandBufferObject.device == queueObject.device)
     //
-    //    validate("QueueCheck", cmdBufferObject.queueFlags in queueObject.flags,
-    //        "vkQueueSubmit: enqueued cmdBuffer requires missing queue capabilities.")
+    //    validate("QueueCheck", commandBufferObject.queueFlags in queueObject.flags,
+    //        "vkQueueSubmit: enqueued commandBuffer requires missing queue capabilities.")
     // }
 
     return ?
@@ -2766,19 +2765,19 @@ cmd VkResult vkDeviceWaitIdle(
 // Memory functions
 
 @threadSafety("system")
-cmd VkResult vkAllocMemory(
+cmd VkResult vkAllocateMemory(
         VkDevice                                    device,
-        const VkMemoryAllocInfo*                    pAllocInfo,
-        const VkAllocCallbacks*                     pAllocator,
-        VkDeviceMemory*                             pMem) {
-    assert(pAllocInfo.sType == VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO)
+        const VkMemoryAllocateInfo*                 pAllocateInfo,
+        const VkAllocationCallbacks*                pAllocator,
+        VkDeviceMemory*                             pMemory) {
+    assert(pAllocateInfo.sType == VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO)
     deviceObject := GetDevice(device)
 
-    mem := ?
-    pMem[0] = mem
-    State.DeviceMemories[mem] = new!DeviceMemoryObject(
+    memory := ?
+    pMemory[0] = memory
+    State.DeviceMemories[memory] = new!DeviceMemoryObject(
         device: device,
-        allocationSize: pAllocInfo[0].allocationSize)
+        allocationSize: pAllocateInfo[0].allocationSize)
 
     return ?
 }
@@ -2786,34 +2785,34 @@ cmd VkResult vkAllocMemory(
 @threadSafety("system")
 cmd void vkFreeMemory(
         VkDevice                                    device,
-        VkDeviceMemory                              mem,
-        const VkAllocCallbacks*                     pAllocator) {
+        VkDeviceMemory                              memory,
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
-    memObject := GetDeviceMemory(mem)
-    assert(memObject.device == device)
+    memoryObject := GetDeviceMemory(memory)
+    assert(memoryObject.device == device)
 
     // Check that no objects are still bound before freeing.
-    validate("MemoryCheck", len(memObject.boundObjects) == 0,
+    validate("MemoryCheck", len(memoryObject.boundObjects) == 0,
         "vkFreeMemory: objects still bound")
-    validate("MemoryCheck", len(memObject.boundCommandBuffers) == 0,
-        "vkFreeMemory: cmdBuffers still bound")
-    State.DeviceMemories[mem] = null
+    validate("MemoryCheck", len(memoryObject.boundCommandBuffers) == 0,
+        "vkFreeMemory: commandBuffers still bound")
+    State.DeviceMemories[memory] = null
 }
 
 @threadSafety("app")
 cmd VkResult vkMapMemory(
         VkDevice                                    device,
-        VkDeviceMemory                              mem,
+        VkDeviceMemory                              memory,
         VkDeviceSize                                offset,
         VkDeviceSize                                size,
         VkMemoryMapFlags                            flags,
         void**                                      ppData) {
     deviceObject := GetDevice(device)
-    memObject := GetDeviceMemory(mem)
-    assert(memObject.device == device)
+    memoryObject := GetDeviceMemory(memory)
+    assert(memoryObject.device == device)
 
     assert(flags == as!VkMemoryMapFlags(0))
-    assert((offset + size) <= memObject.allocationSize)
+    assert((offset + size) <= memoryObject.allocationSize)
 
     return ?
 }
@@ -2821,24 +2820,24 @@ cmd VkResult vkMapMemory(
 @threadSafety("app")
 cmd void vkUnmapMemory(
         VkDevice                                    device,
-        VkDeviceMemory                              mem) {
+        VkDeviceMemory                              memory) {
     deviceObject := GetDevice(device)
-    memObject := GetDeviceMemory(mem)
-    assert(memObject.device == device)
+    memoryObject := GetDeviceMemory(memory)
+    assert(memoryObject.device == device)
 }
 
 cmd VkResult vkFlushMappedMemoryRanges(
         VkDevice                                    device,
-        u32                                         memRangeCount
-        const VkMappedMemoryRange*                  pMemRanges) {
+        u32                                         memoryRangeCount
+        const VkMappedMemoryRange*                  pMemoryRanges) {
     deviceObject := GetDevice(device)
 
-    memRanges := pMemRanges[0:memRangeCount]
-    for i in (0 .. memRangeCount) {
-        memRange := memRanges[i]
-        memObject := GetDeviceMemory(memRange.mem)
-        assert(memObject.device == device)
-        assert((memRange.offset + memRange.size) <= memObject.allocationSize)
+    memoryRanges := pMemoryRanges[0:memoryRangeCount]
+    for i in (0 .. memoryRangeCount) {
+        memoryRange := memoryRanges[i]
+        memoryObject := GetDeviceMemory(memoryRange.memory)
+        assert(memoryObject.device == device)
+        assert((memoryRange.offset + memoryRange.size) <= memoryObject.allocationSize)
     }
 
     return ?
@@ -2846,16 +2845,16 @@ cmd VkResult vkFlushMappedMemoryRanges(
 
 cmd VkResult vkInvalidateMappedMemoryRanges(
         VkDevice                                    device,
-        u32                                         memRangeCount,
-        const VkMappedMemoryRange*                  pMemRanges) {
+        u32                                         memoryRangeCount,
+        const VkMappedMemoryRange*                  pMemoryRanges) {
     deviceObject := GetDevice(device)
 
-    memRanges := pMemRanges[0:memRangeCount]
-    for i in (0 .. memRangeCount) {
-        memRange := memRanges[i]
-        memObject := GetDeviceMemory(memRange.mem)
-        assert(memObject.device == device)
-        assert((memRange.offset + memRange.size) <= memObject.allocationSize)
+    memoryRanges := pMemoryRanges[0:memoryRangeCount]
+    for i in (0 .. memoryRangeCount) {
+        memoryRange := memoryRanges[i]
+        memoryObject := GetDeviceMemory(memoryRange.memory)
+        assert(memoryObject.device == device)
+        assert((memoryRange.offset + memoryRange.size) <= memoryObject.allocationSize)
     }
 
     return ?
@@ -2891,26 +2890,26 @@ cmd void vkGetBufferMemoryRequirements(
 cmd VkResult vkBindBufferMemory(
         VkDevice                                    device,
         VkBuffer                                    buffer,
-        VkDeviceMemory                              mem,
-        VkDeviceSize                                memOffset) {
+        VkDeviceMemory                              memory,
+        VkDeviceSize                                memoryOffset) {
     deviceObject := GetDevice(device)
     bufferObject := GetBuffer(buffer)
     assert(bufferObject.device == device)
 
     // Unbind buffer from previous memory object, if not VK_NULL_HANDLE.
-    if bufferObject.mem != NULL_HANDLE {
-        memObject := GetDeviceMemory(bufferObject.mem)
-        memObject.boundObjects[as!u64(buffer)] = null
+    if bufferObject.memory != NULL_HANDLE {
+        memoryObject := GetDeviceMemory(bufferObject.memory)
+        memoryObject.boundObjects[as!u64(buffer)] = null
     }
 
     // Bind buffer to given memory object, if not VK_NULL_HANDLE.
-    if mem != NULL_HANDLE {
-        memObject := GetDeviceMemory(mem)
-        assert(memObject.device == device)
-        memObject.boundObjects[as!u64(buffer)] = memOffset
+    if memory != NULL_HANDLE {
+        memoryObject := GetDeviceMemory(memory)
+        assert(memoryObject.device == device)
+        memoryObject.boundObjects[as!u64(buffer)] = memoryOffset
     }
-    bufferObject.mem = mem
-    bufferObject.memOffset = memOffset
+    bufferObject.memory = memory
+    bufferObject.memoryOffset = memoryOffset
 
     return ?
 }
@@ -2927,26 +2926,26 @@ cmd void vkGetImageMemoryRequirements(
 cmd VkResult vkBindImageMemory(
         VkDevice                                    device,
         VkImage                                     image,
-        VkDeviceMemory                              mem,
-        VkDeviceSize                                memOffset) {
+        VkDeviceMemory                              memory,
+        VkDeviceSize                                memoryOffset) {
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
 
     // Unbind image from previous memory object, if not VK_NULL_HANDLE.
-    if imageObject.mem != NULL_HANDLE {
-        memObject := GetDeviceMemory(imageObject.mem)
-        memObject.boundObjects[as!u64(image)] = null
+    if imageObject.memory != NULL_HANDLE {
+        memoryObject := GetDeviceMemory(imageObject.memory)
+        memoryObject.boundObjects[as!u64(image)] = null
     }
 
     // Bind image to given memory object, if not VK_NULL_HANDLE.
-    if mem != NULL_HANDLE {
-        memObject := GetDeviceMemory(mem)
-        assert(memObject.device == device)
-        memObject.boundObjects[as!u64(image)] = memOffset
+    if memory != NULL_HANDLE {
+        memoryObject := GetDeviceMemory(memory)
+        assert(memoryObject.device == device)
+        memoryObject.boundObjects[as!u64(image)] = memoryOffset
     }
-    imageObject.mem = mem
-    imageObject.memOffset = memOffset
+    imageObject.memory = memory
+    imageObject.memoryOffset = memoryOffset
 
     return ?
 }
@@ -2990,7 +2989,7 @@ cmd VkResult vkQueueBindSparse(
 cmd VkResult vkCreateFence(
         VkDevice                                    device,
         const VkFenceCreateInfo*                    pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkFence*                                    pFence) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3007,7 +3006,7 @@ cmd VkResult vkCreateFence(
 cmd void vkDestroyFence(
         VkDevice                                    device,
         VkFence                                     fence,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     fenceObject := GetFence(fence)
     assert(fenceObject.device == device)
@@ -3070,7 +3069,7 @@ cmd VkResult vkWaitForFences(
 cmd VkResult vkCreateSemaphore(
         VkDevice                                    device,
         const VkSemaphoreCreateInfo*                pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkSemaphore*                                pSemaphore) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3086,7 +3085,7 @@ cmd VkResult vkCreateSemaphore(
 cmd void vkDestroySemaphore(
         VkDevice                                    device,
         VkSemaphore                                 semaphore,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     semaphoreObject := GetSemaphore(semaphore)
     assert(semaphoreObject.device == device)
@@ -3101,7 +3100,7 @@ cmd void vkDestroySemaphore(
 cmd VkResult vkCreateEvent(
         VkDevice                                    device,
         const VkEventCreateInfo*                    pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkEvent*                                    pEvent) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_EVENT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3117,7 +3116,7 @@ cmd VkResult vkCreateEvent(
 cmd void vkDestroyEvent(
         VkDevice                                    device,
         VkEvent                                     event,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     eventObject := GetEvent(event)
     assert(eventObject.device == device)
@@ -3165,7 +3164,7 @@ cmd VkResult vkResetEvent(
 cmd VkResult vkCreateQueryPool(
         VkDevice                                    device,
         const VkQueryPoolCreateInfo*                pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkQueryPool*                                pQueryPool) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3181,7 +3180,7 @@ cmd VkResult vkCreateQueryPool(
 cmd void vkDestroyQueryPool(
         VkDevice                                    device,
         VkQueryPool                                 queryPool,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     queryPoolObject := GetQueryPool(queryPool)
     assert(queryPoolObject.device == device)
@@ -3214,7 +3213,7 @@ cmd VkResult vkGetQueryPoolResults(
 cmd VkResult vkCreateBuffer(
         VkDevice                                    device,
         const VkBufferCreateInfo*                   pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkBuffer*                                   pBuffer) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3230,12 +3229,12 @@ cmd VkResult vkCreateBuffer(
 cmd void vkDestroyBuffer(
         VkDevice                                    device,
         VkBuffer                                    buffer,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     bufferObject := GetBuffer(buffer)
     assert(bufferObject.device == device)
 
-    assert(bufferObject.mem == 0)
+    assert(bufferObject.memory == 0)
     State.Buffers[buffer] = null
 }
 
@@ -3246,7 +3245,7 @@ cmd void vkDestroyBuffer(
 cmd VkResult vkCreateBufferView(
         VkDevice                                    device,
         const VkBufferViewCreateInfo*               pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkBufferView*                               pView) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3265,7 +3264,7 @@ cmd VkResult vkCreateBufferView(
 cmd void vkDestroyBufferView(
         VkDevice                                    device,
         VkBufferView                                bufferView,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     bufferViewObject := GetBufferView(bufferView)
     assert(bufferViewObject.device == device)
@@ -3280,7 +3279,7 @@ cmd void vkDestroyBufferView(
 cmd VkResult vkCreateImage(
         VkDevice                                    device,
         const VkImageCreateInfo*                    pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkImage*                                    pImage) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3296,12 +3295,12 @@ cmd VkResult vkCreateImage(
 cmd void vkDestroyImage(
         VkDevice                                    device,
         VkImage                                     image,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     imageObject := GetImage(image)
     assert(imageObject.device == device)
 
-    assert(imageObject.mem == 0)
+    assert(imageObject.memory == 0)
     State.Images[image] = null
 }
 
@@ -3322,7 +3321,7 @@ cmd void vkGetImageSubresourceLayout(
 cmd VkResult vkCreateImageView(
         VkDevice                                    device,
         const VkImageViewCreateInfo*                pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkImageView*                                pView) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3341,7 +3340,7 @@ cmd VkResult vkCreateImageView(
 cmd void vkDestroyImageView(
         VkDevice                                    device,
         VkImageView                                 imageView,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     imageViewObject := GetImageView(imageView)
     assert(imageViewObject.device == device)
@@ -3355,7 +3354,7 @@ cmd void vkDestroyImageView(
 cmd VkResult vkCreateShaderModule(
         VkDevice                                    device,
         const VkShaderModuleCreateInfo*             pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkShaderModule*                             pShaderModule) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3370,7 +3369,7 @@ cmd VkResult vkCreateShaderModule(
 cmd void vkDestroyShaderModule(
         VkDevice                                    device,
         VkShaderModule                              shaderModule,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     shaderModuleObject := GetShaderModule(shaderModule)
     assert(shaderModuleObject.device == device)
@@ -3382,7 +3381,7 @@ cmd void vkDestroyShaderModule(
 cmd VkResult vkCreateShader(
         VkDevice                                    device,
         const VkShaderCreateInfo*                   pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkShader*                                   pShader) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SHADER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3398,7 +3397,7 @@ cmd VkResult vkCreateShader(
 cmd void vkDestroyShader(
         VkDevice                                    device,
         VkShader                                    shader,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     shaderObject := GetShader(shader)
     assert(shaderObject.device == device)
@@ -3412,7 +3411,7 @@ cmd void vkDestroyShader(
 cmd VkResult vkCreatePipelineCache(
         VkDevice                                    device,
         const VkPipelineCacheCreateInfo*            pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkPipelineCache*                            pPipelineCache) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3427,7 +3426,7 @@ cmd VkResult vkCreatePipelineCache(
 cmd void vkDestroyPipelineCache(
         VkDevice                                    device,
         VkPipelineCache                             pipelineCache,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     pipelineCacheObject := GetPipelineCache(pipelineCache)
     assert(pipelineCacheObject.device == device)
@@ -3449,12 +3448,12 @@ cmd VkResult vkGetPipelineCacheData(
 
 cmd VkResult vkMergePipelineCaches(
         VkDevice                                    device,
-        VkPipelineCache                             destCache,
+        VkPipelineCache                             dstCache,
         u32                                         srcCacheCount,
         const VkPipelineCache*                      pSrcCaches) {
     deviceObject := GetDevice(device)
-    destCacheObject := GetPipelineCache(destCache)
-    assert(destCacheObject.device == device)
+    dstCacheObject := GetPipelineCache(dstCache)
+    assert(dstCacheObject.device == device)
 
     srcCaches := pSrcCaches[0:srcCacheCount]
     for i in (0 .. srcCacheCount) {
@@ -3471,7 +3470,7 @@ cmd VkResult vkCreateGraphicsPipelines(
         VkPipelineCache                             pipelineCache,
         u32                                         createInfoCount,
         const VkGraphicsPipelineCreateInfo*         pCreateInfos,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkPipeline*                                 pPipelines) {
     deviceObject := GetDevice(device)
     if pipelineCache != NULL_HANDLE {
@@ -3495,7 +3494,7 @@ cmd VkResult vkCreateComputePipelines(
         VkPipelineCache                             pipelineCache,
         u32                                         createInfoCount,
         const VkComputePipelineCreateInfo*          pCreateInfos,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkPipeline*                                 pPipelines) {
     deviceObject := GetDevice(device)
     if pipelineCache != NULL_HANDLE {
@@ -3518,7 +3517,7 @@ cmd VkResult vkCreateComputePipelines(
 cmd void vkDestroyPipeline(
         VkDevice                                    device,
         VkPipeline                                  pipeline,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     pipelineObjects := GetPipeline(pipeline)
     assert(pipelineObjects.device == device)
@@ -3533,7 +3532,7 @@ cmd void vkDestroyPipeline(
 cmd VkResult vkCreatePipelineLayout(
         VkDevice                                    device,
         const VkPipelineLayoutCreateInfo*           pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkPipelineLayout*                           pPipelineLayout) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3549,7 +3548,7 @@ cmd VkResult vkCreatePipelineLayout(
 cmd void vkDestroyPipelineLayout(
         VkDevice                                    device,
         VkPipelineLayout                            pipelineLayout,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     pipelineLayoutObjects := GetPipelineLayout(pipelineLayout)
     assert(pipelineLayoutObjects.device == device)
@@ -3564,7 +3563,7 @@ cmd void vkDestroyPipelineLayout(
 cmd VkResult vkCreateSampler(
         VkDevice                                    device,
         const VkSamplerCreateInfo*                  pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkSampler*                                  pSampler) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3580,7 +3579,7 @@ cmd VkResult vkCreateSampler(
 cmd void vkDestroySampler(
         VkDevice                                    device,
         VkSampler                                   sampler,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     samplerObject := GetSampler(sampler)
     assert(samplerObject.device == device)
@@ -3595,7 +3594,7 @@ cmd void vkDestroySampler(
 cmd VkResult vkCreateDescriptorSetLayout(
         VkDevice                                    device,
         const VkDescriptorSetLayoutCreateInfo*      pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkDescriptorSetLayout*                      pSetLayout) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3611,7 +3610,7 @@ cmd VkResult vkCreateDescriptorSetLayout(
 cmd void vkDestroyDescriptorSetLayout(
         VkDevice                                    device,
         VkDescriptorSetLayout                       descriptorSetLayout,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     descriptorSetLayoutObject := GetDescriptorSetLayout(descriptorSetLayout)
     assert(descriptorSetLayoutObject.device == device)
@@ -3623,7 +3622,7 @@ cmd void vkDestroyDescriptorSetLayout(
 cmd VkResult vkCreateDescriptorPool(
         VkDevice                                    device,
         const VkDescriptorPoolCreateInfo*           pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkDescriptorPool*                           pDescriptorPool) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3639,7 +3638,7 @@ cmd VkResult vkCreateDescriptorPool(
 cmd void vkDestroyDescriptorPool(
         VkDevice                                    device,
         VkDescriptorPool                            descriptorPool,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     descriptorPoolObject := GetDescriptorPool(descriptorPool)
     assert(descriptorPoolObject.device == device)
@@ -3660,12 +3659,12 @@ cmd VkResult vkResetDescriptorPool(
 }
 
 @threadSafety("app")
-cmd VkResult vkAllocDescriptorSets(
+cmd VkResult vkAllocateDescriptorSets(
         VkDevice                                    device,
-        const VkDescriptorSetAllocInfo*             pAllocInfo,
+        const VkDescriptorSetAllocateInfo*          pAllocateInfo,
         VkDescriptorSet*                            pDescriptorSets) {
     deviceObject := GetDevice(device)
-    allocInfo := pAllocInfo[0]
+    allocInfo := pAllocateInfo[0]
     descriptorPoolObject := GetDescriptorPool(allocInfo.descriptorPool)
 
     setLayouts := allocInfo.pSetLayouts[0:allocInfo.setCount]
@@ -3715,14 +3714,14 @@ cmd void vkUpdateDescriptorSets(
     descriptorWrites := pDescriptorWrites[0:descriptorWriteCount]
     for i in (0 .. descriptorWriteCount) {
         descriptorWrite := descriptorWrites[i]
-        descriptorWriteObject := GetDescriptorSet(descriptorWrite.destSet)
+        descriptorWriteObject := GetDescriptorSet(descriptorWrite.dstSet)
         assert(descriptorWriteObject.device == device)
     }
 
     descriptorCopies := pDescriptorCopies[0:descriptorCopyCount]
     for i in (0 .. descriptorCopyCount) {
         descriptorCopy := descriptorCopies[i]
-        descriptorCopyObject := GetDescriptorSet(descriptorCopy.destSet)
+        descriptorCopyObject := GetDescriptorSet(descriptorCopy.dstSet)
         assert(descriptorCopyObject.device == device)
     }
 }
@@ -3734,7 +3733,7 @@ cmd void vkUpdateDescriptorSets(
 cmd VkResult vkCreateFramebuffer(
         VkDevice                                    device,
         const VkFramebufferCreateInfo*              pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkFramebuffer*                              pFramebuffer) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3750,7 +3749,7 @@ cmd VkResult vkCreateFramebuffer(
 cmd void vkDestroyFramebuffer(
         VkDevice                                    device,
         VkFramebuffer                               framebuffer,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     framebufferObject := GetFramebuffer(framebuffer)
     assert(framebufferObject.device == device)
@@ -3765,7 +3764,7 @@ cmd void vkDestroyFramebuffer(
 cmd VkResult vkCreateRenderPass(
         VkDevice                                    device,
         const VkRenderPassCreateInfo*               pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
+        const VkAllocationCallbacks*                pAllocator,
         VkRenderPass*                               pRenderPass) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
     deviceObject := GetDevice(device)
@@ -3781,7 +3780,7 @@ cmd VkResult vkCreateRenderPass(
 cmd void vkDestroyRenderPass(
         VkDevice                                    device,
         VkRenderPass                                renderPass,
-        const VkAllocCallbacks*                     pAllocator) {
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
     renderPassObject := GetRenderPass(renderPass)
     assert(renderPassObject.device == device)
@@ -3804,72 +3803,72 @@ cmd void vkGetRenderAreaGranularity(
 
 cmd VkResult vkCreateCommandPool(
         VkDevice                                    device,
-        const VkCmdPoolCreateInfo*                  pCreateInfo,
-        const VkAllocCallbacks*                     pAllocator,
-        VkCmdPool*                                  pCmdPool) {
-    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO)
+        const VkCommandPoolCreateInfo*              pCreateInfo,
+        const VkAllocationCallbacks*                pAllocator,
+        VkCommandPool*                              pCommandPool) {
+    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
     deviceObject := GetDevice(device)
 
-    cmdPool := ?
-    pCmdPool[0] = cmdPool
-    State.CmdPools[cmdPool] = new!CmdPoolObject(device: device)
+    commandPool := ?
+    pCommandPool[0] = commandPool
+    State.CommandPools[commandPool] = new!CommandPoolObject(device: device)
 
     return ?
 }
 
 cmd void vkDestroyCommandPool(
         VkDevice                                    device,
-        VkCmdPool                                   cmdPool,
-        const VkAllocCallbacks*                     pAllocator) {
+        VkCommandPool                               commandPool,
+        const VkAllocationCallbacks*                pAllocator) {
     deviceObject := GetDevice(device)
-    cmdPoolObject := GetCmdPool(cmdPool)
-    assert(cmdPoolObject.device == device)
+    commandPoolObject := GetCommandPool(commandPool)
+    assert(commandPoolObject.device == device)
 
-    State.CmdPools[cmdPool] = null
+    State.CommandPools[commandPool] = null
 }
 
 cmd VkResult vkResetCommandPool(
         VkDevice                                    device,
-        VkCmdPool                                   cmdPool,
-        VkCmdPoolResetFlags                         flags) {
+        VkCommandPool                               commandPool,
+        VkCommandPoolResetFlags                     flags) {
     deviceObject := GetDevice(device)
-    cmdPoolObject := GetCmdPool(cmdPool)
-    assert(cmdPoolObject.device == device)
+    commandPoolObject := GetCommandPool(commandPool)
+    assert(commandPoolObject.device == device)
 
     return ?
 }
 
 // Command buffer functions
 
-macro void bindCmdBuffer(VkCmdBuffer cmdBuffer, any obj, VkDeviceMemory mem) {
-    memoryObject := GetDeviceMemory(mem)
-    memoryObject.boundCommandBuffers[cmdBuffer] = cmdBuffer
+macro void bindCommandBuffer(VkCommandBuffer commandBuffer, any obj, VkDeviceMemory memory) {
+    memoryObject := GetDeviceMemory(memory)
+    memoryObject.boundCommandBuffers[commandBuffer] = commandBuffer
 
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.boundObjects[as!u64(obj)] = mem
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.boundObjects[as!u64(obj)] = memory
 }
 
-macro void unbindCmdBuffer(VkCmdBuffer cmdBuffer, any obj, VkDeviceMemory mem) {
-    memoryObject := GetDeviceMemory(mem)
-    memoryObject.boundCommandBuffers[cmdBuffer] = null
+macro void unbindCommandBuffer(VkCommandBuffer commandBuffer, any obj, VkDeviceMemory memory) {
+    memoryObject := GetDeviceMemory(memory)
+    memoryObject.boundCommandBuffers[commandBuffer] = null
 
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.boundObjects[as!u64(obj)] = null
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.boundObjects[as!u64(obj)] = null
 }
 
 @threadSafety("system")
-cmd VkResult vkAllocCommandBuffers(
+cmd VkResult vkAllocateCommandBuffers(
         VkDevice                                    device,
-        const VkCmdBufferAllocInfo*                 pAllocInfo,
-        VkCmdBuffer*                                pCmdBuffers) {
-    assert(pAllocInfo[0].sType == VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO)
+        const VkCommandBufferAllocateInfo*          pAllocateInfo,
+        VkCommandBuffer*                            pCommandBuffers) {
+    assert(pAllocateInfo[0].sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOC_INFO)
 
-    count := pAllocInfo[0].bufferCount
-    cmdBuffers := pCmdBuffers[0:count]
+    count := pAllocateInfo[0].bufferCount
+    commandBuffers := pCommandBuffers[0:count]
     for i in (0 .. count) {
-        cmdBuffer := ?
-        cmdBuffers[i] = cmdBuffer
-        State.CmdBuffers[cmdBuffer] = new!CmdBufferObject(device: device)
+        commandBuffer := ?
+        commandBuffers[i] = commandBuffer
+        State.CommandBuffers[commandBuffer] = new!CommandBufferObject(device: device)
     }
 
     return ?
@@ -3878,26 +3877,26 @@ cmd VkResult vkAllocCommandBuffers(
 @threadSafety("system")
 cmd void vkFreeCommandBuffers(
         VkDevice                                    device,
-        VkCmdPool                                   cmdPool,
+        VkCommandPool                               commandPool,
         u32                                         commandBufferCount,
-        const VkCmdBuffer*                          pCommandBuffers) {
+        const VkCommandBuffer*                      pCommandBuffers) {
     deviceObject := GetDevice(device)
 
-    cmdBuffers := pCommandBuffers[0:commandBufferCount]
+    commandBuffers := pCommandBuffers[0:commandBufferCount]
     for i in (0 .. commandBufferCount) {
-        cmdBufferObject := GetCmdBuffer(cmdBuffers[i])
-        assert(cmdBufferObject.device == device)
+        commandBufferObject := GetCommandBuffer(commandBuffers[i])
+        assert(commandBufferObject.device == device)
         // TODO: iterate over boundObjects and clear memory bindings
-        State.CmdBuffers[cmdBuffers[i]] = null
+        State.CommandBuffers[commandBuffers[i]] = null
     }
 }
 
 @threadSafety("app")
 cmd VkResult vkBeginCommandBuffer(
-        VkCmdBuffer                                 cmdBuffer,
-        const VkCmdBufferBeginInfo*                 pBeginInfo) {
-    assert(pBeginInfo.sType == VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO)
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkCommandBuffer                             commandBuffer,
+        const VkCommandBufferBeginInfo*             pBeginInfo) {
+    assert(pBeginInfo.sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     // TODO: iterate over boundObjects and clear memory bindings
 
@@ -3906,17 +3905,17 @@ cmd VkResult vkBeginCommandBuffer(
 
 @threadSafety("app")
 cmd VkResult vkEndCommandBuffer(
-        VkCmdBuffer                                 cmdBuffer) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkCommandBuffer                             commandBuffer) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     return ?
 }
 
 @threadSafety("app")
 cmd VkResult vkResetCommandBuffer(
-        VkCmdBuffer                                 cmdBuffer,
-        VkCmdBufferResetFlags                       flags) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkCommandBuffer                             commandBuffer,
+        VkCommandBufferResetFlags                   flags) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     // TODO: iterate over boundObjects and clear memory bindings
 
@@ -3928,106 +3927,106 @@ cmd VkResult vkResetCommandBuffer(
 
 @threadSafety("app")
 cmd void vkCmdBindPipeline(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkPipelineBindPoint                         pipelineBindPoint,
         VkPipeline                                  pipeline) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     pipelineObject := GetPipeline(pipeline)
-    assert(cmdBufferObject.device == pipelineObject.device)
+    assert(commandBufferObject.device == pipelineObject.device)
 
     queue := switch (pipelineBindPoint) {
         case VK_PIPELINE_BIND_POINT_COMPUTE:  VK_QUEUE_COMPUTE_BIT
         case VK_PIPELINE_BIND_POINT_GRAPHICS: VK_QUEUE_GRAPHICS_BIT
     }
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, queue)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, queue)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetViewport(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         viewportCount,
         const VkViewport*                           pViewports) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetScissor(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         scissorCount,
         const VkRect2D*                             pScissors) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetLineWidth(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         f32                                         lineWidth) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetDepthBias(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         f32                                         depthBiasConstantFactor,
         f32                                         depthBiasClamp,
         f32                                         depthBiasSlopeFactor) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetBlendConstants(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         // TODO(jessehall): apic only supports 'const' on pointer types. Using
         // an annotation as a quick hack to pass this to the template without
         // having to modify the AST and semantic model.
         @readonly f32[4]                            blendConstants) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetDepthBounds(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         f32                                         minDepthBounds,
         f32                                         maxDepthBounds) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetStencilCompareMask(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilCompareMask) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetStencilWriteMask(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilWriteMask) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetStencilReference(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
         u32                                         stencilReference) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdBindDescriptorSets(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkPipelineBindPoint                         pipelineBindPoint,
         VkPipelineLayout                            layout,
         u32                                         firstSet,
@@ -4035,13 +4034,13 @@ cmd void vkCmdBindDescriptorSets(
         const VkDescriptorSet*                      pDescriptorSets,
         u32                                         dynamicOffsetCount,
         const u32*                                  pDynamicOffsets) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     descriptorSets := pDescriptorSets[0:descriptorSetCount]
     for i in (0 .. descriptorSetCount) {
         descriptorSet := descriptorSets[i]
         descriptorSetObject := GetDescriptorSet(descriptorSet)
-        assert(cmdBufferObject.device == descriptorSetObject.device)
+        assert(commandBufferObject.device == descriptorSetObject.device)
     }
 
     dynamicOffsets := pDynamicOffsets[0:dynamicOffsetCount]
@@ -4053,32 +4052,32 @@ cmd void vkCmdBindDescriptorSets(
         case VK_PIPELINE_BIND_POINT_COMPUTE:  VK_QUEUE_COMPUTE_BIT
         case VK_PIPELINE_BIND_POINT_GRAPHICS: VK_QUEUE_GRAPHICS_BIT
     }
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, queue)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, queue)
 }
 
 @threadSafety("app")
 cmd void vkCmdBindIndexBuffer(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset,
         VkIndexType                                 indexType) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     bufferObject := GetBuffer(buffer)
-    assert(cmdBufferObject.device == bufferObject.device)
+    assert(commandBufferObject.device == bufferObject.device)
 
-    bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
+    bindCommandBuffer(commandBuffer, buffer, bufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdBindVertexBuffers(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         startBinding,
         u32                                         bindingCount,
         const VkBuffer*                             pBuffers,
         const VkDeviceSize*                         pOffsets) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     // TODO: check if not [startBinding:startBinding+bindingCount]
     buffers := pBuffers[0:bindingCount]
@@ -4087,395 +4086,395 @@ cmd void vkCmdBindVertexBuffers(
         buffer := buffers[i]
         offset := offsets[i]
         bufferObject := GetBuffer(buffer)
-        assert(cmdBufferObject.device == bufferObject.device)
+        assert(commandBufferObject.device == bufferObject.device)
 
-        bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
+        bindCommandBuffer(commandBuffer, buffer, bufferObject.memory)
     }
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDraw(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         vertexCount,
         u32                                         instanceCount,
         u32                                         firstVertex,
         u32                                         firstInstance) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDrawIndexed(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         indexCount,
         u32                                         instanceCount,
         u32                                         firstIndex,
         s32                                         vertexOffset,
         u32                                         firstInstance) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDrawIndirect(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset,
         u32                                         drawCount,
         u32                                         stride) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     bufferObject := GetBuffer(buffer)
-    assert(cmdBufferObject.device == bufferObject.device)
+    assert(commandBufferObject.device == bufferObject.device)
 
-    bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
+    bindCommandBuffer(commandBuffer, buffer, bufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDrawIndexedIndirect(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset,
         u32                                         drawCount,
         u32                                         stride) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     bufferObject := GetBuffer(buffer)
-    assert(cmdBufferObject.device == bufferObject.device)
+    assert(commandBufferObject.device == bufferObject.device)
 
-    bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
+    bindCommandBuffer(commandBuffer, buffer, bufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDispatch(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         x,
         u32                                         y,
         u32                                         z) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdDispatchIndirect(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    buffer,
         VkDeviceSize                                offset) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     bufferObject := GetBuffer(buffer)
-    assert(cmdBufferObject.device == bufferObject.device)
+    assert(commandBufferObject.device == bufferObject.device)
 
-    bindCmdBuffer(cmdBuffer, buffer, bufferObject.mem)
+    bindCommandBuffer(commandBuffer, buffer, bufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_COMPUTE_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdCopyBuffer(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    srcBuffer,
-        VkBuffer                                    destBuffer,
+        VkBuffer                                    dstBuffer,
         u32                                         regionCount,
         const VkBufferCopy*                         pRegions) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcBufferObject := GetBuffer(srcBuffer)
-    destBufferObject := GetBuffer(destBuffer)
-    assert(cmdBufferObject.device == srcBufferObject.device)
-    assert(cmdBufferObject.device == destBufferObject.device)
+    dstBufferObject := GetBuffer(dstBuffer)
+    assert(commandBufferObject.device == srcBufferObject.device)
+    assert(commandBufferObject.device == dstBufferObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcBuffer, srcBufferObject.mem)
-    bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
+    bindCommandBuffer(commandBuffer, srcBuffer, srcBufferObject.memory)
+    bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdCopyImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     srcImage,
         VkImageLayout                               srcImageLayout,
-        VkImage                                     destImage,
-        VkImageLayout                               destImageLayout,
+        VkImage                                     dstImage,
+        VkImageLayout                               dstImageLayout,
         u32                                         regionCount,
         const VkImageCopy*                          pRegions) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcImageObject := GetImage(srcImage)
-    destImageObject := GetImage(destImage)
-    assert(cmdBufferObject.device == srcImageObject.device)
-    assert(cmdBufferObject.device == destImageObject.device)
+    dstImageObject := GetImage(dstImage)
+    assert(commandBufferObject.device == srcImageObject.device)
+    assert(commandBufferObject.device == dstImageObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
-    bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
+    bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
+    bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdBlitImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     srcImage,
         VkImageLayout                               srcImageLayout,
-        VkImage                                     destImage,
-        VkImageLayout                               destImageLayout,
+        VkImage                                     dstImage,
+        VkImageLayout                               dstImageLayout,
         u32                                         regionCount,
         const VkImageBlit*                          pRegions,
         VkFilter                                    filter) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcImageObject := GetImage(srcImage)
-    destImageObject := GetImage(destImage)
-    assert(cmdBufferObject.device == srcImageObject.device)
-    assert(cmdBufferObject.device == destImageObject.device)
+    dstImageObject := GetImage(dstImage)
+    assert(commandBufferObject.device == srcImageObject.device)
+    assert(commandBufferObject.device == dstImageObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
-    bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
+    bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
+    bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdCopyBufferToImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkBuffer                                    srcBuffer,
-        VkImage                                     destImage,
-        VkImageLayout                               destImageLayout,
+        VkImage                                     dstImage,
+        VkImageLayout                               dstImageLayout,
         u32                                         regionCount,
         const VkBufferImageCopy*                    pRegions) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcBufferObject := GetBuffer(srcBuffer)
-    destImageObject := GetImage(destImage)
-    assert(cmdBufferObject.device == srcBufferObject.device)
-    assert(cmdBufferObject.device == destImageObject.device)
+    dstImageObject := GetImage(dstImage)
+    assert(commandBufferObject.device == srcBufferObject.device)
+    assert(commandBufferObject.device == dstImageObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcBuffer, srcBufferObject.mem)
-    bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
+    bindCommandBuffer(commandBuffer, srcBuffer, srcBufferObject.memory)
+    bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdCopyImageToBuffer(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     srcImage,
         VkImageLayout                               srcImageLayout,
-        VkBuffer                                    destBuffer,
+        VkBuffer                                    dstBuffer,
         u32                                         regionCount,
         const VkBufferImageCopy*                    pRegions) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcImageObject := GetImage(srcImage)
-    destBufferObject := GetBuffer(destBuffer)
-    assert(cmdBufferObject.device == srcImageObject.device)
-    assert(cmdBufferObject.device == destBufferObject.device)
+    dstBufferObject := GetBuffer(dstBuffer)
+    assert(commandBufferObject.device == srcImageObject.device)
+    assert(commandBufferObject.device == dstBufferObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
-    bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
+    bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
+    bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdUpdateBuffer(
-        VkCmdBuffer                                 cmdBuffer,
-        VkBuffer                                    destBuffer,
-        VkDeviceSize                                destOffset,
+        VkCommandBuffer                             commandBuffer,
+        VkBuffer                                    dstBuffer,
+        VkDeviceSize                                dstOffset,
         VkDeviceSize                                dataSize,
         const u32*                                  pData) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    destBufferObject := GetBuffer(destBuffer)
-    assert(cmdBufferObject.device == destBufferObject.device)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    dstBufferObject := GetBuffer(dstBuffer)
+    assert(commandBufferObject.device == dstBufferObject.device)
 
     data := pData[0:dataSize]
 
-    bindCmdBuffer(cmdBuffer, destBuffer, destBufferObject.mem)
+    bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdFillBuffer(
-        VkCmdBuffer                                 cmdBuffer,
-        VkBuffer                                    destBuffer,
-        VkDeviceSize                                destOffset,
+        VkCommandBuffer                             commandBuffer,
+        VkBuffer                                    dstBuffer,
+        VkDeviceSize                                dstOffset,
         VkDeviceSize                                size,
         u32                                         data) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
-    destBufferObject := GetBuffer(destBuffer)
-    assert(cmdBufferObject.device == destBufferObject.device)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
+    dstBufferObject := GetBuffer(dstBuffer)
+    assert(commandBufferObject.device == dstBufferObject.device)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdClearColorImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     image,
         VkImageLayout                               imageLayout,
         const VkClearColorValue*                    pColor,
         u32                                         rangeCount,
         const VkImageSubresourceRange*              pRanges) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     imageObject := GetImage(image)
-    assert(cmdBufferObject.device == imageObject.device)
+    assert(commandBufferObject.device == imageObject.device)
 
     ranges := pRanges[0:rangeCount]
     for i in (0 .. rangeCount) {
         range := ranges[i]
     }
 
-    bindCmdBuffer(cmdBuffer, image, imageObject.mem)
+    bindCommandBuffer(commandBuffer, image, imageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdClearDepthStencilImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     image,
         VkImageLayout                               imageLayout,
         const VkClearDepthStencilValue*             pDepthStencil,
         u32                                         rangeCount,
         const VkImageSubresourceRange*              pRanges) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     imageObject := GetImage(image)
-    assert(cmdBufferObject.device == imageObject.device)
+    assert(commandBufferObject.device == imageObject.device)
 
     ranges := pRanges[0:rangeCount]
     for i in (0 .. rangeCount) {
         range := ranges[i]
     }
 
-    bindCmdBuffer(cmdBuffer, image, imageObject.mem)
+    bindCommandBuffer(commandBuffer, image, imageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdClearAttachments(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         attachmentCount,
         const VkClearAttachment*                    pAttachments,
         u32                                         rectCount,
         const VkClearRect*                          pRects) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     rects := pRects[0:rectCount]
     for i in (0 .. rectCount) {
         rect := rects[i]
     }
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdResolveImage(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkImage                                     srcImage,
         VkImageLayout                               srcImageLayout,
-        VkImage                                     destImage,
-        VkImageLayout                               destImageLayout,
+        VkImage                                     dstImage,
+        VkImageLayout                               dstImageLayout,
         u32                                         regionCount,
         const VkImageResolve*                       pRegions) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     srcImageObject := GetImage(srcImage)
-    destImageObject := GetImage(destImage)
-    assert(cmdBufferObject.device == srcImageObject.device)
-    assert(cmdBufferObject.device == destImageObject.device)
+    dstImageObject := GetImage(dstImage)
+    assert(commandBufferObject.device == srcImageObject.device)
+    assert(commandBufferObject.device == dstImageObject.device)
 
     regions := pRegions[0:regionCount]
     for i in (0 .. regionCount) {
         region := regions[i]
     }
 
-    bindCmdBuffer(cmdBuffer, srcImage, srcImageObject.mem)
-    bindCmdBuffer(cmdBuffer, destImage, destImageObject.mem)
+    bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
+    bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 @threadSafety("app")
 cmd void vkCmdSetEvent(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkEvent                                     event,
         VkPipelineStageFlags                        stageMask) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     eventObject := GetEvent(event)
-    assert(cmdBufferObject.device == eventObject.device)
+    assert(commandBufferObject.device == eventObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdResetEvent(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkEvent                                     event,
         VkPipelineStageFlags                        stageMask) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     eventObject := GetEvent(event)
-    assert(cmdBufferObject.device == eventObject.device)
+    assert(commandBufferObject.device == eventObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdWaitEvents(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         u32                                         eventCount,
         const VkEvent*                              pEvents,
         VkPipelineStageFlags                        srcStageMask,
-        VkPipelineStageFlags                        destStageMask,
-        u32                                         memBarrierCount,
-        const void* const*                          ppMemBarriers) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkPipelineStageFlags                        dstStageMask,
+        u32                                         memoryBarrierCount,
+        const void* const*                          ppMemoryBarriers) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
     events := pEvents[0:eventCount]
     for i in (0 .. eventCount) {
         event := events[i]
         eventObject := GetEvent(event)
-        assert(cmdBufferObject.device == eventObject.device)
+        assert(commandBufferObject.device == eventObject.device)
     }
 
-    pMemBarriers := ppMemBarriers[0:memBarrierCount]
-    for i in (0 .. memBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemBarriers[i])[0].sType {
+    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    for i in (0 .. memoryBarrierCount) {
+        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
             case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memBarrier := as!VkMemoryBarrier const*(pMemBarriers[i])[0]
+                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
             }
             case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemBarrier := as!VkImageMemoryBarrier const*(pMemBarriers[i])[0]
-                imageObject := GetImage(imageMemBarrier.image)
-                assert(imageObject.device == cmdBufferObject.device)
+                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
+                imageObject := GetImage(imageMemoryBarrier.image)
+                assert(imageObject.device == commandBufferObject.device)
             }
             case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemBarrier := as!VkBufferMemoryBarrier const*(pMemBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemBarrier.buffer)
-                assert(bufferObject.device == cmdBufferObject.device)
+                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
+                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+                assert(bufferObject.device == commandBufferObject.device)
             }
         }
     }
@@ -4483,29 +4482,29 @@ cmd void vkCmdWaitEvents(
 
 @threadSafety("app")
 cmd void vkCmdPipelineBarrier(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkPipelineStageFlags                        srcStageMask,
-        VkPipelineStageFlags                        destStageMask,
+        VkPipelineStageFlags                        dstStageMask,
         VkDependencyFlags                           dependencyFlags,
-        u32                                         memBarrierCount,
-        const void* const*                          ppMemBarriers) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        u32                                         memoryBarrierCount,
+        const void* const*                          ppMemoryBarriers) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    pMemBarriers := ppMemBarriers[0:memBarrierCount]
-    for i in (0 .. memBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemBarriers[i])[0].sType {
+    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    for i in (0 .. memoryBarrierCount) {
+        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
             case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memBarrier := as!VkMemoryBarrier const*(pMemBarriers[i])[0]
+                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
             }
             case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemBarrier := as!VkImageMemoryBarrier const*(pMemBarriers[i])[0]
-                imageObject := GetImage(imageMemBarrier.image)
-                assert(imageObject.device == cmdBufferObject.device)
+                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
+                imageObject := GetImage(imageMemoryBarrier.image)
+                assert(imageObject.device == commandBufferObject.device)
             }
             case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemBarrier := as!VkBufferMemoryBarrier const*(pMemBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemBarrier.buffer)
-                assert(bufferObject.device == cmdBufferObject.device)
+                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
+                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+                assert(bufferObject.device == commandBufferObject.device)
             }
         }
     }
@@ -4513,115 +4512,115 @@ cmd void vkCmdPipelineBarrier(
 
 @threadSafety("app")
 cmd void vkCmdBeginQuery(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
         u32                                         slot,
         VkQueryControlFlags                         flags) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
-    assert(cmdBufferObject.device == queryPoolObject.device)
+    assert(commandBufferObject.device == queryPoolObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdEndQuery(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
         u32                                         slot) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
-    assert(cmdBufferObject.device == queryPoolObject.device)
+    assert(commandBufferObject.device == queryPoolObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdResetQueryPool(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
         u32                                         startQuery,
         u32                                         queryCount) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
-    assert(cmdBufferObject.device == queryPoolObject.device)
+    assert(commandBufferObject.device == queryPoolObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdWriteTimestamp(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkPipelineStageFlagBits                     pipelineStage,
         VkQueryPool                                 queryPool,
         u32                                         slot) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
-    assert(cmdBufferObject.device == queryPoolObject.device)
+    assert(commandBufferObject.device == queryPoolObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdCopyQueryPoolResults(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
         u32                                         startQuery,
         u32                                         queryCount,
-        VkBuffer                                    destBuffer,
-        VkDeviceSize                                destOffset,
+        VkBuffer                                    dstBuffer,
+        VkDeviceSize                                dstOffset,
         VkDeviceSize                                stride,
         VkQueryResultFlags                          flags) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
-    destBufferObject := GetBuffer(destBuffer)
-    assert(cmdBufferObject.device == queryPoolObject.device)
-    assert(cmdBufferObject.device == destBufferObject.device)
+    dstBufferObject := GetBuffer(dstBuffer)
+    assert(commandBufferObject.device == queryPoolObject.device)
+    assert(commandBufferObject.device == dstBufferObject.device)
 }
 
 cmd void vkCmdPushConstants(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkPipelineLayout                            layout,
         VkShaderStageFlags                          stageFlags,
         u32                                         offset,
         u32                                         size,
         const void*                                 values) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     layoutObject := GetPipelineLayout(layout)
-    assert(cmdBufferObject.device == layoutObject.device)
+    assert(commandBufferObject.device == layoutObject.device)
 }
 
 @threadSafety("app")
 cmd void vkCmdBeginRenderPass(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         const VkRenderPassBeginInfo*                pRenderPassBegin,
         VkRenderPassContents                        contents) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
     renderPassObject := GetRenderPass(pRenderPassBegin.renderPass)
     framebufferObject := GetFramebuffer(pRenderPassBegin.framebuffer)
-    assert(cmdBufferObject.device == renderPassObject.device)
-    assert(cmdBufferObject.device == framebufferObject.device)
+    assert(commandBufferObject.device == renderPassObject.device)
+    assert(commandBufferObject.device == framebufferObject.device)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 cmd void vkCmdNextSubpass(
-        VkCmdBuffer                                 cmdBuffer,
+        VkCommandBuffer                             commandBuffer,
         VkRenderPassContents                        contents) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 }
 
 @threadSafety("app")
 cmd void vkCmdEndRenderPass(
-        VkCmdBuffer                                 cmdBuffer) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkCommandBuffer                             commandBuffer) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
 
 cmd void vkCmdExecuteCommands(
-        VkCmdBuffer                                 cmdBuffer,
-        u32                                         cmdBuffersCount,
-        const VkCmdBuffer*                          pCmdBuffers) {
-    cmdBufferObject := GetCmdBuffer(cmdBuffer)
+        VkCommandBuffer                             commandBuffer,
+        u32                                         commandBuffersCount,
+        const VkCommandBuffer*                      pCommandBuffers) {
+    commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    cmdBuffers := pCmdBuffers[0:cmdBuffersCount]
-    for i in (0 .. cmdBuffersCount) {
-        secondaryCmdBuffer := cmdBuffers[i]
-        secondaryCmdBufferObject := GetCmdBuffer(secondaryCmdBuffer)
-        assert(cmdBufferObject.device == secondaryCmdBufferObject.device)
+    commandBuffers := pCommandBuffers[0:commandBuffersCount]
+    for i in (0 .. commandBuffersCount) {
+        secondaryCommandBuffer := commandBuffers[i]
+        secondaryCommandBufferObject := GetCommandBuffer(secondaryCommandBuffer)
+        assert(commandBufferObject.device == secondaryCommandBufferObject.device)
     }
 }
 
@@ -4966,7 +4965,7 @@ StateObject State
     map!(VkPhysicalDevice, ref!PhysicalDeviceObject) PhysicalDevices
     map!(VkDevice,         ref!DeviceObject)         Devices
     map!(VkQueue,          ref!QueueObject)          Queues
-    map!(VkCmdBuffer,      ref!CmdBufferObject)      CmdBuffers
+    map!(VkCommandBuffer,  ref!CommandBufferObject)  CommandBuffers
 
     // Non-dispatchable objects.
     map!(VkDeviceMemory,             ref!DeviceMemoryObject)             DeviceMemories
@@ -4989,7 +4988,7 @@ StateObject State
     map!(VkFramebuffer,              ref!FramebufferObject)              Framebuffers
     map!(VkRenderPass,               ref!RenderPassObject)               RenderPasses
     map!(VkPipelineCache,            ref!PipelineCacheObject)            PipelineCaches
-    map!(VkCmdPool,                  ref!CmdPoolObject)                  CmdPools
+    map!(VkCommandPool,              ref!CommandPoolObject)              CommandPools
     map!(VkSurfaceKHR,               ref!SurfaceObject)                  Surfaces
     map!(VkSwapchainKHR,             ref!SwapchainObject)                Swapchains
 }
@@ -5010,23 +5009,23 @@ StateObject State
     VkQueueFlags  flags
 }
 
-@internal class CmdBufferObject {
+@internal class CommandBufferObject {
     VkDevice                  device
     map!(u64, VkDeviceMemory) boundObjects
     VkQueueFlags              queueFlags
 }
 
 @internal class DeviceMemoryObject {
-    VkDevice                         device
-    VkDeviceSize                     allocationSize
-    map!(u64, VkDeviceSize         ) boundObjects
-    map!(VkCmdBuffer, VkCmdBuffer)   boundCommandBuffers
+    VkDevice                                device
+    VkDeviceSize                            allocationSize
+    map!(u64, VkDeviceSize)                 boundObjects
+    map!(VkCommandBuffer, VkCommandBuffer)  boundCommandBuffers
 }
 
 @internal class BufferObject {
     VkDevice              device
-    VkDeviceMemory        mem
-    VkDeviceSize          memOffset
+    VkDeviceMemory        memory
+    VkDeviceSize          memoryOffset
 }
 
 @internal class BufferViewObject {
@@ -5036,8 +5035,8 @@ StateObject State
 
 @internal class ImageObject {
     VkDevice              device
-    VkDeviceMemory        mem
-    VkDeviceSize          memOffset
+    VkDeviceMemory        memory
+    VkDeviceSize          memoryOffset
 }
 
 @internal class ImageViewObject {
@@ -5106,7 +5105,7 @@ StateObject State
     VkDevice      device
 }
 
-@internal class CmdPoolObject {
+@internal class CommandPoolObject {
     VkDevice      device
 }
 
@@ -5138,14 +5137,14 @@ macro ref!QueueObject GetQueue(VkQueue queue) {
     return State.Queues[queue]
 }
 
-macro ref!CmdBufferObject GetCmdBuffer(VkCmdBuffer cmdBuffer) {
-    assert(cmdBuffer in State.CmdBuffers)
-    return State.CmdBuffers[cmdBuffer]
+macro ref!CommandBufferObject GetCommandBuffer(VkCommandBuffer commandBuffer) {
+    assert(commandBuffer in State.CommandBuffers)
+    return State.CommandBuffers[commandBuffer]
 }
 
-macro ref!DeviceMemoryObject GetDeviceMemory(VkDeviceMemory mem) {
-    assert(mem in State.DeviceMemories)
-    return State.DeviceMemories[mem]
+macro ref!DeviceMemoryObject GetDeviceMemory(VkDeviceMemory memory) {
+    assert(memory in State.DeviceMemories)
+    return State.DeviceMemories[memory]
 }
 
 macro ref!BufferObject GetBuffer(VkBuffer buffer) {
@@ -5243,9 +5242,9 @@ macro ref!PipelineCacheObject GetPipelineCache(VkPipelineCache pipelineCache) {
     return State.PipelineCaches[pipelineCache]
 }
 
-macro ref!CmdPoolObject GetCmdPool(VkCmdPool cmdPool) {
-    assert(cmdPool in State.CmdPools)
-    return State.CmdPools[cmdPool]
+macro ref!CommandPoolObject GetCommandPool(VkCommandPool commandPool) {
+    assert(commandPool in State.CommandPools)
+    return State.CommandPools[commandPool]
 }
 
 macro ref!SurfaceObject GetSurface(VkSurfaceKHR surface) {

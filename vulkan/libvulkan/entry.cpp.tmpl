@@ -63,8 +63,8 @@ namespace {
     inline const DeviceVtbl& GetVtbl(VkQueue queue) {
         return **reinterpret_cast<DeviceVtbl**>(queue);
     }
-    inline const DeviceVtbl& GetVtbl(VkCmdBuffer cmdBuffer) {
-        return **reinterpret_cast<DeviceVtbl**>(cmdBuffer);
+    inline const DeviceVtbl& GetVtbl(VkCommandBuffer commandBuffer) {
+        return **reinterpret_cast<DeviceVtbl**>(commandBuffer);
     }
 } // namespace
 ¶
@@ -159,7 +159,7 @@ namespace {
 {{define "Dispatch#VkPhysicalDevice"}}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch#VkDevice"        }}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch#VkQueue"         }}GetVtbl({{$.Node.Name}}).{{end}}
-{{define "Dispatch#VkCmdBuffer"     }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkCommandBuffer" }}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch_Default"         }}vulkan::{{end}}
 {{define "Dispatch"}}
   {{AssertType $ "Function"}}

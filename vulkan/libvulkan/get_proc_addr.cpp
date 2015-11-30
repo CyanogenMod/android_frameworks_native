@@ -74,9 +74,9 @@ const NameProcEntry kInstanceProcTbl[] = {
 const NameProcEntry kDeviceProcTbl[] = {
     // clang-format off
     {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR)},
-    {"vkAllocCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkAllocCommandBuffers)},
-    {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkAllocDescriptorSets)},
-    {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(vkAllocMemory)},
+    {"vkAllocateCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers)},
+    {"vkAllocateDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkAllocateDescriptorSets)},
+    {"vkAllocateMemory", reinterpret_cast<PFN_vkVoidFunction>(vkAllocateMemory)},
     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer)},
     {"vkBindBufferMemory", reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory)},
     {"vkBindImageMemory", reinterpret_cast<PFN_vkVoidFunction>(vkBindImageMemory)},
@@ -231,9 +231,9 @@ const NameOffsetEntry kInstanceOffsetTbl[] = {
 const NameOffsetEntry kDeviceOffsetTbl[] = {
     // clang-format off
     {"vkAcquireNextImageKHR", offsetof(DeviceVtbl, AcquireNextImageKHR)},
-    {"vkAllocCommandBuffers", offsetof(DeviceVtbl, AllocCommandBuffers)},
-    {"vkAllocDescriptorSets", offsetof(DeviceVtbl, AllocDescriptorSets)},
-    {"vkAllocMemory", offsetof(DeviceVtbl, AllocMemory)},
+    {"vkAllocateCommandBuffers", offsetof(DeviceVtbl, AllocateCommandBuffers)},
+    {"vkAllocateDescriptorSets", offsetof(DeviceVtbl, AllocateDescriptorSets)},
+    {"vkAllocateMemory", offsetof(DeviceVtbl, AllocateMemory)},
     {"vkBeginCommandBuffer", offsetof(DeviceVtbl, BeginCommandBuffer)},
     {"vkBindBufferMemory", offsetof(DeviceVtbl, BindBufferMemory)},
     {"vkBindImageMemory", offsetof(DeviceVtbl, BindImageMemory)},
@@ -530,9 +530,9 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkDeviceWaitIdle");
         success = false;
     }
-    vtbl.AllocMemory = reinterpret_cast<PFN_vkAllocMemory>(get_proc_addr(device, "vkAllocMemory"));
-    if (UNLIKELY(!vtbl.AllocMemory)) {
-        ALOGE("missing device proc: %s", "vkAllocMemory");
+    vtbl.AllocateMemory = reinterpret_cast<PFN_vkAllocateMemory>(get_proc_addr(device, "vkAllocateMemory"));
+    if (UNLIKELY(!vtbl.AllocateMemory)) {
+        ALOGE("missing device proc: %s", "vkAllocateMemory");
         success = false;
     }
     vtbl.FreeMemory = reinterpret_cast<PFN_vkFreeMemory>(get_proc_addr(device, "vkFreeMemory"));
@@ -815,9 +815,9 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkResetDescriptorPool");
         success = false;
     }
-    vtbl.AllocDescriptorSets = reinterpret_cast<PFN_vkAllocDescriptorSets>(get_proc_addr(device, "vkAllocDescriptorSets"));
-    if (UNLIKELY(!vtbl.AllocDescriptorSets)) {
-        ALOGE("missing device proc: %s", "vkAllocDescriptorSets");
+    vtbl.AllocateDescriptorSets = reinterpret_cast<PFN_vkAllocateDescriptorSets>(get_proc_addr(device, "vkAllocateDescriptorSets"));
+    if (UNLIKELY(!vtbl.AllocateDescriptorSets)) {
+        ALOGE("missing device proc: %s", "vkAllocateDescriptorSets");
         success = false;
     }
     vtbl.FreeDescriptorSets = reinterpret_cast<PFN_vkFreeDescriptorSets>(get_proc_addr(device, "vkFreeDescriptorSets"));
@@ -870,9 +870,9 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkResetCommandPool");
         success = false;
     }
-    vtbl.AllocCommandBuffers = reinterpret_cast<PFN_vkAllocCommandBuffers>(get_proc_addr(device, "vkAllocCommandBuffers"));
-    if (UNLIKELY(!vtbl.AllocCommandBuffers)) {
-        ALOGE("missing device proc: %s", "vkAllocCommandBuffers");
+    vtbl.AllocateCommandBuffers = reinterpret_cast<PFN_vkAllocateCommandBuffers>(get_proc_addr(device, "vkAllocateCommandBuffers"));
+    if (UNLIKELY(!vtbl.AllocateCommandBuffers)) {
+        ALOGE("missing device proc: %s", "vkAllocateCommandBuffers");
         success = false;
     }
     vtbl.FreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(get_proc_addr(device, "vkFreeCommandBuffers"));
