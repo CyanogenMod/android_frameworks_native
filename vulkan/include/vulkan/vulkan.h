@@ -41,11 +41,11 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 202, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 203, 0)
 
 
 #define VK_NULL_HANDLE 0
-        
+
 
 
 #define VK_DEFINE_HANDLE(object) typedef struct object##_T* object;
@@ -56,7 +56,7 @@ extern "C" {
 #else
         #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef uint64_t object;
 #endif
-        
+
 
 
 typedef uint32_t VkFlags;
@@ -124,9 +124,10 @@ typedef enum VkResult {
     VK_ERROR_FEATURE_NOT_PRESENT = -8,
     VK_ERROR_INCOMPATIBLE_DRIVER = -9,
     VK_ERROR_TOO_MANY_OBJECTS = -10,
-    VK_RESULT_BEGIN_RANGE = VK_ERROR_TOO_MANY_OBJECTS,
+    VK_ERROR_FORMAT_NOT_SUPPORTED = -11,
+    VK_RESULT_BEGIN_RANGE = VK_ERROR_FORMAT_NOT_SUPPORTED,
     VK_RESULT_END_RANGE = VK_INCOMPLETE,
-    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_TOO_MANY_OBJECTS + 1),
+    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_FORMAT_NOT_SUPPORTED + 1),
     VK_RESULT_MAX_ENUM = 0x7FFFFFFF
 } VkResult;
 
@@ -2140,7 +2141,7 @@ typedef void (VKAPI *PFN_vkDestroyInstance)(VkInstance instance, const VkAllocat
 typedef VkResult (VKAPI *PFN_vkEnumeratePhysicalDevices)(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
 typedef void (VKAPI *PFN_vkGetPhysicalDeviceFeatures)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures);
 typedef void (VKAPI *PFN_vkGetPhysicalDeviceFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties);
-typedef void (VKAPI *PFN_vkGetPhysicalDeviceImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
+typedef VkResult (VKAPI *PFN_vkGetPhysicalDeviceImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
 typedef void (VKAPI *PFN_vkGetPhysicalDeviceProperties)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties* pProperties);
 typedef void (VKAPI *PFN_vkGetPhysicalDeviceQueueFamilyProperties)(VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties* pQueueFamilyProperties);
 typedef void (VKAPI *PFN_vkGetPhysicalDeviceMemoryProperties)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties);
@@ -2297,7 +2298,7 @@ void VKAPI vkGetPhysicalDeviceFormatProperties(
     VkFormat                                    format,
     VkFormatProperties*                         pFormatProperties);
 
-void VKAPI vkGetPhysicalDeviceImageFormatProperties(
+VkResult VKAPI vkGetPhysicalDeviceImageFormatProperties(
     VkPhysicalDevice                            physicalDevice,
     VkFormat                                    format,
     VkImageType                                 type,
@@ -3185,7 +3186,7 @@ VkResult VKAPI vkGetPhysicalDeviceSurfacePresentModesKHR(
 #define VK_KHR_swapchain 1
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
 
-#define VK_KHR_SWAPCHAIN_REVISION         64
+#define VK_KHR_SWAPCHAIN_REVISION         65
 #define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER 2
 #define VK_KHR_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_swapchain"
 #define VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000800)
@@ -3196,7 +3197,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
 
 typedef struct VkSwapchainCreateInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     VkSurfaceKHR                                surface;
     uint32_t                                    minImageCount;
     VkFormat                                    imageFormat;
@@ -3216,12 +3217,13 @@ typedef struct VkSwapchainCreateInfoKHR {
 
 typedef struct VkPresentInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     uint32_t                                    waitSemaphoreCount;
     const VkSemaphore*                          pWaitSemaphores;
     uint32_t                                    swapchainCount;
     const VkSwapchainKHR*                       pSwapchains;
     const uint32_t*                             imageIndices;
+    VkResult*                                   pResults;
 } VkPresentInfoKHR;
 
 
@@ -3300,7 +3302,7 @@ typedef struct VkDisplayModePropertiesKHR {
 
 typedef struct VkDisplayModeCreateInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     VkDisplayModeParametersKHR                  parameters;
 } VkDisplayModeCreateInfoKHR;
 
@@ -3323,7 +3325,7 @@ typedef struct VkDisplayPlanePropertiesKHR {
 
 typedef struct VkDisplaySurfaceCreateInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     VkDisplayModeKHR                            displayMode;
     uint32_t                                    planeIndex;
     uint32_t                                    planeStackIndex;
@@ -3392,13 +3394,13 @@ VkResult VKAPI vkCreateDisplayPlaneSurfaceKHR(
 
 typedef struct VkDisplaySwapchainCreateInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo;
 } VkDisplaySwapchainCreateInfoKHR;
 
 typedef struct VkDisplayPresentInfoKHR {
     VkStructureType                             sType;
-    const void*                                   pNext;
+    const void*                                 pNext;
     VkRect2D                                    srcRect;
     VkRect2D                                    dstRect;
     VkBool32                                    persistent;

@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 202
+define VERSION_MINOR 203
 define VERSION_PATCH 0
 
 // API limits
@@ -49,7 +49,7 @@ define NULL_HANDLE 0
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 64
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 65
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
@@ -653,6 +653,7 @@ enum VkResult {
     VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
     VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
     VK_ERROR_TOO_MANY_OBJECTS                               = 0xFFFFFFF6,
+    VK_ERROR_FORMAT_NOT_SUPPORTED                           = 0xFFFFFFF5,
 
     //@extension("VK_KHR_surface")
     VK_ERROR_SURFACE_LOST_KHR                               = 0xC0000400,
@@ -2317,6 +2318,7 @@ class VkPresentInfoKHR {
     u32                                         swapchainCount
     const VkSwapchainKHR*                       pSwapchains
     const u32*                                  imageIndices
+    const VkResult*                             pResults
 }
 
 @extension("VK_KHR_display")
@@ -2577,7 +2579,7 @@ cmd void vkGetPhysicalDeviceFormatProperties(
     pFormatProperties[0] = formatProperties
 }
 
-cmd void vkGetPhysicalDeviceImageFormatProperties(
+cmd VkResult vkGetPhysicalDeviceImageFormatProperties(
         VkPhysicalDevice                            physicalDevice,
         VkFormat                                    format,
         VkImageType                                 type,
@@ -2589,6 +2591,8 @@ cmd void vkGetPhysicalDeviceImageFormatProperties(
 
     imageFormatProperties := ?
     pImageFormatProperties[0] = imageFormatProperties
+
+    return ?
 }
 
 

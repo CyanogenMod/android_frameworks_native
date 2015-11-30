@@ -746,8 +746,9 @@ void GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat
     ALOGV("TODO: vk%s", __FUNCTION__);
 }
 
-void GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
+    return VK_SUCCESS;
 }
 
 VkResult EnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {

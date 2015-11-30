@@ -702,7 +702,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
         pdev, format, properties);
 }
 
-void GetPhysicalDeviceImageFormatPropertiesBottom(
+VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
     VkPhysicalDevice pdev,
     VkFormat format,
     VkImageType type,
@@ -710,8 +710,9 @@ void GetPhysicalDeviceImageFormatPropertiesBottom(
     VkImageUsageFlags usage,
     VkImageCreateFlags flags,
     VkImageFormatProperties* properties) {
-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
-        pdev, format, type, tiling, usage, flags, properties);
+    return GetVtbl(pdev)
+        ->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
+            pdev, format, type, tiling, usage, flags, properties);
 }
 
 void GetPhysicalDevicePropertiesBottom(VkPhysicalDevice pdev,

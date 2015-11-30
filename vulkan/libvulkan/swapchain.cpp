@@ -631,6 +631,8 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
         }
         if (result != VK_SUCCESS) {
             ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
+            if (present_info->pResults)
+                present_info->pResults[sc] = result;
             if (final_result == VK_SUCCESS)
                 final_result = result;
             // TODO(jessehall): What happens to the buffer here? Does the app
@@ -645,6 +647,8 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
             // TODO(jessehall): What now? We should probably cancel the buffer,
             // I guess?
             ALOGE("queueBuffer failed: %s (%d)", strerror(-err), err);
+            if (present_info->pResults)
+                present_info->pResults[sc] = result;
             if (final_result == VK_SUCCESS)
                 final_result = VK_ERROR_INITIALIZATION_FAILED;
             continue;
@@ -655,6 +659,9 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
             img.dequeue_fence = -1;
         }
         img.dequeued = false;
+
+        if (present_info->pResults)
+            present_info->pResults[sc] = VK_SUCCESS;
     }
 
     return final_result;
