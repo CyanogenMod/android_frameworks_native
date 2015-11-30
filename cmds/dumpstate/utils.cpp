@@ -35,7 +35,9 @@
 #include <vector>
 #include <sys/prctl.h>
 
+#define LOG_TAG "dumpstate"
 #include <cutils/debugger.h>
+#include <cutils/log.h>
 #include <cutils/properties.h>
 #include <cutils/sockets.h>
 #include <private/android_filesystem_config.h>
@@ -266,7 +268,7 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
         }
         printf(") ------\n");
     }
-    ON_DRY_RUN({ close(fd); return 0; });
+    ON_DRY_RUN({ update_progress(WEIGHT_FILE); close(fd); return 0; });
 
     bool newline = false;
     fd_set read_set;
@@ -304,6 +306,7 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
             }
         }
     }
+    update_progress(WEIGHT_FILE);
     close(fd);
 
     if (!newline) printf("\n");
@@ -455,7 +458,6 @@ bool waitpid_with_timeout(pid_t pid, int timeout_seconds, int* status) {
     return true;
 }
 
-/* forks a command and waits for it to finish */
 int run_command(const char *title, int timeout_seconds, const char *command, ...) {
     fflush(stdout);
 
@@ -472,13 +474,19 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
     if (title) printf(") ------\n");
     fflush(stdout);
 
-    ON_DRY_RUN_RETURN(0);
+    ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
 
-    return run_command_always(title, timeout_seconds, args);
+    int status = run_command_always(title, timeout_seconds, args);
+    va_end(ap);
+    return status;
 }
 
 /* forks a command and waits for it to finish */
 int run_command_always(const char *title, int timeout_seconds, const char *args[]) {
+    /* TODO: for now we're simplifying the progress calculation by using the timeout as the weight.
+     * It's a good approximation for most cases, except when calling dumpsys, where its weight
+     * should be much higher proportionally to its timeout. */
+    int weight = timeout_seconds;
 
     const char *command = args[0];
     uint64_t start = nanotime();
@@ -537,6 +545,9 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     }
     if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
 
+    if (weight > 0) {
+        update_progress(weight);
+    }
     return status;
 }
 
@@ -825,4 +836,30 @@ void dump_route_tables() {
         run_command("ROUTE TABLE IPv6", 10, "ip", "-6", "route", "show", "table", table, NULL);
     }
     fclose(fp);
+}
+
+/* overall progress */
+int progress = 0;
+int do_update_progress = 1; // Set by dumpstate.cpp
+
+// TODO: make this function thread safe if sections are generated in parallel.
+void update_progress(int delta) {
+    if (!do_update_progress) return;
+
+    progress += delta;
+
+    char key[PROPERTY_KEY_MAX];
+    char value[PROPERTY_VALUE_MAX];
+    sprintf(key, "dumpstate.%d.progress", getpid());
+    sprintf(value, "%d", progress);
+
+    // stderr is ignored on normal invocations, but useful when calling /system/bin/dumpstate
+    // directly for debuggging.
+    fprintf(stderr, "Setting progress (%s): %s/%d\n", key, value, WEIGHT_TOTAL);
+
+    int status = property_set(key, value);
+    if (status) {
+        ALOGW("Could not update progress by setting system property %s to %s: %d\n",
+                key, value, status);
+    }
 }
