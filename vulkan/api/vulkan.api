@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 193
+define VERSION_MINOR 194
 define VERSION_PATCH 0
 
 // API limits
@@ -170,8 +170,8 @@ enum VkImageType {
 }
 
 enum VkImageTiling {
-    VK_IMAGE_TILING_LINEAR                                  = 0x00000000,
-    VK_IMAGE_TILING_OPTIMAL                                 = 0x00000001,
+    VK_IMAGE_TILING_OPTIMAL                                 = 0x00000000,
+    VK_IMAGE_TILING_LINEAR                                  = 0x00000001,
 }
 
 enum VkImageViewType {
@@ -190,12 +190,13 @@ enum VkCmdBufferLevel {
 }
 
 enum VkChannelSwizzle {
-    VK_CHANNEL_SWIZZLE_ZERO                                 = 0x00000000,
-    VK_CHANNEL_SWIZZLE_ONE                                  = 0x00000001,
-    VK_CHANNEL_SWIZZLE_R                                    = 0x00000002,
-    VK_CHANNEL_SWIZZLE_G                                    = 0x00000003,
-    VK_CHANNEL_SWIZZLE_B                                    = 0x00000004,
-    VK_CHANNEL_SWIZZLE_A                                    = 0x00000005,
+    VK_CHANNEL_SWIZZLE_IDENTITY                             = 0x00000000,
+    VK_CHANNEL_SWIZZLE_ZERO                                 = 0x00000001,
+    VK_CHANNEL_SWIZZLE_ONE                                  = 0x00000002,
+    VK_CHANNEL_SWIZZLE_R                                    = 0x00000003,
+    VK_CHANNEL_SWIZZLE_G                                    = 0x00000004,
+    VK_CHANNEL_SWIZZLE_B                                    = 0x00000005,
+    VK_CHANNEL_SWIZZLE_A                                    = 0x00000006,
 }
 
 enum VkDescriptorType {
@@ -228,8 +229,8 @@ enum VkBorderColor {
 }
 
 enum VkPipelineBindPoint {
-    VK_PIPELINE_BIND_POINT_COMPUTE                          = 0x00000000,
-    VK_PIPELINE_BIND_POINT_GRAPHICS                         = 0x00000001,
+    VK_PIPELINE_BIND_POINT_GRAPHICS                         = 0x00000000,
+    VK_PIPELINE_BIND_POINT_COMPUTE                          = 0x00000001,
 }
 
 enum VkPrimitiveTopology {
@@ -268,11 +269,11 @@ enum VkSamplerMipmapMode {
 }
 
 enum VkSamplerAddressMode {
-    VK_SAMPLER_ADDRESS_MODE_WRAP                            = 0x00000000,
-    VK_SAMPLER_ADDRESS_MODE_MIRROR                          = 0x00000001,
-    VK_SAMPLER_ADDRESS_MODE_CLAMP                           = 0x00000002,
-    VK_SAMPLER_ADDRESS_MODE_MIRROR_ONCE                     = 0x00000003,
-    VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER                    = 0x00000004,
+    VK_SAMPLER_ADDRESS_MODE_REPEAT                          = 0x00000000,
+    VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT                 = 0x00000001,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE                   = 0x00000002,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER                 = 0x00000003,
+    VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE            = 0x00000004,
 }
 
 enum VkCompareOp {
@@ -287,16 +288,9 @@ enum VkCompareOp {
 }
 
 enum VkFillMode {
-    VK_FILL_MODE_POINTS                                     = 0x00000000,
+    VK_FILL_MODE_SOLID                                      = 0x00000000,
     VK_FILL_MODE_WIREFRAME                                  = 0x00000001,
-    VK_FILL_MODE_SOLID                                      = 0x00000002,
-}
-
-enum VkCullMode {
-    VK_CULL_MODE_NONE                                       = 0x00000000,
-    VK_CULL_MODE_FRONT                                      = 0x00000001,
-    VK_CULL_MODE_BACK                                       = 0x00000002,
-    VK_CULL_MODE_FRONT_AND_BACK                             = 0x00000003,
+    VK_FILL_MODE_POINTS                                     = 0x00000002,
 }
 
 enum VkFrontFace {
@@ -570,57 +564,54 @@ enum VkFormat {
 /// Structure type enumerant
 enum VkStructureType {
     VK_STRUCTURE_TYPE_APPLICATION_INFO                          = 0,
-    VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO                        = 1,
-    VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO                         = 2,
-    VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO                    = 3,
-    VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO                 = 4,
-    VK_STRUCTURE_TYPE_SHADER_CREATE_INFO                        = 5,
-    VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 6,
-    VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 7,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 8,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO                     = 9,
+    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO                      = 1,
+    VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 2,
+    VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO                        = 3,
+    VK_STRUCTURE_TYPE_SUBMIT_INFO                               = 4,
+    VK_STRUCTURE_TYPE_MEMORY_ALLOC_INFO                         = 5,
+    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE                       = 6,
+    VK_STRUCTURE_TYPE_BIND_SPARSE_INFO                          = 7,
+    VK_STRUCTURE_TYPE_FENCE_CREATE_INFO                         = 8,
+    VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO                     = 9,
     VK_STRUCTURE_TYPE_EVENT_CREATE_INFO                         = 10,
-    VK_STRUCTURE_TYPE_FENCE_CREATE_INFO                         = 11,
-    VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO                     = 12,
-    VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO                    = 13,
-    VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO         = 14,
-    VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO             = 15,
-    VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO   = 16,
-    VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO = 17,
-    VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO   = 18,
-    VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO       = 19,
-    VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO         = 20,
-    VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO    = 21,
-    VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO    = 22,
-    VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO  = 23,
-    VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO                         = 24,
-    VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO                        = 25,
-    VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO                   = 26,
-    VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 27,
-    VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO                     = 28,
-    VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 29,
-    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 30,
-    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 31,
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 32,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 33,
-    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 34,
-    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 35,
-    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO                      = 36,
-    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 37,
-    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE                       = 38,
-    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 39,
-    VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION                    = 40,
-    VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION                       = 41,
-    VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY                        = 42,
+    VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO                    = 11,
+    VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO                        = 12,
+    VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO                   = 13,
+    VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO                         = 14,
+    VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO                    = 15,
+    VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO                 = 16,
+    VK_STRUCTURE_TYPE_SHADER_CREATE_INFO                        = 17,
+    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 18,
+    VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO         = 19,
+    VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO   = 20,
+    VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO = 21,
+    VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO   = 22,
+    VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO       = 23,
+    VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO         = 24,
+    VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO    = 25,
+    VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO  = 26,
+    VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO    = 27,
+    VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 28,
+    VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO             = 29,
+    VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 30,
+    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 31,
+    VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 32,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 33,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 34,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 35,
+    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 36,
+    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 37,
+    VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 38,
+    VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 39,
+    VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 40,
+    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO                     = 41,
+    VK_STRUCTURE_TYPE_CMD_BUFFER_BEGIN_INFO                     = 42,
     VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 43,
-    VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 44,
-    VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 45,
-    VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 46,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 47,
-    VK_STRUCTURE_TYPE_SUBMIT_INFO                               = 48,
-    VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO                = 49,
-    VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO                  = 50,
-    VK_STRUCTURE_TYPE_BIND_SPARSE_INFO                          = 51,
+    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 44,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 45,
+    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 46,
+    VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO                = 47,
+    VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO                  = 48,
 
     //@extension("VK_EXT_KHR_swapchain")
     VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 0xc0000801,
@@ -802,6 +793,7 @@ bitfield VkShaderStageFlagBits {
     VK_SHADER_STAGE_GEOMETRY_BIT                            = 0x00000008,
     VK_SHADER_STAGE_FRAGMENT_BIT                            = 0x00000010,
     VK_SHADER_STAGE_COMPUTE_BIT                             = 0x00000020,
+    VK_SHADER_STAGE_ALL_GRAPHICS                            = 0x0000001F,
 
     VK_SHADER_STAGE_ALL                                     = 0x7FFFFFFF,
 }
@@ -1040,6 +1032,7 @@ bitfield VkStencilFaceFlagBits {
     VK_STENCIL_FACE_NONE                                    = 0x00000000,   /// No faces
     VK_STENCIL_FACE_FRONT_BIT                               = 0x00000001,   /// Front face
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
+    VK_STENCIL_FRONT_AND_BACK                               = 0x00000003,
 }
 
 /// Instance creation flags
@@ -1151,6 +1144,15 @@ type VkFlags VkFramebufferCreateFlags
 type VkFlags VkDependencyFlags
 bitfield VkDependencyFlagBits {
     VK_DEPENDENCY_BY_REGION_BIT                             = 0x00000001,
+}
+
+/// Cull mode flags
+type VkFlags VkCullModeFlags
+bitfield VkCullModeFlagBits {
+    VK_CULL_MODE_NONE                                       = 0x00000000,
+    VK_CULL_MODE_FRONT_BIT                                  = 0x00000001,
+    VK_CULL_MODE_BACK_BIT                                   = 0x00000002,
+    VK_CULL_MODE_FRONT_AND_BACK                             = 0x00000003,
 }
 
 @extension("VK_EXT_KHR_swapchain")
@@ -1777,7 +1779,7 @@ class VkPipelineRasterStateCreateInfo {
     VkBool32                                    depthClampEnable
     VkBool32                                    rasterizerDiscardEnable
     VkFillMode                                  fillMode                   /// optional (GL45)
-    VkCullMode                                  cullMode
+    VkCullModeFlags                             cullMode
     VkFrontFace                                 frontFace
     VkBool32                                    depthBiasEnable
     f32                                         depthBiasConstantFactor
@@ -1981,8 +1983,6 @@ class VkClearAttachment {
 }
 
 class VkAttachmentDescription {
-    VkStructureType                             sType           /// Must be VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION
-    const void*                                 pNext           /// Pointer to next structure
     VkAttachmentDescriptionFlags                flags
     VkFormat                                    format
     u32                                         samples
@@ -2000,8 +2000,6 @@ class VkAttachmentReference {
 }
 
 class VkSubpassDescription {
-    VkStructureType                             sType              /// Must be VK_STRUCTURE_SUBPASS_DESCRIPTION
-    const void*                                 pNext              /// Pointer to next structure
     VkSubpassDescriptionFlags                   flags
     VkPipelineBindPoint                         pipelineBindPoint  /// Must be VK_PIPELINE_BIND_POINT_GRAPHICS for now
     u32                                         inputAttachmentCount
@@ -2009,14 +2007,12 @@ class VkSubpassDescription {
     u32                                         colorAttachmentCount
     const VkAttachmentReference*                pColorAttachments
     const VkAttachmentReference*                pResolveAttachments
-    VkAttachmentReference                       depthStencilAttachment
+    const VkAttachmentReference*                pDepthStencilAttachment
     u32                                         preserveAttachmentCount
     const VkAttachmentReference*                pPreserveAttachments
 }
 
 class VkSubpassDependency {
-    VkStructureType                             sType      /// Must be VK_STRUCTURE_SUBPASS_DEPENDENCY
-    const void*                                 pNext      /// Pointer to next structure
     u32                                         srcSubpass
     u32                                         destSubpass
     VkPipelineStageFlags                        srcStageMask
@@ -2202,7 +2198,8 @@ class VkPhysicalDeviceLimits {
     u32                                         maxColorAttachments                       /// max num of framebuffer color attachments
 
     u32                                         maxSampledImageColorSamples               /// max num of color samples for a non-integer sampled image
-    u32                                         maxSampledImageDepthSamples               /// max num of depth/stencil samples for a sampled image
+    u32                                         maxSampledImageDepthSamples               /// max num of depth samples for a sampled image
+    u32                                         maxSampledImageStencilSamples             /// max num of stencil samples for a sampled image
     u32                                         maxSampledImageIntegerSamples             /// max num of samples supported for an integer image
     u32                                         maxStorageImageSamples                    /// max num of samples for a storage image
     u32                                         maxSampleMaskWords                        /// max num of sample mask words
