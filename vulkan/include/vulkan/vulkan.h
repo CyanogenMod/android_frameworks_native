@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 196, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 197, 0)
 
 
 #define VK_NULL_HANDLE 0
@@ -810,16 +810,16 @@ typedef enum {
 typedef VkFlags VkQueueFlags;
 
 typedef enum {
-    VK_MEMORY_PROPERTY_DEVICE_ONLY = 0,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000001,
-    VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT = 0x00000002,
-    VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT = 0x00000004,
-    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000008,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT = 0x00000001,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000002,
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x00000004,
+    VK_MEMORY_PROPERTY_HOST_CACHED_BIT = 0x00000008,
+    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
 } VkMemoryPropertyFlagBits;
 typedef VkFlags VkMemoryPropertyFlags;
 
 typedef enum {
-    VK_MEMORY_HEAP_HOST_LOCAL_BIT = 0x00000001,
+    VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 0x00000001,
 } VkMemoryHeapFlagBits;
 typedef VkFlags VkMemoryHeapFlags;
 typedef VkFlags VkDeviceCreateFlags;
@@ -839,10 +839,6 @@ typedef enum {
     VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT = 0x00000004,
 } VkSparseImageFormatFlagBits;
 typedef VkFlags VkSparseImageFormatFlags;
-
-typedef enum {
-    VK_SPARSE_MEMORY_BIND_REPLICATE_BLOCK_BIT = 0x00000001,
-} VkSparseMemoryBindFlagBits;
 typedef VkFlags VkSparseMemoryBindFlags;
 
 typedef enum {
@@ -1141,6 +1137,8 @@ typedef struct {
     VkBool32                                    shaderImageGatherExtended;
     VkBool32                                    shaderStorageImageExtendedFormats;
     VkBool32                                    shaderStorageImageMultisample;
+    VkBool32                                    shaderStorageImageReadWithoutFormat;
+    VkBool32                                    shaderStorageImageWriteWithoutFormat;
     VkBool32                                    shaderUniformBufferArrayDynamicIndexing;
     VkBool32                                    shaderSampledImageArrayDynamicIndexing;
     VkBool32                                    shaderStorageBufferArrayDynamicIndexing;
@@ -1161,6 +1159,7 @@ typedef struct {
     VkBool32                                    sparseResidency8Samples;
     VkBool32                                    sparseResidency16Samples;
     VkBool32                                    sparseResidencyAliased;
+    VkBool32                                    variableMultisampleRate;
 } VkPhysicalDeviceFeatures;
 
 typedef struct {
@@ -1290,7 +1289,6 @@ typedef struct {
     VkBool32                                    residencyStandard2DMultisampleBlockShape;
     VkBool32                                    residencyStandard3DBlockShape;
     VkBool32                                    residencyAlignedMipSize;
-    VkBool32                                    residencyNonResident;
     VkBool32                                    residencyNonResidentStrict;
 } VkPhysicalDeviceSparseProperties;
 

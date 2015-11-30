@@ -98,8 +98,8 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
     for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
         if ((mem_props.memoryHeaps[heap].flags &
-             VK_MEMORY_HEAP_HOST_LOCAL_BIT) != 0)
-            strbuf << "HOST_LOCAL";
+             VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
+            strbuf << "DEVICE_LOCAL";
         printf("     Heap %u: 0x%" PRIx64 " %s\n", heap,
                mem_props.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
@@ -109,14 +109,14 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
                 continue;
             VkMemoryPropertyFlags flags =
                 mem_props.memoryTypes[type].propertyFlags;
-            if (flags == VK_MEMORY_PROPERTY_DEVICE_ONLY)
-                strbuf << "DEVICE_ONLY";
+            if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+                strbuf << "DEVICE_LOCAL";
             if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
                 strbuf << "HOST_VISIBLE";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT) != 0)
-                strbuf << " NON_COHERENT";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT) != 0)
-                strbuf << " UNCACHED";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
+                strbuf << " COHERENT";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
+                strbuf << " CACHED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
             printf("       Type %u: %s\n", type, strbuf.str().c_str());

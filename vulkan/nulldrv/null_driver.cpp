@@ -292,11 +292,14 @@ void GetPhysicalDeviceMemoryProperties(
     VkPhysicalDeviceMemoryProperties* properties) {
     properties->memoryTypeCount = 1;
     properties->memoryTypes[0].propertyFlags =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
     properties->memoryTypes[0].heapIndex = 0;
     properties->memoryHeapCount = 1;
     properties->memoryHeaps[0].size = kMaxDeviceMemory;
-    properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL_BIT;
+    properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
 }
 
 // -----------------------------------------------------------------------------
