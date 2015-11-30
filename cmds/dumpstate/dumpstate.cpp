@@ -17,8 +17,10 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <memory>
+#include <regex>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -747,46 +749,57 @@ int main(int argc, char *argv[]) {
         redirect_to_socket(stdout, "dumpstate");
     }
 
-    /* redirect output if needed */
-    std::string text_path, zip_path, tmp_path, entry_name;
+    /* full path of the directory where the bug report files will be written */
+    std::string bugreport_dir;
+
+    /* full path of the temporary file containing the bug report */
+    std::string tmp_path;
+
+    /* base name (without suffix or extensions) of the bug report files */
+    std::string base_name;
+
+    /* suffix of the bug report files - it's typically the date (when invoked with -d),
+     * although it could be changed by the user using a system property */
+    std::string suffix;
 
     /* pointer to the actual path, be it zip or text */
     std::string path;
 
     time_t now = time(NULL);
 
+    /* redirect output if needed */
     bool is_redirecting = !use_socket && use_outfile;
 
     if (is_redirecting) {
-        text_path = use_outfile;
+        bugreport_dir = dirname(use_outfile);
+        base_name = basename(use_outfile);
         if (do_add_date) {
             char date[80];
-            strftime(date, sizeof(date), "-%Y-%m-%d-%H-%M-%S", localtime(&now));
-            text_path += date;
+            strftime(date, sizeof(date), "%Y-%m-%d-%H-%M-%S", localtime(&now));
+            suffix = date;
+        } else {
+            suffix = "undated";
         }
         if (do_fb) {
-            screenshot_path = text_path + ".png";
+            // TODO: if dumpstate was an object, the paths could be internal variables and then
+            // we could have a function to calculate the derived values, such as:
+            //     screenshot_path = GetPath(".png");
+            screenshot_path = bugreport_dir + "/" + base_name + "-" + suffix + ".png";
         }
-        zip_path = text_path + ".zip";
-        text_path += ".txt";
-        tmp_path = text_path + ".tmp";
-        entry_name = basename(text_path.c_str());
+        tmp_path = bugreport_dir + "/" + base_name + "-" + suffix + ".tmp";
 
-        ALOGD("Temporary path: %s\ntext path: %s\nzip path: %s\nzip entry: %s",
-              tmp_path.c_str(), text_path.c_str(), zip_path.c_str(), entry_name.c_str());
+        ALOGD("Bugreport dir: %s\nBase name: %s\nSuffix: %s\nTemporary path: %s\n"
+                "Screenshot path: %s\n", bugreport_dir.c_str(), base_name.c_str(), suffix.c_str(),
+                tmp_path.c_str(), screenshot_path.c_str());
 
         if (do_update_progress) {
-            if (!entry_name.empty()) {
-                std::vector<std::string> am_args = {
-                     "--receiver-permission", "android.permission.DUMP",
-                     "--es", "android.intent.extra.NAME", entry_name,
-                     "--ei", "android.intent.extra.PID", std::to_string(getpid()),
-                     "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
-                };
-                send_broadcast("android.intent.action.BUGREPORT_STARTED", am_args);
-            } else {
-                ALOGE("Skipping started broadcast because entry name could not be inferred\n");
-            }
+            std::vector<std::string> am_args = {
+                 "--receiver-permission", "android.permission.DUMP",
+                 "--es", "android.intent.extra.NAME", suffix,
+                 "--ei", "android.intent.extra.PID", std::to_string(getpid()),
+                 "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
+            };
+            send_broadcast("android.intent.action.BUGREPORT_STARTED", am_args);
         }
     }
 
@@ -852,8 +865,6 @@ int main(int argc, char *argv[]) {
     }
 
     if (is_redirecting) {
-        ALOGD("Temporary path: %s\ntext path: %s\nzip path: %s\nzip entry: %s",
-              tmp_path.c_str(), text_path.c_str(), zip_path.c_str(), entry_name.c_str());
         /* TODO: rather than generating a text file now and zipping it later,
            it would be more efficient to redirect stdout to the zip entry
            directly, but the libziparchive doesn't support that option yet. */
@@ -877,10 +888,42 @@ int main(int argc, char *argv[]) {
 
     /* rename or zip the (now complete) .tmp file to its final location */
     if (use_outfile) {
+
+        /* check if user changed the suffix using system properties */
+        char key[PROPERTY_KEY_MAX];
+        char value[PROPERTY_VALUE_MAX];
+        sprintf(key, "dumpstate.%d.name", getpid());
+        property_get(key, value, "");
+        bool change_suffix= false;
+        if (value[0]) {
+            /* must whitelist which characters are allowed, otherwise it could cross directories */
+            std::regex valid_regex("^[-_a-zA-Z0-9]+$");
+            if (std::regex_match(value, valid_regex)) {
+                change_suffix = true;
+            } else {
+                ALOGE("invalid suffix provided by user: %s", value);
+            }
+        }
+        if (change_suffix) {
+            ALOGI("changing suffix from %s to %s", suffix.c_str(), value);
+            suffix = value;
+            if (!screenshot_path.empty()) {
+                std::string new_screenshot_path =
+                        bugreport_dir + "/" + base_name + "-" + suffix + ".png";
+                if (rename(screenshot_path.c_str(), new_screenshot_path.c_str())) {
+                    ALOGE("rename(%s, %s): %s\n", screenshot_path.c_str(),
+                            new_screenshot_path.c_str(), strerror(errno));
+                } else {
+                    screenshot_path = new_screenshot_path;
+                }
+            }
+        }
+
         bool do_text_file = true;
         if (do_zip_file) {
-            path = zip_path;
-            if (!generate_zip_file(tmp_path, zip_path, entry_name, now)) {
+            ALOGD("Generating .zip bugreport");
+            path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
+            if (!generate_zip_file(tmp_path, path, base_name + "-" + suffix + ".txt", now)) {
                 ALOGE("Failed to generate zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
@@ -888,9 +931,10 @@ int main(int argc, char *argv[]) {
             }
         }
         if (do_text_file) {
-            path = text_path;
-            if (rename(tmp_path.c_str(), text_path.c_str())) {
-                ALOGE("rename(%s, %s): %s\n", tmp_path.c_str(), text_path.c_str(), strerror(errno));
+            ALOGD("Generating .txt bugreport");
+            path = bugreport_dir + "/" + base_name + "-" + suffix + ".txt";
+            if (rename(tmp_path.c_str(), path.c_str())) {
+                ALOGE("rename(%s, %s): %s\n", tmp_path.c_str(), path.c_str(), strerror(errno));
                 path.clear();
             }
         }

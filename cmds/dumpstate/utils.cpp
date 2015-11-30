@@ -553,7 +553,7 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
 
 void send_broadcast(const std::string& action, const std::vector<std::string>& args) {
     if (args.size() > 1000) {
-        fprintf(stderr, "send_broadcast: too many arguments (%d)\n", args.size());
+        fprintf(stderr, "send_broadcast: too many arguments (%d)\n", (int) args.size());
         return;
     }
     const char *am_args[1024] = { "/system/bin/am", "broadcast", "--user", "0",
@@ -841,6 +841,7 @@ void dump_route_tables() {
 /* overall progress */
 int progress = 0;
 int do_update_progress = 0; // Set by dumpstate.cpp
+int weight_total = WEIGHT_TOTAL;
 
 // TODO: make this function thread safe if sections are generated in parallel.
 void update_progress(int delta) {
@@ -850,12 +851,27 @@ void update_progress(int delta) {
 
     char key[PROPERTY_KEY_MAX];
     char value[PROPERTY_VALUE_MAX];
+
+    // adjusts max on the fly
+    if (progress > weight_total) {
+        int new_total = weight_total * 1.2;
+        fprintf(stderr, "Adjusting total weight from %d to %d\n", weight_total, new_total);
+        weight_total = new_total;
+        sprintf(key, "dumpstate.%d.max", getpid());
+        sprintf(value, "%d", weight_total);
+        int status = property_set(key, value);
+        if (status) {
+            ALOGW("Could not update max weight by setting system property %s to %s: %d\n",
+                    key, value, status);
+        }
+    }
+
     sprintf(key, "dumpstate.%d.progress", getpid());
     sprintf(value, "%d", progress);
 
     // stderr is ignored on normal invocations, but useful when calling /system/bin/dumpstate
     // directly for debuggging.
-    fprintf(stderr, "Setting progress (%s): %s/%d\n", key, value, WEIGHT_TOTAL);
+    fprintf(stderr, "Setting progress (%s): %s/%d\n", key, value, weight_total);
 
     int status = property_set(key, value);
     if (status) {
