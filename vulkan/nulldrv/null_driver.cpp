@@ -808,7 +808,7 @@ void GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* 
     ALOGV("TODO: vk%s", __FUNCTION__);
 }
 
-void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
 }
 
