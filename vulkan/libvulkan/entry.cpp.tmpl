@@ -94,9 +94,9 @@ namespace {
   {{$ext := GetAnnotation $ "extension"}}
   {{if $ext}}
     {{$extval := index $ext.Arguments 0}}
-    {{if      eq $extval "VK_EXT_KHR_surface"}}true
-    {{else if eq $extval "VK_EXT_KHR_swapchain"}}true
-    {{else if eq $extval "VK_EXT_KHR_android_surface"}}true{{end}}
+    {{if      eq $extval "VK_KHR_surface"}}true
+    {{else if eq $extval "VK_KHR_swapchain"}}true
+    {{else if eq $extval "VK_KHR_android_surface"}}true{{end}}
   {{else}}true{{end}}
 {{end}}
 

@@ -20,7 +20,7 @@
 #define VK_PROTOTYPES
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_android_native_buffer.h>
+#include <vulkan/vk_android_native_buffer.h>
 
 namespace vulkan {
 
@@ -105,8 +105,6 @@ struct DeviceVtbl {
     PFN_vkDestroyImageView DestroyImageView;
     PFN_vkCreateShaderModule CreateShaderModule;
     PFN_vkDestroyShaderModule DestroyShaderModule;
-    PFN_vkCreateShader CreateShader;
-    PFN_vkDestroyShader DestroyShader;
     PFN_vkCreatePipelineCache CreatePipelineCache;
     PFN_vkDestroyPipelineCache DestroyPipelineCache;
     PFN_vkGetPipelineCacheData GetPipelineCacheData;

@@ -19,7 +19,7 @@
 
 #define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_android_native_buffer.h>
+#include <vulkan/vk_android_native_buffer.h>
 
 namespace null_driver {
 
@@ -87,8 +87,6 @@ VkResult CreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateIn
 void DestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks* allocator);
 VkResult CreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* allocator, VkShaderModule* pShaderModule);
 void DestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const VkAllocationCallbacks* allocator);
-VkResult CreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, const VkAllocationCallbacks* allocator, VkShader* pShader);
-void DestroyShader(VkDevice device, VkShader shader, const VkAllocationCallbacks* allocator);
 VkResult CreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* allocator, VkPipelineCache* pPipelineCache);
 void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache, const VkAllocationCallbacks* allocator);
 VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData);

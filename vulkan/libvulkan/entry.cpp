@@ -347,16 +347,6 @@ void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const V
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShader* pShader) {
-    return GetVtbl(device).CreateShader(device, pCreateInfo, pAllocator, pShader);
-}
-
-__attribute__((visibility("default")))
-void vkDestroyShader(VkDevice device, VkShader shader, const VkAllocationCallbacks* pAllocator) {
-    GetVtbl(device).DestroyShader(device, shader, pAllocator);
-}
-
-__attribute__((visibility("default")))
 VkResult vkCreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache) {
     return GetVtbl(device).CreatePipelineCache(device, pCreateInfo, pAllocator, pPipelineCache);
 }

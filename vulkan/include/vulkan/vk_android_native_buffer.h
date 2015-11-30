@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef __VK_EXT_ANDROID_NATIVE_BUFFER_H__
-#define __VK_EXT_ANDROID_NATIVE_BUFFER_H__
+#ifndef __VK_ANDROID_NATIVE_BUFFER_H__
+#define __VK_ANDROID_NATIVE_BUFFER_H__
 
 #include <vulkan/vulkan.h>
 #include <system/window.h>
 
 // TODO(jessehall): Get a real extension number officially assigned.
-#define VK_EXT_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER 1024
-#define VK_EXT_ANDROID_NATIVE_BUFFER_REVISION         1
-#define VK_EXT_ANDROID_NATIVE_BUFFER_EXTENSION_NAME   "VK_EXT_ANDROID_gralloc"
+#define VK_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER 1024
+#define VK_ANDROID_NATIVE_BUFFER_REVISION         1
+#define VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME   "VK_ANDROID_native_buffer"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,8 +31,8 @@ extern "C" {
 
 // See https://gitlab.khronos.org/vulkan/vulkan/blob/master/doc/proposals/proposed/NVIDIA/VulkanRegistryProposal.txt
 // and Khronos bug 14154 for explanation of these magic numbers.
-#define VK_EXT_ANDROID_NATIVE_BUFFER_ENUM(type,id)    ((type)((int)0xc0000000 - VK_EXT_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER * -1024 + (id)))
-#define VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID       VK_EXT_ANDROID_NATIVE_BUFFER_ENUM(VkStructureType, 0)
+#define VK_ANDROID_NATIVE_BUFFER_ENUM(type,id)    ((type)((int)0xc0000000 - VK_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER * -1024 + (id)))
+#define VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID   VK_ANDROID_NATIVE_BUFFER_ENUM(VkStructureType, 0)
 
 typedef struct {
     VkStructureType             sType; // must be VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID
@@ -90,4 +90,4 @@ VkResult VKAPI vkQueueSignalNativeFenceANDROID(
 }
 #endif
 
-#endif // __VK_EXT_ANDROID_NATIVE_BUFFER_H__
+#endif // __VK_ANDROID_NATIVE_BUFFER_H__

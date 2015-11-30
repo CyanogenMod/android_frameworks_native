@@ -81,7 +81,6 @@ enum Enum {
     kRenderPass,
     kSampler,
     kSemaphore,
-    kShader,
     kShaderModule,
 
     kNumTypes
@@ -705,14 +704,6 @@ VkResult CreateSemaphore(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult CreateShader(VkDevice device,
-                      const VkShaderCreateInfo*,
-                      const VkAllocationCallbacks* /*allocator*/,
-                      VkShader* shader) {
-    *shader = AllocHandle(device, HandleType::kShader);
-    return VK_SUCCESS;
-}
-
 VkResult CreateShaderModule(VkDevice device,
                             const VkShaderModuleCreateInfo*,
                             const VkAllocationCallbacks* /*allocator*/,
@@ -882,9 +873,6 @@ void DestroyImageView(VkDevice device, VkImageView imageView, const VkAllocation
 }
 
 void DestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const VkAllocationCallbacks* allocator) {
-}
-
-void DestroyShader(VkDevice device, VkShader shader, const VkAllocationCallbacks* allocator) {
 }
 
 void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache, const VkAllocationCallbacks* allocator) {

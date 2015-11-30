@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 198
+define VERSION_MINOR 200
 define VERSION_PATCH 0
 
 // API limits
@@ -45,45 +45,45 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
-@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_REVISION                     20
-@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_EXTENSION_NUMBER             1
-@extension("VK_EXT_KHR_surface") define VK_EXT_KHR_SURFACE_EXTENSION_NAME               "VK_EXT_KHR_surface"
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_REVISION                     22
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_REVISION                 62
-@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
-@extension("VK_EXT_KHR_swapchain") define VK_EXT_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_EXT_KHR_swapchain"
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 64
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
-@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_REVISION                     17
-@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_EXTENSION_NUMBER             3
-@extension("VK_EXT_KHR_display") define VK_EXT_KHR_DISPLAY_EXTENSION_NAME               "VK_EXT_KHR_display"
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_REVISION                     18
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NUMBER             3
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NAME               "VK_KHR_display"
 
-@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_REVISION           6
-@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_EXTENSION_NUMBER   4
-@extension("VK_EXT_KHR_display_swapchain") define VK_EXT_KHR_DISPLAY_EXTENSION_NAME     "VK_EXT_KHR_display_swapchain"
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_REVISION           7
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_EXTENSION_NUMBER   4
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_EXTENSION_NAME     "VK_KHR_display_swapchain"
 
-@extension("VK_EXT_KHR_xlib_surface") define VK_EXT_KHR_XLIB_SURFACE_REVISION           3
-@extension("VK_EXT_KHR_xlib_surface") define VK_EXT_KHR_XLIB_SURFACE_NUMBER             5
-@extension("VK_EXT_KHR_xlib_surface") define VK_EXT_KHR_XLIB_SURFACE_NAME               "VK_EXT_KHR_xlib_surface"
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           4
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NUMBER             5
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NAME               "VK_KHR_xlib_surface"
 
-@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_REVISION             3
-@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_NUMBER               6
-@extension("VK_EXT_KHR_xcb_surface") define VK_EXT_KHR_XCB_SURFACE_NAME                 "VK_EXT_KHR_xcb_surface"
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             4
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NUMBER               6
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NAME                 "VK_KHR_xcb_surface"
 
-@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_REVISION     2
-@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_NUMBER       7
-@extension("VK_EXT_KHR_wayland_surface") define VK_EXT_KHR_WAYLAND_SURFACE_NAME         "VK_EXT_KHR_wayland_surface"
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     3
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NUMBER       7
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NAME         "VK_KHR_wayland_surface"
 
-@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_REVISION             2
-@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_NUMBER               8
-@extension("VK_EXT_KHR_mir_surface") define VK_EXT_KHR_MIR_SURFACE_NAME                 "VK_EXT_KHR_mir_surface"
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_REVISION             3
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NUMBER               8
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_REVISION     1
-@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_NUMBER       8
-@extension("VK_EXT_KHR_android_surface") define VK_EXT_KHR_ANDROID_SURFACE_NAME         "VK_EXT_KHR_android_surface"
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     2
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NUMBER       8
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
-@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_REVISION         2
-@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_NUMBER           9
-@extension("VK_EXT_KHR_win32_surface") define VK_EXT_KHR_WIN32_SURFACE_NAME             "VK_EXT_KHR_win32_surface"
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         3
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NUMBER           9
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
 
 /////////////
@@ -110,7 +110,6 @@ type u32 VkSampleMask
 @nonDispatchHandle type u64 VkImage
 @nonDispatchHandle type u64 VkImageView
 @nonDispatchHandle type u64 VkShaderModule
-@nonDispatchHandle type u64 VkShader
 @nonDispatchHandle type u64 VkPipeline
 @nonDispatchHandle type u64 VkPipelineLayout
 @nonDispatchHandle type u64 VkSampler
@@ -125,12 +124,12 @@ type u32 VkSampleMask
 @nonDispatchHandle type u64 VkRenderPass
 @nonDispatchHandle type u64 VkPipelineCache
 
-@extension("VK_EXT_KHR_surface")    @nonDispatchHandle type u64 VkSurfaceKHR
+@extension("VK_KHR_surface")    @nonDispatchHandle type u64 VkSurfaceKHR
 
-@extension("VK_EXT_KHR_swapchain")  @nonDispatchHandle type u64 VkSwapchainKHR
+@extension("VK_KHR_swapchain")  @nonDispatchHandle type u64 VkSwapchainKHR
 
-@extension("VK_EXT_KHR_display")    @nonDispatchHandle type u64 VkDisplayKHR
-@extension("VK_EXT_KHR_display")    @nonDispatchHandle type u64 VkDisplayModeKHR
+@extension("VK_KHR_display")    @nonDispatchHandle type u64 VkDisplayKHR
+@extension("VK_KHR_display")    @nonDispatchHandle type u64 VkDisplayModeKHR
 
 
 /////////////
@@ -148,7 +147,7 @@ enum VkImageLayout {
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL                    = 0x00000007,   /// Optimal layout when image is used only as destination of transfer operations
     VK_IMAGE_LAYOUT_PREINITIALIZED                          = 0x00000008,   /// Initial layout used when the data is populated by the CPU
 
-    //@extension("VK_EXT_KHR_swapchain")
+    //@extension("VK_KHR_swapchain")
     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR                         = 0xc0000802,
 }
 
@@ -359,7 +358,7 @@ enum VkLogicOp {
 }
 
 enum VkSystemAllocationScope {
-    VK_SYSTEM_ALLOCATION_SCOPE_FUNCTION                     = 0x00000000,
+    VK_SYSTEM_ALLOCATION_SCOPE_COMMAND                      = 0x00000000,
     VK_SYSTEM_ALLOCATION_SCOPE_OBJECT                       = 0x00000001,
     VK_SYSTEM_ALLOCATION_SCOPE_CACHE                        = 0x00000002,
     VK_SYSTEM_ALLOCATION_SCOPE_DEVICE                       = 0x00000003,
@@ -580,47 +579,46 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO                         = 14,
     VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO                    = 15,
     VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO                 = 16,
-    VK_STRUCTURE_TYPE_SHADER_CREATE_INFO                        = 17,
-    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 18,
-    VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO         = 19,
-    VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO   = 20,
-    VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO = 21,
-    VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO   = 22,
-    VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO       = 23,
-    VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO  = 24,
-    VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO    = 25,
-    VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO  = 26,
-    VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO    = 27,
-    VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 28,
-    VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO             = 29,
-    VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 30,
-    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 31,
-    VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 32,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 33,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 34,
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 35,
-    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 36,
-    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 37,
-    VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 38,
-    VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 39,
-    VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO                  = 40,
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOC_INFO                 = 41,
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 42,
-    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 43,
-    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 44,
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 45,
-    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 46,
-    VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO                = 47,
-    VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO                  = 48,
+    VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO                = 17,
+    VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO         = 18,
+    VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO   = 19,
+    VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO = 20,
+    VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO   = 21,
+    VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO       = 22,
+    VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO  = 23,
+    VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO    = 24,
+    VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO  = 25,
+    VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO    = 26,
+    VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 27,
+    VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO             = 28,
+    VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 29,
+    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO               = 30,
+    VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 31,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 32,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO               = 33,
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 34,
+    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET                      = 35,
+    VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET                       = 36,
+    VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO                   = 37,
+    VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 38,
+    VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO                  = 39,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOC_INFO                 = 40,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 41,
+    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 42,
+    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 43,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 44,
+    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 45,
+    VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO                = 46,
+    VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO                  = 47,
 
-    //@extension("VK_EXT_KHR_swapchain")
+    //@extension("VK_KHR_swapchain")
     VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 0xc0000801,
 
-    //@extension("VK_EXT_KHR_display")
+    //@extension("VK_KHR_display")
     VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR              = 0xc0000c00,
     VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR           = 0xc0000c01,
 
-    //@extension("VK_EXT_KHR_display_swapchain")
+    //@extension("VK_KHR_display_swapchain")
     VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR         = 0xc0001000,
     VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 0xc0001001,
 }
@@ -641,7 +639,7 @@ enum VkResult {
     VK_EVENT_RESET                                          = 0x00000004,
     VK_INCOMPLETE                                           = 0x00000005,
 
-    //@extension("VK_EXT_KHR_swapchain")
+    //@extension("VK_KHR_swapchain")
     VK_SUBOPTIMAL_KHR                                       = 0x40000403,
 
     // Error codes (negative values)
@@ -655,16 +653,16 @@ enum VkResult {
     VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
     VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
 
-    //@extension("VK_EXT_KHR_surface")
+    //@extension("VK_KHR_surface")
     VK_ERROR_SURFACE_LOST_KHR                               = 0xC0000400,
 
-    //@extension("VK_EXT_KHR_swapchain")
+    //@extension("VK_KHR_swapchain")
     VK_ERROR_OUT_OF_DATE_KHR                                = 0xC0000804,
 
-    //@extension("VK_EXT_KHR_display_swapchain")
+    //@extension("VK_KHR_display_swapchain")
     VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC0001002,
 
-    //@extension("VK_EXT_KHR_android_surface")
+    //@extension("VK_KHR_android_surface")
     VK_ERROR_INVALID_ANDROID_WINDOW_KHR                     = 0xC002400,
     VK_ERROR_ANDROID_WINDOW_IN_USE_KHR                      = 0xC002401,
 }
@@ -681,7 +679,7 @@ enum VkDynamicState {
     VK_DYNAMIC_STATE_STENCIL_REFERENCE                      = 0x00000008,
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 enum VkSurfaceTransformKHR {
     VK_SURFACE_TRANSFORM_NONE_KHR                           = 0x00000000,
     VK_SURFACE_TRANSFORM_ROT90_KHR                          = 0x00000001,
@@ -694,7 +692,7 @@ enum VkSurfaceTransformKHR {
     VK_SURFACE_TRANSFORM_INHERIT_KHR                        = 0x00000008,
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 enum VkPresentModeKHR {
     VK_PRESENT_MODE_IMMEDIATE_KHR                           = 0x00000000,
     VK_PRESENT_MODE_MAILBOX_KHR                             = 0x00000001,
@@ -702,7 +700,7 @@ enum VkPresentModeKHR {
     VK_PRESENT_MODE_FIFO_RELAXED_KHR                        = 0x00000003,
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 enum VkColorSpaceKHR {
     VK_COLORSPACE_SRGB_NONLINEAR_KHR                        = 0x00000000,
 }
@@ -736,29 +734,26 @@ bitfield VkMemoryHeapFlagBits {
     VK_MEMORY_HEAP_DEVICE_LOCAL_BIT                         = 0x00000001,
 }
 
-/// Memory output flags passed to resource transition commands
-type VkFlags VkMemoryOutputFlags
-bitfield VkMemoryOutputFlagBits {
-    VK_MEMORY_OUTPUT_HOST_WRITE_BIT                         = 0x00000001,    /// Controls output coherency of host writes
-    VK_MEMORY_OUTPUT_SHADER_WRITE_BIT                       = 0x00000002,    /// Controls output coherency of generic shader writes
-    VK_MEMORY_OUTPUT_COLOR_ATTACHMENT_BIT                   = 0x00000004,    /// Controls output coherency of color attachment writes
-    VK_MEMORY_OUTPUT_DEPTH_STENCIL_ATTACHMENT_BIT           = 0x00000008,    /// Controls output coherency of depth/stencil attachment writes
-    VK_MEMORY_OUTPUT_TRANSFER_BIT                           = 0x00000010,    /// Controls output coherency of transfer operations
-}
-
-/// Memory input flags passed to resource transition commands
-type VkFlags VkMemoryInputFlags
-bitfield VkMemoryInputFlagBits {
-    VK_MEMORY_INPUT_HOST_READ_BIT                           = 0x00000001,    /// Controls input coherency of host reads
-    VK_MEMORY_INPUT_INDIRECT_COMMAND_BIT                    = 0x00000002,    /// Controls input coherency of indirect command reads
-    VK_MEMORY_INPUT_INDEX_FETCH_BIT                         = 0x00000004,    /// Controls input coherency of index fetches
-    VK_MEMORY_INPUT_VERTEX_ATTRIBUTE_FETCH_BIT              = 0x00000008,    /// Controls input coherency of vertex attribute fetches
-    VK_MEMORY_INPUT_UNIFORM_READ_BIT                        = 0x00000010,    /// Controls input coherency of uniform buffer reads
-    VK_MEMORY_INPUT_SHADER_READ_BIT                         = 0x00000020,    /// Controls input coherency of generic shader reads
-    VK_MEMORY_INPUT_COLOR_ATTACHMENT_BIT                    = 0x00000040,    /// Controls input coherency of color attachment reads
-    VK_MEMORY_INPUT_DEPTH_STENCIL_ATTACHMENT_BIT            = 0x00000080,    /// Controls input coherency of depth/stencil attachment reads
-    VK_MEMORY_INPUT_INPUT_ATTACHMENT_BIT                    = 0x00000100,    /// Controls input coherency of input attachment reads
-    VK_MEMORY_INPUT_TRANSFER_BIT                            = 0x00000200,    /// Controls input coherency of transfer operations
+/// Access flags
+type VkFlags VkAccessFlags
+bitfield VkAccessFlagBits {
+    VK_ACCESS_INDIRECT_COMMAND_READ_BIT                     = 0x00000001,
+    VK_ACCESS_INDEX_READ_BIT                                = 0x00000002,
+    VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT                     = 0x00000004,
+    VK_ACCESS_UNIFORM_READ_BIT                              = 0x00000008,
+    VK_ACCESS_INPUT_ATTACHMENT_READ_BIT                     = 0x00000010,
+    VK_ACCESS_SHADER_READ_BIT                               = 0x00000020,
+    VK_ACCESS_SHADER_WRITE_BIT                              = 0x00000040,
+    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT                     = 0x00000080,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT                    = 0x00000100,
+    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT             = 0x00000200,
+    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT            = 0x00000400,
+    VK_ACCESS_TRANSFER_READ_BIT                             = 0x00000800,
+    VK_ACCESS_TRANSFER_WRITE_BIT                            = 0x00001000,
+    VK_ACCESS_HOST_READ_BIT                                 = 0x00002000,
+    VK_ACCESS_HOST_WRITE_BIT                                = 0x00004000,
+    VK_ACCESS_MEMORY_READ_BIT                               = 0x00008000,
+    VK_ACCESS_MEMORY_WRITE_BIT                              = 0x00010000,
 }
 
 /// Buffer usage flags
@@ -900,11 +895,6 @@ bitfield VkQueryResultFlagBits {
 /// Shader module creation flags
 type VkFlags VkShaderModuleCreateFlags
 //bitfield VkShaderModuleCreateFlagBits {
-//}
-
-/// Shader creation flags
-type VkFlags VkShaderCreateFlags
-//bitfield VkShaderCreateFlagBits {
 //}
 
 /// Event creation flags
@@ -1153,9 +1143,9 @@ bitfield VkCullModeFlagBits {
     VK_CULL_MODE_FRONT_AND_BACK                             = 0x00000003,
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 type VkFlags VkSurfaceTransformFlagsKHR
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 bitfield VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_NONE_BIT_KHR                       = 0x00000001,
     VK_SURFACE_TRANSFORM_ROT90_BIT_KHR                      = 0x00000002,
@@ -1168,9 +1158,9 @@ bitfield VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                    = 0x00000100,
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 type VkFlags VkCompositeAlphaFlagsKHR
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 bitfield VkCompositeAlphaFlagBitsKHR {
     VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR                       = 0x00000001,
     VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR               = 0x00000002,
@@ -1178,9 +1168,9 @@ bitfield VkCompositeAlphaFlagBitsKHR {
     VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR                      = 0x00000008,
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 type VkFlags VkDisplayPlaneAlphaFlagsKHR
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 bitfield VkDisplayPlaneAlphaFlagBitsKHR {
     VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR                   = 0x00000001,
     VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR                = 0x00000002,
@@ -1356,7 +1346,7 @@ class VkMemoryRequirements {
 }
 
 class VkSparseImageFormatProperties {
-    VkImageAspectFlagBits                       aspect
+    VkImageAspectFlagBits                       aspectMask
     VkExtent3D                                  imageGranularity
     VkSparseImageFormatFlags                    flags
 }
@@ -1460,7 +1450,7 @@ class VkBufferViewCreateInfo {
 }
 
 class VkImageSubresource {
-    VkImageAspectFlagBits                       aspect
+    VkImageAspectFlagBits                       aspectMask
     u32                                         mipLevel
     u32                                         arrayLayer
 }
@@ -1476,15 +1466,15 @@ class VkImageSubresourceRange {
 class VkMemoryBarrier {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_MEMORY_BARRIER
     const void*                                 pNext                      /// Pointer to next structure.
-    VkMemoryOutputFlags                         outputMask                 /// Outputs the barrier should sync
-    VkMemoryInputFlags                          inputMask                  /// Inputs the barrier should sync to
+    VkAccessFlags                               srcAccessMask
+    VkAccessFlags                               dstAccessMask
 }
 
 class VkBufferMemoryBarrier {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER
     const void*                                 pNext                      /// Pointer to next structure.
-    VkMemoryOutputFlags                         outputMask                 /// Outputs the barrier should sync
-    VkMemoryInputFlags                          inputMask                  /// Inputs the barrier should sync to
+    VkAccessFlags                               srcAccessMask
+    VkAccessFlags                               dstAccessMask
     u32                                         srcQueueFamilyIndex        /// Queue family to transition ownership from
     u32                                         dstQueueFamilyIndex        /// Queue family to transition ownership to
     VkBuffer                                    buffer                     /// Buffer to sync
@@ -1495,8 +1485,8 @@ class VkBufferMemoryBarrier {
 class VkImageMemoryBarrier {
     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER
     const void*                                 pNext                      /// Pointer to next structure.
-    VkMemoryOutputFlags                         outputMask                 /// Outputs the barrier should sync
-    VkMemoryInputFlags                          inputMask                  /// Inputs the barrier should sync to
+    VkAccessFlags                               srcAccessMask
+    VkAccessFlags                               dstAccessMask
     VkImageLayout                               oldLayout                  /// Current layout of the image
     VkImageLayout                               newLayout                  /// New layout to transition the image to
     u32                                         srcQueueFamilyIndex        /// Queue family to transition ownership from
@@ -1646,15 +1636,6 @@ class VkShaderModuleCreateInfo {
     const u32*                                  pCode                  /// Binary code of size codeSize
 }
 
-class VkShaderCreateInfo {
-    VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_SHADER_CREATE_INFO
-    const void*                                 pNext              /// Pointer to next structure
-    VkShaderCreateFlags                         flags              /// Reserved
-    VkShaderModule                              module             /// Module containing entry point
-    const char*                                 pName              /// Null-terminated entry point name
-    VkShaderStageFlagBits                       stage
-}
-
 class VkDescriptorSetLayoutBinding {
     VkDescriptorType                            descriptorType     /// Type of the descriptors in this binding
     u32                                         arraySize          /// Number of descriptors in this binding
@@ -1667,7 +1648,7 @@ class VkDescriptorSetLayoutCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorSetLayoutCreateFlags            flags
     u32                                         bindingCount       /// Number of bindings in the descriptor set layout
-    const VkDescriptorSetLayoutBinding*         pBindings          /// Array of descriptor set layout bindings
+    const VkDescriptorSetLayoutBinding*         pBinding           /// Array of descriptor set layout bindings
 }
 
 class VkDescriptorPoolSize {
@@ -1709,7 +1690,9 @@ class VkPipelineShaderStageCreateInfo {
     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
     const void*                                 pNext              /// Pointer to next structure
     VkPipelineShaderStageCreateFlags            flags
-    VkShader                                    shader
+    VkShaderStageFlagBits                       stage
+    VkShaderModule                              module
+    const char*                                 pName
     const VkSpecializationInfo*                 pSpecializationInfo
 }
 
@@ -2015,8 +1998,8 @@ class VkSubpassDependency {
     u32                                         dstSubpass
     VkPipelineStageFlags                        srcStageMask
     VkPipelineStageFlags                        dstStageMask
-    VkMemoryOutputFlags                         outputMask
-    VkMemoryInputFlags                          inputMask
+    VkAccessFlags                               srcAccessMask
+    VkAccessFlags                               dstAccessMask
     VkDependencyFlags                           dependencyFlags
 }
 
@@ -2279,7 +2262,7 @@ class VkDispatchIndirectCommand {
     u32                                         z
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 class VkSurfaceCapabilitiesKHR {
     u32                                         minImageCount
     u32                                         maxImageCount
@@ -2293,13 +2276,13 @@ class VkSurfaceCapabilitiesKHR {
     VkImageUsageFlags                           supportedUsageFlags
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 class VkSurfaceFormatKHR {
     VkFormat                                    format
     VkColorSpaceKHR                             colorSpace
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 class VkSwapchainCreateInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
@@ -2320,7 +2303,7 @@ class VkSwapchainCreateInfoKHR {
     VkBool32                                    clipped
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 class VkPresentInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
@@ -2331,7 +2314,7 @@ class VkPresentInfoKHR {
     const u32*                                  imageIndices
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayPropertiesKHR {
     VkDisplayKHR                                display
     const char*                                 displayName
@@ -2342,32 +2325,32 @@ class VkDisplayPropertiesKHR {
     VkBool32                                    persistentContent
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayModeParametersKHR {
     VkExtent2D                                  visibleRegion
     u32                                         refreshRate
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayModePropertiesKHR {
     VkDisplayModeKHR                            displayMode
     VkDisplayModeParametersKHR                  parameters
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayModeCreateInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
     VkDisplayModeParametersKHR                  parameters
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayPlanePropertiesKHR {
     VkDisplayKHR                                currentDisplay
     u32                                         currentStackIndex
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplayPlaneCapabilitiesKHR {
     VkDisplayPlaneAlphaFlagsKHR                 supportedAlpha
     VkOffset2D                                  minSrcPosition
@@ -2380,7 +2363,7 @@ class VkDisplayPlaneCapabilitiesKHR {
     VkExtent2D                                  maxDstExtent
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 class VkDisplaySurfaceCreateInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
@@ -2393,14 +2376,14 @@ class VkDisplaySurfaceCreateInfoKHR {
     VkExtent2D                                  imageSize
 }
 
-@extension("VK_EXT_KHR_display_swapchain")
+@extension("VK_KHR_display_swapchain")
 class VkDisplaySwapchainCreateInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
     const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo
 }
 
-@extension("VK_EXT_KHR_display_swapchain")
+@extension("VK_KHR_display_swapchain")
 class VkDisplayPresentInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
@@ -3376,34 +3359,6 @@ cmd void vkDestroyShaderModule(
     assert(shaderModuleObject.device == device)
 
     State.ShaderModules[shaderModule] = null
-}
-
-@threadSafety("system")
-cmd VkResult vkCreateShader(
-        VkDevice                                    device,
-        const VkShaderCreateInfo*                   pCreateInfo,
-        const VkAllocationCallbacks*                pAllocator,
-        VkShader*                                   pShader) {
-    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SHADER_CREATE_INFO)
-    deviceObject := GetDevice(device)
-
-    shader := ?
-    pShader[0] = shader
-    State.Shaders[shader] = new!ShaderObject(device: device)
-
-    return ?
-}
-
-@threadSafety("system")
-cmd void vkDestroyShader(
-        VkDevice                                    device,
-        VkShader                                    shader,
-        const VkAllocationCallbacks*                pAllocator) {
-    deviceObject := GetDevice(device)
-    shaderObject := GetShader(shader)
-    assert(shaderObject.device == device)
-
-    State.Shaders[shader] = null
 }
 
 
@@ -4625,7 +4580,7 @@ cmd void vkCmdExecuteCommands(
     }
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 cmd void vkDestroySurfaceKHR(
         VkInstance                                  instance,
         VkSurfaceKHR                                surface) {
@@ -4636,7 +4591,7 @@ cmd void vkDestroySurfaceKHR(
     State.Surfaces[surface] = null
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
         VkPhysicalDevice                            physicalDevice,
         u32                                         queueFamilyIndex,
@@ -4647,7 +4602,7 @@ cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 cmd VkResult vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         VkPhysicalDevice                            physicalDevice,
         VkSurfaceKHR                                surface,
@@ -4660,7 +4615,7 @@ cmd VkResult vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 cmd VkResult vkGetPhysicalDeviceSurfaceFormatsKHR(
         VkPhysicalDevice                            physicalDevice,
         VkSurfaceKHR                                surface,
@@ -4680,7 +4635,7 @@ cmd VkResult vkGetPhysicalDeviceSurfaceFormatsKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_surface")
+@extension("VK_KHR_surface")
 cmd VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(
         VkPhysicalDevice                            physicalDevice,
         VkSurfaceKHR                                surface,
@@ -4700,7 +4655,7 @@ cmd VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 cmd VkResult vkCreateSwapchainKHR(
         VkDevice                                 device,
         const VkSwapchainCreateInfoKHR*          pCreateInfo,
@@ -4715,7 +4670,7 @@ cmd VkResult vkCreateSwapchainKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 cmd void vkDestroySwapchainKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain) {
@@ -4726,7 +4681,7 @@ cmd void vkDestroySwapchainKHR(
     State.Swapchains[swapchain] = null
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 cmd VkResult vkGetSwapchainImagesKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain,
@@ -4747,7 +4702,7 @@ cmd VkResult vkGetSwapchainImagesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 cmd VkResult vkAcquireNextImageKHR(
         VkDevice                                 device,
         VkSwapchainKHR                           swapchain,
@@ -4764,7 +4719,7 @@ cmd VkResult vkAcquireNextImageKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_KHR_swapchain")
 cmd VkResult vkQueuePresentKHR(
         VkQueue                                  queue,
         VkPresentInfoKHR*                        pPresentInfo) {
@@ -4776,7 +4731,7 @@ cmd VkResult vkQueuePresentKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkGetPhysicalDeviceDisplayPropertiesKHR(
         VkPhysicalDevice                        physicalDevice,
         u32*                                    pPropertyCount,
@@ -4785,7 +4740,7 @@ cmd VkResult vkGetPhysicalDeviceDisplayPropertiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
         VkPhysicalDevice                        physicalDevice,
         u32*                                    pPropertyCount,
@@ -4794,7 +4749,7 @@ cmd VkResult vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkGetDisplayPlaneSupportedDisplaysKHR(
         VkPhysicalDevice                        physicalDevice,
         u32*                                    pPropertyCount,
@@ -4803,7 +4758,7 @@ cmd VkResult vkGetDisplayPlaneSupportedDisplaysKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkGetDisplayModePropertiesKHR(
         VkPhysicalDevice                        physicalDevice,
         VkDisplayKHR                            display,
@@ -4813,7 +4768,7 @@ cmd VkResult vkGetDisplayModePropertiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkCreateDisplayModeKHR(
         VkPhysicalDevice                        physicalDevice,
         VkDisplayKHR                            display,
@@ -4823,7 +4778,7 @@ cmd VkResult vkCreateDisplayModeKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkGetDisplayPlaneCapabilitiesKHR(
         VkPhysicalDevice                        physicalDevice,
         VkDisplayModeCreateInfoKHR              mode,
@@ -4833,7 +4788,7 @@ cmd VkResult vkGetDisplayPlaneCapabilitiesKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_display")
+@extension("VK_KHR_display")
 cmd VkResult vkCreateDisplayPlaneSurfaceKHR(
         VkInstance                              instance,
         const VkDisplaySurfaceCreateInfoKHR*    pCreateInfo,
@@ -4841,7 +4796,7 @@ cmd VkResult vkCreateDisplayPlaneSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_xlib_surface")
+@extension("VK_KHR_xlib_surface")
 cmd VkResult vkCreateXlibSurfaceKHR(
         VkInstance                              instance,
         platform.Display*                       dpy,
@@ -4851,7 +4806,7 @@ cmd VkResult vkCreateXlibSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_xlib_surface")
+@extension("VK_KHR_xlib_surface")
 cmd VkBool32 vkGetPhysicalDeviceXlibPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
@@ -4861,7 +4816,7 @@ cmd VkBool32 vkGetPhysicalDeviceXlibPresentationSupportKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_xcb_surface")
+@extension("VK_KHR_xcb_surface")
 cmd VkResult vkCreateXCBSurfaceKHR(
         VkInstance                              instance,
         platform.xcb_connection_t*              connection,
@@ -4871,7 +4826,7 @@ cmd VkResult vkCreateXCBSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_xlib_surface")
+@extension("VK_KHR_xlib_surface")
 cmd VkBool32 vkGetPhysicalDeviceXcbPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
@@ -4881,7 +4836,7 @@ cmd VkBool32 vkGetPhysicalDeviceXcbPresentationSupportKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_wayland_surface")
+@extension("VK_KHR_wayland_surface")
 cmd VkResult vkCreateWaylandSurfaceKHR(
         VkInstance                              instance,
         platform.wl_display*                    display,
@@ -4891,7 +4846,7 @@ cmd VkResult vkCreateWaylandSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_wayland_surface")
+@extension("VK_KHR_wayland_surface")
 cmd VkBool32 vkGetPhysicalDeviceWaylandPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
@@ -4900,7 +4855,7 @@ cmd VkBool32 vkGetPhysicalDeviceWaylandPresentationSupportKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_mir_surface")
+@extension("VK_KHR_mir_surface")
 cmd VkResult vkCreateMirSurfaceKHR(
         VkInstance                              instance,
         platform.MirConnection*                 connection,
@@ -4910,7 +4865,7 @@ cmd VkResult vkCreateMirSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_mir_surface")
+@extension("VK_KHR_mir_surface")
 cmd VkBool32 vkGetPhysicalDeviceMirPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
@@ -4919,7 +4874,7 @@ cmd VkBool32 vkGetPhysicalDeviceMirPresentationSupportKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_android_surface")
+@extension("VK_KHR_android_surface")
 cmd VkResult vkCreateAndroidSurfaceKHR(
         VkInstance                              instance,
         platform.ANativeWindow*                 window
@@ -4928,7 +4883,7 @@ cmd VkResult vkCreateAndroidSurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_win32_surface")
+@extension("VK_KHR_win32_surface")
 cmd VkResult vkCreateWin32SurfaceKHR(
         VkInstance                              instance,
         platform.HINSTANCE                      hinstance,
@@ -4938,7 +4893,7 @@ cmd VkResult vkCreateWin32SurfaceKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_win32_surface")
+@extension("VK_KHR_win32_surface")
 cmd VkResult vkGetPhysicalDeviceWin32PresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex) {
@@ -4975,7 +4930,6 @@ StateObject State
     map!(VkImage,                    ref!ImageObject)                    Images
     map!(VkImageView,                ref!ImageViewObject)                ImageViews
     map!(VkShaderModule,             ref!ShaderModuleObject)             ShaderModules
-    map!(VkShader,                   ref!ShaderObject)                   Shaders
     map!(VkPipeline,                 ref!PipelineObject)                 Pipelines
     map!(VkPipelineLayout,           ref!PipelineLayoutObject)           PipelineLayouts
     map!(VkSampler,                  ref!SamplerObject)                  Samplers
@@ -5166,11 +5120,6 @@ macro ref!ImageObject GetImage(VkImage image) {
 macro ref!ImageViewObject GetImageView(VkImageView imageView) {
     assert(imageView in State.ImageViews)
     return State.ImageViews[imageView]
-}
-
-macro ref!ShaderObject GetShader(VkShader shader) {
-    assert(shader in State.Shaders)
-    return State.Shaders[shader]
 }
 
 macro ref!ShaderModuleObject GetShaderModule(VkShaderModule shaderModule) {

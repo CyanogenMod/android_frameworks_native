@@ -142,7 +142,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateRenderPass", reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass)},
     {"vkCreateSampler", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSampler)},
     {"vkCreateSemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSemaphore)},
-    {"vkCreateShader", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShader)},
     {"vkCreateShaderModule", reinterpret_cast<PFN_vkVoidFunction>(vkCreateShaderModule)},
     {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR)},
     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBuffer)},
@@ -163,7 +162,6 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDestroyRenderPass", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyRenderPass)},
     {"vkDestroySampler", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySampler)},
     {"vkDestroySemaphore", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySemaphore)},
-    {"vkDestroyShader", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyShader)},
     {"vkDestroyShaderModule", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyShaderModule)},
     {"vkDestroySwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR)},
     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkDeviceWaitIdle)},
@@ -299,7 +297,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkCreateRenderPass", offsetof(DeviceVtbl, CreateRenderPass)},
     {"vkCreateSampler", offsetof(DeviceVtbl, CreateSampler)},
     {"vkCreateSemaphore", offsetof(DeviceVtbl, CreateSemaphore)},
-    {"vkCreateShader", offsetof(DeviceVtbl, CreateShader)},
     {"vkCreateShaderModule", offsetof(DeviceVtbl, CreateShaderModule)},
     {"vkCreateSwapchainKHR", offsetof(DeviceVtbl, CreateSwapchainKHR)},
     {"vkDestroyBuffer", offsetof(DeviceVtbl, DestroyBuffer)},
@@ -320,7 +317,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkDestroyRenderPass", offsetof(DeviceVtbl, DestroyRenderPass)},
     {"vkDestroySampler", offsetof(DeviceVtbl, DestroySampler)},
     {"vkDestroySemaphore", offsetof(DeviceVtbl, DestroySemaphore)},
-    {"vkDestroyShader", offsetof(DeviceVtbl, DestroyShader)},
     {"vkDestroyShaderModule", offsetof(DeviceVtbl, DestroyShaderModule)},
     {"vkDestroySwapchainKHR", offsetof(DeviceVtbl, DestroySwapchainKHR)},
     {"vkDeviceWaitIdle", offsetof(DeviceVtbl, DeviceWaitIdle)},
@@ -723,16 +719,6 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.DestroyShaderModule = reinterpret_cast<PFN_vkDestroyShaderModule>(get_proc_addr(device, "vkDestroyShaderModule"));
     if (UNLIKELY(!vtbl.DestroyShaderModule)) {
         ALOGE("missing device proc: %s", "vkDestroyShaderModule");
-        success = false;
-    }
-    vtbl.CreateShader = reinterpret_cast<PFN_vkCreateShader>(get_proc_addr(device, "vkCreateShader"));
-    if (UNLIKELY(!vtbl.CreateShader)) {
-        ALOGE("missing device proc: %s", "vkCreateShader");
-        success = false;
-    }
-    vtbl.DestroyShader = reinterpret_cast<PFN_vkDestroyShader>(get_proc_addr(device, "vkDestroyShader"));
-    if (UNLIKELY(!vtbl.DestroyShader)) {
-        ALOGE("missing device proc: %s", "vkDestroyShader");
         success = false;
     }
     vtbl.CreatePipelineCache = reinterpret_cast<PFN_vkCreatePipelineCache>(get_proc_addr(device, "vkCreatePipelineCache"));
@@ -1166,7 +1152,7 @@ bool LoadDeviceVtbl(VkDevice device,
     vtbl.QueueSignalNativeFenceANDROID = reinterpret_cast<PFN_vkQueueSignalNativeFenceANDROID>(get_proc_addr(device, "vkQueueSignalNativeFenceANDROID"));
     if (!((!vtbl.AcquireImageANDROID && !vtbl.QueueSignalReleaseImageANDROID && vtbl.ImportNativeFenceANDROID && vtbl.QueueSignalNativeFenceANDROID) ||
     (vtbl.AcquireImageANDROID && vtbl.QueueSignalReleaseImageANDROID && !vtbl.ImportNativeFenceANDROID && !vtbl.QueueSignalNativeFenceANDROID))) {
-        ALOGE("driver doesn't support exactly one of old- or new-style VK_EXT_ANDROID_native_buffer commands");
+        ALOGE("driver doesn't support exactly one of old- or new-style VK_ANDROID_native_buffer commands");
         success = false;
     }
     // clang-format on
