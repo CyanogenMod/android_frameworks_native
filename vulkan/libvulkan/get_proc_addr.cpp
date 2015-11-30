@@ -188,9 +188,7 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkInvalidateMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(vkInvalidateMappedMemoryRanges)},
     {"vkMapMemory", reinterpret_cast<PFN_vkVoidFunction>(vkMapMemory)},
     {"vkMergePipelineCaches", reinterpret_cast<PFN_vkVoidFunction>(vkMergePipelineCaches)},
-    {"vkQueueBindSparseBufferMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseBufferMemory)},
-    {"vkQueueBindSparseImageMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageMemory)},
-    {"vkQueueBindSparseImageOpaqueMemory", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparseImageOpaqueMemory)},
+    {"vkQueueBindSparse", reinterpret_cast<PFN_vkVoidFunction>(vkQueueBindSparse)},
     {"vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR)},
     {"vkQueueSubmit", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit)},
     {"vkQueueWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkQueueWaitIdle)},
@@ -347,9 +345,7 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
     {"vkInvalidateMappedMemoryRanges", offsetof(DeviceVtbl, InvalidateMappedMemoryRanges)},
     {"vkMapMemory", offsetof(DeviceVtbl, MapMemory)},
     {"vkMergePipelineCaches", offsetof(DeviceVtbl, MergePipelineCaches)},
-    {"vkQueueBindSparseBufferMemory", offsetof(DeviceVtbl, QueueBindSparseBufferMemory)},
-    {"vkQueueBindSparseImageMemory", offsetof(DeviceVtbl, QueueBindSparseImageMemory)},
-    {"vkQueueBindSparseImageOpaqueMemory", offsetof(DeviceVtbl, QueueBindSparseImageOpaqueMemory)},
+    {"vkQueueBindSparse", offsetof(DeviceVtbl, QueueBindSparse)},
     {"vkQueuePresentKHR", offsetof(DeviceVtbl, QueuePresentKHR)},
     {"vkQueueSubmit", offsetof(DeviceVtbl, QueueSubmit)},
     {"vkQueueWaitIdle", offsetof(DeviceVtbl, QueueWaitIdle)},
@@ -591,19 +587,9 @@ bool LoadDeviceVtbl(VkDevice device,
         ALOGE("missing device proc: %s", "vkGetImageSparseMemoryRequirements");
         success = false;
     }
-    vtbl.QueueBindSparseBufferMemory = reinterpret_cast<PFN_vkQueueBindSparseBufferMemory>(get_proc_addr(device, "vkQueueBindSparseBufferMemory"));
-    if (UNLIKELY(!vtbl.QueueBindSparseBufferMemory)) {
-        ALOGE("missing device proc: %s", "vkQueueBindSparseBufferMemory");
-        success = false;
-    }
-    vtbl.QueueBindSparseImageOpaqueMemory = reinterpret_cast<PFN_vkQueueBindSparseImageOpaqueMemory>(get_proc_addr(device, "vkQueueBindSparseImageOpaqueMemory"));
-    if (UNLIKELY(!vtbl.QueueBindSparseImageOpaqueMemory)) {
-        ALOGE("missing device proc: %s", "vkQueueBindSparseImageOpaqueMemory");
-        success = false;
-    }
-    vtbl.QueueBindSparseImageMemory = reinterpret_cast<PFN_vkQueueBindSparseImageMemory>(get_proc_addr(device, "vkQueueBindSparseImageMemory"));
-    if (UNLIKELY(!vtbl.QueueBindSparseImageMemory)) {
-        ALOGE("missing device proc: %s", "vkQueueBindSparseImageMemory");
+    vtbl.QueueBindSparse = reinterpret_cast<PFN_vkQueueBindSparse>(get_proc_addr(device, "vkQueueBindSparse"));
+    if (UNLIKELY(!vtbl.QueueBindSparse)) {
+        ALOGE("missing device proc: %s", "vkQueueBindSparse");
         success = false;
     }
     vtbl.CreateFence = reinterpret_cast<PFN_vkCreateFence>(get_proc_addr(device, "vkCreateFence"));

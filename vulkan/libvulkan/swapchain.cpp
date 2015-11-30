@@ -175,10 +175,10 @@ void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
     FreeMem(instance, surface);
 }
 
-VkBool32 GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
+VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
                                             uint32_t /*queue_family*/,
                                             VkSurfaceKHR /*surface*/) {
-    return VK_TRUE;
+    return VK_SUCCESS;
 }
 
 VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,

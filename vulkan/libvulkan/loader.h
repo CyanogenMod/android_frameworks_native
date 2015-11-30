@@ -136,9 +136,7 @@ struct DeviceVtbl {
 
     PFN_vkQueueSubmit QueueSubmit;
     PFN_vkQueueWaitIdle QueueWaitIdle;
-    PFN_vkQueueBindSparseBufferMemory QueueBindSparseBufferMemory;
-    PFN_vkQueueBindSparseImageOpaqueMemory QueueBindSparseImageOpaqueMemory;
-    PFN_vkQueueBindSparseImageMemory QueueBindSparseImageMemory;
+    PFN_vkQueueBindSparse QueueBindSparse;
 
     PFN_vkBeginCommandBuffer BeginCommandBuffer;
     PFN_vkEndCommandBuffer EndCommandBuffer;
@@ -268,7 +266,7 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
                                  ANativeWindow* window,
                                  VkSurfaceKHR* surface);
 void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
-VkBool32 GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
+VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
                                             uint32_t queue_family,
                                             VkSurfaceKHR surface);
 VkResult GetSurfacePropertiesKHR(VkDevice device,

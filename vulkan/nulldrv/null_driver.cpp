@@ -815,17 +815,7 @@ void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevic
     ALOGV("TODO: vk%s", __FUNCTION__);
 }
 
-VkResult QueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseImageMemoryBindInfo* pBindInfo) {
+VkResult QueueBindSparse(VkQueue queue, uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }

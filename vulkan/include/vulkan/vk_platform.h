@@ -91,7 +91,7 @@ extern "C"
 #include <windows.h>
 #endif
 
-#ifdef VK_USE_PLATFORM_X11_KHR
+#ifdef VK_USE_PLATFORM_XLIB_KHR
 #include <X11/Xlib.h>
 #endif
 

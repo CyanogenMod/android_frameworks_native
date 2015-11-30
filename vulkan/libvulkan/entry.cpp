@@ -212,18 +212,8 @@ void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDev
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t bindInfoCount, const VkSparseMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseBufferMemory(queue, buffer, bindInfoCount, pBindInfo);
-}
-
-__attribute__((visibility("default")))
-VkResult vkQueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t bindInfoCount, const VkSparseMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseImageOpaqueMemory(queue, image, bindInfoCount, pBindInfo);
-}
-
-__attribute__((visibility("default")))
-VkResult vkQueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t bindInfoCount, const VkSparseImageMemoryBindInfo* pBindInfo) {
-    return GetVtbl(queue).QueueBindSparseImageMemory(queue, image, bindInfoCount, pBindInfo);
+VkResult vkQueueBindSparse(VkQueue queue, uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence) {
+    return GetVtbl(queue).QueueBindSparse(queue, bindInfoCount, pBindInfo, fence);
 }
 
 __attribute__((visibility("default")))
@@ -752,7 +742,7 @@ void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface) {
 }
 
 __attribute__((visibility("default")))
-VkBool32 vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface) {
+VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface) {
     return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface);
 }
 

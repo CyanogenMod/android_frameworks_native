@@ -279,7 +279,7 @@ bool LoadDeviceVtbl(VkDevice device,
   {{$ext := index $.Arguments 0}}
   {{     if eq $ext "VK_EXT_KHR_display"}}true
   {{else if eq $ext "VK_EXT_KHR_display_swapchain"}}true
-  {{else if eq $ext "VK_EXT_KHR_x11_surface"}}true
+  {{else if eq $ext "VK_EXT_KHR_xlib_surface"}}true
   {{else if eq $ext "VK_EXT_KHR_xcb_surface"}}true
   {{else if eq $ext "VK_EXT_KHR_wayland_surface"}}true
   {{else if eq $ext "VK_EXT_KHR_mir_surface"}}true
