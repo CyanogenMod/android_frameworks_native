@@ -23,6 +23,10 @@ LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c++98-compat-pedantic \
 	-Wno-c99-extensions
 
+# TODO(jessehall): Very temporary, until VkResult values are defined as signed integers
+# rather than unsigned hex values.
+LOCAL_CFLAGS += -Wno-error=format
+
 LOCAL_C_INCLUDES := \
 	frameworks/native/vulkan/include
 

@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 205
+define VERSION_MINOR 206
 define VERSION_PATCH 0
 
 // API limits
@@ -1293,7 +1293,7 @@ class VkDeviceQueueCreateInfo {
     const void*                                 pNext                     /// Pointer to next structure
     VkDeviceQueueCreateFlags                    flags
     u32                                         queueFamilyIndex
-    u32                                         queuePriorityCount
+    u32                                         queueCount
     const f32*                                  pQueuePriorities
 }
 
@@ -1301,8 +1301,8 @@ class VkDeviceCreateInfo {
     VkStructureType                             sType                      /// Should be VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
     const void*                                 pNext                      /// Pointer to next structure
     VkDeviceCreateFlags                         flags
-    u32                                         requestedQueueRecordCount
-    const VkDeviceQueueCreateInfo*              pRequestedQueues
+    u32                                         queueCreateInfoCount
+    const VkDeviceQueueCreateInfo*              pQueueCreateInfos
     u32                                         enabledLayerNameCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
     u32                                         enabledExtensionNameCount
@@ -1642,7 +1642,7 @@ class VkShaderModuleCreateInfo {
 class VkDescriptorSetLayoutBinding {
     u32                                         binding
     VkDescriptorType                            descriptorType     /// Type of the descriptors in this binding
-    u32                                         arraySize          /// Number of descriptors in this binding
+    u32                                         descriptorCount    /// Number of descriptors in this binding
     VkShaderStageFlags                          stageFlags         /// Shader stages this binding is visible to
     const VkSampler*                            pImmutableSamplers /// Immutable samplers (used if descriptor type is SAMPLER or COMBINED_IMAGE_SAMPLER, is either NULL or contains <count> number of elements)
 }
@@ -2111,6 +2111,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxPerStageDescriptorSampledImages        /// max num of sampled images allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorStorageImages        /// max num of storage images allowed per-stage in a descriptor set
     u32                                         maxPerStageDescriptorInputAttachments
+    u32                                         maxPerStageResources
     u32                                         maxDescriptorSetSamplers                  /// max num of samplers allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetUniformBuffers            /// max num of uniform buffers allowed in all stages in a descriptor set
     u32                                         maxDescriptorSetUniformBuffersDynamic     /// max num of dynamic uniform buffers allowed in all stages in a descriptor set
@@ -2156,7 +2157,7 @@ class VkPhysicalDeviceLimits {
     u32                                         mipmapPrecisionBits                       /// num bits of mipmap precision
 
     u32                                         maxDrawIndexedIndexValue                  /// max index value for indexed draw calls (for 32-bit indices)
-    u32                                         maxDrawIndirectInstanceCount              /// max instance count for indirect draw calls
+    u32                                         maxDrawIndirectCount
 
     f32                                         maxSamplerLodBias                         /// max absolute sampler level of detail bias
     f32                                         maxSamplerAnisotropy                      /// max degree of sampler anisotropy
@@ -2212,6 +2213,7 @@ class VkPhysicalDeviceLimits {
 
     VkDeviceSize                                optimalBufferCopyOffsetAlignment
     VkDeviceSize                                optimalBufferCopyRowPitchAlignment
+    VkDeviceSize                                nonCoherentAtomSize
 }
 
 class VkPhysicalDeviceSparseProperties {

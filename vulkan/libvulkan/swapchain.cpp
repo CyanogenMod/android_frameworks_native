@@ -569,10 +569,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
     if (idx == swapchain.num_images) {
         ALOGE("dequeueBuffer returned unrecognized buffer");
         window->cancelBuffer(window, buffer, fence);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wold-style-cast"
         return VK_ERROR_OUT_OF_DATE_KHR;
-#pragma clang diagnostic pop
     }
 
     int fence_clone = -1;
@@ -616,13 +613,9 @@ VkResult AcquireNextImageKHR(VkDevice device,
 
 VKAPI_ATTR
 VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wold-style-cast"
-#pragma clang diagnostic ignored "-Wsign-conversion"
     ALOGV_IF(present_info->sType != VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
              "vkQueuePresentKHR: invalid VkPresentInfoKHR structure type %d",
              present_info->sType);
-#pragma clang diagnostic pop
     ALOGV_IF(present_info->pNext, "VkPresentInfo::pNext != NULL");
 
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(queue);

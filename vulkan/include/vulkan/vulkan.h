@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 205, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 206, 0)
 
 
 #define VK_NULL_HANDLE 0
@@ -125,6 +125,12 @@ typedef enum VkResult {
     VK_ERROR_INCOMPATIBLE_DRIVER = -9,
     VK_ERROR_TOO_MANY_OBJECTS = -10,
     VK_ERROR_FORMAT_NOT_SUPPORTED = -11,
+    VK_ERROR_SURFACE_LOST_KHR = 0xC0000400,
+    VK_SUBOPTIMAL_KHR = 0x40000403,
+    VK_ERROR_OUT_OF_DATE_KHR = 0xC0000804,
+    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR = 0xC0001002,
+    VK_ERROR_INVALID_ANDROID_WINDOW_KHR = 0xC0002400,
+    VK_ERROR_ANDROID_WINDOW_IN_USE_KHR = 0xC0002401,
     VK_RESULT_BEGIN_RANGE = VK_ERROR_FORMAT_NOT_SUPPORTED,
     VK_RESULT_END_RANGE = VK_INCOMPLETE,
     VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_FORMAT_NOT_SUPPORTED + 1),
@@ -180,6 +186,12 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_MEMORY_BARRIER = 45,
     VK_STRUCTURE_TYPE_LAYER_INSTANCE_CREATE_INFO = 46,
     VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO = 47,
+    VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR = 0xC0000800,
+    VK_STRUCTURE_TYPE_PRESENT_INFO_KHR = 0xC0000801,
+    VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR = 0xC0000C00,
+    VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR = 0xC0000C01,
+    VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR = 0xC0001000,
+    VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR = 0xC0001001,
     VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO,
     VK_STRUCTURE_TYPE_RANGE_SIZE = (VK_STRUCTURE_TYPE_LAYER_DEVICE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
@@ -447,6 +459,7 @@ typedef enum VkImageLayout {
     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL = 6,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL = 7,
     VK_IMAGE_LAYOUT_PREINITIALIZED = 8,
+    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR = 0xC0000802,
     VK_IMAGE_LAYOUT_BEGIN_RANGE = VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_END_RANGE = VK_IMAGE_LAYOUT_PREINITIALIZED,
     VK_IMAGE_LAYOUT_RANGE_SIZE = (VK_IMAGE_LAYOUT_PREINITIALIZED - VK_IMAGE_LAYOUT_UNDEFINED + 1),
@@ -1204,6 +1217,7 @@ typedef struct VkPhysicalDeviceLimits {
     uint32_t                                    maxPerStageDescriptorSampledImages;
     uint32_t                                    maxPerStageDescriptorStorageImages;
     uint32_t                                    maxPerStageDescriptorInputAttachments;
+    uint32_t                                    maxPerStageResources;
     uint32_t                                    maxDescriptorSetSamplers;
     uint32_t                                    maxDescriptorSetUniformBuffers;
     uint32_t                                    maxDescriptorSetUniformBuffersDynamic;
@@ -1242,7 +1256,7 @@ typedef struct VkPhysicalDeviceLimits {
     uint32_t                                    subTexelPrecisionBits;
     uint32_t                                    mipmapPrecisionBits;
     uint32_t                                    maxDrawIndexedIndexValue;
-    uint32_t                                    maxDrawIndirectInstanceCount;
+    uint32_t                                    maxDrawIndirectCount;
     float                                       maxSamplerLodBias;
     float                                       maxSamplerAnisotropy;
     uint32_t                                    maxViewports;
@@ -1287,6 +1301,7 @@ typedef struct VkPhysicalDeviceLimits {
     VkBool32                                    standardSampleLocations;
     VkDeviceSize                                optimalBufferCopyOffsetAlignment;
     VkDeviceSize                                optimalBufferCopyRowPitchAlignment;
+    VkDeviceSize                                nonCoherentAtomSize;
 } VkPhysicalDeviceLimits;
 
 typedef struct VkPhysicalDeviceSparseProperties {
@@ -1338,7 +1353,7 @@ typedef struct VkDeviceQueueCreateInfo {
     const void*                                 pNext;
     VkDeviceQueueCreateFlags                    flags;
     uint32_t                                    queueFamilyIndex;
-    uint32_t                                    queuePriorityCount;
+    uint32_t                                    queueCount;
     const float*                                pQueuePriorities;
 } VkDeviceQueueCreateInfo;
 
@@ -1346,8 +1361,8 @@ typedef struct VkDeviceCreateInfo {
     VkStructureType                             sType;
     const void*                                 pNext;
     VkDeviceCreateFlags                         flags;
-    uint32_t                                    requestedQueueCount;
-    const VkDeviceQueueCreateInfo*              pRequestedQueues;
+    uint32_t                                    queueCreateInfoCount;
+    const VkDeviceQueueCreateInfo*              pQueueCreateInfos;
     uint32_t                                    enabledLayerNameCount;
     const char*const*                           ppEnabledLayerNames;
     uint32_t                                    enabledExtensionNameCount;
@@ -1839,7 +1854,7 @@ typedef struct VkSamplerCreateInfo {
 typedef struct VkDescriptorSetLayoutBinding {
     uint32_t                                    binding;
     VkDescriptorType                            descriptorType;
-    uint32_t                                    arraySize;
+    uint32_t                                    descriptorCount;
     VkShaderStageFlags                          stageFlags;
     const VkSampler*                            pImmutableSamplers;
 } VkDescriptorSetLayoutBinding;
@@ -3071,7 +3086,6 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSurfaceKHR)
 #define VK_KHR_SURFACE_REVISION           23
 #define VK_KHR_SURFACE_EXTENSION_NUMBER   1
 #define VK_KHR_SURFACE_EXTENSION_NAME     "VK_KHR_surface"
-#define VK_ERROR_SURFACE_LOST_KHR         ((VkResult)(int)0xc0000400)
 
 
 typedef enum VkSurfaceTransformKHR {
@@ -3192,11 +3206,6 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
 #define VK_KHR_SWAPCHAIN_REVISION         66
 #define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER 2
 #define VK_KHR_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_swapchain"
-#define VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000800)
-#define VK_STRUCTURE_TYPE_PRESENT_INFO_KHR ((VkStructureType)(int)0xc0000801)
-#define VK_IMAGE_LAYOUT_PRESENT_SRC_KHR   ((VkImageLayout)(int)0xc0000802)
-#define VK_SUBOPTIMAL_KHR                 ((VkResult)(int)0x40000403)
-#define VK_ERROR_OUT_OF_DATE_KHR          ((VkResult)(int)0xc0000804)
 
 typedef struct VkSwapchainCreateInfoKHR {
     VkStructureType                             sType;
@@ -3274,8 +3283,6 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDisplayModeKHR)
 #define VK_KHR_DISPLAY_REVISION           19
 #define VK_KHR_DISPLAY_EXTENSION_NUMBER   3
 #define VK_KHR_DISPLAY_EXTENSION_NAME     "VK_KHR_display"
-#define VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000c00)
-#define VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000c01)
 
 
 typedef enum VkDisplayPlaneAlphaFlagBitsKHR {
@@ -3395,9 +3402,6 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDisplayPlaneSurfaceKHR(
 #define VK_KHR_DISPLAY_SWAPCHAIN_REVISION 8
 #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
 #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME "VK_KHR_display_swapchain"
-#define VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0001000)
-#define VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR ((VkStructureType)(int)0xc0001001)
-#define VK_ERROR_INCOMPATIBLE_DISPLAY_KHR ((VkResult)(int)0xc0001002)
 
 typedef struct VkDisplaySwapchainCreateInfoKHR {
     VkStructureType                             sType;
@@ -3528,8 +3532,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vkGetPhysicalDeviceMirPresentationSupportKHR(
 #define VK_KHR_ANDROID_SURFACE_REVISION   3
 #define VK_KHR_ANDROID_SURFACE_EXTENSION_NUMBER 9
 #define VK_KHR_ANDROID_SURFACE_EXTENSION_NAME "VK_KHR_android_surface"
-#define VK_ERROR_INVALID_ANDROID_WINDOW_KHR ((VkResult)(int)0xc0002400)
-#define VK_ERROR_ANDROID_WINDOW_IN_USE_KHR ((VkResult)(int)0xc0002401)
 
 typedef VkResult (VKAPI_PTR *PFN_vkCreateAndroidSurfaceKHR)(VkInstance instance, ANativeWindow* window, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
 
