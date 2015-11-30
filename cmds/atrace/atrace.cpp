@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/sendfile.h>
 #include <time.h>
+#include <unistd.h>
 #include <zlib.h>
 
 #include <binder/IBinder.h>
@@ -213,6 +214,9 @@ static const char* k_tracingOnPath =
 
 static const char* k_tracePath =
     "/sys/kernel/debug/tracing/trace";
+
+static const char* k_traceStreamPath =
+    "/sys/kernel/debug/tracing/trace_pipe";
 
 static const char* k_traceMarkerPath =
     "/sys/kernel/debug/tracing/trace_marker";
@@ -732,6 +736,31 @@ static void stopTrace()
     setTracingEnabled(false);
 }
 
+// Read data from the tracing pipe and forward to stdout
+static void streamTrace()
+{
+    char trace_data[4096];
+    int traceFD = open(k_traceStreamPath, O_RDWR);
+    if (traceFD == -1) {
+        fprintf(stderr, "error opening %s: %s (%d)\n", k_traceStreamPath,
+                strerror(errno), errno);
+        return;
+    }
+    while (!g_traceAborted) {
+        ssize_t bytes_read = read(traceFD, trace_data, 4096);
+        if (bytes_read > 0) {
+            write(STDOUT_FILENO, trace_data, bytes_read);
+            fflush(stdout);
+        } else {
+            if (!g_traceAborted) {
+                fprintf(stderr, "read returned %zd bytes err %d (%s)\n",
+                        bytes_read, errno, strerror(errno));
+            }
+            break;
+        }
+    }
+}
+
 // Read the current kernel trace and write it to stdout.
 static void dumpTrace()
 {
@@ -878,6 +907,10 @@ static void showHelp(const char *cmd)
                     "  --async_dump    dump the current contents of circular trace buffer\n"
                     "  --async_stop    stop tracing and dump the current contents of circular\n"
                     "                    trace buffer\n"
+                    "  --stream        stream trace to stdout as it enters the trace buffer\n"
+                    "                    Note: this can take significant CPU time, and is best\n"
+                    "                    used for measuring things that are not affected by\n"
+                    "                    CPU performance, like pagecache usage.\n"
                     "  --list_categories\n"
                     "                  list the available tracing categories\n"
             );
@@ -889,6 +922,7 @@ int main(int argc, char **argv)
     bool traceStart = true;
     bool traceStop = true;
     bool traceDump = true;
+    bool traceStream = false;
 
     if (argc == 2 && 0 == strcmp(argv[1], "--help")) {
         showHelp(argv[0]);
@@ -903,6 +937,7 @@ int main(int argc, char **argv)
             {"async_stop",      no_argument, 0,  0 },
             {"async_dump",      no_argument, 0,  0 },
             {"list_categories", no_argument, 0,  0 },
+            {"stream",          no_argument, 0,  0 },
             {           0,                0, 0,  0 }
         };
 
@@ -969,6 +1004,9 @@ int main(int argc, char **argv)
                     async = true;
                     traceStart = false;
                     traceStop = false;
+                } else if (!strcmp(long_options[option_index].name, "stream")) {
+                    traceStream = true;
+                    traceDump = false;
                 } else if (!strcmp(long_options[option_index].name, "list_categories")) {
                     listSupportedCategories();
                     exit(0);
@@ -994,8 +1032,10 @@ int main(int argc, char **argv)
     ok &= startTrace();
 
     if (ok && traceStart) {
-        printf("capturing trace...");
-        fflush(stdout);
+        if (!traceStream) {
+            printf("capturing trace...");
+            fflush(stdout);
+        }
 
         // We clear the trace after starting it because tracing gets enabled for
         // each CPU individually in the kernel. Having the beginning of the trace
@@ -1005,7 +1045,7 @@ int main(int argc, char **argv)
         ok = clearTrace();
 
         writeClockSyncMarker();
-        if (ok && !async) {
+        if (ok && !async && !traceStream) {
             // Sleep to allow the trace to be captured.
             struct timespec timeLeft;
             timeLeft.tv_sec = g_traceDurationSeconds;
@@ -1015,6 +1055,10 @@ int main(int argc, char **argv)
                     break;
                 }
             } while (nanosleep(&timeLeft, &timeLeft) == -1 && errno == EINTR);
+        }
+
+        if (traceStream) {
+            streamTrace();
         }
     }
 
