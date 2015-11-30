@@ -727,8 +727,8 @@ VKAPI_ATTR void vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t com
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface) {
-    GetVtbl(instance).DestroySurfaceKHR(instance, surface);
+VKAPI_ATTR void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator) {
+    GetVtbl(instance).DestroySurfaceKHR(instance, surface, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -752,13 +752,13 @@ VKAPI_ATTR VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice p
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR VkResult vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo, VkSwapchainKHR* pSwapchain) {
-    return GetVtbl(device).CreateSwapchainKHR(device, pCreateInfo, pSwapchain);
+VKAPI_ATTR VkResult vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain) {
+    return GetVtbl(device).CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain) {
-    GetVtbl(device).DestroySwapchainKHR(device, swapchain);
+VKAPI_ATTR void vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator) {
+    GetVtbl(device).DestroySwapchainKHR(device, swapchain, pAllocator);
 }
 
 __attribute__((visibility("default")))
@@ -777,6 +777,6 @@ VKAPI_ATTR VkResult vkQueuePresentKHR(VkQueue queue, VkPresentInfoKHR* pPresentI
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR VkResult vkCreateAndroidSurfaceKHR(VkInstance instance, struct ANativeWindow* window, VkSurfaceKHR* pSurface) {
-    return GetVtbl(instance).CreateAndroidSurfaceKHR(instance, window, pSurface);
+VKAPI_ATTR VkResult vkCreateAndroidSurfaceKHR(VkInstance instance, struct ANativeWindow* window, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) {
+    return GetVtbl(instance).CreateAndroidSurfaceKHR(instance, window, pAllocator, pSurface);
 }

@@ -144,6 +144,7 @@ namespace vulkan {
 VKAPI_ATTR
 VkResult CreateAndroidSurfaceKHR(VkInstance instance,
                                  ANativeWindow* window,
+                                 const VkAllocationCallbacks* /*allocator*/,
                                  VkSurfaceKHR* out_surface) {
     void* mem = AllocMem(instance, sizeof(Surface), alignof(Surface),
                          VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
@@ -171,7 +172,9 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
 }
 
 VKAPI_ATTR
-void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
+void DestroySurfaceKHR(VkInstance instance,
+                       VkSurfaceKHR surface_handle,
+                       const VkAllocationCallbacks* /*allocator*/) {
     Surface* surface = SurfaceFromHandle(surface_handle);
     if (!surface)
         return;
@@ -184,8 +187,8 @@ VKAPI_ATTR
 VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
                                             uint32_t /*queue_family*/,
                                             VkSurfaceKHR /*surface*/,
-                                            VkBool32* pSupported) {
-    *pSupported = VK_TRUE;
+                                            VkBool32* supported) {
+    *supported = VK_TRUE;
     return VK_SUCCESS;
 }
 
@@ -296,6 +299,7 @@ VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice /*pdev*/,
 VKAPI_ATTR
 VkResult CreateSwapchainKHR(VkDevice device,
                             const VkSwapchainCreateInfoKHR* create_info,
+                            const VkAllocationCallbacks* /*allocator*/,
                             VkSwapchainKHR* swapchain_handle) {
     int err;
     VkResult result = VK_SUCCESS;
@@ -483,7 +487,9 @@ VkResult CreateSwapchainKHR(VkDevice device,
 }
 
 VKAPI_ATTR
-VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle) {
+VkResult DestroySwapchainKHR(VkDevice device,
+                             VkSwapchainKHR swapchain_handle,
+                             const VkAllocationCallbacks* /*allocator*/) {
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
     const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;

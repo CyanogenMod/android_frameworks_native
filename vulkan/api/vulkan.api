@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 204
+define VERSION_MINOR 205
 define VERSION_PATCH 0
 
 // API limits
@@ -45,43 +45,43 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_REVISION                     22
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_REVISION                     23
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 65
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 66
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
-@extension("VK_KHR_display") define VK_KHR_DISPLAY_REVISION                     18
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_REVISION                     19
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NUMBER             3
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NAME               "VK_KHR_display"
 
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_REVISION           7
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_EXTENSION_NUMBER   4
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_EXTENSION_NAME     "VK_KHR_display_swapchain"
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_REVISION         8
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_display_swapchain"
 
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           4
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           5
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NUMBER             5
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NAME               "VK_KHR_xlib_surface"
 
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             4
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             5
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NUMBER               6
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NAME                 "VK_KHR_xcb_surface"
 
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     3
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     4
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NUMBER       7
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NAME         "VK_KHR_wayland_surface"
 
-@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_REVISION             3
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_REVISION             4
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NUMBER               8
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     2
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     3
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NUMBER       8
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         3
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         4
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NUMBER           9
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
@@ -4594,7 +4594,8 @@ cmd void vkCmdExecuteCommands(
 @extension("VK_KHR_surface")
 cmd void vkDestroySurfaceKHR(
         VkInstance                                  instance,
-        VkSurfaceKHR                                surface) {
+        VkSurfaceKHR                                surface,
+        const VkAllocationCallbacks*                pAllocator) {
     instanceObject := GetInstance(instance)
     surfaceObject := GetSurface(surface)
     assert(surfaceObject.instance == instance)
@@ -4670,6 +4671,7 @@ cmd VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(
 cmd VkResult vkCreateSwapchainKHR(
         VkDevice                                 device,
         const VkSwapchainCreateInfoKHR*          pCreateInfo,
+        const VkAllocationCallbacks*             pAllocator,
         VkSwapchainKHR*                          pSwapchain) {
     assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
     deviceObject := GetDevice(device)
@@ -4684,7 +4686,8 @@ cmd VkResult vkCreateSwapchainKHR(
 @extension("VK_KHR_swapchain")
 cmd void vkDestroySwapchainKHR(
         VkDevice                                 device,
-        VkSwapchainKHR                           swapchain) {
+        VkSwapchainKHR                           swapchain,
+        const VkAllocationCallbacks*             pAllocator) {
     deviceObject := GetDevice(device)
     swapchainObject := GetSwapchain(swapchain)
     assert(swapchainObject.device == device)
@@ -4784,6 +4787,7 @@ cmd VkResult vkCreateDisplayModeKHR(
         VkPhysicalDevice                        physicalDevice,
         VkDisplayKHR                            display,
         const VkDisplayModeCreateInfoKHR*       pCreateInfo,
+        const VkAllocationCallbacks*            pAllocator,
         VkDisplayModeKHR*                       pMode) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     return ?
@@ -4803,6 +4807,7 @@ cmd VkResult vkGetDisplayPlaneCapabilitiesKHR(
 cmd VkResult vkCreateDisplayPlaneSurfaceKHR(
         VkInstance                              instance,
         const VkDisplaySurfaceCreateInfoKHR*    pCreateInfo,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     return ?
 }
@@ -4812,6 +4817,7 @@ cmd VkResult vkCreateXlibSurfaceKHR(
         VkInstance                              instance,
         platform.Display*                       dpy,
         platform.Window                         window,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?
@@ -4832,6 +4838,7 @@ cmd VkResult vkCreateXCBSurfaceKHR(
         VkInstance                              instance,
         platform.xcb_connection_t*              connection,
         platform.xcb_window_t                   window,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?
@@ -4852,6 +4859,7 @@ cmd VkResult vkCreateWaylandSurfaceKHR(
         VkInstance                              instance,
         platform.wl_display*                    display,
         platform.wl_surface*                    surface,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?
@@ -4871,6 +4879,7 @@ cmd VkResult vkCreateMirSurfaceKHR(
         VkInstance                              instance,
         platform.MirConnection*                 connection,
         platform.MirSurface*                    mirSurface,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?
@@ -4888,7 +4897,8 @@ cmd VkBool32 vkGetPhysicalDeviceMirPresentationSupportKHR(
 @extension("VK_KHR_android_surface")
 cmd VkResult vkCreateAndroidSurfaceKHR(
         VkInstance                              instance,
-        platform.ANativeWindow*                 window
+        platform.ANativeWindow*                 window,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?
@@ -4899,6 +4909,7 @@ cmd VkResult vkCreateWin32SurfaceKHR(
         VkInstance                              instance,
         platform.HINSTANCE                      hinstance,
         platform.HWND                           hwnd,
+        const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
     return ?

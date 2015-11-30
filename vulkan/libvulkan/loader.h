@@ -212,7 +212,7 @@ VkResult EnumerateInstanceExtensionProperties(
 VkResult EnumerateInstanceLayerProperties(uint32_t* count,
                                           VkLayerProperties* properties);
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
-                        const VkAllocationCallbacks* pAllocator,
+                        const VkAllocationCallbacks* allocator,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device, const char* name);
@@ -224,7 +224,7 @@ VkResult AllocCommandBuffers(VkDevice device,
                              const VkCommandBufferAllocateInfo* alloc_info,
                              VkCommandBuffer* cmdbufs);
 VkResult DestroyDevice(VkDevice drv_device,
-                       const VkAllocationCallbacks* pAllocator);
+                       const VkAllocationCallbacks* allocator);
 
 void* AllocMem(VkInstance instance,
                size_t size,
@@ -261,10 +261,14 @@ bool LoadDeviceVtbl(VkDevice device,
 // -----------------------------------------------------------------------------
 // swapchain.cpp
 
-VKAPI_ATTR VkResult CreateAndroidSurfaceKHR(VkInstance instance,
-                                            ANativeWindow* window,
-                                            VkSurfaceKHR* surface);
-VKAPI_ATTR void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
+VKAPI_ATTR VkResult
+CreateAndroidSurfaceKHR(VkInstance instance,
+                        ANativeWindow* window,
+                        const VkAllocationCallbacks* allocator,
+                        VkSurfaceKHR* surface);
+VKAPI_ATTR void DestroySurfaceKHR(VkInstance instance,
+                                  VkSurfaceKHR surface,
+                                  const VkAllocationCallbacks* allocator);
 VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
                                                        uint32_t queue_family,
                                                        VkSurfaceKHR surface,
@@ -286,9 +290,11 @@ GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice pdev,
 VKAPI_ATTR VkResult
 CreateSwapchainKHR(VkDevice device,
                    const VkSwapchainCreateInfoKHR* create_info,
+                   const VkAllocationCallbacks* allocator,
                    VkSwapchainKHR* swapchain_handle);
-VKAPI_ATTR VkResult
-DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle);
+VKAPI_ATTR VkResult DestroySwapchainKHR(VkDevice device,
+                                        VkSwapchainKHR swapchain_handle,
+                                        const VkAllocationCallbacks* allocator);
 VKAPI_ATTR VkResult GetSwapchainImagesKHR(VkDevice device,
                                           VkSwapchainKHR swapchain_handle,
                                           uint32_t* count,
