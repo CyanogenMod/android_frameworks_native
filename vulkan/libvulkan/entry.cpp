@@ -552,18 +552,18 @@ void vkCmdSetDepthBounds(VkCommandBuffer commandBuffer, float minDepthBounds, fl
 }
 
 __attribute__((visibility("default")))
-void vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t stencilCompareMask) {
-    GetVtbl(commandBuffer).CmdSetStencilCompareMask(commandBuffer, faceMask, stencilCompareMask);
+void vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t compareMask) {
+    GetVtbl(commandBuffer).CmdSetStencilCompareMask(commandBuffer, faceMask, compareMask);
 }
 
 __attribute__((visibility("default")))
-void vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t stencilWriteMask) {
-    GetVtbl(commandBuffer).CmdSetStencilWriteMask(commandBuffer, faceMask, stencilWriteMask);
+void vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t writeMask) {
+    GetVtbl(commandBuffer).CmdSetStencilWriteMask(commandBuffer, faceMask, writeMask);
 }
 
 __attribute__((visibility("default")))
-void vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t stencilReference) {
-    GetVtbl(commandBuffer).CmdSetStencilReference(commandBuffer, faceMask, stencilReference);
+void vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t reference) {
+    GetVtbl(commandBuffer).CmdSetStencilReference(commandBuffer, faceMask, reference);
 }
 
 __attribute__((visibility("default")))
@@ -687,13 +687,13 @@ void vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags sr
 }
 
 __attribute__((visibility("default")))
-void vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {
-    GetVtbl(commandBuffer).CmdBeginQuery(commandBuffer, queryPool, slot, flags);
+void vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t entry, VkQueryControlFlags flags) {
+    GetVtbl(commandBuffer).CmdBeginQuery(commandBuffer, queryPool, entry, flags);
 }
 
 __attribute__((visibility("default")))
-void vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t slot) {
-    GetVtbl(commandBuffer).CmdEndQuery(commandBuffer, queryPool, slot);
+void vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t entry) {
+    GetVtbl(commandBuffer).CmdEndQuery(commandBuffer, queryPool, entry);
 }
 
 __attribute__((visibility("default")))
@@ -702,8 +702,8 @@ void vkCmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, u
 }
 
 __attribute__((visibility("default")))
-void vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
-    GetVtbl(commandBuffer).CmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, slot);
+void vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t entry) {
+    GetVtbl(commandBuffer).CmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, entry);
 }
 
 __attribute__((visibility("default")))
@@ -717,12 +717,12 @@ void vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, 
 }
 
 __attribute__((visibility("default")))
-void vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents) {
+void vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents) {
     GetVtbl(commandBuffer).CmdBeginRenderPass(commandBuffer, pRenderPassBegin, contents);
 }
 
 __attribute__((visibility("default")))
-void vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkRenderPassContents contents) {
+void vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents) {
     GetVtbl(commandBuffer).CmdNextSubpass(commandBuffer, contents);
 }
 

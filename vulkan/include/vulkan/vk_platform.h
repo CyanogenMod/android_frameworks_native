@@ -42,12 +42,9 @@ extern "C"
 #if defined(_WIN32)
     // On Windows, VKAPI should equate to the __stdcall convention
     #define VKAPI   __stdcall
-#elif defined(__GNUC__)
-    // On other platforms using GCC, VKAPI stays undefined
-    #define VKAPI
 #else
-    // Unsupported Platform!
-    #error "Unsupported OS Platform detected!"
+    // On other platforms, use the default calling convention
+    #define VKAPI
 #endif
 
 #include <stddef.h>

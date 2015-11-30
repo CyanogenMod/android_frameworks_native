@@ -27,16 +27,16 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 197
+define VERSION_MINOR 198
 define VERSION_PATCH 0
 
 // API limits
-define VK_MAX_PHYSICAL_DEVICE_NAME 256
-define VK_UUID_LENGTH              16
-define VK_MAX_EXTENSION_NAME       256
-define VK_MAX_DESCRIPTION          256
-define VK_MAX_MEMORY_TYPES         32
-define VK_MAX_MEMORY_HEAPS         16    /// The maximum number of unique memory heaps, each of which supporting 1 or more memory types.
+define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
+define VK_UUID_SIZE                     16
+define VK_MAX_EXTENSION_NAME_SIZE       256
+define VK_MAX_DESCRIPTION_SIZE          256
+define VK_MAX_MEMORY_TYPES              32
+define VK_MAX_MEMORY_HEAPS              16    /// The maximum number of unique memory heaps, each of which supporting 1 or more memory types.
 
 // API keywords
 define VK_TRUE        1
@@ -189,14 +189,14 @@ enum VkCommandBufferLevel {
     VK_COMMAND_BUFFER_LEVEL_SECONDARY                       = 0x00000001,
 }
 
-enum VkChannelSwizzle {
-    VK_CHANNEL_SWIZZLE_IDENTITY                             = 0x00000000,
-    VK_CHANNEL_SWIZZLE_ZERO                                 = 0x00000001,
-    VK_CHANNEL_SWIZZLE_ONE                                  = 0x00000002,
-    VK_CHANNEL_SWIZZLE_R                                    = 0x00000003,
-    VK_CHANNEL_SWIZZLE_G                                    = 0x00000004,
-    VK_CHANNEL_SWIZZLE_B                                    = 0x00000005,
-    VK_CHANNEL_SWIZZLE_A                                    = 0x00000006,
+enum VkComponentSwizzle {
+    VK_COMPONENT_SWIZZLE_IDENTITY                           = 0x00000000,
+    VK_COMPONENT_SWIZZLE_ZERO                               = 0x00000001,
+    VK_COMPONENT_SWIZZLE_ONE                                = 0x00000002,
+    VK_COMPONENT_SWIZZLE_R                                  = 0x00000003,
+    VK_COMPONENT_SWIZZLE_G                                  = 0x00000004,
+    VK_COMPONENT_SWIZZLE_B                                  = 0x00000005,
+    VK_COMPONENT_SWIZZLE_A                                  = 0x00000006,
 }
 
 enum VkDescriptorType {
@@ -287,10 +287,10 @@ enum VkCompareOp {
     VK_COMPARE_OP_ALWAYS                                    = 0x00000007,
 }
 
-enum VkFillMode {
-    VK_FILL_MODE_SOLID                                      = 0x00000000,
-    VK_FILL_MODE_WIREFRAME                                  = 0x00000001,
-    VK_FILL_MODE_POINTS                                     = 0x00000002,
+enum VkPolygonMode {
+    VK_POLYGON_MODE_FILL                                    = 0x00000000,
+    VK_POLYGON_MODE_LINE                                    = 0x00000001,
+    VK_POLYGON_MODE_POINT                                   = 0x00000002,
 }
 
 enum VkFrontFace {
@@ -298,26 +298,26 @@ enum VkFrontFace {
     VK_FRONT_FACE_CLOCKWISE                                 = 0x00000001,
 }
 
-enum VkBlend {
-    VK_BLEND_ZERO                                           = 0x00000000,
-    VK_BLEND_ONE                                            = 0x00000001,
-    VK_BLEND_SRC_COLOR                                      = 0x00000002,
-    VK_BLEND_ONE_MINUS_SRC_COLOR                            = 0x00000003,
-    VK_BLEND_DST_COLOR                                      = 0x00000004,
-    VK_BLEND_ONE_MINUS_DST_COLOR                            = 0x00000005,
-    VK_BLEND_SRC_ALPHA                                      = 0x00000006,
-    VK_BLEND_ONE_MINUS_SRC_ALPHA                            = 0x00000007,
-    VK_BLEND_DST_ALPHA                                      = 0x00000008,
-    VK_BLEND_ONE_MINUS_DST_ALPHA                            = 0x00000009,
-    VK_BLEND_CONSTANT_COLOR                                 = 0x0000000a,
-    VK_BLEND_ONE_MINUS_CONSTANT_COLOR                       = 0x0000000b,
-    VK_BLEND_CONSTANT_ALPHA                                 = 0x0000000c,
-    VK_BLEND_ONE_MINUS_CONSTANT_ALPHA                       = 0x0000000d,
-    VK_BLEND_SRC_ALPHA_SATURATE                             = 0x0000000e,
-    VK_BLEND_SRC1_COLOR                                     = 0x0000000f,
-    VK_BLEND_ONE_MINUS_SRC1_COLOR                           = 0x00000010,
-    VK_BLEND_SRC1_ALPHA                                     = 0x00000011,
-    VK_BLEND_ONE_MINUS_SRC1_ALPHA                           = 0x00000012,
+enum VkBlendFactor {
+    VK_BLEND_FACTOR_ZERO                                    = 0x00000000,
+    VK_BLEND_FACTOR_ONE                                     = 0x00000001,
+    VK_BLEND_FACTOR_SRC_COLOR                               = 0x00000002,
+    VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR                     = 0x00000003,
+    VK_BLEND_FACTOR_DST_COLOR                               = 0x00000004,
+    VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR                     = 0x00000005,
+    VK_BLEND_FACTOR_SRC_ALPHA                               = 0x00000006,
+    VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA                     = 0x00000007,
+    VK_BLEND_FACTOR_DST_ALPHA                               = 0x00000008,
+    VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA                     = 0x00000009,
+    VK_BLEND_FACTOR_CONSTANT_COLOR                          = 0x0000000a,
+    VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR                = 0x0000000b,
+    VK_BLEND_FACTOR_CONSTANT_ALPHA                          = 0x0000000c,
+    VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA                = 0x0000000d,
+    VK_BLEND_FACTOR_SRC_ALPHA_SATURATE                      = 0x0000000e,
+    VK_BLEND_FACTOR_SRC1_COLOR                              = 0x0000000f,
+    VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR                    = 0x00000010,
+    VK_BLEND_FACTOR_SRC1_ALPHA                              = 0x00000011,
+    VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA                    = 0x00000012,
 }
 
 enum VkBlendOp {
@@ -378,9 +378,9 @@ enum VkPhysicalDeviceType {
     VK_PHYSICAL_DEVICE_TYPE_CPU                             = 0x00000004,
 }
 
-enum VkVertexInputStepRate {
-    VK_VERTEX_INPUT_STEP_RATE_VERTEX                        = 0x00000000,
-    VK_VERTEX_INPUT_STEP_RATE_INSTANCE                      = 0x00000001,
+enum VkVertexInputRate {
+    VK_VERTEX_INPUT_RATE_VERTEX                             = 0x00000000,
+    VK_VERTEX_INPUT_RATE_INSTANCE                           = 0x00000001,
 }
 
 /// Vulkan format definitions
@@ -587,7 +587,7 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO = 21,
     VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO   = 22,
     VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO       = 23,
-    VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO         = 24,
+    VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO  = 24,
     VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO    = 25,
     VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO  = 26,
     VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO    = 27,
@@ -625,9 +625,9 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 0xc0001001,
 }
 
-enum VkRenderPassContents {
-    VK_RENDER_PASS_CONTENTS_INLINE                          = 0x00000000,
-    VK_RENDER_PASS_CONTENTS_SECONDARY_COMMAND_BUFFERS       = 0x00000001,
+enum VkSubpassContents {
+    VK_SUBPASS_CONTENTS_INLINE                              = 0x00000000,
+    VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS           = 0x00000001,
 }
 
 @lastUnused(-8)
@@ -716,7 +716,7 @@ type VkFlags VkQueueFlags
 bitfield VkQueueFlagBits {
     VK_QUEUE_GRAPHICS_BIT                                   = 0x00000001,    /// Queue supports graphics operations
     VK_QUEUE_COMPUTE_BIT                                    = 0x00000002,    /// Queue supports compute operations
-    VK_QUEUE_DMA_BIT                                        = 0x00000004,    /// Queue supports DMA operations
+    VK_QUEUE_TRANSFER_BIT                                   = 0x00000004,    /// Queue supports transfer operations
     VK_QUEUE_SPARSE_BINDING_BIT                             = 0x00000008,    /// Queue supports sparse resource memory management operations
 }
 
@@ -844,13 +844,13 @@ bitfield VkPipelineCreateFlagBits {
     VK_PIPELINE_CREATE_DERIVATIVE_BIT                       = 0x00000004,
 }
 
-/// Channel flags
-type VkFlags VkChannelFlags
-bitfield VkChannelFlagBits {
-    VK_CHANNEL_R_BIT                                        = 0x00000001,
-    VK_CHANNEL_G_BIT                                        = 0x00000002,
-    VK_CHANNEL_B_BIT                                        = 0x00000004,
-    VK_CHANNEL_A_BIT                                        = 0x00000008,
+/// Color component flags
+type VkFlags VkColorComponentFlags
+bitfield VkColorComponentFlagBits {
+    VK_COLOR_COMPONENT_R_BIT                                = 0x00000001,
+    VK_COLOR_COMPONENT_G_BIT                                = 0x00000002,
+    VK_COLOR_COMPONENT_B_BIT                                = 0x00000004,
+    VK_COLOR_COMPONENT_A_BIT                                = 0x00000008,
 }
 
 /// Fence creation flags
@@ -884,7 +884,7 @@ bitfield VkFormatFeatureFlagBits {
 /// Query control flags
 type VkFlags VkQueryControlFlags
 bitfield VkQueryControlFlagBits {
-    VK_QUERY_CONTROL_CONSERVATIVE_BIT                       = 0x00000001,    /// Allow conservative results to be collected by the query
+    VK_QUERY_CONTROL_PRECISE_BIT                            = 0x00000001,
 }
 
 /// Query result flags
@@ -1215,8 +1215,8 @@ class VkExtent3D {
 }
 
 class VkViewport {
-    f32                                         originX
-    f32                                         originY
+    f32                                         x
+    f32                                         y
     f32                                         width
     f32                                         height
     f32                                         minDepth
@@ -1234,35 +1234,35 @@ class VkClearRect {
     u32                                         layerCount
 }
 
-class VkChannelMapping {
-    VkChannelSwizzle                            r
-    VkChannelSwizzle                            g
-    VkChannelSwizzle                            b
-    VkChannelSwizzle                            a
+class VkComponentMapping {
+    VkComponentSwizzle                          r
+    VkComponentSwizzle                          g
+    VkComponentSwizzle                          b
+    VkComponentSwizzle                          a
 }
 
 class VkPhysicalDeviceProperties {
     u32                                         apiVersion
     u32                                         driverVersion
-    u32                                         vendorId
-    u32                                         deviceId
+    u32                                         vendorID
+    u32                                         deviceID
     VkPhysicalDeviceType                        deviceType
-    char[VK_MAX_PHYSICAL_DEVICE_NAME]           deviceName
-    u8[VK_UUID_LENGTH]                          pipelineCacheUUID
+    char[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE]      deviceName
+    u8[VK_UUID_SIZE]                            pipelineCacheUUID
     VkPhysicalDeviceLimits                      limits
     VkPhysicalDeviceSparseProperties            sparseProperties
 }
 
 class VkExtensionProperties {
-    char[VK_MAX_EXTENSION_NAME]                 extensionName      /// extension name
+    char[VK_MAX_EXTENSION_NAME_SIZE]            extensionName      /// extension name
     u32                                         specVersion        /// version of the extension specification implemented
 }
 
 class VkLayerProperties {
-    char[VK_MAX_EXTENSION_NAME]                 layerName               /// layer name
+    char[VK_MAX_EXTENSION_NAME_SIZE]            layerName               /// layer name
     u32                                         specVersion             /// version of the layer specification implemented
     u32                                         implementationVersion   /// build or release version of the layer's library
-    char[VK_MAX_DESCRIPTION]                    description             /// Free-form description of the layer
+    char[VK_MAX_DESCRIPTION_SIZE]               description             /// Free-form description of the layer
 }
 
 class VkSubmitInfo {
@@ -1332,6 +1332,7 @@ class VkQueueFamilyProperties {
     VkQueueFlags                                queueFlags                 /// Queue flags
     u32                                         queueCount
     u32                                         timestampValidBits
+    VkExtent3D                                  minImageTransferGranularity
 }
 
 class VkPhysicalDeviceMemoryProperties {
@@ -1362,7 +1363,7 @@ class VkSparseImageFormatProperties {
 
 class VkSparseImageMemoryRequirements {
     VkSparseImageFormatProperties               formatProperties
-    u32                                         imageMipTailStartLOD
+    u32                                         imageMipTailStartLod
     VkDeviceSize                                imageMipTailSize           /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailOffset         /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailStride         /// Specified in bytes, must be a multiple of image block size / alignment
@@ -1536,7 +1537,7 @@ class VkImageViewCreateInfo {
     VkImage                                     image
     VkImageViewType                             viewType
     VkFormat                                    format
-    VkChannelMapping                            channels
+    VkComponentMapping                          components
     VkImageSubresourceRange                     subresourceRange
 }
 
@@ -1596,26 +1597,26 @@ class VkBindSparseInfo {
     const VkSemaphore*                          pSignalSemaphores
 }
 
-class VkImageSubresourceCopy {
-    VkImageAspectFlags                          aspect
+class VkImageSubresourceLayers {
+    VkImageAspectFlags                          aspectMask
     u32                                         mipLevel
     u32                                         baseArrayLayer
     u32                                         layerCount
 }
 
 class VkImageCopy {
-    VkImageSubresourceCopy                      srcSubresource
+    VkImageSubresourceLayers                    srcSubresource
     VkOffset3D                                  srcOffset             /// Specified in pixels for both compressed and uncompressed images
-    VkImageSubresourceCopy                      dstSubresource
+    VkImageSubresourceLayers                    dstSubresource
     VkOffset3D                                  dstOffset             /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  extent                /// Specified in pixels for both compressed and uncompressed images
 }
 
 class VkImageBlit {
-    VkImageSubresourceCopy                      srcSubresource
+    VkImageSubresourceLayers                    srcSubresource
     VkOffset3D                                  srcOffset              /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  srcExtent              /// Specified in pixels for both compressed and uncompressed images
-    VkImageSubresourceCopy                      dstSubresource
+    VkImageSubresourceLayers                    dstSubresource
     VkOffset3D                                  dstOffset              /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  dstExtent              /// Specified in pixels for both compressed and uncompressed images
 }
@@ -1624,15 +1625,15 @@ class VkBufferImageCopy {
     VkDeviceSize                                bufferOffset           /// Specified in bytes
     u32                                         bufferRowLength        /// Specified in texels
     u32                                         bufferImageHeight
-    VkImageSubresourceCopy                      imageSubresource
+    VkImageSubresourceLayers                    imageSubresource
     VkOffset3D                                  imageOffset            /// Specified in pixels for both compressed and uncompressed images
     VkExtent3D                                  imageExtent            /// Specified in pixels for both compressed and uncompressed images
 }
 
 class VkImageResolve {
-    VkImageSubresourceCopy                      srcSubresource
+    VkImageSubresourceLayers                    srcSubresource
     VkOffset3D                                  srcOffset
-    VkImageSubresourceCopy                      dstSubresource
+    VkImageSubresourceLayers                    dstSubresource
     VkOffset3D                                  dstOffset
     VkExtent3D                                  extent
 }
@@ -1669,7 +1670,7 @@ class VkDescriptorSetLayoutCreateInfo {
     const VkDescriptorSetLayoutBinding*         pBindings          /// Array of descriptor set layout bindings
 }
 
-class VkDescriptorTypeCount {
+class VkDescriptorPoolSize {
     VkDescriptorType                            type
     u32                                         descriptorCount
 }
@@ -1679,8 +1680,8 @@ class VkDescriptorPoolCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorPoolCreateFlags                 flags
     u32                                         maxSets
-    u32                                         typeCount
-    const VkDescriptorTypeCount*                pTypeCounts
+    u32                                         poolSizeCount
+    const VkDescriptorPoolSize*                 pPoolSizes
 }
 
 class VkDescriptorSetAllocateInfo {
@@ -1692,7 +1693,7 @@ class VkDescriptorSetAllocateInfo {
 }
 
 class VkSpecializationMapEntry {
-    u32                                         constantId         /// The SpecConstant ID specified in the BIL
+    u32                                         constantID         /// The SpecConstant ID specified in the BIL
     u32                                         offset             /// Offset of the value in the data block
     platform.size_t                             size               /// Size in bytes of the SpecConstant
 }
@@ -1725,7 +1726,7 @@ class VkComputePipelineCreateInfo {
 class VkVertexInputBindingDescription {
     u32                                         binding               /// Vertex buffer binding id
     u32                                         stride                /// Distance between vertices in bytes (0 = no advancement)
-    VkVertexInputStepRate                       stepRate              /// Rate at which binding is incremented
+    VkVertexInputRate                           inputRate             /// Rate at which binding is incremented
 }
 
 class VkVertexInputAttributeDescription {
@@ -1771,12 +1772,12 @@ class VkPipelineViewportStateCreateInfo {
 }
 
 class VkPipelineRasterizationStateCreateInfo {
-    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_RASTER_STATE_CREATE_INFO
+    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
     const void*                                 pNext      /// Pointer to next structure
     VkPipelineRasterizationStateCreateFlags     flags
     VkBool32                                    depthClampEnable
     VkBool32                                    rasterizerDiscardEnable
-    VkFillMode                                  fillMode                   /// optional (GL45)
+    VkPolygonMode                               polygonMode                   /// optional (GL45)
     VkCullModeFlags                             cullMode
     VkFrontFace                                 frontFace
     VkBool32                                    depthBiasEnable
@@ -1800,13 +1801,13 @@ class VkPipelineMultisampleStateCreateInfo {
 
 class VkPipelineColorBlendAttachmentState {
     VkBool32                                    blendEnable
-    VkBlend                                     srcBlendColor
-    VkBlend                                     dstBlendColor
-    VkBlendOp                                   blendOpColor
-    VkBlend                                     srcBlendAlpha
-    VkBlend                                     dstBlendAlpha
-    VkBlendOp                                   blendOpAlpha
-    VkChannelFlags                              channelWriteMask
+    VkBlendFactor                               srcColorBlendFactor
+    VkBlendFactor                               dstColorBlendFactor
+    VkBlendOp                                   colorBlendOp
+    VkBlendFactor                               srcAlphaBlendFactor
+    VkBlendFactor                               dstAlphaBlendFactor
+    VkBlendOp                                   alphaBlendOp
+    VkColorComponentFlags                       colorWriteMask
 }
 
 class VkPipelineColorBlendStateCreateInfo {
@@ -1821,13 +1822,13 @@ class VkPipelineColorBlendStateCreateInfo {
 }
 
 class VkStencilOpState {
-    VkStencilOp                                 stencilFailOp
-    VkStencilOp                                 stencilPassOp
-    VkStencilOp                                 stencilDepthFailOp
-    VkCompareOp                                 stencilCompareOp
-    u32                                         stencilCompareMask
-    u32                                         stencilWriteMask
-    u32                                         stencilReference
+    VkStencilOp                                 failOp
+    VkStencilOp                                 passOp
+    VkStencilOp                                 depthFailOp
+    VkCompareOp                                 compareOp
+    u32                                         compareMask
+    u32                                         writeMask
+    u32                                         reference
 }
 
 class VkPipelineDepthStencilStateCreateInfo {
@@ -2066,7 +2067,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    textureCompressionETC2                    /// ETC texture compression formats
     VkBool32                                    textureCompressionASTC_LDR                /// ASTC LDR texture compression formats
     VkBool32                                    textureCompressionBC                      /// BC1-7 texture compressed formats
-    VkBool32                                    occlusionQueryNonConservative             /// non-conservative (exact) occlusion queries
+    VkBool32                                    occlusionQueryPrecise
     VkBool32                                    pipelineStatisticsQuery                   /// pipeline statistics query
     VkBool32                                    vertexPipelineStoresAndAtomics
     VkBool32                                    fragmentStoresAndAtomics
@@ -2086,7 +2087,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    shaderInt64                               /// 64-bit integers in shaders
     VkBool32                                    shaderInt16                               /// 16-bit integers in shaders
     VkBool32                                    shaderResourceResidency                   /// shader can use texture operations that return resource residency information (requires sparseNonResident support)
-    VkBool32                                    shaderResourceMinLOD                      /// shader can use texture operations that specify minimum resource LOD
+    VkBool32                                    shaderResourceMinLod                      /// shader can use texture operations that specify minimum resource LOD
     VkBool32                                    sparseBinding                             /// Sparse resources support: Resource memory can be managed at opaque page level rather than object level
     VkBool32                                    sparseResidencyBuffer                     /// Sparse resources support: GPU can access partially resident buffers
     VkBool32                                    sparseResidencyImage2D                    /// Sparse resources support: GPU can access partially resident 2D (non-MSAA non-DepthStencil) images
@@ -2218,8 +2219,8 @@ class VkPhysicalDeviceLimits {
     f32                                         lineWidthGranularity                      /// granularity of supported line widths
     VkBool32                                    strictLines
 
-    VkDeviceSize                                recommendedBufferCopyOffsetAlignment
-    VkDeviceSize                                recommendedBufferCopyRowPitchAlignment
+    VkDeviceSize                                optimalBufferCopyOffsetAlignment
+    VkDeviceSize                                optimalBufferCopyRowPitchAlignment
 }
 
 class VkPhysicalDeviceSparseProperties {
@@ -2241,7 +2242,7 @@ class VkQueryPoolCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkQueryPoolCreateFlags                      flags
     VkQueryType                                 queryType
-    u32                                         slots
+    u32                                         entryCount
     VkQueryPipelineStatisticFlags               pipelineStatistics /// Optional
 }
 
@@ -4001,7 +4002,7 @@ cmd void vkCmdSetDepthBounds(
 cmd void vkCmdSetStencilCompareMask(
         VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
-        u32                                         stencilCompareMask) {
+        u32                                         compareMask) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
@@ -4010,7 +4011,7 @@ cmd void vkCmdSetStencilCompareMask(
 cmd void vkCmdSetStencilWriteMask(
         VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
-        u32                                         stencilWriteMask) {
+        u32                                         writeMask) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
@@ -4019,7 +4020,7 @@ cmd void vkCmdSetStencilWriteMask(
 cmd void vkCmdSetStencilReference(
         VkCommandBuffer                             commandBuffer,
         VkStencilFaceFlags                          faceMask,
-        u32                                         stencilReference) {
+        u32                                         reference) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
@@ -4197,7 +4198,7 @@ cmd void vkCmdCopyBuffer(
     bindCommandBuffer(commandBuffer, srcBuffer, srcBufferObject.memory)
     bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4223,7 +4224,7 @@ cmd void vkCmdCopyImage(
     bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
     bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4275,7 +4276,7 @@ cmd void vkCmdCopyBufferToImage(
     bindCommandBuffer(commandBuffer, srcBuffer, srcBufferObject.memory)
     bindCommandBuffer(commandBuffer, dstImage, dstImageObject.memory)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4300,7 +4301,7 @@ cmd void vkCmdCopyImageToBuffer(
     bindCommandBuffer(commandBuffer, srcImage, srcImageObject.memory)
     bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4318,7 +4319,7 @@ cmd void vkCmdUpdateBuffer(
 
     bindCommandBuffer(commandBuffer, dstBuffer, dstBufferObject.memory)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4332,7 +4333,7 @@ cmd void vkCmdFillBuffer(
     dstBufferObject := GetBuffer(dstBuffer)
     assert(commandBufferObject.device == dstBufferObject.device)
 
-    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_DMA_BIT)
+    commandBufferObject.queueFlags = AddQueueFlag(commandBufferObject.queueFlags, VK_QUEUE_TRANSFER_BIT)
 }
 
 @threadSafety("app")
@@ -4514,7 +4515,7 @@ cmd void vkCmdPipelineBarrier(
 cmd void vkCmdBeginQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         slot,
+        u32                                         entry,
         VkQueryControlFlags                         flags) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
@@ -4525,7 +4526,7 @@ cmd void vkCmdBeginQuery(
 cmd void vkCmdEndQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         slot) {
+        u32                                         entry) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4547,7 +4548,7 @@ cmd void vkCmdWriteTimestamp(
         VkCommandBuffer                             commandBuffer,
         VkPipelineStageFlagBits                     pipelineStage,
         VkQueryPool                                 queryPool,
-        u32                                         slot) {
+        u32                                         entry) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4586,7 +4587,7 @@ cmd void vkCmdPushConstants(
 cmd void vkCmdBeginRenderPass(
         VkCommandBuffer                             commandBuffer,
         const VkRenderPassBeginInfo*                pRenderPassBegin,
-        VkRenderPassContents                        contents) {
+        VkSubpassContents                           contents) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     renderPassObject := GetRenderPass(pRenderPassBegin.renderPass)
     framebufferObject := GetFramebuffer(pRenderPassBegin.framebuffer)
@@ -4598,7 +4599,7 @@ cmd void vkCmdBeginRenderPass(
 
 cmd void vkCmdNextSubpass(
         VkCommandBuffer                             commandBuffer,
-        VkRenderPassContents                        contents) {
+        VkSubpassContents                           contents) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 }
 
@@ -4855,7 +4856,7 @@ cmd VkBool32 vkGetPhysicalDeviceXlibPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
         platform.Display*                       dpy,
-        platform.VisualID                       visualId) {
+        platform.VisualID                       visualID) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     return ?
 }

@@ -75,8 +75,8 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
             return "GRAPHICS";
         case VK_QUEUE_COMPUTE_BIT:
             return "COMPUTE";
-        case VK_QUEUE_DMA_BIT:
-            return "DMA";
+        case VK_QUEUE_TRANSFER_BIT:
+            return "TRANSFER";
         case VK_QUEUE_SPARSE_BINDING_BIT:
             return "SPARSE";
     }
@@ -91,8 +91,8 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     printf("  %u: \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", idx,
            props.deviceName, VkPhysicalDeviceTypeStr(props.deviceType),
            (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
-           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorId,
-           props.deviceId);
+           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorID,
+           props.deviceID);
 
     VkPhysicalDeviceMemoryProperties mem_props;
     vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);

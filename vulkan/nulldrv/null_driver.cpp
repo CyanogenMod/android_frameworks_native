@@ -266,8 +266,8 @@ void GetPhysicalDeviceProperties(VkPhysicalDevice,
                                  VkPhysicalDeviceProperties* properties) {
     properties->apiVersion = VK_API_VERSION;
     properties->driverVersion = VK_MAKE_VERSION(0, 0, 1);
-    properties->vendorId = 0;
-    properties->deviceId = 0;
+    properties->vendorID = 0;
+    properties->deviceID = 0;
     properties->deviceType = VK_PHYSICAL_DEVICE_TYPE_OTHER;
     strcpy(properties->deviceName, "Android Vulkan Null Driver");
     memset(properties->pipelineCacheUUID, 0,
@@ -279,8 +279,8 @@ void GetPhysicalDeviceQueueFamilyProperties(
     uint32_t* count,
     VkQueueFamilyProperties* properties) {
     if (properties) {
-        properties->queueFlags =
-            VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_DMA_BIT;
+        properties->queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT |
+                                 VK_QUEUE_TRANSFER_BIT;
         properties->queueCount = 1;
         properties->timestampValidBits = 64;
     }
@@ -1077,10 +1077,10 @@ void CmdCopyQueryPoolResults(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, u
 void CmdPushConstants(VkCommandBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values) {
 }
 
-void CmdBeginRenderPass(VkCommandBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents) {
+void CmdBeginRenderPass(VkCommandBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents) {
 }
 
-void CmdNextSubpass(VkCommandBuffer cmdBuffer, VkRenderPassContents contents) {
+void CmdNextSubpass(VkCommandBuffer cmdBuffer, VkSubpassContents contents) {
 }
 
 void CmdEndRenderPass(VkCommandBuffer cmdBuffer) {
