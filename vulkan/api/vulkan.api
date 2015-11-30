@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 192
+define VERSION_MINOR 193
 define VERSION_PATCH 0
 
 // API limits
@@ -726,7 +726,7 @@ bitfield VkQueueFlagBits {
     VK_QUEUE_GRAPHICS_BIT                                   = 0x00000001,    /// Queue supports graphics operations
     VK_QUEUE_COMPUTE_BIT                                    = 0x00000002,    /// Queue supports compute operations
     VK_QUEUE_DMA_BIT                                        = 0x00000004,    /// Queue supports DMA operations
-    VK_QUEUE_SPARSE_MEMMGR_BIT                              = 0x00000008,    /// Queue supports sparse resource memory management operations
+    VK_QUEUE_SPARSE_BINDING_BIT                             = 0x00000008,    /// Queue supports sparse resource memory management operations
 }
 
 /// Memory properties passed into vkAllocMemory().
@@ -840,12 +840,10 @@ bitfield VkImageCreateFlagBits {
     VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT                     = 0x00000010,    /// Allows creating image views with cube type from the created image
 }
 
-/// Framebuffer attachment view creation flags
+/// Image view creation flags
 type VkFlags VkImageViewCreateFlags
-bitfield VkImageViewCreateFlagBits {
-    VK_IMAGE_VIEW_CREATE_READ_ONLY_DEPTH_BIT                = 0x00000001,
-    VK_IMAGE_VIEW_CREATE_READ_ONLY_STENCIL_BIT              = 0x00000002,
-}
+//bitfield VkImageViewCreateFlagBits {
+//}
 
 /// Pipeline creation flags
 type VkFlags VkPipelineCreateFlags
@@ -970,9 +968,9 @@ bitfield VkSparseMemoryBindFlagBits {
 /// Sparse image memory requirements flags
 type VkFlags VkSparseImageFormatFlags
 bitfield VkSparseImageFormatFlagBits {
-    VK_SPARSE_IMAGE_FMT_SINGLE_MIPTAIL_BIT                  = 0x00000001,  /// Image uses a single miptail region for all array slices
-    VK_SPARSE_IMAGE_FMT_ALIGNED_MIP_SIZE_BIT                = 0x00000002,  /// Image requires mip levels to be an exact multiple of the sparse iamge block size for non-mip-tail levels.
-    VK_SPARSE_IMAGE_FMT_NONSTD_BLOCK_SIZE_BIT               = 0x00000004,  /// Image uses a non-standard sparse block size
+    VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT                  = 0x00000001,  /// Image uses a single miptail region for all array slices
+    VK_SPARSE_IMAGE_FORMAT_ALIGNED_MIP_SIZE_BIT                = 0x00000002,  /// Image requires mip levels to be an exact multiple of the sparse iamge block size for non-mip-tail levels.
+    VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT          = 0x00000004,  /// Image uses a non-standard sparse block size
 }
 
 /// Pipeline stages
@@ -1363,7 +1361,7 @@ class VkSparseImageFormatProperties {
 }
 
 class VkSparseImageMemoryRequirements {
-    VkSparseImageFormatProperties               formatProps
+    VkSparseImageFormatProperties               formatProperties
     u32                                         imageMipTailStartLOD
     VkDeviceSize                                imageMipTailSize           /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailOffset         /// Specified in bytes, must be a multiple of image block size / alignment
@@ -1545,14 +1543,14 @@ class VkImageViewCreateInfo {
 class VkBufferCopy {
     VkDeviceSize                                srcOffset              /// Specified in bytes
     VkDeviceSize                                destOffset             /// Specified in bytes
-    VkDeviceSize                                copySize               /// Specified in bytes
+    VkDeviceSize                                size                   /// Specified in bytes
 }
 
 class VkSparseMemoryBind {
-    VkDeviceSize                                rangeOffset           /// Specified in bytes
-    VkDeviceSize                                rangeSize             /// Specified in bytes
-    VkDeviceSize                                memOffset             /// Specified in bytes
+    VkDeviceSize                                resourceOffset        /// Specified in bytes
+    VkDeviceSize                                size                  /// Specified in bytes
     VkDeviceMemory                              mem
+    VkDeviceSize                                memOffset             /// Specified in bytes
     VkSparseMemoryBindFlags                     flags
 }
 
@@ -1560,8 +1558,8 @@ class VkSparseImageMemoryBind {
     VkImageSubresource                          subresource
     VkOffset3D                                  offset
     VkExtent3D                                  extent
-    VkDeviceSize                                memOffset             /// Specified in bytes
     VkDeviceMemory                              mem
+    VkDeviceSize                                memOffset             /// Specified in bytes
     VkSparseMemoryBindFlags                     flags
 }
 
@@ -1695,13 +1693,13 @@ class VkDescriptorSetAllocInfo {
 
 class VkSpecializationMapEntry {
     u32                                         constantId         /// The SpecConstant ID specified in the BIL
-    platform.size_t                             size               /// Size in bytes of the SpecConstant
     u32                                         offset             /// Offset of the value in the data block
+    platform.size_t                             size               /// Size in bytes of the SpecConstant
 }
 
 class VkSpecializationInfo {
     u32                                         mapEntryCount      /// Number of entries in the map
-    const VkSpecializationMapEntry*             pMap               /// Array of map entries
+    const VkSpecializationMapEntry*             pMapEntries        /// Array of map entries
     platform.size_t                             dataSize           /// Size in bytes of pData
     const void*                                 pData              /// Pointer to SpecConstant data
 }
@@ -1725,16 +1723,16 @@ class VkComputePipelineCreateInfo {
 }
 
 class VkVertexInputBindingDescription {
-    u32                                         binding        /// Vertex buffer binding id
-    u32                                         strideInBytes  /// Distance between vertices in bytes (0 = no advancement)
-    VkVertexInputStepRate                       stepRate       /// Rate at which binding is incremented
+    u32                                         binding               /// Vertex buffer binding id
+    u32                                         stride                /// Distance between vertices in bytes (0 = no advancement)
+    VkVertexInputStepRate                       stepRate              /// Rate at which binding is incremented
 }
 
 class VkVertexInputAttributeDescription {
-    u32                                         location       /// location of the shader vertex attrib
-    u32                                         binding        /// Vertex buffer binding id
-    VkFormat                                    format         /// format of source data
-    u32                                         offsetInBytes  /// Offset of first element in bytes from base of vertex
+    u32                                         location              /// location of the shader vertex attrib
+    u32                                         binding               /// Vertex buffer binding id
+    VkFormat                                    format                /// format of source data
+    u32                                         offset                /// Offset of first element in bytes from base of vertex
 }
 
 class VkPipelineVertexInputStateCreateInfo {
@@ -1819,7 +1817,7 @@ class VkPipelineColorBlendStateCreateInfo {
     VkLogicOp                                   logicOp
     u32                                         attachmentCount    /// # of pAttachments
     const VkPipelineColorBlendAttachmentState*  pAttachments
-    f32[4]                                      blendConst
+    f32[4]                                      blendConstants
 }
 
 class VkStencilOpState {
@@ -1878,12 +1876,12 @@ class VkGraphicsPipelineCreateInfo {
 }
 
 class VkPipelineCacheCreateInfo {
-    VkStructureType                             sType        /// Must be VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO
-    const void*                                 pNext        /// Pointer to next structure
+    VkStructureType                             sType                 /// Must be VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO
+    const void*                                 pNext                 /// Pointer to next structure
     VkPipelineCacheCreateFlags                  flags
-    platform.size_t                             initialSize  /// Size of initial data to populate cache, in bytes
-    const void*                                 initialData  /// Initial data to populate cache
-    platform.size_t                             maxSize      /// Maximum size cache can grow to, in bytes. If zero, then the cache may grow without bound.
+    platform.size_t                             initialDataSize       /// Size of initial data to populate cache, in bytes
+    const void*                                 pInitialData          /// Initial data to populate cache
+    platform.size_t                             maxSize               /// Maximum size cache can grow to, in bytes. If zero, then the cache may grow without bound.
 }
 
 class VkPushConstantRange {
@@ -2113,7 +2111,7 @@ class VkPhysicalDeviceLimits {
     u32                                         maxImageDimensionCube                     /// max cubemap image dimension
     u32                                         maxImageArrayLayers                       /// max layers for image arrays
     VkSampleCountFlags                          sampleCounts                              /// sample counts supported for all images supporting rendering and sampling
-    u32                                         maxTexelBufferSize                        /// max texel buffer size (bytes)
+    u32                                         maxTexelBufferElements
     u32                                         maxUniformBufferRange                     /// max uniform buffer size (bytes)
     u32                                         maxStorageBufferRange                     /// max storage buffer size (bytes)
     u32                                         maxPushConstantsSize                      /// max size of the push constants pool (bytes)
@@ -2229,7 +2227,7 @@ class VkPhysicalDeviceLimits {
 
 class VkPhysicalDeviceSparseProperties {
     VkBool32                                    residencyStandard2DBlockShape             /// Sparse resources support: GPU will access all 2D (single sample) sparse resources using the standard block shapes (based on pixel format)
-    VkBool32                                    residencyStandard2DMSBlockShape           /// Sparse resources support: GPU will access all 2D (multisample) sparse resources using the standard block shapes (based on pixel format)
+    VkBool32                                    residencyStandard2DMultisampleBlockShape  /// Sparse resources support: GPU will access all 2D (multisample) sparse resources using the standard block shapes (based on pixel format)
     VkBool32                                    residencyStandard3DBlockShape             /// Sparse resources support: GPU will access all 3D sparse resources using the standard block shapes (based on pixel format)
     VkBool32                                    residencyAlignedMipSize                   /// Sparse resources support: Images with mip-level dimensions that are NOT a multiple of the block size will be placed in the mip tail
     VkBool32                                    residencyNonResident                      /// Sparse resources support: GPU can safely access non-resident regions of a resource, read values from read-write resources are undefined
@@ -2284,8 +2282,8 @@ class VkDispatchIndirectCmd {
     u32                                         z
 }
 
-@extension("VK_EXT_KHR_swapchain")
-class VkSurfacePropertiesKHR {
+@extension("VK_EXT_KHR_surface")
+class VkSurfaceCapabilitiesKHR {
     u32                                         minImageCount
     u32                                         maxImageCount
     VkExtent2D                                  currentExtent
@@ -2298,7 +2296,7 @@ class VkSurfacePropertiesKHR {
     VkImageUsageFlags                           supportedUsageFlags
 }
 
-@extension("VK_EXT_KHR_swapchain")
+@extension("VK_EXT_KHR_surface")
 class VkSurfaceFormatKHR {
     VkFormat                                    format
     VkColorSpaceKHR                             colorSpace
@@ -2329,6 +2327,8 @@ class VkSwapchainCreateInfoKHR {
 class VkPresentInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
+    u32                                         waitSemaphoreCount
+    const VkSemaphore*                          pWaitSemaphores
     u32                                         swapchainCount
     const VkSwapchainKHR*                       pSwapchains
     const u32*                                  imageIndices
@@ -2727,7 +2727,7 @@ cmd void vkGetDeviceQueue(
 cmd VkResult vkQueueSubmit(
         VkQueue                                     queue,
         u32                                         submitCount,
-        const VkSubmitInfo*                         pSubmitInfo,
+        const VkSubmitInfo*                         pSubmits,
         VkFence                                     fence) {
     queueObject := GetQueue(queue)
 
@@ -3709,21 +3709,21 @@ cmd VkResult vkFreeDescriptorSets(
 
 cmd void vkUpdateDescriptorSets(
         VkDevice                                    device,
-        u32                                         writeCount,
+        u32                                         descriptorWriteCount,
         const VkWriteDescriptorSet*                 pDescriptorWrites,
-        u32                                         copyCount,
+        u32                                         descriptorCopyCount,
         const VkCopyDescriptorSet*                  pDescriptorCopies) {
     deviceObject := GetDevice(device)
 
-    descriptorWrites := pDescriptorWrites[0:writeCount]
-    for i in (0 .. writeCount) {
+    descriptorWrites := pDescriptorWrites[0:descriptorWriteCount]
+    for i in (0 .. descriptorWriteCount) {
         descriptorWrite := descriptorWrites[i]
         descriptorWriteObject := GetDescriptorSet(descriptorWrite.destSet)
         assert(descriptorWriteObject.device == device)
     }
 
-    descriptorCopies := pDescriptorCopies[0:copyCount]
-    for i in (0 .. copyCount) {
+    descriptorCopies := pDescriptorCopies[0:descriptorCopyCount]
+    for i in (0 .. descriptorCopyCount) {
         descriptorCopy := descriptorCopies[i]
         descriptorCopyObject := GetDescriptorSet(descriptorCopy.destSet)
         assert(descriptorCopyObject.device == device)
@@ -3987,7 +3987,7 @@ cmd void vkCmdSetBlendConstants(
         // TODO(jessehall): apic only supports 'const' on pointer types. Using
         // an annotation as a quick hack to pass this to the template without
         // having to modify the AST and semantic model.
-        @readonly f32[4]                            blendConst) {
+        @readonly f32[4]                            blendConstants) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     cmdBufferObject.queueFlags = AddQueueFlag(cmdBufferObject.queueFlags, VK_QUEUE_GRAPHICS_BIT)
 }
@@ -4330,7 +4330,7 @@ cmd void vkCmdFillBuffer(
         VkCmdBuffer                                 cmdBuffer,
         VkBuffer                                    destBuffer,
         VkDeviceSize                                destOffset,
-        VkDeviceSize                                fillSize,
+        VkDeviceSize                                size,
         u32                                         data) {
     cmdBufferObject := GetCmdBuffer(cmdBuffer)
     destBufferObject := GetBuffer(destBuffer)
@@ -4643,34 +4643,33 @@ cmd void vkDestroySurfaceKHR(
 cmd VkResult vkGetPhysicalDeviceSurfaceSupportKHR(
         VkPhysicalDevice                            physicalDevice,
         u32                                         queueFamilyIndex,
-        VkSurfaceKHR                                surface) {
-    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
-
-    //supported := ?
-
-    return ?//supported
-}
-
-@extension("VK_EXT_KHR_swapchain")
-cmd VkResult vkGetSurfacePropertiesKHR(
-        VkDevice                                    device,
         VkSurfaceKHR                                surface,
-        VkSurfacePropertiesKHR*                     pSurfaceProperties) {
-    deviceObject := GetDevice(device)
-
-    surfaceProperties := ?
-    pSurfaceProperties[0] = surfaceProperties
+        VkBool32*                                   pSupported) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
-cmd VkResult vkGetSurfaceFormatsKHR(
-        VkDevice                                    device,
+@extension("VK_EXT_KHR_surface")
+cmd VkResult vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+        VkPhysicalDevice                            physicalDevice,
+        VkSurfaceKHR                                surface,
+        VkSurfaceCapabilitiesKHR*                   pSurfaceCapabilities) {
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+
+    surfaceCapabilities := ?
+    pSurfaceCapabilities[0] = surfaceCapabilities
+
+    return ?
+}
+
+@extension("VK_EXT_KHR_surface")
+cmd VkResult vkGetPhysicalDeviceSurfaceFormatsKHR(
+        VkPhysicalDevice                            physicalDevice,
         VkSurfaceKHR                                surface,
         u32*                                        pSurfaceFormatCount,
         VkSurfaceFormatKHR*                         pSurfaceFormats) {
-    deviceObject := GetDevice(device)
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     count := as!u32(?)
     pSurfaceFormatCount[0] = count
@@ -4684,13 +4683,13 @@ cmd VkResult vkGetSurfaceFormatsKHR(
     return ?
 }
 
-@extension("VK_EXT_KHR_swapchain")
-cmd VkResult vkGetSurfacePresentModesKHR(
-        VkDevice                                    device,
+@extension("VK_EXT_KHR_surface")
+cmd VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(
+        VkPhysicalDevice                            physicalDevice,
         VkSurfaceKHR                                surface,
         u32*                                        pPresentModeCount,
         VkPresentModeKHR*                           pPresentModes) {
-    deviceObject := GetDevice(device)
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
 
     count := as!u32(?)
     pPresentModeCount[0] = count

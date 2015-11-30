@@ -546,15 +546,6 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
         return reinterpret_cast<PFN_vkVoidFunction>(Noop);
     }
     // WSI extensions are not in the driver so return the loader functions
-    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfacePropertiesKHR);
-    }
-    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfaceFormatsKHR);
-    }
-    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetSurfacePresentModesKHR);
-    }
     if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR);
     }
@@ -900,6 +891,9 @@ const InstanceVtbl kBottomInstanceFunctions = {
     .EnumerateDeviceLayerProperties = EnumerateDeviceLayerPropertiesBottom,
     .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
     .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
+    .GetPhysicalDeviceSurfaceCapabilitiesKHR = GetPhysicalDeviceSurfaceCapabilitiesKHR,
+    .GetPhysicalDeviceSurfaceFormatsKHR = GetPhysicalDeviceSurfaceFormatsKHR,
+    .GetPhysicalDeviceSurfacePresentModesKHR = GetPhysicalDeviceSurfacePresentModesKHR,
     // clang-format on
 };
 

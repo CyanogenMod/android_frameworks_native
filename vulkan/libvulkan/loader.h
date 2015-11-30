@@ -51,6 +51,9 @@ struct InstanceVtbl {
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
 
     // Layers and loader only, not implemented by drivers
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR GetPhysicalDeviceSurfaceCapabilitiesKHR;
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR GetPhysicalDeviceSurfaceFormatsKHR;
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR;
     PFN_vkCreateAndroidSurfaceKHR CreateAndroidSurfaceKHR;
     PFN_vkDestroySurfaceKHR DestroySurfaceKHR;
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
@@ -187,9 +190,6 @@ struct DeviceVtbl {
     PFN_vkCmdExecuteCommands CmdExecuteCommands;
 
     // Layers and loader only, not implemented by drivers
-    PFN_vkGetSurfacePropertiesKHR GetSurfacePropertiesKHR;
-    PFN_vkGetSurfaceFormatsKHR GetSurfaceFormatsKHR;
-    PFN_vkGetSurfacePresentModesKHR GetSurfacePresentModesKHR;
     PFN_vkCreateSwapchainKHR CreateSwapchainKHR;
     PFN_vkDestroySwapchainKHR DestroySwapchainKHR;
     PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR;
@@ -268,18 +268,20 @@ VkResult CreateAndroidSurfaceKHR(VkInstance instance,
 void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface);
 VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
                                             uint32_t queue_family,
-                                            VkSurfaceKHR surface);
-VkResult GetSurfacePropertiesKHR(VkDevice device,
-                                 VkSurfaceKHR surface,
-                                 VkSurfacePropertiesKHR* properties);
-VkResult GetSurfaceFormatsKHR(VkDevice device,
-                              VkSurfaceKHR surface,
-                              uint32_t* count,
-                              VkSurfaceFormatKHR* formats);
-VkResult GetSurfacePresentModesKHR(VkDevice device,
-                                   VkSurfaceKHR surface,
-                                   uint32_t* count,
-                                   VkPresentModeKHR* modes);
+                                            VkSurfaceKHR surface,
+                                            VkBool32* pSupported);
+VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
+    VkPhysicalDevice pdev,
+    VkSurfaceKHR surface,
+    VkSurfaceCapabilitiesKHR* capabilities);
+VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice pdev,
+                                            VkSurfaceKHR surface,
+                                            uint32_t* count,
+                                            VkSurfaceFormatKHR* formats);
+VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice pdev,
+                                                 VkSurfaceKHR surface,
+                                                 uint32_t* count,
+                                                 VkPresentModeKHR* modes);
 VkResult CreateSwapchainKHR(VkDevice device,
                             const VkSwapchainCreateInfoKHR* create_info,
                             VkSwapchainKHR* swapchain_handle);

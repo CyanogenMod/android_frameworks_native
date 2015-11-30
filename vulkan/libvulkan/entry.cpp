@@ -132,8 +132,8 @@ void vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uint32_t queue
 }
 
 __attribute__((visibility("default")))
-VkResult vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmitInfo, VkFence fence) {
-    return GetVtbl(queue).QueueSubmit(queue, submitCount, pSubmitInfo, fence);
+VkResult vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence) {
+    return GetVtbl(queue).QueueSubmit(queue, submitCount, pSubmits, fence);
 }
 
 __attribute__((visibility("default")))
@@ -447,8 +447,8 @@ VkResult vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, 
 }
 
 __attribute__((visibility("default")))
-void vkUpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
-    GetVtbl(device).UpdateDescriptorSets(device, writeCount, pDescriptorWrites, copyCount, pDescriptorCopies);
+void vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
+    GetVtbl(device).UpdateDescriptorSets(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
 }
 
 __attribute__((visibility("default")))
@@ -542,8 +542,8 @@ void vkCmdSetDepthBias(VkCmdBuffer cmdBuffer, float depthBiasConstantFactor, flo
 }
 
 __attribute__((visibility("default")))
-void vkCmdSetBlendConstants(VkCmdBuffer cmdBuffer, const float blendConst[4]) {
-    GetVtbl(cmdBuffer).CmdSetBlendConstants(cmdBuffer, blendConst);
+void vkCmdSetBlendConstants(VkCmdBuffer cmdBuffer, const float blendConstants[4]) {
+    GetVtbl(cmdBuffer).CmdSetBlendConstants(cmdBuffer, blendConstants);
 }
 
 __attribute__((visibility("default")))
@@ -642,8 +642,8 @@ void vkCmdUpdateBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize 
 }
 
 __attribute__((visibility("default")))
-void vkCmdFillBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize fillSize, uint32_t data) {
-    GetVtbl(cmdBuffer).CmdFillBuffer(cmdBuffer, destBuffer, destOffset, fillSize, data);
+void vkCmdFillBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize size, uint32_t data) {
+    GetVtbl(cmdBuffer).CmdFillBuffer(cmdBuffer, destBuffer, destOffset, size, data);
 }
 
 __attribute__((visibility("default")))
@@ -742,23 +742,23 @@ void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface) {
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface);
+VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkBool32* pSupported) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, pSupported);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfacePropertiesKHR(VkDevice device, VkSurfaceKHR surface, VkSurfacePropertiesKHR* pSurfaceProperties) {
-    return GetVtbl(device).GetSurfacePropertiesKHR(device, surface, pSurfaceProperties);
+VkResult vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, pSurfaceCapabilities);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfaceFormatsKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pSurfaceFormatCount, VkSurfaceFormatKHR* pSurfaceFormats) {
-    return GetVtbl(device).GetSurfaceFormatsKHR(device, surface, pSurfaceFormatCount, pSurfaceFormats);
+VkResult vkGetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* pSurfaceFormatCount, VkSurfaceFormatKHR* pSurfaceFormats) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pSurfaceFormatCount, pSurfaceFormats);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetSurfacePresentModesKHR(VkDevice device, VkSurfaceKHR surface, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) {
-    return GetVtbl(device).GetSurfacePresentModesKHR(device, surface, pPresentModeCount, pPresentModes);
+VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, pPresentModes);
 }
 
 __attribute__((visibility("default")))

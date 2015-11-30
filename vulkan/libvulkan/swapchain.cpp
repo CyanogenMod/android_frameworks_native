@@ -177,13 +177,16 @@ void DestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface_handle) {
 
 VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
                                             uint32_t /*queue_family*/,
-                                            VkSurfaceKHR /*surface*/) {
+                                            VkSurfaceKHR /*surface*/,
+                                            VkBool32* pSupported) {
+    *pSupported = VK_TRUE;
     return VK_SUCCESS;
 }
 
-VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
-                                 VkSurfaceKHR surface,
-                                 VkSurfacePropertiesKHR* properties) {
+VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
+    VkPhysicalDevice /*pdev*/,
+    VkSurfaceKHR surface,
+    VkSurfaceCapabilitiesKHR* capabilities) {
     int err;
     ANativeWindow* window = SurfaceFromHandle(surface)->window.get();
 
@@ -201,25 +204,25 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    properties->currentExtent = VkExtent2D{width, height};
+    capabilities->currentExtent = VkExtent2D{width, height};
 
     // TODO(jessehall): Figure out what the min/max values should be.
-    properties->minImageCount = 2;
-    properties->maxImageCount = 3;
+    capabilities->minImageCount = 2;
+    capabilities->maxImageCount = 3;
 
     // TODO(jessehall): Figure out what the max extent should be. Maximum
     // texture dimension maybe?
-    properties->minImageExtent = VkExtent2D{1, 1};
-    properties->maxImageExtent = VkExtent2D{4096, 4096};
+    capabilities->minImageExtent = VkExtent2D{1, 1};
+    capabilities->maxImageExtent = VkExtent2D{4096, 4096};
 
     // TODO(jessehall): We can support all transforms, fix this once
     // implemented.
-    properties->supportedTransforms = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
+    capabilities->supportedTransforms = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
 
     // TODO(jessehall): Implement based on NATIVE_WINDOW_TRANSFORM_HINT.
-    properties->currentTransform = VK_SURFACE_TRANSFORM_NONE_KHR;
+    capabilities->currentTransform = VK_SURFACE_TRANSFORM_NONE_KHR;
 
-    properties->maxImageArraySize = 1;
+    capabilities->maxImageArraySize = 1;
 
     // TODO(jessehall): I think these are right, but haven't thought hard about
     // it. Do we need to query the driver for support of any of these?
@@ -227,7 +230,7 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
     // - VK_IMAGE_USAGE_GENERAL: maybe? does this imply cpu mappable?
     // - VK_IMAGE_USAGE_DEPTH_STENCIL_BIT: definitely not
     // - VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT: definitely not
-    properties->supportedUsageFlags =
+    capabilities->supportedUsageFlags =
         VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT |
         VK_IMAGE_USAGE_TRANSFER_DESTINATION_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
         VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
@@ -236,10 +239,10 @@ VkResult GetSurfacePropertiesKHR(VkDevice /*device*/,
     return VK_SUCCESS;
 }
 
-VkResult GetSurfaceFormatsKHR(VkDevice /*device*/,
-                              VkSurfaceKHR /*surface*/,
-                              uint32_t* count,
-                              VkSurfaceFormatKHR* formats) {
+VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice /*pdev*/,
+                                            VkSurfaceKHR /*surface*/,
+                                            uint32_t* count,
+                                            VkSurfaceFormatKHR* formats) {
     // TODO(jessehall): Fill out the set of supported formats. Longer term, add
     // a new gralloc method to query whether a (format, usage) pair is
     // supported, and check that for each gralloc format that corresponds to a
@@ -262,10 +265,10 @@ VkResult GetSurfaceFormatsKHR(VkDevice /*device*/,
     return result;
 }
 
-VkResult GetSurfacePresentModesKHR(VkDevice /*device*/,
-                                   VkSurfaceKHR /*surface*/,
-                                   uint32_t* count,
-                                   VkPresentModeKHR* modes) {
+VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice /*pdev*/,
+                                                 VkSurfaceKHR /*surface*/,
+                                                 uint32_t* count,
+                                                 VkPresentModeKHR* modes) {
     const VkPresentModeKHR kModes[] = {
         VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR,
     };
