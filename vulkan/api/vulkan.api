@@ -690,7 +690,7 @@ enum VkDynamicState {
     VK_DYNAMIC_STATE_STENCIL_REFERENCE                      = 0x00000008,
 }
 
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 enum VkPresentModeKHR {
     VK_PRESENT_MODE_IMMEDIATE_KHR                           = 0x00000000,
     VK_PRESENT_MODE_MAILBOX_KHR                             = 0x00000001,
@@ -698,7 +698,7 @@ enum VkPresentModeKHR {
     VK_PRESENT_MODE_FIFO_RELAXED_KHR                        = 0x00000003,
 }
 
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 enum VkColorSpaceKHR {
     VK_COLORSPACE_SRGB_NONLINEAR_KHR                        = 0x00000000,
 }
@@ -1142,9 +1142,9 @@ bitfield VkCullModeFlagBits {
     VK_CULL_MODE_FRONT_AND_BACK                             = 0x00000003,
 }
 
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 type VkFlags VkSurfaceTransformFlagsKHR
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 bitfield VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_NONE_BIT_KHR                           = 0x00000001,
     VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR                      = 0x00000002,
@@ -1157,9 +1157,9 @@ bitfield VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                        = 0x00000100,
 }
 
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 type VkFlags VkCompositeAlphaFlagsKHR
-@extension("VK_KHR_swapchain")
+@extension("VK_KHR_surface")
 bitfield VkCompositeAlphaFlagBitsKHR {
     VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR                       = 0x00000001,
     VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR               = 0x00000002,
@@ -4870,7 +4870,7 @@ cmd VkResult vkCreateXCBSurfaceKHR(
     return ?
 }
 
-@extension("VK_KHR_xlib_surface")
+@extension("VK_KHR_xcb_surface")
 cmd VkBool32 vkGetPhysicalDeviceXcbPresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex,
