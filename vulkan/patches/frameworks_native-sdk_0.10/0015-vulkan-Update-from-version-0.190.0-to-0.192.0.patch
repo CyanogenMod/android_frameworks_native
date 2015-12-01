@@ -1,0 +1,246 @@
+From f31710155f9bfdd726bc95f648a821d84de55b69 Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Sun, 29 Nov 2015 19:12:15 -0800
+Subject: [PATCH 15/30] vulkan: Update from version 0.190.0 to 0.192.0
+
+Change-Id: I5d38543a4ae1c522cacb45a3c011ceab62d2e1d5
+---
+ vulkan/api/vulkan.api          | 33 ++++++++++++++++++---------------
+ vulkan/include/vulkan/vulkan.h | 38 ++++++++++++++++++++------------------
+ vulkan/libvulkan/entry.cpp     |  4 ++--
+ vulkan/nulldrv/null_driver.cpp |  2 +-
+ vulkan/nulldrv/null_driver.h   |  2 +-
+ 5 files changed, 42 insertions(+), 37 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index 0c6a3cc..d2a15b5 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 190
++define VERSION_MINOR 192
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -1149,6 +1149,12 @@ type VkFlags VkFramebufferCreateFlags
+ //bitfield VkFramebufferCreateFlagBits {
+ //}
+ 
++/// Dependency flags
++type VkFlags VkDependencyFlags
++bitfield VkDependencyFlagBits {
++    VK_DEPENDENCY_BY_REGION_BIT                             = 0x00000001,
++}
++
+ @extension("VK_EXT_KHR_swapchain")
+ type VkFlags VkSurfaceTransformFlagsKHR
+ @extension("VK_EXT_KHR_swapchain")
+@@ -2019,7 +2025,7 @@ class VkSubpassDependency {
+     VkPipelineStageFlags                        destStageMask
+     VkMemoryOutputFlags                         outputMask
+     VkMemoryInputFlags                          inputMask
+-    VkBool32                                    byRegion
++    VkDependencyFlags                           dependencyFlags
+ }
+ 
+ class VkRenderPassCreateInfo {
+@@ -2071,12 +2077,9 @@ class VkPhysicalDeviceFeatures {
+     VkBool32                                    textureCompressionBC                      /// BC1-7 texture compressed formats
+     VkBool32                                    occlusionQueryNonConservative             /// non-conservative (exact) occlusion queries
+     VkBool32                                    pipelineStatisticsQuery                   /// pipeline statistics query
+-    VkBool32                                    vertexSideEffects                         /// storage buffers and images in vertex stage
+-    VkBool32                                    tessellationSideEffects                   /// storage buffers and images in tessellation stage
+-    VkBool32                                    geometrySideEffects                       /// storage buffers and images in geometry stage
+-    VkBool32                                    fragmentSideEffects                       /// storage buffers and images in fragment stage
+-    VkBool32                                    shaderTessellationPointSize               /// tessellation stage can export point size
+-    VkBool32                                    shaderGeometryPointSize                   /// geometry stage can export point size
++    VkBool32                                    vertexPipelineStoresAndAtomics
++    VkBool32                                    fragmentStoresAndAtomics
++    VkBool32                                    shaderTessellationAndGeometryPointSize
+     VkBool32                                    shaderImageGatherExtended                 /// texture gather with run-time values and independent offsets
+     VkBool32                                    shaderStorageImageExtendedFormats         /// the extended set of formats can be used for storage images
+     VkBool32                                    shaderStorageImageMultisample             /// multisample images can be used for storage images
+@@ -2179,10 +2182,10 @@ class VkPhysicalDeviceLimits {
+     f32[2]                                      viewportBoundsRange                       /// viewport bounds range (min,max)
+     u32                                         viewportSubPixelBits                      /// num bits of subpixel precision for viewport
+ 
+-    u32                                         minMemoryMapAlignment                     /// min required alignment of pointers returned by MapMemory (bytes)
+-    u32                                         minTexelBufferOffsetAlignment             /// min required alignment for texel buffer offsets (bytes)
+-    u32                                         minUniformBufferOffsetAlignment           /// min required alignment for uniform buffer sizes and offsets (bytes)
+-    u32                                         minStorageBufferOffsetAlignment           /// min required alignment for storage buffer offsets (bytes)
++    platform.size_t                             minMemoryMapAlignment                     /// min required alignment of pointers returned by MapMemory (bytes)
++    VkDeviceSize                                minTexelBufferOffsetAlignment             /// min required alignment for texel buffer offsets (bytes)
++    VkDeviceSize                                minUniformBufferOffsetAlignment           /// min required alignment for uniform buffer sizes and offsets (bytes)
++    VkDeviceSize                                minStorageBufferOffsetAlignment           /// min required alignment for storage buffer offsets (bytes)
+ 
+     s32                                         minTexelOffset                            /// min texel offset for OpTextureSampleOffset
+     u32                                         maxTexelOffset                            /// max texel offset for OpTextureSampleOffset
+@@ -2220,8 +2223,8 @@ class VkPhysicalDeviceLimits {
+     f32                                         lineWidthGranularity                      /// granularity of supported line widths
+     VkBool32                                    strictLines
+ 
+-    u32                                         recommendedBufferCopyOffsetAlignment
+-    u32                                         recommendedBufferCopyRowPitchAlignment
++    VkDeviceSize                                recommendedBufferCopyOffsetAlignment
++    VkDeviceSize                                recommendedBufferCopyRowPitchAlignment
+ }
+ 
+ class VkPhysicalDeviceSparseProperties {
+@@ -4486,7 +4489,7 @@ cmd void vkCmdPipelineBarrier(
+         VkCmdBuffer                                 cmdBuffer,
+         VkPipelineStageFlags                        srcStageMask,
+         VkPipelineStageFlags                        destStageMask,
+-        VkBool32                                    byRegion,
++        VkDependencyFlags                           dependencyFlags,
+         u32                                         memBarrierCount,
+         const void* const*                          ppMemBarriers) {
+     cmdBufferObject := GetCmdBuffer(cmdBuffer)
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index dcc5301..fd09209 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -1,5 +1,5 @@
+-#ifndef __vulkanext_h_
+-#define __vulkanext_h_ 1
++#ifndef __vulkan_h_
++#define __vulkan_h_ 1
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -41,7 +41,7 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 190, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 192, 0)
+ 
+ 
+ #define VK_NULL_HANDLE 0
+@@ -1018,6 +1018,11 @@ typedef enum {
+ typedef VkFlags VkMemoryInputFlags;
+ 
+ typedef enum {
++    VK_DEPENDENCY_BY_REGION_BIT = 0x00000001,
++} VkDependencyFlagBits;
++typedef VkFlags VkDependencyFlags;
++
++typedef enum {
+     VK_CMD_POOL_CREATE_TRANSIENT_BIT = 0x00000001,
+     VK_CMD_POOL_CREATE_RESET_COMMAND_BUFFER_BIT = 0x00000002,
+ } VkCmdPoolCreateFlagBits;
+@@ -1138,12 +1143,9 @@ typedef struct {
+     VkBool32                                    textureCompressionBC;
+     VkBool32                                    occlusionQueryNonConservative;
+     VkBool32                                    pipelineStatisticsQuery;
+-    VkBool32                                    vertexSideEffects;
+-    VkBool32                                    tessellationSideEffects;
+-    VkBool32                                    geometrySideEffects;
+-    VkBool32                                    fragmentSideEffects;
+-    VkBool32                                    shaderTessellationPointSize;
+-    VkBool32                                    shaderGeometryPointSize;
++    VkBool32                                    vertexPipelineStoresAndAtomics;
++    VkBool32                                    fragmentStoresAndAtomics;
++    VkBool32                                    shaderTessellationAndGeometryPointSize;
+     VkBool32                                    shaderImageGatherExtended;
+     VkBool32                                    shaderStorageImageExtendedFormats;
+     VkBool32                                    shaderStorageImageMultisample;
+@@ -1253,10 +1255,10 @@ typedef struct {
+     uint32_t                                    maxViewportDimensions[2];
+     float                                       viewportBoundsRange[2];
+     uint32_t                                    viewportSubPixelBits;
+-    uint32_t                                    minMemoryMapAlignment;
+-    uint32_t                                    minTexelBufferOffsetAlignment;
+-    uint32_t                                    minUniformBufferOffsetAlignment;
+-    uint32_t                                    minStorageBufferOffsetAlignment;
++    size_t                                      minMemoryMapAlignment;
++    VkDeviceSize                                minTexelBufferOffsetAlignment;
++    VkDeviceSize                                minUniformBufferOffsetAlignment;
++    VkDeviceSize                                minStorageBufferOffsetAlignment;
+     int32_t                                     minTexelOffset;
+     uint32_t                                    maxTexelOffset;
+     int32_t                                     minTexelGatherOffset;
+@@ -1286,8 +1288,8 @@ typedef struct {
+     float                                       pointSizeGranularity;
+     float                                       lineWidthGranularity;
+     VkBool32                                    strictLines;
+-    uint32_t                                    recommendedBufferCopyOffsetAlignment;
+-    uint32_t                                    recommendedBufferCopyRowPitchAlignment;
++    VkDeviceSize                                recommendedBufferCopyOffsetAlignment;
++    VkDeviceSize                                recommendedBufferCopyRowPitchAlignment;
+ } VkPhysicalDeviceLimits;
+ 
+ typedef struct {
+@@ -1974,7 +1976,7 @@ typedef struct {
+     VkPipelineStageFlags                        destStageMask;
+     VkMemoryOutputFlags                         outputMask;
+     VkMemoryInputFlags                          inputMask;
+-    VkBool32                                    byRegion;
++    VkDependencyFlags                           dependencyFlags;
+ } VkSubpassDependency;
+ 
+ typedef struct {
+@@ -2280,7 +2282,7 @@ typedef void (VKAPI *PFN_vkCmdResolveImage)(VkCmdBuffer cmdBuffer, VkImage srcIm
+ typedef void (VKAPI *PFN_vkCmdSetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
+ typedef void (VKAPI *PFN_vkCmdResetEvent)(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
+ typedef void (VKAPI *PFN_vkCmdWaitEvents)(VkCmdBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers);
+-typedef void (VKAPI *PFN_vkCmdPipelineBarrier)(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkBool32 byRegion, uint32_t memBarrierCount, const void* const* ppMemBarriers);
++typedef void (VKAPI *PFN_vkCmdPipelineBarrier)(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers);
+ typedef void (VKAPI *PFN_vkCmdBeginQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
+ typedef void (VKAPI *PFN_vkCmdEndQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
+ typedef void (VKAPI *PFN_vkCmdResetQueryPool)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
+@@ -3029,7 +3031,7 @@ void VKAPI vkCmdPipelineBarrier(
+     VkCmdBuffer                                 cmdBuffer,
+     VkPipelineStageFlags                        srcStageMask,
+     VkPipelineStageFlags                        destStageMask,
+-    VkBool32                                    byRegion,
++    VkDependencyFlags                           dependencyFlags,
+     uint32_t                                    memBarrierCount,
+     const void* const*                          ppMemBarriers);
+ 
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index 1360862..9198f64 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -682,8 +682,8 @@ void vkCmdWaitEvents(VkCmdBuffer cmdBuffer, uint32_t eventCount, const VkEvent*
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkCmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkBool32 byRegion, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+-    GetVtbl(cmdBuffer).CmdPipelineBarrier(cmdBuffer, srcStageMask, destStageMask, byRegion, memBarrierCount, ppMemBarriers);
++void vkCmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
++    GetVtbl(cmdBuffer).CmdPipelineBarrier(cmdBuffer, srcStageMask, destStageMask, dependencyFlags, memBarrierCount, ppMemBarriers);
+ }
+ 
+ __attribute__((visibility("default")))
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index d6a879e..698dbd0 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -1050,7 +1050,7 @@ void CmdResetEvent(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags st
+ void CmdWaitEvents(VkCmdBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+ }
+ 
+-void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkBool32 byRegion, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
++void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+ }
+ 
+ void CmdBeginQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index 70283c4..5f3e53e 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -154,7 +154,7 @@ void CmdResolveImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcI
+ void CmdSetEvent(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
+ void CmdResetEvent(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask);
+ void CmdWaitEvents(VkCmdBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers);
+-void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkBool32 byRegion, uint32_t memBarrierCount, const void* const* ppMemBarriers);
++void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers);
+ void CmdBeginQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
+ void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
+ void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
+-- 
+2.4.0
+

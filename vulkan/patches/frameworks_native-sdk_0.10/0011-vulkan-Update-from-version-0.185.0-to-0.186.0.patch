@@ -1,0 +1,384 @@
+From 8fd54acc60cb43569c1960a1a7516089379c01a7 Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Tue, 24 Nov 2015 11:37:23 -0800
+Subject: [PATCH 11/30] vulkan: Update from version 0.185.0 to 0.186.0
+
+Change-Id: I6acb7742a1d4628930bc0807adfd222bc8349c43
+---
+ vulkan/api/vulkan.api          | 12 ++++-----
+ vulkan/include/vulkan/vulkan.h | 53 +++++++++-----------------------------
+ vulkan/libvulkan/entry.cpp     |  4 +--
+ vulkan/libvulkan/swapchain.cpp |  4 +--
+ vulkan/nulldrv/null_driver.cpp | 58 ++++++++++++++++--------------------------
+ vulkan/nulldrv/null_driver.h   |  2 +-
+ vulkan/tools/vkinfo.cpp        |  2 --
+ 7 files changed, 45 insertions(+), 90 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index 525b307..bbf9cfe 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 185
++define VERSION_MINOR 186
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -215,6 +215,7 @@ enum VkDescriptorType {
+ enum VkQueryType {
+     VK_QUERY_TYPE_OCCLUSION                                 = 0x00000000,
+     VK_QUERY_TYPE_PIPELINE_STATISTICS                       = 0x00000001, /// Optional
++    VK_QUERY_TYPE_TIMESTAMP                                 = 0x00000002,
+ }
+ 
+ enum VkBorderColor {
+@@ -714,7 +715,6 @@ bitfield VkQueueFlagBits {
+     VK_QUEUE_COMPUTE_BIT                                    = 0x00000002,    /// Queue supports compute operations
+     VK_QUEUE_DMA_BIT                                        = 0x00000004,    /// Queue supports DMA operations
+     VK_QUEUE_SPARSE_MEMMGR_BIT                              = 0x00000008,    /// Queue supports sparse resource memory management operations
+-    VK_QUEUE_EXTENDED_BIT                                   = 0x40000000,    /// Extended queue
+ }
+ 
+ /// Memory properties passed into vkAllocMemory().
+@@ -4320,11 +4320,11 @@ cmd void vkCmdResetQueryPool(
+ cmd void vkCmdWriteTimestamp(
+         VkCmdBuffer                                 cmdBuffer,
+         VkPipelineStageFlagBits                     pipelineStage,
+-        VkBuffer                                    destBuffer,
+-        VkDeviceSize                                destOffset) {
++        VkQueryPool                                 queryPool,
++        u32                                         slot) {
+     cmdBufferObject := GetCmdBuffer(cmdBuffer)
+-    destBufferObject := GetBuffer(destBuffer)
+-    assert(cmdBufferObject.device == destBufferObject.device)
++    queryPoolObject := GetQueryPool(queryPool)
++    assert(cmdBufferObject.device == queryPoolObject.device)
+ }
+ 
+ @threadSafety("app")
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index c0f3bc7..ca2ff85 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,49 +41,20 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 185, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 186, 0)
+ 
+ 
+-#if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
+-    #define VK_NULL_HANDLE nullptr
+-#else
+-    #define VK_NULL_HANDLE 0
+-#endif
++#define VK_NULL_HANDLE 0
++
+ 
+ 
+ #define VK_DEFINE_HANDLE(obj) typedef struct obj##_T* obj;
+ 
+ 
+-#if defined(__cplusplus)
+-    #if ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
+-        // The bool operator only works if there are no implicit conversions from an obj to
+-        // a bool-compatible type, which can then be used to unintentionally violate type safety.
+-        // C++11 and above supports the "explicit" keyword on conversion operators to stop this
+-        // from happening. Otherwise users of C++ below C++11 won't get direct access to evaluating
+-        // the object handle as a bool in expressions like:
+-        //     if (obj) vkDestroy(obj);
+-        #define VK_NONDISP_HANDLE_OPERATOR_BOOL() explicit operator bool() const { return handle != 0; }
+-        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
+-            explicit obj(uint64_t x) : handle(x) { } \
+-            obj(decltype(nullptr)) : handle(0) { }
+-    #else
+-        #define VK_NONDISP_HANDLE_OPERATOR_BOOL()
+-        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
+-            obj(uint64_t x) : handle(x) { }
+-    #endif
+-    #define VK_DEFINE_NONDISP_HANDLE(obj) \
+-        struct obj { \
+-            obj() : handle(0) { } \
+-            VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
+-            obj& operator =(uint64_t x) { handle = x; return *this; } \
+-            bool operator==(const obj& other) const { return handle == other.handle; } \
+-            bool operator!=(const obj& other) const { return handle != other.handle; } \
+-            bool operator!() const { return !handle; } \
+-            VK_NONDISP_HANDLE_OPERATOR_BOOL() \
+-            uint64_t handle; \
+-        };
++#if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
++        #define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T *obj;
+ #else
+-    #define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T { uint64_t handle; } obj;
++        #define VK_DEFINE_NONDISP_HANDLE(obj) typedef uint64_t obj;
+ #endif
+ 
+ 
+@@ -441,9 +412,10 @@ typedef enum {
+ typedef enum {
+     VK_QUERY_TYPE_OCCLUSION = 0,
+     VK_QUERY_TYPE_PIPELINE_STATISTICS = 1,
++    VK_QUERY_TYPE_TIMESTAMP = 2,
+     VK_QUERY_TYPE_BEGIN_RANGE = VK_QUERY_TYPE_OCCLUSION,
+-    VK_QUERY_TYPE_END_RANGE = VK_QUERY_TYPE_PIPELINE_STATISTICS,
+-    VK_QUERY_TYPE_NUM = (VK_QUERY_TYPE_PIPELINE_STATISTICS - VK_QUERY_TYPE_OCCLUSION + 1),
++    VK_QUERY_TYPE_END_RANGE = VK_QUERY_TYPE_TIMESTAMP,
++    VK_QUERY_TYPE_NUM = (VK_QUERY_TYPE_TIMESTAMP - VK_QUERY_TYPE_OCCLUSION + 1),
+     VK_QUERY_TYPE_MAX_ENUM = 0x7FFFFFFF
+ } VkQueryType;
+ 
+@@ -834,7 +806,6 @@ typedef enum {
+     VK_QUEUE_COMPUTE_BIT = 0x00000002,
+     VK_QUEUE_DMA_BIT = 0x00000004,
+     VK_QUEUE_SPARSE_MEMMGR_BIT = 0x00000008,
+-    VK_QUEUE_EXTENDED_BIT = 0x40000000,
+ } VkQueueFlagBits;
+ typedef VkFlags VkQueueFlags;
+ 
+@@ -2206,7 +2177,7 @@ typedef void (VKAPI *PFN_vkCmdPipelineBarrier)(VkCmdBuffer cmdBuffer, VkPipeline
+ typedef void (VKAPI *PFN_vkCmdBeginQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
+ typedef void (VKAPI *PFN_vkCmdEndQuery)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
+ typedef void (VKAPI *PFN_vkCmdResetQueryPool)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
+-typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset);
++typedef void (VKAPI *PFN_vkCmdWriteTimestamp)(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot);
+ typedef void (VKAPI *PFN_vkCmdCopyQueryPoolResults)(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize stride, VkQueryResultFlags flags);
+ typedef void (VKAPI *PFN_vkCmdPushConstants)(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values);
+ typedef void (VKAPI *PFN_vkCmdBeginRenderPass)(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents);
+@@ -2942,8 +2913,8 @@ void VKAPI vkCmdResetQueryPool(
+ void VKAPI vkCmdWriteTimestamp(
+     VkCmdBuffer                                 cmdBuffer,
+     VkPipelineStageFlagBits                     pipelineStage,
+-    VkBuffer                                    destBuffer,
+-    VkDeviceSize                                destOffset);
++    VkQueryPool                                 queryPool,
++    uint32_t                                    slot);
+ 
+ void VKAPI vkCmdCopyQueryPoolResults(
+     VkCmdBuffer                                 cmdBuffer,
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index c69b99f..255ad97 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -712,8 +712,8 @@ void vkCmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
+-    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, pipelineStage, destBuffer, destOffset);
++void vkCmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
++    GetVtbl(cmdBuffer).CmdWriteTimestamp(cmdBuffer, pipelineStage, queryPool, slot);
+ }
+ 
+ __attribute__((visibility("default")))
+diff --git a/vulkan/libvulkan/swapchain.cpp b/vulkan/libvulkan/swapchain.cpp
+index 6813680..2922465 100644
+--- a/vulkan/libvulkan/swapchain.cpp
++++ b/vulkan/libvulkan/swapchain.cpp
+@@ -90,7 +90,7 @@ VkSurfaceKHR HandleFromSurface(Surface* surface) {
+ }
+ 
+ Surface* SurfaceFromHandle(VkSurfaceKHR handle) {
+-    return reinterpret_cast<Surface*>(handle.handle);
++    return reinterpret_cast<Surface*>(handle);
+ }
+ 
+ struct Swapchain {
+@@ -118,7 +118,7 @@ VkSwapchainKHR HandleFromSwapchain(Swapchain* swapchain) {
+ }
+ 
+ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
+-    return reinterpret_cast<Swapchain*>(handle.handle);
++    return reinterpret_cast<Swapchain*>(handle);
+ }
+ 
+ }  // anonymous namespace
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index 35f2d84..0f8382f 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -199,20 +199,15 @@ uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
+ 
+ namespace null_driver {
+ 
+-template <typename HandleT>
+-struct HandleTraits {};
+-
+-template <typename HandleT>
+-typename HandleTraits<HandleT>::PointerType GetObjectFromHandle(
+-    const HandleT& h) {
+-    return reinterpret_cast<typename HandleTraits<HandleT>::PointerType>(
+-        uintptr_t(h.handle));
+-}
+-
+-template <typename T>
+-typename T::HandleType GetHandleToObject(const T* obj) {
+-    return typename T::HandleType(reinterpret_cast<uintptr_t>(obj));
+-}
++#define DEFINE_OBJECT_HANDLE_CONVERSION(T)              \
++    T* Get##T##FromHandle(Vk##T h);                     \
++    T* Get##T##FromHandle(Vk##T h) {                    \
++        return reinterpret_cast<T*>(uintptr_t(h));      \
++    }                                                   \
++    Vk##T GetHandleTo##T(const T* obj);                 \
++    Vk##T GetHandleTo##T(const T* obj) {                \
++        return Vk##T(reinterpret_cast<uintptr_t>(obj)); \
++    }
+ 
+ // -----------------------------------------------------------------------------
+ // Global
+@@ -384,10 +379,7 @@ struct DeviceMemory {
+     VkDeviceSize size;
+     alignas(16) uint8_t data[0];
+ };
+-template <>
+-struct HandleTraits<VkDeviceMemory> {
+-    typedef DeviceMemory* PointerType;
+-};
++DEFINE_OBJECT_HANDLE_CONVERSION(DeviceMemory)
+ 
+ VkResult AllocMemory(VkDevice device,
+                      const VkMemoryAllocInfo* alloc_info,
+@@ -403,13 +395,13 @@ VkResult AllocMemory(VkDevice device,
+     if (!mem)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+     mem->size = size;
+-    *mem_handle = GetHandleToObject(mem);
++    *mem_handle = GetHandleToDeviceMemory(mem);
+     return VK_SUCCESS;
+ }
+ 
+ void FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
+     const VkAllocCallbacks* alloc = device->instance->alloc;
+-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
++    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
+     alloc->pfnFree(alloc->pUserData, mem);
+ }
+ 
+@@ -419,7 +411,7 @@ VkResult MapMemory(VkDevice,
+                    VkDeviceSize,
+                    VkMemoryMapFlags,
+                    void** out_ptr) {
+-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
++    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
+     *out_ptr = &mem->data[0] + offset;
+     return VK_SUCCESS;
+ }
+@@ -431,10 +423,7 @@ struct Buffer {
+     typedef VkBuffer HandleType;
+     VkDeviceSize size;
+ };
+-template <>
+-struct HandleTraits<VkBuffer> {
+-    typedef Buffer* PointerType;
+-};
++DEFINE_OBJECT_HANDLE_CONVERSION(Buffer)
+ 
+ VkResult CreateBuffer(VkDevice device,
+                       const VkBufferCreateInfo* create_info,
+@@ -451,14 +440,14 @@ VkResult CreateBuffer(VkDevice device,
+     if (!buffer)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+     buffer->size = create_info->size;
+-    *buffer_handle = GetHandleToObject(buffer);
++    *buffer_handle = GetHandleToBuffer(buffer);
+     return VK_SUCCESS;
+ }
+ 
+ void GetBufferMemoryRequirements(VkDevice,
+                                  VkBuffer buffer_handle,
+                                  VkMemoryRequirements* requirements) {
+-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
++    Buffer* buffer = GetBufferFromHandle(buffer_handle);
+     requirements->size = buffer->size;
+     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
+     requirements->memoryTypeBits = 0x1;
+@@ -466,7 +455,7 @@ void GetBufferMemoryRequirements(VkDevice,
+ 
+ void DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
+     const VkAllocCallbacks* alloc = device->instance->alloc;
+-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
++    Buffer* buffer = GetBufferFromHandle(buffer_handle);
+     alloc->pfnFree(alloc->pUserData, buffer);
+ }
+ 
+@@ -477,10 +466,7 @@ struct Image {
+     typedef VkImage HandleType;
+     VkDeviceSize size;
+ };
+-template <>
+-struct HandleTraits<VkImage> {
+-    typedef Image* PointerType;
+-};
++DEFINE_OBJECT_HANDLE_CONVERSION(Image)
+ 
+ VkResult CreateImage(VkDevice device,
+                      const VkImageCreateInfo* create_info,
+@@ -509,14 +495,14 @@ VkResult CreateImage(VkDevice device,
+     if (!image)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+     image->size = size;
+-    *image_handle = GetHandleToObject(image);
++    *image_handle = GetHandleToImage(image);
+     return VK_SUCCESS;
+ }
+ 
+ void GetImageMemoryRequirements(VkDevice,
+                                 VkImage image_handle,
+                                 VkMemoryRequirements* requirements) {
+-    Image* image = GetObjectFromHandle(image_handle);
++    Image* image = GetImageFromHandle(image_handle);
+     requirements->size = image->size;
+     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
+     requirements->memoryTypeBits = 0x1;
+@@ -524,7 +510,7 @@ void GetImageMemoryRequirements(VkDevice,
+ 
+ void DestroyImage(VkDevice device, VkImage image_handle) {
+     const VkAllocCallbacks* alloc = device->instance->alloc;
+-    Image* image = GetObjectFromHandle(image_handle);
++    Image* image = GetImageFromHandle(image_handle);
+     alloc->pfnFree(alloc->pUserData, image);
+ }
+ 
+@@ -1031,7 +1017,7 @@ void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot) {
+ void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
+ }
+ 
+-void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset) {
++void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
+ }
+ 
+ void CmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index f212371..f07d61c 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -160,7 +160,7 @@ void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask
+ void CmdBeginQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags);
+ void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
+ void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
+-void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkBuffer destBuffer, VkDeviceSize destOffset);
++void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot);
+ void CmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags);
+ void CmdPushConstants(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values);
+ void CmdBeginRenderPass(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents);
+diff --git a/vulkan/tools/vkinfo.cpp b/vulkan/tools/vkinfo.cpp
+index 918df47..f92b62c 100644
+--- a/vulkan/tools/vkinfo.cpp
++++ b/vulkan/tools/vkinfo.cpp
+@@ -79,8 +79,6 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
+             return "DMA";
+         case VK_QUEUE_SPARSE_MEMMGR_BIT:
+             return "SPARSE";
+-        case VK_QUEUE_EXTENDED_BIT:
+-            return "EXT";
+     }
+ }
+ 
+-- 
+2.4.0
+
