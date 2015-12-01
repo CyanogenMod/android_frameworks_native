@@ -49,6 +49,39 @@ public:
         return reply.readInt32();
     }
 
+    virtual status_t getProcessStatesAndOomScoresFromPids(size_t length,
+            /*in*/ int32_t* pids, /*out*/ int32_t* states, /*out*/ int32_t* scores)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IProcessInfoService::getInterfaceDescriptor());
+        data.writeInt32Array(length, pids);
+        // write length of output arrays, used by java AIDL stubs
+        data.writeInt32(length);
+        data.writeInt32(length);
+        status_t err = remote()->transact(
+                GET_PROCESS_STATES_AND_OOM_SCORES_FROM_PIDS, data, &reply);
+        if (err != NO_ERROR
+                || ((err = reply.readExceptionCode()) != NO_ERROR)) {
+            return err;
+        }
+        int32_t replyLen = reply.readInt32();
+        if (static_cast<size_t>(replyLen) != length) {
+            return NOT_ENOUGH_DATA;
+        }
+        if (replyLen > 0 && (err = reply.read(
+                states, length * sizeof(*states))) != NO_ERROR) {
+            return err;
+        }
+        replyLen = reply.readInt32();
+        if (static_cast<size_t>(replyLen) != length) {
+            return NOT_ENOUGH_DATA;
+        }
+        if (replyLen > 0 && (err = reply.read(
+                scores, length * sizeof(*scores))) != NO_ERROR) {
+            return err;
+        }
+        return reply.readInt32();
+    }
 };
 
 IMPLEMENT_META_INTERFACE(ProcessInfoService, "android.os.IProcessInfoService");
@@ -81,6 +114,38 @@ status_t BnProcessInfoService::onTransact( uint32_t code, const Parcel& data, Pa
             }
             reply->writeNoException();
             reply->writeInt32Array(len, states);
+            reply->writeInt32(res);
+            return NO_ERROR;
+        } break;
+        case GET_PROCESS_STATES_AND_OOM_SCORES_FROM_PIDS: {
+            CHECK_INTERFACE(IProcessInfoService, data, reply);
+            int32_t arrayLen = data.readInt32();
+            if (arrayLen <= 0) {
+                reply->writeNoException();
+                reply->writeInt32(0);
+                reply->writeInt32(NOT_ENOUGH_DATA);
+                return NO_ERROR;
+            }
+
+            size_t len = static_cast<size_t>(arrayLen);
+            int32_t pids[len];
+            status_t res = data.read(pids, len * sizeof(*pids));
+
+            // Ignore output array length returned in the parcel here, as the
+            // states array must always be the same length as the input PIDs array.
+            int32_t states[len];
+            int32_t scores[len];
+            for (size_t i = 0; i < len; i++) {
+                states[i] = -1;
+                scores[i] = -10000;
+            }
+            if (res == NO_ERROR) {
+                res = getProcessStatesAndOomScoresFromPids(
+                        len, /*in*/ pids, /*out*/ states, /*out*/ scores);
+            }
+            reply->writeNoException();
+            reply->writeInt32Array(len, states);
+            reply->writeInt32Array(len, scores);
             reply->writeInt32(res);
             return NO_ERROR;
         } break;
