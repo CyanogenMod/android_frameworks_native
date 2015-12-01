@@ -840,7 +840,7 @@ void dump_route_tables() {
 
 /* overall progress */
 int progress = 0;
-int do_update_progress = 1; // Set by dumpstate.cpp
+int do_update_progress = 0; // Set by dumpstate.cpp
 
 // TODO: make this function thread safe if sections are generated in parallel.
 void update_progress(int delta) {
