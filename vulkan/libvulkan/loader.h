@@ -305,7 +305,7 @@ VKAPI_ATTR VkResult AcquireNextImageKHR(VkDevice device,
                                         VkSemaphore semaphore,
                                         uint32_t* image_index);
 VKAPI_ATTR VkResult
-QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info);
+QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info);
 
 }  // namespace vulkan
 

@@ -230,9 +230,9 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
     capabilities->supportedTransforms = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
 
     // TODO(jessehall): Implement based on NATIVE_WINDOW_TRANSFORM_HINT.
-    capabilities->currentTransform = VK_SURFACE_TRANSFORM_NONE_KHR;
+    capabilities->currentTransform = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
 
-    capabilities->maxImageArraySize = 1;
+    capabilities->maxImageArrayLayers = 1;
 
     // TODO(jessehall): I think these are right, but haven't thought hard about
     // it. Do we need to query the driver for support of any of these?
@@ -314,7 +314,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
              "color spaces other than SRGB_NONLINEAR not yet implemented");
     ALOGE_IF(create_info->oldSwapchain,
              "swapchain re-creation not yet implemented");
-    ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_NONE_KHR,
+    ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_NONE_BIT_KHR,
              "swapchain preTransform not yet implemented");
     ALOGE_IF(create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR,
              "present modes other than FIFO are not yet implemented");
@@ -371,7 +371,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     // TODO(jessehall): Remove conditional once all drivers have been updated
     if (driver_vtbl.GetSwapchainGrallocUsageANDROID) {
         result = driver_vtbl.GetSwapchainGrallocUsageANDROID(
-            device, create_info->imageFormat, create_info->imageUsageFlags,
+            device, create_info->imageFormat, create_info->imageUsage,
             &gralloc_usage);
         if (result != VK_SUCCESS) {
             ALOGE("vkGetSwapchainGrallocUsageANDROID failed: %d", result);
@@ -418,9 +418,9 @@ VkResult CreateSwapchainKHR(VkDevice device,
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = create_info->imageUsageFlags,
+        .usage = create_info->imageUsage,
         .flags = 0,
-        .sharingMode = create_info->sharingMode,
+        .sharingMode = create_info->imageSharingMode,
         .queueFamilyIndexCount = create_info->queueFamilyIndexCount,
         .pQueueFamilyIndices = create_info->pQueueFamilyIndices,
     };
@@ -612,7 +612,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
 }
 
 VKAPI_ATTR
-VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
+VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
     ALOGV_IF(present_info->sType != VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
              "vkQueuePresentKHR: invalid VkPresentInfoKHR structure type %d",
              present_info->sType);
@@ -624,7 +624,7 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
         Swapchain& swapchain =
             *SwapchainFromHandle(present_info->pSwapchains[sc]);
         ANativeWindow* window = swapchain.surface.window.get();
-        uint32_t image_idx = present_info->imageIndices[sc];
+        uint32_t image_idx = present_info->pImageIndices[sc];
         Swapchain::Image& img = swapchain.images[image_idx];
         VkResult result;
         int err;

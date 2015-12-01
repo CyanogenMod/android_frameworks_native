@@ -702,8 +702,8 @@ VKAPI_ATTR void vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQuery
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* values) {
-    GetVtbl(commandBuffer).CmdPushConstants(commandBuffer, layout, stageFlags, offset, size, values);
+VKAPI_ATTR void vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues) {
+    GetVtbl(commandBuffer).CmdPushConstants(commandBuffer, layout, stageFlags, offset, size, pValues);
 }
 
 __attribute__((visibility("default")))
@@ -772,7 +772,7 @@ VKAPI_ATTR VkResult vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapch
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR VkResult vkQueuePresentKHR(VkQueue queue, VkPresentInfoKHR* pPresentInfo) {
+VKAPI_ATTR VkResult vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPresentInfo) {
     return GetVtbl(queue).QueuePresentKHR(queue, pPresentInfo);
 }
 
