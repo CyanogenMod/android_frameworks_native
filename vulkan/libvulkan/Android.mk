@@ -25,10 +25,6 @@ LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c99-extensions \
 	-Wno-zero-length-array
 
-# TODO(jessehall): Very temporary, until VkResult values are defined as signed integers
-# rather than unsigned hex values.
-LOCAL_CFLAGS += -Wno-error=format
-
 LOCAL_C_INCLUDES := \
 	frameworks/native/vulkan/include \
 	system/core/libsync/include
