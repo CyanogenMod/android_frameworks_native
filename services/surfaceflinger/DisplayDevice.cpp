@@ -88,7 +88,8 @@ DisplayDevice::DisplayDevice(
       mPowerMode(HWC_POWER_MODE_OFF),
       mActiveConfig(0)
 {
-    mNativeWindow = new Surface(producer, false);
+    Surface* surface;
+    mNativeWindow = surface = new Surface(producer, false);
     ANativeWindow* const window = mNativeWindow.get();
     char property[PROPERTY_VALUE_MAX];
 
@@ -96,14 +97,14 @@ DisplayDevice::DisplayDevice(
      * Create our display's surface
      */
 
-    EGLSurface surface;
+    EGLSurface eglSurface;
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (config == EGL_NO_CONFIG) {
         config = RenderEngine::chooseEglConfig(display, format);
     }
-    surface = eglCreateWindowSurface(display, config, window, NULL);
-    eglQuerySurface(display, surface, EGL_WIDTH,  &mDisplayWidth);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &mDisplayHeight);
+    eglSurface = eglCreateWindowSurface(display, config, window, NULL);
+    eglQuerySurface(display, eglSurface, EGL_WIDTH,  &mDisplayWidth);
+    eglQuerySurface(display, eglSurface, EGL_HEIGHT, &mDisplayHeight);
 
     // Make sure that composition can never be stalled by a virtual display
     // consumer that isn't processing buffers fast enough. We have to do this
@@ -117,7 +118,7 @@ DisplayDevice::DisplayDevice(
 
     mConfig = config;
     mDisplay = display;
-    mSurface = surface;
+    mSurface = eglSurface;
     mFormat  = format;
     mPageFlipCount = 0;
     mViewport.makeInvalid();
@@ -148,6 +149,10 @@ DisplayDevice::DisplayDevice(
 
     // initialize the display orientation transform.
     setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
+
+#ifdef NUM_FRAMEBUFFER_SURFACE_BUFFERS
+    surface->allocateBuffers();
+#endif
 }
 
 DisplayDevice::~DisplayDevice() {
