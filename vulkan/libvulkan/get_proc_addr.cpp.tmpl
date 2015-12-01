@@ -217,8 +217,21 @@ bool LoadDeviceVtbl(VkDevice device,
         success = false;
     }
     {{range $f := AllCommands $}}
+      {{if and (eq (Macro "Vtbl" $f) "Device") (not (eq (Macro "FunctionName" $f) "vkGetDeviceProcAddr"))}}
+        {{if not (GetAnnotation $f "extension")}}
+    vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
+        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+            get_proc_addr(device, "{{Macro "FunctionName" $f}}"));
+    if (UNLIKELY(!vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}})) {
+        ALOGE("missing device proc: %s", "{{Macro "FunctionName" $f}}");
+        success = false;
+    }
+        {{end}}
+      {{end}}
+    {{end}}
+    {{range $f := AllCommands $}}
       {{if eq (Macro "Vtbl" $f) "Device"}}
-        {{if not (eq (Macro "FunctionName" $f) "vkGetDeviceProcAddr")}}
+        {{if and (GetAnnotation $f "extension") (Macro "IsDispatched" $f)}}
     vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
         reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
             get_proc_addr(device, "{{Macro "FunctionName" $f}}"));

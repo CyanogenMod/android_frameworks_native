@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 209
+define VERSION_MINOR 210
 define VERSION_PATCH 0
 
 // API limits
@@ -57,7 +57,7 @@ define NULL_HANDLE 0
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NUMBER             3
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NAME               "VK_KHR_display"
 
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_REVISION         8
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_REVISION         9
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_display_swapchain"
 
@@ -630,8 +630,7 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR           = 0xc0000c01,
 
     //@extension("VK_KHR_display_swapchain")
-    VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR         = 0xc0001000,
-    VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 0xc0001001,
+    VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 0xc0001000,
 }
 
 enum VkSubpassContents {
@@ -673,7 +672,7 @@ enum VkResult {
     VK_ERROR_OUT_OF_DATE_KHR                                = 0xC0000804,
 
     //@extension("VK_KHR_display_swapchain")
-    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC0001002,
+    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC0001001,
 
     //@extension("VK_KHR_android_surface")
     VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC0002400,
@@ -1147,15 +1146,15 @@ bitfield VkCullModeFlagBits {
 type VkFlags VkSurfaceTransformFlagsKHR
 @extension("VK_KHR_swapchain")
 bitfield VkSurfaceTransformFlagBitsKHR {
-    VK_SURFACE_TRANSFORM_NONE_BIT_KHR                       = 0x00000001,
-    VK_SURFACE_TRANSFORM_ROT90_BIT_KHR                      = 0x00000002,
-    VK_SURFACE_TRANSFORM_ROT180_BIT_KHR                     = 0x00000004,
-    VK_SURFACE_TRANSFORM_ROT270_BIT_KHR                     = 0x00000008,
-    VK_SURFACE_TRANSFORM_HMIRROR_BIT_KHR                    = 0x00000010,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_BIT_KHR              = 0x00000020,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_BIT_KHR             = 0x00000040,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_BIT_KHR             = 0x00000080,
-    VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                    = 0x00000100,
+    VK_SURFACE_TRANSFORM_NONE_BIT_KHR                           = 0x00000001,
+    VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR                      = 0x00000002,
+    VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR                     = 0x00000004,
+    VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR                     = 0x00000008,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR              = 0x00000010,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR    = 0x00000020,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR   = 0x00000040,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR   = 0x00000080,
+    VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR                        = 0x00000100,
 }
 
 @extension("VK_KHR_swapchain")
@@ -1188,6 +1187,12 @@ bitfield VkDisplayPlaneAlphaFlagBitsKHR {
 type VkFlags VkDisplaySurfaceCreateFlagsKHR
 //@extension("VK_KHR_display")
 //bitfield VkDisplaySurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_display")
+type VkFlags VkDisplayModeCreateFlagsKHR
+//@extension("VK_KHR_display")
+//bitfield VkDisplayModeCreateFlagBitsKHR {
 //}
 
 
@@ -2366,6 +2371,7 @@ class VkDisplayModePropertiesKHR {
 class VkDisplayModeCreateInfoKHR {
     VkStructureType                             sType
     const void*                                 pNext
+    VkDisplayModeCreateFlagsKHR                 flags
     VkDisplayModeParametersKHR                  parameters
 }
 
@@ -2400,13 +2406,6 @@ class VkDisplaySurfaceCreateInfoKHR {
     f32                                         globalAlpha
     VkDisplayPlaneAlphaFlagBitsKHR              alphaMode
     VkExtent2D                                  imageExtent
-}
-
-@extension("VK_KHR_display_swapchain")
-class VkDisplaySwapchainCreateInfoKHR {
-    VkStructureType                             sType
-    const void*                                 pNext
-    const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo
 }
 
 @extension("VK_KHR_display_swapchain")
@@ -4813,7 +4812,7 @@ cmd VkResult vkCreateDisplayModeKHR(
 @extension("VK_KHR_display")
 cmd VkResult vkGetDisplayPlaneCapabilitiesKHR(
         VkPhysicalDevice                        physicalDevice,
-        VkDisplayModeCreateInfoKHR              mode,
+        VkDisplayModeKHR                        mode,
         u32                                     planeIndex,
         VkDisplayPlaneCapabilitiesKHR*          pCapabilities) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
@@ -4826,6 +4825,16 @@ cmd VkResult vkCreateDisplayPlaneSurfaceKHR(
         const VkDisplaySurfaceCreateInfoKHR*    pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
+    return ?
+}
+
+@extension("VK_KHR_display_swapchain")
+cmd VkResult vkCreateSharedSwapchainsKHR(
+        VkDevice                                device,
+        u32                                     swapchainCount,
+        const VkSwapchainCreateInfoKHR*         pCreateInfos,
+        const VkAllocationCallbacks*            pAllocator,
+        VkSwapchainKHR*                         pSwapchains) {
     return ?
 }
 

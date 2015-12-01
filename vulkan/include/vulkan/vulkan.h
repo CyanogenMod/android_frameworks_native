@@ -41,7 +41,7 @@ extern "C" {
     ((major << 22) | (minor << 12) | patch)
 
 // Vulkan API version supported by this file
-#define VK_API_VERSION VK_MAKE_VERSION(0, 209, 0)
+#define VK_API_VERSION VK_MAKE_VERSION(0, 210, 0)
 
 
 #define VK_NULL_HANDLE 0
@@ -128,7 +128,7 @@ typedef enum VkResult {
     VK_ERROR_SURFACE_LOST_KHR = 0xC0000400,
     VK_SUBOPTIMAL_KHR = 0x40000403,
     VK_ERROR_OUT_OF_DATE_KHR = 0xC0000804,
-    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR = 0xC0001002,
+    VK_ERROR_INCOMPATIBLE_DISPLAY_KHR = 0xC0001001,
     VK_ERROR_NATIVE_WINDOW_IN_USE_KHR = 0xC0002400,
     VK_RESULT_BEGIN_RANGE = VK_ERROR_FORMAT_NOT_SUPPORTED,
     VK_RESULT_END_RANGE = VK_INCOMPLETE,
@@ -189,8 +189,7 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_PRESENT_INFO_KHR = 0xC0000801,
     VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR = 0xC0000C00,
     VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR = 0xC0000C01,
-    VK_STRUCTURE_TYPE_DISPLAY_SWAPCHAIN_CREATE_INFO_KHR = 0xC0001000,
-    VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR = 0xC0001001,
+    VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR = 0xC0001000,
     VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO,
     VK_STRUCTURE_TYPE_RANGE_SIZE = (VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
@@ -3123,13 +3122,13 @@ typedef enum VkPresentModeKHR {
 
 typedef enum VkSurfaceTransformFlagBitsKHR {
     VK_SURFACE_TRANSFORM_NONE_BIT_KHR = 0x00000001,
-    VK_SURFACE_TRANSFORM_ROT90_BIT_KHR = 0x00000002,
-    VK_SURFACE_TRANSFORM_ROT180_BIT_KHR = 0x00000004,
-    VK_SURFACE_TRANSFORM_ROT270_BIT_KHR = 0x00000008,
-    VK_SURFACE_TRANSFORM_HMIRROR_BIT_KHR = 0x00000010,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT90_BIT_KHR = 0x00000020,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT180_BIT_KHR = 0x00000040,
-    VK_SURFACE_TRANSFORM_HMIRROR_ROT270_BIT_KHR = 0x00000080,
+    VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR = 0x00000002,
+    VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR = 0x00000004,
+    VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR = 0x00000008,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR = 0x00000010,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR = 0x00000020,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR = 0x00000040,
+    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR = 0x00000080,
     VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR = 0x00000100,
 } VkSurfaceTransformFlagBitsKHR;
 typedef VkFlags VkSurfaceTransformFlagsKHR;
@@ -3291,6 +3290,7 @@ typedef enum VkDisplayPlaneAlphaFlagBitsKHR {
     VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR = 0x00000004,
     VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_PREMULTIPLIED_BIT_KHR = 0x00000008,
 } VkDisplayPlaneAlphaFlagBitsKHR;
+typedef VkFlags VkDisplayModeCreateFlagsKHR;
 typedef VkFlags VkDisplayPlaneAlphaFlagsKHR;
 typedef VkFlags VkDisplaySurfaceCreateFlagsKHR;
 
@@ -3317,6 +3317,7 @@ typedef struct VkDisplayModePropertiesKHR {
 typedef struct VkDisplayModeCreateInfoKHR {
     VkStructureType                             sType;
     const void*                                 pNext;
+    VkDisplayModeCreateFlagsKHR                 flags;
     VkDisplayModeParametersKHR                  parameters;
 } VkDisplayModeCreateInfoKHR;
 
@@ -3356,7 +3357,7 @@ typedef VkResult (VKAPI_PTR *PFN_vkGetPhysicalDeviceDisplayPlanePropertiesKHR)(V
 typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayPlaneSupportedDisplaysKHR)(VkPhysicalDevice physicalDevice, uint32_t* pDisplayCount, VkDisplayKHR* pDisplays);
 typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayModePropertiesKHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, uint32_t* pPropertyCount, VkDisplayModePropertiesKHR* pProperties);
 typedef VkResult (VKAPI_PTR *PFN_vkCreateDisplayModeKHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, const VkDisplayModeCreateInfoKHR*pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDisplayModeKHR* pMode);
-typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayPlaneCapabilitiesKHR)(VkPhysicalDevice physicalDevice, VkDisplayModeCreateInfoKHR mode, uint32_t planeIndex, VkDisplayPlaneCapabilitiesKHR* pCapabilities);
+typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayPlaneCapabilitiesKHR)(VkPhysicalDevice physicalDevice, VkDisplayModeKHR mode, uint32_t planeIndex, VkDisplayPlaneCapabilitiesKHR* pCapabilities);
 typedef VkResult (VKAPI_PTR *PFN_vkCreateDisplayPlaneSurfaceKHR)(VkInstance instance, const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
 
 #ifdef VK_PROTOTYPES
@@ -3390,7 +3391,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDisplayModeKHR(
 
 VKAPI_ATTR VkResult VKAPI_CALL vkGetDisplayPlaneCapabilitiesKHR(
     VkPhysicalDevice                            physicalDevice,
-    VkDisplayModeCreateInfoKHR                  mode,
+    VkDisplayModeKHR                            mode,
     uint32_t                                    planeIndex,
     VkDisplayPlaneCapabilitiesKHR*              pCapabilities);
 
@@ -3402,15 +3403,9 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDisplayPlaneSurfaceKHR(
 #endif
 
 #define VK_KHR_display_swapchain 1
-#define VK_KHR_DISPLAY_SWAPCHAIN_REVISION 8
+#define VK_KHR_DISPLAY_SWAPCHAIN_REVISION 9
 #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
 #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME "VK_KHR_display_swapchain"
-
-typedef struct VkDisplaySwapchainCreateInfoKHR {
-    VkStructureType                             sType;
-    const void*                                 pNext;
-    const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo;
-} VkDisplaySwapchainCreateInfoKHR;
 
 typedef struct VkDisplayPresentInfoKHR {
     VkStructureType                             sType;
@@ -3421,6 +3416,16 @@ typedef struct VkDisplayPresentInfoKHR {
 } VkDisplayPresentInfoKHR;
 
 
+typedef VkResult (VKAPI_PTR *PFN_vkCreateSharedSwapchainsKHR)(VkDevice device, uint32_t swapchainCount, const VkSwapchainCreateInfoKHR* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchains);
+
+#ifdef VK_PROTOTYPES
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateSharedSwapchainsKHR(
+    VkDevice                                    device,
+    uint32_t                                    swapchainCount,
+    const VkSwapchainCreateInfoKHR*             pCreateInfos,
+    const VkAllocationCallbacks*                pAllocator,
+    VkSwapchainKHR*                             pSwapchains);
+#endif
 
 #ifdef VK_USE_PLATFORM_XLIB_KHR
 #define VK_KHR_xlib_surface 1
