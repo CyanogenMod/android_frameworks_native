@@ -483,7 +483,7 @@ VKAPI_ATTR VkResult vkResetCommandPool(VkDevice device, VkCommandPool commandPoo
 
 __attribute__((visibility("default")))
 VKAPI_ATTR VkResult vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers) {
-    return GetVtbl(device).AllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers);
+    return vulkan::AllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers);
 }
 
 __attribute__((visibility("default")))

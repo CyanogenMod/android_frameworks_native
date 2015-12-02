@@ -220,9 +220,9 @@ void GetDeviceQueue(VkDevice drv_device,
                     uint32_t family,
                     uint32_t index,
                     VkQueue* out_queue);
-VkResult AllocCommandBuffers(VkDevice device,
-                             const VkCommandBufferAllocateInfo* alloc_info,
-                             VkCommandBuffer* cmdbufs);
+VkResult AllocateCommandBuffers(VkDevice device,
+                                const VkCommandBufferAllocateInfo* alloc_info,
+                                VkCommandBuffer* cmdbufs);
 VkResult DestroyDevice(VkDevice drv_device,
                        const VkAllocationCallbacks* allocator);
 

@@ -1121,8 +1121,8 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
     if (strcmp(name, "vkGetDeviceQueue") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue);
     }
-    if (strcmp(name, "vkAllocCommandBuffers") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(AllocCommandBuffers);
+    if (strcmp(name, "vkAllocateCommandBuffers") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(AllocateCommandBuffers);
     }
     if (strcmp(name, "vkDestroyDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
@@ -1146,9 +1146,9 @@ void GetDeviceQueue(VkDevice drv_device,
     *out_queue = queue;
 }
 
-VkResult AllocCommandBuffers(VkDevice device,
-                             const VkCommandBufferAllocateInfo* alloc_info,
-                             VkCommandBuffer* cmdbufs) {
+VkResult AllocateCommandBuffers(VkDevice device,
+                                const VkCommandBufferAllocateInfo* alloc_info,
+                                VkCommandBuffer* cmdbufs) {
     const DeviceVtbl* vtbl = GetVtbl(device);
     VkResult result = vtbl->AllocateCommandBuffers(device, alloc_info, cmdbufs);
     if (result != VK_SUCCESS)
