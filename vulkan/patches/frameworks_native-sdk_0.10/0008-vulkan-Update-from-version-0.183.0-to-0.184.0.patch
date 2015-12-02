@@ -1,4 +1,4 @@
-From 7b91a4939779638ae33ce117e52fc58f911644d2 Mon Sep 17 00:00:00 2001
+From 821c3aebdbac594a9b977e8183a863bed7419132 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sat, 21 Nov 2015 19:31:56 -0800
 Subject: [PATCH 08/30] vulkan: Update from version 0.183.0 to 0.184.0
@@ -529,5 +529,5 @@ index 431977d..31c56ff 100644
      {"vkGetRenderAreaGranularity", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetRenderAreaGranularity>(GetRenderAreaGranularity))},
      {"vkInvalidateMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkInvalidateMappedMemoryRanges>(InvalidateMappedMemoryRanges))},
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

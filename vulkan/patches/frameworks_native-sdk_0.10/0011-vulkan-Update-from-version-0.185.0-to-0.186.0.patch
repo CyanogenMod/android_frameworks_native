@@ -1,4 +1,4 @@
-From 8fd54acc60cb43569c1960a1a7516089379c01a7 Mon Sep 17 00:00:00 2001
+From 9148de67a84540aa7d70ae72fbf587e26cbd0891 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 11:37:23 -0800
 Subject: [PATCH 11/30] vulkan: Update from version 0.185.0 to 0.186.0
@@ -380,5 +380,5 @@ index 918df47..f92b62c 100644
  }
  
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

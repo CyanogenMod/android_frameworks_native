@@ -1,4 +1,4 @@
-From d8e4b9a6523599305b93655a1b6cfbcc28530cf6 Mon Sep 17 00:00:00 2001
+From 9f9678461ec3fdefa9c29e84c329cbdd243d7f80 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 10:24:18 -0800
 Subject: [PATCH 09/30] vulkan.api: Distinguish Vk*Flags from Vk*FlagBits
@@ -731,5 +731,5 @@ index ab1fb1b..6f8c0d8 100644
 +    return as!VkQueueFlags(as!u32(flags) | as!u32(bit))
 +}
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

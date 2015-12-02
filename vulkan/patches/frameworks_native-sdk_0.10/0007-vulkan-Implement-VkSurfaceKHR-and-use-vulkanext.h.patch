@@ -1,4 +1,4 @@
-From 8e7c3261d591b7df086683fb7877e188aee7c1f8 Mon Sep 17 00:00:00 2001
+From 957a59a48a8d2e81ca3bb52aacd8d08b1b43dc74 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 23 Nov 2015 17:24:58 -0800
 Subject: [PATCH 07/30] vulkan: Implement VkSurfaceKHR and use vulkanext.h
@@ -2414,5 +2414,5 @@ index 70c0e33..6813680 100644
              // TODO(jessehall): What now? We should probably cancel the buffer,
              // I guess?
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

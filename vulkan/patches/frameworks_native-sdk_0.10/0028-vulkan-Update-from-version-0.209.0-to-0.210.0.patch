@@ -1,4 +1,4 @@
-From 9b545cb7b82a038b6da6355b742da425cbfd05fb Mon Sep 17 00:00:00 2001
+From 5fa30181e473f9055884404545e7345c75440e64 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 16:22:16 -0800
 Subject: [PATCH 28/30] vulkan: Update from version 0.209.0 to 0.210.0
@@ -287,5 +287,5 @@ index aad177d..423dea4 100644
          reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
              get_proc_addr(device, "{{Macro "FunctionName" $f}}"));
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

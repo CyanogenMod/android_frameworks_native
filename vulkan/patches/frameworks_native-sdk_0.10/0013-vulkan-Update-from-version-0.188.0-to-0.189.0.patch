@@ -1,4 +1,4 @@
-From 5dd913c12f8eccf523b4588806711e3b45ed8b79 Mon Sep 17 00:00:00 2001
+From 48c1928e091dd7eb6ca4fc6564e0be072028c38a Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 14:36:39 -0800
 Subject: [PATCH 13/30] vulkan: Update from version 0.188.0 to 0.189.0
@@ -241,5 +241,5 @@ index 557d0db..dd6dc6b 100644
  void CmdCopyImageToBuffer(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer destBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions);
  void CmdUpdateBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize dataSize, const uint32_t* pData);
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

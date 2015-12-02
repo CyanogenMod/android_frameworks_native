@@ -1,4 +1,4 @@
-From 3b2e2ef030d38b5c2a6e200a4d5ccdaea36ec906 Mon Sep 17 00:00:00 2001
+From 83c7f0486d495e9e7ab6f901ddeed931fff9ebad Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 21:05:26 -0800
 Subject: [PATCH 17/30] vulkan: Update from version 0.193.0 to 0.194.0
@@ -609,5 +609,5 @@ index 8442325..af0ccdf 100644
      uint32_t                                    destSubpass;
      VkPipelineStageFlags                        srcStageMask;
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

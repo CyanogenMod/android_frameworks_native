@@ -1,4 +1,4 @@
-From 2afbe83fe000204ab6f44e11b55bbad700dac27a Mon Sep 17 00:00:00 2001
+From 9568691bea351152b340c0cbb3d31e5246ac469b Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 00:42:57 -0800
 Subject: [PATCH 21/30] vulkan: Update from version 0.198.0 to 0.200.0
@@ -3345,5 +3345,5 @@ index 9b1b042..c732131 100644
      {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDeviceWaitIdle>(DeviceWaitIdle))},
      {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEndCommandBuffer>(EndCommandBuffer))},
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

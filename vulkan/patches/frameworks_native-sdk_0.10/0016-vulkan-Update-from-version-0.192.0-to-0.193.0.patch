@@ -1,4 +1,4 @@
-From 45aa1055a77ee030591c989f737ff7c4f635a46b Mon Sep 17 00:00:00 2001
+From d0534c33c98e8f0c844b37df7c764c9dbd6bbaa3 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 19:46:20 -0800
 Subject: [PATCH 16/30] vulkan: Update from version 0.192.0 to 0.193.0
@@ -893,10 +893,10 @@ index a0987e2..4e08015 100644
      if (UNLIKELY(!vtbl.CreateSwapchainKHR)) {
          ALOGE("missing device proc: %s", "vkCreateSwapchainKHR");
 diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
-index d5795d7..4e68f88 100644
+index 10877c5..03265ef 100644
 --- a/vulkan/libvulkan/loader.cpp
 +++ b/vulkan/libvulkan/loader.cpp
-@@ -542,15 +542,6 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
+@@ -546,15 +546,6 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
          return reinterpret_cast<PFN_vkVoidFunction>(Noop);
      }
      // WSI extensions are not in the driver so return the loader functions
@@ -912,7 +912,7 @@ index d5795d7..4e68f88 100644
      if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
          return reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR);
      }
-@@ -896,6 +887,9 @@ const InstanceVtbl kBottomInstanceFunctions = {
+@@ -900,6 +891,9 @@ const InstanceVtbl kBottomInstanceFunctions = {
      .EnumerateDeviceLayerProperties = EnumerateDeviceLayerPropertiesBottom,
      .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
      .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
@@ -1091,5 +1091,5 @@ index 63e0d5f..eaec272 100644
      }
  }
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

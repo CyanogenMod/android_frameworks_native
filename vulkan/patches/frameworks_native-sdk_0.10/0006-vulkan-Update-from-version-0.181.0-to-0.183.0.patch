@@ -1,4 +1,4 @@
-From 727d614d172fd03c033739b9a76873f9d46f8f5e Mon Sep 17 00:00:00 2001
+From 85009ebe92a71d3c707efad6387118b186cca0c9 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Fri, 20 Nov 2015 14:17:03 -0800
 Subject: [PATCH 06/30] vulkan: Update from version 0.181.0 to 0.183.0
@@ -956,5 +956,5 @@ index e86a795..431977d 100644
      {"vkFreeMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeMemory>(FreeMemory))},
      {"vkGetBufferMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetBufferMemoryRequirements>(GetBufferMemoryRequirements))},
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

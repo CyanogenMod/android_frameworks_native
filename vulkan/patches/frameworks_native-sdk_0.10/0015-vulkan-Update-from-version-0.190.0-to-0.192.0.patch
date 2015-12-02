@@ -1,4 +1,4 @@
-From f31710155f9bfdd726bc95f648a821d84de55b69 Mon Sep 17 00:00:00 2001
+From c10af6dde1e91deb70ef055838f1b51240fc66f2 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 19:12:15 -0800
 Subject: [PATCH 15/30] vulkan: Update from version 0.190.0 to 0.192.0
@@ -242,5 +242,5 @@ index 70283c4..5f3e53e 100644
  void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot);
  void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount);
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

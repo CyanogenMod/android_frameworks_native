@@ -1,4 +1,4 @@
-From 167ad20ec48e513fc70447a517d807f082bce6eb Mon Sep 17 00:00:00 2001
+From 2b2221bd4c5cbc2580bf7b4e487bffe36fd25c4a Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Thu, 19 Nov 2015 22:30:07 -0800
 Subject: [PATCH 04/30] vulkan: Update from version 0.179.0 to 0.180.0
@@ -182,5 +182,5 @@ index 2679777..a1d1e05 100644
  VkResult DeviceWaitIdle(VkDevice device);
  VkResult AllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, VkDeviceMemory* pMem);
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

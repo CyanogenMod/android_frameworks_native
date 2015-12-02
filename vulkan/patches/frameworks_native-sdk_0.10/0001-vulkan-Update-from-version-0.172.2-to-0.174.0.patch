@@ -1,4 +1,4 @@
-From 72fe8189a53dfd3a54dc22d33b3ffe67bab93090 Mon Sep 17 00:00:00 2001
+From 18896311f868ab1b2b8a9a6ca34de4c0de6cf0d7 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Thu, 19 Nov 2015 21:32:50 -0800
 Subject: [PATCH 01/30] vulkan: Update from version 0.172.2 to 0.174.0
@@ -501,5 +501,5 @@ index ac6d50f..7f6ae8e 100644
      {"vkCmdCopyBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCmdCopyBuffer>(CmdCopyBuffer))},
      {"vkCmdCopyBufferToImage", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCmdCopyBufferToImage>(CmdCopyBufferToImage))},
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

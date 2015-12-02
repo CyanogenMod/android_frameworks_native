@@ -1,4 +1,4 @@
-From 5b17dda5e7ca170fd8743ae19152b1766c506436 Mon Sep 17 00:00:00 2001
+From 79c20c98e47ce5a7d0608cda59b19d153455cbae Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 11:27:32 -0800
 Subject: [PATCH 24/30] vulkan: Update from version 0.203.0 to 0.204.0
@@ -2680,10 +2680,10 @@ index 712558b..5047741 100644
      {{Macro "Dispatch" $}}{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
    }
 diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
-index 135f06d..c24ef86 100644
+index a5bbc3a..2d45558 100644
 --- a/vulkan/libvulkan/loader.cpp
 +++ b/vulkan/libvulkan/loader.cpp
-@@ -215,19 +215,19 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
+@@ -215,10 +215,10 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
      return *reinterpret_cast<DeviceVtbl**>(queue);
  }
  
@@ -2696,7 +2696,10 @@ index 135f06d..c24ef86 100644
 +                                 size_t alignment,
 +                                 VkSystemAllocationScope) {
      void* ptr = nullptr;
-     return posix_memalign(&ptr, alignment, size) == 0 ? ptr : nullptr;
+     // Vulkan requires 'alignment' to be a power of two, but posix_memalign
+     // additionally requires that it be at least sizeof(void*).
+@@ -227,11 +227,11 @@ void* DefaultAllocate(void*,
+                : nullptr;
  }
  
 -void* DefaultReallocate(void*,
@@ -2712,7 +2715,7 @@ index 135f06d..c24ef86 100644
      if (size == 0) {
          free(ptr);
          return nullptr;
-@@ -253,7 +253,7 @@ void* DefaultReallocate(void*,
+@@ -257,7 +257,7 @@ void* DefaultReallocate(void*,
      return new_ptr;
  }
  
@@ -2721,7 +2724,7 @@ index 135f06d..c24ef86 100644
      free(pMem);
  }
  
-@@ -518,6 +518,7 @@ void FreeAllocatedCreateInfo(T& local_create_info,
+@@ -522,6 +522,7 @@ void FreeAllocatedCreateInfo(T& local_create_info,
          const_cast<char**>(local_create_info.ppEnabledExtensionNames));
  }
  
@@ -2729,7 +2732,7 @@ index 135f06d..c24ef86 100644
  VkBool32 LogDebugMessageCallback(VkFlags message_flags,
                                   VkDbgObjectType /*obj_type*/,
                                   uint64_t /*src_object*/,
-@@ -538,7 +539,8 @@ VkResult Noop(...) {
+@@ -542,7 +543,8 @@ VkResult Noop(...) {
      return VK_SUCCESS;
  }
  
@@ -2739,7 +2742,7 @@ index 135f06d..c24ef86 100644
      if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
          return reinterpret_cast<PFN_vkVoidFunction>(GetLayerDeviceProcAddr);
      }
-@@ -571,6 +573,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
+@@ -575,6 +577,7 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
  // "Bottom" functions. These are called at the end of the instance dispatch
  // chain.
  
@@ -2747,7 +2750,7 @@ index 135f06d..c24ef86 100644
  void DestroyInstanceBottom(VkInstance instance,
                             const VkAllocationCallbacks* allocator) {
      // These checks allow us to call DestroyInstanceBottom from any error path
-@@ -596,6 +599,7 @@ void DestroyInstanceBottom(VkInstance instance,
+@@ -600,6 +603,7 @@ void DestroyInstanceBottom(VkInstance instance,
      alloc->pfnFree(alloc->pUserData, instance);
  }
  
@@ -2755,7 +2758,7 @@ index 135f06d..c24ef86 100644
  VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
                                const VkAllocationCallbacks* allocator,
                                VkInstance* instance_ptr) {
-@@ -673,6 +677,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -677,6 +681,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
      return VK_SUCCESS;
  }
  
@@ -2763,7 +2766,7 @@ index 135f06d..c24ef86 100644
  VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
                                          uint32_t* pdev_count,
                                          VkPhysicalDevice* pdevs) {
-@@ -686,11 +691,13 @@ VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
+@@ -690,11 +695,13 @@ VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
      return VK_SUCCESS;
  }
  
@@ -2777,7 +2780,7 @@ index 135f06d..c24ef86 100644
  void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
                                               VkFormat format,
                                               VkFormatProperties* properties) {
-@@ -698,6 +705,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
+@@ -702,6 +709,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
          pdev, format, properties);
  }
  
@@ -2785,7 +2788,7 @@ index 135f06d..c24ef86 100644
  VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
      VkPhysicalDevice pdev,
      VkFormat format,
-@@ -711,12 +719,14 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
+@@ -715,12 +723,14 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
              pdev, format, type, tiling, usage, flags, properties);
  }
  
@@ -2800,7 +2803,7 @@ index 135f06d..c24ef86 100644
  void GetPhysicalDeviceQueueFamilyPropertiesBottom(
      VkPhysicalDevice pdev,
      uint32_t* pCount,
-@@ -725,6 +735,7 @@ void GetPhysicalDeviceQueueFamilyPropertiesBottom(
+@@ -729,6 +739,7 @@ void GetPhysicalDeviceQueueFamilyPropertiesBottom(
          pdev, pCount, properties);
  }
  
@@ -2808,7 +2811,7 @@ index 135f06d..c24ef86 100644
  void GetPhysicalDeviceMemoryPropertiesBottom(
      VkPhysicalDevice pdev,
      VkPhysicalDeviceMemoryProperties* properties) {
-@@ -732,6 +743,7 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
+@@ -736,6 +747,7 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
          pdev, properties);
  }
  
@@ -2816,7 +2819,7 @@ index 135f06d..c24ef86 100644
  VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
                              const VkDeviceCreateInfo* create_info,
                              const VkAllocationCallbacks* allocator,
-@@ -840,6 +852,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
+@@ -844,6 +856,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
      return VK_SUCCESS;
  }
  
@@ -2824,7 +2827,7 @@ index 135f06d..c24ef86 100644
  VkResult EnumerateDeviceExtensionPropertiesBottom(
      VkPhysicalDevice pdev,
      const char* layer_name,
-@@ -850,6 +863,7 @@ VkResult EnumerateDeviceExtensionPropertiesBottom(
+@@ -854,6 +867,7 @@ VkResult EnumerateDeviceExtensionPropertiesBottom(
          pdev, layer_name, properties_count, properties);
  }
  
@@ -2832,7 +2835,7 @@ index 135f06d..c24ef86 100644
  VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
                                                uint32_t* properties_count,
                                                VkLayerProperties* properties) {
-@@ -857,6 +871,7 @@ VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
+@@ -861,6 +875,7 @@ VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
          pdev, properties_count, properties);
  }
  
@@ -2840,7 +2843,7 @@ index 135f06d..c24ef86 100644
  void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
      VkPhysicalDevice pdev,
      VkFormat format,
-@@ -872,7 +887,8 @@ void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
+@@ -876,7 +891,8 @@ void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
              properties);
  }
  
@@ -2850,7 +2853,7 @@ index 135f06d..c24ef86 100644
  
  const InstanceVtbl kBottomInstanceFunctions = {
      // clang-format off
-@@ -898,6 +914,7 @@ const InstanceVtbl kBottomInstanceFunctions = {
+@@ -902,6 +918,7 @@ const InstanceVtbl kBottomInstanceFunctions = {
      // clang-format on
  };
  
@@ -3361,5 +3364,5 @@ index 1a524ff..1018afa 100644
  
  }  // namespace null_driver
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

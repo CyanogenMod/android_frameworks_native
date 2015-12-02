@@ -1,4 +1,4 @@
-From 8fb824bebd02ae132ac846abbd225fde366f4798 Mon Sep 17 00:00:00 2001
+From 5f1b8406c88d20f23e77426d4d786caca659540b Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 01:03:10 -0800
 Subject: [PATCH 23/30] vulkan: Update from version 0.202.0 to 0.203.0
@@ -211,10 +211,10 @@ index 0e01d4e..fffb3eb 100644
  
  __attribute__((visibility("default")))
 diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
-index e0eddba..135f06d 100644
+index 9d0166b..a5bbc3a 100644
 --- a/vulkan/libvulkan/loader.cpp
 +++ b/vulkan/libvulkan/loader.cpp
-@@ -698,7 +698,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
+@@ -702,7 +702,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
          pdev, format, properties);
  }
  
@@ -223,7 +223,7 @@ index e0eddba..135f06d 100644
      VkPhysicalDevice pdev,
      VkFormat format,
      VkImageType type,
-@@ -706,8 +706,9 @@ void GetPhysicalDeviceImageFormatPropertiesBottom(
+@@ -710,8 +710,9 @@ void GetPhysicalDeviceImageFormatPropertiesBottom(
      VkImageUsageFlags usage,
      VkImageCreateFlags flags,
      VkImageFormatProperties* properties) {
@@ -296,5 +296,5 @@ index 0ed9cd0..1a524ff 100644
  void GetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties);
  void GetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties);
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

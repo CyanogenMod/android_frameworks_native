@@ -1,4 +1,4 @@
-From 63b94206122e3a7e1175471be20ee22d445ee201 Mon Sep 17 00:00:00 2001
+From c7d7dcfffafda197458d6c4afebb486bd64e0d53 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 14:25:46 -0800
 Subject: [PATCH 26/30] vulkan: Update from version 0.205.0 to 0.206.0
@@ -288,5 +288,5 @@ index 31d6089..2c2309f 100644
  	frameworks/native/vulkan/include
  
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

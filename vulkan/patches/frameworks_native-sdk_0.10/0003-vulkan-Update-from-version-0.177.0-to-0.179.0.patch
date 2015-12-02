@@ -1,4 +1,4 @@
-From 88b01c7acbc82f42d074c4484954388167f03add Mon Sep 17 00:00:00 2001
+From daf915168b0aea3a47401a838448d737e955c154 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Thu, 19 Nov 2015 22:17:28 -0800
 Subject: [PATCH 03/30] vulkan: Update from version 0.177.0 to 0.179.0
@@ -1088,5 +1088,5 @@ index 2af04ad..50c3789 100644
          const VkQueueFamilyProperties& qprops = queue_family_properties[family];
          const char* sep = "";
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

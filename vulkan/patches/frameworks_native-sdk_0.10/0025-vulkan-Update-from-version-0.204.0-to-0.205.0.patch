@@ -1,4 +1,4 @@
-From 091923b2022e23b128e8de404cef2b7f70e80b8e Mon Sep 17 00:00:00 2001
+From 052ac57d4c70d934d76fb5cd94278c326e623963 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 11:37:59 -0800
 Subject: [PATCH 25/30] vulkan: Update from version 0.204.0 to 0.205.0
@@ -577,5 +577,5 @@ index fa5ea59..ee15878 100644
      Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
      const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

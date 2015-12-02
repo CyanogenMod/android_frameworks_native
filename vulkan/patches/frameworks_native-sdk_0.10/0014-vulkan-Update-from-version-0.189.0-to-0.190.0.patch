@@ -1,4 +1,4 @@
-From ef949b4f570c963e3d4e8362b3a6a3d41f3ce4b8 Mon Sep 17 00:00:00 2001
+From 888efcf06fdbfa02587ffbfaa8fe6ca8e1b6e58a Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 18:59:42 -0800
 Subject: [PATCH 14/30] vulkan: Update from version 0.189.0 to 0.190.0
@@ -2048,5 +2048,5 @@ index a026bbf..f836a70 100644
      {"vkQueueWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkQueueWaitIdle>(QueueWaitIdle))},
      {"vkResetCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkResetCommandBuffer>(ResetCommandBuffer))},
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

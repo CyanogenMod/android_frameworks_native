@@ -1,4 +1,4 @@
-From 1bed42cafc4ee646dd964d99749dabd45399667a Mon Sep 17 00:00:00 2001
+From 871aab516eafee2ede88b095dad6670b06ab6f8a Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 21:44:14 -0800
 Subject: [PATCH 30/30] vulkan: Update from version 0.210.0 to 0.210.1
@@ -12,7 +12,7 @@ Change-Id: I9adf217587a8b666bcf04818004dce4e97b87fd1
  4 files changed, 42 insertions(+), 49 deletions(-)
 
 diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
-index 63188d5..b31e6a2 100644
+index 45a5eb6..0d56145 100644
 --- a/vulkan/api/vulkan.api
 +++ b/vulkan/api/vulkan.api
 @@ -28,7 +28,7 @@ import platform "platform.api"
@@ -208,5 +208,5 @@ index 2c2309f..31d6089 100644
  	frameworks/native/vulkan/include
  
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

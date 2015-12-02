@@ -1,4 +1,4 @@
-From 6b46fedd72f5168b95519afeeeb74c92c663affe Mon Sep 17 00:00:00 2001
+From 91b3c3599ea5095388c4bdeb14f09529f3fbb9cc Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 16:04:55 -0800
 Subject: [PATCH 27/30] vulkan: Update from version 0.206.0 to 0.209.0
@@ -1437,5 +1437,5 @@ index ff02b35..39a581c 100644
          VkResult result;
          int err;
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

@@ -1,4 +1,4 @@
-From d36b1d2be736d90e71e428b73537cb8d8dea2309 Mon Sep 17 00:00:00 2001
+From 2ca0449bdeecd0257c7473f663896b00d0082def Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 12:44:21 -0800
 Subject: [PATCH 12/30] vulkan: Update from version 0.186.0 to 0.188.0
@@ -8,13 +8,13 @@ Change-Id: Ida08d51f4e892202b594072d1e765ba5c55444db
  vulkan/api/vulkan.api          | 314 ++++++++++++++++++------------
  vulkan/include/vulkan/vulkan.h | 421 ++++++++++++++++++++++++-----------------
  vulkan/libvulkan/entry.cpp     | 256 ++++++++++++-------------
- vulkan/libvulkan/loader.cpp    | 145 +++++++++-----
+ vulkan/libvulkan/loader.cpp    | 149 ++++++++++-----
  vulkan/libvulkan/loader.h      |   7 +-
  vulkan/libvulkan/swapchain.cpp |  30 ++-
  vulkan/nulldrv/null_driver.cpp | 211 +++++++++++++--------
  vulkan/nulldrv/null_driver.h   |  88 ++++-----
  vulkan/tools/vkinfo.cpp        |   9 +-
- 9 files changed, 882 insertions(+), 599 deletions(-)
+ 9 files changed, 886 insertions(+), 599 deletions(-)
 
 diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
 index bbf9cfe..b95c96e 100644
@@ -2652,7 +2652,7 @@ index 255ad97..7622e4d 100644
  
  __attribute__((visibility("default")))
 diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
-index a44026f..d5795d7 100644
+index a44026f..10877c5 100644
 --- a/vulkan/libvulkan/loader.cpp
 +++ b/vulkan/libvulkan/loader.cpp
 @@ -22,8 +22,8 @@
@@ -2689,7 +2689,7 @@ index a44026f..d5795d7 100644
          return static_cast<T*>(mem);
      }
  
-@@ -208,8 +214,39 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
+@@ -208,8 +214,43 @@ inline const DeviceVtbl* GetVtbl(VkQueue queue) {
      return *reinterpret_cast<DeviceVtbl**>(queue);
  }
  
@@ -2697,7 +2697,11 @@ index a44026f..d5795d7 100644
 -    return memalign(alignment, size);
 +void* DefaultAlloc(void*, size_t size, size_t alignment, VkSystemAllocScope) {
 +    void* ptr = nullptr;
-+    return posix_memalign(&ptr, alignment, size) == 0 ? ptr : nullptr;
++    // Vulkan requires 'alignment' to be a power of two, but posix_memalign
++    // additionally requires that it be at least sizeof(void*).
++    return posix_memalign(&ptr, std::max(alignment, sizeof(void*)), size) == 0
++               ? ptr
++               : nullptr;
 +}
 +
 +void* DefaultRealloc(void*,
@@ -2731,7 +2735,7 @@ index a44026f..d5795d7 100644
  }
  
  void DefaultFree(void*, void* pMem) {
-@@ -219,6 +256,7 @@ void DefaultFree(void*, void* pMem) {
+@@ -219,6 +260,7 @@ void DefaultFree(void*, void* pMem) {
  const VkAllocCallbacks kDefaultAllocCallbacks = {
      .pUserData = nullptr,
      .pfnAlloc = DefaultAlloc,
@@ -2739,7 +2743,7 @@ index a44026f..d5795d7 100644
      .pfnFree = DefaultFree,
  };
  
-@@ -418,7 +456,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
+@@ -418,7 +460,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
          }
      }
      // Load app layers
@@ -2748,7 +2752,7 @@ index a44026f..d5795d7 100644
          String layer_name(create_info->ppEnabledLayerNames[i],
                            string_allocator);
          auto element = instance->layers.find(layer_name);
-@@ -439,17 +477,18 @@ template <class TCreateInfo>
+@@ -439,17 +481,18 @@ template <class TCreateInfo>
  bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                                const char* extension_name,
                                const VkAllocCallbacks* alloc) {
@@ -2772,7 +2776,7 @@ index a44026f..d5795d7 100644
      if (mem) {
          const char** enabled_extensions = static_cast<const char**>(mem);
          for (uint32_t i = 0; i < extension_count; ++i) {
-@@ -461,7 +500,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
+@@ -461,7 +504,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
      } else {
          ALOGW("%s extension cannot be enabled: memory allocation failed",
                extension_name);
@@ -2781,7 +2785,7 @@ index a44026f..d5795d7 100644
          return false;
      }
      return true;
-@@ -537,12 +576,14 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
+@@ -537,12 +580,14 @@ PFN_vkVoidFunction GetLayerDeviceProcAddr(VkDevice device, const char* name) {
  // "Bottom" functions. These are called at the end of the instance dispatch
  // chain.
  
@@ -2798,7 +2802,7 @@ index a44026f..d5795d7 100644
      }
      if (instance->message) {
          PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
-@@ -561,21 +602,22 @@ void DestroyInstanceBottom(VkInstance instance) {
+@@ -561,21 +606,22 @@ void DestroyInstanceBottom(VkInstance instance) {
  }
  
  VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
@@ -2825,7 +2829,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
  
-@@ -587,7 +629,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -587,7 +633,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
                                          "vkGetDeviceProcAddr"));
      if (!instance->drv.GetDeviceProcAddr) {
          ALOGE("missing instance proc: \"%s\"", "vkGetDeviceProcAddr");
@@ -2834,7 +2838,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
  
-@@ -600,7 +642,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -600,7 +646,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
      } else {
          ALOGE("invalid VkInstance dispatch magic: 0x%" PRIxPTR,
                dispatch->magic);
@@ -2843,7 +2847,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
  
-@@ -608,7 +650,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -608,7 +654,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
      result = instance->drv.vtbl.EnumeratePhysicalDevices(
          instance->drv.vtbl.instance, &num_physical_devices, nullptr);
      if (result != VK_SUCCESS) {
@@ -2852,7 +2856,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
      num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
-@@ -616,7 +658,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -616,7 +662,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
          instance->drv.vtbl.instance, &num_physical_devices,
          instance->physical_devices);
      if (result != VK_SUCCESS) {
@@ -2861,7 +2865,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
      for (uint32_t i = 0; i < num_physical_devices; i++) {
-@@ -625,7 +667,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
+@@ -625,7 +671,7 @@ VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
          if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
              ALOGE("invalid VkPhysicalDevice dispatch magic: 0x%" PRIxPTR,
                    dispatch->magic);
@@ -2870,7 +2874,7 @@ index a44026f..d5795d7 100644
              return VK_ERROR_INITIALIZATION_FAILED;
          }
          dispatch->vtbl = instance->vtbl;
-@@ -696,13 +738,21 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
+@@ -696,13 +742,21 @@ void GetPhysicalDeviceMemoryPropertiesBottom(
  
  VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
                              const VkDeviceCreateInfo* create_info,
@@ -2895,7 +2899,7 @@ index a44026f..d5795d7 100644
      if (!mem)
          return VK_ERROR_OUT_OF_HOST_MEMORY;
      Device* device = new (mem) Device(&instance);
-@@ -714,7 +764,8 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
+@@ -714,7 +768,8 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
      }
  
      VkDevice drv_device;
@@ -2905,7 +2909,7 @@ index a44026f..d5795d7 100644
      if (result != VK_SUCCESS) {
          DestroyDevice(device);
          return result;
-@@ -727,7 +778,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
+@@ -727,7 +782,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
          PFN_vkDestroyDevice destroy_device =
              reinterpret_cast<PFN_vkDestroyDevice>(
                  instance.drv.GetDeviceProcAddr(drv_device, "vkDestroyDevice"));
@@ -2914,7 +2918,7 @@ index a44026f..d5795d7 100644
          DestroyDevice(device);
          return VK_ERROR_INITIALIZATION_FAILED;
      }
-@@ -778,7 +829,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
+@@ -778,7 +833,7 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
          reinterpret_cast<PFN_vkCreateDevice>(
              device->vtbl_storage.GetDeviceProcAddr(drv_device,
                                                     "vkCreateDevice"));
@@ -2923,7 +2927,7 @@ index a44026f..d5795d7 100644
  
      // TODO(mlentine) : This is needed to use WSI layer validation. Remove this
      // when new version of layer initialization exits.
-@@ -896,23 +947,25 @@ VkResult EnumerateInstanceLayerProperties(uint32_t* count,
+@@ -896,23 +951,25 @@ VkResult EnumerateInstanceLayerProperties(uint32_t* count,
  }
  
  VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
@@ -2955,7 +2959,7 @@ index a44026f..d5795d7 100644
  
      instance->vtbl_storage = kBottomInstanceFunctions;
      instance->vtbl_storage.instance = instance;
-@@ -930,7 +983,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+@@ -930,7 +987,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
  
      result = ActivateAllLayers(create_info, instance, instance);
      if (result != VK_SUCCESS) {
@@ -2964,7 +2968,7 @@ index a44026f..d5795d7 100644
          return result;
      }
  
-@@ -973,7 +1026,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+@@ -973,7 +1030,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
      if (!LoadInstanceVtbl(static_cast<VkInstance>(base_object),
                            static_cast<VkInstance>(next_object),
                            next_get_proc_addr, instance->vtbl_storage)) {
@@ -2973,7 +2977,7 @@ index a44026f..d5795d7 100644
          return VK_ERROR_INITIALIZATION_FAILED;
      }
  
-@@ -988,7 +1041,8 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+@@ -988,7 +1045,8 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
      }
  
      *out_instance = instance;
@@ -2983,7 +2987,7 @@ index a44026f..d5795d7 100644
      if (enable_callback)
          FreeAllocatedCreateInfo(local_create_info, instance->alloc);
      if (result <= 0) {
-@@ -1079,7 +1133,7 @@ VkResult AllocCommandBuffers(VkDevice device,
+@@ -1079,7 +1137,7 @@ VkResult AllocCommandBuffers(VkDevice device,
      VkResult result = vtbl->AllocCommandBuffers(device, alloc_info, cmdbuffers);
      if (result != VK_SUCCESS)
          return result;
@@ -2992,7 +2996,7 @@ index a44026f..d5795d7 100644
          hwvulkan_dispatch_t* dispatch =
              reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuffers[i]);
          ALOGE_IF(dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
-@@ -1090,14 +1144,15 @@ VkResult AllocCommandBuffers(VkDevice device,
+@@ -1090,14 +1148,15 @@ VkResult AllocCommandBuffers(VkDevice device,
      return VK_SUCCESS;
  }
  
@@ -3010,7 +3014,7 @@ index a44026f..d5795d7 100644
      DestroyDevice(device);
      return VK_SUCCESS;
  }
-@@ -1105,9 +1160,9 @@ VkResult DestroyDevice(VkDevice drv_device) {
+@@ -1105,9 +1164,9 @@ VkResult DestroyDevice(VkDevice drv_device) {
  void* AllocMem(VkInstance instance,
                 size_t size,
                 size_t align,
@@ -3022,7 +3026,7 @@ index a44026f..d5795d7 100644
  }
  
  void FreeMem(VkInstance instance, void* ptr) {
-@@ -1118,10 +1173,10 @@ void FreeMem(VkInstance instance, void* ptr) {
+@@ -1118,10 +1177,10 @@ void FreeMem(VkInstance instance, void* ptr) {
  void* AllocMem(VkDevice device,
                 size_t size,
                 size_t align,
@@ -3903,5 +3907,5 @@ index f92b62c..63e0d5f 100644
      return 0;
  }
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

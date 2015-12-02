@@ -1,4 +1,4 @@
-From 28e4f6d9fdb6ac3fec47d7cb12a7b90caa737394 Mon Sep 17 00:00:00 2001
+From bef4966ad22d7690626b3dc048c59cb9e9eab870 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 23:50:38 -0800
 Subject: [PATCH 19/30] vulkan: Update from version 0.196.0 to 0.197.0
@@ -216,5 +216,5 @@ index 838d0e2..1920d6b 100644
                  strbuf << " LAZILY_ALLOCATED";
              printf("       Type %u: %s\n", type, strbuf.str().c_str());
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

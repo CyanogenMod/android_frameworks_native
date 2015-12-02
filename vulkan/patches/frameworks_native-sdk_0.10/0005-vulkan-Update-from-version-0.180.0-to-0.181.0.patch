@@ -1,4 +1,4 @@
-From 5a0357fbe23928c47bb3e817bd3bb6635f2f1f08 Mon Sep 17 00:00:00 2001
+From 2c3539bab4b81b6e55d690c5e113d3421cc15021 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Thu, 19 Nov 2015 22:48:02 -0800
 Subject: [PATCH 05/30] vulkan: Update from version 0.180.0 to 0.181.0
@@ -610,5 +610,5 @@ index 50c3789..918df47 100644
          case VK_TIMEOUT: result_str = "VK_TIMEOUT"; break;
          case VK_EVENT_SET: result_str = "VK_EVENT_SET"; break;
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 

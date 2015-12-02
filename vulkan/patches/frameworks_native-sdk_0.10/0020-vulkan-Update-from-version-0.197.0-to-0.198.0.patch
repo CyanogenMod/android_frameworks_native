@@ -1,4 +1,4 @@
-From 16dcb975a508d8c23006200f42e00c23d0376511 Mon Sep 17 00:00:00 2001
+From ef5b7de781a9d803be4fba7ba243e6e96dd61851 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 00:07:16 -0800
 Subject: [PATCH 20/30] vulkan: Update from version 0.197.0 to 0.198.0
@@ -1418,5 +1418,5 @@ index 1920d6b..c63dca4 100644
      VkPhysicalDeviceMemoryProperties mem_props;
      vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
 -- 
-2.4.0
+2.6.0.rc2.230.g3dd15c0
 
