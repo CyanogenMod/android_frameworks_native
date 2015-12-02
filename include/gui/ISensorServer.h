@@ -41,7 +41,6 @@ public:
     virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
              int mode, const String16& opPackageName) = 0;
     virtual int32_t isDataInjectionEnabled() = 0;
-    virtual status_t  setSensorPhysicalData(const char* physicaldata) = 0;
 };
 
 // ----------------------------------------------------------------------------

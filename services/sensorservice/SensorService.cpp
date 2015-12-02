@@ -735,14 +735,6 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
     return accessibleSensorList;
 }
 
-status_t SensorService::setSensorPhysicalData(const char* physicaldata)
-{
-    SensorDevice& dev(SensorDevice::getInstance());
-
-    //ALOGD("SensorService::setSensorPhysicalData(%s)",physicaldata);
-    return dev.setSensorPhysicalData(physicaldata);
-}
-
 sp<ISensorEventConnection> SensorService::createSensorEventConnection(const String8& packageName,
         int requestedMode, const String16& opPackageName) {
     // Only 2 modes supported for a SensorEventConnection ... NORMAL and DATA_INJECTION.

@@ -130,7 +130,6 @@ class SensorService :
     virtual sp<ISensorEventConnection> createSensorEventConnection(const String8& packageName,
              int requestedMode, const String16& opPackageName);
     virtual int isDataInjectionEnabled();
-    virtual status_t setSensorPhysicalData(const char* physicaldata);
     virtual status_t dump(int fd, const Vector<String16>& args);
 
     class SensorEventConnection : public BnSensorEventConnection, public LooperCallback {

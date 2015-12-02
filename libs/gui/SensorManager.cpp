@@ -227,22 +227,5 @@ bool SensorManager::isDataInjectionEnabled() {
     return false;
 }
 
-bool SensorManager::SetPhysicalData(const char* data)
-{
-    status_t reply;
-    //ALOGD("SensorManager::SetPhysicalData(%s)",data);
-
-    reply = mSensorServer->setSensorPhysicalData(data);
-
-    if(reply == NO_ERROR)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 // ----------------------------------------------------------------------------
 }; // namespace android

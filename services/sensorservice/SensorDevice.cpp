@@ -407,21 +407,6 @@ status_t SensorDevice::setMode(uint32_t mode) {
      return mSensorModule->set_operation_mode(mode);
 }
 
-status_t SensorDevice::setSensorPhysicalData(const char* physicaldata)
-{
-    //ALOGD("SensorDevice::setSensorPhysicalData(%s)",physicaldata);
-    Mutex::Autolock _l(mLock);
-    if((mSensorModule->set_sensor_physical_data == NULL) || (getHalDeviceVersion() < SENSORS_DEVICE_API_VERSION_1_3_5))
-    {
-        return NO_INIT;
-    }
-    else
-    {
-        return mSensorModule->set_sensor_physical_data(physicaldata);
-    }
-}
-
-
 // ---------------------------------------------------------------------------
 
 int SensorDevice::Info::numActiveClients() {

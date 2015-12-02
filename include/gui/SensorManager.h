@@ -58,7 +58,7 @@ public:
     Sensor const* getDefaultSensor(int type);
     sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""), int mode = 0);
     bool isDataInjectionEnabled();
-    bool SetPhysicalData(const char* data);
+
 private:
     // DeathRecipient interface
     void sensorManagerDied();
