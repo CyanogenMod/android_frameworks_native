@@ -1,7 +1,7 @@
 From ef5b7de781a9d803be4fba7ba243e6e96dd61851 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 00:07:16 -0800
-Subject: [PATCH 20/30] vulkan: Update from version 0.197.0 to 0.198.0
+Subject: [PATCH] vulkan: Update from version 0.197.0 to 0.198.0
 
 Change-Id: I182b21c68374e8eae962b2ae391bb283f07d5517
 ---

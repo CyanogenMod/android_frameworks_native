@@ -1,7 +1,7 @@
 From 5b9c3a1af7088351d49431a496ef9f7fd078e9f6 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 00:55:29 -0800
-Subject: [PATCH 22/30] vulkan: Update from version 0.200.0 to 0.202.0
+Subject: [PATCH] vulkan: Update from version 0.200.0 to 0.202.0
 
 Change-Id: If8eb49cd7e5516931f9900b691d6d32af2aa98b0
 ---

@@ -1,7 +1,7 @@
 From 9f9678461ec3fdefa9c29e84c329cbdd243d7f80 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 10:24:18 -0800
-Subject: [PATCH 09/30] vulkan.api: Distinguish Vk*Flags from Vk*FlagBits
+Subject: [PATCH] vulkan.api: Distinguish Vk*Flags from Vk*FlagBits
 
 Previously Vulkan never used the *FlagBits enums directly as the type
 of a parameter or field, only ever using the *Flags typedef. For cases

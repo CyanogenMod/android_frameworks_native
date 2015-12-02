@@ -1,7 +1,7 @@
 From 957a59a48a8d2e81ca3bb52aacd8d08b1b43dc74 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 23 Nov 2015 17:24:58 -0800
-Subject: [PATCH 07/30] vulkan: Implement VkSurfaceKHR and use vulkanext.h
+Subject: [PATCH] vulkan: Implement VkSurfaceKHR and use vulkanext.h
 
 Between header version 0.183.0 and 0.184.0, a copy of vulkan.h which
 includes extensions was added to the registry, called vulkanext.h. The

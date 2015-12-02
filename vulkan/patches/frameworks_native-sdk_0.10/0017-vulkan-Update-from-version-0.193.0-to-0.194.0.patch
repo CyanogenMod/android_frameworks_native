@@ -1,7 +1,7 @@
 From 83c7f0486d495e9e7ab6f901ddeed931fff9ebad Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Sun, 29 Nov 2015 21:05:26 -0800
-Subject: [PATCH 17/30] vulkan: Update from version 0.193.0 to 0.194.0
+Subject: [PATCH] vulkan: Update from version 0.193.0 to 0.194.0
 
 Change-Id: I6a4508a61414375112bae3ffd16b0490ce3e4294
 ---

@@ -1,7 +1,7 @@
 From 9148de67a84540aa7d70ae72fbf587e26cbd0891 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 11:37:23 -0800
-Subject: [PATCH 11/30] vulkan: Update from version 0.185.0 to 0.186.0
+Subject: [PATCH] vulkan: Update from version 0.185.0 to 0.186.0
 
 Change-Id: I6acb7742a1d4628930bc0807adfd222bc8349c43
 ---

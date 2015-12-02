@@ -1,7 +1,7 @@
 From 727391c1b5b3de78128cd204373d14ecdab34801 Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Mon, 30 Nov 2015 21:12:55 -0800
-Subject: [PATCH 29/30] vulkan: Assign enums to the correct extension
+Subject: [PATCH] vulkan: Assign enums to the correct extension
 
 Change-Id: I9ba61b9bfe349f7079833de89d66aa4a2e993e2f
 ---

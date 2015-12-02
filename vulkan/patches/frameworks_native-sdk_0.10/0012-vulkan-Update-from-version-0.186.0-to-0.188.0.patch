@@ -1,7 +1,7 @@
 From 2ca0449bdeecd0257c7473f663896b00d0082def Mon Sep 17 00:00:00 2001
 From: Jesse Hall <jessehall@google.com>
 Date: Tue, 24 Nov 2015 12:44:21 -0800
-Subject: [PATCH 12/30] vulkan: Update from version 0.186.0 to 0.188.0
+Subject: [PATCH] vulkan: Update from version 0.186.0 to 0.188.0
 
 Change-Id: Ida08d51f4e892202b594072d1e765ba5c55444db
 ---
