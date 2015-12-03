@@ -19,8 +19,17 @@
 namespace android {
 namespace binder {
 
-Status Status::fromExceptionCode(int32_t exception_code) {
-    return Status(exception_code, "");
+Status Status::ok() {
+    return Status();
+}
+
+Status Status::fromExceptionCode(int32_t exceptionCode) {
+    return Status(exceptionCode);
+}
+
+Status Status::fromExceptionCode(int32_t exceptionCode,
+                                 const String8& message) {
+    return Status(exceptionCode, message);
 }
 
 Status Status::fromStatusT(status_t status) {
@@ -29,16 +38,9 @@ Status Status::fromStatusT(status_t status) {
     return ret;
 }
 
-Status Status::ok() {
-    return Status();
-}
-
-Status::Status(int32_t exception_code, const String8& message)
-    : mException(exception_code),
-      mMessage(message) {}
-
-Status::Status(int32_t exception_code, const char* message)
-    : mException(exception_code),
+Status::Status(int32_t exceptionCode) : mException(exceptionCode) {}
+Status::Status(int32_t exceptionCode, const String8& message)
+    : mException(exceptionCode),
       mMessage(message) {}
 
 status_t Status::readFromParcel(const Parcel& parcel) {
@@ -69,12 +71,24 @@ status_t Status::readFromParcel(const Parcel& parcel) {
     }
 
     // The remote threw an exception.  Get the message back.
-    mMessage = String8(parcel.readString16());
+    String16 message;
+    status = parcel.readString16(&message);
+    if (status != OK) {
+        setFromStatusT(status);
+        return status;
+    }
+    mMessage = String8(message);
 
     return status;
 }
 
 status_t Status::writeToParcel(Parcel* parcel) const {
+    // Something really bad has happened, and we're not going to even
+    // try returning rich error data.
+    if (mException == EX_TRANSACTION_FAILED) {
+        return mErrorCode;
+    }
+
     status_t status = parcel->writeInt32(mException);
     if (status != OK) { return status; }
     if (mException == EX_NONE) {
@@ -86,35 +100,15 @@ status_t Status::writeToParcel(Parcel* parcel) const {
 }
 
 void Status::setFromStatusT(status_t status) {
-    switch (status) {
-        case NO_ERROR:
-            mException = EX_NONE;
-            mMessage.clear();
-            break;
-        case UNEXPECTED_NULL:
-            mException = EX_NULL_POINTER;
-            mMessage.setTo("Unexpected null reference in Parcel");
-            break;
-        default:
-            mException = EX_TRANSACTION_FAILED;
-            mMessage.setTo("Transaction failed");
-            break;
-    }
+    mException = (status == NO_ERROR) ? EX_NONE : EX_TRANSACTION_FAILED;
+    mErrorCode = status;
+    mMessage.clear();
 }
 
 void Status::setException(int32_t ex, const String8& message) {
     mException = ex;
+    mErrorCode = NO_ERROR;  // an exception, not a transaction failure.
     mMessage.setTo(message);
-}
-
-void Status::getException(int32_t* returned_exception,
-                          String8* returned_message) const {
-    if (returned_exception) {
-        *returned_exception = mException;
-    }
-    if (returned_message) {
-        returned_message->setTo(mMessage);
-    }
 }
 
 String8 Status::toString8() const {
@@ -123,6 +117,9 @@ String8 Status::toString8() const {
         ret.append("No error");
     } else {
         ret.appendFormat("Status(%d): '", mException);
+        if (mException == EX_TRANSACTION_FAILED) {
+            ret.appendFormat("%d: ", mErrorCode);
+        }
         ret.append(String8(mMessage));
         ret.append("'");
     }
