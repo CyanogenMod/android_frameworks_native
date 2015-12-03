@@ -48,6 +48,11 @@ LOCAL_C_INCLUDES := \
 	external/vulkan-validation-layers/libs/vkjson
 
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
+
+ifeq ($(TARGET_BUILD_VARIANT),userdebug)
+LOCAL_CFLAGS += -DDEBUG_CONT_DUMPSYS
+endif
+
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 #LOCAL_CFLAGS += -DENABLE_FENCE_TRACKING
 
