@@ -340,8 +340,10 @@ public:
         inline void* data() { return mData; }
     };
 
+#ifndef DISABLE_ASHMEM_TRACKING
 private:
     size_t mBlobAshmemSize;
+#endif
 
 public:
     size_t getBlobAshmemSize() const;
