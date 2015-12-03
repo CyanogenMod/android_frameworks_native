@@ -140,6 +140,7 @@ private:
     enum { MIN_RESYNC_SAMPLES_FOR_UPDATE = 3 };
     enum { NUM_PRESENT_SAMPLES = 8 };
     enum { MAX_RESYNC_SAMPLES_WITHOUT_PRESENT = 4 };
+    enum { MAX_PRESENT_WITHOUT_RESYNC_SAMPLES = 8 };
 
     // mPeriod is the computed period of the modeled vsync events in
     // nanoseconds.
@@ -168,6 +169,7 @@ private:
     size_t mFirstResyncSample;
     size_t mNumResyncSamples;
     int mNumResyncSamplesSincePresent;
+    int mNumPresentWithoutResyncSamples;
 
     // These member variables store information about the present fences used
     // to validate the currently computed model.
