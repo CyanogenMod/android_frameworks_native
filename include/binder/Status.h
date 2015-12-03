@@ -60,30 +60,30 @@ public:
         EX_ILLEGAL_STATE = -5,
         EX_NETWORK_MAIN_THREAD = -6,
         EX_UNSUPPORTED_OPERATION = -7,
-        EX_TRANSACTION_FAILED = -8,
 
         // This is special and Java specific; see Parcel.java.
         EX_HAS_REPLY_HEADER = -128,
+        // This is special, and indicates to C++ binder proxies that the
+        // transaction has failed at a low level.
+        EX_TRANSACTION_FAILED = -129,
     };
 
-    // Allow authors to explicitly pick whether their integer is a status_t or
-    // exception code.
-    static Status fromExceptionCode(int32_t exception_code);
-    static Status fromStatusT(status_t status);
     // A more readable alias for the default constructor.
     static Status ok();
+    // Allow authors to explicitly pick whether their integer is a status_t or
+    // exception code.
+    static Status fromExceptionCode(int32_t exceptionCode);
+    static Status fromExceptionCode(int32_t exceptionCode,
+                                    const String8& message);
+    static Status fromStatusT(status_t status);
 
     Status() = default;
-    Status(int32_t exception_code, const String8& message);
-    Status(int32_t exception_code, const char* message);
-
+    ~Status() = default;
 
     // Status objects are copyable and contain just simple data.
     Status(const Status& status) = default;
     Status(Status&& status) = default;
     Status& operator=(const Status& status) = default;
-
-    ~Status() = default;
 
     // Bear in mind that if the client or service is a Java endpoint, this
     // is not the logic which will provide/interpret the data here.
@@ -92,16 +92,17 @@ public:
 
     // Set one of the pre-defined exception types defined above.
     void setException(int32_t ex, const String8& message);
-    // A few of the status_t values map to exception codes, but most of them
-    // simply map to "transaction failed."
+    // Setting a |status| != OK causes generated code to return |status|
+    // from Binder transactions, rather than writing an exception into the
+    // reply Parcel.
     void setFromStatusT(status_t status);
 
     // Get information about an exception.
-    // Any argument may be given as nullptr.
-    void getException(int32_t* returned_exception,
-                      String8* returned_message) const;
     int32_t exceptionCode() const  { return mException; }
     const String8& exceptionMessage() const { return mMessage; }
+    status_t transactionError() const {
+        return mException == EX_TRANSACTION_FAILED ? mErrorCode : OK;
+    }
 
     bool isOk() const { return mException == EX_NONE; }
 
@@ -109,9 +110,17 @@ public:
     String8 toString8() const;
 
 private:
-    // We always write |mException| to the parcel.
-    // If |mException| !=  EX_NONE, we write message as well.
+    Status(int32_t exception_code);
+    Status(int32_t exception_code, const String8& message);
+
+    // If |mException| == EX_TRANSACTION_FAILED, generated code will return
+    // |mErrorCode| as the result of the transaction rather than write an
+    // exception to the reply parcel.
+    //
+    // Otherwise, we always write |mException| to the parcel.
+    // If |mException| !=  EX_NONE, we write |mMessage| as well.
     int32_t mException = EX_NONE;
+    int32_t mErrorCode = 0;
     String8 mMessage;
 };  // class Status
 
