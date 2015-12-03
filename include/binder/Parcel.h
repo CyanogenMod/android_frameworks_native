@@ -496,8 +496,10 @@ public:
         inline void* data() { return mData; }
     };
 
+#ifndef DISABLE_ASHMEM_TRACKING
 private:
     size_t mOpenAshmemSize;
+#endif
 
 public:
     // TODO: Remove once ABI can be changed.
