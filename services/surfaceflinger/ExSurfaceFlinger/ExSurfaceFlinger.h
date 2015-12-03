@@ -79,6 +79,20 @@ protected:
     bool mDebugLogs;
     bool isDebug() { return mDebugLogs; }
     bool mDisableExtAnimation;
+
+#ifdef DEBUG_CONT_DUMPSYS
+    virtual status_t dump(int fd, const Vector<String16>& args);
+    virtual void dumpDrawCycle(bool prePrepare );
+
+    struct {
+      Mutex lock;
+      const char *name = "/data/misc/display/dumpsys.txt";
+      bool running = false;
+      bool noLimit = false;
+      bool replaceAfterCommit = false;
+      long int position = 0;
+    } mFileDump;
+#endif
 };
 
 }; //namespace android

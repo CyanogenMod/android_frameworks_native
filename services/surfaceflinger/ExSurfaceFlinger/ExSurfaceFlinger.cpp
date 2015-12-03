@@ -28,6 +28,7 @@
 
 #include "ExSurfaceFlinger.h"
 #include "ExLayer.h"
+#include <fstream>
 #include <cutils/properties.h>
 #ifdef QTI_BSP
 #include <hardware/display_defs.h>
@@ -265,5 +266,111 @@ void ExSurfaceFlinger::drawWormHoleIfRequired(HWComposer::LayerListIterator& cur
            drawWormhole(hw, region);
     }
 }
+
+#ifdef DEBUG_CONT_DUMPSYS
+status_t ExSurfaceFlinger::dump(int fd, const Vector<String16>& args) {
+    // Format: adb shell dumpsys SurfaceFlinger --file --no-limit
+    size_t numArgs = args.size();
+    status_t err = NO_ERROR;
+
+    if (!numArgs || (args[0] != String16("--file"))) {
+        return SurfaceFlinger::dump(fd, args);
+    }
+
+    Mutex::Autolock _l(mFileDump.lock);
+
+    // Same command is used to start and end dump.
+    mFileDump.running = !mFileDump.running;
+
+    if (mFileDump.running) {
+        // Create an empty file or erase existing file.
+        std::fstream fs;
+        fs.open(mFileDump.name, std::ios::out);
+        if (!fs) {
+            mFileDump.running = false;
+            err = UNKNOWN_ERROR;
+        } else {
+            mFileDump.position = 0;
+            if (numArgs >= 2 && (args[1] == String16("--nolimit"))) {
+                mFileDump.noLimit = true;
+            } else {
+                mFileDump.noLimit = false;
+            }
+        }
+    }
+
+    String8 result;
+    result += mFileDump.running ? "Start" : "End";
+    result += mFileDump.noLimit ? " unlimited" : " fixed limit";
+    result += " dumpsys to file : ";
+    result += mFileDump.name;
+    result += "\n";
+
+    write(fd, result.string(), result.size());
+
+    return NO_ERROR;
+}
+
+void ExSurfaceFlinger::dumpDrawCycle(bool prePrepare) {
+    Mutex::Autolock _l(mFileDump.lock);
+
+    // User might stop dump collection in middle of prepare & commit.
+    // Collect dumpsys again after commit and replace.
+    if (!mFileDump.running && !mFileDump.replaceAfterCommit) {
+        return;
+    }
+
+    Vector<String16> args;
+    size_t index = 0;
+    String8 dumpsys;
+
+    dumpAllLocked(args, index, dumpsys);
+
+    char timeStamp[32];
+    char dataSize[32];
+    char hms[32];
+    long millis;
+    struct timeval tv;
+    struct tm *ptm;
+
+    gettimeofday(&tv, NULL);
+    ptm = localtime(&tv.tv_sec);
+    strftime (hms, sizeof (hms), "%H:%M:%S", ptm);
+    millis = tv.tv_usec / 1000;
+    snprintf(timeStamp, sizeof(timeStamp), "Timestamp: %s.%03ld", hms, millis);
+    snprintf(dataSize, sizeof(dataSize), "Size: %8zu", dumpsys.size());
+
+    std::fstream fs;
+    fs.open(mFileDump.name, std::ios::in | std::ios::out);
+    if (!fs) {
+        ALOGE("Failed to open %s file for dumpsys", mFileDump.name);
+        return;
+    }
+
+    // Format:
+    //    | start code | after commit? | time stamp | dump size | dump data |
+    fs.seekp(mFileDump.position, std::ios::beg);
+
+    fs << "#@#@-- DUMPSYS START --@#@#" << std::endl;
+    fs << "PostCommit: " << ( prePrepare ? "false" : "true" ) << std::endl;
+    fs << timeStamp << std::endl;
+    fs << dataSize << std::endl;
+    fs << dumpsys << std::endl;
+
+    if (prePrepare) {
+        mFileDump.replaceAfterCommit = true;
+    } else {
+        mFileDump.replaceAfterCommit = false;
+        // Reposition only after commit.
+        // Keem file size to appx 20 MB limit by default, wrap around if exceeds.
+        mFileDump.position = fs.tellp();
+        if (!mFileDump.noLimit && (mFileDump.position > (20 * 1024 * 1024))) {
+            mFileDump.position = 0;
+        }
+    }
+
+    fs.close();
+}
+#endif
 
 }; // namespace android
