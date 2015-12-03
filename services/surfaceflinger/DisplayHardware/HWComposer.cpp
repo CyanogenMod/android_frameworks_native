@@ -37,7 +37,7 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #ifdef QTI_BSP
-#include <exhwcomposer_defs.h>
+#include <hardware/display_defs.h>
 #endif
 
 #include <android/configuration.h>
