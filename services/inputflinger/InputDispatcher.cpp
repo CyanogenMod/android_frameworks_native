@@ -902,7 +902,7 @@ void InputDispatcher::logOutboundMotionDetailsLocked(const char* prefix, const M
         ALOGD("  Pointer %d: id=%d, toolType=%d, "
                 "x=%f, y=%f, pressure=%f, size=%f, "
                 "touchMajor=%f, touchMinor=%f, toolMajor=%f, toolMinor=%f, "
-                "orientation=%f",
+                "orientation=%f, relativeX=%f, relativeY=%f",
                 i, entry->pointerProperties[i].id,
                 entry->pointerProperties[i].toolType,
                 entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_X),
@@ -913,7 +913,9 @@ void InputDispatcher::logOutboundMotionDetailsLocked(const char* prefix, const M
                 entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR),
                 entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_TOOL_MAJOR),
                 entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_TOOL_MINOR),
-                entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION));
+                entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION),
+                entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X),
+                entry->pointerCoords[i].getAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y));
     }
 #endif
 }

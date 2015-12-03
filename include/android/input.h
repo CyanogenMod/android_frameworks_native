@@ -651,6 +651,21 @@ enum {
      */
     AMOTION_EVENT_AXIS_SCROLL = 26,
     /**
+     * Axis constant: The movement of x position of a motion event.
+     *
+     * - For a mouse, reports a difference of x position between the previous position.
+     * This is useful when pointer is captured, in that case the mouse pointer doesn't
+     * change the location but this axis reports the difference which allows the app
+     * to see how the mouse is moved.
+     */
+    AMOTION_EVENT_AXIS_RELATIVE_X = 27,
+    /**
+     * Axis constant: The movement of y position of a motion event.
+     *
+     * Same as {@link RELATIVE_X}, but for y position.
+     */
+    AMOTION_EVENT_AXIS_RELATIVE_Y = 28,
+    /**
      * Axis constant: Generic 1 axis of a motion event.
      * The interpretation of a generic axis is device-specific.
      */

@@ -2614,6 +2614,8 @@ void CursorInputMapper::sync(nsecs_t when) {
         mPointerController->getPosition(&x, &y);
         pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_X, x);
         pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_Y, y);
+        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
+        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
         displayId = ADISPLAY_ID_DEFAULT;
     } else {
         pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_X, deltaX);
@@ -5333,13 +5335,14 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             }
         }
 
+        float deltaX = 0, deltaY = 0;
         if (activeTouchId >= 0 && mLastCookedState.fingerIdBits.hasBit(activeTouchId)) {
             const RawPointerData::Pointer& currentPointer =
                     mCurrentRawState.rawPointerData.pointerForId(activeTouchId);
             const RawPointerData::Pointer& lastPointer =
                     mLastRawState.rawPointerData.pointerForId(activeTouchId);
-            float deltaX = (currentPointer.x - lastPointer.x) * mPointerXMovementScale;
-            float deltaY = (currentPointer.y - lastPointer.y) * mPointerYMovementScale;
+            deltaX = (currentPointer.x - lastPointer.x) * mPointerXMovementScale;
+            deltaY = (currentPointer.y - lastPointer.y) * mPointerYMovementScale;
 
             rotateDelta(mSurfaceOrientation, &deltaX, &deltaY);
             mPointerVelocityControl.move(when, &deltaX, &deltaY);
@@ -5366,6 +5369,8 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_X, x);
         mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_Y, y);
         mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, 1.0f);
+        mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
+        mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
     } else if (currentFingerCount == 0) {
         // Case 3. No fingers down and button is not pressed. (NEUTRAL)
         if (mPointerGesture.lastGestureMode != PointerGesture::NEUTRAL) {
@@ -5473,15 +5478,14 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             mPointerGesture.currentGestureMode = PointerGesture::TAP_DRAG;
         }
 
+        float deltaX = 0, deltaY = 0;
         if (mLastCookedState.fingerIdBits.hasBit(activeTouchId)) {
             const RawPointerData::Pointer& currentPointer =
                     mCurrentRawState.rawPointerData.pointerForId(activeTouchId);
             const RawPointerData::Pointer& lastPointer =
                     mLastRawState.rawPointerData.pointerForId(activeTouchId);
-            float deltaX = (currentPointer.x - lastPointer.x)
-                    * mPointerXMovementScale;
-            float deltaY = (currentPointer.y - lastPointer.y)
-                    * mPointerYMovementScale;
+            deltaX = (currentPointer.x - lastPointer.x) * mPointerXMovementScale;
+            deltaY = (currentPointer.y - lastPointer.y) * mPointerYMovementScale;
 
             rotateDelta(mSurfaceOrientation, &deltaX, &deltaY);
             mPointerVelocityControl.move(when, &deltaX, &deltaY);
@@ -5525,6 +5529,10 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_Y, y);
         mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_PRESSURE,
                 down ? 1.0f : 0.0f);
+        mPointerGesture.currentGestureCoords[0].setAxisValue(
+                AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
+        mPointerGesture.currentGestureCoords[0].setAxisValue(
+                AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
 
         if (lastFingerCount == 0 && currentFingerCount != 0) {
             mPointerGesture.resetTap();
@@ -5771,6 +5779,10 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                     mPointerGesture.referenceGestureX);
             mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_Y,
                     mPointerGesture.referenceGestureY);
+            mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X,
+                    commonDeltaX);
+            mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y,
+                    commonDeltaY);
             mPointerGesture.currentGestureCoords[0].setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, 1.0f);
         } else if (mPointerGesture.currentGestureMode == PointerGesture::FREEFORM) {
             // FREEFORM mode.
@@ -5867,6 +5879,10 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                         AMOTION_EVENT_AXIS_Y, mPointerGesture.referenceGestureY + deltaY);
                 mPointerGesture.currentGestureCoords[i].setAxisValue(
                         AMOTION_EVENT_AXIS_PRESSURE, 1.0f);
+                mPointerGesture.currentGestureCoords[i].setAxisValue(
+                        AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
+                mPointerGesture.currentGestureCoords[i].setAxisValue(
+                        AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
             }
 
             if (mPointerGesture.activeGestureId < 0) {
@@ -5960,12 +5976,13 @@ void TouchInputMapper::dispatchPointerMouse(nsecs_t when, uint32_t policyFlags) 
     if (!mCurrentCookedState.mouseIdBits.isEmpty()) {
         uint32_t id = mCurrentCookedState.mouseIdBits.firstMarkedBit();
         uint32_t currentIndex = mCurrentRawState.rawPointerData.idToIndex[id];
+        float deltaX = 0, deltaY = 0;
         if (mLastCookedState.mouseIdBits.hasBit(id)) {
             uint32_t lastIndex = mCurrentRawState.rawPointerData.idToIndex[id];
-            float deltaX = (mCurrentRawState.rawPointerData.pointers[currentIndex].x
+            deltaX = (mCurrentRawState.rawPointerData.pointers[currentIndex].x
                     - mLastRawState.rawPointerData.pointers[lastIndex].x)
                     * mPointerXMovementScale;
-            float deltaY = (mCurrentRawState.rawPointerData.pointers[currentIndex].y
+            deltaY = (mCurrentRawState.rawPointerData.pointers[currentIndex].y
                     - mLastRawState.rawPointerData.pointers[lastIndex].y)
                     * mPointerYMovementScale;
 
@@ -5988,6 +6005,8 @@ void TouchInputMapper::dispatchPointerMouse(nsecs_t when, uint32_t policyFlags) 
         mPointerSimple.currentCoords.setAxisValue(AMOTION_EVENT_AXIS_Y, y);
         mPointerSimple.currentCoords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE,
                 hovering ? 0.0f : 1.0f);
+        mPointerSimple.currentCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, x);
+        mPointerSimple.currentCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, y);
         mPointerSimple.currentProperties.id = 0;
         mPointerSimple.currentProperties.toolType =
                 mCurrentCookedState.cookedPointerData.pointerProperties[currentIndex].toolType;
