@@ -51,8 +51,12 @@ typedef void (for_each_tid_func)(int, int, const char *);
  * can be calculated by dividing the all completed weight by the total weight.
  *
  * This value is defined empirically and it need to be adjusted as more sections are added.
- * It does not need to match the exact sum of all sections, but it should to be more than it,
- * otherwise the calculated progress would be more than 100%.
+ *
+ * It does not need to match the exact sum of all sections, but ideally it should to be slight more
+ * than such sum: a value too high will cause the bugreport to finish before the user expected (for
+ * example, jumping from 70% to 100%), while a value too low will cause the progress to fluctuate
+ * down (for example, from 70% to 50%, since the actual max will be automatically increased every
+ * time it is reached).
  */
 static const int WEIGHT_TOTAL = 4000;
 
