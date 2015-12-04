@@ -215,16 +215,18 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         const VkAllocationCallbacks* allocator,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
-PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device, const char* name);
-void GetDeviceQueue(VkDevice drv_device,
-                    uint32_t family,
-                    uint32_t index,
-                    VkQueue* out_queue);
-VkResult AllocateCommandBuffers(VkDevice device,
-                                const VkCommandBufferAllocateInfo* alloc_info,
-                                VkCommandBuffer* cmdbufs);
-VkResult DestroyDevice(VkDevice drv_device,
-                       const VkAllocationCallbacks* allocator);
+VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device,
+                                                const char* name);
+VKAPI_ATTR void GetDeviceQueue(VkDevice drv_device,
+                               uint32_t family,
+                               uint32_t index,
+                               VkQueue* out_queue);
+VKAPI_ATTR VkResult
+AllocateCommandBuffers(VkDevice device,
+                       const VkCommandBufferAllocateInfo* alloc_info,
+                       VkCommandBuffer* cmdbufs);
+VKAPI_ATTR void DestroyDevice(VkDevice drv_device,
+                              const VkAllocationCallbacks* allocator);
 
 void* AllocMem(VkInstance instance,
                size_t size,
@@ -292,9 +294,9 @@ CreateSwapchainKHR(VkDevice device,
                    const VkSwapchainCreateInfoKHR* create_info,
                    const VkAllocationCallbacks* allocator,
                    VkSwapchainKHR* swapchain_handle);
-VKAPI_ATTR VkResult DestroySwapchainKHR(VkDevice device,
-                                        VkSwapchainKHR swapchain_handle,
-                                        const VkAllocationCallbacks* allocator);
+VKAPI_ATTR void DestroySwapchainKHR(VkDevice device,
+                                    VkSwapchainKHR swapchain_handle,
+                                    const VkAllocationCallbacks* allocator);
 VKAPI_ATTR VkResult GetSwapchainImagesKHR(VkDevice device,
                                           VkSwapchainKHR swapchain_handle,
                                           uint32_t* count,
@@ -303,6 +305,7 @@ VKAPI_ATTR VkResult AcquireNextImageKHR(VkDevice device,
                                         VkSwapchainKHR swapchain_handle,
                                         uint64_t timeout,
                                         VkSemaphore semaphore,
+                                        VkFence fence,
                                         uint32_t* image_index);
 VKAPI_ATTR VkResult
 QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info);

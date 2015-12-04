@@ -539,33 +539,44 @@ VkBool32 LogDebugMessageCallback(VkFlags message_flags,
     return false;
 }
 
-VkResult Noop(...) {
+VkResult Noop() {
     return VK_SUCCESS;
 }
 
 VKAPI_ATTR PFN_vkVoidFunction
 GetLayerDeviceProcAddr(VkDevice device, const char* name) {
+    // The static_casts are used to ensure that our function actually
+    // matches the API function prototype. Otherwise, if the API function
+    // prototype changes (only a problem during API development), the compiler
+    // has no way of knowing that the function is supposed to match the
+    // prototype, so won't warn us if they don't.
     if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetLayerDeviceProcAddr);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkGetDeviceProcAddr>(GetLayerDeviceProcAddr));
     }
     if (strcmp(name, "vkCreateDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(Noop);
     }
     // WSI extensions are not in the driver so return the loader functions
     if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkCreateSwapchainKHR>(CreateSwapchainKHR));
     }
     if (strcmp(name, "vkDestroySwapchainKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(DestroySwapchainKHR);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkDestroySwapchainKHR>(DestroySwapchainKHR));
     }
     if (strcmp(name, "vkGetSwapchainImagesKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetSwapchainImagesKHR);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkGetSwapchainImagesKHR>(GetSwapchainImagesKHR));
     }
     if (strcmp(name, "vkAcquireNextImageKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(AcquireNextImageKHR);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkAcquireNextImageKHR>(AcquireNextImageKHR));
     }
     if (strcmp(name, "vkQueuePresentKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(QueuePresentKHR);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkQueuePresentKHR>(QueuePresentKHR));
     }
     if (!device)
         return GetGlobalDeviceProcAddr(name);
@@ -927,7 +938,8 @@ PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char* name) {
         return reinterpret_cast<PFN_vkVoidFunction>(Noop);
     }
     if (strcmp(name, "vkCreateInstance") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateInstanceBottom);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkCreateInstance>(CreateInstanceBottom));
     }
     return GetSpecificInstanceProcAddr(&kBottomInstanceFunctions, name);
 }
@@ -1116,16 +1128,20 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
     if (!device)
         return GetGlobalDeviceProcAddr(name);
     if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceProcAddr);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkGetDeviceProcAddr>(GetDeviceProcAddr));
     }
     if (strcmp(name, "vkGetDeviceQueue") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkGetDeviceQueue>(GetDeviceQueue));
     }
     if (strcmp(name, "vkAllocateCommandBuffers") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(AllocateCommandBuffers);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkAllocateCommandBuffers>(AllocateCommandBuffers));
     }
     if (strcmp(name, "vkDestroyDevice") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkDestroyDevice>(DestroyDevice));
     }
     return GetSpecificDeviceProcAddr(GetVtbl(device), name);
 }
@@ -1164,8 +1180,8 @@ VkResult AllocateCommandBuffers(VkDevice device,
     return VK_SUCCESS;
 }
 
-VkResult DestroyDevice(VkDevice drv_device,
-                       const VkAllocationCallbacks* /*allocator*/) {
+void DestroyDevice(VkDevice drv_device,
+                   const VkAllocationCallbacks* /*allocator*/) {
     const DeviceVtbl* vtbl = GetVtbl(drv_device);
     Device* device = static_cast<Device*>(vtbl->device);
     for (auto it = device->active_layers.begin();
@@ -1174,7 +1190,6 @@ VkResult DestroyDevice(VkDevice drv_device,
     }
     vtbl->DestroyDevice(drv_device, device->instance->alloc);
     DestroyDevice(device);
-    return VK_SUCCESS;
 }
 
 void* AllocMem(VkInstance instance,

@@ -843,7 +843,9 @@ http://www.gnu.org/software/src-highlite -->
   .queueFamilyCount    = VkSwapChainCreateInfoWSI::queueFamilyCount
   .pQueueFamilyIndices = VkSwapChainCreateInfoWSI::pQueueFamilyIndices</pre>
 </div></div>
-<div class="paragraph"><p><span class="monospaced">vkAcquireImageANDROID</span> acquires ownership of a swapchain image and imports an externally-signalled native fence into an existing <span class="monospaced">VkSemaphore</span> object:</p></div>
+<div class="paragraph"><p><span class="monospaced">vkAcquireImageANDROID</span> acquires ownership of a swapchain image and imports an
+externally-signalled native fence into both an existing VkSemaphore object
+and an existing VkFence object:</p></div>
 <div class="listingblock">
 <div class="content"><!-- Generator: GNU source-highlight 3.1.6
 by Lorenzo Bettini
@@ -853,10 +855,24 @@ http://www.gnu.org/software/src-highlite -->
     <span style="color: #008080">VkDevice</span>            device<span style="color: #990000">,</span>
     <span style="color: #008080">VkImage</span>             image<span style="color: #990000">,</span>
     <span style="color: #009900">int</span>                 nativeFenceFd<span style="color: #990000">,</span>
-    VkSemaphore         semaphore
-<span style="color: #990000">);</span>
+    <span style="color: #008080">VkSemaphore</span>         semaphore<span style="color: #990000">,</span>
+    VkFence             fence
 <span style="color: #990000">);</span></tt></pre></div></div>
-<div class="paragraph"><p>This function is called during <span class="monospaced">vkAcquireNextImageWSI</span> to import a native fence into the <span class="monospaced">VkSemaphore</span> object provided by the application. The driver may also use this opportunity to recognize and handle any external changes to the gralloc buffer state; many drivers won&#8217;t need to do anything here. This call puts the <span class="monospaced">VkSemaphore</span> into the same "pending" state as <span class="monospaced">vkQueueSignalSemaphore</span>, so queues can wait on the semaphore. The <span class="monospaced">VkSemaphore</span> signals when the underlying native fence signals; if the fence has already signalled, then the semaphore will be in the signalled state when this function returns. The driver takes ownership of the fence fd and is responsible for closing it when the <span class="monospaced">VkSemaphore</span> is destroyed, when a different native fence is imported, or any other condition that replaces the <span class="monospaced">VkSemaphore</span>'s underlying synchronization object. If <span class="monospaced">fenceFd</span> is -1, the <span class="monospaced">VkSemaphore</span> will be considered signalled immediately, but it can still be passed to <span class="monospaced">vkQueueWaitSemaphore</span>.</p></div>
+<div class="paragraph"><p>This function is called during <span class="monospaced">vkAcquireNextImageWSI</span> to import a native
+fence into the <span class="monospaced">VkSemaphore</span> and <span class="monospaced">VkFence</span> objects provided by the
+application. Both semaphore and fence objects are optional in this call. The
+driver may also use this opportunity to recognize and handle any external
+changes to the gralloc buffer state; many drivers won&#8217;t need to do anything
+here. This call puts the <span class="monospaced">VkSemaphore</span> and <span class="monospaced">VkFence</span> into the same "pending"
+state as <span class="monospaced">vkQueueSignalSemaphore</span> and <span class="monospaced">vkQueueSubmit</span> respectively, so queues
+can wait on the semaphore and the application can wait on the fence. Both
+objects become signalled when the underlying native fence signals; if the
+native fence has already signalled, then the semaphore will be in the signalled
+state when this function returns. The driver takes ownership of the fence fd
+and is responsible for closing it when no longer needed. It must do so even if
+neither a semaphore or fence object is provided, or even if
+<span class="monospaced">vkAcquireImageANDROID</span> fails and returns an error. If <span class="monospaced">fenceFd</span> is -1, it
+is as if the native fence was already signalled.</p></div>
 <div class="paragraph"><p><span class="monospaced">vkQueueSignalReleaseImageANDROID</span> prepares a swapchain image for external use, and creates a native fence and schedules it to be signalled when prior work on the queue has completed.</p></div>
 <div class="listingblock">
 <div class="content"><!-- Generator: GNU source-highlight 3.1.6
@@ -926,6 +942,19 @@ Replaced vkImportNativeFenceANDROID and vkQueueSignalNativeFenceANDROID
 </li>
 </ul></div>
 </li>
+<li>
+<p>
+<strong>2015-12-03</strong>
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+Added a VkFence parameter to vkAcquireImageANDROID corresponding to the
+     parameter added to vkAcquireNextImageKHR.
+</p>
+</li>
+</ul></div>
+</li>
 </ol></div>
 </div>
 </div>
@@ -934,7 +963,7 @@ Replaced vkImportNativeFenceANDROID and vkQueueSignalNativeFenceANDROID
 <div id="footer">
 <div id="footer-text">
 Version 3<br>
-Last updated 2015-11-04 10:58:22 PST
+Last updated 2015-12-03 15:47:36 PST
 </div>
 </div>
 </body>

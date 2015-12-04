@@ -487,9 +487,9 @@ VkResult CreateSwapchainKHR(VkDevice device,
 }
 
 VKAPI_ATTR
-VkResult DestroySwapchainKHR(VkDevice device,
-                             VkSwapchainKHR swapchain_handle,
-                             const VkAllocationCallbacks* /*allocator*/) {
+void DestroySwapchainKHR(VkDevice device,
+                         VkSwapchainKHR swapchain_handle,
+                         const VkAllocationCallbacks* /*allocator*/) {
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
     const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
@@ -509,8 +509,6 @@ VkResult DestroySwapchainKHR(VkDevice device,
 
     swapchain->~Swapchain();
     FreeMem(device, swapchain);
-
-    return VK_SUCCESS;
 }
 
 VKAPI_ATTR
@@ -538,6 +536,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
                              VkSwapchainKHR swapchain_handle,
                              uint64_t timeout,
                              VkSemaphore semaphore,
+                             VkFence vk_fence,
                              uint32_t* image_index) {
     Swapchain& swapchain = *SwapchainFromHandle(swapchain_handle);
     ANativeWindow* window = swapchain.surface.window.get();
@@ -549,8 +548,8 @@ VkResult AcquireNextImageKHR(VkDevice device,
         "vkAcquireNextImageKHR: non-infinite timeouts not yet implemented");
 
     ANativeWindowBuffer* buffer;
-    int fence;
-    err = window->dequeueBuffer(window, &buffer, &fence);
+    int fence_fd;
+    err = window->dequeueBuffer(window, &buffer, &fence_fd);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
@@ -562,30 +561,31 @@ VkResult AcquireNextImageKHR(VkDevice device,
     for (idx = 0; idx < swapchain.num_images; idx++) {
         if (swapchain.images[idx].buffer.get() == buffer) {
             swapchain.images[idx].dequeued = true;
-            swapchain.images[idx].dequeue_fence = fence;
+            swapchain.images[idx].dequeue_fence = fence_fd;
             break;
         }
     }
     if (idx == swapchain.num_images) {
         ALOGE("dequeueBuffer returned unrecognized buffer");
-        window->cancelBuffer(window, buffer, fence);
+        window->cancelBuffer(window, buffer, fence_fd);
         return VK_ERROR_OUT_OF_DATE_KHR;
     }
 
     int fence_clone = -1;
-    if (fence != -1) {
-        fence_clone = dup(fence);
+    if (fence_fd != -1) {
+        fence_clone = dup(fence_fd);
         if (fence_clone == -1) {
             ALOGE("dup(fence) failed, stalling until signalled: %s (%d)",
                   strerror(errno), errno);
-            sync_wait(fence, -1 /* forever */);
+            sync_wait(fence_fd, -1 /* forever */);
         }
     }
 
     const DeviceVtbl& driver_vtbl = GetDriverVtbl(device);
     if (driver_vtbl.AcquireImageANDROID) {
-        result = driver_vtbl.AcquireImageANDROID(
-            device, swapchain.images[idx].image, fence_clone, semaphore);
+        result =
+            driver_vtbl.AcquireImageANDROID(device, swapchain.images[idx].image,
+                                            fence_clone, semaphore, vk_fence);
     } else {
         ALOG_ASSERT(driver_vtbl.ImportNativeFenceANDROID,
                     "Have neither vkAcquireImageANDROID nor "
@@ -601,7 +601,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
         // number between the time the driver closes it and the time we close
         // it. We must assume one of: the driver *always* closes it even on
         // failure, or *never* closes it on failure.
-        window->cancelBuffer(window, buffer, fence);
+        window->cancelBuffer(window, buffer, fence_fd);
         swapchain.images[idx].dequeued = false;
         swapchain.images[idx].dequeue_fence = -1;
         return result;
