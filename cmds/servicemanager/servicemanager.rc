@@ -10,3 +10,5 @@ service servicemanager /system/bin/servicemanager
     onrestart restart surfaceflinger
     onrestart restart inputflinger
     onrestart restart drm
+    onrestart restart cameraserver
+
