@@ -16,8 +16,8 @@
 
 #include "installd.h"
 
-#include <base/stringprintf.h>
-#include <base/logging.h>
+#include <android-base/stringprintf.h>
+#include <android-base/logging.h>
 #include <cutils/sched_policy.h>
 #include <diskusage/dirsize.h>
 #include <logwrap/logwrap.h>

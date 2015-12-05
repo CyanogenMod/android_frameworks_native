@@ -16,7 +16,7 @@
 
 #include "installd.h"
 
-#include <base/logging.h>
+#include <android-base/logging.h>
 
 #include <sys/capability.h>
 #include <sys/prctl.h>
