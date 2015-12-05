@@ -16,8 +16,8 @@
 
 #include "installd.h"
 
-#include <base/stringprintf.h>
-#include <base/logging.h>
+#include <android-base/stringprintf.h>
+#include <android-base/logging.h>
 
 #define CACHE_NOISY(x) //x
 
