@@ -17,17 +17,14 @@
 #ifndef ANDROID_IBINDER_H
 #define ANDROID_IBINDER_H
 
-#include <cstdlib>  // Defines types needed for linux/binder.h
-#include <linux/binder.h>  // Needed for B_PACK_CHARS
-
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
 #include <utils/String16.h>
 #include <utils/Vector.h>
 
-#ifndef B_PACK_CHARS
-#error "linux/binder.h no longer defines B_PACK_CHARS"
-#endif
+
+#define B_PACK_CHARS(c1, c2, c3, c4) \
+    ((((c1)<<24)) | (((c2)<<16)) | (((c3)<<8)) | (c4))
 
 // ---------------------------------------------------------------------------
 namespace android {
