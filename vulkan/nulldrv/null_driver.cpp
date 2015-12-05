@@ -188,12 +188,14 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
         offsetof(VkInstance_T, physical_device));
 }
 
-uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
+template <class Handle>
+Handle AllocHandle(VkDevice device, HandleType::Enum type) {
     const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
     ALOGE_IF(device->next_handle[type] == kHandleMask,
              "non-dispatchable handles of type=%u are about to overflow", type);
-    return (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
-           (device->next_handle[type]++ & kHandleMask);
+    return reinterpret_cast<Handle>(
+        (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
+        (device->next_handle[type]++ & kHandleMask));
 }
 
 }  // namespace
@@ -578,7 +580,7 @@ VkResult CreateBufferView(VkDevice device,
                           const VkBufferViewCreateInfo*,
                           const VkAllocationCallbacks* /*allocator*/,
                           VkBufferView* view) {
-    *view = AllocHandle(device, HandleType::kBufferView);
+    *view = AllocHandle<VkBufferView>(device, HandleType::kBufferView);
     return VK_SUCCESS;
 }
 
@@ -586,7 +588,7 @@ VkResult CreateDescriptorPool(VkDevice device,
                               const VkDescriptorPoolCreateInfo*,
                               const VkAllocationCallbacks* /*allocator*/,
                               VkDescriptorPool* pool) {
-    *pool = AllocHandle(device, HandleType::kDescriptorPool);
+    *pool = AllocHandle<VkDescriptorPool>(device, HandleType::kDescriptorPool);
     return VK_SUCCESS;
 }
 
@@ -594,7 +596,8 @@ VkResult AllocateDescriptorSets(VkDevice device,
                                 const VkDescriptorSetAllocateInfo* alloc_info,
                                 VkDescriptorSet* descriptor_sets) {
     for (uint32_t i = 0; i < alloc_info->setLayoutCount; i++)
-        descriptor_sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+        descriptor_sets[i] =
+            AllocHandle<VkDescriptorSet>(device, HandleType::kDescriptorSet);
     return VK_SUCCESS;
 }
 
@@ -602,7 +605,8 @@ VkResult CreateDescriptorSetLayout(VkDevice device,
                                    const VkDescriptorSetLayoutCreateInfo*,
                                    const VkAllocationCallbacks* /*allocator*/,
                                    VkDescriptorSetLayout* layout) {
-    *layout = AllocHandle(device, HandleType::kDescriptorSetLayout);
+    *layout = AllocHandle<VkDescriptorSetLayout>(
+        device, HandleType::kDescriptorSetLayout);
     return VK_SUCCESS;
 }
 
@@ -610,7 +614,7 @@ VkResult CreateEvent(VkDevice device,
                      const VkEventCreateInfo*,
                      const VkAllocationCallbacks* /*allocator*/,
                      VkEvent* event) {
-    *event = AllocHandle(device, HandleType::kEvent);
+    *event = AllocHandle<VkEvent>(device, HandleType::kEvent);
     return VK_SUCCESS;
 }
 
@@ -618,7 +622,7 @@ VkResult CreateFence(VkDevice device,
                      const VkFenceCreateInfo*,
                      const VkAllocationCallbacks* /*allocator*/,
                      VkFence* fence) {
-    *fence = AllocHandle(device, HandleType::kFence);
+    *fence = AllocHandle<VkFence>(device, HandleType::kFence);
     return VK_SUCCESS;
 }
 
@@ -626,7 +630,7 @@ VkResult CreateFramebuffer(VkDevice device,
                            const VkFramebufferCreateInfo*,
                            const VkAllocationCallbacks* /*allocator*/,
                            VkFramebuffer* framebuffer) {
-    *framebuffer = AllocHandle(device, HandleType::kFramebuffer);
+    *framebuffer = AllocHandle<VkFramebuffer>(device, HandleType::kFramebuffer);
     return VK_SUCCESS;
 }
 
@@ -634,7 +638,7 @@ VkResult CreateImageView(VkDevice device,
                          const VkImageViewCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkImageView* view) {
-    *view = AllocHandle(device, HandleType::kImageView);
+    *view = AllocHandle<VkImageView>(device, HandleType::kImageView);
     return VK_SUCCESS;
 }
 
@@ -645,7 +649,7 @@ VkResult CreateGraphicsPipelines(VkDevice device,
                                  const VkAllocationCallbacks* /*allocator*/,
                                  VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
-        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+        pipelines[i] = AllocHandle<VkPipeline>(device, HandleType::kPipeline);
     return VK_SUCCESS;
 }
 
@@ -656,7 +660,7 @@ VkResult CreateComputePipelines(VkDevice device,
                                 const VkAllocationCallbacks* /*allocator*/,
                                 VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
-        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+        pipelines[i] = AllocHandle<VkPipeline>(device, HandleType::kPipeline);
     return VK_SUCCESS;
 }
 
@@ -664,7 +668,7 @@ VkResult CreatePipelineCache(VkDevice device,
                              const VkPipelineCacheCreateInfo*,
                              const VkAllocationCallbacks* /*allocator*/,
                              VkPipelineCache* cache) {
-    *cache = AllocHandle(device, HandleType::kPipelineCache);
+    *cache = AllocHandle<VkPipelineCache>(device, HandleType::kPipelineCache);
     return VK_SUCCESS;
 }
 
@@ -672,7 +676,8 @@ VkResult CreatePipelineLayout(VkDevice device,
                               const VkPipelineLayoutCreateInfo*,
                               const VkAllocationCallbacks* /*allocator*/,
                               VkPipelineLayout* layout) {
-    *layout = AllocHandle(device, HandleType::kPipelineLayout);
+    *layout =
+        AllocHandle<VkPipelineLayout>(device, HandleType::kPipelineLayout);
     return VK_SUCCESS;
 }
 
@@ -680,7 +685,7 @@ VkResult CreateQueryPool(VkDevice device,
                          const VkQueryPoolCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkQueryPool* pool) {
-    *pool = AllocHandle(device, HandleType::kQueryPool);
+    *pool = AllocHandle<VkQueryPool>(device, HandleType::kQueryPool);
     return VK_SUCCESS;
 }
 
@@ -688,7 +693,7 @@ VkResult CreateRenderPass(VkDevice device,
                           const VkRenderPassCreateInfo*,
                           const VkAllocationCallbacks* /*allocator*/,
                           VkRenderPass* renderpass) {
-    *renderpass = AllocHandle(device, HandleType::kRenderPass);
+    *renderpass = AllocHandle<VkRenderPass>(device, HandleType::kRenderPass);
     return VK_SUCCESS;
 }
 
@@ -696,7 +701,7 @@ VkResult CreateSampler(VkDevice device,
                        const VkSamplerCreateInfo*,
                        const VkAllocationCallbacks* /*allocator*/,
                        VkSampler* sampler) {
-    *sampler = AllocHandle(device, HandleType::kSampler);
+    *sampler = AllocHandle<VkSampler>(device, HandleType::kSampler);
     return VK_SUCCESS;
 }
 
@@ -704,7 +709,7 @@ VkResult CreateSemaphore(VkDevice device,
                          const VkSemaphoreCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkSemaphore* semaphore) {
-    *semaphore = AllocHandle(device, HandleType::kSemaphore);
+    *semaphore = AllocHandle<VkSemaphore>(device, HandleType::kSemaphore);
     return VK_SUCCESS;
 }
 
@@ -712,7 +717,7 @@ VkResult CreateShaderModule(VkDevice device,
                             const VkShaderModuleCreateInfo*,
                             const VkAllocationCallbacks* /*allocator*/,
                             VkShaderModule* module) {
-    *module = AllocHandle(device, HandleType::kShaderModule);
+    *module = AllocHandle<VkShaderModule>(device, HandleType::kShaderModule);
     return VK_SUCCESS;
 }
 
