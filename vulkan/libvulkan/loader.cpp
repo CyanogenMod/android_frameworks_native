@@ -908,10 +908,12 @@ GetInstanceProcAddrBottom(VkInstance, const char*);
 const InstanceVtbl kBottomInstanceFunctions = {
     // clang-format off
     .instance = nullptr,
+
     .CreateInstance = CreateInstanceBottom,
     .DestroyInstance = DestroyInstanceBottom,
     .GetInstanceProcAddr = GetInstanceProcAddrBottom,
     .EnumeratePhysicalDevices = EnumeratePhysicalDevicesBottom,
+
     .GetPhysicalDeviceFeatures = GetPhysicalDeviceFeaturesBottom,
     .GetPhysicalDeviceFormatProperties = GetPhysicalDeviceFormatPropertiesBottom,
     .GetPhysicalDeviceImageFormatProperties = GetPhysicalDeviceImageFormatPropertiesBottom,
@@ -922,10 +924,13 @@ const InstanceVtbl kBottomInstanceFunctions = {
     .EnumerateDeviceExtensionProperties = EnumerateDeviceExtensionPropertiesBottom,
     .EnumerateDeviceLayerProperties = EnumerateDeviceLayerPropertiesBottom,
     .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
-    .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
+
     .GetPhysicalDeviceSurfaceCapabilitiesKHR = GetPhysicalDeviceSurfaceCapabilitiesKHR,
     .GetPhysicalDeviceSurfaceFormatsKHR = GetPhysicalDeviceSurfaceFormatsKHR,
     .GetPhysicalDeviceSurfacePresentModesKHR = GetPhysicalDeviceSurfacePresentModesKHR,
+    .CreateAndroidSurfaceKHR = CreateAndroidSurfaceKHR,
+    .DestroySurfaceKHR = DestroySurfaceKHR,
+    .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
     // clang-format on
 };
 
