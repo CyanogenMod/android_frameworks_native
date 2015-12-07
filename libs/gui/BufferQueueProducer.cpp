@@ -696,15 +696,6 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         mCore->validateConsistencyLocked();
     } // Autolock scope
 
-    // Wait without lock held
-    if (mCore->mConnectedApi == NATIVE_WINDOW_API_EGL) {
-        // Waiting here allows for two full buffers to be queued but not a
-        // third. In the event that frames take varying time, this makes a
-        // small trade-off in favor of latency rather than throughput.
-        mLastQueueBufferFence->waitForever("Throttling EGL Production");
-        mLastQueueBufferFence = fence;
-    }
-
     // Don't send the GraphicBuffer through the callback, and don't send
     // the slot number, since the consumer shouldn't need it
     item.mGraphicBuffer.clear();
@@ -726,6 +717,15 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         ++mCurrentCallbackTicket;
         mCallbackCondition.broadcast();
+    }
+
+    // Wait without lock held
+    if (mCore->mConnectedApi == NATIVE_WINDOW_API_EGL) {
+        // Waiting here allows for two full buffers to be queued but not a
+        // third. In the event that frames take varying time, this makes a
+        // small trade-off in favor of latency rather than throughput.
+        mLastQueueBufferFence->waitForever("Throttling EGL Production");
+        mLastQueueBufferFence = fence;
     }
 
     return NO_ERROR;
