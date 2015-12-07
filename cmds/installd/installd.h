@@ -65,6 +65,7 @@
 
 #define APP_SUBDIR             "app/" // sub-directory under ANDROID_DATA
 #define PRIV_APP_SUBDIR        "priv-app/" // sub-directory under ANDROID_DATA
+#define EPHEMERAL_APP_SUBDIR   "app-ephemeral/" // sub-directory under ANDROID_DATA
 
 #define APP_LIB_SUBDIR         "app-lib/" // sub-directory under ANDROID_DATA
 
@@ -124,6 +125,7 @@ typedef struct {
 
 extern dir_rec_t android_app_dir;
 extern dir_rec_t android_app_private_dir;
+extern dir_rec_t android_app_ephemeral_dir;
 extern dir_rec_t android_app_lib_dir;
 extern dir_rec_t android_data_dir;
 extern dir_rec_t android_asec_dir;

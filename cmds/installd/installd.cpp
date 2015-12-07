@@ -346,6 +346,11 @@ int initialize_globals() {
         return -1;
     }
 
+    // Get the android ephemeral app directory.
+    if (copy_and_append(&android_app_ephemeral_dir, &android_data_dir, EPHEMERAL_APP_SUBDIR) < 0) {
+        return -1;
+    }
+
     // Get the android app native library directory.
     if (copy_and_append(&android_app_lib_dir, &android_data_dir, APP_LIB_SUBDIR) < 0) {
         return -1;
@@ -367,7 +372,7 @@ int initialize_globals() {
     }
 
     // Take note of the system and vendor directories.
-    android_system_dirs.count = 4;
+    android_system_dirs.count = 5;
 
     android_system_dirs.dirs = (dir_rec_t*) calloc(android_system_dirs.count, sizeof(dir_rec_t));
     if (android_system_dirs.dirs == NULL) {
@@ -392,6 +397,9 @@ int initialize_globals() {
 
     android_system_dirs.dirs[3].path = strdup("/oem/app/");
     android_system_dirs.dirs[3].len = strlen(android_system_dirs.dirs[3].path);
+
+    android_system_dirs.dirs[4].path = build_string2(android_root_dir.path, EPHEMERAL_APP_SUBDIR);
+    android_system_dirs.dirs[4].len = strlen(android_system_dirs.dirs[4].path);
 
     return 0;
 }
