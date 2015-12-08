@@ -2241,7 +2241,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
         if (what & layer_state_t::eLayerChanged) {
             // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
-            if (layer->setLayer(s.z)) {
+            if (layer->setLayer(s.z) && idx >= 0) {
                 mCurrentState.layersSortedByZ.removeAt(idx);
                 mCurrentState.layersSortedByZ.add(layer);
                 // we need traversal (state changed)
@@ -2277,7 +2277,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
         if (what & layer_state_t::eLayerStackChanged) {
             // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);
-            if (layer->setLayerStack(s.layerStack)) {
+            if (layer->setLayerStack(s.layerStack) && idx >= 0) {
                 mCurrentState.layersSortedByZ.removeAt(idx);
                 mCurrentState.layersSortedByZ.add(layer);
                 // we need traversal (state changed)
