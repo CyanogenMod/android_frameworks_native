@@ -101,12 +101,19 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return NO_INIT;
         }
 
-        // There must be no dequeued buffers when changing the buffer count.
+        // The new maxDequeuedBuffer count should not be violated by the number
+        // of currently dequeued buffers
+        int dequeuedCount = 0;
         for (int s : mCore->mActiveBuffers) {
             if (mSlots[s].mBufferState.isDequeued()) {
-                BQ_LOGE("setMaxDequeuedBufferCount: buffer owned by producer");
-                return BAD_VALUE;
+                dequeuedCount++;
             }
+        }
+        if (dequeuedCount > maxDequeuedBuffers) {
+            BQ_LOGE("setMaxDequeuedBufferCount: the requested maxDequeuedBuffer"
+                    "count (%d) exceeds the current dequeued buffer count (%d)",
+                    maxDequeuedBuffers, dequeuedCount);
+            return BAD_VALUE;
         }
 
         int bufferCount = mCore->getMinUndequeuedBufferCountLocked();
@@ -134,21 +141,16 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return BAD_VALUE;
         }
 
-        // Here we are guaranteed that the producer doesn't have any dequeued
-        // buffers and will release all of its buffer references. We don't
-        // clear the queue, however, so that currently queued buffers still
-        // get displayed.
-        if (!mCore->adjustAvailableSlotsLocked(
-                maxDequeuedBuffers - mCore->mMaxDequeuedBufferCount)) {
-            BQ_LOGE("setMaxDequeuedBufferCount: BufferQueue failed to adjust "
-                    "the number of available slots. Delta = %d",
-                    maxDequeuedBuffers - mCore->mMaxDequeuedBufferCount);
+        int delta = maxDequeuedBuffers - mCore->mMaxDequeuedBufferCount;
+        if (!mCore->adjustAvailableSlotsLocked(delta)) {
             return BAD_VALUE;
         }
         mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
         VALIDATE_CONSISTENCY();
+        if (delta < 0) {
+            listener = mCore->mConsumerListener;
+        }
         mCore->mDequeueCondition.broadcast();
-        listener = mCore->mConsumerListener;
     } // Autolock scope
 
     // Call back without lock held

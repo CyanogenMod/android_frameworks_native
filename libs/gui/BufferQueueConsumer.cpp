@@ -611,35 +611,59 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
         return BAD_VALUE;
     }
 
-    Mutex::Autolock lock(mCore->mMutex);
+    sp<IConsumerListener> listener;
+    { // Autolock scope
+        Mutex::Autolock lock(mCore->mMutex);
+        mCore->waitWhileAllocatingLocked();
 
-    if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
-        BQ_LOGE("setMaxAcquiredBufferCount: producer is already connected");
-        return INVALID_OPERATION;
+        if (mCore->mIsAbandoned) {
+            BQ_LOGE("setMaxAcquiredBufferCount: consumer is abandoned");
+            return NO_INIT;
+        }
+
+        // The new maxAcquiredBuffers count should not be violated by the number
+        // of currently acquired buffers
+        int acquiredCount = 0;
+        for (int slot : mCore->mActiveBuffers) {
+            if (mSlots[slot].mBufferState.isAcquired()) {
+                acquiredCount++;
+            }
+        }
+        if (acquiredCount > maxAcquiredBuffers) {
+            BQ_LOGE("setMaxAcquiredBufferCount: the requested maxAcquiredBuffer"
+                    "count (%d) exceeds the current acquired buffer count (%d)",
+                    maxAcquiredBuffers, acquiredCount);
+            return BAD_VALUE;
+        }
+
+        if ((maxAcquiredBuffers + mCore->mMaxDequeuedBufferCount +
+                (mCore->mAsyncMode || mCore->mDequeueBufferCannotBlock ? 1 : 0))
+                > mCore->mMaxBufferCount) {
+            BQ_LOGE("setMaxAcquiredBufferCount: %d acquired buffers would "
+                    "exceed the maxBufferCount (%d) (maxDequeued %d async %d)",
+                    maxAcquiredBuffers, mCore->mMaxBufferCount,
+                    mCore->mMaxDequeuedBufferCount, mCore->mAsyncMode ||
+                    mCore->mDequeueBufferCannotBlock);
+            return BAD_VALUE;
+        }
+
+        int delta = maxAcquiredBuffers - mCore->mMaxAcquiredBufferCount;
+        if (!mCore->adjustAvailableSlotsLocked(delta)) {
+            return BAD_VALUE;
+        }
+
+        BQ_LOGV("setMaxAcquiredBufferCount: %d", maxAcquiredBuffers);
+        mCore->mMaxAcquiredBufferCount = maxAcquiredBuffers;
+        VALIDATE_CONSISTENCY();
+        if (delta < 0) {
+            listener = mCore->mConsumerListener;
+        }
+    }
+    // Call back without lock held
+    if (listener != NULL) {
+        listener->onBuffersReleased();
     }
 
-    if ((maxAcquiredBuffers + mCore->mMaxDequeuedBufferCount +
-            (mCore->mAsyncMode || mCore->mDequeueBufferCannotBlock ? 1 : 0)) >
-            mCore->mMaxBufferCount) {
-        BQ_LOGE("setMaxAcquiredBufferCount: %d acquired buffers would exceed "
-                "the maxBufferCount (%d) (maxDequeued %d async %d)",
-                maxAcquiredBuffers, mCore->mMaxBufferCount,
-                mCore->mMaxDequeuedBufferCount, mCore->mAsyncMode ||
-                mCore->mDequeueBufferCannotBlock);
-        return BAD_VALUE;
-    }
-
-    if (!mCore->adjustAvailableSlotsLocked(
-            maxAcquiredBuffers - mCore->mMaxAcquiredBufferCount)) {
-        BQ_LOGE("setMaxAcquiredBufferCount: BufferQueue failed to adjust the "
-                "number of available slots. Delta = %d",
-                maxAcquiredBuffers - mCore->mMaxAcquiredBufferCount);
-        return BAD_VALUE;
-    }
-
-    BQ_LOGV("setMaxAcquiredBufferCount: %d", maxAcquiredBuffers);
-    mCore->mMaxAcquiredBufferCount = maxAcquiredBuffers;
-    VALIDATE_CONSISTENCY();
     return NO_ERROR;
 }
 

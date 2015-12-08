@@ -227,6 +227,10 @@ void BufferQueueCore::freeAllBuffersLocked() {
 
 bool BufferQueueCore::adjustAvailableSlotsLocked(int delta) {
     if (delta >= 0) {
+        // If we're going to fail, do so before modifying anything
+        if (delta > static_cast<int>(mUnusedSlots.size())) {
+            return false;
+        }
         while (delta > 0) {
             if (mUnusedSlots.empty()) {
                 return false;
@@ -237,6 +241,11 @@ bool BufferQueueCore::adjustAvailableSlotsLocked(int delta) {
             delta--;
         }
     } else {
+        // If we're going to fail, do so before modifying anything
+        if (-delta > static_cast<int>(mFreeSlots.size() +
+                mFreeBuffers.size())) {
+            return false;
+        }
         while (delta < 0) {
             if (!mFreeSlots.empty()) {
                 auto slot = mFreeSlots.begin();
