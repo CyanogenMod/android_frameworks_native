@@ -88,6 +88,13 @@ extern bool isEligibleBuiltInKeyboard(const InputDeviceIdentifier& deviceIdentif
 extern int32_t updateMetaState(int32_t keyCode, bool down, int32_t oldMetaState);
 
 /**
+ * Normalizes the meta state such that if either the left or right modifier
+ * meta state bits are set then the result will also include the universal
+ * bit for that modifier.
+ */
+extern int32_t normalizeMetaState(int32_t oldMetaState);
+
+/**
  * Returns true if a key is a meta key like ALT or CAPS_LOCK.
  */
 extern bool isMetaKey(int32_t keyCode);

@@ -197,8 +197,9 @@ public:
 
     virtual bool hasInputProperty(int32_t deviceId, int property) const = 0;
 
-    virtual status_t mapKey(int32_t deviceId, int32_t scanCode, int32_t usageCode,
-            int32_t* outKeycode, uint32_t* outFlags) const = 0;
+    virtual status_t mapKey(int32_t deviceId,
+            int32_t scanCode, int32_t usageCode, int32_t metaState,
+            int32_t* outKeycode, int32_t *outMetaState, uint32_t* outFlags) const = 0;
 
     virtual status_t mapAxis(int32_t deviceId, int32_t scanCode,
             AxisInfo* outAxisInfo) const = 0;
@@ -285,8 +286,9 @@ public:
 
     virtual bool hasInputProperty(int32_t deviceId, int property) const;
 
-    virtual status_t mapKey(int32_t deviceId, int32_t scanCode, int32_t usageCode,
-            int32_t* outKeycode, uint32_t* outFlags) const;
+    virtual status_t mapKey(int32_t deviceId,
+            int32_t scanCode, int32_t usageCode, int32_t metaState,
+            int32_t* outKeycode, int32_t *outMetaState, uint32_t* outFlags) const;
 
     virtual status_t mapAxis(int32_t deviceId, int32_t scanCode,
             AxisInfo* outAxisInfo) const;

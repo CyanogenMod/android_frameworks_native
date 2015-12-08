@@ -604,15 +604,6 @@ EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface surface)
         return setError(EGL_BAD_SURFACE, EGL_FALSE);
 
     egl_surface_t * const s = get_surface(surface);
-    ANativeWindow* window = s->win.get();
-    if (window) {
-        int result = native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL);
-        if (result != OK) {
-            ALOGE("eglDestroySurface: native_window_api_disconnect (win=%p) "
-                  "failed (%#x)",
-                  window, result);
-        }
-    }
     EGLBoolean result = s->cnx->egl.eglDestroySurface(dp->disp.dpy, s->surface);
     if (result == EGL_TRUE) {
         _s.terminate();

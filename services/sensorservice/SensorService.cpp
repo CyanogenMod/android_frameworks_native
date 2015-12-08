@@ -913,11 +913,16 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     status_t err = sensor->batch(connection.get(), handle, 0, samplingPeriodNs,
                                  maxBatchReportLatencyNs);
 
-    // Call flush() before calling activate() on the sensor. Wait for a first flush complete
-    // event before sending events on this connection. Ignore one-shot sensors which don't
-    // support flush(). Also if this sensor isn't already active, don't call flush().
+    // Call flush() before calling activate() on the sensor. Wait for a first
+    // flush complete event before sending events on this connection. Ignore
+    // one-shot sensors which don't support flush(). Ignore on-change sensors
+    // to maintain the on-change logic (any on-change events except the initial
+    // one should be trigger by a change in value). Also if this sensor isn't
+    // already active, don't call flush().
     const SensorDevice& device(SensorDevice::getInstance());
-    if (err == NO_ERROR && sensor->getSensor().getReportingMode() != AREPORTING_MODE_ONE_SHOT &&
+    if (err == NO_ERROR &&
+            sensor->getSensor().getReportingMode() != AREPORTING_MODE_ONE_SHOT &&
+            sensor->getSensor().getReportingMode() != AREPORTING_MODE_ON_CHANGE &&
             rec->getNumConnections() > 1) {
         if (device.getHalDeviceVersion() >= SENSORS_DEVICE_API_VERSION_1_1) {
             connection->setFirstFlushPending(handle, true);
