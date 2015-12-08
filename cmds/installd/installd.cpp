@@ -14,18 +14,166 @@
 ** limitations under the License.
 */
 
-#include "installd.h"
-
-#include <android-base/logging.h>
-
-#include <sys/capability.h>
-#include <sys/prctl.h>
+#include <fcntl.h>
 #include <selinux/android.h>
 #include <selinux/avc.h>
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+#include <android-base/logging.h>
+#include <cutils/fs.h>
+#include <cutils/log.h>               // TODO: Move everything to base::logging.
+#include <cutils/properties.h>
+#include <cutils/sockets.h>
+#include <private/android_filesystem_config.h>
+
+#include <commands.h>
+#include <globals.h>
+#include <installd_constants.h>
+#include <installd_deps.h>  // Need to fill in requirements of commands.
+#include <utils.h>
+
+#ifndef LOG_TAG
+#define LOG_TAG "installd"
+#endif
+#define SOCKET_PATH "installd"
 
 #define BUFFER_MAX    1024  /* input buffer for commands */
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
+
+
+namespace android {
+namespace installd {
+
+// Check that installd-deps sizes match cutils sizes.
+static_assert(kPropertyKeyMax == PROPERTY_KEY_MAX, "Size mismatch.");
+static_assert(kPropertyValueMax == PROPERTY_VALUE_MAX, "Size mismatch.");
+
+////////////////////////
+// Plug-in functions. //
+////////////////////////
+
+int get_property(const char *key, char *value, const char *default_value) {
+    return property_get(key, value, default_value);
+}
+
+// Compute the output path of
+bool calculate_oat_file_path(char path[PKG_PATH_MAX],
+                             const char *oat_dir,
+                             const char *apk_path,
+                             const char *instruction_set) {
+    char *file_name_start;
+    char *file_name_end;
+
+    file_name_start = strrchr(apk_path, '/');
+    if (file_name_start == NULL) {
+        ALOGE("apk_path '%s' has no '/'s in it\n", apk_path);
+        return false;
+    }
+    file_name_end = strrchr(apk_path, '.');
+    if (file_name_end < file_name_start) {
+        ALOGE("apk_path '%s' has no extension\n", apk_path);
+        return false;
+    }
+
+    // Calculate file_name
+    int file_name_len = file_name_end - file_name_start - 1;
+    char file_name[file_name_len + 1];
+    memcpy(file_name, file_name_start + 1, file_name_len);
+    file_name[file_name_len] = '\0';
+
+    // <apk_parent_dir>/oat/<isa>/<file_name>.odex
+    snprintf(path, PKG_PATH_MAX, "%s/%s/%s.odex", oat_dir, instruction_set, file_name);
+    return true;
+}
+
+/*
+ * Computes the odex file for the given apk_path and instruction_set.
+ * /system/framework/whatever.jar -> /system/framework/oat/<isa>/whatever.odex
+ *
+ * Returns false if it failed to determine the odex file path.
+ */
+bool calculate_odex_file_path(char path[PKG_PATH_MAX],
+                              const char *apk_path,
+                              const char *instruction_set) {
+    if (strlen(apk_path) + strlen("oat/") + strlen(instruction_set)
+            + strlen("/") + strlen("odex") + 1 > PKG_PATH_MAX) {
+        ALOGE("apk_path '%s' may be too long to form odex file path.\n", apk_path);
+        return false;
+    }
+
+    strcpy(path, apk_path);
+    char *end = strrchr(path, '/');
+    if (end == NULL) {
+        ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
+        return false;
+    }
+    const char *apk_end = apk_path + (end - path); // strrchr(apk_path, '/');
+
+    strcpy(end + 1, "oat/");       // path = /system/framework/oat/\0
+    strcat(path, instruction_set); // path = /system/framework/oat/<isa>\0
+    strcat(path, apk_end);         // path = /system/framework/oat/<isa>/whatever.jar\0
+    end = strrchr(path, '.');
+    if (end == NULL) {
+        ALOGE("apk_path '%s' has no extension.\n", apk_path);
+        return false;
+    }
+    strcpy(end + 1, "odex");
+    return true;
+}
+
+bool create_cache_path(char path[PKG_PATH_MAX],
+                       const char *src,
+                       const char *instruction_set) {
+    size_t srclen = strlen(src);
+
+        /* demand that we are an absolute path */
+    if ((src == 0) || (src[0] != '/') || strstr(src,"..")) {
+        return false;
+    }
+
+    if (srclen > PKG_PATH_MAX) {        // XXX: PKG_NAME_MAX?
+        return false;
+    }
+
+    size_t dstlen =
+        android_data_dir.len +
+        strlen(DALVIK_CACHE) +
+        1 +
+        strlen(instruction_set) +
+        srclen +
+        strlen(DALVIK_CACHE_POSTFIX) + 2;
+
+    if (dstlen > PKG_PATH_MAX) {
+        return false;
+    }
+
+    sprintf(path,"%s%s/%s/%s%s",
+            android_data_dir.path,
+            DALVIK_CACHE,
+            instruction_set,
+            src + 1, /* skip the leading / */
+            DALVIK_CACHE_POSTFIX);
+
+    char* tmp =
+            path +
+            android_data_dir.len +
+            strlen(DALVIK_CACHE) +
+            1 +
+            strlen(instruction_set) + 1;
+
+    for(; *tmp; tmp++) {
+        if (*tmp == '/') {
+            *tmp = '@';
+        }
+    }
+
+    return true;
+}
+
 
 static char* parse_null(char* arg) {
     if (strcmp(arg, "!") == 0) {
@@ -35,59 +183,59 @@ static char* parse_null(char* arg) {
     }
 }
 
-static int do_ping(char **arg __unused, char reply[REPLY_MAX] __unused)
+static int do_ping(char **arg ATTRIBUTE_UNUSED, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return 0;
 }
 
-static int do_install(char **arg, char reply[REPLY_MAX] __unused)
+static int do_install(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return install(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]); /* uuid, pkgname, uid, gid, seinfo */
 }
 
-static int do_dexopt(char **arg, char reply[REPLY_MAX] __unused)
+static int do_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags */
     return dexopt(arg[0], atoi(arg[1]), arg[2], arg[3], atoi(arg[4]),
                   arg[5], atoi(arg[6]));
 }
 
-static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] __unused)
+static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return mark_boot_complete(arg[0] /* instruction set */);
 }
 
-static int do_move_dex(char **arg, char reply[REPLY_MAX] __unused)
+static int do_move_dex(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return move_dex(arg[0], arg[1], arg[2]); /* src, dst, instruction_set */
 }
 
-static int do_rm_dex(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_dex(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return rm_dex(arg[0], arg[1]); /* pkgname, instruction_set */
 }
 
-static int do_remove(char **arg, char reply[REPLY_MAX] __unused)
+static int do_remove(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return uninstall(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
-static int do_fixuid(char **arg, char reply[REPLY_MAX] __unused)
+static int do_fixuid(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return fix_uid(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3])); /* uuid, pkgname, uid, gid */
 }
 
-static int do_free_cache(char **arg, char reply[REPLY_MAX] __unused) /* TODO int:free_size */
+static int do_free_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) /* TODO int:free_size */
 {
     return free_cache(parse_null(arg[0]), (int64_t)atoll(arg[1])); /* uuid, free_size */
 }
 
-static int do_rm_cache(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return delete_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
-static int do_rm_code_cache(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_code_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return delete_code_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
@@ -113,67 +261,67 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     return res;
 }
 
-static int do_rm_user_data(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return delete_user_data(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
 }
 
-static int do_cp_complete_app(char **arg, char reply[REPLY_MAX] __unused)
+static int do_cp_complete_app(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     // from_uuid, to_uuid, package_name, data_app_name, appid, seinfo
     return copy_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3], atoi(arg[4]), arg[5]);
 }
 
-static int do_mk_user_data(char **arg, char reply[REPLY_MAX] __unused)
+static int do_mk_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return make_user_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]);
                              /* uuid, pkgname, uid, userid, seinfo */
 }
 
-static int do_mk_user_config(char **arg, char reply[REPLY_MAX] __unused)
+static int do_mk_user_config(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return make_user_config(atoi(arg[0])); /* userid */
 }
 
-static int do_rm_user(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_user(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return delete_user(parse_null(arg[0]), atoi(arg[1])); /* uuid, userid */
 }
 
-static int do_movefiles(char **arg __unused, char reply[REPLY_MAX] __unused)
+static int do_movefiles(char **arg ATTRIBUTE_UNUSED, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return movefiles();
 }
 
-static int do_linklib(char **arg, char reply[REPLY_MAX] __unused)
+static int do_linklib(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return linklib(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
 }
 
-static int do_idmap(char **arg, char reply[REPLY_MAX] __unused)
+static int do_idmap(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return idmap(arg[0], arg[1], atoi(arg[2]));
 }
 
-static int do_restorecon_data(char **arg, char reply[REPLY_MAX] __attribute__((unused)))
+static int do_restorecon_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return restorecon_data(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
                              /* uuid, pkgName, seinfo, uid*/
 }
 
-static int do_create_oat_dir(char **arg, char reply[REPLY_MAX] __unused)
+static int do_create_oat_dir(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     /* oat_dir, instruction_set */
     return create_oat_dir(arg[0], arg[1]);
 }
 
-static int do_rm_package_dir(char **arg, char reply[REPLY_MAX] __unused)
+static int do_rm_package_dir(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     /* oat_dir */
     return rm_package_dir(arg[0]);
 }
 
-static int do_link_file(char **arg, char reply[REPLY_MAX] __unused)
+static int do_link_file(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     /* relative_path, from_base, to_base */
     return link_file(arg[0], arg[1], arg[2]);
@@ -314,97 +462,22 @@ done:
     return 0;
 }
 
-/**
- * Initialize all the global variables that are used elsewhere. Returns 0 upon
- * success and -1 on error.
- */
-void free_globals() {
-    size_t i;
-
-    for (i = 0; i < android_system_dirs.count; i++) {
-        if (android_system_dirs.dirs[i].path != NULL) {
-            free(android_system_dirs.dirs[i].path);
-        }
+bool initialize_globals() {
+    const char* data_path = getenv("ANDROID_DATA");
+    if (data_path == nullptr) {
+        ALOGE("Could not find ANDROID_DATA");
+        return false;
+    }
+    const char* root_path = getenv("ANDROID_ROOT");
+    if (root_path == nullptr) {
+        ALOGE("Could not find ANDROID_ROOT");
+        return false;
     }
 
-    free(android_system_dirs.dirs);
+    return init_globals_from_data_and_root(data_path, root_path);
 }
 
-int initialize_globals() {
-    // Get the android data directory.
-    if (get_path_from_env(&android_data_dir, "ANDROID_DATA") < 0) {
-        return -1;
-    }
-
-    // Get the android app directory.
-    if (copy_and_append(&android_app_dir, &android_data_dir, APP_SUBDIR) < 0) {
-        return -1;
-    }
-
-    // Get the android protected app directory.
-    if (copy_and_append(&android_app_private_dir, &android_data_dir, PRIVATE_APP_SUBDIR) < 0) {
-        return -1;
-    }
-
-    // Get the android ephemeral app directory.
-    if (copy_and_append(&android_app_ephemeral_dir, &android_data_dir, EPHEMERAL_APP_SUBDIR) < 0) {
-        return -1;
-    }
-
-    // Get the android app native library directory.
-    if (copy_and_append(&android_app_lib_dir, &android_data_dir, APP_LIB_SUBDIR) < 0) {
-        return -1;
-    }
-
-    // Get the sd-card ASEC mount point.
-    if (get_path_from_env(&android_asec_dir, "ASEC_MOUNTPOINT") < 0) {
-        return -1;
-    }
-
-    // Get the android media directory.
-    if (copy_and_append(&android_media_dir, &android_data_dir, MEDIA_SUBDIR) < 0) {
-        return -1;
-    }
-
-    // Get the android external app directory.
-    if (get_path_from_string(&android_mnt_expand_dir, "/mnt/expand/") < 0) {
-        return -1;
-    }
-
-    // Take note of the system and vendor directories.
-    android_system_dirs.count = 5;
-
-    android_system_dirs.dirs = (dir_rec_t*) calloc(android_system_dirs.count, sizeof(dir_rec_t));
-    if (android_system_dirs.dirs == NULL) {
-        ALOGE("Couldn't allocate array for dirs; aborting\n");
-        return -1;
-    }
-
-    dir_rec_t android_root_dir;
-    if (get_path_from_env(&android_root_dir, "ANDROID_ROOT") < 0) {
-        ALOGE("Missing ANDROID_ROOT; aborting\n");
-        return -1;
-    }
-
-    android_system_dirs.dirs[0].path = build_string2(android_root_dir.path, APP_SUBDIR);
-    android_system_dirs.dirs[0].len = strlen(android_system_dirs.dirs[0].path);
-
-    android_system_dirs.dirs[1].path = build_string2(android_root_dir.path, PRIV_APP_SUBDIR);
-    android_system_dirs.dirs[1].len = strlen(android_system_dirs.dirs[1].path);
-
-    android_system_dirs.dirs[2].path = strdup("/vendor/app/");
-    android_system_dirs.dirs[2].len = strlen(android_system_dirs.dirs[2].path);
-
-    android_system_dirs.dirs[3].path = strdup("/oem/app/");
-    android_system_dirs.dirs[3].len = strlen(android_system_dirs.dirs[3].path);
-
-    android_system_dirs.dirs[4].path = build_string2(android_root_dir.path, EPHEMERAL_APP_SUBDIR);
-    android_system_dirs.dirs[4].len = strlen(android_system_dirs.dirs[4].path);
-
-    return 0;
-}
-
-int initialize_directories() {
+static int initialize_directories() {
     int res = -1;
 
     // Read current filesystem layout version to handle upgrade paths
@@ -658,7 +731,7 @@ static int log_callback(int type, const char *fmt, ...) {
     return 0;
 }
 
-int main(const int argc __unused, char *argv[]) {
+static int installd_main(const int argc ATTRIBUTE_UNUSED, char *argv[]) {
     char buf[BUFFER_MAX];
     struct sockaddr addr;
     socklen_t alen;
@@ -674,7 +747,7 @@ int main(const int argc __unused, char *argv[]) {
     cb.func_log = log_callback;
     selinux_set_callback(SELINUX_CB_LOG, cb);
 
-    if (initialize_globals() < 0) {
+    if (!initialize_globals()) {
         ALOGE("Could not initialize globals; exiting.\n");
         exit(1);
     }
@@ -735,4 +808,11 @@ int main(const int argc __unused, char *argv[]) {
     }
 
     return 0;
+}
+
+}  // namespace installd
+}  // namespace android
+
+int main(const int argc, char *argv[]) {
+    return android::installd::installd_main(argc, argv);
 }
