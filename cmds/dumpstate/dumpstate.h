@@ -69,7 +69,7 @@ static const int WEIGHT_FILE = 5;
  * It would be better to take advantage of the C++ migration and encapsulate the state in an object,
  * but that will be better handled in a major C++ refactoring, which would also get rid of other C
  * idioms (like using std::string instead of char*, removing varargs, etc...) */
-extern int do_update_progress;
+extern int do_update_progress, progress, weight_total;
 
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path);
@@ -138,6 +138,9 @@ void play_sound(const char *path);
 
 /* Implemented by libdumpstate_board to dump board-specific info */
 void dumpstate_board();
+
+/* Takes a screenshot and save it to the given file */
+void take_screenshot(std::string path);
 
 #ifdef __cplusplus
 }

@@ -52,8 +52,6 @@ using android::base::StringPrintf;
 static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
-static std::string screenshot_path;
-
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
 #define RAFT_DIR "/data/misc/raft/"
@@ -272,7 +270,7 @@ static unsigned long logcat_timeout(const char *name) {
 /* End copy from system/core/logd/LogBuffer.cpp */
 
 /* dumps the current system state to stdout */
-static void dumpstate() {
+static void dumpstate(std::string screenshot_path) {
     unsigned long timeout;
     time_t now = time(NULL);
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
@@ -333,9 +331,8 @@ static void dumpstate() {
     for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
     if (!screenshot_path.empty()) {
-        ALOGI("taking screenshot\n");
-        const char *args[] = { "/system/bin/screencap", "-p", screenshot_path.c_str(), NULL };
-        run_command_always(NULL, 10, args);
+        ALOGI("taking late screenshot\n");
+        take_screenshot(screenshot_path);
         ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
     }
 
@@ -688,6 +685,7 @@ int main(int argc, char *argv[]) {
     int use_socket = 0;
     int do_fb = 0;
     int do_broadcast = 0;
+    int do_early_screenshot = 0;
 
     if (getuid() != 0) {
         // Old versions of the adb client would call the
@@ -743,6 +741,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    do_early_screenshot = do_update_progress;
+
     // If we are going to use a socket, do it as early as possible
     // to avoid timeouts from bugreport.
     if (use_socket) {
@@ -754,6 +754,9 @@ int main(int argc, char *argv[]) {
 
     /* full path of the temporary file containing the bug report */
     std::string tmp_path;
+
+    /* full path of the temporary file containing the screenshot (when requested) */
+    std::string screenshot_path;
 
     /* base name (without suffix or extensions) of the bug report files */
     std::string base_name;
@@ -809,6 +812,16 @@ int main(int argc, char *argv[]) {
         vibrator.reset(fopen("/sys/class/timed_output/vibrator/enable", "we"));
         if (vibrator) {
             vibrate(vibrator.get(), 150);
+        }
+    }
+
+    if (!screenshot_path.empty() && do_early_screenshot) {
+        ALOGI("taking early screenshot\n");
+        take_screenshot(screenshot_path);
+        ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
+        if (chown(screenshot_path.c_str(), AID_SHELL, AID_SHELL)) {
+            ALOGE("Unable to change ownership of screenshot file %s: %s\n",
+                    screenshot_path.c_str(), strerror(errno));
         }
     }
 
@@ -871,7 +884,7 @@ int main(int argc, char *argv[]) {
         redirect_to_file(stdout, const_cast<char*>(tmp_path.c_str()));
     }
 
-    dumpstate();
+    dumpstate(do_early_screenshot ? NULL : screenshot_path);
 
     /* done */
     if (vibrator) {
@@ -960,6 +973,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    ALOGD("Final progress: %d/%d (originally %d)\n", progress, weight_total, WEIGHT_TOTAL);
     ALOGI("done\n");
 
     return 0;
