@@ -35,7 +35,8 @@ LOCAL_SRC_FILES := \
 
 LOCAL_SHARED_LIBRARIES := liblog
 
-LOCAL_MODULE := vulkan.$(TARGET_BOARD_PLATFORM)
+# Real drivers would set this to vulkan.$(TARGET_BOARD_PLATFORM)
+LOCAL_MODULE := vulkan.default
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_TAGS := optional
