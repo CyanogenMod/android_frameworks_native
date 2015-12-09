@@ -778,3 +778,120 @@ void dump_route_tables() {
     }
     fclose(fp);
 }
+
+void dump_emmc_ecsd(const char *ext_csd_path) {
+    static const size_t EXT_CSD_REV = 192;
+    static const size_t EXT_PRE_EOL_INFO = 267;
+    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_A = 268;
+    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_B = 269;
+    struct hex {
+        char str[2];
+    } buffer[512];
+    int fd, ext_csd_rev, ext_pre_eol_info;
+    ssize_t bytes_read;
+    static const char *ver_str[] = {
+        "4.0", "4.1", "4.2", "4.3", "Obsolete", "4.41", "4.5", "5.0"
+    };
+    static const char *eol_str[] = {
+        "Undefined",
+        "Normal",
+        "Warning (consumed 80% of reserve)",
+        "Urgent (consumeed 90% of reserve)"
+    };
+
+    printf("------ %s Extended CSD ------\n", ext_csd_path);
+
+    fd = TEMP_FAILURE_RETRY(open(ext_csd_path,
+                                 O_RDONLY | O_NONBLOCK | O_CLOEXEC));
+    if (fd < 0) {
+        printf("*** %s: %s\n\n", ext_csd_path, strerror(errno));
+        return;
+    }
+
+    bytes_read = TEMP_FAILURE_RETRY(read(fd, buffer, sizeof(buffer)));
+    close(fd);
+    if (bytes_read < 0) {
+        printf("*** %s: %s\n\n", ext_csd_path, strerror(errno));
+        return;
+    }
+    if (bytes_read < (ssize_t)(EXT_CSD_REV * sizeof(hex))) {
+        printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
+        return;
+    }
+
+    ext_csd_rev = 0;
+    if (sscanf(buffer[EXT_CSD_REV].str, "%02x", &ext_csd_rev) != 1) {
+        printf("*** %s: EXT_CSD_REV parse error \"%.2s\"\n\n",
+               ext_csd_path, buffer[EXT_CSD_REV].str);
+        return;
+    }
+
+    printf("rev 1.%d (MMC %s)\n",
+           ext_csd_rev,
+           (ext_csd_rev < (int)(sizeof(ver_str) / sizeof(ver_str[0]))) ?
+               ver_str[ext_csd_rev] :
+               "Unknown");
+    if (ext_csd_rev < 7) {
+        printf("\n");
+        return;
+    }
+
+    if (bytes_read < (ssize_t)(EXT_PRE_EOL_INFO * sizeof(hex))) {
+        printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
+        return;
+    }
+
+    ext_pre_eol_info = 0;
+    if (sscanf(buffer[EXT_PRE_EOL_INFO].str, "%02x", &ext_pre_eol_info) != 1) {
+        printf("*** %s: PRE_EOL_INFO parse error \"%.2s\"\n\n",
+               ext_csd_path, buffer[EXT_PRE_EOL_INFO].str);
+        return;
+    }
+    printf("PRE_EOL_INFO %d (MMC %s)\n",
+           ext_pre_eol_info,
+           eol_str[(ext_pre_eol_info < (int)
+                       (sizeof(eol_str) / sizeof(eol_str[0]))) ?
+                           ext_pre_eol_info : 0]);
+
+    for (size_t lifetime = EXT_DEVICE_LIFE_TIME_EST_TYP_A;
+            lifetime <= EXT_DEVICE_LIFE_TIME_EST_TYP_B;
+            ++lifetime) {
+        int ext_device_life_time_est;
+        static const char *est_str[] = {
+            "Undefined",
+            "0-10% of device lifetime used",
+            "10-20% of device lifetime used",
+            "20-30% of device lifetime used",
+            "30-40% of device lifetime used",
+            "40-50% of device lifetime used",
+            "50-60% of device lifetime used",
+            "60-70% of device lifetime used",
+            "70-80% of device lifetime used",
+            "80-90% of device lifetime used",
+            "90-100% of device lifetime used",
+            "Exceeded the maximum estimated device lifetime",
+        };
+
+        if (bytes_read < (ssize_t)(lifetime * sizeof(hex))) {
+            printf("*** %s: truncated content %zd\n", ext_csd_path, bytes_read);
+            break;
+        }
+
+        ext_device_life_time_est = 0;
+        if (sscanf(buffer[lifetime].str, "%02x", &ext_device_life_time_est) != 1) {
+            printf("*** %s: DEVICE_LIFE_TIME_EST_TYP_%c parse error \"%.2s\"\n",
+                   ext_csd_path,
+                   (unsigned)(lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) + 'A',
+                   buffer[lifetime].str);
+            continue;
+        }
+        printf("DEVICE_LIFE_TIME_EST_TYP_%c %d (MMC %s)\n",
+               (unsigned)(lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) + 'A',
+               ext_device_life_time_est,
+               est_str[(ext_device_life_time_est < (int)
+                           (sizeof(est_str) / sizeof(est_str[0]))) ?
+                               ext_device_life_time_est : 0]);
+    }
+
+    printf("\n");
+}
