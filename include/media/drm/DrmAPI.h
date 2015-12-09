@@ -220,9 +220,6 @@ namespace android {
                                                   Vector<uint8_t> &certificate,
                                                   Vector<uint8_t> &wrapped_key) = 0;
 
-        // Remove device provisioning.
-        virtual status_t unprovisionDevice() = 0;
-
         // A means of enforcing the contractual requirement for a concurrent stream
         // limit per subscriber across devices is provided via SecureStop.  SecureStop
         // is a means of securely monitoring the lifetime of sessions. Since playback
