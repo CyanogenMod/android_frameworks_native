@@ -24,12 +24,21 @@ Status Status::ok() {
 }
 
 Status Status::fromExceptionCode(int32_t exceptionCode) {
-    return Status(exceptionCode);
+    return Status(exceptionCode, OK);
 }
 
 Status Status::fromExceptionCode(int32_t exceptionCode,
                                  const String8& message) {
-    return Status(exceptionCode, message);
+    return Status(exceptionCode, OK, message);
+}
+
+Status Status::fromServiceSpecificError(int32_t serviceSpecificErrorCode) {
+    return Status(EX_SERVICE_SPECIFIC, serviceSpecificErrorCode);
+}
+
+Status Status::fromServiceSpecificError(int32_t serviceSpecificErrorCode,
+                                        const String8& message) {
+    return Status(EX_SERVICE_SPECIFIC, serviceSpecificErrorCode, message);
 }
 
 Status Status::fromStatusT(status_t status) {
@@ -38,9 +47,13 @@ Status Status::fromStatusT(status_t status) {
     return ret;
 }
 
-Status::Status(int32_t exceptionCode) : mException(exceptionCode) {}
-Status::Status(int32_t exceptionCode, const String8& message)
+Status::Status(int32_t exceptionCode, int32_t errorCode)
     : mException(exceptionCode),
+      mErrorCode(errorCode) {}
+
+Status::Status(int32_t exceptionCode, int32_t errorCode, const String8& message)
+    : mException(exceptionCode),
+      mErrorCode(errorCode),
       mMessage(message) {}
 
 status_t Status::readFromParcel(const Parcel& parcel) {
@@ -79,6 +92,14 @@ status_t Status::readFromParcel(const Parcel& parcel) {
     }
     mMessage = String8(message);
 
+    if (mException == EX_SERVICE_SPECIFIC) {
+        status = parcel.readInt32(&mErrorCode);
+    }
+    if (status != OK) {
+        setFromStatusT(status);
+        return status;
+    }
+
     return status;
 }
 
@@ -96,13 +117,12 @@ status_t Status::writeToParcel(Parcel* parcel) const {
         return status;
     }
     status = parcel->writeString16(String16(mMessage));
+    if (mException != EX_SERVICE_SPECIFIC) {
+        // We have no more information to write.
+        return status;
+    }
+    status = parcel->writeInt32(mErrorCode);
     return status;
-}
-
-void Status::setFromStatusT(status_t status) {
-    mException = (status == NO_ERROR) ? EX_NONE : EX_TRANSACTION_FAILED;
-    mErrorCode = status;
-    mMessage.clear();
 }
 
 void Status::setException(int32_t ex, const String8& message) {
@@ -111,13 +131,25 @@ void Status::setException(int32_t ex, const String8& message) {
     mMessage.setTo(message);
 }
 
+void Status::setServiceSpecificError(int32_t errorCode, const String8& message) {
+    setException(EX_SERVICE_SPECIFIC, message);
+    mErrorCode = errorCode;
+}
+
+void Status::setFromStatusT(status_t status) {
+    mException = (status == NO_ERROR) ? EX_NONE : EX_TRANSACTION_FAILED;
+    mErrorCode = status;
+    mMessage.clear();
+}
+
 String8 Status::toString8() const {
     String8 ret;
     if (mException == EX_NONE) {
         ret.append("No error");
     } else {
         ret.appendFormat("Status(%d): '", mException);
-        if (mException == EX_TRANSACTION_FAILED) {
+        if (mException == EX_SERVICE_SPECIFIC ||
+            mException == EX_TRANSACTION_FAILED) {
             ret.appendFormat("%d: ", mErrorCode);
         }
         ret.append(String8(mMessage));
