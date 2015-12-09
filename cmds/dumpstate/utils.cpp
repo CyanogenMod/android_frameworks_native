@@ -880,7 +880,7 @@ void update_progress(int delta) {
     }
 }
 
-void take_screenshot(std::string path) {
+void take_screenshot(const std::string& path) {
     const char *args[] = { "/system/bin/screencap", "-p", path.c_str(), NULL };
     run_command_always(NULL, 10, args);
 }
