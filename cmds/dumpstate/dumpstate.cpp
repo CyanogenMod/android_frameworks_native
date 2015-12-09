@@ -270,7 +270,7 @@ static unsigned long logcat_timeout(const char *name) {
 /* End copy from system/core/logd/LogBuffer.cpp */
 
 /* dumps the current system state to stdout */
-static void dumpstate(std::string screenshot_path) {
+static void dumpstate(const std::string& screenshot_path) {
     unsigned long timeout;
     time_t now = time(NULL);
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
@@ -815,13 +815,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (!screenshot_path.empty() && do_early_screenshot) {
-        ALOGI("taking early screenshot\n");
-        take_screenshot(screenshot_path);
-        ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
-        if (chown(screenshot_path.c_str(), AID_SHELL, AID_SHELL)) {
-            ALOGE("Unable to change ownership of screenshot file %s: %s\n",
-                    screenshot_path.c_str(), strerror(errno));
+    if (do_fb && do_early_screenshot) {
+        if (screenshot_path.empty()) {
+            // should not have happened
+            ALOGE("INTERNAL ERROR: skipping early screenshot because path was not set");
+        } else {
+            ALOGI("taking early screenshot\n");
+            take_screenshot(screenshot_path);
+            ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
+            if (chown(screenshot_path.c_str(), AID_SHELL, AID_SHELL)) {
+                ALOGE("Unable to change ownership of screenshot file %s: %s\n",
+                        screenshot_path.c_str(), strerror(errno));
+            }
         }
     }
 
@@ -884,7 +889,7 @@ int main(int argc, char *argv[]) {
         redirect_to_file(stdout, const_cast<char*>(tmp_path.c_str()));
     }
 
-    dumpstate(do_early_screenshot ? NULL : screenshot_path);
+    dumpstate(do_early_screenshot ? "": screenshot_path);
 
     /* done */
     if (vibrator) {

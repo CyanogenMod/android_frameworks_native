@@ -140,7 +140,7 @@ void play_sound(const char *path);
 void dumpstate_board();
 
 /* Takes a screenshot and save it to the given file */
-void take_screenshot(std::string path);
+void take_screenshot(const std::string& path);
 
 #ifdef __cplusplus
 }
