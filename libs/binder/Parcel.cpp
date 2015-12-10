@@ -1989,6 +1989,9 @@ status_t Parcel::restartWrite(size_t desired)
         pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
         gParcelGlobalAllocSize += desired;
         gParcelGlobalAllocSize -= mDataCapacity;
+        if (!mData) {
+            gParcelGlobalAllocCount++;
+        }
         pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
         mData = data;
         mDataCapacity = desired;
@@ -2120,7 +2123,6 @@ status_t Parcel::continueWrite(size_t desired)
                 pthread_mutex_lock(&gParcelGlobalAllocSizeLock);
                 gParcelGlobalAllocSize += desired;
                 gParcelGlobalAllocSize -= mDataCapacity;
-                gParcelGlobalAllocCount++;
                 pthread_mutex_unlock(&gParcelGlobalAllocSizeLock);
                 mData = data;
                 mDataCapacity = desired;
