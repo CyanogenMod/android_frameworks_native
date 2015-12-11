@@ -1,3 +1,8 @@
+on boot
+    # Allow bugreports access to eMMC 5.0 stats
+    chown root mount /sys/kernel/debug/mmc0/mmc0:0001/ext_csd
+    chmod 0440 /sys/kernel/debug/mmc0/mmc0:0001/ext_csd
+
 service dumpstate /system/bin/dumpstate -s
     class main
     socket dumpstate stream 0660 shell log

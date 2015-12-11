@@ -298,6 +298,7 @@ static void dumpstate() {
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
     run_command("UPTIME", 10, "uptime", NULL);
     dump_files("UPTIME MMC PERF", mmcblk0, skip_not_stat, dump_stat_from_fd);
+    dump_emmc_ecsd("/d/mmc0/mmc0:0001/ext_csd");
     dump_file("MEMORY INFO", "/proc/meminfo");
     run_command("CPU INFO", 10, "top", "-n", "1", "-d", "1", "-m", "30", "-H", NULL);
     run_command("PROCRANK", 20, SU_PATH, "root", "procrank", NULL);

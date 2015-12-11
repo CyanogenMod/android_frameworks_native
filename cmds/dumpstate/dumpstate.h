@@ -84,4 +84,7 @@ void play_sound(const char *path);
 /* Implemented by libdumpstate_board to dump board-specific info */
 void dumpstate_board();
 
+/* dump eMMC Extended CSD data */
+void dump_emmc_ecsd(const char *ext_csd_path);
+
 #endif /* _DUMPSTATE_H_ */
