@@ -796,7 +796,7 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
         "Undefined",
         "Normal",
         "Warning (consumed 80% of reserve)",
-        "Urgent (consumeed 90% of reserve)"
+        "Urgent (consumed 90% of reserve)"
     };
 
     printf("------ %s Extended CSD ------\n", ext_csd_path);
@@ -814,7 +814,7 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
         printf("*** %s: %s\n\n", ext_csd_path, strerror(errno));
         return;
     }
-    if (bytes_read < (ssize_t)(EXT_CSD_REV * sizeof(hex))) {
+    if (bytes_read < (ssize_t)(EXT_CSD_REV * sizeof(struct hex))) {
         printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
         return;
     }
@@ -836,7 +836,7 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
         return;
     }
 
-    if (bytes_read < (ssize_t)(EXT_PRE_EOL_INFO * sizeof(hex))) {
+    if (bytes_read < (ssize_t)(EXT_PRE_EOL_INFO * sizeof(struct hex))) {
         printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
         return;
     }
@@ -872,7 +872,7 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
             "Exceeded the maximum estimated device lifetime",
         };
 
-        if (bytes_read < (ssize_t)(lifetime * sizeof(hex))) {
+        if (bytes_read < (ssize_t)(lifetime * sizeof(struct hex))) {
             printf("*** %s: truncated content %zd\n", ext_csd_path, bytes_read);
             break;
         }
