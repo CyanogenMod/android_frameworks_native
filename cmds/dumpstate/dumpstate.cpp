@@ -47,6 +47,8 @@
 #include "ScopedFd.h"
 #include "ziparchive/zip_writer.h"
 
+#include "mincrypt/sha256.h"
+
 using android::base::StringPrintf;
 
 /* read before root is shed */
@@ -437,6 +439,11 @@ static void dumpstate(const std::string& screenshot_path) {
     run_command("PROCESSES AND THREADS", 10, "ps", "-Z", "-t", "-p", "-P", NULL);
     run_command("LIBRANK", 10, SU_PATH, "root", "librank", NULL);
 
+    run_command("ROUTE", 10, "route", NULL);
+    run_command("PRINTENV", 10, "printenv", NULL);
+    run_command("NETSTAT", 10, "netstat", NULL);
+    run_command("LSMOD", 10, "lsmod", NULL);
+
     do_dmesg();
 
     run_command("LIST OF OPEN FILES", 10, SU_PATH, "root", "lsof", NULL);
@@ -725,6 +732,7 @@ static void usage() {
             "  -q: disable vibrate\n"
             "  -B: send broadcast when finished (requires -o)\n"
             "  -P: send broadacast when started and update system properties on progress (requires -o and -B)\n"
+            "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
                 );
 }
 
@@ -756,6 +764,40 @@ static bool finish_zip_file(const std::string& bugreport_name, const std::string
     return true;
 }
 
+static std::string SHA256_file_hash(std::string filepath) {
+    ScopedFd fd(TEMP_FAILURE_RETRY(open(filepath.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
+    if (fd.get() == -1) {
+        ALOGE("open(%s): %s\n", filepath.c_str(), strerror(errno));
+        return NULL;
+    }
+
+    SHA256_CTX ctx;
+    SHA256_init(&ctx);
+
+    std::vector<uint8_t> buffer(65536);
+    while (1) {
+        ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd.get(), buffer.data(), buffer.size()));
+        if (bytes_read == 0) {
+            break;
+        } else if (bytes_read == -1) {
+            ALOGE("read(%s): %s\n", filepath.c_str(), strerror(errno));
+            return NULL;
+        }
+
+        SHA256_update(&ctx, buffer.data(), bytes_read);
+    }
+
+    uint8_t hash[SHA256_DIGEST_SIZE];
+    memcpy(hash, SHA256_final(&ctx), SHA256_DIGEST_SIZE);
+    char hash_buffer[SHA256_DIGEST_SIZE * 2 + 1];
+    for(int i = 0; i < SHA256_DIGEST_SIZE; i++) {
+        snprintf(hash_buffer + (i * 2), sizeof(hash_buffer), "%02x", hash[i]);
+    }
+    hash_buffer[sizeof(hash_buffer) - 1] = 0;
+    return std::string(hash_buffer);
+}
+
+
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
     int do_add_date = 0;
@@ -766,6 +808,7 @@ int main(int argc, char *argv[]) {
     int do_fb = 0;
     int do_broadcast = 0;
     int do_early_screenshot = 0;
+    int is_remote_mode = 0;
 
     now = time(NULL);
 
@@ -795,7 +838,7 @@ int main(int argc, char *argv[]) {
 
     /* parse arguments */
     int c;
-    while ((c = getopt(argc, argv, "dho:svqzpPB")) != -1) {
+    while ((c = getopt(argc, argv, "dho:svqzpPBR")) != -1) {
         switch (c) {
             case 'd': do_add_date = 1;          break;
             case 'z': do_zip_file = 1;          break;
@@ -805,6 +848,7 @@ int main(int argc, char *argv[]) {
             case 'q': do_vibrate = 0;           break;
             case 'p': do_fb = 1;                break;
             case 'P': do_update_progress = 1;   break;
+            case 'R': is_remote_mode = 1;       break;
             case 'B': do_broadcast = 1;         break;
             case '?': printf("\n");
             case 'h':
@@ -819,6 +863,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (do_update_progress && !do_broadcast) {
+        usage();
+        exit(1);
+    }
+
+    if (is_remote_mode && (do_update_progress || !do_broadcast || !do_zip_file || !do_add_date)) {
         usage();
         exit(1);
     }
@@ -1076,7 +1125,14 @@ int main(int argc, char *argv[]) {
                 am_args.push_back("android.intent.extra.SCREENSHOT");
                 am_args.push_back(screenshot_path);
             }
-            send_broadcast("android.intent.action.BUGREPORT_FINISHED", am_args);
+            if (is_remote_mode) {
+                am_args.push_back("--es");
+                am_args.push_back("android.intent.extra.REMOTE_BUGREPORT_HASH");
+                am_args.push_back(SHA256_file_hash(path));
+                send_broadcast("android.intent.action.REMOTE_BUGREPORT_FINISHED", am_args);
+            } else {
+                send_broadcast("android.intent.action.BUGREPORT_FINISHED", am_args);
+            }
         } else {
             ALOGE("Skipping finished broadcast because bugreport could not be generated\n");
         }
