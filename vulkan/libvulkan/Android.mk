@@ -30,8 +30,7 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
-	entry.cpp \
-	get_proc_addr.cpp \
+	dispatch_gen.cpp \
 	loader.cpp \
 	swapchain.cpp \
 	vulkan_loader_data.cpp

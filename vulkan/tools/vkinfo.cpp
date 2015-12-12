@@ -15,8 +15,8 @@
  */
 
 #include <inttypes.h>
-#include <sstream>
 #include <stdlib.h>
+#include <sstream>
 #include <vector>
 
 #define VK_PROTOTYPES
@@ -110,16 +110,16 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
             VkMemoryPropertyFlags flags =
                 mem_props.memoryTypes[type].propertyFlags;
             if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
-                strbuf << "DEVICE_LOCAL";
+                strbuf << " DEVICE_LOCAL";
             if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-                strbuf << "HOST_VISIBLE";
+                strbuf << " HOST_VISIBLE";
             if ((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
                 strbuf << " COHERENT";
             if ((flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
                 strbuf << " CACHED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
-            printf("       Type %u: %s\n", type, strbuf.str().c_str());
+            printf("       Type %u:%s\n", type, strbuf.str().c_str());
             strbuf.str(std::string());
         }
     }

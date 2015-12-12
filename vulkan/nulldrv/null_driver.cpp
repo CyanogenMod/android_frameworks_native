@@ -16,16 +16,16 @@
 
 #include <hardware/hwvulkan.h>
 
-#include <array>
-#include <algorithm>
 #include <inttypes.h>
 #include <string.h>
+#include <algorithm>
+#include <array>
 
 // #define LOG_NDEBUG 0
 #include <log/log.h>
 #include <utils/Errors.h>
 
-#include "null_driver.h"
+#include "null_driver_gen.h"
 
 using namespace null_driver;
 
@@ -129,30 +129,6 @@ __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
 
 namespace {
 
-VKAPI_ATTR
-VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
-                        const VkAllocationCallbacks* allocator,
-                        VkInstance* out_instance) {
-    // Assume the loader provided alloc callbacks even if the app didn't.
-    ALOG_ASSERT(
-        allocator,
-        "Missing alloc callbacks, loader or app should have provided them");
-
-    VkInstance_T* instance =
-        static_cast<VkInstance_T*>(allocator->pfnAllocation(
-            allocator->pUserData, sizeof(VkInstance_T), alignof(VkInstance_T),
-            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE));
-    if (!instance)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-
-    instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-    instance->allocator = *allocator;
-    instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-
-    *out_instance = instance;
-    return VK_SUCCESS;
-}
-
 int CloseDevice(struct hw_device_t* /*device*/) {
     // nothing to do - opening a device doesn't allocate any resources
     return 0;
@@ -224,27 +200,37 @@ VkResult EnumerateInstanceExtensionProperties(const char*,
 }
 
 VKAPI_ATTR
-PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
-    PFN_vkVoidFunction proc = LookupInstanceProcAddr(name);
-    if (!proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
-        proc = reinterpret_cast<PFN_vkVoidFunction>(GetDeviceProcAddr);
-    return proc;
+VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
+                        const VkAllocationCallbacks* allocator,
+                        VkInstance* out_instance) {
+    // Assume the loader provided alloc callbacks even if the app didn't.
+    ALOG_ASSERT(
+        allocator,
+        "Missing alloc callbacks, loader or app should have provided them");
+
+    VkInstance_T* instance =
+        static_cast<VkInstance_T*>(allocator->pfnAllocation(
+            allocator->pUserData, sizeof(VkInstance_T), alignof(VkInstance_T),
+            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE));
+    if (!instance)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+    instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    instance->allocator = *allocator;
+    instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+
+    *out_instance = instance;
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR
+PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name) {
+    return instance ? GetInstanceProcAddr(name) : GetGlobalProcAddr(name);
 }
 
 VKAPI_ATTR
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
-    PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
-    if (proc)
-        return proc;
-    if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            GetSwapchainGrallocUsageANDROID);
-    if (strcmp(name, "vkAcquireImageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(AcquireImageANDROID);
-    if (strcmp(name, "vkQueueSignalReleaseImageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            QueueSignalReleaseImageANDROID);
-    return nullptr;
+    return GetInstanceProcAddr(name);
 }
 
 // -----------------------------------------------------------------------------
@@ -730,7 +716,11 @@ VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult AcquireImageANDROID(VkDevice, VkImage, int fence, VkSemaphore) {
+VkResult AcquireImageANDROID(VkDevice,
+                             VkImage,
+                             int fence,
+                             VkSemaphore,
+                             VkFence) {
     close(fence);
     return VK_SUCCESS;
 }
