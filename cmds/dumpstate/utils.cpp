@@ -117,19 +117,19 @@ static void __for_each_pid(void (*helper)(int, const char *, void *), const char
 }
 
 static void for_each_pid_helper(int pid, const char *cmdline, void *arg) {
-    for_each_pid_func *func = arg;
+    for_each_pid_func *func = (for_each_pid_func*) arg;
     func(pid, cmdline);
 }
 
 void for_each_pid(for_each_pid_func func, const char *header) {
-    __for_each_pid(for_each_pid_helper, header, func);
+    __for_each_pid(for_each_pid_helper, header, (void *) func);
 }
 
 static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
     DIR *d;
     struct dirent *de;
     char taskpath[255];
-    for_each_tid_func *func = arg;
+    for_each_tid_func *func = (for_each_tid_func*) arg;
 
     sprintf(taskpath, "/proc/%d/task", pid);
 
@@ -174,7 +174,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
 }
 
 void for_each_tid(for_each_tid_func func, const char *header) {
-    __for_each_pid(for_each_tid_helper, header, func);
+    __for_each_pid(for_each_tid_helper, header, (void *) func);
 }
 
 void show_wchan(int pid, int tid, const char *name) {
@@ -322,7 +322,7 @@ int dump_files(const char *title, const char *dir,
     DIR *dirp;
     struct dirent *d;
     char *newpath = NULL;
-    char *slash = "/";
+    const char *slash = "/";
     int fd, retval = 0;
 
     if (title) {
@@ -640,6 +640,10 @@ const char *dump_traces() {
         return NULL;
     }
 
+    /* Variables below must be initialized before 'goto' statements */
+    int dalvik_found = 0;
+    int ifd, wfd = -1;
+
     /* walk /proc and kill -QUIT all Dalvik processes */
     DIR *proc = opendir("/proc");
     if (proc == NULL) {
@@ -648,20 +652,19 @@ const char *dump_traces() {
     }
 
     /* use inotify to find when processes are done dumping */
-    int ifd = inotify_init();
+    ifd = inotify_init();
     if (ifd < 0) {
         fprintf(stderr, "inotify_init: %s\n", strerror(errno));
         goto error_close_fd;
     }
 
-    int wfd = inotify_add_watch(ifd, traces_path, IN_CLOSE_WRITE);
+    wfd = inotify_add_watch(ifd, traces_path, IN_CLOSE_WRITE);
     if (wfd < 0) {
         fprintf(stderr, "inotify_add_watch(%s): %s\n", traces_path, strerror(errno));
         goto error_close_ifd;
     }
 
     struct dirent *d;
-    int dalvik_found = 0;
     while ((d = readdir(proc))) {
         int pid = atoi(d->d_name);
         if (pid <= 0) continue;

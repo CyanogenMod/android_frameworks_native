@@ -1,6 +1,6 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := libdumpstate_default.c
+LOCAL_SRC_FILES := libdumpstate_default.cpp
 LOCAL_MODULE := libdumpstate.default
 include $(BUILD_STATIC_LIBRARY)
 
@@ -10,7 +10,7 @@ ifdef BOARD_WLAN_DEVICE
 LOCAL_CFLAGS := -DFWDUMP_$(BOARD_WLAN_DEVICE)
 endif
 
-LOCAL_SRC_FILES := dumpstate.c utils.c
+LOCAL_SRC_FILES := dumpstate.cpp utils.cpp
 
 LOCAL_MODULE := dumpstate
 
