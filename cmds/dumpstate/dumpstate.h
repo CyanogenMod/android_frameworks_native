@@ -24,6 +24,10 @@
 
 #define SU_PATH "/system/xbin/su"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (for_each_pid_func)(int, const char *);
 typedef void (for_each_tid_func)(int, int, const char *);
 
@@ -86,5 +90,9 @@ void dumpstate_board();
 
 /* dump eMMC Extended CSD data */
 void dump_emmc_ecsd(const char *ext_csd_path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _DUMPSTATE_H_ */

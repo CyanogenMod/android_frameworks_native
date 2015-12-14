@@ -19,4 +19,3 @@
 void dumpstate_board(void)
 {
 }
-
