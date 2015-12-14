@@ -94,6 +94,7 @@ static const TracingCategory k_categories[] = {
     { "power",      "Power Management", ATRACE_TAG_POWER, { } },
     { "pm",         "Package Manager",  ATRACE_TAG_PACKAGE_MANAGER, { } },
     { "ss",         "System Server",    ATRACE_TAG_SYSTEM_SERVER, { } },
+    { "database",   "Database",         ATRACE_TAG_DATABASE, { } },
     { "sched",      "CPU Scheduling",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
