@@ -50,6 +50,7 @@ static const int64_t NANOS_PER_SEC = 1000000000;
 
 /* list of native processes to include in the native dumps */
 static const char* native_processes_to_dump[] = {
+        "/system/bin/audioserver",
         "/system/bin/drmserver",
         "/system/bin/mediaserver",
         "/system/bin/sdcard",
