@@ -138,6 +138,18 @@ bool ExSurfaceFlinger::updateLayerVisibleNonTransparentRegion(
         layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
         return true;
     }
+
+    if (mDisableExtAnimation) {
+        /* Remove screenShotSurface from secondary displays when ext animation disabled */
+        const int screenShotLen = strlen("ScreenshotSurface");
+        if (dpy && !strncmp(layer->getName(), "ScreenshotSurface", screenShotLen) ) {
+            Region visibleNonTransRegion;
+            visibleNonTransRegion.set(Rect(0, 0));
+            layer->setVisibleNonTransparentRegion(visibleNonTransRegion);
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -181,7 +193,8 @@ bool ExSurfaceFlinger::canDrawLayerinScreenShot(
        && !layer->isProtected()
        && !(!dispType && (layer->isExtOnly() ||
           (isExtendedMode() && layer->isYuvLayer())))
-       && layer->isVisible() ){
+       && !(layer->isIntOnly() && dispType)
+       && layer->isVisible()){
         return true;
     }
     return false;
