@@ -109,7 +109,7 @@ status_t PersistableBundle::writeToParcel(Parcel* parcel) const {
     parcel->setDataPosition(length_pos);
     size_t length = end_pos - start_pos;
     if (length > std::numeric_limits<int32_t>::max()) {
-        ALOGE("Parcel length (%u) too large to store in 32-bit signed int", length);
+        ALOGE("Parcel length (%zu) too large to store in 32-bit signed int", length);
         return BAD_VALUE;
     }
     RETURN_IF_FAILED(parcel->writeInt32(static_cast<int32_t>(length)));
@@ -271,7 +271,7 @@ status_t PersistableBundle::writeToParcelInner(Parcel* parcel) const {
      */
     size_t num_entries = size();
     if (num_entries > std::numeric_limits<int32_t>::max()) {
-        ALOGE("The size of this PersistableBundle (%u) too large to store in 32-bit signed int",
+        ALOGE("The size of this PersistableBundle (%zu) too large to store in 32-bit signed int",
               num_entries);
         return BAD_VALUE;
     }
