@@ -294,7 +294,6 @@ status_t GLConsumer::releaseTexImage() {
         mCurrentTextureImage = mReleasedTexImage;
         mCurrentCrop.makeInvalid();
         mCurrentTransform = 0;
-        mCurrentScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
         mCurrentTimestamp = 0;
         mCurrentFence = Fence::NO_FENCE;
 

@@ -112,6 +112,11 @@ public:
     // See IGraphicBufferProducer::getNextFrameNumber
     uint64_t getNextFrameNumber() const;
 
+    /* Set the scaling mode to be used with a Surface.
+     * See NATIVE_WINDOW_SET_SCALING_MODE and its parameters
+     * in <system/window.h>. */
+    int setScalingMode(int mode);
+
 protected:
     virtual ~Surface();
 
@@ -177,7 +182,6 @@ protected:
     virtual int setBuffersDimensions(uint32_t width, uint32_t height);
     virtual int setBuffersUserDimensions(uint32_t width, uint32_t height);
     virtual int setBuffersFormat(PixelFormat format);
-    virtual int setScalingMode(int mode);
     virtual int setBuffersTransform(uint32_t transform);
     virtual int setBuffersStickyTransform(uint32_t transform);
     virtual int setBuffersTimestamp(int64_t timestamp);
