@@ -28,7 +28,6 @@ sources := \
     IPermissionController.cpp \
     IProcessInfoService.cpp \
     IResultReceiver.cpp \
-    ProcessInfoService.cpp \
     IServiceManager.cpp \
     MemoryBase.cpp \
     MemoryDealer.cpp \
