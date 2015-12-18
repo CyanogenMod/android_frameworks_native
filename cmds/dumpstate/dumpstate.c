@@ -262,6 +262,8 @@ static unsigned long logcat_timeout(char *name) {
 
 /* End copy from system/core/logd/LogBuffer.cpp */
 
+static const unsigned long logcat_min_timeout = 40000; /* ms */
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
     unsigned long timeout;
@@ -334,16 +336,16 @@ static void dumpstate() {
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
     // calculate timeout
     timeout = logcat_timeout("main") + logcat_timeout("system") + logcat_timeout("crash");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("SYSTEM LOG", timeout / 1000, "logcat", "-v", "threadtime",
                                                         "-v", "printable",
                                                         "-d",
                                                         "*:v", NULL);
     timeout = logcat_timeout("events");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("EVENT LOG", timeout / 1000, "logcat", "-b", "events",
                                                        "-v", "threadtime",
@@ -351,8 +353,8 @@ static void dumpstate() {
                                                        "-d",
                                                        "*:v", NULL);
     timeout = logcat_timeout("radio");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("RADIO LOG", timeout / 1000, "logcat", "-b", "radio",
                                                        "-v", "threadtime",
