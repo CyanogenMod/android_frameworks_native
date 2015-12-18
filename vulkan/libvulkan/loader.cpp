@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 // standard C++ headers
 #include <algorithm>
 #include <mutex>
@@ -305,11 +306,9 @@ void DestroyDevice(Device* device) {
 void FindLayersInDirectory(Instance& instance, const String& dir_name) {
     DIR* directory = opendir(dir_name.c_str());
     if (!directory) {
-        android_LogPriority log_priority =
-            (errno == ENOENT) ? ANDROID_LOG_VERBOSE : ANDROID_LOG_ERROR;
-        LOG_PRI(log_priority, LOG_TAG,
-                "failed to open layer directory '%s': %s (%d)",
-                dir_name.c_str(), strerror(errno), errno);
+        int err = errno;
+        ALOGW_IF(err != ENOENT, "failed to open layer directory '%s': %s (%d)",
+                 dir_name.c_str(), strerror(err), err);
         return;
     }
 
@@ -443,7 +442,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
                 "Cannot activate layers for unknown object %p", object);
     CallbackAllocator<char> string_allocator(instance->alloc);
     // Load system layers
-    {
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
         char layer_prop[PROPERTY_VALUE_MAX];
         property_get("debug.vulkan.layers", layer_prop, "");
         String layer_name(string_allocator);
@@ -1010,9 +1009,9 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
 
     // Scan layers
     CallbackAllocator<char> string_allocator(instance->alloc);
-
-    String dir_name("/data/local/tmp/vulkan/", string_allocator);
-    FindLayersInDirectory(*instance, dir_name);
+    String dir_name("/data/local/debug/vulkan/", string_allocator);
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
+        FindLayersInDirectory(*instance, dir_name);
     const std::string& path = LoaderData::GetInstance().layer_path;
     dir_name.assign(path.c_str(), path.size());
     dir_name.append("/");
@@ -1068,13 +1067,16 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     }
 
     // Force enable callback extension if required
-    bool enable_callback =
-        property_get_bool("debug.vulkan.enable_callback", false);
-    bool enable_logging = enable_callback;
-    const char* extension_name = "DEBUG_REPORT";
-    if (enable_callback) {
-        enable_callback = AddExtensionToCreateInfo(
-            local_create_info, extension_name, instance->alloc);
+    bool enable_callback = false;
+    bool enable_logging = false;
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
+        enable_callback =
+            property_get_bool("debug.vulkan.enable_callback", false);
+        enable_logging = enable_callback;
+        if (enable_callback) {
+            enable_callback = AddExtensionToCreateInfo(
+                local_create_info, "DEBUG_REPORT", instance->alloc);
+        }
     }
 
     *out_instance = instance;
