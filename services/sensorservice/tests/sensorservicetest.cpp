@@ -62,7 +62,7 @@ int receiver(__unused int fd, __unused int events, void* data)
 
 int main()
 {
-    SensorManager mgr(String16("Sensor Service Test"));
+    SensorManager& mgr = SensorManager::getInstanceForPackage(String16("Sensor Service Test"));
 
     Sensor const* const* list;
     ssize_t count = mgr.getSensorList(&list);

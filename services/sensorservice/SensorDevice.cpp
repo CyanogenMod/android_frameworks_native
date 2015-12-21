@@ -39,8 +39,7 @@ ANDROID_SINGLETON_STATIC_INSTANCE(SensorDevice)
 
 SensorDevice::SensorDevice()
     :  mSensorDevice(0),
-       mSensorModule(0)
-{
+       mSensorModule(0) {
     status_t err = hw_get_module(SENSORS_HARDWARE_MODULE_ID,
             (hw_module_t const**)&mSensorModule);
 
@@ -84,37 +83,43 @@ void SensorDevice::handleDynamicSensorConnection(int handle, bool connected) {
     }
 }
 
-void SensorDevice::dump(String8& result)
-{
-    if (!mSensorModule) return;
-    sensor_t const* list;
-    ssize_t count = mSensorModule->get_sensors_list(mSensorModule, &list);
+std::string SensorDevice::dump() const {
+    if (!mSensorModule) return "HAL not initialized\n";
 
-    result.appendFormat("halVersion 0x%08x\n", getHalDeviceVersion());
-    result.appendFormat("%d h/w sensors:\n", int(count));
+    String8 result;
+    sensor_t const* list;
+    int count = mSensorModule->get_sensors_list(mSensorModule, &list);
+
+    result.appendFormat("HAL: %s (%s), version %#010x\n",
+                        mSensorModule->common.name,
+                        mSensorModule->common.author,
+                        getHalDeviceVersion());
+    result.appendFormat("Total %d h/w sensors, %zu running:\n", count, mActivationCount.size());
 
     Mutex::Autolock _l(mLock);
-    for (size_t i=0 ; i<size_t(count) ; i++) {
+    for (int i = 0 ; i < count ; i++) {
         const Info& info = mActivationCount.valueFor(list[i].handle);
         if (info.batchParams.isEmpty()) continue;
-        result.appendFormat("handle=0x%08x, active-count=%zu, batch_period(ms)={ ", list[i].handle,
+        result.appendFormat("0x%08x) active-count = %zu; ", list[i].handle,
                             info.batchParams.size());
+
+        result.append("sampling_period(ms) = {");
         for (size_t j = 0; j < info.batchParams.size(); j++) {
             const BatchParams& params = info.batchParams.valueAt(j);
-            result.appendFormat("%4.1f%s", params.batchDelay / 1e6f,
+            result.appendFormat("%.1f%s", params.batchDelay / 1e6f,
                                 j < info.batchParams.size() - 1 ? ", " : "");
         }
-        result.appendFormat(" }, selected=%4.1f ms\n", info.bestBatchParams.batchDelay / 1e6f);
+        result.appendFormat("}, selected = %.1f ms; ", info.bestBatchParams.batchDelay / 1e6f);
 
-        result.appendFormat("handle=0x%08x, active-count=%zu, batch_timeout(ms)={ ", list[i].handle,
-                            info.batchParams.size());
+        result.append("batching_period(ms) = {");
         for (size_t j = 0; j < info.batchParams.size(); j++) {
             BatchParams params = info.batchParams.valueAt(j);
-            result.appendFormat("%4.1f%s", params.batchTimeout / 1e6f,
+            result.appendFormat("%.1f%s", params.batchTimeout / 1e6f,
                                 j < info.batchParams.size() - 1 ? ", " : "");
         }
-        result.appendFormat(" }, selected=%4.1f ms\n", info.bestBatchParams.batchTimeout / 1e6f);
+        result.appendFormat("}, selected = %.1f ms\n", info.bestBatchParams.batchTimeout / 1e6f);
     }
+    return result.string();
 }
 
 ssize_t SensorDevice::getSensorList(sensor_t const** list) {
@@ -143,8 +148,7 @@ void SensorDevice::autoDisable(void *ident, int handle) {
     info.removeBatchParamsForIdent(ident);
 }
 
-status_t SensorDevice::activate(void* ident, int handle, int enabled)
-{
+status_t SensorDevice::activate(void* ident, int handle, int enabled) {
     if (!mSensorDevice) return NO_INIT;
     status_t err(NO_ERROR);
     bool actuateHardware = false;
@@ -293,8 +297,7 @@ status_t SensorDevice::batch(void* ident, int handle, int flags, int64_t samplin
     return err;
 }
 
-status_t SensorDevice::setDelay(void* ident, int handle, int64_t samplingPeriodNs)
-{
+status_t SensorDevice::setDelay(void* ident, int handle, int64_t samplingPeriodNs) {
     if (!mSensorDevice) return NO_INIT;
     if (samplingPeriodNs < MINIMUM_EVENTS_PERIOD) {
         samplingPeriodNs = MINIMUM_EVENTS_PERIOD;

@@ -17,21 +17,44 @@
 #ifndef ANDROID_SENSOR_DEVICE_H
 #define ANDROID_SENSOR_DEVICE_H
 
-#include <stdint.h>
-#include <sys/types.h>
+#include "SensorServiceUtils.h"
 
+#include <gui/Sensor.h>
 #include <utils/KeyedVector.h>
 #include <utils/Singleton.h>
 #include <utils/String8.h>
 
-#include <gui/Sensor.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 // ---------------------------------------------------------------------------
 
 namespace android {
 // ---------------------------------------------------------------------------
+using SensorServiceUtil::Dumpable;
 
-class SensorDevice : public Singleton<SensorDevice> {
+class SensorDevice : public Singleton<SensorDevice>, public Dumpable {
+public:
+    ssize_t getSensorList(sensor_t const** list);
+    void handleDynamicSensorConnection(int handle, bool connected);
+    status_t initCheck() const;
+    int getHalDeviceVersion() const;
+    ssize_t poll(sensors_event_t* buffer, size_t count);
+    status_t activate(void* ident, int handle, int enabled);
+    status_t batch(void* ident, int handle, int flags, int64_t samplingPeriodNs,
+                   int64_t maxBatchReportLatencyNs);
+    // Call batch with timeout zero instead of calling setDelay() for newer devices.
+    status_t setDelay(void* ident, int handle, int64_t ns);
+    status_t flush(void* ident, int handle);
+    status_t setMode(uint32_t mode);
+    void disableAllSensors();
+    void enableAllSensors();
+    void autoDisable(void *ident, int handle);
+    status_t injectSensorData(const sensors_event_t *event);
+
+    // Dumpable
+    virtual std::string dump() const;
+private:
     friend class Singleton<SensorDevice>;
     sensors_poll_device_1_t* mSensorDevice;
     struct sensors_module_t* mSensorModule;
@@ -87,24 +110,6 @@ class SensorDevice : public Singleton<SensorDevice> {
 
     bool isClientDisabled(void* ident);
     bool isClientDisabledLocked(void* ident);
-public:
-    ssize_t getSensorList(sensor_t const** list);
-    void handleDynamicSensorConnection(int handle, bool connected);
-    status_t initCheck() const;
-    int getHalDeviceVersion() const;
-    ssize_t poll(sensors_event_t* buffer, size_t count);
-    status_t activate(void* ident, int handle, int enabled);
-    status_t batch(void* ident, int handle, int flags, int64_t samplingPeriodNs,
-                   int64_t maxBatchReportLatencyNs);
-    // Call batch with timeout zero instead of calling setDelay() for newer devices.
-    status_t setDelay(void* ident, int handle, int64_t ns);
-    status_t flush(void* ident, int handle);
-    status_t setMode(uint32_t mode);
-    void disableAllSensors();
-    void enableAllSensors();
-    void autoDisable(void *ident, int handle);
-    status_t injectSensorData(const sensors_event_t *event);
-    void dump(String8& result);
 };
 
 // ---------------------------------------------------------------------------

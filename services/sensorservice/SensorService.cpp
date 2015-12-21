@@ -36,11 +36,10 @@
 #include "SensorInterface.h"
 
 #include "SensorService.h"
-#include "SensorEventConnection.h"
 #include "SensorEventAckReceiver.h"
+#include "SensorEventConnection.h"
 #include "SensorRecord.h"
 #include "SensorRegistrationInfo.h"
-#include "MostRecentEventLogger.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -86,7 +85,6 @@ void SensorService::onFirstRef() {
                     (1<<SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR) |
                     (1<<SENSOR_TYPE_GAME_ROTATION_VECTOR);
 
-            mLastEventSeen.setCapacity(count);
             for (ssize_t i=0 ; i<count ; i++) {
                 bool useThisSensor=true;
 
@@ -218,25 +216,27 @@ void SensorService::onFirstRef() {
 
 const Sensor& SensorService::registerSensor(SensorInterface* s, bool isDebug, bool isVirtual) {
     int handle = s->getSensor().getHandle();
+    int type = s->getSensor().getType();
     if (mSensors.add(handle, s, isDebug, isVirtual)){
-        mLastEventSeen.add(handle, nullptr);
+        mRecentEvent.emplace(handle, new RecentEventLogger(type));
         return s->getSensor();
     } else {
         return mSensors.getNonSensor();
     }
 }
 
-const Sensor& SensorService::registerDynamicSensor(SensorInterface* s, bool isDebug) {
+const Sensor& SensorService::registerDynamicSensorLocked(SensorInterface* s, bool isDebug) {
     return registerSensor(s, isDebug);
 }
 
-bool SensorService::unregisterDynamicSensor(int handle) {
+bool SensorService::unregisterDynamicSensorLocked(int handle) {
     bool ret = mSensors.remove(handle);
-    MostRecentEventLogger *buf = mLastEventSeen.valueFor(handle);
-    if (buf) {
-        delete buf;
+
+    const auto i = mRecentEvent.find(handle);
+    if (i != mRecentEvent.end()) {
+        delete i->second;
+        mRecentEvent.erase(i);
     }
-    mLastEventSeen.removeItem(handle);
     return ret;
 }
 
@@ -245,6 +245,9 @@ const Sensor& SensorService::registerVirtualSensor(SensorInterface* s, bool isDe
 }
 
 SensorService::~SensorService() {
+    for (auto && entry : mRecentEvent) {
+        delete entry.second;
+    }
 }
 
 status_t SensorService::dump(int fd, const Vector<String16>& args) {
@@ -313,25 +316,25 @@ status_t SensorService::dump(int fd, const Vector<String16>& args) {
         } else {
             // Default dump the sensor list and debugging information.
             //
+            result.append("Sensor Device:\n");
+            result.append(SensorDevice::getInstance().dump().c_str());
+
+            result.append("Sensor List:\n");
             result.append(mSensors.dump().c_str());
 
+            result.append("Fusion States:\n");
             SensorFusion::getInstance().dump(result);
-            SensorDevice::getInstance().dump(result);
 
             result.append("Recent Sensor events:\n");
-            auto& lastEvents = mLastEventSeen;
-            mSensors.forEachSensor([&result, &lastEvents] (const Sensor& s) -> bool {
-                    int bufIndex = lastEvents.indexOfKey(s.getHandle());
-                    if (bufIndex >= 0) {
-                        const MostRecentEventLogger* buf = lastEvents.valueAt(bufIndex);
-                        if (buf != nullptr && s.getRequiredPermission().isEmpty()) {
-                            result.appendFormat("%s (handle:0x%08x): ",
-                                          s.getName().string(), s.getHandle());
-                            buf->printBuffer(result);
-                        }
-                    }
-                    return true;
-                });
+            for (auto&& i : mRecentEvent) {
+                sp<SensorInterface> s = mSensors.getInterface(i.first);
+                if (!i.second->isEmpty() &&
+                    s->getSensor().getRequiredPermission().isEmpty()) {
+                    // if there is events and sensor does not need special permission.
+                    result.appendFormat("%s: ", s->getSensor().getName().string());
+                    result.append(i.second->dump().c_str());
+                }
+            }
 
             result.append("Active sensors:\n");
             for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
@@ -554,17 +557,19 @@ bool SensorService::threadLoop() {
                           handle, dynamicSensor.type, dynamicSensor.name);
 
                     if (mSensors.isNewHandle(handle)) {
+                        const auto& uuid = mSensorEventBuffer[i].dynamic_sensor_meta.uuid;
                         sensor_t s = dynamicSensor;
                         // make sure the dynamic sensor flag is set
                         s.flags |= DYNAMIC_SENSOR_MASK;
                         // force the handle to be consistent
                         s.handle = handle;
-                        SensorInterface *si = new HardwareSensor(s);
+
+                        SensorInterface *si = new HardwareSensor(s, uuid);
 
                         // This will release hold on dynamic sensor meta, so it should be called
                         // after Sensor object is created.
                         device.handleDynamicSensorConnection(handle, true /*connected*/);
-                        registerDynamicSensor(si);
+                        registerDynamicSensorLocked(si);
                     } else {
                         ALOGE("Handle %d has been used, cannot use again before reboot.", handle);
                     }
@@ -573,7 +578,7 @@ bool SensorService::threadLoop() {
                     ALOGI("Dynamic sensor handle 0x%x disconnected", handle);
 
                     device.handleDynamicSensorConnection(handle, false /*connected*/);
-                    if (!unregisterDynamicSensor(handle)) {
+                    if (!unregisterDynamicSensorLocked(handle)) {
                         ALOGE("Dynamic sensor release error.");
                     }
 
@@ -674,16 +679,14 @@ void SensorService::recordLastValueLocked(
     for (size_t i = 0; i < count; i++) {
         if (buffer[i].type == SENSOR_TYPE_META_DATA ||
             buffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META ||
-            buffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO ||
-            mLastEventSeen.indexOfKey(buffer[i].sensor) <0 ) {
+            buffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO) {
             continue;
         }
 
-        MostRecentEventLogger* &circular_buf = mLastEventSeen.editValueFor(buffer[i].sensor);
-        if (circular_buf == NULL) {
-            circular_buf = new MostRecentEventLogger(buffer[i].type);
+        auto logger = mRecentEvent.find(buffer[i].sensor);
+        if (logger != mRecentEvent.end()) {
+            logger->second->addEvent(buffer[i]);
         }
-        circular_buf->addEvent(buffer[i]);
     }
 }
 
@@ -881,14 +884,14 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ON_CHANGE) {
                 // NOTE: The wake_up flag of this event may get set to
                 // WAKE_UP_SENSOR_EVENT_NEEDS_ACK if this is a wake_up event.
-                MostRecentEventLogger *circular_buf = mLastEventSeen.valueFor(handle);
-                if (circular_buf) {
+
+                auto logger = mRecentEvent.find(handle);
+                if (logger != mRecentEvent.end()) {
                     sensors_event_t event;
-                    memset(&event, 0, sizeof(event));
                     // It is unlikely that this buffer is empty as the sensor is already active.
                     // One possible corner case may be two applications activating an on-change
                     // sensor at the same time.
-                    if(circular_buf->populateLastEvent(&event)) {
+                    if(logger->second->populateLastEvent(&event)) {
                         event.sensor = handle;
                         if (event.version == sizeof(sensors_event_t)) {
                             if (isWakeUpSensorEvent(event) && !mWakeLockAcquired) {
@@ -1177,32 +1180,6 @@ void SensorService::populateActiveConnections(
 
 bool SensorService::isWhiteListedPackage(const String8& packageName) {
     return (packageName.contains(mWhiteListedPackage.string()));
-}
-
-int SensorService::getNumEventsForSensorType(int sensor_event_type) {
-    if (sensor_event_type >= SENSOR_TYPE_DEVICE_PRIVATE_BASE) {
-        return 16;
-    }
-    switch (sensor_event_type) {
-        case SENSOR_TYPE_ROTATION_VECTOR:
-        case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
-            return 5;
-
-        case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-        case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
-            return 6;
-
-        case SENSOR_TYPE_GAME_ROTATION_VECTOR:
-            return 4;
-
-        case SENSOR_TYPE_SIGNIFICANT_MOTION:
-        case SENSOR_TYPE_STEP_DETECTOR:
-        case SENSOR_TYPE_STEP_COUNTER:
-            return 1;
-
-         default:
-            return 3;
-    }
 }
 
 }; // namespace android
