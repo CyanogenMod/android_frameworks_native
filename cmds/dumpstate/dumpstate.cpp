@@ -52,6 +52,8 @@ using android::base::StringPrintf;
 static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
+static char build_type[PROPERTY_VALUE_MAX];
+
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
 #define RAFT_DIR "/data/misc/raft/"
@@ -270,13 +272,11 @@ static unsigned long logcat_timeout(const char *name) {
 /* End copy from system/core/logd/LogBuffer.cpp */
 
 /* dumps the current system state to stdout */
-static void dumpstate(const std::string& screenshot_path) {
-    unsigned long timeout;
+static void print_header() {
     time_t now = time(NULL);
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
     char radio[PROPERTY_VALUE_MAX], bootloader[PROPERTY_VALUE_MAX];
     char network[PROPERTY_VALUE_MAX], date[80];
-    char build_type[PROPERTY_VALUE_MAX];
 
     property_get("ro.build.display.id", build, "(unknown)");
     property_get("ro.build.fingerprint", fingerprint, "(unknown)");
@@ -301,6 +301,11 @@ static void dumpstate(const std::string& screenshot_path) {
     dump_file(NULL, "/proc/version");
     printf("Command line: %s\n", strtok(cmdline_buf, "\n"));
     printf("\n");
+}
+
+static void dumpstate(const std::string& screenshot_path) {
+    std::unique_ptr<DurationReporter> duration_reporter(new DurationReporter("DUMPSTATE"));
+    unsigned long timeout;
 
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
     run_command("UPTIME", 10, "uptime", NULL);
@@ -807,6 +812,8 @@ int main(int argc, char *argv[]) {
             send_broadcast("android.intent.action.BUGREPORT_STARTED", am_args);
         }
     }
+
+    print_header();
 
     /* open the vibrator before dropping root */
     std::unique_ptr<FILE, int(*)(FILE*)> vibrator(NULL, fclose);
