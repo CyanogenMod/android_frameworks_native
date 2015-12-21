@@ -141,7 +141,10 @@ public class CFunc {
             String tok = tokens[i++];
 
             if (tok.equals("(")) {
-                continue;
+                tok = tokens[i++];
+                if (tok.equals("void")) {
+                    break;
+                }
             }
             if (tok.equals(")")) {
                 break;
@@ -157,10 +160,6 @@ public class CFunc {
                 argTypeName = tokens[i++];
             }
             argType.setBaseType(argTypeName);
-
-            if (argTypeName.equals("void")) {
-                break;
-            }
 
             argName = tokens[i++];
             if (argName.startsWith("*")) {

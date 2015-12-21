@@ -107,7 +107,8 @@ javac -d classes    android/opengl/EGL14.java \
                     android/opengl/GLES20.java \
                     android/opengl/GLES30.java \
                     android/opengl/GLES31.java \
-                    android/opengl/GLES31Ext.java
+                    android/opengl/GLES31Ext.java \
+                    android/opengl/GLES32.java
 popd > /dev/null
 JAVA_RESULT=$?
 if [ $JAVA_RESULT -ne 0 ]; then
@@ -154,7 +155,7 @@ do
     compareGenerated ../../../../base/opengl/java/javax/microedition/khronos/opengles generated/javax/microedition/khronos/opengles $x
 done
 
-for x in EGL14 EGLExt GLES10 GLES10Ext GLES11 GLES11Ext GLES20 GLES30 GLES31 GLES31Ext
+for x in EGL14 EGLExt GLES10 GLES10Ext GLES11 GLES11Ext GLES20 GLES30 GLES31 GLES31Ext GLES32
 do
     compareGenerated ../../../../base/opengl/java/android/opengl generated/android/opengl ${x}.java
     compareGenerated ../../../../base/core/jni generated/C android_opengl_${x}.cpp

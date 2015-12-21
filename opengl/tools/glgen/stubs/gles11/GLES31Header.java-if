@@ -204,4 +204,5 @@ public class GLES31 extends GLES30 {
         _nativeClassInit();
     }
 
-    private GLES31() {}
+    /** @hide */
+    GLES31() {}
