@@ -622,27 +622,19 @@ static void vibrate(FILE* vibrator, int ms) {
     fflush(vibrator);
 }
 
-/* generates a zipfile on 'path' with an entry with the contents of 'tmp_path'
-   and removes the temporary file.
- */
-static bool generate_zip_file(std::string tmp_path, std::string path,
-                             std::string entry_name, time_t entry_time) {
-    std::unique_ptr<FILE, int(*)(FILE*)> file(fopen(path.c_str(), "wb"), fclose);
-    if (!file) {
-        ALOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
-        return false;
-    }
-
-    ZipWriter writer(file.get());
-    int32_t err = writer.StartEntryWithTime(entry_name.c_str(), ZipWriter::kCompress, entry_time);
+/* adds a new entry to the existing zip file. */
+static bool add_zip_entry(ZipWriter* writer, const std::string& entry_name,
+        const std::string& entry_path, time_t entry_time) {
+    int32_t err = writer->StartEntryWithTime(entry_name.c_str(),
+            ZipWriter::kCompress, entry_time);
     if (err) {
-        ALOGE("writer.StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
+        ALOGE("writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
         return false;
     }
 
-    ScopedFd fd(TEMP_FAILURE_RETRY(open(tmp_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
+    ScopedFd fd(TEMP_FAILURE_RETRY(open(entry_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
     if (fd.get() == -1) {
-        ALOGE("open(%s): %s\n", tmp_path.c_str(), strerror(errno));
+        ALOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
         return false;
     }
 
@@ -652,36 +644,48 @@ static bool generate_zip_file(std::string tmp_path, std::string path,
         if (bytes_read == 0) {
             break;
         } else if (bytes_read == -1) {
-            ALOGE("read(%s): %s\n", tmp_path.c_str(), strerror(errno));
+            ALOGE("read(%s): %s\n", entry_path.c_str(), strerror(errno));
             return false;
-       }
-       err = writer.WriteBytes(buffer.data(), bytes_read);
-       if (err) {
-           ALOGE("writer.WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
-           return false;
-       }
+        }
+        err = writer->WriteBytes(buffer.data(), bytes_read);
+        if (err) {
+            ALOGE("writer->WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
+            return false;
+        }
     }
 
-    err = writer.FinishEntry();
+    err = writer->FinishEntry();
     if (err) {
-        ALOGE("writer.FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
-        return false;
-    }
-
-    err = writer.Finish();
-    if (err) {
-        ALOGE("writer.Finish(): %s\n", ZipWriter::ErrorCodeString(err));
-        return false;
-    }
-
-    if (remove(tmp_path.c_str())) {
-        ALOGE("remove(%s): %s\n", tmp_path.c_str(), strerror(errno));
+        ALOGE("writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
     }
 
     return true;
 }
 
+/* adds the temporary report to the existing .zip file, closes the .zip file, and removes the
+   temporary file.
+ */
+static bool finish_zip_file(ZipWriter* writer,
+        const std::string& bugreport_name, const std::string& bugreport_path,
+        time_t now) {
+    if (!add_zip_entry(writer, bugreport_name, bugreport_path, now)) {
+        ALOGE("Failed to add text entry to .zip file\n");
+        return false;
+    }
+
+    int32_t err = writer->Finish();
+    if (err) {
+        ALOGE("writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    if (remove(bugreport_path.c_str())) {
+        ALOGW("remove(%s): %s\n", bugreport_path.c_str(), strerror(errno));
+    }
+
+    return true;
+}
 
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
@@ -775,6 +779,10 @@ int main(int argc, char *argv[]) {
     /* pointer to the actual path, be it zip or text */
     std::string path;
 
+    /* pointers to the zipped file file */
+    std::unique_ptr<FILE, int(*)(FILE*)> zip_file(NULL, fclose);
+    std::unique_ptr<ZipWriter> zip_writer;
+
     time_t now = time(NULL);
 
     /* redirect output if needed */
@@ -801,6 +809,18 @@ int main(int argc, char *argv[]) {
         ALOGD("Bugreport dir: %s\nBase name: %s\nSuffix: %s\nTemporary path: %s\n"
                 "Screenshot path: %s\n", bugreport_dir.c_str(), base_name.c_str(), suffix.c_str(),
                 tmp_path.c_str(), screenshot_path.c_str());
+
+        if (do_zip_file) {
+            ALOGD("Creating initial .zip file");
+            path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
+            zip_file.reset(fopen(path.c_str(), "wb"));
+            if (!zip_file) {
+                ALOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
+                do_zip_file = 0;
+            } else {
+                zip_writer.reset(new ZipWriter(zip_file.get()));
+            }
+        }
 
         if (do_update_progress) {
             std::vector<std::string> am_args = {
@@ -836,6 +856,12 @@ int main(int argc, char *argv[]) {
                 ALOGE("Unable to change ownership of screenshot file %s: %s\n",
                         screenshot_path.c_str(), strerror(errno));
             }
+        }
+    }
+
+    if (do_zip_file) {
+        if (chown(path.c_str(), AID_SHELL, AID_SHELL)) {
+            ALOGE("Unable to change ownership of zip file %s: %s\n", path.c_str(), strerror(errno));
         }
     }
 
@@ -948,10 +974,9 @@ int main(int argc, char *argv[]) {
 
         bool do_text_file = true;
         if (do_zip_file) {
-            ALOGD("Generating .zip bugreport");
-            path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
-            if (!generate_zip_file(tmp_path, path, base_name + "-" + suffix + ".txt", now)) {
-                ALOGE("Failed to generate zip file; sending text bugreport instead\n");
+            ALOGD("Adding text entry to .zip bugreport");
+            if (!finish_zip_file(zip_writer.get(), base_name + "-" + suffix + ".txt", tmp_path, now)) {
+                ALOGE("Failed to finish zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
                 do_text_file = false;
