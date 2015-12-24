@@ -310,9 +310,8 @@ void ProcessState::giveThreadPoolName() {
 
 static int open_driver()
 {
-    int fd = open("/dev/binder", O_RDWR);
+    int fd = open("/dev/binder", O_RDWR | O_CLOEXEC);
     if (fd >= 0) {
-        fcntl(fd, F_SETFD, FD_CLOEXEC);
         int vers = 0;
         status_t result = ioctl(fd, BINDER_VERSION, &vers);
         if (result == -1) {
