@@ -592,13 +592,20 @@ static bool check_boolean_property(const char* property_name, bool default_value
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *instruction_set,
-    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool use_jit)
+    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool use_jit,
+    const std::vector<int>& profile_files_fd, const std::vector<int>& reference_profile_files_fd)
 {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
     if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
         ALOGE("Instruction set %s longer than max length of %d",
               instruction_set, MAX_INSTRUCTION_SET_LEN);
+        return;
+    }
+
+    if (profile_files_fd.size() != reference_profile_files_fd.size()) {
+        ALOGE("Invalid configuration of profile files: pf_size (%zu) != rpf_size (%zu)",
+              profile_files_fd.size(), reference_profile_files_fd.size());
         return;
     }
 
@@ -712,6 +719,17 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                 (get_property("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
                 (prop_buf[0] == '1');
     }
+    std::vector<std::string> profile_file_args(profile_files_fd.size());
+    std::vector<std::string> reference_profile_file_args(profile_files_fd.size());
+    // "reference-profile-file-fd" is longer than "profile-file-fd" so we can
+    // use it to set the max length.
+    char profile_buf[strlen("--reference-profile-file-fd=") + MAX_INT_LEN];
+    for (size_t k = 0; k < profile_files_fd.size(); k++) {
+        sprintf(profile_buf, "--profile-file-fd=%d", profile_files_fd[k]);
+        profile_file_args[k].assign(profile_buf);
+        sprintf(profile_buf, "--reference-profile-file-fd=%d", reference_profile_files_fd[k]);
+        reference_profile_file_args[k].assign(profile_buf);
+    }
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
@@ -726,7 +744,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
                      + (generate_debug_info ? 1 : 0)
                      + (debuggable ? 1 : 0)
-                     + dex2oat_flags_count];
+                     + dex2oat_flags_count
+                     + profile_files_fd.size()
+                     + reference_profile_files_fd.size()];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
     argv[i++] = zip_fd_arg;
@@ -769,6 +789,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     if (have_dex2oat_relocation_skip_flag) {
         argv[i++] = RUNTIME_ARG;
         argv[i++] = dex2oat_norelocation;
+    }
+    for (size_t k = 0; k < profile_file_args.size(); k++) {
+        argv[i++] = profile_file_args[k].c_str();
+        argv[i++] = reference_profile_file_args[k].c_str();
     }
     // Do not add after dex2oat_flags, they should override others for debugging.
     argv[i] = NULL;
@@ -836,8 +860,108 @@ static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
     }
 }
 
-int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags)
+constexpr const char* PROFILE_FILE_EXTENSION = ".prof";
+constexpr const char* REFERENCE_PROFILE_FILE_EXTENSION = ".prof.ref";
+
+static void close_all_fds(const std::vector<int>& fds, const char* description) {
+    for (size_t i = 0; i < fds.size(); i++) {
+        if (close(fds[i]) != 0) {
+            PLOG(WARNING) << "Failed to close fd for " << description << " at index " << i;
+        }
+    }
+}
+
+static int open_code_cache_for_user(userid_t user, const char* volume_uuid, const char* pkgname) {
+    std::string code_cache_path =
+        create_data_user_package_path(volume_uuid, user, pkgname) + CODE_CACHE_DIR_POSTFIX;
+
+    struct stat buffer;
+    // Check that the code cache exists. If not, return and don't log an error.
+    if (TEMP_FAILURE_RETRY(lstat(code_cache_path.c_str(), &buffer)) == -1) {
+        if (errno != ENOENT) {
+            PLOG(ERROR) << "Failed to lstat code_cache: " << code_cache_path;
+            return -1;
+        }
+    }
+
+    int code_cache_fd = open(code_cache_path.c_str(),
+            O_PATH | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
+    if (code_cache_fd < 0) {
+        PLOG(ERROR) << "Failed to open code_cache: " << code_cache_path;
+    }
+    return code_cache_fd;
+}
+
+// Keep profile paths in sync with ActivityThread.
+static void open_profile_files_for_user(uid_t uid, const char* pkgname, int code_cache_fd,
+            /*out*/ int* profile_fd, /*out*/ int* reference_profile_fd) {
+    *profile_fd = -1;
+    *reference_profile_fd = -1;
+    std::string profile_file(pkgname);
+    profile_file += PROFILE_FILE_EXTENSION;
+
+    // Check if the profile exists. If not, early return and don't log an error.
+    struct stat buffer;
+    if (TEMP_FAILURE_RETRY(fstatat(
+            code_cache_fd, profile_file.c_str(), &buffer, AT_SYMLINK_NOFOLLOW)) == -1) {
+        if (errno != ENOENT) {
+            PLOG(ERROR) << "Failed to fstatat profile file: " << profile_file;
+            return;
+        }
+    }
+
+    // Open in read-write to allow transfer of information from the current profile
+    // to the reference profile.
+    *profile_fd = openat(code_cache_fd, profile_file.c_str(), O_RDWR | O_NOFOLLOW);
+    if (*profile_fd < 0) {
+        PLOG(ERROR) << "Failed to open profile file: " << profile_file;
+        return;
+    }
+
+    std::string reference_profile(pkgname);
+    reference_profile += REFERENCE_PROFILE_FILE_EXTENSION;
+    // Give read-write permissions just for the user (changed with fchown after opening).
+    // We need write permission because dex2oat will update the reference profile files
+    // with the content of the corresponding current profile files.
+    *reference_profile_fd = openat(code_cache_fd, reference_profile.c_str(),
+            O_CREAT | O_RDWR | O_NOFOLLOW, S_IWUSR | S_IRUSR);
+    if (*reference_profile_fd < 0) {
+        close(*profile_fd);
+        return;
+    }
+    if (fchown(*reference_profile_fd, uid, uid) < 0) {
+        PLOG(ERROR) << "Cannot change reference profile file owner: " << reference_profile;
+        close(*profile_fd);
+        *profile_fd = -1;
+        *reference_profile_fd = -1;
+    }
+}
+
+static void open_profile_files(const char* volume_uuid, uid_t uid, const char* pkgname,
+            std::vector<int>* profile_fds, std::vector<int>* reference_profile_fds) {
+    std::vector<userid_t> users = get_known_users(volume_uuid);
+    for (auto user : users) {
+        int code_cache_fd  = open_code_cache_for_user(user, volume_uuid, pkgname);
+        if (code_cache_fd < 0) {
+            continue;
+        }
+        int profile_fd = -1;
+        int reference_profile_fd = -1;
+        open_profile_files_for_user(
+            uid, pkgname, code_cache_fd, &profile_fd, &reference_profile_fd);
+        close(code_cache_fd);
+
+        // Add to the lists only if both fds are valid.
+        if ((profile_fd >= 0) && (reference_profile_fd >= 0)) {
+            profile_fds->push_back(profile_fd);
+            reference_profile_fds->push_back(reference_profile_fd);
+        }
+    }
+}
+
+int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
+           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* volume_uuid,
+           bool use_profiles)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -851,6 +975,16 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool use_jit = (dexopt_flags & DEXOPT_USEJIT) != 0;
+    std::vector<int> profile_files_fd;
+    std::vector<int> reference_profile_files_fd;
+    if (use_profiles) {
+        open_profile_files(volume_uuid, uid, pkgname,
+                &profile_files_fd, &reference_profile_files_fd);
+        if (profile_files_fd.empty()) {
+            // Skip profile guided compilation because no profiles were found.
+            return 0;
+        }
+    }
 
     if ((dexopt_flags & ~DEXOPT_MASK) != 0) {
         LOG_FATAL("dexopt flags contains unknown fields\n");
@@ -982,14 +1116,9 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
             || dexopt_needed == DEXOPT_SELF_PATCHOAT_NEEDED) {
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
-            const char *input_file_name = strrchr(input_file, '/');
-            if (input_file_name == NULL) {
-                input_file_name = input_file;
-            } else {
-                input_file_name++;
-            }
-            run_dex2oat(input_fd, out_fd, input_file_name, out_path, swap_fd,
-                        instruction_set, vm_safe_mode, debuggable, boot_complete, use_jit);
+            run_dex2oat(input_fd, out_fd, input_file, out_path, swap_fd,
+                        instruction_set, vm_safe_mode, debuggable, boot_complete, use_jit,
+                        profile_files_fd, reference_profile_files_fd);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);
@@ -1014,6 +1143,10 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgname, const char *ins
     if (swap_fd != -1) {
         close(swap_fd);
     }
+    if (use_profiles != 0) {
+        close_all_fds(profile_files_fd, "profile_files_fd");
+        close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
+    }
     return 0;
 
 fail:
@@ -1023,6 +1156,10 @@ fail:
     }
     if (input_fd >= 0) {
         close(input_fd);
+    }
+    if (use_profiles != 0) {
+        close_all_fds(profile_files_fd, "profile_files_fd");
+        close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
     }
     return -1;
 }
