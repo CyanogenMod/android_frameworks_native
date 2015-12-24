@@ -34,7 +34,7 @@ class BinderDriverInterfaceTestEnv : public ::testing::Environment {
             int ret;
             uint32_t max_threads = 0;
 
-            m_binderFd = open(BINDER_DEV_NAME, O_RDWR | O_NONBLOCK);
+            m_binderFd = open(BINDER_DEV_NAME, O_RDWR | O_NONBLOCK | O_CLOEXEC);
             ASSERT_GE(m_binderFd, 0);
             m_buffer = mmap(NULL, 64*1024, PROT_READ, MAP_SHARED, m_binderFd, 0);
             ASSERT_NE(m_buffer, (void *)NULL);
