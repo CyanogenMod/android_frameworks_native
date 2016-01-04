@@ -52,6 +52,16 @@ namespace {
     exit(1);
 }
 
+uint32_t ExtractMajorVersion(uint32_t version) {
+    return (version >> 22) & 0x3FF;
+}
+uint32_t ExtractMinorVersion(uint32_t version) {
+    return (version >> 12) & 0x3FF;
+}
+uint32_t ExtractPatchVersion(uint32_t version) {
+    return (version >> 0) & 0xFFF;
+}
+
 const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
     switch (type) {
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:
@@ -82,6 +92,12 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
     }
 }
 
+struct VulkanInfo {
+    std::vector<VkExtensionProperties> extensions;
+    std::vector<VkLayerProperties> layers;
+    std::vector<std::vector<VkExtensionProperties>> layer_extensions;
+};
+
 void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     VkResult result;
     std::ostringstream strbuf;
@@ -90,9 +106,10 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     vkGetPhysicalDeviceProperties(pdev, &props);
     printf("  %u: \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", idx,
            props.deviceName, VkPhysicalDeviceTypeStr(props.deviceType),
-           (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
-           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorID,
-           props.deviceID);
+           ExtractMajorVersion(props.apiVersion),
+           ExtractMinorVersion(props.apiVersion),
+           ExtractPatchVersion(props.apiVersion), props.driverVersion,
+           props.vendorID, props.deviceID);
 
     VkPhysicalDeviceMemoryProperties mem_props;
     vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
@@ -148,9 +165,76 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     }
 }
 
+void EnumerateInstanceExtensions(
+    const char* layer_name,
+    std::vector<VkExtensionProperties>* extensions) {
+    VkResult result;
+    uint32_t count;
+    result =
+        vkEnumerateInstanceExtensionProperties(layer_name, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceExtensionProperties (count)", result);
+    extensions->resize(count);
+    result = vkEnumerateInstanceExtensionProperties(layer_name, &count,
+                                                    extensions->data());
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceExtensionProperties (data)", result);
+}
+
+void GatherInfo(VulkanInfo* info) {
+    VkResult result;
+    uint32_t count;
+
+    result = vkEnumerateInstanceLayerProperties(&count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceLayerProperties (count)", result);
+    info->layers.resize(count);
+    result = vkEnumerateInstanceLayerProperties(&count, info->layers.data());
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceLayerProperties (data)", result);
+    info->layer_extensions.resize(info->layers.size());
+
+    EnumerateInstanceExtensions(nullptr, &info->extensions);
+    for (size_t i = 0; i < info->extensions.size(); i++)
+        EnumerateInstanceExtensions(info->layers[i].layerName,
+                                    &info->layer_extensions[i]);
+}
+
+void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
+                     const char* prefix) {
+    for (const auto& e : extensions)
+        printf("%s%s (v%u)\n", prefix, e.extensionName, e.specVersion);
+}
+
+void PrintInfo(const VulkanInfo& info) {
+    printf("Instance Extensions [%u]:\n", info.extensions.size());
+    PrintExtensions(info.extensions, "  ");
+    if (!info.layers.empty()) {
+        printf("Instance Layers [%u]:\n", info.layers.size());
+        for (size_t i = 0; i < info.layers.size(); i++) {
+            const auto& layer = info.layers[i];
+            printf(
+                "  %s %u.%u.%u/%u \"%s\"\n",
+                layer.layerName, ExtractMajorVersion(layer.specVersion),
+                ExtractMinorVersion(layer.specVersion),
+                ExtractPatchVersion(layer.specVersion),
+                layer.implementationVersion, layer.description);
+            if (!info.layer_extensions[i].empty()) {
+                printf("     Extensions [%zu]:\n",
+                       info.layer_extensions.size());
+                PrintExtensions(info.layer_extensions[i], "       ");
+            }
+        }
+    }
+}
+
 }  // namespace
 
 int main(int /*argc*/, char const* /*argv*/ []) {
+    VulkanInfo info;
+    GatherInfo(&info);
+    PrintInfo(info);
+
     VkResult result;
 
     VkInstance instance;
@@ -184,7 +268,7 @@ int main(int /*argc*/, char const* /*argv*/ []) {
                 physical_devices.size(), num_physical_devices);
         physical_devices.resize(num_physical_devices);
     }
-    printf("PhysicalDevices:\n");
+    printf("PhysicalDevices [%zu]:\n", physical_devices.size());
     for (uint32_t i = 0; i < physical_devices.size(); i++)
         DumpPhysicalDevice(i, physical_devices[i]);
 
