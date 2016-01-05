@@ -15,6 +15,7 @@ LOCAL_CFLAGS := $(common_cflags)
 LOCAL_SHARED_LIBRARIES := \
     libbase \
     liblogwrap \
+    libselinux \
 
 LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
 LOCAL_CLANG := true
