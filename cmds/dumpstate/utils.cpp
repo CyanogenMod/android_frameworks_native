@@ -59,10 +59,26 @@ static const char* native_processes_to_dump[] = {
         NULL,
 };
 
-static uint64_t nanotime() {
+DurationReporter::DurationReporter(const char *title) {
+    title_ = title;
+    if (title) {
+        started_ = DurationReporter::nanotime();
+    }
+}
+
+DurationReporter::~DurationReporter() {
+    if (title_) {
+        uint64_t elapsed = DurationReporter::nanotime() - started_;
+        // Use "Yoda grammar" to make it easier to grep|sort sections.
+        printf("------ %.3fs was the duration of '%s' ------\n",
+                (float) elapsed / NANOS_PER_SEC, title_);
+    }
+}
+
+uint64_t DurationReporter::DurationReporter::nanotime() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec;
+    return (uint64_t) ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec;
 }
 
 void for_each_userid(void (*func)(int), const char *header) {
@@ -217,7 +233,10 @@ out_close:
 }
 
 void do_dmesg() {
-    printf("------ KERNEL LOG (dmesg) ------\n");
+    const char *title = "KERNEL LOG (dmesg)";
+    DurationReporter duration_reporter(title);
+    printf("------ %s ------\n", title);
+
     ON_DRY_RUN_RETURN();
     /* Get size of kernel buffer */
     int size = klogctl(KLOG_SIZE_BUFFER, NULL, 0);
@@ -280,14 +299,14 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
         /* Timeout if no data is read for 30 seconds. */
         tm.tv_sec = 30;
         tm.tv_usec = 0;
-        uint64_t elapsed = nanotime();
+        uint64_t elapsed = DurationReporter::nanotime();
         int ret = TEMP_FAILURE_RETRY(select(fd + 1, &read_set, NULL, NULL, &tm));
         if (ret == -1) {
             printf("*** %s: select failed: %s\n", path, strerror(errno));
             newline = true;
             break;
         } else if (ret == 0) {
-            elapsed = nanotime() - elapsed;
+            elapsed = DurationReporter::nanotime() - elapsed;
             printf("*** %s: Timed out after %.3fs\n", path,
                    (float) elapsed / NANOS_PER_SEC);
             newline = true;
@@ -317,6 +336,7 @@ static int _dump_file_from_fd(const char *title, const char *path, int fd) {
 
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path) {
+    DurationReporter duration_reporter(title);
     int fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
     if (fd < 0) {
         int err = errno;
@@ -336,6 +356,7 @@ int dump_file(const char *title, const char *path) {
 int dump_files(const char *title, const char *dir,
         bool (*skip)(const char *path),
         int (*dump_from_fd)(const char *title, const char *path, int fd)) {
+    DurationReporter duration_reporter(title);
     DIR *dirp;
     struct dirent *d;
     char *newpath = NULL;
@@ -460,6 +481,7 @@ bool waitpid_with_timeout(pid_t pid, int timeout_seconds, int* status) {
 }
 
 int run_command(const char *title, int timeout_seconds, const char *command, ...) {
+    DurationReporter duration_reporter(title);
     fflush(stdout);
 
     const char *args[1024] = {command};
@@ -490,7 +512,7 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     int weight = timeout_seconds;
 
     const char *command = args[0];
-    uint64_t start = nanotime();
+    uint64_t start = DurationReporter::nanotime();
     pid_t pid = fork();
 
     /* handle error case */
@@ -520,7 +542,7 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     /* handle parent case */
     int status;
     bool ret = waitpid_with_timeout(pid, timeout_seconds, &status);
-    uint64_t elapsed = nanotime() - start;
+    uint64_t elapsed = DurationReporter::nanotime() - start;
     if (!ret) {
         if (errno == ETIMEDOUT) {
             printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command,
@@ -586,7 +608,9 @@ static int compare_prop(const void *a, const void *b) {
 
 /* prints all the system properties */
 void print_properties() {
-    printf("------ SYSTEM PROPERTIES ------\n");
+    const char* title = "SYSTEM PROPERTIES";
+    DurationReporter duration_reporter(title);
+    printf("------ %s ------\n", title);
     ON_DRY_RUN_RETURN();
     size_t i;
     num_props = 0;
@@ -666,6 +690,7 @@ static bool should_dump_native_traces(const char* path) {
 
 /* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
 const char *dump_traces() {
+    DurationReporter duration_reporter("DUMP TRACES");
     ON_DRY_RUN_RETURN(NULL);
     const char* result = NULL;
 
@@ -749,7 +774,7 @@ const char *dump_traces() {
             }
 
             ++dalvik_found;
-            uint64_t start = nanotime();
+            uint64_t start = DurationReporter::nanotime();
             if (kill(pid, SIGQUIT)) {
                 fprintf(stderr, "kill(%d, SIGQUIT): %s\n", pid, strerror(errno));
                 continue;
@@ -771,7 +796,7 @@ const char *dump_traces() {
                 fprintf(stderr, "lseek: %s\n", strerror(errno));
             } else {
                 dprintf(fd, "[dump dalvik stack %d: %.3fs elapsed]\n",
-                        pid, (float)(nanotime() - start) / NANOS_PER_SEC);
+                        pid, (float)(DurationReporter::nanotime() - start) / NANOS_PER_SEC);
             }
         } else if (should_dump_native_traces(data)) {
             /* dump native process if appropriate */
@@ -779,7 +804,7 @@ const char *dump_traces() {
                 fprintf(stderr, "lseek: %s\n", strerror(errno));
             } else {
                 static uint16_t timeout_failures = 0;
-                uint64_t start = nanotime();
+                uint64_t start = DurationReporter::nanotime();
 
                 /* If 3 backtrace dumps fail in a row, consider debuggerd dead. */
                 if (timeout_failures == 3) {
@@ -791,7 +816,7 @@ const char *dump_traces() {
                     timeout_failures = 0;
                 }
                 dprintf(fd, "[dump native stack %d: %.3fs elapsed]\n",
-                        pid, (float)(nanotime() - start) / NANOS_PER_SEC);
+                        pid, (float)(DurationReporter::nanotime() - start) / NANOS_PER_SEC);
             }
         }
     }
@@ -820,6 +845,7 @@ error_close_fd:
 }
 
 void dump_route_tables() {
+    DurationReporter duration_reporter("DUMP ROUTE TABLES");
     ON_DRY_RUN_RETURN();
     const char* const RT_TABLES_PATH = "/data/misc/net/rt_tables";
     dump_file("RT_TABLES", RT_TABLES_PATH);

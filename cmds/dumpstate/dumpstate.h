@@ -142,11 +142,32 @@ void dumpstate_board();
 /* Takes a screenshot and save it to the given file */
 void take_screenshot(const std::string& path);
 
+/* dump eMMC Extended CSD data */
+void dump_emmc_ecsd(const char *ext_csd_path);
+
+/*
+ * Helper class used to report how long it takes for a section to finish.
+ *
+ * Typical usage:
+ *
+ *    DurationReporter duration_reporter(title);
+ *
+ */
+class DurationReporter {
+public:
+    DurationReporter(const char *title);
+
+    ~DurationReporter();
+
+    static uint64_t nanotime();
+
+private:
+    const char* title_;
+    uint64_t started_;
+};
+
 #ifdef __cplusplus
 }
 #endif
-
-/* dump eMMC Extended CSD data */
-void dump_emmc_ecsd(const char *ext_csd_path);
 
 #endif /* _DUMPSTATE_H_ */
