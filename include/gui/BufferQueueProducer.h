@@ -183,12 +183,24 @@ private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);
 
+    // Returns the slot of the next free buffer if one is available or
+    // BufferQueueCore::INVALID_BUFFER_SLOT otherwise
+    int getFreeBufferLocked() const;
+
+    // Returns the next free slot if one less than or equal to maxBufferCount
+    // is available or BufferQueueCore::INVALID_BUFFER_SLOT otherwise
+    int getFreeSlotLocked(int maxBufferCount) const;
+
     // waitForFreeSlotThenRelock finds the oldest slot in the FREE state. It may
     // block if there are no available slots and we are not in non-blocking
     // mode (producer and consumer controlled by the application). If it blocks,
     // it will release mCore->mMutex while blocked so that other operations on
     // the BufferQueue may succeed.
-    status_t waitForFreeSlotThenRelock(const char* caller, int* found,
+    enum class FreeSlotCaller {
+        Dequeue,
+        Attach,
+    };
+    status_t waitForFreeSlotThenRelock(FreeSlotCaller caller, int* found,
             status_t* returnFlags) const;
 
     sp<BufferQueueCore> mCore;

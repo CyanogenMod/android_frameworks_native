@@ -500,7 +500,7 @@ TEST_F(BufferQueueTest, TestSingleBufferMode) {
         ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
         ASSERT_EQ(Rect(0, 0, 1, 1), item.mCrop);
         ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
-        ASSERT_EQ(0, item.mTransform);
+        ASSERT_EQ(0u, item.mTransform);
         ASSERT_EQ(Fence::NO_FENCE, item.mFence);
 
         ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
@@ -527,7 +527,7 @@ TEST_F(BufferQueueTest, TestSingleBufferMode) {
         ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
         ASSERT_EQ(Rect(0, 0, 1, 1), item.mCrop);
         ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
-        ASSERT_EQ(0, item.mTransform);
+        ASSERT_EQ(0u, item.mTransform);
         ASSERT_EQ(Fence::NO_FENCE, item.mFence);
 
         ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
@@ -595,6 +595,28 @@ TEST_F(BufferQueueTest, TestTimeouts) {
     startTime = systemTime();
     ASSERT_EQ(TIMED_OUT, mProducer->attachBuffer(&slot, buffer));
     ASSERT_GE(systemTime() - startTime, TIMEOUT);
+}
+
+TEST_F(BufferQueueTest, CanAttachWhileDisallowingAllocation) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    int slot = BufferQueue::INVALID_BUFFER_SLOT;
+    sp<Fence> sourceFence;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &sourceFence, 0, 0, 0, 0));
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buffer));
+    ASSERT_EQ(OK, mProducer->detachBuffer(slot));
+
+    ASSERT_EQ(OK, mProducer->allowAllocation(false));
+
+    slot = BufferQueue::INVALID_BUFFER_SLOT;
+    ASSERT_EQ(OK, mProducer->attachBuffer(&slot, buffer));
 }
 
 } // namespace android
