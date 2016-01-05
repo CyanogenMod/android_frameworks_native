@@ -52,11 +52,15 @@ using android::base::StringPrintf;
 static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
+// TODO: should be part of dumpstate object
 static char build_type[PROPERTY_VALUE_MAX];
+static time_t now;
+static std::unique_ptr<ZipWriter> zip_writer;
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
 #define RAFT_DIR "/data/misc/raft/"
+#define RECOVERY_DIR "/cache/recovery"
 #define TOMBSTONE_DIR "/data/tombstones"
 #define TOMBSTONE_FILE_PREFIX TOMBSTONE_DIR "/tombstone_"
 /* Can accomodate a tombstone number up to 9999. */
@@ -70,19 +74,23 @@ typedef struct {
 
 static tombstone_data_t tombstone_data[NUM_TOMBSTONES];
 
-/* Get the fds of any tombstone that was modified in the last half an hour. */
+// Root dir for all files copied as-is into the bugreport
+const std::string& ZIP_ROOT_DIR = "FS";
+
+/* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
+ * otherwise gets just those modified in the last half an hour. */
 static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
-    time_t thirty_minutes_ago = time(NULL) - 60*30;
+    time_t thirty_minutes_ago = now - 60*30;
     for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
         snprintf(data[i].name, sizeof(data[i].name), "%s%02zu", TOMBSTONE_FILE_PREFIX, i);
         int fd = TEMP_FAILURE_RETRY(open(data[i].name,
                                          O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
         struct stat st;
         if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
-                (time_t) st.st_mtime >= thirty_minutes_ago) {
-            data[i].fd = fd;
+            (zip_writer || (time_t) st.st_mtime >= thirty_minutes_ago)) {
+        data[i].fd = fd;
         } else {
-            close(fd);
+        close(fd);
             data[i].fd = -1;
         }
     }
@@ -117,6 +125,10 @@ static bool skip_not_stat(const char *path) {
         return false;
     }
     return strcmp(path + len - sizeof(stat) + 1, stat); /* .../stat? */
+}
+
+static bool skip_none(const char *path) {
+    return false;
 }
 
 static const char mmcblk0[] = "/sys/block/mmcblk0/";
@@ -273,7 +285,6 @@ static unsigned long logcat_timeout(const char *name) {
 
 /* dumps the current system state to stdout */
 static void print_header() {
-    time_t now = time(NULL);
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
     char radio[PROPERTY_VALUE_MAX], bootloader[PROPERTY_VALUE_MAX];
     char network[PROPERTY_VALUE_MAX], date[80];
@@ -303,8 +314,65 @@ static void print_header() {
     printf("\n");
 }
 
+/* adds a new entry to the existing zip file. */
+static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
+    int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
+            ZipWriter::kCompress, get_mtime(fd, now));
+    if (err) {
+        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    while (1) {
+        std::vector<uint8_t> buffer(65536);
+        ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd, buffer.data(), sizeof(buffer)));
+        if (bytes_read == 0) {
+            break;
+        } else if (bytes_read == -1) {
+            ALOGE("read(%s): %s\n", entry_name.c_str(), strerror(errno));
+            return false;
+        }
+        err = zip_writer->WriteBytes(buffer.data(), bytes_read);
+        if (err) {
+            ALOGE("zip_writer->WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
+            return false;
+        }
+    }
+
+    err = zip_writer->FinishEntry();
+    if (err) {
+        ALOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    return true;
+}
+
+/* adds a new entry to the existing zip file. */
+static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path) {
+    ScopedFd fd(TEMP_FAILURE_RETRY(open(entry_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
+    if (fd.get() == -1) {
+        ALOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
+        return false;
+    }
+
+    return add_zip_entry_from_fd(entry_name, fd.get());
+}
+
+/* adds a file to the existing zipped bugreport */
+static int _add_file_from_fd(const char *title, const char *path, int fd) {
+    return add_zip_entry_from_fd(ZIP_ROOT_DIR + path, fd) ? 0 : 1;
+}
+
+/* adds all files from a directory to the zipped bugreport file */
+void add_dir(const char *dir, bool recursive) {
+    if (!zip_writer) return;
+    DurationReporter duration_reporter(dir);
+    dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
+}
+
 static void dumpstate(const std::string& screenshot_path) {
-    DurationReporter> duration_reporter("DUMPSTATE");
+    std::unique_ptr<DurationReporter> duration_reporter(new DurationReporter("DUMPSTATE"));
     unsigned long timeout;
 
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
@@ -418,8 +486,17 @@ static void dumpstate(const std::string& screenshot_path) {
     int dumped = 0;
     for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
         if (tombstone_data[i].fd != -1) {
+            const char *name = tombstone_data[i].name;
+            int fd = tombstone_data[i].fd;
             dumped = 1;
-            dump_file_from_fd("TOMBSTONE", tombstone_data[i].name, tombstone_data[i].fd);
+            if (zip_writer) {
+                if (!add_zip_entry_from_fd(ZIP_ROOT_DIR + name, fd)) {
+                    ALOGE("Unable to add tombstone %s to zip file\n", name);
+                }
+            } else {
+                dump_file_from_fd("TOMBSTONE", name, fd);
+            }
+            close(fd);
             tombstone_data[i].fd = -1;
         }
     }
@@ -617,66 +694,19 @@ static void sigpipe_handler(int n) {
     _exit(EXIT_FAILURE);
 }
 
-static void vibrate(FILE* vibrator, int ms) {
-    fprintf(vibrator, "%d\n", ms);
-    fflush(vibrator);
-}
-
-/* adds a new entry to the existing zip file. */
-static bool add_zip_entry(ZipWriter* writer, const std::string& entry_name,
-        const std::string& entry_path, time_t entry_time) {
-    int32_t err = writer->StartEntryWithTime(entry_name.c_str(),
-            ZipWriter::kCompress, entry_time);
-    if (err) {
-        ALOGE("writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
-        return false;
-    }
-
-    ScopedFd fd(TEMP_FAILURE_RETRY(open(entry_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
-    if (fd.get() == -1) {
-        ALOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
-        return false;
-    }
-
-    while (1) {
-        std::vector<uint8_t> buffer(65536);
-        ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd.get(), buffer.data(), sizeof(buffer)));
-        if (bytes_read == 0) {
-            break;
-        } else if (bytes_read == -1) {
-            ALOGE("read(%s): %s\n", entry_path.c_str(), strerror(errno));
-            return false;
-        }
-        err = writer->WriteBytes(buffer.data(), bytes_read);
-        if (err) {
-            ALOGE("writer->WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
-            return false;
-        }
-    }
-
-    err = writer->FinishEntry();
-    if (err) {
-        ALOGE("writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
-        return false;
-    }
-
-    return true;
-}
-
 /* adds the temporary report to the existing .zip file, closes the .zip file, and removes the
    temporary file.
  */
-static bool finish_zip_file(ZipWriter* writer,
-        const std::string& bugreport_name, const std::string& bugreport_path,
+static bool finish_zip_file(const std::string& bugreport_name, const std::string& bugreport_path,
         time_t now) {
-    if (!add_zip_entry(writer, bugreport_name, bugreport_path, now)) {
+    if (!add_zip_entry(bugreport_name, bugreport_path)) {
         ALOGE("Failed to add text entry to .zip file\n");
         return false;
     }
 
-    int32_t err = writer->Finish();
+    int32_t err = zip_writer->Finish();
     if (err) {
-        ALOGE("writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
+        ALOGE("zip_writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
     }
 
@@ -697,6 +727,8 @@ int main(int argc, char *argv[]) {
     int do_fb = 0;
     int do_broadcast = 0;
     int do_early_screenshot = 0;
+
+    now = time(NULL);
 
     if (getuid() != 0) {
         // Old versions of the adb client would call the
@@ -781,9 +813,6 @@ int main(int argc, char *argv[]) {
 
     /* pointers to the zipped file file */
     std::unique_ptr<FILE, int(*)(FILE*)> zip_file(NULL, fclose);
-    std::unique_ptr<ZipWriter> zip_writer;
-
-    time_t now = time(NULL);
 
     /* redirect output if needed */
     bool is_redirecting = !use_socket && use_outfile;
@@ -875,8 +904,9 @@ int main(int argc, char *argv[]) {
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
 
-    /* Get the tombstone fds here while we are running as root. */
+    /* Get the tombstone fds and recovery files here while we are running as root. */
     get_tombstone_fds(tombstone_data);
+    add_dir(RECOVERY_DIR, true);
 
     /* ensure we will keep capabilities when we drop root */
     if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
@@ -975,7 +1005,7 @@ int main(int argc, char *argv[]) {
         bool do_text_file = true;
         if (do_zip_file) {
             ALOGD("Adding text entry to .zip bugreport");
-            if (!finish_zip_file(zip_writer.get(), base_name + "-" + suffix + ".txt", tmp_path, now)) {
+            if (!finish_zip_file(base_name + "-" + suffix + ".txt", tmp_path, now)) {
                 ALOGE("Failed to finish zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
