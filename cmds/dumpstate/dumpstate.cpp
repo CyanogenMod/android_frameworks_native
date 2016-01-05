@@ -304,7 +304,7 @@ static void print_header() {
 }
 
 static void dumpstate(const std::string& screenshot_path) {
-    std::unique_ptr<DurationReporter> duration_reporter(new DurationReporter("DUMPSTATE"));
+    DurationReporter> duration_reporter("DUMPSTATE");
     unsigned long timeout;
 
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");

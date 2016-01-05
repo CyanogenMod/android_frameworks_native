@@ -64,7 +64,7 @@ static const int WEIGHT_TOTAL = 4000;
 static const int WEIGHT_FILE = 5;
 
 /*
- * TOOD: the dumpstate internal state is getting fragile; for example, this variable is defined
+ * TODO: the dumpstate internal state is getting fragile; for example, this variable is defined
  * here, declared at utils.cpp, and used on utils.cpp and dumpstate.cpp.
  * It would be better to take advantage of the C++ migration and encapsulate the state in an object,
  * but that will be better handled in a major C++ refactoring, which would also get rid of other C
@@ -141,6 +141,15 @@ void dumpstate_board();
 
 /* Takes a screenshot and save it to the given file */
 void take_screenshot(const std::string& path);
+
+/* Vibrates for a given durating (in milliseconds). */
+void vibrate(FILE* vibrator, int ms);
+
+/* Checks if a given path is a directory. */
+bool is_dir(const char* pathname);
+
+/** Gets the last modification time of a file, or default time if file is not found. */
+time_t get_mtime(int fd, time_t default_mtime);
 
 /* dump eMMC Extended CSD data */
 void dump_emmc_ecsd(const char *ext_csd_path);

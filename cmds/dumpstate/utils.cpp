@@ -71,7 +71,7 @@ DurationReporter::~DurationReporter() {
         uint64_t elapsed = DurationReporter::nanotime() - started_;
         // Use "Yoda grammar" to make it easier to grep|sort sections.
         printf("------ %.3fs was the duration of '%s' ------\n",
-                (float) elapsed / NANOS_PER_SEC, title_);
+               (float) elapsed / NANOS_PER_SEC, title_);
     }
 }
 
@@ -910,6 +910,27 @@ void update_progress(int delta) {
 void take_screenshot(const std::string& path) {
     const char *args[] = { "/system/bin/screencap", "-p", path.c_str(), NULL };
     run_command_always(NULL, 10, args);
+}
+
+void vibrate(FILE* vibrator, int ms) {
+    fprintf(vibrator, "%d\n", ms);
+    fflush(vibrator);
+}
+
+bool is_dir(const char* pathname) {
+    struct stat info;
+    if (stat(pathname, &info) == -1) {
+        return false;
+    }
+    return S_ISDIR(info.st_mode);
+}
+
+time_t get_mtime(int fd, time_t default_mtime) {
+    struct stat info;
+    if (fstat(fd, &info) == -1) {
+        return default_mtime;
+    }
+    return info.st_mtime;
 }
 
 void dump_emmc_ecsd(const char *ext_csd_path) {
