@@ -114,7 +114,7 @@ static void __for_each_pid(void (*helper)(int, const char *, void *), const char
         return;
     }
 
-    printf("\n------ %s ------\n", header);
+    if (header) printf("\n------ %s ------\n", header);
     while ((de = readdir(d))) {
         int pid;
         int fd;

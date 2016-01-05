@@ -21,6 +21,7 @@
 #include <limits.h>
 #include <memory>
 #include <regex>
+#include <set>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +57,9 @@ static const char *dump_traces_path = NULL;
 static char build_type[PROPERTY_VALUE_MAX];
 static time_t now;
 static std::unique_ptr<ZipWriter> zip_writer;
+static std::set<std::string> mount_points;
+void add_mountinfo();
+static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
@@ -94,6 +98,41 @@ static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
             data[i].fd = -1;
         }
     }
+}
+
+// for_each_pid() callback to get mount info about a process.
+void do_mountinfo(int pid, const char *name) {
+    char path[PATH_MAX];
+
+    // Gets the the content of the /proc/PID/ns/mnt link, so only unique mount points
+    // are added.
+    sprintf(path, "/proc/%d/ns/mnt", pid);
+    char linkname[PATH_MAX];
+    ssize_t r = readlink(path, linkname, PATH_MAX);
+    if (r == -1) {
+        ALOGE("Unable to read link for %s: %s\n", path, strerror(errno));
+        return;
+    }
+    linkname[r] = '\0';
+
+    if (mount_points.find(linkname) == mount_points.end()) {
+        // First time this mount point was found: add it
+        sprintf(path, "/proc/%d/mountinfo", pid);
+        if (add_zip_entry(ZIP_ROOT_DIR + path, path)) {
+            mount_points.insert(linkname);
+        } else {
+            ALOGE("Unable to add mountinfo %s to zip file\n", path);
+        }
+    }
+}
+
+void add_mountinfo() {
+    if (!zip_writer) return;
+    const char *title = "MOUNT INFO";
+    mount_points.clear();
+    DurationReporter duration_reporter(title);
+    for_each_pid(do_mountinfo, NULL);
+    printf("%s: %d entries added to zip file\n", title, mount_points.size());
 }
 
 static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
@@ -811,7 +850,7 @@ int main(int argc, char *argv[]) {
     /* pointer to the actual path, be it zip or text */
     std::string path;
 
-    /* pointers to the zipped file file */
+    /* pointer to the zipped file */
     std::unique_ptr<FILE, int(*)(FILE*)> zip_file(NULL, fclose);
 
     /* redirect output if needed */
@@ -904,9 +943,10 @@ int main(int argc, char *argv[]) {
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
 
-    /* Get the tombstone fds and recovery files here while we are running as root. */
+    /* Get the tombstone fds, recovery files, and mount info here while we are running as root. */
     get_tombstone_fds(tombstone_data);
     add_dir(RECOVERY_DIR, true);
+    add_mountinfo();
 
     /* ensure we will keep capabilities when we drop root */
     if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
