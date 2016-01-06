@@ -117,6 +117,9 @@ public:
      * in <system/window.h>. */
     int setScalingMode(int mode);
 
+    // See IGraphicBufferProducer::setDequeueTimeout
+    status_t setDequeueTimeout(nsecs_t timeout);
+
 protected:
     virtual ~Surface();
 

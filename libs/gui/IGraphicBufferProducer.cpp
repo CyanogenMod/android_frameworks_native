@@ -51,7 +51,8 @@ enum {
     SET_MAX_DEQUEUED_BUFFER_COUNT,
     SET_ASYNC_MODE,
     GET_NEXT_FRAME_NUMBER,
-    SET_SINGLE_BUFFER_MODE
+    SET_SINGLE_BUFFER_MODE,
+    SET_DEQUEUE_TIMEOUT,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -353,6 +354,18 @@ public:
         }
         return result;
     }
+
+    virtual status_t setDequeueTimeout(nsecs_t timeout) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt64(timeout);
+        status_t result = remote()->transact(SET_DEQUEUE_TIMEOUT, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("setDequeueTimeout failed to transact: %d", result);
+            return result;
+        }
+        return reply.readInt32();
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -545,6 +558,13 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool singleBufferMode = data.readInt32();
             status_t result = setSingleBufferMode(singleBufferMode);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_DEQUEUE_TIMEOUT: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            nsecs_t timeout = data.readInt64();
+            status_t result = setDequeueTimeout(timeout);
             reply->writeInt32(result);
             return NO_ERROR;
         }

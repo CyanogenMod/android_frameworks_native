@@ -119,6 +119,10 @@ String8 Surface::getConsumerName() const {
     return mGraphicBufferProducer->getConsumerName();
 }
 
+status_t Surface::setDequeueTimeout(nsecs_t timeout) {
+    return mGraphicBufferProducer->setDequeueTimeout(timeout);
+}
+
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
     Surface* c = getSelf(window);
     return c->setSwapInterval(interval);

@@ -551,6 +551,11 @@ status_t VirtualDisplaySurface::setSingleBufferMode(bool singleBufferMode) {
     return mSource[SOURCE_SINK]->setSingleBufferMode(singleBufferMode);
 }
 
+status_t VirtualDisplaySurface::setDequeueTimeout(nsecs_t /* timeout */) {
+    ALOGE("setDequeueTimeout not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

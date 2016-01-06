@@ -43,7 +43,8 @@ BufferQueueProducer::BufferQueueProducer(const sp<BufferQueueCore>& core) :
     mCallbackMutex(),
     mNextCallbackTicket(0),
     mCurrentCallbackTicket(0),
-    mCallbackCondition() {}
+    mCallbackCondition(),
+    mDequeueTimeout(-1) {}
 
 BufferQueueProducer::~BufferQueueProducer() {}
 
@@ -271,7 +272,15 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
                     (acquiredCount <= mCore->mMaxAcquiredBufferCount)) {
                 return WOULD_BLOCK;
             }
-            mCore->mDequeueCondition.wait(mCore->mMutex);
+            if (mDequeueTimeout >= 0) {
+                status_t result = mCore->mDequeueCondition.waitRelative(
+                        mCore->mMutex, mDequeueTimeout);
+                if (result == TIMED_OUT) {
+                    return result;
+                }
+            } else {
+                mCore->mDequeueCondition.wait(mCore->mMutex);
+            }
         }
     } // while (tryAgain)
 
@@ -1012,8 +1021,11 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
     }
 
     mCore->mBufferHasBeenQueued = false;
-    mCore->mDequeueBufferCannotBlock =  mCore->mConsumerControlledByApp &&
-            producerControlledByApp;
+    mCore->mDequeueBufferCannotBlock = false;
+    if (mDequeueTimeout < 0) {
+        mCore->mDequeueBufferCannotBlock =
+                mCore->mConsumerControlledByApp && producerControlledByApp;
+    }
     mCore->mAllowAllocation = true;
 
     return status;
@@ -1247,7 +1259,16 @@ status_t BufferQueueProducer::setSingleBufferMode(bool singleBufferMode) {
         mCore->mSingleBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
     }
     mCore->mSingleBufferMode = singleBufferMode;
+    return NO_ERROR;
+}
 
+status_t BufferQueueProducer::setDequeueTimeout(nsecs_t timeout) {
+    ATRACE_CALL();
+    BQ_LOGV("setDequeueTimeout: %" PRId64, timeout);
+
+    Mutex::Autolock lock(mCore->mMutex);
+    mDequeueTimeout = timeout;
+    mCore->mDequeueBufferCannotBlock = false;
     return NO_ERROR;
 }
 

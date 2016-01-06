@@ -135,6 +135,10 @@ status_t MonitoredProducer::setSingleBufferMode(bool singleBufferMode) {
     return mProducer->setSingleBufferMode(singleBufferMode);
 }
 
+status_t MonitoredProducer::setDequeueTimeout(nsecs_t timeout) {
+    return mProducer->setDequeueTimeout(timeout);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

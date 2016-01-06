@@ -120,7 +120,8 @@ private:
     virtual status_t setGenerationNumber(uint32_t generationNumber);
     virtual String8 getConsumerName() const override;
     virtual uint64_t getNextFrameNumber() const override;
-    virtual status_t setSingleBufferMode(bool singleBufferMode);
+    virtual status_t setSingleBufferMode(bool singleBufferMode) override;
+    virtual status_t setDequeueTimeout(nsecs_t timeout) override;
 
     //
     // Utility methods
