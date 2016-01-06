@@ -184,12 +184,35 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
     return NO_ERROR;
 }
 
-status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
+int BufferQueueProducer::getFreeBufferLocked() const {
+    if (mCore->mFreeBuffers.empty()) {
+        return BufferQueueCore::INVALID_BUFFER_SLOT;
+    }
+    auto slot = mCore->mFreeBuffers.front();
+    mCore->mFreeBuffers.pop_front();
+    return slot;
+}
+
+int BufferQueueProducer::getFreeSlotLocked(int maxBufferCount) const {
+    if (mCore->mFreeSlots.empty()) {
+        return BufferQueueCore::INVALID_BUFFER_SLOT;
+    }
+    auto slot = *(mCore->mFreeSlots.begin());
+    if (slot < maxBufferCount) {
+        mCore->mFreeSlots.erase(slot);
+        return slot;
+    }
+    return BufferQueueCore::INVALID_BUFFER_SLOT;
+}
+
+status_t BufferQueueProducer::waitForFreeSlotThenRelock(FreeSlotCaller caller,
         int* found, status_t* returnFlags) const {
+    auto callerString = (caller == FreeSlotCaller::Dequeue) ?
+            "dequeueBuffer" : "attachBuffer";
     bool tryAgain = true;
     while (tryAgain) {
         if (mCore->mIsAbandoned) {
-            BQ_LOGE("%s: BufferQueue has been abandoned", caller);
+            BQ_LOGE("%s: BufferQueue has been abandoned", callerString);
             return NO_INIT;
         }
 
@@ -221,7 +244,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
         if (mCore->mBufferHasBeenQueued &&
                 dequeuedCount >= mCore->mMaxDequeuedBufferCount) {
             BQ_LOGE("%s: attempting to exceed the max dequeued buffer count "
-                    "(%d)", caller, mCore->mMaxDequeuedBufferCount);
+                    "(%d)", callerString, mCore->mMaxDequeuedBufferCount);
             return INVALID_OPERATION;
         }
 
@@ -234,7 +257,7 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
         bool tooManyBuffers = mCore->mQueue.size()
                             > static_cast<size_t>(maxBufferCount);
         if (tooManyBuffers) {
-            BQ_LOGV("%s: queue size is %zu, waiting", caller,
+            BQ_LOGV("%s: queue size is %zu, waiting", callerString,
                     mCore->mQueue.size());
         } else {
             // If in single buffer mode and a shared buffer exists, always
@@ -242,16 +265,23 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(const char* caller,
             if (mCore->mSingleBufferMode && mCore->mSingleBufferSlot !=
                     BufferQueueCore::INVALID_BUFFER_SLOT) {
                 *found = mCore->mSingleBufferSlot;
-            } else if (!mCore->mFreeBuffers.empty()) {
-                auto slot = mCore->mFreeBuffers.begin();
-                *found = *slot;
-                mCore->mFreeBuffers.erase(slot);
-            } else if (mCore->mAllowAllocation && !mCore->mFreeSlots.empty()) {
-                auto slot = mCore->mFreeSlots.begin();
-                // Only return free slots up to the max buffer count
-                if (*slot < maxBufferCount) {
-                    *found = *slot;
-                    mCore->mFreeSlots.erase(slot);
+            } else {
+                if (caller == FreeSlotCaller::Dequeue) {
+                    // If we're calling this from dequeue, prefer free buffers
+                    auto slot = getFreeBufferLocked();
+                    if (slot != BufferQueueCore::INVALID_BUFFER_SLOT) {
+                        *found = slot;
+                    } else if (mCore->mAllowAllocation) {
+                        *found = getFreeSlotLocked(maxBufferCount);
+                    }
+                } else {
+                    // If we're calling this from attach, prefer free slots
+                    auto slot = getFreeSlotLocked(maxBufferCount);
+                    if (slot != BufferQueueCore::INVALID_BUFFER_SLOT) {
+                        *found = slot;
+                    } else {
+                        *found = getFreeBufferLocked();
+                    }
                 }
             }
         }
@@ -338,8 +368,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         int found = BufferItem::INVALID_BUFFER_SLOT;
         while (found == BufferItem::INVALID_BUFFER_SLOT) {
-            status_t status = waitForFreeSlotThenRelock("dequeueBuffer", &found,
-                    &returnFlags);
+            status_t status = waitForFreeSlotThenRelock(FreeSlotCaller::Dequeue,
+                    &found, &returnFlags);
             if (status != NO_ERROR) {
                 return status;
             }
@@ -614,7 +644,7 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
 
     status_t returnFlags = NO_ERROR;
     int found;
-    status_t status = waitForFreeSlotThenRelock("attachBuffer", &found,
+    status_t status = waitForFreeSlotThenRelock(FreeSlotCaller::Attach, &found,
             &returnFlags);
     if (status != NO_ERROR) {
         return status;
