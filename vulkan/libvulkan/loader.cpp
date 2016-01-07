@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//#define LOG_NDEBUG 0
+#define LOG_NDEBUG 0
 
 // module header
 #include "loader.h"
@@ -45,9 +45,6 @@ using namespace vulkan;
 static const uint32_t kMaxPhysicalDevices = 4;
 
 namespace {
-
-// Define Handle typedef to be void* as returned from dlopen.
-typedef void* SharedLibraryHandle;
 
 // These definitions are taken from the LunarG Vulkan Loader. They are used to
 // enforce compatability between the Loader and Layers.
@@ -124,16 +121,6 @@ typedef std::basic_string<char, std::char_traits<char>, CallbackAllocator<char>>
 
 // ----------------------------------------------------------------------------
 
-struct LayerData {
-    String path;
-    SharedLibraryHandle handle;
-    uint32_t ref_count;
-};
-
-typedef UnorderedMap<String, LayerData>::iterator LayerMapIterator;
-
-// ----------------------------------------------------------------------------
-
 VKAPI_ATTR void* DefaultAllocate(void*,
                                  size_t size,
                                  size_t alignment,
@@ -188,33 +175,35 @@ const VkAllocationCallbacks kDefaultAllocCallbacks = {
 };
 
 // ----------------------------------------------------------------------------
+// Global Data and Initialization
 
-hwvulkan_device_t* g_hwdevice;
+hwvulkan_device_t* g_hwdevice = nullptr;
+void LoadVulkanHAL() {
+    static const hwvulkan_module_t* module;
+    int result =
+        hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
+    if (result != 0) {
+        ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result), result);
+        return;
+    }
+    result = module->common.methods->open(
+        &module->common, HWVULKAN_DEVICE_0,
+        reinterpret_cast<hw_device_t**>(&g_hwdevice));
+    if (result != 0) {
+        ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
+              result);
+        module = nullptr;
+        return;
+    }
+}
+
 bool EnsureInitialized() {
     static std::once_flag once_flag;
-    static const hwvulkan_module_t* module;
-
     std::call_once(once_flag, []() {
-        int result;
-        result = hw_get_module("vulkan",
-                               reinterpret_cast<const hw_module_t**>(&module));
-        if (result != 0) {
-            ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result),
-                  result);
-            return;
-        }
-        result = module->common.methods->open(
-            &module->common, HWVULKAN_DEVICE_0,
-            reinterpret_cast<hw_device_t**>(&g_hwdevice));
-        if (result != 0) {
-            ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
-                  result);
-            module = nullptr;
-            return;
-        }
+        LoadVulkanHAL();
+        DiscoverLayers();
     });
-
-    return module != nullptr && g_hwdevice != nullptr;
+    return g_hwdevice != nullptr;
 }
 
 // -----------------------------------------------------------------------------
@@ -226,18 +215,16 @@ struct Instance {
           get_instance_proc_addr(nullptr),
           alloc(alloc_callbacks),
           num_physical_devices(0),
-          layers(CallbackAllocator<std::pair<String, LayerData>>(alloc)),
-          active_layers(CallbackAllocator<String>(alloc)),
+          active_layers(CallbackAllocator<LayerRef>(alloc)),
           message(VK_NULL_HANDLE) {
         memset(&dispatch, 0, sizeof(dispatch));
         memset(physical_devices, 0, sizeof(physical_devices));
-        pthread_mutex_init(&layer_lock, 0);
         drv.instance = VK_NULL_HANDLE;
         memset(&drv.dispatch, 0, sizeof(drv.dispatch));
         drv.num_physical_devices = 0;
     }
 
-    ~Instance() { pthread_mutex_destroy(&layer_lock); }
+    ~Instance() {}
 
     const InstanceDispatchTable* dispatch_ptr;
     const VkInstance handle;
@@ -252,11 +239,7 @@ struct Instance {
     uint32_t num_physical_devices;
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
 
-    pthread_mutex_t layer_lock;
-    // Map of layer names to layer data
-    UnorderedMap<String, LayerData> layers;
-    // Vector of layers active for this instance
-    Vector<LayerMapIterator> active_layers;
+    Vector<LayerRef> active_layers;
     VkDbgMsgCallback message;
 
     struct {
@@ -269,14 +252,13 @@ struct Instance {
 struct Device {
     Device(Instance* instance_)
         : instance(instance_),
-          active_layers(CallbackAllocator<LayerMapIterator>(instance->alloc)) {
+          active_layers(CallbackAllocator<LayerRef>(instance->alloc)) {
         memset(&dispatch, 0, sizeof(dispatch));
     }
     DeviceDispatchTable dispatch;
     Instance* instance;
     PFN_vkGetDeviceProcAddr get_device_proc_addr;
-    // Vector of layers active for this device
-    Vector<LayerMapIterator> active_layers;
+    Vector<LayerRef> active_layers;
 };
 
 template <typename THandle>
@@ -329,106 +311,16 @@ void DestroyDevice(Device* device) {
     alloc->pfnFree(alloc->pUserData, device);
 }
 
-void FindLayersInDirectory(Instance& instance, const String& dir_name) {
-    DIR* directory = opendir(dir_name.c_str());
-    if (!directory) {
-        int err = errno;
-        ALOGW_IF(err != ENOENT, "failed to open layer directory '%s': %s (%d)",
-                 dir_name.c_str(), strerror(err), err);
-        return;
-    }
-
-    Vector<VkLayerProperties> properties(
-        CallbackAllocator<VkLayerProperties>(instance.alloc));
-    struct dirent* entry;
-    while ((entry = readdir(directory))) {
-        size_t length = strlen(entry->d_name);
-        if (strncmp(entry->d_name, "libVKLayer", 10) != 0 ||
-            strncmp(entry->d_name + length - 3, ".so", 3) != 0)
-            continue;
-        // Open so
-        SharedLibraryHandle layer_handle =
-            dlopen((dir_name + entry->d_name).c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (!layer_handle) {
-            ALOGE("%s failed to load with error %s; Skipping", entry->d_name,
-                  dlerror());
-            continue;
-        }
-
-        // Get Layers in so
-        PFN_vkEnumerateInstanceLayerProperties get_layer_properties =
-            reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
-                dlsym(layer_handle, "vkEnumerateInstanceLayerProperties"));
-        if (!get_layer_properties) {
-            ALOGE(
-                "%s failed to find vkEnumerateInstanceLayerProperties with "
-                "error %s; Skipping",
-                entry->d_name, dlerror());
-            dlclose(layer_handle);
-            continue;
-        }
-        uint32_t count;
-        get_layer_properties(&count, nullptr);
-
-        properties.resize(count);
-        get_layer_properties(&count, &properties[0]);
-
-        // Add Layers to potential list
-        for (uint32_t i = 0; i < count; ++i) {
-            String layer_name(properties[i].layerName,
-                              CallbackAllocator<char>(instance.alloc));
-            LayerData layer_data = {dir_name + entry->d_name, 0, 0};
-            instance.layers.insert(std::make_pair(layer_name, layer_data));
-            ALOGV("Found layer %s", properties[i].layerName);
-        }
-        dlclose(layer_handle);
-    }
-
-    closedir(directory);
-}
-
 template <class TObject>
-void ActivateLayer(TObject* object, Instance* instance, const String& name) {
-    // If object has layer, do nothing
-    auto element = instance->layers.find(name);
-    if (element == instance->layers.end()) {
-        return;
-    }
+bool ActivateLayer(TObject* object, const char* name) {
+    LayerRef layer(GetLayerRef(name));
+    if (!layer)
+        return false;
     if (std::find(object->active_layers.begin(), object->active_layers.end(),
-                  element) != object->active_layers.end()) {
-        ALOGW("Layer %s already activated; skipping", name.c_str());
-        return;
-    }
-    // If layer is not open, open it
-    LayerData& layer_data = element->second;
-    pthread_mutex_lock(&instance->layer_lock);
-    if (layer_data.ref_count == 0) {
-        SharedLibraryHandle layer_handle =
-            dlopen(layer_data.path.c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (!layer_handle) {
-            pthread_mutex_unlock(&instance->layer_lock);
-            ALOGE("%s failed to load with error %s; Skipping",
-                  layer_data.path.c_str(), dlerror());
-            return;
-        }
-        layer_data.handle = layer_handle;
-    }
-    layer_data.ref_count++;
-    pthread_mutex_unlock(&instance->layer_lock);
-    ALOGV("Activating layer %s", name.c_str());
-    object->active_layers.push_back(element);
-}
-
-void DeactivateLayer(Instance& instance,
-                     Vector<LayerMapIterator>::iterator& element) {
-    LayerMapIterator& layer_map_data = *element;
-    LayerData& layer_data = layer_map_data->second;
-    pthread_mutex_lock(&instance.layer_lock);
-    layer_data.ref_count--;
-    if (!layer_data.ref_count) {
-        dlclose(layer_data.handle);
-    }
-    pthread_mutex_unlock(&instance.layer_lock);
+                  layer) == object->active_layers.end())
+        object->active_layers.push_back(std::move(layer));
+    ALOGV("activated layer '%s'", name);
+    return true;
 }
 
 struct InstanceNamesPair {
@@ -478,7 +370,7 @@ VkResult ActivateAllLayers(TInfo create_info,
         size_t end, start = 0;
         while ((end = layer_prop_str.find(':', start)) != std::string::npos) {
             layer_name = layer_prop_str.substr(start, end - start);
-            ActivateLayer(object, instance, layer_name);
+            ActivateLayer(object, layer_name.c_str());
             start = end + 1;
         }
         Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
@@ -487,23 +379,18 @@ VkResult ActivateAllLayers(TInfo create_info,
         property_list(SetLayerNamesFromProperty,
                       static_cast<void*>(&instance_names_pair));
         for (auto layer_name_element : layer_names) {
-            ActivateLayer(object, instance, layer_name_element);
+            ActivateLayer(object, layer_name_element.c_str());
         }
     }
     // Load app layers
     for (uint32_t i = 0; i < create_info->enabledLayerNameCount; ++i) {
-        String layer_name(create_info->ppEnabledLayerNames[i],
-                          string_allocator);
-        auto element = instance->layers.find(layer_name);
-        if (element == instance->layers.end()) {
+        if (!ActivateLayer(object, create_info->ppEnabledLayerNames[i])) {
             ALOGE("requested %s layer '%s' not present",
                   create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
                       ? "instance"
                       : "device",
-                  layer_name.c_str());
+                  create_info->ppEnabledLayerNames[i]);
             return VK_ERROR_LAYER_NOT_PRESENT;
-        } else {
-            ActivateLayer(object, instance, layer_name);
         }
     }
     return VK_SUCCESS;
@@ -736,22 +623,22 @@ void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
 
 VKAPI_ATTR
 VkResult EnumerateDeviceExtensionProperties_Bottom(
-    VkPhysicalDevice pdev,
-    const char* layer_name,
+    VkPhysicalDevice /*pdev*/,
+    const char* /*layer_name*/,
     uint32_t* properties_count,
-    VkExtensionProperties* properties) {
-    // TODO: what are we supposed to do with layer_name here?
-    return GetDispatchParent(pdev)
-        .drv.dispatch.EnumerateDeviceExtensionProperties(
-            pdev, layer_name, properties_count, properties);
+    VkExtensionProperties* /*properties*/) {
+    // TODO(jessehall): Implement me...
+    *properties_count = 0;
+    return VK_SUCCESS;
 }
 
 VKAPI_ATTR
-VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice pdev,
+VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice /*pdev*/,
                                                uint32_t* properties_count,
-                                               VkLayerProperties* properties) {
-    return GetDispatchParent(pdev).drv.dispatch.EnumerateDeviceLayerProperties(
-        pdev, properties_count, properties);
+                                               VkLayerProperties* /*properties*/) {
+    // TODO(jessehall): Implement me...
+    *properties_count = 0;
+    return VK_SUCCESS;
 }
 
 VKAPI_ATTR
@@ -825,20 +712,11 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
-        auto& name = device->active_layers[idx]->first;
-        auto& handle = device->active_layers[idx]->second.handle;
-        next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-            dlsym(handle, (name + "GetDeviceProcAddr").c_str()));
+        next_get_proc_addr = device->active_layers[idx].GetGetDeviceProcAddr();
         if (!next_get_proc_addr) {
+            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                dlsym(handle, "vkGetDeviceProcAddr"));
-            if (!next_get_proc_addr) {
-                ALOGE("Cannot find vkGetDeviceProcAddr for %s, error is %s",
-                      name.c_str(), dlerror());
-                next_object = next_element->next_element;
-                next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                    next_element->get_proc_addr);
-            }
+                next_element->get_proc_addr);
         }
     }
 
@@ -882,10 +760,7 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
                 vkGetInstanceProcAddr(vkinstance, "vkDbgDestroyMsgCallback"));
         DebugDestroyMessageCallback(vkinstance, instance.message);
     }
-    for (auto it = instance.active_layers.begin();
-         it != instance.active_layers.end(); ++it) {
-        DeactivateLayer(instance, it);
-    }
+    instance.active_layers.clear();
     const VkAllocationCallbacks* alloc = instance.alloc;
     instance.~Instance();
     alloc->pfnFree(alloc->pUserData, &instance);
@@ -925,30 +800,44 @@ PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice,
 // through a dispatch table.
 
 VkResult EnumerateInstanceExtensionProperties_Top(
-    const char* /*layer_name*/,
-    uint32_t* count,
-    VkExtensionProperties* /*properties*/) {
+    const char* layer_name,
+    uint32_t* properties_count,
+    VkExtensionProperties* properties) {
     if (!EnsureInitialized())
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    // TODO: not yet implemented
-    ALOGW("vkEnumerateInstanceExtensionProperties not implemented");
+    const VkExtensionProperties* extensions = nullptr;
+    uint32_t num_extensions = 0;
+    if (layer_name) {
+        GetLayerExtensions(layer_name, &extensions, &num_extensions);
+    } else {
+        static const VkExtensionProperties kInstanceExtensions[] =
+            {{VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_REVISION},
+             {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_REVISION}};
+        extensions = kInstanceExtensions;
+        num_extensions = sizeof(kInstanceExtensions) / sizeof(kInstanceExtensions[0]);
+        // TODO(jessehall): We need to also enumerate extensions supported by
+        // implicitly-enabled layers. Currently we don't have that list of
+        // layers until instance creation.
+    }
 
-    *count = 0;
-    return VK_SUCCESS;
+    if (!properties || *properties_count > num_extensions)
+        *properties_count = num_extensions;
+    if (properties)
+        std::copy(extensions, extensions + *properties_count, properties);
+    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
-VkResult EnumerateInstanceLayerProperties_Top(
-    uint32_t* count,
-    VkLayerProperties* /*properties*/) {
+VkResult EnumerateInstanceLayerProperties_Top(uint32_t* properties_count,
+                                              VkLayerProperties* properties) {
     if (!EnsureInitialized())
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    // TODO: not yet implemented
-    ALOGW("vkEnumerateInstanceLayerProperties not implemented");
-
-    *count = 0;
-    return VK_SUCCESS;
+    uint32_t layer_count =
+        EnumerateLayers(properties ? *properties_count : 0, properties);
+    if (!properties || *properties_count > layer_count)
+        *properties_count = layer_count;
+    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
@@ -971,16 +860,6 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     if (!instance_mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Instance* instance = new (instance_mem) Instance(allocator);
-
-    // Scan layers
-    CallbackAllocator<char> string_allocator(instance->alloc);
-    String dir_name("/data/local/debug/vulkan/", string_allocator);
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
-        FindLayersInDirectory(*instance, dir_name);
-    const std::string& path = LoaderData::GetInstance().layer_path;
-    dir_name.assign(path.c_str(), path.size());
-    dir_name.append("/");
-    FindLayersInDirectory(*instance, dir_name);
 
     result = ActivateAllLayers(create_info, instance, instance);
     if (result != VK_SUCCESS) {
@@ -1005,21 +884,12 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
-        auto& name = instance->active_layers[idx]->first;
-        auto& handle = instance->active_layers[idx]->second.handle;
-        next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-            dlsym(handle, (name + "GetInstanceProcAddr").c_str()));
+        next_get_proc_addr =
+            instance->active_layers[idx].GetGetInstanceProcAddr();
         if (!next_get_proc_addr) {
+            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                dlsym(handle, "vkGetInstanceProcAddr"));
-            if (!next_get_proc_addr) {
-                ALOGE("Cannot find vkGetInstanceProcAddr for %s, error is %s",
-                      name.c_str(), dlerror());
-                next_object = next_element->next_element;
-                next_get_proc_addr =
-                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                        next_element->get_proc_addr);
-            }
+                next_element->get_proc_addr);
         }
     }
     instance->get_instance_proc_addr = next_get_proc_addr;
@@ -1167,12 +1037,6 @@ void DestroyDevice_Top(VkDevice vkdevice,
     if (!vkdevice)
         return;
     Device& device = GetDispatchParent(vkdevice);
-    // TODO(jessehall): This seems very wrong. We might close a layer library
-    // right before we call DestroyDevice in it.
-    for (auto it = device.active_layers.begin();
-         it != device.active_layers.end(); ++it) {
-        DeactivateLayer(*device.instance, it);
-    }
     device.dispatch.DestroyDevice(vkdevice, device.instance->alloc);
     DestroyDevice(&device);
 }

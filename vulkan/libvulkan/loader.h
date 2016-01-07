@@ -117,6 +117,35 @@ VKAPI_ATTR VkResult AcquireNextImageKHR_Bottom(VkDevice device, VkSwapchainKHR s
 VKAPI_ATTR VkResult QueuePresentKHR_Bottom(VkQueue queue, const VkPresentInfoKHR* present_info);
 // clang-format on
 
+// -----------------------------------------------------------------------------
+// layers_extensions.cpp
+
+struct Layer;
+class LayerRef {
+   public:
+    LayerRef(Layer* layer);
+    LayerRef(LayerRef&& other);
+    ~LayerRef();
+    LayerRef(const LayerRef&) = delete;
+    LayerRef& operator=(const LayerRef&) = delete;
+
+    // provides bool-like behavior
+    operator const Layer*() const { return layer_; }
+
+    PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr() const;
+    PFN_vkGetDeviceProcAddr GetGetDeviceProcAddr() const;
+
+   private:
+    Layer* layer_;
+};
+
+void DiscoverLayers();
+uint32_t EnumerateLayers(uint32_t count, VkLayerProperties* properties);
+void GetLayerExtensions(const char* name,
+                        const VkExtensionProperties** properties,
+                        uint32_t* count);
+LayerRef GetLayerRef(const char* name);
+
 }  // namespace vulkan
 
 #endif  // LIBVULKAN_LOADER_H
