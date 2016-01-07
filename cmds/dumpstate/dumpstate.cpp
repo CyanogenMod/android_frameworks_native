@@ -765,7 +765,8 @@ static bool finish_zip_file(const std::string& bugreport_name, const std::string
 }
 
 static std::string SHA256_file_hash(std::string filepath) {
-    ScopedFd fd(TEMP_FAILURE_RETRY(open(filepath.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
+    ScopedFd fd(TEMP_FAILURE_RETRY(open(filepath.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC
+            | O_NOFOLLOW)));
     if (fd.get() == -1) {
         ALOGE("open(%s): %s\n", filepath.c_str(), strerror(errno));
         return NULL;
@@ -790,8 +791,8 @@ static std::string SHA256_file_hash(std::string filepath) {
     uint8_t hash[SHA256_DIGEST_SIZE];
     memcpy(hash, SHA256_final(&ctx), SHA256_DIGEST_SIZE);
     char hash_buffer[SHA256_DIGEST_SIZE * 2 + 1];
-    for(int i = 0; i < SHA256_DIGEST_SIZE; i++) {
-        snprintf(hash_buffer + (i * 2), sizeof(hash_buffer), "%02x", hash[i]);
+    for(size_t i = 0; i < SHA256_DIGEST_SIZE; i++) {
+        sprintf(hash_buffer + (i * 2), "%02x", hash[i]);
     }
     hash_buffer[sizeof(hash_buffer) - 1] = 0;
     return std::string(hash_buffer);
