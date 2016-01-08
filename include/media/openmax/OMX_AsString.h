@@ -714,8 +714,6 @@ inline static const char *asString(OMX_VIDEO_CODINGTYPE i, const char *def = "??
         case OMX_VIDEO_CodingVP8:        return "VP8";
         case OMX_VIDEO_CodingVP9:        return "VP9";
         case OMX_VIDEO_CodingHEVC:       return "HEVC";
-        case OMX_VIDEO_CodingDolbyAVC:   return "DolbyAVC";
-        case OMX_VIDEO_CodingDolbyHEVC:  return "DolbyHEVC";
         default:                         return def;
     }
 }
