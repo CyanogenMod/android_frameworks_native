@@ -174,14 +174,15 @@ struct BufferState {
 struct BufferSlot {
 
     BufferSlot()
-    : mEglDisplay(EGL_NO_DISPLAY),
+    : mGraphicBuffer(nullptr),
+      mEglDisplay(EGL_NO_DISPLAY),
       mBufferState(),
       mRequestBufferCalled(false),
       mFrameNumber(0),
       mEglFence(EGL_NO_SYNC_KHR),
+      mFence(Fence::NO_FENCE),
       mAcquireCalled(false),
-      mNeedsCleanupOnRelease(false),
-      mAttachedByConsumer(false) {
+      mNeedsReallocation(false) {
     }
 
     // mGraphicBuffer points to the buffer allocated for this slot or is NULL
@@ -190,8 +191,6 @@ struct BufferSlot {
 
     // mEglDisplay is the EGLDisplay used to create EGLSyncKHR objects.
     EGLDisplay mEglDisplay;
-
-    static const char* bufferStateName(BufferState state);
 
     // mBufferState is the current state of this buffer slot.
     BufferState mBufferState;
@@ -227,15 +226,10 @@ struct BufferSlot {
     // Indicates whether this buffer has been seen by a consumer yet
     bool mAcquireCalled;
 
-    // Indicates whether this buffer needs to be cleaned up by the
-    // consumer.  This is set when a buffer in ACQUIRED state is freed.
-    // It causes releaseBuffer to return STALE_BUFFER_SLOT.
-    bool mNeedsCleanupOnRelease;
-
-    // Indicates whether the buffer was attached on the consumer side.
-    // If so, it needs to set the BUFFER_NEEDS_REALLOCATION flag when dequeued
-    // to prevent the producer from using a stale cached buffer.
-    bool mAttachedByConsumer;
+    // Indicates whether the buffer was re-allocated without notifying the
+    // producer. If so, it needs to set the BUFFER_NEEDS_REALLOCATION flag when
+    // dequeued to prevent the producer from using a stale cached buffer.
+    bool mNeedsReallocation;
 };
 
 } // namespace android

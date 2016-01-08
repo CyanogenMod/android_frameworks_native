@@ -199,7 +199,9 @@ public:
     // cannot be less than maxAcquiredBufferCount.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * BAD_VALUE - bufferCount was out of range (see above).
+    // * BAD_VALUE - one of the below conditions occurred:
+    //             * bufferCount was out of range (see above).
+    //             * failure to adjust the number of available slots.
     // * INVALID_OPERATION - attempting to call this after a producer connected.
     virtual status_t setMaxBufferCount(int bufferCount) = 0;
 
@@ -212,7 +214,9 @@ public:
     // to be exceeded.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
-    // * BAD_VALUE - maxAcquiredBuffers was out of range (see above).
+    // * BAD_VALUE - one of the below conditions occurred:
+    //             * maxAcquiredBuffers was out of range (see above).
+    //             * failure to adjust the number of available slots.
     // * INVALID_OPERATION - attempting to call this after a producer connected.
     virtual status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers) = 0;
 

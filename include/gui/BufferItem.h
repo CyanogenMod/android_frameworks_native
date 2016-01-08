@@ -125,6 +125,10 @@ class BufferItem : public Flattenable<BufferItem> {
     // Indicates that this buffer was queued by the producer. When in single
     // buffer mode acquire() can return a BufferItem that wasn't in the queue.
     bool mQueuedBuffer;
+
+    // Indicates that this BufferItem contains a stale buffer which has already
+    // been released by the BufferQueue.
+    bool mIsStale;
 };
 
 } // namespace android

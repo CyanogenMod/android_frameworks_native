@@ -187,9 +187,9 @@ private:
     // BufferQueueCore::INVALID_BUFFER_SLOT otherwise
     int getFreeBufferLocked() const;
 
-    // Returns the next free slot if one less than or equal to maxBufferCount
-    // is available or BufferQueueCore::INVALID_BUFFER_SLOT otherwise
-    int getFreeSlotLocked(int maxBufferCount) const;
+    // Returns the next free slot if one is available or
+    // BufferQueueCore::INVALID_BUFFER_SLOT otherwise
+    int getFreeSlotLocked() const;
 
     // waitForFreeSlotThenRelock finds the oldest slot in the FREE state. It may
     // block if there are no available slots and we are not in non-blocking
@@ -200,8 +200,7 @@ private:
         Dequeue,
         Attach,
     };
-    status_t waitForFreeSlotThenRelock(FreeSlotCaller caller, int* found,
-            status_t* returnFlags) const;
+    status_t waitForFreeSlotThenRelock(FreeSlotCaller caller, int* found) const;
 
     sp<BufferQueueCore> mCore;
 

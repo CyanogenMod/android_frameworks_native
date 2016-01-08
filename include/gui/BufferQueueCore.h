@@ -105,17 +105,23 @@ private:
     // connected, mDequeueCondition must be broadcast.
     int getMaxBufferCountLocked() const;
 
-    // freeBufferLocked frees the GraphicBuffer and sync resources for the
+    // This performs the same computation but uses the given arguments instead
+    // of the member variables for mMaxBufferCount, mAsyncMode, and
+    // mDequeueBufferCannotBlock.
+    int getMaxBufferCountLocked(bool asyncMode,
+            bool dequeueBufferCannotBlock, int maxBufferCount) const;
+
+    // clearBufferSlotLocked frees the GraphicBuffer and sync resources for the
     // given slot.
-    void freeBufferLocked(int slot, bool validate = true);
+    void clearBufferSlotLocked(int slot);
 
     // freeAllBuffersLocked frees the GraphicBuffer and sync resources for
     // all slots, even if they're currently dequeued, queued, or acquired.
     void freeAllBuffersLocked();
 
-    // stillTracking returns true iff the buffer item is still being tracked
-    // in one of the slots.
-    bool stillTracking(const BufferItem* item) const;
+    // If delta is positive, makes more slots available. If negative, takes
+    // away slots. Returns false if the request can't be met.
+    bool adjustAvailableSlotsLocked(int delta);
 
     // waitWhileAllocatingLocked blocks until mIsAllocating is false.
     void waitWhileAllocatingLocked() const;
@@ -179,12 +185,19 @@ private:
     Fifo mQueue;
 
     // mFreeSlots contains all of the slots which are FREE and do not currently
-    // have a buffer attached
+    // have a buffer attached.
     std::set<int> mFreeSlots;
 
     // mFreeBuffers contains all of the slots which are FREE and currently have
-    // a buffer attached
+    // a buffer attached.
     std::list<int> mFreeBuffers;
+
+    // mUnusedSlots contains all slots that are currently unused. They should be
+    // free and not have a buffer attached.
+    std::list<int> mUnusedSlots;
+
+    // mActiveBuffers contains all slots which have a non-FREE buffer attached.
+    std::set<int> mActiveBuffers;
 
     // mDequeueCondition is a condition variable used for dequeueBuffer in
     // synchronous mode.

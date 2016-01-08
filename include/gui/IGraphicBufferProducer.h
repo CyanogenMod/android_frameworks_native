@@ -101,8 +101,9 @@ public:
     // * NO_INIT - the buffer queue has been abandoned.
     // * BAD_VALUE - one of the below conditions occurred:
     //     * bufferCount was out of range (see above)
-    //     * client has one or more buffers dequeued
+    //     * client has too many buffers dequeued
     //     * this call would cause the maxBufferCount value to be exceeded
+    //     * failure to adjust the number of available slots.
     virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers) = 0;
 
     // Set the async flag if the producer intends to asynchronously queue
@@ -115,8 +116,10 @@ public:
     //
     // Return of a value other than NO_ERROR means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
-    // * BAD_VALUE - this call would cause the maxBufferCount value to be
+    // * BAD_VALUE - one of the following has occurred:
+    //             * this call would cause the maxBufferCount value to be
     //               exceeded
+    //             * failure to adjust the number of available slots.
     virtual status_t setAsyncMode(bool async) = 0;
 
     // dequeueBuffer requests a new buffer slot for the client to use. Ownership
@@ -436,6 +439,9 @@ public:
     //             * the producer is already connected
     //             * api was out of range (see above).
     //             * output was NULL.
+    //             * Failure to adjust the number of available slots. This can
+    //               happen because of trying to allocate/deallocate the async
+    //               buffer in response to the value of producerControlledByApp.
     // * DEAD_OBJECT - the token is hosted by an already-dead process
     //
     // Additional negative errors may be returned by the internals, they
@@ -534,6 +540,11 @@ public:
     // timeout of -1. If set (to a value other than -1), this will disable
     // non-blocking mode and its corresponding spare buffer (which is used to
     // ensure a buffer is always available).
+    //
+    // Return of a value other than NO_ERROR means an error has occurred:
+    // * BAD_VALUE - Failure to adjust the number of available slots. This can
+    //               happen because of trying to allocate/deallocate the async
+    //               buffer.
     virtual status_t setDequeueTimeout(nsecs_t timeout) = 0;
 };
 
