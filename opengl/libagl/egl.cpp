@@ -32,6 +32,7 @@
 #include <utils/threads.h>
 #include <ui/ANativeObjectBase.h>
 #include <ui/Fence.h>
+#include <ui/GraphicBufferMapper.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -242,7 +243,6 @@ private:
     ANativeWindow*   nativeWindow;
     ANativeWindowBuffer*   buffer;
     ANativeWindowBuffer*   previousBuffer;
-    gralloc_module_t const*    module;
     int width;
     int height;
     void* bits;
@@ -341,16 +341,12 @@ egl_window_surface_v2_t::egl_window_surface_v2_t(EGLDisplay dpy,
         EGLConfig config,
         int32_t depthFormat,
         ANativeWindow* window)
-    : egl_surface_t(dpy, config, depthFormat), 
-    nativeWindow(window), buffer(0), previousBuffer(0), module(0),
-    bits(NULL)
+    : egl_surface_t(dpy, config, depthFormat),
+    nativeWindow(window), buffer(0), previousBuffer(0), bits(NULL)
 {
-    hw_module_t const* pModule;
-    hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &pModule);
-    module = reinterpret_cast<gralloc_module_t const*>(pModule);
 
     pixelFormatTable = gglGetPixelFormatTable();
-    
+
     // keep a reference on the window
     nativeWindow->common.incRef(&nativeWindow->common);
     nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, &width);
@@ -440,22 +436,16 @@ void egl_window_surface_v2_t::disconnect()
 status_t egl_window_surface_v2_t::lock(
         ANativeWindowBuffer* buf, int usage, void** vaddr)
 {
-    int err;
-
-    err = module->lock(module, buf->handle,
-            usage, 0, 0, buf->width, buf->height, vaddr);
-
-    return err;
+    auto& mapper = GraphicBufferMapper::get();
+    return mapper.lock(buf->handle, usage,
+            android::Rect(buf->width, buf->height), vaddr);
 }
 
 status_t egl_window_surface_v2_t::unlock(ANativeWindowBuffer* buf)
 {
     if (!buf) return BAD_VALUE;
-    int err = NO_ERROR;
-
-    err = module->unlock(module, buf->handle);
-
-    return err;
+    auto& mapper = GraphicBufferMapper::get();
+    return mapper.unlock(buf->handle);
 }
 
 void egl_window_surface_v2_t::copyBlt(

@@ -253,13 +253,13 @@ void matrixf_t::multiply(matrixf_t& r, const matrixf_t& lhs, const matrixf_t& rh
 {
     GLfloat const* const m = lhs.m;
     for (int i=0 ; i<4 ; i++) {
-        register const float rhs_i0 = rhs.m[ I(i,0) ];
-        register float ri0 = m[ I(0,0) ] * rhs_i0;
-        register float ri1 = m[ I(0,1) ] * rhs_i0;
-        register float ri2 = m[ I(0,2) ] * rhs_i0;
-        register float ri3 = m[ I(0,3) ] * rhs_i0;
+        const float rhs_i0 = rhs.m[ I(i,0) ];
+        float ri0 = m[ I(0,0) ] * rhs_i0;
+        float ri1 = m[ I(0,1) ] * rhs_i0;
+        float ri2 = m[ I(0,2) ] * rhs_i0;
+        float ri3 = m[ I(0,3) ] * rhs_i0;
         for (int j=1 ; j<4 ; j++) {
-            register const float rhs_ij = rhs.m[ I(i,j) ];
+            const float rhs_ij = rhs.m[ I(i,j) ];
             ri0 += m[ I(j,0) ] * rhs_ij;
             ri1 += m[ I(j,1) ] * rhs_ij;
             ri2 += m[ I(j,2) ] * rhs_ij;
