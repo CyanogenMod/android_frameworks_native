@@ -39,13 +39,8 @@ public:
 
     inline Rect() : Rect(INVALID_RECT) {}
 
-    inline Rect(int32_t w, int32_t h) {
-        left = top = 0;
-        right = w;
-        bottom = h;
-    }
-
-    inline Rect(uint32_t w, uint32_t h) {
+    template <typename T>
+    inline Rect(T w, T h) {
         if (w > INT32_MAX) {
             ALOG(LOG_WARN, "Rect",
                     "Width %u too large for Rect class, clamping", w);
@@ -57,8 +52,8 @@ public:
             h = INT32_MAX;
         }
         left = top = 0;
-        right = w;
-        bottom = h;
+        right = static_cast<int32_t>(w);
+        bottom = static_cast<int32_t>(h);
     }
 
     inline Rect(int32_t l, int32_t t, int32_t r, int32_t b) {
