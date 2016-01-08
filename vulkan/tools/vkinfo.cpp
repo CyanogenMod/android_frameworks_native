@@ -31,6 +31,9 @@ struct GpuInfo {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceMemoryProperties memory;
     std::vector<VkQueueFamilyProperties> queue_families;
+    std::vector<VkExtensionProperties> extensions;
+    std::vector<VkLayerProperties> layers;
+    std::vector<std::vector<VkExtensionProperties>> layer_extensions;
 };
 struct VulkanInfo {
     std::vector<VkExtensionProperties> extensions;
@@ -82,6 +85,24 @@ void EnumerateInstanceExtensions(
     } while (result == VK_INCOMPLETE);
     if (result != VK_SUCCESS)
         die("vkEnumerateInstanceExtensionProperties (data)", result);
+}
+
+void EnumerateDeviceExtensions(VkPhysicalDevice gpu,
+                               const char* layer_name,
+                               std::vector<VkExtensionProperties>* extensions) {
+    VkResult result;
+    uint32_t count;
+    result =
+        vkEnumerateDeviceExtensionProperties(gpu, layer_name, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceExtensionProperties (count)", result);
+    do {
+        extensions->resize(count);
+        result = vkEnumerateDeviceExtensionProperties(gpu, layer_name, &count,
+                                                      extensions->data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceExtensionProperties (data)", result);
 }
 
 void GatherInfo(VulkanInfo* info) {
@@ -138,6 +159,24 @@ void GatherInfo(VulkanInfo* info) {
         gpu_info.queue_families.resize(count);
         vkGetPhysicalDeviceQueueFamilyProperties(
             gpu, &count, gpu_info.queue_families.data());
+
+        result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
+        if (result != VK_SUCCESS)
+            die("vkEnumerateDeviceLayerProperties (count)", result);
+        do {
+            gpu_info.layers.resize(count);
+            result = vkEnumerateDeviceLayerProperties(gpu, &count,
+                                                      gpu_info.layers.data());
+        } while (result == VK_INCOMPLETE);
+        if (result != VK_SUCCESS)
+            die("vkEnumerateDeviceLayerProperties (data)", result);
+        gpu_info.layer_extensions.resize(gpu_info.layers.size());
+
+        EnumerateDeviceExtensions(gpu, nullptr, &gpu_info.extensions);
+        for (size_t i = 0; i < gpu_info.layers.size(); i++) {
+            EnumerateDeviceExtensions(gpu, gpu_info.layers[i].layerName,
+                                      &gpu_info.layer_extensions[i]);
+        }
     }
 
     vkDestroyInstance(instance, nullptr);
@@ -246,6 +285,27 @@ void PrintGpuInfo(const GpuInfo& info) {
                qprops.queueCount, strbuf.str().c_str(),
                qprops.timestampValidBits);
         strbuf.str(std::string());
+
+        if (!info.extensions.empty()) {
+            printf("    Extensions [%u]:\n", info.extensions.size());
+            PrintExtensions(info.extensions, "    ");
+        }
+        if (!info.layers.empty()) {
+            printf("    Layers [%u]:\n", info.layers.size());
+            for (size_t i = 0; i < info.layers.size(); i++) {
+                const auto& layer = info.layers[i];
+                printf("    - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
+                       ExtractMajorVersion(layer.specVersion),
+                       ExtractMinorVersion(layer.specVersion),
+                       ExtractPatchVersion(layer.specVersion),
+                       layer.implementationVersion, layer.description);
+                if (!info.layer_extensions[i].empty()) {
+                    printf("       Extensions [%zu]:\n",
+                           info.layer_extensions.size());
+                    PrintExtensions(info.layer_extensions[i], "       ");
+                }
+            }
+        }
     }
 }
 
