@@ -483,8 +483,7 @@ void SurfaceFlinger::init() {
 
             sp<IGraphicBufferProducer> producer;
             sp<IGraphicBufferConsumer> consumer;
-            BufferQueue::createBufferQueue(&producer, &consumer,
-                    new GraphicBufferAlloc());
+            BufferQueue::createBufferQueue(&producer, &consumer);
 
             sp<FramebufferSurface> fbs = new FramebufferSurface(*mHwc, i,
                     consumer);
@@ -1436,8 +1435,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                     sp<IGraphicBufferProducer> producer;
                     sp<IGraphicBufferProducer> bqProducer;
                     sp<IGraphicBufferConsumer> bqConsumer;
-                    BufferQueue::createBufferQueue(&bqProducer, &bqConsumer,
-                            new GraphicBufferAlloc());
+                    BufferQueue::createBufferQueue(&bqProducer, &bqConsumer);
 
                     int32_t hwcDisplayId = -1;
                     if (state.isVirtualDisplay()) {
