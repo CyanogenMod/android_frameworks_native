@@ -733,7 +733,7 @@ asciidoc.install(2);
 <body class="book">
 <div id="header">
 <h1>Vulkan on Android Implementor&#8217;s Guide</h1>
-<span id="revnumber">version 3</span>
+<span id="revnumber">version 5</span>
 <div id="toc">
   <div id="toctitle">Table of Contents</div>
   <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
@@ -797,7 +797,7 @@ Injected layers, like framerate, social network, or game launcher overlays, whic
 <div class="paragraph"><p>The <span class="monospaced">vk_wsi_swapchin</span> and <span class="monospaced">vk_wsi_device_swapchain</span> extensions will primarily be implemented by the platform and live in <span class="monospaced">libvulkan.so</span>. The <span class="monospaced">VkSwapchain</span> object and all interaction with <span class="monospaced">ANativeWindow</span> will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver&#8217;s <span class="monospaced">vkGetDeviceProcAddr</span> functions, after passing through any enabled layers.</p></div>
 <div class="paragraph"><p>Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.6
+<div class="content"><!-- Generator: GNU source-highlight 3.1.8
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -810,7 +810,7 @@ http://www.gnu.org/software/src-highlite -->
 <div class="paragraph"><p>The <span class="monospaced">format</span> and <span class="monospaced">imageUsage</span> parameters are taken from the <span class="monospaced">VkSwapchainCreateInfoKHR</span> structure. The driver should fill <span class="monospaced">*grallocUsage</span> with the gralloc usage flags it requires for that format and usage. These will be combined with the usage flags requested by the swapchain consumer when allocating buffers.</p></div>
 <div class="paragraph"><p><span class="monospaced">VkNativeBufferANDROID</span> is a <span class="monospaced">vkCreateImage</span> extension structure for creating an image backed by a gralloc buffer. This structure is provided to <span class="monospaced">vkCreateImage</span> in the <span class="monospaced">VkImageCreateInfo</span> structure chain. Calls to <span class="monospaced">vkCreateImage</span> with this structure will happen during the first call to <span class="monospaced">vkGetSwapChainInfoWSI(.. VK_SWAP_CHAIN_INFO_TYPE_IMAGES_WSI ..)</span>. The WSI implementation will allocate the number of native buffers requested for the swapchain, then create a <span class="monospaced">VkImage</span> for each one.</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.6
+<div class="content"><!-- Generator: GNU source-highlight 3.1.8
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -847,7 +847,7 @@ http://www.gnu.org/software/src-highlite -->
 externally-signalled native fence into both an existing VkSemaphore object
 and an existing VkFence object:</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.6
+<div class="content"><!-- Generator: GNU source-highlight 3.1.8
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
@@ -875,16 +875,18 @@ neither a semaphore or fence object is provided, or even if
 is as if the native fence was already signalled.</p></div>
 <div class="paragraph"><p><span class="monospaced">vkQueueSignalReleaseImageANDROID</span> prepares a swapchain image for external use, and creates a native fence and schedules it to be signalled when prior work on the queue has completed.</p></div>
 <div class="listingblock">
-<div class="content"><!-- Generator: GNU source-highlight 3.1.6
+<div class="content"><!-- Generator: GNU source-highlight 3.1.8
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt>VkResult <span style="color: #008080">VKAPI</span> <span style="font-weight: bold"><span style="color: #000000">vkQueueSignalReleaseImageANDROID</span></span><span style="color: #990000">(</span>
     <span style="color: #008080">VkQueue</span>             queue<span style="color: #990000">,</span>
+    <span style="color: #008080">uint32_t</span>            waitSemaphoreCount<span style="color: #990000">,</span>
+    <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> VkSemaphore<span style="color: #990000">*</span>  pWaitSemaphores<span style="color: #990000">,</span>
     <span style="color: #008080">VkImage</span>             image<span style="color: #990000">,</span>
     <span style="color: #009900">int</span><span style="color: #990000">*</span>                pNativeFenceFd
 <span style="color: #990000">);</span></tt></pre></div></div>
-<div class="paragraph"><p>This will be called during <span class="monospaced">vkQueuePresentWSI</span> on the provided queue. Effects are similar to <span class="monospaced">vkQueueSignalSemaphore</span>, except with a native fence instead of a semaphore. Unlike <span class="monospaced">vkQueueSignalSemaphore</span>, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set <span class="monospaced">*pNativeFenceFd</span> to -1. The file descriptor returned in <span class="monospaced">*pNativeFenceFd</span> is owned and will be closed by the caller. Many drivers will be able to ignore the <span class="monospaced">image</span> parameter, but some may need to prepare CPU-side data structures associated with a gralloc buffer for use by external image consumers. Preparing buffer contents for use by external consumers should have been done asynchronously as part of transitioning the image to <span class="monospaced">VK_IMAGE_LAYOUT_PRESENT_SRC_KHR</span>.</p></div>
+<div class="paragraph"><p>This will be called during <span class="monospaced">vkQueuePresentWSI</span> on the provided queue. Effects are similar to <span class="monospaced">vkQueueSignalSemaphore</span>, except with a native fence instead of a semaphore. The native fence must: not signal until the <span class="monospaced">waitSemaphoreCount</span> semaphores in <span class="monospaced">pWaitSemaphores</span> have signaled. Unlike <span class="monospaced">vkQueueSignalSemaphore</span>, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set <span class="monospaced">*pNativeFenceFd</span> to -1. The file descriptor returned in <span class="monospaced">*pNativeFenceFd</span> is owned and will be closed by the caller. Many drivers will be able to ignore the <span class="monospaced">image</span> parameter, but some may need to prepare CPU-side data structures associated with a gralloc buffer for use by external image consumers. Preparing buffer contents for use by external consumers should have been done asynchronously as part of transitioning the image to <span class="monospaced">VK_IMAGE_LAYOUT_PRESENT_SRC_KHR</span>.</p></div>
 </div>
 </div>
 <div class="sect1">
@@ -955,6 +957,18 @@ Added a VkFence parameter to vkAcquireImageANDROID corresponding to the
 </li>
 </ul></div>
 </li>
+<li>
+<p>
+<strong>2016-01-08</strong>
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+Added waitSemaphoreCount and pWaitSemaphores parameters to vkQueueSignalReleaseImageANDROID.
+</p>
+</li>
+</ul></div>
+</li>
 </ol></div>
 </div>
 </div>
@@ -962,8 +976,8 @@ Added a VkFence parameter to vkAcquireImageANDROID corresponding to the
 <div id="footnotes"><hr></div>
 <div id="footer">
 <div id="footer-text">
-Version 3<br>
-Last updated 2015-12-03 15:47:36 PST
+Version 5<br>
+Last updated 2016-01-08 22:43:07 PST
 </div>
 </div>
 </body>

@@ -725,7 +725,11 @@ VkResult AcquireImageANDROID(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult QueueSignalReleaseImageANDROID(VkQueue, VkImage, int* fence) {
+VkResult QueueSignalReleaseImageANDROID(VkQueue,
+                                        uint32_t,
+                                        const VkSemaphore*,
+                                        VkImage,
+                                        int* fence) {
     *fence = -1;
     return VK_SUCCESS;
 }

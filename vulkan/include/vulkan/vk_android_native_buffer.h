@@ -27,7 +27,7 @@ extern "C" {
 #define VK_ANDROID_native_buffer 1
 
 #define VK_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER 11
-#define VK_ANDROID_NATIVE_BUFFER_REVISION         4
+#define VK_ANDROID_NATIVE_BUFFER_SPEC_VERSION     5
 #define VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME   "VK_ANDROID_native_buffer"
 
 #define VK_ANDROID_NATIVE_BUFFER_ENUM(type,id)    ((type)(1000000000 + (1000 * (VK_ANDROID_NATIVE_BUFFER_EXTENSION_NUMBER - 1)) + (id)))
@@ -48,11 +48,7 @@ typedef struct {
 
 typedef VkResult (VKAPI_PTR *PFN_vkGetSwapchainGrallocUsageANDROID)(VkDevice device, VkFormat format, VkImageUsageFlags imageUsage, int* grallocUsage);
 typedef VkResult (VKAPI_PTR *PFN_vkAcquireImageANDROID)(VkDevice device, VkImage image, int nativeFenceFd, VkSemaphore semaphore, VkFence fence);
-typedef VkResult (VKAPI_PTR *PFN_vkQueueSignalReleaseImageANDROID)(VkQueue queue, VkImage image, int* pNativeFenceFd);
-// -- DEPRECATED --
-typedef VkResult (VKAPI_PTR *PFN_vkImportNativeFenceANDROID)(VkDevice device, VkSemaphore semaphore, int nativeFenceFd);
-typedef VkResult (VKAPI_PTR *PFN_vkQueueSignalNativeFenceANDROID)(VkQueue queue, int* pNativeFenceFd);
-// ----------------
+typedef VkResult (VKAPI_PTR *PFN_vkQueueSignalReleaseImageANDROID)(VkQueue queue, uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, VkImage image, int* pNativeFenceFd);
 
 #ifdef VK_PROTOTYPES
 VKAPI_ATTR VkResult VKAPI_CALL vkGetSwapchainGrallocUsageANDROID(
@@ -70,6 +66,8 @@ VKAPI_ATTR VkResult VKAPI_CALL vkAcquireImageANDROID(
 );
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueSignalReleaseImageANDROID(
     VkQueue             queue,
+    uint32_t            waitSemaphoreCount,
+    const VkSemaphore*  pWaitSemaphores,
     VkImage             image,
     int*                pNativeFenceFd
 );

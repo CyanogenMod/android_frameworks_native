@@ -643,8 +643,9 @@ VkResult QueuePresentKHR_Bottom(VkQueue queue,
         int err;
 
         int fence = -1;
-        result =
-            dispatch.QueueSignalReleaseImageANDROID(queue, img.image, &fence);
+        result = dispatch.QueueSignalReleaseImageANDROID(
+            queue, present_info->waitSemaphoreCount,
+            present_info->pWaitSemaphores, img.image, &fence);
         if (result != VK_SUCCESS) {
             ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
             if (present_info->pResults)
