@@ -226,7 +226,8 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    capabilities->currentExtent = VkExtent2D{width, height};
+    capabilities->currentExtent =
+        VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
     // TODO(jessehall): Figure out what the min/max values should be.
     capabilities->minImageCount = 2;
@@ -341,9 +342,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
     Surface& surface = *SurfaceFromHandle(create_info->surface);
     const DriverDispatchTable& dispatch = GetDriverDispatch(device);
 
-    err = native_window_set_buffers_dimensions(surface.window.get(),
-                                               create_info->imageExtent.width,
-                                               create_info->imageExtent.height);
+    err = native_window_set_buffers_dimensions(
+        surface.window.get(), static_cast<int>(create_info->imageExtent.width),
+        static_cast<int>(create_info->imageExtent.height));
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
@@ -459,7 +460,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         img.dequeued = true;
 
         image_create.extent =
-            VkExtent3D{img.buffer->width, img.buffer->height, 1};
+            VkExtent3D{static_cast<uint32_t>(img.buffer->width),
+                       static_cast<uint32_t>(img.buffer->height),
+                       1};
         image_native_buffer.handle = img.buffer->handle;
         image_native_buffer.stride = img.buffer->stride;
         image_native_buffer.format = img.buffer->format;

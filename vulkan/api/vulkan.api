@@ -26,8 +26,8 @@ import platform "platform.api"
 ///////////////
 
 // API version (major.minor.patch)
-define VERSION_MAJOR 0
-define VERSION_MINOR 221
+define VERSION_MAJOR 1
+define VERSION_MINOR 0
 define VERSION_PATCH 0
 
 // API limits
@@ -252,7 +252,6 @@ enum VkFilter {
 }
 
 enum VkSamplerMipmapMode {
-    VK_SAMPLER_MIPMAP_MODE_BASE                             = 0x00000000,   /// Always choose base level
     VK_SAMPLER_MIPMAP_MODE_NEAREST                          = 0x00000001,   /// Choose nearest mip level
     VK_SAMPLER_MIPMAP_MODE_LINEAR                           = 0x00000002,   /// Linear filter between mip levels
 }
@@ -604,13 +603,14 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 38,
     VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO                  = 39,
     VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO              = 40,
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 41,
-    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 42,
-    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 43,
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 44,
-    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 45,
-    VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO               = 46,
-    VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO                 = 47,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO           = 41,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 42,
+    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 43,
+    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 44,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 45,
+    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 46,
+    VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO               = 47,
+    VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO                 = 48,
 
     //@extension("VK_KHR_swapchain")
     VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 1000001000,
@@ -1266,14 +1266,14 @@ class VkOffset3D {
 }
 
 class VkExtent2D {
-    s32                                         width
-    s32                                         height
+    u32                                         width
+    u32                                         height
 }
 
 class VkExtent3D {
-    s32                                         width
-    s32                                         height
-    s32                                         depth
+    u32                                         width
+    u32                                         height
+    u32                                         depth
 }
 
 class VkViewport {
@@ -1373,9 +1373,9 @@ class VkDeviceCreateInfo {
     VkDeviceCreateFlags                         flags
     u32                                         queueCreateInfoCount
     const VkDeviceQueueCreateInfo*              pQueueCreateInfos
-    u32                                         enabledLayerNameCount
+    u32                                         enabledLayerCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         enabledExtensionNameCount
+    u32                                         enabledExtensionCount
     const char* const*                          ppEnabledExtensionNames
     const VkPhysicalDeviceFeatures*             pEnabledFeatures
 }
@@ -1385,9 +1385,9 @@ class VkInstanceCreateInfo {
     const void*                                 pNext                      /// Pointer to next structure
     VkInstanceCreateFlags                       flags
     const VkApplicationInfo*                    pApplicationInfo
-    u32                                         enabledLayerNameCount
+    u32                                         enabledLayerCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         enabledExtensionNameCount
+    u32                                         enabledExtensionCount
     const char* const*                          ppEnabledExtensionNames    /// Extension names to be enabled
 }
 
@@ -1678,11 +1678,9 @@ class VkImageCopy {
 
 class VkImageBlit {
     VkImageSubresourceLayers                    srcSubresource
-    VkOffset3D                                  srcOffset              /// Specified in pixels for both compressed and uncompressed images
-    VkExtent3D                                  srcExtent              /// Specified in pixels for both compressed and uncompressed images
+    VkOffset3D[2]                               srcOffsets
     VkImageSubresourceLayers                    dstSubresource
-    VkOffset3D                                  dstOffset              /// Specified in pixels for both compressed and uncompressed images
-    VkExtent3D                                  dstExtent              /// Specified in pixels for both compressed and uncompressed images
+    VkOffset3D[2]                               dstOffsets
 }
 
 class VkBufferImageCopy {
@@ -1952,7 +1950,7 @@ class VkPipelineLayoutCreateInfo {
     VkStructureType                             sType                   /// Must be VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
     const void*                                 pNext                   /// Pointer to next structure
     VkPipelineLayoutCreateFlags                 flags
-    u32                                         setLayoutCount          /// Number of descriptor sets interfaced by the pipeline
+    u32                                         descriptorSetCount      /// Number of descriptor sets interfaced by the pipeline
     const VkDescriptorSetLayout*                pSetLayouts             /// Array of <setCount> number of descriptor set layout objects defining the layout of the
     u32                                         pushConstantRangeCount  /// Number of push-constant ranges used by the pipeline
     const VkPushConstantRange*                  pPushConstantRanges     /// Array of pushConstantRangeCount number of ranges used by various shader stages
@@ -1991,19 +1989,25 @@ class VkCommandBufferAllocateInfo {
     const void*                                 pNext      /// Pointer to next structure
     VkCommandPool                               commandPool
     VkCommandBufferLevel                        level
-    u32                                         bufferCount
+    u32                                         commandBufferCount
 }
 
-class VkCommandBufferBeginInfo {
-    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+class VkCommandBufferInheritanceInfo {
+    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
     const void*                                 pNext       /// Pointer to next structure
-    VkCommandBufferUsageFlags                   flags       /// Command buffer usage flags
     VkRenderPass                                renderPass  /// Render pass for secondary command buffers
     u32                                         subpass
     VkFramebuffer                               framebuffer /// Framebuffer for secondary command buffers
     VkBool32                                    occlusionQueryEnable
     VkQueryControlFlags                         queryFlags
     VkQueryPipelineStatisticFlags               pipelineStatistics
+}
+
+class VkCommandBufferBeginInfo {
+    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    const void*                                 pNext       /// Pointer to next structure
+    VkCommandBufferUsageFlags                   flags       /// Command buffer usage flags
+    const VkCommandBufferInheritanceInfo*       pInheritanceInfo
 }
 
 class VkRenderPassBeginInfo {
@@ -2069,7 +2073,7 @@ class VkSubpassDescription {
     const VkAttachmentReference*                pResolveAttachments
     const VkAttachmentReference*                pDepthStencilAttachment
     u32                                         preserveAttachmentCount
-    const VkAttachmentReference*                pPreserveAttachments
+    const u32*                                  pPreserveAttachments
 }
 
 class VkSubpassDependency {
@@ -2313,7 +2317,7 @@ class VkQueryPoolCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkQueryPoolCreateFlags                      flags
     VkQueryType                                 queryType
-    u32                                         entryCount
+    u32                                         queryCount
     VkQueryPipelineStatisticFlags               pipelineStatistics /// Optional
 }
 
@@ -2595,8 +2599,8 @@ cmd VkResult vkCreateInstance(
     pInstance[0] = instance
     State.Instances[instance] = new!InstanceObject()
 
-    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.enabledLayerNameCount]
-    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.enabledExtensionNameCount]
+    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.enabledLayerCount]
+    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.enabledExtensionCount]
 
     return ?
 }
@@ -3959,7 +3963,7 @@ cmd VkResult vkAllocateCommandBuffers(
         VkCommandBuffer*                            pCommandBuffers) {
     assert(pAllocateInfo[0].sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
 
-    count := pAllocateInfo[0].bufferCount
+    count := pAllocateInfo[0].commandBufferCount
     commandBuffers := pCommandBuffers[0:count]
     for i in (0 .. count) {
         commandBuffer := ?
@@ -4548,7 +4552,11 @@ cmd void vkCmdWaitEvents(
         VkPipelineStageFlags                        srcStageMask,
         VkPipelineStageFlags                        dstStageMask,
         u32                                         memoryBarrierCount,
-        const void* const*                          ppMemoryBarriers) {
+        const VkMemoryBarrier*                      pMemoryBarriers,
+        u32                                         bufferMemoryBarrierCount,
+        const VkBufferMemoryBarrier*                pBufferMemoryBarriers,
+        u32                                         imageMemoryBarrierCount,
+        const VkImageMemoryBarrier*                 pImageMemoryBarriers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
     events := pEvents[0:eventCount]
@@ -4558,23 +4566,21 @@ cmd void vkCmdWaitEvents(
         assert(commandBufferObject.device == eventObject.device)
     }
 
-    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    memoryBarriers := pMemoryBarriers[0:memoryBarrierCount]
     for i in (0 .. memoryBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
-            case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
-            }
-            case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
-                imageObject := GetImage(imageMemoryBarrier.image)
-                assert(imageObject.device == commandBufferObject.device)
-            }
-            case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
-                assert(bufferObject.device == commandBufferObject.device)
-            }
-        }
+        memoryBarrier := memoryBarriers[i]
+    }
+    bufferMemoryBarriers := pBufferMemoryBarriers[0:bufferMemoryBarrierCount]
+    for i in (0 .. bufferMemoryBarrierCount) {
+        bufferMemoryBarrier := bufferMemoryBarriers[i]
+        bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+        assert(bufferObject.device == commandBufferObject.device)
+    }
+    imageMemoryBarriers := pImageMemoryBarriers[0:imageMemoryBarrierCount]
+    for i in (0 .. imageMemoryBarrierCount) {
+        imageMemoryBarrier := imageMemoryBarriers[i]
+        imageObject := GetImage(imageMemoryBarrier.image)
+        assert(imageObject.device == commandBufferObject.device)
     }
 }
 
@@ -4585,26 +4591,28 @@ cmd void vkCmdPipelineBarrier(
         VkPipelineStageFlags                        dstStageMask,
         VkDependencyFlags                           dependencyFlags,
         u32                                         memoryBarrierCount,
-        const void* const*                          ppMemoryBarriers) {
+        const VkMemoryBarrier*                      pMemoryBarriers,
+        u32                                         bufferMemoryBarrierCount,
+        const VkBufferMemoryBarrier*                pBufferMemoryBarriers,
+        u32                                         imageMemoryBarrierCount,
+        const VkImageMemoryBarrier*                 pImageMemoryBarriers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    memoryBarriers := pMemoryBarriers[0:memoryBarrierCount]
     for i in (0 .. memoryBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
-            case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
-            }
-            case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
-                imageObject := GetImage(imageMemoryBarrier.image)
-                assert(imageObject.device == commandBufferObject.device)
-            }
-            case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
-                assert(bufferObject.device == commandBufferObject.device)
-            }
-        }
+        memoryBarrier := memoryBarriers[i]
+    }
+    bufferMemoryBarriers := pBufferMemoryBarriers[0:bufferMemoryBarrierCount]
+    for i in (0 .. bufferMemoryBarrierCount) {
+        bufferMemoryBarrier := bufferMemoryBarriers[i]
+        bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+        assert(bufferObject.device == commandBufferObject.device)
+    }
+    imageMemoryBarriers := pImageMemoryBarriers[0:imageMemoryBarrierCount]
+    for i in (0 .. imageMemoryBarrierCount) {
+        imageMemoryBarrier := imageMemoryBarriers[i]
+        imageObject := GetImage(imageMemoryBarrier.image)
+        assert(imageObject.device == commandBufferObject.device)
     }
 }
 
@@ -4612,7 +4620,7 @@ cmd void vkCmdPipelineBarrier(
 cmd void vkCmdBeginQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         entry,
+        u32                                         query,
         VkQueryControlFlags                         flags) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
@@ -4623,7 +4631,7 @@ cmd void vkCmdBeginQuery(
 cmd void vkCmdEndQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         entry) {
+        u32                                         query) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4645,7 +4653,7 @@ cmd void vkCmdWriteTimestamp(
         VkCommandBuffer                             commandBuffer,
         VkPipelineStageFlagBits                     pipelineStage,
         VkQueryPool                                 queryPool,
-        u32                                         entry) {
+        u32                                         query) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4710,12 +4718,12 @@ cmd void vkCmdEndRenderPass(
 
 cmd void vkCmdExecuteCommands(
         VkCommandBuffer                             commandBuffer,
-        u32                                         commandBuffersCount,
+        u32                                         commandBufferCount,
         const VkCommandBuffer*                      pCommandBuffers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    commandBuffers := pCommandBuffers[0:commandBuffersCount]
-    for i in (0 .. commandBuffersCount) {
+    commandBuffers := pCommandBuffers[0:commandBufferCount]
+    for i in (0 .. commandBufferCount) {
         secondaryCommandBuffer := commandBuffers[i]
         secondaryCommandBufferObject := GetCommandBuffer(secondaryCommandBuffer)
         assert(commandBufferObject.device == secondaryCommandBufferObject.device)
@@ -4897,6 +4905,7 @@ cmd VkResult vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
 @extension("VK_KHR_display")
 cmd VkResult vkGetDisplayPlaneSupportedDisplaysKHR(
         VkPhysicalDevice                        physicalDevice,
+        u32                                     planeIndex,
         u32*                                    pDisplayCount,
         VkDisplayKHR*                           pDisplays) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)

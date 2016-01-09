@@ -371,8 +371,8 @@ VkResult AllocateCommandBuffers(VkDevice /*device*/,
                                 VkCommandBuffer* cmdbufs) {
     VkResult result = VK_SUCCESS;
     CommandPool& pool = *GetCommandPoolFromHandle(alloc_info->commandPool);
-    std::fill(cmdbufs, cmdbufs + alloc_info->bufferCount, nullptr);
-    for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+    std::fill(cmdbufs, cmdbufs + alloc_info->commandBufferCount, nullptr);
+    for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
         cmdbufs[i] =
             static_cast<VkCommandBuffer_T*>(pool.allocator.pfnAllocation(
                 pool.allocator.pUserData, sizeof(VkCommandBuffer_T),
@@ -384,7 +384,7 @@ VkResult AllocateCommandBuffers(VkDevice /*device*/,
         cmdbufs[i]->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     }
     if (result != VK_SUCCESS) {
-        for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+        for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
             if (!cmdbufs[i])
                 break;
             pool.allocator.pfnFree(pool.allocator.pUserData, cmdbufs[i]);
@@ -581,7 +581,7 @@ VkResult CreateDescriptorPool(VkDevice device,
 VkResult AllocateDescriptorSets(VkDevice device,
                                 const VkDescriptorSetAllocateInfo* alloc_info,
                                 VkDescriptorSet* descriptor_sets) {
-    for (uint32_t i = 0; i < alloc_info->setLayoutCount; i++)
+    for (uint32_t i = 0; i < alloc_info->descriptorSetCount; i++)
         descriptor_sets[i] =
             AllocHandle<VkDescriptorSet>(device, HandleType::kDescriptorSet);
     return VK_SUCCESS;
@@ -1041,10 +1041,10 @@ void CmdSetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags 
 void CmdResetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
 }
 
-void CmdWaitEvents(VkCommandBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
 }
 
-void CmdPipelineBarrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
 }
 
 void CmdBeginQuery(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {

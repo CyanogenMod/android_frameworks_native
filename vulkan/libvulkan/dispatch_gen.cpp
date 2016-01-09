@@ -1920,23 +1920,23 @@ VKAPI_ATTR void vkCmdResetEvent(VkCommandBuffer commandBuffer, VkEvent event, Vk
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const void* const* ppMemoryBarriers) {
-    GetDispatchTable(commandBuffer).CmdWaitEvents(commandBuffer, eventCount, pEvents, srcStageMask, dstStageMask, memoryBarrierCount, ppMemoryBarriers);
+VKAPI_ATTR void vkCmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
+    GetDispatchTable(commandBuffer).CmdWaitEvents(commandBuffer, eventCount, pEvents, srcStageMask, dstStageMask, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const void* const* ppMemoryBarriers) {
-    GetDispatchTable(commandBuffer).CmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, ppMemoryBarriers);
+VKAPI_ATTR void vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
+    GetDispatchTable(commandBuffer).CmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t entry, VkQueryControlFlags flags) {
-    GetDispatchTable(commandBuffer).CmdBeginQuery(commandBuffer, queryPool, entry, flags);
+VKAPI_ATTR void vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags) {
+    GetDispatchTable(commandBuffer).CmdBeginQuery(commandBuffer, queryPool, query, flags);
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t entry) {
-    GetDispatchTable(commandBuffer).CmdEndQuery(commandBuffer, queryPool, entry);
+VKAPI_ATTR void vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query) {
+    GetDispatchTable(commandBuffer).CmdEndQuery(commandBuffer, queryPool, query);
 }
 
 __attribute__((visibility("default")))
@@ -1945,8 +1945,8 @@ VKAPI_ATTR void vkCmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool q
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t entry) {
-    GetDispatchTable(commandBuffer).CmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, entry);
+VKAPI_ATTR void vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query) {
+    GetDispatchTable(commandBuffer).CmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, query);
 }
 
 __attribute__((visibility("default")))
@@ -1975,8 +1975,8 @@ VKAPI_ATTR void vkCmdEndRenderPass(VkCommandBuffer commandBuffer) {
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBuffersCount, const VkCommandBuffer* pCommandBuffers) {
-    GetDispatchTable(commandBuffer).CmdExecuteCommands(commandBuffer, commandBuffersCount, pCommandBuffers);
+VKAPI_ATTR void vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers) {
+    GetDispatchTable(commandBuffer).CmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers);
 }
 
 __attribute__((visibility("default")))

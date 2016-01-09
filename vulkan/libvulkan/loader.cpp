@@ -383,7 +383,7 @@ VkResult ActivateAllLayers(TInfo create_info,
         }
     }
     // Load app layers
-    for (uint32_t i = 0; i < create_info->enabledLayerNameCount; ++i) {
+    for (uint32_t i = 0; i < create_info->enabledLayerCount; ++i) {
         if (!ActivateLayer(object, create_info->ppEnabledLayerNames[i])) {
             ALOGE("requested %s layer '%s' not present",
                   create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
@@ -400,18 +400,18 @@ template <class TCreateInfo>
 bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                               const char* extension_name,
                               const VkAllocationCallbacks* alloc) {
-    for (uint32_t i = 0; i < local_create_info.enabledExtensionNameCount; ++i) {
+    for (uint32_t i = 0; i < local_create_info.enabledExtensionCount; ++i) {
         if (!strcmp(extension_name,
                     local_create_info.ppEnabledExtensionNames[i])) {
             return false;
         }
     }
-    uint32_t extension_count = local_create_info.enabledExtensionNameCount;
-    local_create_info.enabledExtensionNameCount++;
+    uint32_t extension_count = local_create_info.enabledExtensionCount;
+    local_create_info.enabledExtensionCount++;
     void* mem = alloc->pfnAllocation(
         alloc->pUserData,
-        local_create_info.enabledExtensionNameCount * sizeof(char*),
-        alignof(char*), VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+        local_create_info.enabledExtensionCount * sizeof(char*), alignof(char*),
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
     if (mem) {
         const char** enabled_extensions = static_cast<const char**>(mem);
         for (uint32_t i = 0; i < extension_count; ++i) {
@@ -423,7 +423,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
     } else {
         ALOGW("%s extension cannot be enabled: memory allocation failed",
               extension_name);
-        local_create_info.enabledExtensionNameCount--;
+        local_create_info.enabledExtensionCount--;
         return false;
     }
     return true;
@@ -1022,7 +1022,7 @@ VkResult AllocateCommandBuffers_Top(
         table.AllocateCommandBuffers(vkdevice, alloc_info, cmdbufs);
     if (result != VK_SUCCESS)
         return result;
-    for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+    for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
         hwvulkan_dispatch_t* cmdbuf_dispatch =
             reinterpret_cast<hwvulkan_dispatch_t*>(cmdbufs[i]);
         ALOGE_IF(cmdbuf_dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
