@@ -1540,8 +1540,8 @@ VKAPI_ATTR void vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool, const
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR VkResult vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) {
-    return GetDispatchTable(device).GetQueryPoolResults(device, queryPool, startQuery, queryCount, dataSize, pData, stride, flags);
+VKAPI_ATTR VkResult vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) {
+    return GetDispatchTable(device).GetQueryPoolResults(device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags);
 }
 
 __attribute__((visibility("default")))
@@ -1765,13 +1765,13 @@ VKAPI_ATTR void vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
-    GetDispatchTable(commandBuffer).CmdSetViewport(commandBuffer, viewportCount, pViewports);
+VKAPI_ATTR void vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports) {
+    GetDispatchTable(commandBuffer).CmdSetViewport(commandBuffer, firstViewport, viewportCount, pViewports);
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
-    GetDispatchTable(commandBuffer).CmdSetScissor(commandBuffer, scissorCount, pScissors);
+VKAPI_ATTR void vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D* pScissors) {
+    GetDispatchTable(commandBuffer).CmdSetScissor(commandBuffer, firstScissor, scissorCount, pScissors);
 }
 
 __attribute__((visibility("default")))
@@ -1820,8 +1820,8 @@ VKAPI_ATTR void vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer buf
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t startBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {
-    GetDispatchTable(commandBuffer).CmdBindVertexBuffers(commandBuffer, startBinding, bindingCount, pBuffers, pOffsets);
+VKAPI_ATTR void vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {
+    GetDispatchTable(commandBuffer).CmdBindVertexBuffers(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
 }
 
 __attribute__((visibility("default")))
@@ -1940,8 +1940,8 @@ VKAPI_ATTR void vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPo
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
-    GetDispatchTable(commandBuffer).CmdResetQueryPool(commandBuffer, queryPool, startQuery, queryCount);
+VKAPI_ATTR void vkCmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) {
+    GetDispatchTable(commandBuffer).CmdResetQueryPool(commandBuffer, queryPool, firstQuery, queryCount);
 }
 
 __attribute__((visibility("default")))
@@ -1950,8 +1950,8 @@ VKAPI_ATTR void vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineSta
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR void vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags) {
-    GetDispatchTable(commandBuffer).CmdCopyQueryPoolResults(commandBuffer, queryPool, startQuery, queryCount, dstBuffer, dstOffset, stride, flags);
+VKAPI_ATTR void vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags) {
+    GetDispatchTable(commandBuffer).CmdCopyQueryPoolResults(commandBuffer, queryPool, firstQuery, queryCount, dstBuffer, dstOffset, stride, flags);
 }
 
 __attribute__((visibility("default")))
@@ -2030,8 +2030,8 @@ VKAPI_ATTR VkResult vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPr
 }
 
 __attribute__((visibility("default")))
-VKAPI_ATTR VkResult vkCreateAndroidSurfaceKHR(VkInstance instance, struct ANativeWindow* window, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) {
-    return GetDispatchTable(instance).CreateAndroidSurfaceKHR(instance, window, pAllocator, pSurface);
+VKAPI_ATTR VkResult vkCreateAndroidSurfaceKHR(VkInstance instance, const VkAndroidSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) {
+    return GetDispatchTable(instance).CreateAndroidSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface);
 }
 
 // clang-format on

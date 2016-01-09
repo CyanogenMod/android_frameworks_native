@@ -27,8 +27,8 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 210
-define VERSION_PATCH 1
+define VERSION_MINOR 213
+define VERSION_PATCH 0
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -61,15 +61,15 @@ define NULL_HANDLE 0
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_display_swapchain"
 
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           5
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           6
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NUMBER             5
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NAME               "VK_KHR_xlib_surface"
 
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             5
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             6
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NUMBER               6
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NAME                 "VK_KHR_xcb_surface"
 
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     4
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     5
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NUMBER       7
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NAME         "VK_KHR_wayland_surface"
 
@@ -77,11 +77,11 @@ define NULL_HANDLE 0
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NUMBER               8
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     4
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     5
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NUMBER       8
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         4
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NUMBER           9
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
@@ -632,6 +632,24 @@ enum VkStructureType {
 
     //@extension("VK_KHR_display_swapchain")
     VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 1000003000,
+
+    //@extension("VK_KHR_xlib_surface")
+    VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR              = 1000004000,
+
+    //@extension("VK_KHR_xcb_surface")
+    VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR               = 1000005000,
+
+    //@extension("VK_KHR_wayland_surface")
+    VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR           = 1000006000,
+
+    //@extension("VK_KHR_mir_surface")
+    VK_STRUCTURE_TYPE_MIR_SURFACE_CREATE_INFO_KHR               = 1000007000,
+
+    //@extension("VK_KHR_android_surface")
+    VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR           = 1000008000,
+
+    //@extension("VK_KHR_win32_surface")
+    VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR             = 1000009000,
 }
 
 enum VkSubpassContents {
@@ -1147,7 +1165,7 @@ bitfield VkCullModeFlagBits {
 type VkFlags VkSurfaceTransformFlagsKHR
 @extension("VK_KHR_surface")
 bitfield VkSurfaceTransformFlagBitsKHR {
-    VK_SURFACE_TRANSFORM_NONE_BIT_KHR                           = 0x00000001,
+    VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR                       = 0x00000001,
     VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR                      = 0x00000002,
     VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR                     = 0x00000004,
     VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR                     = 0x00000008,
@@ -1194,6 +1212,42 @@ type VkFlags VkDisplaySurfaceCreateFlagsKHR
 type VkFlags VkDisplayModeCreateFlagsKHR
 //@extension("VK_KHR_display")
 //bitfield VkDisplayModeCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_xlib_surface")
+type VkFlags VkXlibSurfaceCreateFlagsKHR
+//@extension("VK_KHR_xlib_surface")
+//bitfield VkXlibSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_xcb_surface")
+type VkFlags VkXcbSurfaceCreateFlagsKHR
+//@extension("VK_KHR_xcb_surface")
+//bitfield VkXcbSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_wayland_surface")
+type VkFlags VkWaylandSurfaceCreateFlagsKHR
+//@extension("VK_KHR_wayland_surface")
+//bitfield VkWaylandSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_mir_surface")
+type VkFlags VkMirSurfaceCreateFlagsKHR
+//@extension("VK_KHR_mir_surface")
+//bitfield VkMirSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_android_surface")
+type VkFlags VkAndroidSurfaceCreateFlagsKHR
+//@extension("VK_KHR_android_surface")
+//bitfield VkAndroidSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_win32_surface")
+type VkFlags VkWin32SurfaceCreateFlagsKHR
+//@extension("VK_KHR_win32_surface")
+//bitfield VkWin32SurfaceCreateFlagBitsKHR {
 //}
 
 
@@ -1372,7 +1426,7 @@ class VkSparseImageFormatProperties {
 
 class VkSparseImageMemoryRequirements {
     VkSparseImageFormatProperties               formatProperties
-    u32                                         imageMipTailStartLod
+    u32                                         imageMipTailFirstLod
     VkDeviceSize                                imageMipTailSize           /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailOffset         /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailStride         /// Specified in bytes, must be a multiple of image block size / alignment
@@ -1914,6 +1968,7 @@ class VkSamplerCreateInfo {
     VkSamplerAddressMode                        addressModeV
     VkSamplerAddressMode                        addressModeW
     f32                                         mipLodBias
+    VkBool32                                    anisotropyEnable
     f32                                         maxAnisotropy
     VkBool32                                    compareEnable
     VkCompareOp                                 compareOp
@@ -2104,6 +2159,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    sparseResidency16Samples                  /// Sparse resources support: GPU can access partially resident MSAA 2D images with 16 samples
     VkBool32                                    sparseResidencyAliased                    /// Sparse resources support: GPU can correctly access data aliased into multiple locations (opt-in)
     VkBool32                                    variableMultisampleRate
+    VkBool32                                    inheritedQueries
 }
 
 class VkPhysicalDeviceLimits {
@@ -2214,6 +2270,7 @@ class VkPhysicalDeviceLimits {
     VkSampleCountFlags                          sampledImageStencilSampleCounts
     VkSampleCountFlags                          storageImageSampleCounts
     u32                                         maxSampleMaskWords                        /// max num of sample mask words
+    VkBool32                                    timestampComputeAndGraphics
 
     f32                                         timestampPeriod
 
@@ -2416,6 +2473,59 @@ class VkDisplayPresentInfoKHR {
     VkRect2D                                    srcRect
     VkRect2D                                    dstRect
     VkBool32                                    persistent
+}
+
+@extension("VK_KHR_xlib_surface")
+class VkXlibSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkXlibSurfaceCreateFlagsKHR                 flags
+    platform.Display*                           dpy
+    platform.Window                             window
+}
+
+@extension("VK_KHR_xcb_surface")
+class VkXcbSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkXcbSurfaceCreateFlagsKHR                  flags
+    platform.xcb_connection_t*                  connection
+    platform.xcb_window_t                       window
+}
+
+@extension("VK_KHR_wayland_surface")
+class VkWaylandSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkWaylandSurfaceCreateFlagsKHR              flags
+    platform.wl_display*                        display
+    platform.wl_surface*                        surface
+}
+
+@extension("VK_KHR_mir_surface")
+class VkMirSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkMirSurfaceCreateFlagsKHR                  flags
+    platform.MirConnection*                     connection
+    platform.MirSurface*                        mirSurface
+}
+
+@extension("VK_KHR_android_surface")
+class VkAndroidSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkAndroidSurfaceCreateFlagsKHR              flags
+    platform.ANativeWindow*                     window
+}
+
+@extension("VK_KHR_win32_surface")
+class VkWin32SurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkWin32SurfaceCreateFlagsKHR                flags
+    platform.HINSTANCE                          hinstance
+    platform.HWND                               hwnd
 }
 
 
@@ -3204,7 +3314,7 @@ cmd void vkDestroyQueryPool(
 cmd VkResult vkGetQueryPoolResults(
         VkDevice                                    device,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount,
         platform.size_t                             dataSize,
         void*                                       pData,
@@ -3928,6 +4038,7 @@ cmd void vkCmdBindPipeline(
 @threadSafety("app")
 cmd void vkCmdSetViewport(
         VkCommandBuffer                             commandBuffer,
+        u32                                         firstViewport,
         u32                                         viewportCount,
         const VkViewport*                           pViewports) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
@@ -3937,6 +4048,7 @@ cmd void vkCmdSetViewport(
 @threadSafety("app")
 cmd void vkCmdSetScissor(
         VkCommandBuffer                             commandBuffer,
+        u32                                         firstScissor,
         u32                                         scissorCount,
         const VkRect2D*                             pScissors) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
@@ -4057,13 +4169,13 @@ cmd void vkCmdBindIndexBuffer(
 @threadSafety("app")
 cmd void vkCmdBindVertexBuffers(
         VkCommandBuffer                             commandBuffer,
-        u32                                         startBinding,
+        u32                                         firstBinding,
         u32                                         bindingCount,
         const VkBuffer*                             pBuffers,
         const VkDeviceSize*                         pOffsets) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    // TODO: check if not [startBinding:startBinding+bindingCount]
+    // TODO: check if not [firstBinding:firstBinding+bindingCount]
     buffers := pBuffers[0:bindingCount]
     offsets := pOffsets[0:bindingCount]
     for i in (0 .. bindingCount) {
@@ -4519,7 +4631,7 @@ cmd void vkCmdEndQuery(
 cmd void vkCmdResetQueryPool(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
@@ -4541,7 +4653,7 @@ cmd void vkCmdWriteTimestamp(
 cmd void vkCmdCopyQueryPoolResults(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount,
         VkBuffer                                    dstBuffer,
         VkDeviceSize                                dstOffset,
@@ -4842,8 +4954,7 @@ cmd VkResult vkCreateSharedSwapchainsKHR(
 @extension("VK_KHR_xlib_surface")
 cmd VkResult vkCreateXlibSurfaceKHR(
         VkInstance                              instance,
-        platform.Display*                       dpy,
-        platform.Window                         window,
+        const VkXlibSurfaceCreateInfoKHR*       pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4861,10 +4972,9 @@ cmd VkBool32 vkGetPhysicalDeviceXlibPresentationSupportKHR(
 }
 
 @extension("VK_KHR_xcb_surface")
-cmd VkResult vkCreateXCBSurfaceKHR(
+cmd VkResult vkCreateXcbSurfaceKHR(
         VkInstance                              instance,
-        platform.xcb_connection_t*              connection,
-        platform.xcb_window_t                   window,
+        const VkXcbSurfaceCreateInfoKHR*        pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4884,8 +4994,7 @@ cmd VkBool32 vkGetPhysicalDeviceXcbPresentationSupportKHR(
 @extension("VK_KHR_wayland_surface")
 cmd VkResult vkCreateWaylandSurfaceKHR(
         VkInstance                              instance,
-        platform.wl_display*                    display,
-        platform.wl_surface*                    surface,
+        const VkWaylandSurfaceCreateInfoKHR*    pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4904,8 +5013,7 @@ cmd VkBool32 vkGetPhysicalDeviceWaylandPresentationSupportKHR(
 @extension("VK_KHR_mir_surface")
 cmd VkResult vkCreateMirSurfaceKHR(
         VkInstance                              instance,
-        platform.MirConnection*                 connection,
-        platform.MirSurface*                    mirSurface,
+        const VkMirSurfaceCreateInfoKHR*        pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4924,7 +5032,7 @@ cmd VkBool32 vkGetPhysicalDeviceMirPresentationSupportKHR(
 @extension("VK_KHR_android_surface")
 cmd VkResult vkCreateAndroidSurfaceKHR(
         VkInstance                              instance,
-        platform.ANativeWindow*                 window,
+        const VkAndroidSurfaceCreateInfoKHR*    pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4934,8 +5042,7 @@ cmd VkResult vkCreateAndroidSurfaceKHR(
 @extension("VK_KHR_win32_surface")
 cmd VkResult vkCreateWin32SurfaceKHR(
         VkInstance                              instance,
-        platform.HINSTANCE                      hinstance,
-        platform.HWND                           hwnd,
+        const VkWin32SurfaceCreateInfoKHR*      pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)

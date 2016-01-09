@@ -948,10 +948,10 @@ VkResult ResetCommandBuffer(VkCommandBuffer cmdBuffer, VkCommandBufferResetFlags
 void CmdBindPipeline(VkCommandBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline) {
 }
 
-void CmdSetViewport(VkCommandBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
+void CmdSetViewport(VkCommandBuffer cmdBuffer, uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports) {
 }
 
-void CmdSetScissor(VkCommandBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
+void CmdSetScissor(VkCommandBuffer cmdBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D* pScissors) {
 }
 
 void CmdSetLineWidth(VkCommandBuffer cmdBuffer, float lineWidth) {

@@ -104,7 +104,7 @@ const DriverDispatchTable& GetDriverDispatch(VkQueue queue);
 // swapchain.cpp
 
 // clang-format off
-VKAPI_ATTR VkResult CreateAndroidSurfaceKHR_Bottom(VkInstance instance, ANativeWindow* window, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
+VKAPI_ATTR VkResult CreateAndroidSurfaceKHR_Bottom(VkInstance instance, const VkAndroidSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
 VKAPI_ATTR void DestroySurfaceKHR_Bottom(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* allocator);
 VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR_Bottom(VkPhysicalDevice pdev, uint32_t queue_family, VkSurfaceKHR surface, VkBool32* pSupported);
 VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(VkPhysicalDevice pdev, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* capabilities);

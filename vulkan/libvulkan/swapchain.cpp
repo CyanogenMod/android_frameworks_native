@@ -148,10 +148,11 @@ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
 namespace vulkan {
 
 VKAPI_ATTR
-VkResult CreateAndroidSurfaceKHR_Bottom(VkInstance instance,
-                                        ANativeWindow* window,
-                                        const VkAllocationCallbacks* allocator,
-                                        VkSurfaceKHR* out_surface) {
+VkResult CreateAndroidSurfaceKHR_Bottom(
+    VkInstance instance,
+    const VkAndroidSurfaceCreateInfoKHR* pCreateInfo,
+    const VkAllocationCallbacks* allocator,
+    VkSurfaceKHR* out_surface) {
     if (!allocator)
         allocator = GetAllocator(instance);
     void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Surface),
@@ -161,7 +162,7 @@ VkResult CreateAndroidSurfaceKHR_Bottom(VkInstance instance,
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Surface* surface = new (mem) Surface;
 
-    surface->window = InitSharedPtr(instance, window);
+    surface->window = InitSharedPtr(instance, pCreateInfo->window);
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     int err =
@@ -238,10 +239,10 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
 
     // TODO(jessehall): We can support all transforms, fix this once
     // implemented.
-    capabilities->supportedTransforms = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
+    capabilities->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
     // TODO(jessehall): Implement based on NATIVE_WINDOW_TRANSFORM_HINT.
-    capabilities->currentTransform = VK_SURFACE_TRANSFORM_NONE_BIT_KHR;
+    capabilities->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
     capabilities->maxImageArrayLayers = 1;
 
@@ -330,7 +331,7 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
              "color spaces other than SRGB_NONLINEAR not yet implemented");
     ALOGE_IF(create_info->oldSwapchain,
              "swapchain re-creation not yet implemented");
-    ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_NONE_BIT_KHR,
+    ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
              "swapchain preTransform not yet implemented");
     ALOGE_IF(create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR,
              "present modes other than FIFO are not yet implemented");
