@@ -27,7 +27,7 @@ import platform "platform.api"
 
 // API version (major.minor.patch)
 define VERSION_MAJOR 0
-define VERSION_MINOR 213
+define VERSION_MINOR 221
 define VERSION_PATCH 0
 
 // API limits
@@ -45,44 +45,34 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_REVISION                     24
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_SPEC_VERSION                 24
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 67
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_SPEC_VERSION             67
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
-@extension("VK_KHR_display") define VK_KHR_DISPLAY_REVISION                     21
-@extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NUMBER             3
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_SPEC_VERSION                 21
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NAME               "VK_KHR_display"
 
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_REVISION         9
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_SPEC_VERSION     9
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_display_swapchain"
 
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           6
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NUMBER             5
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_SPEC_VERSION       6
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NAME               "VK_KHR_xlib_surface"
 
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             6
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NUMBER               6
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_SPEC_VERSION         6
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NAME                 "VK_KHR_xcb_surface"
 
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     5
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NUMBER       7
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_SPEC_VERSION 5
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NAME         "VK_KHR_wayland_surface"
 
-@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_REVISION             4
-@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NUMBER               8
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_SPEC_VERSION         4
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     5
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NUMBER       8
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_SPEC_VERSION 5
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         5
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NUMBER           9
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_SPEC_VERSION     5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
 
@@ -650,11 +640,18 @@ enum VkStructureType {
 
     //@extension("VK_KHR_win32_surface")
     VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR             = 1000009000,
+
+    //@extension("VK_EXT_debug_report")
+    VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT              = 1000011000,
 }
 
 enum VkSubpassContents {
     VK_SUBPASS_CONTENTS_INLINE                              = 0x00000000,
     VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS           = 0x00000001,
+}
+
+enum VkPipelineCacheHeaderVersion {
+    VK_PIPELINE_CACHE_HEADER_VERSION_ONE                    = 1,
 }
 
 @lastUnused(-11)
@@ -695,6 +692,9 @@ enum VkResult {
 
     //@extension("VK_KHR_android_surface")
     VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46516C0, // -1000008000
+
+    //@extension("VK_EXT_debug_report")
+    VK_ERROR_VALIDATION_FAILED_EXT                          = 0xC4650B07, // -1000011001
 }
 
 enum VkDynamicState {
@@ -902,7 +902,6 @@ bitfield VkQueryControlFlagBits {
 /// Query result flags
 type VkFlags VkQueryResultFlags
 bitfield VkQueryResultFlagBits {
-    VK_QUERY_RESULT_DEFAULT                                 = 0x00000000,   /// Results of the queries are immediately written to the destination buffer as 32-bit values
     VK_QUERY_RESULT_64_BIT                                  = 0x00000001,   /// Results of the queries are written to the destination buffer as 64-bit values
     VK_QUERY_RESULT_WAIT_BIT                                = 0x00000002,   /// Results of the queries are waited on before proceeding with the result copy
     VK_QUERY_RESULT_WITH_AVAILABILITY_BIT                   = 0x00000004,   /// Besides the results of the query, the availability of the results is also written
@@ -987,10 +986,11 @@ bitfield VkPipelineStageFlagBits {
     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT           = 0x00000400,  /// Color attachment writes
     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT                    = 0x00000800,  /// Compute shading
     VK_PIPELINE_STAGE_TRANSFER_BIT                          = 0x00001000,  /// Transfer/copy operations
-    VK_PIPELINE_STAGE_HOST_BIT                              = 0x00002000,  /// Indicates host (CPU) is a source/sink of the dependency
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                    = 0x00002000,
+    VK_PIPELINE_STAGE_HOST_BIT                              = 0x00004000,  /// Indicates host (CPU) is a source/sink of the dependency
 
-    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT                      = 0x00004000,  /// All stages of the graphics pipeline
-    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT                      = 0x00008000,  /// All graphics, compute, copy, and transition commands
+    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT                      = 0x00008000,  /// All stages of the graphics pipeline
+    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT                      = 0x00010000,  /// All graphics, compute, copy, and transition commands
 }
 
 /// Render pass attachment description flags
@@ -1035,7 +1035,6 @@ bitfield VkSampleCountFlagBits {
 
 type VkFlags VkStencilFaceFlags
 bitfield VkStencilFaceFlagBits {
-    VK_STENCIL_FACE_NONE                                    = 0x00000000,   /// No faces
     VK_STENCIL_FACE_FRONT_BIT                               = 0x00000001,   /// Front face
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
     VK_STENCIL_FRONT_AND_BACK                               = 0x00000003,
@@ -1333,6 +1332,7 @@ class VkSubmitInfo {
     const void*                                 pNext              /// Next structure in chain
     u32                                         waitSemaphoreCount
     const VkSemaphore*                          pWaitSemaphores
+    const VkPipelineStageFlags*                 pWaitDstStageMask
     u32                                         commandBufferCount
     const VkCommandBuffer*                      pCommandBuffers
     u32                                         signalSemaphoreCount
@@ -1590,6 +1590,7 @@ class VkSubresourceLayout {
     VkDeviceSize                                offset                 /// Specified in bytes
     VkDeviceSize                                size                   /// Specified in bytes
     VkDeviceSize                                rowPitch               /// Specified in bytes
+    VkDeviceSize                                arrayPitch             /// Specified in bytes
     VkDeviceSize                                depthPitch             /// Specified in bytes
 }
 
@@ -1722,7 +1723,7 @@ class VkDescriptorSetLayoutCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorSetLayoutCreateFlags            flags
     u32                                         bindingCount       /// Number of bindings in the descriptor set layout
-    const VkDescriptorSetLayoutBinding*         pBinding           /// Array of descriptor set layout bindings
+    const VkDescriptorSetLayoutBinding*         pBindings          /// Array of descriptor set layout bindings
 }
 
 class VkDescriptorPoolSize {
@@ -2116,6 +2117,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    dualSrcBlend                              /// blend operations which take two sources
     VkBool32                                    logicOp                                   /// logic operations
     VkBool32                                    multiDrawIndirect                         /// multi draw indirect
+    VkBool32                                    drawIndirectFirstInstance
     VkBool32                                    depthClamp                                /// depth clamping
     VkBool32                                    depthBiasClamp                            /// depth bias clamping
     VkBool32                                    fillModeNonSolid                          /// point and wireframe fill modes

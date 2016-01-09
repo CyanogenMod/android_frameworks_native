@@ -811,9 +811,10 @@ VkResult EnumerateInstanceExtensionProperties_Top(
     if (layer_name) {
         GetLayerExtensions(layer_name, &extensions, &num_extensions);
     } else {
-        static const VkExtensionProperties kInstanceExtensions[] =
-            {{VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_REVISION},
-             {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_REVISION}};
+        static const VkExtensionProperties kInstanceExtensions[] = {
+            {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION},
+            {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+             VK_KHR_ANDROID_SURFACE_SPEC_VERSION}};
         extensions = kInstanceExtensions;
         num_extensions = sizeof(kInstanceExtensions) / sizeof(kInstanceExtensions[0]);
         // TODO(jessehall): We need to also enumerate extensions supported by
