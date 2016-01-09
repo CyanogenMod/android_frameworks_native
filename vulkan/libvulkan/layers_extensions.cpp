@@ -159,7 +159,7 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
     struct dirent* entry;
     while ((entry = readdir(directory))) {
         size_t libname_len = strlen(entry->d_name);
-        if (strncmp(entry->d_name, "libVKLayer", 10) != 0 ||
+        if (strncmp(entry->d_name, "libVkLayer", 10) != 0 ||
             strncmp(entry->d_name + libname_len - 3, ".so", 3) != 0)
             continue;
         path.append(entry->d_name);

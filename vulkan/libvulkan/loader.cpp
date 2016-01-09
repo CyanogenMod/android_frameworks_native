@@ -472,7 +472,18 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     Instance& instance = GetDispatchParent(*vkinstance);
     VkResult result;
 
-    result = g_hwdevice->CreateInstance(create_info, instance.alloc,
+    VkInstanceCreateInfo driver_create_info = *create_info;
+    driver_create_info.enabledLayerCount = 0;
+    driver_create_info.ppEnabledLayerNames = nullptr;
+    // TODO(jessehall): We currently only enumerate the VK_KHR_surface and
+    // VK_KHR_android_surface extensions, which we don't allow drivers to
+    // support. As soon as we enumerate instance extensions supported by the
+    // driver, we should instead filter the requested extension list here to
+    // only the extensions supported by the driver.
+    driver_create_info.enabledExtensionCount = 0;
+    driver_create_info.ppEnabledExtensionNames = nullptr;
+
+    result = g_hwdevice->CreateInstance(&driver_create_info, instance.alloc,
                                         &instance.drv.instance);
     if (result != VK_SUCCESS) {
         DestroyInstance_Bottom(instance.handle, allocator);
@@ -669,8 +680,20 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
         return result;
     }
 
+    const char* kAndroidNativeBufferExtensionName = "VK_ANDROID_native_buffer";
+    VkDeviceCreateInfo driver_create_info = *create_info;
+    driver_create_info.enabledLayerCount = 0;
+    driver_create_info.ppEnabledLayerNames = nullptr;
+    // TODO(jessehall): As soon as we enumerate device extensions supported by
+    // the driver, we need to filter the requested extension list to those
+    // supported by the driver here. Also, add the VK_ANDROID_native_buffer
+    // extension to the list iff the VK_KHR_swapchain extension was requested,
+    // instead of adding it unconditionally like we do now.
+    driver_create_info.enabledExtensionCount = 1;
+    driver_create_info.ppEnabledExtensionNames = &kAndroidNativeBufferExtensionName;
+
     VkDevice drv_device;
-    result = instance.drv.dispatch.CreateDevice(pdev, create_info, allocator,
+    result = instance.drv.dispatch.CreateDevice(pdev, &driver_create_info, allocator,
                                                 &drv_device);
     if (result != VK_SUCCESS) {
         DestroyDevice(device);
@@ -817,9 +840,13 @@ VkResult EnumerateInstanceExtensionProperties_Top(
              VK_KHR_ANDROID_SURFACE_SPEC_VERSION}};
         extensions = kInstanceExtensions;
         num_extensions = sizeof(kInstanceExtensions) / sizeof(kInstanceExtensions[0]);
+
         // TODO(jessehall): We need to also enumerate extensions supported by
         // implicitly-enabled layers. Currently we don't have that list of
         // layers until instance creation.
+
+        // TODO(jessehall): We need to also enumerate extensions supported by
+        // any driver.
     }
 
     if (!properties || *properties_count > num_extensions)
