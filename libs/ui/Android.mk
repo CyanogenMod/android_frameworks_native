@@ -36,7 +36,6 @@ LOCAL_CPPFLAGS += -Wno-padded
 
 LOCAL_SRC_FILES := \
 	Fence.cpp \
-	FramebufferNativeWindow.cpp \
 	FrameStats.cpp \
 	GraphicBuffer.cpp \
 	GraphicBufferAllocator.cpp \
