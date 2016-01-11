@@ -76,7 +76,8 @@ public:
     // producers and consumers. allocator is used to allocate all the
     // needed gralloc buffers.
     static void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
-            sp<IGraphicBufferConsumer>* outConsumer);
+            sp<IGraphicBufferConsumer>* outConsumer,
+            const sp<IGraphicBufferAlloc>& allocator = NULL);
 
 private:
     BufferQueue(); // Create through createBufferQueue

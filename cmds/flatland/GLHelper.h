@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <gui/GraphicBufferAlloc.h>
 #include <gui/GLConsumer.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceControl.h>
@@ -73,6 +74,8 @@ private:
     bool computeWindowScale(uint32_t w, uint32_t h, float* scale);
 
     bool setUpShaders(const ShaderDesc* shaderDescs, size_t numShaders);
+
+    sp<GraphicBufferAlloc> mGraphicBufferAlloc;
 
     EGLDisplay mDisplay;
     EGLContext mContext;

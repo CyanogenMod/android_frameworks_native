@@ -75,7 +75,7 @@ public:
     // BufferQueueCore manages a pool of gralloc memory slots to be used by
     // producers and consumers. allocator is used to allocate all the needed
     // gralloc buffers.
-    BufferQueueCore();
+    BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator = NULL);
     virtual ~BufferQueueCore();
 
 private:
