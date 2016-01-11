@@ -38,8 +38,8 @@ static String8 getUniqueName() {
             android_atomic_inc(&counter));
 }
 
-BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
-    mAllocator(allocator),
+BufferQueueCore::BufferQueueCore() :
+    mAllocator(),
     mMutex(),
     mIsAbandoned(false),
     mConsumerControlledByApp(false),
@@ -75,13 +75,12 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mSingleBufferCache(Rect::INVALID_RECT, 0, NATIVE_WINDOW_SCALING_MODE_FREEZE,
             HAL_DATASPACE_UNKNOWN)
 {
-    if (allocator == NULL) {
-        sp<ISurfaceComposer> composer(ComposerService::getComposerService());
-        mAllocator = composer->createGraphicBufferAlloc();
-        if (mAllocator == NULL) {
-            BQ_LOGE("createGraphicBufferAlloc failed");
-        }
+    sp<ISurfaceComposer> composer(ComposerService::getComposerService());
+    mAllocator = composer->createGraphicBufferAlloc();
+    if (mAllocator == NULL) {
+        BQ_LOGE("createGraphicBufferAlloc failed");
     }
+
     for (int slot = 0; slot < BufferQueueDefs::NUM_BUFFER_SLOTS; ++slot) {
         mFreeSlots.insert(slot);
     }
