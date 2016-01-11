@@ -62,13 +62,14 @@ void BufferQueue::ProxyConsumerListener::onSidebandStreamChanged() {
 }
 
 void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
-        sp<IGraphicBufferConsumer>* outConsumer) {
+        sp<IGraphicBufferConsumer>* outConsumer,
+        const sp<IGraphicBufferAlloc>& allocator) {
     LOG_ALWAYS_FATAL_IF(outProducer == NULL,
             "BufferQueue: outProducer must not be NULL");
     LOG_ALWAYS_FATAL_IF(outConsumer == NULL,
             "BufferQueue: outConsumer must not be NULL");
 
-    sp<BufferQueueCore> core(new BufferQueueCore());
+    sp<BufferQueueCore> core(new BufferQueueCore(allocator));
     LOG_ALWAYS_FATAL_IF(core == NULL,
             "BufferQueue: failed to create BufferQueueCore");
 
