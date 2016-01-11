@@ -57,6 +57,11 @@ constexpr const char* IDMAP_SUFFIX = "@idmap";
 constexpr size_t PKG_NAME_MAX = 128u;   /* largest allowed package name */
 constexpr size_t PKG_PATH_MAX = 256u;   /* max size of any path we use */
 
+constexpr int FLAG_DE_STORAGE = 1 << 0;
+constexpr int FLAG_CE_STORAGE = 1 << 1;
+constexpr int FLAG_CLEAR_CACHE_ONLY = 1 << 2;
+constexpr int FLAG_CLEAR_CODE_CACHE_ONLY = 1 << 3;
+
 /* dexopt needed flags matching those in dalvik.system.DexFile */
 constexpr int DEXOPT_DEX2OAT_NEEDED       = 1;
 constexpr int DEXOPT_PATCHOAT_NEEDED      = 2;

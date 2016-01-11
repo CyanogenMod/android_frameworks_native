@@ -18,6 +18,7 @@
 #include <selinux/android.h>
 #include <selinux/avc.h>
 #include <sys/capability.h>
+#include <sys/fsuid.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -44,6 +45,7 @@
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
+#define DEBUG_FBE 0
 
 namespace android {
 namespace installd {
@@ -188,9 +190,26 @@ static int do_ping(char **arg ATTRIBUTE_UNUSED, char reply[REPLY_MAX] ATTRIBUTE_
     return 0;
 }
 
-static int do_install(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return install(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]); /* uuid, pkgname, uid, gid, seinfo */
+static int do_create_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags,
+            appid_t appid, const char* seinfo */
+    return create_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atoi(arg[4]), arg[5]);
+}
+
+static int do_restorecon_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char* uuid, const char* pkgName, userid_t userid, int flags,
+            appid_t appid, const char* seinfo */
+    return restorecon_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atoi(arg[4]), arg[5]);
+}
+
+static int do_clear_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags */
+    return clear_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
+}
+
+static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags */
+    return destroy_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
 }
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -205,24 +224,9 @@ static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNU
     return mark_boot_complete(arg[0] /* instruction set */);
 }
 
-static int do_move_dex(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return move_dex(arg[0], arg[1], arg[2]); /* src, dst, instruction_set */
-}
-
 static int do_rm_dex(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return rm_dex(arg[0], arg[1]); /* pkgname, instruction_set */
-}
-
-static int do_remove(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return uninstall(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
-}
-
-static int do_fixuid(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return fix_uid(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3])); /* uuid, pkgname, uid, gid */
 }
 
 static int do_free_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) /* TODO int:free_size */
@@ -230,27 +234,18 @@ static int do_free_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) /* 
     return free_cache(parse_null(arg[0]), (int64_t)atoll(arg[1])); /* uuid, free_size */
 }
 
-static int do_rm_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return delete_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
-}
-
-static int do_rm_code_cache(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return delete_code_cache(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
-}
-
-static int do_get_size(char **arg, char reply[REPLY_MAX])
-{
+static int do_get_app_size(char **arg, char reply[REPLY_MAX]) {
     int64_t codesize = 0;
     int64_t datasize = 0;
     int64_t cachesize = 0;
     int64_t asecsize = 0;
     int res = 0;
 
-        /* uuid, pkgdir, userid, apkpath */
-    res = get_size(parse_null(arg[0]), arg[1], atoi(arg[2]), arg[3], arg[4], arg[5], arg[6],
-            arg[7], &codesize, &datasize, &cachesize, &asecsize);
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags,
+            const char *apkpath, const char *libdirpath, const char *fwdlock_apkpath,
+            const char *asecpath, const char *instruction_set */
+    res = get_app_size(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4], arg[5],
+            arg[6], arg[7], arg[8], &codesize, &datasize, &cachesize, &asecsize);
 
     /*
      * Each int64_t can take up 22 characters printed out. Make sure it
@@ -261,21 +256,10 @@ static int do_get_size(char **arg, char reply[REPLY_MAX])
     return res;
 }
 
-static int do_rm_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return delete_user_data(parse_null(arg[0]), arg[1], atoi(arg[2])); /* uuid, pkgname, userid */
-}
-
-static int do_cp_complete_app(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    // from_uuid, to_uuid, package_name, data_app_name, appid, seinfo
-    return copy_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3], atoi(arg[4]), arg[5]);
-}
-
-static int do_mk_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return make_user_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4]);
-                             /* uuid, pkgname, uid, userid, seinfo */
+static int do_move_complete_app(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char* from_uuid, const char *to_uuid, const char *package_name,
+            const char *data_app_name, appid_t appid, const char* seinfo */
+    return move_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3], atoi(arg[4]), arg[5]);
 }
 
 static int do_mk_user_config(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -301,12 +285,6 @@ static int do_linklib(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 static int do_idmap(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return idmap(arg[0], arg[1], atoi(arg[2]));
-}
-
-static int do_restorecon_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return restorecon_data(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
-                             /* uuid, pkgName, seinfo, uid*/
 }
 
 static int do_create_oat_dir(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -335,29 +313,26 @@ struct cmdinfo {
 
 struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
-    { "install",              5, do_install },
+
+    { "create_app_data",      6, do_create_app_data },
+    { "restorecon_app_data",  6, do_restorecon_app_data },
+    { "clear_app_data",       4, do_clear_app_data },
+    { "destroy_app_data",     4, do_destroy_app_data },
+    { "move_complete_app",    6, do_move_complete_app },
+    { "get_app_size",         9, do_get_app_size },
+
     { "dexopt",               7, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
-    { "movedex",              3, do_move_dex },
     { "rmdex",                2, do_rm_dex },
-    { "remove",               3, do_remove },
-    { "fixuid",               4, do_fixuid },
     { "freecache",            2, do_free_cache },
-    { "rmcache",              3, do_rm_cache },
-    { "rmcodecache",          3, do_rm_code_cache },
-    { "getsize",              8, do_get_size },
-    { "rmuserdata",           3, do_rm_user_data },
-    { "cpcompleteapp",        6, do_cp_complete_app },
     { "movefiles",            0, do_movefiles },
     { "linklib",              4, do_linklib },
-    { "mkuserdata",           5, do_mk_user_data },
     { "mkuserconfig",         1, do_mk_user_config },
     { "rmuser",               2, do_rm_user },
     { "idmap",                3, do_idmap },
-    { "restorecondata",       4, do_restorecon_data },
     { "createoatdir",         2, do_create_oat_dir },
     { "rmpackagedir",         1, do_rm_package_dir },
-    { "linkfile",             3, do_link_file }
+    { "linkfile",             3, do_link_file },
 };
 
 static int readx(int s, void *_buf, int count)
@@ -772,6 +747,12 @@ static int installd_main(const int argc ATTRIBUTE_UNUSED, char *argv[]) {
         exit(1);
     }
     fcntl(lsocket, F_SETFD, FD_CLOEXEC);
+
+    // Perform all filesystem access as system so that FBE emulation mode
+    // can block access using chmod 000.
+#if DEBUG_FBE
+    setfsuid(AID_SYSTEM);
+#endif
 
     for (;;) {
         alen = sizeof(addr);

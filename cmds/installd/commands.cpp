@@ -51,109 +51,73 @@ namespace installd {
 
 static const char* kCpPath = "/system/bin/cp";
 
-int install(const char *uuid, const char *pkgname, uid_t uid, gid_t gid, const char *seinfo) {
-    if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
-        ALOGE("invalid uid/gid: %d %d\n", uid, gid);
-        return -1;
+int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
+        appid_t appid, const char* seinfo) {
+    uid_t uid = multiuser_get_uid(userid, appid);
+    if (flags & FLAG_CE_STORAGE) {
+        auto path = create_data_user_package_path(uuid, userid, pkgname);
+        if (fs_prepare_dir_strict(path.c_str(), 0751, uid, uid) != 0) {
+            PLOG(ERROR) << "Failed to prepare " << path;
+            return -1;
+        }
+        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
+            PLOG(ERROR) << "Failed to setfilecon " << path;
+            return -1;
+        }
     }
-
-    return make_user_data(uuid, pkgname, uid, 0, seinfo);
-}
-
-int uninstall(const char *uuid, const char *pkgname, userid_t userid) {
-    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
-    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
-
-    int res = 0;
-    res |= delete_dir_contents_and_dir(ce_package_path);
-    // TODO: include result once 25796509 is fixed
-    delete_dir_contents_and_dir(de_package_path);
-    return res;
-}
-
-int fix_uid(const char *uuid, const char *pkgname, uid_t uid, gid_t gid)
-{
-    struct stat s;
-
-    if ((uid < AID_SYSTEM) || (gid < AID_SYSTEM)) {
-        ALOGE("invalid uid/gid: %d %d\n", uid, gid);
-        return -1;
+    if (flags & FLAG_DE_STORAGE) {
+        auto path = create_data_user_de_package_path(uuid, userid, pkgname);
+        if (fs_prepare_dir_strict(path.c_str(), 0751, uid, uid) == -1) {
+            PLOG(ERROR) << "Failed to prepare " << path;
+            return -1;
+        }
+        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
+            PLOG(ERROR) << "Failed to setfilecon " << path;
+            return -1;
+        }
     }
-
-    // TODO: handle user_de paths
-    std::string _pkgdir(create_data_user_package_path(uuid, 0, pkgname));
-    const char* pkgdir = _pkgdir.c_str();
-
-    if (stat(pkgdir, &s) < 0) return -1;
-
-    if (s.st_uid != 0 || s.st_gid != 0) {
-        ALOGE("fixing uid of non-root pkg: %s %" PRIu32 " %" PRIu32 "\n", pkgdir, s.st_uid, s.st_gid);
-        return -1;
-    }
-
-    if (chmod(pkgdir, 0751) < 0) {
-        ALOGE("cannot chmod dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
-    }
-    if (chown(pkgdir, uid, gid) < 0) {
-        ALOGE("cannot chown dir '%s': %s\n", pkgdir, strerror(errno));
-        unlink(pkgdir);
-        return -errno;
-    }
-
     return 0;
 }
 
-int delete_user_data(const char *uuid, const char *pkgname, userid_t userid) {
-    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
-    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
+int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
+    std::string suffix = "";
+    if (flags & FLAG_CLEAR_CACHE_ONLY) {
+        suffix = CACHE_DIR_POSTFIX;
+    } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
+        suffix = CODE_CACHE_DIR_POSTFIX;
+    }
 
     int res = 0;
-    res |= delete_dir_contents(ce_package_path);
-    // TODO: include result once 25796509 is fixed
-    delete_dir_contents(de_package_path);
+    if (flags & FLAG_CE_STORAGE) {
+        auto path = create_data_user_package_path(uuid, userid, pkgname) + suffix;
+        if (access(path.c_str(), F_OK) == 0) {
+            res |= delete_dir_contents(path);
+        }
+    }
+    if (flags & FLAG_DE_STORAGE) {
+        auto path = create_data_user_de_package_path(uuid, userid, pkgname) + suffix;
+        if (access(path.c_str(), F_OK) == 0) {
+            res |= delete_dir_contents(path);
+        }
+    }
     return res;
 }
 
-int make_user_data(const char *uuid, const char *pkgname, uid_t uid, userid_t userid,
-        const char* seinfo) {
-    std::string ce_package_path(create_data_user_package_path(uuid, userid, pkgname));
-    std::string de_package_path(create_data_user_de_package_path(uuid, userid, pkgname));
-
-    const char* c_ce_package_path = ce_package_path.c_str();
-    const char* c_de_package_path = de_package_path.c_str();
-
-    if (fs_prepare_dir(c_ce_package_path, 0751, uid, uid) == -1) {
-        PLOG(ERROR) << "Failed to prepare " << ce_package_path;
-        unlink(c_ce_package_path);
-        return -1;
+int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
+    int res = 0;
+    if (flags & FLAG_CE_STORAGE) {
+        res |= delete_dir_contents_and_dir(
+                create_data_user_package_path(uuid, userid, pkgname));
     }
-    if (selinux_android_setfilecon(c_ce_package_path, pkgname, seinfo, uid) < 0) {
-        PLOG(ERROR) << "Failed to setfilecon " << ce_package_path;
-        unlink(c_ce_package_path);
-        return -1;
+    if (flags & FLAG_DE_STORAGE) {
+        res |= delete_dir_contents_and_dir(
+                create_data_user_de_package_path(uuid, userid, pkgname));
     }
-
-    if (fs_prepare_dir(c_de_package_path, 0751, uid, uid) == -1) {
-        PLOG(ERROR) << "Failed to prepare " << de_package_path;
-        unlink(c_de_package_path);
-        // TODO: include result once 25796509 is fixed
-        return 0;
-    }
-    if (selinux_android_setfilecon(c_de_package_path, pkgname, seinfo, uid) < 0) {
-        PLOG(ERROR) << "Failed to setfilecon " << de_package_path;
-        unlink(c_de_package_path);
-        // TODO: include result once 25796509 is fixed
-        return 0;
-    }
-
-    return 0;
+    return res;
 }
 
-int copy_complete_app(const char *from_uuid, const char *to_uuid,
-        const char *package_name, const char *data_app_name, appid_t appid,
-        const char* seinfo) {
+int move_complete_app(const char *from_uuid, const char *to_uuid, const char *package_name,
+        const char *data_app_name, appid_t appid, const char* seinfo) {
     std::vector<userid_t> users = get_known_users(from_uuid);
 
     // Copy app
@@ -207,8 +171,8 @@ int copy_complete_app(const char *from_uuid, const char *to_uuid,
             goto fail;
         }
 
-        uid_t uid = multiuser_get_uid(user, appid);
-        if (make_user_data(to_uuid, package_name, uid, user, seinfo) != 0) {
+        if (create_app_data(to_uuid, package_name, user, FLAG_CE_STORAGE | FLAG_DE_STORAGE,
+                appid, seinfo) != 0) {
             LOG(ERROR) << "Failed to create package target " << to;
             goto fail;
         }
@@ -232,11 +196,12 @@ int copy_complete_app(const char *from_uuid, const char *to_uuid,
                     << ": status " << rc;
             goto fail;
         }
-    }
 
-    if (restorecon_data(to_uuid, package_name, seinfo, multiuser_get_uid(0, appid)) != 0) {
-        LOG(ERROR) << "Failed to restorecon";
-        goto fail;
+        if (restorecon_app_data(to_uuid, package_name, user, FLAG_CE_STORAGE | FLAG_DE_STORAGE,
+                appid, seinfo) != 0) {
+            LOG(ERROR) << "Failed to restorecon";
+            goto fail;
+        }
     }
 
     // We let the framework scan the new location and persist that before
@@ -291,33 +256,6 @@ int delete_user(const char *uuid, userid_t userid) {
     }
 
     return res;
-}
-
-int delete_cache(const char *uuid, const char *pkgname, userid_t userid)
-{
-    std::string _cachedir(
-            create_data_user_package_path(uuid, userid, pkgname) + CACHE_DIR_POSTFIX);
-    const char* cachedir = _cachedir.c_str();
-
-    /* delete contents, not the directory, no exceptions */
-    return delete_dir_contents(cachedir, 0, NULL);
-}
-
-int delete_code_cache(const char *uuid, const char *pkgname, userid_t userid)
-{
-    std::string _codecachedir(
-            create_data_user_package_path(uuid, userid, pkgname) + CODE_CACHE_DIR_POSTFIX);
-    const char* codecachedir = _codecachedir.c_str();
-
-    struct stat s;
-
-    /* it's okay if code cache is missing */
-    if (lstat(codecachedir, &s) == -1 && errno == ENOENT) {
-        return 0;
-    }
-
-    /* delete contents, not the directory, no exceptions */
-    return delete_dir_contents(codecachedir, 0, NULL);
 }
 
 /* Try to ensure free_size bytes of storage are available.
@@ -413,32 +351,6 @@ int free_cache(const char *uuid, int64_t free_size)
     return data_disk_free(data_path) >= free_size ? 0 : -1;
 }
 
-int move_dex(const char *src, const char *dst, const char *instruction_set)
-{
-    char src_dex[PKG_PATH_MAX];
-    char dst_dex[PKG_PATH_MAX];
-
-    if (validate_apk_path(src)) {
-        ALOGE("invalid apk path '%s' (bad prefix)\n", src);
-        return -1;
-    }
-    if (validate_apk_path(dst)) {
-        ALOGE("invalid apk path '%s' (bad prefix)\n", dst);
-        return -1;
-    }
-
-    if (!create_cache_path(src_dex, src, instruction_set)) return -1;
-    if (!create_cache_path(dst_dex, dst, instruction_set)) return -1;
-
-    ALOGV("move %s -> %s\n", src_dex, dst_dex);
-    if (rename(src_dex, dst_dex) < 0) {
-        ALOGE("Couldn't move %s: %s\n", src_dex, strerror(errno));
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
 int rm_dex(const char *path, const char *instruction_set)
 {
     char dex_path[PKG_PATH_MAX];
@@ -461,11 +373,10 @@ int rm_dex(const char *path, const char *instruction_set)
     }
 }
 
-int get_size(const char *uuid, const char *pkgname, int userid, const char *apkpath,
-             const char *libdirpath, const char *fwdlock_apkpath, const char *asecpath,
-             const char *instruction_set, int64_t *_codesize, int64_t *_datasize,
-             int64_t *_cachesize, int64_t* _asecsize)
-{
+int get_app_size(const char *uuid, const char *pkgname, int userid, int flags,
+        const char *apkpath, const char *libdirpath, const char *fwdlock_apkpath,
+        const char *asecpath, const char *instruction_set, int64_t *_codesize, int64_t *_datasize,
+        int64_t *_cachesize, int64_t* _asecsize) {
     DIR *d;
     int dfd;
     struct dirent *de;
@@ -534,6 +445,8 @@ int get_size(const char *uuid, const char *pkgname, int userid, const char *apkp
 
     for (auto user : users) {
         // TODO: handle user_de directories
+        if (!(flags & FLAG_CE_STORAGE)) continue;
+
         std::string _pkgdir(create_data_user_package_path(uuid, user, pkgname));
         const char* pkgdir = _pkgdir.c_str();
 
@@ -1571,31 +1484,30 @@ fail:
     return -1;
 }
 
-int restorecon_data(const char* uuid, const char* pkgName, const char* seinfo, appid_t appid) {
+int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, int flags,
+        appid_t appid, const char* seinfo) {
     int res = 0;
 
     // SELINUX_ANDROID_RESTORECON_DATADATA flag is set by libselinux. Not needed here.
-    unsigned int flags = SELINUX_ANDROID_RESTORECON_RECURSE;
+    unsigned int seflags = SELINUX_ANDROID_RESTORECON_RECURSE;
 
     if (!pkgName || !seinfo) {
         ALOGE("Package name or seinfo tag is null when trying to restorecon.");
         return -1;
     }
 
-    // Relabel package directory for all users
-    std::vector<userid_t> users = get_known_users(uuid);
-    for (auto user : users) {
-        uid_t uid = multiuser_get_uid(user, appid);
-
-        std::string ce_package_path(create_data_user_package_path(uuid, user, pkgName));
-        std::string de_package_path(create_data_user_de_package_path(uuid, user, pkgName));
-
-        if (selinux_android_restorecon_pkgdir(ce_package_path.c_str(), seinfo, uid, flags) < 0) {
-            PLOG(ERROR) << "restorecon failed for " << ce_package_path;
+    uid_t uid = multiuser_get_uid(userid, appid);
+    if (flags & FLAG_CE_STORAGE) {
+        auto path = create_data_user_package_path(uuid, userid, pkgName);
+        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, seflags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << path;
             res = -1;
         }
-        if (selinux_android_restorecon_pkgdir(de_package_path.c_str(), seinfo, uid, flags) < 0) {
-            PLOG(ERROR) << "restorecon failed for " << de_package_path;
+    }
+    if (flags & FLAG_DE_STORAGE) {
+        auto path = create_data_user_de_package_path(uuid, userid, pkgName);
+        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, seflags) < 0) {
+            PLOG(ERROR) << "restorecon failed for " << path;
             // TODO: include result once 25796509 is fixed
         }
     }
