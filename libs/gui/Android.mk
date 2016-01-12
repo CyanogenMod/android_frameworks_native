@@ -36,6 +36,8 @@ LOCAL_CPPFLAGS += -Wno-gnu-zero-variadic-macro-arguments
 # Don't warn about struct padding
 LOCAL_CPPFLAGS += -Wno-padded
 
+LOCAL_CPPFLAGS += -DDEBUG_ONLY_CODE=$(if $(filter userdebug eng,$(TARGET_BUILD_VARIANT)),1,0)
+
 LOCAL_SRC_FILES := \
 	IGraphicBufferConsumer.cpp \
 	IConsumerListener.cpp \
