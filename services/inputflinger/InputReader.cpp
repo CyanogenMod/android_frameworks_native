@@ -2751,7 +2751,18 @@ void RotaryEncoderInputMapper::populateDeviceInfo(InputDeviceInfo* info) {
     InputMapper::populateDeviceInfo(info);
 
     if (mRotaryEncoderScrollAccumulator.haveRelativeVWheel()) {
-        info->addMotionRange(AMOTION_EVENT_AXIS_SCROLL, mSource, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+        float res = 0.0f;
+        if (!mDevice->getConfiguration().tryGetProperty(String8("device.res"), res)) {
+            ALOGW("Rotary Encoder device configuration file didn't specify resolution!\n");
+        }
+        if (!mDevice->getConfiguration().tryGetProperty(String8("device.scalingFactor"),
+            mScalingFactor)) {
+            ALOGW("Rotary Encoder device configuration file didn't specify scaling factor,"
+              "default to 1.0!\n");
+            mScalingFactor = 1.0f;
+        }
+        info->addMotionRange(AMOTION_EVENT_AXIS_SCROLL, mSource, -1.0f, 1.0f, 0.0f, 0.0f,
+            res * mScalingFactor);
     }
 }
 
@@ -2807,7 +2818,7 @@ void RotaryEncoderInputMapper::sync(nsecs_t when) {
     // Send motion event.
     if (scrolled) {
         int32_t metaState = mContext->getGlobalMetaState();
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_SCROLL, scroll);
+        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_SCROLL, scroll * mScalingFactor);
 
         NotifyMotionArgs scrollArgs(when, getDeviceId(), mSource, policyFlags,
                 AMOTION_EVENT_ACTION_SCROLL, 0, 0, metaState, 0,
