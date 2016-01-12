@@ -46,15 +46,23 @@ struct CryptoPlugin {
     enum Mode {
         kMode_Unencrypted = 0,
         kMode_AES_CTR     = 1,
-
-        // Neither key nor iv are being used in this mode.
-        // Each subsample is encrypted w/ an iv of all zeroes.
-        kMode_AES_WV      = 2,  // FIX constant
+        kMode_AES_WV      = 2,
+        kMode_AES_CBC     = 3,
     };
 
     struct SubSample {
         uint32_t mNumBytesOfClearData;
         uint32_t mNumBytesOfEncryptedData;
+    };
+
+    struct Pattern {
+        // Number of blocks to be encrypted in the pattern. If zero, pattern
+        // encryption is inoperative.
+        uint32_t mEncryptBlocks;
+
+        // Number of blocks to be skipped (left clear) in the pattern. If zero,
+        // pattern encryption is inoperative.
+        uint32_t mSkipBlocks;
     };
 
     CryptoPlugin() {}
@@ -96,6 +104,7 @@ struct CryptoPlugin {
             const uint8_t key[16],
             const uint8_t iv[16],
             Mode mode,
+            const Pattern &pattern,
             const void *srcPtr,
             const SubSample *subSamples, size_t numSubSamples,
             void *dstPtr,
