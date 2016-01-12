@@ -29,14 +29,14 @@ namespace android {
 namespace installd {
 
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
-        appid_t appid, const char* seinfo);
+        appid_t appid, const char* seinfo, int target_sdk_version);
 int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, int flags,
         appid_t appid, const char* seinfo);
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags);
 int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags);
 
 int move_complete_app(const char* from_uuid, const char *to_uuid, const char *package_name,
-        const char *data_app_name, appid_t appid, const char* seinfo);
+        const char *data_app_name, appid_t appid, const char* seinfo, int target_sdk_version);
 
 int get_app_size(const char *uuid, const char *pkgname, int userid, int flags,
         const char *apkpath, const char *libdirpath, const char *fwdlock_apkpath,

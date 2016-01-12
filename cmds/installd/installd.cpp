@@ -190,8 +190,9 @@ static int do_ping(char **arg ATTRIBUTE_UNUSED, char reply[REPLY_MAX] ATTRIBUTE_
 
 static int do_create_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     /* const char *uuid, const char *pkgname, userid_t userid, int flags,
-            appid_t appid, const char* seinfo */
-    return create_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atoi(arg[4]), arg[5]);
+            appid_t appid, const char* seinfo, int target_sdk_version */
+    return create_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]),
+                           atoi(arg[4]), arg[5], atoi(arg[6]));
 }
 
 static int do_restorecon_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
@@ -256,8 +257,10 @@ static int do_get_app_size(char **arg, char reply[REPLY_MAX]) {
 
 static int do_move_complete_app(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     /* const char* from_uuid, const char *to_uuid, const char *package_name,
-            const char *data_app_name, appid_t appid, const char* seinfo */
-    return move_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3], atoi(arg[4]), arg[5]);
+            const char *data_app_name, appid_t appid, const char* seinfo,
+            int target_sdk_version */
+    return move_complete_app(parse_null(arg[0]), parse_null(arg[1]), arg[2], arg[3],
+                             atoi(arg[4]), arg[5], atoi(arg[6]));
 }
 
 static int do_mk_user_config(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -312,11 +315,11 @@ struct cmdinfo {
 struct cmdinfo cmds[] = {
     { "ping",                 0, do_ping },
 
-    { "create_app_data",      6, do_create_app_data },
+    { "create_app_data",      7, do_create_app_data },
     { "restorecon_app_data",  6, do_restorecon_app_data },
     { "clear_app_data",       4, do_clear_app_data },
     { "destroy_app_data",     4, do_destroy_app_data },
-    { "move_complete_app",    6, do_move_complete_app },
+    { "move_complete_app",    7, do_move_complete_app },
     { "get_app_size",         9, do_get_app_size },
 
     { "dexopt",               7, do_dexopt },

@@ -51,12 +51,15 @@ namespace installd {
 
 static const char* kCpPath = "/system/bin/cp";
 
+#define MIN_RESTRICTED_HOME_SDK_VERSION 24 // > M
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
-        appid_t appid, const char* seinfo) {
+        appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
+    int target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
     if (flags & FLAG_CE_STORAGE) {
         auto path = create_data_user_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), 0751, uid, uid) != 0) {
+        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
             PLOG(ERROR) << "Failed to prepare " << path;
             return -1;
         }
@@ -67,7 +70,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
     }
     if (flags & FLAG_DE_STORAGE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), 0751, uid, uid) == -1) {
+        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) == -1) {
             PLOG(ERROR) << "Failed to prepare " << path;
             // TODO: include result once 25796509 is fixed
             return 0;
@@ -121,7 +124,7 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
 }
 
 int move_complete_app(const char *from_uuid, const char *to_uuid, const char *package_name,
-        const char *data_app_name, appid_t appid, const char* seinfo) {
+        const char *data_app_name, appid_t appid, const char* seinfo, int target_sdk_version) {
     std::vector<userid_t> users = get_known_users(from_uuid);
 
     // Copy app
@@ -176,7 +179,7 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
         }
 
         if (create_app_data(to_uuid, package_name, user, FLAG_CE_STORAGE | FLAG_DE_STORAGE,
-                appid, seinfo) != 0) {
+                appid, seinfo, target_sdk_version) != 0) {
             LOG(ERROR) << "Failed to create package target " << to;
             goto fail;
         }
