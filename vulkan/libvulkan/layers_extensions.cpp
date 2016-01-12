@@ -175,7 +175,7 @@ void* GetLayerGetProcAddr(const Layer& layer,
                           size_t gpa_name_len) {
     const LayerLibrary& library = g_layer_libraries[layer.library_idx];
     void* gpa;
-    size_t layer_name_len = std::max(2u, strlen(layer.properties.layerName));
+    size_t layer_name_len = std::max(size_t{2}, strlen(layer.properties.layerName));
     char* name = static_cast<char*>(alloca(layer_name_len + gpa_name_len + 1));
     strcpy(name, layer.properties.layerName);
     strcpy(name + layer_name_len, gpa_name);
@@ -199,11 +199,11 @@ void DiscoverLayers() {
 }
 
 uint32_t EnumerateLayers(uint32_t count, VkLayerProperties* properties) {
-    uint32_t n = std::min(count, g_layers.size());
+    uint32_t n = std::min(count, static_cast<uint32_t>(g_layers.size()));
     for (uint32_t i = 0; i < n; i++) {
         properties[i] = g_layers[i].properties;
     }
-    return g_layers.size();
+    return static_cast<uint32_t>(g_layers.size());
 }
 
 void GetLayerExtensions(const char* name,
@@ -213,7 +213,7 @@ void GetLayerExtensions(const char* name,
         if (strcmp(name, layer.properties.layerName) != 0)
             continue;
         *properties = layer.extensions.data();
-        *count = layer.extensions.size();
+        *count = static_cast<uint32_t>(layer.extensions.size());
     }
 }
 

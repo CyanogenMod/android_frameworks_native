@@ -287,11 +287,11 @@ void PrintGpuInfo(const GpuInfo& info) {
         strbuf.str(std::string());
 
         if (!info.extensions.empty()) {
-            printf("    Extensions [%u]:\n", info.extensions.size());
+            printf("    Extensions [%zu]:\n", info.extensions.size());
             PrintExtensions(info.extensions, "    ");
         }
         if (!info.layers.empty()) {
-            printf("    Layers [%u]:\n", info.layers.size());
+            printf("    Layers [%zu]:\n", info.layers.size());
             for (size_t i = 0; i < info.layers.size(); i++) {
                 const auto& layer = info.layers[i];
                 printf("    - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
@@ -312,10 +312,10 @@ void PrintGpuInfo(const GpuInfo& info) {
 void PrintInfo(const VulkanInfo& info) {
     std::ostringstream strbuf;
 
-    printf("Instance Extensions [%u]:\n", info.extensions.size());
+    printf("Instance Extensions [%zu]:\n", info.extensions.size());
     PrintExtensions(info.extensions, "  ");
     if (!info.layers.empty()) {
-        printf("Instance Layers [%u]:\n", info.layers.size());
+        printf("Instance Layers [%zu]:\n", info.layers.size());
         for (size_t i = 0; i < info.layers.size(); i++) {
             const auto& layer = info.layers[i];
             printf("  - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
