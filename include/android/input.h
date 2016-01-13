@@ -644,13 +644,6 @@ enum {
      */
     AMOTION_EVENT_AXIS_TILT = 25,
     /**
-     * Axis constant:  Generic scroll axis of a motion event.
-     *
-     * - This is used for scroll axis motion events that can't be classified as strictly
-     *   vertical or horizontal. The movement of a rotating scroller is an example of this.
-     */
-    AMOTION_EVENT_AXIS_SCROLL = 26,
-    /**
      * Axis constant: The movement of x position of a motion event.
      *
      * - For a mouse, reports a difference of x position between the previous position.
@@ -839,8 +832,6 @@ enum {
     AINPUT_SOURCE_TOUCH_NAVIGATION = 0x00200000 | AINPUT_SOURCE_CLASS_NONE,
     /** joystick */
     AINPUT_SOURCE_JOYSTICK = 0x01000000 | AINPUT_SOURCE_CLASS_JOYSTICK,
-    /** rotary encoder */
-    AINPUT_SOURCE_ROTARY_ENCODER = 0x00400000 | AINPUT_SOURCE_CLASS_NONE,
 
     /** any */
     AINPUT_SOURCE_ANY = 0xffffff00,

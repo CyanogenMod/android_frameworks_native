@@ -1231,26 +1231,6 @@ private:
 };
 
 
-class RotaryEncoderInputMapper : public InputMapper {
-public:
-    RotaryEncoderInputMapper(InputDevice* device);
-    virtual ~RotaryEncoderInputMapper();
-
-    virtual uint32_t getSources();
-    virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
-    virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
-    virtual void reset(nsecs_t when);
-    virtual void process(const RawEvent* rawEvent);
-
-private:
-    CursorScrollAccumulator mRotaryEncoderScrollAccumulator;
-
-    int32_t mSource;
-
-    void sync(nsecs_t when);
-};
-
 class TouchInputMapper : public InputMapper {
 public:
     TouchInputMapper(InputDevice* device);
