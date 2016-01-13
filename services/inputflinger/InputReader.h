@@ -1247,7 +1247,6 @@ private:
     CursorScrollAccumulator mRotaryEncoderScrollAccumulator;
 
     int32_t mSource;
-    float mScalingFactor;
 
     void sync(nsecs_t when);
 };
