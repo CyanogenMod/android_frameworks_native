@@ -137,9 +137,6 @@ enum {
     /* The input device is an external stylus (has data we want to fuse with touch data). */
     INPUT_DEVICE_CLASS_EXTERNAL_STYLUS = 0x00000800,
 
-    /* The input device has a rotary encoder */
-    INPUT_DEVICE_CLASS_ROTARY_ENCODER = 0x00001000,
-
     /* The input device is virtual (not a real device, not part of UI configuration). */
     INPUT_DEVICE_CLASS_VIRTUAL       = 0x40000000,
 
