@@ -23,6 +23,7 @@ sources := \
     IAppOpsService.cpp \
     IBatteryStats.cpp \
     IInterface.cpp \
+    IMediaResourceMonitor.cpp \
     IMemory.cpp \
     IPCThreadState.cpp \
     IPermissionController.cpp \
