@@ -1191,15 +1191,6 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
         device->classes |= INPUT_DEVICE_CLASS_CURSOR;
     }
 
-    // See if this is a rotary encoder type device.
-    String8 deviceType = String8();
-    if (device->configuration &&
-        device->configuration->tryGetProperty(String8("device.type"), deviceType)) {
-            if (!deviceType.compare(String8("rotaryEncoder"))) {
-                device->classes |= INPUT_DEVICE_CLASS_ROTARY_ENCODER;
-            }
-    }
-
     // See if this is a touch pad.
     // Is this a new modern multi-touch driver?
     if (test_bit(ABS_MT_POSITION_X, device->absBitmask)
