@@ -69,11 +69,13 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
         if (fs_prepare_dir_strict(path.c_str(), 0751, uid, uid) == -1) {
             PLOG(ERROR) << "Failed to prepare " << path;
-            return -1;
+            // TODO: include result once 25796509 is fixed
+            return 0;
         }
         if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
             PLOG(ERROR) << "Failed to setfilecon " << path;
-            return -1;
+            // TODO: include result once 25796509 is fixed
+            return 0;
         }
     }
     return 0;
@@ -97,7 +99,8 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
     if (flags & FLAG_DE_STORAGE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
-            res |= delete_dir_contents(path);
+            // TODO: include result once 25796509 is fixed
+            delete_dir_contents(path);
         }
     }
     return res;
@@ -110,7 +113,8 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
                 create_data_user_package_path(uuid, userid, pkgname));
     }
     if (flags & FLAG_DE_STORAGE) {
-        res |= delete_dir_contents_and_dir(
+        // TODO: include result once 25796509 is fixed
+        delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
     }
     return res;
@@ -243,7 +247,8 @@ int delete_user(const char *uuid, userid_t userid) {
     std::string media_path(create_data_media_path(uuid, userid));
 
     res |= delete_dir_contents_and_dir(data_path);
-    res |= delete_dir_contents_and_dir(data_de_path);
+    // TODO: include result once 25796509 is fixed
+    delete_dir_contents_and_dir(data_de_path);
     res |= delete_dir_contents_and_dir(media_path);
 
     // Config paths only exist on internal storage
