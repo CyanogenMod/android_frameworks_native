@@ -45,8 +45,6 @@
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
-#define DEBUG_FBE 0
-
 namespace android {
 namespace installd {
 
@@ -465,137 +463,9 @@ static int initialize_directories() {
     }
     int version = oldVersion;
 
-    // /data/user
-    char *user_data_dir = build_string2(android_data_dir.path, SECONDARY_USER_PREFIX);
-    // /data/data
-    char *legacy_data_dir = build_string2(android_data_dir.path, PRIMARY_USER_PREFIX);
-    // /data/user/0
-    char *primary_data_dir = build_string3(android_data_dir.path, SECONDARY_USER_PREFIX, "0");
-    if (!user_data_dir || !legacy_data_dir || !primary_data_dir) {
-        goto fail;
-    }
-
-    // Make the /data/user directory if necessary
-    if (access(user_data_dir, R_OK) < 0) {
-        if (mkdir(user_data_dir, 0711) < 0) {
-            goto fail;
-        }
-        if (chown(user_data_dir, AID_SYSTEM, AID_SYSTEM) < 0) {
-            goto fail;
-        }
-        if (chmod(user_data_dir, 0711) < 0) {
-            goto fail;
-        }
-    }
-    // Make the /data/user/0 symlink to /data/data if necessary
-    if (access(primary_data_dir, R_OK) < 0) {
-        if (symlink(legacy_data_dir, primary_data_dir)) {
-            goto fail;
-        }
-    }
-
-    if (version == 0) {
-        // Introducing multi-user, so migrate /data/media contents into /data/media/0
-        ALOGD("Upgrading /data/media for multi-user");
-
-        // Ensure /data/media
-        if (fs_prepare_dir(android_media_dir.path, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
-            goto fail;
-        }
-
-        // /data/media.tmp
-        char media_tmp_dir[PATH_MAX];
-        snprintf(media_tmp_dir, PATH_MAX, "%smedia.tmp", android_data_dir.path);
-
-        // Only copy when upgrade not already in progress
-        if (access(media_tmp_dir, F_OK) == -1) {
-            if (rename(android_media_dir.path, media_tmp_dir) == -1) {
-                ALOGE("Failed to move legacy media path: %s", strerror(errno));
-                goto fail;
-            }
-        }
-
-        // Create /data/media again
-        if (fs_prepare_dir(android_media_dir.path, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
-            goto fail;
-        }
-
-        if (selinux_android_restorecon(android_media_dir.path, 0)) {
-            goto fail;
-        }
-
-        // /data/media/0
-        char owner_media_dir[PATH_MAX];
-        snprintf(owner_media_dir, PATH_MAX, "%s0", android_media_dir.path);
-
-        // Move any owner data into place
-        if (access(media_tmp_dir, F_OK) == 0) {
-            if (rename(media_tmp_dir, owner_media_dir) == -1) {
-                ALOGE("Failed to move owner media path: %s", strerror(errno));
-                goto fail;
-            }
-        }
-
-        // Ensure media directories for any existing users
-        DIR *dir;
-        struct dirent *dirent;
-        char user_media_dir[PATH_MAX];
-
-        dir = opendir(user_data_dir);
-        if (dir != NULL) {
-            while ((dirent = readdir(dir))) {
-                if (dirent->d_type == DT_DIR) {
-                    const char *name = dirent->d_name;
-
-                    // skip "." and ".."
-                    if (name[0] == '.') {
-                        if (name[1] == 0) continue;
-                        if ((name[1] == '.') && (name[2] == 0)) continue;
-                    }
-
-                    // /data/media/<user_id>
-                    snprintf(user_media_dir, PATH_MAX, "%s%s", android_media_dir.path, name);
-                    if (fs_prepare_dir(user_media_dir, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
-                        goto fail;
-                    }
-                }
-            }
-            closedir(dir);
-        }
-
-        version = 1;
-    }
-
-    // /data/media/obb
-    char media_obb_dir[PATH_MAX];
-    snprintf(media_obb_dir, PATH_MAX, "%sobb", android_media_dir.path);
-
-    if (version == 1) {
-        // Introducing /data/media/obb for sharing OBB across users; migrate
-        // any existing OBB files from owner.
-        ALOGD("Upgrading to shared /data/media/obb");
-
-        // /data/media/0/Android/obb
-        char owner_obb_path[PATH_MAX];
-        snprintf(owner_obb_path, PATH_MAX, "%s0/Android/obb", android_media_dir.path);
-
-        // Only move if target doesn't already exist
-        if (access(media_obb_dir, F_OK) != 0 && access(owner_obb_path, F_OK) == 0) {
-            if (rename(owner_obb_path, media_obb_dir) == -1) {
-                ALOGE("Failed to move OBB from owner: %s", strerror(errno));
-                goto fail;
-            }
-        }
-
+    if (version < 2) {
+        SLOGD("Assuming that device has multi-user storage layout; upgrade no longer supported");
         version = 2;
-    }
-
-    if (ensure_media_user_dirs(nullptr, 0) == -1) {
-        ALOGE("Failed to setup media for user 0");
-        goto fail;
-    }
-    if (fs_prepare_dir(media_obb_dir, 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
-        goto fail;
     }
 
     if (ensure_config_user_dirs(0) == -1) {
@@ -617,7 +487,7 @@ static int initialize_directories() {
 
         DIR *dir;
         struct dirent *dirent;
-        dir = opendir(user_data_dir);
+        dir = opendir("/data/user");
         if (dir != NULL) {
             while ((dirent = readdir(dir))) {
                 const char *name = dirent->d_name;
@@ -679,9 +549,6 @@ static int initialize_directories() {
     res = 0;
 
 fail:
-    free(user_data_dir);
-    free(legacy_data_dir);
-    free(primary_data_dir);
     return res;
 }
 
@@ -747,12 +614,6 @@ static int installd_main(const int argc ATTRIBUTE_UNUSED, char *argv[]) {
         exit(1);
     }
     fcntl(lsocket, F_SETFD, FD_CLOEXEC);
-
-    // Perform all filesystem access as system so that FBE emulation mode
-    // can block access using chmod 000.
-#if DEBUG_FBE
-    setfsuid(AID_SYSTEM);
-#endif
 
     for (;;) {
         alen = sizeof(addr);

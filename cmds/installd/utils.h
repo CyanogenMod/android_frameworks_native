@@ -135,7 +135,6 @@ char *build_string2(const char *s1, const char *s2);
 char *build_string3(const char *s1, const char *s2, const char *s3);
 
 int ensure_dir(const char* path, mode_t mode, uid_t uid, gid_t gid);
-int ensure_media_user_dirs(const char* uuid, userid_t userid);
 int ensure_config_user_dirs(userid_t userid);
 
 int wait_child(pid_t pid);
