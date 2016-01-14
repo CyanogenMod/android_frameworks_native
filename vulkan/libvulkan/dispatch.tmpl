@@ -351,6 +351,11 @@ bool LoadDriverDispatchTable(VkInstance instance,
         ALOGE("missing driver proc: %s", "vkDestroyImage");
         success = false;
     }
+    dispatch.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(instance, "vkGetSwapchainGrallocUsageANDROID"));
+    if (UNLIKELY(!dispatch.GetSwapchainGrallocUsageANDROID)) {
+        ALOGE("missing driver proc: %s", "vkGetSwapchainGrallocUsageANDROID");
+        success = false;
+    }
     dispatch.AcquireImageANDROID = reinterpret_cast<PFN_vkAcquireImageANDROID>(get_proc_addr(instance, "vkAcquireImageANDROID"));
     if (UNLIKELY(!dispatch.AcquireImageANDROID)) {
         ALOGE("missing driver proc: %s", "vkAcquireImageANDROID");
