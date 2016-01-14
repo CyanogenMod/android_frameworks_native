@@ -19,6 +19,7 @@
 #include "HWComposer.h"
 
 #include <gui/BufferItem.h>
+#include <gui/Surface.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -28,6 +29,10 @@ namespace android {
 static const bool sForceHwcCopy = true;
 #else
 static const bool sForceHwcCopy = false;
+#endif
+
+#ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS
+#define NUM_FRAMEBUFFER_SURFACE_BUFFERS (2)
 #endif
 
 #define VDS_LOGE(msg, ...) ALOGE("[%s] " msg, \
@@ -64,6 +69,7 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
 {
     mSource[SOURCE_SINK] = sink;
     mSource[SOURCE_SCRATCH] = bqProducer;
+    sp<Surface> surface(new Surface(bqProducer, false));
 
     resetPerFrameState();
 
@@ -92,7 +98,9 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc, int32_t dispId,
     mConsumer->setConsumerName(ConsumerBase::mName);
     mConsumer->setConsumerUsageBits(GRALLOC_USAGE_HW_COMPOSER);
     mConsumer->setDefaultBufferSize(sinkWidth, sinkHeight);
-    mConsumer->setDefaultMaxBufferCount(2);
+    mConsumer->setDefaultMaxBufferCount(NUM_FRAMEBUFFER_SURFACE_BUFFERS);
+
+    surface->allocateBuffers();
 }
 
 VirtualDisplaySurface::~VirtualDisplaySurface() {
