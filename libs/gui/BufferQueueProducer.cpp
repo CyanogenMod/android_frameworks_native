@@ -806,8 +806,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 mCore->mDequeueBufferCannotBlock ||
                 (mCore->mSingleBufferMode && mCore->mSingleBufferSlot == slot);
         item.mSurfaceDamage = surfaceDamage;
-        item.mSingleBufferMode = mCore->mSingleBufferMode;
         item.mQueuedBuffer = true;
+        item.mAutoRefresh = mCore->mSingleBufferMode && mCore->mAutoRefresh;
 
         mStickyTransform = stickyTransform;
 
@@ -1306,6 +1306,16 @@ status_t BufferQueueProducer::setSingleBufferMode(bool singleBufferMode) {
         mCore->mSingleBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
     }
     mCore->mSingleBufferMode = singleBufferMode;
+    return NO_ERROR;
+}
+
+status_t BufferQueueProducer::setAutoRefresh(bool autoRefresh) {
+    ATRACE_CALL();
+    BQ_LOGV("setAutoRefresh: %d", autoRefresh);
+
+    Mutex::Autolock lock(mCore->mMutex);
+
+    mCore->mAutoRefresh = autoRefresh;
     return NO_ERROR;
 }
 

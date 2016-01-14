@@ -168,6 +168,7 @@ private:
     int dispatchSetBuffersDataSpace(va_list args);
     int dispatchSetSurfaceDamage(va_list args);
     int dispatchSetSingleBufferMode(va_list args);
+    int dispatchSetAutoRefresh(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
@@ -197,6 +198,7 @@ public:
     virtual int setMaxDequeuedBufferCount(int maxDequeuedBuffers);
     virtual int setAsyncMode(bool async);
     virtual int setSingleBufferMode(bool singleBufferMode);
+    virtual int setAutoRefresh(bool autoRefresh);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
 
@@ -331,6 +333,19 @@ private:
     // Stores the current generation number. See setGenerationNumber and
     // IGraphicBufferProducer::setGenerationNumber for more information.
     uint32_t mGenerationNumber;
+
+    // Caches the values that have been passed to the producer.
+    bool mSingleBufferMode;
+    bool mAutoRefresh;
+
+    // If in single buffer mode and auto refresh is enabled, store the shared
+    // buffer slot and return it for all calls to queue/dequeue without going
+    // over Binder.
+    int mSharedBufferSlot;
+
+    // This is true if the shared buffer has already been queued/canceled. It's
+    // used to prevent a mismatch between the number of queue/dequeue calls.
+    bool mSharedBufferHasBeenQueued;
 };
 
 }; // namespace android

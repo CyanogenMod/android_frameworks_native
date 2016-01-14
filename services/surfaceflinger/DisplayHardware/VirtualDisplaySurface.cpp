@@ -547,8 +547,14 @@ uint64_t VirtualDisplaySurface::getNextFrameNumber() const {
     return 0;
 }
 
-status_t VirtualDisplaySurface::setSingleBufferMode(bool singleBufferMode) {
-    return mSource[SOURCE_SINK]->setSingleBufferMode(singleBufferMode);
+status_t VirtualDisplaySurface::setSingleBufferMode(bool /*singleBufferMode*/) {
+    ALOGE("setSingleBufferMode not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
+status_t VirtualDisplaySurface::setAutoRefresh(bool /*autoRefresh*/) {
+    ALOGE("setAutoRefresh not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
 }
 
 status_t VirtualDisplaySurface::setDequeueTimeout(nsecs_t /* timeout */) {

@@ -52,6 +52,7 @@ enum {
     SET_ASYNC_MODE,
     GET_NEXT_FRAME_NUMBER,
     SET_SINGLE_BUFFER_MODE,
+    SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
 };
 
@@ -355,6 +356,18 @@ public:
         return result;
     }
 
+    virtual status_t setAutoRefresh(bool autoRefresh) {
+        Parcel data, reply;
+        data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        data.writeInt32(autoRefresh);
+        status_t result = remote()->transact(SET_AUTO_REFRESH, data, &reply);
+        if (result == NO_ERROR) {
+            result = reply.readInt32();
+        }
+        return result;
+    }
+
     virtual status_t setDequeueTimeout(nsecs_t timeout) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
@@ -559,6 +572,13 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool singleBufferMode = data.readInt32();
             status_t result = setSingleBufferMode(singleBufferMode);
+            reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case SET_AUTO_REFRESH: {
+            CHECK_INTERFACE(IGraphicBuffer, data, reply);
+            bool autoRefresh = data.readInt32();
+            status_t result = setAutoRefresh(autoRefresh);
             reply->writeInt32(result);
             return NO_ERROR;
         }

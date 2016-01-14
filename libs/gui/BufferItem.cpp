@@ -38,7 +38,7 @@ BufferItem::BufferItem() :
     mAcquireCalled(false),
     mTransformToDisplayInverse(false),
     mSurfaceDamage(),
-    mSingleBufferMode(false),
+    mAutoRefresh(false),
     mQueuedBuffer(true),
     mIsStale(false) {
 }

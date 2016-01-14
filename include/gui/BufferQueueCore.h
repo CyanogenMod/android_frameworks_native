@@ -292,6 +292,11 @@ private:
     // consumer and producer to access the same buffer simultaneously.
     bool mSingleBufferMode;
 
+    // When single buffer mode is enabled, this indicates whether the consumer
+    // should acquire buffers even if BufferQueue doesn't indicate that they are
+    // available.
+    bool mAutoRefresh;
+
     // When single buffer mode is enabled, this tracks which slot contains the
     // shared buffer.
     int mSingleBufferSlot;

@@ -65,6 +65,27 @@ protected:
         BufferQueue::createBufferQueue(&mProducer, &mConsumer);
     }
 
+    void testBufferItem(const IGraphicBufferProducer::QueueBufferInput& input,
+            const BufferItem& item) {
+        int64_t timestamp;
+        bool isAutoTimestamp;
+        android_dataspace dataSpace;
+        Rect crop;
+        int scalingMode;
+        uint32_t transform;
+        sp<Fence> fence;
+
+        input.deflate(&timestamp, &isAutoTimestamp, &dataSpace, &crop,
+                &scalingMode, &transform, &fence, NULL);
+        ASSERT_EQ(timestamp, item.mTimestamp);
+        ASSERT_EQ(isAutoTimestamp, item.mIsAutoTimestamp);
+        ASSERT_EQ(dataSpace, item.mDataSpace);
+        ASSERT_EQ(crop, item.mCrop);
+        ASSERT_EQ(static_cast<uint32_t>(scalingMode), item.mScalingMode);
+        ASSERT_EQ(transform, item.mTransform);
+        ASSERT_EQ(fence, item.mFence);
+    }
+
     sp<IGraphicBufferProducer> mProducer;
     sp<IGraphicBufferConsumer> mConsumer;
 };
@@ -521,7 +542,7 @@ TEST_F(BufferQueueTest, TestGenerationNumbers) {
     ASSERT_EQ(OK, mConsumer->attachBuffer(&outSlot, buffer));
 }
 
-TEST_F(BufferQueueTest, TestSingleBufferMode) {
+TEST_F(BufferQueueTest, TestSingleBufferModeWithoutAutoRefresh) {
     createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
@@ -545,19 +566,66 @@ TEST_F(BufferQueueTest, TestSingleBufferMode) {
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
     ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
 
+    // Repeatedly queue and dequeue a buffer from the producer side, it should
+    // always return the same one. And we won't run out of buffers because it's
+    // always the same one and because async mode gets enabled.
+    int slot;
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(singleSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    }
+
+    // acquire the buffer
+    BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(singleSlot, item.mSlot);
+    testBufferItem(input, item);
+    ASSERT_EQ(true, item.mQueuedBuffer);
+    ASSERT_EQ(false, item.mAutoRefresh);
+
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+            EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+
+    // attempt to acquire a second time should return no buffer available
+    ASSERT_EQ(IGraphicBufferConsumer::NO_BUFFER_AVAILABLE,
+            mConsumer->acquireBuffer(&item, 0));
+}
+
+TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+    ASSERT_EQ(OK, mProducer->setAutoRefresh(true));
+
+    // Get a buffer
+    int singleSlot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+
+    // Queue the buffer
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+
     // Repeatedly acquire and release a buffer from the consumer side, it should
     // always return the same one.
     BufferItem item;
     for (int i = 0; i < 5; i++) {
         ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
         ASSERT_EQ(singleSlot, item.mSlot);
-        ASSERT_EQ(0, item.mTimestamp);
-        ASSERT_EQ(false, item.mIsAutoTimestamp);
-        ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
-        ASSERT_EQ(Rect(0, 0, 1, 1), item.mCrop);
-        ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
-        ASSERT_EQ(0u, item.mTransform);
-        ASSERT_EQ(Fence::NO_FENCE, item.mFence);
+        testBufferItem(input, item);
+        ASSERT_EQ(i == 0, item.mQueuedBuffer);
+        ASSERT_EQ(true, item.mAutoRefresh);
 
         ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
                 EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
@@ -585,6 +653,8 @@ TEST_F(BufferQueueTest, TestSingleBufferMode) {
         ASSERT_EQ(NATIVE_WINDOW_SCALING_MODE_FREEZE, item.mScalingMode);
         ASSERT_EQ(0u, item.mTransform);
         ASSERT_EQ(Fence::NO_FENCE, item.mFence);
+        ASSERT_EQ(i == 0, item.mQueuedBuffer);
+        ASSERT_EQ(true, item.mAutoRefresh);
 
         ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
                 EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
