@@ -402,6 +402,7 @@ status_t BnGraphicBufferProducer::onTransact(
             QueueBufferOutput* const output =
                     reinterpret_cast<QueueBufferOutput *>(
                             reply->writeInplace(sizeof(QueueBufferOutput)));
+            memset(output, 0, sizeof(QueueBufferOutput));
             status_t result = queueBuffer(buf, input, output);
             reply->writeInt32(result);
             return NO_ERROR;
