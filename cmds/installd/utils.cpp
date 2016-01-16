@@ -1168,16 +1168,6 @@ char *build_string3(const char *s1, const char *s2, const char *s3) {
     return result;
 }
 
-/* Ensure that /data/media directories are prepared for given user. */
-int ensure_media_user_dirs(const char* uuid, userid_t userid) {
-    std::string media_user_path(create_data_media_path(uuid, userid));
-    if (fs_prepare_dir(media_user_path.c_str(), 0770, AID_MEDIA_RW, AID_MEDIA_RW) == -1) {
-        return -1;
-    }
-
-    return 0;
-}
-
 int ensure_config_user_dirs(userid_t userid) {
     char config_user_path[PATH_MAX];
 
