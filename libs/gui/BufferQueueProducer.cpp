@@ -629,7 +629,7 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
     }
 
     if (mCore->mSingleBufferMode) {
-        BQ_LOGE("attachBuffer: cannot atach a buffer in single buffer mode");
+        BQ_LOGE("attachBuffer: cannot attach a buffer in single buffer mode");
         return BAD_VALUE;
     }
 

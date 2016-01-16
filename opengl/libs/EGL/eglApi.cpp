@@ -33,6 +33,8 @@
 #include <cutils/properties.h>
 #include <cutils/memory.h>
 
+#include <ui/GraphicBuffer.h>
+
 #include <utils/KeyedVector.h>
 #include <utils/SortedVector.h>
 #include <utils/String8.h>
@@ -80,6 +82,7 @@ extern char const * const gBuiltinExtensionString =
         "EGL_KHR_get_all_proc_addresses "
         "EGL_ANDROID_presentation_time "
         "EGL_KHR_swap_buffers_with_damage "
+        "EGL_ANDROID_create_native_client_buffer "
         ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
@@ -167,6 +170,10 @@ static const extention_map_t sExtensionMap[] = {
     // EGL_KHR_swap_buffers_with_damage
     { "eglSwapBuffersWithDamageKHR",
             (__eglMustCastToProperFunctionPointerType)&eglSwapBuffersWithDamageKHR },
+
+    // EGL_ANDROID_native_client_buffer
+    { "eglCreateNativeClientBufferANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglCreateNativeClientBufferANDROID },
 
     // EGL_KHR_partial_update
     { "eglSetDamageRegionKHR",
@@ -1768,6 +1775,97 @@ EGLBoolean eglPresentationTimeANDROID(EGLDisplay dpy, EGLSurface surface,
     native_window_set_buffers_timestamp(s->win.get(), time);
 
     return EGL_TRUE;
+}
+
+EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
+{
+    clearError();
+
+    int usage = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t format = 0;
+    uint32_t red_size = 0;
+    uint32_t green_size = 0;
+    uint32_t blue_size = 0;
+    uint32_t alpha_size = 0;
+
+#define GET_POSITIVE_VALUE(case_name, target) \
+    case case_name: \
+        if (value > 0) { \
+            target = value; \
+        } else { \
+            return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0); \
+        } \
+        break
+
+    if (attrib_list) {
+        while (*attrib_list != EGL_NONE) {
+            GLint attr = *attrib_list++;
+            GLint value = *attrib_list++;
+            switch (attr) {
+                GET_POSITIVE_VALUE(EGL_WIDTH, width);
+                GET_POSITIVE_VALUE(EGL_HEIGHT, height);
+                GET_POSITIVE_VALUE(EGL_RED_SIZE, red_size);
+                GET_POSITIVE_VALUE(EGL_GREEN_SIZE, green_size);
+                GET_POSITIVE_VALUE(EGL_BLUE_SIZE, blue_size);
+                GET_POSITIVE_VALUE(EGL_ALPHA_SIZE, alpha_size);
+                case EGL_NATIVE_BUFFER_USAGE_ANDROID:
+                    if (value & EGL_NATIVE_BUFFER_USAGE_PROTECTED_BIT_ANDROID) {
+                        usage |= GRALLOC_USAGE_PROTECTED;
+                        // If we are using QCOM then add in extra bits.  This
+                        // should be removed before launch. These correspond to:
+                        // USAGE_PRIVATE_MM_HEAP | USAGE_PRIVATE_UNCACHED
+                        usage |= 0x82000000;
+                    }
+                    if (value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_ANDROID) {
+                        usage |= GRALLOC_USAGE_HW_RENDER;
+                    }
+                    if (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_ANDROID) {
+                        usage |= GRALLOC_USAGE_HW_TEXTURE;
+                    }
+                    // The buffer must be used for either a texture or a
+                    // renderbuffer.
+                    if ((value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_ANDROID) &&
+                        (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_ANDROID)) {
+                        return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
+                    }
+                    break;
+                default:
+                    return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
+            }
+        }
+    }
+#undef GET_POSITIVE_VALUE
+
+    // Validate format.
+    if (red_size == 8 && green_size == 8 && blue_size == 8) {
+        if (alpha_size == 8) {
+            format = HAL_PIXEL_FORMAT_RGBA_8888;
+        } else {
+            format = HAL_PIXEL_FORMAT_RGB_888;
+        }
+    } else if (red_size == 5 && green_size == 6 && blue_size == 5 &&
+               alpha_size == 0) {
+        format == HAL_PIXEL_FORMAT_RGB_565;
+    } else {
+        ALOGE("Invalid native pixel format { r=%d, g=%d, b=%d, a=%d }",
+                red_size, green_size, blue_size, alpha_size);
+        return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
+    }
+
+    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage);
+    const status_t err = gBuffer->initCheck();
+    if (err != NO_ERROR) {
+        ALOGE("Unable to create native buffer { w=%d, h=%d, f=%d, u=%#x }: %#x",
+                width, height, format, usage, err);
+        // Destroy the buffer.
+        sp<GraphicBuffer> holder(gBuffer);
+        return setError(EGL_BAD_ALLOC, (EGLClientBuffer)0);
+    }
+    ALOGD("Created new native buffer %p { w=%d, h=%d, f=%d, u=%#x }",
+            gBuffer, width, height, format, usage);
+    return static_cast<EGLClientBuffer>(gBuffer->getNativeBuffer());
 }
 
 // ----------------------------------------------------------------------------
