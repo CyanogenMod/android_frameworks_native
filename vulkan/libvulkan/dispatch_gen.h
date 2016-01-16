@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define VK_PROTOTYPES
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
 #include <vulkan/vulkan.h>

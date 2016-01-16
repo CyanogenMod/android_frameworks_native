@@ -28,7 +28,7 @@ import platform "platform.api"
 // API version (major.minor.patch)
 define VERSION_MAJOR 1
 define VERSION_MINOR 0
-define VERSION_PATCH 0
+define VERSION_PATCH 1
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -684,14 +684,14 @@ enum VkResult {
     //@extension("VK_KHR_surface")
     VK_ERROR_SURFACE_LOST_KHR                               = 0xC4653600, // -1000000000
 
+    //@extension("VK_KHR_surface")
+    VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46535FF, // -1000008001
+
     //@extension("VK_KHR_swapchain")
     VK_ERROR_OUT_OF_DATE_KHR                                = 0xC4653214, // -1000001004
 
     //@extension("VK_KHR_display_swapchain")
     VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC4652A47, // -1000003001
-
-    //@extension("VK_KHR_android_surface")
-    VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46516C0, // -1000008000
 
     //@extension("VK_EXT_debug_report")
     VK_ERROR_VALIDATION_FAILED_EXT                          = 0xC4650B07, // -1000011001

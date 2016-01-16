@@ -21,7 +21,6 @@
 #include <sstream>
 #include <vector>
 
-#define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_ext_debug_report.h>
 
