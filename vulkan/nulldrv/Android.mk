@@ -16,12 +16,13 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
-LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing
-LOCAL_CFLAGS += -DLOG_TAG=\"vknulldrv\"
-LOCAL_CFLAGS += -Weverything -Werror \
+LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing \
+	-DLOG_TAG=\"vknulldrv\" \
+	-Weverything -Werror \
 	-Wno-padded \
 	-Wno-undef \
 	-Wno-zero-length-array
+#LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c++98-compat-pedantic \
 	-Wno-c99-extensions

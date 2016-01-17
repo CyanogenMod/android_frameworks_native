@@ -44,6 +44,7 @@
 ¶
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
+#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 ¶
 namespace vulkan {
@@ -155,7 +156,7 @@ PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
 const NameProc kLoaderExportProcs[] = {«
     // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "IsFunctionSupported" $f)}}
+    {{if (Macro "IsExported" $f)}}
       {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{$f.Name}})},
     {{end}}
   {{end}}
@@ -507,11 +508,13 @@ bool LoadDriverDispatchTable(VkInstance instance,
 {{define "IsExported"}}
   {{AssertType $ "Function"}}
 
-  {{$ext := GetAnnotation $ "extension"}}
-  {{if $ext}}
-    {{Macro "IsLoaderExtension" $ext}}
-  {{else}}
-    true
+  {{if (Macro "IsFunctionSupported" $)}}
+    {{$ext := GetAnnotation $ "extension"}}
+    {{if $ext}}
+      {{Macro "IsLoaderExtension" $ext}}
+    {{else}}
+      true
+    {{end}}
   {{end}}
 {{end}}
 

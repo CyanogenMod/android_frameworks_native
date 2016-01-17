@@ -22,6 +22,7 @@
 #define NULLDRV_NULL_DRIVER_H 1
 
 #include <vulkan/vk_android_native_buffer.h>
+#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 
 namespace null_driver {
@@ -167,6 +168,9 @@ VKAPI_ATTR void CmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRender
 VKAPI_ATTR void CmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents);
 VKAPI_ATTR void CmdEndRenderPass(VkCommandBuffer commandBuffer);
 VKAPI_ATTR void CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
+VKAPI_ATTR VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
+VKAPI_ATTR void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
+VKAPI_ATTR void DebugReportMessageEXT(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage);
 VKAPI_ATTR VkResult GetSwapchainGrallocUsageANDROID(VkDevice device, VkFormat format, VkImageUsageFlags imageUsage, int* grallocUsage);
 VKAPI_ATTR VkResult AcquireImageANDROID(VkDevice device, VkImage image, int nativeFenceFd, VkSemaphore semaphore, VkFence fence);
 VKAPI_ATTR VkResult QueueSignalReleaseImageANDROID(VkQueue queue, uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, VkImage image, int* pNativeFenceFd);

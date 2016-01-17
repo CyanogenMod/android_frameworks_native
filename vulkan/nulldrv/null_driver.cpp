@@ -15,13 +15,13 @@
  */
 
 #include <hardware/hwvulkan.h>
+#include <vulkan/vk_ext_debug_report.h>
 
-#include <inttypes.h>
-#include <string.h>
 #include <algorithm>
 #include <array>
+#include <inttypes.h>
+#include <string.h>
 
-// #define LOG_NDEBUG 0
 #include <log/log.h>
 #include <utils/Errors.h>
 
@@ -37,6 +37,8 @@ struct VkInstance_T {
     hwvulkan_dispatch_t dispatch;
     VkAllocationCallbacks allocator;
     VkPhysicalDevice_T physical_device;
+    uint64_t next_callback_handle;
+    bool debug_report_enabled;
 };
 
 struct VkQueue_T {
@@ -67,6 +69,7 @@ namespace {
 namespace HandleType {
 enum Enum {
     kBufferView,
+    kDebugReportCallbackEXT,
     kDescriptorPool,
     kDescriptorSet,
     kDescriptorSetLayout,
@@ -86,7 +89,6 @@ enum Enum {
     kNumTypes
 };
 }  // namespace HandleType
-uint64_t AllocHandle(VkDevice device, HandleType::Enum type);
 
 const VkDeviceSize kMaxDeviceMemory = VkDeviceSize(INTPTR_MAX) + 1;
 
@@ -164,14 +166,26 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
         offsetof(VkInstance_T, physical_device));
 }
 
+uint64_t AllocHandle(uint64_t type, uint64_t* next_handle) {
+    const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
+    ALOGE_IF(*next_handle == kHandleMask,
+             "non-dispatchable handles of type=%" PRIu64
+             " are about to overflow",
+             type);
+    return (UINT64_C(1) << 63) | ((type & 0x7) << 56) |
+           ((*next_handle)++ & kHandleMask);
+}
+
+template <class Handle>
+Handle AllocHandle(VkInstance instance, HandleType::Enum type) {
+    return reinterpret_cast<Handle>(
+        AllocHandle(type, &instance->next_callback_handle));
+}
+
 template <class Handle>
 Handle AllocHandle(VkDevice device, HandleType::Enum type) {
-    const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
-    ALOGE_IF(device->next_handle[type] == kHandleMask,
-             "non-dispatchable handles of type=%u are about to overflow", type);
     return reinterpret_cast<Handle>(
-        (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
-        (device->next_handle[type]++ & kHandleMask));
+        AllocHandle(type, &device->next_handle[type]));
 }
 
 }  // namespace
@@ -192,15 +206,33 @@ namespace null_driver {
 // Global
 
 VKAPI_ATTR
-VkResult EnumerateInstanceExtensionProperties(const char*,
-                                              uint32_t* count,
-                                              VkExtensionProperties*) {
-    *count = 0;
-    return VK_SUCCESS;
+VkResult EnumerateInstanceExtensionProperties(
+    const char* layer_name,
+    uint32_t* count,
+    VkExtensionProperties* properties) {
+    if (layer_name) {
+        ALOGW(
+            "Driver vkEnumerateInstanceExtensionProperties shouldn't be called "
+            "with a layer name ('%s')",
+            layer_name);
+        *count = 0;
+        return VK_SUCCESS;
+    }
+
+    const VkExtensionProperties kExtensions[] = {
+        {VK_EXT_DEBUG_REPORT_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_SPEC_VERSION}};
+    const uint32_t kExtensionsCount =
+        sizeof(kExtensions) / sizeof(kExtensions[0]);
+
+    if (!properties || *count > kExtensionsCount)
+        *count = kExtensionsCount;
+    if (properties)
+        std::copy(kExtensions, kExtensions + *count, properties);
+    return *count < kExtensionsCount ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VKAPI_ATTR
-VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
+VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         const VkAllocationCallbacks* allocator,
                         VkInstance* out_instance) {
     // Assume the loader provided alloc callbacks even if the app didn't.
@@ -218,6 +250,16 @@ VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
     instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     instance->allocator = *allocator;
     instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    instance->next_callback_handle = 0;
+    instance->debug_report_enabled = false;
+
+    for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
+        if (strcmp(create_info->ppEnabledExtensionNames[i],
+                   VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0) {
+            ALOGV("Enabling " VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+            instance->debug_report_enabled = true;
+        }
+    }
 
     *out_instance = instance;
     return VK_SUCCESS;
@@ -269,13 +311,15 @@ void GetPhysicalDeviceQueueFamilyProperties(
     VkPhysicalDevice,
     uint32_t* count,
     VkQueueFamilyProperties* properties) {
-    if (properties) {
+    if (!properties || *count > 1)
+        *count = 1;
+    if (properties && *count == 1) {
         properties->queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT |
                                  VK_QUEUE_TRANSFER_BIT;
         properties->queueCount = 1;
         properties->timestampValidBits = 64;
+        properties->minImageTransferGranularity = VkExtent3D{1, 1, 1};
     }
-    *count = 1;
 }
 
 void GetPhysicalDeviceMemoryProperties(
@@ -707,6 +751,15 @@ VkResult CreateShaderModule(VkDevice device,
     return VK_SUCCESS;
 }
 
+VkResult CreateDebugReportCallbackEXT(VkInstance instance,
+                                      const VkDebugReportCallbackCreateInfoEXT*,
+                                      const VkAllocationCallbacks*,
+                                      VkDebugReportCallbackEXT* callback) {
+    *callback = AllocHandle<VkDebugReportCallbackEXT>(
+        instance, HandleType::kDebugReportCallbackEXT);
+    return VK_SUCCESS;
+}
+
 VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
                                          VkFormat,
                                          VkImageUsageFlags,
@@ -1079,6 +1132,12 @@ void CmdEndRenderPass(VkCommandBuffer cmdBuffer) {
 }
 
 void CmdExecuteCommands(VkCommandBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCommandBuffer* pCmdBuffers) {
+}
+
+void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) {
+}
+
+void DebugReportMessageEXT(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) {
 }
 
 #pragma clang diagnostic pop

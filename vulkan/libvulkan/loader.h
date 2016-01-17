@@ -19,6 +19,7 @@
 
 #include <bitset>
 #include "dispatch_gen.h"
+#include "debug_report.h"
 
 namespace vulkan {
 
@@ -107,8 +108,11 @@ VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice, const 
 
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);
 const VkAllocationCallbacks* GetAllocator(VkDevice device);
+VkInstance GetDriverInstance(VkInstance instance);
+const DriverDispatchTable& GetDriverDispatch(VkInstance instance);
 const DriverDispatchTable& GetDriverDispatch(VkDevice device);
 const DriverDispatchTable& GetDriverDispatch(VkQueue queue);
+DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
 
 // -----------------------------------------------------------------------------
 // swapchain.cpp

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define LOG_NDEBUG 0
-
 #include <algorithm>
 #include <memory>
 
@@ -322,9 +320,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
     if (!allocator)
         allocator = GetAllocator(device);
 
-    ALOGV_IF(create_info->imageArraySize != 1,
-             "Swapchain imageArraySize (%u) != 1 not supported",
-             create_info->imageArraySize);
+    ALOGV_IF(create_info->imageArrayLayers != 1,
+             "Swapchain imageArrayLayers (%u) != 1 not supported",
+             create_info->imageArrayLayers);
 
     ALOGE_IF(create_info->imageFormat != VK_FORMAT_R8G8B8A8_UNORM,
              "swapchain formats other than R8G8B8A8_UNORM not yet implemented");

@@ -16,9 +16,12 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
-LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing
-LOCAL_CFLAGS += -DLOG_TAG=\"vulkan\"
-LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef
+LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
+	-std=c99 -fvisibility=hidden -fstrict-aliasing \
+	-Weverything -Werror \
+	-Wno-padded \
+	-Wno-undef
+#LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++14 \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
@@ -31,6 +34,7 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
+	debug_report.cpp \
 	dispatch_gen.cpp \
 	layers_extensions.cpp \
 	loader.cpp \

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define LOG_NDEBUG 0
-
 #include "loader.h"
 #include <alloca.h>
 #include <dirent.h>

@@ -51,6 +51,7 @@
 #define NULLDRV_NULL_DRIVER_H 1
 ¶
 #include <vulkan/vk_android_native_buffer.h>
+#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 ¶
 namespace null_driver {«
@@ -216,6 +217,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(const char* name) {«
 */}}
 {{define "IsDriverExtension"}}
   {{$ext := index $.Arguments 0}}
-  {{if eq $ext "VK_ANDROID_native_buffer"}}true
+  {{     if eq $ext "VK_ANDROID_native_buffer"}}true
+  {{else if eq $ext "VK_EXT_debug_report"}}true
   {{end}}
 {{end}}

@@ -37,7 +37,6 @@
 #include <cutils/properties.h>
 #include <hardware/hwvulkan.h>
 #include <log/log.h>
-#include <vulkan/vk_debug_report_lunarg.h>
 #include <vulkan/vulkan_loader_data.h>
 
 using namespace vulkan;
@@ -249,7 +248,6 @@ struct Instance {
     Instance(const VkAllocationCallbacks* alloc_callbacks)
         : dispatch_ptr(&dispatch),
           handle(reinterpret_cast<VkInstance>(&dispatch_ptr)),
-          get_instance_proc_addr(nullptr),
           alloc(alloc_callbacks),
           num_physical_devices(0),
           active_layers(CallbackAllocator<LayerRef>(alloc)),
@@ -267,17 +265,13 @@ struct Instance {
     const VkInstance handle;
     InstanceDispatchTable dispatch;
 
-    // TODO(jessehall): Only needed by GetInstanceProcAddr_Top for
-    // vkDbg*MessageCallback. Points to the outermost layer's function. Remove
-    // once the DEBUG_CALLBACK is integrated into the API file.
-    PFN_vkGetInstanceProcAddr get_instance_proc_addr;
-
     const VkAllocationCallbacks* alloc;
     uint32_t num_physical_devices;
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
 
     Vector<LayerRef> active_layers;
-    VkDbgMsgCallback message;
+    VkDebugReportCallbackEXT message;
+    DebugReportCallbackList debug_report_callbacks;
 
     struct {
         VkInstance instance;
@@ -476,17 +470,17 @@ void FreeAllocatedCreateInfo(T& local_create_info,
 }
 
 VKAPI_ATTR
-VkBool32 LogDebugMessageCallback(VkFlags message_flags,
-                                 VkDbgObjectType /*obj_type*/,
-                                 uint64_t /*src_object*/,
+VkBool32 LogDebugMessageCallback(VkDebugReportFlagsEXT flags,
+                                 VkDebugReportObjectTypeEXT /*objectType*/,
+                                 uint64_t /*object*/,
                                  size_t /*location*/,
                                  int32_t message_code,
                                  const char* layer_prefix,
                                  const char* message,
                                  void* /*user_data*/) {
-    if (message_flags & VK_DBG_REPORT_ERROR_BIT) {
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
         ALOGE("[%s] Code %d : %s", layer_prefix, message_code, message);
-    } else if (message_flags & VK_DBG_REPORT_WARN_BIT) {
+    } else if (flags & VK_DEBUG_REPORT_WARN_BIT_EXT) {
         ALOGW("[%s] Code %d : %s", layer_prefix, message_code, message);
     }
     return false;
@@ -517,8 +511,9 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     InstanceExtensionSet enabled_extensions;
     driver_create_info.enabledExtensionCount = 0;
     driver_create_info.ppEnabledExtensionNames = nullptr;
-    size_t max_names = std::min(create_info->enabledExtensionCount,
-                                g_driver_instance_extensions.count());
+    size_t max_names =
+        std::min(static_cast<size_t>(create_info->enabledExtensionCount),
+                 g_driver_instance_extensions.count());
     if (max_names > 0) {
         const char** names =
             static_cast<const char**>(alloca(max_names * sizeof(char*)));
@@ -598,12 +593,6 @@ PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance, const char* name) {
     PFN_vkVoidFunction pfn;
     if ((pfn = GetLoaderBottomProcAddr(name)))
         return pfn;
-    // TODO: Possibly move this into the instance table
-    // TODO: Possibly register the callbacks in the loader
-    if (strcmp(name, "vkDbgCreateMsgCallback") == 0 ||
-        strcmp(name, "vkDbgDestroyMsgCallback") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
-    }
     return nullptr;
 }
 
@@ -829,11 +818,12 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
         instance.drv.dispatch.DestroyInstance(instance.drv.instance, allocator);
     }
     if (instance.message) {
-        PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
-        DebugDestroyMessageCallback =
-            reinterpret_cast<PFN_vkDbgDestroyMsgCallback>(
-                vkGetInstanceProcAddr(vkinstance, "vkDbgDestroyMsgCallback"));
-        DebugDestroyMessageCallback(vkinstance, instance.message);
+        PFN_vkDestroyDebugReportCallbackEXT destroy_debug_report_callback;
+        destroy_debug_report_callback =
+            reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
+                vkGetInstanceProcAddr(vkinstance,
+                                      "vkDestroyDebugReportCallbackEXT"));
+        destroy_debug_report_callback(vkinstance, instance.message, allocator);
     }
     instance.active_layers.clear();
     const VkAllocationCallbacks* alloc = instance.alloc;
@@ -975,7 +965,6 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
                 next_element->get_proc_addr);
         }
     }
-    instance->get_instance_proc_addr = next_get_proc_addr;
 
     // This is the magic call that initializes all the layer instances and
     // allows them to create their instance_handle -> instance_data mapping.
@@ -997,7 +986,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         enable_logging = enable_callback;
         if (enable_callback) {
             enable_callback = AddExtensionToCreateInfo(
-                local_create_info, "DEBUG_REPORT", instance->alloc);
+                local_create_info, "VK_EXT_debug_report", instance->alloc);
         }
     }
 
@@ -1024,13 +1013,18 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     }
 
     if (enable_logging) {
-        PFN_vkDbgCreateMsgCallback dbg_create_msg_callback;
-        dbg_create_msg_callback = reinterpret_cast<PFN_vkDbgCreateMsgCallback>(
-            GetInstanceProcAddr_Top(instance->handle,
-                                    "vkDbgCreateMsgCallback"));
-        dbg_create_msg_callback(
-            instance->handle, VK_DBG_REPORT_ERROR_BIT | VK_DBG_REPORT_WARN_BIT,
-            LogDebugMessageCallback, nullptr, &instance->message);
+        const VkDebugReportCallbackCreateInfoEXT callback_create_info = {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT,
+            .flags =
+                VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARN_BIT_EXT,
+            .pfnCallback = LogDebugMessageCallback,
+        };
+        PFN_vkCreateDebugReportCallbackEXT create_debug_report_callback =
+            reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
+                GetInstanceProcAddr_Top(instance->handle,
+                                        "vkCreateDebugReportCallbackEXT"));
+        create_debug_report_callback(instance->handle, &callback_create_info,
+                                     allocator, &instance->message);
     }
 
     return result;
@@ -1050,13 +1044,6 @@ PFN_vkVoidFunction GetInstanceProcAddr_Top(VkInstance vkinstance,
     // Otherwise, look up the handler in the instance dispatch table
     if ((pfn = GetDispatchProcAddr(dispatch, name)))
         return pfn;
-    // TODO(jessehall): Generate these into the instance dispatch table, and
-    // add loader-bottom procs for them.
-    if (strcmp(name, "vkDbgCreateMsgCallback") == 0 ||
-        strcmp(name, "vkDbgDestroyMsgCallback") == 0) {
-        return GetDispatchParent(vkinstance)
-            .get_instance_proc_addr(vkinstance, name);
-    }
     // Anything not handled already must be a device-dispatched function
     // without a loader-top. We must return a function that will dispatch based
     // on the dispatchable object parameter -- which is exactly what the
@@ -1134,12 +1121,24 @@ const VkAllocationCallbacks* GetAllocator(VkDevice vkdevice) {
     return GetDispatchParent(vkdevice).instance->alloc;
 }
 
+VkInstance GetDriverInstance(VkInstance instance) {
+    return GetDispatchParent(instance).drv.instance;
+}
+
+const DriverDispatchTable& GetDriverDispatch(VkInstance instance) {
+    return GetDispatchParent(instance).drv.dispatch;
+}
+
 const DriverDispatchTable& GetDriverDispatch(VkDevice device) {
     return GetDispatchParent(device).instance->drv.dispatch;
 }
 
 const DriverDispatchTable& GetDriverDispatch(VkQueue queue) {
     return GetDispatchParent(queue).instance->drv.dispatch;
+}
+
+DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
+    return GetDispatchParent(instance).debug_report_callbacks;
 }
 
 }  // namespace vulkan

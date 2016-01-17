@@ -47,8 +47,7 @@ extern "C"
 #define VK_EXT_debug_report 1
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDebugReportCallbackEXT)
 
-#define VK_EXT_DEBUG_REPORT_REVISION      2
-#define VK_EXT_DEBUG_REPORT_EXTENSION_NUMBER 11
+#define VK_EXT_DEBUG_REPORT_SPEC_VERSION    2
 #define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_EXT_debug_report"
 
 
@@ -85,8 +84,8 @@ typedef enum VkDebugReportObjectTypeEXT {
 } VkDebugReportObjectTypeEXT;
 
 typedef enum VkDebugReportErrorEXT {
-    VK_DEBUG_REPORT_ERROR_NONE = 0,
-    VK_DEBUG_REPORT_ERROR_CALLBACK_REF = 1,
+    VK_DEBUG_REPORT_ERROR_NONE_EXT = 0,
+    VK_DEBUG_REPORT_ERROR_CALLBACK_REF_EXT = 1,
 } VkDebugReportErrorEXT;
 
 typedef enum VkDebugReportFlagBitsEXT {
@@ -106,7 +105,7 @@ typedef VkBool32 (VKAPI_PTR *PFN_vkDebugReportCallbackEXT)(
     int32_t                                     messageCode,
     const char*                                 pLayerPrefix,
     const char*                                 pMessage,
-    const void*                                 pUserData);
+    void*                                       pUserData);
 
 
 typedef struct VkDebugReportCallbackCreateInfoEXT {
@@ -114,7 +113,7 @@ typedef struct VkDebugReportCallbackCreateInfoEXT {
     const void*                                 pNext;
     VkDebugReportFlagsEXT                       flags;
     PFN_vkDebugReportCallbackEXT                pfnCallback;
-    const void*                                 pUserData;
+    void*                                       pUserData;
 } VkDebugReportCallbackCreateInfoEXT;
 
 typedef VkResult (VKAPI_PTR *PFN_vkCreateDebugReportCallbackEXT)(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
