@@ -1198,6 +1198,7 @@ bool LoadDeviceDispatchTable(VkDevice device,
 
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch) {
     bool success = true;
     // clang-format off

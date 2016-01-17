@@ -17,9 +17,18 @@
 #ifndef LIBVULKAN_LOADER_H
 #define LIBVULKAN_LOADER_H 1
 
+#include <bitset>
 #include "dispatch_gen.h"
 
 namespace vulkan {
+
+enum InstanceExtension {
+    kKHR_surface,
+    kKHR_android_surface,
+    kEXT_debug_report,
+    kInstanceExtensionCount
+};
+typedef std::bitset<kInstanceExtensionCount> InstanceExtensionSet;
 
 inline const InstanceDispatchTable& GetDispatchTable(VkInstance instance) {
     return **reinterpret_cast<InstanceDispatchTable**>(instance);
@@ -62,6 +71,7 @@ bool LoadDeviceDispatchTable(VkDevice device,
                              DeviceDispatchTable& dispatch);
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch);
 
 // -----------------------------------------------------------------------------
@@ -145,6 +155,8 @@ void GetLayerExtensions(const char* name,
                         const VkExtensionProperties** properties,
                         uint32_t* count);
 LayerRef GetLayerRef(const char* name);
+
+InstanceExtension InstanceExtensionFromName(const char* name);
 
 }  // namespace vulkan
 

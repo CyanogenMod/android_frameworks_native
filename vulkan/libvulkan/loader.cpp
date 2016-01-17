@@ -178,6 +178,8 @@ const VkAllocationCallbacks kDefaultAllocCallbacks = {
 // Global Data and Initialization
 
 hwvulkan_device_t* g_hwdevice = nullptr;
+InstanceExtensionSet g_driver_instance_extensions;
+
 void LoadVulkanHAL() {
     static const hwvulkan_module_t* module;
     int result =
@@ -195,6 +197,41 @@ void LoadVulkanHAL() {
         module = nullptr;
         return;
     }
+
+    VkResult vkresult;
+    uint32_t count;
+    if ((vkresult = g_hwdevice->EnumerateInstanceExtensionProperties(
+             nullptr, &count, nullptr)) != VK_SUCCESS) {
+        ALOGE("driver EnumerateInstanceExtensionProperties failed: %d",
+              vkresult);
+        g_hwdevice->common.close(&g_hwdevice->common);
+        g_hwdevice = nullptr;
+        module = nullptr;
+        return;
+    }
+    VkExtensionProperties* extensions = static_cast<VkExtensionProperties*>(
+        alloca(count * sizeof(VkExtensionProperties)));
+    if ((vkresult = g_hwdevice->EnumerateInstanceExtensionProperties(
+             nullptr, &count, extensions)) != VK_SUCCESS) {
+        ALOGE("driver EnumerateInstanceExtensionProperties failed: %d",
+              vkresult);
+        g_hwdevice->common.close(&g_hwdevice->common);
+        g_hwdevice = nullptr;
+        module = nullptr;
+        return;
+    }
+    ALOGV_IF(count > 0, "Driver-supported instance extensions:");
+    for (uint32_t i = 0; i < count; i++) {
+        ALOGV("  %s (v%u)", extensions[i].extensionName,
+              extensions[i].specVersion);
+        InstanceExtension id =
+            InstanceExtensionFromName(extensions[i].extensionName);
+        if (id != kInstanceExtensionCount)
+            g_driver_instance_extensions.set(id);
+    }
+    // Ignore driver attempts to support loader extensions
+    g_driver_instance_extensions.reset(kKHR_surface);
+    g_driver_instance_extensions.reset(kKHR_android_surface);
 }
 
 bool EnsureInitialized() {
@@ -244,6 +281,7 @@ struct Instance {
 
     struct {
         VkInstance instance;
+        InstanceExtensionSet supported_extensions;
         DriverDispatchTable dispatch;
         uint32_t num_physical_devices;
     } drv;  // may eventually be an array
@@ -475,13 +513,27 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     VkInstanceCreateInfo driver_create_info = *create_info;
     driver_create_info.enabledLayerCount = 0;
     driver_create_info.ppEnabledLayerNames = nullptr;
-    // TODO(jessehall): We currently only enumerate the VK_KHR_surface and
-    // VK_KHR_android_surface extensions, which we don't allow drivers to
-    // support. As soon as we enumerate instance extensions supported by the
-    // driver, we should instead filter the requested extension list here to
-    // only the extensions supported by the driver.
+
+    InstanceExtensionSet enabled_extensions;
     driver_create_info.enabledExtensionCount = 0;
     driver_create_info.ppEnabledExtensionNames = nullptr;
+    size_t max_names = std::min(create_info->enabledExtensionCount,
+                                g_driver_instance_extensions.count());
+    if (max_names > 0) {
+        const char** names =
+            static_cast<const char**>(alloca(max_names * sizeof(char*)));
+        for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
+            InstanceExtension id = InstanceExtensionFromName(
+                create_info->ppEnabledExtensionNames[i]);
+            if (id != kInstanceExtensionCount &&
+                g_driver_instance_extensions[id]) {
+                names[driver_create_info.enabledExtensionCount++] =
+                    create_info->ppEnabledExtensionNames[i];
+                enabled_extensions.set(id);
+            }
+        }
+        driver_create_info.ppEnabledExtensionNames = names;
+    }
 
     result = g_hwdevice->CreateInstance(&driver_create_info, instance.alloc,
                                         &instance.drv.instance);
@@ -492,7 +544,7 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
 
     if (!LoadDriverDispatchTable(instance.drv.instance,
                                  g_hwdevice->GetInstanceProcAddr,
-                                 instance.drv.dispatch)) {
+                                 enabled_extensions, instance.drv.dispatch)) {
         DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
@@ -834,19 +886,22 @@ VkResult EnumerateInstanceExtensionProperties_Top(
     if (layer_name) {
         GetLayerExtensions(layer_name, &extensions, &num_extensions);
     } else {
-        static const VkExtensionProperties kInstanceExtensions[] = {
-            {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION},
-            {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
-             VK_KHR_ANDROID_SURFACE_SPEC_VERSION}};
-        extensions = kInstanceExtensions;
-        num_extensions = sizeof(kInstanceExtensions) / sizeof(kInstanceExtensions[0]);
-
+        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
+            alloca(kInstanceExtensionCount * sizeof(VkExtensionProperties)));
+        available[num_extensions++] = VkExtensionProperties{
+            VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION};
+        available[num_extensions++] =
+            VkExtensionProperties{VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+                                  VK_KHR_ANDROID_SURFACE_SPEC_VERSION};
+        if (g_driver_instance_extensions[kEXT_debug_report]) {
+            available[num_extensions++] =
+                VkExtensionProperties{VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+                                      VK_EXT_DEBUG_REPORT_SPEC_VERSION};
+        }
         // TODO(jessehall): We need to also enumerate extensions supported by
         // implicitly-enabled layers. Currently we don't have that list of
         // layers until instance creation.
-
-        // TODO(jessehall): We need to also enumerate extensions supported by
-        // any driver.
+        extensions = available;
     }
 
     if (!properties || *properties_count > num_extensions)

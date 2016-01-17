@@ -319,19 +319,27 @@ bool LoadDeviceDispatchTable(VkDevice device,
 ¶
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch) {«
     bool success = true;
     // clang-format off
   {{range $f := AllCommands $}}
     {{if (Macro "IsInstanceDispatched" $f)}}
       {{if not (Macro "IsLoaderFunction" $f)}}
-    dispatch.{{Macro "BaseName" $f}} = §
-        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
-            get_proc_addr(instance, "{{$f.Name}}"));
-    if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
-        ALOGE("missing driver proc: %s", "{{$f.Name}}");
-        success = false;
+        {{$ext := GetAnnotation $f "extension"}}
+          {{if $ext}}
+    if (extensions[{{Macro "ExtensionConstant" $ext}}]) {
+          {{end}}
+        dispatch.{{Macro "BaseName" $f}} = §
+            reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+                get_proc_addr(instance, "{{$f.Name}}"));
+        if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
+            ALOGE("missing driver proc: %s", "{{$f.Name}}");
+            success = false;
+        }
+        {{if $ext}}
     }
+        {{end}}
       {{end}}
     {{end}}
   {{end}}
@@ -401,6 +409,20 @@ bool LoadDriverDispatchTable(VkInstance instance,
   {{else}}
     {{$p0 := index $.CallParameters 0}}
     GetDispatchTable({{$p0.Name}}).{{Macro "BaseName" $}}§
+  {{end}}
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Map an extension name to InstanceExtension or DeviceExtension enum value
+-------------------------------------------------------------------------------
+*/}}
+{{define "ExtensionConstant"}}
+  {{$name := index $.Arguments 0}}
+  {{     if (eq $name "VK_KHR_surface")}}kKHR_surface
+  {{else if (eq $name "VK_KHR_android_surface")}}kKHR_android_surface
+  {{else if (eq $name "VK_EXT_debug_report")}}kEXT_debug_report
   {{end}}
 {{end}}
 

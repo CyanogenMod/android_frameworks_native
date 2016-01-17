@@ -265,4 +265,14 @@ PFN_vkGetDeviceProcAddr LayerRef::GetGetDeviceProcAddr() const {
                   : nullptr;
 }
 
+InstanceExtension InstanceExtensionFromName(const char* name) {
+    if (strcmp(name, VK_KHR_SURFACE_EXTENSION_NAME) == 0)
+        return kKHR_surface;
+    if (strcmp(name, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME) == 0)
+        return kKHR_android_surface;
+    if (strcmp(name, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
+        return kEXT_debug_report;
+    return kInstanceExtensionCount;
+}
+
 }  // namespace vulkan
