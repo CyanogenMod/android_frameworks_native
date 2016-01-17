@@ -28,6 +28,19 @@
 
 using namespace vulkan;
 
+// TODO(jessehall): This file currently builds up global data structures as it
+// loads, and never cleans them up. This means we're doing heap allocations
+// without going through an app-provided allocator, but worse, we'll leak those
+// allocations if the loader is unloaded.
+//
+// We should allocate "enough" BSS space, and suballocate from there. Will
+// probably want to intern strings, etc., and will need some custom/manual data
+// structures.
+
+// TODO(jessehall): Currently we have separate lists for instance and device
+// layers. Most layers are both; we should use one entry for each layer name,
+// with a mask saying what kind(s) it is.
+
 namespace vulkan {
 struct Layer {
     VkLayerProperties properties;
@@ -45,7 +58,8 @@ struct LayerLibrary {
     size_t refcount;
 };
 std::vector<LayerLibrary> g_layer_libraries;
-std::vector<Layer> g_layers;
+std::vector<Layer> g_instance_layers;
+std::vector<Layer> g_device_layers;
 
 void AddLayerLibrary(const std::string& path) {
     ALOGV("examining layer library '%s'", path.c_str());
@@ -56,81 +70,163 @@ void AddLayerLibrary(const std::string& path) {
         return;
     }
 
-    PFN_vkEnumerateInstanceLayerProperties enumerate_layer_properties =
+    PFN_vkEnumerateInstanceLayerProperties enumerate_instance_layers =
         reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
             dlsym(dlhandle, "vkEnumerateInstanceLayerProperties"));
-    if (!enumerate_layer_properties) {
-        ALOGW(
-            "failed to find vkEnumerateInstanceLayerProperties in library "
-            "'%s': %s",
-            path.c_str(), dlerror());
-        dlclose(dlhandle);
-        return;
-    }
-    PFN_vkEnumerateInstanceExtensionProperties enumerate_extension_properties =
+    PFN_vkEnumerateInstanceExtensionProperties enumerate_instance_extensions =
         reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
             dlsym(dlhandle, "vkEnumerateInstanceExtensionProperties"));
-    if (!enumerate_extension_properties) {
-        ALOGW(
-            "failed to find vkEnumerateInstanceExtensionProperties in library "
-            "'%s': %s",
-            path.c_str(), dlerror());
+    PFN_vkEnumerateDeviceLayerProperties enumerate_device_layers =
+        reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(
+            dlsym(dlhandle, "vkEnumerateDeviceLayerProperties"));
+    PFN_vkEnumerateDeviceExtensionProperties enumerate_device_extensions =
+        reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
+            dlsym(dlhandle, "vkEnumerateDeviceExtensionProperties"));
+    if (!((enumerate_instance_layers && enumerate_instance_extensions) ||
+          (enumerate_device_layers && enumerate_device_extensions))) {
+        ALOGV(
+            "layer library '%s' has neither instance nor device enumeraion "
+            "functions",
+            path.c_str());
         dlclose(dlhandle);
         return;
     }
 
-    uint32_t layer_count;
-    VkResult result = enumerate_layer_properties(&layer_count, nullptr);
-    if (result != VK_SUCCESS) {
-        ALOGW("vkEnumerateInstanceLayerProperties failed for library '%s': %d",
-              path.c_str(), result);
-        dlclose(dlhandle);
-        return;
+    VkResult result;
+    uint32_t num_instance_layers = 0;
+    uint32_t num_device_layers = 0;
+    if (enumerate_instance_layers) {
+        result = enumerate_instance_layers(&num_instance_layers, nullptr);
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateInstanceLayerProperties failed for library '%s': "
+                "%d",
+                path.c_str(), result);
+            dlclose(dlhandle);
+            return;
+        }
     }
-    VkLayerProperties* properties = static_cast<VkLayerProperties*>(
-        alloca(layer_count * sizeof(VkLayerProperties)));
-    result = enumerate_layer_properties(&layer_count, properties);
-    if (result != VK_SUCCESS) {
-        ALOGW("vkEnumerateInstanceLayerProperties failed for library '%s': %d",
-              path.c_str(), result);
-        dlclose(dlhandle);
-        return;
+    if (enumerate_device_layers) {
+        result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
+                                         nullptr);
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
+                path.c_str(), result);
+            dlclose(dlhandle);
+            return;
+        }
+    }
+    VkLayerProperties* properties = static_cast<VkLayerProperties*>(alloca(
+        (num_instance_layers + num_device_layers) * sizeof(VkLayerProperties)));
+    if (num_instance_layers > 0) {
+        result = enumerate_instance_layers(&num_instance_layers, properties);
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateInstanceLayerProperties failed for library '%s': "
+                "%d",
+                path.c_str(), result);
+            dlclose(dlhandle);
+            return;
+        }
+    }
+    if (num_device_layers > 0) {
+        result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
+                                         properties + num_instance_layers);
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
+                path.c_str(), result);
+            dlclose(dlhandle);
+            return;
+        }
     }
 
     size_t library_idx = g_layer_libraries.size();
-    g_layers.reserve(g_layers.size() + layer_count);
-    for (size_t i = 0; i < layer_count; i++) {
+    size_t prev_num_instance_layers = g_instance_layers.size();
+    size_t prev_num_device_layers = g_device_layers.size();
+    g_instance_layers.reserve(prev_num_instance_layers + num_instance_layers);
+    g_device_layers.reserve(prev_num_device_layers + num_device_layers);
+    for (size_t i = 0; i < num_instance_layers; i++) {
+        const VkLayerProperties& props = properties[i];
+
         Layer layer;
-        layer.properties = properties[i];
+        layer.properties = props;
         layer.library_idx = library_idx;
 
-        uint32_t count;
-        result = enumerate_extension_properties(properties[i].layerName, &count,
-                                                nullptr);
-        if (result != VK_SUCCESS) {
-            ALOGW(
-                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
-                "'%s': %d",
-                properties[i].layerName, path.c_str(), result);
-            g_layers.resize(g_layers.size() - (i + 1));
-            dlclose(dlhandle);
-            return;
-        }
-        layer.extensions.resize(count);
-        result = enumerate_extension_properties(properties[i].layerName, &count,
-                                                layer.extensions.data());
-        if (result != VK_SUCCESS) {
-            ALOGW(
-                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
-                "'%s': %d",
-                properties[i].layerName, path.c_str(), result);
-            g_layers.resize(g_layers.size() - (i + 1));
-            dlclose(dlhandle);
-            return;
+        if (enumerate_instance_extensions) {
+            uint32_t count = 0;
+            result =
+                enumerate_instance_extensions(props.layerName, &count, nullptr);
+            if (result != VK_SUCCESS) {
+                ALOGW(
+                    "vkEnumerateInstanceExtensionProperties(%s) failed for "
+                    "library "
+                    "'%s': %d",
+                    props.layerName, path.c_str(), result);
+                g_instance_layers.resize(prev_num_instance_layers);
+                dlclose(dlhandle);
+                return;
+            }
+            layer.extensions.resize(count);
+            result = enumerate_instance_extensions(props.layerName, &count,
+                                                   layer.extensions.data());
+            if (result != VK_SUCCESS) {
+                ALOGW(
+                    "vkEnumerateInstanceExtensionProperties(%s) failed for "
+                    "library "
+                    "'%s': %d",
+                    props.layerName, path.c_str(), result);
+                g_instance_layers.resize(prev_num_instance_layers);
+                dlclose(dlhandle);
+                return;
+            }
         }
 
-        g_layers.push_back(layer);
-        ALOGV("found layer '%s'", properties[i].layerName);
+        g_instance_layers.push_back(layer);
+        ALOGV("added instance layer '%s'", props.layerName);
+    }
+    for (size_t i = 0; i < num_device_layers; i++) {
+        const VkLayerProperties& props = properties[num_instance_layers + i];
+
+        Layer layer;
+        layer.properties = props;
+        layer.library_idx = library_idx;
+
+        if (enumerate_device_extensions) {
+            uint32_t count;
+            result = enumerate_device_extensions(
+                VK_NULL_HANDLE, props.layerName, &count, nullptr);
+            if (result != VK_SUCCESS) {
+                ALOGW(
+                    "vkEnumerateDeviceExtensionProperties(%s) failed for "
+                    "library "
+                    "'%s': %d",
+                    props.layerName, path.c_str(), result);
+                g_instance_layers.resize(prev_num_instance_layers);
+                g_device_layers.resize(prev_num_device_layers);
+                dlclose(dlhandle);
+                return;
+            }
+            layer.extensions.resize(count);
+            result =
+                enumerate_device_extensions(VK_NULL_HANDLE, props.layerName,
+                                            &count, layer.extensions.data());
+            if (result != VK_SUCCESS) {
+                ALOGW(
+                    "vkEnumerateDeviceExtensionProperties(%s) failed for "
+                    "library "
+                    "'%s': %d",
+                    props.layerName, path.c_str(), result);
+                g_instance_layers.resize(prev_num_instance_layers);
+                g_device_layers.resize(prev_num_device_layers);
+                dlclose(dlhandle);
+                return;
+            }
+        }
+
+        g_device_layers.push_back(layer);
+        ALOGV("added device layer '%s'", props.layerName);
     }
 
     dlclose(dlhandle);
@@ -185,40 +281,37 @@ void* GetLayerGetProcAddr(const Layer& layer,
     return gpa;
 }
 
-}  // anonymous namespace
-
-namespace vulkan {
-
-void DiscoverLayers() {
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
-        DiscoverLayersInDirectory("/data/local/debug/vulkan");
-    if (!LoaderData::GetInstance().layer_path.empty())
-        DiscoverLayersInDirectory(LoaderData::GetInstance().layer_path.c_str());
-}
-
-uint32_t EnumerateLayers(uint32_t count, VkLayerProperties* properties) {
-    uint32_t n = std::min(count, static_cast<uint32_t>(g_layers.size()));
+uint32_t EnumerateLayers(const std::vector<Layer>& layers,
+                         uint32_t count,
+                         VkLayerProperties* properties) {
+    uint32_t n = std::min(count, static_cast<uint32_t>(layers.size()));
     for (uint32_t i = 0; i < n; i++) {
-        properties[i] = g_layers[i].properties;
+        properties[i] = layers[i].properties;
     }
-    return static_cast<uint32_t>(g_layers.size());
+    return static_cast<uint32_t>(layers.size());
 }
 
-void GetLayerExtensions(const char* name,
+void GetLayerExtensions(const std::vector<Layer>& layers,
+                        const char* name,
                         const VkExtensionProperties** properties,
                         uint32_t* count) {
-    for (const auto& layer : g_layers) {
-        if (strcmp(name, layer.properties.layerName) != 0)
-            continue;
-        *properties = layer.extensions.data();
-        *count = static_cast<uint32_t>(layer.extensions.size());
+    auto layer =
+        std::find_if(layers.cbegin(), layers.cend(), [=](const Layer& entry) {
+            return strcmp(entry.properties.layerName, name) == 0;
+        });
+    if (layer == layers.cend()) {
+        *properties = nullptr;
+        *count = 0;
+    } else {
+        *properties = layer->extensions.data();
+        *count = static_cast<uint32_t>(layer->extensions.size());
     }
 }
 
-LayerRef GetLayerRef(const char* name) {
-    for (uint32_t id = 0; id < g_layers.size(); id++) {
-        if (strcmp(name, g_layers[id].properties.layerName) != 0) {
-            LayerLibrary& library = g_layer_libraries[g_layers[id].library_idx];
+LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
+    for (uint32_t id = 0; id < layers.size(); id++) {
+        if (strcmp(name, layers[id].properties.layerName) != 0) {
+            LayerLibrary& library = g_layer_libraries[layers[id].library_idx];
             std::lock_guard<std::mutex> lock(g_library_mutex);
             if (library.refcount++ == 0) {
                 library.dlhandle =
@@ -230,10 +323,50 @@ LayerRef GetLayerRef(const char* name) {
                     return LayerRef(nullptr);
                 }
             }
-            return LayerRef(&g_layers[id]);
+            return LayerRef(&layers[id]);
         }
     }
     return LayerRef(nullptr);
+}
+
+}  // anonymous namespace
+
+namespace vulkan {
+
+void DiscoverLayers() {
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
+        DiscoverLayersInDirectory("/data/local/debug/vulkan");
+    if (!LoaderData::GetInstance().layer_path.empty())
+        DiscoverLayersInDirectory(LoaderData::GetInstance().layer_path.c_str());
+}
+
+uint32_t EnumerateInstanceLayers(uint32_t count,
+                                 VkLayerProperties* properties) {
+    return EnumerateLayers(g_instance_layers, count, properties);
+}
+
+uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties) {
+    return EnumerateLayers(g_device_layers, count, properties);
+}
+
+void GetInstanceLayerExtensions(const char* name,
+                                const VkExtensionProperties** properties,
+                                uint32_t* count) {
+    GetLayerExtensions(g_instance_layers, name, properties, count);
+}
+
+void GetDeviceLayerExtensions(const char* name,
+                              const VkExtensionProperties** properties,
+                              uint32_t* count) {
+    GetLayerExtensions(g_device_layers, name, properties, count);
+}
+
+LayerRef GetInstanceLayerRef(const char* name) {
+    return GetLayerRef(g_instance_layers, name);
+}
+
+LayerRef GetDeviceLayerRef(const char* name) {
+    return GetLayerRef(g_device_layers, name);
 }
 
 LayerRef::LayerRef(Layer* layer) : layer_(layer) {}

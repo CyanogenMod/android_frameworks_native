@@ -255,6 +255,27 @@ void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
         printf("%s%s (v%u)\n", prefix, e.extensionName, e.specVersion);
 }
 
+void PrintLayers(
+    const std::vector<VkLayerProperties>& layers,
+    const std::vector<std::vector<VkExtensionProperties>> extensions,
+    const char* prefix) {
+    std::string ext_prefix(prefix);
+    ext_prefix.append("    ");
+    for (size_t i = 0; i < layers.size(); i++) {
+        printf(
+            "%s%s %u.%u.%u/%u\n"
+            "%s  %s\n",
+            prefix, layers[i].layerName,
+            ExtractMajorVersion(layers[i].specVersion),
+            ExtractMinorVersion(layers[i].specVersion),
+            ExtractPatchVersion(layers[i].specVersion),
+            layers[i].implementationVersion, prefix, layers[i].description);
+        if (!extensions[i].empty())
+            printf("%s  Extensions [%zu]:\n", prefix, extensions[i].size());
+        PrintExtensions(extensions[i], ext_prefix.c_str());
+    }
+}
+
 void PrintGpuInfo(const GpuInfo& info) {
     VkResult result;
     std::ostringstream strbuf;
@@ -321,19 +342,7 @@ void PrintGpuInfo(const GpuInfo& info) {
         }
         if (!info.layers.empty()) {
             printf("    Layers [%zu]:\n", info.layers.size());
-            for (size_t i = 0; i < info.layers.size(); i++) {
-                const auto& layer = info.layers[i];
-                printf("    - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
-                       ExtractMajorVersion(layer.specVersion),
-                       ExtractMinorVersion(layer.specVersion),
-                       ExtractPatchVersion(layer.specVersion),
-                       layer.implementationVersion, layer.description);
-                if (!info.layer_extensions[i].empty()) {
-                    printf("       Extensions [%zu]:\n",
-                           info.layer_extensions.size());
-                    PrintExtensions(info.layer_extensions[i], "       ");
-                }
-            }
+            PrintLayers(info.layers, info.layer_extensions, "      ");
         }
     }
 }
@@ -345,17 +354,7 @@ void PrintInfo(const VulkanInfo& info) {
     PrintExtensions(info.extensions, "  ");
     if (!info.layers.empty()) {
         printf("Instance Layers [%zu]:\n", info.layers.size());
-        for (size_t i = 0; i < info.layers.size(); i++) {
-            const auto& layer = info.layers[i];
-            printf("  %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
-                   ExtractMajorVersion(layer.specVersion),
-                   ExtractMinorVersion(layer.specVersion),
-                   ExtractPatchVersion(layer.specVersion),
-                   layer.implementationVersion, layer.description);
-            if (!info.layer_extensions[i].empty()) {
-                PrintExtensions(info.layer_extensions[i], "    ");
-            }
-        }
+        PrintLayers(info.layers, info.layer_extensions, "  ");
     }
 
     printf("PhysicalDevices [%zu]:\n", info.gpus.size());

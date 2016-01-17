@@ -154,11 +154,16 @@ class LayerRef {
 };
 
 void DiscoverLayers();
-uint32_t EnumerateLayers(uint32_t count, VkLayerProperties* properties);
-void GetLayerExtensions(const char* name,
-                        const VkExtensionProperties** properties,
-                        uint32_t* count);
-LayerRef GetLayerRef(const char* name);
+uint32_t EnumerateInstanceLayers(uint32_t count, VkLayerProperties* properties);
+uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties);
+void GetInstanceLayerExtensions(const char* name,
+                                const VkExtensionProperties** properties,
+                                uint32_t* count);
+void GetDeviceLayerExtensions(const char* name,
+                              const VkExtensionProperties** properties,
+                              uint32_t* count);
+LayerRef GetInstanceLayerRef(const char* name);
+LayerRef GetDeviceLayerRef(const char* name);
 
 InstanceExtension InstanceExtensionFromName(const char* name);
 

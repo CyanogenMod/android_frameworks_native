@@ -344,8 +344,19 @@ void DestroyDevice(Device* device) {
 }
 
 template <class TObject>
+LayerRef GetLayerRef(const char* name);
+template <>
+LayerRef GetLayerRef<Instance>(const char* name) {
+    return GetInstanceLayerRef(name);
+}
+template <>
+LayerRef GetLayerRef<Device>(const char* name) {
+    return GetDeviceLayerRef(name);
+}
+
+template <class TObject>
 bool ActivateLayer(TObject* object, const char* name) {
-    LayerRef layer(GetLayerRef(name));
+    LayerRef layer(GetLayerRef<TObject>(name));
     if (!layer)
         return false;
     if (std::find(object->active_layers.begin(), object->active_layers.end(),
@@ -687,10 +698,12 @@ VkResult EnumerateDeviceExtensionProperties_Bottom(
 VKAPI_ATTR
 VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice /*pdev*/,
                                                uint32_t* properties_count,
-                                               VkLayerProperties* /*properties*/) {
-    // TODO(jessehall): Implement me...
-    *properties_count = 0;
-    return VK_SUCCESS;
+                                               VkLayerProperties* properties) {
+    uint32_t layer_count =
+        EnumerateDeviceLayers(properties ? *properties_count : 0, properties);
+    if (!properties || *properties_count > layer_count)
+        *properties_count = layer_count;
+    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VKAPI_ATTR
@@ -874,7 +887,7 @@ VkResult EnumerateInstanceExtensionProperties_Top(
     const VkExtensionProperties* extensions = nullptr;
     uint32_t num_extensions = 0;
     if (layer_name) {
-        GetLayerExtensions(layer_name, &extensions, &num_extensions);
+        GetInstanceLayerExtensions(layer_name, &extensions, &num_extensions);
     } else {
         VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
             alloca(kInstanceExtensionCount * sizeof(VkExtensionProperties)));
@@ -907,7 +920,7 @@ VkResult EnumerateInstanceLayerProperties_Top(uint32_t* properties_count,
         return VK_ERROR_INITIALIZATION_FAILED;
 
     uint32_t layer_count =
-        EnumerateLayers(properties ? *properties_count : 0, properties);
+        EnumerateInstanceLayers(properties ? *properties_count : 0, properties);
     if (!properties || *properties_count > layer_count)
         *properties_count = layer_count;
     return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
