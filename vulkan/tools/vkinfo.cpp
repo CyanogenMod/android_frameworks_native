@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <algorithm>
+#include <array>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <sstream>
@@ -21,6 +23,7 @@
 
 #define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_ext_debug_report.h>
 
 #define LOG_TAG "vkinfo"
 #include <log/log.h>
@@ -67,6 +70,14 @@ struct VulkanInfo {
     }
     fprintf(stderr, "%s failed: %s (%d)\n", proc, result_str, result);
     exit(1);
+}
+
+bool HasExtension(const std::vector<VkExtensionProperties>& extensions,
+                  const char* name) {
+    return std::find_if(extensions.cbegin(), extensions.cend(),
+                        [=](const VkExtensionProperties& prop) {
+                            return strcmp(prop.extensionName, name) == 0;
+                        }) != extensions.end();
 }
 
 void EnumerateInstanceExtensions(
@@ -127,10 +138,25 @@ void GatherInfo(VulkanInfo* info) {
                                     &info->layer_extensions[i]);
     }
 
-    VkInstance instance;
+    const std::array<const char*, 1> kDesiredExtensions = {
+        {VK_EXT_DEBUG_REPORT_EXTENSION_NAME},
+    };
+    const char* extensions[kDesiredExtensions.size()];
+    uint32_t num_extensions = 0;
+    for (const auto& desired_ext : kDesiredExtensions) {
+        bool available = HasExtension(info->extensions, desired_ext);
+        for (size_t i = 0; !available && i < info->layer_extensions.size(); i++)
+            available = HasExtension(info->layer_extensions[i], desired_ext);
+        if (available)
+            extensions[num_extensions++] = desired_ext;
+    }
+
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .enabledExtensionCount = num_extensions,
+        .ppEnabledExtensionNames = extensions,
     };
+    VkInstance instance;
     result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS)
         die("vkCreateInstance", result);
