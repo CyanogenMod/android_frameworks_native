@@ -227,14 +227,14 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
 void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
                      const char* prefix) {
     for (const auto& e : extensions)
-        printf("%s- %s (v%u)\n", prefix, e.extensionName, e.specVersion);
+        printf("%s%s (v%u)\n", prefix, e.extensionName, e.specVersion);
 }
 
 void PrintGpuInfo(const GpuInfo& info) {
     VkResult result;
     std::ostringstream strbuf;
 
-    printf("  - \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
+    printf("  \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
            info.properties.deviceName,
            VkPhysicalDeviceTypeStr(info.properties.deviceType),
            ExtractMajorVersion(info.properties.apiVersion),
@@ -247,7 +247,8 @@ void PrintGpuInfo(const GpuInfo& info) {
         if ((info.memory.memoryHeaps[heap].flags &
              VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
             strbuf << "DEVICE_LOCAL";
-        printf("    Heap %u: 0x%" PRIx64 " %s\n", heap,
+        printf("    Heap %u: %" PRIu64 " MiB (0x%" PRIx64 " B) %s\n", heap,
+               info.memory.memoryHeaps[heap].size / 0x1000000,
                info.memory.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
 
@@ -273,18 +274,21 @@ void PrintGpuInfo(const GpuInfo& info) {
 
     for (uint32_t family = 0; family < info.queue_families.size(); family++) {
         const VkQueueFamilyProperties& qprops = info.queue_families[family];
-        const char* sep = "";
-        int bit, queue_flags = static_cast<int>(qprops.queueFlags);
-        while ((bit = __builtin_ffs(queue_flags)) != 0) {
-            VkQueueFlagBits flag = VkQueueFlagBits(1 << (bit - 1));
-            strbuf << sep << VkQueueFlagBitStr(flag);
-            queue_flags &= ~flag;
-            sep = "+";
-        }
-        printf("    Queue Family %u: %2ux %s timestamps:%ub\n", family,
-               qprops.queueCount, strbuf.str().c_str(),
-               qprops.timestampValidBits);
-        strbuf.str(std::string());
+        VkQueueFlags flags = qprops.queueFlags;
+        char flags_str[5];
+        flags_str[0] = (flags & VK_QUEUE_GRAPHICS_BIT) ? 'G' : '_';
+        flags_str[1] = (flags & VK_QUEUE_COMPUTE_BIT) ? 'C' : '_';
+        flags_str[2] = (flags & VK_QUEUE_TRANSFER_BIT) ? 'T' : '_';
+        flags_str[3] = (flags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'S' : '_';
+        flags_str[4] = '\0';
+        printf(
+            "    Queue Family %u: %ux %s\n"
+            "      timestampValidBits: %ub\n"
+            "      minImageTransferGranularity: (%u,%u,%u)\n",
+            family, qprops.queueCount, flags_str, qprops.timestampValidBits,
+            qprops.minImageTransferGranularity.width,
+            qprops.minImageTransferGranularity.height,
+            qprops.minImageTransferGranularity.depth);
 
         if (!info.extensions.empty()) {
             printf("    Extensions [%zu]:\n", info.extensions.size());
@@ -318,15 +322,13 @@ void PrintInfo(const VulkanInfo& info) {
         printf("Instance Layers [%zu]:\n", info.layers.size());
         for (size_t i = 0; i < info.layers.size(); i++) {
             const auto& layer = info.layers[i];
-            printf("  - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
+            printf("  %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
                    ExtractMajorVersion(layer.specVersion),
                    ExtractMinorVersion(layer.specVersion),
                    ExtractPatchVersion(layer.specVersion),
                    layer.implementationVersion, layer.description);
             if (!info.layer_extensions[i].empty()) {
-                printf("     Extensions [%zu]:\n",
-                       info.layer_extensions.size());
-                PrintExtensions(info.layer_extensions[i], "       ");
+                PrintExtensions(info.layer_extensions[i], "    ");
             }
         }
     }
