@@ -1130,7 +1130,9 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     result = create_instance(create_info, allocator, &handle);
     if (enable_callback)
         FreeAllocatedCreateInfo(local_create_info, instance->alloc);
-    if (result < 0) {
+    if (result >= 0) {
+        *instance_out = instance->handle;
+    } else {
         // For every layer, including the loader top and bottom layers:
         // - If a call to the next CreateInstance fails, the layer must clean
         //   up anything it has successfully done so far, and propagate the
@@ -1160,7 +1162,6 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
                                      allocator, &instance->message);
     }
 
-    *instance_out = instance->handle;
     return result;
 }
 
