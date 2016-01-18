@@ -687,12 +687,22 @@ void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
 VKAPI_ATTR
 VkResult EnumerateDeviceExtensionProperties_Bottom(
     VkPhysicalDevice /*pdev*/,
-    const char* /*layer_name*/,
+    const char* layer_name,
     uint32_t* properties_count,
-    VkExtensionProperties* /*properties*/) {
-    // TODO(jessehall): Implement me...
-    *properties_count = 0;
-    return VK_SUCCESS;
+    VkExtensionProperties* properties) {
+    const VkExtensionProperties* extensions = nullptr;
+    uint32_t num_extensions = 0;
+    if (layer_name) {
+        GetDeviceLayerExtensions(layer_name, &extensions, &num_extensions);
+    } else {
+        // TODO(jessehall)
+    }
+
+    if (!properties || *properties_count > num_extensions)
+        *properties_count = num_extensions;
+    if (properties)
+        std::copy(extensions, extensions + *properties_count, properties);
+    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VKAPI_ATTR

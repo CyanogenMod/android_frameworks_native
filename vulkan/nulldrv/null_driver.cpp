@@ -295,6 +295,40 @@ VkResult EnumeratePhysicalDevices(VkInstance instance,
     return VK_SUCCESS;
 }
 
+VkResult EnumerateDeviceLayerProperties(VkPhysicalDevice /*gpu*/,
+                                        uint32_t* count,
+                                        VkLayerProperties* /*properties*/) {
+    ALOGW("Driver vkEnumerateDeviceLayerProperties shouldn't be called");
+    *count = 0;
+    return VK_SUCCESS;
+}
+
+VkResult EnumerateDeviceExtensionProperties(VkPhysicalDevice /*gpu*/,
+                                            const char* layer_name,
+                                            uint32_t* count,
+                                            VkExtensionProperties* properties) {
+    if (layer_name) {
+        ALOGW(
+            "Driver vkEnumerateDeviceExtensionProperties shouldn't be called "
+            "with a layer name ('%s')",
+            layer_name);
+        *count = 0;
+        return VK_SUCCESS;
+    }
+
+    const VkExtensionProperties kExtensions[] = {
+        {VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME,
+         VK_ANDROID_NATIVE_BUFFER_SPEC_VERSION}};
+    const uint32_t kExtensionsCount =
+        sizeof(kExtensions) / sizeof(kExtensions[0]);
+
+    if (!properties || *count > kExtensionsCount)
+        *count = kExtensionsCount;
+    if (properties)
+        std::copy(kExtensions, kExtensions + *count, properties);
+    return *count < kExtensionsCount ? VK_INCOMPLETE : VK_SUCCESS;
+}
+
 void GetPhysicalDeviceProperties(VkPhysicalDevice,
                                  VkPhysicalDeviceProperties* properties) {
     properties->apiVersion = VK_API_VERSION;
@@ -603,6 +637,33 @@ void DestroyImage(VkDevice device,
     allocator->pfnFree(allocator->pUserData, image);
 }
 
+VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
+                                         VkFormat,
+                                         VkImageUsageFlags,
+                                         int* grallocUsage) {
+    // The null driver never reads or writes the gralloc buffer
+    *grallocUsage = 0;
+    return VK_SUCCESS;
+}
+
+VkResult AcquireImageANDROID(VkDevice,
+                             VkImage,
+                             int fence,
+                             VkSemaphore,
+                             VkFence) {
+    close(fence);
+    return VK_SUCCESS;
+}
+
+VkResult QueueSignalReleaseImageANDROID(VkQueue,
+                                        uint32_t,
+                                        const VkSemaphore*,
+                                        VkImage,
+                                        int* fence) {
+    *fence = -1;
+    return VK_SUCCESS;
+}
+
 // -----------------------------------------------------------------------------
 // No-op types
 
@@ -760,33 +821,6 @@ VkResult CreateDebugReportCallbackEXT(VkInstance instance,
     return VK_SUCCESS;
 }
 
-VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
-                                         VkFormat,
-                                         VkImageUsageFlags,
-                                         int* grallocUsage) {
-    // The null driver never reads or writes the gralloc buffer
-    *grallocUsage = 0;
-    return VK_SUCCESS;
-}
-
-VkResult AcquireImageANDROID(VkDevice,
-                             VkImage,
-                             int fence,
-                             VkSemaphore,
-                             VkFence) {
-    close(fence);
-    return VK_SUCCESS;
-}
-
-VkResult QueueSignalReleaseImageANDROID(VkQueue,
-                                        uint32_t,
-                                        const VkSemaphore*,
-                                        VkImage,
-                                        int* fence) {
-    *fence = -1;
-    return VK_SUCCESS;
-}
-
 // -----------------------------------------------------------------------------
 // No-op entrypoints
 
@@ -808,16 +842,6 @@ VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice,
 }
 
 VkResult EnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult EnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkLayerProperties* pProperties) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult EnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
