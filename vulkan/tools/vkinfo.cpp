@@ -247,6 +247,25 @@ void GatherInfo(VulkanInfo* info) {
 
 // ----------------------------------------------------------------------------
 
+struct Options {
+    bool layer_description;
+    bool layer_extensions;
+};
+
+const size_t kMaxIndent = 8;
+const size_t kIndentSize = 3;
+std::array<char, kMaxIndent * kIndentSize + 1> kIndent;
+const char* Indent(size_t n) {
+    static bool initialized = false;
+    if (!initialized) {
+        kIndent.fill(' ');
+        kIndent.back() = '\0';
+        initialized = true;
+    }
+    return kIndent.data() +
+           (kIndent.size() - (kIndentSize * std::min(n, kMaxIndent) + 1));
+}
+
 uint32_t ExtractMajorVersion(uint32_t version) {
     return (version >> 22) & 0x3FF;
 }
@@ -274,51 +293,41 @@ const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
     }
 }
 
-const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
-    switch (bit) {
-        case VK_QUEUE_GRAPHICS_BIT:
-            return "GRAPHICS";
-        case VK_QUEUE_COMPUTE_BIT:
-            return "COMPUTE";
-        case VK_QUEUE_TRANSFER_BIT:
-            return "TRANSFER";
-        case VK_QUEUE_SPARSE_BINDING_BIT:
-            return "SPARSE";
-    }
-}
-
 void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
-                     const char* prefix) {
+                     const Options& /*options*/,
+                     size_t indent) {
     for (const auto& e : extensions)
-        printf("%s%s (v%u)\n", prefix, e.extensionName, e.specVersion);
+        printf("%s%s (v%u)\n", Indent(indent), e.extensionName, e.specVersion);
 }
 
 void PrintLayers(
     const std::vector<VkLayerProperties>& layers,
     const std::vector<std::vector<VkExtensionProperties>> extensions,
-    const char* prefix) {
-    std::string ext_prefix(prefix);
-    ext_prefix.append("    ");
+    const Options& options,
+    size_t indent) {
     for (size_t i = 0; i < layers.size(); i++) {
-        printf(
-            "%s%s %u.%u.%u/%u\n"
-            "%s  %s\n",
-            prefix, layers[i].layerName,
-            ExtractMajorVersion(layers[i].specVersion),
-            ExtractMinorVersion(layers[i].specVersion),
-            ExtractPatchVersion(layers[i].specVersion),
-            layers[i].implementationVersion, prefix, layers[i].description);
-        if (!extensions[i].empty())
-            printf("%s  Extensions [%zu]:\n", prefix, extensions[i].size());
-        PrintExtensions(extensions[i], ext_prefix.c_str());
+        printf("%s%s %u.%u.%u/%u\n", Indent(indent), layers[i].layerName,
+               ExtractMajorVersion(layers[i].specVersion),
+               ExtractMinorVersion(layers[i].specVersion),
+               ExtractPatchVersion(layers[i].specVersion),
+               layers[i].implementationVersion);
+        if (options.layer_description)
+            printf("%s%s\n", Indent(indent + 1), layers[i].description);
+        if (options.layer_extensions && !extensions[i].empty()) {
+            if (!extensions[i].empty()) {
+                printf("%sExtensions [%zu]:\n", Indent(indent + 1),
+                       extensions[i].size());
+                PrintExtensions(extensions[i], options, indent + 2);
+            }
+        }
     }
 }
 
-void PrintGpuInfo(const GpuInfo& info) {
+void PrintGpuInfo(const GpuInfo& info, const Options& options, size_t indent) {
     VkResult result;
     std::ostringstream strbuf;
 
-    printf("  \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
+    printf("%s\"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", Indent(indent),
            info.properties.deviceName,
            VkPhysicalDeviceTypeStr(info.properties.deviceType),
            ExtractMajorVersion(info.properties.apiVersion),
@@ -331,7 +340,8 @@ void PrintGpuInfo(const GpuInfo& info) {
         if ((info.memory.memoryHeaps[heap].flags &
              VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
             strbuf << "DEVICE_LOCAL";
-        printf("    Heap %u: %" PRIu64 " MiB (0x%" PRIx64 " B) %s\n", heap,
+        printf("%sHeap %u: %" PRIu64 " MiB (0x%" PRIx64 " B) %s\n",
+               Indent(indent + 1), heap,
                info.memory.memoryHeaps[heap].size / 0x1000000,
                info.memory.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
@@ -351,7 +361,8 @@ void PrintGpuInfo(const GpuInfo& info) {
                 strbuf << " CACHED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
-            printf("      Type %u:%s\n", type, strbuf.str().c_str());
+            printf("%sType %u:%s\n", Indent(indent + 2), type,
+                   strbuf.str().c_str());
             strbuf.str(std::string());
         }
     }
@@ -366,47 +377,61 @@ void PrintGpuInfo(const GpuInfo& info) {
         flags_str[3] = (flags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'S' : '_';
         flags_str[4] = '\0';
         printf(
-            "    Queue Family %u: %ux %s\n"
-            "      timestampValidBits: %ub\n"
-            "      minImageTransferGranularity: (%u,%u,%u)\n",
-            family, qprops.queueCount, flags_str, qprops.timestampValidBits,
+            "%sQueue Family %u: %ux %s\n"
+            "%stimestampValidBits: %ub\n"
+            "%sminImageTransferGranularity: (%u,%u,%u)\n",
+            Indent(indent + 1), family, qprops.queueCount, flags_str,
+            Indent(indent + 2), qprops.timestampValidBits, Indent(indent + 2),
             qprops.minImageTransferGranularity.width,
             qprops.minImageTransferGranularity.height,
             qprops.minImageTransferGranularity.depth);
     }
 
-    if (!info.extensions.empty()) {
-        printf("    Extensions [%zu]:\n", info.extensions.size());
-        PrintExtensions(info.extensions, "      ");
-    }
-    if (!info.layers.empty()) {
-        printf("    Layers [%zu]:\n", info.layers.size());
-        PrintLayers(info.layers, info.layer_extensions, "      ");
-    }
+    printf("%sExtensions [%zu]:\n", Indent(indent + 1), info.extensions.size());
+    if (!info.extensions.empty())
+        PrintExtensions(info.extensions, options, indent + 2);
+    printf("%sLayers [%zu]:\n", Indent(indent + 1), info.layers.size());
+    if (!info.layers.empty())
+        PrintLayers(info.layers, info.layer_extensions, options, indent + 2);
 }
 
-void PrintInfo(const VulkanInfo& info) {
+void PrintInfo(const VulkanInfo& info, const Options& options) {
     std::ostringstream strbuf;
+    size_t indent = 0;
 
-    printf("Instance Extensions [%zu]:\n", info.extensions.size());
-    PrintExtensions(info.extensions, "  ");
-    if (!info.layers.empty()) {
-        printf("Instance Layers [%zu]:\n", info.layers.size());
-        PrintLayers(info.layers, info.layer_extensions, "  ");
-    }
+    printf("%sInstance Extensions [%zu]:\n", Indent(indent),
+           info.extensions.size());
+    PrintExtensions(info.extensions, options, indent + 1);
+    printf("%sInstance Layers [%zu]:\n", Indent(indent), info.layers.size());
+    if (!info.layers.empty())
+        PrintLayers(info.layers, info.layer_extensions, options, indent + 1);
 
-    printf("PhysicalDevices [%zu]:\n", info.gpus.size());
+    printf("%sPhysicalDevices [%zu]:\n", Indent(indent), info.gpus.size());
     for (const auto& gpu : info.gpus)
-        PrintGpuInfo(gpu);
+        PrintGpuInfo(gpu, options, indent + 1);
 }
 
 }  // namespace
 
 // ----------------------------------------------------------------------------
 
-int main(int /*argc*/, char const* /*argv*/ []) {
+int main(int argc, char const* argv[]) {
+    Options options = {
+        .layer_description = false, .layer_extensions = false,
+    };
+    for (int argi = 1; argi < argc; argi++) {
+        if (strcmp(argv[argi], "-v") == 0) {
+            options.layer_description = true;
+            options.layer_extensions = true;
+        } else if (strcmp(argv[argi], "-layer_description") == 0) {
+            options.layer_description = true;
+        } else if (strcmp(argv[argi], "-layer_extensions") == 0) {
+            options.layer_extensions = true;
+        }
+    }
+
     VulkanInfo info;
     GatherInfo(&info);
-    PrintInfo(info);
+    PrintInfo(info, options);
     return 0;
 }
