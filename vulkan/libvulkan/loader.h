@@ -31,6 +31,13 @@ enum InstanceExtension {
 };
 typedef std::bitset<kInstanceExtensionCount> InstanceExtensionSet;
 
+enum DeviceExtension {
+    kKHR_swapchain,
+    kANDROID_native_buffer,
+    kDeviceExtensionCount
+};
+typedef std::bitset<kDeviceExtensionCount> DeviceExtensionSet;
+
 inline const InstanceDispatchTable& GetDispatchTable(VkInstance instance) {
     return **reinterpret_cast<InstanceDispatchTable**>(instance);
 }
@@ -149,6 +156,8 @@ class LayerRef {
     PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr() const;
     PFN_vkGetDeviceProcAddr GetGetDeviceProcAddr() const;
 
+    bool SupportsExtension(const char* name) const;
+
    private:
     Layer* layer_;
 };
@@ -166,6 +175,7 @@ LayerRef GetInstanceLayerRef(const char* name);
 LayerRef GetDeviceLayerRef(const char* name);
 
 InstanceExtension InstanceExtensionFromName(const char* name);
+DeviceExtension DeviceExtensionFromName(const char* name);
 
 }  // namespace vulkan
 

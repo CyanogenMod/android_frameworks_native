@@ -268,6 +268,7 @@ struct Instance {
     const VkAllocationCallbacks* alloc;
     uint32_t num_physical_devices;
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
+    DeviceExtensionSet physical_device_driver_extensions[kMaxPhysicalDevices];
 
     Vector<LayerRef> active_layers;
     VkDebugReportCallbackEXT message;
@@ -275,7 +276,6 @@ struct Instance {
 
     struct {
         VkInstance instance;
-        InstanceExtensionSet supported_extensions;
         DriverDispatchTable dispatch;
         uint32_t num_physical_devices;
     } drv;  // may eventually be an array
@@ -582,6 +582,9 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
+
+    Vector<VkExtensionProperties> extensions(
+        Vector<VkExtensionProperties>::allocator_type(instance.alloc));
     for (uint32_t i = 0; i < num_physical_devices; i++) {
         hwvulkan_dispatch_t* pdev_dispatch =
             reinterpret_cast<hwvulkan_dispatch_t*>(
@@ -593,10 +596,41 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
             return VK_ERROR_INITIALIZATION_FAILED;
         }
         pdev_dispatch->vtbl = instance.dispatch_ptr;
+
+        uint32_t count;
+        if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
+                 instance.physical_devices[i], nullptr, &count, nullptr)) !=
+            VK_SUCCESS) {
+            ALOGW("driver EnumerateDeviceExtensionProperties(%u) failed: %d", i,
+                  result);
+            continue;
+        }
+        extensions.resize(count);
+        if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
+                 instance.physical_devices[i], nullptr, &count,
+                 extensions.data())) != VK_SUCCESS) {
+            ALOGW("driver EnumerateDeviceExtensionProperties(%u) failed: %d", i,
+                  result);
+            continue;
+        }
+        ALOGV_IF(count > 0, "driver gpu[%u] supports extensions:", i);
+        for (const auto& extension : extensions) {
+            ALOGV("  %s (v%u)", extension.extensionName, extension.specVersion);
+            DeviceExtension id =
+                DeviceExtensionFromName(extension.extensionName);
+            if (id == kDeviceExtensionCount) {
+                ALOGW("driver gpu[%u] extension '%s' unknown to loader", i,
+                      extension.extensionName);
+            } else {
+                instance.physical_device_driver_extensions[i].set(id);
+            }
+        }
+        // Ignore driver attempts to support loader extensions
+        instance.physical_device_driver_extensions[i].reset(kKHR_swapchain);
     }
     instance.drv.num_physical_devices = num_physical_devices;
-
     instance.num_physical_devices = instance.drv.num_physical_devices;
+
     return VK_SUCCESS;
 }
 
@@ -686,7 +720,7 @@ void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
 
 VKAPI_ATTR
 VkResult EnumerateDeviceExtensionProperties_Bottom(
-    VkPhysicalDevice /*pdev*/,
+    VkPhysicalDevice gpu,
     const char* layer_name,
     uint32_t* properties_count,
     VkExtensionProperties* properties) {
@@ -695,7 +729,26 @@ VkResult EnumerateDeviceExtensionProperties_Bottom(
     if (layer_name) {
         GetDeviceLayerExtensions(layer_name, &extensions, &num_extensions);
     } else {
-        // TODO(jessehall)
+        Instance& instance = GetDispatchParent(gpu);
+        size_t gpu_idx = 0;
+        while (instance.physical_devices[gpu_idx] != gpu)
+            gpu_idx++;
+        const DeviceExtensionSet driver_extensions =
+            instance.physical_device_driver_extensions[gpu_idx];
+
+        // We only support VK_KHR_swapchain if the GPU supports
+        // VK_ANDROID_native_buffer
+        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
+            alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
+        if (driver_extensions[kANDROID_native_buffer]) {
+            available[num_extensions++] = VkExtensionProperties{
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
+        }
+
+        // TODO(jessehall): We need to also enumerate extensions supported by
+        // implicitly-enabled layers. Currently we don't have that list of
+        // layers until instance creation.
+        extensions = available;
     }
 
     if (!properties || *properties_count > num_extensions)
@@ -717,11 +770,11 @@ VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice /*pdev*/,
 }
 
 VKAPI_ATTR
-VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
+VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
                              const VkDeviceCreateInfo* create_info,
                              const VkAllocationCallbacks* allocator,
                              VkDevice* device_out) {
-    Instance& instance = GetDispatchParent(pdev);
+    Instance& instance = GetDispatchParent(gpu);
     VkResult result;
 
     if (!allocator) {
@@ -744,7 +797,41 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
         return result;
     }
 
-    const char* kAndroidNativeBufferExtensionName = "VK_ANDROID_native_buffer";
+    size_t gpu_idx = 0;
+    while (instance.physical_devices[gpu_idx] != gpu)
+        gpu_idx++;
+
+    uint32_t num_driver_extensions = 0;
+    const char** driver_extensions = static_cast<const char**>(
+        alloca(create_info->enabledExtensionCount * sizeof(const char*)));
+    for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
+        const char* name = create_info->ppEnabledExtensionNames[i];
+
+        DeviceExtension id = DeviceExtensionFromName(name);
+        if (id < kDeviceExtensionCount &&
+            (instance.physical_device_driver_extensions[gpu_idx][id] ||
+             id == kKHR_swapchain)) {
+            if (id == kKHR_swapchain)
+                name = VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
+            driver_extensions[num_driver_extensions++] = name;
+            continue;
+        }
+
+        bool supported = false;
+        for (const auto& layer : device->active_layers) {
+            if (layer.SupportsExtension(name))
+                supported = true;
+        }
+        if (!supported) {
+            ALOGE(
+                "requested device extension '%s' not supported by driver or "
+                "any active layers",
+                name);
+            DestroyDevice(device);
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+    }
+
     VkDeviceCreateInfo driver_create_info = *create_info;
     driver_create_info.enabledLayerCount = 0;
     driver_create_info.ppEnabledLayerNames = nullptr;
@@ -753,12 +840,12 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
     // supported by the driver here. Also, add the VK_ANDROID_native_buffer
     // extension to the list iff the VK_KHR_swapchain extension was requested,
     // instead of adding it unconditionally like we do now.
-    driver_create_info.enabledExtensionCount = 1;
-    driver_create_info.ppEnabledExtensionNames = &kAndroidNativeBufferExtensionName;
+    driver_create_info.enabledExtensionCount = num_driver_extensions;
+    driver_create_info.ppEnabledExtensionNames = driver_extensions;
 
     VkDevice drv_device;
-    result = instance.drv.dispatch.CreateDevice(pdev, &driver_create_info, allocator,
-                                                &drv_device);
+    result = instance.drv.dispatch.CreateDevice(gpu, &driver_create_info,
+                                                allocator, &drv_device);
     if (result != VK_SUCCESS) {
         DestroyDevice(device);
         return result;
@@ -817,7 +904,7 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
     // therefore which functions to return procaddrs for.
     PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
         next_get_proc_addr(drv_device, "vkCreateDevice"));
-    create_device(pdev, create_info, allocator, &drv_device);
+    create_device(gpu, create_info, allocator, &drv_device);
 
     if (!LoadDeviceDispatchTable(static_cast<VkDevice>(base_object),
                                  next_get_proc_addr, device->dispatch)) {

@@ -38,7 +38,6 @@ struct VkInstance_T {
     VkAllocationCallbacks allocator;
     VkPhysicalDevice_T physical_device;
     uint64_t next_callback_handle;
-    bool debug_report_enabled;
 };
 
 struct VkQueue_T {
@@ -251,13 +250,15 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
     instance->allocator = *allocator;
     instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     instance->next_callback_handle = 0;
-    instance->debug_report_enabled = false;
 
     for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
         if (strcmp(create_info->ppEnabledExtensionNames[i],
                    VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0) {
-            ALOGV("Enabling " VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-            instance->debug_report_enabled = true;
+            ALOGV("instance extension '%s' requested",
+                  create_info->ppEnabledExtensionNames[i]);
+        } else {
+            ALOGW("unsupported extension '%s' requested",
+                  create_info->ppEnabledExtensionNames[i]);
         }
     }
 
@@ -375,7 +376,7 @@ void GetPhysicalDeviceMemoryProperties(
 // Device
 
 VkResult CreateDevice(VkPhysicalDevice physical_device,
-                      const VkDeviceCreateInfo*,
+                      const VkDeviceCreateInfo* create_info,
                       const VkAllocationCallbacks* allocator,
                       VkDevice* out_device) {
     VkInstance_T* instance = GetInstanceFromPhysicalDevice(physical_device);
@@ -393,6 +394,13 @@ VkResult CreateDevice(VkPhysicalDevice physical_device,
     device->queue.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     std::fill(device->next_handle.begin(), device->next_handle.end(),
               UINT64_C(0));
+
+    for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
+        if (strcmp(create_info->ppEnabledExtensionNames[i],
+                   VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME) == 0) {
+            ALOGV("Enabling " VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME);
+        }
+    }
 
     *out_device = device;
     return VK_SUCCESS;

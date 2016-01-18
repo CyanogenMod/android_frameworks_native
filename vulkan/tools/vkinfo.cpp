@@ -32,6 +32,7 @@ namespace {
 struct GpuInfo {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceMemoryProperties memory;
+    VkPhysicalDeviceFeatures features;
     std::vector<VkQueueFamilyProperties> queue_families;
     std::vector<VkExtensionProperties> extensions;
     std::vector<VkLayerProperties> layers;
@@ -115,6 +116,70 @@ void EnumerateDeviceExtensions(VkPhysicalDevice gpu,
         die("vkEnumerateDeviceExtensionProperties (data)", result);
 }
 
+void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
+    VkResult result;
+    uint32_t count;
+
+    vkGetPhysicalDeviceProperties(gpu, &info.properties);
+    vkGetPhysicalDeviceMemoryProperties(gpu, &info.memory);
+    vkGetPhysicalDeviceFeatures(gpu, &info.features);
+
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
+    info.queue_families.resize(count);
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count,
+                                             info.queue_families.data());
+
+    result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceLayerProperties (count)", result);
+    do {
+        info.layers.resize(count);
+        result =
+            vkEnumerateDeviceLayerProperties(gpu, &count, info.layers.data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceLayerProperties (data)", result);
+    info.layer_extensions.resize(info.layers.size());
+
+    EnumerateDeviceExtensions(gpu, nullptr, &info.extensions);
+    for (size_t i = 0; i < info.layers.size(); i++) {
+        EnumerateDeviceExtensions(gpu, info.layers[i].layerName,
+                                  &info.layer_extensions[i]);
+    }
+
+    const std::array<const char*, 1> kDesiredExtensions = {
+        {VK_KHR_SWAPCHAIN_EXTENSION_NAME},
+    };
+    const char* extensions[kDesiredExtensions.size()];
+    uint32_t num_extensions = 0;
+    for (const auto& desired_ext : kDesiredExtensions) {
+        bool available = HasExtension(info.extensions, desired_ext);
+        for (size_t i = 0; !available && i < info.layer_extensions.size(); i++)
+            available = HasExtension(info.layer_extensions[i], desired_ext);
+        if (available)
+            extensions[num_extensions++] = desired_ext;
+    }
+
+    VkDevice device;
+    const VkDeviceQueueCreateInfo queue_create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = 0,
+        .queueCount = 1,
+    };
+    const VkDeviceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queue_create_info,
+        .enabledExtensionCount = num_extensions,
+        .ppEnabledExtensionNames = extensions,
+        .pEnabledFeatures = &info.features,
+    };
+    result = vkCreateDevice(gpu, &create_info, nullptr, &device);
+    if (result != VK_SUCCESS)
+        die("vkCreateDevice", result);
+    vkDestroyDevice(device, nullptr);
+}
+
 void GatherInfo(VulkanInfo* info) {
     VkResult result;
     uint32_t count;
@@ -173,36 +238,8 @@ void GatherInfo(VulkanInfo* info) {
         die("vkEnumeratePhysicalDevices (data)", result);
 
     info->gpus.resize(num_gpus);
-    for (size_t gpu_idx = 0; gpu_idx < gpus.size(); gpu_idx++) {
-        VkPhysicalDevice gpu = gpus[gpu_idx];
-        GpuInfo& gpu_info = info->gpus.at(gpu_idx);
-
-        vkGetPhysicalDeviceProperties(gpu, &gpu_info.properties);
-        vkGetPhysicalDeviceMemoryProperties(gpu, &gpu_info.memory);
-
-        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
-        gpu_info.queue_families.resize(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(
-            gpu, &count, gpu_info.queue_families.data());
-
-        result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
-        if (result != VK_SUCCESS)
-            die("vkEnumerateDeviceLayerProperties (count)", result);
-        do {
-            gpu_info.layers.resize(count);
-            result = vkEnumerateDeviceLayerProperties(gpu, &count,
-                                                      gpu_info.layers.data());
-        } while (result == VK_INCOMPLETE);
-        if (result != VK_SUCCESS)
-            die("vkEnumerateDeviceLayerProperties (data)", result);
-        gpu_info.layer_extensions.resize(gpu_info.layers.size());
-
-        EnumerateDeviceExtensions(gpu, nullptr, &gpu_info.extensions);
-        for (size_t i = 0; i < gpu_info.layers.size(); i++) {
-            EnumerateDeviceExtensions(gpu, gpu_info.layers[i].layerName,
-                                      &gpu_info.layer_extensions[i]);
-        }
-    }
+    for (size_t i = 0; i < gpus.size(); i++)
+        GatherGpuInfo(gpus[i], info->gpus.at(i));
 
     vkDestroyInstance(instance, nullptr);
 }
@@ -335,15 +372,15 @@ void PrintGpuInfo(const GpuInfo& info) {
             qprops.minImageTransferGranularity.width,
             qprops.minImageTransferGranularity.height,
             qprops.minImageTransferGranularity.depth);
+    }
 
-        if (!info.extensions.empty()) {
-            printf("    Extensions [%zu]:\n", info.extensions.size());
-            PrintExtensions(info.extensions, "    ");
-        }
-        if (!info.layers.empty()) {
-            printf("    Layers [%zu]:\n", info.layers.size());
-            PrintLayers(info.layers, info.layer_extensions, "      ");
-        }
+    if (!info.extensions.empty()) {
+        printf("    Extensions [%zu]:\n", info.extensions.size());
+        PrintExtensions(info.extensions, "      ");
+    }
+    if (!info.layers.empty()) {
+        printf("    Layers [%zu]:\n", info.layers.size());
+        PrintLayers(info.layers, info.layer_extensions, "      ");
     }
 }
 

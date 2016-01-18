@@ -28,6 +28,12 @@
 
 using namespace vulkan;
 
+// TODO(jessehall): The whole way we deal with extensions is pretty hokey, and
+// not a good long-term solution. Having a hard-coded enum of extensions is
+// bad, of course. Representing sets of extensions (requested, supported, etc.)
+// as a bitset isn't necessarily bad, if the mapping from extension to bit were
+// dynamic. Need to rethink this completely when there's a little more time.
+
 // TODO(jessehall): This file currently builds up global data structures as it
 // loads, and never cleans them up. This means we're doing heap allocations
 // without going through an app-provided allocator, but worse, we'll leak those
@@ -184,7 +190,7 @@ void AddLayerLibrary(const std::string& path) {
         }
 
         g_instance_layers.push_back(layer);
-        ALOGV("added instance layer '%s'", props.layerName);
+        ALOGV("  added instance layer '%s'", props.layerName);
     }
     for (size_t i = 0; i < num_device_layers; i++) {
         const VkLayerProperties& props = properties[num_instance_layers + i];
@@ -226,7 +232,7 @@ void AddLayerLibrary(const std::string& path) {
         }
 
         g_device_layers.push_back(layer);
-        ALOGV("added device layer '%s'", props.layerName);
+        ALOGV("  added device layer '%s'", props.layerName);
     }
 
     dlclose(dlhandle);
@@ -396,6 +402,13 @@ PFN_vkGetDeviceProcAddr LayerRef::GetGetDeviceProcAddr() const {
                   : nullptr;
 }
 
+bool LayerRef::SupportsExtension(const char* name) const {
+    return std::find_if(layer_->extensions.cbegin(), layer_->extensions.cend(),
+                        [=](const VkExtensionProperties& ext) {
+                            return strcmp(ext.extensionName, name) == 0;
+                        }) != layer_->extensions.cend();
+}
+
 InstanceExtension InstanceExtensionFromName(const char* name) {
     if (strcmp(name, VK_KHR_SURFACE_EXTENSION_NAME) == 0)
         return kKHR_surface;
@@ -404,6 +417,14 @@ InstanceExtension InstanceExtensionFromName(const char* name) {
     if (strcmp(name, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
         return kEXT_debug_report;
     return kInstanceExtensionCount;
+}
+
+DeviceExtension DeviceExtensionFromName(const char* name) {
+    if (strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
+        return kKHR_swapchain;
+    if (strcmp(name, VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME) == 0)
+        return kANDROID_native_buffer;
+    return kDeviceExtensionCount;
 }
 
 }  // namespace vulkan
