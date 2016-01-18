@@ -202,10 +202,11 @@ void GatherInfo(VulkanInfo* info) {
                                     &info->layer_extensions[i]);
     }
 
-    const std::array<const char*, 1> kDesiredExtensions = {
-        {VK_EXT_DEBUG_REPORT_EXTENSION_NAME},
+    const char* kDesiredExtensions[] = {
+        VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
     };
-    const char* extensions[kDesiredExtensions.size()];
+    const char*
+        extensions[sizeof(kDesiredExtensions) / sizeof(kDesiredExtensions[0])];
     uint32_t num_extensions = 0;
     for (const auto& desired_ext : kDesiredExtensions) {
         bool available = HasExtension(info->extensions, desired_ext);

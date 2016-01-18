@@ -529,13 +529,33 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         const char** names =
             static_cast<const char**>(alloca(max_names * sizeof(char*)));
         for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
-            InstanceExtension id = InstanceExtensionFromName(
-                create_info->ppEnabledExtensionNames[i]);
-            if (id != kInstanceExtensionCount &&
-                g_driver_instance_extensions[id]) {
-                names[driver_create_info.enabledExtensionCount++] =
-                    create_info->ppEnabledExtensionNames[i];
-                enabled_extensions.set(id);
+            const char* name = create_info->ppEnabledExtensionNames[i];
+            InstanceExtension id = InstanceExtensionFromName(name);
+            if (id != kInstanceExtensionCount) {
+                if (g_driver_instance_extensions[id]) {
+                    names[driver_create_info.enabledExtensionCount++] = name;
+                    enabled_extensions.set(id);
+                    continue;
+                }
+                if (id == kKHR_surface || id == kKHR_android_surface ||
+                    id == kEXT_debug_report) {
+                    enabled_extensions.set(id);
+                    continue;
+                }
+            }
+
+            bool supported = false;
+            for (const auto& layer : instance.active_layers) {
+                if (layer.SupportsExtension(name))
+                    supported = true;
+            }
+            if (!supported) {
+                ALOGE(
+                    "requested instance extension '%s' not supported by "
+                    "loader, driver, or any active layers",
+                    name);
+                DestroyInstance_Bottom(instance.handle, allocator);
+                return VK_ERROR_EXTENSION_NOT_PRESENT;
             }
         }
         driver_create_info.ppEnabledExtensionNames = names;
@@ -806,17 +826,20 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
         alloca(create_info->enabledExtensionCount * sizeof(const char*)));
     for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
         const char* name = create_info->ppEnabledExtensionNames[i];
-
         DeviceExtension id = DeviceExtensionFromName(name);
-        if (id < kDeviceExtensionCount &&
-            (instance.physical_device_driver_extensions[gpu_idx][id] ||
-             id == kKHR_swapchain)) {
-            if (id == kKHR_swapchain)
-                name = VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
-            driver_extensions[num_driver_extensions++] = name;
-            continue;
+        if (id != kDeviceExtensionCount) {
+            if (instance.physical_device_driver_extensions[gpu_idx][id]) {
+                driver_extensions[num_driver_extensions++] = name;
+                continue;
+            }
+            if (id == kKHR_swapchain &&
+                instance.physical_device_driver_extensions
+                    [gpu_idx][kANDROID_native_buffer]) {
+                driver_extensions[num_driver_extensions++] =
+                    VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
+                continue;
+            }
         }
-
         bool supported = false;
         for (const auto& layer : device->active_layers) {
             if (layer.SupportsExtension(name))
@@ -824,8 +847,8 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
         }
         if (!supported) {
             ALOGE(
-                "requested device extension '%s' not supported by driver or "
-                "any active layers",
+                "requested device extension '%s' not supported by loader, "
+                "driver, or any active layers",
                 name);
             DestroyDevice(device);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
