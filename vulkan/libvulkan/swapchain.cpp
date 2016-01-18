@@ -332,8 +332,10 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
              "swapchain re-creation not yet implemented");
     ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
              "swapchain preTransform not yet implemented");
-    ALOGE_IF(create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR,
-             "present modes other than FIFO are not yet implemented");
+    ALOGW_IF((create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR ||
+              create_info->presentMode != VK_PRESENT_MODE_MAILBOX_KHR),
+             "swapchain present mode %d not supported",
+             create_info->presentMode);
 
     // -- Configure the native window --
 
@@ -401,6 +403,17 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_set_usage failed: %s (%d)", strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    err = surface.window->setSwapInterval(
+        surface.window.get(),
+        create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR ? 0 : 1);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window->setSwapInterval failed: %s (%d)", strerror(-err),
+              err);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
