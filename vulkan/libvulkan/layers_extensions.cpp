@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// #define LOG_NDEBUG 0
+
 #include "loader.h"
 #include <alloca.h>
 #include <dirent.h>
@@ -316,7 +318,7 @@ void GetLayerExtensions(const std::vector<Layer>& layers,
 
 LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
     for (uint32_t id = 0; id < layers.size(); id++) {
-        if (strcmp(name, layers[id].properties.layerName) != 0) {
+        if (strcmp(name, layers[id].properties.layerName) == 0) {
             LayerLibrary& library = g_layer_libraries[layers[id].library_idx];
             std::lock_guard<std::mutex> lock(g_library_mutex);
             if (library.refcount++ == 0) {
