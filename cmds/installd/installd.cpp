@@ -213,9 +213,10 @@ static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSE
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
-    /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags */
+    /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags, volume_uuid,
+            use_profiles */
     return dexopt(arg[0], atoi(arg[1]), arg[2], arg[3], atoi(arg[4]),
-                  arg[5], atoi(arg[6]));
+                  arg[5], atoi(arg[6]), parse_null(arg[7]), (atoi(arg[8]) == 0 ? false : true));
 }
 
 static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -322,7 +323,7 @@ struct cmdinfo cmds[] = {
     { "move_complete_app",    7, do_move_complete_app },
     { "get_app_size",         9, do_get_app_size },
 
-    { "dexopt",               7, do_dexopt },
+    { "dexopt",               9, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "rmdex",                2, do_rm_dex },
     { "freecache",            2, do_free_cache },
