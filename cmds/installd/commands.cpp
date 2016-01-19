@@ -1721,7 +1721,8 @@ fail:
 }
 
 static void run_aapt(const char *source_apk, const char *internal_path,
-                     int resapk_fd, int pkgId, int min_sdk_version, const char *common_res_path)
+                     int resapk_fd, int pkgId, int min_sdk_version,
+                     const char *app_res_path, const char *common_res_path)
 {
     static const char *AAPT_BIN = "/system/bin/aapt";
     static const char *MANIFEST = "/data/app/AndroidManifest.xml";
@@ -1735,40 +1736,48 @@ static void run_aapt(const char *source_apk, const char *internal_path,
     snprintf(resapk_str, sizeof(resapk_str), "%d", resapk_fd);
     snprintf(pkgId_str, sizeof(pkgId_str), "%d", pkgId);
     snprintf(minSdkVersion_str, sizeof(minSdkVersion_str), "%d", min_sdk_version);
+
     bool hasCommonResources = (common_res_path != NULL && common_res_path[0] != '\0');
+    bool hasAppResources = (app_res_path != NULL && app_res_path[0] != '\0');
 
     if (hasCommonResources) {
         execl(AAPT_BIN, AAPT_BIN, "package",
-                              "--min-sdk-version", minSdkVersion_str,
-                              "-M", MANIFEST,
-                              "-S", source_apk,
-                              "-X", internal_path,
-                              "-I", FRAMEWORK_RES,
-                              "-I", common_res_path,
-                              "-r", resapk_str,
-                              "-x", pkgId_str,
-                              "-f",
-                              (char*)NULL);
+                          "--min-sdk-version", minSdkVersion_str,
+                          "-M", MANIFEST,
+                          "-S", source_apk,
+                          "-X", internal_path,
+                          "-I", FRAMEWORK_RES,
+                          "-r", resapk_str,
+                          "-x", pkgId_str,
+                          "-f",
+                          "-I", common_res_path,
+                          hasAppResources ? "-I" : (char*)NULL,
+                          hasAppResources ? app_res_path : (char*) NULL,
+                          (char*)NULL);
     } else {
         execl(AAPT_BIN, AAPT_BIN, "package",
-                              "--min-sdk-version", minSdkVersion_str,
-                              "-M", MANIFEST,
-                              "-S", source_apk,
-                              "-X", internal_path,
-                              "-I", FRAMEWORK_RES,
-                              "-r", resapk_str,
-                              "-x", pkgId_str,
-                              "-f",
-                              (char*)NULL);
+                          "--min-sdk-version", minSdkVersion_str,
+                          "-M", MANIFEST,
+                          "-S", source_apk,
+                          "-X", internal_path,
+                          "-I", FRAMEWORK_RES,
+                          "-r", resapk_str,
+                          "-x", pkgId_str,
+                          "-f",
+                          hasAppResources ? "-I" : (char*)NULL,
+                          hasAppResources ? app_res_path : (char*) NULL,
+                          (char*)NULL);
     }
     ALOGE("execl(%s) failed: %s\n", AAPT_BIN, strerror(errno));
 }
 
 int aapt(const char *source_apk, const char *internal_path, const char *out_restable, uid_t uid,
-         int pkgId, int min_sdk_version, const char *common_res_path)
+         int pkgId, int min_sdk_version, const char *app_res_path, const char *common_res_path)
 {
-    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d,min_sdk_version=%d, common_res_path=%s",
-            source_apk, internal_path, out_restable, uid, pkgId, min_sdk_version, common_res_path);
+    ALOGD("aapt source_apk=%s internal_path=%s out_restable=%s uid=%d, pkgId=%d,min_sdk_version=%d,\
+            app_res_path=%s, common_res_path=%s",
+            source_apk, internal_path, out_restable, uid, pkgId, min_sdk_version, app_res_path,
+            common_res_path);
     static const int PARENT_READ_PIPE = 0;
     static const int CHILD_WRITE_PIPE = 1;
 
@@ -1828,7 +1837,8 @@ int aapt(const char *source_apk, const char *internal_path, const char *out_rest
             }
         }
 
-        run_aapt(source_apk, internal_path, resapk_fd, pkgId, min_sdk_version, common_res_path);
+        run_aapt(source_apk, internal_path, resapk_fd, pkgId, min_sdk_version, app_res_path,
+                common_res_path);
 
         close(resapk_fd);
         if (pipefd[CHILD_WRITE_PIPE] > 0) {
