@@ -149,6 +149,7 @@ private:
 
     // ISensorServer interface
     virtual Vector<Sensor> getSensorList(const String16& opPackageName);
+    virtual Vector<Sensor> getDynamicSensorList(const String16& opPackageName);
     virtual sp<ISensorEventConnection> createSensorEventConnection(
             const String8& packageName,
             int requestedMode, const String16& opPackageName);
@@ -165,6 +166,8 @@ private:
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
     Sensor registerSensor(SensorInterface* sensor);
     Sensor registerVirtualSensor(SensorInterface* sensor);
+    Sensor registerDynamicSensor(SensorInterface* sensor);
+    bool unregisterDynamicSensor(int handle);
     status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection, int handle);
     status_t cleanupWithoutDisableLocked(const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
@@ -212,6 +215,7 @@ private:
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
     Vector<Sensor> mUserSensorList;
+    Vector<Sensor> mDynamicSensorList;
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;
     status_t mInitCheck;

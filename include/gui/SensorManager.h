@@ -54,7 +54,8 @@ public:
     static SensorManager& getInstanceForPackage(const String16& packageName);
     ~SensorManager();
 
-    ssize_t getSensorList(Sensor const* const** list) const;
+    ssize_t getSensorList(Sensor const* const** list);
+    ssize_t getDynamicSensorList(Vector<Sensor>& list);
     Sensor const* getDefaultSensor(int type);
     sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""), int mode = 0);
     bool isDataInjectionEnabled();
@@ -64,17 +65,17 @@ private:
     void sensorManagerDied();
 
     SensorManager(const String16& opPackageName);
-    status_t assertStateLocked() const;
+    status_t assertStateLocked();
 
 private:
     static Mutex sLock;
     static std::map<String16, SensorManager*> sPackageInstances;
 
-    mutable Mutex mLock;
-    mutable sp<ISensorServer> mSensorServer;
-    mutable Sensor const** mSensorList;
-    mutable Vector<Sensor> mSensors;
-    mutable sp<IBinder::DeathRecipient> mDeathObserver;
+    Mutex mLock;
+    sp<ISensorServer> mSensorServer;
+    Sensor const** mSensorList;
+    Vector<Sensor> mSensors;
+    sp<IBinder::DeathRecipient> mDeathObserver;
     const String16 mOpPackageName;
 };
 

@@ -207,6 +207,11 @@ typedef struct AHeartRateEvent {
   int8_t status;
 } AHeartRateEvent;
 
+typedef struct ADynamicSensorEvent {
+    bool  connected;
+    int   handle;
+} ADynamicSensorEvent;
+
 /* NOTE: Must match hardware/sensors.h */
 typedef struct ASensorEvent {
     int32_t version; /* sizeof(struct ASensorEvent) */
@@ -229,6 +234,7 @@ typedef struct ASensorEvent {
             AUncalibratedEvent uncalibrated_magnetic;
             AMetaDataEvent meta_data;
             AHeartRateEvent heart_rate;
+            ADynamicSensorEvent dynamic_sensor_meta;
         };
         union {
             uint64_t        data[8];

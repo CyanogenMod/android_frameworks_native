@@ -52,9 +52,13 @@ public:
         TYPE_PROXIMITY      = ASENSOR_TYPE_PROXIMITY
     };
 
-            Sensor();
-            Sensor(struct sensor_t const* hwSensor, int halVersion = 0);
-            ~Sensor();
+    typedef struct {
+        uint8_t b[16];
+    } uuid_t;
+
+    Sensor();
+    Sensor(struct sensor_t const* hwSensor, int halVersion = 0);
+    ~Sensor();
 
     const String8& getName() const;
     const String8& getVendor() const;
@@ -77,6 +81,7 @@ public:
     uint32_t getFlags() const;
     bool isWakeUpSensor() const;
     int32_t getReportingMode() const;
+    const uuid_t& getUuid() const;
 
     // LightFlattenable protocol
     inline bool isFixedSize() const { return false; }
@@ -103,6 +108,7 @@ private:
     int32_t mRequiredAppOp;
     int32_t mMaxDelay;
     uint32_t mFlags;
+    uuid_t  mUuid;
     static void flattenString8(void*& buffer, size_t& size, const String8& string8);
     static bool unflattenString8(void const*& buffer, size_t& size, String8& outputString8);
 };

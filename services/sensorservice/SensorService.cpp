@@ -246,9 +246,6 @@ void SensorService::onFirstRef()
 
 Sensor SensorService::registerSensor(SensorInterface* s)
 {
-    sensors_event_t event;
-    memset(&event, 0, sizeof(event));
-
     const Sensor sensor(s->getSensor());
     // add to the sensor list (returned to clients)
     mSensorList.add(sensor);
@@ -258,6 +255,37 @@ Sensor SensorService::registerSensor(SensorInterface* s)
     mLastEventSeen.add(sensor.getHandle(), NULL);
 
     return sensor;
+}
+
+Sensor SensorService::registerDynamicSensor(SensorInterface* s)
+{
+    Sensor sensor = registerSensor(s);
+    mDynamicSensorList.add(sensor);
+    return sensor;
+}
+
+bool SensorService::unregisterDynamicSensor(int handle) {
+    bool found = false;
+
+    for (size_t i=0 ; i<mSensorList.size() ; i++) {
+        if (mSensorList[i].getHandle() == handle) {
+            mSensorList.removeAt(i);
+            found = true;
+            break;
+        }
+    }
+
+    if (found) {
+        for (size_t i=0 ; i<mDynamicSensorList.size() ; i++) {
+            if (mDynamicSensorList[i].getHandle() == handle) {
+                mDynamicSensorList.removeAt(i);
+            }
+        }
+
+        mSensorMap.removeItem(handle);
+        mLastEventSeen.removeItem(handle);
+    }
+    return found;
 }
 
 Sensor SensorService::registerVirtualSensor(SensorInterface* s)
@@ -593,11 +621,11 @@ bool SensorService::threadLoop()
             }
         }
 
-        // Map flush_complete_events in the buffer to SensorEventConnections which called flush on
-        // the hardware sensor. mapFlushEventsToConnections[i] will be the SensorEventConnection
-        // mapped to the corresponding flush_complete_event in mSensorEventBuffer[i] if such a
-        // mapping exists (NULL otherwise).
         for (int i = 0; i < count; ++i) {
+            // Map flush_complete_events in the buffer to SensorEventConnections which called flush on
+            // the hardware sensor. mapFlushEventsToConnections[i] will be the SensorEventConnection
+            // mapped to the corresponding flush_complete_event in mSensorEventBuffer[i] if such a
+            // mapping exists (NULL otherwise).
             mMapFlushEventsToConnections[i] = NULL;
             if (mSensorEventBuffer[i].type == SENSOR_TYPE_META_DATA) {
                 const int sensor_handle = mSensorEventBuffer[i].meta_data.sensor;
@@ -607,7 +635,39 @@ bool SensorService::threadLoop()
                     rec->removeFirstPendingFlushConnection();
                 }
             }
+
+            // handle dynamic sensor meta events, process registration and unregistration of dynamic
+            // sensor based on content of event.
+            if (mSensorEventBuffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META) {
+                if (mSensorEventBuffer[i].dynamic_sensor_meta.connected) {
+                    int handle = mSensorEventBuffer[i].dynamic_sensor_meta.handle;
+                    const sensor_t& dynamicSensor =
+                            *(mSensorEventBuffer[i].dynamic_sensor_meta.sensor);
+                    ALOGI("Dynamic sensor handle 0x%x connected, type %d, name %s",
+                          handle, dynamicSensor.type, dynamicSensor.name);
+
+                    device.handleDynamicSensorConnection(handle, true /*connected*/);
+                    registerDynamicSensor(new HardwareSensor(dynamicSensor));
+
+                } else {
+                    int handle = mSensorEventBuffer[i].dynamic_sensor_meta.handle;
+                    ALOGI("Dynamic sensor handle 0x%x disconnected", handle);
+
+                    device.handleDynamicSensorConnection(handle, false /*connected*/);
+                    if (!unregisterDynamicSensor(handle)) {
+                        ALOGE("Dynamic sensor release error.");
+                    }
+
+                    size_t numConnections = activeConnections.size();
+                    for (size_t i=0 ; i < numConnections; ++i) {
+                        if (activeConnections[i] != NULL) {
+                            activeConnections[i]->removeSensor(handle);
+                        }
+                    }
+                }
+            }
         }
+
 
         // Send our events to clients. Check the state of wake lock for each client and release the
         // lock if none of the clients need it.
@@ -693,13 +753,17 @@ bool SensorService::SensorEventAckReceiver::threadLoop() {
 void SensorService::recordLastValueLocked(
         const sensors_event_t* buffer, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        if (buffer[i].type != SENSOR_TYPE_META_DATA) {
-            MostRecentEventLogger* &circular_buf = mLastEventSeen.editValueFor(buffer[i].sensor);
-            if (circular_buf == NULL) {
-                circular_buf = new MostRecentEventLogger(buffer[i].type);
-            }
-            circular_buf->addEvent(buffer[i]);
+        if (buffer[i].type == SENSOR_TYPE_META_DATA ||
+            buffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META ||
+            mLastEventSeen.indexOfKey(buffer[i].sensor) <0 ) {
+            continue;
         }
+
+        MostRecentEventLogger* &circular_buf = mLastEventSeen.editValueFor(buffer[i].sensor);
+        if (circular_buf == NULL) {
+            circular_buf = new MostRecentEventLogger(buffer[i].type);
+        }
+        circular_buf->addEvent(buffer[i]);
     }
 }
 
@@ -729,7 +793,7 @@ String8 SensorService::getSensorName(int handle) const {
 
 bool SensorService::isVirtualSensor(int handle) const {
     SensorInterface* sensor = mSensorMap.valueFor(handle);
-    return sensor->isVirtual();
+    return sensor != NULL && sensor->isVirtual();
 }
 
 bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
@@ -755,6 +819,23 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
     for (size_t i = 0; i < initialSensorList.size(); i++) {
         Sensor sensor = initialSensorList[i];
         if (canAccessSensor(sensor, "getSensorList", opPackageName)) {
+            accessibleSensorList.add(sensor);
+        } else {
+            ALOGI("Skipped sensor %s because it requires permission %s and app op %d",
+                  sensor.getName().string(),
+                  sensor.getRequiredPermission().string(),
+                  sensor.getRequiredAppOp());
+        }
+    }
+    return accessibleSensorList;
+}
+
+Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName)
+{
+    Vector<Sensor> accessibleSensorList;
+    for (size_t i = 0; i < mDynamicSensorList.size(); i++) {
+        Sensor sensor = mDynamicSensorList[i];
+        if (canAccessSensor(sensor, "getDynamicSensorList", opPackageName)) {
             accessibleSensorList.add(sensor);
         } else {
             ALOGI("Skipped sensor %s because it requires permission %s and app op %d",
@@ -950,8 +1031,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     // one should be trigger by a change in value). Also if this sensor isn't
     // already active, don't call flush().
     if (err == NO_ERROR &&
-            sensor->getSensor().getReportingMode() != AREPORTING_MODE_ONE_SHOT &&
-            sensor->getSensor().getReportingMode() != AREPORTING_MODE_ON_CHANGE &&
+            sensor->getSensor().getReportingMode() == AREPORTING_MODE_CONTINUOUS &&
             rec->getNumConnections() > 1) {
         connection->setFirstFlushPending(handle, true);
         status_t err_flush = sensor->flush(connection.get(), handle);

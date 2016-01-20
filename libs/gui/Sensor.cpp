@@ -188,7 +188,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
             mFlags |= SENSOR_FLAG_WAKE_UP;
         }
-         break;
+        break;
     case SENSOR_TYPE_WAKE_GESTURE:
         mStringType = SENSOR_STRING_TYPE_WAKE_GESTURE;
         mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
@@ -216,6 +216,10 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
             mFlags |= SENSOR_FLAG_WAKE_UP;
         }
+        break;
+    case SENSOR_TYPE_DYNAMIC_SENSOR_META:
+        mStringType = SENSOR_STRING_TYPE_DYNAMIC_SENSOR_META;
+        mFlags = SENSOR_FLAG_SPECIAL_REPORTING_MODE; // special trigger and non-wake up
         break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
@@ -368,13 +372,18 @@ int32_t Sensor::getReportingMode() const {
     return ((mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT);
 }
 
+const Sensor::uuid_t& Sensor::getUuid() const {
+    return mUuid;
+}
+
 size_t Sensor::getFlattenedSize() const
 {
     size_t fixedSize =
-            sizeof(int32_t) * 3 +
-            sizeof(float) * 4 +
-            sizeof(int32_t) * 6 +
-            sizeof(bool);
+            sizeof(mVersion) + sizeof(mHandle) + sizeof(mType) +
+            sizeof(mMinValue) + sizeof(mMaxValue) + sizeof(mResolution) +
+            sizeof(mPower) + sizeof(mMinDelay) + sizeof(mFifoMaxEventCount) +
+            sizeof(mFifoMaxEventCount) + sizeof(mRequiredPermissionRuntime) +
+            sizeof(mRequiredAppOp) + sizeof(mMaxDelay) + sizeof(mFlags) + sizeof(mUuid);
 
     size_t variableSize =
             sizeof(uint32_t) + FlattenableUtils::align<4>(mName.length()) +
@@ -408,6 +417,7 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mRequiredAppOp);
     FlattenableUtils::write(buffer, size, mMaxDelay);
     FlattenableUtils::write(buffer, size, mFlags);
+    FlattenableUtils::write(buffer, size, mUuid);
     return NO_ERROR;
 }
 
@@ -419,11 +429,11 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
         return NO_MEMORY;
     }
 
-    size_t fixedSize =
-            sizeof(int32_t) * 3 +
-            sizeof(float) * 4 +
-            sizeof(int32_t) * 5;
-    if (size < fixedSize) {
+    size_t fixedSize1 =
+            sizeof(mVersion) + sizeof(mHandle) + sizeof(mType) + sizeof(mMinValue) +
+            sizeof(mMaxValue) + sizeof(mResolution) + sizeof(mPower) + sizeof(mMinDelay) +
+            sizeof(mFifoMaxEventCount) + sizeof(mFifoMaxEventCount);
+    if (size < fixedSize1) {
         return NO_MEMORY;
     }
 
@@ -444,10 +454,19 @@ status_t Sensor::unflatten(void const* buffer, size_t size) {
     if (!unflattenString8(buffer, size, mRequiredPermission)) {
         return NO_MEMORY;
     }
+
+    size_t fixedSize2 =
+            sizeof(mRequiredPermissionRuntime) + sizeof(mRequiredAppOp) + sizeof(mMaxDelay) +
+            sizeof(mFlags) + sizeof(mUuid);
+    if (size < fixedSize2) {
+        return NO_MEMORY;
+    }
+
     FlattenableUtils::read(buffer, size, mRequiredPermissionRuntime);
     FlattenableUtils::read(buffer, size, mRequiredAppOp);
     FlattenableUtils::read(buffer, size, mMaxDelay);
     FlattenableUtils::read(buffer, size, mFlags);
+    FlattenableUtils::read(buffer, size, mUuid);
     return NO_ERROR;
 }
 
