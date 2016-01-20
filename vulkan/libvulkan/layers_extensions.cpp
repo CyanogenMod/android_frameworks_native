@@ -324,6 +324,7 @@ LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
             if (library.refcount++ == 0) {
                 library.dlhandle =
                     dlopen(library.path.c_str(), RTLD_NOW | RTLD_LOCAL);
+                ALOGV("Opening library %s", library.path.c_str());
                 if (!library.dlhandle) {
                     ALOGE("failed to load layer library '%s': %s",
                           library.path.c_str(), dlerror());
@@ -331,6 +332,7 @@ LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
                     return LayerRef(nullptr);
                 }
             }
+            ALOGV("Refcount on activate is %zu", library.refcount);
             return LayerRef(&layers[id]);
         }
     }
@@ -384,13 +386,17 @@ LayerRef::~LayerRef() {
         LayerLibrary& library = g_layer_libraries[layer_->library_idx];
         std::lock_guard<std::mutex> lock(g_library_mutex);
         if (--library.refcount == 0) {
+            ALOGV("Closing library %s", library.path.c_str());
             dlclose(library.dlhandle);
             library.dlhandle = nullptr;
         }
+        ALOGV("Refcount on destruction is %zu", library.refcount);
     }
 }
 
-LayerRef::LayerRef(LayerRef&& other) : layer_(std::move(other.layer_)) {}
+LayerRef::LayerRef(LayerRef&& other) : layer_(std::move(other.layer_)) {
+    other.layer_ = nullptr;
+}
 
 PFN_vkGetInstanceProcAddr LayerRef::GetGetInstanceProcAddr() const {
     return layer_ ? reinterpret_cast<PFN_vkGetInstanceProcAddr>(
