@@ -600,9 +600,8 @@ static bool check_boolean_property(const char* property_name, bool default_value
 
 static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     const char* output_file_name, int swap_fd, const char *instruction_set,
-    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool use_jit,
-    const std::vector<int>& profile_files_fd, const std::vector<int>& reference_profile_files_fd)
-{
+    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool extract_only,
+    const std::vector<int>& profile_files_fd, const std::vector<int>& reference_profile_files_fd) {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
     if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
@@ -698,8 +697,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
         sprintf(dex2oat_swap_fd, "--swap-fd=%d", swap_fd);
     }
 
-    // use the JIT if either it's specified as a dexopt flag or if the property is set
-    use_jit = use_jit || check_boolean_property("debug.usejit");
     if (have_dex2oat_Xms_flag) {
         sprintf(dex2oat_Xms_arg, "-Xms%s", dex2oat_Xms_flag);
     }
@@ -713,7 +710,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
     } else if (vm_safe_mode) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
         have_dex2oat_compiler_filter_flag = true;
-    } else if (use_jit) {
+    } else if (extract_only) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-at-runtime");
         have_dex2oat_compiler_filter_flag = true;
     } else if (have_dex2oat_compiler_filter_flag) {
@@ -982,7 +979,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
-    bool use_jit = (dexopt_flags & DEXOPT_USEJIT) != 0;
+    bool extract_only = (dexopt_flags & DEXOPT_EXTRACTONLY) != 0;
     std::vector<int> profile_files_fd;
     std::vector<int> reference_profile_files_fd;
     if (use_profiles) {
@@ -1125,7 +1122,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
             run_dex2oat(input_fd, out_fd, input_file, out_path, swap_fd,
-                        instruction_set, vm_safe_mode, debuggable, boot_complete, use_jit,
+                        instruction_set, vm_safe_mode, debuggable, boot_complete, extract_only,
                         profile_files_fd, reference_profile_files_fd);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
