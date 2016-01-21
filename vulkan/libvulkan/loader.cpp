@@ -515,50 +515,62 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     Instance& instance = GetDispatchParent(*vkinstance);
     VkResult result;
 
+    // Check that all enabled extensions are supported
+    InstanceExtensionSet enabled_extensions;
+    uint32_t num_driver_extensions = 0;
+    for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
+        const char* name = create_info->ppEnabledExtensionNames[i];
+        InstanceExtension id = InstanceExtensionFromName(name);
+        if (id != kInstanceExtensionCount) {
+            if (g_driver_instance_extensions[id]) {
+                num_driver_extensions++;
+                enabled_extensions.set(id);
+                continue;
+            }
+            if (id == kKHR_surface || id == kKHR_android_surface ||
+                id == kEXT_debug_report) {
+                enabled_extensions.set(id);
+                continue;
+            }
+        }
+        bool supported = false;
+        for (const auto& layer : instance.active_layers) {
+            if (layer.SupportsExtension(name))
+                supported = true;
+        }
+        if (!supported) {
+            ALOGE(
+                "requested instance extension '%s' not supported by "
+                "loader, driver, or any active layers",
+                name);
+            DestroyInstance_Bottom(instance.handle, allocator);
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+    }
+
     VkInstanceCreateInfo driver_create_info = *create_info;
     driver_create_info.enabledLayerCount = 0;
     driver_create_info.ppEnabledLayerNames = nullptr;
-
-    InstanceExtensionSet enabled_extensions;
     driver_create_info.enabledExtensionCount = 0;
     driver_create_info.ppEnabledExtensionNames = nullptr;
-    size_t max_names =
-        std::min(static_cast<size_t>(create_info->enabledExtensionCount),
-                 g_driver_instance_extensions.count());
-    if (max_names > 0) {
-        const char** names =
-            static_cast<const char**>(alloca(max_names * sizeof(char*)));
+    if (num_driver_extensions > 0) {
+        const char** names = static_cast<const char**>(
+            alloca(num_driver_extensions * sizeof(char*)));
         for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
             const char* name = create_info->ppEnabledExtensionNames[i];
             InstanceExtension id = InstanceExtensionFromName(name);
             if (id != kInstanceExtensionCount) {
                 if (g_driver_instance_extensions[id]) {
                     names[driver_create_info.enabledExtensionCount++] = name;
-                    enabled_extensions.set(id);
                     continue;
                 }
-                if (id == kKHR_surface || id == kKHR_android_surface ||
-                    id == kEXT_debug_report) {
-                    enabled_extensions.set(id);
-                    continue;
-                }
-            }
-
-            bool supported = false;
-            for (const auto& layer : instance.active_layers) {
-                if (layer.SupportsExtension(name))
-                    supported = true;
-            }
-            if (!supported) {
-                ALOGE(
-                    "requested instance extension '%s' not supported by "
-                    "loader, driver, or any active layers",
-                    name);
-                DestroyInstance_Bottom(instance.handle, allocator);
-                return VK_ERROR_EXTENSION_NOT_PRESENT;
             }
         }
         driver_create_info.ppEnabledExtensionNames = names;
+        ALOG_ASSERT(
+            driver_create_info.enabledExtensionCount == num_driver_extensions,
+            "counted enabled driver instance extensions twice and got "
+            "different answers!");
     }
 
     result = g_hwdevice->CreateInstance(&driver_create_info, instance.alloc,

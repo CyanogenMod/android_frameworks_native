@@ -214,10 +214,15 @@ VkResult EnumerateInstanceExtensionProperties(
             "Driver vkEnumerateInstanceExtensionProperties shouldn't be called "
             "with a layer name ('%s')",
             layer_name);
-        *count = 0;
-        return VK_SUCCESS;
     }
 
+// NOTE: Change this to zero to report and extension, which can be useful
+// for testing changes to the loader.
+#if 1
+    (void)properties;  // unused
+    *count = 0;
+    return VK_SUCCESS;
+#else
     const VkExtensionProperties kExtensions[] = {
         {VK_EXT_DEBUG_REPORT_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_SPEC_VERSION}};
     const uint32_t kExtensionsCount =
@@ -228,6 +233,7 @@ VkResult EnumerateInstanceExtensionProperties(
     if (properties)
         std::copy(kExtensions, kExtensions + *count, properties);
     return *count < kExtensionsCount ? VK_INCOMPLETE : VK_SUCCESS;
+#endif
 }
 
 VKAPI_ATTR
