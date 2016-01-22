@@ -835,12 +835,11 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
     Instance& instance = GetDispatchParent(gpu);
     VkResult result;
 
-    if (!allocator) {
-        if (instance.alloc)
-            allocator = instance.alloc;
-        else
-            allocator = &kDefaultAllocCallbacks;
-    }
+    // FIXME(jessehall): We don't have good conventions or infrastructure yet to
+    // do better than just using the instance allocator and scope for
+    // everything. See b/26732122.
+    if (true /*!allocator*/)
+        allocator = instance.alloc;
 
     void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Device),
                                          alignof(Device),
