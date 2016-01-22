@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define LOG_NDEBUG 0
-
 // module header
 #include "loader.h"
 // standard C headers
@@ -38,6 +36,22 @@
 #include <hardware/hwvulkan.h>
 #include <log/log.h>
 #include <vulkan/vulkan_loader_data.h>
+
+// #define ENABLE_ALLOC_CALLSTACKS 1
+#if ENABLE_ALLOC_CALLSTACKS
+#include <utils/CallStack.h>
+#define ALOGD_CALLSTACK(...)                             \
+    do {                                                 \
+        ALOGD(__VA_ARGS__);                              \
+        android::CallStack callstack;                    \
+        callstack.update();                              \
+        callstack.log(LOG_TAG, ANDROID_LOG_DEBUG, "  "); \
+    } while (false)
+#else
+#define ALOGD_CALLSTACK(...) \
+    do {                     \
+    } while (false)
+#endif
 
 using namespace vulkan;
 
@@ -80,10 +94,12 @@ class CallbackAllocator {
         void* mem =
             alloc->pfnAllocation(alloc->pUserData, n * sizeof(T), alignof(T),
                                  VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+        if (!mem)
+            throw std::bad_alloc();
         return static_cast<T*>(mem);
     }
 
-    void deallocate(T* array, std::size_t /*n*/) {
+    void deallocate(T* array, std::size_t /*n*/) noexcept {
         alloc->pfnFree(alloc->pUserData, array);
     }
 
@@ -101,17 +117,6 @@ bool operator!=(const CallbackAllocator<T>& alloc1,
     return !(alloc1 == alloc2);
 }
 
-template <class Key,
-          class T,
-          class Hash = std::hash<Key>,
-          class Pred = std::equal_to<Key>>
-using UnorderedMap =
-    std::unordered_map<Key,
-                       T,
-                       Hash,
-                       Pred,
-                       CallbackAllocator<std::pair<const Key, T>>>;
-
 template <class T>
 using Vector = std::vector<T, CallbackAllocator<T>>;
 
@@ -127,9 +132,10 @@ VKAPI_ATTR void* DefaultAllocate(void*,
     void* ptr = nullptr;
     // Vulkan requires 'alignment' to be a power of two, but posix_memalign
     // additionally requires that it be at least sizeof(void*).
-    return posix_memalign(&ptr, std::max(alignment, sizeof(void*)), size) == 0
-               ? ptr
-               : nullptr;
+    int ret = posix_memalign(&ptr, std::max(alignment, sizeof(void*)), size);
+    ALOGD_CALLSTACK("Allocate: size=%zu align=%zu => (%d) %p", size, alignment,
+                    ret, ptr);
+    return ret == 0 ? ptr : nullptr;
 }
 
 VKAPI_ATTR void* DefaultReallocate(void*,
@@ -162,8 +168,9 @@ VKAPI_ATTR void* DefaultReallocate(void*,
     return new_ptr;
 }
 
-VKAPI_ATTR void DefaultFree(void*, void* pMem) {
-    free(pMem);
+VKAPI_ATTR void DefaultFree(void*, void* ptr) {
+    ALOGD_CALLSTACK("Free: %p", ptr);
+    free(ptr);
 }
 
 const VkAllocationCallbacks kDefaultAllocCallbacks = {
@@ -360,8 +367,17 @@ bool ActivateLayer(TObject* object, const char* name) {
     if (!layer)
         return false;
     if (std::find(object->active_layers.begin(), object->active_layers.end(),
-                  layer) == object->active_layers.end())
-        object->active_layers.push_back(std::move(layer));
+                  layer) == object->active_layers.end()) {
+        try {
+            object->active_layers.push_back(std::move(layer));
+        } catch (std::bad_alloc&) {
+            // TODO(jessehall): We should fail with VK_ERROR_OUT_OF_MEMORY
+            // if we can't enable a requested layer. Callers currently ignore
+            // ActivateLayer's return value.
+            ALOGW("failed to activate layer '%s': out of memory", name);
+            return false;
+        }
+    }
     ALOGV("activated layer '%s'", name);
     return true;
 }
@@ -374,26 +390,32 @@ struct InstanceNamesPair {
 void SetLayerNamesFromProperty(const char* name,
                                const char* value,
                                void* data) {
-    const char prefix[] = "debug.vulkan.layer.";
-    const size_t prefixlen = sizeof(prefix) - 1;
-    if (value[0] == '\0' || strncmp(name, prefix, prefixlen) != 0)
-        return;
-    const char* number_str = name + prefixlen;
-    long layer_number = strtol(number_str, nullptr, 10);
-    if (layer_number <= 0 || layer_number == LONG_MAX) {
-        ALOGW("Cannot use a layer at number %ld from string %s", layer_number,
-              number_str);
+    try {
+        const char prefix[] = "debug.vulkan.layer.";
+        const size_t prefixlen = sizeof(prefix) - 1;
+        if (value[0] == '\0' || strncmp(name, prefix, prefixlen) != 0)
+            return;
+        const char* number_str = name + prefixlen;
+        long layer_number = strtol(number_str, nullptr, 10);
+        if (layer_number <= 0 || layer_number == LONG_MAX) {
+            ALOGW("Cannot use a layer at number %ld from string %s",
+                  layer_number, number_str);
+            return;
+        }
+        auto instance_names_pair = static_cast<InstanceNamesPair*>(data);
+        Vector<String>* layer_names = instance_names_pair->layer_names;
+        Instance* instance = instance_names_pair->instance;
+        size_t layer_size = static_cast<size_t>(layer_number);
+        if (layer_size > layer_names->size()) {
+            layer_names->resize(
+                layer_size, String(CallbackAllocator<char>(instance->alloc)));
+        }
+        (*layer_names)[layer_size - 1] = value;
+    } catch (std::bad_alloc&) {
+        ALOGW("failed to handle property '%s'='%s': out of memory", name,
+              value);
         return;
     }
-    auto instance_names_pair = static_cast<InstanceNamesPair*>(data);
-    Vector<String>* layer_names = instance_names_pair->layer_names;
-    Instance* instance = instance_names_pair->instance;
-    size_t layer_size = static_cast<size_t>(layer_number);
-    if (layer_size > layer_names->size()) {
-        layer_names->resize(layer_size,
-                            String(CallbackAllocator<char>(instance->alloc)));
-    }
-    (*layer_names)[layer_size - 1] = value;
 }
 
 template <class TInfo, class TObject>
@@ -408,13 +430,11 @@ VkResult ActivateAllLayers(TInfo create_info,
     if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
         char layer_prop[PROPERTY_VALUE_MAX];
         property_get("debug.vulkan.layers", layer_prop, "");
-        String layer_name(string_allocator);
-        String layer_prop_str(layer_prop, string_allocator);
-        size_t end, start = 0;
-        while ((end = layer_prop_str.find(':', start)) != std::string::npos) {
-            layer_name = layer_prop_str.substr(start, end - start);
-            ActivateLayer(object, layer_name.c_str());
-            start = end + 1;
+        char* strtok_state;
+        char* layer_name = nullptr;
+        while ((layer_name = strtok_r(layer_name ? nullptr : layer_prop, ":",
+                                      &strtok_state))) {
+            ActivateLayer(object, layer_name);
         }
         Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
         InstanceNamesPair instance_names_pair = {.instance = instance,
@@ -637,7 +657,13 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
                   result);
             continue;
         }
-        extensions.resize(count);
+        try {
+            extensions.resize(count);
+        } catch (std::bad_alloc&) {
+            ALOGE("instance creation failed: out of memory");
+            DestroyInstance_Bottom(instance.handle, allocator);
+            return VK_ERROR_OUT_OF_HOST_MEMORY;
+        }
         if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
                  instance.physical_devices[i], nullptr, &count,
                  extensions.data())) != VK_SUCCESS) {
@@ -909,8 +935,19 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
     VkLayerLinkedListElem* next_element;
     PFN_vkGetDeviceProcAddr next_get_proc_addr = GetDeviceProcAddr_Bottom;
     Vector<VkLayerLinkedListElem> elem_list(
-        device->active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance.alloc));
+    try {
+        elem_list.resize(device->active_layers.size());
+    } catch (std::bad_alloc&) {
+        ALOGE("device creation failed: out of memory");
+        PFN_vkDestroyDevice destroy_device =
+            reinterpret_cast<PFN_vkDestroyDevice>(
+                instance.drv.dispatch.GetDeviceProcAddr(drv_device,
+                                                        "vkDestroyDevice"));
+        destroy_device(drv_device, allocator);
+        DestroyDevice(device);
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
 
     for (size_t i = elem_list.size(); i > 0; i--) {
         size_t idx = i - 1;
@@ -1090,8 +1127,14 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     VkLayerLinkedListElem* next_element;
     PFN_vkGetInstanceProcAddr next_get_proc_addr = GetInstanceProcAddr_Bottom;
     Vector<VkLayerLinkedListElem> elem_list(
-        instance->active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance->alloc));
+    try {
+        elem_list.resize(instance->active_layers.size());
+    } catch (std::bad_alloc&) {
+        ALOGE("instance creation failed: out of memory");
+        DestroyInstance_Bottom(instance->handle, allocator);
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
 
     for (size_t i = elem_list.size(); i > 0; i--) {
         size_t idx = i - 1;

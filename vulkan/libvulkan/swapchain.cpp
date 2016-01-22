@@ -77,10 +77,13 @@ class VulkanAllocator {
         : allocator_(other.allocator_), scope_(other.scope_) {}
 
     T* allocate(size_t n) const {
-        return static_cast<T*>(allocator_.pfnAllocation(
+        T* p = static_cast<T*>(allocator_.pfnAllocation(
             allocator_.pUserData, n * sizeof(T), alignof(T), scope_));
+        if (!p)
+            throw std::bad_alloc();
+        return p;
     }
-    void deallocate(T* p, size_t) const {
+    void deallocate(T* p, size_t) const noexcept {
         return allocator_.pfnFree(allocator_.pUserData, p);
     }
 
@@ -93,10 +96,15 @@ class VulkanAllocator {
 
 template <typename T, typename Host>
 std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
-    obj->common.incRef(&obj->common);
-    return std::shared_ptr<T>(
-        obj, NativeBaseDeleter<T>(),
-        VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
+    try {
+        obj->common.incRef(&obj->common);
+        return std::shared_ptr<T>(
+            obj, NativeBaseDeleter<T>(),
+            VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
+    } catch (std::bad_alloc&) {
+        obj->common.decRef(&obj->common);
+        return nullptr;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -161,6 +169,12 @@ VkResult CreateAndroidSurfaceKHR_Bottom(
     Surface* surface = new (mem) Surface;
 
     surface->window = InitSharedPtr(instance, pCreateInfo->window);
+    if (!surface->window) {
+        ALOGE("surface creation failed: out of memory");
+        surface->~Surface();
+        allocator->pfnFree(allocator->pUserData, surface);
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     int err =
@@ -468,6 +482,13 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
             break;
         }
         img.buffer = InitSharedPtr(device, buffer);
+        if (!img.buffer) {
+            ALOGE("swapchain creation failed: out of memory");
+            surface.window->cancelBuffer(surface.window.get(), buffer,
+                                         img.dequeue_fence);
+            result = VK_ERROR_OUT_OF_HOST_MEMORY;
+            break;
+        }
         img.dequeued = true;
 
         image_create.extent =

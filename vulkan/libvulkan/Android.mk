@@ -23,6 +23,7 @@ LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
 	-Wno-undef
 #LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++14 \
+	-fexceptions \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
 	-Wno-c99-extensions \
@@ -42,7 +43,7 @@ LOCAL_SRC_FILES := \
 	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
-LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libcutils
+LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libutils libcutils
 
 LOCAL_MODULE := libvulkan
 include $(BUILD_SHARED_LIBRARY)
