@@ -124,6 +124,10 @@ LOCAL_CPPFLAGS := -std=c++11
 
 LOCAL_INIT_RC := surfaceflinger.rc
 
+ifneq ($(ENABLE_CPUSETS),)
+    LOCAL_CFLAGS += -DENABLE_CPUSETS
+endif
+
 LOCAL_SRC_FILES := \
     main_surfaceflinger.cpp
 
