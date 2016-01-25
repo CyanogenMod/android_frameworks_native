@@ -951,6 +951,13 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* read /proc/cmdline before dropping root */
+    FILE *cmdline = fopen("/proc/cmdline", "re");
+    if (cmdline) {
+        fgets(cmdline_buf, sizeof(cmdline_buf), cmdline);
+        fclose(cmdline);
+    }
+
     print_header();
 
     /* open the vibrator before dropping root */
@@ -981,13 +988,6 @@ int main(int argc, char *argv[]) {
         if (chown(path.c_str(), AID_SHELL, AID_SHELL)) {
             ALOGE("Unable to change ownership of zip file %s: %s\n", path.c_str(), strerror(errno));
         }
-    }
-
-    /* read /proc/cmdline before dropping root */
-    FILE *cmdline = fopen("/proc/cmdline", "re");
-    if (cmdline) {
-        fgets(cmdline_buf, sizeof(cmdline_buf), cmdline);
-        fclose(cmdline);
     }
 
     /* collect stack traces from Dalvik and native processes (needs root) */
