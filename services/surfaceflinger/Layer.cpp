@@ -82,6 +82,9 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mFiltering(false),
         mNeedsFiltering(false),
         mMesh(Mesh::TRIANGLE_FAN, 4, 2, 2),
+#ifndef USE_HWC2
+        mIsGlesComposition(false),
+#endif
         mProtectedByApp(false),
         mHasSurface(false),
         mClientRef(client),
@@ -750,6 +753,7 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& hw,
     Region visible = tr.transform(visibleRegion.intersect(hw->getViewport()));
     layer.setVisibleRegionScreen(visible);
     layer.setSurfaceDamage(surfaceDamageRegion);
+    mIsGlesComposition = (layer.getCompositionType() == HWC_FRAMEBUFFER);
 
     if (mSidebandStream.get()) {
         layer.setSidebandStream(mSidebandStream);
@@ -2046,6 +2050,23 @@ void Layer::getFrameStats(FrameStats* outStats) const {
     mFrameTracker.getStats(outStats);
 }
 
+void Layer::getFenceData(String8* outName, uint64_t* outFrameNumber,
+        bool* outIsGlesComposition, nsecs_t* outPostedTime,
+        sp<Fence>* outAcquireFence, sp<Fence>* outPrevReleaseFence) const {
+    *outName = mName;
+    *outFrameNumber = mSurfaceFlingerConsumer->getFrameNumber();
+
+#ifdef USE_HWC2
+    *outIsGlesComposition = mHwcLayers.count(HWC_DISPLAY_PRIMARY) ?
+            mHwcLayers.at(HWC_DISPLAY_PRIMARY).compositionType ==
+            HWC2::Composition::Client : true;
+#else
+    *outIsGlesComposition = mIsGlesComposition;
+#endif
+    *outPostedTime = mSurfaceFlingerConsumer->getTimestamp();
+    *outAcquireFence = mSurfaceFlingerConsumer->getCurrentFence();
+    *outPrevReleaseFence = mSurfaceFlingerConsumer->getPrevReleaseFence();
+}
 // ---------------------------------------------------------------------------
 
 Layer::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,

@@ -364,11 +364,9 @@ void DisplayDevice::setViewportAndProjection() const {
         false, Transform::ROT_0);
 }
 
-#ifdef USE_HWC2
 const sp<Fence>& DisplayDevice::getClientTargetAcquireFence() const {
     return mDisplaySurface->getClientTargetAcquireFence();
 }
-#endif
 
 // ----------------------------------------------------------------------------
 

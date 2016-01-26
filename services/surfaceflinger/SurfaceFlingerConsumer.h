@@ -37,7 +37,8 @@ public:
     SurfaceFlingerConsumer(const sp<IGraphicBufferConsumer>& consumer,
             uint32_t tex)
         : GLConsumer(consumer, tex, GLConsumer::TEXTURE_EXTERNAL, false, false),
-          mTransformToDisplayInverse(false), mSurfaceDamage()
+          mTransformToDisplayInverse(false), mSurfaceDamage(),
+          mPrevReleaseFence(Fence::NO_FENCE)
     {}
 
     class BufferRejecter {
@@ -75,8 +76,9 @@ public:
 
     nsecs_t computeExpectedPresent(const DispSync& dispSync);
 
-#ifdef USE_HWC2
     virtual void setReleaseFence(const sp<Fence>& fence) override;
+    sp<Fence> getPrevReleaseFence() const;
+#ifdef USE_HWC2
     void releasePendingBuffer();
 #endif
 
@@ -98,6 +100,9 @@ private:
     // presentDisplay
     PendingRelease mPendingRelease;
 #endif
+
+    // The release fence of the already displayed buffer (previous frame).
+    sp<Fence> mPrevReleaseFence;
 };
 
 // ----------------------------------------------------------------------------

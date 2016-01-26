@@ -60,15 +60,14 @@ FramebufferSurface::FramebufferSurface(HWComposer& hwc, int disp,
     ConsumerBase(consumer),
     mDisplayType(disp),
     mCurrentBufferSlot(-1),
-#ifdef USE_HWC2
     mCurrentBuffer(),
     mCurrentFence(Fence::NO_FENCE),
+#ifdef USE_HWC2
     mHwc(hwc),
     mHasPendingRelease(false),
     mPreviousBufferSlot(BufferQueue::INVALID_BUFFER_SLOT),
     mPreviousBuffer()
 #else
-    mCurrentBuffer(0),
     mHwc(hwc)
 #endif
 {
@@ -168,9 +167,7 @@ status_t FramebufferSurface::nextBuffer(sp<GraphicBuffer>& outBuffer, sp<Fence>&
     }
     mCurrentBufferSlot = item.mSlot;
     mCurrentBuffer = mSlots[mCurrentBufferSlot].mGraphicBuffer;
-#ifdef USE_HWC2
     mCurrentFence = item.mFence;
-#endif
 
     outFence = item.mFence;
     outBuffer = mCurrentBuffer;
@@ -254,11 +251,9 @@ void FramebufferSurface::dumpLocked(String8& result, const char* prefix) const
     ConsumerBase::dumpLocked(result, prefix);
 }
 
-#ifdef USE_HWC2
 const sp<Fence>& FramebufferSurface::getClientTargetAcquireFence() const {
     return mCurrentFence;
 }
-#endif
 
 // ----------------------------------------------------------------------------
 }; // namespace android

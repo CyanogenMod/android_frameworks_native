@@ -190,6 +190,7 @@ nsecs_t SurfaceFlingerConsumer::computeExpectedPresent(const DispSync& dispSync)
 #ifdef USE_HWC2
 void SurfaceFlingerConsumer::setReleaseFence(const sp<Fence>& fence)
 {
+    mPrevReleaseFence = fence;
     if (!mPendingRelease.isPending) {
         GLConsumer::setReleaseFence(fence);
         return;
@@ -219,7 +220,16 @@ void SurfaceFlingerConsumer::releasePendingBuffer()
             strerror(-result), result);
     mPendingRelease = PendingRelease();
 }
+#else
+void SurfaceFlingerConsumer::setReleaseFence(const sp<Fence>& fence) {
+    mPrevReleaseFence = fence;
+    GLConsumer::setReleaseFence(fence);
+}
 #endif
+
+sp<Fence> SurfaceFlingerConsumer::getPrevReleaseFence() const {
+    return mPrevReleaseFence;
+}
 
 void SurfaceFlingerConsumer::setContentsChangedListener(
         const wp<ContentsChangedListener>& listener) {

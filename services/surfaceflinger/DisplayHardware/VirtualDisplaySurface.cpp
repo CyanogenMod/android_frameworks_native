@@ -311,11 +311,9 @@ void VirtualDisplaySurface::resizeBuffers(const uint32_t w, const uint32_t h) {
     mSinkBufferHeight = h;
 }
 
-#ifdef USE_HWC2
 const sp<Fence>& VirtualDisplaySurface::getClientTargetAcquireFence() const {
     return mFbFence;
 }
-#endif
 
 status_t VirtualDisplaySurface::requestBuffer(int pslot,
         sp<GraphicBuffer>* outBuf) {

@@ -50,6 +50,7 @@
 #include "Barrier.h"
 #include "DisplayDevice.h"
 #include "DispSync.h"
+#include "FenceTracker.h"
 #include "FrameTracker.h"
 #include "MessageQueue.h"
 
@@ -384,7 +385,7 @@ private:
             Region& dirtyRegion, Region& opaqueRegion);
 
     void preComposition();
-    void postComposition();
+    void postComposition(nsecs_t refreshStartTime);
     void rebuildLayerStacks();
     void setUpHWComposer();
     void doComposition();
@@ -488,6 +489,7 @@ private:
     nsecs_t mLastTransactionTime;
     bool mBootFinished;
     bool mForceFullDamage;
+    FenceTracker mFenceTracker;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
