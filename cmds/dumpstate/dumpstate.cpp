@@ -466,12 +466,11 @@ static void dumpstate(const std::string& screenshot_path) {
                                                         "-v", "printable",
                                                         "-d",
                                                         "*:v", NULL);
-    timeout = logcat_timeout("events") + logcat_timeout("security");
+    timeout = logcat_timeout("events");
     if (timeout < 20000) {
         timeout = 20000;
     }
     run_command("EVENT LOG", timeout / 1000, "logcat", "-b", "events",
-                                                       "-b", "security",
                                                        "-v", "threadtime",
                                                        "-v", "printable",
                                                        "-d",
