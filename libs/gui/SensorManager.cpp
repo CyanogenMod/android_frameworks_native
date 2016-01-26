@@ -89,7 +89,8 @@ SensorManager& SensorManager::getInstanceForPackage(const String16& packageName)
 }
 
 SensorManager::SensorManager(const String16& opPackageName)
-    : mSensorList(0), mOpPackageName(opPackageName)
+    : mSensorList(NULL), mAvailableSensorList(NULL), mNumAvailableSensor(0),
+      mOpPackageName(opPackageName), mBodyPermission(false)
 {
     // okay we're not locked here, but it's not needed during construction
     assertStateLocked();
@@ -98,6 +99,9 @@ SensorManager::SensorManager(const String16& opPackageName)
 SensorManager::~SensorManager()
 {
     free(mSensorList);
+    if (mAvailableSensorList) {
+        free(mAvailableSensorList);
+    }
 }
 
 void SensorManager::sensorManagerDied()
@@ -106,10 +110,14 @@ void SensorManager::sensorManagerDied()
     mSensorServer.clear();
     free(mSensorList);
     mSensorList = NULL;
+    if (mAvailableSensorList) {
+        free(mAvailableSensorList);
+        mAvailableSensorList = NULL;
+    }
     mSensors.clear();
 }
 
-status_t SensorManager::assertStateLocked() const {
+status_t SensorManager::assertStateLocked() {
     bool initSensorManager = false;
     if (mSensorServer == NULL) {
         initSensorManager = true;
@@ -159,13 +167,14 @@ status_t SensorManager::assertStateLocked() const {
         for (size_t i=0 ; i<count ; i++) {
             mSensorList[i] = mSensors.array() + i;
         }
+
+        updateAvailableSensorList();
     }
 
     return NO_ERROR;
 }
 
-ssize_t SensorManager::getSensorList(Sensor const* const** list) const
-{
+ssize_t SensorManager::getSensorList(Sensor const* const** list) {
     Mutex::Autolock _l(mLock);
     status_t err = assertStateLocked();
     if (err < 0) {
@@ -175,10 +184,76 @@ ssize_t SensorManager::getSensorList(Sensor const* const** list) const
     return static_cast<ssize_t>(mSensors.size());
 }
 
-Sensor const* SensorManager::getDefaultSensor(int type)
-{
+void SensorManager::updateAvailableSensorList() {
+    const int uid = static_cast<int>(IPCThreadState::self()->getCallingUid());
+    const int pid = static_cast<int>(IPCThreadState::self()->getCallingPid());
+    const String16 BODY_SENSOR_PERMISSION("android.permission.BODY_SENSORS");
+    const String8 BODY_SENSOR_PERMISSION8("android.permission.BODY_SENSORS");
+
+    bool bodySensorPermission = false;
+
+    sp<IBinder> binder = defaultServiceManager()->getService(String16("permission"));
+    if (binder != NULL) {
+        bodySensorPermission = interface_cast<IPermissionController>(binder)->
+                checkPermission(BODY_SENSOR_PERMISSION, pid, uid);
+    }
+
+    // only update if app got BODY_SENSORS permission after last call or the sensor list has not
+    // been populated.
+    //
+    // it is not possible for the reverse transition, as the app will be killed when permission is
+    // revoked.
+    if ( (bodySensorPermission && !mBodyPermission) || mAvailableSensorList == NULL) {
+
+        // allocate only when necessary
+        if (mAvailableSensorList == NULL) {
+            // allocate a list big enough to fit all sensors (including those requires permission
+            // that the app do not have;
+            mAvailableSensorList =
+                    static_cast<Sensor const**>(malloc(mSensors.size() * sizeof(Sensor*)));
+
+            // first populate all sensors that do not need body sensor permission
+            ssize_t& n = mNumAvailableSensor;
+            for (size_t i = 0; i < mSensors.size() ; i++) {
+                if (mSensors[i].getRequiredPermission() != BODY_SENSOR_PERMISSION8) {
+                    mAvailableSensorList[n++] = mSensors.array() + i;
+                }
+            }
+        }
+
+        if (bodySensorPermission) {
+            // if the app just got the sensor permission back, fill the sensor at the end of list
+            ssize_t& n = mNumAvailableSensor;
+            for (size_t i = 0; i < mSensors.size() ; i++) {
+                if (mSensors[i].getRequiredPermission() == BODY_SENSOR_PERMISSION8) {
+                    mAvailableSensorList[n++] = mSensors.array() + i;
+                }
+            }
+        }
+
+        mBodyPermission = bodySensorPermission;
+    }
+}
+
+ssize_t SensorManager::getAvailableSensorList(Sensor const* const** list) {
+    Mutex::Autolock _l(mLock);
+    status_t err = assertStateLocked();
+    if (err < 0) {
+        return static_cast<ssize_t>(err);
+    }
+
+    updateAvailableSensorList();
+
+    *list = mAvailableSensorList;
+    return mNumAvailableSensor;
+}
+
+Sensor const* SensorManager::getDefaultSensor(int type) {
     Mutex::Autolock _l(mLock);
     if (assertStateLocked() == NO_ERROR) {
+
+        updateAvailableSensorList();
+
         bool wakeUpSensor = false;
         // For the following sensor types, return a wake-up sensor. These types are by default
         // defined as wake-up sensors. For the rest of the sensor types defined in sensors.h return
@@ -192,9 +267,9 @@ Sensor const* SensorManager::getDefaultSensor(int type)
         // in the future it will make sense to let the SensorService make
         // that decision.
         for (size_t i=0 ; i<mSensors.size() ; i++) {
-            if (mSensorList[i]->getType() == type &&
-                mSensorList[i]->isWakeUpSensor() == wakeUpSensor) {
-                return mSensorList[i];
+            if (mAvailableSensorList[i]->getType() == type &&
+                mAvailableSensorList[i]->isWakeUpSensor() == wakeUpSensor) {
+                return mAvailableSensorList[i];
             }
         }
     }

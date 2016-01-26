@@ -723,14 +723,7 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
     Vector<Sensor> accessibleSensorList;
     for (size_t i = 0; i < initialSensorList.size(); i++) {
         Sensor sensor = initialSensorList[i];
-        if (canAccessSensor(sensor, "getSensorList", opPackageName)) {
-            accessibleSensorList.add(sensor);
-        } else {
-            ALOGI("Skipped sensor %s because it requires permission %s and app op %d",
-                  sensor.getName().string(),
-                  sensor.getRequiredPermission().string(),
-                  sensor.getRequiredAppOp());
-        }
+        accessibleSensorList.add(sensor);
     }
     return accessibleSensorList;
 }

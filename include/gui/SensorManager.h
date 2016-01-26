@@ -22,9 +22,11 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <binder/BinderService.h>
 #include <binder/IBinder.h>
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
+#include <binder/PermissionCache.h>
 
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -54,7 +56,8 @@ public:
     static SensorManager& getInstanceForPackage(const String16& packageName);
     ~SensorManager();
 
-    ssize_t getSensorList(Sensor const* const** list) const;
+    ssize_t getSensorList(Sensor const* const** list);
+    ssize_t getAvailableSensorList(Sensor const* const** list);
     Sensor const* getDefaultSensor(int type);
     sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""), int mode = 0);
     bool isDataInjectionEnabled();
@@ -64,18 +67,27 @@ private:
     void sensorManagerDied();
 
     SensorManager(const String16& opPackageName);
-    status_t assertStateLocked() const;
+    status_t assertStateLocked();
+    void updateAvailableSensorList();
 
 private:
     static Mutex sLock;
     static std::map<String16, SensorManager*> sPackageInstances;
 
-    mutable Mutex mLock;
-    mutable sp<ISensorServer> mSensorServer;
-    mutable Sensor const** mSensorList;
-    mutable Vector<Sensor> mSensors;
-    mutable sp<IBinder::DeathRecipient> mDeathObserver;
+    Mutex mLock;
+    sp<ISensorServer> mSensorServer;
+
+    // for Java API
+    Sensor const** mSensorList;
+
+    // for NDK API
+    Sensor const** mAvailableSensorList;
+    ssize_t mNumAvailableSensor;
+
+    Vector<Sensor> mSensors;
+    sp<IBinder::DeathRecipient> mDeathObserver;
     const String16 mOpPackageName;
+    bool mBodyPermission;
 };
 
 // ----------------------------------------------------------------------------
