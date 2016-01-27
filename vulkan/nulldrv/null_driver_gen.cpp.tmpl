@@ -68,11 +68,18 @@ PFN_vkVoidFunction LookupProcAddr(const NameProcEntry (&table)[N], const char* n
     return nullptr;
 }
 ¶
+// The reinterpret_cast<..>(static_cast<..>(..)) business is there to ensure
+// that the function declaration in null_driver.h matches the function pointer
+// type in vulkan.h. If we just used reinterpret_cast<>, the compiler wouldn't
+// tell us if there's a mistake in null_driver.h. A better solution would be to
+// generate the declarations in null_driver.h.
 const NameProcEntry kInstanceProcTbl[] = {«
   // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if eq (Macro "Vtbl" $f) "Instance"}}
-      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "FunctionNameNoPrefix" $f}})},
+    {{if not (GetAnnotation $f "extension")}}
+      {{if eq (Macro "Vtbl" $f) "Instance"}}
+        {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+      {{end}}
     {{end}}
   {{end}}
   // clang-format on
@@ -81,8 +88,10 @@ const NameProcEntry kInstanceProcTbl[] = {«
 const NameProcEntry kDeviceProcTbl[] = {«
   // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if eq (Macro "Vtbl" $f) "Device"}}
-      {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "FunctionNameNoPrefix" $f}})},
+    {{if not (GetAnnotation $f "extension")}}
+      {{if eq (Macro "Vtbl" $f) "Device"}}
+        {"{{Macro "FunctionName" $f}}", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vk{{Macro "FunctionNameNoPrefix" $f}}>({{Macro "FunctionNameNoPrefix" $f}}))},
+      {{end}}
     {{end}}
   {{end}}
   // clang-format on

@@ -66,7 +66,7 @@ struct NameOffsetEntry {
 };
 ¶
 template <typename TEntry, size_t N>
-const TEntry* FindProcEntry(const TEntry(&table)[N], const char* name) {
+const TEntry* FindProcEntry(const TEntry (&table)[N], const char* name) {
     auto entry = std::lower_bound(
         table, table + N, name,
         [](const TEntry& e, const char* n) { return strcmp(e.name, n) < 0; });
@@ -126,9 +126,6 @@ PFN_vkVoidFunction GetGlobalInstanceProcAddr(const char* name) {
     // vkGetDeviceProcAddr must be available at the global/instance level for bootstrapping
     if (strcmp(name, "vkGetDeviceProcAddr") == 0)
         return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetPhysicalDeviceSurfaceSupportKHR);
     return nullptr;
 }
 ¶
@@ -136,23 +133,6 @@ PFN_vkVoidFunction GetGlobalDeviceProcAddr(const char* name) {
     const NameProcEntry* entry = FindProcEntry(kDeviceProcTbl, name);
     if (entry)
         return entry->proc;
-    // special-case extension functions until they can be auto-generated
-    if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePropertiesKHR);
-    if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfaceFormatsKHR);
-    if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSurfacePresentModesKHR);
-    if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
-    if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
-    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkGetSwapchainImagesKHR);
-    if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR);
-    if (strcmp(name, "vkQueuePresentKHR") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
     return nullptr;
 }
 ¶
@@ -162,13 +142,11 @@ PFN_vkVoidFunction GetSpecificInstanceProcAddr(const InstanceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kInstanceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
-        offset = offsetof(InstanceVtbl, GetPhysicalDeviceSurfaceSupportKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return *reinterpret_cast<PFN_vkVoidFunction*>(
-        const_cast<unsigned char*>(base) + entry->offset);
+        const_cast<unsigned char*>(base) + offset);
 }
 ¶
 PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
@@ -177,27 +155,11 @@ PFN_vkVoidFunction GetSpecificDeviceProcAddr(const DeviceVtbl* vtbl,
     const NameOffsetEntry* entry = FindProcEntry(kDeviceOffsetTbl, name);
     if (entry)
         offset = entry->offset;
-    else if (strcmp(name, "vkGetSurfacePropertiesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePropertiesKHR);
-    else if (strcmp(name, "vkGetSurfaceFormatsKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfaceFormatsKHR);
-    else if (strcmp(name, "vkGetSurfacePresentModesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSurfacePresentModesKHR);
-    else if (strcmp(name, "vkCreateSwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, CreateSwapchainKHR);
-    else if (strcmp(name, "vkDestroySwapchainKHR") == 0)
-        offset = offsetof(DeviceVtbl, DestroySwapchainKHR);
-    else if (strcmp(name, "vkGetSwapchainImagesKHR") == 0)
-        offset = offsetof(DeviceVtbl, GetSwapchainImagesKHR);
-    else if (strcmp(name, "vkAcquireNextImageKHR") == 0)
-        offset = offsetof(DeviceVtbl, AcquireNextImageKHR);
-    else if (strcmp(name, "vkQueuePresentKHR") == 0)
-        offset = offsetof(DeviceVtbl, QueuePresentKHR);
     else
         return nullptr;
     const unsigned char* base = reinterpret_cast<const unsigned char*>(vtbl);
     return *reinterpret_cast<PFN_vkVoidFunction*>(
-        const_cast<unsigned char*>(base) + entry->offset);
+        const_cast<unsigned char*>(base) + offset);
 }
 ¶
 bool LoadInstanceVtbl(VkInstance instance,
@@ -218,6 +180,7 @@ bool LoadInstanceVtbl(VkInstance instance,
     {{range $f := AllCommands $}}
       {{if eq (Macro "Vtbl" $f) "Instance"}}
         {{if not (eq (Macro "FunctionName" $f) "vkGetInstanceProcAddr")}}
+          {{if not (GetAnnotation $f "extension")}}
     vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
         reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
             get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
@@ -225,6 +188,16 @@ bool LoadInstanceVtbl(VkInstance instance,
         ALOGE("missing instance proc: %s", "{{Macro "FunctionName" $f}}");
         success = false;
     }
+          {{end}}
+        {{end}}
+      {{end}}
+    {{end}}
+    {{range $f := AllCommands $}}
+      {{if eq (Macro "Vtbl" $f) "Instance"}}
+        {{if (GetAnnotation $f "extension")}}
+    vtbl.{{TrimPrefix "vk" (Macro "FunctionName" $f)}} = §
+        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+            get_proc_addr(instance, "{{Macro "FunctionName" $f}}"));
         {{end}}
       {{end}}
     {{end}}
@@ -256,14 +229,33 @@ bool LoadDeviceVtbl(VkDevice device,
         {{end}}
       {{end}}
     {{end}}
-    vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
-    if (UNLIKELY(!vtbl.ImportNativeFenceANDROID)) {
-        ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");
-        success = false;
+    vtbl.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(device, "vkGetSwapchainGrallocUsageANDROID"));
+    if (UNLIKELY(!vtbl.GetSwapchainGrallocUsageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkGetSwapchainGrallocUsageANDROID");
+        ALOGW("missing device proc: %s", "vkGetSwapchainGrallocUsageANDROID");
+        // success = false;
     }
+    vtbl.AcquireImageANDROID = reinterpret_cast<PFN_vkAcquireImageANDROID>(get_proc_addr(device, "vkAcquireImageANDROID"));
+    if (UNLIKELY(!vtbl.AcquireImageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkImportNativeFenceANDROID");
+        ALOGW("missing device proc: %s", "vkAcquireImageANDROID");
+        // success = false;
+    }
+    vtbl.QueueSignalReleaseImageANDROID = reinterpret_cast<PFN_vkQueueSignalReleaseImageANDROID>(get_proc_addr(device, "vkQueueSignalReleaseImageANDROID"));
+    if (UNLIKELY(!vtbl.QueueSignalReleaseImageANDROID)) {
+        // TODO(jessehall): temporarily make this optional, until drivers have been updated
+        // ALOGE("missing device proc: %s", "vkQueueSignalReleaseImageANDROID");
+        ALOGW("missing device proc: %s", "vkQueueSignalReleaseImageANDROID");
+        // success = false;
+    }
+    // TODO(jessehall): these are deprecated; remove when drivers have been updated
+    vtbl.ImportNativeFenceANDROID = reinterpret_cast<PFN_vkImportNativeFenceANDROID>(get_proc_addr(device, "vkImportNativeFenceANDROID"));
     vtbl.QueueSignalNativeFenceANDROID = reinterpret_cast<PFN_vkQueueSignalNativeFenceANDROID>(get_proc_addr(device, "vkQueueSignalNativeFenceANDROID"));
-    if (UNLIKELY(!vtbl.QueueSignalNativeFenceANDROID)) {
-        ALOGE("missing device proc: %s", "vkQueueSignalNativeFenceANDROID");
+    if (!((!vtbl.AcquireImageANDROID && !vtbl.QueueSignalReleaseImageANDROID && vtbl.ImportNativeFenceANDROID && vtbl.QueueSignalNativeFenceANDROID) ||
+          (vtbl.AcquireImageANDROID && vtbl.QueueSignalReleaseImageANDROID && !vtbl.ImportNativeFenceANDROID && !vtbl.QueueSignalNativeFenceANDROID))) {
+        ALOGE("driver doesn't support exactly one of old- or new-style VK_EXT_ANDROID_native_buffer commands");
         success = false;
     }
     // clang-format on

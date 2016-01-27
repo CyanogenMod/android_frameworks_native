@@ -47,8 +47,8 @@ VkResult vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, VkInstance* p
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyInstance(VkInstance instance) {
-    return GetVtbl(instance).DestroyInstance(instance);
+void vkDestroyInstance(VkInstance instance) {
+    GetVtbl(instance).DestroyInstance(instance);
 }
 
 __attribute__((visibility("default")))
@@ -72,13 +72,8 @@ VkResult vkGetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice, VkPhysic
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceQueueCount(VkPhysicalDevice physicalDevice, uint32_t* pCount) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceQueueCount(physicalDevice, pCount);
-}
-
-__attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceQueueProperties(VkPhysicalDevice physicalDevice, uint32_t count, VkPhysicalDeviceQueueProperties* pQueueProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceQueueProperties(physicalDevice, count, pQueueProperties);
+VkResult vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pCount, pQueueFamilyProperties);
 }
 
 __attribute__((visibility("default")))
@@ -97,13 +92,8 @@ VkResult vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, Vk
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageFormatProperties* pImageFormatProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, pImageFormatProperties);
-}
-
-__attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceLimits(VkPhysicalDevice physicalDevice, VkPhysicalDeviceLimits* pLimits) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceLimits(physicalDevice, pLimits);
+VkResult vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+    return GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
 }
 
 __attribute__((visibility("default")))
@@ -112,28 +102,28 @@ VkResult vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInf
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyDevice(VkDevice device) {
-    return vulkan::DestroyDevice(device);
+void vkDestroyDevice(VkDevice device) {
+    vulkan::DestroyDevice(device);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetGlobalLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
-    return vulkan::GetGlobalLayerProperties(pCount, pProperties);
+VkResult vkEnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
+    return vulkan::EnumerateInstanceLayerProperties(pCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetGlobalExtensionProperties(const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
-    return vulkan::GetGlobalExtensionProperties(pLayerName, pCount, pProperties);
+VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
+    return vulkan::EnumerateInstanceExtensionProperties(pLayerName, pCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkLayerProperties* pProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceLayerProperties(physicalDevice, pCount, pProperties);
+VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkLayerProperties* pProperties) {
+    return GetVtbl(physicalDevice).EnumerateDeviceLayerProperties(physicalDevice, pCount, pProperties);
 }
 
 __attribute__((visibility("default")))
-VkResult vkGetPhysicalDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
-    return GetVtbl(physicalDevice).GetPhysicalDeviceExtensionProperties(physicalDevice, pLayerName, pCount, pProperties);
+VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pCount, VkExtensionProperties* pProperties) {
+    return GetVtbl(physicalDevice).EnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pCount, pProperties);
 }
 
 __attribute__((visibility("default")))
@@ -162,8 +152,8 @@ VkResult vkAllocMemory(VkDevice device, const VkMemoryAllocInfo* pAllocInfo, VkD
 }
 
 __attribute__((visibility("default")))
-VkResult vkFreeMemory(VkDevice device, VkDeviceMemory mem) {
-    return GetVtbl(device).FreeMemory(device, mem);
+void vkFreeMemory(VkDevice device, VkDeviceMemory mem) {
+    GetVtbl(device).FreeMemory(device, mem);
 }
 
 __attribute__((visibility("default")))
@@ -172,8 +162,8 @@ VkResult vkMapMemory(VkDevice device, VkDeviceMemory mem, VkDeviceSize offset, V
 }
 
 __attribute__((visibility("default")))
-VkResult vkUnmapMemory(VkDevice device, VkDeviceMemory mem) {
-    return GetVtbl(device).UnmapMemory(device, mem);
+void vkUnmapMemory(VkDevice device, VkDeviceMemory mem) {
+    GetVtbl(device).UnmapMemory(device, mem);
 }
 
 __attribute__((visibility("default")))
@@ -242,8 +232,8 @@ VkResult vkCreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, Vk
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyFence(VkDevice device, VkFence fence) {
-    return GetVtbl(device).DestroyFence(device, fence);
+void vkDestroyFence(VkDevice device, VkFence fence) {
+    GetVtbl(device).DestroyFence(device, fence);
 }
 
 __attribute__((visibility("default")))
@@ -267,8 +257,8 @@ VkResult vkCreateSemaphore(VkDevice device, const VkSemaphoreCreateInfo* pCreate
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroySemaphore(VkDevice device, VkSemaphore semaphore) {
-    return GetVtbl(device).DestroySemaphore(device, semaphore);
+void vkDestroySemaphore(VkDevice device, VkSemaphore semaphore) {
+    GetVtbl(device).DestroySemaphore(device, semaphore);
 }
 
 __attribute__((visibility("default")))
@@ -287,8 +277,8 @@ VkResult vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCreateInfo, Vk
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyEvent(VkDevice device, VkEvent event) {
-    return GetVtbl(device).DestroyEvent(device, event);
+void vkDestroyEvent(VkDevice device, VkEvent event) {
+    GetVtbl(device).DestroyEvent(device, event);
 }
 
 __attribute__((visibility("default")))
@@ -312,8 +302,8 @@ VkResult vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreate
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
-    return GetVtbl(device).DestroyQueryPool(device, queryPool);
+void vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
+    GetVtbl(device).DestroyQueryPool(device, queryPool);
 }
 
 __attribute__((visibility("default")))
@@ -327,8 +317,8 @@ VkResult vkCreateBuffer(VkDevice device, const VkBufferCreateInfo* pCreateInfo, 
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyBuffer(VkDevice device, VkBuffer buffer) {
-    return GetVtbl(device).DestroyBuffer(device, buffer);
+void vkDestroyBuffer(VkDevice device, VkBuffer buffer) {
+    GetVtbl(device).DestroyBuffer(device, buffer);
 }
 
 __attribute__((visibility("default")))
@@ -337,8 +327,8 @@ VkResult vkCreateBufferView(VkDevice device, const VkBufferViewCreateInfo* pCrea
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    return GetVtbl(device).DestroyBufferView(device, bufferView);
+void vkDestroyBufferView(VkDevice device, VkBufferView bufferView) {
+    GetVtbl(device).DestroyBufferView(device, bufferView);
 }
 
 __attribute__((visibility("default")))
@@ -347,8 +337,8 @@ VkResult vkCreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, Vk
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyImage(VkDevice device, VkImage image) {
-    return GetVtbl(device).DestroyImage(device, image);
+void vkDestroyImage(VkDevice device, VkImage image) {
+    GetVtbl(device).DestroyImage(device, image);
 }
 
 __attribute__((visibility("default")))
@@ -362,18 +352,8 @@ VkResult vkCreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreate
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyImageView(VkDevice device, VkImageView imageView) {
-    return GetVtbl(device).DestroyImageView(device, imageView);
-}
-
-__attribute__((visibility("default")))
-VkResult vkCreateAttachmentView(VkDevice device, const VkAttachmentViewCreateInfo* pCreateInfo, VkAttachmentView* pView) {
-    return GetVtbl(device).CreateAttachmentView(device, pCreateInfo, pView);
-}
-
-__attribute__((visibility("default")))
-VkResult vkDestroyAttachmentView(VkDevice device, VkAttachmentView attachmentView) {
-    return GetVtbl(device).DestroyAttachmentView(device, attachmentView);
+void vkDestroyImageView(VkDevice device, VkImageView imageView) {
+    GetVtbl(device).DestroyImageView(device, imageView);
 }
 
 __attribute__((visibility("default")))
@@ -382,8 +362,8 @@ VkResult vkCreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* p
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
-    return GetVtbl(device).DestroyShaderModule(device, shaderModule);
+void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
+    GetVtbl(device).DestroyShaderModule(device, shaderModule);
 }
 
 __attribute__((visibility("default")))
@@ -392,8 +372,8 @@ VkResult vkCreateShader(VkDevice device, const VkShaderCreateInfo* pCreateInfo, 
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyShader(VkDevice device, VkShader shader) {
-    return GetVtbl(device).DestroyShader(device, shader);
+void vkDestroyShader(VkDevice device, VkShader shader) {
+    GetVtbl(device).DestroyShader(device, shader);
 }
 
 __attribute__((visibility("default")))
@@ -402,8 +382,8 @@ VkResult vkCreatePipelineCache(VkDevice device, const VkPipelineCacheCreateInfo*
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
-    return GetVtbl(device).DestroyPipelineCache(device, pipelineCache);
+void vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
+    GetVtbl(device).DestroyPipelineCache(device, pipelineCache);
 }
 
 __attribute__((visibility("default")))
@@ -432,8 +412,8 @@ VkResult vkCreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyPipeline(VkDevice device, VkPipeline pipeline) {
-    return GetVtbl(device).DestroyPipeline(device, pipeline);
+void vkDestroyPipeline(VkDevice device, VkPipeline pipeline) {
+    GetVtbl(device).DestroyPipeline(device, pipeline);
 }
 
 __attribute__((visibility("default")))
@@ -442,8 +422,8 @@ VkResult vkCreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInf
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
-    return GetVtbl(device).DestroyPipelineLayout(device, pipelineLayout);
+void vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
+    GetVtbl(device).DestroyPipelineLayout(device, pipelineLayout);
 }
 
 __attribute__((visibility("default")))
@@ -452,8 +432,8 @@ VkResult vkCreateSampler(VkDevice device, const VkSamplerCreateInfo* pCreateInfo
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroySampler(VkDevice device, VkSampler sampler) {
-    return GetVtbl(device).DestroySampler(device, sampler);
+void vkDestroySampler(VkDevice device, VkSampler sampler) {
+    GetVtbl(device).DestroySampler(device, sampler);
 }
 
 __attribute__((visibility("default")))
@@ -462,18 +442,18 @@ VkResult vkCreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayou
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
-    return GetVtbl(device).DestroyDescriptorSetLayout(device, descriptorSetLayout);
+void vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
+    GetVtbl(device).DestroyDescriptorSetLayout(device, descriptorSetLayout);
 }
 
 __attribute__((visibility("default")))
-VkResult vkCreateDescriptorPool(VkDevice device, VkDescriptorPoolUsage poolUsage, uint32_t maxSets, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool) {
-    return GetVtbl(device).CreateDescriptorPool(device, poolUsage, maxSets, pCreateInfo, pDescriptorPool);
+VkResult vkCreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool) {
+    return GetVtbl(device).CreateDescriptorPool(device, pCreateInfo, pDescriptorPool);
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
-    return GetVtbl(device).DestroyDescriptorPool(device, descriptorPool);
+void vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+    GetVtbl(device).DestroyDescriptorPool(device, descriptorPool);
 }
 
 __attribute__((visibility("default")))
@@ -482,8 +462,8 @@ VkResult vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool)
 }
 
 __attribute__((visibility("default")))
-VkResult vkAllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets, uint32_t* pCount) {
-    return GetVtbl(device).AllocDescriptorSets(device, descriptorPool, setUsage, count, pSetLayouts, pDescriptorSets, pCount);
+VkResult vkAllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets) {
+    return GetVtbl(device).AllocDescriptorSets(device, descriptorPool, setUsage, count, pSetLayouts, pDescriptorSets);
 }
 
 __attribute__((visibility("default")))
@@ -492,48 +472,8 @@ VkResult vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, 
 }
 
 __attribute__((visibility("default")))
-VkResult vkUpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
-    return GetVtbl(device).UpdateDescriptorSets(device, writeCount, pDescriptorWrites, copyCount, pDescriptorCopies);
-}
-
-__attribute__((visibility("default")))
-VkResult vkCreateDynamicViewportState(VkDevice device, const VkDynamicViewportStateCreateInfo* pCreateInfo, VkDynamicViewportState* pState) {
-    return GetVtbl(device).CreateDynamicViewportState(device, pCreateInfo, pState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkDestroyDynamicViewportState(VkDevice device, VkDynamicViewportState dynamicViewportState) {
-    return GetVtbl(device).DestroyDynamicViewportState(device, dynamicViewportState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkCreateDynamicRasterState(VkDevice device, const VkDynamicRasterStateCreateInfo* pCreateInfo, VkDynamicRasterState* pState) {
-    return GetVtbl(device).CreateDynamicRasterState(device, pCreateInfo, pState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkDestroyDynamicRasterState(VkDevice device, VkDynamicRasterState dynamicRasterState) {
-    return GetVtbl(device).DestroyDynamicRasterState(device, dynamicRasterState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkCreateDynamicColorBlendState(VkDevice device, const VkDynamicColorBlendStateCreateInfo* pCreateInfo, VkDynamicColorBlendState* pState) {
-    return GetVtbl(device).CreateDynamicColorBlendState(device, pCreateInfo, pState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkDestroyDynamicColorBlendState(VkDevice device, VkDynamicColorBlendState dynamicColorBlendState) {
-    return GetVtbl(device).DestroyDynamicColorBlendState(device, dynamicColorBlendState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkCreateDynamicDepthStencilState(VkDevice device, const VkDynamicDepthStencilStateCreateInfo* pCreateInfo, VkDynamicDepthStencilState* pState) {
-    return GetVtbl(device).CreateDynamicDepthStencilState(device, pCreateInfo, pState);
-}
-
-__attribute__((visibility("default")))
-VkResult vkDestroyDynamicDepthStencilState(VkDevice device, VkDynamicDepthStencilState dynamicDepthStencilState) {
-    return GetVtbl(device).DestroyDynamicDepthStencilState(device, dynamicDepthStencilState);
+void vkUpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies) {
+    GetVtbl(device).UpdateDescriptorSets(device, writeCount, pDescriptorWrites, copyCount, pDescriptorCopies);
 }
 
 __attribute__((visibility("default")))
@@ -542,8 +482,8 @@ VkResult vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCr
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
-    return GetVtbl(device).DestroyFramebuffer(device, framebuffer);
+void vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
+    GetVtbl(device).DestroyFramebuffer(device, framebuffer);
 }
 
 __attribute__((visibility("default")))
@@ -552,8 +492,8 @@ VkResult vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCrea
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
-    return GetVtbl(device).DestroyRenderPass(device, renderPass);
+void vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
+    GetVtbl(device).DestroyRenderPass(device, renderPass);
 }
 
 __attribute__((visibility("default")))
@@ -567,8 +507,8 @@ VkResult vkCreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreate
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
-    return GetVtbl(device).DestroyCommandPool(device, cmdPool);
+void vkDestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
+    GetVtbl(device).DestroyCommandPool(device, cmdPool);
 }
 
 __attribute__((visibility("default")))
@@ -582,8 +522,8 @@ VkResult vkCreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCr
 }
 
 __attribute__((visibility("default")))
-VkResult vkDestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
-    return GetVtbl(device).DestroyCommandBuffer(device, commandBuffer);
+void vkDestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
+    GetVtbl(device).DestroyCommandBuffer(device, commandBuffer);
 }
 
 __attribute__((visibility("default")))
@@ -607,23 +547,48 @@ void vkCmdBindPipeline(VkCmdBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPo
 }
 
 __attribute__((visibility("default")))
-void vkCmdBindDynamicViewportState(VkCmdBuffer cmdBuffer, VkDynamicViewportState dynamicViewportState) {
-    GetVtbl(cmdBuffer).CmdBindDynamicViewportState(cmdBuffer, dynamicViewportState);
+void vkCmdSetViewport(VkCmdBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
+    GetVtbl(cmdBuffer).CmdSetViewport(cmdBuffer, viewportCount, pViewports);
 }
 
 __attribute__((visibility("default")))
-void vkCmdBindDynamicRasterState(VkCmdBuffer cmdBuffer, VkDynamicRasterState dynamicRasterState) {
-    GetVtbl(cmdBuffer).CmdBindDynamicRasterState(cmdBuffer, dynamicRasterState);
+void vkCmdSetScissor(VkCmdBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
+    GetVtbl(cmdBuffer).CmdSetScissor(cmdBuffer, scissorCount, pScissors);
 }
 
 __attribute__((visibility("default")))
-void vkCmdBindDynamicColorBlendState(VkCmdBuffer cmdBuffer, VkDynamicColorBlendState dynamicColorBlendState) {
-    GetVtbl(cmdBuffer).CmdBindDynamicColorBlendState(cmdBuffer, dynamicColorBlendState);
+void vkCmdSetLineWidth(VkCmdBuffer cmdBuffer, float lineWidth) {
+    GetVtbl(cmdBuffer).CmdSetLineWidth(cmdBuffer, lineWidth);
 }
 
 __attribute__((visibility("default")))
-void vkCmdBindDynamicDepthStencilState(VkCmdBuffer cmdBuffer, VkDynamicDepthStencilState dynamicDepthStencilState) {
-    GetVtbl(cmdBuffer).CmdBindDynamicDepthStencilState(cmdBuffer, dynamicDepthStencilState);
+void vkCmdSetDepthBias(VkCmdBuffer cmdBuffer, float depthBias, float depthBiasClamp, float slopeScaledDepthBias) {
+    GetVtbl(cmdBuffer).CmdSetDepthBias(cmdBuffer, depthBias, depthBiasClamp, slopeScaledDepthBias);
+}
+
+__attribute__((visibility("default")))
+void vkCmdSetBlendConstants(VkCmdBuffer cmdBuffer, const float blendConst[4]) {
+    GetVtbl(cmdBuffer).CmdSetBlendConstants(cmdBuffer, blendConst);
+}
+
+__attribute__((visibility("default")))
+void vkCmdSetDepthBounds(VkCmdBuffer cmdBuffer, float minDepthBounds, float maxDepthBounds) {
+    GetVtbl(cmdBuffer).CmdSetDepthBounds(cmdBuffer, minDepthBounds, maxDepthBounds);
+}
+
+__attribute__((visibility("default")))
+void vkCmdSetStencilCompareMask(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilCompareMask) {
+    GetVtbl(cmdBuffer).CmdSetStencilCompareMask(cmdBuffer, faceMask, stencilCompareMask);
+}
+
+__attribute__((visibility("default")))
+void vkCmdSetStencilWriteMask(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilWriteMask) {
+    GetVtbl(cmdBuffer).CmdSetStencilWriteMask(cmdBuffer, faceMask, stencilWriteMask);
+}
+
+__attribute__((visibility("default")))
+void vkCmdSetStencilReference(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilReference) {
+    GetVtbl(cmdBuffer).CmdSetStencilReference(cmdBuffer, faceMask, stencilReference);
 }
 
 __attribute__((visibility("default")))
@@ -642,13 +607,13 @@ void vkCmdBindVertexBuffers(VkCmdBuffer cmdBuffer, uint32_t startBinding, uint32
 }
 
 __attribute__((visibility("default")))
-void vkCmdDraw(VkCmdBuffer cmdBuffer, uint32_t firstVertex, uint32_t vertexCount, uint32_t firstInstance, uint32_t instanceCount) {
-    GetVtbl(cmdBuffer).CmdDraw(cmdBuffer, firstVertex, vertexCount, firstInstance, instanceCount);
+void vkCmdDraw(VkCmdBuffer cmdBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+    GetVtbl(cmdBuffer).CmdDraw(cmdBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 __attribute__((visibility("default")))
-void vkCmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t firstIndex, uint32_t indexCount, int32_t vertexOffset, uint32_t firstInstance, uint32_t instanceCount) {
-    GetVtbl(cmdBuffer).CmdDrawIndexed(cmdBuffer, firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+void vkCmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) {
+    GetVtbl(cmdBuffer).CmdDrawIndexed(cmdBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
 __attribute__((visibility("default")))
@@ -712,8 +677,8 @@ void vkCmdClearColorImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout im
 }
 
 __attribute__((visibility("default")))
-void vkCmdClearDepthStencilImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, float depth, uint32_t stencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
-    GetVtbl(cmdBuffer).CmdClearDepthStencilImage(cmdBuffer, image, imageLayout, depth, stencil, rangeCount, pRanges);
+void vkCmdClearDepthStencilImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
+    GetVtbl(cmdBuffer).CmdClearDepthStencilImage(cmdBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
 __attribute__((visibility("default")))
@@ -722,8 +687,8 @@ void vkCmdClearColorAttachment(VkCmdBuffer cmdBuffer, uint32_t colorAttachment, 
 }
 
 __attribute__((visibility("default")))
-void vkCmdClearDepthStencilAttachment(VkCmdBuffer cmdBuffer, VkImageAspectFlags imageAspectMask, VkImageLayout imageLayout, float depth, uint32_t stencil, uint32_t rectCount, const VkRect3D* pRects) {
-    GetVtbl(cmdBuffer).CmdClearDepthStencilAttachment(cmdBuffer, imageAspectMask, imageLayout, depth, stencil, rectCount, pRects);
+void vkCmdClearDepthStencilAttachment(VkCmdBuffer cmdBuffer, VkImageAspectFlags aspectMask, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rectCount, const VkRect3D* pRects) {
+    GetVtbl(cmdBuffer).CmdClearDepthStencilAttachment(cmdBuffer, aspectMask, imageLayout, pDepthStencil, rectCount, pRects);
 }
 
 __attribute__((visibility("default")))

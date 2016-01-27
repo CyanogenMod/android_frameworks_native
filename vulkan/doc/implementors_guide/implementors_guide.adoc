@@ -2,7 +2,7 @@
 = Vulkan on Android Implementor's Guide =
 :toc: right
 :numbered:
-:revnumber: 1
+:revnumber: 3
 
 This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.
 
@@ -51,6 +51,18 @@ Our goal is to allow layers to be ported with only build-environment changes bet
 
 The +vk_wsi_swapchin+ and +vk_wsi_device_swapchain+ extensions will primarily be implemented by the platform and live in +libvulkan.so+. The +VkSwapchain+ object and all interaction with +ANativeWindow+ will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver's +vkGetDeviceProcAddr+ functions, after passing through any enabled layers.
 
+Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling
+[source,c]
+----
+VkResult VKAPI vkGetSwapchainGrallocUsageANDROID(
+    VkDevice            device,
+    VkFormat            format,
+    VkImageUsageFlags   imageUsage,
+    int*                grallocUsage
+);
+----
+The +format+ and +imageUsage+ parameters are taken from the +VkSwapchainCreateInfoKHR+ structure. The driver should fill +*grallocUsage+ with the gralloc usage flags it requires for that format and usage. These will be combined with the usage flags requested by the swapchain consumer when allocating buffers.
+
 +VkNativeBufferANDROID+ is a +vkCreateImage+ extension structure for creating an image backed by a gralloc buffer. This structure is provided to +vkCreateImage+ in the +VkImageCreateInfo+ structure chain. Calls to +vkCreateImage+ with this structure will happen during the first call to +vkGetSwapChainInfoWSI(.. VK_SWAP_CHAIN_INFO_TYPE_IMAGES_WSI ..)+. The WSI implementation will allocate the number of native buffers requested for the swapchain, then create a +VkImage+ for each one.
 
 [source,c]
@@ -87,30 +99,33 @@ When creating a gralloc-backed image, the +VkImageCreateInfo+ will have:
   .pQueueFamilyIndices = VkSwapChainCreateInfoWSI::pQueueFamilyIndices
 ----
 
-+vkImportNativeFenceANDROID+ imports an externally-signalled native fence into an existing +VkSemaphore+ object:
++vkAcquireImageANDROID+ acquires ownership of a swapchain image and imports an externally-signalled native fence into an existing +VkSemaphore+ object:
 
 [source,c]
 ----
-VkResult VKAPI vkImportNativeFenceANDROID(
-    VkDevice        device,
-    VkSemaphore     semaphore,
-    int             nativeFenceFd
+VkResult VKAPI vkAcquireImageANDROID(
+    VkDevice            device,
+    VkImage             image,
+    int                 nativeFenceFd,
+    VkSemaphore         semaphore
+);
 );
 ----
 
-This function is called during +vkAcquireNextImageWSI+ to import a native fence into the +VkSemaphore+ object provided by the application. This call puts the +VkSemaphore+ into the same "pending" state as +vkQueueSignalSemaphore+, so queues can wait on the semaphore. The +VkSemaphore+ signals when the underlying native fence signals; if the fence has already signalled, then the semaphore
-will be in the signalled state when this function returns. The driver takes ownership of the fence fd and is responsible for closing it when the +VkSemaphore+ is destroyed, when a different native fence is imported, or any other condition that replaces the +VkSemaphore+'s underlying synchronization object. If +fenceFd+ is -1, the +VkSemaphore+ will be considered signalled immediately, but it can still be passed to +vkQueueWaitSemaphore+.
+This function is called during +vkAcquireNextImageWSI+ to import a native fence into the +VkSemaphore+ object provided by the application. The driver may also use this opportunity to recognize and handle any external changes to the gralloc buffer state; many drivers won't need to do anything here. This call puts the +VkSemaphore+ into the same "pending" state as +vkQueueSignalSemaphore+, so queues can wait on the semaphore. The +VkSemaphore+ signals when the underlying native fence signals; if the fence has already signalled, then the semaphore will be in the signalled state when this function returns. The driver takes ownership of the fence fd and is responsible for closing it when the +VkSemaphore+ is destroyed, when a different native fence is imported, or any other condition that replaces the +VkSemaphore+'s underlying synchronization object. If +fenceFd+ is -1, the +VkSemaphore+ will be considered signalled immediately, but it can still be passed to +vkQueueWaitSemaphore+.
 
-+vkQueueSignalNativeFenceANDROID+ creates a native fence and schedules it to be signalled when prior work on the queue has completed.
++vkQueueSignalReleaseImageANDROID+ prepares a swapchain image for external use, and creates a native fence and schedules it to be signalled when prior work on the queue has completed.
 
 [source,c]
 ----
-VkResult VKAPI vkQueueSignalNativeFenceANDROID(
-    VkQueue         queue,
-    int*            pNativeFenceFd);
+VkResult VKAPI vkQueueSignalReleaseImageANDROID(
+    VkQueue             queue,
+    VkImage             image,
+    int*                pNativeFenceFd
+);
 ----
 
-This will be called during +vkQueuePresentWSI+ on the provided queue. Effects are similar to +vkQueueSignalSemaphore+, except with a native fence instead of a semaphore. Unlike +vkQueueSignalSemaphore+, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set +*pNativeFenceFd+ to -1. The file descriptor returned in +*pNativeFenceFd+ is owned and will be closed by the caller.
+This will be called during +vkQueuePresentWSI+ on the provided queue. Effects are similar to +vkQueueSignalSemaphore+, except with a native fence instead of a semaphore. Unlike +vkQueueSignalSemaphore+, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set +*pNativeFenceFd+ to -1. The file descriptor returned in +*pNativeFenceFd+ is owned and will be closed by the caller. Many drivers will be able to ignore the +image+ parameter, but some may need to prepare CPU-side data structures associated with a gralloc buffer for use by external image consumers. Preparing buffer contents for use by external consumers should have been done asynchronously as part of transitioning the image to +VK_IMAGE_LAYOUT_PRESENT_SRC_KHR+.
 
 == History ==
 
@@ -120,3 +135,8 @@ This will be called during +vkQueuePresentWSI+ on the provided queue. Effects ar
    * Wording and formatting changes
    * Updated based on resolution of Khronos bug 14265
    * Deferred support for multiple drivers
+. *2015-11-04*
+   * Added vkGetSwapchainGrallocUsageANDROID
+   * Replaced vkImportNativeFenceANDROID and vkQueueSignalNativeFenceANDROID
+     with vkAcquireImageANDROID and vkQueueSignalReleaseImageANDROID, to allow
+     drivers to known the ownership state of swapchain images.

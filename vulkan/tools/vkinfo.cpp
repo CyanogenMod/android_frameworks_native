@@ -38,38 +38,14 @@ namespace {
         case VK_EVENT_SET: result_str = "VK_EVENT_SET"; break;
         case VK_EVENT_RESET: result_str = "VK_EVENT_RESET"; break;
         case VK_INCOMPLETE: result_str = "VK_INCOMPLETE"; break;
-        case VK_ERROR_UNKNOWN: result_str = "VK_ERROR_UNKNOWN"; break;
-        case VK_ERROR_UNAVAILABLE: result_str = "VK_ERROR_UNAVAILABLE"; break;
-        case VK_ERROR_INITIALIZATION_FAILED: result_str = "VK_ERROR_INITIALIZATION_FAILED"; break;
         case VK_ERROR_OUT_OF_HOST_MEMORY: result_str = "VK_ERROR_OUT_OF_HOST_MEMORY"; break;
         case VK_ERROR_OUT_OF_DEVICE_MEMORY: result_str = "VK_ERROR_OUT_OF_DEVICE_MEMORY"; break;
-        case VK_ERROR_DEVICE_ALREADY_CREATED: result_str = "VK_ERROR_DEVICE_ALREADY_CREATED"; break;
+        case VK_ERROR_INITIALIZATION_FAILED: result_str = "VK_ERROR_INITIALIZATION_FAILED"; break;
         case VK_ERROR_DEVICE_LOST: result_str = "VK_ERROR_DEVICE_LOST"; break;
-        case VK_ERROR_INVALID_POINTER: result_str = "VK_ERROR_INVALID_POINTER"; break;
-        case VK_ERROR_INVALID_VALUE: result_str = "VK_ERROR_INVALID_VALUE"; break;
-        case VK_ERROR_INVALID_HANDLE: result_str = "VK_ERROR_INVALID_HANDLE"; break;
-        case VK_ERROR_INVALID_ORDINAL: result_str = "VK_ERROR_INVALID_ORDINAL"; break;
-        case VK_ERROR_INVALID_MEMORY_SIZE: result_str = "VK_ERROR_INVALID_MEMORY_SIZE"; break;
-        case VK_ERROR_INVALID_EXTENSION: result_str = "VK_ERROR_INVALID_EXTENSION"; break;
-        case VK_ERROR_INVALID_FLAGS: result_str = "VK_ERROR_INVALID_FLAGS"; break;
-        case VK_ERROR_INVALID_ALIGNMENT: result_str = "VK_ERROR_INVALID_ALIGNMENT"; break;
-        case VK_ERROR_INVALID_FORMAT: result_str = "VK_ERROR_INVALID_FORMAT"; break;
-        case VK_ERROR_INVALID_IMAGE: result_str = "VK_ERROR_INVALID_IMAGE"; break;
-        case VK_ERROR_INVALID_DESCRIPTOR_SET_DATA: result_str = "VK_ERROR_INVALID_DESCRIPTOR_SET_DATA"; break;
-        case VK_ERROR_INVALID_QUEUE_TYPE: result_str = "VK_ERROR_INVALID_QUEUE_TYPE"; break;
-        case VK_ERROR_UNSUPPORTED_SHADER_IL_VERSION: result_str = "VK_ERROR_UNSUPPORTED_SHADER_IL_VERSION"; break;
-        case VK_ERROR_BAD_SHADER_CODE: result_str = "VK_ERROR_BAD_SHADER_CODE"; break;
-        case VK_ERROR_BAD_PIPELINE_DATA: result_str = "VK_ERROR_BAD_PIPELINE_DATA"; break;
-        case VK_ERROR_NOT_MAPPABLE: result_str = "VK_ERROR_NOT_MAPPABLE"; break;
         case VK_ERROR_MEMORY_MAP_FAILED: result_str = "VK_ERROR_MEMORY_MAP_FAILED"; break;
-        case VK_ERROR_MEMORY_UNMAP_FAILED: result_str = "VK_ERROR_MEMORY_UNMAP_FAILED"; break;
-        case VK_ERROR_INCOMPATIBLE_DEVICE: result_str = "VK_ERROR_INCOMPATIBLE_DEVICE"; break;
+        case VK_ERROR_LAYER_NOT_PRESENT: result_str = "VK_ERROR_LAYER_NOT_PRESENT"; break;
+        case VK_ERROR_EXTENSION_NOT_PRESENT: result_str = "VK_ERROR_EXTENSION_NOT_PRESENT"; break;
         case VK_ERROR_INCOMPATIBLE_DRIVER: result_str = "VK_ERROR_INCOMPATIBLE_DRIVER"; break;
-        case VK_ERROR_INCOMPLETE_COMMAND_BUFFER: result_str = "VK_ERROR_INCOMPLETE_COMMAND_BUFFER"; break;
-        case VK_ERROR_BUILDING_COMMAND_BUFFER: result_str = "VK_ERROR_BUILDING_COMMAND_BUFFER"; break;
-        case VK_ERROR_MEMORY_NOT_BOUND: result_str = "VK_ERROR_MEMORY_NOT_BOUND"; break;
-        case VK_ERROR_INCOMPATIBLE_QUEUE: result_str = "VK_ERROR_INCOMPATIBLE_QUEUE"; break;
-        case VK_ERROR_INVALID_LAYER: result_str = "VK_ERROR_INVALID_LAYER"; break;
         default: result_str = "<unknown VkResult>"; break;
             // clang-format on
     }
@@ -94,6 +70,21 @@ const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
     }
 }
 
+const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
+    switch (bit) {
+        case VK_QUEUE_GRAPHICS_BIT:
+            return "GRAPHICS";
+        case VK_QUEUE_COMPUTE_BIT:
+            return "COMPUTE";
+        case VK_QUEUE_DMA_BIT:
+            return "DMA";
+        case VK_QUEUE_SPARSE_MEMMGR_BIT:
+            return "SPARSE";
+        case VK_QUEUE_EXTENDED_BIT:
+            return "EXT";
+    }
+}
+
 void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     VkResult result;
     std::ostringstream strbuf;
@@ -113,8 +104,8 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     if (result != VK_SUCCESS)
         die("vkGetPhysicalDeviceMemoryProperties", result);
     for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
-        if ((mem_props.memoryHeaps[heap].flags & VK_MEMORY_HEAP_HOST_LOCAL) !=
-            0)
+        if ((mem_props.memoryHeaps[heap].flags &
+             VK_MEMORY_HEAP_HOST_LOCAL_BIT) != 0)
             strbuf << "HOST_LOCAL";
         printf("     Heap %u: 0x%" PRIx64 " %s\n", heap,
                mem_props.memoryHeaps[heap].size, strbuf.str().c_str());
@@ -137,9 +128,36 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
                 strbuf << " WRITE_COMBINED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
-            printf("        Type %u: %s\n", type, strbuf.str().c_str());
+            printf("       Type %u: %s\n", type, strbuf.str().c_str());
             strbuf.str(std::string());
         }
+    }
+
+    uint32_t num_queue_families;
+    result = vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
+                                                      nullptr);
+    if (result != VK_SUCCESS)
+        die("vkGetPhysicalDeviceQueueFamilyProperties (count)", result);
+    std::vector<VkQueueFamilyProperties> queue_family_properties(
+        num_queue_families);
+    result = vkGetPhysicalDeviceQueueFamilyProperties(
+        pdev, &num_queue_families, queue_family_properties.data());
+    if (result != VK_SUCCESS)
+        die("vkGetPhysicalDeviceQueueFamilyProperties (values)", result);
+    for (uint32_t family = 0; family < num_queue_families; family++) {
+        const VkQueueFamilyProperties& qprops = queue_family_properties[family];
+        const char* sep = "";
+        int bit, queue_flags = static_cast<int>(qprops.queueFlags);
+        while ((bit = __builtin_ffs(queue_flags)) != 0) {
+            VkQueueFlagBits flag = VkQueueFlagBits(1 << (bit - 1));
+            strbuf << sep << VkQueueFlagBitStr(flag);
+            queue_flags &= ~flag;
+            sep = "+";
+        }
+        printf("     Queue Family %u: %2ux %s timestamps:%s\n", family,
+               qprops.queueCount, strbuf.str().c_str(),
+               qprops.supportsTimestamps ? "YES" : "NO");
+        strbuf.str(std::string());
     }
 }
 
@@ -184,9 +202,7 @@ int main(int /*argc*/, char const* /*argv*/ []) {
     for (uint32_t i = 0; i < physical_devices.size(); i++)
         DumpPhysicalDevice(i, physical_devices[i]);
 
-    result = vkDestroyInstance(instance);
-    if (result != VK_SUCCESS)
-        die("vkDestroyInstance", result);
+    vkDestroyInstance(instance);
 
     return 0;
 }

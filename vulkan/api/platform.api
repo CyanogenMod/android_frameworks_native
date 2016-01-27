@@ -22,9 +22,3 @@
 // Platform types, as defined or included in vk_platform.h
 
 type u64 size_t
-
-type u64 VkDeviceSize
-type u32 VkBool32
-
-type u32 VkSampleMask
-type u32 VkFlags

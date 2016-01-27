@@ -68,13 +68,18 @@ This file, vk.xml, is the Vulkan API Registry.»
         // the object handle as a bool in expressions like:
         //     if (obj) vkDestroy(obj);
         #define VK_NONDISP_HANDLE_OPERATOR_BOOL() explicit operator bool() const { return handle != 0; }
+        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
+            explicit obj(uint64_t x) : handle(x) { } \
+            obj(decltype(nullptr)) : handle(0) { }
     «#else»
         #define VK_NONDISP_HANDLE_OPERATOR_BOOL()
+        #define VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
+            obj(uint64_t x) : handle(x) { }
     «#endif
     #define <name>VK_DEFINE_NONDISP_HANDLE</name>(obj) \»
         struct obj { \
             obj() { } \
-            obj(uint64_t x) { handle = x; } \
+            VK_NONDISP_HANDLE_CONSTRUCTOR_FROM_UINT64(obj) \
             obj&amp; operator =(uint64_t x) { handle = x; return *this; } \
             bool operator==(const obj&amp; other) const { return handle == other.handle; } \
             bool operator!=(const obj&amp; other) const { return handle != other.handle; } \
@@ -85,6 +90,14 @@ This file, vk.xml, is the Vulkan API Registry.»
 ««#else
     »#define VK_DEFINE_NONDISP_HANDLE(obj) typedef struct obj##_T { uint64_t handle; } obj;«
 #endif
+        »»</type>
+¶
+        <type category="define">
+#if defined(__cplusplus) &amp;&amp; ((defined(_MSC_VER) &amp;&amp; _MSC_VER &gt;= 1800) || __cplusplus &gt;= 201103L)
+    »#define <name>VK_NULL_HANDLE</name> nullptr
+«#else
+    »#define VK_NULL_HANDLE 0
+«#endif
         »»</type>
 ¶
         <type requires="vk_platform" name="VkDeviceSize"/>
@@ -170,12 +183,13 @@ This file, vk.xml, is the Vulkan API Registry.»
         <enum value="{{$d.Expression}}"        name="{{$d.Name}}"/>{{Macro "XML.Docs" $d.Docs}}
         {{end}}
       {{end}}
-        <enum value="MAX_FLOAT"  name="VK_LOD_CLAMP_NONE"/>
-        <enum value="UINT32_MAX" name="VK_LAST_MIP_LEVEL"/>
-        <enum value="UINT32_MAX" name="VK_LAST_ARRAY_SLICE"/>
-        <enum value="UINT64_MAX" name="VK_WHOLE_SIZE"/>
-        <enum value="UINT32_MAX" name="VK_ATTACHMENT_UNUSED"/>
-        <enum value="UINT32_MAX" name="VK_QUEUE_FAMILY_IGNORED"/>
+        <enum value="1000.0f"  name="VK_LOD_CLAMP_NONE"/>
+        <enum value="(-0U)" name="VK_REMAINING_MIP_LEVELS"/>
+        <enum value="(~0U)" name="VK_REMAINING_ARRAY_LAYERS"/>
+        <enum value="(_0ULL)" name="VK_WHOLE_SIZE"/>
+        <enum value="(~0U)" name="VK_ATTACHMENT_UNUSED"/>
+        <enum value="(~0U)" name="VK_QUEUE_FAMILY_IGNORED"/>
+        <enum value="(~0U)" name="VK_SUBPASS_EXTERNAL"/>
     «</enums>
 ¶
     <!-- Unlike OpenGL, most tokens in Vulkan are actual typed enumerants in»
@@ -217,13 +231,12 @@ This file, vk.xml, is the Vulkan API Registry.»
         «</require>
         <require comment="API constants">»
             <enum name="VK_LOD_CLAMP_NONE"/>
-            <enum name="VK_LAST_MIP_LEVEL"/>
-            <enum name="VK_LAST_ARRAY_SLICE"/>
+            <enum name="VK_REMAINING_MIP_LEVELS"/>
+            <enum name="VK_REMAINING_ARRAY_LAYERS"/>
             <enum name="VK_WHOLE_SIZE"/>
             <enum name="VK_ATTACHMENT_UNUSED"/>
             <enum name="VK_TRUE"/>
             <enum name="VK_FALSE"/>
-            <enum name="VK_NULL_HANDLE"/>
         «</require>
         <require comment="All functions (TODO: split by type)">»
         {{range $f := AllCommands $}}

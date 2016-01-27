@@ -43,14 +43,12 @@ struct InstanceVtbl {
     PFN_vkGetPhysicalDeviceFeatures GetPhysicalDeviceFeatures;
     PFN_vkGetPhysicalDeviceFormatProperties GetPhysicalDeviceFormatProperties;
     PFN_vkGetPhysicalDeviceImageFormatProperties GetPhysicalDeviceImageFormatProperties;
-    PFN_vkGetPhysicalDeviceLimits GetPhysicalDeviceLimits;
     PFN_vkGetPhysicalDeviceProperties GetPhysicalDeviceProperties;
-    PFN_vkGetPhysicalDeviceQueueCount GetPhysicalDeviceQueueCount;
-    PFN_vkGetPhysicalDeviceQueueProperties GetPhysicalDeviceQueueProperties;
+    PFN_vkGetPhysicalDeviceQueueFamilyProperties GetPhysicalDeviceQueueFamilyProperties;
     PFN_vkGetPhysicalDeviceMemoryProperties GetPhysicalDeviceMemoryProperties;
     PFN_vkCreateDevice CreateDevice;
-    PFN_vkGetPhysicalDeviceExtensionProperties GetPhysicalDeviceExtensionProperties;
-    PFN_vkGetPhysicalDeviceLayerProperties GetPhysicalDeviceLayerProperties;
+    PFN_vkEnumerateDeviceExtensionProperties EnumerateDeviceExtensionProperties;
+    PFN_vkEnumerateDeviceLayerProperties EnumerateDeviceLayerProperties;
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
 
     // Layers and loader only, not implemented by drivers
@@ -101,8 +99,6 @@ struct DeviceVtbl {
     PFN_vkGetImageSubresourceLayout GetImageSubresourceLayout;
     PFN_vkCreateImageView CreateImageView;
     PFN_vkDestroyImageView DestroyImageView;
-    PFN_vkCreateAttachmentView CreateAttachmentView;
-    PFN_vkDestroyAttachmentView DestroyAttachmentView;
     PFN_vkCreateShaderModule CreateShaderModule;
     PFN_vkDestroyShaderModule DestroyShaderModule;
     PFN_vkCreateShader CreateShader;
@@ -127,14 +123,6 @@ struct DeviceVtbl {
     PFN_vkAllocDescriptorSets AllocDescriptorSets;
     PFN_vkFreeDescriptorSets FreeDescriptorSets;
     PFN_vkUpdateDescriptorSets UpdateDescriptorSets;
-    PFN_vkCreateDynamicViewportState CreateDynamicViewportState;
-    PFN_vkDestroyDynamicViewportState DestroyDynamicViewportState;
-    PFN_vkCreateDynamicRasterState CreateDynamicRasterState;
-    PFN_vkDestroyDynamicRasterState DestroyDynamicRasterState;
-    PFN_vkCreateDynamicColorBlendState CreateDynamicColorBlendState;
-    PFN_vkDestroyDynamicColorBlendState DestroyDynamicColorBlendState;
-    PFN_vkCreateDynamicDepthStencilState CreateDynamicDepthStencilState;
-    PFN_vkDestroyDynamicDepthStencilState DestroyDynamicDepthStencilState;
     PFN_vkCreateFramebuffer CreateFramebuffer;
     PFN_vkDestroyFramebuffer DestroyFramebuffer;
     PFN_vkCreateRenderPass CreateRenderPass;
@@ -158,10 +146,15 @@ struct DeviceVtbl {
     PFN_vkEndCommandBuffer EndCommandBuffer;
     PFN_vkResetCommandBuffer ResetCommandBuffer;
     PFN_vkCmdBindPipeline CmdBindPipeline;
-    PFN_vkCmdBindDynamicViewportState CmdBindDynamicViewportState;
-    PFN_vkCmdBindDynamicRasterState CmdBindDynamicRasterState;
-    PFN_vkCmdBindDynamicColorBlendState CmdBindDynamicColorBlendState;
-    PFN_vkCmdBindDynamicDepthStencilState CmdBindDynamicDepthStencilState;
+    PFN_vkCmdSetViewport CmdSetViewport;
+    PFN_vkCmdSetScissor CmdSetScissor;
+    PFN_vkCmdSetLineWidth CmdSetLineWidth;
+    PFN_vkCmdSetDepthBias CmdSetDepthBias;
+    PFN_vkCmdSetBlendConstants CmdSetBlendConstants;
+    PFN_vkCmdSetDepthBounds CmdSetDepthBounds;
+    PFN_vkCmdSetStencilCompareMask CmdSetStencilCompareMask;
+    PFN_vkCmdSetStencilWriteMask CmdSetStencilWriteMask;
+    PFN_vkCmdSetStencilReference CmdSetStencilReference;
     PFN_vkCmdBindDescriptorSets CmdBindDescriptorSets;
     PFN_vkCmdBindIndexBuffer CmdBindIndexBuffer;
     PFN_vkCmdBindVertexBuffers CmdBindVertexBuffers;
@@ -209,6 +202,9 @@ struct DeviceVtbl {
     PFN_vkQueuePresentKHR QueuePresentKHR;
 
     // Implemented only by drivers, not by layers or the loader
+    PFN_vkGetSwapchainGrallocUsageANDROID GetSwapchainGrallocUsageANDROID;
+    PFN_vkAcquireImageANDROID AcquireImageANDROID;
+    PFN_vkQueueSignalReleaseImageANDROID QueueSignalReleaseImageANDROID;
     PFN_vkImportNativeFenceANDROID ImportNativeFenceANDROID;
     PFN_vkQueueSignalNativeFenceANDROID QueueSignalNativeFenceANDROID;
 };
@@ -216,11 +212,12 @@ struct DeviceVtbl {
 // -----------------------------------------------------------------------------
 // loader.cpp
 
-VkResult GetGlobalExtensionProperties(const char* layer_name,
-                                      uint32_t* count,
-                                      VkExtensionProperties* properties);
-VkResult GetGlobalLayerProperties(uint32_t* count,
-                                  VkLayerProperties* properties);
+VkResult EnumerateInstanceExtensionProperties(
+    const char* layer_name,
+    uint32_t* count,
+    VkExtensionProperties* properties);
+VkResult EnumerateInstanceLayerProperties(uint32_t* count,
+                                          VkLayerProperties* properties);
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
