@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <binder/Binder.h>
 #include <binder/BpBinder.h>
@@ -120,8 +123,10 @@ void acquire_object(const sp<ProcessState>& proc,
             return;
         }
         case BINDER_TYPE_FD: {
-            if (obj.cookie != 0) {
-                if (outAshmemSize != NULL) {
+            if ((obj.cookie != 0) && (outAshmemSize != NULL)) {
+                struct stat st;
+                int ret = fstat(obj.handle, &st);
+                if (!ret && S_ISCHR(st.st_mode)) {
                     // If we own an ashmem fd, keep track of how much memory it refers to.
                     int size = ashmem_get_size_region(obj.handle);
                     if (size > 0) {
@@ -172,9 +177,13 @@ static void release_object(const sp<ProcessState>& proc,
         case BINDER_TYPE_FD: {
             if (obj.cookie != 0) { // owned
                 if (outAshmemSize != NULL) {
-                    int size = ashmem_get_size_region(obj.handle);
-                    if (size > 0) {
-                        *outAshmemSize -= size;
+                    struct stat st;
+                    int ret = fstat(obj.handle, &st);
+                    if (!ret && S_ISCHR(st.st_mode)) {
+                        int size = ashmem_get_size_region(obj.handle);
+                        if (size > 0) {
+                            *outAshmemSize -= size;
+                        }
                     }
                 }
 
