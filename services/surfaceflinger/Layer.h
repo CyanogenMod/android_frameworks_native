@@ -356,10 +356,6 @@ private:
     virtual void onFrameReplaced(const BufferItem& item) override;
     virtual void onSidebandStreamChanged() override;
 
-    // Move frames made available by item in to a list which will
-    // be signalled at the beginning of the next transaction
-    virtual void markSyncPointsAvailable(const BufferItem& item);
-
     void commitTransaction();
 
     // needsLinearFiltering - true if this surface's state requires filtering
@@ -413,19 +409,24 @@ private:
         std::atomic<bool> mTransactionIsApplied;
     };
 
+    // SyncPoints which will be signaled when the correct frame is at the head
+    // of the queue and dropped after the frame has been latched. Protected by
+    // mLocalSyncPointMutex.
+    Mutex mLocalSyncPointMutex;
     std::list<std::shared_ptr<SyncPoint>> mLocalSyncPoints;
 
-    // Guarded by mPendingStateMutex
+    // SyncPoints which will be signaled and then dropped when the transaction
+    // is applied
     std::list<std::shared_ptr<SyncPoint>> mRemoteSyncPoints;
 
-    void addSyncPoint(std::shared_ptr<SyncPoint> point);
+    uint64_t getHeadFrameNumber() const;
+
+    // Returns false if the relevant frame has already been latched
+    bool addSyncPoint(const std::shared_ptr<SyncPoint>& point);
 
     void pushPendingState();
     void popPendingState();
     bool applyPendingStates();
-
-    Mutex mAvailableFrameMutex;
-    std::list<std::shared_ptr<SyncPoint>> mAvailableFrames;
 public:
     void notifyAvailableFrames();
 private:
@@ -461,6 +462,7 @@ private:
     uint32_t mCurrentTransform;
     uint32_t mCurrentScalingMode;
     bool mCurrentOpacity;
+    std::atomic<uint64_t> mCurrentFrameNumber;
     bool mRefreshPending;
     bool mFrameLatencyNeeded;
     // Whether filtering is forced on or not
@@ -488,7 +490,7 @@ private:
     mutable Mutex mQueueItemLock;
     Condition mQueueItemCondition;
     Vector<BufferItem> mQueueItems;
-    uint64_t mLastFrameNumberReceived;
+    std::atomic<uint64_t> mLastFrameNumberReceived;
     bool mUpdateTexImageFailed; // This is only modified from the main thread
 
     bool mSingleBufferMode;
