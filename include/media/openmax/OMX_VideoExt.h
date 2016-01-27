@@ -247,6 +247,33 @@ typedef struct OMX_VIDEO_RENDEREVENTTYPE {
                            // following) the render information for the last frame.
 } OMX_VIDEO_RENDEREVENTTYPE;
 
+/** Dolby Vision Profile enum type */
+typedef enum OMX_VIDEO_DOLBYVISIONPROFILETYPE {
+    OMX_VIDEO_DolbyVisionProfileUnknown = 0x0,
+    OMX_VIDEO_DolbyVisionProfileDvavDer = 0x1,
+    OMX_VIDEO_DolbyVisionProfileDvavDen = 0x2,
+    OMX_VIDEO_DolbyVisionProfileDvheDer = 0x3,
+    OMX_VIDEO_DolbyVisionProfileDvheDen = 0x4,
+    OMX_VIDEO_DolbyVisionProfileDvheDtr = 0x5,
+    OMX_VIDEO_DolbyVisionProfileDvheStn = 0x6,
+    OMX_VIDEO_DolbyVisionProfileMax     = 0x7FFFFFFF
+} OMX_VIDEO_DOLBYVISIONPROFILETYPE;
+
+/** Dolby Vision Level enum type */
+typedef enum OMX_VIDEO_DOLBYVISIONLEVELTYPE {
+    OMX_VIDEO_DolbyVisionLevelUnknown = 0x0,
+    OMX_VIDEO_DolbyVisionLevelHd24    = 0x1,
+    OMX_VIDEO_DolbyVisionLevelHd30    = 0x2,
+    OMX_VIDEO_DolbyVisionLevelFhd24   = 0x4,
+    OMX_VIDEO_DolbyVisionLevelFhd30   = 0x8,
+    OMX_VIDEO_DolbyVisionLevelFhd60   = 0x10,
+    OMX_VIDEO_DolbyVisionLevelUhd24   = 0x20,
+    OMX_VIDEO_DolbyVisionLevelUhd30   = 0x40,
+    OMX_VIDEO_DolbyVisionLevelUhd48   = 0x80,
+    OMX_VIDEO_DolbyVisionLevelUhd60   = 0x100,
+    OMX_VIDEO_DolbyVisionLevelmax     = 0x7FFFFFFF
+} OMX_VIDEO_DOLBYVISIONLEVELTYPE;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
