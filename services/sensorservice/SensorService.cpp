@@ -755,6 +755,7 @@ void SensorService::recordLastValueLocked(
     for (size_t i = 0; i < count; i++) {
         if (buffer[i].type == SENSOR_TYPE_META_DATA ||
             buffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META ||
+            buffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO ||
             mLastEventSeen.indexOfKey(buffer[i].sensor) <0 ) {
             continue;
         }
