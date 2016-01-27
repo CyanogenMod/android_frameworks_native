@@ -1,0 +1,497 @@
+From 579a86538c32f14824b80de1d27382e85a4f24f2 Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Mon, 30 Nov 2015 00:55:29 -0800
+Subject: [PATCH 22/30] vulkan: Update from version 0.200.0 to 0.202.0
+
+Change-Id: If8eb49cd7e5516931f9900b691d6d32af2aa98b0
+---
+ vulkan/api/vulkan.api          | 45 +++++++++++++------------
+ vulkan/include/vulkan/vulkan.h | 74 +++++++++++++++++++++++-------------------
+ vulkan/libvulkan/entry.cpp     |  2 +-
+ vulkan/libvulkan/loader.cpp    |  2 +-
+ vulkan/libvulkan/swapchain.cpp |  2 +-
+ vulkan/nulldrv/null_driver.cpp |  2 +-
+ vulkan/nulldrv/null_driver.h   |  2 +-
+ 7 files changed, 71 insertions(+), 58 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index 0296b0f..89ed617 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 200
++define VERSION_MINOR 202
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -243,7 +243,7 @@ enum VkPrimitiveTopology {
+     VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY         = 0x00000007,
+     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY      = 0x00000008,
+     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY     = 0x00000009,
+-    VK_PRIMITIVE_TOPOLOGY_PATCH                             = 0x0000000a,
++    VK_PRIMITIVE_TOPOLOGY_PATCH_LIST                        = 0x0000000a,
+ }
+ 
+ enum VkSharingMode {
+@@ -628,7 +628,7 @@ enum VkSubpassContents {
+     VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS           = 0x00000001,
+ }
+ 
+-@lastUnused(-8)
++@lastUnused(-10)
+ /// Error and return codes
+ enum VkResult {
+     // Return codes for successful operation execution (positive values)
+@@ -652,6 +652,7 @@ enum VkResult {
+     VK_ERROR_EXTENSION_NOT_PRESENT                          = 0xFFFFFFF9,
+     VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
+     VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
++    VK_ERROR_TOO_MANY_OBJECTS                               = 0xFFFFFFF6,
+ 
+     //@extension("VK_KHR_surface")
+     VK_ERROR_SURFACE_LOST_KHR                               = 0xC0000400,
+@@ -942,8 +943,9 @@ bitfield VkImageAspectFlagBits {
+ 
+ /// Sparse memory bind flags
+ type VkFlags VkSparseMemoryBindFlags
+-//bitfield VkSparseMemoryBindFlagBits {
+-//}
++bitfield VkSparseMemoryBindFlagBits {
++    VK_SPARSE_MEMORY_BIND_METADATA_BIT                      = 0x00000001,
++}
+ 
+ /// Sparse image memory requirements flags
+ type VkFlags VkSparseImageFormatFlags
+@@ -971,8 +973,8 @@ bitfield VkPipelineStageFlagBits {
+     VK_PIPELINE_STAGE_TRANSFER_BIT                          = 0x00001000,  /// Transfer/copy operations
+     VK_PIPELINE_STAGE_HOST_BIT                              = 0x00002000,  /// Indicates host (CPU) is a source/sink of the dependency
+ 
+-    VK_PIPELINE_STAGE_ALL_GRAPHICS                          = 0x000007FF,  /// All stages of the graphics pipeline
+-    VK_PIPELINE_STAGE_ALL_GPU_COMMANDS                      = 0x00001FFF,  /// All graphics, compute, copy, and transition commands
++    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT                      = 0x00004000,  /// All stages of the graphics pipeline
++    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT                      = 0x00008000,  /// All graphics, compute, copy, and transition commands
+ }
+ 
+ /// Render pass attachment description flags
+@@ -1504,7 +1506,7 @@ class VkImageCreateInfo {
+     VkExtent3D                                  extent
+     u32                                         mipLevels
+     u32                                         arrayLayers
+-    u32                                         samples
++    VkSampleCountFlagBits                       samples
+     VkImageTiling                               tiling
+     VkImageUsageFlags                           usage                      /// Image usage flags
+     VkSharingMode                               sharingMode                /// Cross-queue-family sharing mode
+@@ -1637,6 +1639,7 @@ class VkShaderModuleCreateInfo {
+ }
+ 
+ class VkDescriptorSetLayoutBinding {
++    u32                                         binding
+     VkDescriptorType                            descriptorType     /// Type of the descriptors in this binding
+     u32                                         arraySize          /// Number of descriptors in this binding
+     VkShaderStageFlags                          stageFlags         /// Shader stages this binding is visible to
+@@ -1774,7 +1777,7 @@ class VkPipelineMultisampleStateCreateInfo {
+     VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+     const void*                                 pNext      /// Pointer to next structure
+     VkPipelineMultisampleStateCreateFlags       flags
+-    u32                                         rasterizationSamples       /// Number of samples used for rasterization
++    VkSampleCountFlagBits                       rasterizationSamples       /// Number of samples used for rasterization
+     VkBool32                                    sampleShadingEnable        /// optional (GL45)
+     f32                                         minSampleShading           /// optional (GL45)
+     const VkSampleMask*                         pSampleMask
+@@ -1966,7 +1969,7 @@ class VkClearAttachment {
+ class VkAttachmentDescription {
+     VkAttachmentDescriptionFlags                flags
+     VkFormat                                    format
+-    u32                                         samples
++    VkSampleCountFlagBits                       samples
+     VkAttachmentLoadOp                          loadOp          /// Load op for color or depth data
+     VkAttachmentStoreOp                         storeOp         /// Store op for color or depth data
+     VkAttachmentLoadOp                          stencilLoadOp   /// Load op for stencil data
+@@ -2090,13 +2093,13 @@ class VkPhysicalDeviceLimits {
+     u32                                         maxImageDimension3D                       /// max 3D image dimension
+     u32                                         maxImageDimensionCube                     /// max cubemap image dimension
+     u32                                         maxImageArrayLayers                       /// max layers for image arrays
+-    VkSampleCountFlags                          sampleCounts                              /// sample counts supported for all images supporting rendering and sampling
+     u32                                         maxTexelBufferElements
+     u32                                         maxUniformBufferRange                     /// max uniform buffer size (bytes)
+     u32                                         maxStorageBufferRange                     /// max storage buffer size (bytes)
+     u32                                         maxPushConstantsSize                      /// max size of the push constants pool (bytes)
+     /// memory limits
+     u32                                         maxMemoryAllocationCount                  /// max number of device memory allocations supported
++    u32                                         maxSamplerAllocationCount
+     VkDeviceSize                                bufferImageGranularity                    /// Granularity (in bytes) at which buffers and images can be bound to adjacent memory for simultaneous usage
+     VkDeviceSize                                sparseAddressSpaceSize                    /// Total address space available for sparse allocations (bytes)
+     /// descriptor set limits
+@@ -2176,16 +2179,17 @@ class VkPhysicalDeviceLimits {
+     u32                                         maxFramebufferWidth                       /// max width for a framebuffer
+     u32                                         maxFramebufferHeight                      /// max height for a framebuffer
+     u32                                         maxFramebufferLayers                      /// max layer count for a layered framebuffer
+-    u32                                         maxFramebufferColorSamples                /// max color sample count for a framebuffer
+-    u32                                         maxFramebufferDepthSamples                /// max depth sample count for a framebuffer
+-    u32                                         maxFramebufferStencilSamples              /// max stencil sample count for a framebuffer
++    VkSampleCountFlags                          framebufferColorSampleCounts
++    VkSampleCountFlags                          framebufferDepthSampleCounts
++    VkSampleCountFlags                          framebufferStencilSampleCounts
++    VkSampleCountFlags                          framebufferNoAttachmentSampleCounts
+     u32                                         maxColorAttachments                       /// max num of framebuffer color attachments
+ 
+-    u32                                         maxSampledImageColorSamples               /// max num of color samples for a non-integer sampled image
+-    u32                                         maxSampledImageDepthSamples               /// max num of depth samples for a sampled image
+-    u32                                         maxSampledImageStencilSamples             /// max num of stencil samples for a sampled image
+-    u32                                         maxSampledImageIntegerSamples             /// max num of samples supported for an integer image
+-    u32                                         maxStorageImageSamples                    /// max num of samples for a storage image
++    VkSampleCountFlags                          sampledImageColorSampleCounts
++    VkSampleCountFlags                          sampledImageIntegerSampleCounts
++    VkSampleCountFlags                          sampledImageDepthSampleCounts
++    VkSampleCountFlags                          sampledImageStencilSampleCounts
++    VkSampleCountFlags                          storageImageSampleCounts
+     u32                                         maxSampleMaskWords                        /// max num of sample mask words
+ 
+     f32                                         timestampPeriod
+@@ -2201,6 +2205,7 @@ class VkPhysicalDeviceLimits {
+     f32                                         pointSizeGranularity                      /// granularity of supported point sizes
+     f32                                         lineWidthGranularity                      /// granularity of supported line widths
+     VkBool32                                    strictLines
++    VkBool32                                    standardSampleLocations
+ 
+     VkDeviceSize                                optimalBufferCopyOffsetAlignment
+     VkDeviceSize                                optimalBufferCopyRowPitchAlignment
+@@ -2948,7 +2953,7 @@ cmd void vkGetPhysicalDeviceSparseImageFormatProperties(
+         VkPhysicalDevice                            physicalDevice,
+         VkFormat                                    format,
+         VkImageType                                 type,
+-        u32                                         samples,
++        VkSampleCountFlagBits                       samples,
+         VkImageUsageFlags                           usage,
+         VkImageTiling                               tiling,
+         u32*                                        pPropertyCount,
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index 2e66e27..ca00976 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,7 +41,7 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 200, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 202, 0)
+ 
+ 
+ #define VK_NULL_HANDLE 0
+@@ -123,9 +123,10 @@ typedef enum VkResult {
+     VK_ERROR_EXTENSION_NOT_PRESENT = -7,
+     VK_ERROR_FEATURE_NOT_PRESENT = -8,
+     VK_ERROR_INCOMPATIBLE_DRIVER = -9,
+-    VK_RESULT_BEGIN_RANGE = VK_ERROR_INCOMPATIBLE_DRIVER,
++    VK_ERROR_TOO_MANY_OBJECTS = -10,
++    VK_RESULT_BEGIN_RANGE = VK_ERROR_TOO_MANY_OBJECTS,
+     VK_RESULT_END_RANGE = VK_INCOMPLETE,
+-    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_INCOMPATIBLE_DRIVER + 1),
++    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_TOO_MANY_OBJECTS + 1),
+     VK_RESULT_MAX_ENUM = 0x7FFFFFFF
+ } VkResult;
+ 
+@@ -499,10 +500,10 @@ typedef enum VkPrimitiveTopology {
+     VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY = 7,
+     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY = 8,
+     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY = 9,
+-    VK_PRIMITIVE_TOPOLOGY_PATCH = 10,
++    VK_PRIMITIVE_TOPOLOGY_PATCH_LIST = 10,
+     VK_PRIMITIVE_TOPOLOGY_BEGIN_RANGE = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+-    VK_PRIMITIVE_TOPOLOGY_END_RANGE = VK_PRIMITIVE_TOPOLOGY_PATCH,
+-    VK_PRIMITIVE_TOPOLOGY_RANGE_SIZE = (VK_PRIMITIVE_TOPOLOGY_PATCH - VK_PRIMITIVE_TOPOLOGY_POINT_LIST + 1),
++    VK_PRIMITIVE_TOPOLOGY_END_RANGE = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST,
++    VK_PRIMITIVE_TOPOLOGY_RANGE_SIZE = (VK_PRIMITIVE_TOPOLOGY_PATCH_LIST - VK_PRIMITIVE_TOPOLOGY_POINT_LIST + 1),
+     VK_PRIMITIVE_TOPOLOGY_MAX_ENUM = 0x7FFFFFFF
+ } VkPrimitiveTopology;
+ 
+@@ -838,6 +839,10 @@ typedef enum VkSparseImageFormatFlagBits {
+     VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT = 0x00000004,
+ } VkSparseImageFormatFlagBits;
+ typedef VkFlags VkSparseImageFormatFlags;
++
++typedef enum VkSparseMemoryBindFlagBits {
++    VK_SPARSE_MEMORY_BIND_METADATA_BIT = 0x00000001,
++} VkSparseMemoryBindFlagBits;
+ typedef VkFlags VkSparseMemoryBindFlags;
+ 
+ typedef enum VkFenceCreateFlagBits {
+@@ -973,8 +978,8 @@ typedef enum VkPipelineStageFlagBits {
+     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT = 0x00000800,
+     VK_PIPELINE_STAGE_TRANSFER_BIT = 0x00001000,
+     VK_PIPELINE_STAGE_HOST_BIT = 0x00002000,
+-    VK_PIPELINE_STAGE_ALL_GRAPHICS = 0x000007FF,
+-    VK_PIPELINE_STAGE_ALL_GPU_COMMANDS = 0x00001FFF,
++    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT = 0x00004000,
++    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT = 0x00008000,
+ } VkPipelineStageFlagBits;
+ typedef VkFlags VkPipelineStageFlags;
+ 
+@@ -1183,12 +1188,12 @@ typedef struct VkPhysicalDeviceLimits {
+     uint32_t                                    maxImageDimension3D;
+     uint32_t                                    maxImageDimensionCube;
+     uint32_t                                    maxImageArrayLayers;
+-    VkSampleCountFlags                          sampleCounts;
+     uint32_t                                    maxTexelBufferElements;
+     uint32_t                                    maxUniformBufferRange;
+     uint32_t                                    maxStorageBufferRange;
+     uint32_t                                    maxPushConstantsSize;
+     uint32_t                                    maxMemoryAllocationCount;
++    uint32_t                                    maxSamplerAllocationCount;
+     VkDeviceSize                                bufferImageGranularity;
+     VkDeviceSize                                sparseAddressSpaceSize;
+     uint32_t                                    maxBoundDescriptorSets;
+@@ -1255,15 +1260,16 @@ typedef struct VkPhysicalDeviceLimits {
+     uint32_t                                    maxFramebufferWidth;
+     uint32_t                                    maxFramebufferHeight;
+     uint32_t                                    maxFramebufferLayers;
+-    uint32_t                                    maxFramebufferColorSamples;
+-    uint32_t                                    maxFramebufferDepthSamples;
+-    uint32_t                                    maxFramebufferStencilSamples;
++    VkSampleCountFlags                          framebufferColorSampleCounts;
++    VkSampleCountFlags                          framebufferDepthSampleCounts;
++    VkSampleCountFlags                          framebufferStencilSampleCounts;
++    VkSampleCountFlags                          framebufferNoAttachmentsSampleCounts;
+     uint32_t                                    maxColorAttachments;
+-    uint32_t                                    maxSampledImageColorSamples;
+-    uint32_t                                    maxSampledImageDepthSamples;
+-    uint32_t                                    maxSampledImageStencilSamples;
+-    uint32_t                                    maxSampledImageIntegerSamples;
+-    uint32_t                                    maxStorageImageSamples;
++    VkSampleCountFlags                          sampledImageColorSampleCounts;
++    VkSampleCountFlags                          sampledImageIntegerSampleCounts;
++    VkSampleCountFlags                          sampledImageDepthSampleCounts;
++    VkSampleCountFlags                          sampledImageStencilSampleCounts;
++    VkSampleCountFlags                          storageImageSampleCounts;
+     uint32_t                                    maxSampleMaskWords;
+     float                                       timestampPeriod;
+     uint32_t                                    maxClipDistances;
+@@ -1275,6 +1281,7 @@ typedef struct VkPhysicalDeviceLimits {
+     float                                       pointSizeGranularity;
+     float                                       lineWidthGranularity;
+     VkBool32                                    strictLines;
++    VkBool32                                    standardSampleLocations;
+     VkDeviceSize                                optimalBufferCopyOffsetAlignment;
+     VkDeviceSize                                optimalBufferCopyRowPitchAlignment;
+ } VkPhysicalDeviceLimits;
+@@ -1522,7 +1529,7 @@ typedef struct VkImageCreateInfo {
+     VkExtent3D                                  extent;
+     uint32_t                                    mipLevels;
+     uint32_t                                    arrayLayers;
+-    uint32_t                                    samples;
++    VkSampleCountFlagBits                       samples;
+     VkImageTiling                               tiling;
+     VkImageUsageFlags                           usage;
+     VkSharingMode                               sharingMode;
+@@ -1695,7 +1702,7 @@ typedef struct VkPipelineMultisampleStateCreateInfo {
+     VkStructureType                             sType;
+     const void*                                 pNext;
+     VkPipelineMultisampleStateCreateFlags       flags;
+-    uint32_t                                    rasterizationSamples;
++    VkSampleCountFlagBits                       rasterizationSamples;
+     VkBool32                                    sampleShadingEnable;
+     float                                       minSampleShading;
+     const VkSampleMask*                         pSampleMask;
+@@ -1827,6 +1834,7 @@ typedef struct VkSamplerCreateInfo {
+ } VkSamplerCreateInfo;
+ 
+ typedef struct VkDescriptorSetLayoutBinding {
++    uint32_t                                    binding;
+     VkDescriptorType                            descriptorType;
+     uint32_t                                    arraySize;
+     VkShaderStageFlags                          stageFlags;
+@@ -1915,7 +1923,7 @@ typedef struct VkFramebufferCreateInfo {
+ typedef struct VkAttachmentDescription {
+     VkAttachmentDescriptionFlags                flags;
+     VkFormat                                    format;
+-    uint32_t                                    samples;
++    VkSampleCountFlagBits                       samples;
+     VkAttachmentLoadOp                          loadOp;
+     VkAttachmentStoreOp                         storeOp;
+     VkAttachmentLoadOp                          stencilLoadOp;
+@@ -2160,7 +2168,7 @@ typedef VkResult (VKAPI *PFN_vkBindImageMemory)(VkDevice device, VkImage image,
+ typedef void (VKAPI *PFN_vkGetBufferMemoryRequirements)(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements);
+ typedef void (VKAPI *PFN_vkGetImageMemoryRequirements)(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements);
+ typedef void (VKAPI *PFN_vkGetImageSparseMemoryRequirements)(VkDevice device, VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements);
+-typedef void (VKAPI *PFN_vkGetPhysicalDeviceSparseImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties);
++typedef void (VKAPI *PFN_vkGetPhysicalDeviceSparseImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties);
+ typedef VkResult (VKAPI *PFN_vkQueueBindSparse)(VkQueue queue, uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence);
+ typedef VkResult (VKAPI *PFN_vkCreateFence)(VkDevice device, const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
+ typedef void (VKAPI *PFN_vkDestroyFence)(VkDevice device, VkFence fence, const VkAllocationCallbacks* pAllocator);
+@@ -2437,7 +2445,7 @@ void VKAPI vkGetPhysicalDeviceSparseImageFormatProperties(
+     VkPhysicalDevice                            physicalDevice,
+     VkFormat                                    format,
+     VkImageType                                 type,
+-    uint32_t                                    samples,
++    VkSampleCountFlagBits                       samples,
+     VkImageUsageFlags                           usage,
+     VkImageTiling                               tiling,
+     uint32_t*                                   pPropertyCount,
+@@ -3054,7 +3062,7 @@ void VKAPI vkCmdExecuteCommands(
+     const VkCommandBuffer*                      pCommandBuffers);
+ #endif
+ 
+-#define vk_khr_surface 1
++#define VK_KHR_surface 1
+ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSurfaceKHR)
+ 
+ #define VK_KHR_SURFACE_REVISION           22
+@@ -3174,7 +3182,7 @@ VkResult VKAPI vkGetPhysicalDeviceSurfacePresentModesKHR(
+     VkPresentModeKHR*                           pPresentModes);
+ #endif
+ 
+-#define vk_khr_swapchain 1
++#define VK_KHR_swapchain 1
+ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
+ 
+ #define VK_KHR_SWAPCHAIN_REVISION         64
+@@ -3252,7 +3260,7 @@ VkResult VKAPI vkQueuePresentKHR(
+     VkPresentInfoKHR*                            pPresentInfo);
+ #endif
+ 
+-#define vk_khr_display 1
++#define VK_KHR_display 1
+ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDisplayKHR)
+ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDisplayModeKHR)
+ 
+@@ -3374,7 +3382,7 @@ VkResult VKAPI vkCreateDisplayPlaneSurfaceKHR(
+     VkSurfaceKHR*                               pSurface);
+ #endif
+ 
+-#define vk_khr_display_swapchain 1
++#define VK_KHR_display_swapchain 1
+ #define VK_KHR_DISPLAY_SWAPCHAIN_REVISION 7
+ #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
+ #define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME "VK_KHR_display_swapchain"
+@@ -3399,12 +3407,12 @@ typedef struct VkDisplayPresentInfoKHR {
+ 
+ 
+ #ifdef VK_USE_PLATFORM_XLIB_KHR
+-#define vk_khr_xlib_surface 1
++#define VK_KHR_xlib_surface 1
+ #include <X11/Xlib.h>
+ 
+ #define VK_KHR_XLIB_SURFACE_REVISION      4
+ #define VK_KHR_XLIB_SURFACE_EXTENSION_NUMBER 5
+-#define VK_KHR_XLIB_SURFACE_EXTENSION_NAME "vk_khr_xlib_surface"
++#define VK_KHR_XLIB_SURFACE_EXTENSION_NAME "VK_KHR_xlib_surface"
+ 
+ typedef VkResult (VKAPI *PFN_vkCreateXlibSurfaceKHR)(VkInstance instance, Display* dpy, Window window, VkSurfaceKHR* pSurface);
+ typedef VkBool32 (VKAPI *PFN_vkGetPhysicalDeviceXlibPresentationSupportKHR)(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, Display* dpy, VisualID visualID);
+@@ -3425,7 +3433,7 @@ VkBool32 VKAPI vkGetPhysicalDeviceXlibPresentationSupportKHR(
+ #endif /* VK_USE_PLATFORM_XLIB_KHR */
+ 
+ #ifdef VK_USE_PLATFORM_XCB_KHR
+-#define vk_khr_xcb_surface 1
++#define VK_KHR_xcb_surface 1
+ #include <xcb/xcb.h>
+ 
+ #define VK_KHR_XCB_SURFACE_REVISION       4
+@@ -3451,7 +3459,7 @@ VkBool32 VKAPI vkGetPhysicalDeviceXcbPresentationSupportKHR(
+ #endif /* VK_USE_PLATFORM_XCB_KHR */
+ 
+ #ifdef VK_USE_PLATFORM_WAYLAND_KHR
+-#define vk_khr_wayland_surface 1
++#define VK_KHR_wayland_surface 1
+ #include <wayland-client.h>
+ 
+ #define VK_KHR_WAYLAND_SURFACE_REVISION   3
+@@ -3476,7 +3484,7 @@ VkBool32 VKAPI vkGetPhysicalDeviceWaylandPresentationSupportKHR(
+ #endif /* VK_USE_PLATFORM_WAYLAND_KHR */
+ 
+ #ifdef VK_USE_PLATFORM_MIR_KHR
+-#define vk_khr_mir_surface 1
++#define VK_KHR_mir_surface 1
+ #include <mir_toolkit/client_types.h>
+ 
+ #define VK_KHR_MIR_SURFACE_REVISION       3
+@@ -3501,7 +3509,7 @@ VkBool32 VKAPI vkGetPhysicalDeviceMirPresentationSupportKHR(
+ #endif /* VK_USE_PLATFORM_MIR_KHR */
+ 
+ #ifdef VK_USE_PLATFORM_ANDROID_KHR
+-#define vk_khr_android_surface 1
++#define VK_KHR_android_surface 1
+ #include <android/native_window.h>
+ 
+ #define VK_KHR_ANDROID_SURFACE_REVISION   2
+@@ -3521,7 +3529,7 @@ VkResult VKAPI vkCreateAndroidSurfaceKHR(
+ #endif /* VK_USE_PLATFORM_ANDROID_KHR */
+ 
+ #ifdef VK_USE_PLATFORM_WIN32_KHR
+-#define vk_khr_win32_surface 1
++#define VK_KHR_win32_surface 1
+ #include <windows.h>
+ 
+ #define VK_KHR_WIN32_SURFACE_REVISION     3
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index 9037e17..0e01d4e 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -207,7 +207,7 @@ void vkGetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties) {
++void vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties) {
+     GetVtbl(physicalDevice).GetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, pPropertyCount, pProperties);
+ }
+ 
+diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
+index 246c37d..e0eddba 100644
+--- a/vulkan/libvulkan/loader.cpp
++++ b/vulkan/libvulkan/loader.cpp
+@@ -860,7 +860,7 @@ void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
+     VkPhysicalDevice pdev,
+     VkFormat format,
+     VkImageType type,
+-    uint32_t samples,
++    VkSampleCountFlagBits samples,
+     VkImageUsageFlags usage,
+     VkImageTiling tiling,
+     uint32_t* properties_count,
+diff --git a/vulkan/libvulkan/swapchain.cpp b/vulkan/libvulkan/swapchain.cpp
+index 5b35506..d93a80f 100644
+--- a/vulkan/libvulkan/swapchain.cpp
++++ b/vulkan/libvulkan/swapchain.cpp
+@@ -405,7 +405,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
+         .extent = {0, 0, 1},
+         .mipLevels = 1,
+         .arrayLayers = 1,
+-        .samples = 1,
++        .samples = VK_SAMPLE_COUNT_1_BIT,
+         .tiling = VK_IMAGE_TILING_OPTIMAL,
+         .usage = create_info->imageUsageFlags,
+         .flags = 0,
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index e75eb3a..8f0a0e5 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -808,7 +808,7 @@ void GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t*
+     ALOGV("TODO: vk%s", __FUNCTION__);
+ }
+ 
+-void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
++void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+     ALOGV("TODO: vk%s", __FUNCTION__);
+ }
+ 
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index 6d14e57..0ed9cd0 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -59,7 +59,7 @@ VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkD
+ void GetBufferMemoryRequirements(VkDevice device, VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements);
+ void GetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements);
+ void GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements);
+-void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties);
++void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties);
+ VkResult QueueBindSparse(VkQueue queue, uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence);
+ VkResult CreateFence(VkDevice device, const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* allocator, VkFence* pFence);
+ void DestroyFence(VkDevice device, VkFence fence, const VkAllocationCallbacks* allocator);
+-- 
+2.4.0
+

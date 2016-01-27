@@ -1,0 +1,206 @@
+From 8ce9e519e5af3e2310765825115ffc3a65af818c Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Thu, 19 Nov 2015 21:51:33 -0800
+Subject: [PATCH 02/30] vulkan: Update from version 0.174.0 to 0.177.0
+
+Change-Id: I4b837c0bdb4fd6120688e8389ab8591178d370fb
+---
+ vulkan/api/templates/vulkan_h.tmpl |  2 +-
+ vulkan/api/vulkan.api              | 12 +++++-------
+ vulkan/include/vulkan/vulkan.h     | 25 ++++++++++---------------
+ vulkan/nulldrv/null_driver.cpp     |  2 +-
+ vulkan/tools/vkinfo.cpp            |  6 ++----
+ 5 files changed, 19 insertions(+), 28 deletions(-)
+
+diff --git a/vulkan/api/templates/vulkan_h.tmpl b/vulkan/api/templates/vulkan_h.tmpl
+index 2dee541..c55107d 100644
+--- a/vulkan/api/templates/vulkan_h.tmpl
++++ b/vulkan/api/templates/vulkan_h.tmpl
+@@ -53,7 +53,7 @@ extern "C" {
+ #define VK_API_VERSION \
+     VK_MAKE_VERSION({{Global "VERSION_MAJOR"}}, {{Global "VERSION_MINOR"}}, {{Global "VERSION_PATCH"}})
+ ¶
+-#if defined(__cplusplus) && (_MSC_VER >= 1800 || __cplusplus >= 201103L)
++#if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800 || __cplusplus >= 201103L)
+     #define VK_NULL_HANDLE nullptr
+ #else
+     #define VK_NULL_HANDLE 0
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index 7ab0e86..2b499fd 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 174
++define VERSION_MINOR 177
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -695,8 +695,7 @@ bitfield VkMemoryPropertyFlags {
+     VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT                = 0x00000002,    /// Memory may not have i/o coherency so vkFlushMappedMemoryRanges and vkInvalidateMappedMemoryRanges must be used flush/invalidate host cache
+                                                                              /// vkInvalidateMappedMemoryRanges must be used flush/invalidate host cache
+     VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT                    = 0x00000004,    /// Memory should not be cached by the host
+-    VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT              = 0x00000008,    /// Memory should support host write combining
+-    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT                 = 0x00000010,    /// Memory may be allocated by the driver when it is required
++    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT                 = 0x00000008,    /// Memory may be allocated by the driver when it is required
+ }
+ 
+ /// Memory heap flags
+@@ -932,7 +931,6 @@ bitfield VkAttachmentDescriptionFlags {
+ 
+ /// Subpass description flags
+ bitfield VkSubpassDescriptionFlags {
+-    VK_SUBPASS_DESCRIPTION_NO_OVERDRAW_BIT                  = 0x00000001,
+ }
+ 
+ /// Command pool creation flags
+@@ -1108,7 +1106,7 @@ class VkInstanceCreateInfo {
+ class VkQueueFamilyProperties {
+     VkQueueFlags                                queueFlags                 /// Queue flags
+     u32                                         queueCount
+-    VkBool32                                    supportsTimestamps
++    u32                                         timestampValidBits
+ }
+ 
+ class VkPhysicalDeviceMemoryProperties {
+@@ -1522,6 +1520,8 @@ class VkPipelineMultisampleStateCreateInfo {
+     VkBool32                                    sampleShadingEnable        /// optional (GL45)
+     f32                                         minSampleShading           /// optional (GL45)
+     const VkSampleMask*                         pSampleMask
++    VkBool32                                    alphaToCoverageEnable
++    VkBool32                                    alphaToOneEnable
+ }
+ 
+ class VkPipelineColorBlendAttachmentState {
+@@ -1538,8 +1538,6 @@ class VkPipelineColorBlendAttachmentState {
+ class VkPipelineColorBlendStateCreateInfo {
+     VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+     const void*                                 pNext      /// Pointer to next structure
+-    VkBool32                                    alphaToCoverageEnable
+-    VkBool32                                    alphaToOneEnable
+     VkBool32                                    logicOpEnable
+     VkLogicOp                                   logicOp
+     u32                                         attachmentCount    /// # of pAttachments
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index 5d884cd..124d088 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,10 +41,10 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 174, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 177, 0)
+ 
+ 
+-#if defined(__cplusplus) && (_MSC_VER >= 1800 || __cplusplus >= 201103L)
++#if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
+     #define VK_NULL_HANDLE nullptr
+ #else
+     #define VK_NULL_HANDLE 0
+@@ -711,10 +711,10 @@ typedef enum {
+     VK_TEX_ADDRESS_MODE_CLAMP = 2,
+     VK_TEX_ADDRESS_MODE_MIRROR_ONCE = 3,
+     VK_TEX_ADDRESS_MODE_CLAMP_BORDER = 4,
+-    VK_TEX_ADDRESS_BEGIN_RANGE = VK_TEX_ADDRESS_MODE_WRAP,
+-    VK_TEX_ADDRESS_END_RANGE = VK_TEX_ADDRESS_MODE_CLAMP_BORDER,
+-    VK_TEX_ADDRESS_NUM = (VK_TEX_ADDRESS_MODE_CLAMP_BORDER - VK_TEX_ADDRESS_MODE_WRAP + 1),
+-    VK_TEX_ADDRESS_MAX_ENUM = 0x7FFFFFFF
++    VK_TEX_ADDRESS_MODE_BEGIN_RANGE = VK_TEX_ADDRESS_MODE_WRAP,
++    VK_TEX_ADDRESS_MODE_END_RANGE = VK_TEX_ADDRESS_MODE_CLAMP_BORDER,
++    VK_TEX_ADDRESS_MODE_NUM = (VK_TEX_ADDRESS_MODE_CLAMP_BORDER - VK_TEX_ADDRESS_MODE_WRAP + 1),
++    VK_TEX_ADDRESS_MODE_MAX_ENUM = 0x7FFFFFFF
+ } VkTexAddressMode;
+ 
+ typedef enum {
+@@ -893,8 +893,7 @@ typedef enum {
+     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000001,
+     VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT = 0x00000002,
+     VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT = 0x00000004,
+-    VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT = 0x00000008,
+-    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
++    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000008,
+ } VkMemoryPropertyFlagBits;
+ typedef VkFlags VkMemoryPropertyFlags;
+ 
+@@ -1013,10 +1012,6 @@ typedef enum {
+     VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT = 0x00000001,
+ } VkAttachmentDescriptionFlagBits;
+ typedef VkFlags VkAttachmentDescriptionFlags;
+-
+-typedef enum {
+-    VK_SUBPASS_DESCRIPTION_NO_OVERDRAW_BIT = 0x00000001,
+-} VkSubpassDescriptionFlagBits;
+ typedef VkFlags VkSubpassDescriptionFlags;
+ 
+ typedef enum {
+@@ -1336,7 +1331,7 @@ typedef struct {
+ typedef struct {
+     VkQueueFlags                                queueFlags;
+     uint32_t                                    queueCount;
+-    VkBool32                                    supportsTimestamps;
++    uint32_t                                    timestampValidBits;
+ } VkQueueFamilyProperties;
+ 
+ typedef struct {
+@@ -1684,6 +1679,8 @@ typedef struct {
+     VkBool32                                    sampleShadingEnable;
+     float                                       minSampleShading;
+     const VkSampleMask*                         pSampleMask;
++    VkBool32                                    alphaToCoverageEnable;
++    VkBool32                                    alphaToOneEnable;
+ } VkPipelineMultisampleStateCreateInfo;
+ 
+ typedef struct {
+@@ -1724,8 +1721,6 @@ typedef struct {
+ typedef struct {
+     VkStructureType                             sType;
+     const void*                                 pNext;
+-    VkBool32                                    alphaToCoverageEnable;
+-    VkBool32                                    alphaToOneEnable;
+     VkBool32                                    logicOpEnable;
+     VkLogicOp                                   logicOp;
+     uint32_t                                    attachmentCount;
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index 9d028eb..8992db4 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -288,7 +288,7 @@ VkResult GetPhysicalDeviceQueueFamilyProperties(
+         properties->queueFlags =
+             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_DMA_BIT;
+         properties->queueCount = 1;
+-        properties->supportsTimestamps = VK_FALSE;
++        properties->timestampValidBits = 64;
+     }
+     *count = 1;
+     return VK_SUCCESS;
+diff --git a/vulkan/tools/vkinfo.cpp b/vulkan/tools/vkinfo.cpp
+index 583e607..2af04ad 100644
+--- a/vulkan/tools/vkinfo.cpp
++++ b/vulkan/tools/vkinfo.cpp
+@@ -124,8 +124,6 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
+                 strbuf << " NON_COHERENT";
+             if ((flags & VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT) != 0)
+                 strbuf << " UNCACHED";
+-            if ((flags & VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT) != 0)
+-                strbuf << " WRITE_COMBINED";
+             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
+                 strbuf << " LAZILY_ALLOCATED";
+             printf("       Type %u: %s\n", type, strbuf.str().c_str());
+@@ -154,9 +152,9 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
+             queue_flags &= ~flag;
+             sep = "+";
+         }
+-        printf("     Queue Family %u: %2ux %s timestamps:%s\n", family,
++        printf("     Queue Family %u: %2ux %s timestamps:%ub\n", family,
+                qprops.queueCount, strbuf.str().c_str(),
+-               qprops.supportsTimestamps ? "YES" : "NO");
++               qprops.timestampValidBits);
+         strbuf.str(std::string());
+     }
+ }
+-- 
+2.4.0
+

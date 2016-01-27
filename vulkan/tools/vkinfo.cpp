@@ -32,7 +32,6 @@ namespace {
     switch (result) {
         // clang-format off
         case VK_SUCCESS: result_str = "VK_SUCCESS"; break;
-        case VK_UNSUPPORTED: result_str = "VK_UNSUPPORTED"; break;
         case VK_NOT_READY: result_str = "VK_NOT_READY"; break;
         case VK_TIMEOUT: result_str = "VK_TIMEOUT"; break;
         case VK_EVENT_SET: result_str = "VK_EVENT_SET"; break;
@@ -76,12 +75,10 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
             return "GRAPHICS";
         case VK_QUEUE_COMPUTE_BIT:
             return "COMPUTE";
-        case VK_QUEUE_DMA_BIT:
-            return "DMA";
-        case VK_QUEUE_SPARSE_MEMMGR_BIT:
+        case VK_QUEUE_TRANSFER_BIT:
+            return "TRANSFER";
+        case VK_QUEUE_SPARSE_BINDING_BIT:
             return "SPARSE";
-        case VK_QUEUE_EXTENDED_BIT:
-            return "EXT";
     }
 }
 
@@ -90,23 +87,19 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     std::ostringstream strbuf;
 
     VkPhysicalDeviceProperties props;
-    result = vkGetPhysicalDeviceProperties(pdev, &props);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceProperties", result);
+    vkGetPhysicalDeviceProperties(pdev, &props);
     printf("  %u: \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", idx,
            props.deviceName, VkPhysicalDeviceTypeStr(props.deviceType),
            (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
-           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorId,
-           props.deviceId);
+           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorID,
+           props.deviceID);
 
     VkPhysicalDeviceMemoryProperties mem_props;
-    result = vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceMemoryProperties", result);
+    vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
     for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
         if ((mem_props.memoryHeaps[heap].flags &
-             VK_MEMORY_HEAP_HOST_LOCAL_BIT) != 0)
-            strbuf << "HOST_LOCAL";
+             VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
+            strbuf << "DEVICE_LOCAL";
         printf("     Heap %u: 0x%" PRIx64 " %s\n", heap,
                mem_props.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
@@ -116,16 +109,14 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
                 continue;
             VkMemoryPropertyFlags flags =
                 mem_props.memoryTypes[type].propertyFlags;
-            if (flags == VK_MEMORY_PROPERTY_DEVICE_ONLY)
-                strbuf << "DEVICE_ONLY";
+            if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+                strbuf << "DEVICE_LOCAL";
             if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
                 strbuf << "HOST_VISIBLE";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_NON_COHERENT_BIT) != 0)
-                strbuf << " NON_COHERENT";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_UNCACHED_BIT) != 0)
-                strbuf << " UNCACHED";
-            if ((flags & VK_MEMORY_PROPERTY_HOST_WRITE_COMBINED_BIT) != 0)
-                strbuf << " WRITE_COMBINED";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
+                strbuf << " COHERENT";
+            if ((flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
+                strbuf << " CACHED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
             printf("       Type %u: %s\n", type, strbuf.str().c_str());
@@ -134,16 +125,12 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
     }
 
     uint32_t num_queue_families;
-    result = vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
-                                                      nullptr);
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceQueueFamilyProperties (count)", result);
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
+                                             nullptr);
     std::vector<VkQueueFamilyProperties> queue_family_properties(
         num_queue_families);
-    result = vkGetPhysicalDeviceQueueFamilyProperties(
-        pdev, &num_queue_families, queue_family_properties.data());
-    if (result != VK_SUCCESS)
-        die("vkGetPhysicalDeviceQueueFamilyProperties (values)", result);
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
+                                             queue_family_properties.data());
     for (uint32_t family = 0; family < num_queue_families; family++) {
         const VkQueueFamilyProperties& qprops = queue_family_properties[family];
         const char* sep = "";
@@ -154,9 +141,9 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
             queue_flags &= ~flag;
             sep = "+";
         }
-        printf("     Queue Family %u: %2ux %s timestamps:%s\n", family,
+        printf("     Queue Family %u: %2ux %s timestamps:%ub\n", family,
                qprops.queueCount, strbuf.str().c_str(),
-               qprops.supportsTimestamps ? "YES" : "NO");
+               qprops.timestampValidBits);
         strbuf.str(std::string());
     }
 }
@@ -170,14 +157,13 @@ int main(int /*argc*/, char const* /*argv*/ []) {
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = nullptr,
-        .pAppInfo = nullptr,
-        .pAllocCb = nullptr,
-        .layerCount = 0,
+        .pApplicationInfo = nullptr,
+        .enabledLayerNameCount = 0,
         .ppEnabledLayerNames = nullptr,
-        .extensionCount = 0,
+        .enabledExtensionNameCount = 0,
         .ppEnabledExtensionNames = nullptr,
     };
-    result = vkCreateInstance(&create_info, &instance);
+    result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS)
         die("vkCreateInstance", result);
 
@@ -202,7 +188,7 @@ int main(int /*argc*/, char const* /*argv*/ []) {
     for (uint32_t i = 0; i < physical_devices.size(); i++)
         DumpPhysicalDevice(i, physical_devices[i]);
 
-    vkDestroyInstance(instance);
+    vkDestroyInstance(instance, nullptr);
 
     return 0;
 }

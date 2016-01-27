@@ -1,0 +1,960 @@
+From 727d614d172fd03c033739b9a76873f9d46f8f5e Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Fri, 20 Nov 2015 14:17:03 -0800
+Subject: [PATCH 06/30] vulkan: Update from version 0.181.0 to 0.183.0
+
+Change-Id: I721bfc6891974e2bab7dce7e92e7884de360412a
+---
+ vulkan/api/vulkan.api              | 129 ++++++++++++++++++++-----------------
+ vulkan/include/vulkan/vulkan.h     | 105 ++++++++++++++----------------
+ vulkan/libvulkan/entry.cpp         |  16 ++---
+ vulkan/libvulkan/get_proc_addr.cpp |  20 +++---
+ vulkan/libvulkan/loader.cpp        |  31 ++++-----
+ vulkan/libvulkan/loader.h          |  10 +--
+ vulkan/nulldrv/null_driver.cpp     |  57 ++++++++++------
+ vulkan/nulldrv/null_driver.h       |   8 +--
+ vulkan/nulldrv/null_driver_gen.cpp |   4 +-
+ 9 files changed, 199 insertions(+), 181 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index fbd1d9d..175e353 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 181
++define VERSION_MINOR 183
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -163,16 +163,6 @@ enum VkDescriptorType {
+     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT                     = 0x0000000a,
+ }
+ 
+-enum VkDescriptorPoolUsage {
+-    VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT                       = 0x00000000,
+-    VK_DESCRIPTOR_POOL_USAGE_DYNAMIC                        = 0x00000001,
+-}
+-
+-enum VkDescriptorSetUsage {
+-    VK_DESCRIPTOR_SET_USAGE_ONE_SHOT                        = 0x00000000,
+-    VK_DESCRIPTOR_SET_USAGE_STATIC                          = 0x00000001,
+-}
+-
+ enum VkQueryType {
+     VK_QUERY_TYPE_OCCLUSION                                 = 0x00000000,
+     VK_QUERY_TYPE_PIPELINE_STATISTICS                       = 0x00000001, /// Optional
+@@ -539,7 +529,7 @@ enum VkStructureType {
+     VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO              = 6,
+     VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO                       = 7,
+     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO         = 8,
+-    VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO                    = 9,
++    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO                     = 9,
+     VK_STRUCTURE_TYPE_EVENT_CREATE_INFO                         = 10,
+     VK_STRUCTURE_TYPE_FENCE_CREATE_INFO                         = 11,
+     VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO                     = 12,
+@@ -577,6 +567,7 @@ enum VkStructureType {
+     VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO                      = 44,
+     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO                  = 45,
+     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO        = 46,
++    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO                 = 47,
+ }
+ 
+ enum VkRenderPassContents {
+@@ -741,6 +732,15 @@ bitfield VkShaderStageFlags {
+     VK_SHADER_STAGE_ALL                                     = 0x7FFFFFFF,
+ }
+ 
++/// Descriptor pool create flags
++bitfield VkDescriptorPoolCreateFlags {
++    VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT       = 0x00000001,
++}
++
++/// Descriptor pool reset flags
++bitfield VkDescriptorPoolResetFlags {
++}
++
+ /// Image usage flags
+ bitfield VkImageUsageFlags {
+     VK_IMAGE_USAGE_TRANSFER_SOURCE_BIT                      = 0x00000001,    /// Can be used as a source of transfer operations
+@@ -834,10 +834,6 @@ bitfield VkShaderCreateFlags {
+ bitfield VkEventCreateFlags {
+ }
+ 
+-/// Command buffer creation flags
+-bitfield VkCmdBufferCreateFlags {
+-}
+-
+ /// Command buffer usage flags
+ bitfield VkCmdBufferUsageFlags {
+     VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT                 = 0x00000001,
+@@ -1069,6 +1065,7 @@ class VkDeviceQueueCreateInfo {
+     const void*                                 pNext                     /// Pointer to next structure
+     u32                                         queueFamilyIndex
+     u32                                         queueCount
++    const f32*                                  pQueuePriorities
+ }
+ 
+ class VkDeviceCreateInfo {
+@@ -1178,13 +1175,6 @@ class VkDescriptorBufferInfo {
+     VkDeviceSize                                range                      /// Size in bytes of the buffer resource for this descriptor update.
+ }
+ 
+-@union
+-class VkDescriptorInfo {
+-    VkDescriptorImageInfo                       imageInfo
+-    VkDescriptorBufferInfo                      bufferInfo                 /// Raw buffer, size and offset for UNIFORM_BUFFER[_DYNAMIC] or STORAGE_BUFFER[_DYNAMIC] descriptor types. Ignored otherwise.
+-    VkBufferView                                texelBufferView
+-}
+-
+ class VkWriteDescriptorSet {
+     VkStructureType                             sType                      /// Must be VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+     const void*                                 pNext                      /// Pointer to next structure
+@@ -1193,7 +1183,9 @@ class VkWriteDescriptorSet {
+     u32                                         destArrayElement           /// Array element within the destination binding to write
+     u32                                         count                      /// Number of descriptors to write (determines the size of the array pointed by <pDescriptors>)
+     VkDescriptorType                            descriptorType             /// Descriptor type to write (determines which fields of the array pointed by <pDescriptors> are going to be used)
+-    const VkDescriptorInfo*                     pDescriptors               /// Array of info structures describing the descriptors to write
++    const VkDescriptorImageInfo*                pImageInfo
++    const VkDescriptorBufferInfo*               pBufferInfo
++    const VkBufferView*                         pTexelBufferView
+ }
+ 
+ class VkCopyDescriptorSet {
+@@ -1413,12 +1405,20 @@ class VkDescriptorTypeCount {
+ class VkDescriptorPoolCreateInfo {
+     VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
+     const void*                                 pNext              /// Pointer to next structure
+-    VkDescriptorPoolUsage                       poolUsage
++    VkDescriptorPoolCreateFlags                 flags
+     u32                                         maxSets
+     u32                                         count
+     const VkDescriptorTypeCount*                pTypeCount
+ }
+ 
++class VkDescriptorSetAllocInfo {
++    VkStructureType                             sType              /// Must be VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO
++    const void*                                 pNext              /// Pointer to next structure
++    VkDescriptorPool                            descriptorPool
++    u32                                         count
++    const VkDescriptorSetLayout*                pSetLayouts
++}
++
+ class VkSpecializationMapEntry {
+     u32                                         constantId         /// The SpecConstant ID specified in the BIL
+     platform.size_t                             size               /// Size in bytes of the SpecConstant
+@@ -1643,12 +1643,12 @@ class VkCmdPoolCreateInfo {
+     VkCmdPoolCreateFlags                        flags            /// Command pool creation flags
+ }
+ 
+-class VkCmdBufferCreateInfo {
+-    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO
++class VkCmdBufferAllocInfo {
++    VkStructureType                             sType      /// Must be VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO
+     const void*                                 pNext      /// Pointer to next structure
+     VkCmdPool                                   cmdPool
+     VkCmdBufferLevel                            level
+-    VkCmdBufferCreateFlags                      flags      /// Command buffer creation flags
++    u32                                         count
+ }
+ 
+ class VkCmdBufferBeginInfo {
+@@ -1782,6 +1782,9 @@ class VkPhysicalDeviceFeatures {
+     VkBool32                                    depthBounds                               /// depth bounds test
+     VkBool32                                    wideLines                                 /// lines with width greater than 1
+     VkBool32                                    largePoints                               /// points with size greater than 1
++    VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
++    VkBool32                                    multiViewport
++    VkBool32                                    samplerAnisotropy
+     VkBool32                                    textureCompressionETC2                    /// ETC texture compression formats
+     VkBool32                                    textureCompressionASTC_LDR                /// ASTC LDR texture compression formats
+     VkBool32                                    textureCompressionBC                      /// BC1-7 texture compressed formats
+@@ -1807,7 +1810,6 @@ class VkPhysicalDeviceFeatures {
+     VkBool32                                    shaderInt16                               /// 16-bit integers in shaders
+     VkBool32                                    shaderResourceResidency                   /// shader can use texture operations that return resource residency information (requires sparseNonResident support)
+     VkBool32                                    shaderResourceMinLOD                      /// shader can use texture operations that specify minimum resource LOD
+-    VkBool32                                    alphaToOne                                /// The fragment alpha channel can be forced to maximum representable alpha value
+     VkBool32                                    sparseBinding                             /// Sparse resources support: Resource memory can be managed at opaque page level rather than object level
+     VkBool32                                    sparseResidencyBuffer                     /// Sparse resources support: GPU can access partially resident buffers
+     VkBool32                                    sparseResidencyImage2D                    /// Sparse resources support: GPU can access partially resident 2D (non-MSAA non-DepthStencil) images
+@@ -1828,8 +1830,8 @@ class VkPhysicalDeviceLimits {
+     u32                                         maxImageArrayLayers                       /// max layers for image arrays
+     VkSampleCountFlags                          sampleCounts                              /// sample counts supported for all images supporting rendering and sampling
+     u32                                         maxTexelBufferSize                        /// max texel buffer size (bytes)
+-    u32                                         maxUniformBufferSize                      /// max uniform buffer size (bytes)
+-    u32                                         maxStorageBufferSize                      /// max storage buffer size (bytes)
++    u32                                         maxUniformBufferRange                     /// max uniform buffer size (bytes)
++    u32                                         maxStorageBufferRange                     /// max storage buffer size (bytes)
+     u32                                         maxPushConstantsSize                      /// max size of the push constants pool (bytes)
+     /// memory limits
+     u32                                         maxMemoryAllocationCount                  /// max number of device memory allocations supported
+@@ -1837,7 +1839,6 @@ class VkPhysicalDeviceLimits {
+     VkDeviceSize                                sparseAddressSpaceSize                    /// Total address space available for sparse allocations (bytes)
+     /// descriptor set limits
+     u32                                         maxBoundDescriptorSets                    /// max number of descriptors sets that can be bound to a pipeline
+-    u32                                         maxDescriptorSets                         /// max number of allocated descriptor sets
+     u32                                         maxPerStageDescriptorSamplers             /// max num of samplers allowed per-stage in a descriptor set
+     u32                                         maxPerStageDescriptorUniformBuffers       /// max num of uniform buffers allowed per-stage in a descriptor set
+     u32                                         maxPerStageDescriptorStorageBuffers       /// max num of storage buffers allowed per-stage in a descriptor set
+@@ -1873,8 +1874,8 @@ class VkPhysicalDeviceLimits {
+     u32                                         maxGeometryTotalOutputComponents          /// max total num of components (all vertices) written in geometry stage
+     /// fragment stage limits
+     u32                                         maxFragmentInputComponents                /// max num of input compontents read in fragment stage
+-    u32                                         maxFragmentOutputBuffers                  /// max num of output buffers written in fragment stage
+-    u32                                         maxFragmentDualSourceBuffers              /// max num of output buffers written when using dual source blending
++    u32                                         maxFragmentOutputAttachments              /// max num of output attachments written in fragment stage
++    u32                                         maxFragmentDualSourceAttachments          /// max num of output attachments written when using dual source blending
+     u32                                         maxFragmentCombinedOutputResources        /// max total num of storage buffers, storage images and output buffers
+     /// compute stage limits
+     u32                                         maxComputeSharedMemorySize                /// max total storage size of work group local storage (bytes)
+@@ -1903,9 +1904,9 @@ class VkPhysicalDeviceLimits {
+     u32                                         minUniformBufferOffsetAlignment           /// min required alignment for uniform buffer sizes and offsets (bytes)
+     u32                                         minStorageBufferOffsetAlignment           /// min required alignment for storage buffer offsets (bytes)
+ 
+-    u32                                         minTexelOffset                            /// min texel offset for OpTextureSampleOffset
++    s32                                         minTexelOffset                            /// min texel offset for OpTextureSampleOffset
+     u32                                         maxTexelOffset                            /// max texel offset for OpTextureSampleOffset
+-    u32                                         minTexelGatherOffset                      /// min texel offset for OpTextureGatherOffset
++    s32                                         minTexelGatherOffset                      /// min texel offset for OpTextureGatherOffset
+     u32                                         maxTexelGatherOffset                      /// max texel offset for OpTextureGatherOffset
+     f32                                         minInterpolationOffset                    /// furthest negative offset for interpolateAtOffset
+     f32                                         maxInterpolationOffset                    /// furthest positive offset for interpolateAtOffset
+@@ -1931,6 +1932,8 @@ class VkPhysicalDeviceLimits {
+     u32                                         maxCullDistances                          /// max number of cull distances
+     u32                                         maxCombinedClipAndCullDistances           /// max combined number of user clipping
+ 
++    u32                                         discreteQueuePriorities
++
+     f32[2]                                      pointSizeRange                            /// range (min,max) of supported point sizes
+     f32[2]                                      lineWidthRange                            /// range (min,max) of supported line widths
+     f32                                         pointSizeGranularity                      /// granularity of supported point sizes
+@@ -3294,7 +3297,8 @@ cmd void vkDestroyDescriptorPool(
+ @threadSafety("app")
+ cmd VkResult vkResetDescriptorPool(
+         VkDevice                                    device,
+-        VkDescriptorPool                            descriptorPool) {
++        VkDescriptorPool                            descriptorPool,
++        VkDescriptorPoolResetFlags                  flags) {
+     deviceObject := GetDevice(device)
+     descriptorPoolObject := GetDescriptorPool(descriptorPool)
+     assert(descriptorPoolObject.device == device)
+@@ -3305,23 +3309,21 @@ cmd VkResult vkResetDescriptorPool(
+ @threadSafety("app")
+ cmd VkResult vkAllocDescriptorSets(
+         VkDevice                                    device,
+-        VkDescriptorPool                            descriptorPool,
+-        VkDescriptorSetUsage                        setUsage,
+-        u32                                         count,
+-        const VkDescriptorSetLayout*                pSetLayouts,
++        const VkDescriptorSetAllocInfo*             pAllocInfo,
+         VkDescriptorSet*                            pDescriptorSets) {
+     deviceObject := GetDevice(device)
+-    descriptorPoolObject := GetDescriptorPool(descriptorPool)
++    allocInfo := pAllocInfo[0]
++    descriptorPoolObject := GetDescriptorPool(allocInfo.descriptorPool)
+ 
+-    setLayouts := pSetLayouts[0:count]
+-    for i in (0 .. count) {
++    setLayouts := allocInfo.pSetLayouts[0:allocInfo.count]
++    for i in (0 .. allocInfo.count) {
+         setLayout := setLayouts[i]
+         setLayoutObject := GetDescriptorSetLayout(setLayout)
+         assert(setLayoutObject.device == device)
+     }
+ 
+-    descriptorSets := pDescriptorSets[0:count]
+-    for i in (0 .. count) {
++    descriptorSets := pDescriptorSets[0:allocInfo.count]
++    for i in (0 .. allocInfo.count) {
+         descriptorSet := ?
+         descriptorSets[i] = descriptorSet
+         State.DescriptorSets[descriptorSet] = new!DescriptorSetObject(device: device)
+@@ -3497,29 +3499,38 @@ macro void unbindCmdBuffer(VkCmdBuffer cmdBuffer, any obj, VkDeviceMemory mem) {
+ }
+ 
+ @threadSafety("system")
+-cmd VkResult vkCreateCommandBuffer(
++cmd VkResult vkAllocCommandBuffers(
+         VkDevice                                    device,
+-        const VkCmdBufferCreateInfo*                pCreateInfo,
+-        VkCmdBuffer*                                pCmdBuffer) {
+-    assert(pCreateInfo.sType == VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO)
++        const VkCmdBufferAllocInfo*                 pAllocInfo,
++        VkCmdBuffer*                                pCmdBuffers) {
++    assert(pAllocInfo[0].sType == VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO)
+ 
+-    cmdBuffer := ?
+-    pCmdBuffer[0] = cmdBuffer
+-    State.CmdBuffers[cmdBuffer] = new!CmdBufferObject(device: device)
++    count := pAllocInfo[0].count
++    cmdBuffers := pCmdBuffers[0:count]
++    for i in (0 .. count) {
++        cmdBuffer := ?
++        cmdBuffers[i] = cmdBuffer
++        State.CmdBuffers[cmdBuffer] = new!CmdBufferObject(device: device)
++    }
+ 
+     return ?
+ }
+ 
+ @threadSafety("system")
+-cmd void vkDestroyCommandBuffer(
++cmd void vkFreeCommandBuffers(
+         VkDevice                                    device,
+-        VkCmdBuffer                                 commandBuffer) {
++        VkCmdPool                                   cmdPool,
++        u32                                         count,
++        const VkCmdBuffer*                          pCommandBuffers) {
+     deviceObject := GetDevice(device)
+-    cmdBufferObject := GetCmdBuffer(commandBuffer)
+-    assert(cmdBufferObject.device == device)
+ 
+-    // TODO: iterate over boundObjects and clear memory bindings
+-    State.CmdBuffers[commandBuffer] = null
++    cmdBuffers := pCommandBuffers[0:count]
++    for i in (0 .. count) {
++        cmdBufferObject := GetCmdBuffer(cmdBuffers[i])
++        assert(cmdBufferObject.device == device)
++        // TODO: iterate over boundObjects and clear memory bindings
++        State.CmdBuffers[cmdBuffers[i]] = null
++    }
+ }
+ 
+ @threadSafety("app")
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index 475ebec..d6eb918 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,7 +41,7 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 181, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 183, 0)
+ 
+ 
+ #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800) || __cplusplus >= 201103L)
+@@ -169,7 +169,7 @@ typedef enum {
+     VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO = 6,
+     VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO = 7,
+     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO = 8,
+-    VK_STRUCTURE_TYPE_CMD_BUFFER_CREATE_INFO = 9,
++    VK_STRUCTURE_TYPE_CMD_BUFFER_ALLOC_INFO = 9,
+     VK_STRUCTURE_TYPE_EVENT_CREATE_INFO = 10,
+     VK_STRUCTURE_TYPE_FENCE_CREATE_INFO = 11,
+     VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO = 12,
+@@ -207,9 +207,10 @@ typedef enum {
+     VK_STRUCTURE_TYPE_CMD_POOL_CREATE_INFO = 44,
+     VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO = 45,
+     VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO = 46,
++    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO = 47,
+     VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+-    VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+-    VK_STRUCTURE_TYPE_NUM = (VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
++    VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO,
++    VK_STRUCTURE_TYPE_NUM = (VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOC_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
+     VK_STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
+ } VkStructureType;
+ 
+@@ -725,24 +726,6 @@ typedef enum {
+ } VkDescriptorType;
+ 
+ typedef enum {
+-    VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT = 0,
+-    VK_DESCRIPTOR_POOL_USAGE_DYNAMIC = 1,
+-    VK_DESCRIPTOR_POOL_USAGE_BEGIN_RANGE = VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT,
+-    VK_DESCRIPTOR_POOL_USAGE_END_RANGE = VK_DESCRIPTOR_POOL_USAGE_DYNAMIC,
+-    VK_DESCRIPTOR_POOL_USAGE_NUM = (VK_DESCRIPTOR_POOL_USAGE_DYNAMIC - VK_DESCRIPTOR_POOL_USAGE_ONE_SHOT + 1),
+-    VK_DESCRIPTOR_POOL_USAGE_MAX_ENUM = 0x7FFFFFFF
+-} VkDescriptorPoolUsage;
+-
+-typedef enum {
+-    VK_DESCRIPTOR_SET_USAGE_ONE_SHOT = 0,
+-    VK_DESCRIPTOR_SET_USAGE_STATIC = 1,
+-    VK_DESCRIPTOR_SET_USAGE_BEGIN_RANGE = VK_DESCRIPTOR_SET_USAGE_ONE_SHOT,
+-    VK_DESCRIPTOR_SET_USAGE_END_RANGE = VK_DESCRIPTOR_SET_USAGE_STATIC,
+-    VK_DESCRIPTOR_SET_USAGE_NUM = (VK_DESCRIPTOR_SET_USAGE_STATIC - VK_DESCRIPTOR_SET_USAGE_ONE_SHOT + 1),
+-    VK_DESCRIPTOR_SET_USAGE_MAX_ENUM = 0x7FFFFFFF
+-} VkDescriptorSetUsage;
+-
+-typedef enum {
+     VK_ATTACHMENT_LOAD_OP_LOAD = 0,
+     VK_ATTACHMENT_LOAD_OP_CLEAR = 1,
+     VK_ATTACHMENT_LOAD_OP_DONT_CARE = 2,
+@@ -985,6 +968,12 @@ typedef VkFlags VkPipelineCreateFlags;
+ typedef VkFlags VkShaderStageFlags;
+ 
+ typedef enum {
++    VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT = 0x00000001,
++} VkDescriptorPoolCreateFlagBits;
++typedef VkFlags VkDescriptorPoolCreateFlags;
++typedef VkFlags VkDescriptorPoolResetFlags;
++
++typedef enum {
+     VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT = 0x00000001,
+ } VkAttachmentDescriptionFlagBits;
+ typedef VkFlags VkAttachmentDescriptionFlags;
+@@ -1043,7 +1032,6 @@ typedef enum {
+     VK_CMD_POOL_RESET_RELEASE_RESOURCES_BIT = 0x00000001,
+ } VkCmdPoolResetFlagBits;
+ typedef VkFlags VkCmdPoolResetFlags;
+-typedef VkFlags VkCmdBufferCreateFlags;
+ 
+ typedef enum {
+     VK_CMD_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 0x00000001,
+@@ -1125,6 +1113,9 @@ typedef struct {
+     VkBool32                                    depthBounds;
+     VkBool32                                    wideLines;
+     VkBool32                                    largePoints;
++    VkBool32                                    alphaToOne;
++    VkBool32                                    multiViewport;
++    VkBool32                                    samplerAnisotropy;
+     VkBool32                                    textureCompressionETC2;
+     VkBool32                                    textureCompressionASTC_LDR;
+     VkBool32                                    textureCompressionBC;
+@@ -1150,7 +1141,6 @@ typedef struct {
+     VkBool32                                    shaderInt16;
+     VkBool32                                    shaderResourceResidency;
+     VkBool32                                    shaderResourceMinLOD;
+-    VkBool32                                    alphaToOne;
+     VkBool32                                    sparseBinding;
+     VkBool32                                    sparseResidencyBuffer;
+     VkBool32                                    sparseResidencyImage2D;
+@@ -1190,14 +1180,13 @@ typedef struct {
+     uint32_t                                    maxImageArrayLayers;
+     VkSampleCountFlags                          sampleCounts;
+     uint32_t                                    maxTexelBufferSize;
+-    uint32_t                                    maxUniformBufferSize;
+-    uint32_t                                    maxStorageBufferSize;
++    uint32_t                                    maxUniformBufferRange;
++    uint32_t                                    maxStorageBufferRange;
+     uint32_t                                    maxPushConstantsSize;
+     uint32_t                                    maxMemoryAllocationCount;
+     VkDeviceSize                                bufferImageGranularity;
+     VkDeviceSize                                sparseAddressSpaceSize;
+     uint32_t                                    maxBoundDescriptorSets;
+-    uint32_t                                    maxDescriptorSets;
+     uint32_t                                    maxPerStageDescriptorSamplers;
+     uint32_t                                    maxPerStageDescriptorUniformBuffers;
+     uint32_t                                    maxPerStageDescriptorStorageBuffers;
+@@ -1229,8 +1218,8 @@ typedef struct {
+     uint32_t                                    maxGeometryOutputVertices;
+     uint32_t                                    maxGeometryTotalOutputComponents;
+     uint32_t                                    maxFragmentInputComponents;
+-    uint32_t                                    maxFragmentOutputBuffers;
+-    uint32_t                                    maxFragmentDualSourceBuffers;
++    uint32_t                                    maxFragmentOutputAttachments;
++    uint32_t                                    maxFragmentDualSourceAttachments;
+     uint32_t                                    maxFragmentCombinedOutputResources;
+     uint32_t                                    maxComputeSharedMemorySize;
+     uint32_t                                    maxComputeWorkGroupCount[3];
+@@ -1252,9 +1241,9 @@ typedef struct {
+     uint32_t                                    minTexelBufferOffsetAlignment;
+     uint32_t                                    minUniformBufferOffsetAlignment;
+     uint32_t                                    minStorageBufferOffsetAlignment;
+-    uint32_t                                    minTexelOffset;
++    int32_t                                     minTexelOffset;
+     uint32_t                                    maxTexelOffset;
+-    uint32_t                                    minTexelGatherOffset;
++    int32_t                                     minTexelGatherOffset;
+     uint32_t                                    maxTexelGatherOffset;
+     float                                       minInterpolationOffset;
+     float                                       maxInterpolationOffset;
+@@ -1275,6 +1264,7 @@ typedef struct {
+     uint32_t                                    maxClipDistances;
+     uint32_t                                    maxCullDistances;
+     uint32_t                                    maxCombinedClipAndCullDistances;
++    uint32_t                                    discreteQueuePriorities;
+     float                                       pointSizeRange[2];
+     float                                       lineWidthRange[2];
+     float                                       pointSizeGranularity;
+@@ -1330,6 +1320,7 @@ typedef struct {
+     const void*                                 pNext;
+     uint32_t                                    queueFamilyIndex;
+     uint32_t                                    queueCount;
++    const float*                                pQueuePriorities;
+ } VkDeviceQueueCreateInfo;
+ 
+ typedef struct {
+@@ -1806,13 +1797,21 @@ typedef struct {
+ typedef struct {
+     VkStructureType                             sType;
+     const void*                                 pNext;
+-    VkDescriptorPoolUsage                       poolUsage;
++    VkDescriptorPoolCreateFlags                 flags;
+     uint32_t                                    maxSets;
+     uint32_t                                    count;
+     const VkDescriptorTypeCount*                pTypeCount;
+ } VkDescriptorPoolCreateInfo;
+ 
+ typedef struct {
++    VkStructureType                             sType;
++    const void*                                 pNext;
++    VkDescriptorPool                            descriptorPool;
++    uint32_t                                    count;
++    const VkDescriptorSetLayout*                pSetLayouts;
++} VkDescriptorSetAllocInfo;
++
++typedef struct {
+     VkSampler                                   sampler;
+     VkImageView                                 imageView;
+     VkImageLayout                               imageLayout;
+@@ -1824,12 +1823,6 @@ typedef struct {
+     VkDeviceSize                                range;
+ } VkDescriptorBufferInfo;
+ 
+-typedef union {
+-    VkDescriptorImageInfo                       imageInfo;
+-    VkDescriptorBufferInfo                      bufferInfo;
+-    VkBufferView                                texelBufferView;
+-} VkDescriptorInfo;
+-
+ typedef struct {
+     VkStructureType                             sType;
+     const void*                                 pNext;
+@@ -1838,7 +1831,9 @@ typedef struct {
+     uint32_t                                    destArrayElement;
+     uint32_t                                    count;
+     VkDescriptorType                            descriptorType;
+-    const VkDescriptorInfo*                     pDescriptors;
++    const VkDescriptorImageInfo*                pImageInfo;
++    const VkDescriptorBufferInfo*               pBufferInfo;
++    const VkBufferView*                         pTexelBufferView;
+ } VkWriteDescriptorSet;
+ 
+ typedef struct {
+@@ -1933,8 +1928,8 @@ typedef struct {
+     const void*                                 pNext;
+     VkCmdPool                                   cmdPool;
+     VkCmdBufferLevel                            level;
+-    VkCmdBufferCreateFlags                      flags;
+-} VkCmdBufferCreateInfo;
++    uint32_t                                    count;
++} VkCmdBufferAllocInfo;
+ 
+ typedef struct {
+     VkStructureType                             sType;
+@@ -2167,8 +2162,8 @@ typedef VkResult (VKAPI *PFN_vkCreateDescriptorSetLayout)(VkDevice device, const
+ typedef void (VKAPI *PFN_vkDestroyDescriptorSetLayout)(VkDevice device, VkDescriptorSetLayout descriptorSetLayout);
+ typedef VkResult (VKAPI *PFN_vkCreateDescriptorPool)(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool);
+ typedef void (VKAPI *PFN_vkDestroyDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool);
+-typedef VkResult (VKAPI *PFN_vkResetDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool);
+-typedef VkResult (VKAPI *PFN_vkAllocDescriptorSets)(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets);
++typedef VkResult (VKAPI *PFN_vkResetDescriptorPool)(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags);
++typedef VkResult (VKAPI *PFN_vkAllocDescriptorSets)(VkDevice device, const VkDescriptorSetAllocInfo* pAllocInfo, VkDescriptorSet* pDescriptorSets);
+ typedef VkResult (VKAPI *PFN_vkFreeDescriptorSets)(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets);
+ typedef void (VKAPI *PFN_vkUpdateDescriptorSets)(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies);
+ typedef VkResult (VKAPI *PFN_vkCreateFramebuffer)(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer);
+@@ -2179,8 +2174,8 @@ typedef void (VKAPI *PFN_vkGetRenderAreaGranularity)(VkDevice device, VkRenderPa
+ typedef VkResult (VKAPI *PFN_vkCreateCommandPool)(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool);
+ typedef void (VKAPI *PFN_vkDestroyCommandPool)(VkDevice device, VkCmdPool cmdPool);
+ typedef VkResult (VKAPI *PFN_vkResetCommandPool)(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags);
+-typedef VkResult (VKAPI *PFN_vkCreateCommandBuffer)(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer);
+-typedef void (VKAPI *PFN_vkDestroyCommandBuffer)(VkDevice device, VkCmdBuffer commandBuffer);
++typedef VkResult (VKAPI *PFN_vkAllocCommandBuffers)(VkDevice device, const VkCmdBufferAllocInfo* pAllocInfo, VkCmdBuffer* pCmdBuffers);
++typedef void (VKAPI *PFN_vkFreeCommandBuffers)(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers);
+ typedef VkResult (VKAPI *PFN_vkBeginCommandBuffer)(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo);
+ typedef VkResult (VKAPI *PFN_vkEndCommandBuffer)(VkCmdBuffer cmdBuffer);
+ typedef VkResult (VKAPI *PFN_vkResetCommandBuffer)(VkCmdBuffer cmdBuffer, VkCmdBufferResetFlags flags);
+@@ -2641,14 +2636,12 @@ void VKAPI vkDestroyDescriptorPool(
+ 
+ VkResult VKAPI vkResetDescriptorPool(
+     VkDevice                                    device,
+-    VkDescriptorPool                            descriptorPool);
++    VkDescriptorPool                            descriptorPool,
++    VkDescriptorPoolResetFlags                  flags);
+ 
+ VkResult VKAPI vkAllocDescriptorSets(
+     VkDevice                                    device,
+-    VkDescriptorPool                            descriptorPool,
+-    VkDescriptorSetUsage                        setUsage,
+-    uint32_t                                    count,
+-    const VkDescriptorSetLayout*                pSetLayouts,
++    const VkDescriptorSetAllocInfo*             pAllocInfo,
+     VkDescriptorSet*                            pDescriptorSets);
+ 
+ VkResult VKAPI vkFreeDescriptorSets(
+@@ -2701,14 +2694,16 @@ VkResult VKAPI vkResetCommandPool(
+     VkCmdPool                                   cmdPool,
+     VkCmdPoolResetFlags                         flags);
+ 
+-VkResult VKAPI vkCreateCommandBuffer(
++VkResult VKAPI vkAllocCommandBuffers(
+     VkDevice                                    device,
+-    const VkCmdBufferCreateInfo*                pCreateInfo,
+-    VkCmdBuffer*                                pCmdBuffer);
++    const VkCmdBufferAllocInfo*                 pAllocInfo,
++    VkCmdBuffer*                                pCmdBuffers);
+ 
+-void VKAPI vkDestroyCommandBuffer(
++void VKAPI vkFreeCommandBuffers(
+     VkDevice                                    device,
+-    VkCmdBuffer                                 commandBuffer);
++    VkCmdPool                                   cmdPool,
++    uint32_t                                    count,
++    const VkCmdBuffer*                          pCommandBuffers);
+ 
+ VkResult VKAPI vkBeginCommandBuffer(
+     VkCmdBuffer                                 cmdBuffer,
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index da3837e..0af3bc8 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -457,13 +457,13 @@ void vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+ }
+ 
+ __attribute__((visibility("default")))
+-VkResult vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+-    return GetVtbl(device).ResetDescriptorPool(device, descriptorPool);
++VkResult vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags) {
++    return GetVtbl(device).ResetDescriptorPool(device, descriptorPool, flags);
+ }
+ 
+ __attribute__((visibility("default")))
+-VkResult vkAllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets) {
+-    return GetVtbl(device).AllocDescriptorSets(device, descriptorPool, setUsage, count, pSetLayouts, pDescriptorSets);
++VkResult vkAllocDescriptorSets(VkDevice device, const VkDescriptorSetAllocInfo* pAllocInfo, VkDescriptorSet* pDescriptorSets) {
++    return GetVtbl(device).AllocDescriptorSets(device, pAllocInfo, pDescriptorSets);
+ }
+ 
+ __attribute__((visibility("default")))
+@@ -517,13 +517,13 @@ VkResult vkResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFl
+ }
+ 
+ __attribute__((visibility("default")))
+-VkResult vkCreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer) {
+-    return vulkan::CreateCommandBuffer(device, pCreateInfo, pCmdBuffer);
++VkResult vkAllocCommandBuffers(VkDevice device, const VkCmdBufferAllocInfo* pAllocInfo, VkCmdBuffer* pCmdBuffers) {
++    return GetVtbl(device).AllocCommandBuffers(device, pAllocInfo, pCmdBuffers);
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkDestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer) {
+-    GetVtbl(device).DestroyCommandBuffer(device, commandBuffer);
++void vkFreeCommandBuffers(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers) {
++    GetVtbl(device).FreeCommandBuffers(device, cmdPool, count, pCommandBuffers);
+ }
+ 
+ __attribute__((visibility("default")))
+diff --git a/vulkan/libvulkan/get_proc_addr.cpp b/vulkan/libvulkan/get_proc_addr.cpp
+index bd16ac5..b9bd689 100644
+--- a/vulkan/libvulkan/get_proc_addr.cpp
++++ b/vulkan/libvulkan/get_proc_addr.cpp
+@@ -69,6 +69,7 @@ const NameProcEntry kInstanceProcTbl[] = {
+ const NameProcEntry kDeviceProcTbl[] = {
+     // clang-format off
+     {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(vkAcquireNextImageKHR)},
++    {"vkAllocCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkAllocCommandBuffers)},
+     {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkAllocDescriptorSets)},
+     {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(vkAllocMemory)},
+     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer)},
+@@ -120,7 +121,6 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkCmdWriteTimestamp", reinterpret_cast<PFN_vkVoidFunction>(vkCmdWriteTimestamp)},
+     {"vkCreateBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBuffer)},
+     {"vkCreateBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkCreateBufferView)},
+-    {"vkCreateCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkCreateCommandBuffer)},
+     {"vkCreateCommandPool", reinterpret_cast<PFN_vkVoidFunction>(vkCreateCommandPool)},
+     {"vkCreateComputePipelines", reinterpret_cast<PFN_vkVoidFunction>(vkCreateComputePipelines)},
+     {"vkCreateDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkCreateDescriptorPool)},
+@@ -142,7 +142,6 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR)},
+     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBuffer)},
+     {"vkDestroyBufferView", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyBufferView)},
+-    {"vkDestroyCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandBuffer)},
+     {"vkDestroyCommandPool", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyCommandPool)},
+     {"vkDestroyDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorPool)},
+     {"vkDestroyDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDescriptorSetLayout)},
+@@ -165,6 +164,7 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(vkDeviceWaitIdle)},
+     {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(vkEndCommandBuffer)},
+     {"vkFlushMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(vkFlushMappedMemoryRanges)},
++    {"vkFreeCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(vkFreeCommandBuffers)},
+     {"vkFreeDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(vkFreeDescriptorSets)},
+     {"vkFreeMemory", reinterpret_cast<PFN_vkVoidFunction>(vkFreeMemory)},
+     {"vkGetBufferMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(vkGetBufferMemoryRequirements)},
+@@ -229,6 +229,7 @@ const NameOffsetEntry kInstanceOffsetTbl[] = {
+ const NameOffsetEntry kDeviceOffsetTbl[] = {
+     // clang-format off
+     {"vkAcquireNextImageKHR", offsetof(DeviceVtbl, AcquireNextImageKHR)},
++    {"vkAllocCommandBuffers", offsetof(DeviceVtbl, AllocCommandBuffers)},
+     {"vkAllocDescriptorSets", offsetof(DeviceVtbl, AllocDescriptorSets)},
+     {"vkAllocMemory", offsetof(DeviceVtbl, AllocMemory)},
+     {"vkBeginCommandBuffer", offsetof(DeviceVtbl, BeginCommandBuffer)},
+@@ -280,7 +281,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
+     {"vkCmdWriteTimestamp", offsetof(DeviceVtbl, CmdWriteTimestamp)},
+     {"vkCreateBuffer", offsetof(DeviceVtbl, CreateBuffer)},
+     {"vkCreateBufferView", offsetof(DeviceVtbl, CreateBufferView)},
+-    {"vkCreateCommandBuffer", offsetof(DeviceVtbl, CreateCommandBuffer)},
+     {"vkCreateCommandPool", offsetof(DeviceVtbl, CreateCommandPool)},
+     {"vkCreateComputePipelines", offsetof(DeviceVtbl, CreateComputePipelines)},
+     {"vkCreateDescriptorPool", offsetof(DeviceVtbl, CreateDescriptorPool)},
+@@ -302,7 +302,6 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
+     {"vkCreateSwapchainKHR", offsetof(DeviceVtbl, CreateSwapchainKHR)},
+     {"vkDestroyBuffer", offsetof(DeviceVtbl, DestroyBuffer)},
+     {"vkDestroyBufferView", offsetof(DeviceVtbl, DestroyBufferView)},
+-    {"vkDestroyCommandBuffer", offsetof(DeviceVtbl, DestroyCommandBuffer)},
+     {"vkDestroyCommandPool", offsetof(DeviceVtbl, DestroyCommandPool)},
+     {"vkDestroyDescriptorPool", offsetof(DeviceVtbl, DestroyDescriptorPool)},
+     {"vkDestroyDescriptorSetLayout", offsetof(DeviceVtbl, DestroyDescriptorSetLayout)},
+@@ -325,6 +324,7 @@ const NameOffsetEntry kDeviceOffsetTbl[] = {
+     {"vkDeviceWaitIdle", offsetof(DeviceVtbl, DeviceWaitIdle)},
+     {"vkEndCommandBuffer", offsetof(DeviceVtbl, EndCommandBuffer)},
+     {"vkFlushMappedMemoryRanges", offsetof(DeviceVtbl, FlushMappedMemoryRanges)},
++    {"vkFreeCommandBuffers", offsetof(DeviceVtbl, FreeCommandBuffers)},
+     {"vkFreeDescriptorSets", offsetof(DeviceVtbl, FreeDescriptorSets)},
+     {"vkFreeMemory", offsetof(DeviceVtbl, FreeMemory)},
+     {"vkGetBufferMemoryRequirements", offsetof(DeviceVtbl, GetBufferMemoryRequirements)},
+@@ -896,14 +896,14 @@ bool LoadDeviceVtbl(VkDevice device,
+         ALOGE("missing device proc: %s", "vkResetCommandPool");
+         success = false;
+     }
+-    vtbl.CreateCommandBuffer = reinterpret_cast<PFN_vkCreateCommandBuffer>(get_proc_addr(device, "vkCreateCommandBuffer"));
+-    if (UNLIKELY(!vtbl.CreateCommandBuffer)) {
+-        ALOGE("missing device proc: %s", "vkCreateCommandBuffer");
++    vtbl.AllocCommandBuffers = reinterpret_cast<PFN_vkAllocCommandBuffers>(get_proc_addr(device, "vkAllocCommandBuffers"));
++    if (UNLIKELY(!vtbl.AllocCommandBuffers)) {
++        ALOGE("missing device proc: %s", "vkAllocCommandBuffers");
+         success = false;
+     }
+-    vtbl.DestroyCommandBuffer = reinterpret_cast<PFN_vkDestroyCommandBuffer>(get_proc_addr(device, "vkDestroyCommandBuffer"));
+-    if (UNLIKELY(!vtbl.DestroyCommandBuffer)) {
+-        ALOGE("missing device proc: %s", "vkDestroyCommandBuffer");
++    vtbl.FreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(get_proc_addr(device, "vkFreeCommandBuffers"));
++    if (UNLIKELY(!vtbl.FreeCommandBuffers)) {
++        ALOGE("missing device proc: %s", "vkFreeCommandBuffers");
+         success = false;
+     }
+     vtbl.BeginCommandBuffer = reinterpret_cast<PFN_vkBeginCommandBuffer>(get_proc_addr(device, "vkBeginCommandBuffer"));
+diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
+index ba2f5cf..c427918 100644
+--- a/vulkan/libvulkan/loader.cpp
++++ b/vulkan/libvulkan/loader.cpp
+@@ -1047,8 +1047,8 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
+     if (strcmp(name, "vkGetDeviceQueue") == 0) {
+         return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue);
+     }
+-    if (strcmp(name, "vkCreateCommandBuffer") == 0) {
+-        return reinterpret_cast<PFN_vkVoidFunction>(CreateCommandBuffer);
++    if (strcmp(name, "vkAllocCommandBuffers") == 0) {
++        return reinterpret_cast<PFN_vkVoidFunction>(AllocCommandBuffers);
+     }
+     if (strcmp(name, "vkDestroyDevice") == 0) {
+         return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
+@@ -1072,24 +1072,21 @@ void GetDeviceQueue(VkDevice drv_device,
+     *out_queue = queue;
+ }
+ 
+-VkResult CreateCommandBuffer(VkDevice drv_device,
+-                             const VkCmdBufferCreateInfo* create_info,
+-                             VkCmdBuffer* out_cmdbuf) {
+-    const DeviceVtbl* vtbl = GetVtbl(drv_device);
+-    VkCmdBuffer cmdbuf;
+-    VkResult result =
+-        vtbl->CreateCommandBuffer(drv_device, create_info, &cmdbuf);
++VkResult AllocCommandBuffers(VkDevice device,
++                             const VkCmdBufferAllocInfo* alloc_info,
++                             VkCmdBuffer* cmdbuffers) {
++    const DeviceVtbl* vtbl = GetVtbl(device);
++    VkResult result = vtbl->AllocCommandBuffers(device, alloc_info, cmdbuffers);
+     if (result != VK_SUCCESS)
+         return result;
+-    hwvulkan_dispatch_t* dispatch =
+-        reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuf);
+-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
+-        ALOGE("invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
+-              dispatch->magic);
+-        return VK_ERROR_INITIALIZATION_FAILED;
++    for (uint32_t i = 0; i < alloc_info->count; i++) {
++        hwvulkan_dispatch_t* dispatch =
++            reinterpret_cast<hwvulkan_dispatch_t*>(cmdbuffers[i]);
++        ALOGE_IF(dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
++                 "invalid VkCmdBuffer dispatch magic: 0x%" PRIxPTR,
++                 dispatch->magic);
++        dispatch->vtbl = vtbl;
+     }
+-    dispatch->vtbl = vtbl;
+-    *out_cmdbuf = cmdbuf;
+     return VK_SUCCESS;
+ }
+ 
+diff --git a/vulkan/libvulkan/loader.h b/vulkan/libvulkan/loader.h
+index fcaec61..5e0a6c9 100644
+--- a/vulkan/libvulkan/loader.h
++++ b/vulkan/libvulkan/loader.h
+@@ -131,8 +131,8 @@ struct DeviceVtbl {
+     PFN_vkCreateCommandPool CreateCommandPool;
+     PFN_vkDestroyCommandPool DestroyCommandPool;
+     PFN_vkResetCommandPool ResetCommandPool;
+-    PFN_vkCreateCommandBuffer CreateCommandBuffer;
+-    PFN_vkDestroyCommandBuffer DestroyCommandBuffer;
++    PFN_vkAllocCommandBuffers AllocCommandBuffers;
++    PFN_vkFreeCommandBuffers FreeCommandBuffers;
+ 
+     PFN_vkQueueSubmit QueueSubmit;
+     PFN_vkQueueWaitIdle QueueWaitIdle;
+@@ -225,9 +225,9 @@ void GetDeviceQueue(VkDevice drv_device,
+                     uint32_t family,
+                     uint32_t index,
+                     VkQueue* out_queue);
+-VkResult CreateCommandBuffer(VkDevice device,
+-                             const VkCmdBufferCreateInfo* create_info,
+-                             VkCmdBuffer* out_cmdbuf);
++VkResult AllocCommandBuffers(VkDevice device,
++                             const VkCmdBufferAllocInfo* alloc_info,
++                             VkCmdBuffer* cmdbuffers);
+ VkResult DestroyDevice(VkDevice drv_device);
+ 
+ void* AllocDeviceMem(VkDevice device,
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index f07dfa7..7e890be 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -339,23 +339,41 @@ void GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
+ // -----------------------------------------------------------------------------
+ // CmdBuffer
+ 
+-VkResult CreateCommandBuffer(VkDevice device,
+-                             const VkCmdBufferCreateInfo*,
+-                             VkCmdBuffer* out_cmdbuf) {
++VkResult AllocCommandBuffers(VkDevice device,
++                             const VkCmdBufferAllocInfo* alloc_info,
++                             VkCmdBuffer* cmdbufs) {
++    VkResult result = VK_SUCCESS;
+     const VkAllocCallbacks* alloc = device->instance->alloc;
+-    VkCmdBuffer_T* cmdbuf = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
+-        alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
+-        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+-    if (!cmdbuf)
+-        return VK_ERROR_OUT_OF_HOST_MEMORY;
+-    cmdbuf->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+-    *out_cmdbuf = cmdbuf;
+-    return VK_SUCCESS;
++
++    std::fill(cmdbufs, cmdbufs + alloc_info->count, nullptr);
++    for (uint32_t i = 0; i < alloc_info->count; i++) {
++        cmdbufs[i] = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
++            alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
++            VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
++        if (!cmdbufs[i]) {
++            result = VK_ERROR_OUT_OF_HOST_MEMORY;
++            break;
++        }
++        cmdbufs[i]->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
++    }
++    if (result != VK_SUCCESS) {
++        for (uint32_t i = 0; i < alloc_info->count; i++) {
++            if (!cmdbufs[i])
++                break;
++            alloc->pfnFree(alloc->pUserData, cmdbufs[i]);
++        }
++    }
++
++    return result;
+ }
+ 
+-void DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
++void FreeCommandBuffers(VkDevice device,
++                        VkCmdPool,
++                        uint32_t count,
++                        const VkCmdBuffer* cmdbufs) {
+     const VkAllocCallbacks* alloc = device->instance->alloc;
+-    alloc->pfnFree(alloc->pUserData, cmdbuf);
++    for (uint32_t i = 0; i < count; i++)
++        alloc->pfnFree(alloc->pUserData, cmdbufs[i]);
+ }
+ 
+ // -----------------------------------------------------------------------------
+@@ -535,13 +553,10 @@ VkResult CreateDescriptorPool(VkDevice device,
+ }
+ 
+ VkResult AllocDescriptorSets(VkDevice device,
+-                             VkDescriptorPool,
+-                             VkDescriptorSetUsage,
+-                             uint32_t count,
+-                             const VkDescriptorSetLayout*,
+-                             VkDescriptorSet* sets) {
+-    for (uint32_t i = 0; i < count; i++)
+-        sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
++                             const VkDescriptorSetAllocInfo* alloc_info,
++                             VkDescriptorSet* descriptor_sets) {
++    for (uint32_t i = 0; i < alloc_info->count; i++)
++        descriptor_sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+     return VK_SUCCESS;
+ }
+ 
+@@ -874,7 +889,7 @@ void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descripto
+ void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+ }
+ 
+-VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
++VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags) {
+     ALOGV("TODO: vk%s", __FUNCTION__);
+     return VK_SUCCESS;
+ }
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index 655a414..c35df18 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -109,8 +109,8 @@ VkResult CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutC
+ void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout);
+ VkResult CreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, VkDescriptorPool* pDescriptorPool);
+ void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool);
+-VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool);
+-VkResult AllocDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetUsage setUsage, uint32_t count, const VkDescriptorSetLayout* pSetLayouts, VkDescriptorSet* pDescriptorSets);
++VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags);
++VkResult AllocDescriptorSets(VkDevice device, const VkDescriptorSetAllocInfo* pAllocInfo, VkDescriptorSet* pDescriptorSets);
+ VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t count, const VkDescriptorSet* pDescriptorSets);
+ void UpdateDescriptorSets(VkDevice device, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t copyCount, const VkCopyDescriptorSet* pDescriptorCopies);
+ VkResult CreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo* pCreateInfo, VkFramebuffer* pFramebuffer);
+@@ -121,8 +121,8 @@ void GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent
+ VkResult CreateCommandPool(VkDevice device, const VkCmdPoolCreateInfo* pCreateInfo, VkCmdPool* pCmdPool);
+ void DestroyCommandPool(VkDevice device, VkCmdPool cmdPool);
+ VkResult ResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags);
+-VkResult CreateCommandBuffer(VkDevice device, const VkCmdBufferCreateInfo* pCreateInfo, VkCmdBuffer* pCmdBuffer);
+-void DestroyCommandBuffer(VkDevice device, VkCmdBuffer commandBuffer);
++VkResult AllocCommandBuffers(VkDevice device, const VkCmdBufferAllocInfo* pAllocInfo, VkCmdBuffer* pCmdBuffers);
++void FreeCommandBuffers(VkDevice device, VkCmdPool cmdPool, uint32_t count, const VkCmdBuffer* pCommandBuffers);
+ VkResult BeginCommandBuffer(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo);
+ VkResult EndCommandBuffer(VkCmdBuffer cmdBuffer);
+ VkResult ResetCommandBuffer(VkCmdBuffer cmdBuffer, VkCmdBufferResetFlags flags);
+diff --git a/vulkan/nulldrv/null_driver_gen.cpp b/vulkan/nulldrv/null_driver_gen.cpp
+index e86a795..431977d 100644
+--- a/vulkan/nulldrv/null_driver_gen.cpp
++++ b/vulkan/nulldrv/null_driver_gen.cpp
+@@ -67,6 +67,7 @@ const NameProcEntry kInstanceProcTbl[] = {
+ 
+ const NameProcEntry kDeviceProcTbl[] = {
+     // clang-format off
++    {"vkAllocCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocCommandBuffers>(AllocCommandBuffers))},
+     {"vkAllocDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocDescriptorSets>(AllocDescriptorSets))},
+     {"vkAllocMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocMemory>(AllocMemory))},
+     {"vkBeginCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkBeginCommandBuffer>(BeginCommandBuffer))},
+@@ -118,7 +119,6 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkCmdWriteTimestamp", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCmdWriteTimestamp>(CmdWriteTimestamp))},
+     {"vkCreateBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateBuffer>(CreateBuffer))},
+     {"vkCreateBufferView", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateBufferView>(CreateBufferView))},
+-    {"vkCreateCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateCommandBuffer>(CreateCommandBuffer))},
+     {"vkCreateCommandPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateCommandPool>(CreateCommandPool))},
+     {"vkCreateComputePipelines", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateComputePipelines>(CreateComputePipelines))},
+     {"vkCreateDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDescriptorPool>(CreateDescriptorPool))},
+@@ -139,7 +139,6 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkCreateShaderModule", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateShaderModule>(CreateShaderModule))},
+     {"vkDestroyBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyBuffer>(DestroyBuffer))},
+     {"vkDestroyBufferView", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyBufferView>(DestroyBufferView))},
+-    {"vkDestroyCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyCommandBuffer>(DestroyCommandBuffer))},
+     {"vkDestroyCommandPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyCommandPool>(DestroyCommandPool))},
+     {"vkDestroyDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDescriptorPool>(DestroyDescriptorPool))},
+     {"vkDestroyDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDescriptorSetLayout>(DestroyDescriptorSetLayout))},
+@@ -161,6 +160,7 @@ const NameProcEntry kDeviceProcTbl[] = {
+     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDeviceWaitIdle>(DeviceWaitIdle))},
+     {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEndCommandBuffer>(EndCommandBuffer))},
+     {"vkFlushMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFlushMappedMemoryRanges>(FlushMappedMemoryRanges))},
++    {"vkFreeCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeCommandBuffers>(FreeCommandBuffers))},
+     {"vkFreeDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeDescriptorSets>(FreeDescriptorSets))},
+     {"vkFreeMemory", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeMemory>(FreeMemory))},
+     {"vkGetBufferMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetBufferMemoryRequirements>(GetBufferMemoryRequirements))},
+-- 
+2.4.0
+

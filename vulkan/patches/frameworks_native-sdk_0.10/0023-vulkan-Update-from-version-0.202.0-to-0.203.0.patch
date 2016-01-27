@@ -1,0 +1,300 @@
+From 8fb824bebd02ae132ac846abbd225fde366f4798 Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Mon, 30 Nov 2015 01:03:10 -0800
+Subject: [PATCH 23/30] vulkan: Update from version 0.202.0 to 0.203.0
+
+Change-Id: I21a390bd57082194f6131b118ecd6c94874d2f7f
+---
+ vulkan/api/vulkan.api          | 10 +++++++---
+ vulkan/include/vulkan/vulkan.h | 30 ++++++++++++++++--------------
+ vulkan/libvulkan/entry.cpp     |  4 ++--
+ vulkan/libvulkan/loader.cpp    |  7 ++++---
+ vulkan/libvulkan/swapchain.cpp |  7 +++++++
+ vulkan/nulldrv/null_driver.cpp |  3 ++-
+ vulkan/nulldrv/null_driver.h   |  2 +-
+ 7 files changed, 39 insertions(+), 24 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index 89ed617..3966f87 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 202
++define VERSION_MINOR 203
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -49,7 +49,7 @@ define NULL_HANDLE 0
+ @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
+ @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
+ 
+-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 64
++@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 65
+ @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
+ @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
+ 
+@@ -653,6 +653,7 @@ enum VkResult {
+     VK_ERROR_FEATURE_NOT_PRESENT                            = 0xFFFFFFF8,
+     VK_ERROR_INCOMPATIBLE_DRIVER                            = 0xFFFFFFF7,
+     VK_ERROR_TOO_MANY_OBJECTS                               = 0xFFFFFFF6,
++    VK_ERROR_FORMAT_NOT_SUPPORTED                           = 0xFFFFFFF5,
+ 
+     //@extension("VK_KHR_surface")
+     VK_ERROR_SURFACE_LOST_KHR                               = 0xC0000400,
+@@ -2317,6 +2318,7 @@ class VkPresentInfoKHR {
+     u32                                         swapchainCount
+     const VkSwapchainKHR*                       pSwapchains
+     const u32*                                  imageIndices
++    const VkResult*                             pResults
+ }
+ 
+ @extension("VK_KHR_display")
+@@ -2577,7 +2579,7 @@ cmd void vkGetPhysicalDeviceFormatProperties(
+     pFormatProperties[0] = formatProperties
+ }
+ 
+-cmd void vkGetPhysicalDeviceImageFormatProperties(
++cmd VkResult vkGetPhysicalDeviceImageFormatProperties(
+         VkPhysicalDevice                            physicalDevice,
+         VkFormat                                    format,
+         VkImageType                                 type,
+@@ -2589,6 +2591,8 @@ cmd void vkGetPhysicalDeviceImageFormatProperties(
+ 
+     imageFormatProperties := ?
+     pImageFormatProperties[0] = imageFormatProperties
++
++    return ?
+ }
+ 
+ 
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index ca00976..21bb796 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,11 +41,11 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 202, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 203, 0)
+ 
+ 
+ #define VK_NULL_HANDLE 0
+-        
++
+ 
+ 
+ #define VK_DEFINE_HANDLE(object) typedef struct object##_T* object;
+@@ -56,7 +56,7 @@ extern "C" {
+ #else
+         #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef uint64_t object;
+ #endif
+-        
++
+ 
+ 
+ typedef uint32_t VkFlags;
+@@ -124,9 +124,10 @@ typedef enum VkResult {
+     VK_ERROR_FEATURE_NOT_PRESENT = -8,
+     VK_ERROR_INCOMPATIBLE_DRIVER = -9,
+     VK_ERROR_TOO_MANY_OBJECTS = -10,
+-    VK_RESULT_BEGIN_RANGE = VK_ERROR_TOO_MANY_OBJECTS,
++    VK_ERROR_FORMAT_NOT_SUPPORTED = -11,
++    VK_RESULT_BEGIN_RANGE = VK_ERROR_FORMAT_NOT_SUPPORTED,
+     VK_RESULT_END_RANGE = VK_INCOMPLETE,
+-    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_TOO_MANY_OBJECTS + 1),
++    VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_FORMAT_NOT_SUPPORTED + 1),
+     VK_RESULT_MAX_ENUM = 0x7FFFFFFF
+ } VkResult;
+ 
+@@ -2140,7 +2141,7 @@ typedef void (VKAPI *PFN_vkDestroyInstance)(VkInstance instance, const VkAllocat
+ typedef VkResult (VKAPI *PFN_vkEnumeratePhysicalDevices)(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
+ typedef void (VKAPI *PFN_vkGetPhysicalDeviceFeatures)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures);
+ typedef void (VKAPI *PFN_vkGetPhysicalDeviceFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties);
+-typedef void (VKAPI *PFN_vkGetPhysicalDeviceImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
++typedef VkResult (VKAPI *PFN_vkGetPhysicalDeviceImageFormatProperties)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
+ typedef void (VKAPI *PFN_vkGetPhysicalDeviceProperties)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties* pProperties);
+ typedef void (VKAPI *PFN_vkGetPhysicalDeviceQueueFamilyProperties)(VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties* pQueueFamilyProperties);
+ typedef void (VKAPI *PFN_vkGetPhysicalDeviceMemoryProperties)(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties);
+@@ -2297,7 +2298,7 @@ void VKAPI vkGetPhysicalDeviceFormatProperties(
+     VkFormat                                    format,
+     VkFormatProperties*                         pFormatProperties);
+ 
+-void VKAPI vkGetPhysicalDeviceImageFormatProperties(
++VkResult VKAPI vkGetPhysicalDeviceImageFormatProperties(
+     VkPhysicalDevice                            physicalDevice,
+     VkFormat                                    format,
+     VkImageType                                 type,
+@@ -3185,7 +3186,7 @@ VkResult VKAPI vkGetPhysicalDeviceSurfacePresentModesKHR(
+ #define VK_KHR_swapchain 1
+ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
+ 
+-#define VK_KHR_SWAPCHAIN_REVISION         64
++#define VK_KHR_SWAPCHAIN_REVISION         65
+ #define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER 2
+ #define VK_KHR_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_swapchain"
+ #define VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR ((VkStructureType)(int)0xc0000800)
+@@ -3196,7 +3197,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
+ 
+ typedef struct VkSwapchainCreateInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     VkSurfaceKHR                                surface;
+     uint32_t                                    minImageCount;
+     VkFormat                                    imageFormat;
+@@ -3216,12 +3217,13 @@ typedef struct VkSwapchainCreateInfoKHR {
+ 
+ typedef struct VkPresentInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     uint32_t                                    waitSemaphoreCount;
+     const VkSemaphore*                          pWaitSemaphores;
+     uint32_t                                    swapchainCount;
+     const VkSwapchainKHR*                       pSwapchains;
+     const uint32_t*                             imageIndices;
++    VkResult*                                   pResults;
+ } VkPresentInfoKHR;
+ 
+ 
+@@ -3300,7 +3302,7 @@ typedef struct VkDisplayModePropertiesKHR {
+ 
+ typedef struct VkDisplayModeCreateInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     VkDisplayModeParametersKHR                  parameters;
+ } VkDisplayModeCreateInfoKHR;
+ 
+@@ -3323,7 +3325,7 @@ typedef struct VkDisplayPlanePropertiesKHR {
+ 
+ typedef struct VkDisplaySurfaceCreateInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     VkDisplayModeKHR                            displayMode;
+     uint32_t                                    planeIndex;
+     uint32_t                                    planeStackIndex;
+@@ -3392,13 +3394,13 @@ VkResult VKAPI vkCreateDisplayPlaneSurfaceKHR(
+ 
+ typedef struct VkDisplaySwapchainCreateInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     const VkSwapchainCreateInfoKHR*             pNextSwapchainCreateInfo;
+ } VkDisplaySwapchainCreateInfoKHR;
+ 
+ typedef struct VkDisplayPresentInfoKHR {
+     VkStructureType                             sType;
+-    const void*                                   pNext;
++    const void*                                 pNext;
+     VkRect2D                                    srcRect;
+     VkRect2D                                    dstRect;
+     VkBool32                                    persistent;
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index 0e01d4e..fffb3eb 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -92,8 +92,8 @@ void vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkForm
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+-    GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
++VkResult vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
++    return GetVtbl(physicalDevice).GetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
+ }
+ 
+ __attribute__((visibility("default")))
+diff --git a/vulkan/libvulkan/loader.cpp b/vulkan/libvulkan/loader.cpp
+index e0eddba..135f06d 100644
+--- a/vulkan/libvulkan/loader.cpp
++++ b/vulkan/libvulkan/loader.cpp
+@@ -698,7 +698,7 @@ void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
+         pdev, format, properties);
+ }
+ 
+-void GetPhysicalDeviceImageFormatPropertiesBottom(
++VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
+     VkPhysicalDevice pdev,
+     VkFormat format,
+     VkImageType type,
+@@ -706,8 +706,9 @@ void GetPhysicalDeviceImageFormatPropertiesBottom(
+     VkImageUsageFlags usage,
+     VkImageCreateFlags flags,
+     VkImageFormatProperties* properties) {
+-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
+-        pdev, format, type, tiling, usage, flags, properties);
++    return GetVtbl(pdev)
++        ->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
++            pdev, format, type, tiling, usage, flags, properties);
+ }
+ 
+ void GetPhysicalDevicePropertiesBottom(VkPhysicalDevice pdev,
+diff --git a/vulkan/libvulkan/swapchain.cpp b/vulkan/libvulkan/swapchain.cpp
+index d93a80f..98faaef 100644
+--- a/vulkan/libvulkan/swapchain.cpp
++++ b/vulkan/libvulkan/swapchain.cpp
+@@ -631,6 +631,8 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
+         }
+         if (result != VK_SUCCESS) {
+             ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
++            if (present_info->pResults)
++                present_info->pResults[sc] = result;
+             if (final_result == VK_SUCCESS)
+                 final_result = result;
+             // TODO(jessehall): What happens to the buffer here? Does the app
+@@ -645,6 +647,8 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
+             // TODO(jessehall): What now? We should probably cancel the buffer,
+             // I guess?
+             ALOGE("queueBuffer failed: %s (%d)", strerror(-err), err);
++            if (present_info->pResults)
++                present_info->pResults[sc] = result;
+             if (final_result == VK_SUCCESS)
+                 final_result = VK_ERROR_INITIALIZATION_FAILED;
+             continue;
+@@ -655,6 +659,9 @@ VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info) {
+             img.dequeue_fence = -1;
+         }
+         img.dequeued = false;
++
++        if (present_info->pResults)
++            present_info->pResults[sc] = VK_SUCCESS;
+     }
+ 
+     return final_result;
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index 8f0a0e5..316d27f 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -746,8 +746,9 @@ void GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat
+     ALOGV("TODO: vk%s", __FUNCTION__);
+ }
+ 
+-void GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
++VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
+     ALOGV("TODO: vk%s", __FUNCTION__);
++    return VK_SUCCESS;
+ }
+ 
+ VkResult EnumerateInstanceLayerProperties(uint32_t* pCount, VkLayerProperties* pProperties) {
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index 0ed9cd0..1a524ff 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -31,7 +31,7 @@ void DestroyInstance(VkInstance instance, const VkAllocationCallbacks* allocator
+ VkResult EnumeratePhysicalDevices(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
+ void GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures);
+ void GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties);
+-void GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
++VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
+ void GetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties* pProperties);
+ void GetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice, uint32_t* pCount, VkQueueFamilyProperties* pQueueFamilyProperties);
+ void GetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties);
+-- 
+2.4.0
+

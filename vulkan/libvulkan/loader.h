@@ -18,10 +18,9 @@
 #define LIBVULKAN_LOADER_H 1
 
 #define VK_PROTOTYPES
+#define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_khr_swapchain.h>
-#include <vulkan/vk_ext_khr_device_swapchain.h>
-#include <vulkan/vk_ext_android_native_buffer.h>
+#include <vulkan/vk_android_native_buffer.h>
 
 namespace vulkan {
 
@@ -52,6 +51,11 @@ struct InstanceVtbl {
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
 
     // Layers and loader only, not implemented by drivers
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR GetPhysicalDeviceSurfaceCapabilitiesKHR;
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR GetPhysicalDeviceSurfaceFormatsKHR;
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR;
+    PFN_vkCreateAndroidSurfaceKHR CreateAndroidSurfaceKHR;
+    PFN_vkDestroySurfaceKHR DestroySurfaceKHR;
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
     // clang-format on
 };
@@ -63,7 +67,7 @@ struct DeviceVtbl {
     PFN_vkDestroyDevice DestroyDevice;
     PFN_vkGetDeviceQueue GetDeviceQueue;
     PFN_vkDeviceWaitIdle DeviceWaitIdle;
-    PFN_vkAllocMemory AllocMemory;
+    PFN_vkAllocateMemory AllocateMemory;
     PFN_vkFreeMemory FreeMemory;
     PFN_vkMapMemory MapMemory;
     PFN_vkUnmapMemory UnmapMemory;
@@ -101,11 +105,8 @@ struct DeviceVtbl {
     PFN_vkDestroyImageView DestroyImageView;
     PFN_vkCreateShaderModule CreateShaderModule;
     PFN_vkDestroyShaderModule DestroyShaderModule;
-    PFN_vkCreateShader CreateShader;
-    PFN_vkDestroyShader DestroyShader;
     PFN_vkCreatePipelineCache CreatePipelineCache;
     PFN_vkDestroyPipelineCache DestroyPipelineCache;
-    PFN_vkGetPipelineCacheSize GetPipelineCacheSize;
     PFN_vkGetPipelineCacheData GetPipelineCacheData;
     PFN_vkMergePipelineCaches MergePipelineCaches;
     PFN_vkCreateGraphicsPipelines CreateGraphicsPipelines;
@@ -120,7 +121,7 @@ struct DeviceVtbl {
     PFN_vkCreateDescriptorPool CreateDescriptorPool;
     PFN_vkDestroyDescriptorPool DestroyDescriptorPool;
     PFN_vkResetDescriptorPool ResetDescriptorPool;
-    PFN_vkAllocDescriptorSets AllocDescriptorSets;
+    PFN_vkAllocateDescriptorSets AllocateDescriptorSets;
     PFN_vkFreeDescriptorSets FreeDescriptorSets;
     PFN_vkUpdateDescriptorSets UpdateDescriptorSets;
     PFN_vkCreateFramebuffer CreateFramebuffer;
@@ -131,16 +132,12 @@ struct DeviceVtbl {
     PFN_vkCreateCommandPool CreateCommandPool;
     PFN_vkDestroyCommandPool DestroyCommandPool;
     PFN_vkResetCommandPool ResetCommandPool;
-    PFN_vkCreateCommandBuffer CreateCommandBuffer;
-    PFN_vkDestroyCommandBuffer DestroyCommandBuffer;
+    PFN_vkAllocateCommandBuffers AllocateCommandBuffers;
+    PFN_vkFreeCommandBuffers FreeCommandBuffers;
 
     PFN_vkQueueSubmit QueueSubmit;
     PFN_vkQueueWaitIdle QueueWaitIdle;
-    PFN_vkQueueBindSparseBufferMemory QueueBindSparseBufferMemory;
-    PFN_vkQueueBindSparseImageOpaqueMemory QueueBindSparseImageOpaqueMemory;
-    PFN_vkQueueBindSparseImageMemory QueueBindSparseImageMemory;
-    PFN_vkQueueSignalSemaphore QueueSignalSemaphore;
-    PFN_vkQueueWaitSemaphore QueueWaitSemaphore;
+    PFN_vkQueueBindSparse QueueBindSparse;
 
     PFN_vkBeginCommandBuffer BeginCommandBuffer;
     PFN_vkEndCommandBuffer EndCommandBuffer;
@@ -173,8 +170,7 @@ struct DeviceVtbl {
     PFN_vkCmdFillBuffer CmdFillBuffer;
     PFN_vkCmdClearColorImage CmdClearColorImage;
     PFN_vkCmdClearDepthStencilImage CmdClearDepthStencilImage;
-    PFN_vkCmdClearColorAttachment CmdClearColorAttachment;
-    PFN_vkCmdClearDepthStencilAttachment CmdClearDepthStencilAttachment;
+    PFN_vkCmdClearAttachments CmdClearAttachments;
     PFN_vkCmdResolveImage CmdResolveImage;
     PFN_vkCmdSetEvent CmdSetEvent;
     PFN_vkCmdResetEvent CmdResetEvent;
@@ -192,9 +188,6 @@ struct DeviceVtbl {
     PFN_vkCmdExecuteCommands CmdExecuteCommands;
 
     // Layers and loader only, not implemented by drivers
-    PFN_vkGetSurfacePropertiesKHR GetSurfacePropertiesKHR;
-    PFN_vkGetSurfaceFormatsKHR GetSurfaceFormatsKHR;
-    PFN_vkGetSurfacePresentModesKHR GetSurfacePresentModesKHR;
     PFN_vkCreateSwapchainKHR CreateSwapchainKHR;
     PFN_vkDestroySwapchainKHR DestroySwapchainKHR;
     PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR;
@@ -219,23 +212,30 @@ VkResult EnumerateInstanceExtensionProperties(
 VkResult EnumerateInstanceLayerProperties(uint32_t* count,
                                           VkLayerProperties* properties);
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+                        const VkAllocationCallbacks* allocator,
                         VkInstance* instance);
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name);
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice drv_device, const char* name);
-VkResult GetDeviceQueue(VkDevice drv_device,
-                        uint32_t family,
-                        uint32_t index,
-                        VkQueue* out_queue);
-VkResult CreateCommandBuffer(VkDevice device,
-                             const VkCmdBufferCreateInfo* create_info,
-                             VkCmdBuffer* out_cmdbuf);
-VkResult DestroyDevice(VkDevice drv_device);
+void GetDeviceQueue(VkDevice drv_device,
+                    uint32_t family,
+                    uint32_t index,
+                    VkQueue* out_queue);
+VkResult AllocCommandBuffers(VkDevice device,
+                             const VkCommandBufferAllocateInfo* alloc_info,
+                             VkCommandBuffer* cmdbufs);
+VkResult DestroyDevice(VkDevice drv_device,
+                       const VkAllocationCallbacks* allocator);
 
-void* AllocDeviceMem(VkDevice device,
-                     size_t size,
-                     size_t align,
-                     VkSystemAllocType type);
-void FreeDeviceMem(VkDevice device, void* ptr);
+void* AllocMem(VkInstance instance,
+               size_t size,
+               size_t align,
+               VkSystemAllocationScope scope);
+void FreeMem(VkInstance instance, void* ptr);
+void* AllocMem(VkDevice device,
+               size_t size,
+               size_t align,
+               VkSystemAllocationScope scope);
+void FreeMem(VkDevice device, void* ptr);
 const DeviceVtbl& GetDriverVtbl(VkDevice device);
 const DeviceVtbl& GetDriverVtbl(VkQueue queue);
 
@@ -261,36 +261,51 @@ bool LoadDeviceVtbl(VkDevice device,
 // -----------------------------------------------------------------------------
 // swapchain.cpp
 
-VkResult GetPhysicalDeviceSurfaceSupportKHR(
-    VkPhysicalDevice pdev,
-    uint32_t queue_family,
-    const VkSurfaceDescriptionKHR* surface_desc,
-    VkBool32* supported);
-VkResult GetSurfacePropertiesKHR(VkDevice device,
-                                 const VkSurfaceDescriptionKHR* surface_desc,
-                                 VkSurfacePropertiesKHR* properties);
-VkResult GetSurfaceFormatsKHR(VkDevice device,
-                              const VkSurfaceDescriptionKHR* surface_desc,
-                              uint32_t* count,
-                              VkSurfaceFormatKHR* formats);
-VkResult GetSurfacePresentModesKHR(VkDevice device,
-                                   const VkSurfaceDescriptionKHR* surface_desc,
+VKAPI_ATTR VkResult
+CreateAndroidSurfaceKHR(VkInstance instance,
+                        ANativeWindow* window,
+                        const VkAllocationCallbacks* allocator,
+                        VkSurfaceKHR* surface);
+VKAPI_ATTR void DestroySurfaceKHR(VkInstance instance,
+                                  VkSurfaceKHR surface,
+                                  const VkAllocationCallbacks* allocator);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice pdev,
+                                                       uint32_t queue_family,
+                                                       VkSurfaceKHR surface,
+                                                       VkBool32* pSupported);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice pdev,
+                                        VkSurfaceKHR surface,
+                                        VkSurfaceCapabilitiesKHR* capabilities);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice pdev,
+                                   VkSurfaceKHR surface,
                                    uint32_t* count,
-                                   VkPresentModeKHR* modes);
-VkResult CreateSwapchainKHR(VkDevice device,
-                            const VkSwapchainCreateInfoKHR* create_info,
-                            VkSwapchainKHR* swapchain_handle);
-VkResult DestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain_handle);
-VkResult GetSwapchainImagesKHR(VkDevice device,
-                               VkSwapchainKHR swapchain_handle,
-                               uint32_t* count,
-                               VkImage* images);
-VkResult AcquireNextImageKHR(VkDevice device,
-                             VkSwapchainKHR swapchain_handle,
-                             uint64_t timeout,
-                             VkSemaphore semaphore,
-                             uint32_t* image_index);
-VkResult QueuePresentKHR(VkQueue queue, VkPresentInfoKHR* present_info);
+                                   VkSurfaceFormatKHR* formats);
+VKAPI_ATTR VkResult
+GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice pdev,
+                                        VkSurfaceKHR surface,
+                                        uint32_t* count,
+                                        VkPresentModeKHR* modes);
+VKAPI_ATTR VkResult
+CreateSwapchainKHR(VkDevice device,
+                   const VkSwapchainCreateInfoKHR* create_info,
+                   const VkAllocationCallbacks* allocator,
+                   VkSwapchainKHR* swapchain_handle);
+VKAPI_ATTR VkResult DestroySwapchainKHR(VkDevice device,
+                                        VkSwapchainKHR swapchain_handle,
+                                        const VkAllocationCallbacks* allocator);
+VKAPI_ATTR VkResult GetSwapchainImagesKHR(VkDevice device,
+                                          VkSwapchainKHR swapchain_handle,
+                                          uint32_t* count,
+                                          VkImage* images);
+VKAPI_ATTR VkResult AcquireNextImageKHR(VkDevice device,
+                                        VkSwapchainKHR swapchain_handle,
+                                        uint64_t timeout,
+                                        VkSemaphore semaphore,
+                                        uint32_t* image_index);
+VKAPI_ATTR VkResult
+QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info);
 
 }  // namespace vulkan
 

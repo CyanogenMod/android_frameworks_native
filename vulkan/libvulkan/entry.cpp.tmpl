@@ -63,13 +63,13 @@ namespace {
     inline const DeviceVtbl& GetVtbl(VkQueue queue) {
         return **reinterpret_cast<DeviceVtbl**>(queue);
     }
-    inline const DeviceVtbl& GetVtbl(VkCmdBuffer cmdBuffer) {
-        return **reinterpret_cast<DeviceVtbl**>(cmdBuffer);
+    inline const DeviceVtbl& GetVtbl(VkCommandBuffer commandBuffer) {
+        return **reinterpret_cast<DeviceVtbl**>(commandBuffer);
     }
 } // namespace
 ¶
   {{range $f := AllCommands $}}
-    {{if not (GetAnnotation $f "pfn")}}
+    {{if and (not (GetAnnotation $f "pfn")) (Macro "IsExportedEntry" $f)}}
       __attribute__((visibility("default")))
       {{if eq (Macro "IsSpecialEntry" $f.Name) "true"}}
         {{Macro "EmitSpecialEntry" $f}}
@@ -79,6 +79,25 @@ namespace {
     {{end}}
   {{end}}
 
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Decides whether an entrypoint should be exported from the Android Vulkan
+  library. Entrypoints in the core API and in mandatory extensions are
+  exported.
+-------------------------------------------------------------------------------
+*/}}
+{{define "IsExportedEntry"}}
+  {{AssertType $ "Function"}}
+  {{$ext := GetAnnotation $ "extension"}}
+  {{if $ext}}
+    {{$extval := index $ext.Arguments 0}}
+    {{if      eq $extval "VK_KHR_surface"}}true
+    {{else if eq $extval "VK_KHR_swapchain"}}true
+    {{else if eq $extval "VK_KHR_android_surface"}}true{{end}}
+  {{else}}true{{end}}
 {{end}}
 
 
@@ -95,6 +114,7 @@ namespace {
   {{end}}
 {{end}}
 
+
 {{/*
 -------------------------------------------------------------------------------
   Emits the entrypoint definition for the specified command, which always
@@ -104,7 +124,7 @@ namespace {
 {{define "EmitSpecialEntry"}}
   {{AssertType $ "Function"}}
 
-  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+  VKAPI_ATTR {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
     {{if not (IsVoid $.Return.Type)}}return §{{end}}
     vulkan::{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
   }
@@ -122,7 +142,7 @@ namespace {
 {{define "EmitEntry"}}
   {{AssertType $ "Function"}}
 
-  {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
+  VKAPI_ATTR {{Node "Type" $.Return}} {{Macro "FunctionName" $}}({{Macro "Parameters" $}}) {
     {{if not (IsVoid $.Return.Type)}}return §{{end}}
     {{Macro "Dispatch" $}}{{TrimPrefix "vk" $.Name}}({{Macro "Arguments" $}});
   }
@@ -139,7 +159,7 @@ namespace {
 {{define "Dispatch#VkPhysicalDevice"}}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch#VkDevice"        }}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch#VkQueue"         }}GetVtbl({{$.Node.Name}}).{{end}}
-{{define "Dispatch#VkCmdBuffer"     }}GetVtbl({{$.Node.Name}}).{{end}}
+{{define "Dispatch#VkCommandBuffer" }}GetVtbl({{$.Node.Name}}).{{end}}
 {{define "Dispatch_Default"         }}vulkan::{{end}}
 {{define "Dispatch"}}
   {{AssertType $ "Function"}}

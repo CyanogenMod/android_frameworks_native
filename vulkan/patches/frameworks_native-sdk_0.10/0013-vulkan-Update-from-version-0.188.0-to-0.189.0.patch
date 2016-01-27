@@ -1,0 +1,245 @@
+From 5dd913c12f8eccf523b4588806711e3b45ed8b79 Mon Sep 17 00:00:00 2001
+From: Jesse Hall <jessehall@google.com>
+Date: Sun, 29 Nov 2015 14:36:39 -0800
+Subject: [PATCH 13/30] vulkan: Update from version 0.188.0 to 0.189.0
+
+Change-Id: Ib8171ce1d3f804f9a866e1c216db0911043056c6
+---
+ vulkan/api/vulkan.api          | 42 +++++++++++++-------------
+ vulkan/include/vulkan/vulkan.h | 68 +++++++++++++++++++++---------------------
+ vulkan/libvulkan/entry.cpp     |  2 +-
+ vulkan/nulldrv/null_driver.cpp |  2 +-
+ vulkan/nulldrv/null_driver.h   |  2 +-
+ 5 files changed, 58 insertions(+), 58 deletions(-)
+
+diff --git a/vulkan/api/vulkan.api b/vulkan/api/vulkan.api
+index b95c96e..5d0a7f8 100644
+--- a/vulkan/api/vulkan.api
++++ b/vulkan/api/vulkan.api
+@@ -27,7 +27,7 @@ import platform "platform.api"
+ 
+ // API version (major.minor.patch)
+ define VERSION_MAJOR 0
+-define VERSION_MINOR 188
++define VERSION_MINOR 189
+ define VERSION_PATCH 0
+ 
+ // API limits
+@@ -256,23 +256,23 @@ enum VkIndexType {
+     VK_INDEX_TYPE_UINT32                                    = 0x00000001,
+ }
+ 
+-enum VkTexFilter {
+-    VK_TEX_FILTER_NEAREST                                   = 0x00000000,
+-    VK_TEX_FILTER_LINEAR                                    = 0x00000001,
++enum VkFilter {
++    VK_FILTER_NEAREST                                       = 0x00000000,
++    VK_FILTER_LINEAR                                        = 0x00000001,
+ }
+ 
+-enum VkTexMipmapMode {
+-    VK_TEX_MIPMAP_MODE_BASE                                 = 0x00000000,   /// Always choose base level
+-    VK_TEX_MIPMAP_MODE_NEAREST                              = 0x00000001,   /// Choose nearest mip level
+-    VK_TEX_MIPMAP_MODE_LINEAR                               = 0x00000002,   /// Linear filter between mip levels
++enum VkSamplerMipmapMode {
++    VK_SAMPLER_MIPMAP_MODE_BASE                             = 0x00000000,   /// Always choose base level
++    VK_SAMPLER_MIPMAP_MODE_NEAREST                          = 0x00000001,   /// Choose nearest mip level
++    VK_SAMPLER_MIPMAP_MODE_LINEAR                           = 0x00000002,   /// Linear filter between mip levels
+ }
+ 
+-enum VkTexAddressMode {
+-    VK_TEX_ADDRESS_MODE_WRAP                                = 0x00000000,
+-    VK_TEX_ADDRESS_MODE_MIRROR                              = 0x00000001,
+-    VK_TEX_ADDRESS_MODE_CLAMP                               = 0x00000002,
+-    VK_TEX_ADDRESS_MODE_MIRROR_ONCE                         = 0x00000003,
+-    VK_TEX_ADDRESS_MODE_CLAMP_BORDER                        = 0x00000004,
++enum VkSamplerAddressMode {
++    VK_SAMPLER_ADDRESS_MODE_WRAP                            = 0x00000000,
++    VK_SAMPLER_ADDRESS_MODE_MIRROR                          = 0x00000001,
++    VK_SAMPLER_ADDRESS_MODE_CLAMP                           = 0x00000002,
++    VK_SAMPLER_ADDRESS_MODE_MIRROR_ONCE                     = 0x00000003,
++    VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER                    = 0x00000004,
+ }
+ 
+ enum VkCompareOp {
+@@ -1730,12 +1730,12 @@ class VkPipelineLayoutCreateInfo {
+ class VkSamplerCreateInfo {
+     VkStructureType                             sType          /// Must be VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO
+     const void*                                 pNext          /// Pointer to next structure
+-    VkTexFilter                                 magFilter      /// Filter mode for magnification
+-    VkTexFilter                                 minFilter      /// Filter mode for minifiation
+-    VkTexMipmapMode                             mipMode        /// Mipmap selection mode
+-    VkTexAddressMode                            addressModeU
+-    VkTexAddressMode                            addressModeV
+-    VkTexAddressMode                            addressModeW
++    VkFilter                                    magFilter      /// Filter mode for magnification
++    VkFilter                                    minFilter      /// Filter mode for minifiation
++    VkSamplerMipmapMode                         mipmapMode     /// Mipmap selection mode
++    VkSamplerAddressMode                        addressModeU
++    VkSamplerAddressMode                        addressModeV
++    VkSamplerAddressMode                        addressModeW
+     f32                                         mipLodBias
+     f32                                         maxAnisotropy
+     VkBool32                                    compareEnable
+@@ -4089,7 +4089,7 @@ cmd void vkCmdBlitImage(
+         VkImageLayout                               destImageLayout,
+         u32                                         regionCount,
+         const VkImageBlit*                          pRegions,
+-        VkTexFilter                                 filter) {
++        VkFilter                                    filter) {
+     cmdBufferObject := GetCmdBuffer(cmdBuffer)
+     srcImageObject := GetImage(srcImage)
+     destImageObject := GetImage(destImage)
+diff --git a/vulkan/include/vulkan/vulkan.h b/vulkan/include/vulkan/vulkan.h
+index d061988..dc977e5 100644
+--- a/vulkan/include/vulkan/vulkan.h
++++ b/vulkan/include/vulkan/vulkan.h
+@@ -41,7 +41,7 @@ extern "C" {
+     ((major << 22) | (minor << 12) | patch)
+ 
+ // Vulkan API version supported by this file
+-#define VK_API_VERSION VK_MAKE_VERSION(0, 188, 0)
++#define VK_API_VERSION VK_MAKE_VERSION(0, 189, 0)
+ 
+ 
+ #define VK_NULL_HANDLE 0
+@@ -647,35 +647,35 @@ typedef enum {
+ } VkDynamicState;
+ 
+ typedef enum {
+-    VK_TEX_FILTER_NEAREST = 0,
+-    VK_TEX_FILTER_LINEAR = 1,
+-    VK_TEX_FILTER_BEGIN_RANGE = VK_TEX_FILTER_NEAREST,
+-    VK_TEX_FILTER_END_RANGE = VK_TEX_FILTER_LINEAR,
+-    VK_TEX_FILTER_NUM = (VK_TEX_FILTER_LINEAR - VK_TEX_FILTER_NEAREST + 1),
+-    VK_TEX_FILTER_MAX_ENUM = 0x7FFFFFFF
+-} VkTexFilter;
++    VK_FILTER_NEAREST = 0,
++    VK_FILTER_LINEAR = 1,
++    VK_FILTER_BEGIN_RANGE = VK_FILTER_NEAREST,
++    VK_FILTER_END_RANGE = VK_FILTER_LINEAR,
++    VK_FILTER_NUM = (VK_FILTER_LINEAR - VK_FILTER_NEAREST + 1),
++    VK_FILTER_MAX_ENUM = 0x7FFFFFFF
++} VkFilter;
+ 
+ typedef enum {
+-    VK_TEX_MIPMAP_MODE_BASE = 0,
+-    VK_TEX_MIPMAP_MODE_NEAREST = 1,
+-    VK_TEX_MIPMAP_MODE_LINEAR = 2,
+-    VK_TEX_MIPMAP_MODE_BEGIN_RANGE = VK_TEX_MIPMAP_MODE_BASE,
+-    VK_TEX_MIPMAP_MODE_END_RANGE = VK_TEX_MIPMAP_MODE_LINEAR,
+-    VK_TEX_MIPMAP_MODE_NUM = (VK_TEX_MIPMAP_MODE_LINEAR - VK_TEX_MIPMAP_MODE_BASE + 1),
+-    VK_TEX_MIPMAP_MODE_MAX_ENUM = 0x7FFFFFFF
+-} VkTexMipmapMode;
++    VK_SAMPLER_MIPMAP_MODE_BASE = 0,
++    VK_SAMPLER_MIPMAP_MODE_NEAREST = 1,
++    VK_SAMPLER_MIPMAP_MODE_LINEAR = 2,
++    VK_SAMPLER_MIPMAP_MODE_BEGIN_RANGE = VK_SAMPLER_MIPMAP_MODE_BASE,
++    VK_SAMPLER_MIPMAP_MODE_END_RANGE = VK_SAMPLER_MIPMAP_MODE_LINEAR,
++    VK_SAMPLER_MIPMAP_MODE_NUM = (VK_SAMPLER_MIPMAP_MODE_LINEAR - VK_SAMPLER_MIPMAP_MODE_BASE + 1),
++    VK_SAMPLER_MIPMAP_MODE_MAX_ENUM = 0x7FFFFFFF
++} VkSamplerMipmapMode;
+ 
+ typedef enum {
+-    VK_TEX_ADDRESS_MODE_WRAP = 0,
+-    VK_TEX_ADDRESS_MODE_MIRROR = 1,
+-    VK_TEX_ADDRESS_MODE_CLAMP = 2,
+-    VK_TEX_ADDRESS_MODE_MIRROR_ONCE = 3,
+-    VK_TEX_ADDRESS_MODE_CLAMP_BORDER = 4,
+-    VK_TEX_ADDRESS_MODE_BEGIN_RANGE = VK_TEX_ADDRESS_MODE_WRAP,
+-    VK_TEX_ADDRESS_MODE_END_RANGE = VK_TEX_ADDRESS_MODE_CLAMP_BORDER,
+-    VK_TEX_ADDRESS_MODE_NUM = (VK_TEX_ADDRESS_MODE_CLAMP_BORDER - VK_TEX_ADDRESS_MODE_WRAP + 1),
+-    VK_TEX_ADDRESS_MODE_MAX_ENUM = 0x7FFFFFFF
+-} VkTexAddressMode;
++    VK_SAMPLER_ADDRESS_MODE_WRAP = 0,
++    VK_SAMPLER_ADDRESS_MODE_MIRROR = 1,
++    VK_SAMPLER_ADDRESS_MODE_CLAMP = 2,
++    VK_SAMPLER_ADDRESS_MODE_MIRROR_ONCE = 3,
++    VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER = 4,
++    VK_SAMPLER_ADDRESS_MODE_BEGIN_RANGE = VK_SAMPLER_ADDRESS_MODE_WRAP,
++    VK_SAMPLER_ADDRESS_MODE_END_RANGE = VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER,
++    VK_SAMPLER_ADDRESS_MODE_NUM = (VK_SAMPLER_ADDRESS_MODE_CLAMP_BORDER - VK_SAMPLER_ADDRESS_MODE_WRAP + 1),
++    VK_SAMPLER_ADDRESS_MODE_MAX_ENUM = 0x7FFFFFFF
++} VkSamplerAddressMode;
+ 
+ typedef enum {
+     VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK = 0,
+@@ -1756,12 +1756,12 @@ typedef struct {
+ typedef struct {
+     VkStructureType                             sType;
+     const void*                                 pNext;
+-    VkTexFilter                                 magFilter;
+-    VkTexFilter                                 minFilter;
+-    VkTexMipmapMode                             mipMode;
+-    VkTexAddressMode                            addressModeU;
+-    VkTexAddressMode                            addressModeV;
+-    VkTexAddressMode                            addressModeW;
++    VkFilter                                    magFilter;
++    VkFilter                                    minFilter;
++    VkSamplerMipmapMode                         mipmapMode;
++    VkSamplerAddressMode                        addressModeU;
++    VkSamplerAddressMode                        addressModeV;
++    VkSamplerAddressMode                        addressModeW;
+     float                                       mipLodBias;
+     float                                       maxAnisotropy;
+     VkBool32                                    compareEnable;
+@@ -2194,7 +2194,7 @@ typedef void (VKAPI *PFN_vkCmdDispatch)(VkCmdBuffer cmdBuffer, uint32_t x, uint3
+ typedef void (VKAPI *PFN_vkCmdDispatchIndirect)(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset);
+ typedef void (VKAPI *PFN_vkCmdCopyBuffer)(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer destBuffer, uint32_t regionCount, const VkBufferCopy* pRegions);
+ typedef void (VKAPI *PFN_vkCmdCopyImage)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageCopy* pRegions);
+-typedef void (VKAPI *PFN_vkCmdBlitImage)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkTexFilter filter);
++typedef void (VKAPI *PFN_vkCmdBlitImage)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter);
+ typedef void (VKAPI *PFN_vkCmdCopyBufferToImage)(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions);
+ typedef void (VKAPI *PFN_vkCmdCopyImageToBuffer)(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer destBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions);
+ typedef void (VKAPI *PFN_vkCmdUpdateBuffer)(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize dataSize, const uint32_t* pData);
+@@ -2880,7 +2880,7 @@ void VKAPI vkCmdBlitImage(
+     VkImageLayout                               destImageLayout,
+     uint32_t                                    regionCount,
+     const VkImageBlit*                          pRegions,
+-    VkTexFilter                                 filter);
++    VkFilter                                    filter);
+ 
+ void VKAPI vkCmdCopyBufferToImage(
+     VkCmdBuffer                                 cmdBuffer,
+diff --git a/vulkan/libvulkan/entry.cpp b/vulkan/libvulkan/entry.cpp
+index 7622e4d..386acbf 100644
+--- a/vulkan/libvulkan/entry.cpp
++++ b/vulkan/libvulkan/entry.cpp
+@@ -632,7 +632,7 @@ void vkCmdCopyImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcIm
+ }
+ 
+ __attribute__((visibility("default")))
+-void vkCmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkTexFilter filter) {
++void vkCmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter) {
+     GetVtbl(cmdBuffer).CmdBlitImage(cmdBuffer, srcImage, srcImageLayout, destImage, destImageLayout, regionCount, pRegions, filter);
+ }
+ 
+diff --git a/vulkan/nulldrv/null_driver.cpp b/vulkan/nulldrv/null_driver.cpp
+index fe6a1e8..9c56982 100644
+--- a/vulkan/nulldrv/null_driver.cpp
++++ b/vulkan/nulldrv/null_driver.cpp
+@@ -1024,7 +1024,7 @@ void CmdCopyBuffer(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer destBuffe
+ void CmdCopyImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageCopy* pRegions) {
+ }
+ 
+-void CmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkTexFilter filter) {
++void CmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter) {
+ }
+ 
+ void CmdCopyBufferToImage(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions) {
+diff --git a/vulkan/nulldrv/null_driver.h b/vulkan/nulldrv/null_driver.h
+index 557d0db..dd6dc6b 100644
+--- a/vulkan/nulldrv/null_driver.h
++++ b/vulkan/nulldrv/null_driver.h
+@@ -144,7 +144,7 @@ void CmdDispatch(VkCmdBuffer cmdBuffer, uint32_t x, uint32_t y, uint32_t z);
+ void CmdDispatchIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset);
+ void CmdCopyBuffer(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer destBuffer, uint32_t regionCount, const VkBufferCopy* pRegions);
+ void CmdCopyImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageCopy* pRegions);
+-void CmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkTexFilter filter);
++void CmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter);
+ void CmdCopyBufferToImage(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions);
+ void CmdCopyImageToBuffer(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer destBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions);
+ void CmdUpdateBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize dataSize, const uint32_t* pData);
+-- 
+2.4.0
+

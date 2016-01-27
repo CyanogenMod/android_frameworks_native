@@ -12,6 +12,12 @@ $ git am $VULKAN_PATCHES/$PATCH_DIR/*
 
 frameworks_base-apk_library_dir
 -------------------------------
+This branch is for frameworks/native. It changes all the Vulkan components to
+use the SDK 0.10 version of the API and extensions.
+
+
+frameworks_base-apk_library_dir
+-------------------------------
 This branch is for $TOP/frameworks/base. It modifies the framework to
 inform the Vulkan loader, during activity startup, where the
 activity's native library directory. The loader will search this

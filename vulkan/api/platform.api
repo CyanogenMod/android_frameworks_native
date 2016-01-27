@@ -22,3 +22,28 @@
 // Platform types, as defined or included in vk_platform.h
 
 type u64 size_t
+
+// VK_USE_PLATFORM_XLIB_KHR
+@internal class Display {}
+@internal class Window {}
+@internal type u64 VisualID
+
+// VK_USE_PLATFORM_XCB_KHR
+@internal class xcb_connection_t {}
+@internal type u32 xcb_window_t
+@internal type u32 xcb_visualid_t
+
+// VK_USE_PLATFORM_WAYLAND_KHR
+@internal class wl_display {}
+@internal class wl_surface {}
+
+// VK_USE_PLATFORM_MIR_KHR
+@internal class MirConnection {}
+@internal class MirSurface {}
+
+// VK_USE_PLATFORM_ANDROID_KHR
+@internal class ANativeWindow {}
+
+// VK_USE_PLATFORM_WIN32_KHR
+@internal type void* HINSTANCE
+@internal type void* HWND

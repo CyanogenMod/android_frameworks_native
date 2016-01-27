@@ -35,7 +35,7 @@ struct VkPhysicalDevice_T {
 
 struct VkInstance_T {
     hwvulkan_dispatch_t dispatch;
-    const VkAllocCallbacks* alloc;
+    VkAllocationCallbacks allocator;
     VkPhysicalDevice_T physical_device;
 };
 
@@ -43,7 +43,7 @@ struct VkQueue_T {
     hwvulkan_dispatch_t dispatch;
 };
 
-struct VkCmdBuffer_T {
+struct VkCommandBuffer_T {
     hwvulkan_dispatch_t dispatch;
 };
 
@@ -67,7 +67,6 @@ namespace {
 namespace HandleType {
 enum Enum {
     kBufferView,
-    kCmdPool,
     kDescriptorPool,
     kDescriptorSet,
     kDescriptorSetLayout,
@@ -82,7 +81,6 @@ enum Enum {
     kRenderPass,
     kSampler,
     kSemaphore,
-    kShader,
     kShaderModule,
 
     kNumTypes
@@ -96,6 +94,7 @@ const VkDeviceSize kMaxDeviceMemory = VkDeviceSize(INTPTR_MAX) + 1;
 
 struct VkDevice_T {
     hwvulkan_dispatch_t dispatch;
+    VkAllocationCallbacks allocator;
     VkInstance_T* instance;
     VkQueue_T queue;
     std::array<uint64_t, HandleType::kNumTypes> next_handle;
@@ -130,22 +129,24 @@ __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
 
 namespace {
 
-VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+VKAPI_ATTR
+VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
+                        const VkAllocationCallbacks* allocator,
                         VkInstance* out_instance) {
     // Assume the loader provided alloc callbacks even if the app didn't.
     ALOG_ASSERT(
-        create_info->pAllocCb,
+        allocator,
         "Missing alloc callbacks, loader or app should have provided them");
 
     VkInstance_T* instance =
-        static_cast<VkInstance_T*>(create_info->pAllocCb->pfnAlloc(
-            create_info->pAllocCb->pUserData, sizeof(VkInstance_T),
-            alignof(VkInstance_T), VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+        static_cast<VkInstance_T*>(allocator->pfnAllocation(
+            allocator->pUserData, sizeof(VkInstance_T), alignof(VkInstance_T),
+            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE));
     if (!instance)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-    instance->alloc = create_info->pAllocCb;
+    instance->allocator = *allocator;
     instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
 
     *out_instance = instance;
@@ -199,24 +200,20 @@ uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
 
 namespace null_driver {
 
-template <typename HandleT>
-struct HandleTraits {};
-
-template <typename HandleT>
-typename HandleTraits<HandleT>::PointerType GetObjectFromHandle(
-    const HandleT& h) {
-    return reinterpret_cast<typename HandleTraits<HandleT>::PointerType>(
-        uintptr_t(h.handle));
-}
-
-template <typename T>
-typename T::HandleType GetHandleToObject(const T* obj) {
-    return typename T::HandleType(reinterpret_cast<uintptr_t>(obj));
-}
+#define DEFINE_OBJECT_HANDLE_CONVERSION(T)              \
+    T* Get##T##FromHandle(Vk##T h);                     \
+    T* Get##T##FromHandle(Vk##T h) {                    \
+        return reinterpret_cast<T*>(uintptr_t(h));      \
+    }                                                   \
+    Vk##T GetHandleTo##T(const T* obj);                 \
+    Vk##T GetHandleTo##T(const T* obj) {                \
+        return Vk##T(reinterpret_cast<uintptr_t>(obj)); \
+    }
 
 // -----------------------------------------------------------------------------
 // Global
 
+VKAPI_ATTR
 VkResult EnumerateInstanceExtensionProperties(const char*,
                                               uint32_t* count,
                                               VkExtensionProperties*) {
@@ -224,6 +221,7 @@ VkResult EnumerateInstanceExtensionProperties(const char*,
     return VK_SUCCESS;
 }
 
+VKAPI_ATTR
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
     PFN_vkVoidFunction proc = LookupInstanceProcAddr(name);
     if (!proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
@@ -231,6 +229,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
     return proc;
 }
 
+VKAPI_ATTR
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
     PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
     if (proc)
@@ -249,8 +248,9 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
 // -----------------------------------------------------------------------------
 // Instance
 
-void DestroyInstance(VkInstance instance) {
-    instance->alloc->pfnFree(instance->alloc->pUserData, instance);
+void DestroyInstance(VkInstance instance,
+                     const VkAllocationCallbacks* /*allocator*/) {
+    instance->allocator.pfnFree(instance->allocator.pUserData, instance);
 }
 
 // -----------------------------------------------------------------------------
@@ -265,46 +265,44 @@ VkResult EnumeratePhysicalDevices(VkInstance instance,
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceProperties(VkPhysicalDevice,
-                                     VkPhysicalDeviceProperties* properties) {
+void GetPhysicalDeviceProperties(VkPhysicalDevice,
+                                 VkPhysicalDeviceProperties* properties) {
     properties->apiVersion = VK_API_VERSION;
     properties->driverVersion = VK_MAKE_VERSION(0, 0, 1);
-    properties->vendorId = 0;
-    properties->deviceId = 0;
+    properties->vendorID = 0;
+    properties->deviceID = 0;
     properties->deviceType = VK_PHYSICAL_DEVICE_TYPE_OTHER;
     strcpy(properties->deviceName, "Android Vulkan Null Driver");
     memset(properties->pipelineCacheUUID, 0,
            sizeof(properties->pipelineCacheUUID));
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceQueueFamilyProperties(
+void GetPhysicalDeviceQueueFamilyProperties(
     VkPhysicalDevice,
     uint32_t* count,
     VkQueueFamilyProperties* properties) {
     if (properties) {
-        if (*count < 1)
-            return VK_INCOMPLETE;
-        properties->queueFlags =
-            VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_DMA_BIT;
+        properties->queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT |
+                                 VK_QUEUE_TRANSFER_BIT;
         properties->queueCount = 1;
-        properties->supportsTimestamps = VK_FALSE;
+        properties->timestampValidBits = 64;
     }
     *count = 1;
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceMemoryProperties(
+void GetPhysicalDeviceMemoryProperties(
     VkPhysicalDevice,
     VkPhysicalDeviceMemoryProperties* properties) {
     properties->memoryTypeCount = 1;
     properties->memoryTypes[0].propertyFlags =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
     properties->memoryTypes[0].heapIndex = 0;
     properties->memoryHeapCount = 1;
     properties->memoryHeaps[0].size = kMaxDeviceMemory;
-    properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL_BIT;
-    return VK_SUCCESS;
+    properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
 }
 
 // -----------------------------------------------------------------------------
@@ -312,15 +310,19 @@ VkResult GetPhysicalDeviceMemoryProperties(
 
 VkResult CreateDevice(VkPhysicalDevice physical_device,
                       const VkDeviceCreateInfo*,
+                      const VkAllocationCallbacks* allocator,
                       VkDevice* out_device) {
     VkInstance_T* instance = GetInstanceFromPhysicalDevice(physical_device);
-    VkDevice_T* device = static_cast<VkDevice_T*>(instance->alloc->pfnAlloc(
-        instance->alloc->pUserData, sizeof(VkDevice_T), alignof(VkDevice_T),
-        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!allocator)
+        allocator = &instance->allocator;
+    VkDevice_T* device = static_cast<VkDevice_T*>(allocator->pfnAllocation(
+        allocator->pUserData, sizeof(VkDevice_T), alignof(VkDevice_T),
+        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE));
     if (!device)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     device->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    device->allocator = *allocator;
     device->instance = instance;
     device->queue.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     std::fill(device->next_handle.begin(), device->next_handle.end(),
@@ -330,38 +332,86 @@ VkResult CreateDevice(VkPhysicalDevice physical_device,
     return VK_SUCCESS;
 }
 
-void DestroyDevice(VkDevice device) {
+void DestroyDevice(VkDevice device,
+                   const VkAllocationCallbacks* /*allocator*/) {
     if (!device)
         return;
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    alloc->pfnFree(alloc->pUserData, device);
+    device->allocator.pfnFree(device->allocator.pUserData, device);
 }
 
-VkResult GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
+void GetDeviceQueue(VkDevice device, uint32_t, uint32_t, VkQueue* queue) {
     *queue = &device->queue;
+}
+
+// -----------------------------------------------------------------------------
+// CommandPool
+
+struct CommandPool {
+    typedef VkCommandPool HandleType;
+    VkAllocationCallbacks allocator;
+};
+DEFINE_OBJECT_HANDLE_CONVERSION(CommandPool)
+
+VkResult CreateCommandPool(VkDevice device,
+                           const VkCommandPoolCreateInfo* /*create_info*/,
+                           const VkAllocationCallbacks* allocator,
+                           VkCommandPool* cmd_pool) {
+    if (!allocator)
+        allocator = &device->allocator;
+    CommandPool* pool = static_cast<CommandPool*>(allocator->pfnAllocation(
+        allocator->pUserData, sizeof(CommandPool), alignof(CommandPool),
+        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
+    if (!pool)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    pool->allocator = *allocator;
+    *cmd_pool = GetHandleToCommandPool(pool);
     return VK_SUCCESS;
+}
+
+void DestroyCommandPool(VkDevice /*device*/,
+                        VkCommandPool cmd_pool,
+                        const VkAllocationCallbacks* /*allocator*/) {
+    CommandPool* pool = GetCommandPoolFromHandle(cmd_pool);
+    pool->allocator.pfnFree(pool->allocator.pUserData, pool);
 }
 
 // -----------------------------------------------------------------------------
 // CmdBuffer
 
-VkResult CreateCommandBuffer(VkDevice device,
-                             const VkCmdBufferCreateInfo*,
-                             VkCmdBuffer* out_cmdbuf) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    VkCmdBuffer_T* cmdbuf = static_cast<VkCmdBuffer_T*>(alloc->pfnAlloc(
-        alloc->pUserData, sizeof(VkCmdBuffer_T), alignof(VkCmdBuffer_T),
-        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
-    if (!cmdbuf)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    cmdbuf->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-    *out_cmdbuf = cmdbuf;
-    return VK_SUCCESS;
+VkResult AllocateCommandBuffers(VkDevice /*device*/,
+                                const VkCommandBufferAllocateInfo* alloc_info,
+                                VkCommandBuffer* cmdbufs) {
+    VkResult result = VK_SUCCESS;
+    CommandPool& pool = *GetCommandPoolFromHandle(alloc_info->commandPool);
+    std::fill(cmdbufs, cmdbufs + alloc_info->bufferCount, nullptr);
+    for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+        cmdbufs[i] =
+            static_cast<VkCommandBuffer_T*>(pool.allocator.pfnAllocation(
+                pool.allocator.pUserData, sizeof(VkCommandBuffer_T),
+                alignof(VkCommandBuffer_T), VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
+        if (!cmdbufs[i]) {
+            result = VK_ERROR_OUT_OF_HOST_MEMORY;
+            break;
+        }
+        cmdbufs[i]->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    }
+    if (result != VK_SUCCESS) {
+        for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+            if (!cmdbufs[i])
+                break;
+            pool.allocator.pfnFree(pool.allocator.pUserData, cmdbufs[i]);
+        }
+    }
+    return result;
 }
 
-void DestroyCommandBuffer(VkDevice device, VkCmdBuffer cmdbuf) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    alloc->pfnFree(alloc->pUserData, cmdbuf);
+void FreeCommandBuffers(VkDevice /*device*/,
+                        VkCommandPool cmd_pool,
+                        uint32_t count,
+                        const VkCommandBuffer* cmdbufs) {
+    CommandPool& pool = *GetCommandPoolFromHandle(cmd_pool);
+    for (uint32_t i = 0; i < count; i++)
+        pool.allocator.pfnFree(pool.allocator.pUserData, cmdbufs[i]);
 }
 
 // -----------------------------------------------------------------------------
@@ -372,33 +422,35 @@ struct DeviceMemory {
     VkDeviceSize size;
     alignas(16) uint8_t data[0];
 };
-template <>
-struct HandleTraits<VkDeviceMemory> {
-    typedef DeviceMemory* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(DeviceMemory)
 
-VkResult AllocMemory(VkDevice device,
-                     const VkMemoryAllocInfo* alloc_info,
-                     VkDeviceMemory* mem_handle) {
+VkResult AllocateMemory(VkDevice device,
+                        const VkMemoryAllocateInfo* alloc_info,
+                        const VkAllocationCallbacks* allocator,
+                        VkDeviceMemory* mem_handle) {
     if (SIZE_MAX - sizeof(DeviceMemory) <= alloc_info->allocationSize)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
+    if (!allocator)
+        allocator = &device->allocator;
 
-    const VkAllocCallbacks* alloc = device->instance->alloc;
     size_t size = sizeof(DeviceMemory) + size_t(alloc_info->allocationSize);
-    DeviceMemory* mem = static_cast<DeviceMemory*>(
-        alloc->pfnAlloc(alloc->pUserData, size, alignof(DeviceMemory),
-                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    DeviceMemory* mem = static_cast<DeviceMemory*>(allocator->pfnAllocation(
+        allocator->pUserData, size, alignof(DeviceMemory),
+        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
     if (!mem)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     mem->size = size;
-    *mem_handle = GetHandleToObject(mem);
+    *mem_handle = GetHandleToDeviceMemory(mem);
     return VK_SUCCESS;
 }
 
-void FreeMemory(VkDevice device, VkDeviceMemory mem_handle) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
-    alloc->pfnFree(alloc->pUserData, mem);
+void FreeMemory(VkDevice device,
+                VkDeviceMemory mem_handle,
+                const VkAllocationCallbacks* allocator) {
+    if (!allocator)
+        allocator = &device->allocator;
+    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
+    allocator->pfnFree(allocator->pUserData, mem);
 }
 
 VkResult MapMemory(VkDevice,
@@ -407,7 +459,7 @@ VkResult MapMemory(VkDevice,
                    VkDeviceSize,
                    VkMemoryMapFlags,
                    void** out_ptr) {
-    DeviceMemory* mem = GetObjectFromHandle(mem_handle);
+    DeviceMemory* mem = GetDeviceMemoryFromHandle(mem_handle);
     *out_ptr = &mem->data[0] + offset;
     return VK_SUCCESS;
 }
@@ -419,44 +471,44 @@ struct Buffer {
     typedef VkBuffer HandleType;
     VkDeviceSize size;
 };
-template <>
-struct HandleTraits<VkBuffer> {
-    typedef Buffer* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(Buffer)
 
 VkResult CreateBuffer(VkDevice device,
                       const VkBufferCreateInfo* create_info,
+                      const VkAllocationCallbacks* allocator,
                       VkBuffer* buffer_handle) {
     ALOGW_IF(create_info->size > kMaxDeviceMemory,
              "CreateBuffer: requested size 0x%" PRIx64
              " exceeds max device memory size 0x%" PRIx64,
              create_info->size, kMaxDeviceMemory);
-
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    Buffer* buffer = static_cast<Buffer*>(
-        alloc->pfnAlloc(alloc->pUserData, sizeof(Buffer), alignof(Buffer),
-                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!allocator)
+        allocator = &device->allocator;
+    Buffer* buffer = static_cast<Buffer*>(allocator->pfnAllocation(
+        allocator->pUserData, sizeof(Buffer), alignof(Buffer),
+        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
     if (!buffer)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     buffer->size = create_info->size;
-    *buffer_handle = GetHandleToObject(buffer);
+    *buffer_handle = GetHandleToBuffer(buffer);
     return VK_SUCCESS;
 }
 
-VkResult GetBufferMemoryRequirements(VkDevice,
-                                     VkBuffer buffer_handle,
-                                     VkMemoryRequirements* requirements) {
-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
+void GetBufferMemoryRequirements(VkDevice,
+                                 VkBuffer buffer_handle,
+                                 VkMemoryRequirements* requirements) {
+    Buffer* buffer = GetBufferFromHandle(buffer_handle);
     requirements->size = buffer->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
-    return VK_SUCCESS;
 }
 
-void DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    Buffer* buffer = GetObjectFromHandle(buffer_handle);
-    alloc->pfnFree(alloc->pUserData, buffer);
+void DestroyBuffer(VkDevice device,
+                   VkBuffer buffer_handle,
+                   const VkAllocationCallbacks* allocator) {
+    if (!allocator)
+        allocator = &device->allocator;
+    Buffer* buffer = GetBufferFromHandle(buffer_handle);
+    allocator->pfnFree(allocator->pUserData, buffer);
 }
 
 // -----------------------------------------------------------------------------
@@ -466,13 +518,11 @@ struct Image {
     typedef VkImage HandleType;
     VkDeviceSize size;
 };
-template <>
-struct HandleTraits<VkImage> {
-    typedef Image* PointerType;
-};
+DEFINE_OBJECT_HANDLE_CONVERSION(Image)
 
 VkResult CreateImage(VkDevice device,
                      const VkImageCreateInfo* create_info,
+                     const VkAllocationCallbacks* allocator,
                      VkImage* image_handle) {
     if (create_info->imageType != VK_IMAGE_TYPE_2D ||
         create_info->format != VK_FORMAT_R8G8B8A8_UNORM ||
@@ -480,42 +530,45 @@ VkResult CreateImage(VkDevice device,
         ALOGE("CreateImage: not yet implemented: type=%d format=%d mips=%u",
               create_info->imageType, create_info->format,
               create_info->mipLevels);
-        return VK_UNSUPPORTED;
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
 
     VkDeviceSize size =
         VkDeviceSize(create_info->extent.width * create_info->extent.height) *
-        create_info->arraySize * create_info->samples * 4u;
+        create_info->arrayLayers * create_info->samples * 4u;
     ALOGW_IF(size > kMaxDeviceMemory,
              "CreateImage: image size 0x%" PRIx64
              " exceeds max device memory size 0x%" PRIx64,
              size, kMaxDeviceMemory);
 
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    Image* image = static_cast<Image*>(
-        alloc->pfnAlloc(alloc->pUserData, sizeof(Image), alignof(Image),
-                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!allocator)
+        allocator = &device->allocator;
+    Image* image = static_cast<Image*>(allocator->pfnAllocation(
+        allocator->pUserData, sizeof(Image), alignof(Image),
+        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
     if (!image)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     image->size = size;
-    *image_handle = GetHandleToObject(image);
+    *image_handle = GetHandleToImage(image);
     return VK_SUCCESS;
 }
 
-VkResult GetImageMemoryRequirements(VkDevice,
-                                    VkImage image_handle,
-                                    VkMemoryRequirements* requirements) {
-    Image* image = GetObjectFromHandle(image_handle);
+void GetImageMemoryRequirements(VkDevice,
+                                VkImage image_handle,
+                                VkMemoryRequirements* requirements) {
+    Image* image = GetImageFromHandle(image_handle);
     requirements->size = image->size;
     requirements->alignment = 16;  // allow fast Neon/SSE memcpy
     requirements->memoryTypeBits = 0x1;
-    return VK_SUCCESS;
 }
 
-void DestroyImage(VkDevice device, VkImage image_handle) {
-    const VkAllocCallbacks* alloc = device->instance->alloc;
-    Image* image = GetObjectFromHandle(image_handle);
-    alloc->pfnFree(alloc->pUserData, image);
+void DestroyImage(VkDevice device,
+                  VkImage image_handle,
+                  const VkAllocationCallbacks* allocator) {
+    if (!allocator)
+        allocator = &device->allocator;
+    Image* image = GetImageFromHandle(image_handle);
+    allocator->pfnFree(allocator->pUserData, image);
 }
 
 // -----------------------------------------------------------------------------
@@ -523,38 +576,31 @@ void DestroyImage(VkDevice device, VkImage image_handle) {
 
 VkResult CreateBufferView(VkDevice device,
                           const VkBufferViewCreateInfo*,
+                          const VkAllocationCallbacks* /*allocator*/,
                           VkBufferView* view) {
     *view = AllocHandle(device, HandleType::kBufferView);
     return VK_SUCCESS;
 }
 
-VkResult CreateCommandPool(VkDevice device,
-                           const VkCmdPoolCreateInfo*,
-                           VkCmdPool* pool) {
-    *pool = AllocHandle(device, HandleType::kCmdPool);
-    return VK_SUCCESS;
-}
-
 VkResult CreateDescriptorPool(VkDevice device,
                               const VkDescriptorPoolCreateInfo*,
+                              const VkAllocationCallbacks* /*allocator*/,
                               VkDescriptorPool* pool) {
     *pool = AllocHandle(device, HandleType::kDescriptorPool);
     return VK_SUCCESS;
 }
 
-VkResult AllocDescriptorSets(VkDevice device,
-                             VkDescriptorPool,
-                             VkDescriptorSetUsage,
-                             uint32_t count,
-                             const VkDescriptorSetLayout*,
-                             VkDescriptorSet* sets) {
-    for (uint32_t i = 0; i < count; i++)
-        sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+VkResult AllocateDescriptorSets(VkDevice device,
+                                const VkDescriptorSetAllocateInfo* alloc_info,
+                                VkDescriptorSet* descriptor_sets) {
+    for (uint32_t i = 0; i < alloc_info->setLayoutCount; i++)
+        descriptor_sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
     return VK_SUCCESS;
 }
 
 VkResult CreateDescriptorSetLayout(VkDevice device,
                                    const VkDescriptorSetLayoutCreateInfo*,
+                                   const VkAllocationCallbacks* /*allocator*/,
                                    VkDescriptorSetLayout* layout) {
     *layout = AllocHandle(device, HandleType::kDescriptorSetLayout);
     return VK_SUCCESS;
@@ -562,6 +608,7 @@ VkResult CreateDescriptorSetLayout(VkDevice device,
 
 VkResult CreateEvent(VkDevice device,
                      const VkEventCreateInfo*,
+                     const VkAllocationCallbacks* /*allocator*/,
                      VkEvent* event) {
     *event = AllocHandle(device, HandleType::kEvent);
     return VK_SUCCESS;
@@ -569,6 +616,7 @@ VkResult CreateEvent(VkDevice device,
 
 VkResult CreateFence(VkDevice device,
                      const VkFenceCreateInfo*,
+                     const VkAllocationCallbacks* /*allocator*/,
                      VkFence* fence) {
     *fence = AllocHandle(device, HandleType::kFence);
     return VK_SUCCESS;
@@ -576,6 +624,7 @@ VkResult CreateFence(VkDevice device,
 
 VkResult CreateFramebuffer(VkDevice device,
                            const VkFramebufferCreateInfo*,
+                           const VkAllocationCallbacks* /*allocator*/,
                            VkFramebuffer* framebuffer) {
     *framebuffer = AllocHandle(device, HandleType::kFramebuffer);
     return VK_SUCCESS;
@@ -583,6 +632,7 @@ VkResult CreateFramebuffer(VkDevice device,
 
 VkResult CreateImageView(VkDevice device,
                          const VkImageViewCreateInfo*,
+                         const VkAllocationCallbacks* /*allocator*/,
                          VkImageView* view) {
     *view = AllocHandle(device, HandleType::kImageView);
     return VK_SUCCESS;
@@ -592,6 +642,7 @@ VkResult CreateGraphicsPipelines(VkDevice device,
                                  VkPipelineCache,
                                  uint32_t count,
                                  const VkGraphicsPipelineCreateInfo*,
+                                 const VkAllocationCallbacks* /*allocator*/,
                                  VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
         pipelines[i] = AllocHandle(device, HandleType::kPipeline);
@@ -602,6 +653,7 @@ VkResult CreateComputePipelines(VkDevice device,
                                 VkPipelineCache,
                                 uint32_t count,
                                 const VkComputePipelineCreateInfo*,
+                                const VkAllocationCallbacks* /*allocator*/,
                                 VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
         pipelines[i] = AllocHandle(device, HandleType::kPipeline);
@@ -610,6 +662,7 @@ VkResult CreateComputePipelines(VkDevice device,
 
 VkResult CreatePipelineCache(VkDevice device,
                              const VkPipelineCacheCreateInfo*,
+                             const VkAllocationCallbacks* /*allocator*/,
                              VkPipelineCache* cache) {
     *cache = AllocHandle(device, HandleType::kPipelineCache);
     return VK_SUCCESS;
@@ -617,6 +670,7 @@ VkResult CreatePipelineCache(VkDevice device,
 
 VkResult CreatePipelineLayout(VkDevice device,
                               const VkPipelineLayoutCreateInfo*,
+                              const VkAllocationCallbacks* /*allocator*/,
                               VkPipelineLayout* layout) {
     *layout = AllocHandle(device, HandleType::kPipelineLayout);
     return VK_SUCCESS;
@@ -624,6 +678,7 @@ VkResult CreatePipelineLayout(VkDevice device,
 
 VkResult CreateQueryPool(VkDevice device,
                          const VkQueryPoolCreateInfo*,
+                         const VkAllocationCallbacks* /*allocator*/,
                          VkQueryPool* pool) {
     *pool = AllocHandle(device, HandleType::kQueryPool);
     return VK_SUCCESS;
@@ -631,6 +686,7 @@ VkResult CreateQueryPool(VkDevice device,
 
 VkResult CreateRenderPass(VkDevice device,
                           const VkRenderPassCreateInfo*,
+                          const VkAllocationCallbacks* /*allocator*/,
                           VkRenderPass* renderpass) {
     *renderpass = AllocHandle(device, HandleType::kRenderPass);
     return VK_SUCCESS;
@@ -638,6 +694,7 @@ VkResult CreateRenderPass(VkDevice device,
 
 VkResult CreateSampler(VkDevice device,
                        const VkSamplerCreateInfo*,
+                       const VkAllocationCallbacks* /*allocator*/,
                        VkSampler* sampler) {
     *sampler = AllocHandle(device, HandleType::kSampler);
     return VK_SUCCESS;
@@ -645,20 +702,15 @@ VkResult CreateSampler(VkDevice device,
 
 VkResult CreateSemaphore(VkDevice device,
                          const VkSemaphoreCreateInfo*,
+                         const VkAllocationCallbacks* /*allocator*/,
                          VkSemaphore* semaphore) {
     *semaphore = AllocHandle(device, HandleType::kSemaphore);
     return VK_SUCCESS;
 }
 
-VkResult CreateShader(VkDevice device,
-                      const VkShaderCreateInfo*,
-                      VkShader* shader) {
-    *shader = AllocHandle(device, HandleType::kShader);
-    return VK_SUCCESS;
-}
-
 VkResult CreateShaderModule(VkDevice device,
                             const VkShaderModuleCreateInfo*,
+                            const VkAllocationCallbacks* /*allocator*/,
                             VkShaderModule* module) {
     *module = AllocHandle(device, HandleType::kShaderModule);
     return VK_SUCCESS;
@@ -690,14 +742,12 @@ VkResult QueueSignalReleaseImageANDROID(VkQueue, VkImage, int* fence) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 
-VkResult GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
+void GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
+void GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkFormatProperties* pFormatProperties) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult GetPhysicalDeviceImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties) {
@@ -720,7 +770,7 @@ VkResult EnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, con
     return VK_SUCCESS;
 }
 
-VkResult QueueSubmit(VkQueue queue, uint32_t cmdBufferCount, const VkCmdBuffer* pCmdBuffers, VkFence fence) {
+VkResult QueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo* pSubmitInfo, VkFence fence) {
     return VK_SUCCESS;
 }
 
@@ -747,9 +797,8 @@ VkResult InvalidateMappedMemoryRanges(VkDevice device, uint32_t memRangeCount, c
     return VK_SUCCESS;
 }
 
-VkResult GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
+void GetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
 VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, VkDeviceSize memOffset) {
@@ -760,32 +809,20 @@ VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkD
     return VK_SUCCESS;
 }
 
-VkResult GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+void GetImageSparseMemoryRequirements(VkDevice device, VkImage image, uint32_t* pNumRequirements, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
+}
+
+void GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
+}
+
+VkResult QueueBindSparse(VkQueue queue, uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
-VkResult GetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, uint32_t samples, VkImageUsageFlags usage, VkImageTiling tiling, uint32_t* pNumProperties, VkSparseImageFormatProperties* pProperties) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueBindSparseBufferMemory(VkQueue queue, VkBuffer buffer, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueBindSparseImageOpaqueMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseMemoryBindInfo* pBindInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueBindSparseImageMemory(VkQueue queue, VkImage image, uint32_t numBindings, const VkSparseImageMemoryBindInfo* pBindInfo) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-void DestroyFence(VkDevice device, VkFence fence) {
+void DestroyFence(VkDevice device, VkFence fence, const VkAllocationCallbacks* allocator) {
 }
 
 VkResult ResetFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences) {
@@ -801,19 +838,10 @@ VkResult WaitForFences(VkDevice device, uint32_t fenceCount, const VkFence* pFen
     return VK_SUCCESS;
 }
 
-void DestroySemaphore(VkDevice device, VkSemaphore semaphore) {
+void DestroySemaphore(VkDevice device, VkSemaphore semaphore, const VkAllocationCallbacks* allocator) {
 }
 
-VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    return VK_SUCCESS;
-}
-
-void DestroyEvent(VkDevice device, VkEvent event) {
+void DestroyEvent(VkDevice device, VkEvent event, const VkAllocationCallbacks* allocator) {
 }
 
 VkResult GetEventStatus(VkDevice device, VkEvent event) {
@@ -831,40 +859,31 @@ VkResult ResetEvent(VkDevice device, VkEvent event) {
     return VK_SUCCESS;
 }
 
-void DestroyQueryPool(VkDevice device, VkQueryPool queryPool) {
+void DestroyQueryPool(VkDevice device, VkQueryPool queryPool, const VkAllocationCallbacks* allocator) {
 }
 
-VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t* pDataSize, void* pData, VkQueryResultFlags flags) {
+VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
-void DestroyBufferView(VkDevice device, VkBufferView bufferView) {
+void DestroyBufferView(VkDevice device, VkBufferView bufferView, const VkAllocationCallbacks* allocator) {
 }
 
-VkResult GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
+void GetImageSubresourceLayout(VkDevice device, VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) {
     ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
 }
 
-void DestroyImageView(VkDevice device, VkImageView imageView) {
+void DestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyShaderModule(VkDevice device, VkShaderModule shaderModule) {
+void DestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyShader(VkDevice device, VkShader shader) {
+void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyPipelineCache(VkDevice device, VkPipelineCache pipelineCache) {
-}
-
-size_t GetPipelineCacheSize(VkDevice device, VkPipelineCache pipelineCache) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, void* pData) {
+VkResult GetPipelineCacheData(VkDevice device, VkPipelineCache pipelineCache, size_t* pDataSize, void* pData) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -874,22 +893,22 @@ VkResult MergePipelineCaches(VkDevice device, VkPipelineCache destCache, uint32_
     return VK_SUCCESS;
 }
 
-void DestroyPipeline(VkDevice device, VkPipeline pipeline) {
+void DestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout) {
+void DestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroySampler(VkDevice device, VkSampler sampler) {
+void DestroySampler(VkDevice device, VkSampler sampler, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {
+void DestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+void DestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, const VkAllocationCallbacks* allocator) {
 }
 
-VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool) {
+VkResult ResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
@@ -903,171 +922,164 @@ VkResult FreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, ui
     return VK_SUCCESS;
 }
 
-void DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer) {
+void DestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks* allocator) {
 }
 
-void DestroyRenderPass(VkDevice device, VkRenderPass renderPass) {
+void DestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocationCallbacks* allocator) {
 }
 
-VkResult GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
+void GetRenderAreaGranularity(VkDevice device, VkRenderPass renderPass, VkExtent2D* pGranularity) {
+    ALOGV("TODO: vk%s", __FUNCTION__);
+}
+
+VkResult ResetCommandPool(VkDevice device, VkCommandPool cmdPool, VkCommandPoolResetFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
-void DestroyCommandPool(VkDevice device, VkCmdPool cmdPool) {
+VkResult BeginCommandBuffer(VkCommandBuffer cmdBuffer, const VkCommandBufferBeginInfo* pBeginInfo) {
+    return VK_SUCCESS;
 }
 
-VkResult ResetCommandPool(VkDevice device, VkCmdPool cmdPool, VkCmdPoolResetFlags flags) {
+VkResult EndCommandBuffer(VkCommandBuffer cmdBuffer) {
+    return VK_SUCCESS;
+}
+
+VkResult ResetCommandBuffer(VkCommandBuffer cmdBuffer, VkCommandBufferResetFlags flags) {
     ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
-VkResult BeginCommandBuffer(VkCmdBuffer cmdBuffer, const VkCmdBufferBeginInfo* pBeginInfo) {
-    return VK_SUCCESS;
+void CmdBindPipeline(VkCommandBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline) {
 }
 
-VkResult EndCommandBuffer(VkCmdBuffer cmdBuffer) {
-    return VK_SUCCESS;
+void CmdSetViewport(VkCommandBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
 }
 
-VkResult ResetCommandBuffer(VkCmdBuffer cmdBuffer, VkCmdBufferResetFlags flags) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
+void CmdSetScissor(VkCommandBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
 }
 
-void CmdBindPipeline(VkCmdBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline) {
+void CmdSetLineWidth(VkCommandBuffer cmdBuffer, float lineWidth) {
 }
 
-void CmdSetViewport(VkCmdBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
+void CmdSetDepthBias(VkCommandBuffer cmdBuffer, float depthBias, float depthBiasClamp, float slopeScaledDepthBias) {
 }
 
-void CmdSetScissor(VkCmdBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
+void CmdSetBlendConstants(VkCommandBuffer cmdBuffer, const float blendConst[4]) {
 }
 
-void CmdSetLineWidth(VkCmdBuffer cmdBuffer, float lineWidth) {
+void CmdSetDepthBounds(VkCommandBuffer cmdBuffer, float minDepthBounds, float maxDepthBounds) {
 }
 
-void CmdSetDepthBias(VkCmdBuffer cmdBuffer, float depthBias, float depthBiasClamp, float slopeScaledDepthBias) {
+void CmdSetStencilCompareMask(VkCommandBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilCompareMask) {
 }
 
-void CmdSetBlendConstants(VkCmdBuffer cmdBuffer, const float blendConst[4]) {
+void CmdSetStencilWriteMask(VkCommandBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilWriteMask) {
 }
 
-void CmdSetDepthBounds(VkCmdBuffer cmdBuffer, float minDepthBounds, float maxDepthBounds) {
+void CmdSetStencilReference(VkCommandBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilReference) {
 }
 
-void CmdSetStencilCompareMask(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilCompareMask) {
+void CmdBindDescriptorSets(VkCommandBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t setCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) {
 }
 
-void CmdSetStencilWriteMask(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilWriteMask) {
+void CmdBindIndexBuffer(VkCommandBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
 }
 
-void CmdSetStencilReference(VkCmdBuffer cmdBuffer, VkStencilFaceFlags faceMask, uint32_t stencilReference) {
+void CmdBindVertexBuffers(VkCommandBuffer cmdBuffer, uint32_t startBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {
 }
 
-void CmdBindDescriptorSets(VkCmdBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t setCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) {
+void CmdDraw(VkCommandBuffer cmdBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 }
 
-void CmdBindIndexBuffer(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
+void CmdDrawIndexed(VkCommandBuffer cmdBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) {
 }
 
-void CmdBindVertexBuffers(VkCmdBuffer cmdBuffer, uint32_t startBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {
+void CmdDrawIndirect(VkCommandBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
 }
 
-void CmdDraw(VkCmdBuffer cmdBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+void CmdDrawIndexedIndirect(VkCommandBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
 }
 
-void CmdDrawIndexed(VkCmdBuffer cmdBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) {
+void CmdDispatch(VkCommandBuffer cmdBuffer, uint32_t x, uint32_t y, uint32_t z) {
 }
 
-void CmdDrawIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
+void CmdDispatchIndirect(VkCommandBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset) {
 }
 
-void CmdDrawIndexedIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t count, uint32_t stride) {
+void CmdCopyBuffer(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer destBuffer, uint32_t regionCount, const VkBufferCopy* pRegions) {
 }
 
-void CmdDispatch(VkCmdBuffer cmdBuffer, uint32_t x, uint32_t y, uint32_t z) {
+void CmdCopyImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageCopy* pRegions) {
 }
 
-void CmdDispatchIndirect(VkCmdBuffer cmdBuffer, VkBuffer buffer, VkDeviceSize offset) {
+void CmdBlitImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter) {
 }
 
-void CmdCopyBuffer(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkBuffer destBuffer, uint32_t regionCount, const VkBufferCopy* pRegions) {
+void CmdCopyBufferToImage(VkCommandBuffer cmdBuffer, VkBuffer srcBuffer, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions) {
 }
 
-void CmdCopyImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageCopy* pRegions) {
+void CmdCopyImageToBuffer(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer destBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions) {
 }
 
-void CmdBlitImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkTexFilter filter) {
+void CmdUpdateBuffer(VkCommandBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize dataSize, const uint32_t* pData) {
 }
 
-void CmdCopyBufferToImage(VkCmdBuffer cmdBuffer, VkBuffer srcBuffer, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions) {
+void CmdFillBuffer(VkCommandBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize fillSize, uint32_t data) {
 }
 
-void CmdCopyImageToBuffer(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer destBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions) {
+void CmdClearColorImage(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
 }
 
-void CmdUpdateBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize dataSize, const uint32_t* pData) {
+void CmdClearDepthStencilImage(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
 }
 
-void CmdFillBuffer(VkCmdBuffer cmdBuffer, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize fillSize, uint32_t data) {
+void CmdClearAttachments(VkCommandBuffer cmdBuffer, uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects) {
 }
 
-void CmdClearColorImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
+void CmdResolveImage(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) {
 }
 
-void CmdClearDepthStencilImage(VkCmdBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
+void CmdSetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
 }
 
-void CmdClearColorAttachment(VkCmdBuffer cmdBuffer, uint32_t colorAttachment, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rectCount, const VkRect3D* pRects) {
+void CmdResetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
 }
 
-void CmdClearDepthStencilAttachment(VkCmdBuffer cmdBuffer, VkImageAspectFlags aspectMask, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rectCount, const VkRect3D* pRects) {
+void CmdWaitEvents(VkCommandBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
 }
 
-void CmdResolveImage(VkCmdBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage destImage, VkImageLayout destImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) {
+void CmdPipelineBarrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
 }
 
-void CmdSetEvent(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
+void CmdBeginQuery(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {
 }
 
-void CmdResetEvent(VkCmdBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
+void CmdEndQuery(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot) {
 }
 
-void CmdWaitEvents(VkCmdBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdResetQueryPool(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
 }
 
-void CmdPipelineBarrier(VkCmdBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkBool32 byRegion, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdWriteTimestamp(VkCommandBuffer cmdBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t slot) {
 }
 
-void CmdBeginQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {
+void CmdCopyQueryPoolResults(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
 }
 
-void CmdEndQuery(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot) {
+void CmdPushConstants(VkCommandBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values) {
 }
 
-void CmdResetQueryPool(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount) {
+void CmdBeginRenderPass(VkCommandBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents) {
 }
 
-void CmdWriteTimestamp(VkCmdBuffer cmdBuffer, VkTimestampType timestampType, VkBuffer destBuffer, VkDeviceSize destOffset) {
+void CmdNextSubpass(VkCommandBuffer cmdBuffer, VkSubpassContents contents) {
 }
 
-void CmdCopyQueryPoolResults(VkCmdBuffer cmdBuffer, VkQueryPool queryPool, uint32_t startQuery, uint32_t queryCount, VkBuffer destBuffer, VkDeviceSize destOffset, VkDeviceSize destStride, VkQueryResultFlags flags) {
+void CmdEndRenderPass(VkCommandBuffer cmdBuffer) {
 }
 
-void CmdPushConstants(VkCmdBuffer cmdBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t start, uint32_t length, const void* values) {
-}
-
-void CmdBeginRenderPass(VkCmdBuffer cmdBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, VkRenderPassContents contents) {
-}
-
-void CmdNextSubpass(VkCmdBuffer cmdBuffer, VkRenderPassContents contents) {
-}
-
-void CmdEndRenderPass(VkCmdBuffer cmdBuffer) {
-}
-
-void CmdExecuteCommands(VkCmdBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCmdBuffer* pCmdBuffers) {
+void CmdExecuteCommands(VkCommandBuffer cmdBuffer, uint32_t cmdBuffersCount, const VkCommandBuffer* pCmdBuffers) {
 }
 
 #pragma clang diagnostic pop
