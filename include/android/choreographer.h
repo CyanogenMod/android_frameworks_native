@@ -26,6 +26,8 @@
 #ifndef ANDROID_CHOREOGRAPHER_H
 #define ANDROID_CHOREOGRAPHER_H
 
+#include <sys/cdefs.h>
+
 __BEGIN_DECLS
 
 struct AChoreographer;
