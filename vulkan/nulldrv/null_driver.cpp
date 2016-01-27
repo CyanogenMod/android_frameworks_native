@@ -1,8 +1,25 @@
+/*
+ * Copyright 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <hardware/hwvulkan.h>
 
 #include <array>
-#include <string.h>
 #include <algorithm>
+#include <inttypes.h>
+#include <string.h>
 
 // #define LOG_NDEBUG 0
 #include <log/log.h>
@@ -77,6 +94,9 @@ enum Enum {
 };
 }  // namespace HandleType
 uint64_t AllocHandle(VkDevice device, HandleType::Enum type);
+
+const VkDeviceSize kMaxDeviceMemory = VkDeviceSize(INTPTR_MAX) + 1;
+
 }  // anonymous namespace
 
 struct VkDevice_T {
@@ -100,13 +120,13 @@ hw_module_methods_t nulldrv_module_methods = {.open = OpenDevice};
 __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
     .common =
         {
-         .tag = HARDWARE_MODULE_TAG,
-         .module_api_version = HWVULKAN_MODULE_API_VERSION_0_1,
-         .hal_api_version = HARDWARE_HAL_API_VERSION,
-         .id = HWVULKAN_HARDWARE_MODULE_ID,
-         .name = "Null Vulkan Driver",
-         .author = "The Android Open Source Project",
-         .methods = &nulldrv_module_methods,
+            .tag = HARDWARE_MODULE_TAG,
+            .module_api_version = HWVULKAN_MODULE_API_VERSION_0_1,
+            .hal_api_version = HARDWARE_HAL_API_VERSION,
+            .id = HWVULKAN_HARDWARE_MODULE_ID,
+            .name = "Null Vulkan Driver",
+            .author = "The Android Open Source Project",
+            .methods = &nulldrv_module_methods,
         },
 };
 #pragma clang diagnostic pop
@@ -117,6 +137,11 @@ namespace {
 
 VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                         VkInstance* out_instance) {
+    // Assume the loader provided alloc callbacks even if the app didn't.
+    ALOG_ASSERT(
+        create_info->pAllocCb,
+        "Missing alloc callbacks, loader or app should have provided them");
+
     VkInstance_T* instance =
         static_cast<VkInstance_T*>(create_info->pAllocCb->pfnAlloc(
             create_info->pAllocCb->pUserData, sizeof(VkInstance_T),
@@ -140,10 +165,10 @@ int CloseDevice(struct hw_device_t* /*device*/) {
 hwvulkan_device_t nulldrv_device = {
     .common =
         {
-         .tag = HARDWARE_DEVICE_TAG,
-         .version = HWVULKAN_DEVICE_API_VERSION_0_1,
-         .module = &HAL_MODULE_INFO_SYM.common,
-         .close = CloseDevice,
+            .tag = HARDWARE_DEVICE_TAG,
+            .version = HWVULKAN_DEVICE_API_VERSION_0_1,
+            .module = &HAL_MODULE_INFO_SYM.common,
+            .close = CloseDevice,
         },
     .GetGlobalExtensionProperties = GetGlobalExtensionProperties,
     .CreateInstance = CreateInstance,
@@ -169,8 +194,7 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
 uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
     const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
     ALOGE_IF(device->next_handle[type] == kHandleMask,
-        "non-dispatchable handles of type=%u are about to overflow",
-        type);
+             "non-dispatchable handles of type=%u are about to overflow", type);
     return (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
            (device->next_handle[type]++ & kHandleMask);
 }
@@ -212,7 +236,15 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
 }
 
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
-    return LookupDeviceProcAddr(name);
+    PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
+    if (proc)
+        return proc;
+    if (strcmp(name, "vkImportNativeFenceANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(ImportNativeFenceANDROID);
+    if (strcmp(name, "vkQueueSignalNativeFenceANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            QueueSignalNativeFenceANDROID);
+    return nullptr;
 }
 
 // -----------------------------------------------------------------------------
@@ -256,8 +288,7 @@ VkResult GetPhysicalDeviceMemoryProperties(
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     properties->memoryTypes[0].heapIndex = 0;
     properties->memoryHeapCount = 1;
-    properties->memoryHeaps[0].size =
-        INTPTR_MAX;  // TODO: do something smarter?
+    properties->memoryHeaps[0].size = kMaxDeviceMemory;
     properties->memoryHeaps[0].flags = VK_MEMORY_HEAP_HOST_LOCAL;
     return VK_SUCCESS;
 }
@@ -385,6 +416,11 @@ struct HandleTraits<VkBuffer> {
 VkResult CreateBuffer(VkDevice device,
                       const VkBufferCreateInfo* create_info,
                       VkBuffer* buffer_handle) {
+    ALOGW_IF(create_info->size > kMaxDeviceMemory,
+             "CreateBuffer: requested size 0x%" PRIx64
+             " exceeds max device memory size 0x%" PRIx64,
+             create_info->size, kMaxDeviceMemory);
+
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Buffer* buffer = static_cast<Buffer*>(
         alloc->pfnAlloc(alloc->pUserData, sizeof(Buffer), alignof(Buffer),
@@ -410,6 +446,66 @@ VkResult DestroyBuffer(VkDevice device, VkBuffer buffer_handle) {
     const VkAllocCallbacks* alloc = device->instance->alloc;
     Buffer* buffer = GetObjectFromHandle(buffer_handle);
     alloc->pfnFree(alloc->pUserData, buffer);
+    return VK_SUCCESS;
+}
+
+// -----------------------------------------------------------------------------
+// Image
+
+struct Image {
+    typedef VkImage HandleType;
+    VkDeviceSize size;
+};
+template <>
+struct HandleTraits<VkImage> {
+    typedef Image* PointerType;
+};
+
+VkResult CreateImage(VkDevice device,
+                     const VkImageCreateInfo* create_info,
+                     VkImage* image_handle) {
+    if (create_info->imageType != VK_IMAGE_TYPE_2D ||
+        create_info->format != VK_FORMAT_R8G8B8A8_UNORM ||
+        create_info->mipLevels != 1) {
+        ALOGE("CreateImage: not yet implemented: type=%d format=%d mips=%u",
+              create_info->imageType, create_info->format,
+              create_info->mipLevels);
+        return VK_ERROR_UNAVAILABLE;
+    }
+
+    VkDeviceSize size =
+        VkDeviceSize(create_info->extent.width * create_info->extent.height) *
+        create_info->arraySize * create_info->samples * 4u;
+    ALOGW_IF(size > kMaxDeviceMemory,
+             "CreateImage: image size 0x%" PRIx64
+             " exceeds max device memory size 0x%" PRIx64,
+             size, kMaxDeviceMemory);
+
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Image* image = static_cast<Image*>(
+        alloc->pfnAlloc(alloc->pUserData, sizeof(Image), alignof(Image),
+                        VK_SYSTEM_ALLOC_TYPE_API_OBJECT));
+    if (!image)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    image->size = size;
+    *image_handle = GetHandleToObject(image);
+    return VK_SUCCESS;
+}
+
+VkResult GetImageMemoryRequirements(VkDevice,
+                                    VkImage image_handle,
+                                    VkMemoryRequirements* requirements) {
+    Image* image = GetObjectFromHandle(image_handle);
+    requirements->size = image->size;
+    requirements->alignment = 16;  // allow fast Neon/SSE memcpy
+    requirements->memoryTypeBits = 0x1;
+    return VK_SUCCESS;
+}
+
+VkResult DestroyImage(VkDevice device, VkImage image_handle) {
+    const VkAllocCallbacks* alloc = device->instance->alloc;
+    Image* image = GetObjectFromHandle(image_handle);
+    alloc->pfnFree(alloc->pUserData, image);
     return VK_SUCCESS;
 }
 
@@ -599,6 +695,16 @@ VkResult CreateShaderModule(VkDevice device,
     return VK_SUCCESS;
 }
 
+VkResult ImportNativeFenceANDROID(VkDevice, VkSemaphore, int fence) {
+    close(fence);
+    return VK_SUCCESS;
+}
+
+VkResult QueueSignalNativeFenceANDROID(VkQueue, int* fence) {
+    *fence = -1;
+    return VK_SUCCESS;
+}
+
 // -----------------------------------------------------------------------------
 // No-op entrypoints
 
@@ -688,13 +794,7 @@ VkResult BindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory mem, 
     return VK_SUCCESS;
 }
 
-VkResult GetImageMemoryRequirements(VkDevice device, VkImage image, VkMemoryRequirements* pMemoryRequirements) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
 VkResult BindImageMemory(VkDevice device, VkImage image, VkDeviceMemory mem, VkDeviceSize memOffset) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -750,7 +850,6 @@ VkResult QueueSignalSemaphore(VkQueue queue, VkSemaphore semaphore) {
 }
 
 VkResult QueueWaitSemaphore(VkQueue queue, VkSemaphore semaphore) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
@@ -783,16 +882,6 @@ VkResult GetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t st
 }
 
 VkResult DestroyBufferView(VkDevice device, VkBufferView bufferView) {
-    return VK_SUCCESS;
-}
-
-VkResult CreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, VkImage* pImage) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
-    return VK_SUCCESS;
-}
-
-VkResult DestroyImage(VkDevice device, VkImage image) {
-    ALOGV("TODO: vk%s", __FUNCTION__);
     return VK_SUCCESS;
 }
 
