@@ -190,6 +190,7 @@ struct PrependSPSPPSToIDRFramesParams {
 
 // Structure describing a media image (frame)
 // Currently only supporting YUV
+// @deprecated. Use MediaImage2 instead
 struct MediaImage {
     enum Type {
         MEDIA_IMAGE_TYPE_UNKNOWN = 0,
@@ -213,6 +214,45 @@ struct MediaImage {
                                       // from buffer offset
         uint32_t mColInc;             // column increment in bytes
         uint32_t mRowInc;             // row increment in bytes
+        uint32_t mHorizSubsampling;   // subsampling compared to the largest plane
+        uint32_t mVertSubsampling;    // subsampling compared to the largest plane
+    };
+    PlaneInfo mPlane[MAX_NUM_PLANES];
+};
+
+struct MediaImage2 {
+    enum Type {
+        MEDIA_IMAGE_TYPE_UNKNOWN = 0,
+        MEDIA_IMAGE_TYPE_YUV,
+        MEDIA_IMAGE_TYPE_YUVA,
+        MEDIA_IMAGE_TYPE_RGB,
+        MEDIA_IMAGE_TYPE_RGBA,
+        MEDIA_IMAGE_TYPE_Y,
+    };
+
+    enum PlaneIndex {
+        Y = 0,
+        U = 1,
+        V = 2,
+        R = 0,
+        G = 1,
+        B = 2,
+        A = 3,
+        MAX_NUM_PLANES = 4,
+    };
+
+    Type mType;
+    uint32_t mNumPlanes;              // number of planes
+    uint32_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
+    uint32_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
+    uint32_t mBitDepth;               // useable bit depth (always MSB)
+    uint32_t mBitDepthAllocated;      // bits per component (must be 8 or 16)
+
+    struct PlaneInfo {
+        uint32_t mOffset;             // offset of first pixel of the plane in bytes
+                                      // from buffer offset
+        int32_t mColInc;              // column increment in bytes
+        int32_t mRowInc;              // row increment in bytes
         uint32_t mHorizSubsampling;   // subsampling compared to the largest plane
         uint32_t mVertSubsampling;    // subsampling compared to the largest plane
     };
@@ -245,6 +285,8 @@ struct MediaImage {
 // For non-YUV packed planar/semiplanar image formats, or if bUsingNativeBuffers
 // is OMX_TRUE and the component does not support this color format with native
 // buffers, the component shall set mNumPlanes to 0, and mType to MEDIA_IMAGE_TYPE_UNKNOWN.
+
+// @deprecated: use DescribeColorFormat2Params
 struct DescribeColorFormatParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -258,6 +300,25 @@ struct DescribeColorFormatParams {
 
     // output: fill out the MediaImage fields
     MediaImage sMediaImage;
+};
+
+// A pointer to this struct is passed to OMX_GetParameter when the extension
+// index for the 'OMX.google.android.index.describeColorFormat2'
+// extension is given. This is operationally the same as DescribeColorFormatParams
+// but can be used for HDR and RGBA/YUVA formats.
+struct DescribeColorFormat2Params {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    // input: parameters from OMX_VIDEO_PORTDEFINITIONTYPE
+    OMX_COLOR_FORMATTYPE eColorFormat;
+    OMX_U32 nFrameWidth;
+    OMX_U32 nFrameHeight;
+    OMX_U32 nStride;
+    OMX_U32 nSliceHeight;
+    OMX_BOOL bUsingNativeBuffers;
+
+    // output: fill out the MediaImage2 fields
+    MediaImage2 sMediaImage;
 };
 
 // A pointer to this struct is passed to OMX_SetParameter or OMX_GetParameter
