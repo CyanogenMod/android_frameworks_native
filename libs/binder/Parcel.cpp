@@ -48,9 +48,9 @@
 #endif
 
 #define LOG_REFS(...)
-//#define LOG_REFS(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
+//#define LOG_REFS(...) ALOG(LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOG_ALLOC(...)
-//#define LOG_ALLOC(...) ALOG(LOG_DEBUG, "Parcel", __VA_ARGS__)
+//#define LOG_ALLOC(...) ALOG(LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
 // ---------------------------------------------------------------------------
 
