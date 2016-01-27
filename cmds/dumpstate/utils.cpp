@@ -566,7 +566,6 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     } else if (WIFEXITED(status) && WEXITSTATUS(status) > 0) {
         printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
     }
-    if (title) printf("[%s: %.3fs elapsed]\n\n", command, (float)elapsed / NANOS_PER_SEC);
 
     if (weight > 0) {
         update_progress(weight);

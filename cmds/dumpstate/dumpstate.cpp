@@ -357,6 +357,8 @@ static void print_header() {
 
 /* adds a new entry to the existing zip file. */
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
+    DurationReporter duration_reporter(("ADD ZIP ENTRY " + entry_name).c_str());
+    ALOGD("Adding zip entry %s", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
     if (err) {
@@ -364,8 +366,8 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
         return false;
     }
 
+    std::vector<uint8_t> buffer(65536);
     while (1) {
-        std::vector<uint8_t> buffer(65536);
         ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd, buffer.data(), sizeof(buffer)));
         if (bytes_read == 0) {
             break;
@@ -413,7 +415,7 @@ void add_dir(const char *dir, bool recursive) {
 }
 
 static void dumpstate(const std::string& screenshot_path) {
-    std::unique_ptr<DurationReporter> duration_reporter(new DurationReporter("DUMPSTATE"));
+    DurationReporter duration_reporter("DUMPSTATE");
     unsigned long timeout;
 
     dump_dev_files("TRUSTY VERSION", "/sys/bus/platform/drivers/trusty", "trusty_version");
