@@ -217,6 +217,28 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
             mFlags |= SENSOR_FLAG_WAKE_UP;
         }
         break;
+    case SENSOR_TYPE_POSE_6DOF:
+        mStringType = SENSOR_STRING_TYPE_POSE_6DOF;
+        mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;
+        break;
+    case SENSOR_TYPE_STATIONARY_DETECT:
+        mStringType = SENSOR_STRING_TYPE_STATIONARY_DETECT;
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
+        break;
+    case SENSOR_TYPE_MOTION_DETECT:
+        mStringType = SENSOR_STRING_TYPE_MOTION_DETECT;
+        mFlags |= SENSOR_FLAG_ONE_SHOT_MODE;
+        if (halVersion < SENSORS_DEVICE_API_VERSION_1_3) {
+            mFlags |= SENSOR_FLAG_WAKE_UP;
+        }
+        break;
+    case SENSOR_TYPE_HEART_BEAT:
+        mStringType = SENSOR_STRING_TYPE_HEART_BEAT;
+        mFlags |= SENSOR_FLAG_SPECIAL_REPORTING_MODE;
+        break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
         if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->stringType) {
