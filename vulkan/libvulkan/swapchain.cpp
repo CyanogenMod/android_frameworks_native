@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define LOG_NDEBUG 0
-
 #include <algorithm>
 #include <memory>
 
@@ -79,10 +77,13 @@ class VulkanAllocator {
         : allocator_(other.allocator_), scope_(other.scope_) {}
 
     T* allocate(size_t n) const {
-        return static_cast<T*>(allocator_.pfnAllocation(
+        T* p = static_cast<T*>(allocator_.pfnAllocation(
             allocator_.pUserData, n * sizeof(T), alignof(T), scope_));
+        if (!p)
+            throw std::bad_alloc();
+        return p;
     }
-    void deallocate(T* p, size_t) const {
+    void deallocate(T* p, size_t) const noexcept {
         return allocator_.pfnFree(allocator_.pUserData, p);
     }
 
@@ -95,10 +96,15 @@ class VulkanAllocator {
 
 template <typename T, typename Host>
 std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
-    obj->common.incRef(&obj->common);
-    return std::shared_ptr<T>(
-        obj, NativeBaseDeleter<T>(),
-        VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
+    try {
+        obj->common.incRef(&obj->common);
+        return std::shared_ptr<T>(
+            obj, NativeBaseDeleter<T>(),
+            VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
+    } catch (std::bad_alloc&) {
+        obj->common.decRef(&obj->common);
+        return nullptr;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -163,6 +169,12 @@ VkResult CreateAndroidSurfaceKHR_Bottom(
     Surface* surface = new (mem) Surface;
 
     surface->window = InitSharedPtr(instance, pCreateInfo->window);
+    if (!surface->window) {
+        ALOGE("surface creation failed: out of memory");
+        surface->~Surface();
+        allocator->pfnFree(allocator->pUserData, surface);
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     int err =
@@ -322,9 +334,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
     if (!allocator)
         allocator = GetAllocator(device);
 
-    ALOGV_IF(create_info->imageArraySize != 1,
-             "Swapchain imageArraySize (%u) != 1 not supported",
-             create_info->imageArraySize);
+    ALOGV_IF(create_info->imageArrayLayers != 1,
+             "Swapchain imageArrayLayers (%u) != 1 not supported",
+             create_info->imageArrayLayers);
 
     ALOGE_IF(create_info->imageFormat != VK_FORMAT_R8G8B8A8_UNORM,
              "swapchain formats other than R8G8B8A8_UNORM not yet implemented");
@@ -334,8 +346,10 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
              "swapchain re-creation not yet implemented");
     ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
              "swapchain preTransform not yet implemented");
-    ALOGE_IF(create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR,
-             "present modes other than FIFO are not yet implemented");
+    ALOGW_IF((create_info->presentMode != VK_PRESENT_MODE_FIFO_KHR ||
+              create_info->presentMode != VK_PRESENT_MODE_MAILBOX_KHR),
+             "swapchain present mode %d not supported",
+             create_info->presentMode);
 
     // -- Configure the native window --
 
@@ -406,6 +420,17 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
+    err = surface.window->setSwapInterval(
+        surface.window.get(),
+        create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR ? 0 : 1);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window->setSwapInterval failed: %s (%d)", strerror(-err),
+              err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
     // -- Allocate our Swapchain object --
     // After this point, we must deallocate the swapchain on error.
 
@@ -457,6 +482,13 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
             break;
         }
         img.buffer = InitSharedPtr(device, buffer);
+        if (!img.buffer) {
+            ALOGE("swapchain creation failed: out of memory");
+            surface.window->cancelBuffer(surface.window.get(), buffer,
+                                         img.dequeue_fence);
+            result = VK_ERROR_OUT_OF_HOST_MEMORY;
+            break;
+        }
         img.dequeued = true;
 
         image_create.extent =
@@ -643,8 +675,9 @@ VkResult QueuePresentKHR_Bottom(VkQueue queue,
         int err;
 
         int fence = -1;
-        result =
-            dispatch.QueueSignalReleaseImageANDROID(queue, img.image, &fence);
+        result = dispatch.QueueSignalReleaseImageANDROID(
+            queue, present_info->waitSemaphoreCount,
+            present_info->pWaitSemaphores, img.image, &fence);
         if (result != VK_SUCCESS) {
             ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
             if (present_info->pResults)

@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+#include <algorithm>
+#include <array>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <sstream>
 #include <vector>
 
-#define VK_PROTOTYPES
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_ext_debug_report.h>
 
 #define LOG_TAG "vkinfo"
 #include <log/log.h>
@@ -30,6 +32,7 @@ namespace {
 struct GpuInfo {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceMemoryProperties memory;
+    VkPhysicalDeviceFeatures features;
     std::vector<VkQueueFamilyProperties> queue_families;
     std::vector<VkExtensionProperties> extensions;
     std::vector<VkLayerProperties> layers;
@@ -69,6 +72,14 @@ struct VulkanInfo {
     exit(1);
 }
 
+bool HasExtension(const std::vector<VkExtensionProperties>& extensions,
+                  const char* name) {
+    return std::find_if(extensions.cbegin(), extensions.cend(),
+                        [=](const VkExtensionProperties& prop) {
+                            return strcmp(prop.extensionName, name) == 0;
+                        }) != extensions.end();
+}
+
 void EnumerateInstanceExtensions(
     const char* layer_name,
     std::vector<VkExtensionProperties>* extensions) {
@@ -105,6 +116,70 @@ void EnumerateDeviceExtensions(VkPhysicalDevice gpu,
         die("vkEnumerateDeviceExtensionProperties (data)", result);
 }
 
+void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
+    VkResult result;
+    uint32_t count;
+
+    vkGetPhysicalDeviceProperties(gpu, &info.properties);
+    vkGetPhysicalDeviceMemoryProperties(gpu, &info.memory);
+    vkGetPhysicalDeviceFeatures(gpu, &info.features);
+
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
+    info.queue_families.resize(count);
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count,
+                                             info.queue_families.data());
+
+    result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceLayerProperties (count)", result);
+    do {
+        info.layers.resize(count);
+        result =
+            vkEnumerateDeviceLayerProperties(gpu, &count, info.layers.data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceLayerProperties (data)", result);
+    info.layer_extensions.resize(info.layers.size());
+
+    EnumerateDeviceExtensions(gpu, nullptr, &info.extensions);
+    for (size_t i = 0; i < info.layers.size(); i++) {
+        EnumerateDeviceExtensions(gpu, info.layers[i].layerName,
+                                  &info.layer_extensions[i]);
+    }
+
+    const std::array<const char*, 1> kDesiredExtensions = {
+        {VK_KHR_SWAPCHAIN_EXTENSION_NAME},
+    };
+    const char* extensions[kDesiredExtensions.size()];
+    uint32_t num_extensions = 0;
+    for (const auto& desired_ext : kDesiredExtensions) {
+        bool available = HasExtension(info.extensions, desired_ext);
+        for (size_t i = 0; !available && i < info.layer_extensions.size(); i++)
+            available = HasExtension(info.layer_extensions[i], desired_ext);
+        if (available)
+            extensions[num_extensions++] = desired_ext;
+    }
+
+    VkDevice device;
+    const VkDeviceQueueCreateInfo queue_create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = 0,
+        .queueCount = 1,
+    };
+    const VkDeviceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queue_create_info,
+        .enabledExtensionCount = num_extensions,
+        .ppEnabledExtensionNames = extensions,
+        .pEnabledFeatures = &info.features,
+    };
+    result = vkCreateDevice(gpu, &create_info, nullptr, &device);
+    if (result != VK_SUCCESS)
+        die("vkCreateDevice", result);
+    vkDestroyDevice(device, nullptr);
+}
+
 void GatherInfo(VulkanInfo* info) {
     VkResult result;
     uint32_t count;
@@ -127,10 +202,26 @@ void GatherInfo(VulkanInfo* info) {
                                     &info->layer_extensions[i]);
     }
 
-    VkInstance instance;
+    const char* kDesiredExtensions[] = {
+        VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+    };
+    const char*
+        extensions[sizeof(kDesiredExtensions) / sizeof(kDesiredExtensions[0])];
+    uint32_t num_extensions = 0;
+    for (const auto& desired_ext : kDesiredExtensions) {
+        bool available = HasExtension(info->extensions, desired_ext);
+        for (size_t i = 0; !available && i < info->layer_extensions.size(); i++)
+            available = HasExtension(info->layer_extensions[i], desired_ext);
+        if (available)
+            extensions[num_extensions++] = desired_ext;
+    }
+
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .enabledExtensionCount = num_extensions,
+        .ppEnabledExtensionNames = extensions,
     };
+    VkInstance instance;
     result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS)
         die("vkCreateInstance", result);
@@ -148,36 +239,8 @@ void GatherInfo(VulkanInfo* info) {
         die("vkEnumeratePhysicalDevices (data)", result);
 
     info->gpus.resize(num_gpus);
-    for (size_t gpu_idx = 0; gpu_idx < gpus.size(); gpu_idx++) {
-        VkPhysicalDevice gpu = gpus[gpu_idx];
-        GpuInfo& gpu_info = info->gpus.at(gpu_idx);
-
-        vkGetPhysicalDeviceProperties(gpu, &gpu_info.properties);
-        vkGetPhysicalDeviceMemoryProperties(gpu, &gpu_info.memory);
-
-        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
-        gpu_info.queue_families.resize(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(
-            gpu, &count, gpu_info.queue_families.data());
-
-        result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
-        if (result != VK_SUCCESS)
-            die("vkEnumerateDeviceLayerProperties (count)", result);
-        do {
-            gpu_info.layers.resize(count);
-            result = vkEnumerateDeviceLayerProperties(gpu, &count,
-                                                      gpu_info.layers.data());
-        } while (result == VK_INCOMPLETE);
-        if (result != VK_SUCCESS)
-            die("vkEnumerateDeviceLayerProperties (data)", result);
-        gpu_info.layer_extensions.resize(gpu_info.layers.size());
-
-        EnumerateDeviceExtensions(gpu, nullptr, &gpu_info.extensions);
-        for (size_t i = 0; i < gpu_info.layers.size(); i++) {
-            EnumerateDeviceExtensions(gpu, gpu_info.layers[i].layerName,
-                                      &gpu_info.layer_extensions[i]);
-        }
-    }
+    for (size_t i = 0; i < gpus.size(); i++)
+        GatherGpuInfo(gpus[i], info->gpus.at(i));
 
     vkDestroyInstance(instance, nullptr);
 }
@@ -227,14 +290,35 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
 void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
                      const char* prefix) {
     for (const auto& e : extensions)
-        printf("%s- %s (v%u)\n", prefix, e.extensionName, e.specVersion);
+        printf("%s%s (v%u)\n", prefix, e.extensionName, e.specVersion);
+}
+
+void PrintLayers(
+    const std::vector<VkLayerProperties>& layers,
+    const std::vector<std::vector<VkExtensionProperties>> extensions,
+    const char* prefix) {
+    std::string ext_prefix(prefix);
+    ext_prefix.append("    ");
+    for (size_t i = 0; i < layers.size(); i++) {
+        printf(
+            "%s%s %u.%u.%u/%u\n"
+            "%s  %s\n",
+            prefix, layers[i].layerName,
+            ExtractMajorVersion(layers[i].specVersion),
+            ExtractMinorVersion(layers[i].specVersion),
+            ExtractPatchVersion(layers[i].specVersion),
+            layers[i].implementationVersion, prefix, layers[i].description);
+        if (!extensions[i].empty())
+            printf("%s  Extensions [%zu]:\n", prefix, extensions[i].size());
+        PrintExtensions(extensions[i], ext_prefix.c_str());
+    }
 }
 
 void PrintGpuInfo(const GpuInfo& info) {
     VkResult result;
     std::ostringstream strbuf;
 
-    printf("  - \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
+    printf("  \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
            info.properties.deviceName,
            VkPhysicalDeviceTypeStr(info.properties.deviceType),
            ExtractMajorVersion(info.properties.apiVersion),
@@ -247,7 +331,8 @@ void PrintGpuInfo(const GpuInfo& info) {
         if ((info.memory.memoryHeaps[heap].flags &
              VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
             strbuf << "DEVICE_LOCAL";
-        printf("    Heap %u: 0x%" PRIx64 " %s\n", heap,
+        printf("    Heap %u: %" PRIu64 " MiB (0x%" PRIx64 " B) %s\n", heap,
+               info.memory.memoryHeaps[heap].size / 0x1000000,
                info.memory.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
 
@@ -273,62 +358,41 @@ void PrintGpuInfo(const GpuInfo& info) {
 
     for (uint32_t family = 0; family < info.queue_families.size(); family++) {
         const VkQueueFamilyProperties& qprops = info.queue_families[family];
-        const char* sep = "";
-        int bit, queue_flags = static_cast<int>(qprops.queueFlags);
-        while ((bit = __builtin_ffs(queue_flags)) != 0) {
-            VkQueueFlagBits flag = VkQueueFlagBits(1 << (bit - 1));
-            strbuf << sep << VkQueueFlagBitStr(flag);
-            queue_flags &= ~flag;
-            sep = "+";
-        }
-        printf("    Queue Family %u: %2ux %s timestamps:%ub\n", family,
-               qprops.queueCount, strbuf.str().c_str(),
-               qprops.timestampValidBits);
-        strbuf.str(std::string());
+        VkQueueFlags flags = qprops.queueFlags;
+        char flags_str[5];
+        flags_str[0] = (flags & VK_QUEUE_GRAPHICS_BIT) ? 'G' : '_';
+        flags_str[1] = (flags & VK_QUEUE_COMPUTE_BIT) ? 'C' : '_';
+        flags_str[2] = (flags & VK_QUEUE_TRANSFER_BIT) ? 'T' : '_';
+        flags_str[3] = (flags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'S' : '_';
+        flags_str[4] = '\0';
+        printf(
+            "    Queue Family %u: %ux %s\n"
+            "      timestampValidBits: %ub\n"
+            "      minImageTransferGranularity: (%u,%u,%u)\n",
+            family, qprops.queueCount, flags_str, qprops.timestampValidBits,
+            qprops.minImageTransferGranularity.width,
+            qprops.minImageTransferGranularity.height,
+            qprops.minImageTransferGranularity.depth);
+    }
 
-        if (!info.extensions.empty()) {
-            printf("    Extensions [%u]:\n", info.extensions.size());
-            PrintExtensions(info.extensions, "    ");
-        }
-        if (!info.layers.empty()) {
-            printf("    Layers [%u]:\n", info.layers.size());
-            for (size_t i = 0; i < info.layers.size(); i++) {
-                const auto& layer = info.layers[i];
-                printf("    - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
-                       ExtractMajorVersion(layer.specVersion),
-                       ExtractMinorVersion(layer.specVersion),
-                       ExtractPatchVersion(layer.specVersion),
-                       layer.implementationVersion, layer.description);
-                if (!info.layer_extensions[i].empty()) {
-                    printf("       Extensions [%zu]:\n",
-                           info.layer_extensions.size());
-                    PrintExtensions(info.layer_extensions[i], "       ");
-                }
-            }
-        }
+    if (!info.extensions.empty()) {
+        printf("    Extensions [%zu]:\n", info.extensions.size());
+        PrintExtensions(info.extensions, "      ");
+    }
+    if (!info.layers.empty()) {
+        printf("    Layers [%zu]:\n", info.layers.size());
+        PrintLayers(info.layers, info.layer_extensions, "      ");
     }
 }
 
 void PrintInfo(const VulkanInfo& info) {
     std::ostringstream strbuf;
 
-    printf("Instance Extensions [%u]:\n", info.extensions.size());
+    printf("Instance Extensions [%zu]:\n", info.extensions.size());
     PrintExtensions(info.extensions, "  ");
     if (!info.layers.empty()) {
-        printf("Instance Layers [%u]:\n", info.layers.size());
-        for (size_t i = 0; i < info.layers.size(); i++) {
-            const auto& layer = info.layers[i];
-            printf("  - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
-                   ExtractMajorVersion(layer.specVersion),
-                   ExtractMinorVersion(layer.specVersion),
-                   ExtractPatchVersion(layer.specVersion),
-                   layer.implementationVersion, layer.description);
-            if (!info.layer_extensions[i].empty()) {
-                printf("     Extensions [%zu]:\n",
-                       info.layer_extensions.size());
-                PrintExtensions(info.layer_extensions[i], "       ");
-            }
-        }
+        printf("Instance Layers [%zu]:\n", info.layers.size());
+        PrintLayers(info.layers, info.layer_extensions, "  ");
     }
 
     printf("PhysicalDevices [%zu]:\n", info.gpus.size());

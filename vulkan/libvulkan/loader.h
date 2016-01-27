@@ -17,9 +17,26 @@
 #ifndef LIBVULKAN_LOADER_H
 #define LIBVULKAN_LOADER_H 1
 
+#include <bitset>
 #include "dispatch_gen.h"
+#include "debug_report.h"
 
 namespace vulkan {
+
+enum InstanceExtension {
+    kKHR_surface,
+    kKHR_android_surface,
+    kEXT_debug_report,
+    kInstanceExtensionCount
+};
+typedef std::bitset<kInstanceExtensionCount> InstanceExtensionSet;
+
+enum DeviceExtension {
+    kKHR_swapchain,
+    kANDROID_native_buffer,
+    kDeviceExtensionCount
+};
+typedef std::bitset<kDeviceExtensionCount> DeviceExtensionSet;
 
 inline const InstanceDispatchTable& GetDispatchTable(VkInstance instance) {
     return **reinterpret_cast<InstanceDispatchTable**>(instance);
@@ -62,6 +79,7 @@ bool LoadDeviceDispatchTable(VkDevice device,
                              DeviceDispatchTable& dispatch);
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch);
 
 // -----------------------------------------------------------------------------
@@ -97,8 +115,11 @@ VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice, const 
 
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);
 const VkAllocationCallbacks* GetAllocator(VkDevice device);
+VkInstance GetDriverInstance(VkInstance instance);
+const DriverDispatchTable& GetDriverDispatch(VkInstance instance);
 const DriverDispatchTable& GetDriverDispatch(VkDevice device);
 const DriverDispatchTable& GetDriverDispatch(VkQueue queue);
+DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
 
 // -----------------------------------------------------------------------------
 // swapchain.cpp
@@ -135,16 +156,26 @@ class LayerRef {
     PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr() const;
     PFN_vkGetDeviceProcAddr GetGetDeviceProcAddr() const;
 
+    bool SupportsExtension(const char* name) const;
+
    private:
     Layer* layer_;
 };
 
 void DiscoverLayers();
-uint32_t EnumerateLayers(uint32_t count, VkLayerProperties* properties);
-void GetLayerExtensions(const char* name,
-                        const VkExtensionProperties** properties,
-                        uint32_t* count);
-LayerRef GetLayerRef(const char* name);
+uint32_t EnumerateInstanceLayers(uint32_t count, VkLayerProperties* properties);
+uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties);
+void GetInstanceLayerExtensions(const char* name,
+                                const VkExtensionProperties** properties,
+                                uint32_t* count);
+void GetDeviceLayerExtensions(const char* name,
+                              const VkExtensionProperties** properties,
+                              uint32_t* count);
+LayerRef GetInstanceLayerRef(const char* name);
+LayerRef GetDeviceLayerRef(const char* name);
+
+InstanceExtension InstanceExtensionFromName(const char* name);
+DeviceExtension DeviceExtensionFromName(const char* name);
 
 }  // namespace vulkan
 

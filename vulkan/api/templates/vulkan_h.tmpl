@@ -158,7 +158,7 @@ define VK_SUBPASS_EXTERNAL        (~0U)
     {{end}}
   {{end}}
 ¶
-#ifdef VK_PROTOTYPES
+#ifdef VK_NO_PROTOTYPES
 ¶
   {{range $f := AllCommands $}}
     {{if not (GetAnnotation $f "pfn")}}

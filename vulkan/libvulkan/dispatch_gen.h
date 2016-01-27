@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#define VK_PROTOTYPES
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
+#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 
 namespace vulkan {
@@ -41,6 +41,9 @@ struct InstanceDispatchTable {
     PFN_vkGetPhysicalDeviceSurfaceFormatsKHR GetPhysicalDeviceSurfaceFormatsKHR;
     PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR;
     PFN_vkCreateAndroidSurfaceKHR CreateAndroidSurfaceKHR;
+    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallbackEXT;
+    PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallbackEXT;
+    PFN_vkDebugReportMessageEXT DebugReportMessageEXT;
     // clang-format on
 };
 
@@ -188,6 +191,9 @@ struct DriverDispatchTable {
     PFN_vkEnumerateDeviceLayerProperties EnumerateDeviceLayerProperties;
     PFN_vkEnumerateDeviceExtensionProperties EnumerateDeviceExtensionProperties;
     PFN_vkGetPhysicalDeviceSparseImageFormatProperties GetPhysicalDeviceSparseImageFormatProperties;
+    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallbackEXT;
+    PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallbackEXT;
+    PFN_vkDebugReportMessageEXT DebugReportMessageEXT;
     PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
     PFN_vkCreateImage CreateImage;
     PFN_vkDestroyImage DestroyImage;

@@ -28,7 +28,7 @@ import platform "platform.api"
 // API version (major.minor.patch)
 define VERSION_MAJOR 1
 define VERSION_MINOR 0
-define VERSION_PATCH 0
+define VERSION_PATCH 2
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -45,7 +45,7 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_SPEC_VERSION                 24
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_SPEC_VERSION                 25
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_SPEC_VERSION             67
@@ -69,11 +69,14 @@ define NULL_HANDLE 0
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_SPEC_VERSION         4
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_SPEC_VERSION 5
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_SPEC_VERSION 6
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_SPEC_VERSION     5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
+
+@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       2
+@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_NAME               "VK_EXT_debug_report"
 
 
 /////////////
@@ -120,6 +123,8 @@ type u32 VkSampleMask
 
 @extension("VK_KHR_display")    @nonDispatchHandle type u64 VkDisplayKHR
 @extension("VK_KHR_display")    @nonDispatchHandle type u64 VkDisplayModeKHR
+
+@extension("VK_EXT_debug_report") @nonDispatchHandle type u64 VkDebugReportCallbackEXT
 
 
 /////////////
@@ -684,14 +689,14 @@ enum VkResult {
     //@extension("VK_KHR_surface")
     VK_ERROR_SURFACE_LOST_KHR                               = 0xC4653600, // -1000000000
 
+    //@extension("VK_KHR_surface")
+    VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46535FF, // -1000008001
+
     //@extension("VK_KHR_swapchain")
     VK_ERROR_OUT_OF_DATE_KHR                                = 0xC4653214, // -1000001004
 
     //@extension("VK_KHR_display_swapchain")
     VK_ERROR_INCOMPATIBLE_DISPLAY_KHR                       = 0xC4652A47, // -1000003001
-
-    //@extension("VK_KHR_android_surface")
-    VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46516C0, // -1000008000
 
     //@extension("VK_EXT_debug_report")
     VK_ERROR_VALIDATION_FAILED_EXT                          = 0xC4650B07, // -1000011001
@@ -721,6 +726,46 @@ enum VkPresentModeKHR {
 enum VkColorSpaceKHR {
     VK_COLORSPACE_SRGB_NONLINEAR_KHR                        = 0x00000000,
 }
+
+@extension("VK_EXT_debug_report")
+enum VkDebugReportObjectTypeEXT {
+    VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT                 = 0,
+    VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT                = 1,
+    VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT         = 2,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT                  = 3,
+    VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT                   = 4,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT               = 5,
+    VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT          = 6,
+    VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT                   = 7,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT           = 8,
+    VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT                  = 9,
+    VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT                   = 10,
+    VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT                   = 11,
+    VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT              = 12,
+    VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT             = 13,
+    VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT              = 14,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT           = 15,
+    VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT          = 16,
+    VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT         = 17,
+    VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT             = 18,
+    VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT                = 19,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT   = 20,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT                 = 21,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT         = 22,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT          = 23,
+    VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT             = 24,
+    VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT            = 25,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT             = 26,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT           = 27,
+    VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_EXT            = 28,
+}
+
+@extension("VK_EXT_debug_report")
+enum VkDebugReportErrorEXT {
+    VK_DEBUG_REPORT_ERROR_NONE_EXT                          = 0,
+    VK_DEBUG_REPORT_ERROR_CALLBACK_REF_EXT                  = 1,
+}
+
 
 /////////////////
 //  Bitfields  //
@@ -891,6 +936,7 @@ bitfield VkFormatFeatureFlagBits {
     VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT          = 0x00000200,    /// Format can be used for depth/stencil attachment images
     VK_FORMAT_FEATURE_BLIT_SRC_BIT                          = 0x00000400,    /// Format can be used as the source image of blits with vkCommandBlitImage
     VK_FORMAT_FEATURE_BLIT_DST_BIT                          = 0x00000800,    /// Format can be used as the destination image of blits with vkCommandBlitImage
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT       = 0x00001000,
 }
 
 /// Query control flags
@@ -1248,6 +1294,17 @@ type VkFlags VkWin32SurfaceCreateFlagsKHR
 //@extension("VK_KHR_win32_surface")
 //bitfield VkWin32SurfaceCreateFlagBitsKHR {
 //}
+
+@extension("VK_EXT_debug_report")
+type VkFlags VkDebugReportFlagsEXT
+@extension("VK_EXT_debug_report")
+bitfield VkDebugReportFlagBitsEXT {
+    VK_DEBUG_REPORT_INFO_BIT_EXT                            = 0x00000001,
+    VK_DEBUG_REPORT_WARN_BIT_EXT                            = 0x00000002,
+    VK_DEBUG_REPORT_PERF_WARN_BIT_EXT                       = 0x00000004,
+    VK_DEBUG_REPORT_ERROR_BIT_EXT                           = 0x00000008,
+    VK_DEBUG_REPORT_DEBUG_BIT_EXT                           = 0x00000010,
+}
 
 
 //////////////////
@@ -2532,6 +2589,15 @@ class VkWin32SurfaceCreateInfoKHR {
     VkWin32SurfaceCreateFlagsKHR                flags
     platform.HINSTANCE                          hinstance
     platform.HWND                               hwnd
+}
+
+@extension("VK_EXT_debug_report")
+class VkDebugReportCallbackCreateInfoEXT {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkDebugReportFlagsEXT                       flags
+    PFN_vkDebugReportCallbackEXT                pfnCallback
+    void*                                       pUserData
 }
 
 
@@ -5066,6 +5132,49 @@ cmd VkResult vkGetPhysicalDeviceWin32PresentationSupportKHR(
         u32                                     queueFamilyIndex) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)    
     return ?
+}
+
+@extension("VK_EXT_debug_report")
+@external type void* PFN_vkDebugReportCallbackEXT
+@extension("VK_EXT_debug_report")
+@pfn cmd VkBool32 vkDebugReportCallbackEXT(
+        VkDebugReportFlagsEXT                   flags,
+        VkDebugReportObjectTypeEXT              objectType,
+        u64                                     object,
+        platform.size_t                         location,
+        s32                                     messageCode,
+        const char*                             pLayerPrefix,
+        const char*                             pMessage,
+        void*                                   pUserData) {
+    return ?
+}
+
+@extension("VK_EXT_debug_report")
+cmd VkResult vkCreateDebugReportCallbackEXT(
+        VkInstance                                  instance,
+        const VkDebugReportCallbackCreateInfoEXT*   pCreateInfo,
+        const VkAllocationCallbacks*                pAllocator,
+        VkDebugReportCallbackEXT*                   pCallback) {
+    return ?
+}
+
+@extension("VK_EXT_debug_report")
+cmd void vkDestroyDebugReportCallbackEXT(
+        VkInstance                                  instance,
+        VkDebugReportCallbackEXT                    callback,
+        const VkAllocationCallbacks*                pAllocator) {
+}
+
+@extension("VK_EXT_debug_report")
+cmd void vkDebugReportMessageEXT(
+        VkInstance                                  instance,
+        VkDebugReportFlagsEXT                       flags,
+        VkDebugReportObjectTypeEXT                  objectType,
+        u64                                         object,
+        platform.size_t                             location,
+        s32                                         messageCode,
+        const char*                                 pLayerPrefix,
+        const char*                                 pMessage) {
 }
 
 

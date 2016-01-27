@@ -16,10 +16,14 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
-LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing
-LOCAL_CFLAGS += -DLOG_TAG=\"vulkan\"
-LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef
+LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
+	-std=c99 -fvisibility=hidden -fstrict-aliasing \
+	-Weverything -Werror \
+	-Wno-padded \
+	-Wno-undef
+#LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++14 \
+	-fexceptions \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
 	-Wno-c99-extensions \
@@ -31,6 +35,7 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
+	debug_report.cpp \
 	dispatch_gen.cpp \
 	layers_extensions.cpp \
 	loader.cpp \
@@ -38,7 +43,7 @@ LOCAL_SRC_FILES := \
 	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
-LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libcutils
+LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libutils libcutils
 
 LOCAL_MODULE := libvulkan
 include $(BUILD_SHARED_LIBRARY)

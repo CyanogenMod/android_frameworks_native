@@ -224,9 +224,12 @@ const NameProc kLoaderBottomProcs[] = {
     // clang-format off
     {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAcquireNextImageKHR>(AcquireNextImageKHR_Bottom))},
     {"vkCreateAndroidSurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateAndroidSurfaceKHR>(CreateAndroidSurfaceKHR_Bottom))},
+    {"vkCreateDebugReportCallbackEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDebugReportCallbackEXT>(CreateDebugReportCallbackEXT_Bottom))},
     {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDevice>(CreateDevice_Bottom))},
     {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance_Bottom))},
     {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateSwapchainKHR>(CreateSwapchainKHR_Bottom))},
+    {"vkDebugReportMessageEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDebugReportMessageEXT>(DebugReportMessageEXT_Bottom))},
+    {"vkDestroyDebugReportCallbackEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDebugReportCallbackEXT>(DestroyDebugReportCallbackEXT_Bottom))},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance_Bottom))},
     {"vkDestroySurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroySurfaceKHR>(DestroySurfaceKHR_Bottom))},
     {"vkDestroySwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroySwapchainKHR>(DestroySwapchainKHR_Bottom))},
@@ -283,7 +286,10 @@ PFN_vkVoidFunction Lookup(const char* name,
 const NameOffset kInstanceDispatchOffsets[] = {
     // clang-format off
     {"vkCreateAndroidSurfaceKHR", offsetof(InstanceDispatchTable, CreateAndroidSurfaceKHR)},
+    {"vkCreateDebugReportCallbackEXT", offsetof(InstanceDispatchTable, CreateDebugReportCallbackEXT)},
     {"vkCreateDevice", offsetof(InstanceDispatchTable, CreateDevice)},
+    {"vkDebugReportMessageEXT", offsetof(InstanceDispatchTable, DebugReportMessageEXT)},
+    {"vkDestroyDebugReportCallbackEXT", offsetof(InstanceDispatchTable, DestroyDebugReportCallbackEXT)},
     {"vkDestroyInstance", offsetof(InstanceDispatchTable, DestroyInstance)},
     {"vkDestroySurfaceKHR", offsetof(InstanceDispatchTable, DestroySurfaceKHR)},
     {"vkEnumerateDeviceExtensionProperties", offsetof(InstanceDispatchTable, EnumerateDeviceExtensionProperties)},
@@ -556,6 +562,21 @@ bool LoadInstanceDispatchTable(VkInstance instance,
     dispatch.CreateAndroidSurfaceKHR = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(get_proc_addr(instance, "vkCreateAndroidSurfaceKHR"));
     if (UNLIKELY(!dispatch.CreateAndroidSurfaceKHR)) {
         ALOGE("missing instance proc: %s", "vkCreateAndroidSurfaceKHR");
+        success = false;
+    }
+    dispatch.CreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(get_proc_addr(instance, "vkCreateDebugReportCallbackEXT"));
+    if (UNLIKELY(!dispatch.CreateDebugReportCallbackEXT)) {
+        ALOGE("missing instance proc: %s", "vkCreateDebugReportCallbackEXT");
+        success = false;
+    }
+    dispatch.DestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(get_proc_addr(instance, "vkDestroyDebugReportCallbackEXT"));
+    if (UNLIKELY(!dispatch.DestroyDebugReportCallbackEXT)) {
+        ALOGE("missing instance proc: %s", "vkDestroyDebugReportCallbackEXT");
+        success = false;
+    }
+    dispatch.DebugReportMessageEXT = reinterpret_cast<PFN_vkDebugReportMessageEXT>(get_proc_addr(instance, "vkDebugReportMessageEXT"));
+    if (UNLIKELY(!dispatch.DebugReportMessageEXT)) {
+        ALOGE("missing instance proc: %s", "vkDebugReportMessageEXT");
         success = false;
     }
     // clang-format on
@@ -1198,6 +1219,7 @@ bool LoadDeviceDispatchTable(VkDevice device,
 
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch) {
     bool success = true;
     // clang-format off
@@ -1261,6 +1283,27 @@ bool LoadDriverDispatchTable(VkInstance instance,
         ALOGE("missing driver proc: %s", "vkGetPhysicalDeviceSparseImageFormatProperties");
         success = false;
     }
+    if (extensions[kEXT_debug_report]) {
+        dispatch.CreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(get_proc_addr(instance, "vkCreateDebugReportCallbackEXT"));
+        if (UNLIKELY(!dispatch.CreateDebugReportCallbackEXT)) {
+            ALOGE("missing driver proc: %s", "vkCreateDebugReportCallbackEXT");
+            success = false;
+        }
+    }
+    if (extensions[kEXT_debug_report]) {
+        dispatch.DestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(get_proc_addr(instance, "vkDestroyDebugReportCallbackEXT"));
+        if (UNLIKELY(!dispatch.DestroyDebugReportCallbackEXT)) {
+            ALOGE("missing driver proc: %s", "vkDestroyDebugReportCallbackEXT");
+            success = false;
+        }
+    }
+    if (extensions[kEXT_debug_report]) {
+        dispatch.DebugReportMessageEXT = reinterpret_cast<PFN_vkDebugReportMessageEXT>(get_proc_addr(instance, "vkDebugReportMessageEXT"));
+        if (UNLIKELY(!dispatch.DebugReportMessageEXT)) {
+            ALOGE("missing driver proc: %s", "vkDebugReportMessageEXT");
+            success = false;
+        }
+    }
     dispatch.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(get_proc_addr(instance, "vkGetDeviceProcAddr"));
     if (UNLIKELY(!dispatch.GetDeviceProcAddr)) {
         ALOGE("missing driver proc: %s", "vkGetDeviceProcAddr");
@@ -1274,6 +1317,11 @@ bool LoadDriverDispatchTable(VkInstance instance,
     dispatch.DestroyImage = reinterpret_cast<PFN_vkDestroyImage>(get_proc_addr(instance, "vkDestroyImage"));
     if (UNLIKELY(!dispatch.DestroyImage)) {
         ALOGE("missing driver proc: %s", "vkDestroyImage");
+        success = false;
+    }
+    dispatch.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(instance, "vkGetSwapchainGrallocUsageANDROID"));
+    if (UNLIKELY(!dispatch.GetSwapchainGrallocUsageANDROID)) {
+        ALOGE("missing driver proc: %s", "vkGetSwapchainGrallocUsageANDROID");
         success = false;
     }
     dispatch.AcquireImageANDROID = reinterpret_cast<PFN_vkAcquireImageANDROID>(get_proc_addr(instance, "vkAcquireImageANDROID"));

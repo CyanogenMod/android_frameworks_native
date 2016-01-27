@@ -42,9 +42,9 @@
 •* limitations under the License.
 •*/
 ¶
-#define VK_PROTOTYPES
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
+#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 ¶
 namespace vulkan {
@@ -156,7 +156,7 @@ PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
 const NameProc kLoaderExportProcs[] = {«
     // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "IsFunctionSupported" $f)}}
+    {{if (Macro "IsExported" $f)}}
       {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{$f.Name}})},
     {{end}}
   {{end}}
@@ -320,19 +320,27 @@ bool LoadDeviceDispatchTable(VkDevice device,
 ¶
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
+                             const InstanceExtensionSet& extensions,
                              DriverDispatchTable& dispatch) {«
     bool success = true;
     // clang-format off
   {{range $f := AllCommands $}}
     {{if (Macro "IsInstanceDispatched" $f)}}
       {{if not (Macro "IsLoaderFunction" $f)}}
-    dispatch.{{Macro "BaseName" $f}} = §
-        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
-            get_proc_addr(instance, "{{$f.Name}}"));
-    if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
-        ALOGE("missing driver proc: %s", "{{$f.Name}}");
-        success = false;
+        {{$ext := GetAnnotation $f "extension"}}
+          {{if $ext}}
+    if (extensions[{{Macro "ExtensionConstant" $ext}}]) {
+          {{end}}
+        dispatch.{{Macro "BaseName" $f}} = §
+            reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
+                get_proc_addr(instance, "{{$f.Name}}"));
+        if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
+            ALOGE("missing driver proc: %s", "{{$f.Name}}");
+            success = false;
+        }
+        {{if $ext}}
     }
+        {{end}}
       {{end}}
     {{end}}
   {{end}}
@@ -349,6 +357,11 @@ bool LoadDriverDispatchTable(VkInstance instance,
     dispatch.DestroyImage = reinterpret_cast<PFN_vkDestroyImage>(get_proc_addr(instance, "vkDestroyImage"));
     if (UNLIKELY(!dispatch.DestroyImage)) {
         ALOGE("missing driver proc: %s", "vkDestroyImage");
+        success = false;
+    }
+    dispatch.GetSwapchainGrallocUsageANDROID = reinterpret_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(get_proc_addr(instance, "vkGetSwapchainGrallocUsageANDROID"));
+    if (UNLIKELY(!dispatch.GetSwapchainGrallocUsageANDROID)) {
+        ALOGE("missing driver proc: %s", "vkGetSwapchainGrallocUsageANDROID");
         success = false;
     }
     dispatch.AcquireImageANDROID = reinterpret_cast<PFN_vkAcquireImageANDROID>(get_proc_addr(instance, "vkAcquireImageANDROID"));
@@ -397,6 +410,20 @@ bool LoadDriverDispatchTable(VkInstance instance,
   {{else}}
     {{$p0 := index $.CallParameters 0}}
     GetDispatchTable({{$p0.Name}}).{{Macro "BaseName" $}}§
+  {{end}}
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Map an extension name to InstanceExtension or DeviceExtension enum value
+-------------------------------------------------------------------------------
+*/}}
+{{define "ExtensionConstant"}}
+  {{$name := index $.Arguments 0}}
+  {{     if (eq $name "VK_KHR_surface")}}kKHR_surface
+  {{else if (eq $name "VK_KHR_android_surface")}}kKHR_android_surface
+  {{else if (eq $name "VK_EXT_debug_report")}}kEXT_debug_report
   {{end}}
 {{end}}
 
@@ -481,11 +508,13 @@ bool LoadDriverDispatchTable(VkInstance instance,
 {{define "IsExported"}}
   {{AssertType $ "Function"}}
 
-  {{$ext := GetAnnotation $ "extension"}}
-  {{if $ext}}
-    {{Macro "IsLoaderExtension" $ext}}
-  {{else}}
-    true
+  {{if (Macro "IsFunctionSupported" $)}}
+    {{$ext := GetAnnotation $ "extension"}}
+    {{if $ext}}
+      {{Macro "IsLoaderExtension" $ext}}
+    {{else}}
+      true
+    {{end}}
   {{end}}
 {{end}}
 

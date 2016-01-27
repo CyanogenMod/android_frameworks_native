@@ -2,7 +2,7 @@
 = Vulkan on Android Implementor's Guide =
 :toc: right
 :numbered:
-:revnumber: 4
+:revnumber: 5
 
 This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.
 
@@ -136,12 +136,14 @@ is as if the native fence was already signalled.
 ----
 VkResult VKAPI vkQueueSignalReleaseImageANDROID(
     VkQueue             queue,
+    uint32_t            waitSemaphoreCount,
+    const VkSemaphore*  pWaitSemaphores,
     VkImage             image,
     int*                pNativeFenceFd
 );
 ----
 
-This will be called during +vkQueuePresentWSI+ on the provided queue. Effects are similar to +vkQueueSignalSemaphore+, except with a native fence instead of a semaphore. Unlike +vkQueueSignalSemaphore+, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set +*pNativeFenceFd+ to -1. The file descriptor returned in +*pNativeFenceFd+ is owned and will be closed by the caller. Many drivers will be able to ignore the +image+ parameter, but some may need to prepare CPU-side data structures associated with a gralloc buffer for use by external image consumers. Preparing buffer contents for use by external consumers should have been done asynchronously as part of transitioning the image to +VK_IMAGE_LAYOUT_PRESENT_SRC_KHR+.
+This will be called during +vkQueuePresentWSI+ on the provided queue. Effects are similar to +vkQueueSignalSemaphore+, except with a native fence instead of a semaphore. The native fence must: not signal until the +waitSemaphoreCount+ semaphores in +pWaitSemaphores+ have signaled. Unlike +vkQueueSignalSemaphore+, however, this call creates and returns the synchronization object that will be signalled rather than having it provided as input. If the queue is already idle when this function is called, it is allowed but not required to set +*pNativeFenceFd+ to -1. The file descriptor returned in +*pNativeFenceFd+ is owned and will be closed by the caller. Many drivers will be able to ignore the +image+ parameter, but some may need to prepare CPU-side data structures associated with a gralloc buffer for use by external image consumers. Preparing buffer contents for use by external consumers should have been done asynchronously as part of transitioning the image to +VK_IMAGE_LAYOUT_PRESENT_SRC_KHR+.
 
 == History ==
 
@@ -159,3 +161,5 @@ This will be called during +vkQueuePresentWSI+ on the provided queue. Effects ar
 . *2015-12-03*
    * Added a VkFence parameter to vkAcquireImageANDROID corresponding to the
      parameter added to vkAcquireNextImageKHR.
+. *2016-01-08*
+   * Added waitSemaphoreCount and pWaitSemaphores parameters to vkQueueSignalReleaseImageANDROID.
