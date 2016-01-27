@@ -185,13 +185,14 @@ typedef enum OMX_VIDEO_HEVCLEVELTYPE {
     OMX_VIDEO_HEVCHighTiermax     = 0x7FFFFFFF
 } OMX_VIDEO_HEVCLEVELTYPE;
 
-/** Structure for controlling HEVC video encoding and decoding */
+/** Structure for controlling HEVC video encoding */
 typedef struct OMX_VIDEO_PARAM_HEVCTYPE {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
     OMX_VIDEO_HEVCPROFILETYPE eProfile;
     OMX_VIDEO_HEVCLEVELTYPE eLevel;
+    OMX_U32 nKeyFrameInterval;
 } OMX_VIDEO_PARAM_HEVCTYPE;
 
 /** Structure to define if dependent slice segments should be used */
