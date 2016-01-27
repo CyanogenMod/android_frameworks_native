@@ -216,7 +216,8 @@
 {{define "Vtbl"}}
   {{AssertType $ "Function"}}
 
-  {{range $i, $p := $.CallParameters}}
-    {{if not $i}}{{Node "Vtbl" $p}}{{end}}
+  {{if gt (len $.CallParameters) 0}}
+    {{Node "Vtbl" (index $.CallParameters 0)}}
+  {{else}}Global
   {{end}}
 {{end}}

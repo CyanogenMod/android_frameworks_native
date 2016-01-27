@@ -16,16 +16,16 @@
 
 #include <hardware/hwvulkan.h>
 
-#include <array>
-#include <algorithm>
 #include <inttypes.h>
 #include <string.h>
+#include <algorithm>
+#include <array>
 
 // #define LOG_NDEBUG 0
 #include <log/log.h>
 #include <utils/Errors.h>
 
-#include "null_driver.h"
+#include "null_driver_gen.h"
 
 using namespace null_driver;
 
@@ -129,30 +129,6 @@ __attribute__((visibility("default"))) hwvulkan_module_t HAL_MODULE_INFO_SYM = {
 
 namespace {
 
-VKAPI_ATTR
-VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
-                        const VkAllocationCallbacks* allocator,
-                        VkInstance* out_instance) {
-    // Assume the loader provided alloc callbacks even if the app didn't.
-    ALOG_ASSERT(
-        allocator,
-        "Missing alloc callbacks, loader or app should have provided them");
-
-    VkInstance_T* instance =
-        static_cast<VkInstance_T*>(allocator->pfnAllocation(
-            allocator->pUserData, sizeof(VkInstance_T), alignof(VkInstance_T),
-            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE));
-    if (!instance)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-
-    instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-    instance->allocator = *allocator;
-    instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
-
-    *out_instance = instance;
-    return VK_SUCCESS;
-}
-
 int CloseDevice(struct hw_device_t* /*device*/) {
     // nothing to do - opening a device doesn't allocate any resources
     return 0;
@@ -188,12 +164,14 @@ VkInstance_T* GetInstanceFromPhysicalDevice(
         offsetof(VkInstance_T, physical_device));
 }
 
-uint64_t AllocHandle(VkDevice device, HandleType::Enum type) {
+template <class Handle>
+Handle AllocHandle(VkDevice device, HandleType::Enum type) {
     const uint64_t kHandleMask = (UINT64_C(1) << 56) - 1;
     ALOGE_IF(device->next_handle[type] == kHandleMask,
              "non-dispatchable handles of type=%u are about to overflow", type);
-    return (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
-           (device->next_handle[type]++ & kHandleMask);
+    return reinterpret_cast<Handle>(
+        (UINT64_C(1) << 63) | ((uint64_t(type) & 0x7) << 56) |
+        (device->next_handle[type]++ & kHandleMask));
 }
 
 }  // namespace
@@ -222,27 +200,37 @@ VkResult EnumerateInstanceExtensionProperties(const char*,
 }
 
 VKAPI_ATTR
-PFN_vkVoidFunction GetInstanceProcAddr(VkInstance, const char* name) {
-    PFN_vkVoidFunction proc = LookupInstanceProcAddr(name);
-    if (!proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
-        proc = reinterpret_cast<PFN_vkVoidFunction>(GetDeviceProcAddr);
-    return proc;
+VkResult CreateInstance(const VkInstanceCreateInfo* /*create_info*/,
+                        const VkAllocationCallbacks* allocator,
+                        VkInstance* out_instance) {
+    // Assume the loader provided alloc callbacks even if the app didn't.
+    ALOG_ASSERT(
+        allocator,
+        "Missing alloc callbacks, loader or app should have provided them");
+
+    VkInstance_T* instance =
+        static_cast<VkInstance_T*>(allocator->pfnAllocation(
+            allocator->pUserData, sizeof(VkInstance_T), alignof(VkInstance_T),
+            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE));
+    if (!instance)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+    instance->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+    instance->allocator = *allocator;
+    instance->physical_device.dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
+
+    *out_instance = instance;
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR
+PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name) {
+    return instance ? GetInstanceProcAddr(name) : GetGlobalProcAddr(name);
 }
 
 VKAPI_ATTR
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice, const char* name) {
-    PFN_vkVoidFunction proc = LookupDeviceProcAddr(name);
-    if (proc)
-        return proc;
-    if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            GetSwapchainGrallocUsageANDROID);
-    if (strcmp(name, "vkAcquireImageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(AcquireImageANDROID);
-    if (strcmp(name, "vkQueueSignalReleaseImageANDROID") == 0)
-        return reinterpret_cast<PFN_vkVoidFunction>(
-            QueueSignalReleaseImageANDROID);
-    return nullptr;
+    return GetInstanceProcAddr(name);
 }
 
 // -----------------------------------------------------------------------------
@@ -383,8 +371,8 @@ VkResult AllocateCommandBuffers(VkDevice /*device*/,
                                 VkCommandBuffer* cmdbufs) {
     VkResult result = VK_SUCCESS;
     CommandPool& pool = *GetCommandPoolFromHandle(alloc_info->commandPool);
-    std::fill(cmdbufs, cmdbufs + alloc_info->bufferCount, nullptr);
-    for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+    std::fill(cmdbufs, cmdbufs + alloc_info->commandBufferCount, nullptr);
+    for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
         cmdbufs[i] =
             static_cast<VkCommandBuffer_T*>(pool.allocator.pfnAllocation(
                 pool.allocator.pUserData, sizeof(VkCommandBuffer_T),
@@ -396,7 +384,7 @@ VkResult AllocateCommandBuffers(VkDevice /*device*/,
         cmdbufs[i]->dispatch.magic = HWVULKAN_DISPATCH_MAGIC;
     }
     if (result != VK_SUCCESS) {
-        for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
+        for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
             if (!cmdbufs[i])
                 break;
             pool.allocator.pfnFree(pool.allocator.pUserData, cmdbufs[i]);
@@ -578,7 +566,7 @@ VkResult CreateBufferView(VkDevice device,
                           const VkBufferViewCreateInfo*,
                           const VkAllocationCallbacks* /*allocator*/,
                           VkBufferView* view) {
-    *view = AllocHandle(device, HandleType::kBufferView);
+    *view = AllocHandle<VkBufferView>(device, HandleType::kBufferView);
     return VK_SUCCESS;
 }
 
@@ -586,15 +574,16 @@ VkResult CreateDescriptorPool(VkDevice device,
                               const VkDescriptorPoolCreateInfo*,
                               const VkAllocationCallbacks* /*allocator*/,
                               VkDescriptorPool* pool) {
-    *pool = AllocHandle(device, HandleType::kDescriptorPool);
+    *pool = AllocHandle<VkDescriptorPool>(device, HandleType::kDescriptorPool);
     return VK_SUCCESS;
 }
 
 VkResult AllocateDescriptorSets(VkDevice device,
                                 const VkDescriptorSetAllocateInfo* alloc_info,
                                 VkDescriptorSet* descriptor_sets) {
-    for (uint32_t i = 0; i < alloc_info->setLayoutCount; i++)
-        descriptor_sets[i] = AllocHandle(device, HandleType::kDescriptorSet);
+    for (uint32_t i = 0; i < alloc_info->descriptorSetCount; i++)
+        descriptor_sets[i] =
+            AllocHandle<VkDescriptorSet>(device, HandleType::kDescriptorSet);
     return VK_SUCCESS;
 }
 
@@ -602,7 +591,8 @@ VkResult CreateDescriptorSetLayout(VkDevice device,
                                    const VkDescriptorSetLayoutCreateInfo*,
                                    const VkAllocationCallbacks* /*allocator*/,
                                    VkDescriptorSetLayout* layout) {
-    *layout = AllocHandle(device, HandleType::kDescriptorSetLayout);
+    *layout = AllocHandle<VkDescriptorSetLayout>(
+        device, HandleType::kDescriptorSetLayout);
     return VK_SUCCESS;
 }
 
@@ -610,7 +600,7 @@ VkResult CreateEvent(VkDevice device,
                      const VkEventCreateInfo*,
                      const VkAllocationCallbacks* /*allocator*/,
                      VkEvent* event) {
-    *event = AllocHandle(device, HandleType::kEvent);
+    *event = AllocHandle<VkEvent>(device, HandleType::kEvent);
     return VK_SUCCESS;
 }
 
@@ -618,7 +608,7 @@ VkResult CreateFence(VkDevice device,
                      const VkFenceCreateInfo*,
                      const VkAllocationCallbacks* /*allocator*/,
                      VkFence* fence) {
-    *fence = AllocHandle(device, HandleType::kFence);
+    *fence = AllocHandle<VkFence>(device, HandleType::kFence);
     return VK_SUCCESS;
 }
 
@@ -626,7 +616,7 @@ VkResult CreateFramebuffer(VkDevice device,
                            const VkFramebufferCreateInfo*,
                            const VkAllocationCallbacks* /*allocator*/,
                            VkFramebuffer* framebuffer) {
-    *framebuffer = AllocHandle(device, HandleType::kFramebuffer);
+    *framebuffer = AllocHandle<VkFramebuffer>(device, HandleType::kFramebuffer);
     return VK_SUCCESS;
 }
 
@@ -634,7 +624,7 @@ VkResult CreateImageView(VkDevice device,
                          const VkImageViewCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkImageView* view) {
-    *view = AllocHandle(device, HandleType::kImageView);
+    *view = AllocHandle<VkImageView>(device, HandleType::kImageView);
     return VK_SUCCESS;
 }
 
@@ -645,7 +635,7 @@ VkResult CreateGraphicsPipelines(VkDevice device,
                                  const VkAllocationCallbacks* /*allocator*/,
                                  VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
-        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+        pipelines[i] = AllocHandle<VkPipeline>(device, HandleType::kPipeline);
     return VK_SUCCESS;
 }
 
@@ -656,7 +646,7 @@ VkResult CreateComputePipelines(VkDevice device,
                                 const VkAllocationCallbacks* /*allocator*/,
                                 VkPipeline* pipelines) {
     for (uint32_t i = 0; i < count; i++)
-        pipelines[i] = AllocHandle(device, HandleType::kPipeline);
+        pipelines[i] = AllocHandle<VkPipeline>(device, HandleType::kPipeline);
     return VK_SUCCESS;
 }
 
@@ -664,7 +654,7 @@ VkResult CreatePipelineCache(VkDevice device,
                              const VkPipelineCacheCreateInfo*,
                              const VkAllocationCallbacks* /*allocator*/,
                              VkPipelineCache* cache) {
-    *cache = AllocHandle(device, HandleType::kPipelineCache);
+    *cache = AllocHandle<VkPipelineCache>(device, HandleType::kPipelineCache);
     return VK_SUCCESS;
 }
 
@@ -672,7 +662,8 @@ VkResult CreatePipelineLayout(VkDevice device,
                               const VkPipelineLayoutCreateInfo*,
                               const VkAllocationCallbacks* /*allocator*/,
                               VkPipelineLayout* layout) {
-    *layout = AllocHandle(device, HandleType::kPipelineLayout);
+    *layout =
+        AllocHandle<VkPipelineLayout>(device, HandleType::kPipelineLayout);
     return VK_SUCCESS;
 }
 
@@ -680,7 +671,7 @@ VkResult CreateQueryPool(VkDevice device,
                          const VkQueryPoolCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkQueryPool* pool) {
-    *pool = AllocHandle(device, HandleType::kQueryPool);
+    *pool = AllocHandle<VkQueryPool>(device, HandleType::kQueryPool);
     return VK_SUCCESS;
 }
 
@@ -688,7 +679,7 @@ VkResult CreateRenderPass(VkDevice device,
                           const VkRenderPassCreateInfo*,
                           const VkAllocationCallbacks* /*allocator*/,
                           VkRenderPass* renderpass) {
-    *renderpass = AllocHandle(device, HandleType::kRenderPass);
+    *renderpass = AllocHandle<VkRenderPass>(device, HandleType::kRenderPass);
     return VK_SUCCESS;
 }
 
@@ -696,7 +687,7 @@ VkResult CreateSampler(VkDevice device,
                        const VkSamplerCreateInfo*,
                        const VkAllocationCallbacks* /*allocator*/,
                        VkSampler* sampler) {
-    *sampler = AllocHandle(device, HandleType::kSampler);
+    *sampler = AllocHandle<VkSampler>(device, HandleType::kSampler);
     return VK_SUCCESS;
 }
 
@@ -704,7 +695,7 @@ VkResult CreateSemaphore(VkDevice device,
                          const VkSemaphoreCreateInfo*,
                          const VkAllocationCallbacks* /*allocator*/,
                          VkSemaphore* semaphore) {
-    *semaphore = AllocHandle(device, HandleType::kSemaphore);
+    *semaphore = AllocHandle<VkSemaphore>(device, HandleType::kSemaphore);
     return VK_SUCCESS;
 }
 
@@ -712,7 +703,7 @@ VkResult CreateShaderModule(VkDevice device,
                             const VkShaderModuleCreateInfo*,
                             const VkAllocationCallbacks* /*allocator*/,
                             VkShaderModule* module) {
-    *module = AllocHandle(device, HandleType::kShaderModule);
+    *module = AllocHandle<VkShaderModule>(device, HandleType::kShaderModule);
     return VK_SUCCESS;
 }
 
@@ -725,7 +716,11 @@ VkResult GetSwapchainGrallocUsageANDROID(VkDevice,
     return VK_SUCCESS;
 }
 
-VkResult AcquireImageANDROID(VkDevice, VkImage, int fence, VkSemaphore) {
+VkResult AcquireImageANDROID(VkDevice,
+                             VkImage,
+                             int fence,
+                             VkSemaphore,
+                             VkFence) {
     close(fence);
     return VK_SUCCESS;
 }
@@ -953,10 +948,10 @@ VkResult ResetCommandBuffer(VkCommandBuffer cmdBuffer, VkCommandBufferResetFlags
 void CmdBindPipeline(VkCommandBuffer cmdBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline) {
 }
 
-void CmdSetViewport(VkCommandBuffer cmdBuffer, uint32_t viewportCount, const VkViewport* pViewports) {
+void CmdSetViewport(VkCommandBuffer cmdBuffer, uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports) {
 }
 
-void CmdSetScissor(VkCommandBuffer cmdBuffer, uint32_t scissorCount, const VkRect2D* pScissors) {
+void CmdSetScissor(VkCommandBuffer cmdBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D* pScissors) {
 }
 
 void CmdSetLineWidth(VkCommandBuffer cmdBuffer, float lineWidth) {
@@ -1046,10 +1041,10 @@ void CmdSetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags 
 void CmdResetEvent(VkCommandBuffer cmdBuffer, VkEvent event, VkPipelineStageFlags stageMask) {
 }
 
-void CmdWaitEvents(VkCommandBuffer cmdBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
 }
 
-void CmdPipelineBarrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags destStageMask, VkDependencyFlags dependencyFlags, uint32_t memBarrierCount, const void* const* ppMemBarriers) {
+void CmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) {
 }
 
 void CmdBeginQuery(VkCommandBuffer cmdBuffer, VkQueryPool queryPool, uint32_t slot, VkQueryControlFlags flags) {

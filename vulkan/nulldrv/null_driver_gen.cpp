@@ -1,71 +1,60 @@
 /*
-* Copyright 2015 The Android Open Source Project
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // This file is generated. Do not edit manually!
-// To regenerate: $ apic template ../api/vulkan.api null_driver_gen.cpp.tmpl
+// To regenerate: $ apic template ../api/vulkan.api null_driver.tmpl
 // Requires apic from https://android.googlesource.com/platform/tools/gpu/.
 
+#include "null_driver_gen.h"
 #include <algorithm>
-#include "null_driver.h"
 
 using namespace null_driver;
 
 namespace {
 
-struct NameProcEntry {
+struct NameProc {
     const char* name;
     PFN_vkVoidFunction proc;
 };
 
-template <size_t N>
-PFN_vkVoidFunction LookupProcAddr(const NameProcEntry(&table)[N],
-                                  const char* name) {
-    auto entry = std::lower_bound(table, table + N, name,
-                                  [](const NameProcEntry& e, const char* n) {
-                                      return strcmp(e.name, n) < 0;
-                                  });
-    if (entry != (table + N) && strcmp(entry->name, name) == 0)
-        return entry->proc;
-    return nullptr;
+PFN_vkVoidFunction Lookup(const char* name,
+                          const NameProc* begin,
+                          const NameProc* end) {
+    const auto& entry = std::lower_bound(
+        begin, end, name,
+        [](const NameProc& e, const char* n) { return strcmp(e.name, n) < 0; });
+    if (entry == end || strcmp(entry->name, name) != 0)
+        return nullptr;
+    return entry->proc;
 }
 
-// The reinterpret_cast<..>(static_cast<..>(..)) business is there to ensure
-// that the function declaration in null_driver.h matches the function pointer
-// type in vulkan.h. If we just used reinterpret_cast<>, the compiler wouldn't
-// tell us if there's a mistake in null_driver.h. A better solution would be to
-// generate the declarations in null_driver.h.
-const NameProcEntry kInstanceProcTbl[] = {
+template <size_t N>
+PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
+    return Lookup(name, procs, procs + N);
+}
+
+const NameProc kGlobalProcs[] = {
     // clang-format off
-    {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDevice>(CreateDevice))},
-    {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance))},
-    {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceExtensionProperties>(EnumerateDeviceExtensionProperties))},
-    {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceLayerProperties>(EnumerateDeviceLayerProperties))},
-    {"vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumeratePhysicalDevices>(EnumeratePhysicalDevices))},
-    {"vkGetInstanceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr))},
-    {"vkGetPhysicalDeviceFeatures", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFeatures>(GetPhysicalDeviceFeatures))},
-    {"vkGetPhysicalDeviceFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFormatProperties>(GetPhysicalDeviceFormatProperties))},
-    {"vkGetPhysicalDeviceImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceImageFormatProperties>(GetPhysicalDeviceImageFormatProperties))},
-    {"vkGetPhysicalDeviceMemoryProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(GetPhysicalDeviceMemoryProperties))},
-    {"vkGetPhysicalDeviceProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceProperties>(GetPhysicalDeviceProperties))},
-    {"vkGetPhysicalDeviceQueueFamilyProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(GetPhysicalDeviceQueueFamilyProperties))},
-    {"vkGetPhysicalDeviceSparseImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties>(GetPhysicalDeviceSparseImageFormatProperties))},
+    {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance))},
+    {"vkEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceExtensionProperties>(EnumerateInstanceExtensionProperties))},
+    {"vkEnumerateInstanceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceLayerProperties>(EnumerateInstanceLayerProperties))},
     // clang-format on
 };
 
-const NameProcEntry kDeviceProcTbl[] = {
+const NameProc kInstanceProcs[] = {
     // clang-format off
     {"vkAllocateCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateCommandBuffers>(AllocateCommandBuffers))},
     {"vkAllocateDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateDescriptorSets>(AllocateDescriptorSets))},
@@ -123,12 +112,14 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkCreateComputePipelines", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateComputePipelines>(CreateComputePipelines))},
     {"vkCreateDescriptorPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDescriptorPool>(CreateDescriptorPool))},
     {"vkCreateDescriptorSetLayout", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDescriptorSetLayout>(CreateDescriptorSetLayout))},
+    {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDevice>(CreateDevice))},
     {"vkCreateEvent", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateEvent>(CreateEvent))},
     {"vkCreateFence", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateFence>(CreateFence))},
     {"vkCreateFramebuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateFramebuffer>(CreateFramebuffer))},
     {"vkCreateGraphicsPipelines", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateGraphicsPipelines>(CreateGraphicsPipelines))},
     {"vkCreateImage", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateImage>(CreateImage))},
     {"vkCreateImageView", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateImageView>(CreateImageView))},
+    {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance))},
     {"vkCreatePipelineCache", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreatePipelineCache>(CreatePipelineCache))},
     {"vkCreatePipelineLayout", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreatePipelineLayout>(CreatePipelineLayout))},
     {"vkCreateQueryPool", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateQueryPool>(CreateQueryPool))},
@@ -147,6 +138,7 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDestroyFramebuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyFramebuffer>(DestroyFramebuffer))},
     {"vkDestroyImage", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyImage>(DestroyImage))},
     {"vkDestroyImageView", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyImageView>(DestroyImageView))},
+    {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance))},
     {"vkDestroyPipeline", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyPipeline>(DestroyPipeline))},
     {"vkDestroyPipelineCache", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyPipelineCache>(DestroyPipelineCache))},
     {"vkDestroyPipelineLayout", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyPipelineLayout>(DestroyPipelineLayout))},
@@ -157,6 +149,11 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkDestroyShaderModule", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyShaderModule>(DestroyShaderModule))},
     {"vkDeviceWaitIdle", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDeviceWaitIdle>(DeviceWaitIdle))},
     {"vkEndCommandBuffer", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEndCommandBuffer>(EndCommandBuffer))},
+    {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceExtensionProperties>(EnumerateDeviceExtensionProperties))},
+    {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceLayerProperties>(EnumerateDeviceLayerProperties))},
+    {"vkEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceExtensionProperties>(EnumerateInstanceExtensionProperties))},
+    {"vkEnumerateInstanceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceLayerProperties>(EnumerateInstanceLayerProperties))},
+    {"vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumeratePhysicalDevices>(EnumeratePhysicalDevices))},
     {"vkFlushMappedMemoryRanges", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFlushMappedMemoryRanges>(FlushMappedMemoryRanges))},
     {"vkFreeCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeCommandBuffers>(FreeCommandBuffers))},
     {"vkFreeDescriptorSets", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkFreeDescriptorSets>(FreeDescriptorSets))},
@@ -170,6 +167,14 @@ const NameProcEntry kDeviceProcTbl[] = {
     {"vkGetImageMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetImageMemoryRequirements>(GetImageMemoryRequirements))},
     {"vkGetImageSparseMemoryRequirements", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetImageSparseMemoryRequirements>(GetImageSparseMemoryRequirements))},
     {"vkGetImageSubresourceLayout", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetImageSubresourceLayout>(GetImageSubresourceLayout))},
+    {"vkGetInstanceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr))},
+    {"vkGetPhysicalDeviceFeatures", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFeatures>(GetPhysicalDeviceFeatures))},
+    {"vkGetPhysicalDeviceFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFormatProperties>(GetPhysicalDeviceFormatProperties))},
+    {"vkGetPhysicalDeviceImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceImageFormatProperties>(GetPhysicalDeviceImageFormatProperties))},
+    {"vkGetPhysicalDeviceMemoryProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(GetPhysicalDeviceMemoryProperties))},
+    {"vkGetPhysicalDeviceProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceProperties>(GetPhysicalDeviceProperties))},
+    {"vkGetPhysicalDeviceQueueFamilyProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(GetPhysicalDeviceQueueFamilyProperties))},
+    {"vkGetPhysicalDeviceSparseImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties>(GetPhysicalDeviceSparseImageFormatProperties))},
     {"vkGetPipelineCacheData", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPipelineCacheData>(GetPipelineCacheData))},
     {"vkGetQueryPoolResults", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetQueryPoolResults>(GetQueryPoolResults))},
     {"vkGetRenderAreaGranularity", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetRenderAreaGranularity>(GetRenderAreaGranularity))},
@@ -195,12 +200,26 @@ const NameProcEntry kDeviceProcTbl[] = {
 
 namespace null_driver {
 
-PFN_vkVoidFunction LookupInstanceProcAddr(const char* name) {
-    return LookupProcAddr(kInstanceProcTbl, name);
+PFN_vkVoidFunction GetGlobalProcAddr(const char* name) {
+    return Lookup(name, kGlobalProcs);
 }
 
-PFN_vkVoidFunction LookupDeviceProcAddr(const char* name) {
-    return LookupProcAddr(kDeviceProcTbl, name);
+PFN_vkVoidFunction GetInstanceProcAddr(const char* name) {
+    PFN_vkVoidFunction pfn;
+    if ((pfn = Lookup(name, kInstanceProcs)))
+        return pfn;
+    if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkGetSwapchainGrallocUsageANDROID>(
+                GetSwapchainGrallocUsageANDROID));
+    if (strcmp(name, "vkAcquireImageANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkAcquireImageANDROID>(AcquireImageANDROID));
+    if (strcmp(name, "vkQueueSignalReleaseImageANDROID") == 0)
+        return reinterpret_cast<PFN_vkVoidFunction>(
+            static_cast<PFN_vkQueueSignalReleaseImageANDROID>(
+                QueueSignalReleaseImageANDROID));
+    return nullptr;
 }
 
 }  // namespace null_driver

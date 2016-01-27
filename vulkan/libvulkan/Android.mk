@@ -19,19 +19,20 @@ LOCAL_CLANG := true
 LOCAL_CFLAGS := -std=c99 -fvisibility=hidden -fstrict-aliasing
 LOCAL_CFLAGS += -DLOG_TAG=\"vulkan\"
 LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef
-LOCAL_CPPFLAGS := -std=c++1y \
+LOCAL_CPPFLAGS := -std=c++14 \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
 	-Wno-c99-extensions \
-	-Wno-zero-length-array
+	-Wno-zero-length-array \
+	-Wno-global-constructors
 
 LOCAL_C_INCLUDES := \
 	frameworks/native/vulkan/include \
 	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
-	entry.cpp \
-	get_proc_addr.cpp \
+	dispatch_gen.cpp \
+	layers_extensions.cpp \
 	loader.cpp \
 	swapchain.cpp \
 	vulkan_loader_data.cpp

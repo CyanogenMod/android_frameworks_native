@@ -2,7 +2,7 @@
 = Vulkan on Android Implementor's Guide =
 :toc: right
 :numbered:
-:revnumber: 3
+:revnumber: 4
 
 This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.
 
@@ -99,7 +99,9 @@ When creating a gralloc-backed image, the +VkImageCreateInfo+ will have:
   .pQueueFamilyIndices = VkSwapChainCreateInfoWSI::pQueueFamilyIndices
 ----
 
-+vkAcquireImageANDROID+ acquires ownership of a swapchain image and imports an externally-signalled native fence into an existing +VkSemaphore+ object:
++vkAcquireImageANDROID+ acquires ownership of a swapchain image and imports an
+externally-signalled native fence into both an existing VkSemaphore object
+and an existing VkFence object:
 
 [source,c]
 ----
@@ -107,12 +109,26 @@ VkResult VKAPI vkAcquireImageANDROID(
     VkDevice            device,
     VkImage             image,
     int                 nativeFenceFd,
-    VkSemaphore         semaphore
-);
+    VkSemaphore         semaphore,
+    VkFence             fence
 );
 ----
 
-This function is called during +vkAcquireNextImageWSI+ to import a native fence into the +VkSemaphore+ object provided by the application. The driver may also use this opportunity to recognize and handle any external changes to the gralloc buffer state; many drivers won't need to do anything here. This call puts the +VkSemaphore+ into the same "pending" state as +vkQueueSignalSemaphore+, so queues can wait on the semaphore. The +VkSemaphore+ signals when the underlying native fence signals; if the fence has already signalled, then the semaphore will be in the signalled state when this function returns. The driver takes ownership of the fence fd and is responsible for closing it when the +VkSemaphore+ is destroyed, when a different native fence is imported, or any other condition that replaces the +VkSemaphore+'s underlying synchronization object. If +fenceFd+ is -1, the +VkSemaphore+ will be considered signalled immediately, but it can still be passed to +vkQueueWaitSemaphore+.
+This function is called during +vkAcquireNextImageWSI+ to import a native
+fence into the +VkSemaphore+ and +VkFence+ objects provided by the
+application. Both semaphore and fence objects are optional in this call. The
+driver may also use this opportunity to recognize and handle any external
+changes to the gralloc buffer state; many drivers won't need to do anything
+here. This call puts the +VkSemaphore+ and +VkFence+ into the same "pending"
+state as +vkQueueSignalSemaphore+ and +vkQueueSubmit+ respectively, so queues
+can wait on the semaphore and the application can wait on the fence. Both
+objects become signalled when the underlying native fence signals; if the
+native fence has already signalled, then the semaphore will be in the signalled
+state when this function returns. The driver takes ownership of the fence fd
+and is responsible for closing it when no longer needed. It must do so even if
+neither a semaphore or fence object is provided, or even if
++vkAcquireImageANDROID+ fails and returns an error. If +fenceFd+ is -1, it
+is as if the native fence was already signalled.
 
 +vkQueueSignalReleaseImageANDROID+ prepares a swapchain image for external use, and creates a native fence and schedules it to be signalled when prior work on the queue has completed.
 
@@ -140,3 +156,6 @@ This will be called during +vkQueuePresentWSI+ on the provided queue. Effects ar
    * Replaced vkImportNativeFenceANDROID and vkQueueSignalNativeFenceANDROID
      with vkAcquireImageANDROID and vkQueueSignalReleaseImageANDROID, to allow
      drivers to known the ownership state of swapchain images.
+. *2015-12-03*
+   * Added a VkFence parameter to vkAcquireImageANDROID corresponding to the
+     parameter added to vkAcquireNextImageKHR.

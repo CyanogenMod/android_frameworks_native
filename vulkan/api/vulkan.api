@@ -26,9 +26,9 @@ import platform "platform.api"
 ///////////////
 
 // API version (major.minor.patch)
-define VERSION_MAJOR 0
-define VERSION_MINOR 210
-define VERSION_PATCH 1
+define VERSION_MAJOR 1
+define VERSION_MINOR 0
+define VERSION_PATCH 0
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -45,44 +45,34 @@ define VK_FALSE       0
 // API keyword, but needs special handling by some templates
 define NULL_HANDLE 0
 
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_REVISION                     24
-@extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NUMBER             1
+@extension("VK_KHR_surface") define VK_KHR_SURFACE_SPEC_VERSION                 24
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_REVISION                 67
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NUMBER         2
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_SPEC_VERSION             67
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
-@extension("VK_KHR_display") define VK_KHR_DISPLAY_REVISION                     21
-@extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NUMBER             3
+@extension("VK_KHR_display") define VK_KHR_DISPLAY_SPEC_VERSION                 21
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_EXTENSION_NAME               "VK_KHR_display"
 
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_REVISION         9
-@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NUMBER 4
+@extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_SPEC_VERSION     9
 @extension("VK_KHR_display_swapchain") define VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME   "VK_KHR_display_swapchain"
 
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_REVISION           5
-@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NUMBER             5
+@extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_SPEC_VERSION       6
 @extension("VK_KHR_xlib_surface") define VK_KHR_XLIB_SURFACE_NAME               "VK_KHR_xlib_surface"
 
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_REVISION             5
-@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NUMBER               6
+@extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_SPEC_VERSION         6
 @extension("VK_KHR_xcb_surface") define VK_KHR_XCB_SURFACE_NAME                 "VK_KHR_xcb_surface"
 
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_REVISION     4
-@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NUMBER       7
+@extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_SPEC_VERSION 5
 @extension("VK_KHR_wayland_surface") define VK_KHR_WAYLAND_SURFACE_NAME         "VK_KHR_wayland_surface"
 
-@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_REVISION             4
-@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NUMBER               8
+@extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_SPEC_VERSION         4
 @extension("VK_KHR_mir_surface") define VK_KHR_MIR_SURFACE_NAME                 "VK_KHR_mir_surface"
 
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_REVISION     4
-@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NUMBER       8
+@extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_SPEC_VERSION 5
 @extension("VK_KHR_android_surface") define VK_KHR_ANDROID_SURFACE_NAME         "VK_KHR_android_surface"
 
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_REVISION         4
-@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NUMBER           9
+@extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_SPEC_VERSION     5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
 
@@ -262,7 +252,6 @@ enum VkFilter {
 }
 
 enum VkSamplerMipmapMode {
-    VK_SAMPLER_MIPMAP_MODE_BASE                             = 0x00000000,   /// Always choose base level
     VK_SAMPLER_MIPMAP_MODE_NEAREST                          = 0x00000001,   /// Choose nearest mip level
     VK_SAMPLER_MIPMAP_MODE_LINEAR                           = 0x00000002,   /// Linear filter between mip levels
 }
@@ -614,13 +603,14 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO                   = 38,
     VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO                  = 39,
     VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO              = 40,
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 41,
-    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 42,
-    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 43,
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 44,
-    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 45,
-    VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO               = 46,
-    VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO                 = 47,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO           = 41,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO                 = 42,
+    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO                    = 43,
+    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER                     = 44,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER                      = 45,
+    VK_STRUCTURE_TYPE_MEMORY_BARRIER                            = 46,
+    VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO               = 47,
+    VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO                 = 48,
 
     //@extension("VK_KHR_swapchain")
     VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR                 = 1000001000,
@@ -632,11 +622,36 @@ enum VkStructureType {
 
     //@extension("VK_KHR_display_swapchain")
     VK_STRUCTURE_TYPE_DISPLAY_DISPLAY_PRESENT_INFO_KHR          = 1000003000,
+
+    //@extension("VK_KHR_xlib_surface")
+    VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR              = 1000004000,
+
+    //@extension("VK_KHR_xcb_surface")
+    VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR               = 1000005000,
+
+    //@extension("VK_KHR_wayland_surface")
+    VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR           = 1000006000,
+
+    //@extension("VK_KHR_mir_surface")
+    VK_STRUCTURE_TYPE_MIR_SURFACE_CREATE_INFO_KHR               = 1000007000,
+
+    //@extension("VK_KHR_android_surface")
+    VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR           = 1000008000,
+
+    //@extension("VK_KHR_win32_surface")
+    VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR             = 1000009000,
+
+    //@extension("VK_EXT_debug_report")
+    VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT              = 1000011000,
 }
 
 enum VkSubpassContents {
     VK_SUBPASS_CONTENTS_INLINE                              = 0x00000000,
     VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS           = 0x00000001,
+}
+
+enum VkPipelineCacheHeaderVersion {
+    VK_PIPELINE_CACHE_HEADER_VERSION_ONE                    = 1,
 }
 
 @lastUnused(-11)
@@ -677,6 +692,9 @@ enum VkResult {
 
     //@extension("VK_KHR_android_surface")
     VK_ERROR_NATIVE_WINDOW_IN_USE_KHR                       = 0xC46516C0, // -1000008000
+
+    //@extension("VK_EXT_debug_report")
+    VK_ERROR_VALIDATION_FAILED_EXT                          = 0xC4650B07, // -1000011001
 }
 
 enum VkDynamicState {
@@ -884,7 +902,6 @@ bitfield VkQueryControlFlagBits {
 /// Query result flags
 type VkFlags VkQueryResultFlags
 bitfield VkQueryResultFlagBits {
-    VK_QUERY_RESULT_DEFAULT                                 = 0x00000000,   /// Results of the queries are immediately written to the destination buffer as 32-bit values
     VK_QUERY_RESULT_64_BIT                                  = 0x00000001,   /// Results of the queries are written to the destination buffer as 64-bit values
     VK_QUERY_RESULT_WAIT_BIT                                = 0x00000002,   /// Results of the queries are waited on before proceeding with the result copy
     VK_QUERY_RESULT_WITH_AVAILABILITY_BIT                   = 0x00000004,   /// Besides the results of the query, the availability of the results is also written
@@ -969,10 +986,11 @@ bitfield VkPipelineStageFlagBits {
     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT           = 0x00000400,  /// Color attachment writes
     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT                    = 0x00000800,  /// Compute shading
     VK_PIPELINE_STAGE_TRANSFER_BIT                          = 0x00001000,  /// Transfer/copy operations
-    VK_PIPELINE_STAGE_HOST_BIT                              = 0x00002000,  /// Indicates host (CPU) is a source/sink of the dependency
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                    = 0x00002000,
+    VK_PIPELINE_STAGE_HOST_BIT                              = 0x00004000,  /// Indicates host (CPU) is a source/sink of the dependency
 
-    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT                      = 0x00004000,  /// All stages of the graphics pipeline
-    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT                      = 0x00008000,  /// All graphics, compute, copy, and transition commands
+    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT                      = 0x00008000,  /// All stages of the graphics pipeline
+    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT                      = 0x00010000,  /// All graphics, compute, copy, and transition commands
 }
 
 /// Render pass attachment description flags
@@ -1017,7 +1035,6 @@ bitfield VkSampleCountFlagBits {
 
 type VkFlags VkStencilFaceFlags
 bitfield VkStencilFaceFlagBits {
-    VK_STENCIL_FACE_NONE                                    = 0x00000000,   /// No faces
     VK_STENCIL_FACE_FRONT_BIT                               = 0x00000001,   /// Front face
     VK_STENCIL_FACE_BACK_BIT                                = 0x00000002,   /// Back face
     VK_STENCIL_FRONT_AND_BACK                               = 0x00000003,
@@ -1147,7 +1164,7 @@ bitfield VkCullModeFlagBits {
 type VkFlags VkSurfaceTransformFlagsKHR
 @extension("VK_KHR_surface")
 bitfield VkSurfaceTransformFlagBitsKHR {
-    VK_SURFACE_TRANSFORM_NONE_BIT_KHR                           = 0x00000001,
+    VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR                       = 0x00000001,
     VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR                      = 0x00000002,
     VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR                     = 0x00000004,
     VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR                     = 0x00000008,
@@ -1196,6 +1213,42 @@ type VkFlags VkDisplayModeCreateFlagsKHR
 //bitfield VkDisplayModeCreateFlagBitsKHR {
 //}
 
+@extension("VK_KHR_xlib_surface")
+type VkFlags VkXlibSurfaceCreateFlagsKHR
+//@extension("VK_KHR_xlib_surface")
+//bitfield VkXlibSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_xcb_surface")
+type VkFlags VkXcbSurfaceCreateFlagsKHR
+//@extension("VK_KHR_xcb_surface")
+//bitfield VkXcbSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_wayland_surface")
+type VkFlags VkWaylandSurfaceCreateFlagsKHR
+//@extension("VK_KHR_wayland_surface")
+//bitfield VkWaylandSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_mir_surface")
+type VkFlags VkMirSurfaceCreateFlagsKHR
+//@extension("VK_KHR_mir_surface")
+//bitfield VkMirSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_android_surface")
+type VkFlags VkAndroidSurfaceCreateFlagsKHR
+//@extension("VK_KHR_android_surface")
+//bitfield VkAndroidSurfaceCreateFlagBitsKHR {
+//}
+
+@extension("VK_KHR_win32_surface")
+type VkFlags VkWin32SurfaceCreateFlagsKHR
+//@extension("VK_KHR_win32_surface")
+//bitfield VkWin32SurfaceCreateFlagBitsKHR {
+//}
+
 
 //////////////////
 //  Structures  //
@@ -1213,14 +1266,14 @@ class VkOffset3D {
 }
 
 class VkExtent2D {
-    s32                                         width
-    s32                                         height
+    u32                                         width
+    u32                                         height
 }
 
 class VkExtent3D {
-    s32                                         width
-    s32                                         height
-    s32                                         depth
+    u32                                         width
+    u32                                         height
+    u32                                         depth
 }
 
 class VkViewport {
@@ -1279,6 +1332,7 @@ class VkSubmitInfo {
     const void*                                 pNext              /// Next structure in chain
     u32                                         waitSemaphoreCount
     const VkSemaphore*                          pWaitSemaphores
+    const VkPipelineStageFlags*                 pWaitDstStageMask
     u32                                         commandBufferCount
     const VkCommandBuffer*                      pCommandBuffers
     u32                                         signalSemaphoreCount
@@ -1319,9 +1373,9 @@ class VkDeviceCreateInfo {
     VkDeviceCreateFlags                         flags
     u32                                         queueCreateInfoCount
     const VkDeviceQueueCreateInfo*              pQueueCreateInfos
-    u32                                         enabledLayerNameCount
+    u32                                         enabledLayerCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         enabledExtensionNameCount
+    u32                                         enabledExtensionCount
     const char* const*                          ppEnabledExtensionNames
     const VkPhysicalDeviceFeatures*             pEnabledFeatures
 }
@@ -1331,9 +1385,9 @@ class VkInstanceCreateInfo {
     const void*                                 pNext                      /// Pointer to next structure
     VkInstanceCreateFlags                       flags
     const VkApplicationInfo*                    pApplicationInfo
-    u32                                         enabledLayerNameCount
+    u32                                         enabledLayerCount
     const char* const*                          ppEnabledLayerNames        /// Ordered list of layer names to be enabled
-    u32                                         enabledExtensionNameCount
+    u32                                         enabledExtensionCount
     const char* const*                          ppEnabledExtensionNames    /// Extension names to be enabled
 }
 
@@ -1372,7 +1426,7 @@ class VkSparseImageFormatProperties {
 
 class VkSparseImageMemoryRequirements {
     VkSparseImageFormatProperties               formatProperties
-    u32                                         imageMipTailStartLod
+    u32                                         imageMipTailFirstLod
     VkDeviceSize                                imageMipTailSize           /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailOffset         /// Specified in bytes, must be a multiple of image block size / alignment
     VkDeviceSize                                imageMipTailStride         /// Specified in bytes, must be a multiple of image block size / alignment
@@ -1536,6 +1590,7 @@ class VkSubresourceLayout {
     VkDeviceSize                                offset                 /// Specified in bytes
     VkDeviceSize                                size                   /// Specified in bytes
     VkDeviceSize                                rowPitch               /// Specified in bytes
+    VkDeviceSize                                arrayPitch             /// Specified in bytes
     VkDeviceSize                                depthPitch             /// Specified in bytes
 }
 
@@ -1623,11 +1678,9 @@ class VkImageCopy {
 
 class VkImageBlit {
     VkImageSubresourceLayers                    srcSubresource
-    VkOffset3D                                  srcOffset              /// Specified in pixels for both compressed and uncompressed images
-    VkExtent3D                                  srcExtent              /// Specified in pixels for both compressed and uncompressed images
+    VkOffset3D[2]                               srcOffsets
     VkImageSubresourceLayers                    dstSubresource
-    VkOffset3D                                  dstOffset              /// Specified in pixels for both compressed and uncompressed images
-    VkExtent3D                                  dstExtent              /// Specified in pixels for both compressed and uncompressed images
+    VkOffset3D[2]                               dstOffsets
 }
 
 class VkBufferImageCopy {
@@ -1668,7 +1721,7 @@ class VkDescriptorSetLayoutCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkDescriptorSetLayoutCreateFlags            flags
     u32                                         bindingCount       /// Number of bindings in the descriptor set layout
-    const VkDescriptorSetLayoutBinding*         pBinding           /// Array of descriptor set layout bindings
+    const VkDescriptorSetLayoutBinding*         pBindings          /// Array of descriptor set layout bindings
 }
 
 class VkDescriptorPoolSize {
@@ -1897,7 +1950,7 @@ class VkPipelineLayoutCreateInfo {
     VkStructureType                             sType                   /// Must be VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
     const void*                                 pNext                   /// Pointer to next structure
     VkPipelineLayoutCreateFlags                 flags
-    u32                                         setLayoutCount          /// Number of descriptor sets interfaced by the pipeline
+    u32                                         descriptorSetCount      /// Number of descriptor sets interfaced by the pipeline
     const VkDescriptorSetLayout*                pSetLayouts             /// Array of <setCount> number of descriptor set layout objects defining the layout of the
     u32                                         pushConstantRangeCount  /// Number of push-constant ranges used by the pipeline
     const VkPushConstantRange*                  pPushConstantRanges     /// Array of pushConstantRangeCount number of ranges used by various shader stages
@@ -1914,6 +1967,7 @@ class VkSamplerCreateInfo {
     VkSamplerAddressMode                        addressModeV
     VkSamplerAddressMode                        addressModeW
     f32                                         mipLodBias
+    VkBool32                                    anisotropyEnable
     f32                                         maxAnisotropy
     VkBool32                                    compareEnable
     VkCompareOp                                 compareOp
@@ -1935,19 +1989,25 @@ class VkCommandBufferAllocateInfo {
     const void*                                 pNext      /// Pointer to next structure
     VkCommandPool                               commandPool
     VkCommandBufferLevel                        level
-    u32                                         bufferCount
+    u32                                         commandBufferCount
 }
 
-class VkCommandBufferBeginInfo {
-    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+class VkCommandBufferInheritanceInfo {
+    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
     const void*                                 pNext       /// Pointer to next structure
-    VkCommandBufferUsageFlags                   flags       /// Command buffer usage flags
     VkRenderPass                                renderPass  /// Render pass for secondary command buffers
     u32                                         subpass
     VkFramebuffer                               framebuffer /// Framebuffer for secondary command buffers
     VkBool32                                    occlusionQueryEnable
     VkQueryControlFlags                         queryFlags
     VkQueryPipelineStatisticFlags               pipelineStatistics
+}
+
+class VkCommandBufferBeginInfo {
+    VkStructureType                             sType       /// Must be VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    const void*                                 pNext       /// Pointer to next structure
+    VkCommandBufferUsageFlags                   flags       /// Command buffer usage flags
+    const VkCommandBufferInheritanceInfo*       pInheritanceInfo
 }
 
 class VkRenderPassBeginInfo {
@@ -2013,7 +2073,7 @@ class VkSubpassDescription {
     const VkAttachmentReference*                pResolveAttachments
     const VkAttachmentReference*                pDepthStencilAttachment
     u32                                         preserveAttachmentCount
-    const VkAttachmentReference*                pPreserveAttachments
+    const u32*                                  pPreserveAttachments
 }
 
 class VkSubpassDependency {
@@ -2061,6 +2121,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    dualSrcBlend                              /// blend operations which take two sources
     VkBool32                                    logicOp                                   /// logic operations
     VkBool32                                    multiDrawIndirect                         /// multi draw indirect
+    VkBool32                                    drawIndirectFirstInstance
     VkBool32                                    depthClamp                                /// depth clamping
     VkBool32                                    depthBiasClamp                            /// depth bias clamping
     VkBool32                                    fillModeNonSolid                          /// point and wireframe fill modes
@@ -2104,6 +2165,7 @@ class VkPhysicalDeviceFeatures {
     VkBool32                                    sparseResidency16Samples                  /// Sparse resources support: GPU can access partially resident MSAA 2D images with 16 samples
     VkBool32                                    sparseResidencyAliased                    /// Sparse resources support: GPU can correctly access data aliased into multiple locations (opt-in)
     VkBool32                                    variableMultisampleRate
+    VkBool32                                    inheritedQueries
 }
 
 class VkPhysicalDeviceLimits {
@@ -2214,6 +2276,7 @@ class VkPhysicalDeviceLimits {
     VkSampleCountFlags                          sampledImageStencilSampleCounts
     VkSampleCountFlags                          storageImageSampleCounts
     u32                                         maxSampleMaskWords                        /// max num of sample mask words
+    VkBool32                                    timestampComputeAndGraphics
 
     f32                                         timestampPeriod
 
@@ -2254,7 +2317,7 @@ class VkQueryPoolCreateInfo {
     const void*                                 pNext              /// Pointer to next structure
     VkQueryPoolCreateFlags                      flags
     VkQueryType                                 queryType
-    u32                                         entryCount
+    u32                                         queryCount
     VkQueryPipelineStatisticFlags               pipelineStatistics /// Optional
 }
 
@@ -2418,6 +2481,59 @@ class VkDisplayPresentInfoKHR {
     VkBool32                                    persistent
 }
 
+@extension("VK_KHR_xlib_surface")
+class VkXlibSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkXlibSurfaceCreateFlagsKHR                 flags
+    platform.Display*                           dpy
+    platform.Window                             window
+}
+
+@extension("VK_KHR_xcb_surface")
+class VkXcbSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkXcbSurfaceCreateFlagsKHR                  flags
+    platform.xcb_connection_t*                  connection
+    platform.xcb_window_t                       window
+}
+
+@extension("VK_KHR_wayland_surface")
+class VkWaylandSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkWaylandSurfaceCreateFlagsKHR              flags
+    platform.wl_display*                        display
+    platform.wl_surface*                        surface
+}
+
+@extension("VK_KHR_mir_surface")
+class VkMirSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkMirSurfaceCreateFlagsKHR                  flags
+    platform.MirConnection*                     connection
+    platform.MirSurface*                        mirSurface
+}
+
+@extension("VK_KHR_android_surface")
+class VkAndroidSurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkAndroidSurfaceCreateFlagsKHR              flags
+    platform.ANativeWindow*                     window
+}
+
+@extension("VK_KHR_win32_surface")
+class VkWin32SurfaceCreateInfoKHR {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkWin32SurfaceCreateFlagsKHR                flags
+    platform.HINSTANCE                          hinstance
+    platform.HWND                               hwnd
+}
+
 
 ////////////////
 //  Commands  //
@@ -2483,8 +2599,8 @@ cmd VkResult vkCreateInstance(
     pInstance[0] = instance
     State.Instances[instance] = new!InstanceObject()
 
-    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.enabledLayerNameCount]
-    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.enabledExtensionNameCount]
+    layers := pCreateInfo.ppEnabledLayerNames[0:pCreateInfo.enabledLayerCount]
+    extensions := pCreateInfo.ppEnabledExtensionNames[0:pCreateInfo.enabledExtensionCount]
 
     return ?
 }
@@ -3204,7 +3320,7 @@ cmd void vkDestroyQueryPool(
 cmd VkResult vkGetQueryPoolResults(
         VkDevice                                    device,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount,
         platform.size_t                             dataSize,
         void*                                       pData,
@@ -3847,7 +3963,7 @@ cmd VkResult vkAllocateCommandBuffers(
         VkCommandBuffer*                            pCommandBuffers) {
     assert(pAllocateInfo[0].sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
 
-    count := pAllocateInfo[0].bufferCount
+    count := pAllocateInfo[0].commandBufferCount
     commandBuffers := pCommandBuffers[0:count]
     for i in (0 .. count) {
         commandBuffer := ?
@@ -3928,6 +4044,7 @@ cmd void vkCmdBindPipeline(
 @threadSafety("app")
 cmd void vkCmdSetViewport(
         VkCommandBuffer                             commandBuffer,
+        u32                                         firstViewport,
         u32                                         viewportCount,
         const VkViewport*                           pViewports) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
@@ -3937,6 +4054,7 @@ cmd void vkCmdSetViewport(
 @threadSafety("app")
 cmd void vkCmdSetScissor(
         VkCommandBuffer                             commandBuffer,
+        u32                                         firstScissor,
         u32                                         scissorCount,
         const VkRect2D*                             pScissors) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
@@ -4057,13 +4175,13 @@ cmd void vkCmdBindIndexBuffer(
 @threadSafety("app")
 cmd void vkCmdBindVertexBuffers(
         VkCommandBuffer                             commandBuffer,
-        u32                                         startBinding,
+        u32                                         firstBinding,
         u32                                         bindingCount,
         const VkBuffer*                             pBuffers,
         const VkDeviceSize*                         pOffsets) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    // TODO: check if not [startBinding:startBinding+bindingCount]
+    // TODO: check if not [firstBinding:firstBinding+bindingCount]
     buffers := pBuffers[0:bindingCount]
     offsets := pOffsets[0:bindingCount]
     for i in (0 .. bindingCount) {
@@ -4434,7 +4552,11 @@ cmd void vkCmdWaitEvents(
         VkPipelineStageFlags                        srcStageMask,
         VkPipelineStageFlags                        dstStageMask,
         u32                                         memoryBarrierCount,
-        const void* const*                          ppMemoryBarriers) {
+        const VkMemoryBarrier*                      pMemoryBarriers,
+        u32                                         bufferMemoryBarrierCount,
+        const VkBufferMemoryBarrier*                pBufferMemoryBarriers,
+        u32                                         imageMemoryBarrierCount,
+        const VkImageMemoryBarrier*                 pImageMemoryBarriers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
     events := pEvents[0:eventCount]
@@ -4444,23 +4566,21 @@ cmd void vkCmdWaitEvents(
         assert(commandBufferObject.device == eventObject.device)
     }
 
-    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    memoryBarriers := pMemoryBarriers[0:memoryBarrierCount]
     for i in (0 .. memoryBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
-            case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
-            }
-            case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
-                imageObject := GetImage(imageMemoryBarrier.image)
-                assert(imageObject.device == commandBufferObject.device)
-            }
-            case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
-                assert(bufferObject.device == commandBufferObject.device)
-            }
-        }
+        memoryBarrier := memoryBarriers[i]
+    }
+    bufferMemoryBarriers := pBufferMemoryBarriers[0:bufferMemoryBarrierCount]
+    for i in (0 .. bufferMemoryBarrierCount) {
+        bufferMemoryBarrier := bufferMemoryBarriers[i]
+        bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+        assert(bufferObject.device == commandBufferObject.device)
+    }
+    imageMemoryBarriers := pImageMemoryBarriers[0:imageMemoryBarrierCount]
+    for i in (0 .. imageMemoryBarrierCount) {
+        imageMemoryBarrier := imageMemoryBarriers[i]
+        imageObject := GetImage(imageMemoryBarrier.image)
+        assert(imageObject.device == commandBufferObject.device)
     }
 }
 
@@ -4471,26 +4591,28 @@ cmd void vkCmdPipelineBarrier(
         VkPipelineStageFlags                        dstStageMask,
         VkDependencyFlags                           dependencyFlags,
         u32                                         memoryBarrierCount,
-        const void* const*                          ppMemoryBarriers) {
+        const VkMemoryBarrier*                      pMemoryBarriers,
+        u32                                         bufferMemoryBarrierCount,
+        const VkBufferMemoryBarrier*                pBufferMemoryBarriers,
+        u32                                         imageMemoryBarrierCount,
+        const VkImageMemoryBarrier*                 pImageMemoryBarriers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    pMemoryBarriers := ppMemoryBarriers[0:memoryBarrierCount]
+    memoryBarriers := pMemoryBarriers[0:memoryBarrierCount]
     for i in (0 .. memoryBarrierCount) {
-        switch as!VkMemoryBarrier const*(pMemoryBarriers[i])[0].sType {
-            case VK_STRUCTURE_TYPE_MEMORY_BARRIER: {
-                memoryBarrier := as!VkMemoryBarrier const*(pMemoryBarriers[i])[0]
-            }
-            case VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: {
-                imageMemoryBarrier := as!VkImageMemoryBarrier const*(pMemoryBarriers[i])[0]
-                imageObject := GetImage(imageMemoryBarrier.image)
-                assert(imageObject.device == commandBufferObject.device)
-            }
-            case VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER: {
-                bufferMemoryBarrier := as!VkBufferMemoryBarrier const*(pMemoryBarriers[i])[0]
-                bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
-                assert(bufferObject.device == commandBufferObject.device)
-            }
-        }
+        memoryBarrier := memoryBarriers[i]
+    }
+    bufferMemoryBarriers := pBufferMemoryBarriers[0:bufferMemoryBarrierCount]
+    for i in (0 .. bufferMemoryBarrierCount) {
+        bufferMemoryBarrier := bufferMemoryBarriers[i]
+        bufferObject := GetBuffer(bufferMemoryBarrier.buffer)
+        assert(bufferObject.device == commandBufferObject.device)
+    }
+    imageMemoryBarriers := pImageMemoryBarriers[0:imageMemoryBarrierCount]
+    for i in (0 .. imageMemoryBarrierCount) {
+        imageMemoryBarrier := imageMemoryBarriers[i]
+        imageObject := GetImage(imageMemoryBarrier.image)
+        assert(imageObject.device == commandBufferObject.device)
     }
 }
 
@@ -4498,7 +4620,7 @@ cmd void vkCmdPipelineBarrier(
 cmd void vkCmdBeginQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         entry,
+        u32                                         query,
         VkQueryControlFlags                         flags) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
@@ -4509,7 +4631,7 @@ cmd void vkCmdBeginQuery(
 cmd void vkCmdEndQuery(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         entry) {
+        u32                                         query) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4519,7 +4641,7 @@ cmd void vkCmdEndQuery(
 cmd void vkCmdResetQueryPool(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
@@ -4531,7 +4653,7 @@ cmd void vkCmdWriteTimestamp(
         VkCommandBuffer                             commandBuffer,
         VkPipelineStageFlagBits                     pipelineStage,
         VkQueryPool                                 queryPool,
-        u32                                         entry) {
+        u32                                         query) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
     queryPoolObject := GetQueryPool(queryPool)
     assert(commandBufferObject.device == queryPoolObject.device)
@@ -4541,7 +4663,7 @@ cmd void vkCmdWriteTimestamp(
 cmd void vkCmdCopyQueryPoolResults(
         VkCommandBuffer                             commandBuffer,
         VkQueryPool                                 queryPool,
-        u32                                         startQuery,
+        u32                                         firstQuery,
         u32                                         queryCount,
         VkBuffer                                    dstBuffer,
         VkDeviceSize                                dstOffset,
@@ -4596,12 +4718,12 @@ cmd void vkCmdEndRenderPass(
 
 cmd void vkCmdExecuteCommands(
         VkCommandBuffer                             commandBuffer,
-        u32                                         commandBuffersCount,
+        u32                                         commandBufferCount,
         const VkCommandBuffer*                      pCommandBuffers) {
     commandBufferObject := GetCommandBuffer(commandBuffer)
 
-    commandBuffers := pCommandBuffers[0:commandBuffersCount]
-    for i in (0 .. commandBuffersCount) {
+    commandBuffers := pCommandBuffers[0:commandBufferCount]
+    for i in (0 .. commandBufferCount) {
         secondaryCommandBuffer := commandBuffers[i]
         secondaryCommandBufferObject := GetCommandBuffer(secondaryCommandBuffer)
         assert(commandBufferObject.device == secondaryCommandBufferObject.device)
@@ -4783,6 +4905,7 @@ cmd VkResult vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
 @extension("VK_KHR_display")
 cmd VkResult vkGetDisplayPlaneSupportedDisplaysKHR(
         VkPhysicalDevice                        physicalDevice,
+        u32                                     planeIndex,
         u32*                                    pDisplayCount,
         VkDisplayKHR*                           pDisplays) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
@@ -4842,8 +4965,7 @@ cmd VkResult vkCreateSharedSwapchainsKHR(
 @extension("VK_KHR_xlib_surface")
 cmd VkResult vkCreateXlibSurfaceKHR(
         VkInstance                              instance,
-        platform.Display*                       dpy,
-        platform.Window                         window,
+        const VkXlibSurfaceCreateInfoKHR*       pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4861,10 +4983,9 @@ cmd VkBool32 vkGetPhysicalDeviceXlibPresentationSupportKHR(
 }
 
 @extension("VK_KHR_xcb_surface")
-cmd VkResult vkCreateXCBSurfaceKHR(
+cmd VkResult vkCreateXcbSurfaceKHR(
         VkInstance                              instance,
-        platform.xcb_connection_t*              connection,
-        platform.xcb_window_t                   window,
+        const VkXcbSurfaceCreateInfoKHR*        pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4884,8 +5005,7 @@ cmd VkBool32 vkGetPhysicalDeviceXcbPresentationSupportKHR(
 @extension("VK_KHR_wayland_surface")
 cmd VkResult vkCreateWaylandSurfaceKHR(
         VkInstance                              instance,
-        platform.wl_display*                    display,
-        platform.wl_surface*                    surface,
+        const VkWaylandSurfaceCreateInfoKHR*    pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4904,8 +5024,7 @@ cmd VkBool32 vkGetPhysicalDeviceWaylandPresentationSupportKHR(
 @extension("VK_KHR_mir_surface")
 cmd VkResult vkCreateMirSurfaceKHR(
         VkInstance                              instance,
-        platform.MirConnection*                 connection,
-        platform.MirSurface*                    mirSurface,
+        const VkMirSurfaceCreateInfoKHR*        pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4924,7 +5043,7 @@ cmd VkBool32 vkGetPhysicalDeviceMirPresentationSupportKHR(
 @extension("VK_KHR_android_surface")
 cmd VkResult vkCreateAndroidSurfaceKHR(
         VkInstance                              instance,
-        platform.ANativeWindow*                 window,
+        const VkAndroidSurfaceCreateInfoKHR*    pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)
@@ -4934,8 +5053,7 @@ cmd VkResult vkCreateAndroidSurfaceKHR(
 @extension("VK_KHR_win32_surface")
 cmd VkResult vkCreateWin32SurfaceKHR(
         VkInstance                              instance,
-        platform.HINSTANCE                      hinstance,
-        platform.HWND                           hwnd,
+        const VkWin32SurfaceCreateInfoKHR*      pCreateInfo,
         const VkAllocationCallbacks*            pAllocator,
         VkSurfaceKHR*                           pSurface) {
     instanceObject := GetInstance(instance)

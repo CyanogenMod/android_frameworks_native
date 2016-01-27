@@ -15,8 +15,8 @@
  */
 
 #include <inttypes.h>
-#include <sstream>
 #include <stdlib.h>
+#include <sstream>
 #include <vector>
 
 #define VK_PROTOTYPES
@@ -26,6 +26,23 @@
 #include <log/log.h>
 
 namespace {
+
+struct GpuInfo {
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceMemoryProperties memory;
+    std::vector<VkQueueFamilyProperties> queue_families;
+    std::vector<VkExtensionProperties> extensions;
+    std::vector<VkLayerProperties> layers;
+    std::vector<std::vector<VkExtensionProperties>> layer_extensions;
+};
+struct VulkanInfo {
+    std::vector<VkExtensionProperties> extensions;
+    std::vector<VkLayerProperties> layers;
+    std::vector<std::vector<VkExtensionProperties>> layer_extensions;
+    std::vector<GpuInfo> gpus;
+};
+
+// ----------------------------------------------------------------------------
 
 [[noreturn]] void die(const char* proc, VkResult result) {
     const char* result_str;
@@ -50,6 +67,131 @@ namespace {
     }
     fprintf(stderr, "%s failed: %s (%d)\n", proc, result_str, result);
     exit(1);
+}
+
+void EnumerateInstanceExtensions(
+    const char* layer_name,
+    std::vector<VkExtensionProperties>* extensions) {
+    VkResult result;
+    uint32_t count;
+    result =
+        vkEnumerateInstanceExtensionProperties(layer_name, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceExtensionProperties (count)", result);
+    do {
+        extensions->resize(count);
+        result = vkEnumerateInstanceExtensionProperties(layer_name, &count,
+                                                        extensions->data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceExtensionProperties (data)", result);
+}
+
+void EnumerateDeviceExtensions(VkPhysicalDevice gpu,
+                               const char* layer_name,
+                               std::vector<VkExtensionProperties>* extensions) {
+    VkResult result;
+    uint32_t count;
+    result =
+        vkEnumerateDeviceExtensionProperties(gpu, layer_name, &count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceExtensionProperties (count)", result);
+    do {
+        extensions->resize(count);
+        result = vkEnumerateDeviceExtensionProperties(gpu, layer_name, &count,
+                                                      extensions->data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateDeviceExtensionProperties (data)", result);
+}
+
+void GatherInfo(VulkanInfo* info) {
+    VkResult result;
+    uint32_t count;
+
+    result = vkEnumerateInstanceLayerProperties(&count, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceLayerProperties (count)", result);
+    do {
+        info->layers.resize(count);
+        result =
+            vkEnumerateInstanceLayerProperties(&count, info->layers.data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumerateInstanceLayerProperties (data)", result);
+    info->layer_extensions.resize(info->layers.size());
+
+    EnumerateInstanceExtensions(nullptr, &info->extensions);
+    for (size_t i = 0; i < info->layers.size(); i++) {
+        EnumerateInstanceExtensions(info->layers[i].layerName,
+                                    &info->layer_extensions[i]);
+    }
+
+    VkInstance instance;
+    const VkInstanceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+    };
+    result = vkCreateInstance(&create_info, nullptr, &instance);
+    if (result != VK_SUCCESS)
+        die("vkCreateInstance", result);
+
+    uint32_t num_gpus;
+    result = vkEnumeratePhysicalDevices(instance, &num_gpus, nullptr);
+    if (result != VK_SUCCESS)
+        die("vkEnumeratePhysicalDevices (count)", result);
+    std::vector<VkPhysicalDevice> gpus(num_gpus, VK_NULL_HANDLE);
+    do {
+        gpus.resize(num_gpus, VK_NULL_HANDLE);
+        result = vkEnumeratePhysicalDevices(instance, &num_gpus, gpus.data());
+    } while (result == VK_INCOMPLETE);
+    if (result != VK_SUCCESS)
+        die("vkEnumeratePhysicalDevices (data)", result);
+
+    info->gpus.resize(num_gpus);
+    for (size_t gpu_idx = 0; gpu_idx < gpus.size(); gpu_idx++) {
+        VkPhysicalDevice gpu = gpus[gpu_idx];
+        GpuInfo& gpu_info = info->gpus.at(gpu_idx);
+
+        vkGetPhysicalDeviceProperties(gpu, &gpu_info.properties);
+        vkGetPhysicalDeviceMemoryProperties(gpu, &gpu_info.memory);
+
+        vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
+        gpu_info.queue_families.resize(count);
+        vkGetPhysicalDeviceQueueFamilyProperties(
+            gpu, &count, gpu_info.queue_families.data());
+
+        result = vkEnumerateDeviceLayerProperties(gpu, &count, nullptr);
+        if (result != VK_SUCCESS)
+            die("vkEnumerateDeviceLayerProperties (count)", result);
+        do {
+            gpu_info.layers.resize(count);
+            result = vkEnumerateDeviceLayerProperties(gpu, &count,
+                                                      gpu_info.layers.data());
+        } while (result == VK_INCOMPLETE);
+        if (result != VK_SUCCESS)
+            die("vkEnumerateDeviceLayerProperties (data)", result);
+        gpu_info.layer_extensions.resize(gpu_info.layers.size());
+
+        EnumerateDeviceExtensions(gpu, nullptr, &gpu_info.extensions);
+        for (size_t i = 0; i < gpu_info.layers.size(); i++) {
+            EnumerateDeviceExtensions(gpu, gpu_info.layers[i].layerName,
+                                      &gpu_info.layer_extensions[i]);
+        }
+    }
+
+    vkDestroyInstance(instance, nullptr);
+}
+
+// ----------------------------------------------------------------------------
+
+uint32_t ExtractMajorVersion(uint32_t version) {
+    return (version >> 22) & 0x3FF;
+}
+uint32_t ExtractMinorVersion(uint32_t version) {
+    return (version >> 12) & 0x3FF;
+}
+uint32_t ExtractPatchVersion(uint32_t version) {
+    return (version >> 0) & 0xFFF;
 }
 
 const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
@@ -82,57 +224,55 @@ const char* VkQueueFlagBitStr(VkQueueFlagBits bit) {
     }
 }
 
-void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
+void PrintExtensions(const std::vector<VkExtensionProperties>& extensions,
+                     const char* prefix) {
+    for (const auto& e : extensions)
+        printf("%s- %s (v%u)\n", prefix, e.extensionName, e.specVersion);
+}
+
+void PrintGpuInfo(const GpuInfo& info) {
     VkResult result;
     std::ostringstream strbuf;
 
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(pdev, &props);
-    printf("  %u: \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", idx,
-           props.deviceName, VkPhysicalDeviceTypeStr(props.deviceType),
-           (props.apiVersion >> 22) & 0x3FF, (props.apiVersion >> 12) & 0x3FF,
-           (props.apiVersion >> 0) & 0xFFF, props.driverVersion, props.vendorID,
-           props.deviceID);
+    printf("  - \"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n",
+           info.properties.deviceName,
+           VkPhysicalDeviceTypeStr(info.properties.deviceType),
+           ExtractMajorVersion(info.properties.apiVersion),
+           ExtractMinorVersion(info.properties.apiVersion),
+           ExtractPatchVersion(info.properties.apiVersion),
+           info.properties.driverVersion, info.properties.vendorID,
+           info.properties.deviceID);
 
-    VkPhysicalDeviceMemoryProperties mem_props;
-    vkGetPhysicalDeviceMemoryProperties(pdev, &mem_props);
-    for (uint32_t heap = 0; heap < mem_props.memoryHeapCount; heap++) {
-        if ((mem_props.memoryHeaps[heap].flags &
+    for (uint32_t heap = 0; heap < info.memory.memoryHeapCount; heap++) {
+        if ((info.memory.memoryHeaps[heap].flags &
              VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
             strbuf << "DEVICE_LOCAL";
-        printf("     Heap %u: 0x%" PRIx64 " %s\n", heap,
-               mem_props.memoryHeaps[heap].size, strbuf.str().c_str());
+        printf("    Heap %u: 0x%" PRIx64 " %s\n", heap,
+               info.memory.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
 
-        for (uint32_t type = 0; type < mem_props.memoryTypeCount; type++) {
-            if (mem_props.memoryTypes[type].heapIndex != heap)
+        for (uint32_t type = 0; type < info.memory.memoryTypeCount; type++) {
+            if (info.memory.memoryTypes[type].heapIndex != heap)
                 continue;
             VkMemoryPropertyFlags flags =
-                mem_props.memoryTypes[type].propertyFlags;
+                info.memory.memoryTypes[type].propertyFlags;
             if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
-                strbuf << "DEVICE_LOCAL";
+                strbuf << " DEVICE_LOCAL";
             if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-                strbuf << "HOST_VISIBLE";
+                strbuf << " HOST_VISIBLE";
             if ((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
                 strbuf << " COHERENT";
             if ((flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
                 strbuf << " CACHED";
             if ((flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
                 strbuf << " LAZILY_ALLOCATED";
-            printf("       Type %u: %s\n", type, strbuf.str().c_str());
+            printf("      Type %u:%s\n", type, strbuf.str().c_str());
             strbuf.str(std::string());
         }
     }
 
-    uint32_t num_queue_families;
-    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
-                                             nullptr);
-    std::vector<VkQueueFamilyProperties> queue_family_properties(
-        num_queue_families);
-    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &num_queue_families,
-                                             queue_family_properties.data());
-    for (uint32_t family = 0; family < num_queue_families; family++) {
-        const VkQueueFamilyProperties& qprops = queue_family_properties[family];
+    for (uint32_t family = 0; family < info.queue_families.size(); family++) {
+        const VkQueueFamilyProperties& qprops = info.queue_families[family];
         const char* sep = "";
         int bit, queue_flags = static_cast<int>(qprops.queueFlags);
         while ((bit = __builtin_ffs(queue_flags)) != 0) {
@@ -141,54 +281,68 @@ void DumpPhysicalDevice(uint32_t idx, VkPhysicalDevice pdev) {
             queue_flags &= ~flag;
             sep = "+";
         }
-        printf("     Queue Family %u: %2ux %s timestamps:%ub\n", family,
+        printf("    Queue Family %u: %2ux %s timestamps:%ub\n", family,
                qprops.queueCount, strbuf.str().c_str(),
                qprops.timestampValidBits);
         strbuf.str(std::string());
+
+        if (!info.extensions.empty()) {
+            printf("    Extensions [%u]:\n", info.extensions.size());
+            PrintExtensions(info.extensions, "    ");
+        }
+        if (!info.layers.empty()) {
+            printf("    Layers [%u]:\n", info.layers.size());
+            for (size_t i = 0; i < info.layers.size(); i++) {
+                const auto& layer = info.layers[i];
+                printf("    - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
+                       ExtractMajorVersion(layer.specVersion),
+                       ExtractMinorVersion(layer.specVersion),
+                       ExtractPatchVersion(layer.specVersion),
+                       layer.implementationVersion, layer.description);
+                if (!info.layer_extensions[i].empty()) {
+                    printf("       Extensions [%zu]:\n",
+                           info.layer_extensions.size());
+                    PrintExtensions(info.layer_extensions[i], "       ");
+                }
+            }
+        }
     }
+}
+
+void PrintInfo(const VulkanInfo& info) {
+    std::ostringstream strbuf;
+
+    printf("Instance Extensions [%u]:\n", info.extensions.size());
+    PrintExtensions(info.extensions, "  ");
+    if (!info.layers.empty()) {
+        printf("Instance Layers [%u]:\n", info.layers.size());
+        for (size_t i = 0; i < info.layers.size(); i++) {
+            const auto& layer = info.layers[i];
+            printf("  - %s %u.%u.%u/%u \"%s\"\n", layer.layerName,
+                   ExtractMajorVersion(layer.specVersion),
+                   ExtractMinorVersion(layer.specVersion),
+                   ExtractPatchVersion(layer.specVersion),
+                   layer.implementationVersion, layer.description);
+            if (!info.layer_extensions[i].empty()) {
+                printf("     Extensions [%zu]:\n",
+                       info.layer_extensions.size());
+                PrintExtensions(info.layer_extensions[i], "       ");
+            }
+        }
+    }
+
+    printf("PhysicalDevices [%zu]:\n", info.gpus.size());
+    for (const auto& gpu : info.gpus)
+        PrintGpuInfo(gpu);
 }
 
 }  // namespace
 
+// ----------------------------------------------------------------------------
+
 int main(int /*argc*/, char const* /*argv*/ []) {
-    VkResult result;
-
-    VkInstance instance;
-    const VkInstanceCreateInfo create_info = {
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = nullptr,
-        .pApplicationInfo = nullptr,
-        .enabledLayerNameCount = 0,
-        .ppEnabledLayerNames = nullptr,
-        .enabledExtensionNameCount = 0,
-        .ppEnabledExtensionNames = nullptr,
-    };
-    result = vkCreateInstance(&create_info, nullptr, &instance);
-    if (result != VK_SUCCESS)
-        die("vkCreateInstance", result);
-
-    uint32_t num_physical_devices;
-    result =
-        vkEnumeratePhysicalDevices(instance, &num_physical_devices, nullptr);
-    if (result != VK_SUCCESS)
-        die("vkEnumeratePhysicalDevices (count)", result);
-    std::vector<VkPhysicalDevice> physical_devices(num_physical_devices,
-                                                   VK_NULL_HANDLE);
-    result = vkEnumeratePhysicalDevices(instance, &num_physical_devices,
-                                        physical_devices.data());
-    if (result != VK_SUCCESS)
-        die("vkEnumeratePhysicalDevices (data)", result);
-    if (num_physical_devices != physical_devices.size()) {
-        fprintf(stderr,
-                "number of physical devices decreased from %zu to %u!\n",
-                physical_devices.size(), num_physical_devices);
-        physical_devices.resize(num_physical_devices);
-    }
-    printf("PhysicalDevices:\n");
-    for (uint32_t i = 0; i < physical_devices.size(); i++)
-        DumpPhysicalDevice(i, physical_devices[i]);
-
-    vkDestroyInstance(instance, nullptr);
-
+    VulkanInfo info;
+    GatherInfo(&info);
+    PrintInfo(info);
     return 0;
 }

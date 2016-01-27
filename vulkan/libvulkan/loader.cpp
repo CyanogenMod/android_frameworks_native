@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//#define LOG_NDEBUG 0
+#define LOG_NDEBUG 0
 
 // module header
 #include "loader.h"
@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 // standard C++ headers
 #include <algorithm>
 #include <mutex>
@@ -55,8 +56,7 @@ typedef struct VkLayerLinkedListElem_ {
     void* base_object;
 } VkLayerLinkedListElem;
 
-// Define Handle typedef to be void* as returned from dlopen.
-typedef void* SharedLibraryHandle;
+// ----------------------------------------------------------------------------
 
 // Standard-library allocator that delegates to VkAllocationCallbacks.
 //
@@ -105,115 +105,21 @@ bool operator!=(const CallbackAllocator<T>& alloc1,
 template <class Key,
           class T,
           class Hash = std::hash<Key>,
-          class Pred = std::equal_to<Key> >
+          class Pred = std::equal_to<Key>>
 using UnorderedMap =
     std::unordered_map<Key,
                        T,
                        Hash,
                        Pred,
-                       CallbackAllocator<std::pair<const Key, T> > >;
+                       CallbackAllocator<std::pair<const Key, T>>>;
 
 template <class T>
-using Vector = std::vector<T, CallbackAllocator<T> >;
+using Vector = std::vector<T, CallbackAllocator<T>>;
 
-typedef std::basic_string<char,
-                          std::char_traits<char>,
-                          CallbackAllocator<char> > String;
+typedef std::basic_string<char, std::char_traits<char>, CallbackAllocator<char>>
+    String;
 
-}  // namespace
-
-// -----------------------------------------------------------------------------
-
-namespace {
-
-struct LayerData {
-    String path;
-    SharedLibraryHandle handle;
-    uint32_t ref_count;
-};
-
-typedef UnorderedMap<String, LayerData>::iterator LayerMapIterator;
-
-}  // namespace
-
-struct VkInstance_T {
-    VkInstance_T(const VkAllocationCallbacks* alloc_callbacks)
-        : vtbl(&vtbl_storage),
-          alloc(alloc_callbacks),
-          num_physical_devices(0),
-          layers(CallbackAllocator<std::pair<String, LayerData> >(alloc)),
-          active_layers(CallbackAllocator<String>(alloc)) {
-        pthread_mutex_init(&layer_lock, 0);
-        memset(&vtbl_storage, 0, sizeof(vtbl_storage));
-        memset(physical_devices, 0, sizeof(physical_devices));
-        memset(&drv.vtbl, 0, sizeof(drv.vtbl));
-        drv.GetDeviceProcAddr = nullptr;
-        drv.num_physical_devices = 0;
-    }
-
-    ~VkInstance_T() { pthread_mutex_destroy(&layer_lock); }
-
-    InstanceVtbl* vtbl;
-    InstanceVtbl vtbl_storage;
-
-    const VkAllocationCallbacks* alloc;
-    uint32_t num_physical_devices;
-    VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
-
-    pthread_mutex_t layer_lock;
-    // Map of layer names to layer data
-    UnorderedMap<String, LayerData> layers;
-    // Vector of layers active for this instance
-    Vector<LayerMapIterator> active_layers;
-    VkDbgMsgCallback message;
-
-    struct Driver {
-        // Pointers to driver entry points. Used explicitly by the loader; not
-        // set as the dispatch table for any objects.
-        InstanceVtbl vtbl;
-
-        // Pointer to the driver's get_device_proc_addr, must be valid for any
-        // of the driver's physical devices. Not part of the InstanceVtbl since
-        // it's not an Instance/PhysicalDevice function.
-        PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
-
-        // Number of physical devices owned by this driver.
-        uint32_t num_physical_devices;
-    } drv;  // may eventually be an array
-};
-
-// -----------------------------------------------------------------------------
-
-namespace {
-
-typedef VkInstance_T Instance;
-
-struct Device {
-    Device(Instance* instance_input)
-        : instance(instance_input),
-          active_layers(CallbackAllocator<LayerMapIterator>(instance->alloc)) {
-        memset(&vtbl_storage, 0, sizeof(vtbl_storage));
-        vtbl_storage.device = this;
-    }
-    DeviceVtbl vtbl_storage;
-    Instance* instance;
-    // Vector of layers active for this device
-    Vector<LayerMapIterator> active_layers;
-};
-
-// -----------------------------------------------------------------------------
-// Utility Code
-
-inline const InstanceVtbl* GetVtbl(VkPhysicalDevice physicalDevice) {
-    return *reinterpret_cast<InstanceVtbl**>(physicalDevice);
-}
-
-inline const DeviceVtbl* GetVtbl(VkDevice device) {
-    return *reinterpret_cast<DeviceVtbl**>(device);
-}
-inline const DeviceVtbl* GetVtbl(VkQueue queue) {
-    return *reinterpret_cast<DeviceVtbl**>(queue);
-}
+// ----------------------------------------------------------------------------
 
 VKAPI_ATTR void* DefaultAllocate(void*,
                                  size_t size,
@@ -268,33 +174,136 @@ const VkAllocationCallbacks kDefaultAllocCallbacks = {
     .pfnFree = DefaultFree,
 };
 
-hwvulkan_device_t* g_hwdevice;
+// ----------------------------------------------------------------------------
+// Global Data and Initialization
+
+hwvulkan_device_t* g_hwdevice = nullptr;
+void LoadVulkanHAL() {
+    static const hwvulkan_module_t* module;
+    int result =
+        hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
+    if (result != 0) {
+        ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result), result);
+        return;
+    }
+    result = module->common.methods->open(
+        &module->common, HWVULKAN_DEVICE_0,
+        reinterpret_cast<hw_device_t**>(&g_hwdevice));
+    if (result != 0) {
+        ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
+              result);
+        module = nullptr;
+        return;
+    }
+}
+
 bool EnsureInitialized() {
     static std::once_flag once_flag;
-    static const hwvulkan_module_t* module;
-
     std::call_once(once_flag, []() {
-        int result;
-        result = hw_get_module("vulkan",
-                               reinterpret_cast<const hw_module_t**>(&module));
-        if (result != 0) {
-            ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result),
-                  result);
-            return;
-        }
-        result = module->common.methods->open(
-            &module->common, HWVULKAN_DEVICE_0,
-            reinterpret_cast<hw_device_t**>(&g_hwdevice));
-        if (result != 0) {
-            ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
-                  result);
-            module = nullptr;
-            return;
-        }
+        LoadVulkanHAL();
+        DiscoverLayers();
     });
-
-    return module != nullptr && g_hwdevice != nullptr;
+    return g_hwdevice != nullptr;
 }
+
+// -----------------------------------------------------------------------------
+
+struct Instance {
+    Instance(const VkAllocationCallbacks* alloc_callbacks)
+        : dispatch_ptr(&dispatch),
+          handle(reinterpret_cast<VkInstance>(&dispatch_ptr)),
+          get_instance_proc_addr(nullptr),
+          alloc(alloc_callbacks),
+          num_physical_devices(0),
+          active_layers(CallbackAllocator<LayerRef>(alloc)),
+          message(VK_NULL_HANDLE) {
+        memset(&dispatch, 0, sizeof(dispatch));
+        memset(physical_devices, 0, sizeof(physical_devices));
+        drv.instance = VK_NULL_HANDLE;
+        memset(&drv.dispatch, 0, sizeof(drv.dispatch));
+        drv.num_physical_devices = 0;
+    }
+
+    ~Instance() {}
+
+    const InstanceDispatchTable* dispatch_ptr;
+    const VkInstance handle;
+    InstanceDispatchTable dispatch;
+
+    // TODO(jessehall): Only needed by GetInstanceProcAddr_Top for
+    // vkDbg*MessageCallback. Points to the outermost layer's function. Remove
+    // once the DEBUG_CALLBACK is integrated into the API file.
+    PFN_vkGetInstanceProcAddr get_instance_proc_addr;
+
+    const VkAllocationCallbacks* alloc;
+    uint32_t num_physical_devices;
+    VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
+
+    Vector<LayerRef> active_layers;
+    VkDbgMsgCallback message;
+
+    struct {
+        VkInstance instance;
+        DriverDispatchTable dispatch;
+        uint32_t num_physical_devices;
+    } drv;  // may eventually be an array
+};
+
+struct Device {
+    Device(Instance* instance_)
+        : instance(instance_),
+          active_layers(CallbackAllocator<LayerRef>(instance->alloc)) {
+        memset(&dispatch, 0, sizeof(dispatch));
+    }
+    DeviceDispatchTable dispatch;
+    Instance* instance;
+    PFN_vkGetDeviceProcAddr get_device_proc_addr;
+    Vector<LayerRef> active_layers;
+};
+
+template <typename THandle>
+struct HandleTraits {};
+template <>
+struct HandleTraits<VkInstance> {
+    typedef Instance LoaderObjectType;
+};
+template <>
+struct HandleTraits<VkPhysicalDevice> {
+    typedef Instance LoaderObjectType;
+};
+template <>
+struct HandleTraits<VkDevice> {
+    typedef Device LoaderObjectType;
+};
+template <>
+struct HandleTraits<VkQueue> {
+    typedef Device LoaderObjectType;
+};
+template <>
+struct HandleTraits<VkCommandBuffer> {
+    typedef Device LoaderObjectType;
+};
+
+template <typename THandle>
+typename HandleTraits<THandle>::LoaderObjectType& GetDispatchParent(
+    THandle handle) {
+    // TODO(jessehall): Make Instance and Device POD types (by removing the
+    // non-default constructors), so that offsetof is actually legal to use.
+    // The specific case we're using here is safe in gcc/clang (and probably
+    // most other C++ compilers), but isn't guaranteed by C++.
+    typedef typename HandleTraits<THandle>::LoaderObjectType ObjectType;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+    const size_t kDispatchOffset = offsetof(ObjectType, dispatch);
+#pragma clang diagnostic pop
+
+    const auto& dispatch = GetDispatchTable(handle);
+    uintptr_t dispatch_addr = reinterpret_cast<uintptr_t>(&dispatch);
+    uintptr_t object_addr = dispatch_addr - kDispatchOffset;
+    return *reinterpret_cast<ObjectType*>(object_addr);
+}
+
+// -----------------------------------------------------------------------------
 
 void DestroyDevice(Device* device) {
     const VkAllocationCallbacks* alloc = device->instance->alloc;
@@ -302,108 +311,16 @@ void DestroyDevice(Device* device) {
     alloc->pfnFree(alloc->pUserData, device);
 }
 
-void FindLayersInDirectory(Instance& instance, const String& dir_name) {
-    DIR* directory = opendir(dir_name.c_str());
-    if (!directory) {
-        android_LogPriority log_priority =
-            (errno == ENOENT) ? ANDROID_LOG_VERBOSE : ANDROID_LOG_ERROR;
-        LOG_PRI(log_priority, LOG_TAG,
-                "failed to open layer directory '%s': %s (%d)",
-                dir_name.c_str(), strerror(errno), errno);
-        return;
-    }
-
-    Vector<VkLayerProperties> properties(
-        CallbackAllocator<VkLayerProperties>(instance.alloc));
-    struct dirent* entry;
-    while ((entry = readdir(directory))) {
-        size_t length = strlen(entry->d_name);
-        if (strncmp(entry->d_name, "libVKLayer", 10) != 0 ||
-            strncmp(entry->d_name + length - 3, ".so", 3) != 0)
-            continue;
-        // Open so
-        SharedLibraryHandle layer_handle =
-            dlopen((dir_name + entry->d_name).c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (!layer_handle) {
-            ALOGE("%s failed to load with error %s; Skipping", entry->d_name,
-                  dlerror());
-            continue;
-        }
-
-        // Get Layers in so
-        PFN_vkEnumerateInstanceLayerProperties get_layer_properties =
-            reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
-                dlsym(layer_handle, "vkEnumerateInstanceLayerProperties"));
-        if (!get_layer_properties) {
-            ALOGE(
-                "%s failed to find vkEnumerateInstanceLayerProperties with "
-                "error %s; Skipping",
-                entry->d_name, dlerror());
-            dlclose(layer_handle);
-            continue;
-        }
-        uint32_t count;
-        get_layer_properties(&count, nullptr);
-
-        properties.resize(count);
-        get_layer_properties(&count, &properties[0]);
-
-        // Add Layers to potential list
-        for (uint32_t i = 0; i < count; ++i) {
-            String layer_name(properties[i].layerName,
-                              CallbackAllocator<char>(instance.alloc));
-            LayerData layer_data = {dir_name + entry->d_name, 0, 0};
-            instance.layers.insert(std::make_pair(layer_name, layer_data));
-            ALOGV("Found layer %s", properties[i].layerName);
-        }
-        dlclose(layer_handle);
-    }
-
-    closedir(directory);
-}
-
 template <class TObject>
-void ActivateLayer(TObject* object, Instance* instance, const String& name) {
-    // If object has layer, do nothing
-    auto element = instance->layers.find(name);
-    if (element == instance->layers.end()) {
-        return;
-    }
+bool ActivateLayer(TObject* object, const char* name) {
+    LayerRef layer(GetLayerRef(name));
+    if (!layer)
+        return false;
     if (std::find(object->active_layers.begin(), object->active_layers.end(),
-                  element) != object->active_layers.end()) {
-        ALOGW("Layer %s already activated; skipping", name.c_str());
-        return;
-    }
-    // If layer is not open, open it
-    LayerData& layer_data = element->second;
-    pthread_mutex_lock(&instance->layer_lock);
-    if (layer_data.ref_count == 0) {
-        SharedLibraryHandle layer_handle =
-            dlopen(layer_data.path.c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (!layer_handle) {
-            pthread_mutex_unlock(&instance->layer_lock);
-            ALOGE("%s failed to load with error %s; Skipping",
-                  layer_data.path.c_str(), dlerror());
-            return;
-        }
-        layer_data.handle = layer_handle;
-    }
-    layer_data.ref_count++;
-    pthread_mutex_unlock(&instance->layer_lock);
-    ALOGV("Activating layer %s", name.c_str());
-    object->active_layers.push_back(element);
-}
-
-void DeactivateLayer(Instance* instance,
-                     Vector<LayerMapIterator>::iterator& element) {
-    LayerMapIterator& layer_map_data = *element;
-    LayerData& layer_data = layer_map_data->second;
-    pthread_mutex_lock(&instance->layer_lock);
-    layer_data.ref_count--;
-    if (!layer_data.ref_count) {
-        dlclose(layer_data.handle);
-    }
-    pthread_mutex_unlock(&instance->layer_lock);
+                  layer) == object->active_layers.end())
+        object->active_layers.push_back(std::move(layer));
+    ALOGV("activated layer '%s'", name);
+    return true;
 }
 
 struct InstanceNamesPair {
@@ -437,13 +354,15 @@ void SetLayerNamesFromProperty(const char* name,
 }
 
 template <class TInfo, class TObject>
-VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* object) {
+VkResult ActivateAllLayers(TInfo create_info,
+                           Instance* instance,
+                           TObject* object) {
     ALOG_ASSERT(create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO ||
                     create_info->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                 "Cannot activate layers for unknown object %p", object);
     CallbackAllocator<char> string_allocator(instance->alloc);
     // Load system layers
-    {
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
         char layer_prop[PROPERTY_VALUE_MAX];
         property_get("debug.vulkan.layers", layer_prop, "");
         String layer_name(string_allocator);
@@ -451,7 +370,7 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
         size_t end, start = 0;
         while ((end = layer_prop_str.find(':', start)) != std::string::npos) {
             layer_name = layer_prop_str.substr(start, end - start);
-            ActivateLayer(object, instance, layer_name);
+            ActivateLayer(object, layer_name.c_str());
             start = end + 1;
         }
         Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
@@ -460,22 +379,18 @@ VkResult ActivateAllLayers(TInfo create_info, Instance* instance, TObject* objec
         property_list(SetLayerNamesFromProperty,
                       static_cast<void*>(&instance_names_pair));
         for (auto layer_name_element : layer_names) {
-            ActivateLayer(object, instance, layer_name_element);
+            ActivateLayer(object, layer_name_element.c_str());
         }
     }
     // Load app layers
-    for (uint32_t i = 0; i < create_info->enabledLayerNameCount; ++i) {
-        String layer_name(create_info->ppEnabledLayerNames[i],
-                          string_allocator);
-        auto element = instance->layers.find(layer_name);
-        if (element == instance->layers.end()) {
+    for (uint32_t i = 0; i < create_info->enabledLayerCount; ++i) {
+        if (!ActivateLayer(object, create_info->ppEnabledLayerNames[i])) {
             ALOGE("requested %s layer '%s' not present",
-                create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO ?
-                    "instance" : "device",
-                layer_name.c_str());
+                  create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+                      ? "instance"
+                      : "device",
+                  create_info->ppEnabledLayerNames[i]);
             return VK_ERROR_LAYER_NOT_PRESENT;
-        } else {
-            ActivateLayer(object, instance, layer_name);
         }
     }
     return VK_SUCCESS;
@@ -485,18 +400,18 @@ template <class TCreateInfo>
 bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                               const char* extension_name,
                               const VkAllocationCallbacks* alloc) {
-    for (uint32_t i = 0; i < local_create_info.enabledExtensionNameCount; ++i) {
+    for (uint32_t i = 0; i < local_create_info.enabledExtensionCount; ++i) {
         if (!strcmp(extension_name,
                     local_create_info.ppEnabledExtensionNames[i])) {
             return false;
         }
     }
-    uint32_t extension_count = local_create_info.enabledExtensionNameCount;
-    local_create_info.enabledExtensionNameCount++;
+    uint32_t extension_count = local_create_info.enabledExtensionCount;
+    local_create_info.enabledExtensionCount++;
     void* mem = alloc->pfnAllocation(
         alloc->pUserData,
-        local_create_info.enabledExtensionNameCount * sizeof(char*),
-        alignof(char*), VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+        local_create_info.enabledExtensionCount * sizeof(char*), alignof(char*),
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
     if (mem) {
         const char** enabled_extensions = static_cast<const char**>(mem);
         for (uint32_t i = 0; i < extension_count; ++i) {
@@ -508,7 +423,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
     } else {
         ALOGW("%s extension cannot be enabled: memory allocation failed",
               extension_name);
-        local_create_info.enabledExtensionNameCount--;
+        local_create_info.enabledExtensionCount--;
         return false;
     }
     return true;
@@ -539,178 +454,146 @@ VkBool32 LogDebugMessageCallback(VkFlags message_flags,
     return false;
 }
 
-VkResult Noop(...) {
+VkResult Noop() {
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR PFN_vkVoidFunction
-GetLayerDeviceProcAddr(VkDevice device, const char* name) {
-    if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetLayerDeviceProcAddr);
-    }
-    if (strcmp(name, "vkCreateDevice") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
-    }
-    // WSI extensions are not in the driver so return the loader functions
-    if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR);
-    }
-    if (strcmp(name, "vkDestroySwapchainKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(DestroySwapchainKHR);
-    }
-    if (strcmp(name, "vkGetSwapchainImagesKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetSwapchainImagesKHR);
-    }
-    if (strcmp(name, "vkAcquireNextImageKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(AcquireNextImageKHR);
-    }
-    if (strcmp(name, "vkQueuePresentKHR") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(QueuePresentKHR);
-    }
-    if (!device)
-        return GetGlobalDeviceProcAddr(name);
-    Device* loader_device = reinterpret_cast<Device*>(GetVtbl(device)->device);
-    return loader_device->instance->drv.GetDeviceProcAddr(device, name);
-}
+}  // anonymous namespace
+
+namespace vulkan {
 
 // -----------------------------------------------------------------------------
 // "Bottom" functions. These are called at the end of the instance dispatch
 // chain.
 
-VKAPI_ATTR
-void DestroyInstanceBottom(VkInstance instance,
-                           const VkAllocationCallbacks* allocator) {
-    // These checks allow us to call DestroyInstanceBottom from any error path
-    // in CreateInstanceBottom, before the driver instance is fully initialized.
-    if (instance->drv.vtbl.instance != VK_NULL_HANDLE &&
-        instance->drv.vtbl.DestroyInstance) {
-        instance->drv.vtbl.DestroyInstance(instance->drv.vtbl.instance,
-                                           allocator);
-    }
-    if (instance->message) {
-        PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
-        DebugDestroyMessageCallback =
-            reinterpret_cast<PFN_vkDbgDestroyMsgCallback>(
-                vkGetInstanceProcAddr(instance, "vkDbgDestroyMsgCallback"));
-        DebugDestroyMessageCallback(instance, instance->message);
-    }
-    for (auto it = instance->active_layers.begin();
-         it != instance->active_layers.end(); ++it) {
-        DeactivateLayer(instance, it);
-    }
-    const VkAllocationCallbacks* alloc = instance->alloc;
-    instance->~VkInstance_T();
-    alloc->pfnFree(alloc->pUserData, instance);
-}
-
-VKAPI_ATTR
-VkResult CreateInstanceBottom(const VkInstanceCreateInfo* create_info,
-                              const VkAllocationCallbacks* allocator,
-                              VkInstance* instance_ptr) {
-    Instance* instance = *instance_ptr;
+VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
+                               const VkAllocationCallbacks* allocator,
+                               VkInstance* vkinstance) {
+    Instance& instance = GetDispatchParent(*vkinstance);
     VkResult result;
 
-    result = g_hwdevice->CreateInstance(create_info, instance->alloc,
-                                        &instance->drv.vtbl.instance);
+    result = g_hwdevice->CreateInstance(create_info, instance.alloc,
+                                        &instance.drv.instance);
     if (result != VK_SUCCESS) {
-        DestroyInstanceBottom(instance, allocator);
+        DestroyInstance_Bottom(instance.handle, allocator);
         return result;
     }
 
-    if (!LoadInstanceVtbl(
-            instance->drv.vtbl.instance, instance->drv.vtbl.instance,
-            g_hwdevice->GetInstanceProcAddr, instance->drv.vtbl)) {
-        DestroyInstanceBottom(instance, allocator);
+    if (!LoadDriverDispatchTable(instance.drv.instance,
+                                 g_hwdevice->GetInstanceProcAddr,
+                                 instance.drv.dispatch)) {
+        DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    // vkGetDeviceProcAddr has a bootstrapping problem. We require that it be
-    // queryable from the Instance, and that the resulting function work for any
-    // VkDevice created from the instance.
-    instance->drv.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-        g_hwdevice->GetInstanceProcAddr(instance->drv.vtbl.instance,
-                                        "vkGetDeviceProcAddr"));
-    if (!instance->drv.GetDeviceProcAddr) {
-        ALOGE("missing instance proc: \"%s\"", "vkGetDeviceProcAddr");
-        DestroyInstanceBottom(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    hwvulkan_dispatch_t* dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(instance->drv.vtbl.instance);
-    if (dispatch->magic == HWVULKAN_DISPATCH_MAGIC) {
-        // Skip setting dispatch->vtbl on the driver instance handle, since we
-        // never intentionally call through it; we go through Instance::drv.vtbl
-        // instead.
+    hwvulkan_dispatch_t* drv_dispatch =
+        reinterpret_cast<hwvulkan_dispatch_t*>(instance.drv.instance);
+    if (drv_dispatch->magic == HWVULKAN_DISPATCH_MAGIC) {
+        // Skip setting drv_dispatch->vtbl, since we never call through it;
+        // we go through instance.drv.dispatch instead.
     } else {
         ALOGE("invalid VkInstance dispatch magic: 0x%" PRIxPTR,
-              dispatch->magic);
-        DestroyInstanceBottom(instance, allocator);
+              drv_dispatch->magic);
+        DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t num_physical_devices = 0;
-    result = instance->drv.vtbl.EnumeratePhysicalDevices(
-        instance->drv.vtbl.instance, &num_physical_devices, nullptr);
+    result = instance.drv.dispatch.EnumeratePhysicalDevices(
+        instance.drv.instance, &num_physical_devices, nullptr);
     if (result != VK_SUCCESS) {
-        DestroyInstanceBottom(instance, allocator);
+        DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
-    result = instance->drv.vtbl.EnumeratePhysicalDevices(
-        instance->drv.vtbl.instance, &num_physical_devices,
-        instance->physical_devices);
+    result = instance.drv.dispatch.EnumeratePhysicalDevices(
+        instance.drv.instance, &num_physical_devices,
+        instance.physical_devices);
     if (result != VK_SUCCESS) {
-        DestroyInstanceBottom(instance, allocator);
+        DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     for (uint32_t i = 0; i < num_physical_devices; i++) {
-        dispatch = reinterpret_cast<hwvulkan_dispatch_t*>(
-            instance->physical_devices[i]);
-        if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
+        hwvulkan_dispatch_t* pdev_dispatch =
+            reinterpret_cast<hwvulkan_dispatch_t*>(
+                instance.physical_devices[i]);
+        if (pdev_dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
             ALOGE("invalid VkPhysicalDevice dispatch magic: 0x%" PRIxPTR,
-                  dispatch->magic);
-            DestroyInstanceBottom(instance, allocator);
+                  pdev_dispatch->magic);
+            DestroyInstance_Bottom(instance.handle, allocator);
             return VK_ERROR_INITIALIZATION_FAILED;
         }
-        dispatch->vtbl = instance->vtbl;
+        pdev_dispatch->vtbl = instance.dispatch_ptr;
     }
-    instance->drv.num_physical_devices = num_physical_devices;
+    instance.drv.num_physical_devices = num_physical_devices;
 
-    instance->num_physical_devices = instance->drv.num_physical_devices;
+    instance.num_physical_devices = instance.drv.num_physical_devices;
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR
-VkResult EnumeratePhysicalDevicesBottom(VkInstance instance,
-                                        uint32_t* pdev_count,
-                                        VkPhysicalDevice* pdevs) {
-    uint32_t count = instance->num_physical_devices;
+PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance, const char* name) {
+    PFN_vkVoidFunction pfn;
+    if ((pfn = GetLoaderBottomProcAddr(name)))
+        return pfn;
+    // TODO: Possibly move this into the instance table
+    // TODO: Possibly register the callbacks in the loader
+    if (strcmp(name, "vkDbgCreateMsgCallback") == 0 ||
+        strcmp(name, "vkDbgDestroyMsgCallback") == 0) {
+        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
+    }
+    return nullptr;
+}
+
+VkResult EnumeratePhysicalDevices_Bottom(VkInstance vkinstance,
+                                         uint32_t* pdev_count,
+                                         VkPhysicalDevice* pdevs) {
+    Instance& instance = GetDispatchParent(vkinstance);
+    uint32_t count = instance.num_physical_devices;
     if (pdevs) {
         count = std::min(count, *pdev_count);
-        std::copy(instance->physical_devices,
-                  instance->physical_devices + count, pdevs);
+        std::copy(instance.physical_devices, instance.physical_devices + count,
+                  pdevs);
     }
     *pdev_count = count;
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR
-void GetPhysicalDeviceFeaturesBottom(VkPhysicalDevice pdev,
-                                     VkPhysicalDeviceFeatures* features) {
-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFeatures(pdev, features);
+void GetPhysicalDeviceProperties_Bottom(
+    VkPhysicalDevice pdev,
+    VkPhysicalDeviceProperties* properties) {
+    GetDispatchParent(pdev).drv.dispatch.GetPhysicalDeviceProperties(
+        pdev, properties);
 }
 
-VKAPI_ATTR
-void GetPhysicalDeviceFormatPropertiesBottom(VkPhysicalDevice pdev,
-                                             VkFormat format,
-                                             VkFormatProperties* properties) {
-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceFormatProperties(
+void GetPhysicalDeviceFeatures_Bottom(VkPhysicalDevice pdev,
+                                      VkPhysicalDeviceFeatures* features) {
+    GetDispatchParent(pdev).drv.dispatch.GetPhysicalDeviceFeatures(pdev,
+                                                                   features);
+}
+
+void GetPhysicalDeviceMemoryProperties_Bottom(
+    VkPhysicalDevice pdev,
+    VkPhysicalDeviceMemoryProperties* properties) {
+    GetDispatchParent(pdev).drv.dispatch.GetPhysicalDeviceMemoryProperties(
+        pdev, properties);
+}
+
+void GetPhysicalDeviceQueueFamilyProperties_Bottom(
+    VkPhysicalDevice pdev,
+    uint32_t* pCount,
+    VkQueueFamilyProperties* properties) {
+    GetDispatchParent(pdev).drv.dispatch.GetPhysicalDeviceQueueFamilyProperties(
+        pdev, pCount, properties);
+}
+
+void GetPhysicalDeviceFormatProperties_Bottom(VkPhysicalDevice pdev,
+                                              VkFormat format,
+                                              VkFormatProperties* properties) {
+    GetDispatchParent(pdev).drv.dispatch.GetPhysicalDeviceFormatProperties(
         pdev, format, properties);
 }
 
-VKAPI_ATTR
-VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
+VkResult GetPhysicalDeviceImageFormatProperties_Bottom(
     VkPhysicalDevice pdev,
     VkFormat format,
     VkImageType type,
@@ -718,41 +601,52 @@ VkResult GetPhysicalDeviceImageFormatPropertiesBottom(
     VkImageUsageFlags usage,
     VkImageCreateFlags flags,
     VkImageFormatProperties* properties) {
-    return GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceImageFormatProperties(
+    return GetDispatchParent(pdev)
+        .drv.dispatch.GetPhysicalDeviceImageFormatProperties(
             pdev, format, type, tiling, usage, flags, properties);
 }
 
-VKAPI_ATTR
-void GetPhysicalDevicePropertiesBottom(VkPhysicalDevice pdev,
-                                       VkPhysicalDeviceProperties* properties) {
-    GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceProperties(pdev, properties);
-}
-
-VKAPI_ATTR
-void GetPhysicalDeviceQueueFamilyPropertiesBottom(
+void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
     VkPhysicalDevice pdev,
-    uint32_t* pCount,
-    VkQueueFamilyProperties* properties) {
-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceQueueFamilyProperties(
-        pdev, pCount, properties);
+    VkFormat format,
+    VkImageType type,
+    VkSampleCountFlagBits samples,
+    VkImageUsageFlags usage,
+    VkImageTiling tiling,
+    uint32_t* properties_count,
+    VkSparseImageFormatProperties* properties) {
+    GetDispatchParent(pdev)
+        .drv.dispatch.GetPhysicalDeviceSparseImageFormatProperties(
+            pdev, format, type, samples, usage, tiling, properties_count,
+            properties);
 }
 
 VKAPI_ATTR
-void GetPhysicalDeviceMemoryPropertiesBottom(
-    VkPhysicalDevice pdev,
-    VkPhysicalDeviceMemoryProperties* properties) {
-    GetVtbl(pdev)->instance->drv.vtbl.GetPhysicalDeviceMemoryProperties(
-        pdev, properties);
+VkResult EnumerateDeviceExtensionProperties_Bottom(
+    VkPhysicalDevice /*pdev*/,
+    const char* /*layer_name*/,
+    uint32_t* properties_count,
+    VkExtensionProperties* /*properties*/) {
+    // TODO(jessehall): Implement me...
+    *properties_count = 0;
+    return VK_SUCCESS;
 }
 
 VKAPI_ATTR
-VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
-                            const VkDeviceCreateInfo* create_info,
-                            const VkAllocationCallbacks* allocator,
-                            VkDevice* out_device) {
-    Instance& instance = *static_cast<Instance*>(GetVtbl(pdev)->instance);
+VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice /*pdev*/,
+                                               uint32_t* properties_count,
+                                               VkLayerProperties* /*properties*/) {
+    // TODO(jessehall): Implement me...
+    *properties_count = 0;
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR
+VkResult CreateDevice_Bottom(VkPhysicalDevice pdev,
+                             const VkDeviceCreateInfo* create_info,
+                             const VkAllocationCallbacks* allocator,
+                             VkDevice* device_out) {
+    Instance& instance = GetDispatchParent(pdev);
     VkResult result;
 
     if (!allocator) {
@@ -776,30 +670,35 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
     }
 
     VkDevice drv_device;
-    result = instance.drv.vtbl.CreateDevice(pdev, create_info, allocator,
-                                            &drv_device);
+    result = instance.drv.dispatch.CreateDevice(pdev, create_info, allocator,
+                                                &drv_device);
     if (result != VK_SUCCESS) {
         DestroyDevice(device);
         return result;
     }
 
-    hwvulkan_dispatch_t* dispatch =
+    hwvulkan_dispatch_t* drv_dispatch =
         reinterpret_cast<hwvulkan_dispatch_t*>(drv_device);
-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
-        ALOGE("invalid VkDevice dispatch magic: 0x%" PRIxPTR, dispatch->magic);
+    if (drv_dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
+        ALOGE("invalid VkDevice dispatch magic: 0x%" PRIxPTR,
+              drv_dispatch->magic);
         PFN_vkDestroyDevice destroy_device =
             reinterpret_cast<PFN_vkDestroyDevice>(
-                instance.drv.GetDeviceProcAddr(drv_device, "vkDestroyDevice"));
+                instance.drv.dispatch.GetDeviceProcAddr(drv_device,
+                                                        "vkDestroyDevice"));
         destroy_device(drv_device, allocator);
         DestroyDevice(device);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
-    dispatch->vtbl = &device->vtbl_storage;
+    drv_dispatch->vtbl = &device->dispatch;
+    device->get_device_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+        instance.drv.dispatch.GetDeviceProcAddr(drv_device,
+                                                "vkGetDeviceProcAddr"));
 
     void* base_object = static_cast<void*>(drv_device);
     void* next_object = base_object;
     VkLayerLinkedListElem* next_element;
-    PFN_vkGetDeviceProcAddr next_get_proc_addr = GetLayerDeviceProcAddr;
+    PFN_vkGetDeviceProcAddr next_get_proc_addr = GetDeviceProcAddr_Bottom;
     Vector<VkLayerLinkedListElem> elem_list(
         device->active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance.alloc));
@@ -813,162 +712,138 @@ VkResult CreateDeviceBottom(VkPhysicalDevice pdev,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
-        auto& name = device->active_layers[idx]->first;
-        auto& handle = device->active_layers[idx]->second.handle;
-        next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-            dlsym(handle, (name + "GetDeviceProcAddr").c_str()));
+        next_get_proc_addr = device->active_layers[idx].GetGetDeviceProcAddr();
         if (!next_get_proc_addr) {
+            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                dlsym(handle, "vkGetDeviceProcAddr"));
-            if (!next_get_proc_addr) {
-                ALOGE("Cannot find vkGetDeviceProcAddr for %s, error is %s",
-                      name.c_str(), dlerror());
-                next_object = next_element->next_element;
-                next_get_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                    next_element->get_proc_addr);
-            }
+                next_element->get_proc_addr);
         }
     }
 
-    if (!LoadDeviceVtbl(static_cast<VkDevice>(base_object),
-                        static_cast<VkDevice>(next_object), next_get_proc_addr,
-                        device->vtbl_storage)) {
+    // This is the magic call that initializes all the layer devices and
+    // allows them to create their device_handle -> device_data mapping.
+    next_get_proc_addr(static_cast<VkDevice>(next_object),
+                       "vkGetDeviceProcAddr");
+
+    // We must create all the layer devices *before* retrieving the device
+    // procaddrs, so that the layers know which extensions are enabled and
+    // therefore which functions to return procaddrs for.
+    PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
+        next_get_proc_addr(drv_device, "vkCreateDevice"));
+    create_device(pdev, create_info, allocator, &drv_device);
+
+    if (!LoadDeviceDispatchTable(static_cast<VkDevice>(base_object),
+                                 next_get_proc_addr, device->dispatch)) {
         DestroyDevice(device);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    PFN_vkCreateDevice layer_createDevice =
-        reinterpret_cast<PFN_vkCreateDevice>(
-            device->vtbl_storage.GetDeviceProcAddr(drv_device,
-                                                   "vkCreateDevice"));
-    layer_createDevice(pdev, create_info, allocator, &drv_device);
-
-    // TODO(mlentine) : This is needed to use WSI layer validation. Remove this
-    // when new version of layer initialization exits.
-    if (!LoadDeviceVtbl(static_cast<VkDevice>(base_object),
-                        static_cast<VkDevice>(next_object), next_get_proc_addr,
-                        device->vtbl_storage)) {
-        DestroyDevice(device);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    *out_device = drv_device;
+    *device_out = drv_device;
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR
-VkResult EnumerateDeviceExtensionPropertiesBottom(
-    VkPhysicalDevice pdev,
+void DestroyInstance_Bottom(VkInstance vkinstance,
+                            const VkAllocationCallbacks* allocator) {
+    Instance& instance = GetDispatchParent(vkinstance);
+
+    // These checks allow us to call DestroyInstance_Bottom from any error
+    // path in CreateInstance_Bottom, before the driver instance is fully
+    // initialized.
+    if (instance.drv.instance != VK_NULL_HANDLE &&
+        instance.drv.dispatch.DestroyInstance) {
+        instance.drv.dispatch.DestroyInstance(instance.drv.instance, allocator);
+    }
+    if (instance.message) {
+        PFN_vkDbgDestroyMsgCallback DebugDestroyMessageCallback;
+        DebugDestroyMessageCallback =
+            reinterpret_cast<PFN_vkDbgDestroyMsgCallback>(
+                vkGetInstanceProcAddr(vkinstance, "vkDbgDestroyMsgCallback"));
+        DebugDestroyMessageCallback(vkinstance, instance.message);
+    }
+    instance.active_layers.clear();
+    const VkAllocationCallbacks* alloc = instance.alloc;
+    instance.~Instance();
+    alloc->pfnFree(alloc->pUserData, &instance);
+}
+
+PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice,
+                                            const char* name) {
+    if (strcmp(name, "vkCreateDevice") == 0) {
+        // TODO(jessehall): Blegh, having this here is disgusting. The current
+        // layer init process can't call through the instance dispatch table's
+        // vkCreateDevice, because that goes through the instance layers rather
+        // than through the device layers. So we need to be able to get the
+        // vkCreateDevice pointer through the *device* layer chain.
+        //
+        // Because we've already created the driver device before calling
+        // through the layer vkCreateDevice functions, the loader bottom proc
+        // is a no-op.
+        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
+    }
+
+    // VK_ANDROID_native_buffer should be hidden from applications and layers.
+    // TODO(jessehall): Generate this as part of GetLoaderBottomProcAddr.
+    PFN_vkVoidFunction pfn;
+    if (strcmp(name, "vkGetSwapchainGrallocUsageANDROID") == 0 ||
+        strcmp(name, "vkAcquireImageANDROID") == 0 ||
+        strcmp(name, "vkQueueSignalReleaseImageANDROID") == 0) {
+        return nullptr;
+    }
+    if ((pfn = GetLoaderBottomProcAddr(name)))
+        return pfn;
+    return GetDispatchParent(vkdevice).get_device_proc_addr(vkdevice, name);
+}
+
+// -----------------------------------------------------------------------------
+// Loader top functions. These are called directly from the loader entry
+// points or from the application (via vkGetInstanceProcAddr) without going
+// through a dispatch table.
+
+VkResult EnumerateInstanceExtensionProperties_Top(
     const char* layer_name,
     uint32_t* properties_count,
     VkExtensionProperties* properties) {
-    // TODO: what are we supposed to do with layer_name here?
-    return GetVtbl(pdev)->instance->drv.vtbl.EnumerateDeviceExtensionProperties(
-        pdev, layer_name, properties_count, properties);
+    if (!EnsureInitialized())
+        return VK_ERROR_INITIALIZATION_FAILED;
+
+    const VkExtensionProperties* extensions = nullptr;
+    uint32_t num_extensions = 0;
+    if (layer_name) {
+        GetLayerExtensions(layer_name, &extensions, &num_extensions);
+    } else {
+        static const VkExtensionProperties kInstanceExtensions[] = {
+            {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION},
+            {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+             VK_KHR_ANDROID_SURFACE_SPEC_VERSION}};
+        extensions = kInstanceExtensions;
+        num_extensions = sizeof(kInstanceExtensions) / sizeof(kInstanceExtensions[0]);
+        // TODO(jessehall): We need to also enumerate extensions supported by
+        // implicitly-enabled layers. Currently we don't have that list of
+        // layers until instance creation.
+    }
+
+    if (!properties || *properties_count > num_extensions)
+        *properties_count = num_extensions;
+    if (properties)
+        std::copy(extensions, extensions + *properties_count, properties);
+    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
-VKAPI_ATTR
-VkResult EnumerateDeviceLayerPropertiesBottom(VkPhysicalDevice pdev,
-                                              uint32_t* properties_count,
+VkResult EnumerateInstanceLayerProperties_Top(uint32_t* properties_count,
                                               VkLayerProperties* properties) {
-    return GetVtbl(pdev)->instance->drv.vtbl.EnumerateDeviceLayerProperties(
-        pdev, properties_count, properties);
-}
-
-VKAPI_ATTR
-void GetPhysicalDeviceSparseImageFormatPropertiesBottom(
-    VkPhysicalDevice pdev,
-    VkFormat format,
-    VkImageType type,
-    VkSampleCountFlagBits samples,
-    VkImageUsageFlags usage,
-    VkImageTiling tiling,
-    uint32_t* properties_count,
-    VkSparseImageFormatProperties* properties) {
-    GetVtbl(pdev)
-        ->instance->drv.vtbl.GetPhysicalDeviceSparseImageFormatProperties(
-            pdev, format, type, samples, usage, tiling, properties_count,
-            properties);
-}
-
-VKAPI_ATTR PFN_vkVoidFunction
-GetInstanceProcAddrBottom(VkInstance, const char*);
-
-const InstanceVtbl kBottomInstanceFunctions = {
-    // clang-format off
-    .instance = nullptr,
-    .CreateInstance = CreateInstanceBottom,
-    .DestroyInstance = DestroyInstanceBottom,
-    .GetInstanceProcAddr = GetInstanceProcAddrBottom,
-    .EnumeratePhysicalDevices = EnumeratePhysicalDevicesBottom,
-    .GetPhysicalDeviceFeatures = GetPhysicalDeviceFeaturesBottom,
-    .GetPhysicalDeviceFormatProperties = GetPhysicalDeviceFormatPropertiesBottom,
-    .GetPhysicalDeviceImageFormatProperties = GetPhysicalDeviceImageFormatPropertiesBottom,
-    .GetPhysicalDeviceProperties = GetPhysicalDevicePropertiesBottom,
-    .GetPhysicalDeviceQueueFamilyProperties = GetPhysicalDeviceQueueFamilyPropertiesBottom,
-    .GetPhysicalDeviceMemoryProperties = GetPhysicalDeviceMemoryPropertiesBottom,
-    .CreateDevice = CreateDeviceBottom,
-    .EnumerateDeviceExtensionProperties = EnumerateDeviceExtensionPropertiesBottom,
-    .EnumerateDeviceLayerProperties = EnumerateDeviceLayerPropertiesBottom,
-    .GetPhysicalDeviceSparseImageFormatProperties = GetPhysicalDeviceSparseImageFormatPropertiesBottom,
-    .GetPhysicalDeviceSurfaceSupportKHR = GetPhysicalDeviceSurfaceSupportKHR,
-    .GetPhysicalDeviceSurfaceCapabilitiesKHR = GetPhysicalDeviceSurfaceCapabilitiesKHR,
-    .GetPhysicalDeviceSurfaceFormatsKHR = GetPhysicalDeviceSurfaceFormatsKHR,
-    .GetPhysicalDeviceSurfacePresentModesKHR = GetPhysicalDeviceSurfacePresentModesKHR,
-    // clang-format on
-};
-
-VKAPI_ATTR
-PFN_vkVoidFunction GetInstanceProcAddrBottom(VkInstance, const char* name) {
-    // TODO: Possibly move this into the instance table
-    // TODO: Possibly register the callbacks in the loader
-    if (strcmp(name, "vkDbgCreateMsgCallback") == 0 ||
-        strcmp(name, "vkDbgDestroyMsgCallback") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(Noop);
-    }
-    if (strcmp(name, "vkCreateInstance") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(CreateInstanceBottom);
-    }
-    return GetSpecificInstanceProcAddr(&kBottomInstanceFunctions, name);
-}
-
-}  // namespace
-
-// -----------------------------------------------------------------------------
-// Global functions. These are called directly from the loader entry points,
-// without going through a dispatch table.
-
-namespace vulkan {
-
-VkResult EnumerateInstanceExtensionProperties(
-    const char* /*layer_name*/,
-    uint32_t* count,
-    VkExtensionProperties* /*properties*/) {
     if (!EnsureInitialized())
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    // TODO: not yet implemented
-    ALOGW("vkEnumerateInstanceExtensionProperties not implemented");
-
-    *count = 0;
-    return VK_SUCCESS;
+    uint32_t layer_count =
+        EnumerateLayers(properties ? *properties_count : 0, properties);
+    if (!properties || *properties_count > layer_count)
+        *properties_count = layer_count;
+    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
-VkResult EnumerateInstanceLayerProperties(uint32_t* count,
-                                          VkLayerProperties* /*properties*/) {
-    if (!EnsureInitialized())
-        return VK_ERROR_INITIALIZATION_FAILED;
-
-    // TODO: not yet implemented
-    ALOGW("vkEnumerateInstanceLayerProperties not implemented");
-
-    *count = 0;
-    return VK_SUCCESS;
-}
-
-VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
-                        const VkAllocationCallbacks* allocator,
-                        VkInstance* out_instance) {
+VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
+                            const VkAllocationCallbacks* allocator,
+                            VkInstance* instance_out) {
     VkResult result;
 
     if (!EnsureInitialized())
@@ -987,31 +862,16 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Instance* instance = new (instance_mem) Instance(allocator);
 
-    instance->vtbl_storage = kBottomInstanceFunctions;
-    instance->vtbl_storage.instance = instance;
-    instance->message = VK_NULL_HANDLE;
-
-    // Scan layers
-    CallbackAllocator<char> string_allocator(instance->alloc);
-
-    String dir_name("/data/local/tmp/vulkan/", string_allocator);
-    FindLayersInDirectory(*instance, dir_name);
-    const std::string& path = LoaderData::GetInstance().layer_path;
-    dir_name.assign(path.c_str(), path.size());
-    dir_name.append("/");
-    FindLayersInDirectory(*instance, dir_name);
-
     result = ActivateAllLayers(create_info, instance, instance);
     if (result != VK_SUCCESS) {
-        DestroyInstanceBottom(instance, allocator);
+        DestroyInstance_Bottom(instance->handle, allocator);
         return result;
     }
 
-    void* base_object = static_cast<void*>(instance);
+    void* base_object = static_cast<void*>(instance->handle);
     void* next_object = base_object;
     VkLayerLinkedListElem* next_element;
-    PFN_vkGetInstanceProcAddr next_get_proc_addr =
-        kBottomInstanceFunctions.GetInstanceProcAddr;
+    PFN_vkGetInstanceProcAddr next_get_proc_addr = GetInstanceProcAddr_Bottom;
     Vector<VkLayerLinkedListElem> elem_list(
         instance->active_layers.size(),
         CallbackAllocator<VkLayerLinkedListElem>(instance->alloc));
@@ -1025,44 +885,45 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
         next_element->next_element = next_object;
         next_object = static_cast<void*>(next_element);
 
-        auto& name = instance->active_layers[idx]->first;
-        auto& handle = instance->active_layers[idx]->second.handle;
-        next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-            dlsym(handle, (name + "GetInstanceProcAddr").c_str()));
+        next_get_proc_addr =
+            instance->active_layers[idx].GetGetInstanceProcAddr();
         if (!next_get_proc_addr) {
+            next_object = next_element->next_element;
             next_get_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                dlsym(handle, "vkGetInstanceProcAddr"));
-            if (!next_get_proc_addr) {
-                ALOGE("Cannot find vkGetInstanceProcAddr for %s, error is %s",
-                      name.c_str(), dlerror());
-                next_object = next_element->next_element;
-                next_get_proc_addr =
-                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                        next_element->get_proc_addr);
-            }
+                next_element->get_proc_addr);
         }
     }
+    instance->get_instance_proc_addr = next_get_proc_addr;
 
-    if (!LoadInstanceVtbl(static_cast<VkInstance>(base_object),
-                          static_cast<VkInstance>(next_object),
-                          next_get_proc_addr, instance->vtbl_storage)) {
-        DestroyInstanceBottom(instance, allocator);
+    // This is the magic call that initializes all the layer instances and
+    // allows them to create their instance_handle -> instance_data mapping.
+    next_get_proc_addr(static_cast<VkInstance>(next_object),
+                       "vkGetInstanceProcAddr");
+
+    if (!LoadInstanceDispatchTable(static_cast<VkInstance>(base_object),
+                                   next_get_proc_addr, instance->dispatch)) {
+        DestroyInstance_Bottom(instance->handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     // Force enable callback extension if required
-    bool enable_callback =
-        property_get_bool("debug.vulkan.enable_callback", false);
-    bool enable_logging = enable_callback;
-    const char* extension_name = "DEBUG_REPORT";
-    if (enable_callback) {
-        enable_callback = AddExtensionToCreateInfo(
-            local_create_info, extension_name, instance->alloc);
+    bool enable_callback = false;
+    bool enable_logging = false;
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
+        enable_callback =
+            property_get_bool("debug.vulkan.enable_callback", false);
+        enable_logging = enable_callback;
+        if (enable_callback) {
+            enable_callback = AddExtensionToCreateInfo(
+                local_create_info, "DEBUG_REPORT", instance->alloc);
+        }
     }
 
-    *out_instance = instance;
-    result = instance->vtbl_storage.CreateInstance(create_info, allocator,
-                                                   out_instance);
+    *instance_out = instance->handle;
+    PFN_vkCreateInstance create_instance =
+        reinterpret_cast<PFN_vkCreateInstance>(
+            next_get_proc_addr(instance->handle, "vkCreateInstance"));
+    result = create_instance(create_info, allocator, instance_out);
     if (enable_callback)
         FreeAllocatedCreateInfo(local_create_info, instance->alloc);
     if (result <= 0) {
@@ -1076,151 +937,127 @@ VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
         // - The layer must not call the next layer's DestroyInstance if that
         //   layer's CreateInstance wasn't called, or returned failure.
 
-        // On failure, CreateInstanceBottom frees the instance struct, so it's
+        // On failure, CreateInstance_Bottom frees the instance struct, so it's
         // already gone at this point. Nothing to do.
     }
 
     if (enable_logging) {
-        PFN_vkDbgCreateMsgCallback DebugCreateMessageCallback;
-        DebugCreateMessageCallback =
-            reinterpret_cast<PFN_vkDbgCreateMsgCallback>(
-                vkGetInstanceProcAddr(instance, "vkDbgCreateMsgCallback"));
-        DebugCreateMessageCallback(
-            instance, VK_DBG_REPORT_ERROR_BIT | VK_DBG_REPORT_WARN_BIT,
-            LogDebugMessageCallback, NULL, &instance->message);
+        PFN_vkDbgCreateMsgCallback dbg_create_msg_callback;
+        dbg_create_msg_callback = reinterpret_cast<PFN_vkDbgCreateMsgCallback>(
+            GetInstanceProcAddr_Top(instance->handle,
+                                    "vkDbgCreateMsgCallback"));
+        dbg_create_msg_callback(
+            instance->handle, VK_DBG_REPORT_ERROR_BIT | VK_DBG_REPORT_WARN_BIT,
+            LogDebugMessageCallback, nullptr, &instance->message);
     }
 
     return result;
 }
 
-PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* name) {
-    if (!instance)
-        return GetGlobalInstanceProcAddr(name);
-    // TODO: Possibly move this into the instance table
+PFN_vkVoidFunction GetInstanceProcAddr_Top(VkInstance vkinstance,
+                                           const char* name) {
+    // vkGetInstanceProcAddr(NULL_HANDLE, ..) only works for global commands
+    if (!vkinstance)
+        return GetLoaderGlobalProcAddr(name);
+
+    const InstanceDispatchTable& dispatch = GetDispatchTable(vkinstance);
+    PFN_vkVoidFunction pfn;
+    // Always go through the loader-top function if there is one.
+    if ((pfn = GetLoaderTopProcAddr(name)))
+        return pfn;
+    // Otherwise, look up the handler in the instance dispatch table
+    if ((pfn = GetDispatchProcAddr(dispatch, name)))
+        return pfn;
+    // TODO(jessehall): Generate these into the instance dispatch table, and
+    // add loader-bottom procs for them.
     if (strcmp(name, "vkDbgCreateMsgCallback") == 0 ||
         strcmp(name, "vkDbgDestroyMsgCallback") == 0) {
-        if (!instance->vtbl)
-            return NULL;
-        PFN_vkGetInstanceProcAddr gpa = instance->vtbl->GetInstanceProcAddr;
-        return reinterpret_cast<PFN_vkVoidFunction>(gpa(instance, name));
+        return GetDispatchParent(vkinstance)
+            .get_instance_proc_addr(vkinstance, name);
     }
-    // For special-case functions we always return the loader entry
-    if (strcmp(name, "vkGetInstanceProcAddr") == 0 ||
-        strcmp(name, "vkGetDeviceProcAddr") == 0) {
-        return GetGlobalInstanceProcAddr(name);
-    }
-    return GetSpecificInstanceProcAddr(instance->vtbl, name);
+    // Anything not handled already must be a device-dispatched function
+    // without a loader-top. We must return a function that will dispatch based
+    // on the dispatchable object parameter -- which is exactly what the
+    // exported functions do. So just return them here.
+    return GetLoaderExportProcAddr(name);
 }
 
-PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* name) {
+void DestroyInstance_Top(VkInstance instance,
+                         const VkAllocationCallbacks* allocator) {
+    if (!instance)
+        return;
+    GetDispatchTable(instance).DestroyInstance(instance, allocator);
+}
+
+PFN_vkVoidFunction GetDeviceProcAddr_Top(VkDevice device, const char* name) {
+    PFN_vkVoidFunction pfn;
     if (!device)
-        return GetGlobalDeviceProcAddr(name);
-    if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceProcAddr);
-    }
-    if (strcmp(name, "vkGetDeviceQueue") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue);
-    }
-    if (strcmp(name, "vkAllocCommandBuffers") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(AllocCommandBuffers);
-    }
-    if (strcmp(name, "vkDestroyDevice") == 0) {
-        return reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice);
-    }
-    return GetSpecificDeviceProcAddr(GetVtbl(device), name);
+        return nullptr;
+    if ((pfn = GetLoaderTopProcAddr(name)))
+        return pfn;
+    return GetDispatchProcAddr(GetDispatchTable(device), name);
 }
 
-void GetDeviceQueue(VkDevice drv_device,
-                    uint32_t family,
-                    uint32_t index,
-                    VkQueue* out_queue) {
-    VkResult result;
-    VkQueue queue;
-    const DeviceVtbl* vtbl = GetVtbl(drv_device);
-    vtbl->GetDeviceQueue(drv_device, family, index, &queue);
-    hwvulkan_dispatch_t* dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(queue);
-    if (dispatch->magic != HWVULKAN_DISPATCH_MAGIC && dispatch->vtbl != vtbl)
-        ALOGE("invalid VkQueue dispatch magic: 0x%" PRIxPTR, dispatch->magic);
-    dispatch->vtbl = vtbl;
-    *out_queue = queue;
+void GetDeviceQueue_Top(VkDevice vkdevice,
+                        uint32_t family,
+                        uint32_t index,
+                        VkQueue* queue_out) {
+    const auto& table = GetDispatchTable(vkdevice);
+    table.GetDeviceQueue(vkdevice, family, index, queue_out);
+    hwvulkan_dispatch_t* queue_dispatch =
+        reinterpret_cast<hwvulkan_dispatch_t*>(*queue_out);
+    if (queue_dispatch->magic != HWVULKAN_DISPATCH_MAGIC &&
+        queue_dispatch->vtbl != &table)
+        ALOGE("invalid VkQueue dispatch magic: 0x%" PRIxPTR,
+              queue_dispatch->magic);
+    queue_dispatch->vtbl = &table;
 }
 
-VkResult AllocCommandBuffers(VkDevice device,
-                             const VkCommandBufferAllocateInfo* alloc_info,
-                             VkCommandBuffer* cmdbufs) {
-    const DeviceVtbl* vtbl = GetVtbl(device);
-    VkResult result = vtbl->AllocateCommandBuffers(device, alloc_info, cmdbufs);
+VkResult AllocateCommandBuffers_Top(
+    VkDevice vkdevice,
+    const VkCommandBufferAllocateInfo* alloc_info,
+    VkCommandBuffer* cmdbufs) {
+    const auto& table = GetDispatchTable(vkdevice);
+    VkResult result =
+        table.AllocateCommandBuffers(vkdevice, alloc_info, cmdbufs);
     if (result != VK_SUCCESS)
         return result;
-    for (uint32_t i = 0; i < alloc_info->bufferCount; i++) {
-        hwvulkan_dispatch_t* dispatch =
+    for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
+        hwvulkan_dispatch_t* cmdbuf_dispatch =
             reinterpret_cast<hwvulkan_dispatch_t*>(cmdbufs[i]);
-        ALOGE_IF(dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
+        ALOGE_IF(cmdbuf_dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
                  "invalid VkCommandBuffer dispatch magic: 0x%" PRIxPTR,
-                 dispatch->magic);
-        dispatch->vtbl = vtbl;
+                 cmdbuf_dispatch->magic);
+        cmdbuf_dispatch->vtbl = &table;
     }
     return VK_SUCCESS;
 }
 
-VkResult DestroyDevice(VkDevice drv_device,
+void DestroyDevice_Top(VkDevice vkdevice,
                        const VkAllocationCallbacks* /*allocator*/) {
-    const DeviceVtbl* vtbl = GetVtbl(drv_device);
-    Device* device = static_cast<Device*>(vtbl->device);
-    for (auto it = device->active_layers.begin();
-         it != device->active_layers.end(); ++it) {
-        DeactivateLayer(device->instance, it);
-    }
-    vtbl->DestroyDevice(drv_device, device->instance->alloc);
-    DestroyDevice(device);
-    return VK_SUCCESS;
+    if (!vkdevice)
+        return;
+    Device& device = GetDispatchParent(vkdevice);
+    device.dispatch.DestroyDevice(vkdevice, device.instance->alloc);
+    DestroyDevice(&device);
 }
 
-void* AllocMem(VkInstance instance,
-               size_t size,
-               size_t align,
-               VkSystemAllocationScope scope) {
-    const VkAllocationCallbacks* alloc_cb = instance->alloc;
-    return alloc_cb->pfnAllocation(alloc_cb->pUserData, size, align, scope);
+// -----------------------------------------------------------------------------
+
+const VkAllocationCallbacks* GetAllocator(VkInstance vkinstance) {
+    return GetDispatchParent(vkinstance).alloc;
 }
 
-void FreeMem(VkInstance instance, void* ptr) {
-    const VkAllocationCallbacks* alloc_cb = instance->alloc;
-    alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
+const VkAllocationCallbacks* GetAllocator(VkDevice vkdevice) {
+    return GetDispatchParent(vkdevice).instance->alloc;
 }
 
-void* AllocMem(VkDevice device,
-               size_t size,
-               size_t align,
-               VkSystemAllocationScope scope) {
-    const VkAllocationCallbacks* alloc_cb =
-        static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
-    return alloc_cb->pfnAllocation(alloc_cb->pUserData, size, align, scope);
+const DriverDispatchTable& GetDriverDispatch(VkDevice device) {
+    return GetDispatchParent(device).instance->drv.dispatch;
 }
 
-void FreeMem(VkDevice device, void* ptr) {
-    const VkAllocationCallbacks* alloc_cb =
-        static_cast<Device*>(GetVtbl(device)->device)->instance->alloc;
-    alloc_cb->pfnFree(alloc_cb->pUserData, ptr);
-}
-
-const DeviceVtbl& GetDriverVtbl(VkDevice device) {
-    // TODO(jessehall): This actually returns the API-level vtbl for the
-    // device, not the driver entry points. Given the current use -- getting
-    // the driver's private swapchain-related functions -- that works, but is
-    // misleading and likely to cause bugs. Fix as part of separating the
-    // loader->driver interface from the app->loader interface.
-    return static_cast<Device*>(GetVtbl(device)->device)->vtbl_storage;
-}
-
-const DeviceVtbl& GetDriverVtbl(VkQueue queue) {
-    // TODO(jessehall): This actually returns the API-level vtbl for the
-    // device, not the driver entry points. Given the current use -- getting
-    // the driver's private swapchain-related functions -- that works, but is
-    // misleading and likely to cause bugs. Fix as part of separating the
-    // loader->driver interface from the app->loader interface.
-    return static_cast<Device*>(GetVtbl(queue)->device)->vtbl_storage;
+const DriverDispatchTable& GetDriverDispatch(VkQueue queue) {
+    return GetDispatchParent(queue).instance->drv.dispatch;
 }
 
 }  // namespace vulkan
