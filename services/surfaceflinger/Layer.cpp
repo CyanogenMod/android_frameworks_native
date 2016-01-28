@@ -73,6 +73,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mCurrentTransform(0),
         mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
         mCurrentOpacity(true),
+        mCurrentFrameNumber(0),
         mRefreshPending(false),
         mFrameLatencyNeeded(false),
         mFiltering(false),
@@ -147,6 +148,9 @@ void Layer::onFirstRef() {
 }
 
 Layer::~Layer() {
+    for (auto& point : mRemoteSyncPoints) {
+        point->setTransactionApplied();
+    }
     mFlinger->deleteTextureAsync(mTextureName);
     mFrameTracker.logAndResetStats(mName);
 }
@@ -160,20 +164,6 @@ void Layer::onLayerDisplayed(const sp<const DisplayDevice>& /* hw */,
     if (layer) {
         layer->onDisplayed();
         mSurfaceFlingerConsumer->setReleaseFence(layer->getAndResetReleaseFence());
-    }
-}
-
-void Layer::markSyncPointsAvailable(const BufferItem& item) {
-    auto pointIter = mLocalSyncPoints.begin();
-    while (pointIter != mLocalSyncPoints.end()) {
-        if ((*pointIter)->getFrameNumber() == item.mFrameNumber) {
-            auto syncPoint = *pointIter;
-            pointIter = mLocalSyncPoints.erase(pointIter);
-            Mutex::Autolock lock(mAvailableFrameMutex);
-            mAvailableFrames.push_back(std::move(syncPoint));
-        } else {
-            ++pointIter;
-        }
     }
 }
 
@@ -205,8 +195,6 @@ void Layer::onFrameAvailable(const BufferItem& item) {
         mQueueItemCondition.broadcast();
     }
 
-    markSyncPointsAvailable(item);
-
     mFlinger->signalLayerUpdate();
 }
 
@@ -233,8 +221,6 @@ void Layer::onFrameReplaced(const BufferItem& item) {
         mLastFrameNumberReceived = item.mFrameNumber;
         mQueueItemCondition.broadcast();
     }
-
-    markSyncPointsAvailable(item);
 }
 
 void Layer::onSidebandStreamChanged() {
@@ -803,22 +789,25 @@ uint32_t Layer::getProducerStickyTransform() const {
     return static_cast<uint32_t>(producerStickyTransform);
 }
 
-void Layer::addSyncPoint(std::shared_ptr<SyncPoint> point) {
-    uint64_t headFrameNumber = 0;
-    {
-        Mutex::Autolock lock(mQueueItemLock);
-        if (!mQueueItems.empty()) {
-            headFrameNumber = mQueueItems[0].mFrameNumber;
-        } else {
-            headFrameNumber = mLastFrameNumberReceived;
-        }
+uint64_t Layer::getHeadFrameNumber() const {
+    Mutex::Autolock lock(mQueueItemLock);
+    if (!mQueueItems.empty()) {
+        return mQueueItems[0].mFrameNumber;
+    } else {
+        return mCurrentFrameNumber;
+    }
+}
+
+bool Layer::addSyncPoint(const std::shared_ptr<SyncPoint>& point) {
+    if (point->getFrameNumber() <= mCurrentFrameNumber) {
+        // Don't bother with a SyncPoint, since we've already latched the
+        // relevant frame
+        return false;
     }
 
-    if (point->getFrameNumber() <= headFrameNumber) {
-        point->setFrameAvailable();
-    } else {
-        mLocalSyncPoints.push_back(std::move(point));
-    }
+    Mutex::Autolock lock(mLocalSyncPointMutex);
+    mLocalSyncPoints.push_back(point);
+    return true;
 }
 
 void Layer::setFiltering(bool filtering) {
@@ -940,8 +929,6 @@ void Layer::pushPendingState() {
         return;
     }
 
-    Mutex::Autolock lock(mPendingStateMutex);
-
     // If this transaction is waiting on the receipt of a frame, generate a sync
     // point and send it to the remote layer.
     if (mCurrentState.handle != nullptr) {
@@ -956,8 +943,13 @@ void Layer::pushPendingState() {
         } else {
             auto syncPoint = std::make_shared<SyncPoint>(
                     mCurrentState.frameNumber);
-            handleLayer->addSyncPoint(syncPoint);
-            mRemoteSyncPoints.push_back(std::move(syncPoint));
+            if (handleLayer->addSyncPoint(syncPoint)) {
+                mRemoteSyncPoints.push_back(std::move(syncPoint));
+            } else {
+                // We already missed the frame we're supposed to synchronize
+                // on, so go ahead and apply the state update
+                mCurrentState.handle = nullptr;
+            }
         }
 
         // Wake us up to check if the frame has been received
@@ -969,15 +961,13 @@ void Layer::pushPendingState() {
 void Layer::popPendingState() {
     auto oldFlags = mCurrentState.flags;
     mCurrentState = mPendingStates[0];
-    mCurrentState.flags = (oldFlags & ~mCurrentState.mask) | 
+    mCurrentState.flags = (oldFlags & ~mCurrentState.mask) |
             (mCurrentState.flags & mCurrentState.mask);
 
     mPendingStates.removeAt(0);
 }
 
 bool Layer::applyPendingStates() {
-    Mutex::Autolock lock(mPendingStateMutex);
-
     bool stateUpdateAvailable = false;
     while (!mPendingStates.empty()) {
         if (mPendingStates[0].handle != nullptr) {
@@ -988,6 +978,17 @@ bool Layer::applyPendingStates() {
                 ALOGE("[%s] No local sync point found", mName.string());
                 popPendingState();
                 stateUpdateAvailable = true;
+                continue;
+            }
+
+            if (mRemoteSyncPoints.front()->getFrameNumber() !=
+                    mPendingStates[0].frameNumber) {
+                ALOGE("[%s] Unexpected sync point frame number found",
+                        mName.string());
+
+                // Signal our end of the sync point and then dispose of it
+                mRemoteSyncPoints.front()->setTransactionApplied();
+                mRemoteSyncPoints.pop_front();
                 continue;
             }
 
@@ -1019,9 +1020,12 @@ bool Layer::applyPendingStates() {
 }
 
 void Layer::notifyAvailableFrames() {
-    Mutex::Autolock lock(mAvailableFrameMutex);
-    for (auto frame : mAvailableFrames) {
-        frame->setFrameAvailable();
+    auto headFrameNumber = getHeadFrameNumber();
+    Mutex::Autolock lock(mLocalSyncPointMutex);
+    for (auto& point : mLocalSyncPoints) {
+        if (headFrameNumber >= point->getFrameNumber()) {
+            point->setFrameAvailable();
+        }
     }
 }
 
@@ -1462,36 +1466,39 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
                 getProducerStickyTransform() != 0);
 
-        uint64_t maxFrameNumber = 0;
-        uint64_t headFrameNumber = 0;
+
+        // Check all of our local sync points to ensure that all transactions
+        // which need to have been applied prior to the frame which is about to
+        // be latched have signaled
+
+        auto headFrameNumber = getHeadFrameNumber();
+        bool matchingFramesFound = false;
+        bool allTransactionsApplied = true;
         {
-            Mutex::Autolock lock(mQueueItemLock);
-            maxFrameNumber = mLastFrameNumberReceived;
-            if (!mQueueItems.empty()) {
-                headFrameNumber = mQueueItems[0].mFrameNumber;
+            Mutex::Autolock lock(mLocalSyncPointMutex);
+            for (auto& point : mLocalSyncPoints) {
+                if (point->getFrameNumber() > headFrameNumber) {
+                    break;
+                }
+
+                matchingFramesFound = true;
+
+                if (!point->frameIsAvailable()) {
+                    // We haven't notified the remote layer that the frame for
+                    // this point is available yet. Notify it now, and then
+                    // abort this attempt to latch.
+                    point->setFrameAvailable();
+                    allTransactionsApplied = false;
+                    break;
+                }
+
+                allTransactionsApplied &= point->transactionIsApplied();
             }
         }
 
-        bool availableFramesEmpty = true;
-        {
-            Mutex::Autolock lock(mAvailableFrameMutex);
-            availableFramesEmpty = mAvailableFrames.empty();
-        }
-        if (!availableFramesEmpty) {
-            Mutex::Autolock lock(mAvailableFrameMutex);
-            bool matchingFramesFound = false;
-            bool allTransactionsApplied = true;
-            for (auto& frame : mAvailableFrames) {
-                if (headFrameNumber != frame->getFrameNumber()) {
-                    break;
-                }
-                matchingFramesFound = true;
-                allTransactionsApplied &= frame->transactionIsApplied();
-            }
-            if (matchingFramesFound && !allTransactionsApplied) {
-                mFlinger->signalLayerUpdate();
-                return outDirtyRegion;
-            }
+        if (matchingFramesFound && !allTransactionsApplied) {
+            mFlinger->signalLayerUpdate();
+            return outDirtyRegion;
         }
 
         // This boolean is used to make sure that SurfaceFlinger's shadow copy
@@ -1501,7 +1508,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         bool queuedBuffer = false;
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,
                 mFlinger->mPrimaryDispSync, &mSingleBufferMode, &queuedBuffer,
-                maxFrameNumber);
+                mLastFrameNumberReceived);
         if (updateResult == BufferQueue::PRESENT_LATER) {
             // Producer doesn't want buffer to be displayed yet.  Signal a
             // layer update so we check again at the next opportunity.
@@ -1560,15 +1567,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             mFlinger->signalLayerUpdate();
         }
 
-        if (!availableFramesEmpty) {
-            Mutex::Autolock lock(mAvailableFrameMutex);
-            auto frameNumber = mSurfaceFlingerConsumer->getFrameNumber();
-            while (!mAvailableFrames.empty() &&
-                    frameNumber == mAvailableFrames.front()->getFrameNumber()) {
-                mAvailableFrames.pop_front();
-            }
-        }
-
         if (updateResult != NO_ERROR) {
             // something happened!
             recomputeVisibleRegions = true;
@@ -1615,6 +1613,30 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         mCurrentOpacity = getOpacityForFormat(mActiveBuffer->format);
         if (oldOpacity != isOpaque(s)) {
             recomputeVisibleRegions = true;
+        }
+
+        mCurrentFrameNumber = mSurfaceFlingerConsumer->getFrameNumber();
+
+        // Remove any sync points corresponding to the buffer which was just
+        // latched
+        {
+            Mutex::Autolock lock(mLocalSyncPointMutex);
+            auto point = mLocalSyncPoints.begin();
+            while (point != mLocalSyncPoints.end()) {
+                if (!(*point)->frameIsAvailable() ||
+                        !(*point)->transactionIsApplied()) {
+                    // This sync point must have been added since we started
+                    // latching. Don't drop it yet.
+                    ++point;
+                    continue;
+                }
+
+                if ((*point)->getFrameNumber() <= mCurrentFrameNumber) {
+                    point = mLocalSyncPoints.erase(point);
+                } else {
+                    ++point;
+                }
+            }
         }
 
         // FIXME: postedRegion should be dirty & bounds
