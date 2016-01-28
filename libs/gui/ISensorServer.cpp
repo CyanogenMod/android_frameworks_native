@@ -35,7 +35,8 @@ namespace android {
 enum {
     GET_SENSOR_LIST = IBinder::FIRST_CALL_TRANSACTION,
     CREATE_SENSOR_EVENT_CONNECTION,
-    ENABLE_DATA_INJECTION
+    ENABLE_DATA_INJECTION,
+    GET_DYNAMIC_SENSOR_LIST,
 };
 
 class BpSensorServer : public BpInterface<ISensorServer>
@@ -54,6 +55,23 @@ public:
         data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
         data.writeString16(opPackageName);
         remote()->transact(GET_SENSOR_LIST, data, &reply);
+        Sensor s;
+        Vector<Sensor> v;
+        uint32_t n = reply.readUint32();
+        v.setCapacity(n);
+        while (n--) {
+            reply.read(s);
+            v.add(s);
+        }
+        return v;
+    }
+
+    virtual Vector<Sensor> getDynamicSensorList(const String16& opPackageName)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISensorServer::getInterfaceDescriptor());
+        data.writeString16(opPackageName);
+        remote()->transact(GET_DYNAMIC_SENSOR_LIST, data, &reply);
         Sensor s;
         Vector<Sensor> v;
         uint32_t n = reply.readUint32();
@@ -122,6 +140,17 @@ status_t BnSensorServer::onTransact(
             CHECK_INTERFACE(ISensorServer, data, reply);
             int32_t ret = isDataInjectionEnabled();
             reply->writeInt32(static_cast<int32_t>(ret));
+            return NO_ERROR;
+        }
+        case GET_DYNAMIC_SENSOR_LIST: {
+            CHECK_INTERFACE(ISensorServer, data, reply);
+            const String16& opPackageName = data.readString16();
+            Vector<Sensor> v(getDynamicSensorList(opPackageName));
+            size_t n = v.size();
+            reply->writeUint32(static_cast<uint32_t>(n));
+            for (size_t i = 0; i < n; i++) {
+                reply->write(v[i]);
+            }
             return NO_ERROR;
         }
     }

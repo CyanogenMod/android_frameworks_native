@@ -89,6 +89,7 @@ class SensorDevice : public Singleton<SensorDevice> {
     bool isClientDisabledLocked(void* ident);
 public:
     ssize_t getSensorList(sensor_t const** list);
+    void handleDynamicSensorConnection(int handle, bool connected);
     status_t initCheck() const;
     int getHalDeviceVersion() const;
     ssize_t poll(sensors_event_t* buffer, size_t count);

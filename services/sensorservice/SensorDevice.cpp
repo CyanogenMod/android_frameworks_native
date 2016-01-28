@@ -73,6 +73,17 @@ SensorDevice::SensorDevice()
     }
 }
 
+void SensorDevice::handleDynamicSensorConnection(int handle, bool connected) {
+    if (connected) {
+        Info model;
+        mActivationCount.add(handle, model);
+        mSensorDevice->activate(
+                reinterpret_cast<struct sensors_poll_device_t *>(mSensorDevice), handle, 0);
+    } else {
+        mActivationCount.removeItem(handle);
+    }
+}
+
 void SensorDevice::dump(String8& result)
 {
     if (!mSensorModule) return;

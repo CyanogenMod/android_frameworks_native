@@ -89,19 +89,16 @@ SensorManager& SensorManager::getInstanceForPackage(const String16& packageName)
 }
 
 SensorManager::SensorManager(const String16& opPackageName)
-    : mSensorList(0), mOpPackageName(opPackageName)
-{
+    : mSensorList(0), mOpPackageName(opPackageName) {
     // okay we're not locked here, but it's not needed during construction
     assertStateLocked();
 }
 
-SensorManager::~SensorManager()
-{
+SensorManager::~SensorManager() {
     free(mSensorList);
 }
 
-void SensorManager::sensorManagerDied()
-{
+void SensorManager::sensorManagerDied() {
     Mutex::Autolock _l(mLock);
     mSensorServer.clear();
     free(mSensorList);
@@ -109,7 +106,7 @@ void SensorManager::sensorManagerDied()
     mSensors.clear();
 }
 
-status_t SensorManager::assertStateLocked() const {
+status_t SensorManager::assertStateLocked() {
     bool initSensorManager = false;
     if (mSensorServer == NULL) {
         initSensorManager = true;
@@ -136,13 +133,13 @@ status_t SensorManager::assertStateLocked() const {
         }
 
         class DeathObserver : public IBinder::DeathRecipient {
-            SensorManager& mSensorManger;
+            SensorManager& mSensorManager;
             virtual void binderDied(const wp<IBinder>& who) {
                 ALOGW("sensorservice died [%p]", who.unsafe_get());
-                mSensorManger.sensorManagerDied();
+                mSensorManager.sensorManagerDied();
             }
         public:
-            DeathObserver(SensorManager& mgr) : mSensorManger(mgr) { }
+            DeathObserver(SensorManager& mgr) : mSensorManager(mgr) { }
         };
 
         LOG_ALWAYS_FATAL_IF(mSensorServer.get() == NULL, "getService(SensorService) NULL");
@@ -164,8 +161,7 @@ status_t SensorManager::assertStateLocked() const {
     return NO_ERROR;
 }
 
-ssize_t SensorManager::getSensorList(Sensor const* const** list) const
-{
+ssize_t SensorManager::getSensorList(Sensor const* const** list) {
     Mutex::Autolock _l(mLock);
     status_t err = assertStateLocked();
     if (err < 0) {
@@ -173,6 +169,19 @@ ssize_t SensorManager::getSensorList(Sensor const* const** list) const
     }
     *list = mSensorList;
     return static_cast<ssize_t>(mSensors.size());
+}
+
+ssize_t SensorManager::getDynamicSensorList(Vector<Sensor> & dynamicSensors) {
+    Mutex::Autolock _l(mLock);
+    status_t err = assertStateLocked();
+    if (err < 0) {
+        return static_cast<ssize_t>(err);
+    }
+
+    dynamicSensors = mSensorServer->getDynamicSensorList(mOpPackageName);
+    size_t count = dynamicSensors.size();
+
+    return static_cast<ssize_t>(count);
 }
 
 Sensor const* SensorManager::getDefaultSensor(int type)
