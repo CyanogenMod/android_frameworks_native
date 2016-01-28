@@ -342,6 +342,111 @@ struct ConfigureVideoTunnelModeParams {
     OMX_PTR pSidebandWindow;    // OUT
 };
 
+// Color description parameters. This is passed via OMX_SetConfig or OMX_GetConfig
+// to video encoders and decoders when the
+// 'OMX.google.android.index.describeColorAspects' extension is given.
+//
+// Video encoders: the framework uses OMX_SetConfig to specify color aspects
+// of the coded video before the component transitions to idle state.
+//
+// Video decoders: the framework uses OMX_SetConfig to specify color aspects
+// of the coded video parsed from the container before the component transitions
+// to idle state. If the bitstream contains color information, the component should
+// update the appropriate color aspects - unless the bitstream contains the
+// "unspecified" value. For "reserved" values, the component should set the aspect
+// to "Other".
+//
+// The framework subsequently uses OMX_GetConfig to get any updates of the
+// color aspects from the decoder. If the color aspects change at any time
+// during the processing of the stream, the component shall signal a
+// OMX_EventPortSettingsChanged event with data2 set to the extension index
+// (or OMX_IndexConfigCommonOutputCrop, as it is handled identically). Component
+// shall not signal a separate event purely for color aspect change, if it occurs
+// together with a port definition (e.g. size) or crop change.
+//
+// NOTE: this structure is expected to grow in the future if new color aspects are
+// added to codec bitstreams. OMX component should not require a specific nSize
+// though could verify that nSize is at least the size of the structure at the
+// time of implementation. All new fields will be added at the end of the structure
+// ensuring backward compatibility.
+
+struct DescribeColorAspectsParams {
+    OMX_U32 nSize;              // IN
+    OMX_VERSIONTYPE nVersion;   // IN
+    OMX_U32 nPortIndex;         // IN
+    OMX_U32 nRange;             // IN/OUT (one of the ColorAspects.Range enums)
+    OMX_U32 nPrimaries;         // IN/OUT (one of the ColorAspects.Primaries enums)
+    OMX_U32 nTransfer;          // IN/OUT (one of the ColorAspects.Transfer enums)
+    OMX_U32 nMatrixCoeffs;      // IN/OUT (one of the ColorAspects.MatrixCoeffs enums)
+};
+
+struct ColorAspects {
+    // this is in sync with the range values in graphics.h
+    enum Range : uint32_t {
+        RangeUnspecified,
+        RangeFull,
+        RangeLimited,
+        RangeOther = 0xff,
+    };
+
+    enum Primaries : uint32_t {
+        PrimariesUnspecified,
+        PrimariesBT709_5,       // Rec.ITU-R BT.709-5 or equivalent
+        PrimariesBT470_6M,      // Rec.ITU-R BT.470-6 System M or equivalent
+        PrimariesBT601_6_625,   // Rec.ITU-R BT.601-6 625 or equivalent
+        PrimariesBT601_6_525,   // Rec.ITU-R BT.601-6 525 or equivalent
+        PrimariesGenericFilm,   // Generic Film
+        PrimariesBT2020,        // Rec.ITU-R BT.2020 or equivalent
+        PrimariesOther = 0xff,
+    };
+
+    // this partially in sync with the transfer values in graphics.h prior to the transfers
+    // unlikely to be required by Android section
+    enum Transfer : uint32_t {
+        TransferUnspecified,
+        TransferLinear,         // Linear transfer characteristics
+        TransferSRGB,           // sRGB or equivalent
+        TransferSMPTE170M,      // SMPTE 170M or equivalent (e.g. BT.601/709/2020)
+        TransferGamma22,        // Assumed display gamma 2.2
+        TransferGamma28,        // Assumed display gamma 2.8
+        TransferST2084,         // SMPTE ST 2084 for 10/12/14/16 bit systems
+        TransferHLG,            // ARIB STD-B67 hybrid-log-gamma
+
+        // transfers unlikely to be required by Android
+        TransferSMPTE240M = 0x40, // SMPTE 240M
+        TransferXvYCC,          // IEC 61966-2-4
+        TransferBT1361,         // Rec.ITU-R BT.1361 extended gamut
+        TransferST428,          // SMPTE ST 428-1
+        TransferOther = 0xff,
+    };
+
+    enum MatrixCoeffs : uint32_t {
+        MatrixUnspecified,
+        MatrixBT709_5,          // Rec.ITU-R BT.709-5 or equivalent
+        MatrixBT470_6M,         // KR=0.30, KB=0.11 or equivalent
+        MatrixBT601_6,          // Rec.ITU-R BT.601-6 625 or equivalent
+        MatrixSMPTE240M,        // SMPTE 240M or equivalent
+        MatrixBT2020,           // Rec.ITU-R BT.2020 non-constant luminance
+        MatrixBT2020Constant,   // Rec.ITU-R BT.2020 constant luminance
+        MatrixOther = 0xff,
+    };
+
+    // this is in sync with the standard values in graphics.h
+    enum Standard : uint32_t {
+        StandardUnspecified,
+        StandardBT709,                  // PrimariesBT709_5 and MatrixBT709_5
+        StandardBT601_625,              // PrimariesBT601_6_625 and MatrixBT601_6
+        StandardBT601_625_Unadjusted,   // PrimariesBT601_6_625 and KR=0.222, KB=0.071
+        StandardBT601_525,              // PrimariesBT601_6_525 and MatrixBT601_6
+        StandardBT601_525_Unadjusted,   // PrimariesBT601_6_525 and MatrixSMPTE240M
+        StandardBT2020,                 // PrimariesBT2020 and MatrixBT2020
+        StandardBT2020Constant,         // PrimariesBT2020 and MatrixBT2020Constant
+        StandardBT470M,                 // PrimariesBT470_6M and MatrixBT470_6M
+        StandardFilm,                   // PrimariesGenericFilm and KR=0.253, KB=0.068
+        StandardOther = 0xff,
+    };
+};
+
 }  // namespace android
 
 extern android::OMXPluginBase *createOMXPlugin();
