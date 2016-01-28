@@ -111,6 +111,28 @@ typedef enum {
      */
     kMetadataBufferTypeANWBuffer = 2,
 
+    /*
+     * kMetadataBufferTypeNativeHandleSource is used to indicate that
+     * the payload of the metadata buffers can be interpreted as
+     * a native_handle_t.
+     *
+     * In this case, the metadata that the encoder receives
+     * will have a byte stream that consists of two parts:
+     * 1. First, there is an integer indicating that the metadata contains a
+     * native handle (kMetadataBufferTypeNativeHandleSource).
+     * 2. This is followed by a pointer to native_handle_t. The encoder needs
+     * to interpret this native handle and encode the frame. The encoder must
+     * not free this native handle as it does not actually own this native
+     * handle. The handle will be freed after the encoder releases the buffer
+     * back to camera.
+     * ----------------------------------------------------------------
+     * |  kMetadataBufferTypeNativeHandleSource | native_handle_t* nh |
+     * ----------------------------------------------------------------
+     *
+     * See the VideoNativeHandleMetadata structure.
+     */
+    kMetadataBufferTypeNativeHandleSource = 3,
+
     /* This value is used by framework, but is never used inside a metadata buffer  */
     kMetadataBufferTypeInvalid = -1,
 

@@ -120,6 +120,17 @@ struct VideoNativeMetadata {
     int nFenceFd;                           // -1 if unused
 };
 
+// Meta data buffer layout for passing a native_handle to codec
+struct VideoNativeHandleMetadata {
+    MetadataBufferType eType;               // must be kMetadataBufferTypeNativeHandleSource
+
+#ifdef OMX_ANDROID_COMPILE_AS_32BIT_ON_64BIT_PLATFORMS
+    OMX_PTR pHandle;
+#else
+    native_handle_t *pHandle;
+#endif
+};
+
 // A pointer to this struct is passed to OMX_SetParameter() when the extension
 // index "OMX.google.android.index.prepareForAdaptivePlayback" is given.
 //
