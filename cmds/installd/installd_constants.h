@@ -49,8 +49,6 @@ constexpr const char* PRIVATE_APP_SUBDIR = "app-private/"; // sub-directory unde
 #define DALVIK_CACHE "dalvik-cache"
 constexpr const char* DALVIK_CACHE_POSTFIX = "/classes.dex";
 
-constexpr const char* UPDATE_COMMANDS_DIR_PREFIX = "/system/etc/updatecmds/";
-
 constexpr const char* IDMAP_PREFIX = "/data/resource-cache/";
 constexpr const char* IDMAP_SUFFIX = "@idmap";
 

@@ -51,7 +51,6 @@ int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *ins
            int dexopt_needed, const char* oat_dir, int dexopt_flags,
            const char* volume_uuid, bool use_profiles);
 int mark_boot_complete(const char *instruction_set);
-int movefiles();
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);

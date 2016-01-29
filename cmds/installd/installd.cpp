@@ -274,11 +274,6 @@ static int do_rm_user(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
     return delete_user(parse_null(arg[0]), atoi(arg[1])); /* uuid, userid */
 }
 
-static int do_movefiles(char **arg ATTRIBUTE_UNUSED, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
-{
-    return movefiles();
-}
-
 static int do_linklib(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return linklib(parse_null(arg[0]), arg[1], arg[2], atoi(arg[3]));
@@ -327,7 +322,6 @@ struct cmdinfo cmds[] = {
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "rmdex",                2, do_rm_dex },
     { "freecache",            2, do_free_cache },
-    { "movefiles",            0, do_movefiles },
     { "linklib",              4, do_linklib },
     { "mkuserconfig",         1, do_mk_user_config },
     { "rmuser",               2, do_rm_user },
