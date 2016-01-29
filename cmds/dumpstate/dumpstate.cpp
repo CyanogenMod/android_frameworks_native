@@ -1118,7 +1118,7 @@ int main(int argc, char *argv[]) {
         if (!path.empty()) {
             ALOGI("Final bugreport path: %s\n", path.c_str());
             std::vector<std::string> am_args = {
-                 "android.permission.DUMP", "--receiver-foreground",
+                 "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--es", "android.intent.extra.BUGREPORT", path
             };
