@@ -534,6 +534,19 @@ void* StripCreateExtensions(const void* pNext) {
     return create_info;
 }
 
+// Separate out cleaning up the layers and instance storage
+// to avoid code duplication in the many failure cases in
+// in CreateInstance_Top
+void TeardownInstance(
+    VkInstance vkinstance,
+    const VkAllocationCallbacks* /* allocator */) {
+    Instance& instance = GetDispatchParent(vkinstance);
+    instance.active_layers.clear();
+    const VkAllocationCallbacks* alloc = instance.alloc;
+    instance.~Instance();
+    alloc->pfnFree(alloc->pUserData, &instance);
+}
+
 }  // anonymous namespace
 
 namespace vulkan {
@@ -973,10 +986,6 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
                                       "vkDestroyDebugReportCallbackEXT"));
         destroy_debug_report_callback(vkinstance, instance.message, allocator);
     }
-    instance.active_layers.clear();
-    const VkAllocationCallbacks* alloc = instance.alloc;
-    instance.~Instance();
-    alloc->pfnFree(alloc->pUserData, &instance);
 }
 
 PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice,
@@ -1076,6 +1085,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     result = ActivateAllLayers(create_info, instance, instance);
     if (result != VK_SUCCESS) {
         DestroyInstance_Bottom(instance->handle, allocator);
+        TeardownInstance(instance->handle, allocator);
         return result;
     }
 
@@ -1097,6 +1107,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         if (!layer_instance_link_info) {
             ALOGE("Failed to alloc Instance objects for layers");
             DestroyInstance_Bottom(instance->handle, allocator);
+            TeardownInstance(instance->handle, allocator);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
         }
 
@@ -1124,6 +1135,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
             next_gipa(VK_NULL_HANDLE, "vkCreateInstance"));
     if (!create_instance) {
         DestroyInstance_Bottom(instance->handle, allocator);
+        TeardownInstance(instance->handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     VkLayerInstanceCreateInfo instance_create_info;
@@ -1141,6 +1153,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
 
     if (result != VK_SUCCESS) {
         DestroyInstance_Bottom(instance->handle, allocator);
+        TeardownInstance(instance->handle, allocator);
         return result;
     }
 
@@ -1158,6 +1171,8 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
             return VK_ERROR_INITIALIZATION_FAILED;
         }
         destroy_instance(local_instance, allocator);
+        DestroyInstance_Bottom(instance->handle, allocator);
+        TeardownInstance(instance->handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     *instance_out = local_instance;
@@ -1214,11 +1229,13 @@ PFN_vkVoidFunction GetInstanceProcAddr_Top(VkInstance vkinstance,
     return GetLoaderExportProcAddr(name);
 }
 
-void DestroyInstance_Top(VkInstance instance,
+void DestroyInstance_Top(VkInstance vkinstance,
                          const VkAllocationCallbacks* allocator) {
-    if (!instance)
+    if (!vkinstance)
         return;
-    GetDispatchTable(instance).DestroyInstance(instance, allocator);
+    GetDispatchTable(vkinstance).DestroyInstance(vkinstance, allocator);
+
+    TeardownInstance(vkinstance, allocator);
 }
 
 VKAPI_ATTR
