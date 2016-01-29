@@ -578,7 +578,7 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
         fprintf(stderr, "send_broadcast: too many arguments (%d)\n", (int) args.size());
         return;
     }
-    const char *am_args[1024] = { "/system/bin/am", "broadcast", "--receiver-foreground",
+    const char *am_args[1024] = { "/system/bin/am", "broadcast",
                                   "--user", "0", "-a", action.c_str() };
     size_t am_index = 5; // Starts at the index of last initial value above.
     for (const std::string& arg : args) {
