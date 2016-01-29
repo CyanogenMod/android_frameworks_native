@@ -600,13 +600,6 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         return result;
     }
 
-    if (!LoadDriverDispatchTable(instance.drv.instance,
-                                 g_hwdevice->GetInstanceProcAddr,
-                                 enabled_extensions, instance.drv.dispatch)) {
-        DestroyInstance_Bottom(instance.handle, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
     hwvulkan_dispatch_t* drv_dispatch =
         reinterpret_cast<hwvulkan_dispatch_t*>(instance.drv.instance);
     if (drv_dispatch->magic == HWVULKAN_DISPATCH_MAGIC) {
@@ -615,6 +608,13 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     } else {
         ALOGE("invalid VkInstance dispatch magic: 0x%" PRIxPTR,
               drv_dispatch->magic);
+        DestroyInstance_Bottom(instance.handle, allocator);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    if (!LoadDriverDispatchTable(instance.drv.instance,
+                                 g_hwdevice->GetInstanceProcAddr,
+                                 enabled_extensions, instance.drv.dispatch)) {
         DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
