@@ -84,6 +84,10 @@ std::string create_data_user_de_package_path(const char* volume_uuid,
 
 std::string create_data_media_path(const char* volume_uuid, userid_t userid);
 
+std::string create_data_user_profiles_path(userid_t userid);
+std::string create_data_user_profile_package_path(userid_t user, const char* package_name);
+std::string create_data_ref_profile_package_path(const char* package_name);
+
 std::vector<userid_t> get_known_users(const char* volume_uuid);
 
 int create_user_config_path(char path[PKG_PATH_MAX], userid_t userid);
@@ -135,6 +139,7 @@ char *build_string2(const char *s1, const char *s2);
 char *build_string3(const char *s1, const char *s2, const char *s3);
 
 int ensure_dir(const char* path, mode_t mode, uid_t uid, gid_t gid);
+int ensure_media_user_dirs(const char* uuid, userid_t userid);
 int ensure_config_user_dirs(userid_t userid);
 
 int wait_child(pid_t pid);

@@ -24,6 +24,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
@@ -56,6 +57,17 @@ static constexpr const char* kXattrDefault = "user.default";
 
 #define MIN_RESTRICTED_HOME_SDK_VERSION 24 // > M
 
+typedef int fd_t;
+
+static bool property_get_bool(const char* property_name, bool default_value = false) {
+    char tmp_property_value[kPropertyValueMax];
+    bool have_property = get_property(property_name, tmp_property_value, nullptr) > 0;
+    if (!have_property) {
+        return default_value;
+    }
+    return strcmp(tmp_property_value, "true") == 0;
+}
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
@@ -82,6 +94,24 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
             PLOG(ERROR) << "Failed to setfilecon " << path;
             // TODO: include result once 25796509 is fixed
             return 0;
+        }
+
+        if (property_get_bool("dalvik.vm.usejitprofiles")) {
+            const std::string profile_path = create_data_user_profile_package_path(userid, pkgname);
+            // read-write-execute only for the app user.
+            if (fs_prepare_dir_strict(profile_path.c_str(), 0700, uid, uid) != 0) {
+                PLOG(ERROR) << "Failed to prepare " << profile_path;
+                return -1;
+            }
+            const std::string ref_profile_path = create_data_ref_profile_package_path(pkgname);
+            // dex2oat/profman runs under the shared app gid and it needs to read/write reference
+            // profiles.
+            appid_t shared_app_gid = multiuser_get_shared_app_gid(uid);
+            if (fs_prepare_dir_strict(
+                    ref_profile_path.c_str(), 0700, shared_app_gid, shared_app_gid) != 0) {
+                PLOG(ERROR) << "Failed to prepare " << ref_profile_path;
+                return -1;
+            }
         }
     }
     return 0;
@@ -125,6 +155,36 @@ int migrate_app_data(const char *uuid, const char *pkgname, userid_t userid, int
     return 0;
 }
 
+// Keep profile paths in sync with ActivityThread.
+constexpr const char* PRIMARY_PROFILE_NAME = "primary.prof";
+static std::string create_primary_profile(const std::string& profile_dir) {
+    return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
+}
+
+static void unlink_reference_profile(const char* pkgname) {
+    std::string reference_profile_dir = create_data_ref_profile_package_path(pkgname);
+    std::string reference_profile = create_primary_profile(reference_profile_dir);
+    if (unlink(reference_profile.c_str()) != 0) {
+        PLOG(WARNING) << "Could not unlink " << reference_profile;
+    }
+}
+
+static void unlink_current_profiles(const char* pkgname) {
+    std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
+    for (auto user : users) {
+        std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
+        std::string profile = create_primary_profile(profile_dir);
+        if (unlink(profile.c_str()) != 0) {
+            PLOG(WARNING) << "Could not unlink " << profile;
+        }
+    }
+}
+
+static void unlink_all_profiles(const char* pkgname) {
+    unlink_reference_profile(pkgname);
+    unlink_current_profiles(pkgname);
+}
+
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
     std::string suffix = "";
     if (flags & FLAG_CLEAR_CACHE_ONLY) {
@@ -146,6 +206,7 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
             // TODO: include result once 25796509 is fixed
             delete_dir_contents(path);
         }
+        unlink_all_profiles(pkgname);
     }
     return res;
 }
@@ -160,6 +221,7 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
         // TODO: include result once 25796509 is fixed
         delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
+        unlink_all_profiles(pkgname);
     }
     return res;
 }
@@ -289,11 +351,13 @@ int delete_user(const char *uuid, userid_t userid) {
     std::string data_path(create_data_user_path(uuid, userid));
     std::string data_de_path(create_data_user_de_path(uuid, userid));
     std::string media_path(create_data_media_path(uuid, userid));
+    std::string profiles_path(create_data_user_profiles_path(userid));
 
     res |= delete_dir_contents_and_dir(data_path);
     // TODO: include result once 25796509 is fixed
     delete_dir_contents_and_dir(data_de_path);
     res |= delete_dir_contents_and_dir(media_path);
+    res |= delete_dir_contents_and_dir(profiles_path);
 
     // Config paths only exist on internal storage
     if (uuid == nullptr) {
@@ -630,30 +694,15 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
     ALOGE("execv(%s) failed: %s\n", PATCHOAT_BIN, strerror(errno));
 }
 
-static bool check_boolean_property(const char* property_name, bool default_value = false) {
-    char tmp_property_value[kPropertyValueMax];
-    bool have_property = get_property(property_name, tmp_property_value, nullptr) > 0;
-    if (!have_property) {
-        return default_value;
-    }
-    return strcmp(tmp_property_value, "true") == 0;
-}
-
 static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_file_name,
-    const char* output_file_name, int swap_fd, const char *instruction_set,
-    bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool extract_only,
-    const std::vector<int>& profile_files_fd, const std::vector<int>& reference_profile_files_fd) {
+        const char* output_file_name, int swap_fd, const char *instruction_set,
+        bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool extract_only,
+        int profile_fd) {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
     if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
         ALOGE("Instruction set %s longer than max length of %d",
               instruction_set, MAX_INSTRUCTION_SET_LEN);
-        return;
-    }
-
-    if (profile_files_fd.size() != reference_profile_files_fd.size()) {
-        ALOGE("Invalid configuration of profile files: pf_size (%zu) != rpf_size (%zu)",
-              profile_files_fd.size(), reference_profile_files_fd.size());
         return;
     }
 
@@ -705,7 +754,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                              (strcmp(vold_decrypt, "trigger_restart_min_framework") == 0 ||
                              (strcmp(vold_decrypt, "1") == 0)));
 
-    bool generate_debug_info = check_boolean_property("debug.generate-debug-info");
+    bool generate_debug_info = property_get_bool("debug.generate-debug-info");
 
     char app_image_format[kPropertyValueMax];
     char image_format_arg[strlen("--image-format=") + kPropertyValueMax];
@@ -779,17 +828,11 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                 (get_property("dalvik.vm.always_debuggable", prop_buf, "0") > 0) &&
                 (prop_buf[0] == '1');
     }
-    std::vector<std::string> profile_file_args(profile_files_fd.size());
-    std::vector<std::string> reference_profile_file_args(profile_files_fd.size());
-    // "reference-profile-file-fd" is longer than "profile-file-fd" so we can
-    // use it to set the max length.
-    char profile_buf[strlen("--reference-profile-file-fd=") + MAX_INT_LEN];
-    for (size_t k = 0; k < profile_files_fd.size(); k++) {
-        sprintf(profile_buf, "--profile-file-fd=%d", profile_files_fd[k]);
-        profile_file_args[k].assign(profile_buf);
-        sprintf(profile_buf, "--reference-profile-file-fd=%d", reference_profile_files_fd[k]);
-        reference_profile_file_args[k].assign(profile_buf);
+    char profile_arg[strlen("--profile-file-fd=") + MAX_INT_LEN];
+    if (profile_fd != -1) {
+        sprintf(profile_arg, "--profile-file-fd=%d", profile_fd);
     }
+
 
     ALOGV("Running %s in=%s out=%s\n", DEX2OAT_BIN, input_file_name, output_file_name);
 
@@ -807,8 +850,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                      + (debuggable ? 1 : 0)
                      + (have_app_image_format ? 1 : 0)
                      + dex2oat_flags_count
-                     + profile_files_fd.size()
-                     + reference_profile_files_fd.size()];
+                     + (profile_fd == -1 ? 0 : 1)];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
     argv[i++] = zip_fd_arg;
@@ -858,9 +900,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
         argv[i++] = RUNTIME_ARG;
         argv[i++] = dex2oat_norelocation;
     }
-    for (size_t k = 0; k < profile_file_args.size(); k++) {
-        argv[i++] = profile_file_args[k].c_str();
-        argv[i++] = reference_profile_file_args[k].c_str();
+    if (profile_fd != -1) {
+        argv[i++] = profile_arg;
     }
     // Do not add after dex2oat_flags, they should override others for debugging.
     argv[i] = NULL;
@@ -906,7 +947,7 @@ static bool ShouldUseSwapFileForDexopt() {
         return true;
     }
 
-    bool is_low_mem = check_boolean_property("ro.config.low_ram");
+    bool is_low_mem = property_get_bool("ro.config.low_ram");
     if (is_low_mem) {
         return true;
     }
@@ -928,10 +969,7 @@ static void SetDex2OatAndPatchOatScheduling(bool set_to_bg) {
     }
 }
 
-constexpr const char* PROFILE_FILE_EXTENSION = ".prof";
-constexpr const char* REFERENCE_PROFILE_FILE_EXTENSION = ".prof.ref";
-
-static void close_all_fds(const std::vector<int>& fds, const char* description) {
+static void close_all_fds(const std::vector<fd_t>& fds, const char* description) {
     for (size_t i = 0; i < fds.size(); i++) {
         if (close(fds[i]) != 0) {
             PLOG(WARNING) << "Failed to close fd for " << description << " at index " << i;
@@ -939,92 +977,224 @@ static void close_all_fds(const std::vector<int>& fds, const char* description) 
     }
 }
 
-static int open_code_cache_for_user(userid_t user, const char* volume_uuid, const char* pkgname) {
-    std::string code_cache_path =
-        create_data_user_de_package_path(volume_uuid, user, pkgname) + CODE_CACHE_DIR_POSTFIX;
-
+static fd_t open_profile_dir(const std::string& profile_dir) {
     struct stat buffer;
-    // Check that the code cache exists. If not, return and don't log an error.
-    if (TEMP_FAILURE_RETRY(lstat(code_cache_path.c_str(), &buffer)) == -1) {
+    if (TEMP_FAILURE_RETRY(lstat(profile_dir.c_str(), &buffer)) == -1) {
+        PLOG(ERROR) << "Failed to lstat profile_dir: " << profile_dir;
+        return -1;
+    }
+
+    fd_t profile_dir_fd = TEMP_FAILURE_RETRY(open(profile_dir.c_str(),
+            O_PATH | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW));
+    if (profile_dir_fd < 0) {
+        PLOG(ERROR) << "Failed to open profile_dir: " << profile_dir;
+    }
+    return profile_dir_fd;
+}
+
+static fd_t open_primary_profile_file_from_dir(const std::string& profile_dir, mode_t open_mode) {
+    fd_t profile_dir_fd  = open_profile_dir(profile_dir);
+    if (profile_dir_fd < 0) {
+        return -1;
+    }
+
+    fd_t profile_fd = -1;
+    std::string profile_file = create_primary_profile(profile_dir);
+
+    profile_fd = TEMP_FAILURE_RETRY(open(profile_file.c_str(), open_mode | O_NOFOLLOW));
+    if (profile_fd == -1) {
+        // It's not an error if the profile file does not exist.
         if (errno != ENOENT) {
-            PLOG(ERROR) << "Failed to lstat code_cache: " << code_cache_path;
+            PLOG(ERROR) << "Failed to lstat profile_dir: " << profile_dir;
+        }
+    }
+    // TODO(calin): use AutoCloseFD instead of closing the fd manually.
+    if (close(profile_dir_fd) != 0) {
+        PLOG(WARNING) << "Could not close profile dir " << profile_dir;
+    }
+    return profile_fd;
+}
+
+static fd_t open_primary_profile_file(userid_t user, const char* pkgname) {
+    std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
+    return open_primary_profile_file_from_dir(profile_dir, O_RDONLY);
+}
+
+static fd_t open_reference_profile(uid_t uid, const char* pkgname, bool read_write) {
+    std::string reference_profile_dir = create_data_ref_profile_package_path(pkgname);
+    int flags = read_write ? O_RDWR | O_CREAT : O_RDONLY;
+    fd_t fd = open_primary_profile_file_from_dir(reference_profile_dir, flags);
+    if (fd < 0) {
+        return -1;
+    }
+    if (read_write) {
+        // Fix the owner.
+        if (fchown(fd, uid, uid) < 0) {
+            close(fd);
             return -1;
         }
     }
-
-    int code_cache_fd = open(code_cache_path.c_str(),
-            O_PATH | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
-    if (code_cache_fd < 0) {
-        PLOG(ERROR) << "Failed to open code_cache: " << code_cache_path;
-    }
-    return code_cache_fd;
+    return fd;
 }
 
-// Keep profile paths in sync with ActivityThread.
-static void open_profile_files_for_user(uid_t uid, const char* pkgname, int code_cache_fd,
-            /*out*/ int* profile_fd, /*out*/ int* reference_profile_fd) {
-    *profile_fd = -1;
-    *reference_profile_fd = -1;
-    std::string profile_file(pkgname);
-    profile_file += PROFILE_FILE_EXTENSION;
-
-    // Check if the profile exists. If not, early return and don't log an error.
-    struct stat buffer;
-    if (TEMP_FAILURE_RETRY(fstatat(
-            code_cache_fd, profile_file.c_str(), &buffer, AT_SYMLINK_NOFOLLOW)) == -1) {
-        if (errno != ENOENT) {
-            PLOG(ERROR) << "Failed to fstatat profile file: " << profile_file;
-            return;
-        }
-    }
-
-    // Open in read-write to allow transfer of information from the current profile
-    // to the reference profile.
-    *profile_fd = openat(code_cache_fd, profile_file.c_str(), O_RDWR | O_NOFOLLOW);
-    if (*profile_fd < 0) {
-        PLOG(ERROR) << "Failed to open profile file: " << profile_file;
-        return;
-    }
-
-    std::string reference_profile(pkgname);
-    reference_profile += REFERENCE_PROFILE_FILE_EXTENSION;
-    // Give read-write permissions just for the user (changed with fchown after opening).
-    // We need write permission because dex2oat will update the reference profile files
-    // with the content of the corresponding current profile files.
-    *reference_profile_fd = openat(code_cache_fd, reference_profile.c_str(),
-            O_CREAT | O_RDWR | O_NOFOLLOW, S_IWUSR | S_IRUSR);
+static void open_profile_files(uid_t uid, const char* pkgname,
+            /*out*/ std::vector<fd_t>* profiles_fd, /*out*/ fd_t* reference_profile_fd) {
+    // Open the reference profile in read-write mode as profman might need to save the merge.
+    *reference_profile_fd = open_reference_profile(uid, pkgname, /*read_write*/ true);
     if (*reference_profile_fd < 0) {
-        close(*profile_fd);
+        // We can't access the reference profile file.
         return;
     }
-    if (fchown(*reference_profile_fd, uid, uid) < 0) {
-        PLOG(ERROR) << "Cannot change reference profile file owner: " << reference_profile;
-        close(*profile_fd);
-        *profile_fd = -1;
-        *reference_profile_fd = -1;
+
+    std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
+    for (auto user : users) {
+        fd_t profile_fd = open_primary_profile_file(user, pkgname);
+        // Add to the lists only if both fds are valid.
+        if (profile_fd >= 0) {
+            profiles_fd->push_back(profile_fd);
+        }
     }
 }
 
-static void open_profile_files(const char* volume_uuid, uid_t uid, const char* pkgname,
-            std::vector<int>* profile_fds, std::vector<int>* reference_profile_fds) {
-    std::vector<userid_t> users = get_known_users(volume_uuid);
-    for (auto user : users) {
-        int code_cache_fd  = open_code_cache_for_user(user, volume_uuid, pkgname);
-        if (code_cache_fd < 0) {
-            continue;
-        }
-        int profile_fd = -1;
-        int reference_profile_fd = -1;
-        open_profile_files_for_user(
-            uid, pkgname, code_cache_fd, &profile_fd, &reference_profile_fd);
-        close(code_cache_fd);
+static void drop_capabilities(uid_t uid) {
+    if (setgid(uid) != 0) {
+        ALOGE("setgid(%d) failed in installd during dexopt\n", uid);
+        exit(64);
+    }
+    if (setuid(uid) != 0) {
+        ALOGE("setuid(%d) failed in installd during dexopt\n", uid);
+        exit(65);
+    }
+    // drop capabilities
+    struct __user_cap_header_struct capheader;
+    struct __user_cap_data_struct capdata[2];
+    memset(&capheader, 0, sizeof(capheader));
+    memset(&capdata, 0, sizeof(capdata));
+    capheader.version = _LINUX_CAPABILITY_VERSION_3;
+    if (capset(&capheader, &capdata[0]) < 0) {
+        ALOGE("capset failed: %s\n", strerror(errno));
+        exit(66);
+    }
+}
 
-        // Add to the lists only if both fds are valid.
-        if ((profile_fd >= 0) && (reference_profile_fd >= 0)) {
-            profile_fds->push_back(profile_fd);
-            reference_profile_fds->push_back(reference_profile_fd);
+static constexpr int PROFMAN_BIN_RETURN_CODE_COMPILE = 0;
+static constexpr int PROFMAN_BIN_RETURN_CODE_SKIP_COMPILATION = 1;
+static constexpr int PROFMAN_BIN_RETURN_CODE_BAD_PROFILES = 2;
+static constexpr int PROFMAN_BIN_RETURN_CODE_ERROR_IO = 3;
+static constexpr int PROFMAN_BIN_RETURN_CODE_ERROR_LOCKING = 4;
+
+static void run_profman(const std::vector<fd_t>& profiles_fd, fd_t reference_profile_fd) {
+    static const size_t MAX_INT_LEN = 32;
+    static const char* PROFMAN_BIN = "/system/bin/profman";
+
+    std::vector<std::string> profile_args(profiles_fd.size());
+    char profile_buf[strlen("--profile-file-fd=") + MAX_INT_LEN];
+    for (size_t k = 0; k < profiles_fd.size(); k++) {
+        sprintf(profile_buf, "--profile-file-fd=%d", profiles_fd[k]);
+        profile_args[k].assign(profile_buf);
+    }
+    char reference_profile_arg[strlen("--reference-profile-file-fd=") + MAX_INT_LEN];
+    sprintf(reference_profile_arg, "--reference-profile-file-fd=%d", reference_profile_fd);
+
+    // program name, reference profile fd, the final NULL and the profile fds
+    const char* argv[3 + profiles_fd.size()];
+    int i = 0;
+    argv[i++] = PROFMAN_BIN;
+    argv[i++] = reference_profile_arg;
+    for (size_t k = 0; k < profile_args.size(); k++) {
+        argv[i++] = profile_args[k].c_str();
+    }
+    // Do not add after dex2oat_flags, they should override others for debugging.
+    argv[i] = NULL;
+
+    execv(PROFMAN_BIN, (char * const *)argv);
+    ALOGE("execv(%s) failed: %s\n", PROFMAN_BIN, strerror(errno));
+    exit(68);   /* only get here on exec failure */
+}
+
+// Decides if profile guided compilation is needed or not based on existing profiles.
+// Returns true if there is enough information in the current profiles that worth
+// a re-compilation of the package.
+// If the return value is true all the current profiles would have been merged into
+// the reference profiles accessible with open_reference_profile().
+static bool analyse_profiles(uid_t uid, const char* pkgname) {
+    std::vector<fd_t> profiles_fd;
+    fd_t reference_profile_fd = -1;
+    open_profile_files(uid, pkgname, &profiles_fd, &reference_profile_fd);
+    if (profiles_fd.empty() || (reference_profile_fd == -1)) {
+        // Skip profile guided compilation because no profiles were found.
+        // Or if the reference profile info couldn't be opened.
+        close_all_fds(profiles_fd, "profiles_fd");
+        if ((reference_profile_fd != - 1) && (close(reference_profile_fd) != 0)) {
+            PLOG(WARNING) << "Failed to close fd for reference profile";
+        }
+        return false;
+    }
+
+    ALOGV("PROFMAN: --- BEGIN '%s' ---\n", pkgname);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        /* child -- drop privileges before continuing */
+        drop_capabilities(uid);
+        run_profman(profiles_fd, reference_profile_fd);
+        exit(68);   /* only get here on exec failure */
+    }
+    /* parent */
+    int return_code = wait_child(pid);
+    bool need_to_compile = false;
+    bool delete_current_profiles = false;
+    bool delete_reference_profile = false;
+    if (!WIFEXITED(return_code)) {
+        LOG(WARNING) << "profman failed for package " << pkgname << ": " << return_code;
+    } else {
+        return_code = WEXITSTATUS(return_code);
+        switch (return_code) {
+            case PROFMAN_BIN_RETURN_CODE_COMPILE:
+                need_to_compile = true;
+                delete_current_profiles = true;
+                delete_reference_profile = false;
+                break;
+            case PROFMAN_BIN_RETURN_CODE_SKIP_COMPILATION:
+                need_to_compile = false;
+                delete_current_profiles = false;
+                delete_reference_profile = false;
+                break;
+            case PROFMAN_BIN_RETURN_CODE_BAD_PROFILES:
+                LOG(WARNING) << "Bad profiles for package " << pkgname;
+                need_to_compile = false;
+                delete_current_profiles = true;
+                delete_reference_profile = true;
+                break;
+            case PROFMAN_BIN_RETURN_CODE_ERROR_IO:  // fall-through
+            case PROFMAN_BIN_RETURN_CODE_ERROR_LOCKING:
+                // Temporary IO problem (e.g. locking). Ignore but log a warning.
+                LOG(WARNING) << "IO error while reading profiles for package " << pkgname;
+                need_to_compile = false;
+                delete_current_profiles = false;
+                delete_reference_profile = false;
+                break;
+           default:
+                // Unknown return code or error. Unlink profiles.
+                LOG(WARNING) << "Unknown error code while processing profiles for package " << pkgname
+                        << ": " << return_code;
+                need_to_compile = false;
+                delete_current_profiles = true;
+                delete_reference_profile = true;
+                break;
         }
     }
+    close_all_fds(profiles_fd, "profiles_fd");
+    if (close(reference_profile_fd) != 0) {
+        PLOG(WARNING) << "Failed to close fd for reference profile";
+    }
+    if (delete_current_profiles) {
+        unlink_current_profiles(pkgname);
+    }
+    if (delete_reference_profile) {
+        unlink_reference_profile(pkgname);
+    }
+    return need_to_compile;
 }
 
 static void trim_extension(char* path) {
@@ -1066,9 +1236,36 @@ static bool set_permissions_and_ownership(int fd, bool is_public, int uid, const
     return true;
 }
 
+static bool create_oat_out_path(const char* apk_path, const char* instruction_set,
+            const char* oat_dir, /*out*/ char* out_path) {
+    // Early best-effort check whether we can fit the the path into our buffers.
+    // Note: the cache path will require an additional 5 bytes for ".swap", but we'll try to run
+    // without a swap file, if necessary. Reference profiles file also add an extra ".prof"
+    // extension to the cache path (5 bytes).
+    if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
+        ALOGE("apk_path too long '%s'\n", apk_path);
+        return false;
+    }
+
+    if (oat_dir != NULL && oat_dir[0] != '!') {
+        if (validate_apk_path(oat_dir)) {
+            ALOGE("invalid oat_dir '%s'\n", oat_dir);
+            return false;
+        }
+        if (!calculate_oat_file_path(out_path, oat_dir, apk_path, instruction_set)) {
+            return false;
+        }
+    } else {
+        if (!create_cache_path(out_path, apk_path, instruction_set)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* volume_uuid,
-           bool use_profiles)
+           int dexopt_needed, const char* oat_dir, int dexopt_flags,
+           const char* volume_uuid ATTRIBUTE_UNUSED, bool use_profiles)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1077,19 +1274,25 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     char image_path[PKG_PATH_MAX];
     const char *input_file;
     char in_odex_path[PKG_PATH_MAX];
-    int res, input_fd=-1, out_fd=-1, image_fd=-1, swap_fd=-1;
+    int res;
+    fd_t input_fd=-1, out_fd=-1, image_fd=-1, swap_fd=-1;
     bool is_public = (dexopt_flags & DEXOPT_PUBLIC) != 0;
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool extract_only = (dexopt_flags & DEXOPT_EXTRACTONLY) != 0;
-    std::vector<int> profile_files_fd;
-    std::vector<int> reference_profile_files_fd;
+    fd_t reference_profile_fd = -1;
     if (use_profiles) {
-        open_profile_files(volume_uuid, uid, pkgname,
-                &profile_files_fd, &reference_profile_files_fd);
-        if (profile_files_fd.empty()) {
-            // Skip profile guided compilation because no profiles were found.
+        if (analyse_profiles(uid, pkgname)) {
+            // Open again reference profile in read only mode as dex2oat does not get write
+            // permissions.
+            reference_profile_fd = open_reference_profile(uid, pkgname, /*read_write*/ false);
+            if (reference_profile_fd == -1) {
+                PLOG(WARNING) << "Couldn't open reference profile in read only mode " << pkgname;
+                exit(72);
+            }
+        } else {
+            // No need to (re)compile. Return early.
             return 0;
         }
     }
@@ -1098,26 +1301,8 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         LOG_FATAL("dexopt flags contains unknown fields\n");
     }
 
-    // Early best-effort check whether we can fit the the path into our buffers.
-    // Note: the cache path will require an additional 5 bytes for ".swap", but we'll try to run
-    // without a swap file, if necessary.
-    if (strlen(apk_path) >= (PKG_PATH_MAX - 8)) {
-        ALOGE("apk_path too long '%s'\n", apk_path);
-        return -1;
-    }
-
-    if (oat_dir != NULL && oat_dir[0] != '!') {
-        if (validate_apk_path(oat_dir)) {
-            ALOGE("invalid oat_dir '%s'\n", oat_dir);
-            return -1;
-        }
-        if (!calculate_oat_file_path(out_path, oat_dir, apk_path, instruction_set)) {
-            return -1;
-        }
-    } else {
-        if (!create_cache_path(out_path, apk_path, instruction_set)) {
-            return -1;
-        }
+    if (!create_oat_out_path(apk_path, instruction_set, oat_dir, out_path)) {
+        return false;
     }
 
     switch (dexopt_needed) {
@@ -1207,24 +1392,8 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     pid = fork();
     if (pid == 0) {
         /* child -- drop privileges before continuing */
-        if (setgid(uid) != 0) {
-            ALOGE("setgid(%d) failed in installd during dexopt\n", uid);
-            exit(64);
-        }
-        if (setuid(uid) != 0) {
-            ALOGE("setuid(%d) failed in installd during dexopt\n", uid);
-            exit(65);
-        }
-        // drop capabilities
-        struct __user_cap_header_struct capheader;
-        struct __user_cap_data_struct capdata[2];
-        memset(&capheader, 0, sizeof(capheader));
-        memset(&capdata, 0, sizeof(capdata));
-        capheader.version = _LINUX_CAPABILITY_VERSION_3;
-        if (capset(&capheader, &capdata[0]) < 0) {
-            ALOGE("capset failed: %s\n", strerror(errno));
-            exit(66);
-        }
+        drop_capabilities(uid);
+
         SetDex2OatAndPatchOatScheduling(boot_complete);
         if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
@@ -1244,7 +1413,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             }
             run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
                         instruction_set, vm_safe_mode, debuggable, boot_complete, extract_only,
-                        profile_files_fd, reference_profile_files_fd);
+                        reference_profile_fd);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);
@@ -1269,9 +1438,8 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     if (swap_fd >= 0) {
         close(swap_fd);
     }
-    if (use_profiles != 0) {
-        close_all_fds(profile_files_fd, "profile_files_fd");
-        close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
+    if (reference_profile_fd >= 0) {
+        close(reference_profile_fd);
     }
     if (image_fd >= 0) {
         close(image_fd);
@@ -1286,9 +1454,11 @@ fail:
     if (input_fd >= 0) {
         close(input_fd);
     }
-    if (use_profiles != 0) {
-        close_all_fds(profile_files_fd, "profile_files_fd");
-        close_all_fds(reference_profile_files_fd, "reference_profile_files_fd");
+    if (reference_profile_fd >= 0) {
+        close(reference_profile_fd);
+        // We failed to compile. Unlink the reference profile. Current profiles are already unlinked
+        // when profmoan advises compilation.
+        unlink_reference_profile(pkgname);
     }
     if (swap_fd >= 0) {
         close(swap_fd);

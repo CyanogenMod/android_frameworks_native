@@ -59,6 +59,11 @@ static bool is_valid_filename(const std::string& name) {
     }
 }
 
+static void check_package_name(const char* package_name) {
+    CHECK(is_valid_filename(package_name));
+    CHECK(is_valid_package_name(package_name) == 0);
+}
+
 /**
  * Create the path name where package app contents should be stored for
  * the given volume UUID and package name.  An empty UUID is assumed to
@@ -66,9 +71,7 @@ static bool is_valid_filename(const std::string& name) {
  */
 std::string create_data_app_package_path(const char* volume_uuid,
         const char* package_name) {
-    CHECK(is_valid_filename(package_name));
-    CHECK(is_valid_package_name(package_name) == 0);
-
+    check_package_name(package_name);
     return StringPrintf("%s/%s",
             create_data_app_path(volume_uuid).c_str(), package_name);
 }
@@ -80,18 +83,14 @@ std::string create_data_app_package_path(const char* volume_uuid,
  */
 std::string create_data_user_package_path(const char* volume_uuid,
         userid_t user, const char* package_name) {
-    CHECK(is_valid_filename(package_name));
-    CHECK(is_valid_package_name(package_name) == 0);
-
+    check_package_name(package_name);
     return StringPrintf("%s/%s",
             create_data_user_path(volume_uuid, user).c_str(), package_name);
 }
 
 std::string create_data_user_de_package_path(const char* volume_uuid,
         userid_t user, const char* package_name) {
-    CHECK(is_valid_filename(package_name));
-    CHECK(is_valid_package_name(package_name) == 0);
-
+    check_package_name(package_name);
     return StringPrintf("%s/%s",
             create_data_user_de_path(volume_uuid, user).c_str(), package_name);
 }
@@ -159,6 +158,20 @@ std::string create_data_user_de_path(const char* volume_uuid, userid_t userid) {
  */
 std::string create_data_media_path(const char* volume_uuid, userid_t userid) {
     return StringPrintf("%s/media/%u", create_data_path(volume_uuid).c_str(), userid);
+}
+
+std::string create_data_user_profiles_path(userid_t userid) {
+    return StringPrintf("%s/cur/%u", android_profiles_dir.path, userid);
+}
+
+std::string create_data_user_profile_package_path(userid_t user, const char* package_name) {
+    check_package_name(package_name);
+    return StringPrintf("%s/%s",create_data_user_profiles_path(user).c_str(), package_name);
+}
+
+std::string create_data_ref_profile_package_path(const char* package_name) {
+    check_package_name(package_name);
+    return StringPrintf("%s/ref/%s", android_profiles_dir.path, package_name);
 }
 
 std::vector<userid_t> get_known_users(const char* volume_uuid) {
