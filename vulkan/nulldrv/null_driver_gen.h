@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-// This file is generated. Do not edit manually!
-// To regenerate: $ apic template ../api/vulkan.api null_driver.tmpl
-// Requires apic from https://android.googlesource.com/platform/tools/gpu/.
+// WARNING: This file is generated. See ../README.md for instructions.
 
 #ifndef NULLDRV_NULL_DRIVER_H
 #define NULLDRV_NULL_DRIVER_H 1

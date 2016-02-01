@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// WARNING: This file is generated. See ../README.md for instructions.
+
 #include <log/log.h>
 #include <algorithm>
 #include "loader.h"
