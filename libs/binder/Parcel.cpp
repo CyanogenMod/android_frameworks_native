@@ -751,6 +751,37 @@ restart_write:
     return NULL;
 }
 
+status_t Parcel::writeUtf8AsUtf16(const std::string& str) {
+    const uint8_t* strData = (uint8_t*)str.data();
+    const size_t strLen= str.length();
+    const ssize_t utf16Len = utf8_to_utf16_length(strData, strLen);
+    if (utf16Len < 0 || utf16Len> std::numeric_limits<int32_t>::max()) {
+        return BAD_VALUE;
+    }
+
+    status_t err = writeInt32(utf16Len);
+    if (err) {
+        return err;
+    }
+
+    // Allocate enough bytes to hold our converted string and its terminating NULL.
+    void* dst = writeInplace((utf16Len + 1) * sizeof(char16_t));
+    if (!dst) {
+        return NO_MEMORY;
+    }
+
+    utf8_to_utf16(strData, strLen, (char16_t*)dst);
+
+    return NO_ERROR;
+}
+
+status_t Parcel::writeUtf8AsUtf16(const std::unique_ptr<std::string>& str) {
+  if (!str) {
+    return writeInt32(-1);
+  }
+  return writeUtf8AsUtf16(*str);
+}
+
 status_t Parcel::writeByteVector(const std::unique_ptr<std::vector<int8_t>>& val)
 {
     if (!val) {
@@ -852,6 +883,15 @@ status_t Parcel::writeString16Vector(
         const std::unique_ptr<std::vector<std::unique_ptr<String16>>>& val)
 {
     return writeNullableTypedVector(val, &Parcel::writeString16);
+}
+
+status_t Parcel::writeUtf8VectorAsUtf16Vector(
+                        const std::unique_ptr<std::vector<std::unique_ptr<std::string>>>& val) {
+    return writeNullableTypedVector(val, &Parcel::writeUtf8AsUtf16);
+}
+
+status_t Parcel::writeUtf8VectorAsUtf16Vector(const std::vector<std::string>& val) {
+    return writeTypedVector(val, &Parcel::writeUtf8AsUtf16);
 }
 
 status_t Parcel::writeInt32(int32_t val)
@@ -1493,6 +1533,14 @@ status_t Parcel::readString16Vector(std::vector<String16>* val) const {
     return readTypedVector(val, &Parcel::readString16);
 }
 
+status_t Parcel::readUtf8VectorFromUtf16Vector(
+        std::unique_ptr<std::vector<std::unique_ptr<std::string>>>* val) const {
+    return readNullableTypedVector(val, &Parcel::readUtf8FromUtf16);
+}
+
+status_t Parcel::readUtf8VectorFromUtf16Vector(std::vector<std::string>* val) const {
+    return readTypedVector(val, &Parcel::readUtf8FromUtf16);
+}
 
 status_t Parcel::readInt32(int32_t *pArg) const
 {
@@ -1649,6 +1697,46 @@ status_t Parcel::readByte(int8_t *pArg) const
 int8_t Parcel::readByte() const
 {
     return int8_t(readInt32());
+}
+
+status_t Parcel::readUtf8FromUtf16(std::string* str) const {
+    size_t utf16Size = 0;
+    const char16_t* src = readString16Inplace(&utf16Size);
+    if (!src) {
+        return UNEXPECTED_NULL;
+    }
+
+    // Save ourselves the trouble, we're done.
+    if (utf16Size == 0u) {
+        str->clear();
+       return NO_ERROR;
+    }
+
+    ssize_t utf8Size = utf16_to_utf8_length(src, utf16Size);
+    if (utf8Size < 0) {
+        return BAD_VALUE;
+    }
+    // Note that while it is probably safe to assume string::resize keeps a
+    // spare byte around for the trailing null, we're going to be explicit.
+    str->resize(utf8Size + 1);
+    utf16_to_utf8(src, utf16Size, &((*str)[0]));
+    str->resize(utf8Size);
+    return NO_ERROR;
+}
+
+status_t Parcel::readUtf8FromUtf16(std::unique_ptr<std::string>* str) const {
+    const int32_t start = dataPosition();
+    int32_t size;
+    status_t status = readInt32(&size);
+    str->reset();
+
+    if (status != OK || size < 0) {
+        return status;
+    }
+
+    setDataPosition(start);
+    str->reset(new std::string());
+    return readUtf8FromUtf16(str->get());
 }
 
 const char* Parcel::readCString() const
