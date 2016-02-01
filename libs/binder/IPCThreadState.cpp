@@ -287,12 +287,18 @@ restart:
         return new IPCThreadState;
     }
     
-    if (gShutdown) return NULL;
+    if (gShutdown) {
+        ALOGW("Calling IPCThreadState::self() during shutdown is dangerous, expect a crash.\n");
+        return NULL;
+    }
     
     pthread_mutex_lock(&gTLSMutex);
     if (!gHaveTLS) {
-        if (pthread_key_create(&gTLS, threadDestructor) != 0) {
+        int key_create_value = pthread_key_create(&gTLS, threadDestructor);
+        if (key_create_value != 0) {
             pthread_mutex_unlock(&gTLSMutex);
+            ALOGW("IPCThreadState::self() unable to create TLS key, expect a crash: %s\n",
+                    strerror(key_create_value));
             return NULL;
         }
         gHaveTLS = true;
