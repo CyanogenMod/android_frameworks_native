@@ -17,6 +17,7 @@
 #ifndef ANDROID_PARCEL_H
 #define ANDROID_PARCEL_H
 
+#include <string>
 #include <vector>
 
 #include <cutils/native_handle.h>
@@ -119,6 +120,10 @@ public:
     status_t            writeChar(char16_t val);
     status_t            writeByte(int8_t val);
 
+    // Take a UTF8 encoded string, convert to UTF16, write it to the parcel.
+    status_t            writeUtf8AsUtf16(const std::string& str);
+    status_t            writeUtf8AsUtf16(const std::unique_ptr<std::string>& str);
+
     status_t            writeByteVector(const std::unique_ptr<std::vector<int8_t>>& val);
     status_t            writeByteVector(const std::vector<int8_t>& val);
     status_t            writeInt32Vector(const std::unique_ptr<std::vector<int32_t>>& val);
@@ -136,6 +141,9 @@ public:
     status_t            writeString16Vector(
                             const std::unique_ptr<std::vector<std::unique_ptr<String16>>>& val);
     status_t            writeString16Vector(const std::vector<String16>& val);
+    status_t            writeUtf8VectorAsUtf16Vector(
+                            const std::unique_ptr<std::vector<std::unique_ptr<std::string>>>& val);
+    status_t            writeUtf8VectorAsUtf16Vector(const std::vector<std::string>& val);
 
     status_t            writeStrongBinderVector(const std::unique_ptr<std::vector<sp<IBinder>>>& val);
     status_t            writeStrongBinderVector(const std::vector<sp<IBinder>>& val);
@@ -230,6 +238,10 @@ public:
     int8_t              readByte() const;
     status_t            readByte(int8_t *pArg) const;
 
+    // Read a UTF16 encoded string, convert to UTF8
+    status_t            readUtf8FromUtf16(std::string* str) const;
+    status_t            readUtf8FromUtf16(std::unique_ptr<std::string>* str) const;
+
     const char*         readCString() const;
     String8             readString8() const;
     String16            readString16() const;
@@ -274,6 +286,9 @@ public:
     status_t            readString16Vector(
                             std::unique_ptr<std::vector<std::unique_ptr<String16>>>* val) const;
     status_t            readString16Vector(std::vector<String16>* val) const;
+    status_t            readUtf8VectorFromUtf16Vector(
+                            std::unique_ptr<std::vector<std::unique_ptr<std::string>>>* val) const;
+    status_t            readUtf8VectorFromUtf16Vector(std::vector<std::string>* val) const;
 
     template<typename T>
     status_t            read(Flattenable<T>& val) const;
