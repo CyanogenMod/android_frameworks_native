@@ -60,19 +60,26 @@ static const char* native_processes_to_dump[] = {
         NULL,
 };
 
-DurationReporter::DurationReporter(const char *title) {
+DurationReporter::DurationReporter(const char *title) : DurationReporter(title, stdout) {}
+
+DurationReporter::DurationReporter(const char *title, FILE *out) {
     title_ = title;
     if (title) {
         started_ = DurationReporter::nanotime();
     }
+    out_ = out;
 }
 
 DurationReporter::~DurationReporter() {
     if (title_) {
         uint64_t elapsed = DurationReporter::nanotime() - started_;
         // Use "Yoda grammar" to make it easier to grep|sort sections.
-        printf("------ %.3fs was the duration of '%s' ------\n",
-               (float) elapsed / NANOS_PER_SEC, title_);
+        if (out_) {
+            fprintf(out_, "------ %.3fs was the duration of '%s' ------\n",
+                   (float) elapsed / NANOS_PER_SEC, title_);
+        } else {
+            ALOGD("Duration of '%s': %.3fs\n", title_, (float) elapsed / NANOS_PER_SEC);
+        }
     }
 }
 
@@ -668,7 +675,7 @@ void redirect_to_file(FILE *redirect, char *path) {
         }
     }
 
-    int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+    int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW,
                                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
     if (fd < 0) {
         fprintf(stderr, "%s: %s\n", path, strerror(errno));
@@ -690,7 +697,7 @@ static bool should_dump_native_traces(const char* path) {
 
 /* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
 const char *dump_traces() {
-    DurationReporter duration_reporter("DUMP TRACES");
+    DurationReporter duration_reporter("DUMP TRACES", NULL);
     ON_DRY_RUN_RETURN(NULL);
     const char* result = NULL;
 
