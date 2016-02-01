@@ -52,6 +52,9 @@
 
     <!-- Feature to specify if the device supports a VR mode. -->
     <feature name="android.software.vr.mode" />
+    <!-- Devices with all optimizations required to be a "VR Ready" device that
+         pass all CTS tests for this feature must include feature
+         android.hardware.vr.high_performance -->
 
     <!-- devices with GPS must include android.hardware.location.gps.xml -->
     <!-- devices with an autofocus camera and/or flash must include either
