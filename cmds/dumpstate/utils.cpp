@@ -777,7 +777,7 @@ void redirect_to_socket(FILE *redirect, const char *service) {
 }
 
 void create_parent_dirs(const char *path) {
-    char *chp = (char*) path;
+    char *chp = const_cast<char *> (path);
 
     /* skip initial slash */
     if (chp[0] == '/')

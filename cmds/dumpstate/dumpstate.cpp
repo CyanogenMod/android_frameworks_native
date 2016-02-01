@@ -576,7 +576,7 @@ static bool add_text_zip_entry(const std::string& entry_name, const std::string&
     return true;
 }
 
-static void dumpstate(const std::string& screenshot_path) {
+static void dumpstate(const std::string& screenshot_path, const std::string& version) {
     DurationReporter duration_reporter("DUMPSTATE");
     unsigned long timeout;
 
@@ -847,7 +847,12 @@ static void dumpstate(const std::string& screenshot_path) {
     /* the full dumpsys is starting to take a long time, so we need
        to increase its timeout.  we really need to do the timeouts in
        dumpsys itself... */
-    run_command("DUMPSYS", 60, "dumpsys", NULL);
+    if (version == VERSION_DUMPSYS_SPLIT) {
+        // Skipping meminfo and cpuinfo services.
+        run_command("DUMPSYS", 60, "dumpsys", "--skip", "meminfo,cpuinfo", NULL);
+    } else {
+        run_command("DUMPSYS", 60, "dumpsys", NULL);
+    }
 
     printf("========================================================\n");
     printf("== Checkins\n");
@@ -1219,18 +1224,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* collect stack traces from Dalvik and native processes (needs root) */
-    dump_traces_path = dump_traces();
-
-    /* Get the tombstone fds, recovery files, and mount info here while we are running as root. */
-    get_tombstone_fds(tombstone_data);
-    add_dir(RECOVERY_DIR, true);
-    add_mountinfo();
-
-    if (!drop_root()) {
-        return -1;
-    }
-
     if (is_redirecting) {
         redirect_to_file(stderr, const_cast<char*>(log_path.c_str()));
         /* TODO: rather than generating a text file now and zipping it later,
@@ -1243,7 +1236,26 @@ int main(int argc, char *argv[]) {
     // duration is logged into MYLOG instead.
     print_header(version);
 
-    dumpstate(do_early_screenshot ? "": screenshot_path);
+    if (version == VERSION_DUMPSYS_SPLIT) {
+        // Invoking the following dumpsys calls before dump_traces() to try and
+        // keep the system stats as close to its initial state as possible.
+        run_command("DUMPSYS MEMINFO", 30, SU_PATH, "2000", "dumpsys", "meminfo", "-a", NULL);
+        run_command("DUMPSYS CPUINFO", 30, SU_PATH, "2000", "dumpsys", "cpuinfo", "-a", NULL);
+    }
+
+    /* collect stack traces from Dalvik and native processes (needs root) */
+    dump_traces_path = dump_traces();
+
+    /* Get the tombstone fds, recovery files, and mount info here while we are running as root. */
+    get_tombstone_fds(tombstone_data);
+    add_dir(RECOVERY_DIR, true);
+    add_mountinfo();
+
+    if (!drop_root()) {
+        return -1;
+    }
+
+    dumpstate(do_early_screenshot ? "": screenshot_path, version);
 
     /* done */
     if (vibrator) {
