@@ -165,6 +165,7 @@ void dump_emmc_ecsd(const char *ext_csd_path);
 class DurationReporter {
 public:
     DurationReporter(const char *title);
+    DurationReporter(const char *title, FILE* out);
 
     ~DurationReporter();
 
@@ -172,6 +173,7 @@ public:
 
 private:
     const char* title_;
+    FILE* out_;
     uint64_t started_;
 };
 

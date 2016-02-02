@@ -132,9 +132,9 @@ void add_mountinfo() {
     if (!zip_writer) return;
     const char *title = "MOUNT INFO";
     mount_points.clear();
-    DurationReporter duration_reporter(title);
+    DurationReporter duration_reporter(title, NULL);
     for_each_pid(do_mountinfo, NULL);
-    printf("%s: %d entries added to zip file\n", title, mount_points.size());
+    ALOGD("%s: %d entries added to zip file\n", title, mount_points.size());
 }
 
 static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
@@ -357,7 +357,6 @@ static void print_header() {
 
 /* adds a new entry to the existing zip file. */
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
-    DurationReporter duration_reporter(("ADD ZIP ENTRY " + entry_name).c_str());
     ALOGD("Adding zip entry %s", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
@@ -410,7 +409,7 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
 /* adds all files from a directory to the zipped bugreport file */
 void add_dir(const char *dir, bool recursive) {
     if (!zip_writer) return;
-    DurationReporter duration_reporter(dir);
+    DurationReporter duration_reporter(dir, NULL);
     dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
 }
 
@@ -717,6 +716,9 @@ static void dumpstate(const std::string& screenshot_path) {
 
 
     printf("========================================================\n");
+    printf("== Final progress (pid %d): %d/%d (originally %d)\n",
+            getpid(), progress, weight_total, WEIGHT_TOTAL);
+    printf("========================================================\n");
     printf("== dumpstate: done\n");
     printf("========================================================\n");
 }
@@ -799,6 +801,48 @@ static std::string SHA256_file_hash(std::string filepath) {
     return std::string(hash_buffer);
 }
 
+/* switch to non-root user and group */
+bool drop_root() {
+    /* ensure we will keep capabilities when we drop root */
+    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
+        ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
+            AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
+    if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
+        ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
+        return false;
+    }
+    if (setgid(AID_SHELL) != 0) {
+        ALOGE("Unable to setgid, aborting: %s\n", strerror(errno));
+        return false;
+    }
+    if (setuid(AID_SHELL) != 0) {
+        ALOGE("Unable to setuid, aborting: %s\n", strerror(errno));
+        return false;
+    }
+
+    struct __user_cap_header_struct capheader;
+    struct __user_cap_data_struct capdata[2];
+    memset(&capheader, 0, sizeof(capheader));
+    memset(&capdata, 0, sizeof(capdata));
+    capheader.version = _LINUX_CAPABILITY_VERSION_3;
+    capheader.pid = 0;
+
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[0].inheritable = 0;
+    capdata[1].inheritable = 0;
+
+    if (capset(&capheader, &capdata[0]) < 0) {
+        ALOGE("capset failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    return true;
+}
 
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
@@ -959,8 +1003,6 @@ int main(int argc, char *argv[]) {
         fclose(cmdline);
     }
 
-    print_header();
-
     /* open the vibrator before dropping root */
     std::unique_ptr<FILE, int(*)(FILE*)> vibrator(NULL, fclose);
     if (do_vibrate) {
@@ -999,42 +1041,7 @@ int main(int argc, char *argv[]) {
     add_dir(RECOVERY_DIR, true);
     add_mountinfo();
 
-    /* ensure we will keep capabilities when we drop root */
-    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
-        ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
-        return -1;
-    }
-
-    /* switch to non-root user and group */
-    gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
-            AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
-    if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
-        ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
-        return -1;
-    }
-    if (setgid(AID_SHELL) != 0) {
-        ALOGE("Unable to setgid, aborting: %s\n", strerror(errno));
-        return -1;
-    }
-    if (setuid(AID_SHELL) != 0) {
-        ALOGE("Unable to setuid, aborting: %s\n", strerror(errno));
-        return -1;
-    }
-
-    struct __user_cap_header_struct capheader;
-    struct __user_cap_data_struct capdata[2];
-    memset(&capheader, 0, sizeof(capheader));
-    memset(&capdata, 0, sizeof(capdata));
-    capheader.version = _LINUX_CAPABILITY_VERSION_3;
-    capheader.pid = 0;
-
-    capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
-    capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
-    capdata[0].inheritable = 0;
-    capdata[1].inheritable = 0;
-
-    if (capset(&capheader, &capdata[0]) < 0) {
-        ALOGE("capset failed: %s\n", strerror(errno));
+    if (!drop_root()) {
         return -1;
     }
 
@@ -1044,6 +1051,10 @@ int main(int argc, char *argv[]) {
            directly, but the libziparchive doesn't support that option yet. */
         redirect_to_file(stdout, const_cast<char*>(tmp_path.c_str()));
     }
+    // NOTE: there should be no stdout output until now, otherwise it would break the header.
+    // In particular, DurationReport objects should be created passing 'title, NULL', so their
+    // duration is logged into ALOG instead.
+    print_header();
 
     dumpstate(do_early_screenshot ? "": screenshot_path);
 
