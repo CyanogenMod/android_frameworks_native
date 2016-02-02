@@ -161,10 +161,12 @@ void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
     }
 
     VkDevice device;
+    float queue_priorities[] = {0.0};
     const VkDeviceQueueCreateInfo queue_create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = 0,
         .queueCount = 1,
+        queue_priorities
     };
     const VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
