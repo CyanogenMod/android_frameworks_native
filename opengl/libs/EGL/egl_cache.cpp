@@ -21,6 +21,7 @@
 #include "egldefs.h"
 
 #include <fcntl.h>
+#include <inttypes.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -306,7 +307,8 @@ void egl_cache_t::loadBlobCacheLocked() {
         // Sanity check the size before trying to mmap it.
         size_t fileSize = statBuf.st_size;
         if (fileSize > maxTotalSize * 2) {
-            ALOGE("cache file is too large: %#llx", statBuf.st_size);
+            ALOGE("cache file is too large: %#" PRIx64,
+                  static_cast<off64_t>(statBuf.st_size));
             close(fd);
             return;
         }
