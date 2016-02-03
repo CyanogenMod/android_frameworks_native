@@ -1118,17 +1118,21 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         }
     }
 
-    strcpy(image_path, out_path);
-    trim_extension(image_path);
-    // Recreate is false since we want to avoid deleting the image in case dex2oat decides to not
-    // compile anything.
-    image_fd = open_with_extension(image_path, ".art", /*recreate*/false);
-    if (image_fd < 0) {
-        // Could not create application image file. Go on since we can compile without it.
-        ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
-    } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
-        image_fd = -1;
+    // Avoid generating an app image for extract only since it will not contain any classes.
+    if (!extract_only) {
+      strcpy(image_path, out_path);
+      trim_extension(image_path);
+      // Recreate is false since we want to avoid deleting the image in case dex2oat decides to not
+      // compile anything.
+      image_fd = open_with_extension(image_path, ".art", /*recreate*/false);
+      if (image_fd < 0) {
+          // Could not create application image file. Go on since we can compile without it.
+          ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
+      } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
+          image_fd = -1;
+      }
     }
+
     ALOGV("DexInv: --- BEGIN '%s' ---\n", input_file);
 
     pid_t pid;
