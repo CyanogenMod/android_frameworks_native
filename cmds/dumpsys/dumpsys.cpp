@@ -26,13 +26,24 @@ static int sort_func(const String16* lhs, const String16* rhs)
     return lhs->compare(*rhs);
 }
 
+static void usage() {
+    fprintf(stderr,
+        "usage: dumpsys\n"
+            "         To dump all services.\n"
+            "or:\n"
+            "       dumpsys [--help | -l | SERVICE [ARGS]]\n"
+            "         --help: shows this help\n"
+            "         -l: only list services, do not dump them\n"
+            "         SERVICE: dumps only service SERVICE, optionally passing ARGS to it\n");
+}
+
 int main(int argc, char* const argv[])
 {
     signal(SIGPIPE, SIG_IGN);
     sp<IServiceManager> sm = defaultServiceManager();
     fflush(stdout);
     if (sm == NULL) {
-		ALOGE("Unable to get default service manager!");
+        ALOGE("Unable to get default service manager!");
         aerr << "dumpsys: Unable to get default service manager!" << endl;
         return 20;
     }
@@ -40,8 +51,14 @@ int main(int argc, char* const argv[])
     Vector<String16> services;
     Vector<String16> args;
     bool showListOnly = false;
-    if ((argc == 2) && (strcmp(argv[1], "-l") == 0)) {
-        showListOnly = true;
+    if (argc == 2) {
+        if (strcmp(argv[1], "--help") == 0) {
+            usage();
+            return 0;
+        }
+        if (strcmp(argv[1], "-l") == 0) {
+            showListOnly = true;
+        }
     }
     if ((argc == 1) || showListOnly) {
         services = sm->listServices();
@@ -59,7 +76,7 @@ int main(int argc, char* const argv[])
     if (N > 1) {
         // first print a list of the current services
         aout << "Currently running services:" << endl;
-    
+
         for (size_t i=0; i<N; i++) {
             sp<IBinder> service = sm->checkService(services[i]);
             if (service != NULL) {
