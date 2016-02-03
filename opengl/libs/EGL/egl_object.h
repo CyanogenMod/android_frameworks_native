@@ -37,7 +37,7 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-struct egl_display_t;
+class egl_display_t;
 
 class egl_object_t {
     egl_display_t *display;

@@ -286,7 +286,7 @@ EGLBoolean egl_display_t::terminate() {
         // there are no reference to them, it which case, we're free to
         // delete them.
         size_t count = objects.size();
-        ALOGW_IF(count, "eglTerminate() called w/ %d objects remaining", count);
+        ALOGW_IF(count, "eglTerminate() called w/ %zu objects remaining", count);
         for (size_t i=0 ; i<count ; i++) {
             egl_object_t* o = objects.itemAt(i);
             o->destroy();
