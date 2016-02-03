@@ -368,6 +368,10 @@ static void print_header(std::string version) {
 
 /* adds a new entry to the existing zip file. */
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
+    if (!zip_writer) {
+        ALOGD("Not adding zip entry %s from fd because zip_writer is not set", entry_name.c_str());
+        return false;
+    }
     ALOGD("Adding zip entry %s", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
@@ -420,14 +424,21 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
 
 /* adds all files from a directory to the zipped bugreport file */
 void add_dir(const char *dir, bool recursive) {
-    if (!zip_writer) return;
+    if (!zip_writer) {
+        ALOGD("Not adding dir %s because zip_writer is not set", dir);
+        return;
+    }
     DurationReporter duration_reporter(dir, NULL);
     dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
 }
 
 /* adds a text entry entry to the existing zip file. */
 static bool add_text_zip_entry(const std::string& entry_name, const std::string& content) {
-    ALOGD("Adding zip text entry %s (%s)", entry_name.c_str(), content.c_str());
+    if (!zip_writer) {
+        ALOGD("Not adding text zip entry %s because zip_writer is not set", entry_name.c_str());
+        return false;
+    }
+    ALOGD("Adding zip text entry %s", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(), ZipWriter::kCompress, now);
     if (err) {
         ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
@@ -772,7 +783,7 @@ static void usage() {
             "  -s: write output to control socket (for init)\n"
             "  -q: disable vibrate\n"
             "  -B: send broadcast when finished (requires -o)\n"
-            "  -P: send broadacast when started and update system properties on progress (requires -o and -B)\n"
+            "  -P: send broadcast when started and update system properties on progress (requires -o and -B)\n"
             "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
             "  -V: sets the bugreport format version (%s or %s)\n",
             VERSION_DEFAULT.c_str(), VERSION_DUMPSYS_SPLIT.c_str());
@@ -794,6 +805,7 @@ static bool finish_zip_file(const std::string& bugreport_name, const std::string
     }
     if (!add_text_zip_entry("main_entry.txt", bugreport_name)) {
         ALOGE("Failed to add main_entry.txt to .zip file\n");
+        return false;
     }
 
     int32_t err = zip_writer->Finish();
@@ -1027,6 +1039,7 @@ int main(int argc, char *argv[]) {
         if (do_zip_file) {
             ALOGD("Creating initial .zip file");
             path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
+            create_parent_dirs(path.c_str());
             zip_file.reset(fopen(path.c_str(), "wb"));
             if (!zip_file) {
                 ALOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
