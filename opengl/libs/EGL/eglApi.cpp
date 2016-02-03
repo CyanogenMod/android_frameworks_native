@@ -72,7 +72,7 @@ struct extention_map_t {
  * The rest (gExtensionString) depend on support in the EGL driver, and are
  * only available if the driver supports them. However, some of these must be
  * supported because they are used by the Android system itself; these are
- * listd as mandatory below and are required by the CDD. The system *assumes*
+ * listed as mandatory below and are required by the CDD. The system *assumes*
  * the mandatory extensions are present and may not function properly if some
  * are missing.
  *
@@ -83,6 +83,7 @@ extern char const * const gBuiltinExtensionString =
         "EGL_ANDROID_presentation_time "
         "EGL_KHR_swap_buffers_with_damage "
         "EGL_ANDROID_create_native_client_buffer "
+        "EGL_ANDROID_front_buffer_auto_refresh "
         ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
@@ -1194,12 +1195,9 @@ EGLBoolean eglSurfaceAttrib(
 
     egl_surface_t const * const s = get_surface(surface);
 
-    //XXX: temporary hack for the EGL hook-up for single buffer mode
-    if (attribute == EGL_RENDER_BUFFER && (value == EGL_BACK_BUFFER ||
-            value == EGL_SINGLE_BUFFER)) {
-        native_window_set_auto_refresh(s->win.get(), true);
-        return (native_window_set_single_buffer_mode(s->win.get(),
-                value == EGL_SINGLE_BUFFER)) ? EGL_TRUE : EGL_FALSE;
+    if (attribute == EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID) {
+        return (native_window_set_auto_refresh(s->win.get(),
+                value ? true : false)) ? EGL_TRUE : EGL_FALSE;
     }
 
     if (s->cnx->egl.eglSurfaceAttrib) {
