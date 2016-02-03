@@ -57,7 +57,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
         appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
     int target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
-    if (flags & FLAG_CE_STORAGE) {
+    if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_package_path(uuid, userid, pkgname);
         if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
             PLOG(ERROR) << "Failed to prepare " << path;
@@ -68,7 +68,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
             return -1;
         }
     }
-    if (flags & FLAG_DE_STORAGE) {
+    if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
         if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) == -1) {
             PLOG(ERROR) << "Failed to prepare " << path;
@@ -93,13 +93,13 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
     }
 
     int res = 0;
-    if (flags & FLAG_CE_STORAGE) {
+    if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_package_path(uuid, userid, pkgname) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
             res |= delete_dir_contents(path);
         }
     }
-    if (flags & FLAG_DE_STORAGE) {
+    if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
             // TODO: include result once 25796509 is fixed
@@ -111,11 +111,11 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
 
 int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
     int res = 0;
-    if (flags & FLAG_CE_STORAGE) {
+    if (flags & FLAG_STORAGE_CE) {
         res |= delete_dir_contents_and_dir(
                 create_data_user_package_path(uuid, userid, pkgname));
     }
-    if (flags & FLAG_DE_STORAGE) {
+    if (flags & FLAG_STORAGE_DE) {
         // TODO: include result once 25796509 is fixed
         delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
@@ -178,7 +178,7 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
             goto fail;
         }
 
-        if (create_app_data(to_uuid, package_name, user, FLAG_CE_STORAGE | FLAG_DE_STORAGE,
+        if (create_app_data(to_uuid, package_name, user, FLAG_STORAGE_CE | FLAG_STORAGE_DE,
                 appid, seinfo, target_sdk_version) != 0) {
             LOG(ERROR) << "Failed to create package target " << to;
             goto fail;
@@ -204,7 +204,7 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
             goto fail;
         }
 
-        if (restorecon_app_data(to_uuid, package_name, user, FLAG_CE_STORAGE | FLAG_DE_STORAGE,
+        if (restorecon_app_data(to_uuid, package_name, user, FLAG_STORAGE_CE | FLAG_STORAGE_DE,
                 appid, seinfo) != 0) {
             LOG(ERROR) << "Failed to restorecon";
             goto fail;
@@ -453,7 +453,7 @@ int get_app_size(const char *uuid, const char *pkgname, int userid, int flags,
 
     for (auto user : users) {
         // TODO: handle user_de directories
-        if (!(flags & FLAG_CE_STORAGE)) continue;
+        if (!(flags & FLAG_STORAGE_CE)) continue;
 
         std::string _pkgdir(create_data_user_package_path(uuid, user, pkgname));
         const char* pkgdir = _pkgdir.c_str();
@@ -1482,14 +1482,14 @@ int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, 
     }
 
     uid_t uid = multiuser_get_uid(userid, appid);
-    if (flags & FLAG_CE_STORAGE) {
+    if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_package_path(uuid, userid, pkgName);
         if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, seflags) < 0) {
             PLOG(ERROR) << "restorecon failed for " << path;
             res = -1;
         }
     }
-    if (flags & FLAG_DE_STORAGE) {
+    if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgName);
         if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, seflags) < 0) {
             PLOG(ERROR) << "restorecon failed for " << path;
