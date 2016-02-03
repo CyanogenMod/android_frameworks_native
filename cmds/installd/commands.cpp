@@ -669,7 +669,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     char app_image_format[kPropertyValueMax];
     char image_format_arg[strlen("--image-format=") + kPropertyValueMax];
     bool have_app_image_format =
-        get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
+            image_fd >= 0 && get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
     if (have_app_image_format) {
         sprintf(image_format_arg, "--image-format=%s", app_image_format);
     }
@@ -995,17 +995,21 @@ static void trim_extension(char* path) {
   }
 }
 
-static int open_with_extension(char* file_name, const char* extension, bool recreate) {
-    if (strlen(file_name) + strlen(extension) + 1 <= PKG_PATH_MAX) {
-        strcat(file_name, extension);
-        int flags = O_RDWR | O_CREAT;
-        if (recreate) {
-            unlink(file_name);
-            flags |= O_EXCL;
-        }
-        return open(file_name, flags, 0600);
+static bool add_extension_to_file_name(char* file_name, const char* extension) {
+    if (strlen(file_name) + strlen(extension) + 1 > PKG_PATH_MAX) {
+        return false;
     }
-    return -1;
+    strcat(file_name, extension);
+    return true;
+}
+
+static int open_output_file(char* file_name, bool recreate) {
+    int flags = O_RDWR | O_CREAT;
+    if (recreate) {
+        unlink(file_name);
+        flags |= O_EXCL;
+    }
+    return open(file_name, flags, 0600);
 }
 
 static bool set_permissions_and_ownership(int fd, bool is_public, int uid, const char* path) {
@@ -1119,7 +1123,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
         strcpy(swap_file_name, out_path);
-        swap_fd = open_with_extension(swap_file_name, ".swap", /*recreate*/true);
+        if (add_extension_to_file_name(swap_file_name, ".swap")) {
+            swap_fd = open_output_file(swap_file_name, /*recreate*/true);
+        }
         if (swap_fd < 0) {
             // Could not create swap file. Optimistically go on and hope that we can compile
             // without it.
@@ -1131,17 +1137,26 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     }
 
     // Avoid generating an app image for extract only since it will not contain any classes.
-    if (!extract_only) {
-      strcpy(image_path, out_path);
-      trim_extension(image_path);
-      // Recreate is false since we want to avoid deleting the image in case dex2oat decides to not
-      // compile anything.
-      image_fd = open_with_extension(image_path, ".art", /*recreate*/false);
+    strcpy(image_path, out_path);
+    trim_extension(image_path);
+    if (add_extension_to_file_name(image_path, ".art")) {
+      char app_image_format[kPropertyValueMax];
+      bool have_app_image_format =
+              get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
+      if (!extract_only && have_app_image_format) {
+          // Recreate is false since we want to avoid deleting the image in case dex2oat decides to
+          // not compile anything.
+          image_fd = open_output_file(image_path, /*recreate*/false);
+          if (image_fd < 0) {
+              // Could not create application image file. Go on since we can compile without it.
+              ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
+          } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
+              image_fd = -1;
+          }
+      }
+      // If we have a valid image file path but no image fd, erase the image file.
       if (image_fd < 0) {
-          // Could not create application image file. Go on since we can compile without it.
-          ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
-      } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
-          image_fd = -1;
+          unlink(image_path);
       }
     }
 
