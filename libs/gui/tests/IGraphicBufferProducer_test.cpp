@@ -502,31 +502,30 @@ TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Succeeds) {
     ASSERT_OK(mProducer->setMaxDequeuedBufferCount(minBuffers))
             << "bufferCount: " << minBuffers;
 
-    std::vector<DequeueBufferResult> dequeueList;
-
     // Should now be able to dequeue up to minBuffers times
+    DequeueBufferResult result;
     for (int i = 0; i < minBuffers; ++i) {
-        DequeueBufferResult result;
 
         EXPECT_EQ(OK, ~IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION &
                 (dequeueBuffer(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FORMAT,
                               TEST_PRODUCER_USAGE_BITS, &result)))
                 << "iteration: " << i << ", slot: " << result.slot;
-
-        dequeueList.push_back(result);
-    }
-
-    // Cancel every buffer, so we can set buffer count again
-    for (auto& result : dequeueList) {
-        mProducer->cancelBuffer(result.slot, result.fence);
     }
 
     ASSERT_OK(mProducer->setMaxDequeuedBufferCount(maxBuffers));
 
+    // queue the first buffer to enable max dequeued buffer count checking
+    IGraphicBufferProducer::QueueBufferInput input = CreateBufferInput();
+    IGraphicBufferProducer::QueueBufferOutput output;
+    sp<GraphicBuffer> buffer;
+    ASSERT_OK(mProducer->requestBuffer(result.slot, &buffer));
+    ASSERT_OK(mProducer->queueBuffer(result.slot, input, &output));
+
+
     // Should now be able to dequeue up to maxBuffers times
+    int dequeuedSlot = -1;
+    sp<Fence> dequeuedFence;
     for (int i = 0; i < maxBuffers; ++i) {
-        int dequeuedSlot = -1;
-        sp<Fence> dequeuedFence;
 
         EXPECT_EQ(OK, ~IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION &
                 (mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
@@ -535,6 +534,12 @@ TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Succeeds) {
                                          TEST_PRODUCER_USAGE_BITS)))
                 << "iteration: " << i << ", slot: " << dequeuedSlot;
     }
+
+    // Cancel a buffer, so we can decrease the buffer count
+    ASSERT_OK(mProducer->cancelBuffer(dequeuedSlot, dequeuedFence));
+
+    // Should now be able to decrease the max dequeued count by 1
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(maxBuffers-1));
 }
 
 TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Fails) {
@@ -553,11 +558,12 @@ TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Fails) {
     EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(maxBuffers + 1))
             << "bufferCount: " << maxBuffers + 1;
 
-    // Prerequisite to fail out a valid setBufferCount call
-    {
-        int dequeuedSlot = -1;
-        sp<Fence> dequeuedFence;
-
+    // Set max dequeue count to 2
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(2));
+    // Dequeue 2 buffers
+    int dequeuedSlot = -1;
+    sp<Fence> dequeuedFence;
+    for (int i = 0; i < 2; i++) {
         ASSERT_EQ(OK, ~IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION &
                 (mProducer->dequeueBuffer(&dequeuedSlot, &dequeuedFence,
                                          DEFAULT_WIDTH, DEFAULT_HEIGHT,
@@ -566,8 +572,8 @@ TEST_F(IGraphicBufferProducerTest, SetMaxDequeuedBufferCount_Fails) {
                 << "slot: " << dequeuedSlot;
     }
 
-    // Client has one or more buffers dequeued
-    EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(minBuffers))
+    // Client has too many buffers dequeued
+    EXPECT_EQ(BAD_VALUE, mProducer->setMaxDequeuedBufferCount(1))
             << "bufferCount: " << minBuffers;
 
     // Abandon buffer queue

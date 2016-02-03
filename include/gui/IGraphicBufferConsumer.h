@@ -206,17 +206,26 @@ public:
     virtual status_t setMaxBufferCount(int bufferCount) = 0;
 
     // setMaxAcquiredBufferCount sets the maximum number of buffers that can
-    // be acquired by the consumer at one time (default 1).  This call will
-    // fail if a producer is connected to the BufferQueue.
+    // be acquired by the consumer at one time (default 1). If this method
+    // succeeds, any new buffer slots will be both unallocated and owned by the
+    // BufferQueue object (i.e. they are not owned by the producer or consumer).
+    // Calling this may also cause some buffer slots to be emptied.
+    //
+    // This function should not be called with a value of maxAcquiredBuffers
+    // that is less than the number of currently acquired buffer slots. Doing so
+    // will result in a BAD_VALUE error.
     //
     // maxAcquiredBuffers must be (inclusive) between 1 and
     // MAX_MAX_ACQUIRED_BUFFERS. It also cannot cause the maxBufferCount value
     // to be exceeded.
     //
     // Return of a value other than NO_ERROR means an error has occurred:
+    // * NO_INIT - the buffer queue has been abandoned
     // * BAD_VALUE - one of the below conditions occurred:
     //             * maxAcquiredBuffers was out of range (see above).
     //             * failure to adjust the number of available slots.
+    //             * client would have more than the requested number of
+    //               acquired buffers after this call
     // * INVALID_OPERATION - attempting to call this after a producer connected.
     virtual status_t setMaxAcquiredBufferCount(int maxAcquiredBuffers) = 0;
 

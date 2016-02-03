@@ -179,6 +179,14 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
 
+    EXPECT_EQ(OK, mConsumer->setMaxBufferCount(10));
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(10));
+
+    IGraphicBufferProducer::QueueBufferOutput qbo;
+    mProducer->connect(new DummyProducerListener, NATIVE_WINDOW_API_CPU, false,
+            &qbo);
+    mProducer->setMaxDequeuedBufferCount(3);
+
     int minBufferCount;
     ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
     EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(
@@ -190,8 +198,24 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithIllegalValues_ReturnsError)
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS+1));
     EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(100));
 
-    EXPECT_EQ(OK, mConsumer->setMaxBufferCount(5));
-    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(5));
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buf;
+    IGraphicBufferProducer::QueueBufferInput qbi(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    BufferItem item;
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(3));
+    for (int i = 0; i < 3; i++) {
+        ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+                mProducer->dequeueBuffer(&slot, &fence, 1, 1, 0,
+                    GRALLOC_USAGE_SW_READ_OFTEN));
+        ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    }
+
+    EXPECT_EQ(BAD_VALUE, mConsumer->setMaxAcquiredBufferCount(2));
 }
 
 TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
@@ -199,12 +223,44 @@ TEST_F(BufferQueueTest, SetMaxAcquiredBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
 
+    IGraphicBufferProducer::QueueBufferOutput qbo;
+    mProducer->connect(new DummyProducerListener, NATIVE_WINDOW_API_CPU, false,
+            &qbo);
+    mProducer->setMaxDequeuedBufferCount(2);
+
     int minBufferCount;
     ASSERT_NO_FATAL_FAILURE(GetMinUndequeuedBufferCount(&minBufferCount));
 
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(1));
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(2));
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(minBufferCount));
+
+    int slot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buf;
+    IGraphicBufferProducer::QueueBufferInput qbi(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    BufferItem item;
+
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, 1, 1, 0,
+            GRALLOC_USAGE_SW_READ_OFTEN));
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+
+    EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(3));
+
+    for (int i = 0; i < 2; i++) {
+        ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+                mProducer->dequeueBuffer(&slot, &fence, 1, 1, 0,
+                GRALLOC_USAGE_SW_READ_OFTEN));
+        ASSERT_EQ(OK, mProducer->requestBuffer(slot, &buf));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, qbi, &qbo));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    }
+
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(
             BufferQueue::MAX_MAX_ACQUIRED_BUFFERS));
 }

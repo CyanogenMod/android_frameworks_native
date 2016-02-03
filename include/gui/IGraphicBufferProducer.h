@@ -82,15 +82,16 @@ public:
     virtual status_t requestBuffer(int slot, sp<GraphicBuffer>* buf) = 0;
 
     // setMaxDequeuedBufferCount sets the maximum number of buffers that can be
-    // dequeued by the producer at one time. If this method succeeds, buffer
-    // slots will be both unallocated and owned by the BufferQueue object (i.e.
-    // they are not owned by the producer or consumer). Calling this will also
-    // cause all buffer slots to be emptied. If the caller is caching the
+    // dequeued by the producer at one time. If this method succeeds, any new
+    // buffer slots will be both unallocated and owned by the BufferQueue object
+    // (i.e. they are not owned by the producer or consumer). Calling this may
+    // also cause some buffer slots to be emptied. If the caller is caching the
     // contents of the buffer slots, it should empty that cache after calling
     // this method.
     //
-    // This function should not be called when there are any currently dequeued
-    // buffer slots. Doing so will result in a BAD_VALUE error.
+    // This function should not be called with a value of maxDequeuedBuffers
+    // that is less than the number of currently dequeued buffer slots. Doing so
+    // will result in a BAD_VALUE error.
     //
     // The buffer count should be at least 1 (inclusive), but at most
     // (NUM_BUFFER_SLOTS - the minimum undequeued buffer count) (exclusive). The
@@ -100,9 +101,10 @@ public:
     // Return of a value other than NO_ERROR means an error has occurred:
     // * NO_INIT - the buffer queue has been abandoned.
     // * BAD_VALUE - one of the below conditions occurred:
-    //     * bufferCount was out of range (see above)
-    //     * client has too many buffers dequeued
-    //     * this call would cause the maxBufferCount value to be exceeded
+    //     * bufferCount was out of range (see above).
+    //     * client would have more than the requested number of dequeued
+    //       buffers after this call.
+    //     * this call would cause the maxBufferCount value to be exceeded.
     //     * failure to adjust the number of available slots.
     virtual status_t setMaxDequeuedBufferCount(int maxDequeuedBuffers) = 0;
 
