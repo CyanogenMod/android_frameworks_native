@@ -94,6 +94,15 @@ typedef struct OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE {
     OMX_S32 nPCMLimiterEnable;     /**< Signal level limiting, 0 for disable, 1 for enable, -1 if unspecified */
 } OMX_AUDIO_PARAM_ANDROID_AACPRESENTATIONTYPE;
 
+typedef struct OMX_AUDIO_PARAM_ANDROID_PROFILETYPE {
+   OMX_U32 nSize;
+   OMX_VERSIONTYPE nVersion;
+   OMX_U32 nPortIndex;
+   OMX_U32 eProfile;      /**< type is OMX_AUDIO_AACPROFILETYPE or OMX_AUDIO_WMAPROFILETYPE
+                                 depending on context */
+   OMX_U32 nProfileIndex; /**< Used to query for individual profile support information */
+} OMX_AUDIO_PARAM_ANDROID_PROFILETYPE;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
