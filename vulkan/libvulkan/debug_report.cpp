@@ -23,11 +23,16 @@ VkResult DebugReportCallbackList::CreateCallback(
     const VkDebugReportCallbackCreateInfoEXT* create_info,
     const VkAllocationCallbacks* allocator,
     VkDebugReportCallbackEXT* callback) {
-    VkDebugReportCallbackEXT driver_callback;
-    VkResult result = GetDriverDispatch(instance).CreateDebugReportCallbackEXT(
-        GetDriverInstance(instance), create_info, allocator, &driver_callback);
-    if (result != VK_SUCCESS)
-        return result;
+    VkDebugReportCallbackEXT driver_callback = VK_NULL_HANDLE;
+
+    if (GetDriverDispatch(instance).CreateDebugReportCallbackEXT) {
+        VkResult result =
+            GetDriverDispatch(instance).CreateDebugReportCallbackEXT(
+                GetDriverInstance(instance), create_info, allocator,
+                &driver_callback);
+        if (result != VK_SUCCESS)
+            return result;
+    }
 
     const VkAllocationCallbacks* alloc =
         allocator ? allocator : GetAllocator(instance);
@@ -35,8 +40,10 @@ VkResult DebugReportCallbackList::CreateCallback(
         alloc->pfnAllocation(alloc->pUserData, sizeof(Node), alignof(Node),
                              VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (!mem) {
-        GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
-            GetDriverInstance(instance), driver_callback, allocator);
+        if (GetDriverDispatch(instance).DestroyDebugReportCallbackEXT) {
+            GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
+                GetDriverInstance(instance), driver_callback, allocator);
+        }
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
 
@@ -61,8 +68,10 @@ void DebugReportCallbackList::DestroyCallback(
     prev->next = node->next;
     lock.unlock();
 
-    GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
-        GetDriverInstance(instance), node->driver_callback, allocator);
+    if (GetDriverDispatch(instance).DestroyDebugReportCallbackEXT) {
+        GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
+            GetDriverInstance(instance), node->driver_callback, allocator);
+    }
 
     const VkAllocationCallbacks* alloc =
         allocator ? allocator : GetAllocator(instance);
@@ -112,9 +121,11 @@ void DebugReportMessageEXT_Bottom(VkInstance instance,
                                   int32_t message_code,
                                   const char* layer_prefix,
                                   const char* message) {
-    GetDriverDispatch(instance).DebugReportMessageEXT(
-        GetDriverInstance(instance), flags, object_type, object, location,
-        message_code, layer_prefix, message);
+    if (GetDriverDispatch(instance).DebugReportMessageEXT) {
+        GetDriverDispatch(instance).DebugReportMessageEXT(
+            GetDriverInstance(instance), flags, object_type, object, location,
+            message_code, layer_prefix, message);
+    }
     GetDebugReportCallbacks(instance).Message(flags, object_type, object,
                                               location, message_code,
                                               layer_prefix, message);

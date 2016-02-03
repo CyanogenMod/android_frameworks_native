@@ -547,9 +547,12 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
                 enabled_extensions.set(id);
                 continue;
             }
-            if (id == kKHR_surface || id == kKHR_android_surface ||
-                id == kEXT_debug_report) {
+            if (id == kKHR_surface || id == kKHR_android_surface) {
                 enabled_extensions.set(id);
+                continue;
+            }
+            // The loader natively supports debug report.
+            if (id == kEXT_debug_report) {
                 continue;
             }
         }
