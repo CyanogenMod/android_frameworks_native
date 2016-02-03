@@ -126,9 +126,11 @@ private:
     // waitWhileAllocatingLocked blocks until mIsAllocating is false.
     void waitWhileAllocatingLocked() const;
 
+#if DEBUG_ONLY_CODE
     // validateConsistencyLocked ensures that the free lists are in sync with
     // the information stored in mSlots
     void validateConsistencyLocked() const;
+#endif
 
     // mAllocator is the connection to SurfaceFlinger that is used to allocate
     // new GraphicBuffer objects.

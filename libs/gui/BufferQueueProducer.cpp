@@ -20,6 +20,12 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+#if DEBUG_ONLY_CODE
+#define VALIDATE_CONSISTENCY() do { mCore->validateConsistencyLocked(); } while (0)
+#else
+#define VALIDATE_CONSISTENCY()
+#endif
+
 #define EGL_EGLEXT_PROTOTYPES
 
 #include <gui/BufferItem.h>
@@ -140,7 +146,7 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return BAD_VALUE;
         }
         mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
-        mCore->validateConsistencyLocked();
+        VALIDATE_CONSISTENCY();
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope
@@ -189,7 +195,7 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
             return BAD_VALUE;
         }
         mCore->mAsyncMode = async;
-        mCore->validateConsistencyLocked();
+        VALIDATE_CONSISTENCY();
         mCore->mDequeueCondition.broadcast();
         listener = mCore->mConsumerListener;
     } // Autolock scope
@@ -495,7 +501,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
                 return NO_INIT;
             }
 
-            mCore->validateConsistencyLocked();
+            VALIDATE_CONSISTENCY();
         } // Autolock scope
     }
 
@@ -566,7 +572,7 @@ status_t BufferQueueProducer::detachBuffer(int slot) {
     mCore->mFreeSlots.insert(slot);
     mCore->clearBufferSlotLocked(slot);
     mCore->mDequeueCondition.broadcast();
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -616,7 +622,7 @@ status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
     *outBuffer = mSlots[found].mGraphicBuffer;
     *outFence = mSlots[found].mFence;
     mCore->clearBufferSlotLocked(found);
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -684,7 +690,7 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
     mSlots[*outSlot].mRequestBufferCalled = true;
     mSlots[*outSlot].mAcquireCalled = false;
     mCore->mActiveBuffers.insert(found);
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return returnFlags;
 }
@@ -861,7 +867,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         // Take a ticket for the callback functions
         callbackTicket = mNextCallbackTicket++;
 
-        mCore->validateConsistencyLocked();
+        VALIDATE_CONSISTENCY();
     } // Autolock scope
 
     // Don't send the GraphicBuffer through the callback, and don't send
@@ -948,7 +954,7 @@ status_t BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
 
     mSlots[slot].mFence = fence;
     mCore->mDequeueCondition.broadcast();
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -1087,7 +1093,7 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
     }
 
     mCore->mAllowAllocation = true;
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
     return status;
 }
 
@@ -1252,7 +1258,7 @@ void BufferQueueProducer::allocateBuffers(uint32_t width, uint32_t height,
 
             mCore->mIsAllocating = false;
             mCore->mIsAllocatingCondition.broadcast();
-            mCore->validateConsistencyLocked();
+            VALIDATE_CONSISTENCY();
         } // Autolock scope
     }
 }
@@ -1316,7 +1322,8 @@ status_t BufferQueueProducer::setDequeueTimeout(nsecs_t timeout) {
 
     mDequeueTimeout = timeout;
     mCore->mDequeueBufferCannotBlock = false;
-    mCore->validateConsistencyLocked();
+
+    VALIDATE_CONSISTENCY();
     return NO_ERROR;
 }
 

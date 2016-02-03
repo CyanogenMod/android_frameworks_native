@@ -20,6 +20,12 @@
 
 #define EGL_EGLEXT_PROTOTYPES
 
+#if DEBUG_ONLY_CODE
+#define VALIDATE_CONSISTENCY() do { validateConsistencyLocked(); } while (0)
+#else
+#define VALIDATE_CONSISTENCY()
+#endif
+
 #include <inttypes.h>
 
 #include <gui/BufferItem.h>
@@ -216,7 +222,7 @@ void BufferQueueCore::freeAllBuffersLocked() {
         b.mIsStale = true;
     }
 
-    validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 }
 
 bool BufferQueueCore::adjustAvailableSlotsLocked(int delta) {
@@ -258,6 +264,7 @@ void BufferQueueCore::waitWhileAllocatingLocked() const {
     }
 }
 
+#if DEBUG_ONLY_CODE
 void BufferQueueCore::validateConsistencyLocked() const {
     static const useconds_t PAUSE_TIME = 0;
     int allocatedSlots = 0;
@@ -382,5 +389,6 @@ void BufferQueueCore::validateConsistencyLocked() const {
                 mUnusedSlots.size());
     }
 }
+#endif
 
 } // namespace android

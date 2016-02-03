@@ -20,6 +20,12 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+#if DEBUG_ONLY_CODE
+#define VALIDATE_CONSISTENCY() do { mCore->validateConsistencyLocked(); } while (0)
+#else
+#define VALIDATE_CONSISTENCY()
+#endif
+
 #include <gui/BufferItem.h>
 #include <gui/BufferQueueConsumer.h>
 #include <gui/BufferQueueCore.h>
@@ -252,7 +258,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
 
-        mCore->validateConsistencyLocked();
+        VALIDATE_CONSISTENCY();
     }
 
     if (listener != NULL) {
@@ -296,7 +302,7 @@ status_t BufferQueueConsumer::detachBuffer(int slot) {
     mCore->mFreeSlots.insert(slot);
     mCore->clearBufferSlotLocked(slot);
     mCore->mDequeueCondition.broadcast();
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -386,7 +392,7 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
     // for attached buffers.
     mSlots[*outSlot].mAcquireCalled = false;
 
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -446,7 +452,7 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         BQ_LOGV("releaseBuffer: releasing slot %d", slot);
 
         mCore->mDequeueCondition.broadcast();
-        mCore->validateConsistencyLocked();
+        VALIDATE_CONSISTENCY();
     } // Autolock scope
 
     // Call back without lock held
@@ -633,7 +639,7 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
 
     BQ_LOGV("setMaxAcquiredBufferCount: %d", maxAcquiredBuffers);
     mCore->mMaxAcquiredBufferCount = maxAcquiredBuffers;
-    mCore->validateConsistencyLocked();
+    VALIDATE_CONSISTENCY();
     return NO_ERROR;
 }
 
