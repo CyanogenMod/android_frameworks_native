@@ -112,6 +112,9 @@ void redirect_to_socket(FILE *redirect, const char *service);
 /* redirect output to a file */
 void redirect_to_file(FILE *redirect, char *path);
 
+/* create leading directories, if necessary */
+void create_parent_dirs(const char *path);
+
 /* dump Dalvik and native stack traces, return the trace file location (NULL if none) */
 const char *dump_traces();
 

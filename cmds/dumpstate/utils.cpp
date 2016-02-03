@@ -657,23 +657,35 @@ void redirect_to_socket(FILE *redirect, const char *service) {
     close(fd);
 }
 
-/* redirect output to a file */
-void redirect_to_file(FILE *redirect, char *path) {
-    char *chp = path;
+void create_parent_dirs(const char *path) {
+    char *chp = (char*) path;
 
     /* skip initial slash */
     if (chp[0] == '/')
         chp++;
 
     /* create leading directories, if necessary */
+    struct stat dir_stat;
     while (chp && chp[0]) {
         chp = strchr(chp, '/');
         if (chp) {
             *chp = 0;
-            mkdir(path, 0770);  /* drwxrwx--- */
+            if (stat(path, &dir_stat) == -1 || !S_ISDIR(dir_stat.st_mode)) {
+                ALOGI("Creating directory %s\n", path);
+                if (mkdir(path, 0770)) { /* drwxrwx--- */
+                    ALOGE("Unable to create directory %s: %s\n", path, strerror(errno));
+                } else if (chown(path, AID_SHELL, AID_SHELL)) {
+                    ALOGE("Unable to change ownership of dir %s: %s\n", path, strerror(errno));
+                }
+            }
             *chp++ = '/';
         }
     }
+}
+
+/* redirect output to a file */
+void redirect_to_file(FILE *redirect, char *path) {
+    create_parent_dirs(path);
 
     int fd = TEMP_FAILURE_RETRY(open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW,
                                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
