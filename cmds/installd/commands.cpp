@@ -666,6 +666,14 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
 
     bool generate_debug_info = check_boolean_property("debug.generate-debug-info");
 
+    char app_image_format[kPropertyValueMax];
+    char image_format_arg[strlen("--image-format=") + kPropertyValueMax];
+    bool have_app_image_format =
+        get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
+    if (have_app_image_format) {
+        sprintf(image_format_arg, "--image-format=%s", app_image_format);
+    }
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
     static const char* RUNTIME_ARG = "--runtime-arg";
@@ -756,6 +764,7 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                      + (have_dex2oat_relocation_skip_flag ? 2 : 0)
                      + (generate_debug_info ? 1 : 0)
                      + (debuggable ? 1 : 0)
+                     + (have_app_image_format ? 1 : 0)
                      + dex2oat_flags_count
                      + profile_files_fd.size()
                      + reference_profile_files_fd.size()];
@@ -797,6 +806,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     }
     if (debuggable) {
         argv[i++] = "--debuggable";
+    }
+    if (have_app_image_format) {
+        argv[i++] = image_format_arg;
     }
     if (dex2oat_flags_count) {
         i += split(dex2oat_flags, argv + i);
