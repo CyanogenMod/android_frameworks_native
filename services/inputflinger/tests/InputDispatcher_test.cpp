@@ -170,7 +170,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
             << "Should reject motion events with pointer down index too large.";
 
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_POINTER_DOWN | (~1U << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
+            AMOTION_EVENT_ACTION_POINTER_DOWN | (~0U << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
             0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
@@ -191,7 +191,7 @@ TEST_F(InputDispatcherTest, InjectInputEvent_ValidatesMotionEvents) {
             << "Should reject motion events with pointer up index too large.";
 
     event.initialize(DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
-            AMOTION_EVENT_ACTION_POINTER_UP | (~1U << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
+            AMOTION_EVENT_ACTION_POINTER_UP | (~0U << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT),
             0, 0, 0, AMETA_NONE, 0, 0, 0, 0, 0,
             ARBITRARY_TIME, ARBITRARY_TIME,
             /*pointerCount*/ 1, pointerProperties, pointerCoords);
