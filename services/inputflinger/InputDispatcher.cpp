@@ -134,7 +134,7 @@ static bool isValidMotionAction(int32_t action, int32_t actionButton, int32_t po
     case AMOTION_EVENT_ACTION_POINTER_DOWN:
     case AMOTION_EVENT_ACTION_POINTER_UP: {
         int32_t index = getMotionEventActionPointerIndex(action);
-        return index >= 0 && size_t(index) < pointerCount;
+        return index >= 0 && index < pointerCount;
     }
     case AMOTION_EVENT_ACTION_BUTTON_PRESS:
     case AMOTION_EVENT_ACTION_BUTTON_RELEASE:
