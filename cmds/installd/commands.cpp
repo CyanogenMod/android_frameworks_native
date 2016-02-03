@@ -983,11 +983,15 @@ static void trim_extension(char* path) {
   }
 }
 
-static int open_with_extension(char* file_name, const char* extension) {
+static int open_with_extension(char* file_name, const char* extension, bool recreate) {
     if (strlen(file_name) + strlen(extension) + 1 <= PKG_PATH_MAX) {
         strcat(file_name, extension);
-        unlink(file_name);
-        return open(file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
+        int flags = O_RDWR | O_CREAT;
+        if (recreate) {
+            unlink(file_name);
+            flags |= O_EXCL;
+        }
+        return open(file_name, flags, 0600);
     }
     return -1;
 }
@@ -1103,7 +1107,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
         strcpy(swap_file_name, out_path);
-        swap_fd = open_with_extension(swap_file_name, ".swap");
+        swap_fd = open_with_extension(swap_file_name, ".swap", /*recreate*/true);
         if (swap_fd < 0) {
             // Could not create swap file. Optimistically go on and hope that we can compile
             // without it.
@@ -1116,10 +1120,11 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
 
     strcpy(image_path, out_path);
     trim_extension(image_path);
-    image_fd = open_with_extension(image_path, ".art");
+    // Recreate is false since we want to avoid deleting the image in case dex2oat decides to not
+    // compile anything.
+    image_fd = open_with_extension(image_path, ".art", /*recreate*/false);
     if (image_fd < 0) {
-        // Could not create swap file. Optimistically go on and hope that we can compile
-        // without it.
+        // Could not create application image file. Go on since we can compile without it.
         ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
     } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
         image_fd = -1;
