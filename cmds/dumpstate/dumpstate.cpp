@@ -83,6 +83,16 @@ static tombstone_data_t tombstone_data[NUM_TOMBSTONES];
 // Root dir for all files copied as-is into the bugreport
 const std::string& ZIP_ROOT_DIR = "FS";
 
+/*
+ * List of supported zip format versions.
+ *
+ * See bugreport-format.txt for more info.
+ */
+// TODO: change to "v1" before final N build
+static std::string VERSION_DEFAULT = "v1-dev1";
+// TODO: remove before final N build
+static std::string VERSION_DUMPSYS_SPLIT = "v1-dev1-dumpsys-split";
+
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
 static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
@@ -134,7 +144,7 @@ void add_mountinfo() {
     mount_points.clear();
     DurationReporter duration_reporter(title, NULL);
     for_each_pid(do_mountinfo, NULL);
-    ALOGD("%s: %d entries added to zip file\n", title, mount_points.size());
+    ALOGD("%s: %lu entries added to zip file\n", title, mount_points.size());
 }
 
 static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
@@ -325,7 +335,7 @@ static unsigned long logcat_timeout(const char *name) {
 /* End copy from system/core/logd/LogBuffer.cpp */
 
 /* dumps the current system state to stdout */
-static void print_header() {
+static void print_header(std::string version) {
     char build[PROPERTY_VALUE_MAX], fingerprint[PROPERTY_VALUE_MAX];
     char radio[PROPERTY_VALUE_MAX], bootloader[PROPERTY_VALUE_MAX];
     char network[PROPERTY_VALUE_MAX], date[80];
@@ -352,6 +362,7 @@ static void print_header() {
     printf("Kernel: ");
     dump_file(NULL, "/proc/version");
     printf("Command line: %s\n", strtok(cmdline_buf, "\n"));
+    printf("Bugreport format version: %s\n", version.c_str());
     printf("\n");
 }
 
@@ -361,7 +372,8 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
     if (err) {
-        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(), ZipWriter::ErrorCodeString(err));
+        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
+                ZipWriter::ErrorCodeString(err));
         return false;
     }
 
@@ -411,6 +423,32 @@ void add_dir(const char *dir, bool recursive) {
     if (!zip_writer) return;
     DurationReporter duration_reporter(dir, NULL);
     dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
+}
+
+/* adds a text entry entry to the existing zip file. */
+static bool add_text_zip_entry(const std::string& entry_name, const std::string& content) {
+    ALOGD("Adding zip text entry %s (%s)", entry_name.c_str(), content.c_str());
+    int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(), ZipWriter::kCompress, now);
+    if (err) {
+        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
+                ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    err = zip_writer->WriteBytes(content.c_str(), content.length());
+    if (err) {
+        ALOGE("zip_writer->WriteBytes(%s): %s\n", entry_name.c_str(),
+                ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    err = zip_writer->FinishEntry();
+    if (err) {
+        ALOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
+        return false;
+    }
+
+    return true;
 }
 
 static void dumpstate(const std::string& screenshot_path) {
@@ -724,19 +762,20 @@ static void dumpstate(const std::string& screenshot_path) {
 }
 
 static void usage() {
-    fprintf(stderr, "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] [-z]] [-s] [-q]\n"
-            "  -o: write to file (instead of stdout)\n"
-            "  -d: append date to filename (requires -o)\n"
-            "  -z: generates zipped file (requires -o)\n"
-            "  -p: capture screenshot to filename.png (requires -o)\n"
-            "  -s: write output to control socket (for init)\n"
+    fprintf(stderr, "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] [-z]] [-s] [-q] [-B] [-P] [-R] [-V version]\n"
             "  -b: play sound file instead of vibrate, at beginning of job\n"
             "  -e: play sound file instead of vibrate, at end of job\n"
+            "  -o: write to file (instead of stdout)\n"
+            "  -d: append date to filename (requires -o)\n"
+            "  -p: capture screenshot to filename.png (requires -o)\n"
+            "  -z: generates zipped file (requires -o)\n"
+            "  -s: write output to control socket (for init)\n"
             "  -q: disable vibrate\n"
             "  -B: send broadcast when finished (requires -o)\n"
             "  -P: send broadacast when started and update system properties on progress (requires -o and -B)\n"
             "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
-                );
+            "  -V: sets the bugreport format version (%s or %s)\n",
+            VERSION_DEFAULT.c_str(), VERSION_DUMPSYS_SPLIT.c_str());
 }
 
 static void sigpipe_handler(int n) {
@@ -752,6 +791,9 @@ static bool finish_zip_file(const std::string& bugreport_name, const std::string
     if (!add_zip_entry(bugreport_name, bugreport_path)) {
         ALOGE("Failed to add text entry to .zip file\n");
         return false;
+    }
+    if (!add_text_zip_entry("main_entry.txt", bugreport_name)) {
+        ALOGE("Failed to add main_entry.txt to .zip file\n");
     }
 
     int32_t err = zip_writer->Finish();
@@ -855,6 +897,7 @@ int main(int argc, char *argv[]) {
     int do_broadcast = 0;
     int do_early_screenshot = 0;
     int is_remote_mode = 0;
+    std::string version = VERSION_DEFAULT;
 
     now = time(NULL);
 
@@ -884,7 +927,7 @@ int main(int argc, char *argv[]) {
 
     /* parse arguments */
     int c;
-    while ((c = getopt(argc, argv, "dho:svqzpPBR")) != -1) {
+    while ((c = getopt(argc, argv, "dho:svqzpPBRV:")) != -1) {
         switch (c) {
             case 'd': do_add_date = 1;          break;
             case 'z': do_zip_file = 1;          break;
@@ -896,6 +939,7 @@ int main(int argc, char *argv[]) {
             case 'P': do_update_progress = 1;   break;
             case 'R': is_remote_mode = 1;       break;
             case 'B': do_broadcast = 1;         break;
+            case 'V': version = optarg;         break;
             case '?': printf("\n");
             case 'h':
                 usage();
@@ -917,6 +961,13 @@ int main(int argc, char *argv[]) {
         usage();
         exit(1);
     }
+
+    if (version != VERSION_DEFAULT && version != VERSION_DUMPSYS_SPLIT) {
+        usage();
+        exit(1);
+    }
+
+    ALOGI("bugreport format version: %s\n", version.c_str());
 
     do_early_screenshot = do_update_progress;
 
@@ -983,6 +1034,7 @@ int main(int argc, char *argv[]) {
             } else {
                 zip_writer.reset(new ZipWriter(zip_file.get()));
             }
+            add_text_zip_entry("version.txt", version);
         }
 
         if (do_update_progress) {
@@ -1054,7 +1106,7 @@ int main(int argc, char *argv[]) {
     // NOTE: there should be no stdout output until now, otherwise it would break the header.
     // In particular, DurationReport objects should be created passing 'title, NULL', so their
     // duration is logged into ALOG instead.
-    print_header();
+    print_header(version);
 
     dumpstate(do_early_screenshot ? "": screenshot_path);
 
