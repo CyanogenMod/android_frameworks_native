@@ -1528,8 +1528,8 @@ TEST_F(SwitchInputMapperTest, Process) {
     NotifySwitchArgs args;
     ASSERT_NO_FATAL_FAILURE(mFakeListener->assertNotifySwitchWasCalled(&args));
     ASSERT_EQ(ARBITRARY_TIME, args.eventTime);
-    ASSERT_EQ((1 << SW_LID) | (1 << SW_JACK_PHYSICAL_INSERT), args.switchValues);
-    ASSERT_EQ((1 << SW_LID) | (1 << SW_JACK_PHYSICAL_INSERT) | (1 << SW_HEADPHONE_INSERT),
+    ASSERT_EQ((1U << SW_LID) | (1U << SW_JACK_PHYSICAL_INSERT), args.switchValues);
+    ASSERT_EQ((1U << SW_LID) | (1U << SW_JACK_PHYSICAL_INSERT) | (1 << SW_HEADPHONE_INSERT),
             args.switchMask);
     ASSERT_EQ(uint32_t(0), args.policyFlags);
 }
