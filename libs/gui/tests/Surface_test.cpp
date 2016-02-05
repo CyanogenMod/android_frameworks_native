@@ -232,4 +232,30 @@ TEST_F(SurfaceTest, GetConsumerName) {
     EXPECT_STREQ("TestConsumer", surface->getConsumerName().string());
 }
 
+TEST_F(SurfaceTest, DynamicSetBufferCount) {
+    sp<IGraphicBufferProducer> producer;
+    sp<IGraphicBufferConsumer> consumer;
+    BufferQueue::createBufferQueue(&producer, &consumer);
+
+    sp<DummyConsumer> dummyConsumer(new DummyConsumer);
+    consumer->consumerConnect(dummyConsumer, false);
+    consumer->setConsumerName(String8("TestConsumer"));
+
+    sp<Surface> surface = new Surface(producer);
+    sp<ANativeWindow> window(surface);
+
+    ASSERT_EQ(NO_ERROR, native_window_api_connect(window.get(),
+            NATIVE_WINDOW_API_CPU));
+    native_window_set_buffer_count(window.get(), 4);
+
+    int fence;
+    ANativeWindowBuffer* buffer;
+    ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fence));
+    native_window_set_buffer_count(window.get(), 3);
+    ASSERT_EQ(NO_ERROR, window->queueBuffer(window.get(), buffer, fence));
+    native_window_set_buffer_count(window.get(), 2);
+    ASSERT_EQ(NO_ERROR, window->dequeueBuffer(window.get(), &buffer, &fence));
+    ASSERT_EQ(NO_ERROR, window->queueBuffer(window.get(), buffer, fence));
+}
+
 }

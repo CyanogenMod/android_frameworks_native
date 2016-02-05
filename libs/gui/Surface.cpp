@@ -838,10 +838,6 @@ int Surface::setBufferCount(int bufferCount)
         }
     }
 
-    if (err == NO_ERROR) {
-        freeAllBuffers();
-    }
-
     ALOGE_IF(err, "IGraphicBufferProducer::setBufferCount(%d) returned %s",
              bufferCount, strerror(-err));
 
@@ -858,10 +854,6 @@ int Surface::setMaxDequeuedBufferCount(int maxDequeuedBuffers) {
     ALOGE_IF(err, "IGraphicBufferProducer::setMaxDequeuedBufferCount(%d) "
             "returned %s", maxDequeuedBuffers, strerror(-err));
 
-    if (err == NO_ERROR) {
-        freeAllBuffers();
-    }
-
     return err;
 }
 
@@ -873,10 +865,6 @@ int Surface::setAsyncMode(bool async) {
     status_t err = mGraphicBufferProducer->setAsyncMode(async);
     ALOGE_IF(err, "IGraphicBufferProducer::setAsyncMode(%d) returned %s",
             async, strerror(-err));
-
-    if (err == NO_ERROR) {
-        freeAllBuffers();
-    }
 
     return err;
 }
