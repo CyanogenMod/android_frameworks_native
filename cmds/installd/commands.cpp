@@ -1194,7 +1194,14 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             || dexopt_needed == DEXOPT_SELF_PATCHOAT_NEEDED) {
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
-            run_dex2oat(input_fd, out_fd, image_fd, input_file, out_path, swap_fd,
+            // Pass dex2oat the relative path to the input file.
+            const char *input_file_name = strrchr(input_file, '/');
+            if (input_file_name == NULL) {
+                input_file_name = input_file;
+            } else {
+                input_file_name++;
+            }
+            run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
                         instruction_set, vm_safe_mode, debuggable, boot_complete, extract_only,
                         profile_files_fd, reference_profile_files_fd);
         } else {
