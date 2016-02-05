@@ -30,6 +30,8 @@
 #include <ui/Rect.h>
 #include <ui/Region.h>
 
+#include <gui/FrameTimestamps.h>
+
 namespace android {
 // ----------------------------------------------------------------------------
 
@@ -568,6 +570,14 @@ public:
     // Returns NO_ERROR or the status of the Binder transaction
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) = 0;
+
+    // Attempts to retrieve timestamp information for the given frame number.
+    // If information for the given frame number is not found, returns false.
+    // Returns true otherwise.
+    //
+    // If a fence has not yet signaled the timestamp returned will be 0;
+    virtual bool getFrameTimestamps(uint64_t /*frameNumber*/,
+            FrameTimestamps* /*outTimestamps*/) const { return false; }
 };
 
 // ----------------------------------------------------------------------------

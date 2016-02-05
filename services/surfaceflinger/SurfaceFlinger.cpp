@@ -3606,6 +3606,11 @@ void SurfaceFlinger::checkScreenshot(size_t w, size_t s, size_t h, void const* v
     }
 }
 
+bool SurfaceFlinger::getFrameTimestamps(const Layer& layer,
+        uint64_t frameNumber, FrameTimestamps* outTimestamps) {
+    return mFenceTracker.getFrameTimestamps(layer, frameNumber, outTimestamps);
+}
+
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::LayerVector::LayerVector() {

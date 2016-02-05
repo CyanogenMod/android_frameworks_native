@@ -134,6 +134,12 @@ public:
     status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]);
 
+    // See IGraphicBufferProducer::getFrameTimestamps
+    bool getFrameTimestamps(uint64_t frameNumber, nsecs_t* outPostedTime,
+            nsecs_t* outAcquireTime, nsecs_t* outRefreshStartTime,
+            nsecs_t* outGlCompositionDoneTime, nsecs_t* outDisplayRetireTime,
+            nsecs_t* outReleaseTime);
+
 protected:
     virtual ~Surface();
 
@@ -183,6 +189,7 @@ private:
     int dispatchSetSurfaceDamage(va_list args);
     int dispatchSetSharedBufferMode(va_list args);
     int dispatchSetAutoRefresh(va_list args);
+    int dispatchGetFrameTimestamps(va_list args);
 
 protected:
     virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);

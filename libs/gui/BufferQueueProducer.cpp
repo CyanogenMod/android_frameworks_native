@@ -1401,6 +1401,22 @@ status_t BufferQueueProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
     return NO_ERROR;
 }
 
+bool BufferQueueProducer::getFrameTimestamps(uint64_t frameNumber,
+        FrameTimestamps* outTimestamps) const {
+    ATRACE_CALL();
+    BQ_LOGV("getFrameTimestamps, %" PRIu64, frameNumber);
+    sp<IConsumerListener> listener;
+
+    {
+        Mutex::Autolock lock(mCore->mMutex);
+        listener = mCore->mConsumerListener;
+    }
+    if (listener != NULL) {
+        return listener->getFrameTimestamps(frameNumber, outTimestamps);
+    }
+    return false;
+}
+
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {
     // If we're here, it means that a producer we were connected to died.
     // We're guaranteed that we are still connected to it because we remove

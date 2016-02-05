@@ -25,6 +25,8 @@
 
 #include <binder/IInterface.h>
 
+#include <gui/FrameTimestamps.h>
+
 namespace android {
 // ----------------------------------------------------------------------------
 
@@ -78,6 +80,11 @@ public:
     // stream is first attached and when it is either detached or replaced by a
     // different stream.
     virtual void onSidebandStreamChanged() = 0; /* Asynchronous */
+
+    // See IGraphicBufferProducer::getFrameTimestamps
+    // This queries the consumer for the timestamps
+    virtual bool getFrameTimestamps(uint64_t /*frameNumber*/,
+            FrameTimestamps* /*outTimestamps*/) const { return false; }
 };
 
 
