@@ -27,6 +27,7 @@
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
+#include <sys/sysconf.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/klog.h>
@@ -133,13 +134,32 @@ static void __for_each_pid(void (*helper)(int, const char *, void *), const char
             continue;
         }
 
-        sprintf(cmdpath,"/proc/%d/cmdline", pid);
         memset(cmdline, 0, sizeof(cmdline));
-        if ((fd = TEMP_FAILURE_RETRY(open(cmdpath, O_RDONLY | O_CLOEXEC))) < 0) {
-            strcpy(cmdline, "N/A");
-        } else {
-            read(fd, cmdline, sizeof(cmdline) - 1);
+
+        snprintf(cmdpath, sizeof(cmdpath), "/proc/%d/cmdline", pid);
+        if ((fd = TEMP_FAILURE_RETRY(open(cmdpath, O_RDONLY | O_CLOEXEC))) >= 0) {
+            TEMP_FAILURE_RETRY(read(fd, cmdline, sizeof(cmdline) - 2));
             close(fd);
+            if (cmdline[0]) {
+                helper(pid, cmdline, arg);
+                continue;
+            }
+        }
+
+        // if no cmdline, a kernel thread has comm
+        snprintf(cmdpath, sizeof(cmdpath), "/proc/%d/comm", pid);
+        if ((fd = TEMP_FAILURE_RETRY(open(cmdpath, O_RDONLY | O_CLOEXEC))) >= 0) {
+            TEMP_FAILURE_RETRY(read(fd, cmdline + 1, sizeof(cmdline) - 4));
+            close(fd);
+            if (cmdline[1]) {
+                cmdline[0] = '[';
+                size_t len = strcspn(cmdline, "\f\b\r\n");
+                cmdline[len] = ']';
+                cmdline[len+1] = '\0';
+            }
+        }
+        if (!cmdline[0]) {
+            strcpy(cmdline, "N/A");
         }
         helper(pid, cmdline, arg);
     }
@@ -191,7 +211,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
             strcpy(comm, "N/A");
         } else {
             char *c;
-            read(fd, comm, sizeof(comm) - 1);
+            TEMP_FAILURE_RETRY(read(fd, comm, sizeof(comm) - 2));
             close(fd);
 
             c = strrchr(comm, '\n');
@@ -214,7 +234,7 @@ void show_wchan(int pid, int tid, const char *name) {
     ON_DRY_RUN_RETURN();
     char path[255];
     char buffer[255];
-    int fd;
+    int fd, ret, save_errno;
     char name_buffer[255];
 
     memset(buffer, 0, sizeof(buffer));
@@ -225,9 +245,13 @@ void show_wchan(int pid, int tid, const char *name) {
         return;
     }
 
-    if (read(fd, buffer, sizeof(buffer)) < 0) {
-        printf("Failed to read '%s' (%s)\n", path, strerror(errno));
-        goto out_close;
+    ret = TEMP_FAILURE_RETRY(read(fd, buffer, sizeof(buffer)));
+    save_errno = errno;
+    close(fd);
+
+    if (ret < 0) {
+        printf("Failed to read '%s' (%s)\n", path, strerror(save_errno));
+        return;
     }
 
     snprintf(name_buffer, sizeof(name_buffer), "%*s%s",
@@ -235,8 +259,103 @@ void show_wchan(int pid, int tid, const char *name) {
 
     printf("%-7d %-32s %s\n", tid, name_buffer, buffer);
 
-out_close:
+    return;
+}
+
+// print time in centiseconds
+static void snprcent(char *buffer, size_t len, size_t spc,
+                     unsigned long long time) {
+    static long hz; // cache discovered hz
+
+    if (hz <= 0) {
+        hz = sysconf(_SC_CLK_TCK);
+        if (hz <= 0) {
+            hz = 1000;
+        }
+    }
+
+    // convert to centiseconds
+    time = (time * 100 + (hz / 2)) / hz;
+
+    char str[16];
+
+    snprintf(str, sizeof(str), " %llu.%02u",
+             time / 100, (unsigned)(time % 100));
+    size_t offset = strlen(buffer);
+    snprintf(buffer + offset, (len > offset) ? len - offset : 0,
+             "%*s", (spc > offset) ? (int)(spc - offset) : 0, str);
+}
+
+// print permille as a percent
+static void snprdec(char *buffer, size_t len, size_t spc, unsigned permille) {
+    char str[16];
+
+    snprintf(str, sizeof(str), " %u.%u%%", permille / 10, permille % 10);
+    size_t offset = strlen(buffer);
+    snprintf(buffer + offset, (len > offset) ? len - offset : 0,
+             "%*s", (spc > offset) ? (int)(spc - offset) : 0, str);
+}
+
+void show_showtime(int pid, const char *name) {
+    ON_DRY_RUN_RETURN();
+    char path[255];
+    char buffer[1023];
+    int fd, ret, save_errno;
+
+    memset(buffer, 0, sizeof(buffer));
+
+    sprintf(path, "/proc/%d/stat", pid);
+    if ((fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC))) < 0) {
+        printf("Failed to open '%s' (%s)\n", path, strerror(errno));
+        return;
+    }
+
+    ret = TEMP_FAILURE_RETRY(read(fd, buffer, sizeof(buffer)));
+    save_errno = errno;
     close(fd);
+
+    if (ret < 0) {
+        printf("Failed to read '%s' (%s)\n", path, strerror(save_errno));
+        return;
+    }
+
+    // field 14 is utime
+    // field 15 is stime
+    // field 42 is iotime
+    unsigned long long utime = 0, stime = 0, iotime = 0;
+    if (sscanf(buffer,
+               "%*llu %*s %*s %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld "
+               "%*lld %*lld %llu %llu %*lld %*lld %*lld %*lld %*lld %*lld "
+               "%*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld "
+               "%*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %llu ",
+               &utime, &stime, &iotime) != 3) {
+        return;
+    }
+
+    unsigned long long total = utime + stime;
+    if (!total) {
+        return;
+    }
+
+    unsigned permille = (iotime * 1000 + (total / 2)) / total;
+    if (permille > 1000) {
+        permille = 1000;
+    }
+
+    // try to beautify and stabilize columns at <80 characters
+    snprintf(buffer, sizeof(buffer), "%-6d%s", pid, name);
+    if ((name[0] != '[') || utime) {
+        snprcent(buffer, sizeof(buffer), 57, utime);
+    }
+    snprcent(buffer, sizeof(buffer), 65, stime);
+    if ((name[0] != '[') || iotime) {
+        snprcent(buffer, sizeof(buffer), 73, iotime);
+    }
+    if (iotime) {
+        snprdec(buffer, sizeof(buffer), 79, permille);
+    }
+    puts(buffer); // adds a trailing newline
+
     return;
 }
 
