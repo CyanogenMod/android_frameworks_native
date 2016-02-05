@@ -185,8 +185,88 @@ static bool skip_none(const char *path) {
 static const char mmcblk0[] = "/sys/block/mmcblk0/";
 unsigned long worst_write_perf = 20000; /* in KB/s */
 
+//
+//  stat offsets
+// Name            units         description
+// ----            -----         -----------
+// read I/Os       requests      number of read I/Os processed
+#define __STAT_READ_IOS      0
+// read merges     requests      number of read I/Os merged with in-queue I/O
+#define __STAT_READ_MERGES   1
+// read sectors    sectors       number of sectors read
+#define __STAT_READ_SECTORS  2
+// read ticks      milliseconds  total wait time for read requests
+#define __STAT_READ_TICKS    3
+// write I/Os      requests      number of write I/Os processed
+#define __STAT_WRITE_IOS     4
+// write merges    requests      number of write I/Os merged with in-queue I/O
+#define __STAT_WRITE_MERGES  5
+// write sectors   sectors       number of sectors written
+#define __STAT_WRITE_SECTORS 6
+// write ticks     milliseconds  total wait time for write requests
+#define __STAT_WRITE_TICKS   7
+// in_flight       requests      number of I/Os currently in flight
+#define __STAT_IN_FLIGHT     8
+// io_ticks        milliseconds  total time this block device has been active
+#define __STAT_IO_TICKS      9
+// time_in_queue   milliseconds  total wait time for all requests
+#define __STAT_IN_QUEUE     10
+#define __STAT_NUMBER_FIELD 11
+//
+// read I/Os, write I/Os
+// =====================
+//
+// These values increment when an I/O request completes.
+//
+// read merges, write merges
+// =========================
+//
+// These values increment when an I/O request is merged with an
+// already-queued I/O request.
+//
+// read sectors, write sectors
+// ===========================
+//
+// These values count the number of sectors read from or written to this
+// block device.  The "sectors" in question are the standard UNIX 512-byte
+// sectors, not any device- or filesystem-specific block size.  The
+// counters are incremented when the I/O completes.
+#define SECTOR_SIZE 512
+//
+// read ticks, write ticks
+// =======================
+//
+// These values count the number of milliseconds that I/O requests have
+// waited on this block device.  If there are multiple I/O requests waiting,
+// these values will increase at a rate greater than 1000/second; for
+// example, if 60 read requests wait for an average of 30 ms, the read_ticks
+// field will increase by 60*30 = 1800.
+//
+// in_flight
+// =========
+//
+// This value counts the number of I/O requests that have been issued to
+// the device driver but have not yet completed.  It does not include I/O
+// requests that are in the queue but not yet issued to the device driver.
+//
+// io_ticks
+// ========
+//
+// This value counts the number of milliseconds during which the device has
+// had I/O requests queued.
+//
+// time_in_queue
+// =============
+//
+// This value counts the number of milliseconds that I/O requests have waited
+// on this block device.  If there are multiple I/O requests waiting, this
+// value will increase as the product of the number of milliseconds times the
+// number of requests waiting (see "read ticks" above for an example).
+#define S_TO_MS 1000
+//
+
 static int dump_stat_from_fd(const char *title __unused, const char *path, int fd) {
-    unsigned long fields[11], read_perf, write_perf;
+    unsigned long long fields[__STAT_NUMBER_FIELD];
     bool z;
     char *cp, *buffer = NULL;
     size_t i = 0;
@@ -206,7 +286,7 @@ static int dump_stat_from_fd(const char *title __unused, const char *path, int f
     }
     z = true;
     for (cp = buffer, i = 0; i < (sizeof(fields) / sizeof(fields[0])); ++i) {
-        fields[i] = strtol(cp, &cp, 0);
+        fields[i] = strtoull(cp, &cp, 10);
         if (fields[i] != 0) {
             z = false;
         }
@@ -223,17 +303,51 @@ static int dump_stat_from_fd(const char *title __unused, const char *path, int f
     printf("%s: %s\n", path, buffer);
     free(buffer);
 
-    read_perf = 0;
-    if (fields[3]) {
-        read_perf = 512 * fields[2] / fields[3];
-    }
-    write_perf = 0;
-    if (fields[7]) {
-        write_perf = 512 * fields[6] / fields[7];
-    }
-    printf("%s: read: %luKB/s write: %luKB/s\n", path, read_perf, write_perf);
-    if ((write_perf > 1) && (write_perf < worst_write_perf)) {
-        worst_write_perf = write_perf;
+    if (fields[__STAT_IO_TICKS]) {
+        unsigned long read_perf = 0;
+        unsigned long read_ios = 0;
+        if (fields[__STAT_READ_TICKS]) {
+            unsigned long long divisor = fields[__STAT_READ_TICKS]
+                                       * fields[__STAT_IO_TICKS];
+            read_perf = ((unsigned long long)SECTOR_SIZE
+                           * fields[__STAT_READ_SECTORS]
+                           * fields[__STAT_IN_QUEUE] + (divisor >> 1))
+                                        / divisor;
+            read_ios = ((unsigned long long)S_TO_MS * fields[__STAT_READ_IOS]
+                           * fields[__STAT_IN_QUEUE] + (divisor >> 1))
+                                        / divisor;
+        }
+
+        unsigned long write_perf = 0;
+        unsigned long write_ios = 0;
+        if (fields[__STAT_WRITE_TICKS]) {
+            unsigned long long divisor = fields[__STAT_WRITE_TICKS]
+                                       * fields[__STAT_IO_TICKS];
+            write_perf = ((unsigned long long)SECTOR_SIZE
+                           * fields[__STAT_WRITE_SECTORS]
+                           * fields[__STAT_IN_QUEUE] + (divisor >> 1))
+                                        / divisor;
+            write_ios = ((unsigned long long)S_TO_MS * fields[__STAT_WRITE_IOS]
+                           * fields[__STAT_IN_QUEUE] + (divisor >> 1))
+                                        / divisor;
+        }
+
+        unsigned queue = (fields[__STAT_IN_QUEUE]
+                             + (fields[__STAT_IO_TICKS] >> 1))
+                                 / fields[__STAT_IO_TICKS];
+
+        if (!write_perf && !write_ios) {
+            printf("%s: perf(ios) rd: %luKB/s(%lu/s) q: %u\n",
+                   path, read_perf, read_ios, queue);
+        } else {
+            printf("%s: perf(ios) rd: %luKB/s(%lu/s) wr: %luKB/s(%lu/s) q: %u\n",
+                   path, read_perf, read_ios, write_perf, write_ios, queue);
+        }
+
+        /* bugreport timeout factor adjustment */
+        if ((write_perf > 1) && (write_perf < worst_write_perf)) {
+            worst_write_perf = write_perf;
+        }
     }
     return 0;
 }
