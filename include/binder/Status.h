@@ -141,6 +141,13 @@ private:
     String8 mMessage;
 };  // class Status
 
+// For gtest output logging
+template<typename T>
+T& operator<< (T& stream, const Status& s) {
+    stream << s.toString8().string();
+    return stream;
+}
+
 }  // namespace binder
 }  // namespace android
 
