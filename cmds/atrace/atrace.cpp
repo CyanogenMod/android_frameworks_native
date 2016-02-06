@@ -545,17 +545,19 @@ static bool verifyKernelTraceFuncs(const char* funcs)
     String8 funcList = String8::format("\n%s", buf);
 
     // Make sure that every function listed in funcs is in the list we just
-    // read from the kernel.
+    // read from the kernel, except for wildcard inputs.
     bool ok = true;
     char* myFuncs = strdup(funcs);
     char* func = strtok(myFuncs, ",");
     while (func) {
-        String8 fancyFunc = String8::format("\n%s\n", func);
-        bool found = funcList.find(fancyFunc.string(), 0) >= 0;
-        if (!found || func[0] == '\0') {
-            fprintf(stderr, "error: \"%s\" is not a valid kernel function "
-                "to trace.\n", func);
-            ok = false;
+        if (!strchr(func, '*')) {
+            String8 fancyFunc = String8::format("\n%s\n", func);
+            bool found = funcList.find(fancyFunc.string(), 0) >= 0;
+            if (!found || func[0] == '\0') {
+                fprintf(stderr, "error: \"%s\" is not a valid kernel function "
+                        "to trace.\n", func);
+                ok = false;
+            }
         }
         func = strtok(NULL, ",");
     }
