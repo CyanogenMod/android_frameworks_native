@@ -215,6 +215,7 @@ const NameProc kLoaderTopProcs[] = {
     {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance_Top))},
     {"vkDestroyDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDevice>(DestroyDevice_Top))},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance_Top))},
+    {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceLayerProperties>(EnumerateDeviceLayerProperties_Top))},
     {"vkEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceExtensionProperties>(EnumerateInstanceExtensionProperties_Top))},
     {"vkEnumerateInstanceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceLayerProperties>(EnumerateInstanceLayerProperties_Top))},
     {"vkGetDeviceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetDeviceProcAddr>(GetDeviceProcAddr_Top))},
@@ -296,7 +297,6 @@ const NameOffset kInstanceDispatchOffsets[] = {
     {"vkDestroyInstance", offsetof(InstanceDispatchTable, DestroyInstance)},
     {"vkDestroySurfaceKHR", offsetof(InstanceDispatchTable, DestroySurfaceKHR)},
     {"vkEnumerateDeviceExtensionProperties", offsetof(InstanceDispatchTable, EnumerateDeviceExtensionProperties)},
-    {"vkEnumerateDeviceLayerProperties", offsetof(InstanceDispatchTable, EnumerateDeviceLayerProperties)},
     {"vkEnumeratePhysicalDevices", offsetof(InstanceDispatchTable, EnumeratePhysicalDevices)},
     {"vkGetPhysicalDeviceFeatures", offsetof(InstanceDispatchTable, GetPhysicalDeviceFeatures)},
     {"vkGetPhysicalDeviceFormatProperties", offsetof(InstanceDispatchTable, GetPhysicalDeviceFormatProperties)},
@@ -520,11 +520,6 @@ bool LoadInstanceDispatchTable(VkInstance instance,
     dispatch.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(get_proc_addr(instance, "vkCreateDevice"));
     if (UNLIKELY(!dispatch.CreateDevice)) {
         ALOGE("missing instance proc: %s", "vkCreateDevice");
-        success = false;
-    }
-    dispatch.EnumerateDeviceLayerProperties = reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(get_proc_addr(instance, "vkEnumerateDeviceLayerProperties"));
-    if (UNLIKELY(!dispatch.EnumerateDeviceLayerProperties)) {
-        ALOGE("missing instance proc: %s", "vkEnumerateDeviceLayerProperties");
         success = false;
     }
     dispatch.EnumerateDeviceExtensionProperties = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(get_proc_addr(instance, "vkEnumerateDeviceExtensionProperties"));
@@ -1271,11 +1266,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
         ALOGE("missing driver proc: %s", "vkCreateDevice");
         success = false;
     }
-    dispatch.EnumerateDeviceLayerProperties = reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(get_proc_addr(instance, "vkEnumerateDeviceLayerProperties"));
-    if (UNLIKELY(!dispatch.EnumerateDeviceLayerProperties)) {
-        ALOGE("missing driver proc: %s", "vkEnumerateDeviceLayerProperties");
-        success = false;
-    }
     dispatch.EnumerateDeviceExtensionProperties = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(get_proc_addr(instance, "vkEnumerateDeviceExtensionProperties"));
     if (UNLIKELY(!dispatch.EnumerateDeviceExtensionProperties)) {
         ALOGE("missing driver proc: %s", "vkEnumerateDeviceExtensionProperties");
@@ -1422,7 +1412,7 @@ VKAPI_ATTR VkResult vkEnumerateInstanceExtensionProperties(const char* pLayerNam
 
 __attribute__((visibility("default")))
 VKAPI_ATTR VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkLayerProperties* pProperties) {
-    return GetDispatchTable(physicalDevice).EnumerateDeviceLayerProperties(physicalDevice, pPropertyCount, pProperties);
+    return EnumerateDeviceLayerProperties_Top(physicalDevice, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))

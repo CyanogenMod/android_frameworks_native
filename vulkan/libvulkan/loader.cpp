@@ -861,15 +861,14 @@ VkResult EnumerateDeviceExtensionProperties_Bottom(
     return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
+// This is a no-op, the Top function returns the aggregate layer property
+// data. This is to keep the dispatch generator happy.
 VKAPI_ATTR
-VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice /*pdev*/,
-                                               uint32_t* properties_count,
-                                               VkLayerProperties* properties) {
-    uint32_t layer_count =
-        EnumerateDeviceLayers(properties ? *properties_count : 0, properties);
-    if (!properties || *properties_count > layer_count)
-        *properties_count = layer_count;
-    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
+VkResult EnumerateDeviceLayerProperties_Bottom(
+    VkPhysicalDevice /*pdev*/,
+    uint32_t* /*properties_count*/,
+    VkLayerProperties* /*properties*/) {
+    return VK_SUCCESS;
 }
 
 VKAPI_ATTR
@@ -1236,6 +1235,17 @@ void DestroyInstance_Top(VkInstance vkinstance,
     GetDispatchTable(vkinstance).DestroyInstance(vkinstance, allocator);
 
     TeardownInstance(vkinstance, allocator);
+}
+
+VKAPI_ATTR
+VkResult EnumerateDeviceLayerProperties_Top(VkPhysicalDevice /*pdev*/,
+                                               uint32_t* properties_count,
+                                               VkLayerProperties* properties) {
+    uint32_t layer_count =
+        EnumerateDeviceLayers(properties ? *properties_count : 0, properties);
+    if (!properties || *properties_count > layer_count)
+        *properties_count = layer_count;
+    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VKAPI_ATTR

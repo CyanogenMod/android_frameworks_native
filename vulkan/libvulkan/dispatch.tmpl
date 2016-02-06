@@ -465,7 +465,7 @@ bool LoadDriverDispatchTable(VkInstance instance,
 {{define "IsInstanceDispatched"}}
   {{AssertType $ "Function"}}
   {{if and (Macro "IsFunctionSupported" $) (eq (Macro "Vtbl" $) "Instance")}}
-    {{if (ne $.Name "vkGetInstanceProcAddr")}}true{{end}}
+    {{if and (ne $.Name "vkEnumerateDeviceLayerProperties") (ne $.Name "vkGetInstanceProcAddr")}}true{{end}}
   {{end}}
 {{end}}
 
@@ -561,6 +561,7 @@ bool LoadDriverDispatchTable(VkInstance instance,
   {{else if eq $.Name "vkGetDeviceQueue"}}true
   {{else if eq $.Name "vkAllocateCommandBuffers"}}true
   {{else if eq $.Name "vkCreateDevice"}}true
+  {{else if eq $.Name "vkEnumerateDeviceLayerProperties"}}true
 
   {{/* vkDestroy for dispatchable objects needs to handle VK_NULL_HANDLE;
        trying to dispatch through that would crash. */}}
