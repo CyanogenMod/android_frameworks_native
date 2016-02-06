@@ -287,7 +287,7 @@ typedef struct OMX_VIDEO_CONFIG_ANDROID_INTRAREFRESHTYPE {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
-    OMX_S32 nRefreshPeriod;
+    OMX_U32 nRefreshPeriod;
 } OMX_VIDEO_CONFIG_ANDROID_INTRAREFRESHTYPE;
 
 #ifdef __cplusplus
