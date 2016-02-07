@@ -201,6 +201,11 @@ static int do_restorecon_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UN
     return restorecon_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atoi(arg[4]), arg[5]);
 }
 
+static int do_migrate_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags */
+    return migrate_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
+}
+
 static int do_clear_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     /* const char *uuid, const char *pkgname, userid_t userid, int flags */
     return clear_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
@@ -342,6 +347,7 @@ struct cmdinfo cmds[] = {
 
     { "create_app_data",      7, do_create_app_data },
     { "restorecon_app_data",  6, do_restorecon_app_data },
+    { "migrate_app_data",     4, do_migrate_app_data },
     { "clear_app_data",       4, do_clear_app_data },
     { "destroy_app_data",     4, do_destroy_app_data },
     { "move_complete_app",    7, do_move_complete_app },

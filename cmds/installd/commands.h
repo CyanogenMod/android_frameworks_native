@@ -32,6 +32,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
         appid_t appid, const char* seinfo, int target_sdk_version);
 int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, int flags,
         appid_t appid, const char* seinfo);
+int migrate_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags);
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags);
 int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags);
 

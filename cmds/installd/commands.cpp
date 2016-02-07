@@ -23,6 +23,8 @@
 #include <sys/file.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 
 #include <android-base/stringprintf.h>
@@ -49,7 +51,8 @@ using android::base::StringPrintf;
 namespace android {
 namespace installd {
 
-static const char* kCpPath = "/system/bin/cp";
+static constexpr const char* kCpPath = "/system/bin/cp";
+static constexpr const char* kXattrDefault = "user.default";
 
 #define MIN_RESTRICTED_HOME_SDK_VERSION 24 // > M
 
@@ -81,6 +84,44 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
             return 0;
         }
     }
+    return 0;
+}
+
+int migrate_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
+    // This method only exists to upgrade system apps that have requested
+    // forceDeviceEncrypted, so their default storage always lives in a
+    // consistent location.  This only works on non-FBE devices, since we
+    // never want to risk exposing data on a device with real CE/DE storage.
+
+    auto ce_path = create_data_user_package_path(uuid, userid, pkgname);
+    auto de_path = create_data_user_de_package_path(uuid, userid, pkgname);
+
+    // If neither directory is marked as default, assume CE is default
+    if (getxattr(ce_path.c_str(), kXattrDefault, nullptr, 0) == -1
+            && getxattr(de_path.c_str(), kXattrDefault, nullptr, 0) == -1) {
+        if (setxattr(ce_path.c_str(), kXattrDefault, nullptr, 0, 0) != 0) {
+            PLOG(ERROR) << "Failed to mark default storage " << ce_path;
+            return -1;
+        }
+    }
+
+    // Migrate default data location if needed
+    auto target = (flags & FLAG_STORAGE_DE) ? de_path : ce_path;
+    auto source = (flags & FLAG_STORAGE_DE) ? ce_path : de_path;
+
+    if (getxattr(target.c_str(), kXattrDefault, nullptr, 0) == -1) {
+        LOG(WARNING) << "Requested default storage " << target
+                << " is not active; migrating from " << source;
+        if (delete_dir_contents_and_dir(target) != 0) {
+            PLOG(ERROR) << "Failed to delete";
+            return -1;
+        }
+        if (rename(source.c_str(), target.c_str()) != 0) {
+            PLOG(ERROR) << "Failed to rename";
+            return -1;
+        }
+    }
+
     return 0;
 }
 
