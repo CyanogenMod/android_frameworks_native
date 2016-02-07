@@ -215,6 +215,7 @@ const NameProc kLoaderTopProcs[] = {
     {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance_Top))},
     {"vkDestroyDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDevice>(DestroyDevice_Top))},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance_Top))},
+    {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceExtensionProperties>(EnumerateDeviceExtensionProperties_Top))},
     {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceLayerProperties>(EnumerateDeviceLayerProperties_Top))},
     {"vkEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceExtensionProperties>(EnumerateInstanceExtensionProperties_Top))},
     {"vkEnumerateInstanceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateInstanceLayerProperties>(EnumerateInstanceLayerProperties_Top))},
@@ -1417,7 +1418,7 @@ VKAPI_ATTR VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDe
 
 __attribute__((visibility("default")))
 VKAPI_ATTR VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice, const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties) {
-    return GetDispatchTable(physicalDevice).EnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pPropertyCount, pProperties);
+    return EnumerateDeviceExtensionProperties_Top(physicalDevice, pLayerName, pPropertyCount, pProperties);
 }
 
 __attribute__((visibility("default")))

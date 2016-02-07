@@ -95,6 +95,7 @@ VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr_Top(VkDevice drv_device, const c
 VKAPI_ATTR void GetDeviceQueue_Top(VkDevice drv_device, uint32_t family, uint32_t index, VkQueue* out_queue);
 VKAPI_ATTR VkResult AllocateCommandBuffers_Top(VkDevice device, const VkCommandBufferAllocateInfo* alloc_info, VkCommandBuffer* cmdbufs);
 VKAPI_ATTR VkResult EnumerateDeviceLayerProperties_Top(VkPhysicalDevice pdev, uint32_t* properties_count, VkLayerProperties* properties);
+VKAPI_ATTR VkResult EnumerateDeviceExtensionProperties_Top(VkPhysicalDevice pdev, const char * layer_name, uint32_t* properties_count, VkExtensionProperties* properties);
 VKAPI_ATTR VkResult CreateDevice_Top(VkPhysicalDevice pdev, const VkDeviceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkDevice* device_out);
 VKAPI_ATTR void DestroyDevice_Top(VkDevice drv_device, const VkAllocationCallbacks* allocator);
 

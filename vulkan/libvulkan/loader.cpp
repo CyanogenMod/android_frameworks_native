@@ -821,44 +821,15 @@ void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
             properties);
 }
 
+// This is a no-op, the Top function returns the aggregate layer property
+// data. This is to keep the dispatch generator happy.
 VKAPI_ATTR
 VkResult EnumerateDeviceExtensionProperties_Bottom(
-    VkPhysicalDevice gpu,
-    const char* layer_name,
-    uint32_t* properties_count,
-    VkExtensionProperties* properties) {
-    const VkExtensionProperties* extensions = nullptr;
-    uint32_t num_extensions = 0;
-    if (layer_name) {
-        GetDeviceLayerExtensions(layer_name, &extensions, &num_extensions);
-    } else {
-        Instance& instance = GetDispatchParent(gpu);
-        size_t gpu_idx = 0;
-        while (instance.physical_devices[gpu_idx] != gpu)
-            gpu_idx++;
-        const DeviceExtensionSet driver_extensions =
-            instance.physical_device_driver_extensions[gpu_idx];
-
-        // We only support VK_KHR_swapchain if the GPU supports
-        // VK_ANDROID_native_buffer
-        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
-            alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
-        if (driver_extensions[kANDROID_native_buffer]) {
-            available[num_extensions++] = VkExtensionProperties{
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
-        }
-
-        // TODO(jessehall): We need to also enumerate extensions supported by
-        // implicitly-enabled layers. Currently we don't have that list of
-        // layers until instance creation.
-        extensions = available;
-    }
-
-    if (!properties || *properties_count > num_extensions)
-        *properties_count = num_extensions;
-    if (properties)
-        std::copy(extensions, extensions + *properties_count, properties);
-    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
+    VkPhysicalDevice /*pdev*/,
+    const char* /*layer_name*/,
+    uint32_t* /*properties_count*/,
+    VkExtensionProperties* /*properties*/) {
+    return VK_SUCCESS;
 }
 
 // This is a no-op, the Top function returns the aggregate layer property
@@ -1058,6 +1029,51 @@ VkResult EnumerateInstanceLayerProperties_Top(uint32_t* properties_count,
     if (!properties || *properties_count > layer_count)
         *properties_count = layer_count;
     return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
+}
+
+VKAPI_ATTR
+VkResult EnumerateDeviceExtensionProperties_Top(
+    VkPhysicalDevice gpu,
+    const char* layer_name,
+    uint32_t* properties_count,
+    VkExtensionProperties* properties) {
+    const VkExtensionProperties* extensions = nullptr;
+    uint32_t num_extensions = 0;
+
+    ALOGV("EnumerateDeviceExtensionProperties_Top:");
+    if (layer_name) {
+        ALOGV("  layer %s", layer_name);
+        GetDeviceLayerExtensions(layer_name, &extensions, &num_extensions);
+    } else {
+        ALOGV("  no layer");
+        Instance& instance = GetDispatchParent(gpu);
+        size_t gpu_idx = 0;
+        while (instance.physical_devices[gpu_idx] != gpu)
+            gpu_idx++;
+        const DeviceExtensionSet driver_extensions =
+            instance.physical_device_driver_extensions[gpu_idx];
+
+        // We only support VK_KHR_swapchain if the GPU supports
+        // VK_ANDROID_native_buffer
+        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
+            alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
+        if (driver_extensions[kANDROID_native_buffer]) {
+            available[num_extensions++] = VkExtensionProperties{
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
+        }
+
+        // TODO(jessehall): We need to also enumerate extensions supported by
+        // implicitly-enabled layers. Currently we don't have that list of
+        // layers until instance creation.
+        extensions = available;
+    }
+
+    ALOGV("  num: %d, extensions: %p", num_extensions, extensions);
+    if (!properties || *properties_count > num_extensions)
+        *properties_count = num_extensions;
+    if (properties)
+        std::copy(extensions, extensions + *properties_count, properties);
+    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,

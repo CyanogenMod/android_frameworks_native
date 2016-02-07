@@ -562,6 +562,7 @@ bool LoadDriverDispatchTable(VkInstance instance,
   {{else if eq $.Name "vkAllocateCommandBuffers"}}true
   {{else if eq $.Name "vkCreateDevice"}}true
   {{else if eq $.Name "vkEnumerateDeviceLayerProperties"}}true
+  {{else if eq $.Name "vkEnumerateDeviceExtensionProperties"}}true
 
   {{/* vkDestroy for dispatchable objects needs to handle VK_NULL_HANDLE;
        trying to dispatch through that would crash. */}}
