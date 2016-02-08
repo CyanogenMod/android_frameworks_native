@@ -78,7 +78,7 @@ DurationReporter::~DurationReporter() {
             fprintf(out_, "------ %.3fs was the duration of '%s' ------\n",
                    (float) elapsed / NANOS_PER_SEC, title_);
         } else {
-            ALOGD("Duration of '%s': %.3fs\n", title_, (float) elapsed / NANOS_PER_SEC);
+            MYLOGD("Duration of '%s': %.3fs\n", title_, (float) elapsed / NANOS_PER_SEC);
         }
     }
 }
@@ -671,11 +671,11 @@ void create_parent_dirs(const char *path) {
         if (chp) {
             *chp = 0;
             if (stat(path, &dir_stat) == -1 || !S_ISDIR(dir_stat.st_mode)) {
-                ALOGI("Creating directory %s\n", path);
+                MYLOGI("Creating directory %s\n", path);
                 if (mkdir(path, 0770)) { /* drwxrwx--- */
-                    ALOGE("Unable to create directory %s: %s\n", path, strerror(errno));
+                    MYLOGE("Unable to create directory %s: %s\n", path, strerror(errno));
                 } else if (chown(path, AID_SHELL, AID_SHELL)) {
-                    ALOGE("Unable to change ownership of dir %s: %s\n", path, strerror(errno));
+                    MYLOGE("Unable to change ownership of dir %s: %s\n", path, strerror(errno));
                 }
             }
             *chp++ = '/';
@@ -907,7 +907,7 @@ void update_progress(int delta) {
         sprintf(value, "%d", weight_total);
         int status = property_set(key, value);
         if (status) {
-            ALOGW("Could not update max weight by setting system property %s to %s: %d\n",
+            MYLOGE("Could not update max weight by setting system property %s to %s: %d\n",
                     key, value, status);
         }
     }
@@ -921,7 +921,7 @@ void update_progress(int delta) {
 
     int status = property_set(key, value);
     if (status) {
-        ALOGW("Could not update progress by setting system property %s to %s: %d\n",
+        MYLOGE("Could not update progress by setting system property %s to %s: %d\n",
                 key, value, status);
     }
 }

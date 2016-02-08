@@ -29,6 +29,17 @@
 #define ON_DRY_RUN(code)
 #endif
 
+#ifndef MYLOGD
+#define MYLOGD(fmt...) fprintf(stderr, fmt); ALOGD(fmt);
+#endif
+
+#ifndef MYLOGI
+#define MYLOGI(fmt...) fprintf(stderr, fmt); ALOGI(fmt);
+#endif
+
+#ifndef MYLOGE
+#define MYLOGE(fmt...) fprintf(stderr, fmt); ALOGE(fmt);
+#endif
 
 #include <time.h>
 #include <unistd.h>

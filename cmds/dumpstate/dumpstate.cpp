@@ -122,7 +122,7 @@ void do_mountinfo(int pid, const char *name) {
     char linkname[PATH_MAX];
     ssize_t r = readlink(path, linkname, PATH_MAX);
     if (r == -1) {
-        ALOGE("Unable to read link for %s: %s\n", path, strerror(errno));
+        MYLOGE("Unable to read link for %s: %s\n", path, strerror(errno));
         return;
     }
     linkname[r] = '\0';
@@ -133,7 +133,7 @@ void do_mountinfo(int pid, const char *name) {
         if (add_zip_entry(ZIP_ROOT_DIR + path, path)) {
             mount_points.insert(linkname);
         } else {
-            ALOGE("Unable to add mountinfo %s to zip file\n", path);
+            MYLOGE("Unable to add mountinfo %s to zip file\n", path);
         }
     }
 }
@@ -144,7 +144,7 @@ void add_mountinfo() {
     mount_points.clear();
     DurationReporter duration_reporter(title, NULL);
     for_each_pid(do_mountinfo, NULL);
-    ALOGD("%s: %lu entries added to zip file\n", title, mount_points.size());
+    MYLOGD("%s: %lu entries added to zip file\n", title, mount_points.size());
 }
 
 static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
@@ -483,14 +483,14 @@ static void print_header(std::string version) {
 /* adds a new entry to the existing zip file. */
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     if (!zip_writer) {
-        ALOGD("Not adding zip entry %s from fd because zip_writer is not set", entry_name.c_str());
+        MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n", entry_name.c_str());
         return false;
     }
-    ALOGD("Adding zip entry %s", entry_name.c_str());
+    MYLOGD("Adding zip entry %s\n", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
     if (err) {
-        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
+        MYLOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
                 ZipWriter::ErrorCodeString(err));
         return false;
     }
@@ -501,19 +501,19 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
         if (bytes_read == 0) {
             break;
         } else if (bytes_read == -1) {
-            ALOGE("read(%s): %s\n", entry_name.c_str(), strerror(errno));
+            MYLOGE("read(%s): %s\n", entry_name.c_str(), strerror(errno));
             return false;
         }
         err = zip_writer->WriteBytes(buffer.data(), bytes_read);
         if (err) {
-            ALOGE("zip_writer->WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
+            MYLOGE("zip_writer->WriteBytes(): %s\n", ZipWriter::ErrorCodeString(err));
             return false;
         }
     }
 
     err = zip_writer->FinishEntry();
     if (err) {
-        ALOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
+        MYLOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
     }
 
@@ -524,7 +524,7 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
 static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path) {
     ScopedFd fd(TEMP_FAILURE_RETRY(open(entry_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
     if (fd.get() == -1) {
-        ALOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
+        MYLOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
         return false;
     }
 
@@ -539,7 +539,7 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
 /* adds all files from a directory to the zipped bugreport file */
 void add_dir(const char *dir, bool recursive) {
     if (!zip_writer) {
-        ALOGD("Not adding dir %s because zip_writer is not set", dir);
+        MYLOGD("Not adding dir %s because zip_writer is not set\n", dir);
         return;
     }
     DurationReporter duration_reporter(dir, NULL);
@@ -549,27 +549,27 @@ void add_dir(const char *dir, bool recursive) {
 /* adds a text entry entry to the existing zip file. */
 static bool add_text_zip_entry(const std::string& entry_name, const std::string& content) {
     if (!zip_writer) {
-        ALOGD("Not adding text zip entry %s because zip_writer is not set", entry_name.c_str());
+        MYLOGD("Not adding text zip entry %s because zip_writer is not set\n", entry_name.c_str());
         return false;
     }
-    ALOGD("Adding zip text entry %s", entry_name.c_str());
+    MYLOGD("Adding zip text entry %s\n", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(), ZipWriter::kCompress, now);
     if (err) {
-        ALOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
+        MYLOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
                 ZipWriter::ErrorCodeString(err));
         return false;
     }
 
     err = zip_writer->WriteBytes(content.c_str(), content.length());
     if (err) {
-        ALOGE("zip_writer->WriteBytes(%s): %s\n", entry_name.c_str(),
+        MYLOGE("zip_writer->WriteBytes(%s): %s\n", entry_name.c_str(),
                 ZipWriter::ErrorCodeString(err));
         return false;
     }
 
     err = zip_writer->FinishEntry();
     if (err) {
-        ALOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
+        MYLOGE("zip_writer->FinishEntry(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
     }
 
@@ -615,9 +615,9 @@ static void dumpstate(const std::string& screenshot_path) {
     for_each_tid(show_wchan, "BLOCKED PROCESS WAIT-CHANNELS");
 
     if (!screenshot_path.empty()) {
-        ALOGI("taking late screenshot\n");
+        MYLOGI("taking late screenshot\n");
         take_screenshot(screenshot_path);
-        ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
+        MYLOGI("wrote screenshot: %s\n", screenshot_path.c_str());
     }
 
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
@@ -700,7 +700,7 @@ static void dumpstate(const std::string& screenshot_path) {
             dumped = 1;
             if (zip_writer) {
                 if (!add_zip_entry_from_fd(ZIP_ROOT_DIR + name, fd)) {
-                    ALOGE("Unable to add tombstone %s to zip file\n", name);
+                    MYLOGE("Unable to add tombstone %s to zip file\n", name);
                 }
             } else {
                 dump_file_from_fd("TOMBSTONE", name, fd);
@@ -914,22 +914,18 @@ static void sigpipe_handler(int n) {
 static bool finish_zip_file(const std::string& bugreport_name, const std::string& bugreport_path,
         time_t now) {
     if (!add_zip_entry(bugreport_name, bugreport_path)) {
-        ALOGE("Failed to add text entry to .zip file\n");
+        MYLOGE("Failed to add text entry to .zip file\n");
         return false;
     }
     if (!add_text_zip_entry("main_entry.txt", bugreport_name)) {
-        ALOGE("Failed to add main_entry.txt to .zip file\n");
+        MYLOGE("Failed to add main_entry.txt to .zip file\n");
         return false;
     }
 
     int32_t err = zip_writer->Finish();
     if (err) {
-        ALOGE("zip_writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
+        MYLOGE("zip_writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
-    }
-
-    if (remove(bugreport_path.c_str())) {
-        ALOGW("remove(%s): %s\n", bugreport_path.c_str(), strerror(errno));
     }
 
     return true;
@@ -939,7 +935,7 @@ static std::string SHA256_file_hash(std::string filepath) {
     ScopedFd fd(TEMP_FAILURE_RETRY(open(filepath.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC
             | O_NOFOLLOW)));
     if (fd.get() == -1) {
-        ALOGE("open(%s): %s\n", filepath.c_str(), strerror(errno));
+        MYLOGE("open(%s): %s\n", filepath.c_str(), strerror(errno));
         return NULL;
     }
 
@@ -952,7 +948,7 @@ static std::string SHA256_file_hash(std::string filepath) {
         if (bytes_read == 0) {
             break;
         } else if (bytes_read == -1) {
-            ALOGE("read(%s): %s\n", filepath.c_str(), strerror(errno));
+            MYLOGE("read(%s): %s\n", filepath.c_str(), strerror(errno));
             return NULL;
         }
 
@@ -973,22 +969,22 @@ static std::string SHA256_file_hash(std::string filepath) {
 bool drop_root() {
     /* ensure we will keep capabilities when we drop root */
     if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
-        ALOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
+        MYLOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
         return false;
     }
 
     gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
             AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
     if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
-        ALOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
+        MYLOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
         return false;
     }
     if (setgid(AID_SHELL) != 0) {
-        ALOGE("Unable to setgid, aborting: %s\n", strerror(errno));
+        MYLOGE("Unable to setgid, aborting: %s\n", strerror(errno));
         return false;
     }
     if (setuid(AID_SHELL) != 0) {
-        ALOGE("Unable to setuid, aborting: %s\n", strerror(errno));
+        MYLOGE("Unable to setuid, aborting: %s\n", strerror(errno));
         return false;
     }
 
@@ -1005,7 +1001,7 @@ bool drop_root() {
     capdata[1].inheritable = 0;
 
     if (capset(&capheader, &capdata[0]) < 0) {
-        ALOGE("capset failed: %s\n", strerror(errno));
+        MYLOGE("capset failed: %s\n", strerror(errno));
         return false;
     }
 
@@ -1036,7 +1032,7 @@ int main(int argc, char *argv[]) {
         return execl("/system/bin/bugreport", "/system/bin/bugreport", NULL);
     }
 
-    ALOGI("begin\n");
+    MYLOGI("begin\n");
 
     /* clear SIGPIPE handler */
     memset(&sigact, 0, sizeof(sigact));
@@ -1093,7 +1089,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    ALOGI("bugreport format version: %s\n", version.c_str());
+    MYLOGI("bugreport format version: %s\n", version.c_str());
 
     do_early_screenshot = do_update_progress;
 
@@ -1103,19 +1099,22 @@ int main(int argc, char *argv[]) {
         redirect_to_socket(stdout, "dumpstate");
     }
 
-    /* full path of the directory where the bug report files will be written */
+    /* full path of the directory where the bugreport files will be written */
     std::string bugreport_dir;
 
-    /* full path of the temporary file containing the bug report */
+    /* full path of the temporary file containing the bugreport */
     std::string tmp_path;
+
+    /* full path of the file containing the dumpstate logs*/
+    std::string log_path;
 
     /* full path of the temporary file containing the screenshot (when requested) */
     std::string screenshot_path;
 
-    /* base name (without suffix or extensions) of the bug report files */
+    /* base name (without suffix or extensions) of the bugreport files */
     std::string base_name;
 
-    /* suffix of the bug report files - it's typically the date (when invoked with -d),
+    /* suffix of the bugreport files - it's typically the date (when invoked with -d),
      * although it could be changed by the user using a system property */
     std::string suffix;
 
@@ -1145,18 +1144,25 @@ int main(int argc, char *argv[]) {
             screenshot_path = bugreport_dir + "/" + base_name + "-" + suffix + ".png";
         }
         tmp_path = bugreport_dir + "/" + base_name + "-" + suffix + ".tmp";
+        log_path = bugreport_dir + "/dumpstate_log-" + suffix + "-"
+                + std::to_string(getpid()) + ".txt";
 
-        ALOGD("Bugreport dir: %s\nBase name: %s\nSuffix: %s\nTemporary path: %s\n"
-                "Screenshot path: %s\n", bugreport_dir.c_str(), base_name.c_str(), suffix.c_str(),
-                tmp_path.c_str(), screenshot_path.c_str());
+        MYLOGD("Bugreport dir: %s\n"
+                "Base name: %s\n"
+                "Suffix: %s\n"
+                "Log path: %s\n"
+                "Temporary path: %s\n"
+                "Screenshot path: %s\n",
+                bugreport_dir.c_str(), base_name.c_str(), suffix.c_str(),
+                log_path.c_str(), tmp_path.c_str(), screenshot_path.c_str());
 
         if (do_zip_file) {
-            ALOGD("Creating initial .zip file");
+            MYLOGD("Creating initial .zip file\n");
             path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
             create_parent_dirs(path.c_str());
             zip_file.reset(fopen(path.c_str(), "wb"));
             if (!zip_file) {
-                ALOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
+                MYLOGE("fopen(%s, 'wb'): %s\n", path.c_str(), strerror(errno));
                 do_zip_file = 0;
             } else {
                 zip_writer.reset(new ZipWriter(zip_file.get()));
@@ -1194,13 +1200,13 @@ int main(int argc, char *argv[]) {
     if (do_fb && do_early_screenshot) {
         if (screenshot_path.empty()) {
             // should not have happened
-            ALOGE("INTERNAL ERROR: skipping early screenshot because path was not set");
+            MYLOGE("INTERNAL ERROR: skipping early screenshot because path was not set\n");
         } else {
-            ALOGI("taking early screenshot\n");
+            MYLOGI("taking early screenshot\n");
             take_screenshot(screenshot_path);
-            ALOGI("wrote screenshot: %s\n", screenshot_path.c_str());
+            MYLOGI("wrote screenshot: %s\n", screenshot_path.c_str());
             if (chown(screenshot_path.c_str(), AID_SHELL, AID_SHELL)) {
-                ALOGE("Unable to change ownership of screenshot file %s: %s\n",
+                MYLOGE("Unable to change ownership of screenshot file %s: %s\n",
                         screenshot_path.c_str(), strerror(errno));
             }
         }
@@ -1208,7 +1214,7 @@ int main(int argc, char *argv[]) {
 
     if (do_zip_file) {
         if (chown(path.c_str(), AID_SHELL, AID_SHELL)) {
-            ALOGE("Unable to change ownership of zip file %s: %s\n", path.c_str(), strerror(errno));
+            MYLOGE("Unable to change ownership of zip file %s: %s\n", path.c_str(), strerror(errno));
         }
     }
 
@@ -1225,6 +1231,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (is_redirecting) {
+        redirect_to_file(stderr, const_cast<char*>(log_path.c_str()));
         /* TODO: rather than generating a text file now and zipping it later,
            it would be more efficient to redirect stdout to the zip entry
            directly, but the libziparchive doesn't support that option yet. */
@@ -1232,7 +1239,7 @@ int main(int argc, char *argv[]) {
     }
     // NOTE: there should be no stdout output until now, otherwise it would break the header.
     // In particular, DurationReport objects should be created passing 'title, NULL', so their
-    // duration is logged into ALOG instead.
+    // duration is logged into MYLOG instead.
     print_header(version);
 
     dumpstate(do_early_screenshot ? "": screenshot_path);
@@ -1248,6 +1255,7 @@ int main(int argc, char *argv[]) {
     /* close output if needed */
     if (is_redirecting) {
         fclose(stdout);
+        fclose(stderr);
     }
 
     /* rename or zip the (now complete) .tmp file to its final location */
@@ -1265,17 +1273,17 @@ int main(int argc, char *argv[]) {
             if (std::regex_match(value, valid_regex)) {
                 change_suffix = true;
             } else {
-                ALOGE("invalid suffix provided by user: %s", value);
+                MYLOGE("invalid suffix provided by user: %s\n", value);
             }
         }
         if (change_suffix) {
-            ALOGI("changing suffix from %s to %s", suffix.c_str(), value);
+            MYLOGI("changing suffix from %s to %s\n", suffix.c_str(), value);
             suffix = value;
             if (!screenshot_path.empty()) {
                 std::string new_screenshot_path =
                         bugreport_dir + "/" + base_name + "-" + suffix + ".png";
                 if (rename(screenshot_path.c_str(), new_screenshot_path.c_str())) {
-                    ALOGE("rename(%s, %s): %s\n", screenshot_path.c_str(),
+                    MYLOGE("rename(%s, %s): %s\n", screenshot_path.c_str(),
                             new_screenshot_path.c_str(), strerror(errno));
                 } else {
                     screenshot_path = new_screenshot_path;
@@ -1285,19 +1293,19 @@ int main(int argc, char *argv[]) {
 
         bool do_text_file = true;
         if (do_zip_file) {
-            ALOGD("Adding text entry to .zip bugreport");
+            MYLOGD("Adding text entry to .zip bugreport\n");
             if (!finish_zip_file(base_name + "-" + suffix + ".txt", tmp_path, now)) {
-                ALOGE("Failed to finish zip file; sending text bugreport instead\n");
+                MYLOGE("Failed to finish zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
                 do_text_file = false;
             }
         }
         if (do_text_file) {
-            ALOGD("Generating .txt bugreport");
+            MYLOGD("Generating .txt bugreport\n");
             path = bugreport_dir + "/" + base_name + "-" + suffix + ".txt";
             if (rename(tmp_path.c_str(), path.c_str())) {
-                ALOGE("rename(%s, %s): %s\n", tmp_path.c_str(), path.c_str(), strerror(errno));
+                MYLOGE("rename(%s, %s): %s\n", tmp_path.c_str(), path.c_str(), strerror(errno));
                 path.clear();
             }
         }
@@ -1306,11 +1314,12 @@ int main(int argc, char *argv[]) {
     /* tell activity manager we're done */
     if (do_broadcast) {
         if (!path.empty()) {
-            ALOGI("Final bugreport path: %s\n", path.c_str());
+            MYLOGI("Final bugreport path: %s\n", path.c_str());
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
-                 "--es", "android.intent.extra.BUGREPORT", path
+                 "--es", "android.intent.extra.BUGREPORT", path,
+                 "--es", "android.intent.extra.DUMPSTATE_LOG", log_path
             };
             if (do_fb) {
                 am_args.push_back("--es");
@@ -1326,12 +1335,12 @@ int main(int argc, char *argv[]) {
                 send_broadcast("android.intent.action.BUGREPORT_FINISHED", am_args);
             }
         } else {
-            ALOGE("Skipping finished broadcast because bugreport could not be generated\n");
+            MYLOGE("Skipping finished broadcast because bugreport could not be generated\n");
         }
     }
 
-    ALOGD("Final progress: %d/%d (originally %d)\n", progress, weight_total, WEIGHT_TOTAL);
-    ALOGI("done\n");
+    MYLOGD("Final progress: %d/%d (originally %d)\n", progress, weight_total, WEIGHT_TOTAL);
+    MYLOGI("done\n");
 
     return 0;
 }
