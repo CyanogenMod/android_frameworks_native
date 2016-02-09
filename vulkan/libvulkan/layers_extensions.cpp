@@ -394,6 +394,14 @@ LayerRef::~LayerRef() {
     }
 }
 
+const char* LayerRef::GetName() {
+    return layer_->properties.layerName;
+}
+
+uint32_t LayerRef::GetSpecVersion() {
+    return layer_->properties.specVersion;
+}
+
 LayerRef::LayerRef(LayerRef&& other) : layer_(std::move(other.layer_)) {
     other.layer_ = nullptr;
 }
