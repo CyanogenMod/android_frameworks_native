@@ -126,6 +126,8 @@ public:
 
     status_t            writeByteVector(const std::unique_ptr<std::vector<int8_t>>& val);
     status_t            writeByteVector(const std::vector<int8_t>& val);
+    status_t            writeByteVector(const std::unique_ptr<std::vector<uint8_t>>& val);
+    status_t            writeByteVector(const std::vector<uint8_t>& val);
     status_t            writeInt32Vector(const std::unique_ptr<std::vector<int32_t>>& val);
     status_t            writeInt32Vector(const std::vector<int32_t>& val);
     status_t            writeInt64Vector(const std::unique_ptr<std::vector<int64_t>>& val);
@@ -271,6 +273,8 @@ public:
 
     status_t            readByteVector(std::unique_ptr<std::vector<int8_t>>* val) const;
     status_t            readByteVector(std::vector<int8_t>* val) const;
+    status_t            readByteVector(std::unique_ptr<std::vector<uint8_t>>* val) const;
+    status_t            readByteVector(std::vector<uint8_t>* val) const;
     status_t            readInt32Vector(std::unique_ptr<std::vector<int32_t>>* val) const;
     status_t            readInt32Vector(std::vector<int32_t>* val) const;
     status_t            readInt64Vector(std::unique_ptr<std::vector<int64_t>>* val) const;

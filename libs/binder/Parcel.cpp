@@ -808,16 +808,10 @@ status_t Parcel::writeUtf8AsUtf16(const std::unique_ptr<std::string>& str) {
   return writeUtf8AsUtf16(*str);
 }
 
-status_t Parcel::writeByteVector(const std::unique_ptr<std::vector<int8_t>>& val)
-{
-    if (!val) {
-        return writeInt32(-1);
-    }
+namespace {
 
-    return writeByteVector(*val);
-}
-
-status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
+template<typename T>
+status_t writeByteVectorInternal(Parcel* parcel, const std::vector<T>& val)
 {
     status_t status;
     if (val.size() > std::numeric_limits<int32_t>::max()) {
@@ -825,12 +819,12 @@ status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
         return status;
     }
 
-    status = writeInt32(val.size());
+    status = parcel->writeInt32(val.size());
     if (status != OK) {
         return status;
     }
 
-    void* data = writeInplace(val.size());
+    void* data = parcel->writeInplace(val.size());
     if (!data) {
         status = BAD_VALUE;
         return status;
@@ -838,6 +832,37 @@ status_t Parcel::writeByteVector(const std::vector<int8_t>& val)
 
     memcpy(data, val.data(), val.size());
     return status;
+}
+
+template<typename T>
+status_t writeByteVectorInternalPtr(Parcel* parcel,
+                                    const std::unique_ptr<std::vector<T>>& val)
+{
+    if (!val) {
+        return parcel->writeInt32(-1);
+    }
+
+    return writeByteVectorInternal(parcel, *val);
+}
+
+}  // namespace
+
+status_t Parcel::writeByteVector(const std::vector<int8_t>& val) {
+    return writeByteVectorInternal(this, val);
+}
+
+status_t Parcel::writeByteVector(const std::unique_ptr<std::vector<int8_t>>& val)
+{
+    return writeByteVectorInternalPtr(this, val);
+}
+
+status_t Parcel::writeByteVector(const std::vector<uint8_t>& val) {
+    return writeByteVectorInternal(this, val);
+}
+
+status_t Parcel::writeByteVector(const std::unique_ptr<std::vector<uint8_t>>& val)
+{
+    return writeByteVectorInternalPtr(this, val);
 }
 
 status_t Parcel::writeInt32Vector(const std::vector<int32_t>& val)
@@ -1406,11 +1431,15 @@ restart_write:
     return err;
 }
 
-status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
+namespace {
+
+template<typename T>
+status_t readByteVectorInternal(const Parcel* parcel,
+                                std::vector<T>* val) {
     val->clear();
 
     int32_t size;
-    status_t status = readInt32(&size);
+    status_t status = parcel->readInt32(&size);
 
     if (status != OK) {
         return status;
@@ -1420,12 +1449,12 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
         status = UNEXPECTED_NULL;
         return status;
     }
-    if (size_t(size) > dataAvail()) {
+    if (size_t(size) > parcel->dataAvail()) {
         status = BAD_VALUE;
         return status;
     }
 
-    const void* data = readInplace(size);
+    const void* data = parcel->readInplace(size);
     if (!data) {
         status = BAD_VALUE;
         return status;
@@ -1436,26 +1465,47 @@ status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
     return status;
 }
 
-status_t Parcel::readByteVector(std::unique_ptr<std::vector<int8_t>>* val) const {
-    const int32_t start = dataPosition();
+template<typename T>
+status_t readByteVectorInternalPtr(
+        const Parcel* parcel,
+        std::unique_ptr<std::vector<T>>* val) {
+    const int32_t start = parcel->dataPosition();
     int32_t size;
-    status_t status = readInt32(&size);
+    status_t status = parcel->readInt32(&size);
     val->reset();
 
     if (status != OK || size < 0) {
         return status;
     }
 
-    setDataPosition(start);
-    val->reset(new std::vector<int8_t>());
+    parcel->setDataPosition(start);
+    val->reset(new std::vector<T>());
 
-    status = readByteVector(val->get());
+    status = readByteVectorInternal(parcel, val->get());
 
     if (status != OK) {
         val->reset();
     }
 
     return status;
+}
+
+}  // namespace
+
+status_t Parcel::readByteVector(std::vector<int8_t>* val) const {
+    return readByteVectorInternal(this, val);
+}
+
+status_t Parcel::readByteVector(std::vector<uint8_t>* val) const {
+    return readByteVectorInternal(this, val);
+}
+
+status_t Parcel::readByteVector(std::unique_ptr<std::vector<int8_t>>* val) const {
+    return readByteVectorInternalPtr(this, val);
+}
+
+status_t Parcel::readByteVector(std::unique_ptr<std::vector<uint8_t>>* val) const {
+    return readByteVectorInternalPtr(this, val);
 }
 
 status_t Parcel::readInt32Vector(std::unique_ptr<std::vector<int32_t>>* val) const {
