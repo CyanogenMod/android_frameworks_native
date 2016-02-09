@@ -238,17 +238,19 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    capabilities->currentExtent =
-        VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
-
     // TODO(jessehall): Figure out what the min/max values should be.
     capabilities->minImageCount = 2;
     capabilities->maxImageCount = 3;
+
+    capabilities->currentExtent =
+        VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
     // TODO(jessehall): Figure out what the max extent should be. Maximum
     // texture dimension maybe?
     capabilities->minImageExtent = VkExtent2D{1, 1};
     capabilities->maxImageExtent = VkExtent2D{4096, 4096};
+
+    capabilities->maxImageArrayLayers = 1;
 
     // TODO(jessehall): We can support all transforms, fix this once
     // implemented.
@@ -257,7 +259,9 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
     // TODO(jessehall): Implement based on NATIVE_WINDOW_TRANSFORM_HINT.
     capabilities->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
-    capabilities->maxImageArrayLayers = 1;
+    // On Android, window composition is a WindowManager property, not something
+    // associated with the bufferqueue. It can't be changed from here.
+    capabilities->supportedCompositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
     // TODO(jessehall): I think these are right, but haven't thought hard about
     // it. Do we need to query the driver for support of any of these?
