@@ -56,6 +56,7 @@ static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
 // TODO: should be part of dumpstate object
+static unsigned long id;
 static char build_type[PROPERTY_VALUE_MAX];
 static time_t now;
 static std::unique_ptr<ZipWriter> zip_writer;
@@ -477,6 +478,7 @@ static void print_header(std::string version) {
     dump_file(NULL, "/proc/version");
     printf("Command line: %s\n", strtok(cmdline_buf, "\n"));
     printf("Bugreport format version: %s\n", version.c_str());
+    printf("Dumpstate info: id=%lu pid=%d\n", id, getpid());
     printf("\n");
 }
 
@@ -1034,6 +1036,14 @@ int main(int argc, char *argv[]) {
 
     MYLOGI("begin\n");
 
+    /* gets the sequential id */
+    char last_id[PROPERTY_VALUE_MAX];
+    property_get("dumpstate.last_id", last_id, "0");
+    id = strtoul(last_id, NULL, 10) + 1;
+    sprintf(last_id, "%lu", id);
+    property_set("dumpstate.last_id", last_id);
+    MYLOGI("dumpstate id: %lu\n", id);
+
     /* clear SIGPIPE handler */
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = sigpipe_handler;
@@ -1174,6 +1184,7 @@ int main(int argc, char *argv[]) {
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP",
                  "--es", "android.intent.extra.NAME", suffix,
+                 "--ei", "android.intent.extra.ID", std::to_string(id),
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
             };
@@ -1317,6 +1328,7 @@ int main(int argc, char *argv[]) {
             MYLOGI("Final bugreport path: %s\n", path.c_str());
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
+                 "--ei", "android.intent.extra.ID", std::to_string(id),
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--es", "android.intent.extra.BUGREPORT", path,
                  "--es", "android.intent.extra.DUMPSTATE_LOG", log_path
