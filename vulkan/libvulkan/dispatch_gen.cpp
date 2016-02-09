@@ -211,6 +211,7 @@ const NameProc kLoaderGlobalProcs[] = {
 const NameProc kLoaderTopProcs[] = {
     // clang-format off
     {"vkAllocateCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateCommandBuffers>(AllocateCommandBuffers_Top))},
+    {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDevice>(CreateDevice_Top))},
     {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance_Top))},
     {"vkDestroyDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDevice>(DestroyDevice_Top))},
     {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance_Top))},
@@ -1401,7 +1402,7 @@ VKAPI_ATTR VkResult vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice ph
 
 __attribute__((visibility("default")))
 VKAPI_ATTR VkResult vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {
-    return GetDispatchTable(physicalDevice).CreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
+    return CreateDevice_Top(physicalDevice, pCreateInfo, pAllocator, pDevice);
 }
 
 __attribute__((visibility("default")))
