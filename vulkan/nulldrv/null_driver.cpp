@@ -89,7 +89,7 @@ enum Enum {
 };
 }  // namespace HandleType
 
-const VkDeviceSize kMaxDeviceMemory = VkDeviceSize(INTPTR_MAX) + 1;
+const VkDeviceSize kMaxDeviceMemory = 0x10000000;  // 256 MiB, arbitrary
 
 }  // anonymous namespace
 

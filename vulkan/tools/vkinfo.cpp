@@ -342,7 +342,7 @@ void PrintGpuInfo(const GpuInfo& info, const Options& options, size_t indent) {
             strbuf << "DEVICE_LOCAL";
         printf("%sHeap %u: %" PRIu64 " MiB (0x%" PRIx64 " B) %s\n",
                Indent(indent + 1), heap,
-               info.memory.memoryHeaps[heap].size / 0x1000000,
+               info.memory.memoryHeaps[heap].size / 0x100000,
                info.memory.memoryHeaps[heap].size, strbuf.str().c_str());
         strbuf.str(std::string());
 
